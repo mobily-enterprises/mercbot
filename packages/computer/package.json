@@ -10,9 +10,9 @@
   "description": "Each bot's computer: a small desktop (Xvfb, openbox, Chrome launched by Stagehand) shown over VNC (D-11 to D-13).",
   "dependencies": {
     "@browserbasehq/stagehand": "4.3.0",
-    "@jskit-ai/database-runtime": "0.1.270",
-    "@jskit-ai/kernel": "0.2.21",
-    "@jskit-ai/resource-core": "0.1.212",
+    "@jskit-ai/database-runtime": "0.1.275",
+    "@jskit-ai/kernel": "0.2.26",
+    "@jskit-ai/resource-core": "0.1.217",
     "@local/account": "0.1.0",
     "@local/files": "0.1.0",
     "@local/homes": "0.1.0",

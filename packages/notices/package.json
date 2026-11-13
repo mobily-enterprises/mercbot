@@ -10,7 +10,7 @@
     "./server/publishIn": "./src/server/publishIn.js"
   },
   "dependencies": {
-    "@jskit-ai/kernel": "0.2.21",
+    "@jskit-ai/kernel": "0.2.26",
     "pg": "8.23.1"
   },
   "jskit": {

@@ -20,9 +20,9 @@
   "dependencies": {
     "@jitl/quickjs-singlefile-browser-release-sync": "0.32.0",
     "@jitl/quickjs-wasmfile-release-sync": "0.32.0",
-    "@jskit-ai/database-runtime": "0.1.270",
-    "@jskit-ai/kernel": "0.2.21",
-    "@jskit-ai/resource-core": "0.1.212",
+    "@jskit-ai/database-runtime": "0.1.275",
+    "@jskit-ai/kernel": "0.2.26",
+    "@jskit-ai/resource-core": "0.1.217",
     "@local/account": "0.1.0",
     "@local/homes": "0.1.0",
     "@local/notices": "0.1.0",
