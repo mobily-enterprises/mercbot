@@ -89,8 +89,12 @@ export function createCdpBridge() {
     };
   }
 
-  /** Takes this server's WebSocket upgrades for the routes; returns a function that stops. */
+  /**
+   * Takes this server's WebSocket upgrades for the routes; returns a function that stops, ending the connections still
+   * open too: the server can't close while one is.
+   */
   function attach(httpServer) {
+    const open = new Set();
     const onUpgrade = (request, socket, head) => {
       const url = String(request.url || "");
       if (!url.startsWith(PREFIX)) return;
@@ -102,12 +106,15 @@ export function createCdpBridge() {
         socket.end("HTTP/1.1 403 Forbidden\r\n\r\n");
         return;
       }
+      open.add(socket);
+      socket.once("close", () => open.delete(socket));
       pipeUpgrade(request, socket, head, socketPath, target);
     };
     httpServer.on("upgrade", onUpgrade);
     return () => {
       httpServer.off("upgrade", onUpgrade);
       routes.clear();
+      for (const socket of open) socket.destroy();
     };
   }
 

@@ -144,7 +144,12 @@ never lose their website sign-ins when a machine goes.
   shared volume, not database rows.*
 - On SIGTERM a server drains: requests in progress finish, routine runs and
   background work get up to 20 seconds, every computer is saved, and live streams
-  and screens close so pages reconnect to another server.
+  and screens close so pages reconnect to another server. *Since 2026-11-13 live
+  streams and screens close and every computer is saved first, while requests in
+  progress finish, and no computer starts there again; routine runs and background
+  work get their 20 seconds after. Puppeteer and Stagehand reach a browser through
+  the server's own port (D-68), so the server's close waited for them, and computers
+  left to be put away after it never were.*
 - Pages retry sends and replies that were cut off (about 15 seconds in all) without
   doubling them, and catch up after reconnecting.
 - Servers find their own private address; `MERCBOT_SERVER_URL` overrides it.

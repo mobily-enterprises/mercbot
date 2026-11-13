@@ -44,9 +44,11 @@ person's own computer's, whose refusals name the command that fixes each.
 
 `bin/server.js` runs `server.js`'s `serve`, and `bin/develop.js` runs `develop`;
 a copy built on Mercbot puts its own two in their place to give its options.
-`serve` drains on SIGTERM or SIGINT (D-19). It closes the app, which runs
-every feature's shutdown: bots finish routine runs and background work (up to 20
-seconds), computers save their browsers, and live streams and screens close so
-pages reconnect elsewhere. It exits after at most 25 seconds. `docs/deployment.md`
-lists what a deployment of disposable servers needs.
+`serve` drains on SIGTERM or SIGINT (D-19). It closes the app: live streams and
+screens close so pages reconnect elsewhere, and computers save their browsers
+while requests in progress finish (`serveComputers`, before Fastify waits for the
+server's connections, since the browsers' own come in through it, D-68). Then every
+feature's shutdown runs: bots finish routine runs and background work (up to 20
+seconds). It exits after at most 25 seconds. `docs/deployment.md` lists what a
+deployment of disposable servers needs.
 

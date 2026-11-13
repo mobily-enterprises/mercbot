@@ -52,8 +52,8 @@ export function codingFollowUp(apps, systemContext) {
 
 /**
  * The bots' background loops (D-15, D-19): started only on a server that is serving, so tests and
- * tools that build the app without listening never claim work, and drained on shutdown before the
- * bots' computers are put away.
+ * tools that build the app without listening never claim work, and drained on shutdown, after the
+ * bots' computers were put away.
  * @param {object} dependencies
  * @param {import("./types.js").BotRecords} dependencies.records mercbot.bots.records: the routines' work
  * @param {(reason: string) => object} dependencies.systemContext the bots' system context: the loops claim in every home
@@ -99,7 +99,7 @@ export function createBotLoops({ records, systemContext, notices, files, apps, c
       prompt: shellReport(run)
     }, { context: systemContext("a finished command's follow-up").forWorkspace(String(run.workspace_id)) }));
     // A coding run on a bot's computer wakes its bot to report, the same way.
-    // It keeps listening after the drain: computers are put away after it, and a run they stop is
+    // It keeps listening through the drain: computers are put away before it, and a run they stop is
     // reported too.
     computer?.onCodingEnd(codingFollowUp(apps, systemContext));
   }

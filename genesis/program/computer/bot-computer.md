@@ -188,6 +188,11 @@ cookies file's sha256, when each was saved, and the address.
   updated, and only then is the previous file removed. While it's awake, its cookies are read
   from Chrome every 30 seconds and saved, sealed, to `cookies.sealed` (written whole, then renamed
   into place) when they've changed, with the current address.
+- **Shutting down:** a server that's closing puts every computer away (`serveComputers`, in Fastify's
+  `preClose`) before Fastify waits for its connections to end, because Puppeteer and Stagehand reach
+  each browser through the server's own port (D-68): left until those had ended, it never came. A
+  stopping server then starts no computer again (`computer_server_stopping`), and a screen server
+  stopped by the put-away isn't restarted.
 - **Waking:** on any server, waking unpacks the newest saved profile (a marker file
   says which one is already there), reapplies cookies saved after it and reopens the
   last page.

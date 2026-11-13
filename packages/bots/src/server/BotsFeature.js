@@ -105,7 +105,7 @@ const BotsFeature = defineFeature({
       botLoops.start();
     });
     // Shutting down (D-19): close live streams so pages reconnect elsewhere; the shutdown hook then
-    // drains the loops before the bots' computers are put away.
+    // drains the loops, after the bots' computers were put away (serveComputers).
     const streams = new Set();
     fastify.addHook("preClose", async () => {
       for (const stream of streams) stream.end();

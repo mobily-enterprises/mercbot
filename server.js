@@ -241,9 +241,9 @@ async function startServer({ host, port, gate } = {}) {
   return app;
 }
 
-// A machine can be taken away at any time (D-19). On SIGTERM or SIGINT the server drains: it stops taking new
-// connections, lets requests in progress finish, hands back routine runs, saves every bot's browser and closes live
-// connections so pages reconnect elsewhere. It gives up after 25 seconds, inside the usual 30 seconds a platform allows.
+// A machine can be taken away at any time (D-19). On SIGTERM or SIGINT the server drains: it closes live connections
+// so pages reconnect elsewhere and saves every bot's browser while requests in progress finish, then stops taking new
+// connections and hands back routine runs. It gives up after 25 seconds, inside the usual 30 seconds a platform allows.
 const DRAIN_MS = 25000;
 
 /**

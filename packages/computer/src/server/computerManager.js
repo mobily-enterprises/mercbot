@@ -4,6 +4,7 @@ import { mkdir, rm } from "node:fs/promises";
 import net from "node:net";
 import os from "node:os";
 import path from "node:path";
+import { AppError } from "@jskit-ai/kernel/server/runtime/errors";
 import { createRecorder } from "./recorder.js";
 import { BROWSER_ICON, startDesktop } from "./desktop.js";
 import { createSignInChain } from "./signInChain.js";
@@ -176,6 +177,7 @@ export function createComputerManager({
   clock = Date.now
 }) {
   const computers = new Map();
+  let stopping = false;
 
   function entry(computerId) {
     const key = String(computerId);
@@ -348,6 +350,12 @@ export function createComputerManager({
   }
 
   async function wake(computerId) {
+    // A stopping server has put its computers away (D-19): none starts here again, as nothing would put it away.
+    if (stopping) {
+      throw new AppError(503, "This server is stopping; the computer starts again on the next one.", {
+        code: "computer_server_stopping"
+      });
+    }
     const computer = entry(computerId);
     computer.lastUsed = Date.now();
     if (computer.state === "awake") return computer;
@@ -439,7 +447,8 @@ export function createComputerManager({
       errors = (errors + chunk).slice(-2000);
     });
     vnc.once("exit", async (code, signal) => {
-      if (computer.vnc !== vnc || computer.state !== "awake") return;
+      // Putting the computer away stopped it: a stopping server's computers stay "awake" while they're put away.
+      if (stopping || computer.vnc !== vnc || computer.state !== "awake") return;
       console.error(
         `Computer ${computer.computerId}: the screen-sharing server stopped (${signal || `code ${code}`}): ` +
         `${errors.trim().slice(-500) || "no message"}`
@@ -702,6 +711,7 @@ export function createComputerManager({
 
 
   async function shutdown() {
+    stopping = true;
     clearInterval(idleTimer);
     clearInterval(cookieTimer);
     process.removeListener("exit", killAll);

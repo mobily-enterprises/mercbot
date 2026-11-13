@@ -20,6 +20,27 @@ export const COMPUTER_OWNS = Object.freeze([
   mercbotSettingResource
 ]);
 
+/**
+ * Serves `computers`' screens and browsers through `fastify`'s own server (D-68) and puts them away as it closes (D-19).
+ * Live screens and `streams` end first, so pages reconnect to another server. Every computer here is then put away,
+ * its browser saved, before the server waits for its connections to end: Puppeteer and Stagehand reach each browser
+ * through this same server, so it can't close while a computer is awake, and a put-away left until it had closed never
+ * came.
+ * @param {import("@jskit-ai/kernel/server/types").RuntimeFastify} fastify
+ * @param {import("./types.js").Computer} computers
+ * @param {Set<import("node:http").ServerResponse>} streams The computers' live status streams.
+ */
+export function serveComputers(fastify, computers, streams) {
+  const closeScreens = attachVncBridge(fastify.server, computers);
+  const closeBrowsers = computers.attachBrowserBridge(fastify.server);
+  fastify.addHook("preClose", async () => {
+    closeScreens();
+    for (const stream of streams) stream.end();
+    await computers.shutdown();
+    closeBrowsers();
+  });
+}
+
 // Each bot's computer, on whichever server runs it (D-15), with its routes and live screens. A computer runs on the
 // server that needs it, unless a feature says where computers run (`mercbot.computer-placement`, D-85).
 const ComputerFeature = defineFeature({
@@ -68,16 +89,8 @@ const ComputerFeature = defineFeature({
     });
     // A move of a home's files puts its computers to sleep first, as they write to its folders (D-80).
     files.moves.whenStarting((homeId) => computers.sleepHome(homeId));
-    const closeBridge = attachVncBridge(fastify.server, computers);
-    const closeBrowserBridge = computers.attachBrowserBridge(fastify.server);
-    // Shutting down (D-19): live streams and screens close first, so pages reconnect to another
-    // server; then every computer here is put away with its browser saved.
     const streams = new Set();
-    fastify.addHook("preClose", async () => {
-      closeBridge();
-      closeBrowserBridge();
-      for (const stream of streams) stream.end();
-    });
+    serveComputers(fastify, computers, streams);
     const computer = Object.freeze({
       register: computers.register,
       answer: computers.answer,
@@ -99,18 +112,10 @@ const ComputerFeature = defineFeature({
       startRecording: computers.startRecording,
       stopRecording: computers.stopRecording,
       code: computers.code,
-      onCodingEnd: computers.onCodingEnd,
-      async shutdown() {
-        closeBridge();
-        closeBrowserBridge();
-        await computers.shutdown();
-      }
+      onCodingEnd: computers.onCodingEnd
     });
     registerRoutes(http, { computer, files, directory: records.directory, streams, meter });
     return { computer };
-  },
-  async shutdown(_dependencies, { outputs }) {
-    await outputs.computer.shutdown();
   }
 });
 

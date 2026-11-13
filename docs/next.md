@@ -206,13 +206,18 @@ What these waited for has happened, so nothing stops them now.
   `sandboxMemory`): with Claude Code waiting, gVisor counted 437 MiB while its memory file held 818 MiB of the host's
   memory, so a sandbox at its 3 GB limit can hold more than 3 GB. Recommended: measure the gap during a real run, and
   if it stays, read the memory file's own size (its allocated blocks) from outside instead.
-- [ ] **A server with an awake computer may not finish draining** (`bin/server.js` DRAIN_MS 25 s, D-19): in three
+- [x] **A server with an awake computer may not finish draining** (`bin/server.js` DRAIN_MS 25 s, D-19): in three
   of four Test Preview runs on a test host with an awake computer (2026-11-12, with timing lines), only the apps'
   `preClose` hook ran before the 25 s ran out: Fastify's close was still waiting, so no feature's shutdown ran, the
   computer was never put away and its desktop and command-line session sandboxes were left running after the server
   exited (a later server's sweep removes their folders). In the fourth it finished in 23 s, and each computer was
   torn down two or three times at once, its profile saved each time. Recommended: find which connections keep the
   close waiting (the browser bridge or the screen relay), close them in `preClose`, and put each computer away once.
+  Fixed 2026-11-13: the close waited for Puppeteer's and Stagehand's own connections through the browser bridge
+  (D-68), which only the computers' put-away, after the close, would end. Computers are now put away in `preClose`
+  (`serveComputers`), the bridge's close ends any connection left, a stopping server starts no computer and doesn't
+  restart a screen server its put-away stopped. Checked on a test host with a real computer: the server ends at once
+  with its browser saved, where it used to wait out the 25 s and save nothing.
 - [ ] **The live view on x11vnc 0.9.17** (`computerManager.js` startScreen): this x11vnc, from a test host's Ubuntu,
   closes every client on its Unix socket right after the version exchange when given `-localhost`, so the screen
   never shows (`Couldn't reach the screen.`). `-localhost` only limits TCP, which `-rfbport 0` already turns off.

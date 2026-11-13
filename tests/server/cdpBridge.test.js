@@ -5,10 +5,21 @@ import http from "node:http";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+import Fastify from "fastify";
 import WebSocket, { WebSocketServer } from "ws";
 import { createCdpBridge } from "../../packages/computer/src/server/cdpBridge.js";
+import { serveComputers } from "../../packages/computer/src/server/ComputerFeature.js";
 
 // D-68: a browser's remote control is a Unix socket, reached through the server's own port.
+
+/** `promise`'s value, or `otherwise` once `ms` have passed without one. */
+function within(promise, ms, otherwise) {
+  let timer;
+  const late = new Promise((resolve) => {
+    timer = setTimeout(resolve, ms, otherwise);
+  });
+  return Promise.race([promise, late]).finally(() => clearTimeout(timer));
+}
 
 /** A stand-in for Chrome's remote control on a Unix socket: /json/version and an echoing WebSocket. */
 async function fakeBrowser(socketPath) {
@@ -62,7 +73,7 @@ async function setup(context) {
     await browser.close();
     await rm(dir, { recursive: true, force: true });
   });
-  return { bridge, browser, server, socketPath };
+  return { bridge, browser, server, socketPath, detach };
 }
 
 test("a browser's route passes its WebSocket through the server's own port to the Unix socket", async (context) => {
@@ -94,6 +105,52 @@ test("each browser gets its own fresh key, and a closed route stops working", as
   const still = await open(await second.browserUrl());
   assert.equal(still.status, 101);
   still.ws.close();
+});
+
+test("closing ends the browser connections still open, so the server can close", async (context) => {
+  const { bridge, socketPath, detach } = await setup(context);
+  const { ws } = await open(await bridge.route(socketPath).browserUrl());
+  const ended = new Promise((resolve) => ws.once("close", () => resolve("ended")));
+  detach();
+  const result = await within(ended, 2000, "still open");
+  // Ended here either way: one left open would keep the server's close, in setup's after, waiting for good.
+  ws.terminate();
+  assert.equal(result, "ended");
+});
+
+// D-19: the server's close waits for every connection to end, and Puppeteer's to each browser comes in through it.
+test("a closing server puts its computers away while their browsers still answer, then closes", async (context) => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), "mb-cdp-"));
+  const socketPath = path.join(dir, "cdp.sock");
+  const browser = await fakeBrowser(socketPath);
+  const bridge = createCdpBridge();
+  const app = Fastify();
+  let puppeteer = null;
+  const putAway = [];
+  // The computers as a server runs them: putting one away closes Chrome through Puppeteer's connection, then ends it
+  // (computerManager.js teardown).
+  const computers = {
+    attachBrowserBridge: (server) => bridge.attach(server),
+    findScreen: async () => null,
+    async shutdown() {
+      const answer = new Promise((resolve) => puppeteer.once("message", (data) => resolve(String(data))));
+      puppeteer.send("Browser.close");
+      putAway.push(await within(answer, 2000, "no answer"));
+      puppeteer.close();
+    }
+  };
+  serveComputers(app, computers, new Set());
+  await app.listen({ port: 0, host: "127.0.0.1" });
+  bridge.listening(app.server.address());
+  puppeteer = (await open(await bridge.route(socketPath).browserUrl())).ws;
+  context.after(async () => {
+    puppeteer.terminate();
+    await browser.close();
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  assert.equal(await within(app.close().then(() => "closed"), 5000, "still open after 5 s"), "closed");
+  assert.deepEqual(putAway, ["echo Browser.close"], "Chrome is closed through its connection before that ends");
 });
 
 test("an unknown key, another path or any proxy header is refused", async (context) => {
