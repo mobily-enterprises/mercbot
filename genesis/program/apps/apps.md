@@ -13,6 +13,8 @@ publishes and can restore, and fields removed from every app in one save (D-35).
 - `packages/apps/src/server/appsRuntime.js`
 - `packages/apps/src/server/registerRoutes.js`
 - `packages/apps/src/server/types.js`
+- `packages/apps/src/server/appsRepository.js`
+- `migrations/20261114090000_apps_made_by_user.cjs`
 - `src/components/apps/AppsHome.vue`
 - `src/components/apps/AppDetailsPanel.vue`
 - `src/components/apps/FieldRemoval.vue`
@@ -36,6 +38,9 @@ publishes and can restore, and fields removed from every app in one save (D-35).
 - `mercbot.apps`' `activity.record(entry, options)` adds another feature's entry (`{ actor, via, action,
   changes }`) to the call's home's Activity trail: an unlinked copy (integrations, D-31) is `via.kind`
   `settings`, shown as "Settings".
+- `mercbot.apps`' `acrossHomes` reads every home the options reach (a system context's; a request's reads its own):
+  `madeBy(userId, limit, options)`, the apps a person made, newest first, retired ones left out, each with its home
+  and `publicAt`; `publicCounts(workspaceIds, options)`, how many public apps each home has, in one statement.
 - `fieldImpact` lists every app version that uses a field and which list filters would widen;
   `removeField` marks the field obsolete (data kept), gives each affected app a new version
   without it (drafts rewritten), audits it once, then retires the field in AnyAPI.

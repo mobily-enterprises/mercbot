@@ -2,6 +2,7 @@
 import { defineFeature } from "@jskit-ai/kernel/server/features";
 import { passedOn } from "@jskit-ai/resource-runtime/server";
 import { createAnyapi } from "./anyapi.js";
+import { createAppsRepository } from "./appsRepository.js";
 import { createAppsRuntime } from "./appsRuntime.js";
 import { registerRoutes } from "./registerRoutes.js";
 import { createAppJobs } from "./appJobs.js";
@@ -45,6 +46,7 @@ const AppsFeature = defineFeature({
       loadTables: (workspaceId) => loadTables(resources, { context: systemContext("build a home's runtime tables").forWorkspace(workspaceId) })
     });
     const apps = createAppsRuntime({ resources, systemContext, records, anyapi, notices, env });
+    const reports = createAppsRepository(resources);
     // Only a server that is serving checks watches (D-15); on shutdown it finishes the claim in
     // hand (D-19).
     let watchLoop = null;
@@ -86,6 +88,12 @@ const AppsFeature = defineFeature({
         // entry `{ actor, via, action, changes }` in the call's home.
         activity: Object.freeze({
           record: (entry, options) => resources.auditEvents.create(entry, { ...passedOn(options), returning: "none" })
+        }),
+        // Reads over every home the call's options reach (a system context's): the apps a person made, with their
+        // homes, and how many public apps each home has.
+        acrossHomes: Object.freeze({
+          madeBy: (userId, limit, options) => reports.appsMadeBy(userId, limit, passedOn(options)),
+          publicCounts: (workspaceIds, options) => reports.publicAppsByHome(workspaceIds, passedOn(options))
         })
       })
     };

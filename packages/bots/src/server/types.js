@@ -45,13 +45,14 @@
 /** @typedef {ReturnType<typeof import("./records/turnRepository.js").createTurnRepository>} TurnRepository */
 /**
  * The bots' tables (`mercbot.bots.records`, records/BotRecordsFeature.js): the directory other features read, the
- * conversations' and messages' repositories, the bots' work (requests, routines, cards) and policies, the connect
- * follow-ups, what a turn reads beside its conversation, a bot made from a template opening its chat, and
- * agent-runtime's stores.
+ * conversations' and messages' repositories, the bots a person made across homes, the bots' work (requests, routines,
+ * cards) and policies, the connect follow-ups, what a turn reads beside its conversation, a bot made from a template
+ * opening its chat, and agent-runtime's stores.
  * @typedef {{
  *   directory: BotDirectory,
  *   conversations: ReturnType<typeof import("./records/conversationRepository.js").createConversationRepository>,
  *   messages: ReturnType<typeof import("./records/messageRepository.js").createMessageRepository>,
+ *   makers: ReturnType<typeof import("./records/makerRepository.js").createMakerRepository>,
  *   work: WorkRepository,
  *   followUps: FollowUpRepository,
  *   policies: PolicyRepository,

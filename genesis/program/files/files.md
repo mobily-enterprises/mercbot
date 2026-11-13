@@ -17,6 +17,7 @@ card in the chat with a viewer and a download (D-20, D-21).
 - `packages/files/src/server/remoteMounts.js`
 - `packages/files/src/server/storageSettings.js`
 - `packages/files/src/server/fileMoves.js`
+- `packages/files/src/server/fileStorageRepository.js`
 - `packages/files/src/server/driveStorage.js`
 - `packages/files/src/server/driveTokenRoute.js`
 - `packages/files/src/server/ownMachine.js`
@@ -52,7 +53,9 @@ card in the chat with a viewer and a download (D-20, D-21).
 ## Public contract
 
 The `mercbot.files` capability gives `store`, `apps`, `mounts`, `shell` (the bots' command
-line, see `shell.md`) and `pages` (the pages bots write, see `pages.md`).
+line, see `shell.md`), `pages` (the pages bots write, see `pages.md`) and `storageKinds(workspaceIds, options)`: where
+each of a batch of homes keeps its files (`mercbot`, `webdav`, `drive`; a home with no row keeps them on Mercbot's own volume), in
+one statement over every home the options reach.
 
 - Files live under `MERCBOT_FILES_DIR` (a JuiceFS volume shared by every server,
   mounted by `scripts/mount-files.sh`, which leaves a `.mercbot-files` marker; deployed servers

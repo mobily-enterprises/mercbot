@@ -6,7 +6,7 @@
  * @param {Record<string, import("@jskit-ai/resource-runtime/server/types").ResourceHandle>} resources the apps
  *   feature's handles
  */
-export function createAppsRepository({ appWatches, appScripts, appScriptRuns, auditEvents }) {
+export function createAppsRepository({ apps: appRows, appWatches, appScripts, appScriptRuns, auditEvents }) {
   const audit = (field) => auditEvents.column(field, "e");
 
   // Knex: report - the enabled watches with audit entries on their table between their cursor and the horizon, in id
@@ -111,12 +111,44 @@ export function createAppsRepository({ appWatches, appScripts, appScriptRuns, au
     return row?.actor ?? null;
   }
 
+  // Knex: report - the apps a person made, in every home the call's options reach, newest first, with their homes and
+  // whether they are public (ix_apps_made_by_user). An app's home is its ownership field, which the handle's own reads
+  // keep hidden
+  async function appsMadeBy(userId, limit, options) {
+    const app = (field) => appRows.column(field, "a");
+    const { query } = await appRows.scopedQuery({ alias: "a" }, options);
+    const rows = await query
+      .where(app("madeByUserId"), String(userId))
+      .whereNull(app("retiredAt"))
+      .orderBy([{ column: app("createdAt"), order: "desc" }, { column: app("id"), order: "desc" }])
+      .select({ id: app("id"), name: app("name"), kind: app("kind"), workspaceId: app("workspaceId"), publicAt: app("publicAt"), createdAt: app("createdAt") })
+      .limit(limit);
+    return rows.map((row) => ({ ...row, id: String(row.id), workspaceId: String(row.workspaceId) }));
+  }
+
+  // Knex: totals - how many public apps each of these homes has (ux_apps_slug leads with the home)
+  async function publicAppsByHome(workspaceIds, options) {
+    if (workspaceIds.length === 0) return new Map();
+    const app = (field) => appRows.column(field, "a");
+    const { query } = await appRows.scopedQuery({ alias: "a" }, options);
+    const rows = await query
+      .whereIn(app("workspaceId"), workspaceIds.map(String))
+      .whereNotNull(app("publicAt"))
+      .whereNull(app("retiredAt"))
+      .groupBy(app("workspaceId"))
+      .select({ workspaceId: app("workspaceId") })
+      .count({ apps: "*" });
+    return new Map(rows.map((row) => [String(row.workspaceId), Number(row.apps)]));
+  }
+
   return Object.freeze({
     watchesWithNews,
     watchingScriptsWithNews,
     changesBetween,
     latestRuns,
     runsPastNewest,
-    nextActor
+    nextActor,
+    appsMadeBy,
+    publicAppsByHome
   });
 }

@@ -1,6 +1,7 @@
 import { filesFolder } from "@local/account/data-folder";
 import { createDriveStorage } from "./driveStorage.js";
 import { createFileMoves } from "./fileMoves.js";
+import { createFileStorageRepository } from "./fileStorageRepository.js";
 import { createFileStore } from "./fileStore.js";
 import { createOfficeApps } from "./officeApps.js";
 import { createPages } from "./pages.js";
@@ -13,7 +14,7 @@ import { createStorageSettings } from "./storageSettings.js";
 /**
  * The `mercbot.files` capability: the file store, the office apps, each home's own storage, its
  * mounts and the moves of its files between storages (D-80), the bots' command line on the same
- * folders, and the pages bots write there (D-74).
+ * folders, the pages bots write there (D-74), and where a batch of homes keep their files.
  * @param {object} dependencies
  * @param {Record<string, any>} dependencies.resources this feature's handles
  * @param {(reason: string) => object} dependencies.systemContext the feature's system scope
@@ -50,6 +51,8 @@ export function createFilesRuntime({ resources, systemContext, env, meter, integ
     moves,
     shell,
     pages,
-    commandOutput: runs.commandOutput
+    commandOutput: runs.commandOutput,
+    // Where each of a batch of homes keeps its files, in every home a system context reaches.
+    storageKinds: createFileStorageRepository(resources).kindsByHome
   });
 }

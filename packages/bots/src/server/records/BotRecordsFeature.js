@@ -4,6 +4,7 @@ import { AGENT_TABLE_RESOURCES } from "./agentTables.js";
 import { createConversationRepository } from "./conversationRepository.js";
 import { createBotDirectory } from "./directory.js";
 import { FOLLOW_UP_SEARCH, createFollowUpRepository } from "./followUpRepository.js";
+import { createMakerRepository } from "./makerRepository.js";
 import { createMessageRepository } from "./messageRepository.js";
 import { createPolicyRepository } from "./policyRepository.js";
 import { botVisibility, conversationVisibility, messageVisibility } from "./rowPolicies.js";
@@ -96,6 +97,8 @@ const BotRecordsFeature = defineFeature({
       // Bots, seats, rooms, read points, groups, sections, the notebook and memories; and messages.
       conversations: createConversationRepository({ resources, systemContext, profiles, memberships, workspaces }),
       messages: createMessageRepository({ resources, systemContext }),
+      // The bots a person made, with their homes, in every home a system context reaches.
+      makers: createMakerRepository(resources),
       // Requests between bots, routines and their cards; a person's approval rules and auto-review.
       work,
       // The connect cards a person started signing in from, until their bot has carried on (D-77).

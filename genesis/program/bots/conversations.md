@@ -69,6 +69,8 @@ onboarding and the bot's typed replies.
 - `packages/bots/src/server/runLease.js`
 - `packages/bots/src/server/connectFollowUps.js`
 - `packages/bots/src/server/records/followUpRepository.js`
+- `packages/bots/src/server/records/makerRepository.js`
+- `tests/server/acrossHomesReads.integration.js`
 - `tests/server/connectFollowUps.integration.js`
 - `tests/server/routineRuns.integration.js`
 - `tests/server/runLease.test.js`
@@ -122,6 +124,9 @@ onboarding and the bot's typed replies.
 - `tests/server/onboarding.test.js`
 
 ## Public contract
+
+- `mercbot.bots.records`' `makers.botsMadeBy(userId, limit, options)`: the bots and group chats a person made, newest
+  first, with their homes, in every home the options reach (a system context's reads every home; a request's, its own).
 
 Long chats are compacted in the background (D-41):
 - A reply reads the conversation's newest summary (`agent_summaries`) and every message after
