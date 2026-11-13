@@ -8,6 +8,7 @@
  */
 export function createAppsRepository({ apps: appRows, appWatches, appScripts, appScriptRuns, auditEvents }) {
   const audit = (field) => auditEvents.column(field, "e");
+  const app = (field) => appRows.column(field, "a");
 
   // Knex: report - the enabled watches with audit entries on their table between their cursor and the horizon, in id
   // order (the watch loop's candidates, claimed next with SKIP LOCKED)
@@ -115,7 +116,6 @@ export function createAppsRepository({ apps: appRows, appWatches, appScripts, ap
   // whether they are public (ix_apps_made_by_user). An app's home is its ownership field, which the handle's own reads
   // keep hidden
   async function appsMadeBy(userId, limit, options) {
-    const app = (field) => appRows.column(field, "a");
     const { query } = await appRows.scopedQuery({ alias: "a" }, options);
     const rows = await query
       .where(app("madeByUserId"), String(userId))
@@ -129,7 +129,6 @@ export function createAppsRepository({ apps: appRows, appWatches, appScripts, ap
   // Knex: totals - how many public apps each of these homes has (ux_apps_slug leads with the home)
   async function publicAppsByHome(workspaceIds, options) {
     if (workspaceIds.length === 0) return new Map();
-    const app = (field) => appRows.column(field, "a");
     const { query } = await appRows.scopedQuery({ alias: "a" }, options);
     const rows = await query
       .whereIn(app("workspaceId"), workspaceIds.map(String))
