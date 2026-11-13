@@ -22,8 +22,23 @@ const props = defineProps({
   rail: { type: Boolean, default: false }
 });
 const emit = defineEmits(["shortcuts", "about", "settings", "usage"]);
-// The items a copy built on Mercbot adds, by where they go.
-const added = (place) => extensions.accountMenu.filter((item) => item.place === place);
+// The items a copy built on Mercbot adds, by where they go. One not for everyone is asked whether the person sees it
+// once, the first time the menu opens; one whose answer failed is asked again the next time.
+const shown = ref(new Set());
+const asked = new Set();
+function askVisible() {
+  for (const item of extensions.accountMenu) {
+    if (!item.visible || asked.has(item.title)) continue;
+    asked.add(item.title);
+    item.visible().then(
+      (yes) => {
+        if (yes) shown.value = new Set([...shown.value, item.title]);
+      },
+      () => asked.delete(item.title)
+    );
+  }
+}
+const added = (place) => extensions.accountMenu.filter((item) => item.place === place && (!item.visible || shown.value.has(item.title)));
 
 const menuOpen = ref(false);
 const usage = ref(null);
@@ -34,7 +49,9 @@ const showsPicture = computed(() => Boolean(props.picture) && brokenPicture.valu
 
 function setMenuOpen(value) {
   menuOpen.value = value;
-  if (value) accountApi.usage().then((result) => { usage.value = result; }).catch(() => {});
+  if (!value) return;
+  askVisible();
+  accountApi.usage().then((result) => { usage.value = result; }).catch(() => {});
 }
 
 // The row shows this month's spending (D-73), the whole home's for its owners and admins and a member's own. Its

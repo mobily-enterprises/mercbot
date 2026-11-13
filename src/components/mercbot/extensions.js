@@ -9,9 +9,9 @@
 //   get.
 // - templateParts: parts shown on a team template's page, under its badge, to someone signed in, each
 //   { component, visible }. The page asks `visible` once per template; the component gets the `template`.
-// - accountMenu: items of the account menu, each { title, icon, place, run }: `place` "menu" puts it in the menu, before
-//   Help and support; "support" in Help and support, after Mercbot's own items; "foot" at the menu's foot, after
-//   Settings. Choosing it closes the menu and calls `run()`.
+// - accountMenu: items of the account menu, each { title, icon, place, run, visible }: `place` "menu" puts it in the
+//   menu, before Help and support; "support" in Help and support, after Mercbot's own items; "foot" at the menu's foot,
+//   after Settings. Choosing it closes the menu and calls `run()`. The menu asks `visible` once, the first time it opens.
 // - generalActions: buttons beside Account details in Settings → General, each { title, confirm, run }: pressing it
 //   calls `run()`, once the person has confirmed when `confirm` ({ title, label }) says what to ask.
 // - shellParts: components the app's shell shows, each { component, place }. Without a `place`, beside its own dialogs:
