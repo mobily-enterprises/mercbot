@@ -26,6 +26,8 @@ const OPERATIONS = new Set([
   "startSignIn", "signInPage", "endSignIn"
 ]);
 const ASLEEP = Object.freeze({ state: "asleep", url: "", error: "" });
+// No live server can take a computer that runs nowhere (D-85).
+const noneFree = () => new AppError(503, "No computer can start right now. Try again in a minute.", { code: "computer_none_free" });
 // What a computer that isn't awake anywhere has in front: no page, so no sign-in chain (D-77).
 const NO_PAGE = Object.freeze({ url: "", inChain: false, startedFrom: "" });
 
@@ -163,6 +165,16 @@ async function signInFolder(profile) {
 }
 
 /**
+ * Where a computer runs unless a copy built on Mercbot says otherwise (D-15): on the server that needs it, with the
+ * servers' calls to each other signed with the secret kept in the database.
+ * @type {import("./types.js").ComputerPlacement}
+ */
+export const PLACE_HERE = Object.freeze({
+  choose: async (_computerId, servers) => servers.here,
+  secret: null
+});
+
+/**
  * Bot computers on several servers (D-15). Each computer runs on one server, its owner,
  * recorded in bot_computers; every other server passes work for it to the owner over HTTP,
  * signed with a secret kept in the database. A bot's computer wakes again on its last server
@@ -170,6 +182,8 @@ async function signInFolder(profile) {
  * tickets and screenshots live in PostgreSQL, and state changes reach every server as notices.
  * A server that can't be reached counts as gone straight away, so its computers move to the
  * server that needs them; if it was only a blip, its next heartbeat registers it again.
+ * A copy built on Mercbot may say where computers run instead (`placement`, D-85): it chooses the
+ * server for each computer no live server holds, and gives the secret servers sign their calls with.
  * @param {object} dependencies
  * @param {Record<string, any>} dependencies.resources the computer feature's handles
  * @param {(reason: string) => object} dependencies.systemContext the computer feature's system scope
@@ -179,6 +193,8 @@ async function signInFolder(profile) {
  * @param {import("@local/notices/server/types").Notices} dependencies.notices
  * @param {import("@local/files/server/types").Files} dependencies.files
  * @param {import("@local/account/server/types").Meter} dependencies.meter
+ * @param {import("./types.js").ComputerPlacement} dependencies.placement Where computers run: `PLACE_HERE`, or where a
+ *   copy built on Mercbot says (`mercbot.computer-placement`).
  * @param {typeof createComputerManager} [dependencies.createManager] The computers this server runs
  *   (tests use stand-ins).
  */
@@ -190,6 +206,7 @@ export function createComputers({
   notices,
   files,
   meter,
+  placement,
   createManager = createComputerManager
 }) {
   // Computers run on no request and pass between servers, so their reads and writes are this
@@ -293,7 +310,7 @@ export function createComputers({
     const url = env.MERCBOT_SERVER_URL || `http://${host.includes(":") ? `[${host}]` : host}:${address.port}`;
     me = env.MERCBOT_SERVER_ID || `${os.hostname()}:${address.port}`;
     cdp.listening(address);
-    secret = await records.sharedSecret();
+    secret = placement.secret ?? await records.sharedSecret();
     await records.seen(me, url);
     await records.forgetOldServers();
     // Computers this server ran before a restart are gone now.
@@ -352,11 +369,24 @@ export function createComputers({
   /** The bot's computer record, if the server holding it is alive. */
   const owner = (computerId) => records.owner(computerId);
 
-  /** Take the computer for this server unless a live server already has it. */
-  const claim = (computerId) => records.claim(computerId, me);
-
   async function gone(serverId) {
+    console.warn(`Server ${serverId} didn't answer; it counts as gone, and its computers start again where they're needed next.`);
     await records.forgetServer(serverId).catch(() => {});
+  }
+
+  /**
+   * Where a computer no live server holds goes (D-85): to the server the placement chooses, this one unless a copy built
+   * on Mercbot says otherwise. It's taken for that server unless a live server took it first. Answers the record of the
+   * server that holds it now, or null when that's this one.
+   */
+  async function place(computerId) {
+    const target = await placement.choose(computerId, { here: me, live: records.liveServers });
+    if (!target) throw noneFree();
+    if ((await records.claim(computerId, target)) && target === me) return null;
+    const found = await owner(computerId);
+    if (found?.serverId === me || (!found && target === me)) return null;
+    if (!found) throw noneFree();
+    return found;
   }
 
   async function forward(url, operation, computerId, args) {
@@ -378,18 +408,23 @@ export function createComputers({
     return body.result;
   }
 
-  /** Run an operation where the computer lives: here, or on its owner. */
+  /**
+   * Run an operation where the computer lives: here, or on its owner. One that no live server holds is placed first;
+   * an owner that doesn't answer counts as gone, and the computer is placed again, once.
+   */
   async function run(operation, computerId, ...args) {
     const key = String(computerId);
     let found = await owner(key);
-    if (!found && me && !(await claim(key))) found = await owner(key);
+    if (!found && me) found = await place(key);
     if (found && found.serverId !== me) {
       try {
         return await forward(found.serverUrl, operation, key, args);
       } catch (error) {
         if (!error.unreachable) throw error;
         await gone(found.serverId);
-        if (!me || !(await claim(key))) throw error;
+        if (!me) throw error;
+        found = await place(key);
+        if (found) return forward(found.serverUrl, operation, key, args);
       }
     }
     return runHere(operation, key, args);
@@ -462,12 +497,17 @@ export function createComputers({
     return ticket;
   }
 
-  /** Where a ticket's screen is: here (the ticket is used up) or another server's address. */
+  /**
+   * Where a ticket's screen is: here (the ticket is used up) or another server's address, with the header that signs
+   * the relay to it.
+   */
   async function findScreen(ticket) {
     const row = await records.ticketFor(ticket);
     if (!row) return null;
     const found = await owner(row.computerId);
-    if (found && found.serverId !== me) return { remote: found.serverUrl, gone: () => gone(found.serverId) };
+    if (found && found.serverId !== me) {
+      return { remote: found.serverUrl, headers: { "x-mercbot-internal": secret }, gone: () => gone(found.serverId) };
+    }
     return (await records.useTicket(row.ticket)) ? local.screen(row.computerId) : null;
   }
 

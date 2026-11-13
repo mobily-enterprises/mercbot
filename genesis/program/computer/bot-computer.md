@@ -218,6 +218,19 @@ and only the server holding a computer may record its state. Rows silent for a
 day are removed when a server starts. An open live view wakes the computer again
 if it goes to sleep.
 
+Where computers run (D-85): a computer no live server holds goes where the
+placement says: `PLACE_HERE`, the server that needs it, unless a feature
+provides `mercbot.computer-placement` (`ComputerPlacement`, `types.js`). Its
+`choose(computerId, servers)` names the server; `servers.here` is the server
+asking, and `servers.live()` answers the live servers (`liveServers`: each seen
+in the last 45 seconds, with how many computers it holds that aren't asleep).
+The computer is taken for that server in the same one statement and its work is
+passed there. Null means none can take it: "No computer can start right now.
+Try again in a minute." (503 `computer_none_free`). A server that doesn't answer
+counts as gone and the computer is placed again, once. The placement's `secret`
+signs the servers' calls to each other; `PLACE_HERE`'s is null, for the one in
+`mercbot_settings`. A relayed screen carries the same header.
+
 Teaching: `startRecording` and `stopRecording` run on the owner. While
 recording, every tab gets a page script that reports clicks, typed values (never
 password or card fields) and Enter presses, Chrome reports page changes, and the

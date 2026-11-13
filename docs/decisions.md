@@ -1810,3 +1810,25 @@ and unpublish. The design is `docs/pages-design.md`, "Publishing to your own web
   pages, a sign-in), with no sandbox, since a page can't set its own `sandbox` the way Mercbot's headers do.
   Recommendation: keep them off; if they're wanted later, only to a website on an address of its own (a subdomain only
   for pages), said plainly in Settings → Website.
+
+## D-85 — A copy built on Mercbot may say where bots' computers run (2026-11-13)
+
+Mercbot runs each bot's computer on the server that needs it, and several servers pass a computer's work to the one
+holding it (D-15). A copy built on Mercbot may want its computers on servers of its own instead, such as bigger
+machines kept apart from the ones serving pages, without changing how a computer works. It gets one seam for that, and
+Mercbot's own behaviour is unchanged without it.
+- **The seam:** an optional capability, `mercbot.computer-placement` (`ComputerPlacement` in
+  `packages/computer/src/server/types.js`). Its `choose(computerId, servers)` names the server for a computer that no
+  live server holds, from the live servers, each with how many computers it holds awake (`servers.live()`); null
+  means none can take it,
+  and the call says "No computer can start right now. Try again in a minute." (503 `computer_none_free`). Its
+  `secret` is what servers sign their calls to each other with, in place of the one Mercbot keeps in
+  `mercbot_settings`.
+- **Everything else stays as D-15 has it:** the computer is taken for the chosen server in the same one statement, it
+  wakes there again while that server lives, its work and its screen are passed there, and a server that doesn't
+  answer counts as gone at once, after which the computer is placed again, once, and wakes where it's placed with its
+  saved browser (D-19, D-50).
+- **A relayed screen is signed too:** a server relaying a live screen to the server holding it sends the same header
+  as its calls (`x-mercbot-internal`).
+- **Without the seam** a computer goes to the server that needs it, as before (`PLACE_HERE`, a placement like any
+  other); one server, or several, works as it did.

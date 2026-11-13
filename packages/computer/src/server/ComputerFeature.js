@@ -1,6 +1,6 @@
 import { defineFeature } from "@jskit-ai/kernel/server/features";
 import { BOT_COMPUTER_FILTERS, SERVER_FILTERS, TICKET_FILTERS } from "./computerRecords.js";
-import { createComputers } from "./computers.js";
+import { createComputers, PLACE_HERE } from "./computers.js";
 import { registerRoutes } from "./registerRoutes.js";
 import { attachVncBridge } from "./vncBridge.js";
 import {
@@ -20,7 +20,8 @@ export const COMPUTER_OWNS = Object.freeze([
   mercbotSettingResource
 ]);
 
-// Each bot's computer, on whichever server runs it (D-15), with its routes and live screens.
+// Each bot's computer, on whichever server runs it (D-15), with its routes and live screens. A computer runs on the
+// server that needs it, unless a feature says where computers run (`mercbot.computer-placement`, D-85).
 const ComputerFeature = defineFeature({
   id: "mercbot.computer",
   domain: "computer",
@@ -36,6 +37,9 @@ const ComputerFeature = defineFeature({
     meter: "mercbot.meter",
     env: "runtime.env"
   },
+  optional: {
+    placement: "mercbot.computer-placement"
+  },
   provides: {
     computer: "mercbot.computer"
   },
@@ -48,11 +52,15 @@ const ComputerFeature = defineFeature({
    * @param {import("@local/files/server/types").Files} capabilities.files
    * @param {import("@local/account/server/types").Meter} capabilities.meter
    * @param {import("@jskit-ai/kernel/server/types").RuntimeEnv} capabilities.env
+   * @param {import("./types.js").ComputerPlacement | null} capabilities.placement where computers run, when a copy
+   *   built on Mercbot says; else `PLACE_HERE`
    * @param {Record<string, any>} capabilities.resources this feature's handles
    * @param {(reason: string) => object} capabilities.systemContext
    */
-  async setup({ records, http, fastify, notices, files, meter, env, resources, systemContext }) {
-    const computers = createComputers({ resources, systemContext, directory: records.directory, env, notices, files, meter });
+  async setup({ records, http, fastify, notices, files, meter, env, placement, resources, systemContext }) {
+    const computers = createComputers({
+      resources, systemContext, directory: records.directory, env, notices, files, meter, placement: placement ?? PLACE_HERE
+    });
     fastify.addHook("onListen", () => {
       computers.register(fastify.server.address()).catch((error) => {
         fastify.log.error({ err: error }, "This server couldn't register for bot computers.");

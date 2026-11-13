@@ -11,7 +11,7 @@ import { createNotices } from "../../packages/notices/src/server/notices.js";
 import { createMeter, refusalOf, refuseWork } from "../../packages/account/src/server/meter.js";
 import { FREE_RECORDER } from "../support/botDoubles.mjs";
 import { COMPUTER_OWNS } from "../../packages/computer/src/server/ComputerFeature.js";
-import { createComputers } from "../../packages/computer/src/server/computers.js";
+import { createComputers, PLACE_HERE } from "../../packages/computer/src/server/computers.js";
 import { createFileStore } from "../../packages/files/src/server/fileStore.js";
 import { testBot } from "./testHome.js";
 
@@ -79,12 +79,12 @@ function conversationsOf(knex) {
   };
 }
 
-async function startServer(knex, context, name, log, store) {
+async function startServer(knex, context, name, log, store, placement = PLACE_HERE) {
   const notices = createNotices({ knex });
   const { resources, systemContext } = (await ownedHandles(knex, context, { "mercbot.computer": COMPUTER_OWNS })).features["mercbot.computer"];
   const computers = createComputers({
     resources, systemContext, directory: conversationsOf(knex), env: process.env, notices, files: { store },
-    meter: createMeter({ recorder: FREE_RECORDER }), createManager: fakeDesktops(log, name)
+    meter: createMeter({ recorder: FREE_RECORDER }), createManager: fakeDesktops(log, name), placement
   });
   const httpServer = http.createServer(async (request, response) => {
     let raw = "";
@@ -227,7 +227,7 @@ test("refused, a coding run doesn't start: its computer can't open its day", asy
   };
   const computers = createComputers({
     resources, systemContext, directory: conversationsOf(knex), env: { ...process.env, MERCBOT_SERVER_ID: "integration-refused" }, notices, files,
-    meter: createMeter({ recorder })
+    meter: createMeter({ recorder }), placement: PLACE_HERE
   });
   await computers.register({ address: "127.0.0.1", port: 9 });
   const userId = (await knex("users").first())?.id;
@@ -250,4 +250,72 @@ test("refused, a coding run doesn't start: its computer can't open its day", asy
   const recorded = () => knex("bot_computers").where({ conversation_id: bot.conversation_id }).first("state", "error");
   for (const deadline = Date.now() + 5000; (await recorded())?.state !== "asleep" && Date.now() < deadline;) await new Promise((resolve) => setTimeout(resolve, 50));
   assert.deepEqual(await recorded(), { state: "asleep", error: PAUSED }, "it stays asleep, saying why");
+});
+
+// A copy built on Mercbot that says where computers run (D-85): a server it never chooses passes every computer to the
+// servers it does, the least busy first; their calls are signed with its secret, a gone one's computer is placed again,
+// and with nowhere to put it a computer says so.
+test("a copy that says where computers run passes them to the servers it chooses", async (context) => {
+  const knex = await connectTestDatabase();
+  const log = [];
+  const volume = await mkdtemp(path.join(os.tmpdir(), "mercbot-volume-"));
+  const store = createFileStore({ root: "", fallback: volume, ownStorage: async () => null, settle: async () => {}, explain: async () => {} });
+  const hosts = new Set(["placement-A", "placement-B"]);
+  let open = true;
+  const placement = {
+    secret: "placement-secret-for-the-integration-test",
+    async choose(_computerId, servers) {
+      const candidates = (await servers.live()).filter((server) => open && hosts.has(server.id)).sort((x, y) => x.awake - y.awake || x.id.localeCompare(y.id));
+      return candidates[0]?.id ?? null;
+    }
+  };
+  const web = await startServer(knex, context, "placement-web", log, store, placement);
+  const a = await startServer(knex, context, "placement-A", log, store, placement);
+  const b = await startServer(knex, context, "placement-B", log, store, placement);
+  const userId = (await knex("users").first())?.id ?? (await knex("users").insert({ username: `placement-${Date.now()}` }).returning("id"))[0].id;
+  const first = await testBot(knex, userId, { name: "Placed" });
+  const second = await testBot(knex, userId, { name: "Placed too" });
+  context.after(async () => {
+    for (const server of [web, a, b]) await server.stop().catch(() => {});
+    await knex("bots").whereIn("id", [first.id, second.id]).del();
+    await knex("mercbot_servers").whereIn("id", ["placement-web", "placement-A", "placement-B"]).del();
+    await knex.destroy();
+    await rm(volume, { recursive: true, force: true });
+  });
+  const holder = async (bot) => (await knex("bot_computers").where({ conversation_id: bot.conversation_id }).first())?.server_id;
+
+  // The first computer goes to the least busy server chosen, the second to the other; the asking server runs neither.
+  assert.equal((await web.computers.wake(String(first.conversation_id))).state, "awake");
+  assert.equal(await holder(first), "placement-A");
+  assert.equal((await web.computers.wake(String(second.conversation_id))).state, "awake");
+  assert.equal(await holder(second), "placement-B");
+  assert.ok(!log.some((line) => line.startsWith("placement-web ")));
+  await web.computers.browse(String(first.conversation_id), "example.com");
+  assert.ok(log.includes("placement-A browsed example.com"));
+
+  // Calls between servers are signed with the placement's secret, not the database's; so is a relayed screen.
+  const signed = (secret) => fetch(a.url, {
+    method: "POST",
+    headers: { "x-mercbot-internal": secret },
+    body: JSON.stringify({ operation: "screenshot", computerId: String(first.conversation_id) })
+  });
+  assert.equal((await signed(placement.secret)).status, 200);
+  const kept = (await knex("mercbot_settings").where({ name: "internal_secret" }).first())?.value;
+  assert.equal((await signed(kept || "missing")).status, 403);
+  assert.equal((await signed("")).status, 403);
+  const screen = await web.computers.findScreen(await web.computers.issueTicket(String(first.conversation_id)));
+  assert.deepEqual({ remote: screen.remote, headers: screen.headers }, { remote: a.url, headers: { "x-mercbot-internal": placement.secret } });
+
+  // A server that crashed is found gone at the next call, and its computer is placed again, on the other one.
+  await a.crash();
+  assert.equal((await web.computers.browse(String(first.conversation_id), "example.org")).url, "example.org");
+  assert.equal(await holder(first), "placement-B");
+  assert.ok(log.includes("placement-B browsed example.org"));
+
+  // With no server to put a computer on, waking it says so, and nothing runs it.
+  await web.computers.sleep(String(first.conversation_id));
+  await b.crash();
+  open = false;
+  await assert.rejects(web.computers.wake(String(first.conversation_id)), (error) => error.statusCode === 503 && error.code === "computer_none_free");
+  assert.ok(!log.some((line) => line.startsWith("placement-web ")));
 });

@@ -3,7 +3,8 @@ import WebSocket, { WebSocketServer } from "ws";
 
 // The page's noVNC talks WebSocket; x11vnc talks VNC on a Unix socket (D-68). This relays one to the
 // other, but only for a valid one-time ticket issued to the bot's owner (D-13). When another
-// server runs the computer, the socket is relayed to that server, which uses up the ticket (D-15).
+// server runs the computer, the socket is relayed to that server, signed as servers sign their calls
+// to each other, and that server uses up the ticket (D-15).
 const PATH = "/api/computer-vnc";
 
 function relay(ws, other) {
@@ -55,7 +56,7 @@ export function attachVncBridge(httpServer, computers) {
     }
     // Hold the page's frames until the other server's socket is open.
     const other = target.remote
-      ? new WebSocket(`${target.remote.replace(/^http/u, "ws")}${PATH}?ticket=${encodeURIComponent(ticket)}`, ["binary"])
+      ? new WebSocket(`${target.remote.replace(/^http/u, "ws")}${PATH}?ticket=${encodeURIComponent(ticket)}`, ["binary"], { headers: target.headers })
       : null;
     if (other) {
       const opened = await new Promise((resolve) => {
