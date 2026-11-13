@@ -1,0 +1,38 @@
+name: CLA
+
+# CLA Assistant Lite: a pull request's check passes once everyone who wrote its commits has signed CLA.md by
+# commenting the sentence below (CONTRIBUTING.md). Signatures go to signatures/cla.json on the cla-signatures branch
+# of this repository, which must exist and stay unprotected. It runs on pull_request_target, in this repository and
+# never with a pull request's code, so the default token can write the signatures.
+on:
+  issue_comment:
+    types: [created]
+  pull_request_target:
+    types: [opened, closed, synchronize]
+
+permissions:
+  actions: write
+  contents: write
+  pull-requests: write
+  statuses: write
+
+jobs:
+  cla:
+    runs-on: ubuntu-latest
+    steps:
+      - name: CLA Assistant
+        if: >-
+          github.event_name == 'pull_request_target' ||
+          (github.event.issue.pull_request &&
+            (github.event.comment.body == 'recheck' ||
+             github.event.comment.body == 'I have read the CLA Document and I hereby sign the CLA'))
+        # contributor-assistant/github-action v2.6.1, pinned by its commit.
+        uses: contributor-assistant/github-action@ca4a40a7d1004f18d9960b404b97e5f30a505a08
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          path-to-signatures: signatures/cla.json
+          path-to-document: https://github.com/mobily-enterprises/mercbot/blob/main/CLA.md
+          branch: cla-signatures
+          # The repository variable CLA_ALLOWLIST names the owner's accounts (comma-separated); bots never sign.
+          allowlist: ${{ vars.CLA_ALLOWLIST }},*[bot]
