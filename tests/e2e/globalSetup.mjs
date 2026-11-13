@@ -9,6 +9,7 @@
 // signed-in states live in a temporary folder outside the source tree. harness.ts hands each worker
 // its own. The returned teardown stops them, drops their databases and removes the folder.
 import { spawn } from "node:child_process";
+import { randomBytes } from "node:crypto";
 import { createWriteStream } from "node:fs";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
@@ -120,6 +121,10 @@ const previewEnvironment = ({ database, dataDir }) => ({
 /** @param {import("@playwright/test").FullConfig} config */
 export default async function globalSetup(config) {
   loadEnvFile();
+  // What the Test Previews store sealed (an app's secret headers, a connected account) uses this run's own vault key,
+  // never one a developer's .env holds, and the specs that open it read the same; without a key those features refuse
+  // (503), as they should.
+  process.env.MERCBOT_VAULT_KEY = randomBytes(32).toString("base64");
   const runDir = await mkdtemp(path.join(os.tmpdir(), "mercbot-e2e-"));
   const phases = [];
   const started = performance.now();
