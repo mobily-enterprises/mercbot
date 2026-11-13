@@ -13,11 +13,11 @@
   },
   "dependencies": {
     "@jskit-ai/agent": "0.1.3",
-    "@jskit-ai/agent-runtime": "0.1.25",
+    "@jskit-ai/agent-runtime": "0.1.26",
     "@jskit-ai/database-runtime": "0.1.275",
     "@jskit-ai/kernel": "0.2.26",
     "@jskit-ai/resource-core": "0.1.217",
-    "@jskit-ai/resource-runtime": "0.2.33",
+    "@jskit-ai/resource-runtime": "0.2.34",
     "@local/account": "0.1.0",
     "@local/apps": "0.1.0",
     "@local/files": "0.1.0",

@@ -12,7 +12,7 @@
     "@jskit-ai/database-runtime": "0.1.275",
     "@jskit-ai/kernel": "0.2.26",
     "@jskit-ai/resource-core": "0.1.217",
-    "@jskit-ai/resource-runtime": "0.2.33",
+    "@jskit-ai/resource-runtime": "0.2.34",
     "@local/account": "0.1.0",
     "@local/homes": "0.1.0",
     "oauth4webapi": "^3.8.8",
