@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- Mercbot's logo: its own orange cloud with its eyes (D-44), as SPECIAL_SHAPE in avatarShapes.js. -->
+  <g fill="#FD690F">
+    <circle cx="27" cy="58" r="20" />
+    <circle cx="52" cy="43" r="27" />
+    <circle cx="77" cy="54" r="18" />
+    <rect x="6" y="56" width="88" height="30" rx="15" />
+    <path d="M17 76 C18 88 14 94 7 98 C21 98 31 93 37 82 Z" />
+  </g>
+  <g transform="translate(0 12)">
+    <ellipse cx="36" cy="46" rx="10.8" ry="14.4" fill="#FFFFFF" />
+    <ellipse cx="36" cy="48" rx="8.5" ry="12.2" fill="#241B33" />
+    <ellipse cx="36.6" cy="55.32" rx="5.1" ry="3.1" fill="#FD690F" opacity="0.9" />
+    <circle cx="33" cy="41.8" r="3.7" fill="#FFFFFF" />
+    <circle cx="39.5" cy="51" r="1.7" fill="#FFFFFF" />
+    <path d="M47.6 47 C47 33 27 27 23.6 41" fill="none" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round" stroke="#241B33" />
+    <ellipse cx="64" cy="46" rx="10.8" ry="14.4" fill="#FFFFFF" />
+    <ellipse cx="64" cy="48" rx="8.5" ry="12.2" fill="#241B33" />
+    <ellipse cx="64.6" cy="55.32" rx="5.1" ry="3.1" fill="#FD690F" opacity="0.9" />
+    <circle cx="61" cy="41.8" r="3.7" fill="#FFFFFF" />
+    <circle cx="67.5" cy="51" r="1.7" fill="#FFFFFF" />
+    <path d="M52.4 47 C53 33 73 27 76.4 41" fill="none" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round" stroke="#241B33" />
+  </g>
+</svg>

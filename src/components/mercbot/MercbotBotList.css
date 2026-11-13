@@ -1,0 +1,346 @@
+.mb-list {
+  padding: 0 13px 0 12px;
+}
+
+.mb-tiles {
+  display: grid;
+  margin-bottom: 8px;
+  border-radius: 12px;
+}
+
+.mb-tiles--single {
+  grid-template-columns: 95px;
+  justify-content: center;
+}
+
+.mb-tiles--pair {
+  grid-template-columns: 91px 91px;
+  justify-content: center;
+}
+
+.mb-tiles--grid {
+  grid-template-columns: repeat(3, 1fr);
+  row-gap: 12px;
+  justify-items: center;
+}
+
+.mb-tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 100%;
+  max-width: 95px;
+  min-height: 92px;
+  padding-block: 8px;
+  padding: 0 4px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: rgb(var(--v-theme-on-surface));
+  font: inherit;
+  cursor: pointer;
+}
+
+.mb-tiles--grid .mb-tile {
+  width: 80px;
+}
+
+.mb-tile:hover,
+.mb-tile--selected {
+  background: rgb(var(--v-theme-secondary-container));
+}
+
+.mb-tile__avatar,
+.mb-row__avatar {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+}
+
+.mb-row__shared {
+  margin: -2px 0 0 2px;
+  color: rgb(var(--v-theme-on-surface-variant));
+}
+
+.mb-tile__name {
+  overflow: hidden;
+  max-width: 100%;
+  font-size: 13px;
+  line-height: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* A bot's price tag (D-73): small and quiet, this month's figure with all time on hover. */
+.mb-tile__price,
+.mb-row__price {
+  font-size: 11px;
+  line-height: 14px;
+  color: rgb(var(--v-theme-on-surface-variant));
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.mb-row__price {
+  flex: none;
+}
+
+.mb-tile__label {
+  overflow: hidden;
+  max-width: 100%;
+  padding: 0 6px;
+  border-radius: 8px;
+  background: rgb(var(--v-theme-surface-container-highest));
+  font-size: 12px;
+  line-height: 16px;
+  color: rgb(var(--v-theme-on-surface-variant));
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mb-badge {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid rgb(var(--v-theme-surface-container-low));
+  border-radius: 50%;
+}
+
+.mb-badge--main {
+  width: 16px;
+  height: 16px;
+  background: rgb(var(--v-theme-warning));
+  color: rgb(var(--v-theme-on-warning));
+}
+
+.mb-badge--small {
+  width: 14px;
+  height: 14px;
+}
+
+.mb-badge--unread {
+  width: 10px;
+  height: 10px;
+  background: rgb(var(--v-theme-link));
+}
+
+.mb-header-wrap {
+  padding-top: 26px;
+}
+
+.mb-group:first-child .mb-header-wrap {
+  padding-top: 0;
+}
+
+.mb-header {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 24px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: rgb(var(--v-theme-on-surface-variant));
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+}
+
+.mb-header--toggle {
+  cursor: pointer;
+}
+
+.mb-header__label {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mb-header__count {
+  margin-right: 4px;
+}
+
+.mb-header__chevron {
+  visibility: hidden;
+}
+
+.mb-header--toggle:hover,
+.mb-header--toggle:focus-visible {
+  background: rgb(var(--v-theme-surface-container-highest));
+}
+
+.mb-header--toggle:hover .mb-header__chevron,
+.mb-header--toggle:focus-visible .mb-header__chevron {
+  visibility: visible;
+}
+
+.mb-empty-hint {
+  margin: 4px 0 0;
+  padding: 0 8px;
+  font-size: 12px;
+  line-height: 24px;
+  color: rgb(var(--v-theme-on-surface-variant));
+}
+
+.mb-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.mb-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: 54px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: rgb(var(--v-theme-on-surface));
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.mb-row:hover {
+  background: rgb(var(--v-theme-surface-container-highest));
+}
+
+.mb-row--selected,
+.mb-row--selected:hover {
+  background: rgb(var(--v-theme-secondary-container));
+}
+
+.mb-row__avatar--creating {
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgb(var(--v-theme-surface-container-high));
+  color: rgb(var(--v-theme-on-surface-variant));
+}
+
+.mb-row--creating {
+  color: rgb(var(--v-theme-on-surface-variant));
+  cursor: default;
+}
+
+.mb-row__text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.mb-row__name,
+.mb-row__preview {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mb-row__name {
+  font-size: 14px;
+  line-height: 18px;
+}
+
+.mb-row__preview {
+  font-size: 13px;
+  line-height: 17px;
+  color: rgb(var(--v-theme-on-surface-variant));
+}
+
+.mb-row__preview--waiting {
+  color: rgb(var(--v-theme-warning));
+}
+
+.mb-row__unread.mb-row__unread--waiting,
+.mb-badge.mb-badge--waiting {
+  background: rgb(var(--v-theme-warning));
+}
+
+.mb-row__draft {
+  color: rgb(var(--v-theme-on-surface));
+}
+
+.mb-row__unread {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgb(var(--v-theme-link));
+}
+
+.mb-inline-name {
+  width: 100%;
+  padding: 0 4px;
+  border: 1px solid rgb(var(--v-theme-outline));
+  border-radius: 6px;
+  background: rgb(var(--v-theme-surface));
+  color: rgb(var(--v-theme-on-surface));
+  font: inherit;
+  font-size: 14px;
+  outline: none;
+}
+
+.mb-inline-name--header {
+  height: 24px;
+  font-size: 12px;
+}
+
+.mb-hint {
+  flex: none;
+  min-width: 16px;
+  padding: 0 4px;
+  border-radius: 4px;
+  background: rgb(var(--v-theme-surface-container-high));
+  box-shadow: 0 0 0 1px rgb(var(--v-theme-outline-variant));
+  font: 600 10px/16px var(--v-font-body);
+  color: rgb(var(--v-theme-on-surface-variant));
+  text-align: center;
+}
+
+.mb-hint--tile {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+}
+
+.mb-switching {
+  outline: 2px solid rgb(var(--v-theme-on-surface));
+  outline-offset: -2px;
+}
+
+.mb-tile:focus-visible,
+.mb-row:focus-visible {
+  outline: 2px solid rgb(var(--v-theme-secondary));
+  outline-offset: -2px;
+}
+
+.mb-dragging {
+  opacity: 0.4;
+}
+
+.mb-drop-zone {
+  background: rgb(var(--v-theme-surface-container-highest));
+  border-radius: 12px;
+}
+
+.mb-reorder-move {
+  transition: transform 0.4s ease;
+}

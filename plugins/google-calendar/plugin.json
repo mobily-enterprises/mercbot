@@ -1,0 +1,80 @@
+{
+  "id": "google-calendar",
+  "name": "Google Calendar",
+  "category": "Productivity",
+  "kind": "add",
+  "description": "See your schedule and find or book free time.",
+  "color": "#4285F4",
+  "icon": "calendar",
+  "recommended": true,
+  "connectors": [
+    "google-calendar"
+  ],
+  "skills": [
+    {
+      "name": "find-free-time",
+      "description": "Find a time that works for everyone"
+    },
+    {
+      "name": "daily-agenda",
+      "description": "Summarise the day ahead each morning"
+    }
+  ],
+  "info": {
+    "capabilities": "Read and act on your behalf, always asking before changes",
+    "developer": "Google",
+    "website": null,
+    "availability": "Not connected yet: sign-in isn't set up"
+  },
+  "oauth": {
+    "provider": "google",
+    "scopes": [
+      "https://www.googleapis.com/auth/calendar.events",
+      "https://www.googleapis.com/auth/calendar.calendarlist.readonly"
+    ]
+  },
+  "rank": 20,
+  "logo": "googlecalendar",
+  "actions": [
+    {
+      "id": "calendar_events",
+      "name": "List and read events"
+    },
+    {
+      "id": "calendar_info.calendars",
+      "name": "List calendars"
+    },
+    {
+      "id": "calendar_info.event",
+      "name": "Read an event"
+    },
+    {
+      "id": "calendar_info.occurrences",
+      "name": "List a repeating event's dates"
+    },
+    {
+      "id": "calendar_info.availability",
+      "name": "Check availability"
+    },
+    {
+      "id": "calendar_info.search",
+      "name": "Search events"
+    },
+    {
+      "id": "add_calendar_event",
+      "name": "Create events"
+    },
+    {
+      "id": "change_calendar_event",
+      "name": "Update events"
+    },
+    {
+      "id": "delete_calendar_event",
+      "name": "Delete events"
+    },
+    {
+      "id": "answer_invitation",
+      "name": "Reply to invitations"
+    }
+  ]
+}

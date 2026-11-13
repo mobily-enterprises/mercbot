@@ -1,0 +1,1 @@
+This folder has three monthly sales files (sales-jan.csv, sales-feb.csv, sales-mar.csv). Write summary.csv with columns region,total (the sum of amount per region over all three months, rounded to 2 decimals), one row per region sorted by total, highest first. Then tell me which region sold the most.

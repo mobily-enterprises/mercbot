@@ -1,0 +1,112 @@
+{
+  "id": "google-drive",
+  "name": "Google Drive",
+  "category": "Productivity",
+  "kind": "add",
+  "description": "Find, read and organise the files in your Drive.",
+  "color": "#4285F4",
+  "icon": "folder",
+  "recommended": true,
+  "connectors": [
+    "google-drive",
+    "google-docs"
+  ],
+  "skills": [
+    {
+      "name": "find-files",
+      "description": "Find documents by what's in them"
+    }
+  ],
+  "info": {
+    "capabilities": "Read and act on your behalf, always asking before changes",
+    "developer": "Google",
+    "website": null,
+    "availability": "Not connected yet: sign-in isn't set up"
+  },
+  "oauth": {
+    "provider": "google",
+    "scopes": [
+      "https://www.googleapis.com/auth/drive"
+    ]
+  },
+  "rank": 30,
+  "logo": "googledrive",
+  "actions": [
+    {
+      "id": "list_drive_files",
+      "name": "List recent files"
+    },
+    {
+      "id": "drive_find.search",
+      "name": "Search files"
+    },
+    {
+      "id": "drive_find.folder",
+      "name": "List a folder"
+    },
+    {
+      "id": "drive_find.details",
+      "name": "File details and sharing"
+    },
+    {
+      "id": "drive_read.read",
+      "name": "Read file contents"
+    },
+    {
+      "id": "drive_read.download",
+      "name": "Download files"
+    },
+    {
+      "id": "drive_read.export",
+      "name": "Export to another format"
+    },
+    {
+      "id": "drive_change.create_folder",
+      "name": "Create folders"
+    },
+    {
+      "id": "drive_change.create_file",
+      "name": "Create files"
+    },
+    {
+      "id": "drive_change.update",
+      "name": "Update contents or details"
+    },
+    {
+      "id": "drive_change.move",
+      "name": "Move or rename"
+    },
+    {
+      "id": "drive_change.copy",
+      "name": "Copy files"
+    },
+    {
+      "id": "drive_change.share",
+      "name": "Share files"
+    },
+    {
+      "id": "drive_comments.list",
+      "name": "List comments"
+    },
+    {
+      "id": "drive_comments.add",
+      "name": "Add comments"
+    },
+    {
+      "id": "drive_comments.reply",
+      "name": "Reply to comments"
+    },
+    {
+      "id": "create_drive_document",
+      "name": "Create documents"
+    },
+    {
+      "id": "bin_drive_file",
+      "name": "Move files to the bin"
+    },
+    {
+      "id": "save_to_drive",
+      "name": "Save a bot's file to the drive"
+    }
+  ]
+}

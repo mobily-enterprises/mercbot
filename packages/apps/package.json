@@ -1,0 +1,66 @@
+{
+  "name": "@local/apps",
+  "version": "0.1.0",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "description": "Apps (D-35): mini-apps built by bots on one shared AnyAPI database, with versions, a data gate and audit.",
+  "exports": {
+    "./shared": "./src/shared/index.js",
+    "./server/schema": "./src/server/schema.js",
+    "./shared/sandbox": "./src/shared/sandbox.js",
+    "./server/types": "./src/server/types.js",
+    "./shared/visitorAccess": "./src/shared/visitorAccess.js",
+    "./server/appStyle": "./src/server/appStyle.js",
+    "./server/registerRoutes": "./src/server/registerRoutes.js",
+    "./server/registry": "./src/server/registry.js",
+    "./server/validate": "./src/server/validate.js",
+    "./server/visitorAccess": "./src/server/visitorAccess.js"
+  },
+  "dependencies": {
+    "@jitl/quickjs-singlefile-browser-release-sync": "0.32.0",
+    "@jitl/quickjs-wasmfile-release-sync": "0.32.0",
+    "@jskit-ai/database-runtime": "0.1.270",
+    "@jskit-ai/kernel": "0.2.21",
+    "@jskit-ai/resource-core": "0.1.212",
+    "@local/account": "0.1.0",
+    "@local/homes": "0.1.0",
+    "@local/notices": "0.1.0",
+    "@marcbachmann/cel-js": "8.0.0",
+    "json-rest-api": "3.1.7",
+    "knex": "^3.3.0",
+    "postcss": "8.5.32",
+    "postcss-selector-parser": "7.1.6",
+    "quickjs-emscripten-core": "0.32.0"
+  },
+  "jskit": {
+    "kind": "runtime",
+    "capabilities": {
+      "provides": [
+        "mercbot.apps"
+      ],
+      "requires": [
+        "runtime.http",
+        "runtime.database",
+        "runtime.fastify",
+        "mercbot.notices",
+        "runtime.env",
+        "runtime.resources",
+        "mercbot.bots.records"
+      ]
+    },
+    "runtime": {
+      "server": {
+        "providers": [
+          {
+            "entrypoint": "src/server/AppsFeature.js",
+            "export": "AppsFeature"
+          }
+        ]
+      },
+      "client": {
+        "providers": []
+      }
+    }
+  }
+}

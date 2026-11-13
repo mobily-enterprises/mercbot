@@ -1,0 +1,34 @@
+{
+  "id": "notion",
+  "name": "Notion",
+  "category": "Productivity",
+  "kind": "add",
+  "description": "Search, read and update pages and databases.",
+  "color": "#000000",
+  "icon": "notes",
+  "recommended": true,
+  "connectors": [
+    "notion"
+  ],
+  "skills": [
+    {
+      "name": "notion-pages",
+      "description": "Find, read and add to pages and databases, and ask before editing shared ones"
+    }
+  ],
+  "info": {
+    "capabilities": "Read and act on your behalf, always asking before changes",
+    "developer": "Notion",
+    "website": "https://www.notion.com",
+    "availability": "Sign in with your Notion account"
+  },
+  "mcp": {
+    "url": "https://mcp.notion.com/mcp",
+    "whoami": "notion-get-self",
+    "sends": [
+      "notion-create-comment"
+    ]
+  },
+  "rank": 160,
+  "logo": "notion"
+}

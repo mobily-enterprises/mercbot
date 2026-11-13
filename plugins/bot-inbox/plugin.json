@@ -1,0 +1,18 @@
+{
+  "id": "bot-inbox",
+  "name": "Bot inbox",
+  "category": "Communication",
+  "kind": "connect",
+  "description": "Give your bot its own email address to send and receive from.",
+  "color": "#1C1C1C",
+  "icon": "inbox",
+  "recommended": false,
+  "connectors": [],
+  "skills": [],
+  "info": {
+    "capabilities": "Read and act on your behalf, always asking before changes",
+    "developer": "Mercbot",
+    "website": null,
+    "availability": "Not connected yet: sign-in isn't set up"
+  }
+}

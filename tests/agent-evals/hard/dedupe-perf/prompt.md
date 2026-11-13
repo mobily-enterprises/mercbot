@@ -1,0 +1,1 @@
+dedupe.py works on small files like sample.csv, but on customers.csv (60,000 rows) it takes forever. Make it fast enough to run `python3 dedupe.py customers.csv groups.json` in under 10 seconds, without changing what it outputs for any input. Run it on customers.csv when you're done.

@@ -1,0 +1,62 @@
+.mb-shell {
+  position: fixed;
+  inset: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+/* 512px is the narrowest desktop layout (D-1); below 600px the phone layout fills the screen. */
+.mb-shell__frame {
+  position: relative;
+  display: flex;
+  min-width: 512px;
+  height: 100%;
+}
+
+.mb-shell__frame--phone {
+  min-width: 0;
+}
+
+.mb-shell__drawer {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 21;
+  box-shadow: var(--mb-shadow-popover);
+}
+
+.mb-shell__menu {
+  position: absolute;
+  top: 12px;
+  left: 10px;
+  z-index: 5;
+}
+
+.mb-shell__menu-dot {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 8px;
+  height: 8px;
+  border: 2px solid rgb(var(--v-theme-background));
+  border-radius: 50%;
+  background: rgb(var(--v-theme-link));
+  pointer-events: none;
+}
+
+.mb-shell__scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  background: rgba(var(--v-theme-scrim), 0.18);
+}
+
+.mb-shell__floating {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 21;
+  box-shadow: var(--mb-shadow-popover);
+}

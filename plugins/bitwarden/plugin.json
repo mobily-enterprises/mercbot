@@ -1,0 +1,19 @@
+{
+  "id": "bitwarden",
+  "name": "Bitwarden",
+  "category": "Password Managers",
+  "kind": "connect",
+  "description": "Let your bot sign in to sites with logins from your vault.",
+  "color": "#175DDC",
+  "icon": "vault",
+  "recommended": true,
+  "connectors": [],
+  "skills": [],
+  "info": {
+    "capabilities": "Read and act on your behalf, always asking before changes",
+    "developer": "Bitwarden",
+    "website": null,
+    "availability": "Not connected yet: sign-in isn't set up"
+  },
+  "logo": "bitwarden"
+}

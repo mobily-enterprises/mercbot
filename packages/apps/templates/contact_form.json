@@ -1,0 +1,238 @@
+{
+  "key": "contact_form",
+  "name": "Contact form",
+  "icon": "mail",
+  "color": "#1C1C1C",
+  "description": "A public form anyone can send, and a list of what came in. Make it public from its details.",
+  "tables": [
+    {
+      "key": "enquiries",
+      "fields": [
+        {
+          "key": "name",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "email",
+          "type": "email",
+          "required": true
+        },
+        {
+          "key": "message",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "status",
+          "type": "choice",
+          "choices": [
+            "New",
+            "Answered"
+          ]
+        },
+        {
+          "key": "received",
+          "type": "date"
+        }
+      ]
+    }
+  ],
+  "definition": {
+    "home": "inbox",
+    "public": {
+      "home": "contact",
+      "tables": {
+        "enquiries": {
+          "can": [
+            "create"
+          ],
+          "write": [
+            "name",
+            "email",
+            "message",
+            "status",
+            "received"
+          ]
+        }
+      }
+    },
+    "navigation": {
+      "style": "tabs",
+      "items": [
+        {
+          "screen": "inbox",
+          "label": "Enquiries",
+          "icon": "mail"
+        },
+        {
+          "screen": "contact",
+          "label": "Public form",
+          "icon": "open"
+        }
+      ]
+    },
+    "screens": {
+      "inbox": {
+        "data": {
+          "all": {
+            "from": "enquiries",
+            "sort": "-received"
+          }
+        },
+        "content": [
+          {
+            "type": "table",
+            "rows": "=data.all",
+            "columns": [
+              {
+                "label": "Received",
+                "value": "=row.received"
+              },
+              {
+                "label": "Name",
+                "value": "=row.name"
+              },
+              {
+                "label": "Email",
+                "value": "=row.email"
+              },
+              {
+                "label": "Message",
+                "value": "=row.message"
+              },
+              {
+                "label": "Status",
+                "value": "=row.status",
+                "display": "chip"
+              }
+            ],
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "enquiry",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "enquiry": {
+        "params": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "data": {
+          "item": {
+            "record": "enquiries",
+            "id": "=params.id"
+          }
+        },
+        "content": [
+          {
+            "type": "form",
+            "record": "=data.item",
+            "fields": [
+              "name",
+              "email",
+              "message",
+              "status"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Save",
+                "emphasis": "primary",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.item",
+                      "set": "=form.values"
+                    }
+                  },
+                  {
+                    "notify": "=\"Saved\""
+                  },
+                  {
+                    "go": {
+                      "screen": "inbox"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "inbox"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "contact": {
+        "public": true,
+        "content": [
+          {
+            "type": "text",
+            "value": "Get in touch",
+            "size": "title"
+          },
+          {
+            "type": "form",
+            "table": "enquiries",
+            "fields": [
+              "name",
+              "email",
+              "message"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Send",
+                "emphasis": "primary",
+                "do": [
+                  {
+                    "create": {
+                      "table": "enquiries",
+                      "values": "=form.values",
+                      "preset": {
+                        "status": "New",
+                        "received": "=today()"
+                      }
+                    }
+                  },
+                  {
+                    "go": {
+                      "screen": "thanks"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "thanks": {
+        "public": true,
+        "content": [
+          {
+            "type": "text",
+            "value": "Thanks, we'll get back to you soon.",
+            "size": "title"
+          }
+        ]
+      }
+    }
+  },
+  "sample": {}
+}

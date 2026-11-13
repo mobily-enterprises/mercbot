@@ -1,0 +1,108 @@
+{
+  "infrastructure": [
+    {
+      "file": "packages/notices/src/server/NoticesFeature.js",
+      "rule": "no-direct-knex"
+    },
+    {
+      "file": "packages/notices/src/server/notices.js",
+      "rule": "no-direct-knex"
+    },
+    {
+      "file": "packages/notices/src/server/notices.js",
+      "rule": "sql-literal"
+    },
+    {
+      "file": "packages/notices/src/server/publishIn.js",
+      "rule": "sql-literal"
+    },
+    {
+      "file": "packages/notices/src/server/publishIn.js",
+      "rule": "no-transaction-reader"
+    },
+    {
+      "file": "packages/apps/src/server/AppsFeature.js",
+      "rule": "no-direct-knex"
+    },
+    {
+      "file": "packages/apps/src/server/anyapi.js",
+      "rule": "no-direct-knex"
+    },
+    {
+      "file": "packages/apps/src/server/anyapi.js",
+      "rule": "no-transaction-reader"
+    },
+    {
+      "file": "packages/apps/src/server/dataGate.js",
+      "rule": "no-transaction-reader"
+    },
+    {
+      "file": "scripts/agent-evals-ours.mjs",
+      "rule": "no-direct-knex"
+    },
+    {
+      "file": "packages/account/src/server/AccountFeature.js",
+      "rule": "no-direct-knex"
+    },
+    {
+      "file": "packages/account/src/server/retention.js",
+      "rule": "no-direct-knex"
+    },
+    {
+      "file": "packages/account/src/server/retention.js",
+      "rule": "sql-literal"
+    },
+    {
+      "file": "packages/account/src/server/retention.js",
+      "rule": "no-hand-scope"
+    },
+    {
+      "file": "packages/account/src/server/retention.js",
+      "rule": "no-transaction-reader"
+    }
+  ],
+  "systemScopes": [
+    {
+      "feature": "mercbot.bots.records",
+      "systemScope": "keep the bots' agent runs, goals, summaries and commands for every conversation, and people's seats and read points when a group adds or removes them or work is done for them"
+    },
+    {
+      "feature": "mercbot.bots",
+      "systemScope": "run the bots' queued work and resume their replies in every home"
+    },
+    {
+      "feature": "mercbot.apps",
+      "systemScope": "check app watches, run due scripts, prune old script runs and clear unused practice copies of drafts in every home"
+    },
+    {
+      "feature": "mercbot.integrations",
+      "systemScope": "write people's own connected accounts, which belong to no home, once a scoped read found them the caller's; finish provider sign-ins, which no one is signed in to; act on a person's own apps and skills for a job; count app demand"
+    },
+    {
+      "feature": "mercbot.account",
+      "systemScope": "record what every piece of work uses for whoever's bot and home it was, add up a home's and a goal's spending, archive and drop old usage, and read a person's Vault logins for a bot's turn acting for them"
+    },
+    {
+      "feature": "mercbot.files",
+      "systemScope": "open each home's own file storage for its bots, move a home's files to the storage it chose and sweep the moves whose server stopped, start, beat, finish and sweep the bots' command runs, and keep the versions of the pages bots save, which run on no request, in any home; reach the Google Drive account a home keeps its files in, as the person it belongs to"
+    },
+    {
+      "feature": "mercbot.computer",
+      "systemScope": "run bot computers on whichever server holds them: their state, saved browsers and screen tickets, by conversation, for every home, with no request"
+    },
+    {
+      "feature": "mercbot.websites",
+      "systemScope": "follow a page published to its home's website as it moves or goes in the home's files, which runs after the files' own route allowed it: its publication moves with it, or its copy is taken off the website"
+    },
+    {
+      "file": "packages/single-user/src/server/SingleUserFeature.js",
+      "capability": "auth.local.accounts",
+      "systemScope": "make a single-user copy's one person on its first start, and change their password when the copy's key changes (D-81)"
+    },
+    {
+      "file": "packages/single-user/src/server/SingleUserFeature.js",
+      "capability": "auth.local.sessions",
+      "systemScope": "end the sessions signed in with a single-user copy's old key (D-81)"
+    }
+  ]
+}

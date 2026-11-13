@@ -1,0 +1,21 @@
+{
+  "id": "salesforce",
+  "name": "Salesforce",
+  "category": "Sales",
+  "kind": "add",
+  "description": "Look up and update accounts, contacts and deals.",
+  "color": "#00A1E0",
+  "icon": "crm",
+  "recommended": false,
+  "connectors": [
+    "salesforce"
+  ],
+  "skills": [],
+  "info": {
+    "capabilities": "Read and act on your behalf, always asking before changes",
+    "developer": "Salesforce",
+    "website": null,
+    "availability": "Not connected yet: sign-in isn't set up"
+  },
+  "rank": 1090
+}

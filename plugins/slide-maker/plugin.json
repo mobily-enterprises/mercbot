@@ -1,0 +1,20 @@
+{
+  "id": "slide-maker",
+  "name": "Slide maker",
+  "category": "Design",
+  "kind": "add",
+  "description": "Turn notes into a simple slide deck.",
+  "color": "#F59312",
+  "icon": "slides",
+  "recommended": false,
+  "connectors": [
+    "slide-maker"
+  ],
+  "skills": [],
+  "info": {
+    "capabilities": "Read and act on your behalf, always asking before changes",
+    "developer": "Mercbot",
+    "website": null,
+    "availability": "Not connected yet: sign-in isn't set up"
+  }
+}

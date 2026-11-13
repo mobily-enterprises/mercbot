@@ -1,0 +1,1 @@
+The notes folder has 40 meeting notes. Find when the launch date was moved to, who owns the vendor contract, and when the office lease ends. Write answers.json with keys "launch", "vendor", "lease" (short answers, e.g. "14 March") and "files": the note file names where you found each, sorted.

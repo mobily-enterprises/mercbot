@@ -1,0 +1,32 @@
+const test = require("node:test");
+const assert = require("node:assert/strict");
+const db = require("./db");
+const { createUser } = require("./users");
+const { placeOrder } = require("./orders");
+const { spendReport } = require("./report");
+
+test.beforeEach((t, done) => db.reset(done));
+
+test("users and orders", (t, done) => {
+  createUser("Ana", "ana@example.com", (error, ana) => {
+    assert.ifError(error);
+    placeOrder(ana.id, [{ price: 2.5, qty: 2 }], (error2, order) => {
+      assert.ifError(error2);
+      assert.equal(order.total, 5);
+      spendReport([ana.id], (error3, lines) => {
+        assert.ifError(error3);
+        assert.deepEqual(lines, ["Ana: 5.00"]);
+        done();
+      });
+    });
+  });
+});
+
+test("duplicate email", (t, done) => {
+  createUser("A", "a@x.com", () => {
+    createUser("B", "a@x.com", (error) => {
+      assert.equal(error.message, "email taken");
+      done();
+    });
+  });
+});

@@ -1,0 +1,48 @@
+{
+  "name": "@local/single-user",
+  "version": "0.1.0",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "description": "A person's own copy of Mercbot (D-81): one person, opened with the copy's key instead of a sign-in, answering this computer only.",
+  "exports": {
+    "./gate": "./src/server/gate.js",
+    "./key": "./src/server/key.js",
+    "./preview-identity": "./src/server/previewIdentity.js"
+  },
+  "dependencies": {
+    "@jskit-ai/auth-provider-local-core": "0.2.25",
+    "@jskit-ai/kernel": "0.2.21",
+    "@jskit-ai/resource-runtime": "0.2.28",
+    "@local/account": "0.1.0"
+  },
+  "jskit": {
+    "kind": "runtime",
+    "capabilities": {
+      "provides": [
+        "mercbot.copy-runners"
+      ],
+      "requires": [
+        "runtime.env",
+        "runtime.fastify",
+        "auth.service",
+        "auth.local.accounts",
+        "auth.local.sessions",
+        "users.profiles"
+      ]
+    },
+    "runtime": {
+      "server": {
+        "providers": [
+          {
+            "entrypoint": "src/server/SingleUserFeature.js",
+            "export": "SingleUserFeature"
+          }
+        ]
+      },
+      "client": {
+        "providers": []
+      }
+    }
+  }
+}

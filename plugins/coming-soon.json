@@ -1,0 +1,5937 @@
+[
+  {
+    "id": "google-docs",
+    "name": "Google Docs",
+    "categories": [
+      "Productivity"
+    ],
+    "description": "Write, edit and find documents in your Google account.",
+    "color": "#4285F4",
+    "icon": "notes",
+    "logo": "googledocs",
+    "tier": 1,
+    "rank": 40
+  },
+  {
+    "id": "google-sheets",
+    "name": "Google Sheets",
+    "categories": [
+      "Productivity",
+      "Data"
+    ],
+    "description": "Read and update spreadsheets, and pull figures from your sheets.",
+    "color": "#34A853",
+    "icon": "data",
+    "logo": "googlesheets",
+    "tier": 1,
+    "rank": 50
+  },
+  {
+    "id": "google-slides",
+    "name": "Google Slides",
+    "categories": [
+      "Productivity",
+      "Design"
+    ],
+    "description": "Build and edit slide decks stored in your Google account.",
+    "color": "#FBBC04",
+    "icon": "slides",
+    "logo": "googleslides",
+    "tier": 1,
+    "rank": 60
+  },
+  {
+    "id": "dropbox",
+    "name": "Dropbox",
+    "categories": [
+      "Productivity"
+    ],
+    "description": "Find, share and organise the files in your Dropbox.",
+    "color": "#0061FF",
+    "icon": "folder",
+    "logo": "dropbox",
+    "tier": 1,
+    "rank": 100
+  },
+  {
+    "id": "whatsapp-business",
+    "name": "WhatsApp Business",
+    "categories": [
+      "Communication"
+    ],
+    "description": "Reply to customers and keep track of your business chats.",
+    "color": "#25D366",
+    "icon": "chat",
+    "logo": "whatsapp",
+    "tier": 1,
+    "rank": 110
+  },
+  {
+    "id": "zoom",
+    "name": "Zoom",
+    "categories": [
+      "Communication",
+      "Productivity"
+    ],
+    "description": "Schedule meetings and find recordings and notes from past calls.",
+    "color": "#0B5CFF",
+    "icon": "calendar",
+    "logo": "zoom",
+    "tier": 1,
+    "rank": 120
+  },
+  {
+    "id": "trello",
+    "name": "Trello",
+    "categories": [
+      "Productivity"
+    ],
+    "description": "Move cards, add tasks and see where each board stands.",
+    "color": "#0052CC",
+    "icon": "notes",
+    "logo": "trello",
+    "tier": 1,
+    "rank": 180
+  },
+  {
+    "id": "canva",
+    "name": "Canva",
+    "categories": [
+      "Design"
+    ],
+    "description": "Create and edit graphics, posters and social posts from your designs.",
+    "color": "#00C4CC",
+    "icon": "slides",
+    "logo": null,
+    "tier": 1,
+    "rank": 190
+  },
+  {
+    "id": "1password",
+    "name": "1Password",
+    "categories": [
+      "Password Managers"
+    ],
+    "description": "Look up saved logins and share items with family or teammates.",
+    "color": "#145FE4",
+    "icon": "vault",
+    "logo": "1password",
+    "tier": 1,
+    "rank": 200
+  },
+  {
+    "id": "shop",
+    "name": "Shop",
+    "categories": [
+      "Productivity"
+    ],
+    "description": "Track online orders and deliveries in one place.",
+    "color": "#5A31F4",
+    "icon": "inbox",
+    "logo": null,
+    "tier": 1,
+    "rank": 210
+  },
+  {
+    "id": "gopuff",
+    "name": "Gopuff",
+    "categories": [
+      "Productivity"
+    ],
+    "description": "Reorder everyday items and check on deliveries.",
+    "color": "#0099FF",
+    "icon": "inbox",
+    "logo": null,
+    "tier": 1,
+    "rank": 220
+  },
+  {
+    "id": "sonos",
+    "name": "Sonos",
+    "categories": [
+      "Productivity"
+    ],
+    "description": "Play music, change the volume and group speakers around your home.",
+    "color": "#000000",
+    "icon": "data",
+    "logo": "sonos",
+    "tier": 1,
+    "rank": 230
+  },
+  {
+    "id": "x",
+    "name": "X",
+    "categories": [
+      "Marketing",
+      "Communication"
+    ],
+    "description": "Draft posts, read replies and keep up with accounts you follow.",
+    "color": "#000000",
+    "icon": "chat",
+    "logo": "x",
+    "tier": 1,
+    "rank": 240
+  },
+  {
+    "id": "zapier",
+    "name": "Zapier",
+    "categories": [
+      "Productivity"
+    ],
+    "description": "Start and check automations that link your other apps together.",
+    "color": "#FF4F00",
+    "icon": "code",
+    "logo": "zapier",
+    "tier": 1,
+    "rank": 250
+  },
+  {
+    "id": "ifttt",
+    "name": "IFTTT",
+    "categories": [
+      "Productivity"
+    ],
+    "description": "Run applets that connect your apps and smart home devices.",
+    "color": "#000000",
+    "icon": "code",
+    "logo": "ifttt",
+    "tier": 1,
+    "rank": 260
+  },
+  {
+    "id": "quickbooks-online",
+    "name": "QuickBooks Online",
+    "categories": [
+      "Finance"
+    ],
+    "description": "Track invoices, bills and expenses in your company books.",
+    "color": "#2CA01C",
+    "icon": "finance",
+    "logo": "quickbooks",
+    "tier": 2,
+    "rank": 270
+  },
+  {
+    "id": "xero",
+    "name": "Xero",
+    "categories": [
+      "Finance"
+    ],
+    "description": "Check invoices, match payments and see how your accounts stand.",
+    "color": "#13B5EA",
+    "icon": "finance",
+    "logo": "xero",
+    "tier": 2,
+    "rank": 280
+  },
+  {
+    "id": "shopify-merchant",
+    "name": "Shopify Merchant",
+    "categories": [
+      "Finance",
+      "Sales"
+    ],
+    "description": "Check orders, stock and sales in your online store.",
+    "color": "#7AB55C",
+    "icon": "finance",
+    "logo": "shopify",
+    "tier": 2,
+    "rank": 300
+  },
+  {
+    "id": "gusto",
+    "name": "Gusto",
+    "categories": [
+      "Finance"
+    ],
+    "description": "Review payroll runs, time off and team details.",
+    "color": "#F45D48",
+    "icon": "finance",
+    "logo": "gusto",
+    "tier": 2,
+    "rank": 310
+  },
+  {
+    "id": "zoho-books",
+    "name": "Zoho Books",
+    "categories": [
+      "Finance"
+    ],
+    "description": "Send invoices, record expenses and follow up on unpaid bills.",
+    "color": "#E42527",
+    "icon": "finance",
+    "logo": "zoho",
+    "tier": 2,
+    "rank": 320
+  },
+  {
+    "id": "docusign",
+    "name": "Docusign",
+    "categories": [
+      "Productivity"
+    ],
+    "description": "Send agreements for signature and see who still needs to sign.",
+    "color": "#4C00FF",
+    "icon": "notes",
+    "logo": null,
+    "tier": 2,
+    "rank": 330
+  },
+  {
+    "id": "pandadoc",
+    "name": "PandaDoc",
+    "categories": [
+      "Productivity",
+      "Sales"
+    ],
+    "description": "Prepare proposals and contracts and track when they get signed.",
+    "color": "#248567",
+    "icon": "notes",
+    "logo": null,
+    "tier": 2,
+    "rank": 340
+  },
+  {
+    "id": "hubspot",
+    "name": "HubSpot",
+    "categories": [
+      "Sales",
+      "Marketing"
+    ],
+    "description": "Look up contacts, log deals and see where each customer stands.",
+    "color": "#FF7A59",
+    "icon": "crm",
+    "logo": "hubspot",
+    "tier": 2,
+    "rank": 350
+  },
+  {
+    "id": "zoho-crm",
+    "name": "Zoho CRM",
+    "categories": [
+      "Sales"
+    ],
+    "description": "Update leads, deals and follow-ups in your sales pipeline.",
+    "color": "#E42527",
+    "icon": "crm",
+    "logo": "zoho",
+    "tier": 2,
+    "rank": 360
+  },
+  {
+    "id": "intercom",
+    "name": "Intercom",
+    "categories": [
+      "Support",
+      "Sales"
+    ],
+    "description": "Read and answer customer conversations from your inbox.",
+    "color": "#6AFDEF",
+    "icon": "support",
+    "logo": "intercom",
+    "tier": 2,
+    "rank": 370
+  },
+  {
+    "id": "zoho-desk",
+    "name": "Zoho Desk",
+    "categories": [
+      "Support"
+    ],
+    "description": "Sort support tickets, reply to customers and check open cases.",
+    "color": "#E42527",
+    "icon": "support",
+    "logo": "zoho",
+    "tier": 2,
+    "rank": 380
+  },
+  {
+    "id": "ringcentral-phone",
+    "name": "RingCentral Phone",
+    "categories": [
+      "Communication"
+    ],
+    "description": "Check call history and voicemail, and place calls from your work line.",
+    "color": "#FF7A00",
+    "icon": "contacts",
+    "logo": null,
+    "tier": 2,
+    "rank": 390
+  },
+  {
+    "id": "ringcentral-chat",
+    "name": "RingCentral Chat",
+    "categories": [
+      "Communication"
+    ],
+    "description": "Post messages and catch up on team conversations.",
+    "color": "#FF7A00",
+    "icon": "chat",
+    "logo": null,
+    "tier": 2,
+    "rank": 400
+  },
+  {
+    "id": "mailerlite",
+    "name": "MailerLite",
+    "categories": [
+      "Marketing"
+    ],
+    "description": "Build email campaigns and see how subscribers respond.",
+    "color": "#09C269",
+    "icon": "email",
+    "logo": null,
+    "tier": 2,
+    "rank": 410
+  },
+  {
+    "id": "brevo",
+    "name": "Brevo",
+    "categories": [
+      "Marketing"
+    ],
+    "description": "Send newsletters and texts, and keep your contact lists tidy.",
+    "color": "#0B996E",
+    "icon": "email",
+    "logo": "brevo",
+    "tier": 2,
+    "rank": 420
+  },
+  {
+    "id": "klaviyo",
+    "name": "Klaviyo",
+    "categories": [
+      "Marketing"
+    ],
+    "description": "Plan email and text campaigns for your store and track results.",
+    "color": "#232426",
+    "icon": "email",
+    "logo": null,
+    "tier": 2,
+    "rank": 430
+  },
+  {
+    "id": "kit",
+    "name": "Kit",
+    "categories": [
+      "Marketing"
+    ],
+    "description": "Write broadcasts to your subscribers and grow your email list.",
+    "color": "#FB6970",
+    "icon": "email",
+    "logo": null,
+    "tier": 2,
+    "rank": 440
+  },
+  {
+    "id": "buffer",
+    "name": "Buffer",
+    "categories": [
+      "Marketing"
+    ],
+    "description": "Schedule social posts and see how they performed.",
+    "color": "#231F20",
+    "icon": "marketing",
+    "logo": "buffer",
+    "tier": 2,
+    "rank": 450
+  },
+  {
+    "id": "bulkpublish",
+    "name": "BulkPublish",
+    "categories": [
+      "Marketing"
+    ],
+    "description": "Publish the same post to many social accounts at once.",
+    "color": "#6B7280",
+    "icon": "marketing",
+    "logo": null,
+    "tier": 2,
+    "rank": 460
+  },
+  {
+    "id": "postiz",
+    "name": "Postiz",
+    "categories": [
+      "Marketing"
+    ],
+    "description": "Plan and schedule social media posts across your accounts.",
+    "color": "#612BD3",
+    "icon": "marketing",
+    "logo": "postiz",
+    "tier": 2,
+    "rank": 470
+  },
+  {
+    "id": "tiktok-for-business",
+    "name": "TikTok for Business",
+    "categories": [
+      "Marketing"
+    ],
+    "description": "Run ad campaigns and see how your TikTok content performs.",
+    "color": "#000000",
+    "icon": "marketing",
+    "logo": "tiktok",
+    "tier": 2,
+    "rank": 480
+  },
+  {
+    "id": "x-ads",
+    "name": "X Ads",
+    "categories": [
+      "Marketing"
+    ],
+    "description": "Set up ad campaigns on X and check what they cost and return.",
+    "color": "#000000",
+    "icon": "marketing",
+    "logo": "x",
+    "tier": 2,
+    "rank": 490
+  },
+  {
+    "id": "beehiiv",
+    "name": "beehiiv",
+    "categories": [
+      "Marketing"
+    ],
+    "description": "Draft newsletter issues and keep an eye on subscriber growth.",
+    "color": "#6B7280",
+    "icon": "email",
+    "logo": null,
+    "tier": 2,
+    "rank": 500
+  },
+  {
+    "id": "typeform",
+    "name": "Typeform",
+    "categories": [
+      "Data"
+    ],
+    "description": "Create forms and surveys and read through the answers.",
+    "color": "#262627",
+    "icon": "data",
+    "logo": "typeform",
+    "tier": 2,
+    "rank": 510
+  },
+  {
+    "id": "jotform",
+    "name": "Jotform",
+    "categories": [
+      "Data"
+    ],
+    "description": "Build forms and collect, sort and review submissions.",
+    "color": "#FF6100",
+    "icon": "data",
+    "logo": null,
+    "tier": 2,
+    "rank": 520
+  },
+  {
+    "id": "airtable",
+    "name": "Airtable",
+    "categories": [
+      "Data",
+      "Productivity"
+    ],
+    "description": "Look up and update records in your bases.",
+    "color": "#18BFFF",
+    "icon": "data",
+    "logo": "airtable",
+    "tier": 2,
+    "rank": 530
+  },
+  {
+    "id": "smartsheet",
+    "name": "Smartsheet",
+    "categories": [
+      "Data",
+      "Productivity"
+    ],
+    "description": "Update project sheets, track tasks and check deadlines.",
+    "color": "#0073EC",
+    "icon": "data",
+    "logo": null,
+    "tier": 2,
+    "rank": 540
+  },
+  {
+    "id": "motion",
+    "name": "Motion",
+    "categories": [
+      "Productivity"
+    ],
+    "description": "Plan your day by fitting tasks and meetings into your calendar.",
+    "color": "#6B7280",
+    "icon": "calendar",
+    "logo": null,
+    "tier": 2,
+    "rank": 550
+  },
+  {
+    "id": "monday-com",
+    "name": "monday.com",
+    "categories": [
+      "Productivity"
+    ],
+    "description": "Update items on your boards and check progress on team work.",
+    "color": "#6161FF",
+    "icon": "notes",
+    "logo": null,
+    "tier": 2,
+    "rank": 560
+  },
+  {
+    "id": "clickup",
+    "name": "ClickUp",
+    "categories": [
+      "Productivity"
+    ],
+    "description": "Create tasks, update statuses and see what's due across spaces.",
+    "color": "#7B68EE",
+    "icon": "notes",
+    "logo": "clickup",
+    "tier": 2,
+    "rank": 570
+  },
+  {
+    "id": "basecamp",
+    "name": "Basecamp",
+    "categories": [
+      "Productivity"
+    ],
+    "description": "Post updates, manage to-dos and follow project threads.",
+    "color": "#1D2D35",
+    "icon": "notes",
+    "logo": "basecamp",
+    "tier": 2,
+    "rank": 580
+  },
+  {
+    "id": "wrike",
+    "name": "Wrike",
+    "categories": [
+      "Productivity"
+    ],
+    "description": "Track project tasks, owners and deadlines across your team.",
+    "color": "#08CF65",
+    "icon": "notes",
+    "logo": null,
+    "tier": 2,
+    "rank": 590
+  },
+  {
+    "id": "linear",
+    "name": "Linear",
+    "categories": [
+      "Productivity",
+      "Code"
+    ],
+    "description": "File issues, update their status and follow product work.",
+    "color": "#5E6AD2",
+    "icon": "code",
+    "logo": "linear",
+    "tier": 2,
+    "rank": 600
+  },
+  {
+    "id": "atlassian",
+    "name": "Atlassian",
+    "categories": [
+      "Productivity",
+      "Code"
+    ],
+    "description": "Work with Jira issues and Confluence pages in your Atlassian account.",
+    "color": "#0052CC",
+    "icon": "code",
+    "logo": "atlassian",
+    "tier": 2,
+    "rank": 610
+  },
+  {
+    "id": "miro",
+    "name": "Miro",
+    "categories": [
+      "Design",
+      "Productivity"
+    ],
+    "description": "Add notes and shapes to boards and gather ideas from them.",
+    "color": "#050038",
+    "icon": "slides",
+    "logo": "miro",
+    "tier": 2,
+    "rank": 620
+  },
+  {
+    "id": "lucid",
+    "name": "Lucid",
+    "categories": [
+      "Design",
+      "Productivity"
+    ],
+    "description": "Make diagrams and flowcharts and update them as plans change.",
+    "color": "#282C33",
+    "icon": "slides",
+    "logo": "lucid",
+    "tier": 2,
+    "rank": 630
+  },
+  {
+    "id": "coda",
+    "name": "Coda",
+    "categories": [
+      "Productivity"
+    ],
+    "description": "Read and edit docs, tables and tracking pages in Coda.",
+    "color": "#F46A54",
+    "icon": "notes",
+    "logo": "coda",
+    "tier": 2,
+    "rank": 640
+  },
+  {
+    "id": "craft",
+    "name": "Craft",
+    "categories": [
+      "Productivity"
+    ],
+    "description": "Write notes and documents and keep them organised in spaces.",
+    "color": "#6B7280",
+    "icon": "notes",
+    "logo": null,
+    "tier": 2,
+    "rank": 650
+  },
+  {
+    "id": "box",
+    "name": "Box",
+    "categories": [
+      "Productivity"
+    ],
+    "description": "Find, share and organise files stored in Box.",
+    "color": "#0061D5",
+    "icon": "folder",
+    "logo": "box",
+    "tier": 2,
+    "rank": 660
+  },
+  {
+    "id": "sharepoint",
+    "name": "SharePoint",
+    "categories": [
+      "Productivity"
+    ],
+    "description": "Find documents and lists on your team's SharePoint sites.",
+    "color": "#036C70",
+    "icon": "folder",
+    "logo": null,
+    "tier": 2,
+    "rank": 670
+  },
+  {
+    "id": "wix",
+    "name": "Wix",
+    "categories": [
+      "Marketing"
+    ],
+    "description": "Update your site, check bookings and see store orders.",
+    "color": "#0C6EFC",
+    "icon": "marketing",
+    "logo": "wix",
+    "tier": 2,
+    "rank": 680
+  },
+  {
+    "id": "wordpress",
+    "name": "WordPress",
+    "categories": [
+      "Marketing"
+    ],
+    "description": "Draft and publish posts and pages on your WordPress site.",
+    "color": "#21759B",
+    "icon": "marketing",
+    "logo": "wordpress",
+    "tier": 2,
+    "rank": 690
+  },
+  {
+    "id": "wordpress-com",
+    "name": "WordPress.com",
+    "categories": [
+      "Marketing"
+    ],
+    "description": "Write posts and manage a site hosted on WordPress.com.",
+    "color": "#21759B",
+    "icon": "marketing",
+    "logo": "wordpress",
+    "tier": 2,
+    "rank": 700
+  },
+  {
+    "id": "webflow",
+    "name": "Webflow",
+    "categories": [
+      "Marketing",
+      "Design"
+    ],
+    "description": "Edit site content and publish changes to your Webflow site.",
+    "color": "#146EF5",
+    "icon": "marketing",
+    "logo": "webflow",
+    "tier": 2,
+    "rank": 710
+  },
+  {
+    "id": "qrstuff",
+    "name": "QRStuff",
+    "categories": [
+      "Marketing"
+    ],
+    "description": "Make QR codes for links, menus or events and track scans.",
+    "color": "#6B7280",
+    "icon": "marketing",
+    "logo": null,
+    "tier": 2,
+    "rank": 720
+  },
+  {
+    "id": "fireflies",
+    "name": "Fireflies.ai",
+    "categories": [
+      "Productivity"
+    ],
+    "description": "Find what was said in recorded meetings and pull out action items.",
+    "color": "#6E3FF3",
+    "icon": "notes",
+    "logo": null,
+    "tier": 2,
+    "rank": 735
+  },
+  {
+    "id": "otter-ai",
+    "name": "Otter.ai",
+    "categories": [
+      "Productivity"
+    ],
+    "description": "Search meeting transcripts and get summaries of your calls.",
+    "color": "#2D63ED",
+    "icon": "notes",
+    "logo": null,
+    "tier": 2,
+    "rank": 740
+  },
+  {
+    "id": "fathom",
+    "name": "Fathom",
+    "categories": [
+      "Productivity"
+    ],
+    "description": "Review call notes and highlights from your recorded meetings.",
+    "color": "#6B7280",
+    "icon": "notes",
+    "logo": null,
+    "tier": 2,
+    "rank": 750
+  },
+  {
+    "id": "granola",
+    "name": "Granola",
+    "categories": [
+      "Productivity"
+    ],
+    "description": "Look back at your meeting notes and the follow-ups you agreed on.",
+    "color": "#6B7280",
+    "icon": "notes",
+    "logo": null,
+    "tier": 2,
+    "rank": 760
+  },
+  {
+    "id": "read-ai",
+    "name": "Read AI",
+    "categories": [
+      "Productivity"
+    ],
+    "description": "Get recaps of meetings and find decisions across your calls.",
+    "color": "#6B7280",
+    "icon": "notes",
+    "logo": null,
+    "tier": 2,
+    "rank": 770
+  },
+  {
+    "id": "circleback",
+    "name": "Circleback",
+    "categories": [
+      "Productivity"
+    ],
+    "description": "Pull notes, action items and decisions out of your meetings.",
+    "color": "#6B7280",
+    "icon": "notes",
+    "logo": null,
+    "tier": 2,
+    "rank": 780
+  },
+  {
+    "id": "plaud",
+    "name": "Plaud",
+    "categories": [
+      "Productivity"
+    ],
+    "description": "Turn recordings from your Plaud device into transcripts and notes.",
+    "color": "#000000",
+    "icon": "notes",
+    "logo": null,
+    "tier": 2,
+    "rank": 790
+  },
+  {
+    "id": "mem",
+    "name": "Mem",
+    "categories": [
+      "Productivity"
+    ],
+    "description": "Save notes and find them later by asking in plain language.",
+    "color": "#6B7280",
+    "icon": "notes",
+    "logo": null,
+    "tier": 2,
+    "rank": 800
+  },
+  {
+    "id": "heptabase",
+    "name": "Heptabase",
+    "categories": [
+      "Productivity"
+    ],
+    "description": "Organise research notes and cards on visual whiteboards.",
+    "color": "#6B7280",
+    "icon": "notes",
+    "logo": null,
+    "tier": 2,
+    "rank": 810
+  },
+  {
+    "id": "readwise",
+    "name": "Readwise",
+    "categories": [
+      "Productivity",
+      "Research"
+    ],
+    "description": "Bring back highlights from books and articles you've saved.",
+    "color": "#6B7280",
+    "icon": "notes",
+    "logo": null,
+    "tier": 2,
+    "rank": 820
+  },
+  {
+    "id": "wispr-flow",
+    "name": "Wispr Flow",
+    "categories": [
+      "Productivity"
+    ],
+    "description": "Turn what you say into tidy text and reuse your saved snippets.",
+    "color": "#6B7280",
+    "icon": "notes",
+    "logo": null,
+    "tier": 2,
+    "rank": 830
+  },
+  {
+    "id": "gamma",
+    "name": "Gamma",
+    "categories": [
+      "Design"
+    ],
+    "description": "Create presentations, documents and simple web pages from an outline.",
+    "color": "#6B7280",
+    "icon": "slides",
+    "logo": null,
+    "tier": 2,
+    "rank": 840
+  },
+  {
+    "id": "descript",
+    "name": "Descript",
+    "categories": [
+      "Design"
+    ],
+    "description": "Edit video and audio by editing the transcript text.",
+    "color": "#6B7280",
+    "icon": "slides",
+    "logo": null,
+    "tier": 2,
+    "rank": 850
+  },
+  {
+    "id": "riverside",
+    "name": "Riverside",
+    "categories": [
+      "Design"
+    ],
+    "description": "Record interviews and podcasts and find clips from past sessions.",
+    "color": "#6B7280",
+    "icon": "slides",
+    "logo": null,
+    "tier": 2,
+    "rank": 860
+  },
+  {
+    "id": "elevenlabs",
+    "name": "ElevenLabs",
+    "categories": [
+      "Design"
+    ],
+    "description": "Turn text into speech and manage your voice projects.",
+    "color": "#000000",
+    "icon": "slides",
+    "logo": "elevenlabs",
+    "tier": 2,
+    "rank": 870
+  },
+  {
+    "id": "heygen",
+    "name": "HeyGen",
+    "categories": [
+      "Design"
+    ],
+    "description": "Make videos with talking avatars from a written script.",
+    "color": "#6B7280",
+    "icon": "slides",
+    "logo": null,
+    "tier": 2,
+    "rank": 880
+  },
+  {
+    "id": "invideo",
+    "name": "invideo",
+    "categories": [
+      "Design"
+    ],
+    "description": "Turn a written idea into a finished video with stock footage.",
+    "color": "#6B7280",
+    "icon": "slides",
+    "logo": null,
+    "tier": 2,
+    "rank": 890
+  },
+  {
+    "id": "opusclip",
+    "name": "OpusClip",
+    "categories": [
+      "Design"
+    ],
+    "description": "Cut long videos into short clips for social media.",
+    "color": "#6B7280",
+    "icon": "slides",
+    "logo": null,
+    "tier": 2,
+    "rank": 900
+  },
+  {
+    "id": "picsart",
+    "name": "Picsart",
+    "categories": [
+      "Design"
+    ],
+    "description": "Edit photos and make quick graphics for posts and stories.",
+    "color": "#C209C1",
+    "icon": "slides",
+    "logo": "picsart",
+    "tier": 2,
+    "rank": 910
+  },
+  {
+    "id": "framer",
+    "name": "Framer",
+    "categories": [
+      "Design",
+      "Marketing"
+    ],
+    "description": "Edit pages and publish updates to sites built in Framer.",
+    "color": "#0055FF",
+    "icon": "slides",
+    "logo": "framer",
+    "tier": 2,
+    "rank": 920
+  },
+  {
+    "id": "figma",
+    "name": "Figma",
+    "categories": [
+      "Design"
+    ],
+    "description": "Read designs, leave comments and pull details from your files.",
+    "color": "#F24E1E",
+    "icon": "slides",
+    "logo": "figma",
+    "tier": 2,
+    "rank": 930
+  },
+  {
+    "id": "krea",
+    "name": "Krea",
+    "categories": [
+      "Design"
+    ],
+    "description": "Generate and refine images and short videos from prompts.",
+    "color": "#6B7280",
+    "icon": "slides",
+    "logo": null,
+    "tier": 2,
+    "rank": 940
+  },
+  {
+    "id": "fal",
+    "name": "fal",
+    "categories": [
+      "Design",
+      "Code"
+    ],
+    "description": "Run image, video and audio generation models.",
+    "color": "#6B7280",
+    "icon": "code",
+    "logo": null,
+    "tier": 2,
+    "rank": 950
+  },
+  {
+    "id": "runway",
+    "name": "Runway",
+    "categories": [
+      "Design"
+    ],
+    "description": "Generate and edit video clips from text, images or footage.",
+    "color": "#6B7280",
+    "icon": "slides",
+    "logo": null,
+    "tier": 2,
+    "rank": 960
+  },
+  {
+    "id": "mural",
+    "name": "Mural",
+    "categories": [
+      "Design",
+      "Productivity"
+    ],
+    "description": "Add sticky notes to shared boards and sum up workshop ideas.",
+    "color": "#FF4B4B",
+    "icon": "slides",
+    "logo": "mural",
+    "tier": 2,
+    "rank": 970
+  },
+  {
+    "id": "slides-com",
+    "name": "Slides.com",
+    "categories": [
+      "Design"
+    ],
+    "description": "Build and edit web presentations in your Slides.com account.",
+    "color": "#E4637C",
+    "icon": "slides",
+    "logo": "slides",
+    "tier": 2,
+    "rank": 980
+  },
+  {
+    "id": "excalidraw",
+    "name": "Excalidraw",
+    "categories": [
+      "Design"
+    ],
+    "description": "Sketch diagrams and rough drawings on a shared canvas.",
+    "color": "#6965DB",
+    "icon": "slides",
+    "logo": "excalidraw",
+    "tier": 2,
+    "rank": 990
+  },
+  {
+    "id": "tldraw",
+    "name": "tldraw",
+    "categories": [
+      "Design"
+    ],
+    "description": "Draw diagrams and wireframes on an open canvas.",
+    "color": "#FAFAFA",
+    "icon": "slides",
+    "logo": "tldraw",
+    "tier": 2,
+    "rank": 1000
+  },
+  {
+    "id": "upwork",
+    "name": "Upwork",
+    "categories": [
+      "Productivity"
+    ],
+    "description": "Post jobs, review proposals and message freelancers.",
+    "color": "#6FDA44",
+    "icon": "contacts",
+    "logo": "upwork",
+    "tier": 2,
+    "rank": 1010
+  },
+  {
+    "id": "workable",
+    "name": "Workable",
+    "categories": [
+      "Productivity"
+    ],
+    "description": "Track candidates, schedule interviews and update job posts.",
+    "color": "#6B7280",
+    "icon": "contacts",
+    "logo": null,
+    "tier": 2,
+    "rank": 1020
+  },
+  {
+    "id": "greenhouse",
+    "name": "Greenhouse",
+    "categories": [
+      "Productivity"
+    ],
+    "description": "Follow candidates through hiring stages and gather feedback.",
+    "color": "#24A47F",
+    "icon": "contacts",
+    "logo": "greenhouse",
+    "tier": 2,
+    "rank": 1030
+  },
+  {
+    "id": "ashby",
+    "name": "Ashby",
+    "categories": [
+      "Productivity"
+    ],
+    "description": "Review applicants, interview plans and hiring reports.",
+    "color": "#6B7280",
+    "icon": "contacts",
+    "logo": null,
+    "tier": 2,
+    "rank": 1040
+  },
+  {
+    "id": "windmill-hr",
+    "name": "Windmill HR",
+    "categories": [
+      "Productivity"
+    ],
+    "description": "Keep track of team check-ins, reviews and people updates.",
+    "color": "#6B7280",
+    "icon": "contacts",
+    "logo": null,
+    "tier": 2,
+    "rank": 1050
+  },
+  {
+    "id": "navan",
+    "name": "Navan",
+    "categories": [
+      "Productivity",
+      "Finance"
+    ],
+    "description": "Book trips, check itineraries and file travel expenses.",
+    "color": "#6B7280",
+    "icon": "calendar",
+    "logo": null,
+    "tier": 2,
+    "rank": 1060
+  },
+  {
+    "id": "gitlab",
+    "name": "GitLab",
+    "categories": [
+      "Code"
+    ],
+    "description": "Review merge requests, issues and pipelines in your projects.",
+    "color": "#FC6D26",
+    "icon": "code",
+    "logo": "gitlab",
+    "tier": 2,
+    "rank": 1080
+  },
+  {
+    "id": "salesforce-headless-360",
+    "name": "Salesforce (Headless 360)",
+    "categories": [
+      "Sales"
+    ],
+    "description": "Work with Salesforce records and actions without opening Salesforce.",
+    "color": "#00A1E0",
+    "icon": "crm",
+    "logo": null,
+    "tier": 3,
+    "rank": 1100
+  },
+  {
+    "id": "attio",
+    "name": "Attio",
+    "categories": [
+      "Sales"
+    ],
+    "description": "Update records, lists and deals in your Attio workspace.",
+    "color": "#6B7280",
+    "icon": "crm",
+    "logo": null,
+    "tier": 3,
+    "rank": 1110
+  },
+  {
+    "id": "apollo-io",
+    "name": "Apollo.io",
+    "categories": [
+      "Sales"
+    ],
+    "description": "Find prospects and their contact details, and run outreach sequences.",
+    "color": "#6B7280",
+    "icon": "contacts",
+    "logo": null,
+    "tier": 3,
+    "rank": 1120
+  },
+  {
+    "id": "gong",
+    "name": "Gong",
+    "categories": [
+      "Sales"
+    ],
+    "description": "Review sales calls and spot risks across open deals.",
+    "color": "#8039DF",
+    "icon": "crm",
+    "logo": null,
+    "tier": 3,
+    "rank": 1130
+  },
+  {
+    "id": "outreach",
+    "name": "Outreach",
+    "categories": [
+      "Sales"
+    ],
+    "description": "Manage sales sequences and follow up with prospects on time.",
+    "color": "#5951FF",
+    "icon": "email",
+    "logo": null,
+    "tier": 3,
+    "rank": 1140
+  },
+  {
+    "id": "zoominfo",
+    "name": "ZoomInfo",
+    "categories": [
+      "Sales"
+    ],
+    "description": "Look up company and contact details for people you want to reach.",
+    "color": "#6B7280",
+    "icon": "contacts",
+    "logo": null,
+    "tier": 3,
+    "rank": 1150
+  },
+  {
+    "id": "clay",
+    "name": "Clay",
+    "categories": [
+      "Sales",
+      "Data"
+    ],
+    "description": "Enrich lead lists with company and contact data.",
+    "color": "#6B7280",
+    "icon": "data",
+    "logo": null,
+    "tier": 3,
+    "rank": 1160
+  },
+  {
+    "id": "hunter",
+    "name": "Hunter",
+    "categories": [
+      "Sales"
+    ],
+    "description": "Find and check work email addresses for the people you contact.",
+    "color": "#FF5722",
+    "icon": "email",
+    "logo": null,
+    "tier": 3,
+    "rank": 1170
+  },
+  {
+    "id": "amplemarket",
+    "name": "Amplemarket",
+    "categories": [
+      "Sales"
+    ],
+    "description": "Find leads and run outreach across email, phone and social.",
+    "color": "#6B7280",
+    "icon": "email",
+    "logo": null,
+    "tier": 3,
+    "rank": 1180
+  },
+  {
+    "id": "crustdata",
+    "name": "Crustdata",
+    "categories": [
+      "Sales",
+      "Data"
+    ],
+    "description": "Pull live company and people data for research and prospecting.",
+    "color": "#6B7280",
+    "icon": "data",
+    "logo": null,
+    "tier": 3,
+    "rank": 1190
+  },
+  {
+    "id": "fullenrich",
+    "name": "FullEnrich",
+    "categories": [
+      "Sales"
+    ],
+    "description": "Find emails and phone numbers for a list of contacts.",
+    "color": "#6B7280",
+    "icon": "contacts",
+    "logo": null,
+    "tier": 3,
+    "rank": 1200
+  },
+  {
+    "id": "clarify",
+    "name": "Clarify",
+    "categories": [
+      "Sales"
+    ],
+    "description": "Keep customer records up to date from your emails and meetings.",
+    "color": "#6B7280",
+    "icon": "crm",
+    "logo": null,
+    "tier": 3,
+    "rank": 1210
+  },
+  {
+    "id": "vibe-prospecting",
+    "name": "Vibe Prospecting",
+    "categories": [
+      "Sales"
+    ],
+    "description": "Search for companies and contacts that match your ideal customer.",
+    "color": "#6B7280",
+    "icon": "search",
+    "logo": null,
+    "tier": 3,
+    "rank": 1220
+  },
+  {
+    "id": "gojiberry-ai",
+    "name": "Gojiberry AI",
+    "categories": [
+      "Sales"
+    ],
+    "description": "Spot people showing buying signals and reach out to them.",
+    "color": "#6B7280",
+    "icon": "contacts",
+    "logo": null,
+    "tier": 3,
+    "rank": 1230
+  },
+  {
+    "id": "monaco",
+    "name": "Monaco",
+    "categories": [
+      "Sales"
+    ],
+    "description": "Run your sales pipeline and outbound work in one place.",
+    "color": "#6B7280",
+    "icon": "crm",
+    "logo": null,
+    "tier": 3,
+    "rank": 1240
+  },
+  {
+    "id": "simmie",
+    "name": "Simmie",
+    "categories": [
+      "Sales"
+    ],
+    "description": "Prepare follow-ups and sales tasks from customer conversations.",
+    "color": "#6B7280",
+    "icon": "crm",
+    "logo": null,
+    "tier": 3,
+    "rank": 1250
+  },
+  {
+    "id": "clearskies",
+    "name": "Clearskies",
+    "categories": [
+      "Sales"
+    ],
+    "description": "Keep track of sales leads and next steps.",
+    "color": "#6B7280",
+    "icon": "crm",
+    "logo": null,
+    "tier": 3,
+    "rank": 1260
+  },
+  {
+    "id": "landbase",
+    "name": "Landbase",
+    "categories": [
+      "Sales"
+    ],
+    "description": "Build target lists and run outbound sales campaigns.",
+    "color": "#6B7280",
+    "icon": "email",
+    "logo": null,
+    "tier": 3,
+    "rank": 1270
+  },
+  {
+    "id": "highlevel",
+    "name": "HighLevel",
+    "categories": [
+      "Sales",
+      "Marketing"
+    ],
+    "description": "Manage leads, bookings and follow-up campaigns for clients.",
+    "color": "#6B7280",
+    "icon": "crm",
+    "logo": null,
+    "tier": 3,
+    "rank": 1280
+  },
+  {
+    "id": "clickfunnels",
+    "name": "ClickFunnels",
+    "categories": [
+      "Sales",
+      "Marketing"
+    ],
+    "description": "Build sales pages and check how your funnels are converting.",
+    "color": "#6B7280",
+    "icon": "marketing",
+    "logo": null,
+    "tier": 3,
+    "rank": 1290
+  },
+  {
+    "id": "activecampaign",
+    "name": "ActiveCampaign",
+    "categories": [
+      "Marketing"
+    ],
+    "description": "Run email automations and see how contacts move through them.",
+    "color": "#356AE6",
+    "icon": "email",
+    "logo": null,
+    "tier": 3,
+    "rank": 1300
+  },
+  {
+    "id": "customer-io",
+    "name": "Customer.io",
+    "categories": [
+      "Marketing"
+    ],
+    "description": "Send messages triggered by what people do in your product.",
+    "color": "#6B7280",
+    "icon": "email",
+    "logo": null,
+    "tier": 3,
+    "rank": 1310
+  },
+  {
+    "id": "onesignal",
+    "name": "OneSignal",
+    "categories": [
+      "Marketing",
+      "Communication"
+    ],
+    "description": "Send push notifications, emails and in-app messages to users.",
+    "color": "#E54B4D",
+    "icon": "inbox",
+    "logo": null,
+    "tier": 3,
+    "rank": 1320
+  },
+  {
+    "id": "ahrefs",
+    "name": "Ahrefs",
+    "categories": [
+      "Marketing"
+    ],
+    "description": "Check backlinks, keyword rankings and site health.",
+    "color": "#054ADA",
+    "icon": "search",
+    "logo": null,
+    "tier": 3,
+    "rank": 1330
+  },
+  {
+    "id": "semrush",
+    "name": "Semrush",
+    "categories": [
+      "Marketing"
+    ],
+    "description": "Research keywords, track rankings and audit your site.",
+    "color": "#FF642D",
+    "icon": "search",
+    "logo": "semrush",
+    "tier": 3,
+    "rank": 1340
+  },
+  {
+    "id": "similarweb",
+    "name": "Similarweb",
+    "categories": [
+      "Marketing",
+      "Data"
+    ],
+    "description": "Compare website traffic and see where visitors come from.",
+    "color": "#092540",
+    "icon": "data",
+    "logo": "similarweb",
+    "tier": 3,
+    "rank": 1350
+  },
+  {
+    "id": "adspirer",
+    "name": "Adspirer",
+    "categories": [
+      "Marketing"
+    ],
+    "description": "Manage ad campaigns across platforms from one place.",
+    "color": "#6B7280",
+    "icon": "marketing",
+    "logo": null,
+    "tier": 3,
+    "rank": 1360
+  },
+  {
+    "id": "adspirer-retail-ads",
+    "name": "Adspirer Retail Ads",
+    "categories": [
+      "Marketing"
+    ],
+    "description": "Run and adjust ads on retail sites and marketplaces.",
+    "color": "#6B7280",
+    "icon": "marketing",
+    "logo": null,
+    "tier": 3,
+    "rank": 1370
+  },
+  {
+    "id": "adspirer-search-ads",
+    "name": "Adspirer Search Ads",
+    "categories": [
+      "Marketing"
+    ],
+    "description": "Manage search ad campaigns, keywords and budgets.",
+    "color": "#6B7280",
+    "icon": "marketing",
+    "logo": null,
+    "tier": 3,
+    "rank": 1380
+  },
+  {
+    "id": "omneky",
+    "name": "Omneky",
+    "categories": [
+      "Marketing",
+      "Design"
+    ],
+    "description": "Generate ad creatives and see which ones do best.",
+    "color": "#6B7280",
+    "icon": "marketing",
+    "logo": null,
+    "tier": 3,
+    "rank": 1390
+  },
+  {
+    "id": "profound",
+    "name": "Profound",
+    "categories": [
+      "Marketing"
+    ],
+    "description": "See how your brand shows up in AI search answers.",
+    "color": "#6B7280",
+    "icon": "search",
+    "logo": null,
+    "tier": 3,
+    "rank": 1400
+  },
+  {
+    "id": "athenahq",
+    "name": "AthenaHQ",
+    "categories": [
+      "Marketing"
+    ],
+    "description": "Track how often AI answer engines mention your brand.",
+    "color": "#6B7280",
+    "icon": "search",
+    "logo": null,
+    "tier": 3,
+    "rank": 1410
+  },
+  {
+    "id": "ramp",
+    "name": "Ramp",
+    "categories": [
+      "Finance"
+    ],
+    "description": "Review card spend, receipts and bills across your company.",
+    "color": "#6B7280",
+    "icon": "finance",
+    "logo": null,
+    "tier": 3,
+    "rank": 1420
+  },
+  {
+    "id": "brex",
+    "name": "Brex",
+    "categories": [
+      "Finance"
+    ],
+    "description": "Check company card spending and approve expenses.",
+    "color": "#212121",
+    "icon": "finance",
+    "logo": "brex",
+    "tier": 3,
+    "rank": 1430
+  },
+  {
+    "id": "mercury",
+    "name": "Mercury",
+    "categories": [
+      "Finance"
+    ],
+    "description": "See balances and transactions in your business bank accounts.",
+    "color": "#6B7280",
+    "icon": "finance",
+    "logo": null,
+    "tier": 3,
+    "rank": 1440
+  },
+  {
+    "id": "chargebee",
+    "name": "Chargebee",
+    "categories": [
+      "Finance"
+    ],
+    "description": "Manage subscriptions, invoices and failed payments.",
+    "color": "#FF3300",
+    "icon": "finance",
+    "logo": null,
+    "tier": 3,
+    "rank": 1450
+  },
+  {
+    "id": "revenuecat",
+    "name": "RevenueCat",
+    "categories": [
+      "Finance",
+      "Code"
+    ],
+    "description": "Check subscription revenue and customer status for your apps.",
+    "color": "#F2545B",
+    "icon": "finance",
+    "logo": "revenuecat",
+    "tier": 3,
+    "rank": 1460
+  },
+  {
+    "id": "revenuecat-play-billing",
+    "name": "RevenueCat Play Billing",
+    "categories": [
+      "Finance",
+      "Code"
+    ],
+    "description": "Handle Google Play subscriptions and billing for your Android apps.",
+    "color": "#F2545B",
+    "icon": "finance",
+    "logo": "revenuecat",
+    "tier": 3,
+    "rank": 1470
+  },
+  {
+    "id": "whop",
+    "name": "Whop",
+    "categories": [
+      "Finance",
+      "Sales"
+    ],
+    "description": "Track sales and members for the digital products you sell.",
+    "color": "#FF6243",
+    "icon": "finance",
+    "logo": null,
+    "tier": 3,
+    "rank": 1480
+  },
+  {
+    "id": "airwallex",
+    "name": "Airwallex",
+    "categories": [
+      "Finance"
+    ],
+    "description": "Check global accounts, currency transfers and card spending.",
+    "color": "#6B7280",
+    "icon": "finance",
+    "logo": null,
+    "tier": 3,
+    "rank": 1490
+  },
+  {
+    "id": "airwallex-developer",
+    "name": "Airwallex Developer",
+    "categories": [
+      "Finance",
+      "Code"
+    ],
+    "description": "Build payment and transfer flows with the Airwallex APIs.",
+    "color": "#6B7280",
+    "icon": "code",
+    "logo": null,
+    "tier": 3,
+    "rank": 1500
+  },
+  {
+    "id": "link",
+    "name": "Link",
+    "categories": [
+      "Finance"
+    ],
+    "description": "Pay at checkout with your saved Link payment details.",
+    "color": "#00D66F",
+    "icon": "finance",
+    "logo": null,
+    "tier": 3,
+    "rank": 1510
+  },
+  {
+    "id": "mastercard-developers",
+    "name": "Mastercard Developers",
+    "categories": [
+      "Finance",
+      "Code"
+    ],
+    "description": "Use Mastercard APIs for payments, cards and fraud checks.",
+    "color": "#EB001B",
+    "icon": "code",
+    "logo": "mastercard",
+    "tier": 3,
+    "rank": 1520
+  },
+  {
+    "id": "switchbooks",
+    "name": "Switchbooks",
+    "categories": [
+      "Finance"
+    ],
+    "description": "Keep your bookkeeping up to date and close each month sooner.",
+    "color": "#6B7280",
+    "icon": "finance",
+    "logo": null,
+    "tier": 3,
+    "rank": 1530
+  },
+  {
+    "id": "daloopa",
+    "name": "Daloopa",
+    "categories": [
+      "Finance",
+      "Data"
+    ],
+    "description": "Pull financial figures from company filings for analysis.",
+    "color": "#6B7280",
+    "icon": "data",
+    "logo": null,
+    "tier": 3,
+    "rank": 1540
+  },
+  {
+    "id": "glean",
+    "name": "Glean",
+    "categories": [
+      "Productivity",
+      "Research"
+    ],
+    "description": "Search across your company's tools and documents at once.",
+    "color": "#343CED",
+    "icon": "search",
+    "logo": null,
+    "tier": 3,
+    "rank": 1550
+  },
+  {
+    "id": "guru",
+    "name": "Guru",
+    "categories": [
+      "Productivity",
+      "Support"
+    ],
+    "description": "Find checked answers in your team's knowledge base.",
+    "color": "#6B7280",
+    "icon": "notes",
+    "logo": null,
+    "tier": 3,
+    "rank": 1560
+  },
+  {
+    "id": "power-bi",
+    "name": "Power BI",
+    "categories": [
+      "Data"
+    ],
+    "description": "Ask about reports and dashboards in your Power BI workspace.",
+    "color": "#F2C811",
+    "icon": "data",
+    "logo": null,
+    "tier": 3,
+    "rank": 1570
+  },
+  {
+    "id": "microsoft-dataverse",
+    "name": "Microsoft Dataverse",
+    "categories": [
+      "Data",
+      "Code"
+    ],
+    "description": "Read and update the tables behind your Power Apps.",
+    "color": "#088142",
+    "icon": "data",
+    "logo": null,
+    "tier": 3,
+    "rank": 1580
+  },
+  {
+    "id": "thoughtspot",
+    "name": "ThoughtSpot",
+    "categories": [
+      "Data"
+    ],
+    "description": "Ask questions of your business data and get charts back.",
+    "color": "#6B7280",
+    "icon": "data",
+    "logo": null,
+    "tier": 3,
+    "rank": 1590
+  },
+  {
+    "id": "workday",
+    "name": "Workday",
+    "categories": [
+      "Productivity",
+      "Finance"
+    ],
+    "description": "Check time off, payslips and team information.",
+    "color": "#0875E1",
+    "icon": "contacts",
+    "logo": null,
+    "tier": 3,
+    "rank": 1600
+  },
+  {
+    "id": "juicebox",
+    "name": "Juicebox",
+    "categories": [
+      "Productivity"
+    ],
+    "description": "Search for people to hire across public profiles.",
+    "color": "#6B7280",
+    "icon": "search",
+    "logo": null,
+    "tier": 3,
+    "rank": 1610
+  },
+  {
+    "id": "usertesting",
+    "name": "UserTesting",
+    "categories": [
+      "Data",
+      "Research"
+    ],
+    "description": "Run usability studies and review what testers said.",
+    "color": "#6B7280",
+    "icon": "data",
+    "logo": null,
+    "tier": 3,
+    "rank": 1620
+  },
+  {
+    "id": "listen-labs",
+    "name": "Listen Labs",
+    "categories": [
+      "Research",
+      "Data"
+    ],
+    "description": "Run customer interviews and sum up what people said.",
+    "color": "#6B7280",
+    "icon": "search",
+    "logo": null,
+    "tier": 3,
+    "rank": 1630
+  },
+  {
+    "id": "perspective-ai",
+    "name": "Perspective AI",
+    "categories": [
+      "Research"
+    ],
+    "description": "Gather customer feedback through interview-style conversations.",
+    "color": "#6B7280",
+    "icon": "search",
+    "logo": null,
+    "tier": 3,
+    "rank": 1640
+  },
+  {
+    "id": "amplitude",
+    "name": "Amplitude",
+    "categories": [
+      "Data"
+    ],
+    "description": "Ask how users behave in your product and track key metrics.",
+    "color": "#1E61F0",
+    "icon": "data",
+    "logo": null,
+    "tier": 3,
+    "rank": 1650
+  },
+  {
+    "id": "mixpanel",
+    "name": "Mixpanel",
+    "categories": [
+      "Data"
+    ],
+    "description": "Check funnels, retention and events from your product analytics.",
+    "color": "#7856FF",
+    "icon": "data",
+    "logo": "mixpanel",
+    "tier": 3,
+    "rank": 1660
+  },
+  {
+    "id": "posthog",
+    "name": "PostHog",
+    "categories": [
+      "Data",
+      "Code"
+    ],
+    "description": "Look at product usage, feature flags and session recordings.",
+    "color": "#000000",
+    "icon": "data",
+    "logo": "posthog",
+    "tier": 3,
+    "rank": 1670
+  },
+  {
+    "id": "fullstory",
+    "name": "Fullstory",
+    "categories": [
+      "Data"
+    ],
+    "description": "Review user sessions and find where people struggle on your site.",
+    "color": "#6B7280",
+    "icon": "data",
+    "logo": null,
+    "tier": 3,
+    "rank": 1680
+  },
+  {
+    "id": "pendo",
+    "name": "Pendo",
+    "categories": [
+      "Data"
+    ],
+    "description": "See how people use your product and manage in-app guides.",
+    "color": "#FF4876",
+    "icon": "data",
+    "logo": null,
+    "tier": 3,
+    "rank": 1690
+  },
+  {
+    "id": "pendo-mobile",
+    "name": "Pendo Mobile",
+    "categories": [
+      "Data"
+    ],
+    "description": "Track how people use your mobile apps and show in-app guides.",
+    "color": "#FF4876",
+    "icon": "data",
+    "logo": null,
+    "tier": 3,
+    "rank": 1700
+  },
+  {
+    "id": "statsig",
+    "name": "Statsig",
+    "categories": [
+      "Data",
+      "Code"
+    ],
+    "description": "Check experiment results and feature gates for your product.",
+    "color": "#6B7280",
+    "icon": "data",
+    "logo": null,
+    "tier": 3,
+    "rank": 1710
+  },
+  {
+    "id": "launchdarkly",
+    "name": "LaunchDarkly",
+    "categories": [
+      "Code"
+    ],
+    "description": "Turn feature flags on or off and see who gets each change.",
+    "color": "#405BFF",
+    "icon": "code",
+    "logo": null,
+    "tier": 3,
+    "rank": 1720
+  },
+  {
+    "id": "growthbook",
+    "name": "GrowthBook",
+    "categories": [
+      "Data",
+      "Code"
+    ],
+    "description": "Run A/B tests and manage feature flags for your product.",
+    "color": "#6B7280",
+    "icon": "data",
+    "logo": null,
+    "tier": 3,
+    "rank": 1730
+  },
+  {
+    "id": "plain",
+    "name": "Plain",
+    "categories": [
+      "Support"
+    ],
+    "description": "Answer customer support threads and keep queues moving.",
+    "color": "#6B7280",
+    "icon": "support",
+    "logo": null,
+    "tier": 3,
+    "rank": 1740
+  },
+  {
+    "id": "flexport",
+    "name": "Flexport",
+    "categories": [
+      "Data"
+    ],
+    "description": "Track shipments, freight bookings and delivery times.",
+    "color": "#6B7280",
+    "icon": "data",
+    "logo": null,
+    "tier": 3,
+    "rank": 1750
+  },
+  {
+    "id": "freight-right",
+    "name": "Freight Right",
+    "categories": [
+      "Data"
+    ],
+    "description": "Get freight quotes and track international shipments.",
+    "color": "#6B7280",
+    "icon": "data",
+    "logo": null,
+    "tier": 3,
+    "rank": 1760
+  },
+  {
+    "id": "s-p-global",
+    "name": "S&P Global",
+    "categories": [
+      "Data",
+      "Finance"
+    ],
+    "description": "Pull market data, credit ratings and company research.",
+    "color": "#D6002A",
+    "icon": "data",
+    "logo": null,
+    "tier": 3,
+    "rank": 1770
+  },
+  {
+    "id": "d-b-commercial-graph",
+    "name": "D&B Commercial Graph",
+    "categories": [
+      "Data",
+      "Sales"
+    ],
+    "description": "Look up company details and how businesses are linked.",
+    "color": "#6B7280",
+    "icon": "data",
+    "logo": null,
+    "tier": 3,
+    "rank": 1780
+  },
+  {
+    "id": "d-b-risk-analytics",
+    "name": "D&B Risk Analytics",
+    "categories": [
+      "Data",
+      "Finance"
+    ],
+    "description": "Check the financial and supplier risk of companies you work with.",
+    "color": "#6B7280",
+    "icon": "data",
+    "logo": null,
+    "tier": 3,
+    "rank": 1790
+  },
+  {
+    "id": "golf-intelligence-by-stracka",
+    "name": "Golf Intelligence by Stracka",
+    "categories": [
+      "Data"
+    ],
+    "description": "Look into golf course and player data.",
+    "color": "#6B7280",
+    "icon": "data",
+    "logo": null,
+    "tier": 3,
+    "rank": 1800
+  },
+  {
+    "id": "vanta",
+    "name": "Vanta",
+    "categories": [
+      "Code"
+    ],
+    "description": "Track compliance checks and gather evidence for audits.",
+    "color": "#6B7280",
+    "icon": "code",
+    "logo": null,
+    "tier": 3,
+    "rank": 1810
+  },
+  {
+    "id": "transcend",
+    "name": "Transcend",
+    "categories": [
+      "Code",
+      "Data"
+    ],
+    "description": "Handle data privacy requests and keep track of consent.",
+    "color": "#6B7280",
+    "icon": "code",
+    "logo": null,
+    "tier": 3,
+    "rank": 1820
+  },
+  {
+    "id": "token-security",
+    "name": "Token Security",
+    "categories": [
+      "Code"
+    ],
+    "description": "Find and manage machine identities and access keys.",
+    "color": "#6B7280",
+    "icon": "code",
+    "logo": null,
+    "tier": 3,
+    "rank": 1830
+  },
+  {
+    "id": "palo-alto-networks",
+    "name": "Palo Alto Networks",
+    "categories": [
+      "Code"
+    ],
+    "description": "Look into security alerts and firewall policies.",
+    "color": "#F04E23",
+    "icon": "code",
+    "logo": "paloaltonetworks",
+    "tier": 3,
+    "rank": 1840
+  },
+  {
+    "id": "crowdstrike-falcon-fusion",
+    "name": "CrowdStrike Falcon Fusion",
+    "categories": [
+      "Code"
+    ],
+    "description": "Run security workflows and respond to threats.",
+    "color": "#FC0000",
+    "icon": "code",
+    "logo": null,
+    "tier": 3,
+    "rank": 1850
+  },
+  {
+    "id": "crowdstrike-falcon-foundry",
+    "name": "CrowdStrike Falcon Foundry",
+    "categories": [
+      "Code"
+    ],
+    "description": "Build custom security apps on the CrowdStrike platform.",
+    "color": "#FC0000",
+    "icon": "code",
+    "logo": null,
+    "tier": 3,
+    "rank": 1860
+  },
+  {
+    "id": "cisco-thousandeyes",
+    "name": "Cisco ThousandEyes",
+    "categories": [
+      "Code"
+    ],
+    "description": "See network and app performance problems as they happen.",
+    "color": "#1BA0D7",
+    "icon": "code",
+    "logo": "cisco",
+    "tier": 3,
+    "rank": 1870
+  },
+  {
+    "id": "make",
+    "name": "Make",
+    "categories": [
+      "Productivity"
+    ],
+    "description": "Run and check visual automations that connect your apps.",
+    "color": "#6D00CC",
+    "icon": "code",
+    "logo": "make",
+    "tier": 3,
+    "rank": 1880
+  },
+  {
+    "id": "gumloop",
+    "name": "Gumloop",
+    "categories": [
+      "Productivity"
+    ],
+    "description": "Build and run automations that include AI steps.",
+    "color": "#6B7280",
+    "icon": "code",
+    "logo": null,
+    "tier": 3,
+    "rank": 1890
+  },
+  {
+    "id": "celigo",
+    "name": "Celigo",
+    "categories": [
+      "Productivity",
+      "Data"
+    ],
+    "description": "Sync data between business apps and check integration runs.",
+    "color": "#6B7280",
+    "icon": "data",
+    "logo": null,
+    "tier": 3,
+    "rank": 1900
+  },
+  {
+    "id": "uipath",
+    "name": "UiPath",
+    "categories": [
+      "Productivity"
+    ],
+    "description": "Start robots that handle repetitive desktop and web tasks.",
+    "color": "#FA4616",
+    "icon": "code",
+    "logo": "uipath",
+    "tier": 3,
+    "rank": 1910
+  },
+  {
+    "id": "composio",
+    "name": "Composio",
+    "categories": [
+      "Code",
+      "Productivity"
+    ],
+    "description": "Connect agents to many apps through one integration layer.",
+    "color": "#6B7280",
+    "icon": "code",
+    "logo": null,
+    "tier": 3,
+    "rank": 1920
+  },
+  {
+    "id": "tines",
+    "name": "Tines",
+    "categories": [
+      "Code",
+      "Productivity"
+    ],
+    "description": "Build security and IT workflows that run on their own.",
+    "color": "#6B7280",
+    "icon": "code",
+    "logo": null,
+    "tier": 3,
+    "rank": 1930
+  },
+  {
+    "id": "lark",
+    "name": "Lark",
+    "categories": [
+      "Communication",
+      "Productivity"
+    ],
+    "description": "Send messages, manage docs and check calendars in Lark.",
+    "color": "#3370FF",
+    "icon": "chat",
+    "logo": null,
+    "tier": 3,
+    "rank": 1940
+  },
+  {
+    "id": "feishu",
+    "name": "Feishu",
+    "categories": [
+      "Communication",
+      "Productivity"
+    ],
+    "description": "Chat, share docs and plan schedules in your Feishu workspace.",
+    "color": "#3370FF",
+    "icon": "chat",
+    "logo": null,
+    "tier": 3,
+    "rank": 1950
+  },
+  {
+    "id": "catalyst-by-zoho",
+    "name": "Catalyst by Zoho",
+    "categories": [
+      "Code"
+    ],
+    "description": "Build and run serverless apps and functions on Zoho's cloud.",
+    "color": "#E42527",
+    "icon": "code",
+    "logo": "zoho",
+    "tier": 3,
+    "rank": 1960
+  },
+  {
+    "id": "robinhood",
+    "name": "Robinhood",
+    "categories": [
+      "Finance"
+    ],
+    "description": "Check your portfolio, positions and recent trades.",
+    "color": "#CCFF00",
+    "icon": "finance",
+    "logo": "robinhood",
+    "tier": 4,
+    "rank": 1970
+  },
+  {
+    "id": "webull",
+    "name": "Webull",
+    "categories": [
+      "Finance"
+    ],
+    "description": "Follow your holdings and market quotes in your brokerage account.",
+    "color": "#6B7280",
+    "icon": "finance",
+    "logo": null,
+    "tier": 4,
+    "rank": 1980
+  },
+  {
+    "id": "etoro",
+    "name": "eToro",
+    "categories": [
+      "Finance"
+    ],
+    "description": "See your portfolio and keep watch on the markets you follow.",
+    "color": "#13C636",
+    "icon": "finance",
+    "logo": null,
+    "tier": 4,
+    "rank": 1990
+  },
+  {
+    "id": "coinbase",
+    "name": "Coinbase",
+    "categories": [
+      "Finance"
+    ],
+    "description": "Check crypto balances, prices and recent transactions.",
+    "color": "#0052FF",
+    "icon": "finance",
+    "logo": "coinbase",
+    "tier": 4,
+    "rank": 2000
+  },
+  {
+    "id": "kraken",
+    "name": "Kraken",
+    "categories": [
+      "Finance"
+    ],
+    "description": "Check crypto holdings, prices and order history.",
+    "color": "#7132F5",
+    "icon": "finance",
+    "logo": null,
+    "tier": 4,
+    "rank": 2010
+  },
+  {
+    "id": "revolut-x",
+    "name": "Revolut X",
+    "categories": [
+      "Finance"
+    ],
+    "description": "Track crypto trades and balances on Revolut's exchange.",
+    "color": "#191C1F",
+    "icon": "finance",
+    "logo": "revolut",
+    "tier": 4,
+    "rank": 2020
+  },
+  {
+    "id": "capital-com",
+    "name": "Capital.com",
+    "categories": [
+      "Finance"
+    ],
+    "description": "Follow prices and positions in your trading account.",
+    "color": "#6B7280",
+    "icon": "finance",
+    "logo": null,
+    "tier": 4,
+    "rank": 2030
+  },
+  {
+    "id": "alpaca-trading-api",
+    "name": "Alpaca Trading API",
+    "categories": [
+      "Finance",
+      "Code"
+    ],
+    "description": "Place and review stock and crypto trades through code.",
+    "color": "#FCD72B",
+    "icon": "finance",
+    "logo": null,
+    "tier": 4,
+    "rank": 2040
+  },
+  {
+    "id": "alpaca-broker-api",
+    "name": "Alpaca Broker API",
+    "categories": [
+      "Finance",
+      "Code"
+    ],
+    "description": "Open brokerage accounts and run trading for your own customers.",
+    "color": "#FCD72B",
+    "icon": "finance",
+    "logo": null,
+    "tier": 4,
+    "rank": 2050
+  },
+  {
+    "id": "deriv",
+    "name": "Deriv",
+    "categories": [
+      "Finance"
+    ],
+    "description": "Check trading positions and market prices in your account.",
+    "color": "#FF444F",
+    "icon": "finance",
+    "logo": null,
+    "tier": 4,
+    "rank": 2060
+  },
+  {
+    "id": "x-money",
+    "name": "X Money",
+    "categories": [
+      "Finance"
+    ],
+    "description": "Send and receive payments through X.",
+    "color": "#000000",
+    "icon": "finance",
+    "logo": "x",
+    "tier": 4,
+    "rank": 2070
+  },
+  {
+    "id": "phantom",
+    "name": "Phantom",
+    "categories": [
+      "Finance"
+    ],
+    "description": "See wallet balances and activity across your crypto accounts.",
+    "color": "#AB9FF2",
+    "icon": "finance",
+    "logo": null,
+    "tier": 4,
+    "rank": 2080
+  },
+  {
+    "id": "metamask-agent-wallet",
+    "name": "MetaMask Agent Wallet",
+    "categories": [
+      "Finance"
+    ],
+    "description": "Let your bot hold a wallet and make on-chain payments you approve.",
+    "color": "#F6851B",
+    "icon": "vault",
+    "logo": null,
+    "tier": 4,
+    "rank": 2090
+  },
+  {
+    "id": "aave",
+    "name": "Aave",
+    "categories": [
+      "Finance"
+    ],
+    "description": "Check lending and borrowing positions on Aave.",
+    "color": "#B6509E",
+    "icon": "finance",
+    "logo": null,
+    "tier": 4,
+    "rank": 2100
+  },
+  {
+    "id": "1inch",
+    "name": "1inch",
+    "categories": [
+      "Finance"
+    ],
+    "description": "Compare token swap rates across exchanges.",
+    "color": "#6B7280",
+    "icon": "finance",
+    "logo": null,
+    "tier": 4,
+    "rank": 2110
+  },
+  {
+    "id": "circle",
+    "name": "Circle",
+    "categories": [
+      "Finance"
+    ],
+    "description": "Send, receive and track USDC payments.",
+    "color": "#8669AE",
+    "icon": "finance",
+    "logo": "circle",
+    "tier": 4,
+    "rank": 2120
+  },
+  {
+    "id": "sideshift",
+    "name": "SideShift",
+    "categories": [
+      "Finance"
+    ],
+    "description": "Swap one cryptocurrency for another.",
+    "color": "#6B7280",
+    "icon": "finance",
+    "logo": null,
+    "tier": 4,
+    "rank": 2130
+  },
+  {
+    "id": "paybox",
+    "name": "PayBox",
+    "categories": [
+      "Finance"
+    ],
+    "description": "Send and track payments from your PayBox account.",
+    "color": "#6B7280",
+    "icon": "finance",
+    "logo": null,
+    "tier": 4,
+    "rank": 2140
+  },
+  {
+    "id": "natural",
+    "name": "Natural",
+    "categories": [
+      "Finance"
+    ],
+    "description": "Let your bot make payments on your behalf, within limits you set.",
+    "color": "#6B7280",
+    "icon": "finance",
+    "logo": null,
+    "tier": 4,
+    "rank": 2150
+  },
+  {
+    "id": "orthogonal",
+    "name": "Orthogonal",
+    "categories": [
+      "Finance"
+    ],
+    "description": "Pay for the paid services and APIs your bot uses.",
+    "color": "#6B7280",
+    "icon": "finance",
+    "logo": null,
+    "tier": 4,
+    "rank": 2160
+  },
+  {
+    "id": "razorpay",
+    "name": "Razorpay",
+    "categories": [
+      "Finance"
+    ],
+    "description": "Check payments, refunds and settlements for your business.",
+    "color": "#0C2451",
+    "icon": "finance",
+    "logo": "razorpay",
+    "tier": 4,
+    "rank": 2170
+  },
+  {
+    "id": "razorpay-ace-marketplace",
+    "name": "Razorpay ACE Marketplace",
+    "categories": [
+      "Finance"
+    ],
+    "description": "Find and connect payment tools from Razorpay's marketplace.",
+    "color": "#0C2451",
+    "icon": "finance",
+    "logo": "razorpay",
+    "tier": 4,
+    "rank": 2180
+  },
+  {
+    "id": "antom",
+    "name": "Antom",
+    "categories": [
+      "Finance"
+    ],
+    "description": "Accept and track payments from customers around the world.",
+    "color": "#1677FF",
+    "icon": "finance",
+    "logo": null,
+    "tier": 4,
+    "rank": 2190
+  },
+  {
+    "id": "vercel",
+    "name": "Vercel",
+    "categories": [
+      "Code"
+    ],
+    "description": "Check deployments, logs and domains for your projects.",
+    "color": "#000000",
+    "icon": "code",
+    "logo": "vercel",
+    "tier": 5,
+    "rank": 2200
+  },
+  {
+    "id": "netlify",
+    "name": "Netlify",
+    "categories": [
+      "Code"
+    ],
+    "description": "Deploy sites and check build status and logs.",
+    "color": "#00C7B7",
+    "icon": "code",
+    "logo": "netlify",
+    "tier": 5,
+    "rank": 2210
+  },
+  {
+    "id": "cloudflare",
+    "name": "Cloudflare",
+    "categories": [
+      "Code"
+    ],
+    "description": "Manage DNS, caching and security settings for your domains.",
+    "color": "#F38020",
+    "icon": "code",
+    "logo": "cloudflare",
+    "tier": 5,
+    "rank": 2220
+  },
+  {
+    "id": "railway",
+    "name": "Railway",
+    "categories": [
+      "Code"
+    ],
+    "description": "Deploy services and check logs for your Railway projects.",
+    "color": "#0B0D0E",
+    "icon": "code",
+    "logo": "railway",
+    "tier": 5,
+    "rank": 2230
+  },
+  {
+    "id": "render",
+    "name": "Render",
+    "categories": [
+      "Code"
+    ],
+    "description": "Watch deploys, services and logs on Render.",
+    "color": "#000000",
+    "icon": "code",
+    "logo": "render",
+    "tier": 5,
+    "rank": 2240
+  },
+  {
+    "id": "digitalocean",
+    "name": "DigitalOcean",
+    "categories": [
+      "Code"
+    ],
+    "description": "Manage droplets, databases and apps in your account.",
+    "color": "#0080FF",
+    "icon": "code",
+    "logo": "digitalocean",
+    "tier": 5,
+    "rank": 2250
+  },
+  {
+    "id": "hostinger",
+    "name": "Hostinger",
+    "categories": [
+      "Code",
+      "Marketing"
+    ],
+    "description": "Manage hosting, domains and websites in your account.",
+    "color": "#673DE6",
+    "icon": "code",
+    "logo": "hostinger",
+    "tier": 5,
+    "rank": 2260
+  },
+  {
+    "id": "godaddy",
+    "name": "GoDaddy",
+    "categories": [
+      "Code",
+      "Marketing"
+    ],
+    "description": "Check domains, renewals and DNS records.",
+    "color": "#1BDBDB",
+    "icon": "code",
+    "logo": "godaddy",
+    "tier": 5,
+    "rank": 2270
+  },
+  {
+    "id": "azure",
+    "name": "Azure",
+    "categories": [
+      "Code"
+    ],
+    "description": "Manage resources and services in your Azure subscriptions.",
+    "color": "#0078D4",
+    "icon": "code",
+    "logo": null,
+    "tier": 5,
+    "rank": 2280
+  },
+  {
+    "id": "aws-core",
+    "name": "AWS Core",
+    "categories": [
+      "Code"
+    ],
+    "description": "Look at resources, costs and settings in your AWS account.",
+    "color": "#FF9900",
+    "icon": "code",
+    "logo": null,
+    "tier": 5,
+    "rank": 2290
+  },
+  {
+    "id": "aws-deployments",
+    "name": "AWS Deployments",
+    "categories": [
+      "Code"
+    ],
+    "description": "Deploy and roll back applications on AWS.",
+    "color": "#FF9900",
+    "icon": "code",
+    "logo": null,
+    "tier": 5,
+    "rank": 2300
+  },
+  {
+    "id": "aws-amplify",
+    "name": "AWS Amplify",
+    "categories": [
+      "Code"
+    ],
+    "description": "Build and host web and mobile apps with Amplify.",
+    "color": "#FF9900",
+    "icon": "code",
+    "logo": null,
+    "tier": 5,
+    "rank": 2310
+  },
+  {
+    "id": "aws-serverless",
+    "name": "AWS Serverless",
+    "categories": [
+      "Code"
+    ],
+    "description": "Build and check Lambda functions and serverless apps.",
+    "color": "#FF9900",
+    "icon": "code",
+    "logo": null,
+    "tier": 5,
+    "rank": 2320
+  },
+  {
+    "id": "aws-databases",
+    "name": "AWS Databases",
+    "categories": [
+      "Code"
+    ],
+    "description": "Manage RDS, DynamoDB and other AWS databases.",
+    "color": "#FF9900",
+    "icon": "data",
+    "logo": null,
+    "tier": 5,
+    "rank": 2330
+  },
+  {
+    "id": "aws-data-analytics",
+    "name": "AWS Data Analytics",
+    "categories": [
+      "Code",
+      "Data"
+    ],
+    "description": "Query data and run analytics jobs on AWS.",
+    "color": "#FF9900",
+    "icon": "data",
+    "logo": null,
+    "tier": 5,
+    "rank": 2340
+  },
+  {
+    "id": "aws-sagemaker",
+    "name": "AWS SageMaker",
+    "categories": [
+      "Code",
+      "Data"
+    ],
+    "description": "Train, deploy and monitor machine learning models.",
+    "color": "#FF9900",
+    "icon": "code",
+    "logo": null,
+    "tier": 5,
+    "rank": 2350
+  },
+  {
+    "id": "aws-agents",
+    "name": "AWS Agents",
+    "categories": [
+      "Code"
+    ],
+    "description": "Build and run AI agents on AWS.",
+    "color": "#FF9900",
+    "icon": "code",
+    "logo": null,
+    "tier": 5,
+    "rank": 2360
+  },
+  {
+    "id": "amazon-location-service",
+    "name": "Amazon Location Service",
+    "categories": [
+      "Code",
+      "Data"
+    ],
+    "description": "Add maps, place search and routing to your apps.",
+    "color": "#FF9900",
+    "icon": "data",
+    "logo": null,
+    "tier": 5,
+    "rank": 2370
+  },
+  {
+    "id": "google-cloud-bigquery",
+    "name": "Google Cloud BigQuery",
+    "categories": [
+      "Data",
+      "Code"
+    ],
+    "description": "Run queries and explore datasets in BigQuery.",
+    "color": "#669DF6",
+    "icon": "data",
+    "logo": "googlebigquery",
+    "tier": 5,
+    "rank": 2380
+  },
+  {
+    "id": "firebase",
+    "name": "Firebase",
+    "categories": [
+      "Code"
+    ],
+    "description": "Check app data, signed-in users and crash reports in Firebase.",
+    "color": "#DD2C00",
+    "icon": "code",
+    "logo": "firebase",
+    "tier": 5,
+    "rank": 2390
+  },
+  {
+    "id": "supabase",
+    "name": "Supabase",
+    "categories": [
+      "Code"
+    ],
+    "description": "Query your database, manage auth and check project logs.",
+    "color": "#3FCF8E",
+    "icon": "data",
+    "logo": "supabase",
+    "tier": 5,
+    "rank": 2400
+  },
+  {
+    "id": "appwrite",
+    "name": "Appwrite",
+    "categories": [
+      "Code"
+    ],
+    "description": "Manage databases, users and storage in Appwrite projects.",
+    "color": "#FD366E",
+    "icon": "code",
+    "logo": "appwrite",
+    "tier": 5,
+    "rank": 2410
+  },
+  {
+    "id": "convex",
+    "name": "Convex",
+    "categories": [
+      "Code"
+    ],
+    "description": "Look at data, functions and logs in your Convex backend.",
+    "color": "#EE342F",
+    "icon": "data",
+    "logo": "convex",
+    "tier": 5,
+    "rank": 2420
+  },
+  {
+    "id": "floot",
+    "name": "Floot",
+    "categories": [
+      "Code"
+    ],
+    "description": "Build and host simple web apps from a description.",
+    "color": "#6B7280",
+    "icon": "code",
+    "logo": null,
+    "tier": 5,
+    "rank": 2430
+  },
+  {
+    "id": "monk-io",
+    "name": "Monk.io",
+    "categories": [
+      "Code"
+    ],
+    "description": "Deploy and manage cloud infrastructure from a description.",
+    "color": "#6B7280",
+    "icon": "code",
+    "logo": null,
+    "tier": 5,
+    "rank": 2440
+  },
+  {
+    "id": "encore",
+    "name": "Encore",
+    "categories": [
+      "Code"
+    ],
+    "description": "Build and deploy backend services with Encore.",
+    "color": "#6B7280",
+    "icon": "code",
+    "logo": null,
+    "tier": 5,
+    "rank": 2450
+  },
+  {
+    "id": "macaly-cloud",
+    "name": "Macaly Cloud",
+    "categories": [
+      "Code"
+    ],
+    "description": "Build and host websites by describing them.",
+    "color": "#6B7280",
+    "icon": "code",
+    "logo": null,
+    "tier": 5,
+    "rank": 2460
+  },
+  {
+    "id": "replit",
+    "name": "Replit",
+    "categories": [
+      "Code"
+    ],
+    "description": "Create, run and deploy apps in your Replit workspace.",
+    "color": "#F26207",
+    "icon": "code",
+    "logo": "replit",
+    "tier": 5,
+    "rank": 2470
+  },
+  {
+    "id": "lovable",
+    "name": "Lovable",
+    "categories": [
+      "Code",
+      "Design"
+    ],
+    "description": "Build web apps by describing them, then refine the result.",
+    "color": "#FF5D8F",
+    "icon": "code",
+    "logo": null,
+    "tier": 5,
+    "rank": 2480
+  },
+  {
+    "id": "mongodb",
+    "name": "MongoDB",
+    "categories": [
+      "Code"
+    ],
+    "description": "Query collections and inspect data in your MongoDB databases.",
+    "color": "#47A248",
+    "icon": "data",
+    "logo": "mongodb",
+    "tier": 5,
+    "rank": 2490
+  },
+  {
+    "id": "mongodb-atlas",
+    "name": "MongoDB Atlas",
+    "categories": [
+      "Code"
+    ],
+    "description": "Manage clusters, users and backups in MongoDB Atlas.",
+    "color": "#47A248",
+    "icon": "data",
+    "logo": "mongodb",
+    "tier": 5,
+    "rank": 2500
+  },
+  {
+    "id": "neon-postgres",
+    "name": "Neon Postgres",
+    "categories": [
+      "Code"
+    ],
+    "description": "Create branches, run queries and manage Postgres databases.",
+    "color": "#34D59A",
+    "icon": "data",
+    "logo": "neon",
+    "tier": 5,
+    "rank": 2510
+  },
+  {
+    "id": "planetscale",
+    "name": "PlanetScale",
+    "categories": [
+      "Code"
+    ],
+    "description": "Manage database branches and deploy schema changes.",
+    "color": "#000000",
+    "icon": "data",
+    "logo": "planetscale",
+    "tier": 5,
+    "rank": 2520
+  },
+  {
+    "id": "cockroachdb",
+    "name": "CockroachDB",
+    "categories": [
+      "Code"
+    ],
+    "description": "Run queries and manage clusters in CockroachDB.",
+    "color": "#6933FF",
+    "icon": "data",
+    "logo": "cockroachlabs",
+    "tier": 5,
+    "rank": 2530
+  },
+  {
+    "id": "turso",
+    "name": "Turso",
+    "categories": [
+      "Code"
+    ],
+    "description": "Create and query SQLite databases close to your users.",
+    "color": "#4FF8D2",
+    "icon": "data",
+    "logo": "turso",
+    "tier": 5,
+    "rank": 2540
+  },
+  {
+    "id": "redis",
+    "name": "Redis",
+    "categories": [
+      "Code"
+    ],
+    "description": "Read and manage keys and data in Redis.",
+    "color": "#FF4438",
+    "icon": "data",
+    "logo": "redis",
+    "tier": 5,
+    "rank": 2550
+  },
+  {
+    "id": "upstash-redis",
+    "name": "Upstash Redis",
+    "categories": [
+      "Code"
+    ],
+    "description": "Work with serverless Redis databases on Upstash.",
+    "color": "#00E9A3",
+    "icon": "data",
+    "logo": "upstash",
+    "tier": 5,
+    "rank": 2560
+  },
+  {
+    "id": "scylladb",
+    "name": "ScyllaDB",
+    "categories": [
+      "Code"
+    ],
+    "description": "Query and manage tables in ScyllaDB clusters.",
+    "color": "#6CD5E7",
+    "icon": "data",
+    "logo": "scylladb",
+    "tier": 5,
+    "rank": 2570
+  },
+  {
+    "id": "paradedb",
+    "name": "ParadeDB",
+    "categories": [
+      "Code"
+    ],
+    "description": "Search and analyse data inside Postgres with ParadeDB.",
+    "color": "#6B7280",
+    "icon": "search",
+    "logo": null,
+    "tier": 5,
+    "rank": 2580
+  },
+  {
+    "id": "clickhouse",
+    "name": "ClickHouse",
+    "categories": [
+      "Code",
+      "Data"
+    ],
+    "description": "Run analytic queries on large tables in ClickHouse.",
+    "color": "#FFCC01",
+    "icon": "data",
+    "logo": "clickhouse",
+    "tier": 5,
+    "rank": 2590
+  },
+  {
+    "id": "elastic",
+    "name": "Elastic",
+    "categories": [
+      "Code"
+    ],
+    "description": "Search logs and documents and check cluster health.",
+    "color": "#005571",
+    "icon": "search",
+    "logo": "elastic",
+    "tier": 5,
+    "rank": 2600
+  },
+  {
+    "id": "opensearch",
+    "name": "OpenSearch",
+    "categories": [
+      "Code"
+    ],
+    "description": "Search indexes and analyse logs in OpenSearch.",
+    "color": "#005EB8",
+    "icon": "search",
+    "logo": "opensearch",
+    "tier": 5,
+    "rank": 2610
+  },
+  {
+    "id": "pinecone",
+    "name": "Pinecone",
+    "categories": [
+      "Code"
+    ],
+    "description": "Store and search vector embeddings for your apps.",
+    "color": "#000000",
+    "icon": "data",
+    "logo": null,
+    "tier": 5,
+    "rank": 2620
+  },
+  {
+    "id": "turbopuffer",
+    "name": "turbopuffer",
+    "categories": [
+      "Code"
+    ],
+    "description": "Search vectors and text stored in turbopuffer.",
+    "color": "#6B7280",
+    "icon": "search",
+    "logo": null,
+    "tier": 5,
+    "rank": 2630
+  },
+  {
+    "id": "algolia",
+    "name": "Algolia",
+    "categories": [
+      "Code"
+    ],
+    "description": "Manage search indexes and check what users search for.",
+    "color": "#003DFF",
+    "icon": "search",
+    "logo": "algolia",
+    "tier": 5,
+    "rank": 2640
+  },
+  {
+    "id": "snowflake",
+    "name": "Snowflake",
+    "categories": [
+      "Data",
+      "Code"
+    ],
+    "description": "Run SQL queries and explore tables in your data warehouse.",
+    "color": "#29B5E8",
+    "icon": "data",
+    "logo": "snowflake",
+    "tier": 5,
+    "rank": 2650
+  },
+  {
+    "id": "observe-by-snowflake",
+    "name": "Observe by Snowflake",
+    "categories": [
+      "Code",
+      "Data"
+    ],
+    "description": "Search logs, metrics and traces to find problems.",
+    "color": "#6B7280",
+    "icon": "data",
+    "logo": null,
+    "tier": 5,
+    "rank": 2660
+  },
+  {
+    "id": "databricks",
+    "name": "Databricks",
+    "categories": [
+      "Data",
+      "Code"
+    ],
+    "description": "Run notebooks and queries and check jobs in Databricks.",
+    "color": "#FF3621",
+    "icon": "data",
+    "logo": "databricks",
+    "tier": 5,
+    "rank": 2670
+  },
+  {
+    "id": "databricks-genie-one",
+    "name": "Databricks Genie One",
+    "categories": [
+      "Data"
+    ],
+    "description": "Ask questions of your company data in plain language.",
+    "color": "#FF3621",
+    "icon": "data",
+    "logo": "databricks",
+    "tier": 5,
+    "rank": 2680
+  },
+  {
+    "id": "dbt-labs",
+    "name": "dbt Labs",
+    "categories": [
+      "Data",
+      "Code"
+    ],
+    "description": "Run data models and check tests in your dbt projects.",
+    "color": "#FF694B",
+    "icon": "data",
+    "logo": null,
+    "tier": 5,
+    "rank": 2690
+  },
+  {
+    "id": "dagster",
+    "name": "Dagster",
+    "categories": [
+      "Data",
+      "Code"
+    ],
+    "description": "Check pipeline runs and data assets in Dagster.",
+    "color": "#6B7280",
+    "icon": "data",
+    "logo": null,
+    "tier": 5,
+    "rank": 2700
+  },
+  {
+    "id": "astronomer",
+    "name": "Astronomer",
+    "categories": [
+      "Data",
+      "Code"
+    ],
+    "description": "Manage Airflow pipelines and check their runs.",
+    "color": "#6B7280",
+    "icon": "data",
+    "logo": null,
+    "tier": 5,
+    "rank": 2710
+  },
+  {
+    "id": "hex",
+    "name": "Hex",
+    "categories": [
+      "Data"
+    ],
+    "description": "Explore data in notebooks and share the results.",
+    "color": "#6B7280",
+    "icon": "data",
+    "logo": null,
+    "tier": 5,
+    "rank": 2720
+  },
+  {
+    "id": "omni-analytics",
+    "name": "Omni Analytics",
+    "categories": [
+      "Data"
+    ],
+    "description": "Build dashboards and answer questions with your company data.",
+    "color": "#6B7280",
+    "icon": "data",
+    "logo": null,
+    "tier": 5,
+    "rank": 2730
+  },
+  {
+    "id": "omni-integrations",
+    "name": "Omni Integrations",
+    "categories": [
+      "Data"
+    ],
+    "description": "Share Omni data and dashboards with your other tools.",
+    "color": "#6B7280",
+    "icon": "data",
+    "logo": null,
+    "tier": 5,
+    "rank": 2740
+  },
+  {
+    "id": "atscale",
+    "name": "AtScale",
+    "categories": [
+      "Data"
+    ],
+    "description": "Query business metrics from a shared semantic layer.",
+    "color": "#6B7280",
+    "icon": "data",
+    "logo": null,
+    "tier": 5,
+    "rank": 2750
+  },
+  {
+    "id": "atlan",
+    "name": "Atlan",
+    "categories": [
+      "Data"
+    ],
+    "description": "Find data assets and see where your data comes from.",
+    "color": "#6B7280",
+    "icon": "data",
+    "logo": null,
+    "tier": 5,
+    "rank": 2760
+  },
+  {
+    "id": "azure-cosmos-db",
+    "name": "Azure Cosmos DB",
+    "categories": [
+      "Code"
+    ],
+    "description": "Query and manage documents in Cosmos DB.",
+    "color": "#0078D4",
+    "icon": "data",
+    "logo": null,
+    "tier": 5,
+    "rank": 2770
+  },
+  {
+    "id": "prisma",
+    "name": "Prisma",
+    "categories": [
+      "Code"
+    ],
+    "description": "Manage database schemas and Postgres instances with Prisma.",
+    "color": "#2D3748",
+    "icon": "data",
+    "logo": "prisma",
+    "tier": 5,
+    "rank": 2780
+  },
+  {
+    "id": "basedash",
+    "name": "Basedash",
+    "categories": [
+      "Data"
+    ],
+    "description": "View and edit database records through a simple admin panel.",
+    "color": "#6B7280",
+    "icon": "data",
+    "logo": null,
+    "tier": 5,
+    "rank": 2790
+  },
+  {
+    "id": "artie",
+    "name": "Artie",
+    "categories": [
+      "Data",
+      "Code"
+    ],
+    "description": "Stream database changes into your data warehouse.",
+    "color": "#6B7280",
+    "icon": "data",
+    "logo": null,
+    "tier": 5,
+    "rank": 2800
+  },
+  {
+    "id": "datadog",
+    "name": "Datadog",
+    "categories": [
+      "Code"
+    ],
+    "description": "Check metrics, logs and alerts across your systems.",
+    "color": "#632CA6",
+    "icon": "data",
+    "logo": "datadog",
+    "tier": 5,
+    "rank": 2810
+  },
+  {
+    "id": "sentry",
+    "name": "Sentry",
+    "categories": [
+      "Code"
+    ],
+    "description": "Look into errors and crashes and see which release caused them.",
+    "color": "#362D59",
+    "icon": "code",
+    "logo": "sentry",
+    "tier": 5,
+    "rank": 2820
+  },
+  {
+    "id": "grafana-cloud",
+    "name": "Grafana Cloud",
+    "categories": [
+      "Code"
+    ],
+    "description": "Query metrics and logs and check dashboards in Grafana Cloud.",
+    "color": "#F46800",
+    "icon": "data",
+    "logo": "grafana",
+    "tier": 5,
+    "rank": 2830
+  },
+  {
+    "id": "grafana-labs",
+    "name": "Grafana Labs",
+    "categories": [
+      "Code"
+    ],
+    "description": "Explore dashboards, alerts and data sources in Grafana.",
+    "color": "#F46800",
+    "icon": "data",
+    "logo": "grafana",
+    "tier": 5,
+    "rank": 2840
+  },
+  {
+    "id": "coralogix",
+    "name": "Coralogix",
+    "categories": [
+      "Code"
+    ],
+    "description": "Search logs and traces and set up alerts.",
+    "color": "#6B7280",
+    "icon": "data",
+    "logo": null,
+    "tier": 5,
+    "rank": 2850
+  },
+  {
+    "id": "dynatrace",
+    "name": "Dynatrace",
+    "categories": [
+      "Code"
+    ],
+    "description": "Find the cause of slowdowns and outages in your systems.",
+    "color": "#1496FF",
+    "icon": "data",
+    "logo": "dynatrace",
+    "tier": 5,
+    "rank": 2860
+  },
+  {
+    "id": "lightrun",
+    "name": "Lightrun",
+    "categories": [
+      "Code"
+    ],
+    "description": "Add logs and snapshots to running code without redeploying.",
+    "color": "#6B7280",
+    "icon": "code",
+    "logo": null,
+    "tier": 5,
+    "rank": 2870
+  },
+  {
+    "id": "pagerduty",
+    "name": "PagerDuty",
+    "categories": [
+      "Code",
+      "Support"
+    ],
+    "description": "See who's on call and acknowledge or resolve incidents.",
+    "color": "#06AC38",
+    "icon": "support",
+    "logo": "pagerduty",
+    "tier": 5,
+    "rank": 2880
+  },
+  {
+    "id": "incident-io",
+    "name": "incident.io",
+    "categories": [
+      "Code",
+      "Support"
+    ],
+    "description": "Open incidents, post updates and follow up on actions.",
+    "color": "#6B7280",
+    "icon": "support",
+    "logo": null,
+    "tier": 5,
+    "rank": 2890
+  },
+  {
+    "id": "firetiger",
+    "name": "Firetiger",
+    "categories": [
+      "Code"
+    ],
+    "description": "Spot problems in production from logs and traces.",
+    "color": "#6B7280",
+    "icon": "code",
+    "logo": null,
+    "tier": 5,
+    "rank": 2900
+  },
+  {
+    "id": "resolve-ai",
+    "name": "Resolve AI",
+    "categories": [
+      "Code"
+    ],
+    "description": "Look into production alerts and suggest likely causes.",
+    "color": "#6B7280",
+    "icon": "code",
+    "logo": null,
+    "tier": 5,
+    "rank": 2910
+  },
+  {
+    "id": "kong-konnect",
+    "name": "Kong Konnect",
+    "categories": [
+      "Code"
+    ],
+    "description": "Manage API gateways, routes and plugins.",
+    "color": "#003459",
+    "icon": "code",
+    "logo": "kong",
+    "tier": 5,
+    "rank": 2920
+  },
+  {
+    "id": "ngrok",
+    "name": "ngrok",
+    "categories": [
+      "Code"
+    ],
+    "description": "Share local services through public web addresses.",
+    "color": "#1F1E37",
+    "icon": "code",
+    "logo": "ngrok",
+    "tier": 5,
+    "rank": 2930
+  },
+  {
+    "id": "snyk",
+    "name": "Snyk",
+    "categories": [
+      "Code"
+    ],
+    "description": "Find and fix vulnerabilities in your code and dependencies.",
+    "color": "#4C4A73",
+    "icon": "code",
+    "logo": "snyk",
+    "tier": 5,
+    "rank": 2940
+  },
+  {
+    "id": "snyk-api-web",
+    "name": "Snyk API & Web",
+    "categories": [
+      "Code"
+    ],
+    "description": "Scan web apps and APIs for security weaknesses.",
+    "color": "#4C4A73",
+    "icon": "code",
+    "logo": "snyk",
+    "tier": 5,
+    "rank": 2950
+  },
+  {
+    "id": "semgrep",
+    "name": "Semgrep",
+    "categories": [
+      "Code"
+    ],
+    "description": "Run code scans and review security findings.",
+    "color": "#6B7280",
+    "icon": "code",
+    "logo": null,
+    "tier": 5,
+    "rank": 2960
+  },
+  {
+    "id": "sonarqube",
+    "name": "SonarQube",
+    "categories": [
+      "Code"
+    ],
+    "description": "Check code quality issues and test coverage in your projects.",
+    "color": "#126ED3",
+    "icon": "code",
+    "logo": "sonarqubeserver",
+    "tier": 5,
+    "rank": 2970
+  },
+  {
+    "id": "sonatype",
+    "name": "Sonatype",
+    "categories": [
+      "Code"
+    ],
+    "description": "Check open source components for security and licence risk.",
+    "color": "#1B1C30",
+    "icon": "code",
+    "logo": "sonatype",
+    "tier": 5,
+    "rank": 2980
+  },
+  {
+    "id": "checkmarx",
+    "name": "Checkmarx",
+    "categories": [
+      "Code"
+    ],
+    "description": "Review application security scan results.",
+    "color": "#54B848",
+    "icon": "code",
+    "logo": "checkmarx",
+    "tier": 5,
+    "rank": 2990
+  },
+  {
+    "id": "chainguard",
+    "name": "Chainguard",
+    "categories": [
+      "Code"
+    ],
+    "description": "Find minimal container images and check their vulnerabilities.",
+    "color": "#4445E7",
+    "icon": "code",
+    "logo": "chainguard",
+    "tier": 5,
+    "rank": 3000
+  },
+  {
+    "id": "endor-labs-agent-kit",
+    "name": "Endor Labs Agent Kit",
+    "categories": [
+      "Code"
+    ],
+    "description": "Check dependencies for risk and reachable vulnerabilities.",
+    "color": "#6B7280",
+    "icon": "code",
+    "logo": null,
+    "tier": 5,
+    "rank": 3010
+  },
+  {
+    "id": "aikido",
+    "name": "Aikido",
+    "categories": [
+      "Code"
+    ],
+    "description": "Review security findings across code, cloud and containers.",
+    "color": "#6B7280",
+    "icon": "code",
+    "logo": null,
+    "tier": 5,
+    "rank": 3020
+  },
+  {
+    "id": "bright-security",
+    "name": "Bright Security",
+    "categories": [
+      "Code"
+    ],
+    "description": "Run security tests against your web apps and APIs.",
+    "color": "#6B7280",
+    "icon": "code",
+    "logo": null,
+    "tier": 5,
+    "rank": 3030
+  },
+  {
+    "id": "dash-security",
+    "name": "Dash Security",
+    "categories": [
+      "Code"
+    ],
+    "description": "Track the security and compliance of your cloud setup.",
+    "color": "#6B7280",
+    "icon": "code",
+    "logo": null,
+    "tier": 5,
+    "rank": 3040
+  },
+  {
+    "id": "pi-security",
+    "name": "Pi Security",
+    "categories": [
+      "Code"
+    ],
+    "description": "Review security findings and alerts.",
+    "color": "#6B7280",
+    "icon": "code",
+    "logo": null,
+    "tier": 5,
+    "rank": 3050
+  },
+  {
+    "id": "zscaler",
+    "name": "Zscaler",
+    "categories": [
+      "Code"
+    ],
+    "description": "Check access policies and security events in Zscaler.",
+    "color": "#6B7280",
+    "icon": "code",
+    "logo": null,
+    "tier": 5,
+    "rank": 3060
+  },
+  {
+    "id": "corridor",
+    "name": "Corridor",
+    "categories": [
+      "Code"
+    ],
+    "description": "Review code changes for security issues.",
+    "color": "#6B7280",
+    "icon": "code",
+    "logo": null,
+    "tier": 5,
+    "rank": 3070
+  },
+  {
+    "id": "jfrog",
+    "name": "JFrog",
+    "categories": [
+      "Code"
+    ],
+    "description": "Manage packages and builds in your artifact repositories.",
+    "color": "#40BE46",
+    "icon": "code",
+    "logo": "jfrog",
+    "tier": 5,
+    "rank": 3080
+  },
+  {
+    "id": "runlayer",
+    "name": "Runlayer",
+    "categories": [
+      "Code"
+    ],
+    "description": "Control which tools and servers your agents may use.",
+    "color": "#6B7280",
+    "icon": "code",
+    "logo": null,
+    "tier": 5,
+    "rank": 3090
+  },
+  {
+    "id": "opsera",
+    "name": "Opsera",
+    "categories": [
+      "Code"
+    ],
+    "description": "Track delivery pipelines and engineering metrics.",
+    "color": "#6B7280",
+    "icon": "code",
+    "logo": null,
+    "tier": 5,
+    "rank": 3100
+  },
+  {
+    "id": "port",
+    "name": "Port",
+    "categories": [
+      "Code"
+    ],
+    "description": "Find services, owners and docs in your developer portal.",
+    "color": "#6B7280",
+    "icon": "code",
+    "logo": null,
+    "tier": 5,
+    "rank": 3110
+  },
+  {
+    "id": "vantage",
+    "name": "Vantage",
+    "categories": [
+      "Code",
+      "Finance"
+    ],
+    "description": "Track and break down your cloud costs.",
+    "color": "#6B7280",
+    "icon": "finance",
+    "logo": null,
+    "tier": 5,
+    "rank": 3120
+  },
+  {
+    "id": "antimetal",
+    "name": "Antimetal",
+    "categories": [
+      "Code"
+    ],
+    "description": "Look into cloud infrastructure issues.",
+    "color": "#6B7280",
+    "icon": "code",
+    "logo": null,
+    "tier": 5,
+    "rank": 3130
+  },
+  {
+    "id": "auth0",
+    "name": "Auth0",
+    "categories": [
+      "Code"
+    ],
+    "description": "Manage users, logins and access rules for your apps.",
+    "color": "#EB5424",
+    "icon": "code",
+    "logo": "auth0",
+    "tier": 5,
+    "rank": 3140
+  },
+  {
+    "id": "clerk",
+    "name": "Clerk",
+    "categories": [
+      "Code"
+    ],
+    "description": "Look up users and sessions and manage sign-in settings.",
+    "color": "#6C47FF",
+    "icon": "code",
+    "logo": "clerk",
+    "tier": 5,
+    "rank": 3150
+  },
+  {
+    "id": "workos",
+    "name": "WorkOS",
+    "categories": [
+      "Code"
+    ],
+    "description": "Manage single sign-on, directory sync and user access.",
+    "color": "#6B7280",
+    "icon": "code",
+    "logo": null,
+    "tier": 5,
+    "rank": 3160
+  },
+  {
+    "id": "docker",
+    "name": "Docker",
+    "categories": [
+      "Code"
+    ],
+    "description": "Work with containers, images and Docker Hub repositories.",
+    "color": "#2496ED",
+    "icon": "code",
+    "logo": "docker",
+    "tier": 5,
+    "rank": 3170
+  },
+  {
+    "id": "postman",
+    "name": "Postman",
+    "categories": [
+      "Code"
+    ],
+    "description": "Send API requests and manage collections and tests.",
+    "color": "#FF6C37",
+    "icon": "code",
+    "logo": "postman",
+    "tier": 5,
+    "rank": 3180
+  },
+  {
+    "id": "playwright",
+    "name": "Playwright",
+    "categories": [
+      "Code"
+    ],
+    "description": "Run browser tests and check the results for your web apps.",
+    "color": "#2EAD33",
+    "icon": "code",
+    "logo": null,
+    "tier": 5,
+    "rank": 3190
+  },
+  {
+    "id": "browserstack",
+    "name": "BrowserStack",
+    "categories": [
+      "Code"
+    ],
+    "description": "Run tests on real browsers and devices.",
+    "color": "#6B7280",
+    "icon": "code",
+    "logo": null,
+    "tier": 5,
+    "rank": 3200
+  },
+  {
+    "id": "browserless",
+    "name": "Browserless",
+    "categories": [
+      "Code"
+    ],
+    "description": "Run headless browsers in the cloud for scraping and tests.",
+    "color": "#6B7280",
+    "icon": "code",
+    "logo": null,
+    "tier": 5,
+    "rank": 3210
+  },
+  {
+    "id": "browserbase",
+    "name": "Browserbase",
+    "categories": [
+      "Code"
+    ],
+    "description": "Run and watch cloud browser sessions for web tasks.",
+    "color": "#6B7280",
+    "icon": "code",
+    "logo": null,
+    "tier": 5,
+    "rank": 3220
+  },
+  {
+    "id": "browser-use",
+    "name": "Browser Use",
+    "categories": [
+      "Code"
+    ],
+    "description": "Let your bot complete tasks in a web browser.",
+    "color": "#6B7280",
+    "icon": "code",
+    "logo": null,
+    "tier": 5,
+    "rank": 3230
+  },
+  {
+    "id": "buildkite",
+    "name": "Buildkite",
+    "categories": [
+      "Code"
+    ],
+    "description": "Check builds, pipelines and test results.",
+    "color": "#14CC80",
+    "icon": "code",
+    "logo": "buildkite",
+    "tier": 5,
+    "rank": 3240
+  },
+  {
+    "id": "circleci",
+    "name": "CircleCI",
+    "categories": [
+      "Code"
+    ],
+    "description": "Check build status and rerun failed pipelines.",
+    "color": "#343434",
+    "icon": "code",
+    "logo": "circleci",
+    "tier": 5,
+    "rank": 3250
+  },
+  {
+    "id": "bitrise",
+    "name": "Bitrise",
+    "categories": [
+      "Code"
+    ],
+    "description": "Run mobile app builds and check their results.",
+    "color": "#683D87",
+    "icon": "code",
+    "logo": "bitrise",
+    "tier": 5,
+    "rank": 3260
+  },
+  {
+    "id": "tuist",
+    "name": "Tuist",
+    "categories": [
+      "Code"
+    ],
+    "description": "Manage Xcode projects and make their builds quicker.",
+    "color": "#6B7280",
+    "icon": "code",
+    "logo": null,
+    "tier": 5,
+    "rank": 3270
+  },
+  {
+    "id": "harness",
+    "name": "Harness",
+    "categories": [
+      "Code"
+    ],
+    "description": "Check deployment pipelines and roll back changes.",
+    "color": "#6B7280",
+    "icon": "code",
+    "logo": null,
+    "tier": 5,
+    "rank": 3280
+  },
+  {
+    "id": "temporal",
+    "name": "Temporal",
+    "categories": [
+      "Code"
+    ],
+    "description": "Look into workflow runs and retry failed steps.",
+    "color": "#000000",
+    "icon": "code",
+    "logo": "temporal",
+    "tier": 5,
+    "rank": 3290
+  },
+  {
+    "id": "twilio",
+    "name": "Twilio",
+    "categories": [
+      "Communication",
+      "Code"
+    ],
+    "description": "Send texts and make calls from your apps.",
+    "color": "#F22F46",
+    "icon": "chat",
+    "logo": null,
+    "tier": 5,
+    "rank": 3300
+  },
+  {
+    "id": "sinch",
+    "name": "Sinch",
+    "categories": [
+      "Communication",
+      "Code"
+    ],
+    "description": "Send text messages and verification codes to customers.",
+    "color": "#6B7280",
+    "icon": "chat",
+    "logo": null,
+    "tier": 5,
+    "rank": 3310
+  },
+  {
+    "id": "infobip",
+    "name": "Infobip",
+    "categories": [
+      "Communication",
+      "Code"
+    ],
+    "description": "Send messages over SMS, WhatsApp and other channels.",
+    "color": "#6B7280",
+    "icon": "chat",
+    "logo": null,
+    "tier": 5,
+    "rank": 3320
+  },
+  {
+    "id": "pubnub",
+    "name": "PubNub",
+    "categories": [
+      "Code"
+    ],
+    "description": "Send live messages and updates between apps and devices.",
+    "color": "#6B7280",
+    "icon": "code",
+    "logo": null,
+    "tier": 5,
+    "rank": 3330
+  },
+  {
+    "id": "resend",
+    "name": "Resend",
+    "categories": [
+      "Code",
+      "Communication"
+    ],
+    "description": "Send transactional emails and check their delivery.",
+    "color": "#000000",
+    "icon": "email",
+    "logo": "resend",
+    "tier": 5,
+    "rank": 3340
+  },
+  {
+    "id": "mailgun",
+    "name": "Mailgun",
+    "categories": [
+      "Code",
+      "Communication"
+    ],
+    "description": "Send emails and look into bounces and delivery logs.",
+    "color": "#F06B66",
+    "icon": "email",
+    "logo": "mailgun",
+    "tier": 5,
+    "rank": 3350
+  },
+  {
+    "id": "knock",
+    "name": "Knock",
+    "categories": [
+      "Code"
+    ],
+    "description": "Manage notification workflows across email, push and chat.",
+    "color": "#6B7280",
+    "icon": "inbox",
+    "logo": null,
+    "tier": 5,
+    "rank": 3360
+  },
+  {
+    "id": "bird",
+    "name": "Bird",
+    "categories": [
+      "Communication",
+      "Marketing"
+    ],
+    "description": "Send messages and campaigns over SMS, email and WhatsApp.",
+    "color": "#6B7280",
+    "icon": "chat",
+    "logo": null,
+    "tier": 5,
+    "rank": 3370
+  },
+  {
+    "id": "linq",
+    "name": "Linq",
+    "categories": [
+      "Communication"
+    ],
+    "description": "Send and receive text messages from your business number.",
+    "color": "#6B7280",
+    "icon": "chat",
+    "logo": null,
+    "tier": 5,
+    "rank": 3380
+  },
+  {
+    "id": "mux",
+    "name": "Mux",
+    "categories": [
+      "Code"
+    ],
+    "description": "Upload and stream video and check playback quality.",
+    "color": "#6B7280",
+    "icon": "code",
+    "logo": null,
+    "tier": 5,
+    "rank": 3390
+  },
+  {
+    "id": "cloudinary",
+    "name": "Cloudinary",
+    "categories": [
+      "Code",
+      "Design"
+    ],
+    "description": "Upload, transform and deliver images and video.",
+    "color": "#3448C5",
+    "icon": "folder",
+    "logo": "cloudinary",
+    "tier": 5,
+    "rank": 3400
+  },
+  {
+    "id": "scandit",
+    "name": "Scandit",
+    "categories": [
+      "Code"
+    ],
+    "description": "Add barcode and text scanning to mobile apps.",
+    "color": "#6B7280",
+    "icon": "code",
+    "logo": null,
+    "tier": 5,
+    "rank": 3410
+  },
+  {
+    "id": "roboflow",
+    "name": "Roboflow",
+    "categories": [
+      "Code"
+    ],
+    "description": "Train and run computer vision models on your images.",
+    "color": "#6706CE",
+    "icon": "code",
+    "logo": "roboflow",
+    "tier": 5,
+    "rank": 3420
+  },
+  {
+    "id": "sourcegraph",
+    "name": "Sourcegraph",
+    "categories": [
+      "Code"
+    ],
+    "description": "Search across all your code repositories at once.",
+    "color": "#6B7280",
+    "icon": "search",
+    "logo": null,
+    "tier": 5,
+    "rank": 3430
+  },
+  {
+    "id": "coderabbit",
+    "name": "CodeRabbit",
+    "categories": [
+      "Code"
+    ],
+    "description": "Get review comments on your pull requests.",
+    "color": "#FF570A",
+    "icon": "code",
+    "logo": "coderabbit",
+    "tier": 5,
+    "rank": 3440
+  },
+  {
+    "id": "meticulous",
+    "name": "Meticulous",
+    "categories": [
+      "Code"
+    ],
+    "description": "Catch visual and behaviour changes in your frontend before release.",
+    "color": "#6B7280",
+    "icon": "code",
+    "logo": null,
+    "tier": 5,
+    "rank": 3450
+  },
+  {
+    "id": "jam",
+    "name": "Jam",
+    "categories": [
+      "Code",
+      "Support"
+    ],
+    "description": "Turn bug reports with screen recordings into clear tickets.",
+    "color": "#6B7280",
+    "icon": "support",
+    "logo": null,
+    "tier": 5,
+    "rank": 3460
+  },
+  {
+    "id": "gitbook",
+    "name": "GitBook",
+    "categories": [
+      "Code"
+    ],
+    "description": "Write and update docs and knowledge pages in GitBook.",
+    "color": "#BBDDE5",
+    "icon": "notes",
+    "logo": "gitbook",
+    "tier": 5,
+    "rank": 3470
+  },
+  {
+    "id": "readme",
+    "name": "ReadMe",
+    "categories": [
+      "Code"
+    ],
+    "description": "Update API docs and see how developers use your API.",
+    "color": "#018EF5",
+    "icon": "notes",
+    "logo": "readme",
+    "tier": 5,
+    "rank": 3480
+  },
+  {
+    "id": "mintlify",
+    "name": "Mintlify",
+    "categories": [
+      "Code"
+    ],
+    "description": "Edit and publish developer documentation sites.",
+    "color": "#18E299",
+    "icon": "notes",
+    "logo": "mintlify",
+    "tier": 5,
+    "rank": 3490
+  },
+  {
+    "id": "kapa",
+    "name": "Kapa",
+    "categories": [
+      "Support",
+      "Code"
+    ],
+    "description": "Answer technical questions from your docs and support history.",
+    "color": "#6B7280",
+    "icon": "support",
+    "logo": null,
+    "tier": 5,
+    "rank": 3500
+  },
+  {
+    "id": "icepanel",
+    "name": "IcePanel",
+    "categories": [
+      "Code",
+      "Design"
+    ],
+    "description": "Draw and update architecture diagrams of your systems.",
+    "color": "#6B7280",
+    "icon": "code",
+    "logo": null,
+    "tier": 5,
+    "rank": 3510
+  },
+  {
+    "id": "gsap",
+    "name": "GSAP",
+    "categories": [
+      "Code"
+    ],
+    "description": "Build web animations with the GSAP library.",
+    "color": "#0AE448",
+    "icon": "code",
+    "logo": "gsap",
+    "tier": 5,
+    "rank": 3520
+  },
+  {
+    "id": "svelte",
+    "name": "Svelte",
+    "categories": [
+      "Code"
+    ],
+    "description": "Get help building apps with Svelte and SvelteKit.",
+    "color": "#FF3E00",
+    "icon": "code",
+    "logo": "svelte",
+    "tier": 5,
+    "rank": 3530
+  },
+  {
+    "id": "sanity",
+    "name": "Sanity",
+    "categories": [
+      "Code"
+    ],
+    "description": "Edit and publish content in your Sanity studio.",
+    "color": "#0D0E12",
+    "icon": "notes",
+    "logo": "sanity",
+    "tier": 5,
+    "rank": 3540
+  },
+  {
+    "id": "shadcn-ui",
+    "name": "shadcn/ui",
+    "categories": [
+      "Code"
+    ],
+    "description": "Add and customise UI components from shadcn/ui.",
+    "color": "#000000",
+    "icon": "code",
+    "logo": "shadcnui",
+    "tier": 5,
+    "rank": 3550
+  },
+  {
+    "id": "react-doctor",
+    "name": "React Doctor",
+    "categories": [
+      "Code"
+    ],
+    "description": "Find problems in React apps and suggest fixes.",
+    "color": "#6B7280",
+    "icon": "code",
+    "logo": null,
+    "tier": 5,
+    "rank": 3560
+  },
+  {
+    "id": "dart-and-flutter",
+    "name": "Dart and Flutter",
+    "categories": [
+      "Code"
+    ],
+    "description": "Build and debug Dart and Flutter apps.",
+    "color": "#0175C2",
+    "icon": "code",
+    "logo": "dart",
+    "tier": 5,
+    "rank": 3570
+  },
+  {
+    "id": "modern-web-guidance",
+    "name": "Modern Web Guidance",
+    "categories": [
+      "Code"
+    ],
+    "description": "Follow current web platform guidance when building sites.",
+    "color": "#6B7280",
+    "icon": "code",
+    "logo": null,
+    "tier": 5,
+    "rank": 3580
+  },
+  {
+    "id": "remotion",
+    "name": "Remotion",
+    "categories": [
+      "Code",
+      "Design"
+    ],
+    "description": "Make videos with code written in React.",
+    "color": "#6B7280",
+    "icon": "code",
+    "logo": null,
+    "tier": 5,
+    "rank": 3590
+  },
+  {
+    "id": "html-css-to-image",
+    "name": "HTML/CSS to Image",
+    "categories": [
+      "Code"
+    ],
+    "description": "Turn HTML and CSS into images for cards and previews.",
+    "color": "#6B7280",
+    "icon": "code",
+    "logo": null,
+    "tier": 5,
+    "rank": 3600
+  },
+  {
+    "id": "streamline-icons",
+    "name": "Streamline Icons",
+    "categories": [
+      "Design"
+    ],
+    "description": "Search for icons and illustrations to use in your projects.",
+    "color": "#6B7280",
+    "icon": "slides",
+    "logo": null,
+    "tier": 5,
+    "rank": 3610
+  },
+  {
+    "id": "mobbin",
+    "name": "Mobbin",
+    "categories": [
+      "Design"
+    ],
+    "description": "Browse real app screens and flows for design ideas.",
+    "color": "#6B7280",
+    "icon": "slides",
+    "logo": null,
+    "tier": 5,
+    "rank": 3620
+  },
+  {
+    "id": "refero",
+    "name": "Refero",
+    "categories": [
+      "Design"
+    ],
+    "description": "Find design references from real websites and apps.",
+    "color": "#6B7280",
+    "icon": "slides",
+    "logo": null,
+    "tier": 5,
+    "rank": 3630
+  },
+  {
+    "id": "magic-patterns",
+    "name": "Magic Patterns",
+    "categories": [
+      "Design"
+    ],
+    "description": "Prototype interface ideas and turn them into components.",
+    "color": "#6B7280",
+    "icon": "slides",
+    "logo": null,
+    "tier": 5,
+    "rank": 3640
+  },
+  {
+    "id": "magicpath",
+    "name": "MagicPath",
+    "categories": [
+      "Design"
+    ],
+    "description": "Design interfaces on a canvas and export them as code.",
+    "color": "#6B7280",
+    "icon": "slides",
+    "logo": null,
+    "tier": 5,
+    "rank": 3650
+  },
+  {
+    "id": "superdesign",
+    "name": "Superdesign",
+    "categories": [
+      "Design"
+    ],
+    "description": "Draft interface designs from a description.",
+    "color": "#6B7280",
+    "icon": "slides",
+    "logo": null,
+    "tier": 5,
+    "rank": 3660
+  },
+  {
+    "id": "impeccable",
+    "name": "Impeccable",
+    "categories": [
+      "Design",
+      "Code"
+    ],
+    "description": "Review and tidy up interface design details.",
+    "color": "#6B7280",
+    "icon": "slides",
+    "logo": null,
+    "tier": 5,
+    "rank": 3670
+  },
+  {
+    "id": "wonder",
+    "name": "Wonder",
+    "categories": [
+      "Design"
+    ],
+    "description": "Create designs from a description.",
+    "color": "#6B7280",
+    "icon": "slides",
+    "logo": null,
+    "tier": 5,
+    "rank": 3680
+  },
+  {
+    "id": "paper",
+    "name": "Paper",
+    "categories": [
+      "Design"
+    ],
+    "description": "Design screens on a canvas that maps to real code.",
+    "color": "#6B7280",
+    "icon": "slides",
+    "logo": null,
+    "tier": 5,
+    "rank": 3690
+  },
+  {
+    "id": "spacefast",
+    "name": "Spacefast",
+    "categories": [
+      "Code"
+    ],
+    "description": "Use Spacefast's developer tools in your projects.",
+    "color": "#6B7280",
+    "icon": "code",
+    "logo": null,
+    "tier": 5,
+    "rank": 3700
+  },
+  {
+    "id": "chatprd",
+    "name": "ChatPRD",
+    "categories": [
+      "Productivity"
+    ],
+    "description": "Write and improve product requirement documents.",
+    "color": "#6B7280",
+    "icon": "notes",
+    "logo": null,
+    "tier": 5,
+    "rank": 3710
+  },
+  {
+    "id": "tierzero",
+    "name": "TierZero",
+    "categories": [
+      "Code"
+    ],
+    "description": "Look into production issues and answer on-call questions.",
+    "color": "#6B7280",
+    "icon": "code",
+    "logo": null,
+    "tier": 5,
+    "rank": 3720
+  },
+  {
+    "id": "coder",
+    "name": "Coder",
+    "categories": [
+      "Code"
+    ],
+    "description": "Create and manage cloud development environments.",
+    "color": "#090B0B",
+    "icon": "code",
+    "logo": "coder",
+    "tier": 5,
+    "rank": 3730
+  },
+  {
+    "id": "adobe-developer-app-builder",
+    "name": "Adobe Developer App Builder",
+    "categories": [
+      "Code"
+    ],
+    "description": "Build custom apps and integrations on Adobe's platform.",
+    "color": "#FA0F00",
+    "icon": "code",
+    "logo": null,
+    "tier": 5,
+    "rank": 3740
+  },
+  {
+    "id": "atlassian-forge",
+    "name": "Atlassian Forge",
+    "categories": [
+      "Code"
+    ],
+    "description": "Build and deploy apps for Jira and Confluence.",
+    "color": "#0052CC",
+    "icon": "code",
+    "logo": "atlassian",
+    "tier": 5,
+    "rank": 3750
+  },
+  {
+    "id": "atlassian-teamwork-graph-cli",
+    "name": "Atlassian Teamwork Graph CLI",
+    "categories": [
+      "Code"
+    ],
+    "description": "Query work data across Atlassian tools from the command line.",
+    "color": "#0052CC",
+    "icon": "code",
+    "logo": "atlassian",
+    "tier": 5,
+    "rank": 3760
+  },
+  {
+    "id": "glean-developer-docs",
+    "name": "Glean Developer Docs",
+    "categories": [
+      "Code"
+    ],
+    "description": "Look up Glean's API and developer guides.",
+    "color": "#343CED",
+    "icon": "notes",
+    "logo": null,
+    "tier": 5,
+    "rank": 3770
+  },
+  {
+    "id": "kody",
+    "name": "Kody",
+    "categories": [
+      "Code"
+    ],
+    "description": "Review code changes and point out issues.",
+    "color": "#6B7280",
+    "icon": "code",
+    "logo": null,
+    "tier": 5,
+    "rank": 3780
+  },
+  {
+    "id": "chrome-devtools-for-agents",
+    "name": "Chrome DevTools for Agents",
+    "categories": [
+      "Code"
+    ],
+    "description": "Inspect pages, network requests and performance in Chrome.",
+    "color": "#4285F4",
+    "icon": "code",
+    "logo": "googlechrome",
+    "tier": 5,
+    "rank": 3790
+  },
+  {
+    "id": "21st-dev",
+    "name": "21st.dev",
+    "categories": [
+      "Design",
+      "Code"
+    ],
+    "description": "Find ready-made UI components and add them to your project.",
+    "color": "#6B7280",
+    "icon": "code",
+    "logo": null,
+    "tier": 5,
+    "rank": 3800
+  },
+  {
+    "id": "adapter",
+    "name": "Adapter",
+    "categories": [
+      "Code"
+    ],
+    "description": "Use Adapter's developer tools in your projects.",
+    "color": "#6B7280",
+    "icon": "code",
+    "logo": null,
+    "tier": 5,
+    "rank": 3810
+  },
+  {
+    "id": "runway-dev",
+    "name": "Runway Dev",
+    "categories": [
+      "Code",
+      "Design"
+    ],
+    "description": "Use Runway's video generation from your own code.",
+    "color": "#6B7280",
+    "icon": "code",
+    "logo": null,
+    "tier": 5,
+    "rank": 3820
+  },
+  {
+    "id": "forge",
+    "name": "Forge",
+    "categories": [
+      "Code"
+    ],
+    "description": "Use Forge's developer tools in your projects.",
+    "color": "#6B7280",
+    "icon": "code",
+    "logo": null,
+    "tier": 5,
+    "rank": 3830
+  },
+  {
+    "id": "executor",
+    "name": "Executor",
+    "categories": [
+      "Code"
+    ],
+    "description": "Use Executor's developer tools in your projects.",
+    "color": "#6B7280",
+    "icon": "code",
+    "logo": null,
+    "tier": 5,
+    "rank": 3840
+  },
+  {
+    "id": "liquid",
+    "name": "Liquid",
+    "categories": [
+      "Code"
+    ],
+    "description": "Use Liquid's developer tools in your projects.",
+    "color": "#6B7280",
+    "icon": "code",
+    "logo": null,
+    "tier": 5,
+    "rank": 3850
+  },
+  {
+    "id": "mainframe",
+    "name": "Mainframe",
+    "categories": [
+      "Code"
+    ],
+    "description": "Use Mainframe's developer tools in your projects.",
+    "color": "#6B7280",
+    "icon": "code",
+    "logo": null,
+    "tier": 5,
+    "rank": 3860
+  },
+  {
+    "id": "manufact",
+    "name": "Manufact",
+    "categories": [
+      "Code"
+    ],
+    "description": "Use Manufact's developer tools in your projects.",
+    "color": "#6B7280",
+    "icon": "code",
+    "logo": null,
+    "tier": 5,
+    "rank": 3870
+  },
+  {
+    "id": "modem",
+    "name": "Modem",
+    "categories": [
+      "Code"
+    ],
+    "description": "Use Modem's developer tools in your projects.",
+    "color": "#6B7280",
+    "icon": "code",
+    "logo": null,
+    "tier": 5,
+    "rank": 3880
+  },
+  {
+    "id": "pstack",
+    "name": "pstack",
+    "categories": [
+      "Code"
+    ],
+    "description": "Use pstack's developer tools in your projects.",
+    "color": "#6B7280",
+    "icon": "code",
+    "logo": null,
+    "tier": 5,
+    "rank": 3890
+  },
+  {
+    "id": "subtext",
+    "name": "Subtext",
+    "categories": [
+      "Code"
+    ],
+    "description": "Use Subtext's developer tools in your projects.",
+    "color": "#6B7280",
+    "icon": "code",
+    "logo": null,
+    "tier": 5,
+    "rank": 3900
+  },
+  {
+    "id": "thermos",
+    "name": "Thermos",
+    "categories": [
+      "Code"
+    ],
+    "description": "Use Thermos's developer tools in your projects.",
+    "color": "#6B7280",
+    "icon": "code",
+    "logo": null,
+    "tier": 5,
+    "rank": 3910
+  },
+  {
+    "id": "volcano",
+    "name": "Volcano",
+    "categories": [
+      "Code"
+    ],
+    "description": "Use Volcano's developer tools in your projects.",
+    "color": "#6B7280",
+    "icon": "code",
+    "logo": null,
+    "tier": 5,
+    "rank": 3920
+  },
+  {
+    "id": "zernio",
+    "name": "Zernio",
+    "categories": [
+      "Code"
+    ],
+    "description": "Use Zernio's developer tools in your projects.",
+    "color": "#6B7280",
+    "icon": "code",
+    "logo": null,
+    "tier": 5,
+    "rank": 3930
+  },
+  {
+    "id": "rewvyl",
+    "name": "Rewvyl",
+    "categories": [
+      "Code"
+    ],
+    "description": "Use Rewvyl's developer tools in your projects.",
+    "color": "#6B7280",
+    "icon": "code",
+    "logo": null,
+    "tier": 5,
+    "rank": 3940
+  },
+  {
+    "id": "speko",
+    "name": "Speko",
+    "categories": [
+      "Code"
+    ],
+    "description": "Use Speko's developer tools in your projects.",
+    "color": "#6B7280",
+    "icon": "code",
+    "logo": null,
+    "tier": 5,
+    "rank": 3950
+  },
+  {
+    "id": "pascal",
+    "name": "Pascal",
+    "categories": [
+      "Code"
+    ],
+    "description": "Use Pascal's developer tools in your projects.",
+    "color": "#6B7280",
+    "icon": "code",
+    "logo": null,
+    "tier": 5,
+    "rank": 3960
+  },
+  {
+    "id": "stable",
+    "name": "Stable",
+    "categories": [
+      "Code"
+    ],
+    "description": "Use Stable's developer tools in your projects.",
+    "color": "#6B7280",
+    "icon": "code",
+    "logo": null,
+    "tier": 5,
+    "rank": 3970
+  },
+  {
+    "id": "vexo",
+    "name": "Vexo",
+    "categories": [
+      "Code",
+      "Data"
+    ],
+    "description": "Track how people use your mobile app.",
+    "color": "#6B7280",
+    "icon": "data",
+    "logo": null,
+    "tier": 5,
+    "rank": 3980
+  },
+  {
+    "id": "falconer",
+    "name": "Falconer",
+    "categories": [
+      "Code"
+    ],
+    "description": "Use Falconer's developer tools in your projects.",
+    "color": "#6B7280",
+    "icon": "code",
+    "logo": null,
+    "tier": 5,
+    "rank": 3990
+  },
+  {
+    "id": "orchestrate",
+    "name": "Orchestrate",
+    "categories": [
+      "Code"
+    ],
+    "description": "Use Orchestrate's developer tools in your projects.",
+    "color": "#6B7280",
+    "icon": "code",
+    "logo": null,
+    "tier": 5,
+    "rank": 4000
+  },
+  {
+    "id": "envoy",
+    "name": "Envoy",
+    "categories": [
+      "Code"
+    ],
+    "description": "Use Envoy's developer tools in your projects.",
+    "color": "#6B7280",
+    "icon": "code",
+    "logo": null,
+    "tier": 5,
+    "rank": 4010
+  },
+  {
+    "id": "extend",
+    "name": "Extend",
+    "categories": [
+      "Code"
+    ],
+    "description": "Use Extend's developer tools in your projects.",
+    "color": "#6B7280",
+    "icon": "code",
+    "logo": null,
+    "tier": 5,
+    "rank": 4020
+  },
+  {
+    "id": "allo",
+    "name": "Allo",
+    "categories": [
+      "Code"
+    ],
+    "description": "Use Allo's developer tools in your projects.",
+    "color": "#6B7280",
+    "icon": "code",
+    "logo": null,
+    "tier": 5,
+    "rank": 4030
+  },
+  {
+    "id": "aleph",
+    "name": "Aleph",
+    "categories": [
+      "Code"
+    ],
+    "description": "Use Aleph's developer tools in your projects.",
+    "color": "#6B7280",
+    "icon": "code",
+    "logo": null,
+    "tier": 5,
+    "rank": 4040
+  },
+  {
+    "id": "quo",
+    "name": "Quo",
+    "categories": [
+      "Communication"
+    ],
+    "description": "Make calls and send texts from your business phone number.",
+    "color": "#6B7280",
+    "icon": "contacts",
+    "logo": null,
+    "tier": 5,
+    "rank": 4050
+  },
+  {
+    "id": "raisely",
+    "name": "Raisely",
+    "categories": [
+      "Marketing",
+      "Finance"
+    ],
+    "description": "Run fundraising campaigns and keep track of donors.",
+    "color": "#6B7280",
+    "icon": "marketing",
+    "logo": null,
+    "tier": 5,
+    "rank": 4060
+  },
+  {
+    "id": "cello",
+    "name": "Cello",
+    "categories": [
+      "Marketing"
+    ],
+    "description": "Run referral programs and track rewards for your users.",
+    "color": "#6B7280",
+    "icon": "marketing",
+    "logo": null,
+    "tier": 5,
+    "rank": 4070
+  },
+  {
+    "id": "contracko",
+    "name": "Contracko",
+    "categories": [
+      "Productivity"
+    ],
+    "description": "Keep track of contracts and their key dates.",
+    "color": "#6B7280",
+    "icon": "notes",
+    "logo": null,
+    "tier": 5,
+    "rank": 4080
+  },
+  {
+    "id": "senselab",
+    "name": "Senselab",
+    "categories": [
+      "Code"
+    ],
+    "description": "Use Senselab's developer tools in your projects.",
+    "color": "#6B7280",
+    "icon": "code",
+    "logo": null,
+    "tier": 5,
+    "rank": 4090
+  },
+  {
+    "id": "restream",
+    "name": "Restream",
+    "categories": [
+      "Marketing",
+      "Design"
+    ],
+    "description": "Stream live video to several platforms at once.",
+    "color": "#6B7280",
+    "icon": "marketing",
+    "logo": null,
+    "tier": 5,
+    "rank": 4100
+  },
+  {
+    "id": "tubealfred",
+    "name": "TubeAlfred",
+    "categories": [
+      "Marketing"
+    ],
+    "description": "Plan and improve videos for your YouTube channel.",
+    "color": "#6B7280",
+    "icon": "marketing",
+    "logo": null,
+    "tier": 5,
+    "rank": 4110
+  },
+  {
+    "id": "videogen",
+    "name": "VideoGen",
+    "categories": [
+      "Design"
+    ],
+    "description": "Make videos from a script and stock media.",
+    "color": "#6B7280",
+    "icon": "slides",
+    "logo": null,
+    "tier": 5,
+    "rank": 4120
+  },
+  {
+    "id": "higgsfield",
+    "name": "Higgsfield",
+    "categories": [
+      "Design"
+    ],
+    "description": "Generate video clips from images and prompts.",
+    "color": "#6B7280",
+    "icon": "slides",
+    "logo": null,
+    "tier": 5,
+    "rank": 4130
+  },
+  {
+    "id": "cartesia",
+    "name": "Cartesia",
+    "categories": [
+      "Design",
+      "Code"
+    ],
+    "description": "Turn text into speech with a range of voices.",
+    "color": "#6B7280",
+    "icon": "code",
+    "logo": null,
+    "tier": 5,
+    "rank": 4140
+  },
+  {
+    "id": "writer",
+    "name": "Writer",
+    "categories": [
+      "Productivity"
+    ],
+    "description": "Draft and edit content that follows your company's style.",
+    "color": "#6B7280",
+    "icon": "notes",
+    "logo": null,
+    "tier": 5,
+    "rank": 4150
+  },
+  {
+    "id": "ryze-ai",
+    "name": "Ryze AI",
+    "categories": [
+      "Marketing"
+    ],
+    "description": "Review and adjust your ad campaigns.",
+    "color": "#6B7280",
+    "icon": "marketing",
+    "logo": null,
+    "tier": 5,
+    "rank": 4160
+  },
+  {
+    "id": "scx-ai",
+    "name": "SCX AI",
+    "categories": [
+      "Code"
+    ],
+    "description": "Use SCX AI's developer tools in your projects.",
+    "color": "#6B7280",
+    "icon": "code",
+    "logo": null,
+    "tier": 5,
+    "rank": 4170
+  },
+  {
+    "id": "quiverai",
+    "name": "QuiverAI",
+    "categories": [
+      "Design"
+    ],
+    "description": "Generate vector graphics from a description.",
+    "color": "#6B7280",
+    "icon": "slides",
+    "logo": null,
+    "tier": 5,
+    "rank": 4180
+  },
+  {
+    "id": "hugging-face",
+    "name": "Hugging Face",
+    "categories": [
+      "Code",
+      "Research"
+    ],
+    "description": "Find models and datasets and try them out.",
+    "color": "#FFD21E",
+    "icon": "code",
+    "logo": "huggingface",
+    "tier": 5,
+    "rank": 4190
+  },
+  {
+    "id": "langfuse",
+    "name": "Langfuse",
+    "categories": [
+      "Code"
+    ],
+    "description": "Trace and evaluate the prompts and calls in AI apps.",
+    "color": "#6B7280",
+    "icon": "code",
+    "logo": null,
+    "tier": 5,
+    "rank": 4200
+  },
+  {
+    "id": "braintrust",
+    "name": "Braintrust",
+    "categories": [
+      "Code"
+    ],
+    "description": "Evaluate and log the outputs of AI models.",
+    "color": "#000000",
+    "icon": "code",
+    "logo": null,
+    "tier": 5,
+    "rank": 4210
+  },
+  {
+    "id": "arize",
+    "name": "Arize",
+    "categories": [
+      "Code"
+    ],
+    "description": "Monitor and evaluate machine learning and AI models.",
+    "color": "#6B7280",
+    "icon": "data",
+    "logo": null,
+    "tier": 5,
+    "rank": 4220
+  },
+  {
+    "id": "datarobot",
+    "name": "DataRobot",
+    "categories": [
+      "Data",
+      "Code"
+    ],
+    "description": "Build, deploy and monitor predictive models.",
+    "color": "#6B7280",
+    "icon": "data",
+    "logo": null,
+    "tier": 5,
+    "rank": 4230
+  },
+  {
+    "id": "nvidia-skills",
+    "name": "NVIDIA Skills",
+    "categories": [
+      "Code"
+    ],
+    "description": "Use NVIDIA tools and models in your bot's work.",
+    "color": "#76B900",
+    "icon": "code",
+    "logo": "nvidia",
+    "tier": 5,
+    "rank": 4240
+  },
+  {
+    "id": "amd",
+    "name": "AMD",
+    "categories": [
+      "Code"
+    ],
+    "description": "Get help with AMD hardware and developer tools.",
+    "color": "#ED1C24",
+    "icon": "code",
+    "logo": "amd",
+    "tier": 5,
+    "rank": 4250
+  },
+  {
+    "id": "meta-reality-labs",
+    "name": "Meta Reality Labs",
+    "categories": [
+      "Code"
+    ],
+    "description": "Work with Meta's mixed reality and wearable developer tools.",
+    "color": "#0467DF",
+    "icon": "code",
+    "logo": "meta",
+    "tier": 5,
+    "rank": 4260
+  },
+  {
+    "id": "continual-learning",
+    "name": "Continual Learning",
+    "categories": [
+      "Code"
+    ],
+    "description": "Help your bot learn from past work and improve over time.",
+    "color": "#6B7280",
+    "icon": "code",
+    "logo": null,
+    "tier": 5,
+    "rank": 4270
+  },
+  {
+    "id": "supermemory",
+    "name": "Supermemory",
+    "categories": [
+      "Code",
+      "Research"
+    ],
+    "description": "Store and recall long-term memory for your bot.",
+    "color": "#6B7280",
+    "icon": "data",
+    "logo": null,
+    "tier": 5,
+    "rank": 4280
+  },
+  {
+    "id": "mem0",
+    "name": "Mem0",
+    "categories": [
+      "Code"
+    ],
+    "description": "Give your bot memory that lasts across conversations.",
+    "color": "#6B7280",
+    "icon": "data",
+    "logo": null,
+    "tier": 5,
+    "rank": 4290
+  },
+  {
+    "id": "vertiso-memory",
+    "name": "Vertiso Memory",
+    "categories": [
+      "Code"
+    ],
+    "description": "Keep a lasting memory your bot can draw on.",
+    "color": "#6B7280",
+    "icon": "data",
+    "logo": null,
+    "tier": 5,
+    "rank": 4300
+  },
+  {
+    "id": "tavily",
+    "name": "Tavily",
+    "categories": [
+      "Research"
+    ],
+    "description": "Search the web and get clean results your bot can use.",
+    "color": "#6B7280",
+    "icon": "search",
+    "logo": null,
+    "tier": 5,
+    "rank": 4310
+  },
+  {
+    "id": "exa",
+    "name": "Exa",
+    "categories": [
+      "Research"
+    ],
+    "description": "Search the web by meaning and pull page contents.",
+    "color": "#6B7280",
+    "icon": "search",
+    "logo": null,
+    "tier": 5,
+    "rank": 4320
+  },
+  {
+    "id": "parallel",
+    "name": "Parallel",
+    "categories": [
+      "Research"
+    ],
+    "description": "Run in-depth web research and gather sources.",
+    "color": "#6B7280",
+    "icon": "search",
+    "logo": null,
+    "tier": 5,
+    "rank": 4330
+  },
+  {
+    "id": "firecrawl",
+    "name": "Firecrawl",
+    "categories": [
+      "Research"
+    ],
+    "description": "Turn websites into clean text and structured data.",
+    "color": "#6B7280",
+    "icon": "search",
+    "logo": null,
+    "tier": 5,
+    "rank": 4340
+  },
+  {
+    "id": "apify",
+    "name": "Apify",
+    "categories": [
+      "Research",
+      "Data"
+    ],
+    "description": "Run ready-made scrapers and collect data from websites.",
+    "color": "#6B7280",
+    "icon": "search",
+    "logo": null,
+    "tier": 5,
+    "rank": 4350
+  },
+  {
+    "id": "bright-data",
+    "name": "Bright Data",
+    "categories": [
+      "Research",
+      "Data"
+    ],
+    "description": "Collect public web data through proxies and scrapers.",
+    "color": "#6B7280",
+    "icon": "search",
+    "logo": null,
+    "tier": 5,
+    "rank": 4360
+  },
+  {
+    "id": "context7",
+    "name": "Context7",
+    "categories": [
+      "Code",
+      "Research"
+    ],
+    "description": "Fetch current library docs and code examples.",
+    "color": "#6B7280",
+    "icon": "search",
+    "logo": null,
+    "tier": 5,
+    "rank": 4370
+  },
+  {
+    "id": "context-dev",
+    "name": "Context.dev",
+    "categories": [
+      "Research"
+    ],
+    "description": "Pull context from the web for your bot's research.",
+    "color": "#6B7280",
+    "icon": "search",
+    "logo": null,
+    "tier": 5,
+    "rank": 4380
+  },
+  {
+    "id": "you-com",
+    "name": "You.com",
+    "categories": [
+      "Research"
+    ],
+    "description": "Search the web and get answers with sources.",
+    "color": "#6B7280",
+    "icon": "search",
+    "logo": null,
+    "tier": 5,
+    "rank": 4390
+  },
+  {
+    "id": "treg",
+    "name": "Treg",
+    "categories": [
+      "Research"
+    ],
+    "description": "Use Treg's data tools in your bot's research.",
+    "color": "#6B7280",
+    "icon": "search",
+    "logo": null,
+    "tier": 5,
+    "rank": 4400
+  },
+  {
+    "id": "tinyfish",
+    "name": "TinyFish",
+    "categories": [
+      "Research"
+    ],
+    "description": "Run web agents that browse sites and gather data.",
+    "color": "#6B7280",
+    "icon": "search",
+    "logo": null,
+    "tier": 5,
+    "rank": 4410
+  },
+  {
+    "id": "superme",
+    "name": "SuperMe",
+    "categories": [
+      "Research"
+    ],
+    "description": "Use SuperMe's tools in your bot's research.",
+    "color": "#6B7280",
+    "icon": "search",
+    "logo": null,
+    "tier": 5,
+    "rank": 4420
+  },
+  {
+    "id": "harmonic",
+    "name": "Harmonic",
+    "categories": [
+      "Research",
+      "Data"
+    ],
+    "description": "Find data on startups, companies and founders.",
+    "color": "#6B7280",
+    "icon": "search",
+    "logo": null,
+    "tier": 5,
+    "rank": 4430
+  },
+  {
+    "id": "githits",
+    "name": "GitHits",
+    "categories": [
+      "Code",
+      "Research"
+    ],
+    "description": "Find code examples from open source repositories.",
+    "color": "#6B7280",
+    "icon": "search",
+    "logo": null,
+    "tier": 5,
+    "rank": 4440
+  },
+  {
+    "id": "monid",
+    "name": "Monid",
+    "categories": [
+      "Research"
+    ],
+    "description": "Use Monid's data tools in your bot's research.",
+    "color": "#6B7280",
+    "icon": "search",
+    "logo": null,
+    "tier": 5,
+    "rank": 4450
+  },
+  {
+    "id": "confidence-by-spotify",
+    "name": "Confidence by Spotify",
+    "categories": [
+      "Code",
+      "Data"
+    ],
+    "description": "Run experiments and manage feature flags.",
+    "color": "#1ED760",
+    "icon": "data",
+    "logo": null,
+    "tier": 5,
+    "rank": 4460
+  },
+  {
+    "id": "adaption",
+    "name": "Adaption",
+    "categories": [
+      "Research"
+    ],
+    "description": "Use Adaption's tools in your bot's research.",
+    "color": "#6B7280",
+    "icon": "search",
+    "logo": null,
+    "tier": 5,
+    "rank": 4470
+  },
+  {
+    "id": "vast-dataengine",
+    "name": "VAST DataEngine",
+    "categories": [
+      "Data"
+    ],
+    "description": "Process data and run AI pipelines on VAST storage.",
+    "color": "#6B7280",
+    "icon": "data",
+    "logo": null,
+    "tier": 5,
+    "rank": 4480
+  },
+  {
+    "id": "datagrout",
+    "name": "DataGrout",
+    "categories": [
+      "Data"
+    ],
+    "description": "Use DataGrout's data tools in your bot's work.",
+    "color": "#6B7280",
+    "icon": "data",
+    "logo": null,
+    "tier": 5,
+    "rank": 4490
+  },
+  {
+    "id": "superagent",
+    "name": "Superagent",
+    "categories": [
+      "Code"
+    ],
+    "description": "Add safety checks and guardrails to AI agents.",
+    "color": "#6B7280",
+    "icon": "code",
+    "logo": null,
+    "tier": 5,
+    "rank": 4500
+  },
+  {
+    "id": "airops",
+    "name": "AirOps",
+    "categories": [
+      "Marketing"
+    ],
+    "description": "Create and update content so it shows up in search.",
+    "color": "#6B7280",
+    "icon": "marketing",
+    "logo": null,
+    "tier": 5,
+    "rank": 4510
+  },
+  {
+    "id": "here-now",
+    "name": "here.now",
+    "categories": [
+      "Research"
+    ],
+    "description": "Use here.now's tools in your bot's work.",
+    "color": "#6B7280",
+    "icon": "search",
+    "logo": null,
+    "tier": 5,
+    "rank": 4520
+  },
+  {
+    "id": "blackbird-concierge",
+    "name": "Blackbird Concierge",
+    "categories": [
+      "Research"
+    ],
+    "description": "Use Blackbird Concierge's tools in your bot's work.",
+    "color": "#6B7280",
+    "icon": "search",
+    "logo": null,
+    "tier": 5,
+    "rank": 4530
+  },
+  {
+    "id": "euler-for-partners",
+    "name": "EULER for Partners",
+    "categories": [
+      "Sales"
+    ],
+    "description": "Work with partner programmes and shared deals.",
+    "color": "#6B7280",
+    "icon": "crm",
+    "logo": null,
+    "tier": 5,
+    "rank": 4540
+  },
+  {
+    "id": "euler-for-partner-managers",
+    "name": "EULER for Partner Managers",
+    "categories": [
+      "Sales"
+    ],
+    "description": "Track partner accounts, deals and performance.",
+    "color": "#6B7280",
+    "icon": "crm",
+    "logo": null,
+    "tier": 5,
+    "rank": 4550
+  },
+  {
+    "id": "agentmail",
+    "name": "AgentMail",
+    "categories": [
+      "Communication"
+    ],
+    "description": "Give your bot its own inbox to send and receive email.",
+    "color": "#6B7280",
+    "icon": "email",
+    "logo": null,
+    "tier": 5,
+    "rank": 4560
+  },
+  {
+    "id": "inkbox",
+    "name": "Inkbox",
+    "categories": [
+      "Communication"
+    ],
+    "description": "Give your bot an inbox for incoming messages.",
+    "color": "#6B7280",
+    "icon": "inbox",
+    "logo": null,
+    "tier": 5,
+    "rank": 4570
+  },
+  {
+    "id": "migma",
+    "name": "Migma",
+    "categories": [
+      "Marketing"
+    ],
+    "description": "Design marketing emails from a short description.",
+    "color": "#6B7280",
+    "icon": "email",
+    "logo": null,
+    "tier": 5,
+    "rank": 4580
+  },
+  {
+    "id": "nitrosend",
+    "name": "Nitrosend",
+    "categories": [
+      "Marketing"
+    ],
+    "description": "Send email campaigns and check how they did.",
+    "color": "#6B7280",
+    "icon": "email",
+    "logo": null,
+    "tier": 5,
+    "rank": 4590
+  },
+  {
+    "id": "fastio",
+    "name": "Fastio",
+    "categories": [
+      "Productivity"
+    ],
+    "description": "Store and share files in shared workspaces.",
+    "color": "#6B7280",
+    "icon": "folder",
+    "logo": null,
+    "tier": 5,
+    "rank": 4600
+  },
+  {
+    "id": "ando",
+    "name": "Ando",
+    "categories": [
+      "Communication"
+    ],
+    "description": "Use Ando's messaging tools in your bot's work.",
+    "color": "#6B7280",
+    "icon": "chat",
+    "logo": null,
+    "tier": 5,
+    "rank": 4610
+  },
+  {
+    "id": "streak",
+    "name": "Streak",
+    "categories": [
+      "Sales"
+    ],
+    "description": "Track deals and pipelines right inside Gmail.",
+    "color": "#6B7280",
+    "icon": "crm",
+    "logo": null,
+    "tier": 5,
+    "rank": 4620
+  },
+  {
+    "id": "superhuman-mail",
+    "name": "Superhuman Mail",
+    "categories": [
+      "Communication"
+    ],
+    "description": "Sort, reply to and follow up on email faster.",
+    "color": "#6B7280",
+    "icon": "email",
+    "logo": null,
+    "tier": 5,
+    "rank": 4630
+  }
+]

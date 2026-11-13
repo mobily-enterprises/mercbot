@@ -1,0 +1,39 @@
+{
+  "id": "todoist",
+  "name": "Todoist",
+  "categories": [
+    "Productivity"
+  ],
+  "kind": "add",
+  "description": "Add tasks, set due dates and check what's left on your lists.",
+  "color": "#E44332",
+  "icon": "notes",
+  "recommended": false,
+  "connectors": [
+    "todoist"
+  ],
+  "skills": [
+    {
+      "name": "todoist-tasks",
+      "description": "Add and reschedule tasks, review the day, and ask before deleting or assigning"
+    }
+  ],
+  "info": {
+    "capabilities": "Read and act on your behalf, always asking before changes",
+    "developer": "Doist",
+    "website": "https://www.todoist.com",
+    "availability": "Sign in with your Todoist account"
+  },
+  "mcp": {
+    "url": "https://ai.todoist.net/mcp",
+    "whoami": "user-info",
+    "sends": [
+      "add-comments",
+      "update-comments",
+      "manage-assignments"
+    ]
+  },
+  "tier": 1,
+  "rank": 170,
+  "logo": "todoist"
+}

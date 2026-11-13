@@ -1,0 +1,27 @@
+{
+  "id": "stripe",
+  "name": "Stripe",
+  "category": "Finance",
+  "kind": "add",
+  "description": "Check payments, invoices and payouts.",
+  "color": "#635BFF",
+  "icon": "finance",
+  "recommended": false,
+  "connectors": [
+    "stripe"
+  ],
+  "skills": [
+    {
+      "name": "chase-invoices",
+      "description": "List overdue invoices and draft reminders"
+    }
+  ],
+  "info": {
+    "capabilities": "Read and act on your behalf, always asking before changes",
+    "developer": "Stripe",
+    "website": null,
+    "availability": "Not connected yet: sign-in isn't set up"
+  },
+  "rank": 290,
+  "logo": "stripe"
+}

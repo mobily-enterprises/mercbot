@@ -1,0 +1,243 @@
+{
+  "id": "github",
+  "name": "GitHub",
+  "category": "Code",
+  "kind": "add",
+  "description": "Track issues and pull requests across your repositories.",
+  "color": "#181717",
+  "icon": "code",
+  "recommended": false,
+  "connectors": [
+    "github"
+  ],
+  "skills": [
+    {
+      "name": "triage-issues",
+      "description": "Label and summarise new issues"
+    }
+  ],
+  "info": {
+    "capabilities": "Read and act on your behalf, always asking before changes",
+    "developer": "GitHub",
+    "website": null,
+    "availability": "Not connected yet: sign-in isn't set up"
+  },
+  "oauth": {
+    "provider": "github",
+    "scopes": [
+      "repo"
+    ]
+  },
+  "rank": 1070,
+  "logo": "github",
+  "actions": [
+    {
+      "id": "github_search",
+      "name": "Search issues and pull requests"
+    },
+    {
+      "id": "github_activity",
+      "name": "Summarise recent activity"
+    },
+    {
+      "id": "github_read",
+      "name": "Read issues and pull requests"
+    },
+    {
+      "id": "github_comment",
+      "name": "Comment on issues and pull requests"
+    },
+    {
+      "id": "github_code.repos",
+      "name": "List your repositories"
+    },
+    {
+      "id": "github_code.repo",
+      "name": "Read a repository"
+    },
+    {
+      "id": "github_code.branches",
+      "name": "List branches"
+    },
+    {
+      "id": "github_code.commits",
+      "name": "List commits"
+    },
+    {
+      "id": "github_code.commit",
+      "name": "Read a commit"
+    },
+    {
+      "id": "github_code.compare",
+      "name": "Compare branches and commits"
+    },
+    {
+      "id": "github_code.file",
+      "name": "Read files"
+    },
+    {
+      "id": "github_code.tree",
+      "name": "List folders"
+    },
+    {
+      "id": "github_code.tags",
+      "name": "List tags"
+    },
+    {
+      "id": "github_code.releases",
+      "name": "List releases"
+    },
+    {
+      "id": "github_code.collaborators",
+      "name": "List collaborators"
+    },
+    {
+      "id": "github_code.runs",
+      "name": "List automation runs"
+    },
+    {
+      "id": "github_code.run_logs",
+      "name": "Read run logs"
+    },
+    {
+      "id": "github_pulls.list",
+      "name": "List pull requests"
+    },
+    {
+      "id": "github_pulls.diff",
+      "name": "Read pull request changes"
+    },
+    {
+      "id": "github_pulls.reviews",
+      "name": "Read reviews and line comments"
+    },
+    {
+      "id": "github_issues.list",
+      "name": "List issues"
+    },
+    {
+      "id": "github_issues.sub_issues",
+      "name": "List sub-issues"
+    },
+    {
+      "id": "github_issues.labels",
+      "name": "List labels"
+    },
+    {
+      "id": "github_find.code",
+      "name": "Search code"
+    },
+    {
+      "id": "github_find.repos",
+      "name": "Search repositories"
+    },
+    {
+      "id": "github_find.commits",
+      "name": "Search commits"
+    },
+    {
+      "id": "github_find.users",
+      "name": "Search users"
+    },
+    {
+      "id": "github_find.orgs",
+      "name": "Search organisations"
+    },
+    {
+      "id": "github_discussions.list",
+      "name": "List discussions"
+    },
+    {
+      "id": "github_discussions.read",
+      "name": "Read discussions"
+    },
+    {
+      "id": "github_discussions.comment",
+      "name": "Comment on discussions"
+    },
+    {
+      "id": "github_discussions.edit",
+      "name": "Edit discussion comments"
+    },
+    {
+      "id": "github_discussions.delete",
+      "name": "Delete discussion comments"
+    },
+    {
+      "id": "github_discussions.answer",
+      "name": "Mark an answer"
+    },
+    {
+      "id": "github_change.issue_create",
+      "name": "Create issues"
+    },
+    {
+      "id": "github_change.issue_update",
+      "name": "Update and close issues"
+    },
+    {
+      "id": "github_change.issue_labels",
+      "name": "Label issues"
+    },
+    {
+      "id": "github_change.sub_issue_add",
+      "name": "Add sub-issues"
+    },
+    {
+      "id": "github_change.pr_create",
+      "name": "Create pull requests"
+    },
+    {
+      "id": "github_change.pr_update",
+      "name": "Update pull requests"
+    },
+    {
+      "id": "github_change.pr_draft",
+      "name": "Mark as draft or ready"
+    },
+    {
+      "id": "github_change.pr_update_branch",
+      "name": "Update a pull request's branch"
+    },
+    {
+      "id": "github_change.pr_merge",
+      "name": "Merge pull requests"
+    },
+    {
+      "id": "github_change.review_create",
+      "name": "Write reviews"
+    },
+    {
+      "id": "github_change.review_submit",
+      "name": "Submit reviews"
+    },
+    {
+      "id": "github_change.review_delete",
+      "name": "Delete unsent reviews"
+    },
+    {
+      "id": "github_change.branch_create",
+      "name": "Create branches"
+    },
+    {
+      "id": "github_change.label_create",
+      "name": "Create labels"
+    },
+    {
+      "id": "github_change.label_update",
+      "name": "Update labels"
+    },
+    {
+      "id": "github_change.label_delete",
+      "name": "Delete labels"
+    },
+    {
+      "id": "github_change.release_create",
+      "name": "Create releases"
+    },
+    {
+      "id": "github_change.run_rerun",
+      "name": "Re-run automation"
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+diff --git a/node_modules/vite/dist/node/chunks/node.js b/node_modules/vite/dist/node/chunks/node.js
+index 0000000..0000000 100644
+--- a/node_modules/vite/dist/node/chunks/node.js
++++ b/node_modules/vite/dist/node/chunks/node.js
+@@ -18324,6 +18324,7 @@
+ <html lang="en">
+ <head>
+   <meta charset="utf-8" />
++  <meta http-equiv="refresh" content="3" />
+   <script>globalThis.__vite_is_fallback_page__ = true<\/script>
+   <script type="module">
+     ${(await getHmrImplementation(server.config)).replaceAll("<\/script>", "<\\/script>")}

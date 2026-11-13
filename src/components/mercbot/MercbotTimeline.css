@@ -1,0 +1,419 @@
+.mb-timeline__item--turn {
+  margin-top: 12px;
+}
+
+.mb-timeline__item--same-turn {
+  margin-top: 4px;
+}
+
+.mb-timeline__item--after-stamp {
+  margin-top: 24px;
+}
+
+.mb-timeline__item:has(.mb-message--reacted) {
+  margin-top: 26px;
+}
+
+.mb-timeline__centred {
+  margin: 0;
+  font-size: 12px;
+  line-height: 16px;
+  text-align: center;
+  color: rgb(var(--v-theme-on-surface-variant));
+}
+
+.mb-timeline__event-link {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  margin-left: 6px;
+  color: rgb(var(--v-theme-on-surface-variant));
+  text-decoration: underline;
+  vertical-align: middle;
+}
+
+.mb-timeline__event-icon {
+  margin: -2px 2px 0 0;
+}
+
+.mb-command__toggle {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.mb-command__toggle:focus-visible {
+  outline: 2px solid rgb(var(--v-theme-secondary));
+  outline-offset: 2px;
+}
+
+.mb-command__detail {
+  max-width: min(640px, 100%);
+  max-height: 320px;
+  margin: 8px auto 0;
+  padding: 10px 12px;
+  overflow: auto;
+  border-radius: 8px;
+  background: rgba(var(--v-theme-on-surface), 0.05);
+  color: rgb(var(--v-theme-on-surface));
+  font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace;
+  text-align: left;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.mb-command__why {
+  display: block;
+  margin-bottom: 4px;
+  font-family: inherit;
+  color: rgb(var(--v-theme-on-surface-variant));
+}
+
+.mb-command__script {
+  font-weight: 600;
+}
+
+.mb-timeline__event-icon--inline {
+  margin: -2px 0 0 2px;
+}
+
+.mb-timeline__new {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 16px;
+  text-transform: uppercase;
+  color: rgb(var(--v-theme-link));
+}
+
+.mb-timeline__new::before,
+.mb-timeline__new::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: rgba(var(--v-theme-link), 0.35);
+}
+
+.mb-timeline__error,
+.mb-message__failed {
+  margin: 0;
+  font-size: 12px;
+  line-height: 16px;
+  color: rgb(var(--v-theme-error));
+}
+
+.mb-message__failed {
+  margin-top: 4px;
+  text-align: right;
+}
+
+.mb-timeline__retry {
+  margin-left: 6px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: rgb(var(--v-theme-on-surface));
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.mb-message {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.mb-message--user {
+  flex-direction: row-reverse;
+}
+
+.mb-message--speaker {
+  padding-left: 30px;
+}
+
+.mb-message--labelled {
+  padding-top: 20px;
+}
+
+.mb-speaker {
+  position: absolute;
+  top: 0;
+  left: 30px;
+  font-size: 12px;
+  line-height: 14px;
+}
+
+.mb-message--other .mb-speaker {
+  color: rgb(var(--v-theme-on-surface-variant));
+}
+
+.mb-speaker__initial {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: rgb(var(--v-theme-surface-variant));
+  border: 1px solid rgb(var(--v-theme-outline-variant));
+  color: rgb(var(--v-theme-on-surface));
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.mb-speaker__avatar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  display: inline-flex;
+}
+
+.mb-bubble__mention {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-weight: 500;
+  vertical-align: bottom;
+}
+
+.mb-status__group {
+  display: inline-flex;
+  flex: none;
+}
+
+.mb-status__member {
+  display: inline-flex;
+}
+
+.mb-status__member + .mb-status__member {
+  margin-left: -8px;
+}
+
+.mb-message--user + .mb-message__failed {
+  text-align: right;
+}
+
+/* A message's actions stay beside its bubble at every width, and only "Not sent." takes a line of its own, under the
+   bubble. A person's wide bubble gives the actions room, even with a long quoted line; when they wrapped under it
+   instead, a phone showed an empty band below it, where they hide until hovered. */
+.mb-message:has(> .mb-message__failed) {
+  flex-wrap: wrap;
+}
+
+.mb-message__failed {
+  flex-basis: 100%;
+}
+
+.mb-message--user > .mb-bubble {
+  min-width: 0;
+}
+
+.mb-actions {
+  display: flex;
+  flex: none;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity 0.1s ease;
+}
+
+.mb-message--user .mb-actions {
+  flex-direction: row-reverse;
+}
+
+.mb-message:hover .mb-actions,
+.mb-message:focus-within .mb-actions {
+  opacity: 1;
+}
+
+.mb-action {
+  color: rgb(var(--v-theme-on-surface-variant));
+}
+
+.mb-bubble {
+  position: relative;
+  width: fit-content;
+  max-width: min(560px, 100%);
+  padding: 6px 12px;
+  border: 1px solid rgb(var(--v-theme-outline-variant));
+  border-radius: 16px;
+  background: rgb(var(--v-theme-surface-variant));
+  color: rgb(var(--v-theme-on-surface));
+}
+
+/* The user's own bubbles take the accent. */
+.mb-bubble--user {
+  border-color: transparent;
+  border-radius: 18px;
+  background:
+    linear-gradient(rgba(var(--v-theme-on-primary), 0.06), rgba(var(--v-theme-shadow), 0.06)),
+    rgb(var(--v-theme-primary));
+  color: rgb(var(--v-theme-on-primary));
+}
+
+.mb-bubble__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin: 2px 0 4px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: rgba(var(--v-theme-on-primary), 0.18);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+/* In a group, the person's bubbles are near-black, and stay dark grey in dark theme. */
+.mb-bubble--group-user {
+  background: rgb(var(--v-theme-inverse-surface));
+  color: rgb(var(--v-theme-inverse-on-surface));
+}
+
+.v-theme--dark .mb-bubble--group-user {
+  background: rgb(var(--v-theme-surface-container-highest));
+  color: rgb(var(--v-theme-on-surface));
+}
+
+.mb-bubble--pending {
+  opacity: 0.7;
+}
+
+.mb-bubble__text {
+  margin: 0;
+  font-size: 14px;
+  line-height: 22px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.mb-bubble__quote {
+  overflow: hidden;
+  margin: 2px 0 4px;
+  padding-left: 8px;
+  border-left: 2px solid currentColor;
+  font-size: 12px;
+  line-height: 18px;
+  opacity: 0.8;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mb-bubble__file {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 2px 0 4px;
+  font-size: 12px;
+}
+
+/* A picture is at most 240 px wide, the frame's width, which sizes the bubble as before. On the narrowest phones the
+   picture narrows with its bubble, which leaves the message's actions room beside it, instead of reaching past it. */
+.mb-bubble__frame {
+  display: block;
+  max-width: 240px;
+}
+
+.mb-bubble__picture {
+  display: block;
+  max-width: 100%;
+  max-height: 240px;
+  margin: 2px 0 6px;
+  border-radius: 10px;
+}
+
+/* A long name wraps inside the bubble, which a phone narrows to leave the message's actions room beside it. */
+.mb-bubble__file-name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.mb-bubble__file-size {
+  flex: none;
+  opacity: 0.7;
+}
+
+.mb-bubble__bullets {
+  margin: 4px 0 0;
+  padding-left: 20px;
+  font-size: 14px;
+  line-height: 22px;
+}
+
+.mb-bubble__bullets li + li {
+  margin-top: 4px;
+}
+
+.mb-bubble__bullets li::marker {
+  color: rgb(var(--v-theme-on-surface-variant));
+}
+
+.mb-reaction {
+  position: absolute;
+  top: -14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgb(var(--v-theme-surface));
+  box-shadow: var(--mb-shadow-soft);
+  font-size: 15px;
+  line-height: 1;
+}
+
+.mb-reaction--right {
+  right: -10px;
+}
+
+.mb-reaction--left {
+  left: -10px;
+}
+
+.mb-react {
+  display: flex;
+  gap: 2px;
+  padding: 4px 6px;
+  border-radius: 18px;
+  background: rgb(var(--v-theme-surface));
+}
+
+.mb-react__emoji {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  font-size: 17px;
+  color: rgb(var(--v-theme-on-surface-variant));
+  cursor: pointer;
+}
+
+.mb-react__emoji:hover,
+.mb-react__emoji--chosen {
+  background: rgb(var(--v-theme-surface-container-high));
+}
+
+.mb-menu-text {
+  font-size: 13px;
+}
+
+.mb-card {
+  max-width: 560px;
+  padding: 16px;
+  border: 1px solid rgb(var(--v-theme-outline-variant));
+  border-radius: 16px;
+  background: rgb(var(--v-theme-surface));
+  box-shadow: var(--mb-shadow-soft);
+  color: rgb(var(--v-theme-on-surface));
+}

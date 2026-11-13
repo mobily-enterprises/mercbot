@@ -1,0 +1,20 @@
+{
+  "id": "site-reader",
+  "name": "Site reader",
+  "category": "Data",
+  "kind": "add",
+  "description": "Pull tables and text out of web pages.",
+  "color": "#13B7A2",
+  "icon": "data",
+  "recommended": false,
+  "connectors": [
+    "site-reader"
+  ],
+  "skills": [],
+  "info": {
+    "capabilities": "Read and act on your behalf, always asking before changes",
+    "developer": "Mercbot",
+    "website": null,
+    "availability": "Not connected yet: sign-in isn't set up"
+  }
+}

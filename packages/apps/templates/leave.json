@@ -1,0 +1,260 @@
+{
+  "key": "leave",
+  "name": "Leave requests",
+  "icon": "calendar",
+  "color": "#7E3FB2",
+  "description": "People ask for time off; someone approves or declines it.",
+  "tables": [
+    {
+      "key": "leave_requests",
+      "fields": [
+        {
+          "key": "person",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "from",
+          "type": "date",
+          "required": true
+        },
+        {
+          "key": "to",
+          "type": "date",
+          "required": true
+        },
+        {
+          "key": "kind",
+          "type": "choice",
+          "choices": [
+            "Holiday",
+            "Sick",
+            "Other"
+          ]
+        },
+        {
+          "key": "status",
+          "type": "choice",
+          "choices": [
+            "Pending",
+            "Approved",
+            "Declined"
+          ]
+        },
+        {
+          "key": "note",
+          "type": "text"
+        }
+      ]
+    }
+  ],
+  "definition": {
+    "home": "requests",
+    "navigation": {
+      "style": "tabs",
+      "items": [
+        {
+          "screen": "requests",
+          "label": "Requests",
+          "icon": "calendar"
+        },
+        {
+          "screen": "ask",
+          "label": "Ask for leave",
+          "icon": "add"
+        },
+        {
+          "screen": "summary",
+          "label": "Summary",
+          "icon": "chart"
+        }
+      ]
+    },
+    "screens": {
+      "requests": {
+        "data": {
+          "all": {
+            "from": "leave_requests",
+            "sort": "-from"
+          }
+        },
+        "content": [
+          {
+            "type": "table",
+            "rows": "=data.all",
+            "columns": [
+              {
+                "label": "Who",
+                "value": "=row.person"
+              },
+              {
+                "label": "From",
+                "value": "=row.from"
+              },
+              {
+                "label": "To",
+                "value": "=row.to"
+              },
+              {
+                "label": "Kind",
+                "value": "=row.kind"
+              },
+              {
+                "label": "Status",
+                "value": "=row.status",
+                "display": "chip"
+              }
+            ],
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "review",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "review": {
+        "params": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "data": {
+          "request": {
+            "record": "leave_requests",
+            "id": "=params.id"
+          }
+        },
+        "content": [
+          {
+            "type": "form",
+            "record": "=data.request",
+            "fields": [
+              "person",
+              "from",
+              "to",
+              "kind",
+              "status",
+              "note"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Save",
+                "emphasis": "primary",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.request",
+                      "set": "=form.values"
+                    }
+                  },
+                  {
+                    "notify": "=\"Saved\""
+                  },
+                  {
+                    "go": {
+                      "screen": "requests"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "requests"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "ask": {
+        "content": [
+          {
+            "type": "form",
+            "table": "leave_requests",
+            "fields": [
+              "person",
+              "from",
+              "to",
+              "kind",
+              "note"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Send request",
+                "emphasis": "primary",
+                "do": [
+                  {
+                    "create": {
+                      "table": "leave_requests",
+                      "values": "=form.values",
+                      "preset": {
+                        "status": "Pending"
+                      }
+                    }
+                  },
+                  {
+                    "notify": "=\"Request sent\""
+                  },
+                  {
+                    "go": {
+                      "screen": "requests"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "summary": {
+        "data": {
+          "byStatus": {
+            "from": "leave_requests",
+            "groupBy": "status"
+          }
+        },
+        "content": [
+          {
+            "type": "chart",
+            "kind": "bar",
+            "label": "Requests by status",
+            "rows": "=data.byStatus"
+          }
+        ]
+      }
+    }
+  },
+  "sample": {
+    "leave_requests": [
+      {
+        "person": "Ana Ruiz",
+        "from": "2026-12-22",
+        "to": "2027-01-02",
+        "kind": "Holiday",
+        "status": "Approved"
+      },
+      {
+        "person": "Ben Okafor",
+        "from": "2026-11-14",
+        "to": "2026-11-14",
+        "kind": "Other",
+        "status": "Pending",
+        "note": "Moving house"
+      }
+    ]
+  }
+}

@@ -1,0 +1,7 @@
+const test = require("node:test");
+const assert = require("node:assert/strict");
+const { validateInvoiceInput } = require("../src/invoices/validate");
+
+test("an invoice needs lines", () => {
+  assert.throws(() => validateInvoiceInput({ customerId: 1, lines: [] }), /at least one line/);
+});

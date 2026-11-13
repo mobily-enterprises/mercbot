@@ -1,0 +1,326 @@
+#!/usr/bin/env bash
+# mercbot: a person's own copy of Mercbot on their computer (D-81; docs/standalone-plan.md, change 7).
+#
+#   mercbot start | stop | status | open | new-key | backup [FILE] | restore FILE | upgrade RELEASE.tar.gz
+#
+# Everything lives in MERCBOT_HOME (~/.local/share/mercbot), outside every release:
+#   releases/<version>/  the releases; `current` links the one that runs, and the one before is kept
+#   data/                MERCBOT_DATA_DIR: the copy's key (mercbot.key), people's files, the bots' computers
+#   mercbot.env          the settings, NAME=value lines, the person's alone (mode 600; written by the installer)
+#   backups/             `mercbot backup`'s archives
+#   node/                the installer's Node
+# Mercbot runs as the person's systemd service mercbot.service, through scripts/serve.sh, so the host's checks come
+# first. Sourced (by phase 2's install.sh), this file only defines its functions.
+
+MERCBOT_HOME="${MERCBOT_HOME:-${XDG_DATA_HOME:-$HOME/.local/share}/mercbot}"
+MERCBOT_SERVICE=mercbot.service
+MERCBOT_LOGS="See why with: journalctl --user -u $MERCBOT_SERVICE -n 50"
+[ ! -d "$MERCBOT_HOME/node/bin" ] || PATH="$MERCBOT_HOME/node/bin:$PATH"
+
+mercbot_fail() {
+  printf '%s\n' "$1" >&2
+  exit 1
+}
+
+# The settings, exported as the service gets them (systemd's EnvironmentFile): NAME=value lines and # comments, a
+# value's surrounding quotes taken off. Nothing in them runs, and no value is ever printed.
+mercbot_settings() {
+  local file="$MERCBOT_HOME/mercbot.env" line name value number=0
+  [ -f "$file" ] || mercbot_fail "Mercbot has no settings at $file. Run Mercbot's installer."
+  while IFS= read -r line || [ -n "$line" ]; do
+    number=$((number + 1))
+    [[ "$line" =~ ^[[:space:]]*(#|$) ]] && continue
+    [[ "$line" =~ ^([A-Za-z_][A-Za-z0-9_]*)=(.*)$ ]] ||
+      mercbot_fail "Line $number of Mercbot's settings ($file) isn't NAME=value."
+    name="${BASH_REMATCH[1]}"
+    value="${BASH_REMATCH[2]}"
+    [[ "$value" =~ ^\"(.*)\"$ || "$value" =~ ^\'(.*)\'$ ]] && value="${BASH_REMATCH[1]}"
+    export "$name=$value"
+  done <"$file"
+  export MERCBOT_DATA_DIR="${MERCBOT_DATA_DIR:-$MERCBOT_HOME/data}"
+}
+
+# This copy's own address (the settings' APP_PUBLIC_URL), without a trailing slash.
+mercbot_address() {
+  local address="${APP_PUBLIC_URL:-http://localhost:${PORT:-3001}}"
+  printf '%s' "${address%/}"
+}
+
+# The version of the release that runs (the folder `current` links).
+mercbot_version() {
+  local release
+  release="$(readlink "$MERCBOT_HOME/current" 2>/dev/null)" || return 1
+  printf '%s' "${release##*/}"
+}
+
+# Whether Mercbot answers its health check, within two seconds.
+mercbot_healthy() {
+  node -e 'fetch(`${process.argv[1]}/api/health`, { signal: AbortSignal.timeout(2000) })
+    .then((answer) => process.exit(answer.ok ? 0 : 1), () => process.exit(1))' "$(mercbot_address)"
+}
+
+mercbot_running() {
+  systemctl --user is-active --quiet "$MERCBOT_SERVICE"
+}
+
+# The service, written again on every start and upgrade so it follows this release.
+mercbot_unit() {
+  local folder="${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user"
+  mkdir -p "$folder"
+  cat >"$folder/$MERCBOT_SERVICE" <<UNIT
+[Unit]
+Description=Mercbot
+After=network-online.target
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Service]
+WorkingDirectory=$MERCBOT_HOME/current
+Environment="PATH=$MERCBOT_HOME/node/bin:/usr/local/bin:/usr/bin:/bin"
+Environment="MERCBOT_DATA_DIR=$MERCBOT_HOME/data"
+EnvironmentFile=$MERCBOT_HOME/mercbot.env
+ExecStart=/bin/bash scripts/serve.sh
+# serve.sh hands the stop to Mercbot, which drains (bin/server.js); then the rest goes.
+KillMode=mixed
+TimeoutStopSec=60
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=default.target
+UNIT
+  systemctl --user daemon-reload
+}
+
+# Waits up to three minutes for Mercbot to answer, and says where it is.
+mercbot_wait() {
+  local until=$((SECONDS + 180))
+  while ! mercbot_healthy; do
+    mercbot_running || mercbot_fail "Mercbot stopped while starting. $MERCBOT_LOGS"
+    [ "$SECONDS" -lt "$until" ] || mercbot_fail "Mercbot hasn't answered at $(mercbot_address) in three minutes. $MERCBOT_LOGS"
+    sleep 1
+  done
+  echo "Mercbot is running at $(mercbot_address). Open it with: mercbot open"
+}
+
+mercbot_start() {
+  [ -d "$MERCBOT_HOME/current" ] || mercbot_fail "Mercbot isn't installed in $MERCBOT_HOME. Run Mercbot's installer."
+  mercbot_unit
+  systemctl --user --quiet enable --now "$MERCBOT_SERVICE"
+  mercbot_wait
+}
+
+# Stops Mercbot, and it stays stopped (after a restart of the computer too) until `mercbot start`.
+mercbot_stop() {
+  systemctl --user --quiet disable --now "$MERCBOT_SERVICE" 2>/dev/null || true
+  echo "Mercbot has stopped. Start it again with: mercbot start"
+}
+
+mercbot_status() {
+  if mercbot_healthy; then
+    echo "Mercbot $(mercbot_version) is running at $(mercbot_address)."
+  elif mercbot_running; then
+    echo "Mercbot is starting, or isn't answering at $(mercbot_address). $MERCBOT_LOGS"
+    return 1
+  else
+    echo "Mercbot isn't running. Start it with: mercbot start"
+    return 3
+  fi
+}
+
+# Opens Mercbot in the browser with its key, as Jupyter does: through a page only the person can read, so the key is
+# never on a command line, and Mercbot then leaves the key's address.
+mercbot_open() {
+  local key page
+  key="$(cat "$MERCBOT_DATA_DIR/mercbot.key" 2>/dev/null)" || true
+  [[ "$key" =~ ^[0-9a-f]{64}$ ]] || mercbot_fail "Mercbot has no key yet: start it once with: mercbot start"
+  mercbot_healthy || mercbot_fail "Mercbot isn't running. Start it with: mercbot start"
+  page="$(mktemp "$MERCBOT_DATA_DIR/open.XXXXXX")"
+  printf '<!doctype html><html lang="en"><meta charset="utf-8"><meta http-equiv="refresh" content="0;url=%s/open?key=%s"><title>Mercbot</title></html>\n' \
+    "$(mercbot_address)" "$key" >"$page"
+  mv -f "$page" "$MERCBOT_DATA_DIR/open.html"
+  if xdg-open "$MERCBOT_DATA_DIR/open.html" >/dev/null 2>&1; then
+    echo "Mercbot is opening in your browser."
+  else
+    echo "Open this page in your browser to open Mercbot: $MERCBOT_DATA_DIR/open.html"
+  fi
+}
+
+# A new key, and every browser signed out: Mercbot reads its key when it starts, so a running one restarts.
+mercbot_new_key() {
+  local key
+  mkdir -p -m 700 "$MERCBOT_DATA_DIR"
+  key="$(mktemp "$MERCBOT_DATA_DIR/mercbot.key.XXXXXX")"
+  od -An -vtx1 -N32 /dev/urandom | tr -d ' \n' >"$key"
+  echo >>"$key"
+  mv -f "$key" "$MERCBOT_DATA_DIR/mercbot.key"
+  rm -f "$MERCBOT_DATA_DIR/open.html"
+  if mercbot_running; then
+    systemctl --user restart "$MERCBOT_SERVICE"
+    mercbot_wait >/dev/null
+  fi
+  echo "Mercbot has a new key, and every browser is signed out. Open it again with: mercbot open"
+}
+
+# The database tools, signed in with the settings' database user; the password goes by the environment, never on a
+# command line.
+mercbot_pg() {
+  PGPASSWORD="${DB_PASSWORD:-}" PGHOST="${DB_HOST:-127.0.0.1}" PGPORT="${DB_PORT:-5432}" PGUSER="${DB_USER:-}" \
+    PGDATABASE="${DB_NAME:-}" "$@"
+}
+
+# One archive (mode 600) of the database, the data folder and the settings, which hold the vault key and the copy's
+# key: anyone with it has everything the bots were given.
+mercbot_backup() {
+  local archive="${1:-}" work
+  if [ -z "$archive" ]; then
+    mkdir -p -m 700 "$MERCBOT_HOME/backups"
+    archive="$MERCBOT_HOME/backups/mercbot-$(mercbot_version)-$(date -u +%Y%m%d-%H%M%S).tar.gz"
+  fi
+  work="$(mktemp -d "$MERCBOT_HOME/backup.XXXXXX")"
+  mercbot_pg pg_dump --format=custom --no-owner --file="$work/database.dump" ||
+    { rm -rf "$work"; mercbot_fail "Mercbot couldn't save its database, so there's no backup."; }
+  mercbot_version >"$work/version"
+  cp "$MERCBOT_HOME/mercbot.env" "$work/mercbot.env"
+  cat >"$work/KEEP-THIS-SAFE.txt" <<'TEXT'
+This is a backup of a copy of Mercbot. Its settings (mercbot.env) hold the vault key, which unlocks every
+password, key and account the bots were given, and its data folder holds the key that opens Mercbot.
+Keep it where only you can read it. Bring it back with: mercbot restore <this file>
+TEXT
+  # The data folder goes in as data/, wherever it is.
+  if ! (umask 077 && tar -czf "$archive.partial" --anchored --exclude=./open.html --transform='s,^\./,data/,S;s,^\.$,data,S' \
+    -C "$work" version mercbot.env KEEP-THIS-SAFE.txt database.dump -C "$MERCBOT_DATA_DIR" .); then
+    rm -rf "$work" "$archive.partial"
+    mercbot_fail "Mercbot couldn't write the backup $archive."
+  fi
+  rm -rf "$work"
+  mv -f "$archive.partial" "$archive"
+  echo "$archive"
+}
+
+# The database as a backup holds it, in place of what's there.
+mercbot_restore_database() { # dump
+  mercbot_pg psql --quiet --no-psqlrc -v ON_ERROR_STOP=1 -c 'DROP SCHEMA public CASCADE; CREATE SCHEMA public;' >/dev/null &&
+    mercbot_pg pg_restore --no-owner --no-privileges --exit-on-error --dbname="${DB_NAME:-}" "$1"
+}
+
+# The database migrated by a release's own migrations.
+mercbot_migrate() { # release
+  (cd "$1" && npm run --silent db:migrate)
+}
+
+# Points `current` at a release, in one step.
+mercbot_switch() { # version
+  ln -sfn "releases/$1" "$MERCBOT_HOME/current.next"
+  mv -T "$MERCBOT_HOME/current.next" "$MERCBOT_HOME/current"
+}
+
+# Brings a backup back: its database, its data folder and its settings (this computer's database settings stay), with
+# the release it came from when that release is still here (so the backup `mercbot upgrade` made goes back to the
+# release before), else with this one, which brings the database up to date. What was there is kept beside.
+mercbot_restore() { # archive
+  local archive="${1:-}" work version stamp was_running=
+  [ -f "$archive" ] || mercbot_fail "Name the backup to bring back: mercbot restore FILE"
+  work="$(mktemp -d "$MERCBOT_HOME/restore.XXXXXX")"
+  tar -xzf "$archive" -C "$work" || { rm -rf "$work"; mercbot_fail "$archive can't be read as a backup."; }
+  for part in version mercbot.env database.dump data; do
+    [ -e "$work/$part" ] || { rm -rf "$work"; mercbot_fail "$archive isn't a backup of Mercbot."; }
+  done
+  version="$(cat "$work/version")"
+  if [ ! -d "$MERCBOT_HOME/releases/$version" ] &&
+    [ "$(printf '%s\n%s\n' "$version" "$(mercbot_version)" | sort -V | tail -n 1)" != "$(mercbot_version)" ]; then
+    rm -rf "$work"
+    mercbot_fail "$archive comes from Mercbot $version, newer than this copy's $(mercbot_version). Upgrade first with: mercbot upgrade"
+  fi
+  mercbot_running && was_running=1
+  systemctl --user stop "$MERCBOT_SERVICE" 2>/dev/null || true
+  if ! mercbot_restore_database "$work/database.dump"; then
+    rm -rf "$work"
+    mercbot_fail "Mercbot couldn't bring its database back from $archive. Its data and settings are as they were; start it with: mercbot start"
+  fi
+  stamp="$(date -u +%Y%m%d-%H%M%S)"
+  mv "$MERCBOT_DATA_DIR" "$MERCBOT_DATA_DIR.before-restore-$stamp"
+  mv "$work/data" "$MERCBOT_DATA_DIR"
+  mv "$MERCBOT_HOME/mercbot.env" "$MERCBOT_HOME/mercbot.env.before-restore-$stamp"
+  (umask 077 && { grep -v '^DB_' "$work/mercbot.env"; grep '^DB_' "$MERCBOT_HOME/mercbot.env.before-restore-$stamp"; } \
+    >"$MERCBOT_HOME/mercbot.env")
+  rm -rf "$work"
+  mercbot_settings
+  [ ! -d "$MERCBOT_HOME/releases/$version" ] || mercbot_switch "$version"
+  mercbot_migrate "$MERCBOT_HOME/current" || mercbot_fail "Mercbot $(mercbot_version) couldn't bring the restored database up to date."
+  echo "Brought back $archive, with Mercbot $(mercbot_version). What was there before is kept as" \
+    "$MERCBOT_DATA_DIR.before-restore-$stamp and $MERCBOT_HOME/mercbot.env.before-restore-$stamp."
+  [ -z "$was_running" ] || mercbot_start
+}
+
+# A new release beside the one that runs: prepared (its tools linked from the shared store, D-70) and built while
+# Mercbot still runs; then Mercbot stops, a backup is made, the new release migrates the database and becomes
+# `current`, and Mercbot starts again. The release before stays, to go back to with `mercbot restore` of that backup.
+# A migration that fails puts the database back from the backup, and the release before starts again.
+mercbot_upgrade() { # release archive
+  local archive="${1:-}" work version previous release backup was_running= kept dump
+  [ -f "$archive" ] || mercbot_fail "Name the new release's archive: mercbot upgrade mercbot-<version>.tar.gz"
+  previous="$(mercbot_version)" || mercbot_fail "Mercbot isn't installed in $MERCBOT_HOME. Run Mercbot's installer."
+  mkdir -p "$MERCBOT_HOME/releases"
+  work="$(mktemp -d "$MERCBOT_HOME/releases/.new.XXXXXX")"
+  tar -xzf "$archive" -C "$work" --strip-components=1 && [ -f "$work/package.json" ] && [ -f "$work/scripts/mercbot" ] ||
+    { rm -rf "$work"; mercbot_fail "$archive isn't a release of Mercbot."; }
+  version="$(node -p 'require(process.argv[1]).version' "$work/package.json")"
+  if [ "$version" = "$previous" ]; then
+    rm -rf "$work"
+    echo "Mercbot is already at $version."
+    return 0
+  fi
+  if [ "$(printf '%s\n%s\n' "$version" "$previous" | sort -V | tail -n 1)" = "$previous" ]; then
+    rm -rf "$work"
+    mercbot_fail "$archive is Mercbot $version, older than this copy's $previous. To go back, restore the backup made before the upgrade."
+  fi
+  release="$MERCBOT_HOME/releases/$version"
+  rm -rf "$release"
+  mv "$work" "$release"
+  (cd "$release" && MERCBOT_TOOLS_STORE="${MERCBOT_TOOLS_STORE:-$HOME/.cache/mercbot-tools}" npm run --silent deploy:prepare &&
+    npm run --silent build) || mercbot_fail "Mercbot $version couldn't be prepared; this copy still runs $previous."
+  mercbot_running && was_running=1
+  systemctl --user stop "$MERCBOT_SERVICE" 2>/dev/null || true
+  backup="$(mercbot_backup)" || { [ -z "$was_running" ] || mercbot_start; exit 1; }
+  if ! mercbot_migrate "$release"; then
+    dump="$(mktemp "$MERCBOT_HOME/restore.XXXXXX")"
+    tar -xzf "$backup" -O database.dump >"$dump" && mercbot_restore_database "$dump" ||
+      mercbot_fail "Mercbot $version couldn't migrate the database, nor put it back. Bring it back with: mercbot restore $backup"
+    rm -f "$dump"
+    [ -z "$was_running" ] || mercbot_start >/dev/null
+    mercbot_fail "Mercbot $version couldn't migrate the database, so the database is as it was and Mercbot $previous runs on."
+  fi
+  mercbot_switch "$version"
+  # The release before stays; older ones go.
+  for kept in "$MERCBOT_HOME"/releases/*/; do
+    kept="${kept%/}"
+    [ "${kept##*/}" = "$version" ] || [ "${kept##*/}" = "$previous" ] || rm -rf "$kept"
+  done
+  echo "Mercbot is now $version. Mercbot $previous is kept: to go back to it, mercbot restore $backup"
+  [ -z "$was_running" ] || mercbot_start
+}
+
+mercbot_main() {
+  set -euo pipefail
+  umask 077
+  local command="${1:-}" archive
+  shift || true
+  case "$command" in
+  start | stop | status | open | new-key | restore | upgrade)
+    mercbot_settings
+    "mercbot_${command//-/_}" "$@"
+    ;;
+  backup)
+    mercbot_settings
+    archive="$(mercbot_backup "$@")"
+    echo "Mercbot's backup is $archive. It holds the vault key and Mercbot's key: keep it where only you can read it."
+    ;;
+  *)
+    echo "Usage: mercbot start | stop | status | open | new-key | backup [FILE] | restore FILE | upgrade RELEASE.tar.gz" >&2
+    exit 2
+    ;;
+  esac
+}
+
+if [ "${BASH_SOURCE[0]}" = "$0" ]; then mercbot_main "$@"; fi

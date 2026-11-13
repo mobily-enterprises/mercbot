@@ -1,0 +1,1 @@
+`python3 stats.py data.csv` crashes, and so does `python3 stats.py empty.csv`. Make stats.py skip values that are blank or not numbers (and trim spaces), and print "count=0" (just that) when there are no usable values. Run both commands until they work.

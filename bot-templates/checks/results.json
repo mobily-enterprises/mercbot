@@ -1,0 +1,4 @@
+{
+  "about": "The bot templates' end-to-end checks (D-43, D-79), written by npm run check:templates and read when Mercbot starts: one result per template, its newest. A template shows as tested only while its result passed, its fingerprint matches the template as it is now, and its behaviour fingerprint matches how bots behave now (BEHAVIOUR_SOURCES in packages/bots/src/server/templateResults.js). Run the check after changing bot behaviour and before publishing, then commit this file.",
+  "results": {}
+}

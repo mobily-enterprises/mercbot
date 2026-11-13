@@ -1,0 +1,266 @@
+{
+  "key": "hiring",
+  "name": "Hiring pipeline",
+  "icon": "star",
+  "color": "#A15C00",
+  "description": "Candidates for each role and how far they've got.",
+  "tables": [
+    {
+      "key": "candidates",
+      "fields": [
+        {
+          "key": "name",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "email",
+          "type": "email"
+        },
+        {
+          "key": "role",
+          "type": "text"
+        },
+        {
+          "key": "stage",
+          "type": "choice",
+          "choices": [
+            "Applied",
+            "Interview",
+            "Offer",
+            "Hired",
+            "Rejected"
+          ]
+        },
+        {
+          "key": "notes",
+          "type": "text"
+        }
+      ]
+    }
+  ],
+  "definition": {
+    "home": "candidates",
+    "navigation": {
+      "style": "tabs",
+      "items": [
+        {
+          "screen": "candidates",
+          "label": "Candidates",
+          "icon": "person"
+        },
+        {
+          "screen": "pipeline",
+          "label": "Pipeline",
+          "icon": "chart"
+        }
+      ]
+    },
+    "screens": {
+      "candidates": {
+        "state": {
+          "search": {
+            "type": "string",
+            "default": ""
+          }
+        },
+        "data": {
+          "all": {
+            "from": "candidates",
+            "where": "=state.search == \"\" || name.lowerAscii().contains(state.search.lowerAscii()) || role.lowerAscii().contains(state.search.lowerAscii())",
+            "sort": "name"
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "input",
+                "bind": "state.search",
+                "label": "Search",
+                "icon": "search"
+              },
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "New candidate",
+                "emphasis": "primary",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "new_candidate"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "table",
+            "rows": "=data.all",
+            "columns": [
+              {
+                "label": "Name",
+                "value": "=row.name"
+              },
+              {
+                "label": "Role",
+                "value": "=row.role"
+              },
+              {
+                "label": "Stage",
+                "value": "=row.stage",
+                "display": "chip"
+              }
+            ],
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "candidate",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "candidate": {
+        "params": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "data": {
+          "person": {
+            "record": "candidates",
+            "id": "=params.id"
+          }
+        },
+        "content": [
+          {
+            "type": "form",
+            "record": "=data.person",
+            "fields": [
+              "name",
+              "email",
+              "role",
+              "stage",
+              "notes"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Save",
+                "emphasis": "primary",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.person",
+                      "set": "=form.values"
+                    }
+                  },
+                  {
+                    "notify": "=\"Saved \" + form.name"
+                  },
+                  {
+                    "go": {
+                      "screen": "candidates"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "candidates"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "new_candidate": {
+        "content": [
+          {
+            "type": "form",
+            "table": "candidates",
+            "fields": [
+              "name",
+              "email",
+              "role",
+              "notes"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Add",
+                "emphasis": "primary",
+                "do": [
+                  {
+                    "create": {
+                      "table": "candidates",
+                      "values": "=form.values",
+                      "preset": {
+                        "stage": "Applied"
+                      }
+                    }
+                  },
+                  {
+                    "notify": "=\"Added \" + form.name"
+                  },
+                  {
+                    "go": {
+                      "screen": "candidates"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "pipeline": {
+        "data": {
+          "byStage": {
+            "from": "candidates",
+            "groupBy": "stage"
+          }
+        },
+        "content": [
+          {
+            "type": "chart",
+            "kind": "bar",
+            "label": "Candidates by stage",
+            "rows": "=data.byStage"
+          }
+        ]
+      }
+    }
+  },
+  "sample": {
+    "candidates": [
+      {
+        "name": "Carla Mendes",
+        "email": "carla@example.com",
+        "role": "Designer",
+        "stage": "Interview"
+      },
+      {
+        "name": "Dev Patel",
+        "email": "dev@example.com",
+        "role": "Developer",
+        "stage": "Applied"
+      }
+    ]
+  }
+}

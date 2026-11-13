@@ -1,0 +1,17 @@
+#!/usr/bin/env node
+
+import { runManagedPreviewIdentityCommand } from "@jskit-ai/auth-web/server/managedPreviewIdentity";
+import { openWithKey } from "@local/single-user/preview-identity";
+import { loadEnvFile } from "../server/lib/envFile.js";
+
+// Vibe64's Preview opens Mercbot with its key, as `mercbot open` does (packages/single-user previewIdentity.js). The key
+// is in the data folder given here (the Test Preview's .data-test), else the one .env names (MERCBOT_DATA_DIR), else
+// .data.
+loadEnvFile();
+const [dataFolder] = process.argv.slice(2);
+
+process.exitCode = await runManagedPreviewIdentityCommand({
+  protocol: "vibe64.preview-identity.command.v1",
+  localHostnames: [/^vibe64-launch-[a-f0-9]{12}$/u],
+  exchange: openWithKey(dataFolder ? { MERCBOT_DATA_DIR: dataFolder } : process.env)
+});

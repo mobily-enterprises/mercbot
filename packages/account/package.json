@@ -1,0 +1,64 @@
+{
+  "name": "@local/account",
+  "version": "0.1.0",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "exports": {
+    "./meter": "./src/server/meter.js",
+    "./cost": "./src/server/cost.js",
+    "./usage": "./src/server/usage.js",
+    "./jobs": "./src/server/jobs.js",
+    "./spending": "./src/server/spending.js",
+    "./reports": "./src/server/reports.js",
+    "./data-folder": "./src/server/dataFolder.js",
+    "./keys": "./src/server/keys.js",
+    "./model": "./src/server/providers/index.js",
+    "./public-address": "./src/server/publicAddress.js",
+    "./vault-crypto": "./src/server/vaultCrypto.js",
+    "./shared/vault": "./src/shared/vault.js",
+    "./this-copy": "./src/server/thisCopy.js",
+    "./server/accountError": "./src/server/accountError.js",
+    "./server/tableResources": "./src/server/tableResources.js",
+    "./server/types": "./src/server/types.js"
+  },
+  "description": "The account menu's services: what AI, computers and computation use and cost at their providers, each home's spending (D-73), and the Vault.",
+  "dependencies": {
+    "@jskit-ai/kernel": "0.2.21",
+    "@jskit-ai/resource-core": "0.1.212",
+    "@jskit-ai/resource-runtime": "0.2.28"
+  },
+  "jskit": {
+    "kind": "runtime",
+    "capabilities": {
+      "provides": [
+        "mercbot.account",
+        "mercbot.meter",
+        "mercbot.account.sweeps"
+      ],
+      "requires": [
+        "runtime.http",
+        "runtime.uploads",
+        "runtime.env",
+        "runtime.database",
+        "runtime.fastify",
+        "runtime.resources",
+        "mercbot.bots.records",
+        "users.profiles"
+      ]
+    },
+    "runtime": {
+      "server": {
+        "providers": [
+          {
+            "entrypoint": "src/server/AccountFeature.js",
+            "export": "AccountFeature"
+          }
+        ]
+      },
+      "client": {
+        "providers": []
+      }
+    }
+  }
+}

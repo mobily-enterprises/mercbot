@@ -1,0 +1,408 @@
+.mb-apps-modal {
+  position: relative;
+  height: 655px;
+  max-height: calc(100vh - 24px);
+  overflow: hidden;
+  border-radius: 16px;
+  background: rgb(var(--v-theme-surface));
+  color: rgb(var(--v-theme-on-surface));
+}
+
+/* Phone: the whole screen and one column of apps (D-36 UX bar). */
+.mb-apps-modal--phone {
+  height: 100%;
+  max-height: none;
+  border-radius: 0;
+}
+
+.mb-apps-modal--phone .mb-apps-modal__page {
+  padding-right: 16px;
+  padding-left: 16px;
+}
+
+.mb-apps-modal--phone .mb-apps-modal__grid {
+  grid-template-columns: 1fr;
+}
+
+.mb-apps-modal--phone .mb-apps-modal__search-row {
+  flex-wrap: wrap;
+}
+
+/* An app's page on a phone: its name next to the logo, the buttons below; account rows wrap. */
+.mb-apps-modal--phone .mb-detail__head {
+  flex-wrap: wrap;
+}
+
+.mb-apps-modal--phone .mb-detail__title {
+  flex-basis: calc(100% - 70px);
+}
+
+.mb-apps-modal--phone .mb-detail__row {
+  flex-wrap: wrap;
+}
+
+.mb-apps-modal--phone .mb-detail__account {
+  flex-basis: 100%;
+}
+
+.mb-apps-modal__close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: rgb(var(--v-theme-on-surface-variant));
+  cursor: pointer;
+}
+
+.mb-apps-modal__page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 52px 33px 0;
+}
+
+.mb-apps-modal__page--scroll {
+  overflow-y: auto;
+  padding-bottom: 32px;
+}
+
+.mb-apps-modal__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.mb-apps-modal__title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 400;
+}
+
+.mb-apps-modal__title--manage {
+  margin: 12px 0 8px;
+}
+
+.mb-apps-modal__summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 13px;
+  color: rgb(var(--v-theme-on-surface-variant));
+  cursor: pointer;
+}
+
+.mb-apps-modal__cluster {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.mb-apps-modal__search-row {
+  display: flex;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.mb-apps-modal__search {
+  position: relative;
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid rgb(var(--v-theme-outline-variant));
+  border-radius: 16px;
+}
+
+.mb-apps-modal__search input {
+  flex: 1;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 13px;
+  color: inherit;
+  outline: none;
+}
+
+.mb-apps-modal__search-icon {
+  color: rgb(var(--v-theme-on-surface-variant));
+}
+
+.mb-apps-modal__clear {
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 12px;
+  color: rgb(var(--v-theme-on-surface-variant));
+  cursor: pointer;
+}
+
+.mb-apps-modal__results {
+  position: absolute;
+  top: 38px;
+  right: 0;
+  left: 0;
+  z-index: 2;
+  max-height: 320px;
+  padding: 8px;
+  overflow-y: auto;
+  border-radius: 12px;
+  background: rgb(var(--v-theme-surface));
+  box-shadow: var(--mb-shadow-popover);
+}
+
+.mb-apps-modal__results-label {
+  margin: 2px 8px 6px;
+  font-size: 12px;
+  color: rgb(var(--v-theme-on-surface-variant));
+}
+
+.mb-apps-modal__result {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  height: 36px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  font: inherit;
+  font-size: 14px;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.mb-apps-modal__result-name,
+.mb-apps-modal__result > span:not(.mb-plugin-logo) {
+  flex: 1;
+}
+
+.mb-apps-modal__result:hover {
+  background: rgb(var(--v-theme-surface-container-high));
+}
+
+.mb-apps-modal__no-results {
+  margin: 6px 8px;
+  font-size: 13px;
+  color: rgb(var(--v-theme-on-surface-variant));
+}
+
+.mb-apps-modal__templates {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid rgb(var(--v-theme-outline-variant));
+  border-radius: 16px;
+  background: transparent;
+  font: inherit;
+  font-size: 13px;
+  color: inherit;
+  cursor: pointer;
+}
+
+.mb-apps-modal__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.mb-chip-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  height: 28px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 14px;
+  background: rgb(var(--v-theme-surface-container-high));
+  font: inherit;
+  font-size: 13px;
+  color: inherit;
+  cursor: pointer;
+}
+
+.mb-chip-filter--selected {
+  background: rgb(var(--v-theme-inverse-surface));
+  color: rgb(var(--v-theme-inverse-on-surface));
+}
+
+.mb-apps-modal__menu-text {
+  font-size: 13px;
+}
+
+.mb-apps-modal__scroll {
+  flex: 1;
+  margin: 12px -33px 0;
+  padding: 0 33px 24px;
+  overflow-y: auto;
+}
+
+.mb-apps-modal__skeleton {
+  height: 200px;
+  border-radius: 12px;
+  background: rgb(var(--v-theme-surface-container-high));
+}
+
+.mb-apps-modal__section {
+  margin-top: 16px;
+}
+
+.mb-apps-modal__section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.mb-apps-modal__section-head h3,
+.mb-detail__group h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 400;
+}
+
+.mb-apps-modal__view-all {
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 13px;
+  color: rgb(var(--v-theme-on-surface-variant));
+  cursor: pointer;
+}
+
+.mb-apps-modal__empty {
+  margin: 4px 0;
+  font-size: 13px;
+  color: rgb(var(--v-theme-on-surface-variant));
+}
+
+.mb-apps-modal__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: 16px;
+}
+
+.mb-app-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  height: 66px;
+}
+
+.mb-app-row__main {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.mb-app-row__text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.mb-app-row__name {
+  font-size: 14px;
+  line-height: 18px;
+}
+
+.mb-app-row__description {
+  overflow: hidden;
+  font-size: 13px;
+  line-height: 17px;
+  color: rgb(var(--v-theme-on-surface-variant));
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mb-app-row__action {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-width: 76px;
+  height: 26px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 13px;
+  background: rgb(var(--v-theme-surface-container-high));
+  font: inherit;
+  font-size: 13px;
+  color: inherit;
+  cursor: pointer;
+}
+
+.mb-app-row__action:disabled {
+  cursor: default;
+}
+
+.mb-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  margin-left: 4px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: rgb(var(--v-theme-surface-container-high));
+  color: rgb(var(--v-theme-on-surface-variant));
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1;
+  vertical-align: middle;
+}
+
+.mb-app-row__action--soon {
+  color: rgb(var(--v-theme-on-surface-variant));
+  cursor: default;
+}
+
+.mb-app-row__action--added {
+  background: transparent;
+  color: rgb(var(--v-theme-success));
+}
+
+/* A step inside the window names where it goes (the catalogue, or Your apps and skills), with no back arrow. */
+.mb-apps-modal__step {
+  position: absolute;
+  top: 16px;
+  left: 20px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 13px;
+  color: rgb(var(--v-theme-on-surface-variant));
+  cursor: pointer;
+}

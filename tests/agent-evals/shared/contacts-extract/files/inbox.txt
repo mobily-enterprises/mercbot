@@ -1,0 +1,5 @@
+From: Dana Smith <DANA.smith@Example.com> — call me on 0412 345 678
+cc: ops@acme.example, Dana Smith <dana.smith@example.com>
+Phone (office): +61 8 9300 1234. Mobile 0412-345-678 again.
+Reply to: billing@acme.example ; also reach Tom at tom_w@post.example or (08) 9300 4321
+Unrelated: version 1.2.3.4 and price $12.50 are not phone numbers.

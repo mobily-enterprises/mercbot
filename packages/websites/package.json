@@ -1,0 +1,50 @@
+{
+  "name": "@local/websites",
+  "version": "0.1.0",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "description": "A home's own website (D-84): a folder a web server serves, or S3-compatible storage, where people publish the pages bots write.",
+  "exports": {},
+  "dependencies": {
+    "@aws-sdk/client-s3": "3.1167.0",
+    "@jskit-ai/database-runtime": "0.1.270",
+    "@jskit-ai/kernel": "0.2.21",
+    "@jskit-ai/resource-core": "0.1.212",
+    "@jskit-ai/resource-runtime": "0.2.28",
+    "@local/account": "0.1.0",
+    "@local/files": "0.1.0"
+  },
+  "jskit": {
+    "kind": "runtime",
+    "capabilities": {
+      "provides": [],
+      "requires": [
+        "runtime.http",
+        "runtime.env",
+        "runtime.resources",
+        "mercbot.bots.records",
+        "mercbot.account",
+        "mercbot.files"
+      ]
+    },
+    "migrations": {
+      "directories": [
+        "migrations"
+      ]
+    },
+    "runtime": {
+      "server": {
+        "providers": [
+          {
+            "entrypoint": "src/server/WebsitesFeature.js",
+            "export": "WebsitesFeature"
+          }
+        ]
+      },
+      "client": {
+        "providers": []
+      }
+    }
+  }
+}

@@ -1,0 +1,274 @@
+:root {
+  --v-font-body: system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, Cantarell, "DejaVu Sans", sans-serif;
+  --mb-shadow-soft: 0 2px 8px rgba(var(--v-theme-shadow), 0.08);
+  --mb-shadow-popover: 0 4px 12px rgba(var(--v-theme-shadow), 0.12);
+}
+
+.mb-tooltip {
+  min-height: 24px;
+  padding: 4px 8px !important;
+  border-radius: 6px !important;
+  background: rgb(var(--v-theme-surface)) !important;
+  color: rgb(var(--v-theme-on-surface)) !important;
+  box-shadow: var(--mb-shadow-popover);
+  font-size: 12px !important;
+  line-height: 16px !important;
+  transition-duration: 50ms !important;
+}
+
+.mb-popover {
+  border-radius: 12px !important;
+  box-shadow: var(--mb-shadow-popover) !important;
+}
+
+/* A hover card: a rich tooltip, as a Library row's. */
+.mb-hover-card {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  max-width: 260px;
+  padding: 10px 12px !important;
+  border-radius: 12px !important;
+  background: rgb(var(--v-theme-surface-container)) !important;
+  color: rgb(var(--v-theme-on-surface)) !important;
+  box-shadow: var(--mb-shadow-popover);
+  font-size: 12px !important;
+  line-height: 16px !important;
+}
+
+.mb-hover-card__type,
+.mb-hover-card__line {
+  color: rgb(var(--v-theme-on-surface-variant));
+}
+
+.mb-hover-card__title {
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mb-hover-card__line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Rich bot replies. */
+.mb-rich {
+  font-size: 14px;
+  line-height: 22px;
+  overflow-wrap: anywhere;
+}
+
+.mb-rich > :first-child { margin-top: 0; }
+.mb-rich > :last-child { margin-bottom: 0; }
+.mb-rich p { margin: 0 0 10px; }
+.mb-rich ul, .mb-rich ol { margin: 0 0 10px; padding-left: 20px; }
+.mb-rich li + li { margin-top: 4px; }
+.mb-rich li::marker { color: rgb(var(--v-theme-on-surface-variant)); }
+.mb-rich h1, .mb-rich h2, .mb-rich h3, .mb-rich h4 { margin: 0 0 8px; font-size: 14px; font-weight: 700; line-height: 22px; }
+.mb-rich blockquote { margin: 0 0 10px; padding-left: 10px; border-left: 2px solid rgb(var(--v-theme-outline-variant)); color: rgb(var(--v-theme-on-surface-variant)); }
+
+.mb-rich .mb-skill-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-weight: 600;
+  color: rgb(var(--v-theme-primary));
+  text-decoration: none;
+}
+
+.mb-rich .mb-skill-link:hover {
+  text-decoration: underline;
+}
+
+.mb-rich .mb-skill-link__icon {
+  flex: none;
+}
+
+.mb-rich .mb-link {
+  color: rgb(var(--v-theme-on-surface));
+  text-decoration: underline;
+  text-decoration-color: rgb(var(--v-theme-outline-variant));
+  text-underline-offset: 3px;
+}
+
+.mb-rich .mb-link__icon {
+  width: 16px;
+  height: 16px;
+  margin: 0 4px -3px 2px;
+  border-radius: 3px;
+}
+
+/* A link into a connected app: a chip with the app's logo first. */
+.mb-rich .mb-link--app {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 6px 0 3px;
+  border: 1px solid rgb(var(--v-theme-outline-variant));
+  border-radius: 6px;
+  background: rgb(var(--v-theme-surface));
+  font-size: 13px;
+  line-height: 20px;
+  text-decoration: none;
+  vertical-align: bottom;
+}
+
+.mb-rich .mb-link__app {
+  flex: none;
+  border-radius: 4px;
+}
+
+.mb-rich :not(pre) > code {
+  padding: 1px 4px;
+  border-radius: 4px;
+  background: rgb(var(--v-theme-surface));
+  font-size: 12px;
+}
+
+.mb-code {
+  margin: 0 0 10px;
+  padding: 10px 12px;
+  overflow-x: auto;
+  border: 1px solid rgb(var(--v-theme-outline-variant));
+  border-radius: 10px;
+  background: rgb(var(--v-theme-surface));
+  font: 12px/18px ui-monospace, SFMono-Regular, Menlo, Consolas, "DejaVu Sans Mono", monospace;
+  white-space: pre;
+}
+
+.mb-code__string { color: rgb(var(--v-theme-code-string)); }
+.mb-code__keyword { color: rgb(var(--v-theme-code-keyword)); }
+
+/* Find in chat uses the CSS Custom Highlight API. */
+::highlight(mb-find) { background-color: rgb(var(--v-theme-warning-container)); color: rgb(var(--v-theme-on-warning-container)); }
+::highlight(mb-find-current) { background-color: rgb(var(--v-theme-warning)); color: rgb(var(--v-theme-on-warning)); }
+
+/* A bot mentioned in a group reply: a small face and the name in the bot's colour. */
+.mb-rich .mb-mention-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-weight: 500;
+  vertical-align: bottom;
+}
+
+.mb-rich .mb-mention-chip__face {
+  position: relative;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+}
+
+.mb-rich .mb-mention-chip__face::before {
+  content: "";
+  position: absolute;
+  top: 5px;
+  left: 4px;
+  width: 2px;
+  height: 3px;
+  border-radius: 1px;
+  background: var(--mb-face-eyes);
+  box-shadow: 4px 0 0 var(--mb-face-eyes);
+}
+
+/* A message opened from the search palette is marked for a moment. */
+.mb-timeline__item--found .mb-bubble {
+  animation: mb-found-ring 1.9s ease forwards;
+}
+
+@keyframes mb-found-ring {
+  0%, 63% { box-shadow: 0 0 0 2px rgba(var(--v-theme-outline), 1); }
+  100% { box-shadow: 0 0 0 2px rgba(var(--v-theme-outline), 0); }
+}
+
+/* Settings sections: a grey group label, then a white card of rows. */
+.mb-set-group {
+  margin: 0 0 8px;
+  font-size: 13px;
+  color: rgb(var(--v-theme-on-surface-variant));
+}
+
+.v-theme--dark .mb-set-group {
+  color: rgb(var(--v-theme-on-surface-variant));
+}
+
+.mb-set-card {
+  max-width: 636px;
+  margin-bottom: 26px;
+  border: 1px solid rgb(var(--v-theme-outline-variant));
+  border-radius: 12px;
+  background: rgb(var(--v-theme-surface));
+}
+
+.mb-set-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 48px;
+  padding: 8px 16px;
+}
+
+.mb-set-row + .mb-set-row {
+  border-top: 1px solid rgb(var(--v-theme-outline-variant));
+}
+
+.mb-set-row__text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.mb-set-row__label {
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.mb-set-row__description {
+  font-size: 13px;
+  line-height: 18px;
+  color: rgb(var(--v-theme-on-surface-variant));
+}
+
+.mb-set-pill {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 15px;
+  background: rgb(var(--v-theme-surface-container-high));
+  font: inherit;
+  font-size: 13px;
+  color: rgb(var(--v-theme-on-surface));
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.mb-set-pill:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.mb-set-pill--danger {
+  background: rgb(var(--v-theme-error));
+  color: rgb(var(--v-theme-on-error));
+}
+
+.mb-set-pill--dark {
+  background: rgb(var(--v-theme-inverse-surface));
+  color: rgb(var(--v-theme-inverse-on-surface));
+}
+
+.mb-set-caption {
+  max-width: 636px;
+  margin: -18px 0 26px;
+  font-size: 13px;
+  color: rgb(var(--v-theme-on-surface-variant));
+}

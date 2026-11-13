@@ -1,0 +1,1 @@
+orders.json in this folder holds orders with nested customers and items. Write lines.csv with one row per order item and the columns order_id,customer,city,sku,qty,price,line_total (line_total = qty × price, 2 decimals), in the same order as the file. Then tell me which city has the highest total spend.

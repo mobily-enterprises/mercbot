@@ -1,0 +1,38 @@
+{
+  "id": "google-contacts",
+  "name": "Google Contacts",
+  "category": "Productivity",
+  "kind": "add",
+  "description": "Look people up by name for their email address or phone number.",
+  "color": "#1A73E8",
+  "icon": "contacts",
+  "recommended": false,
+  "connectors": [
+    "google-contacts"
+  ],
+  "skills": [
+    {
+      "name": "find-people",
+      "description": "Find someone's email or number before writing to them"
+    }
+  ],
+  "info": {
+    "capabilities": "Read your contacts; never changes them",
+    "developer": "Google",
+    "website": null,
+    "availability": "Not connected yet"
+  },
+  "oauth": {
+    "provider": "google",
+    "scopes": [
+      "https://www.googleapis.com/auth/contacts.readonly"
+    ]
+  },
+  "rank": 65,
+  "actions": [
+    {
+      "id": "find_contact",
+      "name": "Find contacts"
+    }
+  ]
+}

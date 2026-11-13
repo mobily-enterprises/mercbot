@@ -1,0 +1,94 @@
+{
+  "id": "onedrive",
+  "name": "OneDrive",
+  "category": "Productivity",
+  "kind": "add",
+  "description": "Find and organise files across OneDrive and SharePoint.",
+  "color": "#0364B8",
+  "icon": "folder",
+  "recommended": false,
+  "connectors": [
+    "onedrive",
+    "sharepoint"
+  ],
+  "skills": [],
+  "info": {
+    "capabilities": "Read and act on your behalf, always asking before changes",
+    "developer": "Microsoft",
+    "website": null,
+    "availability": "Not connected yet: sign-in isn't set up"
+  },
+  "oauth": {
+    "provider": "microsoft",
+    "scopes": [
+      "Files.ReadWrite"
+    ]
+  },
+  "rank": 90,
+  "actions": [
+    {
+      "id": "list_drive_files",
+      "name": "List recent files"
+    },
+    {
+      "id": "drive_find.search",
+      "name": "Search files"
+    },
+    {
+      "id": "drive_find.folder",
+      "name": "List a folder"
+    },
+    {
+      "id": "drive_find.details",
+      "name": "File details and sharing"
+    },
+    {
+      "id": "drive_read.read",
+      "name": "Read file contents"
+    },
+    {
+      "id": "drive_read.download",
+      "name": "Download files"
+    },
+    {
+      "id": "drive_read.export",
+      "name": "Export to another format"
+    },
+    {
+      "id": "drive_change.create_folder",
+      "name": "Create folders"
+    },
+    {
+      "id": "drive_change.create_file",
+      "name": "Create files"
+    },
+    {
+      "id": "drive_change.update",
+      "name": "Update contents or details"
+    },
+    {
+      "id": "drive_change.move",
+      "name": "Move or rename"
+    },
+    {
+      "id": "drive_change.copy",
+      "name": "Copy files"
+    },
+    {
+      "id": "drive_change.share",
+      "name": "Share files"
+    },
+    {
+      "id": "create_drive_document",
+      "name": "Create documents"
+    },
+    {
+      "id": "bin_drive_file",
+      "name": "Move files to the bin"
+    },
+    {
+      "id": "save_to_drive",
+      "name": "Save a bot's file to the drive"
+    }
+  ]
+}

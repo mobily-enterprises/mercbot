@@ -1,0 +1,376 @@
+/* Mercbot's look for pages (D-40, D-74), put first in every page, so a page that styles itself wins:
+   every rule is inside :where(), which adds nothing to a rule's weight. The blocks a bot writes:
+   tabs (section.tabs), a numbered timeline (ol.timeline), a checklist (ul.checklist), link cards
+   (a.card), unverified facts (.unverified), callouts (aside) and the doorway to an app (a.app).
+   With scripts the helper adds the html element's mb-js class; without them (a page opened by its
+   link) every block still reads well. */
+:where(html) {
+  color-scheme: light;
+  height: auto;
+  -webkit-text-size-adjust: 100%;
+}
+
+:where(body) {
+  box-sizing: border-box;
+  max-width: 820px;
+  margin: 0 auto;
+  padding: 30px 30px 40px;
+  background: #fff;
+  color: #1c1c1c;
+  font: 15px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  overflow-wrap: anywhere;
+}
+
+:where(h1, h2, h3, h4) {
+  margin: 1.4em 0 0.5em;
+  line-height: 1.25;
+}
+
+:where(h1) {
+  margin-top: 0;
+  font-size: 26px;
+}
+
+:where(h2) {
+  font-size: 20px;
+}
+
+:where(h3) {
+  font-size: 16px;
+}
+
+:where(p, ul, ol, table, figure, blockquote) {
+  margin: 0 0 14px;
+}
+
+:where(a) {
+  color: #0b6dd3;
+}
+
+:where(img, video, canvas, svg) {
+  max-width: 100%;
+  height: auto;
+}
+
+:where(img, video) {
+  border-radius: 12px;
+}
+
+:where(figure) {
+  margin-inline: 0;
+}
+
+:where(figcaption) {
+  color: #5f6368;
+  font-size: 13px;
+}
+
+:where(table) {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+:where(th, td) {
+  padding: 8px 10px;
+  border: 1px solid #dadce0;
+  text-align: left;
+  vertical-align: top;
+}
+
+:where(th) {
+  background: #f1f3f4;
+}
+
+:where(blockquote) {
+  padding-left: 14px;
+  border-left: 3px solid #dadce0;
+  color: #5f6368;
+}
+
+:where(code) {
+  padding: 1px 5px;
+  border-radius: 6px;
+  background: #f1f3f4;
+  font-size: 0.9em;
+}
+
+:where(button, input, select, textarea) {
+  font: inherit;
+}
+
+:where(aside) {
+  margin: 0 0 14px;
+  padding: 12px 16px;
+  border-left: 4px solid #0b6dd3;
+  border-radius: 12px;
+  background: #eef5fd;
+}
+
+/* An unverified fact: the text, then a small orange tag. */
+:where(.unverified) {
+  text-decoration: underline dotted #e8710a;
+}
+
+:where(.unverified)::after {
+  content: "unverified";
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: #feefe3;
+  color: #b45309;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 18px;
+  text-decoration: none;
+  vertical-align: 1px;
+}
+
+/* Tabs: with scripts one section shows under a row of tabs; without, each shows under its title. */
+:where(section.tabs) {
+  margin: 0 0 14px;
+}
+
+:where(section.tabs > section)::before {
+  content: attr(title);
+  display: block;
+  margin: 18px 0 8px;
+  padding-bottom: 4px;
+  border-bottom: 2px solid #1c1c1c;
+  font-weight: 700;
+}
+
+:where(.mb-js section.tabs > section) {
+  display: none;
+}
+
+:where(.mb-js section.tabs > section)::before {
+  content: none;
+}
+
+:where(.mb-js section.tabs > section.mb-active) {
+  display: block;
+}
+
+:where(.mb-tabbar) {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 14px;
+  overflow-x: auto;
+  border-bottom: 1px solid #dadce0;
+}
+
+:where(.mb-tabbar button) {
+  padding: 8px 14px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: #5f6368;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+:where(.mb-tabbar button[aria-selected="true"]) {
+  border-bottom-color: #1c1c1c;
+  color: #1c1c1c;
+}
+
+/* A numbered timeline: a step number, the bold time and title, then a grey detail line. */
+:where(ol.timeline) {
+  padding: 0;
+  list-style: none;
+  counter-reset: mb-step;
+}
+
+:where(ol.timeline > li) {
+  position: relative;
+  min-height: 30px;
+  margin: 0 0 16px;
+  padding-left: 44px;
+  color: #5f6368;
+  counter-increment: mb-step;
+}
+
+:where(ol.timeline > li)::before {
+  content: counter(mb-step);
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border-radius: 50%;
+  background: #1c1c1c;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+:where(ol.timeline > li:not(:last-child))::after {
+  content: "";
+  position: absolute;
+  top: 32px;
+  bottom: -14px;
+  left: 13px;
+  width: 2px;
+  background: #e3e3e3;
+}
+
+:where(ol.timeline > li > b, ol.timeline > li > strong) {
+  display: block;
+  color: #1c1c1c;
+}
+
+/* A checklist: rows with a switch in a rounded box, a counter and Reset (the helper adds them). */
+:where(ul.checklist) {
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid #dadce0;
+  border-radius: 16px;
+  list-style: none;
+}
+
+:where(ul.checklist > li) {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 16px;
+  border-top: 1px solid #ececec;
+}
+
+:where(ul.checklist > li:first-child) {
+  border-top: 0;
+}
+
+:where(ul.checklist > li)::before {
+  content: "";
+  flex: none;
+  width: 30px;
+  height: 18px;
+  border-radius: 9px;
+  background: #c4c7c5 radial-gradient(circle at 9px 9px, #fff 6px, transparent 7px);
+}
+
+:where(ul.checklist > li[data-done])::before {
+  background: #0b6dd3 radial-gradient(circle at 21px 9px, #fff 6px, transparent 7px);
+}
+
+:where(.mb-js ul.checklist > li)::before {
+  content: none;
+}
+
+:where(ul.checklist > li[data-done]) {
+  color: #5f6368;
+}
+
+:where(.mb-switch) {
+  position: relative;
+  flex: none;
+  width: 30px;
+  height: 18px;
+  margin: 0;
+  border-radius: 9px;
+  background: #c4c7c5;
+  appearance: none;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+:where(.mb-switch)::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.15s;
+}
+
+:where(.mb-switch:checked) {
+  background: #0b6dd3;
+}
+
+:where(.mb-switch:checked)::after {
+  transform: translateX(12px);
+}
+
+:where(.mb-switch:focus-visible) {
+  outline: 2px solid #0b6dd3;
+  outline-offset: 2px;
+}
+
+:where(.mb-checklist-bar) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: -6px 4px 16px;
+  color: #5f6368;
+  font-size: 13px;
+}
+
+:where(.mb-checklist-bar button) {
+  padding: 4px 8px;
+  border: 0;
+  background: none;
+  color: #0b6dd3;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* A link card: a link icon, the title, the site's domain in grey and an outward arrow. */
+:where(a.card) {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 0 10px;
+  padding: 12px 16px;
+  border: 1px solid #dadce0;
+  border-radius: 16px;
+  color: #1c1c1c;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+:where(a.card)::before {
+  content: "";
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: #f1f3f4 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%235f6368' d='M10.6 13.4a1 1 0 0 1 0-1.4l3.5-3.5a1 1 0 1 1 1.4 1.4L12 13.4a1 1 0 0 1-1.4 0ZM8.5 18.5a3.5 3.5 0 0 1-2.5-6l2.1-2.1a1 1 0 0 1 1.4 1.4l-2.1 2.1a1.5 1.5 0 0 0 2.1 2.1l2.1-2.1a1 1 0 0 1 1.4 1.4L10.9 17.5a3.5 3.5 0 0 1-2.4 1Zm6.4-4.9a1 1 0 0 1-.7-1.7l2.1-2.1a1.5 1.5 0 0 0-2.1-2.1l-2.1 2.1a1 1 0 0 1-1.4-1.4L12.8 6.3a3.5 3.5 0 0 1 4.9 4.9l-2.1 2.1a1 1 0 0 1-.7.3Z'/%3E%3C/svg%3E") center / 18px no-repeat;
+}
+
+:where(a.card)::after {
+  content: attr(data-domain) "  \2197";
+  margin-left: auto;
+  color: #5f6368;
+  font-size: 13px;
+  font-weight: 400;
+  white-space: nowrap;
+}
+
+/* The doorway to an app: a button that opens the app in its own view. */
+:where(a.app, button.app) {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 18px;
+  border: 0;
+  border-radius: 999px;
+  background: #1c1c1c;
+  color: #fff;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+@media (max-width: 600px) {
+  :where(body) {
+    padding: 20px 16px 32px;
+  }
+}

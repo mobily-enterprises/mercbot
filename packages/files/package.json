@@ -1,0 +1,55 @@
+{
+  "name": "@local/files",
+  "version": "0.1.0",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "description": "Bots' files and the office apps they make them with, each run in a sandbox (D-20, D-21), and where people's profile pictures are kept (D-19).",
+  "exports": {
+    "./office-apps": "./src/server/officeApps.js",
+    "./own-machine": "./src/server/ownMachine.js",
+    "./gvisor": "./src/server/gvisor.js",
+    "./server/pageHeaders": "./src/server/pageHeaders.js",
+    "./server/types": "./src/server/types.js"
+  },
+  "dependencies": {
+    "@jskit-ai/database-runtime": "0.1.270",
+    "@jskit-ai/kernel": "0.2.21",
+    "@jskit-ai/resource-core": "0.1.212",
+    "@jskit-ai/resource-runtime": "0.2.28",
+    "@local/account": "0.1.0",
+    "parse5": "8.1.1"
+  },
+  "jskit": {
+    "kind": "runtime",
+    "capabilities": {
+      "provides": [
+        "mercbot.files"
+      ],
+      "requires": [
+        "runtime.http",
+        "runtime.fastify",
+        "runtime.uploads",
+        "runtime.storage",
+        "runtime.env",
+        "runtime.resources",
+        "mercbot.bots.records",
+        "mercbot.meter",
+        "mercbot.integrations"
+      ]
+    },
+    "runtime": {
+      "server": {
+        "providers": [
+          {
+            "entrypoint": "src/server/FilesFeature.js",
+            "export": "FilesFeature"
+          }
+        ]
+      },
+      "client": {
+        "providers": []
+      }
+    }
+  }
+}

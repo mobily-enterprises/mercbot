@@ -1,0 +1,361 @@
+{
+  "key": "bookings",
+  "name": "Bookings",
+  "icon": "calendar",
+  "color": "#B3261E",
+  "description": "People sign in with their email, book, and see and change only their own bookings. Make it public from its details.",
+  "tables": [
+    {
+      "key": "bookings",
+      "fields": [
+        {
+          "key": "what",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "date",
+          "type": "date",
+          "required": true
+        },
+        {
+          "key": "people",
+          "type": "number"
+        },
+        {
+          "key": "email",
+          "type": "email"
+        },
+        {
+          "key": "status",
+          "type": "choice",
+          "choices": [
+            "Requested",
+            "Confirmed",
+            "Cancelled"
+          ]
+        }
+      ]
+    }
+  ],
+  "definition": {
+    "home": "all",
+    "public": {
+      "home": "mine",
+      "signIn": "required",
+      "tables": {
+        "bookings": {
+          "can": [
+            "list",
+            "get",
+            "create",
+            "update"
+          ],
+          "rows": "own",
+          "owner": "email",
+          "read": [
+            "what",
+            "date",
+            "people",
+            "status"
+          ],
+          "write": [
+            "what",
+            "date",
+            "people",
+            "status"
+          ]
+        }
+      }
+    },
+    "navigation": {
+      "style": "tabs",
+      "items": [
+        {
+          "screen": "all",
+          "label": "All bookings",
+          "icon": "calendar"
+        },
+        {
+          "screen": "mine",
+          "label": "My bookings",
+          "icon": "person"
+        },
+        {
+          "screen": "book",
+          "label": "Book",
+          "icon": "add"
+        }
+      ]
+    },
+    "screens": {
+      "all": {
+        "data": {
+          "all": {
+            "from": "bookings",
+            "sort": "date"
+          }
+        },
+        "content": [
+          {
+            "type": "table",
+            "rows": "=data.all",
+            "columns": [
+              {
+                "label": "Date",
+                "value": "=row.date"
+              },
+              {
+                "label": "What",
+                "value": "=row.what"
+              },
+              {
+                "label": "People",
+                "value": "=row.people"
+              },
+              {
+                "label": "Who",
+                "value": "=row.email"
+              },
+              {
+                "label": "Status",
+                "value": "=row.status",
+                "display": "chip"
+              }
+            ],
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "manage",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "manage": {
+        "params": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "data": {
+          "booking": {
+            "record": "bookings",
+            "id": "=params.id"
+          }
+        },
+        "content": [
+          {
+            "type": "form",
+            "record": "=data.booking",
+            "fields": [
+              "what",
+              "date",
+              "people",
+              "status"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Save",
+                "emphasis": "primary",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.booking",
+                      "set": "=form.values"
+                    }
+                  },
+                  {
+                    "notify": "=\"Saved\""
+                  },
+                  {
+                    "go": {
+                      "screen": "all"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "all"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "mine": {
+        "public": true,
+        "data": {
+          "mine": {
+            "from": "bookings",
+            "sort": "date"
+          }
+        },
+        "content": [
+          {
+            "type": "text",
+            "value": "=\"Bookings for \" + visitor.email",
+            "size": "title"
+          },
+          {
+            "type": "table",
+            "rows": "=data.mine",
+            "columns": [
+              {
+                "label": "Date",
+                "value": "=row.date"
+              },
+              {
+                "label": "What",
+                "value": "=row.what"
+              },
+              {
+                "label": "People",
+                "value": "=row.people"
+              },
+              {
+                "label": "Status",
+                "value": "=row.status",
+                "display": "chip"
+              }
+            ],
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "change",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "type": "button",
+            "label": "Book",
+            "emphasis": "primary",
+            "do": [
+              {
+                "go": {
+                  "screen": "book"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "change": {
+        "public": true,
+        "params": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "data": {
+          "booking": {
+            "record": "bookings",
+            "id": "=params.id"
+          }
+        },
+        "content": [
+          {
+            "type": "form",
+            "record": "=data.booking",
+            "fields": [
+              "what",
+              "date",
+              "people"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Save",
+                "emphasis": "primary",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.booking",
+                      "set": "=form.values"
+                    }
+                  },
+                  {
+                    "notify": "=\"Saved\""
+                  },
+                  {
+                    "go": {
+                      "screen": "mine"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "mine"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "book": {
+        "public": true,
+        "content": [
+          {
+            "type": "form",
+            "table": "bookings",
+            "fields": [
+              "what",
+              "date",
+              "people"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Book",
+                "emphasis": "primary",
+                "do": [
+                  {
+                    "create": {
+                      "table": "bookings",
+                      "values": "=form.values",
+                      "preset": {
+                        "status": "Requested"
+                      }
+                    }
+                  },
+                  {
+                    "notify": "=\"Booked\""
+                  },
+                  {
+                    "go": {
+                      "screen": "mine"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "sample": {}
+}

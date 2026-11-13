@@ -1,0 +1,40 @@
+{
+  "id": "calendly",
+  "name": "Calendly",
+  "categories": [
+    "Productivity"
+  ],
+  "kind": "add",
+  "description": "See booked meetings and share links so people can pick a time.",
+  "color": "#006BFF",
+  "icon": "calendar",
+  "recommended": false,
+  "connectors": [
+    "calendly"
+  ],
+  "skills": [
+    {
+      "name": "calendly-scheduling",
+      "description": "Find who booked, make one-off links, and ask before cancelling"
+    }
+  ],
+  "info": {
+    "capabilities": "Read and act on your behalf, always asking before changes",
+    "developer": "Calendly",
+    "website": "https://calendly.com",
+    "availability": "Sign in with your Calendly account"
+  },
+  "mcp": {
+    "url": "https://mcp.calendly.com/",
+    "scopes": ["mcp:scheduling:read", "mcp:scheduling:write"],
+    "whoami": "users-get_current_user",
+    "sends": [
+      "meetings-cancel_event",
+      "meetings-create_invitee",
+      "organizations-create_organization_invitation"
+    ]
+  },
+  "tier": 1,
+  "rank": 150,
+  "logo": "calendly"
+}

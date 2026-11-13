@@ -1,0 +1,40 @@
+{
+  "name": "@local/notices",
+  "version": "0.1.0",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "description": "News between Mercbot servers through PostgreSQL NOTIFY, for open pages on any server (D-15).",
+  "exports": {
+    "./server/types": "./src/server/types.js",
+    "./server/publishIn": "./src/server/publishIn.js"
+  },
+  "dependencies": {
+    "@jskit-ai/kernel": "0.2.21",
+    "pg": "8.23.1"
+  },
+  "jskit": {
+    "kind": "runtime",
+    "capabilities": {
+      "provides": [
+        "mercbot.notices"
+      ],
+      "requires": [
+        "runtime.database"
+      ]
+    },
+    "runtime": {
+      "server": {
+        "providers": [
+          {
+            "entrypoint": "src/server/NoticesFeature.js",
+            "export": "NoticesFeature"
+          }
+        ]
+      },
+      "client": {
+        "providers": []
+      }
+    }
+  }
+}

@@ -1,0 +1,10 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { addItem, cartTotal } from "./cart.js";
+import { applyCoupon } from "./coupon.js";
+test("adding twice adds up", () => assert.deepEqual(addItem(addItem({}, "a", 2), "a", 3), { a: 5 }));
+test("totals keep cents", () => assert.equal(cartTotal({ a: 3 }, { a: 1.25 }), 3.75));
+test("coupons", () => {
+  assert.equal(applyCoupon(50, "SAVE10"), 45);
+  assert.equal(applyCoupon(3, "FLAT5"), 0);
+});

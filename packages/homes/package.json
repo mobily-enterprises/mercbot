@@ -1,0 +1,45 @@
+{
+  "name": "@local/homes",
+  "version": "0.1.0",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "description": "Mercbot's homes on JSKIT workspaces (D-36): the first home's name, people's names, telling a home's people when its people change, and the current home on each request.",
+  "exports": {
+    "./server/homeOf": "./src/server/homeOf.js",
+    "./server/personName": "./src/server/personName.js"
+  },
+  "dependencies": {
+    "@jskit-ai/kernel": "0.2.21"
+  },
+  "jskit": {
+    "kind": "runtime",
+    "capabilities": {
+      "provides": [
+        "workspaces.personal-workspace-name"
+      ],
+      "requires": [
+        "runtime.events",
+        "mercbot.notices",
+        "workspaces.memberships"
+      ]
+    },
+    "runtime": {
+      "server": {
+        "providers": [
+          {
+            "entrypoint": "src/server/HomesFeature.js",
+            "export": "HomesFeature"
+          },
+          {
+            "entrypoint": "src/server/HomeChangesFeature.js",
+            "export": "HomeChangesFeature"
+          }
+        ]
+      },
+      "client": {
+        "providers": []
+      }
+    }
+  }
+}

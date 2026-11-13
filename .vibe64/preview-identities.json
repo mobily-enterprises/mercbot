@@ -1,0 +1,10 @@
+{
+  "identities": [
+    {
+      "name": "you",
+      "type": "email",
+      "value": "you@mercbot.localhost"
+    }
+  ],
+  "version": 1
+}

@@ -1,0 +1,135 @@
+{
+  "id": "gmail",
+  "name": "Gmail",
+  "category": "Communication",
+  "kind": "add",
+  "description": "Read, sort and draft email in your Gmail inbox.",
+  "color": "#EA4335",
+  "icon": "email",
+  "recommended": true,
+  "connectors": [
+    "gmail"
+  ],
+  "skills": [
+    {
+      "name": "triage-inbox",
+      "description": "Sort new mail into what needs you and what doesn't"
+    },
+    {
+      "name": "draft-replies",
+      "description": "Draft replies in your voice for you to check"
+    }
+  ],
+  "info": {
+    "capabilities": "Read and act on your behalf, always asking before changes",
+    "developer": "Google",
+    "website": null,
+    "availability": "Not connected yet: sign-in isn't set up"
+  },
+  "oauth": {
+    "provider": "google",
+    "scopes": [
+      "https://www.googleapis.com/auth/gmail.modify"
+    ]
+  },
+  "rank": 10,
+  "logo": "gmail",
+  "actions": [
+    {
+      "id": "search_email",
+      "name": "Search mail"
+    },
+    {
+      "id": "read_email",
+      "name": "Read messages and conversations"
+    },
+    {
+      "id": "mail_account.whoami",
+      "name": "See the address and send-as addresses"
+    },
+    {
+      "id": "mail_account.labels",
+      "name": "List labels"
+    },
+    {
+      "id": "mail_account.filters",
+      "name": "List mail filters"
+    },
+    {
+      "id": "show_draft",
+      "name": "Write emails for you to send"
+    },
+    {
+      "id": "send_draft",
+      "name": "Send email"
+    },
+    {
+      "id": "mail_drafts.list",
+      "name": "List saved drafts"
+    },
+    {
+      "id": "mail_drafts.read",
+      "name": "Read saved drafts"
+    },
+    {
+      "id": "mail_drafts.create",
+      "name": "Create saved drafts"
+    },
+    {
+      "id": "mail_drafts.update",
+      "name": "Update saved drafts"
+    },
+    {
+      "id": "mail_drafts.delete",
+      "name": "Delete saved drafts"
+    },
+    {
+      "id": "mail_drafts.send",
+      "name": "Send saved drafts"
+    },
+    {
+      "id": "forward_email",
+      "name": "Forward email"
+    },
+    {
+      "id": "organise_email.archive",
+      "name": "Archive and unarchive"
+    },
+    {
+      "id": "organise_email.bin",
+      "name": "Move to the bin and back"
+    },
+    {
+      "id": "organise_email.spam",
+      "name": "Mark as spam and not spam"
+    },
+    {
+      "id": "organise_email.mark_read",
+      "name": "Mark as read or unread"
+    },
+    {
+      "id": "organise_email.star",
+      "name": "Star and unstar"
+    },
+    {
+      "id": "organise_email.label",
+      "name": "Add and remove labels"
+    },
+    {
+      "id": "organise_email.move",
+      "name": "Move to a label"
+    },
+    {
+      "id": "mail_labels.create",
+      "name": "Create labels"
+    },
+    {
+      "id": "mail_labels.rename",
+      "name": "Rename labels"
+    },
+    {
+      "id": "mail_labels.delete",
+      "name": "Delete labels"
+    }
+  ]
+}

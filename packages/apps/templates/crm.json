@@ -1,0 +1,488 @@
+{
+  "key": "crm",
+  "name": "CRM",
+  "icon": "person",
+  "color": "#1E5BD8",
+  "description": "Contacts and the deals you're working on, with a chart of deals by stage.",
+  "tables": [
+    {
+      "key": "contacts",
+      "fields": [
+        {
+          "key": "name",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "email",
+          "type": "email"
+        },
+        {
+          "key": "phone",
+          "type": "phone"
+        },
+        {
+          "key": "company",
+          "type": "text"
+        },
+        {
+          "key": "stage",
+          "type": "choice",
+          "choices": [
+            "Lead",
+            "Customer",
+            "Lost"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "deals",
+      "fields": [
+        {
+          "key": "title",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "contact",
+          "type": "link",
+          "target": "contacts"
+        },
+        {
+          "key": "amount",
+          "type": "money"
+        },
+        {
+          "key": "stage",
+          "type": "choice",
+          "choices": [
+            "New",
+            "Proposal",
+            "Won",
+            "Lost"
+          ]
+        },
+        {
+          "key": "closes",
+          "type": "date"
+        }
+      ]
+    }
+  ],
+  "definition": {
+    "home": "contacts",
+    "navigation": {
+      "style": "rail",
+      "items": [
+        {
+          "screen": "contacts",
+          "label": "Contacts",
+          "icon": "person"
+        },
+        {
+          "screen": "deals",
+          "label": "Deals",
+          "icon": "star"
+        },
+        {
+          "screen": "pipeline",
+          "label": "Pipeline",
+          "icon": "chart"
+        }
+      ]
+    },
+    "screens": {
+      "contacts": {
+        "state": {
+          "search": {
+            "type": "string",
+            "default": ""
+          }
+        },
+        "data": {
+          "people": {
+            "from": "contacts",
+            "where": "=state.search == \"\" || name.lowerAscii().contains(state.search.lowerAscii())",
+            "sort": "name"
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "input",
+                "bind": "state.search",
+                "label": "Search",
+                "icon": "search"
+              },
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "New contact",
+                "emphasis": "primary",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "new_contact"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "table",
+            "rows": "=data.people",
+            "columns": [
+              {
+                "label": "Name",
+                "value": "=row.name"
+              },
+              {
+                "label": "Company",
+                "value": "=row.company"
+              },
+              {
+                "label": "Email",
+                "value": "=row.email"
+              },
+              {
+                "label": "Stage",
+                "value": "=row.stage",
+                "display": "chip"
+              }
+            ],
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "contact",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "contact": {
+        "params": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "data": {
+          "person": {
+            "record": "contacts",
+            "id": "=params.id"
+          }
+        },
+        "content": [
+          {
+            "type": "form",
+            "record": "=data.person",
+            "fields": [
+              "name",
+              "email",
+              "phone",
+              "company",
+              "stage"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Save",
+                "emphasis": "primary",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.person",
+                      "set": "=form.values"
+                    }
+                  },
+                  {
+                    "notify": "=\"Saved \" + form.name"
+                  },
+                  {
+                    "go": {
+                      "screen": "contacts"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "contacts"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "new_contact": {
+        "content": [
+          {
+            "type": "form",
+            "table": "contacts",
+            "fields": [
+              "name",
+              "email",
+              "phone",
+              "company",
+              "stage"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Add",
+                "emphasis": "primary",
+                "do": [
+                  {
+                    "create": {
+                      "table": "contacts",
+                      "values": "=form.values"
+                    }
+                  },
+                  {
+                    "notify": "=\"Added \" + form.name"
+                  },
+                  {
+                    "go": {
+                      "screen": "contacts"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "deals": {
+        "data": {
+          "open": {
+            "from": "deals",
+            "sort": "-amount"
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "New deal",
+                "emphasis": "primary",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "new_deal"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "table",
+            "rows": "=data.open",
+            "columns": [
+              {
+                "label": "Deal",
+                "value": "=row.title"
+              },
+              {
+                "label": "Contact",
+                "value": "=row.contact"
+              },
+              {
+                "label": "Amount",
+                "value": "=row.amount"
+              },
+              {
+                "label": "Stage",
+                "value": "=row.stage",
+                "display": "chip"
+              },
+              {
+                "label": "Closes",
+                "value": "=row.closes"
+              }
+            ],
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "deal",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "deal": {
+        "params": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "data": {
+          "deal": {
+            "record": "deals",
+            "id": "=params.id"
+          }
+        },
+        "content": [
+          {
+            "type": "form",
+            "record": "=data.deal",
+            "fields": [
+              "title",
+              "contact",
+              "amount",
+              "stage",
+              "closes"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Save",
+                "emphasis": "primary",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.deal",
+                      "set": "=form.values"
+                    }
+                  },
+                  {
+                    "notify": "=\"Saved\""
+                  },
+                  {
+                    "go": {
+                      "screen": "deals"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "deals"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "new_deal": {
+        "content": [
+          {
+            "type": "form",
+            "table": "deals",
+            "fields": [
+              "title",
+              "amount",
+              "stage",
+              "closes"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Add",
+                "emphasis": "primary",
+                "do": [
+                  {
+                    "create": {
+                      "table": "deals",
+                      "values": "=form.values"
+                    }
+                  },
+                  {
+                    "notify": "=\"Added \" + form.title"
+                  },
+                  {
+                    "go": {
+                      "screen": "deals"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "pipeline": {
+        "data": {
+          "byStage": {
+            "from": "deals",
+            "groupBy": "stage",
+            "sum": "amount"
+          }
+        },
+        "content": [
+          {
+            "type": "chart",
+            "kind": "bar",
+            "label": "Deals by stage",
+            "rows": "=data.byStage",
+            "measure": "total"
+          },
+          {
+            "type": "totals",
+            "label": "Value by stage",
+            "rows": "=data.byStage"
+          }
+        ]
+      }
+    }
+  },
+  "sample": {
+    "contacts": [
+      {
+        "name": "Ana Ruiz",
+        "email": "ana@example.com",
+        "company": "Ruiz Design",
+        "stage": "Customer"
+      },
+      {
+        "name": "Ben Okafor",
+        "email": "ben@example.com",
+        "company": "Okafor Ltd",
+        "stage": "Lead"
+      }
+    ],
+    "deals": [
+      {
+        "title": "Website refresh",
+        "amount": 480000,
+        "stage": "Proposal",
+        "closes": "2026-12-15"
+      },
+      {
+        "title": "Support plan",
+        "amount": 120000,
+        "stage": "Won"
+      }
+    ]
+  }
+}

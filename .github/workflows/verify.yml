@@ -1,0 +1,48 @@
+name: Verify
+
+# One full check a day, and by hand from the Actions tab when needed.
+on:
+  schedule:
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: verify
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_DB: account_app_test
+          POSTGRES_USER: account_app_test
+          POSTGRES_PASSWORD: account_app_test_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U account_app_test -d account_app_test"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+    env:
+      DB_CLIENT: pg
+      DB_HOST: 127.0.0.1
+      DB_PORT: 5432
+      DB_NAME: account_app_test
+      TEST_DB_NAME: account_app_test
+      DB_USER: account_app_test
+      DB_PASSWORD: account_app_test_password
+      AUTH_LOCAL_SESSION_SECRET: ci-only-session-secret-not-for-production
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-node@v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run db:prepare
+      - run: npm run test:database
+      - run: npm run verify

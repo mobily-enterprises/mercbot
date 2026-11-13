@@ -1,0 +1,174 @@
+{
+  "id": "outlook",
+  "name": "Outlook",
+  "category": "Communication",
+  "kind": "add",
+  "description": "Work with Outlook mail and calendar.",
+  "color": "#0F6CBD",
+  "icon": "email",
+  "recommended": false,
+  "connectors": [
+    "outlook-mail",
+    "outlook-calendar"
+  ],
+  "skills": [
+    {
+      "name": "triage-inbox",
+      "description": "Sort new mail into what needs you and what doesn't"
+    }
+  ],
+  "info": {
+    "capabilities": "Read and act on your behalf, always asking before changes",
+    "developer": "Microsoft",
+    "website": null,
+    "availability": "Not connected yet: sign-in isn't set up"
+  },
+  "oauth": {
+    "provider": "microsoft",
+    "scopes": [
+      "Mail.ReadWrite",
+      "Mail.Send",
+      "Calendars.ReadWrite",
+      "Contacts.Read"
+    ]
+  },
+  "rank": 70,
+  "actions": [
+    {
+      "id": "search_email",
+      "name": "Search mail"
+    },
+    {
+      "id": "read_email",
+      "name": "Read messages and conversations"
+    },
+    {
+      "id": "mail_account.whoami",
+      "name": "See the address and send-as addresses"
+    },
+    {
+      "id": "mail_account.labels",
+      "name": "List folders"
+    },
+    {
+      "id": "show_draft",
+      "name": "Write emails for you to send"
+    },
+    {
+      "id": "send_draft",
+      "name": "Send email"
+    },
+    {
+      "id": "mail_drafts.list",
+      "name": "List saved drafts"
+    },
+    {
+      "id": "mail_drafts.read",
+      "name": "Read saved drafts"
+    },
+    {
+      "id": "mail_drafts.create",
+      "name": "Create saved drafts"
+    },
+    {
+      "id": "mail_drafts.update",
+      "name": "Update saved drafts"
+    },
+    {
+      "id": "mail_drafts.delete",
+      "name": "Delete saved drafts"
+    },
+    {
+      "id": "mail_drafts.send",
+      "name": "Send saved drafts"
+    },
+    {
+      "id": "forward_email",
+      "name": "Forward email"
+    },
+    {
+      "id": "organise_email.archive",
+      "name": "Archive and unarchive"
+    },
+    {
+      "id": "organise_email.bin",
+      "name": "Delete and restore messages"
+    },
+    {
+      "id": "organise_email.spam",
+      "name": "Move to junk and back"
+    },
+    {
+      "id": "organise_email.mark_read",
+      "name": "Mark as read or unread"
+    },
+    {
+      "id": "organise_email.star",
+      "name": "Flag and unflag"
+    },
+    {
+      "id": "organise_email.label",
+      "name": "Add and remove categories"
+    },
+    {
+      "id": "organise_email.move",
+      "name": "Move to a folder"
+    },
+    {
+      "id": "mail_labels.create",
+      "name": "Create folders"
+    },
+    {
+      "id": "mail_labels.rename",
+      "name": "Rename folders"
+    },
+    {
+      "id": "mail_labels.delete",
+      "name": "Delete folders"
+    },
+    {
+      "id": "calendar_events",
+      "name": "List and read events"
+    },
+    {
+      "id": "calendar_info.calendars",
+      "name": "List calendars"
+    },
+    {
+      "id": "calendar_info.event",
+      "name": "Read an event"
+    },
+    {
+      "id": "calendar_info.occurrences",
+      "name": "List a repeating event's dates"
+    },
+    {
+      "id": "calendar_info.availability",
+      "name": "Check availability"
+    },
+    {
+      "id": "calendar_info.search",
+      "name": "Search events"
+    },
+    {
+      "id": "add_calendar_event",
+      "name": "Create events"
+    },
+    {
+      "id": "change_calendar_event",
+      "name": "Update events"
+    },
+    {
+      "id": "delete_calendar_event",
+      "name": "Delete events"
+    },
+    {
+      "id": "answer_invitation",
+      "name": "Reply to invitations"
+    },
+    {
+      "id": "find_contact",
+      "name": "Find contacts"
+    }
+  ]
+}

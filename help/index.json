@@ -1,0 +1,61 @@
+{
+  "groups": [
+    {
+      "name": "Introduction",
+      "pages": [
+        { "slug": "welcome", "title": "Welcome to Mercbot", "words": 1000 }
+      ]
+    },
+    {
+      "name": "Getting started",
+      "pages": [
+        { "slug": "quick-start", "title": "Quick start: your first finished job", "words": 900 },
+        { "slug": "example-jobs", "title": "Example jobs for a bot", "words": 800 }
+      ]
+    },
+    {
+      "name": "Everyday use",
+      "pages": [
+        { "slug": "bots", "title": "Bots: create, shape, organise and remember", "words": 1900 },
+        { "slug": "shared-bots", "title": "Bots shared in a home", "words": 1700 },
+        { "slug": "messaging", "title": "Messaging and working together", "words": 2700 },
+        { "slug": "files", "title": "Files, documents and pictures", "words": 2400 },
+        { "slug": "computer-and-apps", "title": "The bots' computer and connected apps", "words": 3500 },
+        { "slug": "vault", "title": "The vault: saved logins and secrets", "words": 1600 },
+        { "slug": "skills-and-routines", "title": "Skills, routines and watches", "words": 2100 }
+      ]
+    },
+    {
+      "name": "Settings, safety and homes",
+      "pages": [
+        { "slug": "settings", "title": "Settings and notifications", "words": 1700 },
+        { "slug": "approvals-and-privacy", "title": "Approvals, safety and privacy", "words": 2100 },
+        { "slug": "homes", "title": "Homes: Mercbot for families and teams", "words": 2800 },
+        { "slug": "own-copy", "title": "Running your own copy of Mercbot", "words": 1550 },
+        { "slug": "security", "title": "Security overview", "words": 2200 },
+        { "slug": "security-questions", "title": "Security questions and answers", "words": 1100 }
+      ]
+    },
+    {
+      "name": "Mercbot Apps",
+      "pages": [
+        { "slug": "apps", "title": "Apps: what they are and when to use them", "words": 1000 },
+        { "slug": "apps-builder", "title": "Build an app with the Builder", "words": 1500 },
+        { "slug": "views", "title": "Views: live figures from your home's data", "words": 700 },
+        { "slug": "apps-data", "title": "Your data: tables, fields and records", "words": 1500 },
+        { "slug": "apps-bots", "title": "Bots working with app data", "words": 1200 },
+        { "slug": "apps-logic", "title": "Logic: formulas, scripts and automations", "words": 1300 },
+        { "slug": "apps-versions", "title": "Versions, activity and undoing changes", "words": 1200 },
+        { "slug": "apps-templates", "title": "App templates", "words": 900 }
+      ]
+    },
+    {
+      "name": "Support",
+      "pages": [
+        { "slug": "troubleshooting", "title": "Fixing common problems", "words": 2800 },
+        { "slug": "faq", "title": "General questions and answers", "words": 2200 },
+        { "slug": "release-notes", "title": "Release notes", "words": 1200 }
+      ]
+    }
+  ]
+}

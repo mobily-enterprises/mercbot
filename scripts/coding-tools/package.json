@@ -1,0 +1,9 @@
+{
+  "name": "mercbot-coding-tools",
+  "private": true,
+  "description": "The coding tools a person signs in to with their own account on their bot's computer (the coding hand-off), installed by scripts/install-tools.sh.",
+  "dependencies": {
+    "@anthropic-ai/claude-code": "2.1.322",
+    "@openai/codex": "0.167.1"
+  }
+}

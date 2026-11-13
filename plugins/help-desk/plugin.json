@@ -1,0 +1,20 @@
+{
+  "id": "help-desk",
+  "name": "Help desk",
+  "category": "Support",
+  "kind": "add",
+  "description": "Read and answer support tickets.",
+  "color": "#8F59F9",
+  "icon": "support",
+  "recommended": false,
+  "connectors": [
+    "help-desk"
+  ],
+  "skills": [],
+  "info": {
+    "capabilities": "Read and act on your behalf, always asking before changes",
+    "developer": "Mercbot",
+    "website": null,
+    "availability": "Not connected yet: sign-in isn't set up"
+  }
+}

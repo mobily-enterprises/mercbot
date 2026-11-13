@@ -1,0 +1,53 @@
+{
+  "name": "@local/computer",
+  "version": "0.1.0",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "exports": {
+    "./server/types": "./src/server/types.js"
+  },
+  "description": "Each bot's computer: a small desktop (Xvfb, openbox, Chrome launched by Stagehand) shown over VNC (D-11 to D-13).",
+  "dependencies": {
+    "@browserbasehq/stagehand": "4.3.0",
+    "@jskit-ai/database-runtime": "0.1.270",
+    "@jskit-ai/kernel": "0.2.21",
+    "@jskit-ai/resource-core": "0.1.212",
+    "@local/account": "0.1.0",
+    "@local/files": "0.1.0",
+    "@local/homes": "0.1.0",
+    "puppeteer-core": "25.16.0",
+    "ws": "8.22.0"
+  },
+  "jskit": {
+    "kind": "runtime",
+    "capabilities": {
+      "provides": [
+        "mercbot.computer"
+      ],
+      "requires": [
+        "runtime.http",
+        "runtime.fastify",
+        "mercbot.notices",
+        "mercbot.files",
+        "mercbot.meter",
+        "runtime.env",
+        "runtime.resources",
+        "mercbot.bots.records"
+      ]
+    },
+    "runtime": {
+      "server": {
+        "providers": [
+          {
+            "entrypoint": "src/server/ComputerFeature.js",
+            "export": "ComputerFeature"
+          }
+        ]
+      },
+      "client": {
+        "providers": []
+      }
+    }
+  }
+}

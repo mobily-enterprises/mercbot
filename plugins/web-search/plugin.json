@@ -1,0 +1,25 @@
+{
+  "id": "web-search",
+  "name": "Web search",
+  "category": "Research",
+  "kind": "add",
+  "description": "Search the web and read pages for answers.",
+  "color": "#0B6DD3",
+  "icon": "search",
+  "recommended": true,
+  "connectors": [
+    "web-search"
+  ],
+  "skills": [
+    {
+      "name": "research-topic",
+      "description": "Research a topic and cite the sources"
+    }
+  ],
+  "info": {
+    "capabilities": "Read and act on your behalf, always asking before changes",
+    "developer": "Mercbot",
+    "website": null,
+    "availability": "Not connected yet: sign-in isn't set up"
+  }
+}

@@ -1,0 +1,269 @@
+{
+  "key": "stock",
+  "name": "Stock",
+  "icon": "check",
+  "color": "#0B7A5B",
+  "description": "Items, how many you have and where; each shows when it's time to reorder.",
+  "tables": [
+    {
+      "key": "items",
+      "fields": [
+        {
+          "key": "name",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "sku",
+          "type": "text"
+        },
+        {
+          "key": "quantity",
+          "type": "number"
+        },
+        {
+          "key": "reorder_at",
+          "type": "number"
+        },
+        {
+          "key": "location",
+          "type": "text"
+        }
+      ]
+    }
+  ],
+  "definition": {
+    "home": "items",
+    "navigation": {
+      "style": "tabs",
+      "items": [
+        {
+          "screen": "items",
+          "label": "Items",
+          "icon": "check"
+        },
+        {
+          "screen": "where",
+          "label": "By location",
+          "icon": "chart"
+        }
+      ]
+    },
+    "screens": {
+      "items": {
+        "state": {
+          "search": {
+            "type": "string",
+            "default": ""
+          }
+        },
+        "data": {
+          "all": {
+            "from": "items",
+            "where": "=state.search == \"\" || name.lowerAscii().contains(state.search.lowerAscii()) || sku.lowerAscii().contains(state.search.lowerAscii())",
+            "sort": "name"
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "input",
+                "bind": "state.search",
+                "label": "Search",
+                "icon": "search"
+              },
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "New item",
+                "emphasis": "primary",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "new_item"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "table",
+            "rows": "=data.all",
+            "columns": [
+              {
+                "label": "Item",
+                "value": "=row.name"
+              },
+              {
+                "label": "SKU",
+                "value": "=row.sku"
+              },
+              {
+                "label": "Quantity",
+                "value": "=row.quantity"
+              },
+              {
+                "label": "Stock",
+                "value": "=row.quantity <= row.reorder_at ? \"Reorder\" : \"OK\"",
+                "display": "chip"
+              },
+              {
+                "label": "Location",
+                "value": "=row.location"
+              }
+            ],
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "item",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "where": {
+        "data": {
+          "byPlace": {
+            "from": "items",
+            "groupBy": "location",
+            "sum": "quantity"
+          }
+        },
+        "content": [
+          {
+            "type": "chart",
+            "kind": "pie",
+            "label": "Quantity by location",
+            "rows": "=data.byPlace",
+            "measure": "total"
+          }
+        ]
+      },
+      "item": {
+        "params": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "data": {
+          "item": {
+            "record": "items",
+            "id": "=params.id"
+          }
+        },
+        "content": [
+          {
+            "type": "form",
+            "record": "=data.item",
+            "fields": [
+              "name",
+              "sku",
+              "quantity",
+              "reorder_at",
+              "location"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Save",
+                "emphasis": "primary",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.item",
+                      "set": "=form.values"
+                    }
+                  },
+                  {
+                    "notify": "=\"Saved \" + form.name"
+                  },
+                  {
+                    "go": {
+                      "screen": "items"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "items"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "new_item": {
+        "content": [
+          {
+            "type": "form",
+            "table": "items",
+            "fields": [
+              "name",
+              "sku",
+              "quantity",
+              "reorder_at",
+              "location"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Add",
+                "emphasis": "primary",
+                "do": [
+                  {
+                    "create": {
+                      "table": "items",
+                      "values": "=form.values"
+                    }
+                  },
+                  {
+                    "notify": "=\"Added \" + form.name"
+                  },
+                  {
+                    "go": {
+                      "screen": "items"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "sample": {
+    "items": [
+      {
+        "name": "Printer paper (box)",
+        "sku": "PP-500",
+        "quantity": 3,
+        "reorder_at": 5,
+        "location": "Store room"
+      },
+      {
+        "name": "Coffee beans (1 kg)",
+        "sku": "CB-1",
+        "quantity": 12,
+        "reorder_at": 4,
+        "location": "Kitchen"
+      }
+    ]
+  }
+}
