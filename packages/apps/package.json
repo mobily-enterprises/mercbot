@@ -27,7 +27,7 @@
     "@local/homes": "0.1.0",
     "@local/notices": "0.1.0",
     "@marcbachmann/cel-js": "8.0.0",
-    "json-rest-api": "3.1.9",
+    "json-rest-api": "3.1.10",
     "knex": "^3.3.0",
     "postcss": "8.5.32",
     "postcss-selector-parser": "7.1.6",

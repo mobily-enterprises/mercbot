@@ -11,7 +11,7 @@
     "./preview-identity": "./src/server/previewIdentity.js"
   },
   "dependencies": {
-    "@jskit-ai/auth-provider-local-core": "0.2.34",
+    "@jskit-ai/auth-provider-local-core": "0.2.35",
     "@jskit-ai/kernel": "0.2.26",
     "@jskit-ai/resource-runtime": "0.2.34",
     "@local/account": "0.1.0"
