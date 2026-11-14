@@ -8,12 +8,12 @@ import { passedOn } from "@jskit-ai/resource-core/shared/callOptions";
 export function createMakerRepository({ bots }) {
   const bot = (field) => bots.column(field, "b");
 
-  // Knex: report - a person's bots and group chats, newest first, with their homes (ix_bots_user)
   /**
    * @param {string} userId
    * @param {number} limit
    * @param {import("@jskit-ai/resource-runtime/server/types").ResourceCallOptions} options
    */
+  // Knex: report - a person's bots and group chats, newest first, with their homes (ix_bots_user)
   async function botsMadeBy(userId, limit, options) {
     const { query } = await bots.scopedQuery({ alias: "b" }, passedOn(options));
     const rows = await query

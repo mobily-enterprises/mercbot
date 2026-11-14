@@ -9,12 +9,12 @@ import { passedOn } from "@jskit-ai/resource-core/shared/callOptions";
 export function createFileStorageRepository({ fileStorage }) {
   const column = (field) => fileStorage.column(field, "f");
 
-  // Knex: report - each home's storage kind, for a batch of homes (ux_file_storage_key)
   /**
    * @param {string[]} workspaceIds
    * @param {import("@jskit-ai/resource-runtime/server/types").ResourceCallOptions} options
    * @returns {Promise<Map<string, string>>}
    */
+  // Knex: report - each home's storage kind, for a batch of homes (ux_file_storage_key)
   async function kindsByHome(workspaceIds, options) {
     if (workspaceIds.length === 0) return new Map();
     const { query } = await fileStorage.scopedQuery({ alias: "f" }, passedOn(options));
