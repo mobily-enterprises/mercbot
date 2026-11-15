@@ -152,7 +152,7 @@ async function setup(context) {
     connections({ catalogue, env, providers, oauthClient: createOAuth({ env, insecure: true }), bridgedSignIns, ...(hubFor ? { hubFor } : {}) });
   // The person signed in outside any home, as the Connect apps routes' options describe them.
   const as = requestContextOptions({ user: { id: String(userId) } });
-  return { knex, userId, account, service, connections, as };
+  return { knex, userId, account, service, connections, accounts, as };
 }
 
 const HUB_ENV = Object.freeze({ APP_PUBLIC_URL: "https://hub.example", TESTMAIL_CLIENT_ID: "client", TESTMAIL_CLIENT_SECRET: "secret", MERCBOT_VAULT_KEY: VAULT });
@@ -424,5 +424,41 @@ test("the linker, and the owners and admins of a home the linker is in, may unli
     await knex("workspace_memberships").whereIn("workspace_id", [patHome, samHome]).del();
     await knex("workspaces").whereIn("id", [patHome, samHome]).del();
     await knex("users").whereIn("id", [lee, kim, sam]).del();
+  }
+});
+
+test("whoever runs the copy lists the accounts a person added in every home, and disconnects any by its id", async (context) => {
+  const { knex, userId, account, service, accounts, as } = await setup(context);
+  const local = service({ APP_PUBLIC_URL: "http://localhost:4000", TESTMAIL_TEST_CLIENT_ID: "client", TESTMAIL_TEST_CLIENT_SECRET: "secret", MERCBOT_VAULT_KEY: VAULT });
+  const consent = new URL((await local.connect(REACH, account.id, as)).url);
+  await local.callback({ code: "good", state: consent.searchParams.get("state") }, NO_ONE);
+  const [home] = await knex("workspaces").insert({ slug: `across-accounts-${randomBytes(4).toString("hex")}`, name: "Across", owner_user_id: userId, is_personal: false }).returning("id");
+  const homeId = String(home.id ?? home);
+  const [homeAccount] = await knex("plugin_accounts")
+    .insert({ user_id: userId, workspace_id: homeId, plugin_id: "testmail", name: "shared", status: "connected", label: "team@example.com", connected_at: new Date() })
+    .returning("*");
+  // Removed before setup's own clean-up closes the database connection.
+  try {
+    // The person's own account and the home's, with where each is and when it was connected, never a key.
+    const ours = [String(account.id), String(homeAccount.id)];
+    const added = (await accounts.addedBy(userId)).filter((row) => ours.includes(row.id));
+    assert.deepEqual(added.map((row) => [row.id, row.home, row.workspaceId, row.status, Boolean(row.connectedAt)]), [
+      [String(account.id), false, null, "connected", true],
+      [String(homeAccount.id), true, homeId, "connected", true]
+    ]);
+    assert.ok(added.every((row) => !("tokens" in row)), "no keys");
+
+    // Disconnected in no home and in another's, as the owner's own disconnect does: keys, label and status cleared.
+    for (const row of [account, homeAccount]) {
+      const gone = await local.disconnectAnywhere(row.id);
+      assert.deepEqual([gone.id, gone.pluginId, "tokens" in gone], [String(row.id), "testmail", false]);
+      const stored = await knex("plugin_accounts").where({ id: row.id }).first();
+      assert.deepEqual([stored.status, stored.tokens, stored.label, stored.connected_at], ["needs-auth", null, null, null]);
+    }
+    await assert.rejects(local.disconnectAnywhere("999999999999"), /Account not found/u);
+    await assert.rejects(local.disconnectAnywhere("not an id"), /Account not found/u);
+  } finally {
+    await knex("plugin_accounts").where({ id: homeAccount.id }).del();
+    await knex("workspaces").where({ id: homeId }).del();
   }
 });

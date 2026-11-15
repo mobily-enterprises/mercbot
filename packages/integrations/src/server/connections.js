@@ -373,7 +373,26 @@ export function createConnections({
   }
 
   async function disconnect(reach, accountId, options) {
-    const account = await accounts.manageableAccount(reach, accountId, options, { tokens: true });
+    await disconnected(await accounts.manageableAccount(reach, accountId, options, { tokens: true }), options);
+  }
+
+  /**
+   * Disconnects any account by its id, in any home or of none, for whoever runs the copy, as its owner's disconnect
+   * does. Answers what it disconnected, `{ id, pluginId, name, label, status, userId, home, workspaceId }`; 404 when
+   * there is none.
+   * @param {string | number} accountId
+   * @param {object} [options] the call's transaction, if any
+   */
+  async function disconnectAnywhere(accountId, options = {}) {
+    const account = await accounts.anyAccount(accountId, options);
+    if (!account) throw new ConnectionError(404, "Account not found.", { code: "integrations_account_not_found" });
+    await disconnected(account, accounts.anywhere(options));
+    const { tokens: _keys, signInState: _state, bridgeRef: _bridge, ...shown } = account;
+    return shown;
+  }
+
+  /** Withdraws an account's sign-in at the app and the hub, and clears it here: its keys, label and status. */
+  async function disconnected(account, options) {
     await connectorAccounts.withdraw(account, options);
     if (account.bridgeRef) {
       await (await linkedHub(options))
@@ -591,6 +610,7 @@ export function createConnections({
     finishPasted,
     accessToken,
     disconnect,
+    disconnectAnywhere,
     syncPending,
     whenConnected: accounts.whenConnected,
     lacksAccess,

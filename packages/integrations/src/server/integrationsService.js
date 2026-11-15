@@ -472,6 +472,11 @@ export function createIntegrationsService({ resources, accounts, catalogue, conn
     reachableAccount,
     manageableAccount,
     accountLabels: accounts.accountLabels,
+    // For whoever runs the copy: every account a person added, in every home, and disconnecting any by its id.
+    acrossHomes: Object.freeze({
+      accountsOf: accounts.addedBy,
+      disconnect: connections.disconnectAnywhere
+    }),
     namesOf,
     connectors: Object.freeze({
       // The apps that host their own connection point (D-34), from the catalogue.

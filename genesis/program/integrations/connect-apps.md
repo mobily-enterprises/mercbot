@@ -193,6 +193,12 @@ and hands it the label and the sealed tokens (`signedIn`); `connections.bridgedT
 answers an hourly key, renewing it, and handing the renewed tokens sealed to `save`, when it ran out. Tokens are
 sealed with `MERCBOT_VAULT_KEY`. Bot tools get a key with
 `connections.accessToken(userId, accountId)` from the `mercbot.integrations` output.
+Its `acrossHomes` is for whoever runs the copy and reads in the feature's own system context, which reaches every home:
+`accountsOf(userId, options)` lists every account a person added, their own and the homes', in the order they were
+added, each with its app, name, label, status, `home` (home-wide or personal), `workspaceId` and `connectedAt`, never
+its keys; `disconnect(accountId, options)` disconnects any account by its id as its owner's disconnect does (the app's
+sign-in withdrawn, at the hub too when it borrowed the hub's, then its keys, label and status cleared), answers what it
+disconnected, and refuses an id no account has with 404 `integrations_account_not_found`.
 A key from a direct sign-in that is about to run out (less than a minute left) is renewed
 holding the account's row lock (`tokenRenewal.js`, `accounts.withLockedAccount`, D-15): of two servers renewing at
 once, the second takes the first's new key, so the provider is asked once. A renewal the

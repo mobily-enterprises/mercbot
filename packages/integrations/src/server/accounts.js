@@ -224,6 +224,45 @@ export function createAccounts({ pluginAccounts, systemContext }) {
     return records.map((record) => record.label);
   }
 
+  /**
+   * Every account a person added, their own and the homes', in every home, for whoever runs the copy: what each is,
+   * where it is and whether it is connected, never its keys. Read in this feature's own system context, which reaches
+   * every home.
+   * @param {string | number} userId
+   * @param {object} [options] the call's transaction, if any
+   */
+  async function addedBy(userId, options = {}) {
+    const records = await pluginAccounts.queryAll(
+      { filters: { userId: String(userId) }, sort: ["id"], fields: [...ACCOUNT_FIELDS, "connectedAt"] },
+      { ...passedOn(options), context: systemContext("list every account a person added, in every home, for whoever runs the copy") }
+    );
+    return records.map((record) => {
+      const { signInState: _state, bridgeRef: _bridge, ...shown } = toRecord(record, false);
+      return {
+        ...shown,
+        workspaceId: record.workspaceId == null ? null : String(record.workspaceId),
+        connectedAt: record.connectedAt ?? null
+      };
+    });
+  }
+
+  /** The options of a read or change of any account by its id, in any home or of none, for whoever runs the copy. */
+  function anywhere(options = {}) {
+    return { ...passedOn(options), context: systemContext("read and disconnect any account by its id, in any home, for whoever runs the copy") };
+  }
+
+  /**
+   * One account by its id, in any home or of none, with its keys, for whoever runs the copy: null when there is none.
+   * @param {string | number} accountId
+   * @param {object} [options] the call's transaction, if any
+   */
+  async function anyAccount(accountId, options = {}) {
+    const id = String(accountId ?? "");
+    if (!/^\d+$/u.test(id)) return null;
+    const record = await pluginAccounts.get(id, { fields: [...ACCOUNT_FIELDS, "tokens"] }, { ...anywhere(options), missing: "skip" });
+    return record ? { ...toRecord(record, true), workspaceId: record.workspaceId == null ? null : String(record.workspaceId) } : null;
+  }
+
   /** Signs out every account that borrowed the hub's sign-in, in every home, as this copy unlinks. */
   function signOutBridged(options) {
     return pluginAccounts.patchWhere(
@@ -344,6 +383,9 @@ export function createAccounts({ pluginAccounts, systemContext }) {
     addPersonalAccount,
     addHomeAccount,
     accountLabels,
+    addedBy,
+    anywhere,
+    anyAccount,
     signOutBridged
   });
 }
