@@ -1,6 +1,6 @@
 import { defineFeature } from "@jskit-ai/kernel/server/features";
 import { BOT_COMPUTER_FILTERS, SERVER_FILTERS, TICKET_FILTERS } from "./computerRecords.js";
-import { createComputers, PLACE_HERE } from "./computers.js";
+import { createComputers, LOG_COMPUTER_EVENTS, PLACE_HERE } from "./computers.js";
 import { registerRoutes } from "./registerRoutes.js";
 import { attachVncBridge } from "./vncBridge.js";
 import {
@@ -42,7 +42,9 @@ export function serveComputers(fastify, computers, streams) {
 }
 
 // Each bot's computer, on whichever server runs it (D-15), with its routes and live screens. A computer runs on the
-// server that needs it, unless a feature says where computers run (`mercbot.computer-placement`, D-85).
+// server that needs it, unless a feature says where computers run (`mercbot.computer-placement`, D-85). A computer put
+// to sleep to make room, or one that couldn't start, goes to `mercbot.computer-events` when a feature listens, and to the
+// server log otherwise (D-88).
 const ComputerFeature = defineFeature({
   id: "mercbot.computer",
   domain: "computer",
@@ -59,7 +61,8 @@ const ComputerFeature = defineFeature({
     env: "runtime.env"
   },
   optional: {
-    placement: "mercbot.computer-placement"
+    placement: "mercbot.computer-placement",
+    events: "mercbot.computer-events"
   },
   provides: {
     computer: "mercbot.computer"
@@ -75,12 +78,22 @@ const ComputerFeature = defineFeature({
    * @param {import("@jskit-ai/kernel/server/types").RuntimeEnv} capabilities.env
    * @param {import("./types.js").ComputerPlacement | null} capabilities.placement where computers run, when a copy
    *   built on Mercbot says; else `PLACE_HERE`
+   * @param {import("./types.js").ComputerEvents | null} capabilities.events who hears when computers run out of room;
+   *   else `LOG_COMPUTER_EVENTS`
    * @param {Record<string, any>} capabilities.resources this feature's handles
    * @param {(reason: string) => object} capabilities.systemContext
    */
-  async setup({ records, http, fastify, notices, files, meter, env, placement, resources, systemContext }) {
+  async setup({ records, http, fastify, notices, files, meter, env, placement, events, resources, systemContext }) {
     const computers = createComputers({
-      resources, systemContext, directory: records.directory, env, notices, files, meter, placement: placement ?? PLACE_HERE
+      resources,
+      systemContext,
+      directory: records.directory,
+      env,
+      notices,
+      files,
+      meter,
+      placement: placement ?? PLACE_HERE,
+      events: events ?? LOG_COMPUTER_EVENTS
     });
     fastify.addHook("onListen", () => {
       computers.register(fastify.server.address()).catch((error) => {
@@ -93,6 +106,7 @@ const ComputerFeature = defineFeature({
     serveComputers(fastify, computers, streams);
     const computer = Object.freeze({
       register: computers.register,
+      servers: computers.servers,
       answer: computers.answer,
       status: computers.status,
       subscribe: computers.subscribe,

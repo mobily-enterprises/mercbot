@@ -142,6 +142,23 @@ export function createComputerRecords({ resources, system, homeOf }) {
     return servers.map((server) => ({ id: String(server.id), awake: awake.get(String(server.id)) ?? 0 }));
   }
 
+  /**
+   * Every server seen in the last day (D-15 removes older rows), with its address, when it was last seen, whether that
+   * was in the last 45 seconds and how many computers it holds that aren't asleep (D-88).
+   * @returns {Promise<import("./types.js").KnownServer[]>}
+   */
+  async function servers() {
+    const [rows, live] = await Promise.all([mercbotServers.queryAll({ fields: ["url", "seenAt"] }, system()), liveServers()]);
+    const awake = new Map(live.map((server) => [server.id, server.awake]));
+    return rows.map((server) => ({
+      id: String(server.id),
+      url: server.url,
+      seenAt: new Date(server.seenAt).toISOString(),
+      alive: awake.has(String(server.id)),
+      awake: awake.get(String(server.id)) ?? 0
+    }));
+  }
+
   /** Take the computer for the server given unless a live server already has it. */
   function claim(computerId, serverId) {
     return withComputer(String(computerId), async (current, txOptions) => {
@@ -220,6 +237,7 @@ export function createComputerRecords({ resources, system, homeOf }) {
     putToSleep,
     recordState,
     liveServers,
+    servers,
     claim,
     owner,
     issueTicket,

@@ -174,6 +174,15 @@ export const PLACE_HERE = Object.freeze({
   secret: null
 });
 
+/** Where computers running out of room is told without a feature that listens (`mercbot.computer-events`, D-88): the log. */
+export const LOG_COMPUTER_EVENTS = Object.freeze({
+  /** @type {import("./types.js").ComputerEvents["record"]} */
+  async record({ kind, computerId, serverId, code }) {
+    if (kind === "made_room") console.info(`Computer ${computerId} was put to sleep on ${serverId} to make room for another.`);
+    else console.warn(`Computer ${computerId} couldn't start (${code}, on ${serverId}).`);
+  }
+});
+
 /**
  * Bot computers on several servers (D-15). Each computer runs on one server, its owner,
  * recorded in bot_computers; every other server passes work for it to the owner over HTTP,
@@ -195,6 +204,8 @@ export const PLACE_HERE = Object.freeze({
  * @param {import("@local/account/server/types").Meter} dependencies.meter
  * @param {import("./types.js").ComputerPlacement} dependencies.placement Where computers run: `PLACE_HERE`, or where a
  *   copy built on Mercbot says (`mercbot.computer-placement`).
+ * @param {import("./types.js").ComputerEvents} [dependencies.events] Who hears when computers run out of room (D-88):
+ *   `LOG_COMPUTER_EVENTS`, or a feature (`mercbot.computer-events`).
  * @param {typeof createComputerManager} [dependencies.createManager] The computers this server runs
  *   (tests use stand-ins).
  */
@@ -207,6 +218,7 @@ export function createComputers({
   files,
   meter,
   placement,
+  events = LOG_COMPUTER_EVENTS,
   createManager = createComputerManager
 }) {
   // Computers run on no request and pass between servers, so their reads and writes are this
@@ -223,6 +235,16 @@ export function createComputers({
     system,
     homeOf: async (computerId, options) => (await conversationOf(computerId, options))?.workspaceId ?? null
   });
+  /**
+   * Tells `events` that a computer was put to sleep to make room, or couldn't start (D-88), on this server; nothing waits
+   * for it, and its failure is only logged.
+   * @param {{ kind: "made_room" | "refused", computerId: string, code?: string }} event
+   */
+  function note({ kind, computerId, code = null }) {
+    Promise.resolve()
+      .then(() => events.record({ kind, computerId: String(computerId), serverId: me, code }))
+      .catch((error) => console.warn(`Telling who listens that computer ${computerId} ${kind === "made_room" ? "made room" : "couldn't start"} failed.`, error));
+  }
   /** A computer's screenshots and saved browser are files on the shared volume (D-50). */
   const folderOf = (computerId) => files.store.computerFolder(computerId);
   const state = createBrowserState({ records, env, folderOf });
@@ -266,6 +288,7 @@ export function createComputers({
   });
   const local = createManager({
     env,
+    noted: note,
     withDay: days.withDay,
     changed: (computerId, change) => {
       days.changed(computerId, change.state);
@@ -381,12 +404,18 @@ export function createComputers({
    */
   async function place(computerId) {
     const target = await placement.choose(computerId, { here: me, live: records.liveServers });
-    if (!target) throw noneFree();
+    if (!target) throw refused(computerId);
     if ((await records.claim(computerId, target)) && target === me) return null;
     const found = await owner(computerId);
     if (found?.serverId === me || (!found && target === me)) return null;
-    if (!found) throw noneFree();
+    if (!found) throw refused(computerId);
     return found;
+  }
+
+  /** The answer for a computer no server can take, told to `events` first. */
+  function refused(computerId) {
+    note({ kind: "refused", computerId, code: "computer_none_free" });
+    return noneFree();
   }
 
   async function forward(url, operation, computerId, args) {
@@ -582,6 +611,7 @@ export function createComputers({
 
   return Object.freeze({
     register,
+    servers: records.servers,
     attachBrowserBridge,
     answer,
     status,

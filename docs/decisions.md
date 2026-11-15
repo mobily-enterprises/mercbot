@@ -1900,3 +1900,22 @@ them gives them `staging`, so they send nothing for real; a copy for real use se
   `APP_ENV` is staging or production and otherwise runs its copy as `test` (D-79). `.env.example` sets `development`.
 - **What people see:** JSKIT's tab at the top of every page now names the environment ("Development", "Test" or
   "Staging"; none in production) where it said "Test copy".
+
+## D-88 — Who hears when computers run out of room, and which servers Mercbot knows (2026-11-15)
+
+A server keeps a few computers awake at once (`MERCBOT_MAX_COMPUTERS`). When a wake finds every place taken, Mercbot
+puts the least recently used computer that isn't busy to sleep to make room, or, when every one stays busy for 90
+seconds, refuses the wake; with nowhere to place a computer, it refuses at once (D-85). Whoever runs the servers wants
+to see this happening, and how full the servers are, to know when to add one. Mercbot gets one seam and one read for
+it, and behaves as before.
+- **The seam:** an optional capability, `mercbot.computer-events` (`ComputerEvents` in
+  `packages/computer/src/server/types.js`). Its `record` gets each `made_room` (the computer put to sleep, on the server
+  holding it) and each `refused` with why: `computer_none_free` (no server could take it, on the server asking) or
+  `computer_all_busy` (every computer on its server stayed busy). Nothing waits for it, and its failure is only
+  logged, so a wake is never slower or refused because of it.
+- **Without the seam** each is a line in the server log (`LOG_COMPUTER_EVENTS`): a made room as information, a
+  refusal as a warning.
+- **The servers Mercbot knows:** `mercbot.computer`'s `servers()` answers every server seen in the last day, with its
+  address, when it was last seen, whether that was in the last 45 seconds and how many computers it holds that
+  aren't asleep: one read of `mercbot_servers` and the live servers' count (D-15), so a feature can show them without
+  reading Mercbot's tables.

@@ -1,12 +1,12 @@
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import { mkdir, rm } from "node:fs/promises";
-import net from "node:net";
 import os from "node:os";
 import path from "node:path";
 import { AppError } from "@jskit-ai/kernel/server/runtime/errors";
 import { createRecorder } from "./recorder.js";
 import { BROWSER_ICON, startDesktop } from "./desktop.js";
+import { canConnect, sleep, startProcess } from "./helperProcess.js";
 import { createSignInChain } from "./signInChain.js";
 import { createStagehandModel } from "./stagehandModel.js";
 import { clickDirectly, covering, fingerprint, isOnSite, loginFields, readPage, settled, siteName, typeValues } from "./webPage.js";
@@ -52,7 +52,6 @@ const WIDTH = 1280;
 const HEIGHT = 800;
 const FIRST_DISPLAY = 110;
 const LAST_DISPLAY = 499;
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 // A computer's display offers no shared memory (MIT-SHM, D-68). Shared memory ids belong to an IPC
 // namespace: the apps in gVisor send ids from gVisor's own, which Xvfb looks up in Mercbot's, where
 // the same id can name another program's segment (x11vnc's), so Chrome drew into memory Xvfb never
@@ -66,54 +65,6 @@ const insideBrowserUrl = (cdpUrl, debugPort) => `ws://127.0.0.1:${debugPort}${cd
 
 function displayInUse(display) {
   return existsSync(`/tmp/.X11-unix/X${display}`) || existsSync(`/tmp/.X${display}-lock`);
-}
-
-/** Start a helper program; reject with its own words if it exits before `ready()` is true. */
-function startProcess(name, command, args, { env, ready, timeoutMs = 8000 }) {
-  return new Promise((resolve, reject) => {
-    const child = spawn(command, args, { env, stdio: ["ignore", "ignore", "pipe"] });
-    let output = "";
-    let settled = false;
-    child.stderr.on("data", (chunk) => {
-      output = (output + chunk).slice(-2000);
-    });
-    child.once("error", (error) => {
-      if (settled) return;
-      settled = true;
-      reject(new Error(`${name} couldn't start: ${error.message}`));
-    });
-    child.once("exit", (code) => {
-      if (settled) return;
-      settled = true;
-      reject(new Error(`${name} exited with code ${code}: ${output.trim().slice(-500)}`));
-    });
-    (async () => {
-      const deadline = Date.now() + timeoutMs;
-      while (!settled && Date.now() < deadline) {
-        if (await ready()) {
-          settled = true;
-          resolve(child);
-          return;
-        }
-        await sleep(100);
-      }
-      if (!settled) {
-        settled = true;
-        child.kill();
-        reject(new Error(`${name} didn't get ready within ${timeoutMs / 1000}s: ${output.trim().slice(-500)}`));
-      }
-    })();
-  });
-}
-
-function canConnect(socketPath) {
-  return new Promise((resolve) => {
-    const socket = net.connect(socketPath);
-    socket.once("connect", () => {
-      socket.destroy(); resolve(true);
-    });
-    socket.once("error", () => resolve(false));
-  });
 }
 
 /**
@@ -158,6 +109,9 @@ function cookieParam(cookie) {
  * @param {typeof loadBrowserLibraries} [dependencies.libraries] Stagehand and Puppeteer; a test passes a stand-in for
  *   Stagehand, which needs AI.
  * @param {() => number} [dependencies.clock] The time sign-in chains count their 10 minutes by (D-77).
+ * @param {(event: { kind: "made_room" | "refused", computerId: string, code?: string }) => void} dependencies.noted
+ *   Told when a computer is put to sleep to make room for another, and when one can't start because every computer
+ *   here stayed busy (D-88).
  */
 export function createComputerManager({
   env,
@@ -174,7 +128,8 @@ export function createComputerManager({
   idleMs = 5 * 60 * 1000,
   startBrowser = null,
   libraries = loadBrowserLibraries,
-  clock = Date.now
+  clock = Date.now,
+  noted
 }) {
   const computers = new Map();
   let stopping = false;
@@ -219,9 +174,13 @@ export function createComputerManager({
       const candidates = awake.filter((computer) => !busy(computer)).sort((a, b) => a.lastUsed - b.lastUsed);
       if (candidates[0]) {
         await putToSleep(candidates[0].computerId);
+        noted({ kind: "made_room", computerId: candidates[0].computerId });
         return;
       }
-      if (Date.now() > deadline) throw new Error(`All ${maxAwake} computers are in use right now. Try again in a moment.`);
+      if (Date.now() > deadline) {
+        noted({ kind: "refused", computerId: except.computerId, code: "computer_all_busy" });
+        throw new Error(`All ${maxAwake} computers are in use right now. Try again in a moment.`);
+      }
       await sleep(2000);
     }
   }

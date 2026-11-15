@@ -138,7 +138,8 @@ that host their own connection point (D-34).
 Owns each bot's computer: Chrome and the Craft apps in a gVisor desktop sandbox on its own
 Xvfb display, with internet only through Mercbot's gateway (D-49), the live screen stream, the person's input during takeover, the
 screenshots the bot takes, its coding runs, each in a gVisor sandbox of its own (D-77), and which server runs each computer (D-15),
-or the one a copy built on Mercbot chooses (`mercbot.computer-placement`, D-85).
+or the one a copy built on Mercbot chooses (`mercbot.computer-placement`, D-85), and who hears when computers run out of room
+(`mercbot.computer-events`, D-88).
 
 ### Source
 

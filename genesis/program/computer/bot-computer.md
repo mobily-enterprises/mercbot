@@ -242,6 +242,17 @@ counts as gone and the computer is placed again, once. The placement's `secret`
 signs the servers' calls to each other; `PLACE_HERE`'s is null, for the one in
 `mercbot_settings`. A relayed screen carries the same header.
 
+When computers run out of room (D-88): a wake that finds every place on its
+server taken puts the least recently used computer that isn't busy to sleep
+(`made_room`), or after 90 seconds of every one staying busy is refused
+("All N computers are in use right now. Try again in a moment.",
+`computer_all_busy`); a computer no server can take is refused with
+`computer_none_free`. Each goes to `mercbot.computer-events` (`ComputerEvents`,
+`types.js`) when a feature provides it, with the server it happened on, and
+otherwise to the server log (`LOG_COMPUTER_EVENTS`); nothing waits for it.
+`servers()` answers every server seen in the last day with its address, when it
+was last seen, whether it is alive and how many computers it holds awake.
+
 Teaching: `startRecording` and `stopRecording` run on the owner. While
 recording, every tab gets a page script that reports clicks, typed values (never
 password or card fields) and Enter presses, Chrome reports page changes, and the

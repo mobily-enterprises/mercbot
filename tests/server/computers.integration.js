@@ -79,12 +79,12 @@ function conversationsOf(knex) {
   };
 }
 
-async function startServer(knex, context, name, log, store, placement = PLACE_HERE) {
+async function startServer(knex, context, name, log, store, placement = PLACE_HERE, events = undefined) {
   const notices = createNotices({ knex });
   const { resources, systemContext } = (await ownedHandles(knex, context, { "mercbot.computer": COMPUTER_OWNS })).features["mercbot.computer"];
   const computers = createComputers({
     resources, systemContext, directory: conversationsOf(knex), env: process.env, notices, files: { store },
-    meter: createMeter({ recorder: FREE_RECORDER }), createManager: fakeDesktops(log, name), placement
+    meter: createMeter({ recorder: FREE_RECORDER }), createManager: fakeDesktops(log, name), placement, events
   });
   const httpServer = http.createServer(async (request, response) => {
     let raw = "";
@@ -254,7 +254,8 @@ test("refused, a coding run doesn't start: its computer can't open its day", asy
 
 // A copy built on Mercbot that says where computers run (D-85): a server it never chooses passes every computer to the
 // servers it does, the least busy first; their calls are signed with its secret, a gone one's computer is placed again,
-// and with nowhere to put it a computer says so.
+// and with nowhere to put it a computer says so, and who listens hears it (D-88). The servers it knows say who is
+// alive and holds what.
 test("a copy that says where computers run passes them to the servers it chooses", async (context) => {
   const knex = await connectTestDatabase();
   const log = [];
@@ -269,7 +270,9 @@ test("a copy that says where computers run passes them to the servers it chooses
       return candidates[0]?.id ?? null;
     }
   };
-  const web = await startServer(knex, context, "placement-web", log, store, placement);
+  const events = [];
+  const listening = { record: async (event) => events.push(event) };
+  const web = await startServer(knex, context, "placement-web", log, store, placement, listening);
   const a = await startServer(knex, context, "placement-A", log, store, placement);
   const b = await startServer(knex, context, "placement-B", log, store, placement);
   const userId = (await knex("users").first())?.id ?? (await knex("users").insert({ username: `placement-${Date.now()}` }).returning("id"))[0].id;
@@ -290,6 +293,12 @@ test("a copy that says where computers run passes them to the servers it chooses
   assert.equal((await web.computers.wake(String(second.conversation_id))).state, "awake");
   assert.equal(await holder(second), "placement-B");
   assert.ok(!log.some((line) => line.startsWith("placement-web ")));
+  const known = new Map((await web.computers.servers()).map((server) => [server.id, server]));
+  assert.deepEqual(
+    ["placement-web", "placement-A", "placement-B"].map((id) => ({ id, alive: known.get(id)?.alive, awake: known.get(id)?.awake, url: known.get(id)?.url })),
+    [{ id: "placement-web", alive: true, awake: 0, url: web.url }, { id: "placement-A", alive: true, awake: 1, url: a.url }, { id: "placement-B", alive: true, awake: 1, url: b.url }]
+  );
+  assert.ok(Date.now() - Date.parse(known.get("placement-A").seenAt) < 45_000);
   await web.computers.browse(String(first.conversation_id), "example.com");
   assert.ok(log.includes("placement-A browsed example.com"));
 
@@ -318,4 +327,6 @@ test("a copy that says where computers run passes them to the servers it chooses
   open = false;
   await assert.rejects(web.computers.wake(String(first.conversation_id)), (error) => error.statusCode === 503 && error.code === "computer_none_free");
   assert.ok(!log.some((line) => line.startsWith("placement-web ")));
+  await new Promise(setImmediate);
+  assert.deepEqual(events, [{ kind: "refused", computerId: String(first.conversation_id), serverId: "placement-web", code: "computer_none_free" }]);
 });

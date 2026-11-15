@@ -1,5 +1,5 @@
-// The type of the `mercbot.computer` capability, for features that require it, and of `mercbot.computer-placement`, which
-// the computer feature reads when a feature provides it.
+// The type of the `mercbot.computer` capability, for features that require it, and of `mercbot.computer-placement` and
+// `mercbot.computer-events`, which the computer feature reads when a feature provides them.
 
 /** @typedef {ReturnType<typeof import("./computers.js").createComputers>} Computer */
 
@@ -18,6 +18,23 @@
  *   choose: (computerId: string, servers: { here: string, live: () => Promise<LiveServer[]> }) => Promise<string | null>,
  *   secret: string | null
  * }} ComputerPlacement
+ */
+
+/**
+ * A server Mercbot knows, as `servers()` answers it: its id and address, when it was last seen, whether that was in the
+ * last 45 seconds, and how many computers it holds that aren't asleep.
+ * @typedef {{ id: string, url: string, seenAt: string, alive: boolean, awake: number }} KnownServer
+ */
+
+/**
+ * Who hears when computers run out of room (`mercbot.computer-events`, D-88): `record` gets a computer put to sleep to
+ * make room for another on its server (`made_room`), and a computer that couldn't start (`refused`), with why:
+ * `computer_none_free` when no server could take it, `computer_all_busy` when every computer on its server stayed busy
+ * for 90 seconds. `serverId` is the server it happened on. The computer feature doesn't wait for it; without a feature
+ * that listens, each is a line in the server log (`LOG_COMPUTER_EVENTS`).
+ * @typedef {{
+ *   record: (event: { kind: "made_room" | "refused", computerId: string, serverId: string, code: string | null }) => Promise<void>
+ * }} ComputerEvents
  */
 
 export {};
