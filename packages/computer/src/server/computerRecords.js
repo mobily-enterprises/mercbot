@@ -105,17 +105,30 @@ export function createComputerRecords({ resources, system, homeOf }) {
     return true;
   }
 
+  // Each computer's state writes still under way, so the next waits for them: the manager doesn't wait for a write, and
+  // the first, creating the row, can lose that race to a later one, retry and land last, leaving an asleep computer
+  // recorded as waking.
+  const writing = new Map();
+
   /**
    * Only the server holding a computer records its state; one that lost it to another server
-   * can't take it back.
+   * can't take it back. A computer's states are written one at a time, in the order they're asked for.
    */
   function recordState(computerId, serverId, { state, url, error }) {
-    return withComputer(String(computerId), async (current, txOptions) => {
-      if (!current) return createComputer(String(computerId), { serverId, state, url, error }, txOptions);
+    const key = String(computerId);
+    const write = () => withComputer(key, async (current, txOptions) => {
+      if (!current) return createComputer(key, { serverId, state, url, error }, txOptions);
       if (current.serverId !== serverId) return false;
-      await botComputers.patch(String(computerId), { state, url, error }, { ...txOptions, returning: "none" });
+      await botComputers.patch(key, { state, url, error }, { ...txOptions, returning: "none" });
       return true;
     });
+    const written = (writing.get(key) ?? Promise.resolve()).then(write);
+    const settled = written.then(() => {}, () => {});
+    writing.set(key, settled);
+    void settled.then(() => {
+      if (writing.get(key) === settled) writing.delete(key);
+    });
+    return written;
   }
 
   /** Whether the server was seen in the last 45 seconds, and its address. */

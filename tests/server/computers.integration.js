@@ -11,6 +11,7 @@ import { createNotices } from "../../packages/notices/src/server/notices.js";
 import { createMeter, refusalOf, refuseWork } from "../../packages/account/src/server/meter.js";
 import { FREE_RECORDER } from "../support/botDoubles.mjs";
 import { COMPUTER_OWNS } from "../../packages/computer/src/server/ComputerFeature.js";
+import { createComputerRecords } from "../../packages/computer/src/server/computerRecords.js";
 import { createComputers, PLACE_HERE } from "../../packages/computer/src/server/computers.js";
 import { createFileStore } from "../../packages/files/src/server/fileStore.js";
 import { testBot } from "./testHome.js";
@@ -246,10 +247,45 @@ test("refused, a coding run doesn't start: its computer can't open its day", asy
   const start = { action: "start", tool: "claude-code", folder: "/files/mine/site", brief: "Fix the menu on small screens." };
   await assert.rejects(computers.code(computerId, start), (error) => refusalOf(error)?.message === PAUSED);
   assert.deepEqual(opened, [computerId], "the computer's day was asked for, once");
-  // Its state is recorded as it changes, without the wake waiting for the write.
+  // Its state is recorded as it changes, without the wake waiting for the write: the row the claim made reads asleep
+  // already, so this waits for the refusal's reason, written after waking.
   const recorded = () => knex("bot_computers").where({ conversation_id: bot.conversation_id }).first("state", "error");
-  for (const deadline = Date.now() + 5000; (await recorded())?.state !== "asleep" && Date.now() < deadline;) await new Promise((resolve) => setTimeout(resolve, 50));
+  for (const deadline = Date.now() + 5000; (await recorded())?.error !== PAUSED && Date.now() < deadline;) await new Promise((resolve) => setTimeout(resolve, 50));
   assert.deepEqual(await recorded(), { state: "asleep", error: PAUSED }, "it stays asleep, saying why");
+});
+
+// A computer's states land in the order they change, though the manager doesn't wait for a write: here the first,
+// creating the row, is slowest, so the second creates it first and the first, losing that race, would retry and
+// land last, leaving the asleep computer recorded as waking.
+test("a computer's states are recorded in the order they change, even when the first write is slowest", async (context) => {
+  const knex = await connectTestDatabase();
+  const { resources, systemContext } = (await ownedHandles(knex, context, { "mercbot.computer": COMPUTER_OWNS })).features["mercbot.computer"];
+  const userId = (await knex("users").first())?.id;
+  assert.ok(userId, "the test database needs a user row");
+  const bot = await testBot(knex, userId, { name: "Ordered" });
+  context.after(async () => {
+    await knex("bots").where({ id: bot.id }).del();
+    await knex.destroy();
+  });
+  let lookups = 0;
+  const records = createComputerRecords({
+    resources,
+    system: () => ({ context: systemContext("record the test bot's computer") }),
+    homeOf: async () => {
+      lookups += 1;
+      if (lookups === 1) await new Promise((resolve) => setTimeout(resolve, 300));
+      return String(bot.workspace_id);
+    }
+  });
+  const computerId = String(bot.conversation_id);
+  await Promise.all([
+    records.recordState(computerId, "integration-ordered", { state: "waking", url: "", error: "" }),
+    records.recordState(computerId, "integration-ordered", { state: "asleep", url: "", error: "This home's work is paused." })
+  ]);
+  assert.deepEqual(
+    await knex("bot_computers").where({ conversation_id: bot.conversation_id }).first("state", "error"),
+    { state: "asleep", error: "This home's work is paused." }
+  );
 });
 
 // A copy built on Mercbot that says where computers run (D-85): a server it never chooses passes every computer to the

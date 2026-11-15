@@ -225,7 +225,9 @@ to that server, which uses the ticket up. State changes reach every server's
 open streams as PostgreSQL notices (`@local/notices`). A server that can't be
 reached at all counts as gone at once: its row is removed and the computer moves
 to the server that needs it; a live server re-registers on its next heartbeat,
-and only the server holding a computer may record its state. Rows silent for a
+and only the server holding a computer may record its state, one write at a time per
+computer in the order its states change (the manager doesn't wait for a write, and a
+first write that loses the race to create the row would otherwise land last). Rows silent for a
 day are removed when a server starts. An open live view wakes the computer again
 if it goes to sleep.
 
