@@ -11,7 +11,7 @@
     "@jskit-ai/database-runtime": "0.1.276",
     "@jskit-ai/kernel": "0.2.27",
     "@jskit-ai/resource-core": "0.1.218",
-    "@jskit-ai/resource-runtime": "0.2.38",
+    "@jskit-ai/resource-runtime": "0.2.39",
     "@local/account": "0.1.0",
     "@local/files": "0.1.0"
   },
