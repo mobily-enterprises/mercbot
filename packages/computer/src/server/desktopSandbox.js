@@ -6,7 +6,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
-import { platformFlags, runsc, sandboxUser } from "@local/files/gvisor";
+import { folderMount, platformFlags, runsc, sandboxUser, storeMounts, toolboxRoot } from "@local/files/gvisor";
 import { FORWARDER, PROXY_ENV, startGateway } from "./gateway.js";
 import { quote } from "./shellQuote.js";
 
@@ -14,7 +14,6 @@ const run = promisify(execFile);
 const STAGEHAND_EXTENSION = path.join(path.dirname(fileURLToPath(import.meta.resolve("@browserbasehq/stagehand"))), "extension");
 const tools = (env) => path.resolve(env.MERCBOT_TOOLS_DIR || ".tools");
 const runscPath = (env) => env.MERCBOT_RUNSC || path.join(tools(env), "bin", "runsc");
-const rootfs = (env) => path.join(tools(env), "toolbox", "rootfs");
 // The browser's remote-control port inside the sandbox, where it has a network of its own, so the
 // same number serves every computer and never takes a port of this server.
 const CHROME_DEBUG_PORT = 9222;
@@ -50,7 +49,7 @@ async function sweep(env) {
  * @param {import("@jskit-ai/kernel/server/types").RuntimeEnv} env
  */
 export function desktopSandboxAvailable(env) {
-  return existsSync(runscPath(env)) && existsSync(path.join(rootfs(env), "opt", "chrome", "chrome"));
+  return existsSync(runscPath(env)) && existsSync(path.join(toolboxRoot(env), "opt", "chrome", "chrome"));
 }
 
 /**
@@ -60,7 +59,8 @@ export function desktopSandboxAvailable(env) {
  * sandbox, offered here as the Unix socket `cdpSocket` (D-68): a published server may listen on
  * no TCP port but its own. Returns { display, chrome (a script to use as the browser's program),
  * debugPort, cdpSocket, exec(argv) (a script line running a program in it), shared(name) (a file of
- * this server's it sees in /io), stop() }.
+ * this server's it sees in /io), stop() }. On a host whose programs come from a store (MERCBOT_TOOLBOX_STORE),
+ * the sandbox sees the store too, where the toolbox's links lead.
  * `runtimeEnv` is the server's env; `env` adds variables inside the sandbox.
  */
 export async function startDesktopSandbox({ runtimeEnv, computerId, display, profile, folders, env: extraEnv = [] }) {
@@ -79,12 +79,7 @@ export async function startDesktopSandbox({ runtimeEnv, computerId, display, pro
   }
   const gateway = await startGateway({ socketPath: path.join(io, "gateway.sock") });
 
-  const bind = (source, destination, { readonly = false, exec = true } = {}) => ({
-    destination,
-    type: "bind",
-    source,
-    options: ["rbind", readonly ? "ro" : "rw", ...(exec ? [] : ["noexec", "nosuid", "nodev"])]
-  });
+  const bind = (source, destination, { readonly = false, exec = true } = {}) => folderMount(source, destination, { readonly, exec });
   const apps = path.join(tools(runtimeEnv), "apps");
   const home = folders ? "/files/mine" : "/tmp";
   const env = [
@@ -106,7 +101,7 @@ export async function startDesktopSandbox({ runtimeEnv, computerId, display, pro
       capabilities: { bounding: [], effective: [], inheritable: [], permitted: [], ambient: [] },
       rlimits: [{ type: "RLIMIT_NOFILE", hard: 8192, soft: 8192 }, { type: "RLIMIT_CORE", hard: 0, soft: 0 }]
     },
-    root: { path: rootfs(runtimeEnv), readonly: false },
+    root: { path: toolboxRoot(runtimeEnv), readonly: false },
     hostname: "computer",
     mounts: [
       { destination: "/proc", type: "proc", source: "proc" },
@@ -114,9 +109,11 @@ export async function startDesktopSandbox({ runtimeEnv, computerId, display, pro
       { destination: "/dev/shm", type: "tmpfs", source: "shm", options: ["size=1g", "mode=1777"] },
       { destination: "/sys", type: "sysfs", source: "sysfs", options: ["nosuid", "noexec", "nodev", "ro"] },
       { destination: "/tmp", type: "tmpfs", source: "tmpfs", options: ["size=2g", "mode=1777"] },
-      bind("/tmp/.X11-unix", "/tmp/.X11-unix", { readonly: true }),
+      // Only the display's socket: nothing there starts, and a host's /tmp may forbid programs (D-86).
+      bind("/tmp/.X11-unix", "/tmp/.X11-unix", { readonly: true, exec: false }),
       bind(io, "/io"),
       bind(profile, "/profile"),
+      ...storeMounts(runtimeEnv),
       ...(existsSync(STAGEHAND_EXTENSION) ? [bind(STAGEHAND_EXTENSION, "/opt/stagehand-extension", { readonly: true })] : []),
       ...(folders ? [
         bind(folders.mine, "/files/mine", { exec: false }),

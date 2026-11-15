@@ -62,6 +62,35 @@ starts Mercbot's server without the single-user gate (`gate: false`) and describ
 - Migrations: `mercbot upgrade` runs `npm run db:migrate` for the new release after a backup, and puts the database
   back from that backup if a migration fails.
 
+### A host whose programs come from a read-only Nix store
+
+Some hosts start applications from a read-only Nix store: Mercbot and the packages the host was asked for are in the
+store, their commands are on `PATH`, and nothing is installed or built there (D-86). On such a host Mercbot doesn't run
+`npm run tools:install`; the bots' toolbox is made from the store at every start instead.
+
+- `HOSTING_SCRIPT=scripts/hosting/store.sh`, `MERCBOT_TOOLBOX_STORE`: the store (such as `/nix`), and
+  `MERCBOT_TOOLBOX_DIR`: a writable folder the toolbox is made in, where programs may run. It holds only links and
+  settings files and nothing is started from it, but gVisor mounts it again, read-only, as each sandbox's system, and in
+  Mercbot's own user namespace a host's `noexec` refuses that mount; the start stops, saying so, on such a folder.
+  `scripts/serve.sh` runs `node scripts/store-toolbox.mjs`, which makes it in seconds (1.3–3.4 s on a test machine whose store held 12,800 packages), before the server; every
+  gVisor sandbox then sees the store read-only at its own path.
+- What has to be on `PATH`, from the store: `runsc` (gVisor; the hosting script names it as `MERCBOT_RUNSC` unless set),
+  `Xvfb`, `x11vnc` and `openbox`, a browser (`chromium`), `python3` and `bash`; and for a nicer desktop `tint2`,
+  `hsetroot` and `xterm`. Fonts come from the store itself (every package's `share/fonts`). In nixpkgs: `gvisor`,
+  `xvfb`, `x11vnc`, `openbox`, `chromium`, `python3`, `bash`, `coreutils`, `tint2`, `hsetroot`, `xterm`,
+  `liberation_ttf`, `dejavu_fonts` and `noto-fonts-color-emoji`. Without a browser, `python3` or `bash` the start stops,
+  saying so.
+- Bots get their command line only when the store also has every tool they're told of (`files/shell.md` in the
+  Program lists them, with Python's pandas, numpy, matplotlib, openpyxl, python-docx and python-pptx); otherwise the
+  start says which are missing and bots work without it.
+- The computers' own launchers are written while Mercbot runs and started as programs: the browser's (`chrome.sh` in
+  the temporary folder, `TMPDIR`) and the dock's (`launch-*.sh` under `MERCBOT_DATA_DIR`). Both folders must be
+  writable and allow programs; on a host where only one work folder does, put them and `MERCBOT_TOOLBOX_DIR` there.
+  Every folder a sandbox sees keeps `nosuid` and `nodev`, and the display's sockets `noexec`, so a sandbox never asks
+  to drop a restriction the host set on them.
+- The office apps, voice memos, coding runs, JuiceFS and rclone come from `npm run tools:install` and aren't part of
+  the store's toolbox: without them their features are off, as on any server without them.
+
 ### Root steps (once per computer)
 
 Everything bots run is in gVisor (D-49). These steps need root, so the person agrees to them or does them by hand:
@@ -166,6 +195,9 @@ doesn't accept, a public address that isn't https) still stops the start, saying
 
 - `MERCBOT_MAX_COMPUTERS`: bots' computers awake at once (default 3).
 - `MERCBOT_TOOLS_DIR` (default `.tools`) when the tools live elsewhere.
+- `MERCBOT_TOOLBOX_STORE` and `MERCBOT_TOOLBOX_DIR`: on a host whose programs come from a read-only Nix store, the store
+  and the folder the toolbox is made in (above). `MERCBOT_TOOLBOX_DIR` alone names a toolbox kept elsewhere than
+  `<MERCBOT_TOOLS_DIR>/toolbox/rootfs`.
 - `MERCBOT_TOOLS_STORE`: where `npm run tools:install` keeps each tool's installed versions (D-70;
   default `.tools/store`, and `$HOME/.cache/mercbot-tools` through `npm run deploy:prepare`).
 - `HOSTING_SCRIPT`'s default is `scripts/hosting/vibe64.sh`, for development in Vibe64. The hosting

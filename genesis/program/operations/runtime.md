@@ -43,7 +43,9 @@ outside service. It starts only on loopback and its HTTP server is the single-us
 (`genesis/program/single-user/single-user.md`), unless a copy built on Mercbot that serves many people passes
 `gate: false` to `serve`, `startServer` or `develop`. `npm start` and the Procfile go through
 `scripts/serve.sh`, so no start skips the hosting script's checks; `HOSTING_SCRIPT=scripts/hosting/local.sh` is a
-person's own computer's, whose refusals name the command that fixes each.
+person's own computer's, whose refusals name the command that fixes each, and `scripts/hosting/store.sh` a host's whose
+programs come from a read-only Nix store, where `serve.sh` first makes the bots' toolbox from the store
+(`MERCBOT_TOOLBOX_STORE`, `MERCBOT_TOOLBOX_DIR`, D-86; `files/shell.md`).
 
 `bin/server.js` runs `server.js`'s `serve`, and `bin/develop.js` runs `develop`;
 a copy built on Mercbot puts its own two in their place to give its options.

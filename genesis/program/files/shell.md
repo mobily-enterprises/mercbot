@@ -7,8 +7,11 @@ folders and without network (D-47).
 
 - Main: `packages/files/src/server/shell.js`
 - `packages/files/src/server/gvisor.js`
+- `packages/files/src/server/storeToolbox.js`
 - `scripts/build-toolbox.sh`
+- `scripts/hosting/store.sh`
 - `scripts/hosting/vibe64.sh`
+- `scripts/store-toolbox.mjs`
 - `scripts/install-tools.sh`
 - `scripts/toolbox-run.sh`
 - `scripts/tools-store.sh`
@@ -18,6 +21,7 @@ folders and without network (D-47).
 - `packages/bots/src/server/botLoops.js`
 - `packages/bots/skills/command-line.md`
 - `tests/server/shell.integration.js`
+- `tests/server/storeToolbox.test.js`
 - `tests/server/toolboxRun.test.js`
 - `tests/server/toolsStore.test.js`
 
@@ -33,6 +37,27 @@ folders and without network (D-47).
   `scripts/toolbox-run.sh`, which keeps the sandbox off the build's own output (gVisor shuts down an
   inherited socket, as Publish's output is, when its sandbox ends) and says which failed: the host
   refusing the sandbox, the install inside it, or the build's own output closing (status 141).
+- **Toolbox from a host's store (D-86):** on a host whose programs come from a read-only Nix store, nothing is
+  installed or built: `MERCBOT_TOOLBOX_STORE` names the store (such as `/nix`) and `MERCBOT_TOOLBOX_DIR` the folder the
+  toolbox is made in, and `scripts/serve.sh` runs `scripts/store-toolbox.mjs` (`makeStoreToolbox`, `storeToolbox.js`)
+  before the server at every start. It links each program on `PATH` whose real file is in the store, the first by each
+  name, as `usr/bin/<name>` (`bin` and `sbin` lead there, `sh` is bash where the store has no `sh`; a program outside
+  the store isn't linked and doesn't take its name), the first of `chromium`, `chromium-browser`,
+  `google-chrome-stable` and `google-chrome` as `opt/chrome/chrome`, and writes `etc/fonts/fonts.conf` (every
+  `share/fonts` folder in the store, a fontconfig package's `etc/fonts/conf.d` where there is one, and stand-ins for
+  sans-serif, serif, monospace, Arial, Helvetica, Times New Roman and Courier New), `etc/passwd`, `etc/group` and
+  `etc/hosts`. Only links and settings files, and nothing in the folder is started from there, but it must be where
+  programs may run: gVisor mounts it again, read-only, as each sandbox's system, and in Mercbot's own user namespace a
+  host's `noexec` refuses that mount (`mountedNoexec` reads `/proc/self/mountinfo`, and the start stops, saying so).
+  It is made beside the old one and replaces it whole. Its stamp, which offers bots the
+  command line, is written only when every tool they're told of is there (`bash`, `tmux`, `tail`, `ffmpeg`,
+  `ffprobe`, `convert`, `tesseract`, `pdftotext`, `pdftoppm`, `qpdf`, `gs`, `pandoc`, `python3` with pandas, numpy,
+  matplotlib, openpyxl, python-docx and python-pptx, `node`, `npm`, `sqlite3`, `jq`); otherwise the start says
+  which are missing and bots have no command line. Without a browser, `python3` or `sh` there, the start stops,
+  saying so. `serve.sh` also points `FONTCONFIG_FILE` at the toolbox's fonts.conf for the desktops' own programs.
+  `HOSTING_SCRIPT=scripts/hosting/store.sh` is such a host's script: `host_check` refuses without the two settings or
+  without `runsc` on `PATH` (it sets `MERCBOT_RUNSC`), then checks namespaces and `/dev/fuse` as on Vibe64; its
+  install steps refuse, as nothing is installed there.
 - **Tools' store (D-70):** every tool `npm run tools:install` installs, the toolbox included, is
   installed once per pinned version (with the install's `REVISION`) into its own folder of a store
   and hard-linked into `.tools/` (`scripts/tools-store.sh`), so readers of `.tools` and
@@ -60,10 +85,12 @@ folders and without network (D-47).
 - **One sandbox's pieces (`gvisor.js`, `@local/files/gvisor`):** what the command line, the office
   apps, the computers' desktop and their coding runs (`computer/bot-computer.md`) are each made of.
   `sandboxSpec({runtimeEnv, args, cwd, env, limits, mounts, rootReadOnly, hostname, terminal})` is a
-  sandbox's OCI spec: the toolbox as its system, a private `/tmp` of `limits.scratch`, no
-  capabilities and no new privileges, its own namespaces, the limits on processes, open files, file
-  size and (unless 0) each process's memory, and only the `mounts` given; `folderMount(source,
-  destination, {readonly, exec})` is one folder in it, `noexec,nosuid,nodev` unless `exec`.
+  sandbox's OCI spec: the toolbox as its system (`toolboxRoot`: `MERCBOT_TOOLBOX_DIR`, else `.tools/toolbox/rootfs`),
+  a private `/tmp` of `limits.scratch`, no capabilities and no new privileges, its own namespaces, the limits on
+  processes, open files, file size and (unless 0) each process's memory, and only the `mounts` given, with the host's
+  store read-only at its own path, its programs startable, when `MERCBOT_TOOLBOX_STORE` names one (`storeMounts`); `folderMount(source,
+  destination, {readonly, exec})` is one folder in it, always `nosuid,nodev` (gVisor mounts it again with its options,
+  and in a user namespace a host refuses a mount that drops a restriction it set) and `noexec` unless `exec`.
   `sandboxPlace(kind)` is a new sandbox's id and folder, named after this server's process.
   `runSandboxed({env, place, spec, flags, maxSeconds, memory, onOutput, wrap, input})` runs one to
   its end, rootless with no network but what `flags` add: it kills it past `maxSeconds` or past

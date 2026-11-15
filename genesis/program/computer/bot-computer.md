@@ -71,7 +71,13 @@ sandbox** (`desktopSandbox.js`). That sandbox is one gVisor sandbox (`runsc --ro
 --network=none`, on KVM only with `MERCBOT_GVISOR_PLATFORM=kvm`) holding Chrome and the Craft
 apps:
 - **What it sees:** the toolbox (Chrome for Testing in `/opt/chrome`), the display's socket,
-  the profile at `/profile`, Stagehand's extension, and the conversation's folders (`noexec`).
+  the profile at `/profile`, Stagehand's extension, and the conversation's folders (`noexec`). On a host whose
+  programs come from a read-only Nix store (`MERCBOT_TOOLBOX_STORE`, D-86), the toolbox is links into the store made at
+  start (`files/shell.md`), `/opt/chrome/chrome` is the store's Chromium, and the sandbox sees the store read-only at
+  its own path; the desktop's own programs (`Xvfb`, `x11vnc`, `openbox`, `tint2`, `hsetroot`, `xterm`) are found on
+  `PATH` as anywhere, and the browser's launcher (`chrome.sh` in the server's temporary folder) needs that folder to
+  allow programs. The display's socket folder is mounted `noexec` and every folder keeps `nosuid,nodev`, so a host's
+  `/tmp` that forbids programs doesn't stop the sandbox.
 - **Chrome:** Mercbot starts it itself (headful, `--display=:N`, `--no-sandbox` since gVisor is
   the sandbox, `--proxy-server=http://127.0.0.1:3128`), with remote control on port 9222 inside
   the sandbox, which the forwarder offers as `/io/cdp.sock`, a Unix socket on the server

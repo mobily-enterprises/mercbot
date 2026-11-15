@@ -55,6 +55,14 @@ the error underneath; Mercbot never switches its computers or mounts off quietly
   listens on this computer only (D-81, `HOST=127.0.0.1`) and, like every copy, has one person and no sign-in: it
   opens with its key by `mercbot open`. `scripts/mercbot` runs it (`start`, `stop`, `status`, `open`, `new-key`, `backup`,
   `restore`, `upgrade`) from `~/.local/share/mercbot`.
+- **A host whose programs come from a read-only Nix store** (`scripts/hosting/store.sh`): nothing is installed
+  there. `MERCBOT_TOOLBOX_STORE` names the store (such as `/nix`) and `MERCBOT_TOOLBOX_DIR` a writable folder where
+  programs may run, and each
+  start makes the bots' toolbox there from the store's programs on `PATH` (gVisor's `runsc`, Chromium, Python, bash,
+  fonts) as links, which every gVisor sandbox can follow because it sees the store read-only at the same path. The
+  host must also give Mercbot its own namespaces and `/dev/fuse`, have `Xvfb`, `x11vnc` and `openbox` on `PATH`, and
+  let programs run in its temporary folder, its data folder (the computers' launchers) and the toolbox's folder (gVisor
+  mounts it again). docs/deployment.md lists the packages.
 - **Other hosts** are not supported yet. Another host needs its own `scripts/hosting/<name>.sh` with
   the same functions (`host_check`, `host_display_programs`, `host_toolbox_packages`,
   `host_desktop_tools`, `host_fuse_tools`, `host_unpack_deb`; those for Ubuntu are shared in

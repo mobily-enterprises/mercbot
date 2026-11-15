@@ -10,6 +10,13 @@ cd "$(dirname "$0")/.."
 # (scripts/namespace.sh, D-68).
 [ -n "${MERCBOT_NAMESPACE:-}" ] || exec bash ./scripts/namespace.sh bash ./scripts/serve.sh
 
+# On a host whose programs come from a read-only store (MERCBOT_TOOLBOX_STORE), the bots' toolbox is made of links into
+# it at every start, in MERCBOT_TOOLBOX_DIR, and the desktops' own programs take the store's fonts from it.
+if [ -n "${MERCBOT_TOOLBOX_STORE:-}" ]; then
+  node ./scripts/store-toolbox.mjs
+  export FONTCONFIG_FILE="${FONTCONFIG_FILE:-$(realpath -m "$MERCBOT_TOOLBOX_DIR")/etc/fonts/fonts.conf}"
+fi
+
 # Without its passphrase the volume stays off, as without MERCBOT_FILES_DIR, rather than stopping the start: files stay in
 # <MERCBOT_DATA_DIR>/files, and the start log says so (keys.js).
 if [ -n "${MERCBOT_FILES_DIR:-}" ] && [ -z "${MERCBOT_FILES_PASSPHRASE:-}" ]; then

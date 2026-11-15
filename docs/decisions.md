@@ -1837,3 +1837,29 @@ Mercbot's own behaviour is unchanged without it.
   as its calls (`x-mercbot-internal`).
 - **Without the seam** a computer goes to the server that needs it, as before (`PLACE_HERE`, a placement like any
   other); one server, or several, works as it did.
+
+## D-86 — The toolbox can come from a host's read-only Nix store (2026-11-15)
+
+Some hosts start applications only from a read-only Nix store: the application and the packages it asked for are in
+the store, their commands are on `PATH`, and the writable folders may forbid programs (`noexec`). Mercbot's toolbox is
+an Ubuntu system it builds with apt (D-47, D-70), which such a host neither allows nor needs. Mercbot gets one seam for
+it, and is unchanged without it.
+- **The store's toolbox:** with `MERCBOT_TOOLBOX_STORE` (the store, such as `/nix`) and `MERCBOT_TOOLBOX_DIR` set,
+  `scripts/serve.sh` makes the toolbox at every start as a small system of links to the store's programs found on
+  `PATH` (`storeToolbox.js`), and every gVisor sandbox sees the store read-only at its own path, where the links lead.
+  The folder holds only links and settings files and nothing is started from it. It must still be where programs may
+  run: gVisor mounts it again, read-only, as each sandbox's system, and in Mercbot's own user namespace the kernel
+  refuses a mount that drops the host's `noexec` (found by the proof on a host with a `noexec` `/tmp`), so the start
+  refuses such a folder. For the same reason every folder a sandbox sees now keeps `nosuid` and `nodev`, and the
+  display's sockets `noexec`. Making the toolbox again at each start takes seconds (1.3–3.4 s with a store of 12,800
+  packages) and leaves nothing to keep between releases or machines (D-19).
+- **Nothing is switched off quietly (D-68):** without a browser, `python3` or `bash` in the store, computers couldn't
+  start, so the start stops, saying so. Bots are told what their command line has, so it's offered only when every
+  one of those tools is there; otherwise the start names what's missing and bots work without a command line. The
+  sandboxes are the same as on any host: every bot program still runs in gVisor (D-47, D-49).
+- **Found, not listed:** programs come from `PATH`, the first by each name whose real file is in the store; fonts from
+  the store's packages (`share/fonts`), which hold only what the host was given. Mercbot names no host and no package
+  list of its own: the host's declaration chooses the packages, and docs/deployment.md says which nixpkgs ones a
+  computer needs.
+- **Launchers stay as they are:** the computers' browser and dock launchers are still scripts written while Mercbot
+  runs, so such a host must give Mercbot a temporary folder and a data folder where programs may run.

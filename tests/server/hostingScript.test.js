@@ -20,7 +20,7 @@ test("a HOSTING_SCRIPT that names no file stops the install and the start, namin
     const { status, stderr } = bash(script, { HOSTING_SCRIPT: "scripts/hosting/nowhere.sh", MERCBOT_NAMESPACE: "" });
     assert.equal(status, 1, script);
     assert.match(stderr, /^HOSTING_SCRIPT is scripts\/hosting\/nowhere\.sh, which doesn't exist in Mercbot's folder\. /u, script);
-    assert.match(stderr, /The hosting scripts there are: scripts\/hosting\/local\.sh scripts\/hosting\/vibe64\.sh \(/u, script);
+    assert.match(stderr, /The hosting scripts there are: scripts\/hosting\/local\.sh scripts\/hosting\/store\.sh scripts\/hosting\/vibe64\.sh \(/u, script);
   }
 });
 
@@ -67,6 +67,25 @@ test("a host without Xvfb, x11vnc or openbox is refused by name, never started w
     }
   } finally {
     rmSync(shims, { recursive: true, force: true });
+  }
+});
+
+test("on a host whose programs come from a store, the store, the toolbox's folder and gVisor are checked first, and nothing is installed", () => {
+  const unset = bash(". scripts/hosting/store.sh; host_check", { MERCBOT_TOOLBOX_STORE: "", MERCBOT_TOOLBOX_DIR: "" });
+  assert.equal(unset.status, 1);
+  assert.match(unset.stderr, /^On this host Mercbot's bots' toolbox comes from the store: MERCBOT_TOOLBOX_STORE names the store and MERCBOT_TOOLBOX_DIR the folder the toolbox is made in\. See README → Hosting requirements\.\nMERCBOT_TOOLBOX_STORE= MERCBOT_TOOLBOX_DIR=\n$/u);
+  const store = mkdtempSync(path.join(os.tmpdir(), "mercbot-store-"));
+  try {
+    const noRunsc = bash(`. scripts/hosting/store.sh; PATH=${store}; host_check`, { MERCBOT_TOOLBOX_STORE: store, MERCBOT_TOOLBOX_DIR: path.join(store, "box"), MERCBOT_RUNSC: "" });
+    assert.equal(noRunsc.status, 1);
+    assert.match(noRunsc.stderr, /^This host has no gVisor \(runsc\), which Mercbot's bots' sandboxes need\. See README → Hosting requirements\.\nrunsc: not found/u);
+  } finally {
+    rmSync(store, { recursive: true, force: true });
+  }
+  for (const step of ["host_toolbox_packages", "host_unpack_deb", "host_fuse_tools", "host_desktop_tools"]) {
+    const refused = bash(`. scripts/hosting/store.sh; ${step} a b`);
+    assert.equal(refused.status, 1, step);
+    assert.match(refused.stderr, /^On this host Mercbot's programs come from its store, so npm run tools:install isn't used here\./u, step);
   }
 });
 

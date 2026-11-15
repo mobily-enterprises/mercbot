@@ -56,7 +56,15 @@ export async function sharedScratch(env, prefix) {
   if (sandboxUser(env)) await fs.chmod(dir, 0o2770);
   return dir;
 }
-const rootfs = (env) => path.join(toolsDir(env), "toolbox", "rootfs");
+/**
+ * The toolbox's folder, the system every sandbox runs on: MERCBOT_TOOLBOX_DIR, else the one scripts/install-tools.sh
+ * builds (<tools>/toolbox/rootfs). On a host whose programs come from a store, storeToolbox.js makes it at start.
+ * @param {import("@jskit-ai/kernel/server/types").RuntimeEnv} env
+ */
+export function toolboxRoot(env) {
+  const dir = String(env.MERCBOT_TOOLBOX_DIR || "").trim();
+  return dir ? path.resolve(dir) : path.join(toolsDir(env), "toolbox", "rootfs");
+}
 
 /**
  * gVisor's platform: its default (systrap), or KVM when MERCBOT_GVISOR_PLATFORM=kvm. KVM is only
@@ -75,12 +83,14 @@ export function platformFlags(env) {
  * @param {import("@jskit-ai/kernel/server/types").RuntimeEnv} env
  */
 export function shellAvailable(env) {
-  return existsSync(runscPath(env)) && existsSync(path.join(rootfs(env), "etc", "mercbot-toolbox"));
+  return existsSync(runscPath(env)) && existsSync(path.join(toolboxRoot(env), "etc", "mercbot-toolbox"));
 }
 
 /**
  * A folder of the server's shown in a sandbox at `destination`. Folders hold files, never programs:
- * nothing there can be started (scripts still run through bash, python3 or node) unless `exec`.
+ * nothing there can be started (scripts still run through bash, python3 or node) unless `exec`. It is
+ * always nosuid and nodev: gVisor mounts it again with these options, and in Mercbot's own user
+ * namespace the host refuses a mount that would drop one it set (D-86).
  * @param {string} source
  * @param {string} destination
  * @param {{ readonly?: boolean, exec?: boolean }} [options]
@@ -90,8 +100,28 @@ export function folderMount(source, destination, { readonly = false, exec = fals
     destination,
     type: "bind",
     source,
-    options: ["rbind", readonly ? "ro" : "rw", ...(exec ? [] : ["noexec", "nosuid", "nodev"])]
+    options: ["rbind", readonly ? "ro" : "rw", ...(exec ? [] : ["noexec"]), "nosuid", "nodev"]
   };
+}
+
+/**
+ * The read-only store a host's programs come from (MERCBOT_TOOLBOX_STORE, such as /nix), or "" where the
+ * toolbox is Mercbot's own build (scripts/build-toolbox.sh). Such a host's toolbox is a small system of
+ * links into the store (storeToolbox.js), so every sandbox sees the store read-only at the same path.
+ * @param {import("@jskit-ai/kernel/server/types").RuntimeEnv} env
+ */
+export function toolboxStore(env) {
+  const store = String(env.MERCBOT_TOOLBOX_STORE || "").trim();
+  return store ? path.resolve(store) : "";
+}
+
+/**
+ * The store's mount for a sandbox (toolboxStore): read-only, its programs startable; none without one.
+ * @param {import("@jskit-ai/kernel/server/types").RuntimeEnv} env
+ */
+export function storeMounts(env) {
+  const store = toolboxStore(env);
+  return store ? [folderMount(store, store, { readonly: true, exec: true })] : [];
 }
 
 /**
@@ -99,7 +129,8 @@ export function folderMount(source, destination, { readonly = false, exec = fals
  * otherwise its changes vanish with the sandbox), a private /tmp of `limits.scratch`, no
  * capabilities and no new privileges, namespaces of its own (processes, network, IPC, host name,
  * mounts), the `limits` on processes, open files, file size and, unless it's 0, each process's
- * memory, and only the `mounts` given. `env` is the whole environment: never the server's.
+ * memory, and only the `mounts` given (with the host's store, storeMounts). `env` is the whole environment: never the
+ * server's.
  * @param {object} options
  * @param {import("@jskit-ai/kernel/server/types").RuntimeEnv} options.runtimeEnv the server's env, for the tools folder and the sandbox user
  * @param {string[]} options.args
@@ -131,13 +162,14 @@ export function sandboxSpec({ runtimeEnv, args, cwd, env, limits, mounts = [], r
         limit("RLIMIT_CORE", 0)
       ]
     },
-    root: { path: rootfs(runtimeEnv), readonly: rootReadOnly },
+    root: { path: toolboxRoot(runtimeEnv), readonly: rootReadOnly },
     hostname,
     mounts: [
       { destination: "/proc", type: "proc", source: "proc" },
       { destination: "/dev", type: "tmpfs", source: "tmpfs" },
       { destination: "/sys", type: "sysfs", source: "sysfs", options: ["nosuid", "noexec", "nodev", "ro"] },
       { destination: "/tmp", type: "tmpfs", source: "tmpfs", options: [`size=${limits.scratch}`, "mode=1777"] },
+      ...storeMounts(runtimeEnv),
       ...mounts
     ],
     linux: { namespaces: [{ type: "pid" }, { type: "network" }, { type: "ipc" }, { type: "uts" }, { type: "mount" }] }
