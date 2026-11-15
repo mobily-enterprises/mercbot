@@ -40,6 +40,7 @@ card in the chat with a viewer and a download (D-20, D-21).
 - `src/pages/w/[workspaceSlug]/files/index.vue`
 - `tests/server/files.test.js`
 - `tests/server/driveMount.test.js`
+- `tests/server/mountFiles.integration.js`
 - `tests/server/driveStorage.integration.js`
 - `tests/server/fileMoves.integration.js`
 - `tests/server/memberRemoval.integration.js`
@@ -58,7 +59,8 @@ each of a batch of homes keeps its files (`mercbot`, `webdav`, `drive`; a home w
 one statement over every home the options reach.
 
 - Files live under `MERCBOT_FILES_DIR` (a JuiceFS volume shared by every server,
-  mounted by `scripts/mount-files.sh`, which leaves a `.mercbot-files` marker; deployed servers
+  mounted by `scripts/mount-files.sh`, which formats it once however many servers start together, under a
+  PostgreSQL advisory lock, and leaves a `.mercbot-files` marker; deployed servers
   start through `scripts/serve.sh`, which mounts it first and unmounts it on exit), or
   `.data/files` when it isn't set. Files belong to a home (D-36, D-47), in three folders:
   `homes/<home>/shared/` (`/files/shared`, everyone and every bot in the home),

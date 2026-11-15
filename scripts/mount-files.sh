@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # Mounts the bots' shared files volume (D-20) at MERCBOT_FILES_DIR, so every server sees the
 # same files and a server can disappear without losing any. Run it on each server before Mercbot
-# starts; it formats the volume the first time and skips what's already done.
+# starts; it formats the volume the first time and skips what's already done. Servers that start
+# together format it once: each checks and formats while holding a PostgreSQL advisory lock, so the
+# others wait and then find it made.
 #
 # Environment:
 #   DB_HOST DB_PORT DB_NAME DB_USER DB_PASSWORD  the app's PostgreSQL; the volume's metadata
@@ -26,23 +28,36 @@ JUICEFS="$ROOT/.tools/bin/juicefs"
 export META_PASSWORD="$DB_PASSWORD" JFS_RSA_PASSPHRASE="$MERCBOT_FILES_PASSPHRASE"
 META="postgres://$DB_USER@$DB_HOST:$DB_PORT/$DB_NAME?sslmode=${DB_SSLMODE:-disable}&search_path=juicefs"
 CACHE="${MERCBOT_FILES_CACHE:-$ROOT/.tools/juicefs/cache}"
+log="$CACHE/../mount.log"
 mkdir -p "$MERCBOT_FILES_DIR" "$CACHE"
+
+if [ "${1:-}" = --format ]; then
+  # Run by the lock's holder below. First run anywhere: encrypt with a fresh key. The key is kept in
+  # the volume's metadata, sealed with the passphrase, so servers only ever need the passphrase.
+  "$JUICEFS" status "$META" >/dev/null 2>&1 && exit 0
+  key="$(mktemp)"
+  trap 'rm -f "$key"' EXIT
+  openssl genrsa -aes256 -passout env:MERCBOT_FILES_PASSPHRASE -out "$key" 2048 2>/dev/null
+  storage=(--storage "${MERCBOT_FILES_STORAGE:-file}" --bucket "${MERCBOT_FILES_BUCKET:-${MERCBOT_DATA_DIR:-$ROOT/.data}/juicefs-data/}")
+  "$JUICEFS" format "${storage[@]}" --encrypt-rsa-key "$key" --trash-days 1 "$META" mercbot-files >>"$log" 2>&1 ||
+    { echo "Making the files volume failed; see $log" >&2; exit 1; }
+  echo "Files volume created"
+  exit 0
+fi
 
 if mountpoint -q "$MERCBOT_FILES_DIR"; then
   echo "Already mounted at $MERCBOT_FILES_DIR"
 else
   if ! "$JUICEFS" status "$META" >/dev/null 2>&1; then
-    # First run anywhere: encrypt with a fresh key. The key is kept in the volume's metadata,
-    # sealed with the passphrase, so servers only ever need the passphrase.
-    PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -qc "create schema if not exists juicefs"
-    key="$(mktemp)"
-    trap 'rm -f "$key"' EXIT
-    openssl genrsa -aes256 -passout env:MERCBOT_FILES_PASSPHRASE -out "$key" 2048 2>/dev/null
-    storage=(--storage "${MERCBOT_FILES_STORAGE:-file}" --bucket "${MERCBOT_FILES_BUCKET:-${MERCBOT_DATA_DIR:-$ROOT/.data}/juicefs-data/}")
-    "$JUICEFS" format "${storage[@]}" --encrypt-rsa-key "$key" --trash-days 1 "$META" mercbot-files >/dev/null 2>&1
-    echo "Files volume created"
+    # The lock is the session's, so it is held until psql ends, after the format.
+    PGPASSWORD="$DB_PASSWORD" PGOPTIONS="-c client_min_messages=warning" \
+      psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -qX -v ON_ERROR_STOP=1 <<SQL
+select pg_advisory_lock(hashtext('mercbot-files')) \g /dev/null
+create schema if not exists juicefs;
+\! bash '$ROOT/scripts/mount-files.sh' --format
+SQL
+    "$JUICEFS" status "$META" >/dev/null 2>&1 || exit 1
   fi
-  log="$CACHE/../mount.log"
   # --no-agent: no debugging listener. Mercbot may bind only its own port (D-68), so JuiceFS's
   # metrics listener, which it has no switch for, is refused once and logs that; nothing uses it.
   cache_size=()

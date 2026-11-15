@@ -187,7 +187,9 @@ at /files/mine and the person's shared folder at /files/shared. Files a bot save
 file cards under its reply. The viewer shows pictures of the pages, which every browser can
 show, phones included, with a download. The bot moves a file between the two folders to share
 it or make it private. Each server mounts the volume with `scripts/mount-files.sh`, and a
-marker file tells the server the volume is really mounted. *Since D-47 there are three
+marker file tells the server the volume is really mounted. Servers that start together against a
+new database format it once: each checks and formats while holding a PostgreSQL advisory lock
+(2026-11-15). *Since D-47 there are three
 folders, and since D-49 the apps run in gVisor.*
 
 ## D-22 — Installable as a normal npm application (2026-10-25)
