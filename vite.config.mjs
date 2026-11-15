@@ -52,6 +52,10 @@ function ownPageThroughVite(target) {
   };
 }
 
+// A reproducible build (SOURCE_DATE_EPOCH, reproducible-builds.org: Nix sets it) is dated by its sources, so building
+// the same sources again gives the same files; any other build by its own time. About shows it.
+const builtAt = new Date(process.env.SOURCE_DATE_EPOCH ? Number(process.env.SOURCE_DATE_EPOCH) * 1000 : Date.now());
+
 export default defineConfig({
   // The development launcher (bin/develop.js: Preview and the test target) serves the app as a
   // bundle instead of ~700 separate modules (Vite 8.1+), so a page through the Preview proxy loads
@@ -59,7 +63,7 @@ export default defineConfig({
   experimental: { bundledDev: process.env.VITE_BUNDLED_DEV === "1" },
   define: {
     __MERCBOT_VERSION__: JSON.stringify(appVersion),
-    __MERCBOT_BUILT_AT__: JSON.stringify(new Date().toISOString())
+    __MERCBOT_BUILT_AT__: JSON.stringify(builtAt.toISOString())
   },
   resolve: {
     alias: {

@@ -244,7 +244,7 @@ the shell's `notify` and `failure`, and holding the shell's shortcuts while its 
 `holdKeys`, `shellChat.js`), tools beside a help page's Copy for AI and Plain text (`helpPageTools`), help pages
 (`help/extensions.json`, which `helpGroups.js` adds to Mercbot's group of the same name or as a group after
 Mercbot's, refusing a page listed twice) and what About says about updates (`aboutUpdates`, null for `updatesLine`).
-About shows the version and build date from the build, and copies version, build time, channel and system.
+About shows the version and build date from the build (a reproducible build's from `SOURCE_DATE_EPOCH`, so the same sources build the same files), and copies version, build time, channel and system.
 
 Settings is a 900×655 window over the app, with a section
 list on the left (General, Computer, Vault, Spending, About) and grouped
