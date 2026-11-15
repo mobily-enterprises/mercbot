@@ -6,17 +6,23 @@
 // after changing how bots behave and before publishing: a result counts only for the fingerprint it ran on.
 //
 // It needs the two text kinds of AI (D-72): AI_PREMIUM_PROVIDER and AI_PREMIUM_API_KEY, AI_ECONOMY_PROVIDER and
-// AI_ECONOMY_API_KEY (development keys, in .env). Without them, or with a live copy's settings, it refuses and writes
-// nothing. It runs Mercbot in this process on a fresh copy of the test database (TEST_DB_NAME's template, as the test
-// suites do) and a temporary folder for its files, both gone at the end, as a test copy: every send is simulated
-// (D-69), and the check hears each one.
+// AI_ECONOMY_API_KEY (development keys, in .env). Without them, or where APP_ENV is staging or production, it refuses and
+// writes nothing. It runs Mercbot in this process on a fresh copy of the test database (TEST_DB_NAME's template, as the
+// test suites do) and a temporary folder for its files, both gone at the end, as a test copy with APP_ENV=test, as
+// `jskit test` runs tests: every send is logged, not sent (D-69, D-87), and the check hears each one.
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { sideEffectsAreLive } from "@jskit-ai/kernel/shared/support/sideEffects";
+import { isDeployed } from "@jskit-ai/kernel/shared/support/appEnvironment";
 import { loadEnvFile } from "../server/lib/envFile.js";
 
 loadEnvFile();
+// Never on a staging or production server, whose settings are real (APP_ENV, D-87); anywhere else it runs as a test.
+if (String(process.env.APP_ENV ?? "").trim() && isDeployed(process.env)) {
+  console.error(`The template check never runs where APP_ENV is ${process.env.APP_ENV.trim()}: it runs as a test copy. Nothing was checked.`);
+  process.exit(2);
+}
+process.env.APP_ENV = "test";
 const { RESULTS_FILE, behaviourFingerprint } = await import("../packages/bots/src/server/templateResults.js");
 const check = await import("../tests/support/templateCheck.mjs");
 
@@ -26,10 +32,6 @@ if (missing.length) {
     `The template check needs the real AI, and ${missing.join(" and ")} aren't set (D-72). Nothing was checked and no ` +
       "result was written. Put the development keys in .env and run npm run check:templates again."
   );
-  process.exit(2);
-}
-if (process.env.NODE_ENV === "production" || sideEffectsAreLive(process.env)) {
-  console.error("The template check never runs with a live copy's settings (NODE_ENV=production or SIDE_EFFECTS=live). Nothing was checked.");
   process.exit(2);
 }
 if (!String(process.env.TEST_DB_NAME || "").trim()) {

@@ -47,9 +47,9 @@ test("scripts: saving, buttons, data, rules, functions, jobs and the web", async
     beforeSave: (...args) => scripts.beforeSave(...args),
     beforeSaveEach: (...args) => scripts.beforeSaveEach(...args)
   });
-  // The live copy's web calls (SIDE_EFFECTS=live, D-69); a test copy's are checked further down.
+  // The live copy's web calls (APP_ENV=production, D-69, D-87); a test copy's are checked further down.
   const vaultKey = randomBytes(32).toString("base64");
-  const web = createWebAccess({ resources, env: { MERCBOT_VAULT_KEY: vaultKey, SIDE_EFFECTS: "live" }, insecure: true });
+  const web = createWebAccess({ resources, env: { MERCBOT_VAULT_KEY: vaultKey, APP_ENV: "production" }, insecure: true });
   scripts = createScripts({ resources, repository, systemContext, notices: home.notices, registry, gate, apps, env: process.env, web });
   const runtime = createRuntime({ apps, gate, scripts, practices });
   const watches = createWatches({ resources, repository, systemContext, notices: home.notices, registry, gate, apps });
@@ -285,17 +285,28 @@ test("scripts: saving, buttons, data, rules, functions, jobs and the web", async
   })).errors, []);
   const appId = (await apps.find("sales", options)).id;
   assert.deepEqual(await scripts.runNamed("action", appId, "ping", {}, { kind: "button" }, null, options), { notify: "s3cret /hello?x=1 1" });
-  // A test copy (SIDE_EFFECTS not live, D-69) sends nothing but reads: its POST is logged and answered as done,
-  // and the outside service never hears of it, while a GET still reaches it.
-  const testCopy = createWebAccess({ resources, env: { MERCBOT_VAULT_KEY: vaultKey }, insecure: true });
+  // A test copy (APP_ENV development, test or staging, D-69, D-87) sends nothing but reads: its POST is logged with
+  // JSKIT's line and answered as done, and the outside service never hears of it, while a GET still reaches it. A copy
+  // that doesn't say where it runs is refused before anything is sent.
   const logged = context.mock.method(console, "info", () => {});
   served.length = 0;
-  assert.deepEqual(await testCopy.fetch(`${origin}/hello?x=1`, { method: "POST", body: { hi: 1 } }, options), { status: 200, ok: true, headers: { "content-type": "" }, text: "", json: null, simulated: true });
+  const said = {
+    development: `Development: the script's POST to ${origin}/hello was logged, not sent.`,
+    test: `Test: the script's POST to ${origin}/hello was logged, not sent.`,
+    staging: `Staging: the script's POST to ${origin}/hello was logged, not sent: only production acts for real.`
+  };
+  for (const where of Object.keys(said)) {
+    const copy = createWebAccess({ resources, env: { MERCBOT_VAULT_KEY: vaultKey, APP_ENV: where }, insecure: true });
+    assert.deepEqual(await copy.fetch(`${origin}/hello?x=1`, { method: "POST", body: { hi: 1 } }, options), { status: 200, ok: true, headers: { "content-type": "" }, text: "", json: null, simulated: true }, where);
+  }
+  const unsaid = createWebAccess({ resources, env: { MERCBOT_VAULT_KEY: vaultKey }, insecure: true });
+  await assert.rejects(unsaid.fetch(`${origin}/hello?x=1`, { method: "POST", body: { hi: 1 } }, options), /APP_ENV is not set/u);
   assert.deepEqual(served, []);
-  assert.deepEqual(logged.mock.calls.map((call) => call.arguments).filter(([fields]) => fields?.sideEffects), [[
-    { sideEffects: "simulate", kind: "webhook", method: "POST", origin },
-    `Test copy: the script's POST to ${origin}/hello was simulated, not sent (SIDE_EFFECTS is not live).`
-  ]]);
+  assert.deepEqual(logged.mock.calls.map((call) => call.arguments).filter(([fields]) => fields?.appEnv), Object.entries(said).map(([where, line]) => [
+    { appEnv: where, kind: "webhook", method: "POST", origin },
+    line
+  ]));
+  const testCopy = createWebAccess({ resources, env: { MERCBOT_VAULT_KEY: vaultKey, APP_ENV: "test" }, insecure: true });
   assert.equal((await testCopy.fetch(`${origin}/hello`, {}, options)).json.key, "s3cret");
   assert.deepEqual(served, ["GET /hello"]);
   logged.mock.restore();

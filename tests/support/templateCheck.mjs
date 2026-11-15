@@ -16,8 +16,8 @@ import { browser } from "./browser.mjs";
 /** What the person says first, after the bot's greeting: a yes to its setup interview. */
 export const OPENING = "Yes, let's set you up. Ask me your questions.";
 const PICKS = "Reply with the options you pick, exactly as written, one per line.";
-// D-69's line for each send a test copy simulates.
-const SIMULATED = /was simulated, not sent/u;
+// JSKIT's line for each send a test copy logs instead (D-69, D-87): "<Environment>: <what> was logged, not sent".
+const SIMULATED = /(?:Development|Test|Staging): .* was logged, not sent/u;
 // How long one reply may take before the check gives up on it (a real model's longest turns take a few minutes).
 const REPLY_BOUND_MS = 6 * 60 * 1000;
 const PASSWORD = "Template-check-password-2026!";
@@ -26,8 +26,8 @@ const JSON_API = "application/vnd.api+json";
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
- * The settings the checked Mercbot runs on: `database`, a copy of the test database, as a test copy (SIDE_EFFECTS not
- * live, D-69), so connected apps never send. Its files, uploads and computers stay in
+ * The settings the checked Mercbot runs on: `database`, a copy of the test database, as a test copy (APP_ENV=test, D-69,
+ * D-87), so connected apps never send. Its files, uploads and computers stay in
  * `dataDir`, never in this checkout's own .data, whose homes and bots have the same numbers. The files folder is made
  * with the marker a mounted one has.
  * @param {import("@jskit-ai/kernel/server/types").RuntimeEnv} env
@@ -41,7 +41,7 @@ export async function checkCopyEnv(env, { database, dataDir }) {
     ...env,
     DB_NAME: database,
     TEST_DB_NAME: database,
-    SIDE_EFFECTS: "",
+    APP_ENV: "test",
     MERCBOT_HUB_URL: "",
     AUTH_LOCAL_EMAIL_CONFIRMATION: "false",
     MERCBOT_DATA_DIR: dataDir,

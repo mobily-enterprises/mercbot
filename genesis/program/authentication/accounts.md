@@ -14,8 +14,8 @@ an external identity provider.
 Mercbot has no sign-in, registration, password reset or sign-out pages. It signs
 its one person in by the copy's key (D-81,
 `genesis/program/single-user/single-user.md`), and its sign-in, registration,
-sign-out and password routes answer 404. Since nobody registers, its production
-asks for no email confirmation unless `AUTH_LOCAL_EMAIL_CONFIRMATION` is set
+sign-out and password routes answer 404. Since nobody registers, its staging and
+production (`APP_ENV`, D-87) ask for no email confirmation unless `AUTH_LOCAL_EMAIL_CONFIRMATION` is set
 (`resolveRuntimeEnv`), so it starts without the confirmation sender Mercbot
 doesn't have.
 
@@ -26,7 +26,7 @@ local accounts: its routes (`/api/register`, `/api/login`, `/api/logout`,
 email is confirmed unless `AUTH_LOCAL_EMAIL_CONFIRMATION=false`, which the
 database tests that register accounts set (README, Check changes); the copy's
 own confirmation sender sends the links, and without one development logs
-them. In production no confirmation is asked unless `AUTH_LOCAL_EMAIL_CONFIRMATION`
+them. In staging and production no confirmation is asked unless `AUTH_LOCAL_EMAIL_CONFIRMATION`
 is set (`resolveRuntimeEnv`), so such a copy sets it where it sends the links.
 Private surfaces send a visitor who isn't signed in to `/auth/login`, keeping
 the intended return destination. Mercbot doesn't serve that page itself: such a

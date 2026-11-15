@@ -3,6 +3,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { isDeployed } from "@jskit-ai/kernel/shared/support/appEnvironment";
 
 // The bot templates' end-to-end checks (D-43, D-79): what `npm run check:templates` found for each of Mercbot's own
 // templates, kept in one committed file and read when Mercbot starts, so the gallery and the preview before Add bot
@@ -162,13 +163,13 @@ export function readResults(file = RESULTS_FILE) {
 }
 
 /**
- * The file a copy reads its results from: the committed one, or, outside production, a test copy's own
- * (MERCBOT_TEST_TEMPLATE_RESULTS, which the Test Preview sets).
+ * The file a copy reads its results from: the committed one, or, outside staging and production (APP_ENV, D-87), a
+ * test copy's own (MERCBOT_TEST_TEMPLATE_RESULTS, which the Test Preview sets).
  * @param {import("@jskit-ai/kernel/server/types").RuntimeEnv} env
  */
 export function resultsFileFor(env) {
-  const own = env.NODE_ENV !== "production" && String(env.MERCBOT_TEST_TEMPLATE_RESULTS || "").trim();
-  return own || RESULTS_FILE;
+  const own = String(env.MERCBOT_TEST_TEMPLATE_RESULTS || "").trim();
+  return own && !isDeployed(env) ? own : RESULTS_FILE;
 }
 
 /**

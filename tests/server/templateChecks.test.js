@@ -281,13 +281,21 @@ test("the real check refuses without the AI keys, and writes nothing", () => {
   assert.equal(readFileSync(RESULTS_FILE, "utf8"), before);
 });
 
-test("the real check refuses a live copy's settings before it asks the AI anything, and writes nothing", () => {
+test("the real check refuses staging and production before it asks the AI anything, and writes nothing", () => {
   const before = readFileSync(RESULTS_FILE, "utf8");
   const keys = { AI_PREMIUM_PROVIDER: "together", AI_PREMIUM_API_KEY: "unused", AI_ECONOMY_PROVIDER: "deepinfra", AI_ECONOMY_API_KEY: "unused" };
-  for (const live of [{ NODE_ENV: "production" }, { SIDE_EFFECTS: "live" }]) {
-    const ran = spawnSync(process.execPath, ["scripts/check-templates.mjs"], { env: { ...process.env, NODE_ENV: "test", SIDE_EFFECTS: "", ...keys, ...live }, encoding: "utf8" });
+  // NODE_ENV only picks optimised builds; APP_ENV says where the check would run (D-87).
+  const check = (APP_ENV) => spawnSync(process.execPath, ["scripts/check-templates.mjs"], { env: { ...process.env, ...keys, MERCBOT_TEST_AI_URL: "", NODE_ENV: "production", TEST_DB_NAME: "", APP_ENV }, encoding: "utf8" });
+  for (const where of ["staging", "production"]) {
+    const ran = check(where);
     assert.equal(ran.status, 2, ran.stderr);
-    assert.match(ran.stderr, /never runs with a live copy's settings .* Nothing was checked\./u, JSON.stringify(live));
+    assert.match(ran.stderr, new RegExp(`never runs where APP_ENV is ${where}: it runs as a test copy\\. Nothing was checked\\.`, "u"), where);
+  }
+  // Anywhere else it runs as a test copy, whatever the shell says: here it goes on to want the test database.
+  for (const where of ["", "development", "test"]) {
+    const ran = check(where);
+    assert.equal(ran.status, 2, ran.stderr);
+    assert.match(ran.stderr, /runs on a copy of the test database: set TEST_DB_NAME\. Nothing was checked\./u, where || "unset");
   }
   assert.equal(readFileSync(RESULTS_FILE, "utf8"), before);
 });

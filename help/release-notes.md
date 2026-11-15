@@ -2,6 +2,10 @@
 
 What's new in Mercbot, newest first. To see which version you're using, open the account menu, choose **Help and support**, then **About Mercbot**. You can also ask any bot "What's new in Mercbot?"
 
+## 15 November 2026
+
+- **Where a copy runs:** the small tab at the top of a copy that isn't live now names where it runs, **Development**, **Test** or **Staging**, instead of **Test copy**. As before, such a copy only records what bots would send or share from your connected accounts and what Apps scripts would send to outside web services. Only a copy set up for real use (`APP_ENV=production`) sends them, and a copy that doesn't say where it runs doesn't start, saying what to set.
+
 ## 12 November 2026
 
 - **Coding jobs fenced in:** Claude Code and Codex now work in a space of their own on the bot's computer, with only the project's folder and their sign-in. They can't see the bot's other files, its browser or the sites you're signed in to there, and they reach the internet but not the bot's computer. Your sign-in stays as it was.

@@ -120,7 +120,7 @@ Each connected app has a list of actions you can turn on and off. If a bot says 
 
 ### A sent email or invitation never arrived
 
-On a test copy of Mercbot, such as one being tried out before it goes live, nothing is really sent. Emails, calendar invitations and answers, Drive sharing and comments, and GitHub comments, reviews, issues, pull requests, merges, releases and reruns of automation runs from connected accounts, and Mercbot's own sign-in emails, are written to its log instead, while the chat says they were done. A test copy shows a small "Test copy" tab at the top of every page, and whoever runs your Mercbot can tell you too. On the copy real people use, they arrive as usual.
+On a test copy of Mercbot, such as one being tried out before it goes live, nothing is really sent. Emails, calendar invitations and answers, Drive sharing and comments, and GitHub comments, reviews, issues, pull requests, merges, releases and reruns of automation runs from connected accounts, and Mercbot's own sign-in emails, are written to its log instead, while the chat says they were done. A test copy shows a small tab at the top of every page naming where it runs, such as **Development**, **Test** or **Staging**, and whoever runs your Mercbot can tell you too. On the copy real people use, they arrive as usual.
 
 ## Approvals
 

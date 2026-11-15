@@ -1,17 +1,18 @@
 // The person's connected accounts as bot tools use them (D-31): which accounts a
 // request means, how they're named, a key for each, and what a test copy sends instead (D-69).
 // Shared by Google, Microsoft and GitHub.
-import { logSimulatedSideEffect } from "@jskit-ai/kernel/server/runtime/sideEffects";
-import { sideEffectsAreLive } from "@jskit-ai/kernel/shared/support/sideEffects";
+import { logSideEffect } from "@jskit-ai/kernel/server/runtime/appEnvironment";
+import { appEnvironment } from "@jskit-ai/kernel/shared/support/appEnvironment";
 
 export class ConnectedAppError extends Error {}
 
 /**
  * Something a connected account sends to other people (an email, a calendar invitation, update,
- * cancellation or answer, a comment or review): `act` sends it when this copy's SIDE_EFFECTS is
- * `live`. A test copy logs `effect` instead and answers as if it went out: `simulated()`, marked
- * `simulated: true` (D-69). A change with no `effect` reaches nobody, such as an event without
- * guests, so it always runs.
+ * cancellation or answer, a comment or review): `act` sends it when this copy's APP_ENV is
+ * `production`. A test copy (development, test or staging, D-87) logs `effect` instead, as JSKIT logs a
+ * connector write, and answers as if it went out: `simulated()`, marked `simulated: true` (D-69). A change
+ * with no `effect` reaches nobody, such as an event without guests, so it always runs. A missing or unknown
+ * APP_ENV throws, naming the fix.
  * @template T
  * @param {{ env: import("@jskit-ai/kernel/server/types").RuntimeEnv }} context the action's
  * @param {{ kind: string, summary: string, details?: Record<string, unknown> } | null} effect
@@ -20,8 +21,10 @@ export class ConnectedAppError extends Error {}
  * @returns {Promise<T | object>}
  */
 export async function sendOrSimulate({ env }, effect, act, simulated = () => ({})) {
-  if (!effect || sideEffectsAreLive(env)) return act();
-  logSimulatedSideEffect(console, effect);
+  if (!effect) return act();
+  const environment = appEnvironment(env);
+  if (environment === "production") return act();
+  logSideEffect(console, environment, effect);
   return { ...(await simulated()), simulated: true };
 }
 

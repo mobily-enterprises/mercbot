@@ -52,7 +52,7 @@ async function setup(context) {
     "mercbot.account": ACCOUNT_OWNS,
     "mercbot.files": FILES_OWNS
   });
-  const env = { APP_PUBLIC_URL: "http://localhost:4000", MERCBOT_VAULT_KEY: VAULT, GOOGLE_CLIENT_ID: "client", GOOGLE_CLIENT_SECRET: "secret", MERCBOT_TEST_GOOGLE_DRIVE_URL: drive.url };
+  const env = { APP_ENV: "test", APP_PUBLIC_URL: "http://localhost:4000", MERCBOT_VAULT_KEY: VAULT, GOOGLE_CLIENT_ID: "client", GOOGLE_CLIENT_SECRET: "secret", MERCBOT_TEST_GOOGLE_DRIVE_URL: drive.url };
   const providers = { ...PROVIDERS, google: { ...PROVIDERS.google, server: { issuer: drive.url, authorization_endpoint: `${drive.url}/authorize`, token_endpoint: `${drive.url}/token` } } };
   const accountService = createAccountService({ ...features["mercbot.account"], directory: { botOwner: async () => null }, profiles, env, copyRunners: null });
   const integrationsFeature = features["mercbot.integrations"];

@@ -1,3 +1,4 @@
+import { isDeployed } from "@jskit-ai/kernel/shared/support/appEnvironment";
 import { FilesError } from "./fileStore.js";
 
 // A home's files kept in a person's own Google Drive (D-26, D-80), through a Google Drive account connected in Connect
@@ -13,14 +14,14 @@ const DRIVE = "https://www.googleapis.com";
 const REACH = Object.freeze({ personal: true });
 
 /**
- * Outside production only: a stand-in for Google Drive (tests/support/fakeDrive.mjs), which Mercbot calls at
- * MERCBOT_TEST_GOOGLE_DRIVE_URL and rclone reaches through the proxy MERCBOT_TEST_GOOGLE_DRIVE_PROXY, trusting the
- * test authority MERCBOT_TEST_GOOGLE_DRIVE_CA. Null in production, or when unset.
+ * Outside staging and production only (APP_ENV, D-87): a stand-in for Google Drive (tests/support/fakeDrive.mjs), which
+ * Mercbot calls at MERCBOT_TEST_GOOGLE_DRIVE_URL and rclone reaches through the proxy MERCBOT_TEST_GOOGLE_DRIVE_PROXY,
+ * trusting the test authority MERCBOT_TEST_GOOGLE_DRIVE_CA. Null in staging and production, or when unset.
  * @param {import("@jskit-ai/kernel/server/types").RuntimeEnv} env
  */
 export function driveStandIn(env) {
   const url = String(env.MERCBOT_TEST_GOOGLE_DRIVE_URL || "").trim();
-  if (env.NODE_ENV === "production" || !url) return null;
+  if (!url || isDeployed(env)) return null;
   return { url, proxy: String(env.MERCBOT_TEST_GOOGLE_DRIVE_PROXY || "").trim(), ca: String(env.MERCBOT_TEST_GOOGLE_DRIVE_CA || "").trim() };
 }
 

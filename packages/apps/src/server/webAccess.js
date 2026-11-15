@@ -1,8 +1,8 @@
 import http from "node:http";
 import https from "node:https";
 import { isIP } from "node:net";
-import { logSimulatedSideEffect } from "@jskit-ai/kernel/server/runtime/sideEffects";
-import { sideEffectsAreLive } from "@jskit-ai/kernel/shared/support/sideEffects";
+import { logSideEffect } from "@jskit-ai/kernel/server/runtime/appEnvironment";
+import { appEnvironment } from "@jskit-ai/kernel/shared/support/appEnvironment";
 import { passedOn } from "@jskit-ai/resource-core/shared/callOptions";
 import { isPrivateAddress, publicLookup } from "@local/account/public-address";
 import { seal, unseal, vaultKey } from "@local/account/vault-crypto";
@@ -13,8 +13,8 @@ import { GateError } from "./validate.js";
 // so DNS can't be switched after the check), no redirects, 10 s and 1 MB per call. Secret headers
 // (API keys) are sealed with the vault key and added here; scripts never see them. The list is AppsFeature's
 // app_web_access, in the home of each call's options. A call that can change something there (any method but
-// GET) is an outbound webhook: a test copy checks it like a real one, logs it and answers as if it went (D-69), and so
-// does a run in a draft's preview (`simulate`, D-71), which works on practice data.
+// GET) is an outbound webhook: outside production (APP_ENV, D-87) a test copy checks it like a real one, logs it and
+// answers as if it went (D-69), and so does a run in a draft's preview (`simulate`, D-71), which works on practice data.
 const TIMEOUT_MS = 10000;
 const MAX_BYTES = 1024 * 1024;
 const MAX_ORIGINS = 50;
@@ -122,9 +122,11 @@ export function createWebAccess({ resources, env, insecure = false }) {
     );
     if (payload !== null && typeof body !== "string" && !sent["content-type"]) sent["content-type"] = "application/json";
     for (const [name, value] of Object.entries(row.headers ? unseal(row.headers, key()) : {})) sent[name.toLowerCase()] = value;
-    if (verb !== "GET" && (simulate || !sideEffectsAreLive(env))) {
+    // Only a call that could change something, outside a draft's practice run, asks where this copy runs.
+    const environment = verb === "GET" || simulate ? "" : appEnvironment(env);
+    if (verb !== "GET" && environment !== "production") {
       // A draft's practice run reports it to whoever pressed the button instead (D-71).
-      if (!simulate) logSimulatedSideEffect(console, { kind: "webhook", summary: `the script's ${verb} to ${origin}${url.pathname}`, details: { method: verb, origin } });
+      if (!simulate) logSideEffect(console, environment, { kind: "webhook", summary: `the script's ${verb} to ${origin}${url.pathname}`, details: { method: verb, origin } });
       return { status: 200, ok: true, headers: { "content-type": "" }, text: "", json: null, simulated: true };
     }
     const client = url.protocol === "https:" ? https : http;

@@ -953,7 +953,8 @@ Development, tests and Preview may still run without it; their links then point 
 server listens at `HOST` `127.0.0.1` or `::1`: a person's own computer. Since 2026-11-12 (D-72: a missing key never
 stops a start), production without `APP_PUBLIC_URL` starts too: its links point at `http://localhost`, and startup
 logs a line saying so (`packages/account/src/server/keys.js`). A value that isn't `https://` (or the local addresses
-above) still refuses, and links still never come from a Host header.
+above) still refuses, and links still never come from a Host header. Since 2026-11-15 (D-87), staging and production
+(`APP_ENV`) refuse, not `NODE_ENV=production`.
 
 ## D-66 — Nothing is private inside a home; public apps are the only boundary (2026-11-07)
 
@@ -1058,6 +1059,9 @@ app or switch bots' computers off, a project may ask for exactly these, with the
   own computer's (D-81), and `npm start` and the Procfile go through `scripts/serve.sh`, so no start skips the checks.
 
 ## D-69 — A test copy sends nothing to the outside world (2026-11-11)
+
+*Since 2026-11-15 (D-87), `APP_ENV` decides in place of `SIDE_EFFECTS`: production is the live copy; development,
+test and staging are test copies, and JSKIT's line and tab name the environment.*
 
 Mercbot follows JSKIT's `SIDE_EFFECTS` rule for what its own code sends. Only a copy whose `SIDE_EFFECTS` is exactly
 `live` acts for real; any other copy, including one where it is unset (development, previews, tests and a published
@@ -1522,7 +1526,7 @@ How D-43's "tested once end to end, with an honest badge, re-tested when the app
   `npm test`: "Ask before anything leaves this chat" or "Nothing leaves this chat without the
   person's yes". 21 didn't and now do; the rest now use one of those two sentences.
 - **The check never reaches anything real:** it refuses `NODE_ENV=production` or
-  `SIDE_EFFECTS=live`, and runs on its own copy of the test database with its own folder for files,
+  `SIDE_EFFECTS=live` (*since D-87, `APP_ENV` staging or production, and runs its copy as `test`*), and runs on its own copy of the test database with its own folder for files,
   both removed at the end. A bot's own computer isn't gated in a test copy (D-69), so a send from
   its browser isn't heard; the setup interviews don't use it.
 
@@ -1734,9 +1738,10 @@ product may silently depend on a real call failing. Until then the Test Preview 
 key no provider accepts, so a new bot's welcome (its greeting and first question), every bot reply and a picture went
 to the real providers, were refused (401) and fell back or said so, and the browser suites expected those refusals.
 - **The stand-in for every kind:** `MERCBOT_TEST_AI_URL` names a stand-in model's address. Outside production and the
-  live copy (D-69) every kind of AI sends there, under `/<kind>`, with its provider's model, list prices and needs but no
-  key, no balance and no billing page; `aiFetch` refuses any other address before a request goes out, so nothing can
-  reach a provider. Startup needs no key then. Production and the live copy ignore the setting and behave as before.
+  live copy (D-69; *since D-87, outside staging and production*) every kind of AI sends there, under `/<kind>`, with
+  its provider's model, list prices and needs but no key, no balance and no billing page; `aiFetch` refuses any other
+  address before a request goes out, so nothing can reach a provider. Startup needs no key then. Production and the
+  live copy ignore the setting and behave as before.
 - **Every Test Preview runs on it** (`tools/previewAi.mjs`, from `start-test-app.mjs`): Mercbot's stand-in
   model (`tools/standInModel.mjs`) is served on a local port, as the stand-in for Google Drive is. It
   answers Mercbot's own writing in the shape asked for (a new bot's greeting and question card, a status line, which
@@ -1863,3 +1868,33 @@ it, and is unchanged without it.
   computer needs.
 - **Launchers stay as they are:** the computers' browser and dock launchers are still scripts written while Mercbot
   runs, so such a host must give Mercbot a temporary folder and a data folder where programs may run.
+
+## D-87 — APP_ENV says where a copy runs; only production sends (2026-11-15)
+
+JSKIT 0.2.84 replaced `SIDE_EFFECTS` with `APP_ENV` (`development`, `test`, `staging` or `production`), which takes
+over every decision `NODE_ENV` made; `NODE_ENV` now only picks optimised builds. Mercbot follows it, on JSKIT catalog
+0.2.86. This replaces D-69's `SIDE_EFFECTS` rule: a copy whose `APP_ENV` is `production` is the live copy; in
+`development`, `test` and `staging` it is a test copy, as D-69 describes one. A host that publishes copies to check
+them gives them `staging`, so they send nothing for real; a copy for real use sets `APP_ENV=production` with
+`NODE_ENV=production` and no `SIDE_EFFECTS`.
+- **A copy says where it runs, or doesn't start:** `resolveRuntimeEnv` asks JSKIT (`assertAppEnvironment`) before
+  anything else, so a start without `APP_ENV`, with an unknown one, with `SIDE_EFFECTS` set at all, or in staging or
+  production without `NODE_ENV=production` stops with JSKIT's words, naming the fix. Code that asks where it runs
+  with an environment that names none (`appEnvironment`, `isDeployed`) throws, never guesses.
+- **Only production sends (D-69's list, unchanged):** what bots send from connected accounts (`sendOrSimulate`) and
+  scripts' web calls other than GET (`webAccess.js`) act only in production. Development, test and staging log each
+  one with JSKIT's line (`logSideEffect`: "Test: … was logged, not sent.", "Staging: … was logged, not sent: only
+  production acts for real.") and answer as if it went out. Staging logs a connected mailbox's email too, as JSKIT
+  logs every connector write there, rather than sending it to `STAGING_EMAIL_TO`: it would go out from the person's
+  own account. Mercbot sends no email of its own, so it needs no `STAGING_EMAIL_TO` or `STAGING_SMS_TO`.
+- **Development shortcuts stop at staging:** what `NODE_ENV=production` turned off now follows `isDeployed` (staging
+  and production): the stand-in model (`MERCBOT_TEST_AI_URL`, D-83), the stand-in Google Drive
+  (`MERCBOT_TEST_GOOGLE_DRIVE_URL`, D-80) and a test copy's own template results (`MERCBOT_TEST_TEMPLATE_RESULTS`) are
+  ignored there, as before. The https rule for `APP_PUBLIC_URL` (D-65) and `AUTH_LOCAL_EMAIL_CONFIRMATION=false` by
+  default hold in staging and production. Staging always had `NODE_ENV=production`, so it behaves as before.
+- **Where each run says it runs:** `npm run develop` sets `development` whatever `.env` says, as JSKIT's development
+  launcher does, and the `dev` scripts run `APP_ENV=development vite`; `jskit test` sets `test`, and so does every
+  Test Preview (`start-test-app.mjs`), as JSKIT's browser test servers do. `npm run check:templates` refuses where
+  `APP_ENV` is staging or production and otherwise runs its copy as `test` (D-79). `.env.example` sets `development`.
+- **What people see:** JSKIT's tab at the top of every page now names the environment ("Development", "Test" or
+  "Staging"; none in production) where it said "Test copy".

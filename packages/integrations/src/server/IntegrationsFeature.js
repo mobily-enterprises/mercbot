@@ -1,4 +1,5 @@
 import { defineFeature } from "@jskit-ai/kernel/server/features";
+import { isDeployed } from "@jskit-ai/kernel/shared/support/appEnvironment";
 import { passedOn } from "@jskit-ai/resource-runtime/server";
 import { ACCOUNT_FILTERS, createAccounts } from "./accounts.js";
 import { loadCatalogue } from "./catalogue.js";
@@ -10,14 +11,14 @@ import { reachableAccounts } from "./rowPolicies.js";
 import { TABLE_RESOURCES, oauthStateResource, pluginAccountResource, pluginActionsOffResource } from "./tableResources.js";
 
 /**
- * Outside production only: the Test Preview's stand-in Google Drive (tests/support/fakeDrive.mjs, D-80) at
- * MERCBOT_TEST_GOOGLE_DRIVE_URL is Google's sign-in for connected accounts too, so an account there is renewed and
- * signed in to again without Google. Otherwise nothing changes.
+ * Outside staging and production only (APP_ENV, D-87): the Test Preview's stand-in Google Drive
+ * (tests/support/fakeDrive.mjs, D-80) at MERCBOT_TEST_GOOGLE_DRIVE_URL is Google's sign-in for connected accounts too,
+ * so an account there is renewed and signed in to again without Google. Otherwise nothing changes.
  * @param {import("@jskit-ai/kernel/server/types").RuntimeEnv} env
  */
 function standInGoogle(env) {
-  const url = env.NODE_ENV !== "production" && String(env.MERCBOT_TEST_GOOGLE_DRIVE_URL || "").trim();
-  if (!url) return {};
+  const url = String(env.MERCBOT_TEST_GOOGLE_DRIVE_URL || "").trim();
+  if (!url || isDeployed(env)) return {};
   // The stand-in's own client, whichever pair this copy would pick (credentials in oauth.js).
   const standInEnv = { ...env, GOOGLE_CLIENT_ID: "stand-in", GOOGLE_CLIENT_SECRET: "stand-in", GOOGLE_TEST_CLIENT_ID: "stand-in", GOOGLE_TEST_CLIENT_SECRET: "stand-in" };
   const google = {

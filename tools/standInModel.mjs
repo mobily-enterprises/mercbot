@@ -17,9 +17,11 @@
 // and Mercbot's own checks too; any other bot says the copy runs on a stand-in model. `misbehave` makes a template's bot
 // break a rule on purpose, to prove the check catches it: "skip-question" leaves out its second question,
 // "routine-running" creates its routines running, and "send" has something sent as the setup ends (the test copy's line
-// for it, D-69, written by the stand-in itself, since the check's home has no app to send through).
+// for it, D-69, written by the stand-in itself as JSKIT writes it for this process's APP_ENV, since the check's home has
+// no app to send through).
 import { createServer } from "node:http";
-import { logSimulatedSideEffect } from "@jskit-ai/kernel/server/runtime/sideEffects";
+import { logSideEffect } from "@jskit-ai/kernel/server/runtime/appEnvironment";
+import { appEnvironment } from "@jskit-ai/kernel/shared/support/appEnvironment";
 import { GALLERY, setupSkillOf } from "@local/bots/server/templates";
 
 /** What the template check's person player answers once the setup is over (tests/support/templateCheck.mjs). */
@@ -226,7 +228,7 @@ function answerRequest({ method, path, kind, body }, requests, misbehave) {
     const request = JSON.parse(body);
     requests.push({ kind, ...request });
     const step = answerFor(request, misbehave);
-    if (step.sends) logSimulatedSideEffect(console, { kind: "email", summary: "the stand-in bot's email to someone@example.com" });
+    if (step.sends) logSideEffect(console, appEnvironment(process.env), { kind: "email", summary: "the stand-in bot's email to someone@example.com" });
     return respond(request, step);
   }
   if (method === "POST" && path.endsWith(":generateContent")) {

@@ -24,9 +24,9 @@
   },
   "description": "The account menu's services: what AI, computers and computation use and cost at their providers, each home's spending (D-73), and the Vault.",
   "dependencies": {
-    "@jskit-ai/kernel": "0.2.26",
-    "@jskit-ai/resource-core": "0.1.217",
-    "@jskit-ai/resource-runtime": "0.2.34"
+    "@jskit-ai/kernel": "0.2.27",
+    "@jskit-ai/resource-core": "0.1.218",
+    "@jskit-ai/resource-runtime": "0.2.38"
   },
   "jskit": {
     "kind": "runtime",

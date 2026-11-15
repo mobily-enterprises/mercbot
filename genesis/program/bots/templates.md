@@ -58,10 +58,10 @@ templates a link opens, when a copy built on Mercbot keeps them (D-43).
   judge (which gives a reason for each question; a question not asked fails with it), and records
   `{date, commit, behaviour, template, models, passed, reasons, turns, asked}` per slug in
   `bot-templates/checks/results.json` (committed). It needs both text kinds of AI (D-72)
-  and refuses with exit 2 and writes nothing without them, or with `NODE_ENV=production` or
-  `SIDE_EFFECTS=live`; it runs on its own copy of the test database and a temporary folder for
-  files, uploads and computers (`checkCopyEnv`), as a test copy, so sends are simulated (D-69) and
-  any send line fails the template. Templates
+  and refuses with exit 2 and writes nothing without them, or where `APP_ENV` is staging or
+  production (D-87); it runs on its own copy of the test database and a temporary folder for
+  files, uploads and computers (`checkCopyEnv`), as a test copy with `APP_ENV=test`, so sends are
+  logged, not sent (D-69), and any send line fails the template. Templates
   whose setup needs GitHub connected (`setupNeeds`) are skipped. The results are read once at start
   (`templateResults.js`): a template is tested only while its newest result passed, for its
   current `templateFingerprint` (sha256 of the key-sorted file) and the current

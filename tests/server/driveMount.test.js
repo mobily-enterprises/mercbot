@@ -135,10 +135,10 @@ test("the token route answers each key request once, with the app's later-finish
   assert.deepEqual(logged, []);
 });
 
-test("the stand-in Drive, its proxy and its test authority are never used in production", () => {
-  const standIn = { MERCBOT_TEST_GOOGLE_DRIVE_URL: "http://127.0.0.1:9", MERCBOT_TEST_GOOGLE_DRIVE_PROXY: "http://127.0.0.1:8", MERCBOT_TEST_GOOGLE_DRIVE_CA: "/tmp/ca.pem" };
+test("the stand-in Drive, its proxy and its test authority are never used in staging or production", () => {
+  const standIn = { MERCBOT_TEST_GOOGLE_DRIVE_URL: "http://127.0.0.1:9", MERCBOT_TEST_GOOGLE_DRIVE_PROXY: "http://127.0.0.1:8", MERCBOT_TEST_GOOGLE_DRIVE_CA: "/tmp/ca.pem", APP_ENV: "test" };
   assert.deepEqual(driveStandIn(standIn), { url: "http://127.0.0.1:9", proxy: "http://127.0.0.1:8", ca: "/tmp/ca.pem" });
-  assert.equal(driveStandIn({ ...standIn, NODE_ENV: "production" }), null);
+  for (const where of ["staging", "production"]) assert.equal(driveStandIn({ ...standIn, APP_ENV: where }), null, where);
   assert.equal(driveStandIn({}), null);
 });
 

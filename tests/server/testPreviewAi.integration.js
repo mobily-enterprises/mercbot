@@ -39,7 +39,7 @@ before(async () => {
   };
   dataDir = await mkdtemp(path.join(os.tmpdir(), "mercbot-preview-ai-"));
   ai = await startPreviewAi();
-  const env = { ...process.env, ...ai.env, AUTH_LOCAL_SESSION_SECRET: "test-preview-ai-test-only-session-secret", NODE_ENV: "test", HOST: "127.0.0.1", PORT: "3001" };
+  const env = { ...process.env, ...ai.env, AUTH_LOCAL_SESSION_SECRET: "test-preview-ai-test-only-session-secret", NODE_ENV: "test", APP_ENV: "test", HOST: "127.0.0.1", PORT: "3001" };
   app = await createServer({ runtimeEnv: await checkCopyEnv(env, { database: process.env.DB_NAME, dataDir }) });
   person = await signUpPerson(app);
 });

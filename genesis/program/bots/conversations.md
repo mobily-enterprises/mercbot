@@ -541,8 +541,9 @@ tool made is sent back once; mail, GitHub and apps share words such as "labels",
 one answers for them in the others. A pass sent back by any check is told what the first pass
 already did, so it neither redoes nor denies it.
 
-Test copies (D-69): what a bot sends to other people from a connected account goes out only when
-this copy's `SIDE_EFFECTS` is `live`. `sendOrSimulate` (`connectedApps.js`) wraps each send at the
+Test copies (D-69, D-87): what a bot sends to other people from a connected account goes out only
+when this copy's `APP_ENV` is `production`; development, test and staging log it with JSKIT's line
+(`logSideEffect`), and a copy without `APP_ENV` is refused. `sendOrSimulate` (`connectedApps.js`) wraps each send at the
 point it would go out: a connected mailbox's draft Send, `mail_drafts.send`, `forward_email`;
 `add_calendar_event` with guests, `change_calendar_event` on an event with guests or inviting
 someone, `delete_calendar_event` with guests, `answer_invitation`; `drive_change.share` (Google

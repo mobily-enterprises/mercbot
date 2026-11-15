@@ -19,6 +19,7 @@ const runtimeEnv = {
   DB_CLIENT: "pg",
   HOST: "127.0.0.1",
   NODE_ENV: "test",
+  APP_ENV: "test",
   PORT: "3001",
   SERVER_SURFACE: "all",
   MERCBOT_VAULT_KEY: randomBytes(32).toString("base64"),

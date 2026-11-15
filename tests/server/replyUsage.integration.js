@@ -25,6 +25,7 @@ const settings = Object.freeze({
   AI_IMAGES_PROVIDER: "",
   AI_IMAGES_API_KEY: "",
   NODE_ENV: "test",
+  APP_ENV: "test",
   HOST: "127.0.0.1",
   PORT: "3001"
 });

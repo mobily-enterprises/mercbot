@@ -52,8 +52,8 @@ everything they read or write goes through the data gate, audited as the script.
   owners and admins: `GET /api/w/:slug/apps-scripts`, `PUT /api/w/:slug/apps-web-access`), never
   private addresses (checked on the connected address), no redirects, 10 s and 1 MB per call;
   secret headers are sealed with `MERCBOT_VAULT_KEY`, added by the server and never shown again.
-  In a test copy (`SIDE_EFFECTS` not `live`, D-69) any method but GET is logged, not sent, and
-  answers status 200 with no body.
+  In a test copy (`APP_ENV` development, test or staging, D-69, D-87) any method but GET is logged,
+  not sent, and answers status 200 with no body; a copy without `APP_ENV` is refused.
 - Owners and admins switch a script off and on (`PUT /api/w/:slug/apps/:app/scripts/:key/enabled`,
   the Logic tab's Turn off): a switched-off rule stops checking saves, a switched-off button or
   data script says so in place, and a job stops running. The Builder removes one with

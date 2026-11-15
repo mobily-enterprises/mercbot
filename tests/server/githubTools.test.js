@@ -68,8 +68,8 @@ test("changes go through approvals, ask unless the person asked, and say what ch
   assert.deepEqual(asked, [["github_change.pr_merge", true]]);
   assert.equal(GITHUB_ACTIONS["github_change.pr_merge"].reversible({ personAsked: false }), false, "a change the bot thought of asks first");
 
-  // The live copy's changes (a test copy's merge is only logged, D-69: testCopySends.test.js).
-  const context2 = { integrations, reach: { userId: 7 }, env: { SIDE_EFFECTS: "live" } };
+  // The live copy's changes (a test copy's merge is only logged, D-69, D-87: testCopySends.test.js).
+  const context2 = { integrations, reach: { userId: 7 }, env: { APP_ENV: "production" } };
   const branch = await GITHUB_ACTIONS["github_change.branch_create"].run(context2, { repo: "pat/app", name: "fix" });
   assert.equal(branch.body.text, "Made the branch fix in pat/app from main");
   assert.deepEqual(calls.find((call) => call.method === "POST").body, { ref: "refs/heads/fix", sha: "abc123" });

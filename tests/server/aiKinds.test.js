@@ -66,7 +66,7 @@ test("bots are off, saying which settings to add, until the premium and economy 
   assert.match(botsAiOff({ ...ALL, AI_ECONOMY_API_KEY: "" }), /Whoever runs it sets AI_ECONOMY_API_KEY, then starts it again\.$/u);
   const { AI_IMAGES_PROVIDER: _type, AI_IMAGES_API_KEY: _key, ...twoKinds } = ALL;
   assert.equal(botsAiOff(twoKinds), "", "images isn't needed for bots to work");
-  assert.equal(botsAiOff({ AI_PREMIUM_PROVIDER: "together", AI_ECONOMY_PROVIDER: "deepinfra", MERCBOT_TEST_AI_URL: "http://127.0.0.1:4999" }), "", "the stand-in needs no key");
+  assert.equal(botsAiOff({ AI_PREMIUM_PROVIDER: "together", AI_ECONOMY_PROVIDER: "deepinfra", MERCBOT_TEST_AI_URL: "http://127.0.0.1:4999", APP_ENV: "test" }), "", "the stand-in needs no key");
 
   // The meter bots run on pauses every home with that notice, and is the account's own once the AI is set up.
   const meter = Object.freeze({ track: async (_who, run) => run(), pausedMessage: async () => null });
@@ -211,10 +211,10 @@ test("pictures are drawn by the images kind's layer, and a refusal says why in t
   assert.match(await makePicture(withoutImages, "A cake").then(() => "made", (error) => error.message), /^Pictures aren't set up on this copy/u);
 });
 
-test("a test copy with a stand-in model sends every kind there, needs no key, and never reaches a provider; production and the live copy ignore it", async () => {
+test("a test copy with a stand-in model sends every kind there, needs no key, and never reaches a provider; staging and production ignore it", async () => {
   const standIn = "http://127.0.0.1:4999";
   const types = { AI_PREMIUM_PROVIDER: "together", AI_ECONOMY_PROVIDER: "deepinfra", AI_IMAGES_PROVIDER: "gemini" };
-  const env = { ...types, MERCBOT_TEST_AI_URL: `${standIn}/` };
+  const env = { ...types, MERCBOT_TEST_AI_URL: `${standIn}/`, APP_ENV: "test" };
   assert.deepEqual(aiSettingsNeeded(env, "premium"), [], "no key is needed");
   for (const kind of ["premium", "economy", "images"]) {
     const ai = aiKind(env, kind);
@@ -234,8 +234,11 @@ test("a test copy with a stand-in model sends every kind there, needs no key, an
   await assert.rejects(aiFetch(env, "chat")("https://api.together.xyz/v1/chat/completions", { body: "{}" }), /stand-in model at http:\/\/127\.0\.0\.1:4999\/premium, so a request for https:\/\/api\.together\.xyz wasn't sent/u);
   assert.equal(sent.length, 1, "nothing else went out");
 
-  // The live copy and production never use it: there each kind is its provider's, with its key, as before.
-  for (const live of [{ SIDE_EFFECTS: "live" }, { NODE_ENV: "production" }]) {
+  // A development copy uses it too; staging and production, which refuse development shortcuts (APP_ENV, D-87), never
+  // do: there each kind is its provider's, with its key, as before. A copy that doesn't say where it runs is refused.
+  assert.equal(aiKind({ ...env, APP_ENV: "development" }, "premium").standIn, true);
+  assert.throws(() => aiKind({ ...types, MERCBOT_TEST_AI_URL: standIn }, "premium"), /APP_ENV is not set/u);
+  for (const live of [{ APP_ENV: "staging" }, { APP_ENV: "production" }]) {
     const copy = { ...ALL, ...live, MERCBOT_TEST_AI_URL: standIn };
     const ai = aiKind(copy, "premium");
     assert.deepEqual([ai.standIn, ai.layer, ai.apiKey], [false, together, "premium-secret"], JSON.stringify(live));

@@ -145,8 +145,7 @@ These are ordinary settings. The code gains no "standalone mode".
 
 | Setting | Value | Why |
 |---|---|---|
-| `NODE_ENV`, `APP_PUBLIC_URL`, `HOST` | `production`, `http://localhost:3001`, `127.0.0.1` | Production's protections, on this computer only (question 4); Mercbot, opened with its key, refuses any `HOST` but loopback (D-81) |
-| `SIDE_EFFECTS` | `live` | A person's own copy acts for real (D-69) |
+| `APP_ENV`, `NODE_ENV`, `APP_PUBLIC_URL`, `HOST` | `production`, `production`, `http://localhost:3001`, `127.0.0.1` | Production's protections, on this computer only (question 4), and a person's own copy acts for real (D-69, D-87); Mercbot, opened with its key, refuses any `HOST` but loopback (D-81) |
 | `AUTH_LOCAL_SESSION_SECRET`, `MERCBOT_VAULT_KEY` | generated | As Vibe64's Deploy does |
 | `AUTH_LOCAL_EMAIL_CONFIRMATION` | `false` | JSKIT's production start needs it without a confirmation sender; nobody registers (D-81) |
 | `MERCBOT_DATA_DIR`, `JSKIT_STORAGE_FS_BASE_PATH` | under `~/.local/share/mercbot/data` | Upgrades keep the data; the key is `mercbot.key` there (mode 600) |

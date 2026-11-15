@@ -28,17 +28,20 @@ finds no built page (none yet, or a build emptying `dist` at that moment) serves
 the API without pages. Missing or invalid database configuration stops startup
 or preparation with an error instead of guessing credentials.
 
-In production the server refuses an `APP_PUBLIC_URL` that isn't https (D-65), unless it's an http one on
+The server starts only when `APP_ENV` says where it runs (D-87): `resolveRuntimeEnv` asks JSKIT's
+`assertAppEnvironment` first, so a start without it, with `SIDE_EFFECTS` set, or in staging or production without
+`NODE_ENV=production` stops, naming the fix. In staging and production the server refuses an `APP_PUBLIC_URL` that
+isn't https (D-65), unless it's an http one on
 `localhost`, `127.0.0.1` or `[::1]` while it listens at `HOST` `127.0.0.1` or `::1`; without one it starts, and links
 point at `http://localhost`. No key stops the start: each turns its feature on, and the server logs one line at start
-for each one missing (`packages/account/src/server/keys.js`). In production `AUTH_LOCAL_EMAIL_CONFIRMATION` is `false`
-unless set (`resolveRuntimeEnv`): nobody registers, and JSKIT's confirmation links, which Mercbot has no sender for,
+for each one missing (`packages/account/src/server/keys.js`). In staging and production `AUTH_LOCAL_EMAIL_CONFIRMATION` is
+`false` unless set (`resolveRuntimeEnv`): nobody registers, and JSKIT's confirmation links, which Mercbot has no sender for,
 would otherwise stop the start. `scripts/serve.sh` leaves the files volume off, saying so, when `MERCBOT_FILES_DIR` is set
 without `MERCBOT_FILES_PASSPHRASE`; `MERCBOT_FILES_CACHE_SIZE` bounds the volume's local cache (`scripts/mount-files.sh`).
 The server believes `X-Forwarded-For` only from the proxies `TRUSTED_PROXIES` names (`trustedProxies`, JSKIT's
 `resolveTrustedProxies`; a proxy on this computer without it), so behind a load balancer each visitor keeps their own
-address for the sign-in limits, and a value that would believe anyone stops the start. `npm run develop` (`bin/develop.js`, `server/lib/develop.js`), the Preview, empties
-every credential-shaped setting and runs on the stand-in model (`tools/previewAi.mjs`, D-83), so a Preview reaches no
+address for the sign-in limits, and a value that would believe anyone stops the start. `npm run develop` (`bin/develop.js`, `server/lib/develop.js`), the Preview, runs with
+`APP_ENV=development` whatever `.env` says, empties every credential-shaped setting and runs on the stand-in model (`tools/previewAi.mjs`, D-83), so a Preview reaches no
 outside service. It starts only on loopback and its HTTP server is the single-user gate
 (`genesis/program/single-user/single-user.md`), unless a copy built on Mercbot that serves many people passes
 `gate: false` to `serve`, `startServer` or `develop`. `npm start` and the Procfile go through

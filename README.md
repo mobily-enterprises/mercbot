@@ -27,6 +27,8 @@ test template (`<TEST_DB_NAME>_tpl`, which a test run rebuilds by itself) and a 
 
 Open Mercbot with its key, as a person's own copy opens (D-81): http://localhost:3001/open?key= followed by the key in `.data/mercbot.key`, which the first start makes. Without it, Mercbot's server answers only that Mercbot opens with `mercbot open`. `npm run build` followed by `npm start` serves a production build. `npm start` (like the `Procfile`'s web process and `npm run server`) goes through `scripts/serve.sh`, so it starts only on a host that passes the checks below. `PORT` chooses the port.
 
+`APP_ENV` says where a copy runs (D-87), and Mercbot doesn't start without it: `development` (as `.env.example` sets it, and as `npm run develop` and `npm run dev` set it themselves), `test` (which the test suites and the Test Preview set), `staging` or `production`. Staging and production also need `NODE_ENV=production`, which only picks optimised builds. Only `production` sends for real what bots send from connected accounts and what scripts send to outside web services; anywhere else each is logged instead (D-69), and every page shows a small tab naming the environment. `SIDE_EFFECTS` is gone: JSKIT refuses to start while it is set.
+
 ## Hosting requirements
 
 Bots' computers and commands run in gVisor (`runsc --rootless`), and Mercbot itself runs in a user
@@ -124,8 +126,8 @@ bound. Every run prints its ten slowest files against the bound.
 
 JSKIT's local auth confirms the email of every account registered by password. Database tests that register accounts
 on a server without the single-user gate expect them signed in at once, so they set
-`AUTH_LOCAL_EMAIL_CONFIRMATION=false` themselves. In production (`NODE_ENV=production`) Mercbot leaves confirmation
-off unless that setting says otherwise (`resolveRuntimeEnv`): nobody registers on a person's own copy, and JSKIT would
+`AUTH_LOCAL_EMAIL_CONFIRMATION=false` themselves. In staging and production (`APP_ENV`, D-87) Mercbot leaves
+confirmation off unless that setting says otherwise (`resolveRuntimeEnv`): nobody registers on a person's own copy, and JSKIT would
 otherwise want a confirmation sender (`auth.local.confirmation-sender`), which Mercbot doesn't have.
 
 ### Database integration check

@@ -62,7 +62,7 @@ Settings are in `mercbot.env`. Keep their values private.
 | Vault key | `MERCBOT_VAULT_KEY` | 32 random bytes. Seals vault secrets, connected-account tokens and bots' saved browsers |
 | Hosting | `HOSTING_SCRIPT=scripts/hosting/local.sh` | The checks for your own computer, and where the root step's programs are (`MERCBOT_TRUSTED_DIR`, `/usr/local/lib/mercbot` by default) |
 | Bots' files | `MERCBOT_FILES_DIR`, `MERCBOT_FILES_PASSPHRASE`, `MERCBOT_FILES_STORAGE`, `MERCBOT_FILES_BUCKET`, and access keys if the storage needs them | Optional: an encrypted file volume instead of the data folder, the passphrase that unlocks it, and the object storage behind it |
-| Real sends | `SIDE_EFFECTS` | `live` when your copy is for real use. Anything else, or nothing, makes a test copy that only logs what it would send |
+| Where it runs | `APP_ENV`, `NODE_ENV` | Both `production` when your copy is for real use. `APP_ENV` set to `development` (or `staging`, which also needs `NODE_ENV=production`) makes a test copy that only logs what it would send. Mercbot doesn't start without `APP_ENV`, or while the old `SIDE_EFFECTS` setting is still there |
 | Connected accounts | `GOOGLE_CLIENT_ID` / `_SECRET`, `MICROSOFT_CLIENT_ID` / `_SECRET`, `GITHUB_CLIENT_ID` / `_SECRET` | Your own registered apps with each provider, if you have them |
 | Hub | `MERCBOT_HUB_URL` | Another Mercbot this copy may link to, to connect accounts through its apps. No default |
 
@@ -75,7 +75,7 @@ An optional setting, `MERCBOT_MAX_COMPUTERS`, sets how many bots' computers are 
 
 Mercbot starts without any of these keys: each one you leave out turns its feature off, the feature says so where it's used, and Mercbot's log names each missing key when it starts. Without `MERCBOT_FILES_PASSPHRASE`, the encrypted file volume isn't mounted and files stay in the data folder.
 
-Without `SIDE_EFFECTS=live`, your copy is a test copy: what bots would send or show to others from connected accounts (emails, calendar invitations and answers, Drive sharing and comments, on GitHub comments, reviews, new and changed issues and pull requests, merges, releases, discussion changes and reruns of automation runs, and the actions of Calendly, Notion and Todoist that tell other people, such as cancelling a meeting or adding a comment) and scripts' web calls other than reads are written to the log instead, and every page shows a small "Test copy" tab at the top. Everything else works as usual.
+Unless `APP_ENV` is `production`, your copy is a test copy: what bots would send or show to others from connected accounts (emails, calendar invitations and answers, Drive sharing and comments, on GitHub comments, reviews, new and changed issues and pull requests, merges, releases, discussion changes and reruns of automation runs, and the actions of Calendly, Notion and Todoist that tell other people, such as cancelling a meeting or adding a comment) and scripts' web calls other than reads are written to the log instead, and every page shows a small tab at the top naming where it runs, such as "Development" or "Staging". Everything else works as usual.
 
 ## Connected accounts: your own apps or a hub
 
@@ -121,7 +121,7 @@ Profile pictures are kept with the bots' files.
 3. `HOST` is `127.0.0.1` or `::1`, and `APP_PUBLIC_URL` is your copy's address on this computer. Without it, links point at `http://localhost`.
 4. A strong session secret and the vault key are set, and `mercbot backup` files are kept where only you can read them.
 5. The premium and the slower, cheaper AI have their providers and keys, so your bots work.
-6. `SIDE_EFFECTS` is `live` once your copy is for real use.
+6. `APP_ENV` and `NODE_ENV` are both `production` once your copy is for real use.
 7. Connected accounts work through your own registered apps or a linked hub.
 8. `mercbot status` says Mercbot is running, and `mercbot open` opens it.
 

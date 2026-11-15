@@ -50,9 +50,9 @@ test("each key, missing alone, turns off its own feature and nothing else", () =
 test("a test copy on the stand-in model has its AI, with no key", () => {
   const { AI_PREMIUM_API_KEY: _premium, AI_ECONOMY_API_KEY: _economy, AI_IMAGES_API_KEY: _images, ...keyless } = everything;
   assert.equal(missingKeyLines(keyless).length, 3, "without the stand-in, each kind's key is missing");
-  assert.deepEqual(missingKeyLines({ ...keyless, MERCBOT_TEST_AI_URL: "http://127.0.0.1:4999" }), []);
-  // Never in production, where the keys are needed (D-83).
-  assert.equal(missingKeyLines({ ...keyless, MERCBOT_TEST_AI_URL: "http://127.0.0.1:4999", NODE_ENV: "production" }).length, 3);
+  assert.deepEqual(missingKeyLines({ ...keyless, MERCBOT_TEST_AI_URL: "http://127.0.0.1:4999", APP_ENV: "test" }), []);
+  // Never in staging or production, where the keys are needed (D-83, D-87).
+  for (const where of ["staging", "production"]) assert.equal(missingKeyLines({ ...keyless, MERCBOT_TEST_AI_URL: "http://127.0.0.1:4999", APP_ENV: where }).length, 3, where);
 });
 
 // Where a feature is used, it says it's off. Here: the Google, Microsoft and GitHub apps, and the Vault key. Elsewhere:

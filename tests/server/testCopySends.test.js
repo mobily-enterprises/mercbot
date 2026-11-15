@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { ACTIONS } from "../../packages/bots/src/server/botActions.js";
+import { sendOrSimulate } from "../../packages/bots/src/server/connectedApps.js";
 
-// Mercbot's own sends follow SIDE_EFFECTS (D-69): the live copy (`live`) sends them; any other copy, a
+// Mercbot's own sends follow APP_ENV (D-69, D-87): the live copy (`production`) sends them; any other copy, a
 // test copy, logs each one and answers as if it went out. Reads, and changes that reach nobody, run in both.
-const LIVE = { SIDE_EFFECTS: "live" };
-const TEST_COPY = {};
+const LIVE = { APP_ENV: "production" };
+const TEST_COPY = { APP_ENV: "test" };
 
 /** A stand-in for Google's and GitHub's APIs: each call kept as "METHOD url" and answered with `answer`. */
 function fakeApis(context, answer) {
@@ -25,7 +26,7 @@ async function logged(context, work) {
   const info = context.mock.method(console, "info", () => {});
   try {
     const result = await work();
-    return { result, lines: info.mock.calls.map((call) => call.arguments).filter(([fields]) => fields?.sideEffects) };
+    return { result, lines: info.mock.calls.map((call) => call.arguments).filter(([fields]) => fields?.appEnv) };
   } finally {
     info.mock.restore();
   }
@@ -70,8 +71,8 @@ test("calendar changes that reach guests or an organiser go out only from the li
     const copy = await logged(context, () => ACTIONS[id].run(contextOf("google-calendar", "pat@example.com", TEST_COPY), args));
     assert.deepEqual(writes(calls), [], `${id} sends nothing from a test copy`);
     assert.equal(copy.lines.length, 1);
-    assert.deepEqual([copy.lines[0][0].sideEffects, copy.lines[0][0].kind, copy.lines[0][0].calendar], ["simulate", kind, "Google Calendar: pat@example.com"]);
-    assert.match(copy.lines[0][1], /^Test copy: .* was simulated, not sent \(SIDE_EFFECTS is not live\)\.$/u);
+    assert.deepEqual([copy.lines[0][0].appEnv, copy.lines[0][0].kind, copy.lines[0][0].calendar], ["test", kind, "Google Calendar: pat@example.com"]);
+    assert.match(copy.lines[0][1], /^Test: .* was logged, not sent\.$/u);
     assert.equal(copy.result.body.text, live.result.body.text, `${id} says what the live copy says`);
     assert.match(copy.result.body.text, new RegExp(`^${text}`, "u"));
   }
@@ -115,8 +116,8 @@ test("sending a saved draft and forwarding go out only from the live copy", asyn
   assert.equal(simulated.result.body.text, "Sent the draft: Lunch");
   assert.equal(simulatedForward.result.body.text, "Forwarded: Sports day");
   assert.deepEqual(simulated.lines, [[
-    { sideEffects: "simulate", kind: "email", from: "Gmail: pat@example.com", draft: "d1", to: ["ana@example.com"] },
-    'Test copy: the draft "Lunch" from Gmail: pat@example.com to ana@example.com was simulated, not sent (SIDE_EFFECTS is not live).'
+    { appEnv: "test", kind: "email", from: "Gmail: pat@example.com", draft: "d1", to: ["ana@example.com"] },
+    'Test: the draft "Lunch" from Gmail: pat@example.com to ana@example.com was logged, not sent.'
   ]]);
   assert.deepEqual(simulatedForward.lines.map(([fields]) => [fields.kind, fields.email, fields.to]), [["email", "m9", ["sam@example.com"]]]);
 });
@@ -204,7 +205,7 @@ test("issues, pull requests, merges, releases, discussions and automation reruns
     assert.deepEqual(writes(calls), [], `${id} changes nothing from a test copy; it may only read`);
     assert.equal(copy.result.body.text, simulated, `${id} answers as if done`);
     assert.equal(copy.result.result.simulated, true);
-    assert.deepEqual(copy.lines.map(([fields]) => [fields.sideEffects, fields.kind, fields.account, fields.repo, fields.number]), [["simulate", kind, "pat", "pat/app", given.number]]);
+    assert.deepEqual(copy.lines.map(([fields]) => [fields.appEnv, fields.kind, fields.account, fields.repo, fields.number]), [["test", kind, "pat", "pat/app", given.number]]);
     assert.doesNotMatch(copy.lines[0][1], /crashes on start|Now with steps|Notes|Better words/u, "never a body");
     copies[id] = copy;
   }
@@ -215,7 +216,7 @@ test("issues, pull requests, merges, releases, discussions and automation reruns
   assert.equal(copies["github_change.release_create"].result.result.link, "https://github.com/pat/app/releases/tag/v1.2#simulated");
   assert.equal(
     copies["github_change.issue_create"].lines[0][1],
-    'Test copy: opening the issue "Fix crash" in pat/app was simulated, not sent (SIDE_EFFECTS is not live).'
+    'Test: opening the issue "Fix crash" in pat/app was logged, not sent.'
   );
   // A change to an existing issue answers with its own page, read as it is.
   assert.equal(copies["github_change.issue_update"].result.result.link, "https://github.com/pat/app/issues/12");
@@ -268,8 +269,8 @@ test("sharing a drive file and commenting on one go out only from the live copy"
   // A share answers with the file as sharing would leave it, its real link included.
   const [shared, sharedOnOneDrive] = copies;
   assert.deepEqual(shared.lines[0], [
-    { sideEffects: "simulate", kind: "drive sharing", account: "Google Drive: pat@example.com", file: "Plan", with: "ana@example.com", role: "comment", emailed: true },
-    'Test copy: sharing "Plan" with ana@example.com (comment) was simulated, not sent (SIDE_EFFECTS is not live).'
+    { appEnv: "test", kind: "drive sharing", account: "Google Drive: pat@example.com", file: "Plan", with: "ana@example.com", role: "comment", emailed: true },
+    'Test: sharing "Plan" with ana@example.com (comment) was logged, not sent.'
   ]);
   assert.deepEqual(shared.result.result.sharedWith, [{ who: "ana@example.com", role: "comment" }]);
   assert.match(shared.result.body.detail, /Link: https:\/\/docs\.google\.com\/document\/d\/f1/u);
@@ -285,4 +286,32 @@ test("sharing a drive file and commenting on one go out only from the live copy"
   calls.length = 0;
   const made = await logged(context, () => ACTIONS["drive_change.create_folder"].run(contextOf("google-drive", "pat@example.com", TEST_COPY), { name: "Trips" }));
   assert.deepEqual([writes(calls), made.lines], [["POST https://www.googleapis.com/drive/v3/files"], []]);
+});
+
+// Only production acts (D-87): development, test and staging log the send with JSKIT's line for each and answer as if
+// it went out, staging saying why, and a copy that doesn't say where it runs is refused before anything is sent.
+test("only production sends; development, test and staging log it; a missing APP_ENV is refused", async (context) => {
+  const effect = { kind: "email", summary: 'the email "Lunch" to ana@example.com', details: { to: ["ana@example.com"] } };
+  let sent = 0;
+  const act = async () => {
+    sent += 1;
+    return { id: "m1" };
+  };
+  const live = await logged(context, () => sendOrSimulate({ env: { APP_ENV: "production" } }, effect, act));
+  assert.deepEqual([live.result, live.lines, sent], [{ id: "m1" }, [], 1]);
+  const said = {
+    development: 'Development: the email "Lunch" to ana@example.com was logged, not sent.',
+    test: 'Test: the email "Lunch" to ana@example.com was logged, not sent.',
+    staging: 'Staging: the email "Lunch" to ana@example.com was logged, not sent: only production acts for real.'
+  };
+  for (const [where, line] of Object.entries(said)) {
+    const copy = await logged(context, () => sendOrSimulate({ env: { APP_ENV: where } }, effect, act, () => ({ id: "simulated" })));
+    assert.deepEqual(copy.result, { id: "simulated", simulated: true }, where);
+    assert.deepEqual(copy.lines, [[{ appEnv: where, kind: "email", to: ["ana@example.com"] }, line]], where);
+  }
+  assert.equal(sent, 1, "only production sent it");
+  for (const env of [{}, { APP_ENV: "live" }]) {
+    await assert.rejects(sendOrSimulate({ env }, effect, act), /APP_ENV is (?:not set|"live", which is not an environment JSKIT knows)/u, JSON.stringify(env));
+  }
+  assert.equal(sent, 1, "nor did a copy that doesn't say where it runs");
 });

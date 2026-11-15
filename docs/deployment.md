@@ -130,8 +130,8 @@ doesn't accept, a public address that isn't https) still stops the start, saying
   refuses to start on any other `HOST`. The one person runs the copy, so they may choose a folder on its computer for a
   home's website (D-84). `PORT` is 3001 unless set.
 - `APP_PUBLIC_URL`: the copy's own address (e.g. `http://localhost:3001`), the one place it is set:
-  connected accounts build their links from it, never from a request's Host header. With `NODE_ENV=production` the
-  server refuses to start with one that isn't an `https://` address (D-65), or `http://localhost`, `http://127.0.0.1`
+  connected accounts build their links from it, never from a request's Host header. In staging and production
+  (`APP_ENV`) the server refuses to start with one that isn't an `https://` address (D-65), or `http://localhost`, `http://127.0.0.1`
   or `http://[::1]` while `HOST` is `127.0.0.1` or `::1`. Without one it starts, and links point at `http://localhost`.
 - `TRUSTED_PROXIES`: the addresses (or ranges) of a proxy or load balancer in front of the server, whose
   `X-Forwarded-For` it believes, so each visitor keeps their own address for the sign-in limits. Unset, only a proxy on
@@ -171,7 +171,7 @@ doesn't accept, a public address that isn't https) still stops the start, saying
   `SECRET_KEY` when the storage needs them. The volume's metadata lives in the app's database, in its own `juicefs`
   schema. While the volume isn't mounted, Mercbot says files are unavailable rather than writing them to its own disk.
 - `AUTH_LOCAL_EMAIL_CONFIRMATION`: whether new accounts confirm their email address, which needs a sender for the
-  links that Mercbot doesn't have. In production it is `false` unless set, as nobody registers on a person's own copy;
+  links that Mercbot doesn't have. In staging and production it is `false` unless set, as nobody registers on a person's own copy;
   a copy built on Mercbot that confirms new accounts' addresses sets it and adds its own sender.
 - Usage (D-73) needs no setting: every AI call is recorded with what it cost at its provider, and a
   computer's days and its commands' time as use, with no cost; nothing is ever refused or paused. Daily
@@ -179,10 +179,11 @@ doesn't accept, a public address that isn't https) still stops the start, saying
   `<MERCBOT_FILES_DIR>/usage-archive/daily/<YYYY-MM>/homes-<from>-<to>.csv.gz`, one file per 100,000 homes,
   so the files volume holds seven years of them; each AI call's own row is kept 14 days in the database and
   not archived.
-- `SIDE_EFFECTS=live` only in a copy for real use (D-69). Anywhere else, unset
-  included, the copy is a test copy: what bots would send from connected accounts and scripts' web
-  calls other than GET are only logged,
-  and every page shows a small "Test copy" tab at the top.
+- `APP_ENV=production` with `NODE_ENV=production` in a copy for real use (D-87); `SIDE_EFFECTS` is gone, and JSKIT
+  refuses to start while it is set. Mercbot doesn't start without `APP_ENV`, naming the fix. In `development`, `test`
+  or `staging` (which needs `NODE_ENV=production` too) the copy is a test copy (D-69): what bots would send from
+  connected accounts and scripts' web calls other than GET are only logged, and every page shows a small tab naming
+  the environment ("Development", "Test" or "Staging").
 - Connected accounts (D-31): Every provider sends people back to
   `<APP_PUBLIC_URL>/api/connections/callback`, which must be registered with
   each provider's app. The person's own apps: `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`,

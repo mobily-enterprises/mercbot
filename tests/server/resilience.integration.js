@@ -40,10 +40,10 @@ async function setup(context) {
 }
 
 /**
- * A live copy's environment (SIDE_EFFECTS=live, D-69): what the bots send from connected accounts goes out for real,
- * to the stand-ins for the providers here. Without it, as in a test copy, the sends are only logged.
+ * A live copy's environment (APP_ENV=production, D-69, D-87): what the bots send from connected accounts goes out for
+ * real, to the stand-ins for the providers here. Without it, as in a test copy, the sends are only logged.
  */
-const live = () => ({ ...process.env, SIDE_EFFECTS: "live" });
+const live = () => ({ ...process.env, APP_ENV: "production" });
 
 /** The accounts a call reaches, as the integrations service reads them (the person's own connected apps), on the test's Knex. */
 async function connectedAccounts(knex, context) {
@@ -536,7 +536,7 @@ test("Send on an email draft sends it from the connected mailbox, once", async (
   }
 });
 
-// A test copy (SIDE_EFFECTS not live, D-69) sends nothing from a connected mailbox: Send logs the
+// A test copy (APP_ENV not production, D-69, D-87) sends nothing from a connected mailbox: Send logs the
 // email by sender, recipients and subject, and the card ends sent, as it would in the live copy.
 test("a test copy's Send on an email draft is logged and marked sent, and nothing reaches the mailbox", async (context) => {
   const { knex, parts, as, userId, bot, cleanup } = await setup(context);
@@ -549,16 +549,16 @@ test("a test copy's Send on an email draft is logged and marked sent, and nothin
   };
   try {
     const integrations = { reachableAccounts: await connectedAccounts(knex, cleanup), connections: { accessToken: async () => ({ accessToken: "key" }) } };
-    const bots = startBotsService(cleanup, { knex, ...parts, integrations, env: { ...process.env, SIDE_EFFECTS: "" }, approvals: { decide: async () => "allow" }, reply: async () => ({ text: "ok", transcript: [] }) });
+    const bots = startBotsService(cleanup, { knex, ...parts, integrations, env: { ...process.env, APP_ENV: "test" }, approvals: { decide: async () => "allow" }, reply: async () => ({ text: "ok", transcript: [] }) });
     const [card] = await knex("bot_messages").insert({ workspace_id: bot.workspace_id, bot_id: bot.id, conversation_id: bot.conversation_id, kind: "draft", role: "bot", body: { to: "Ana <ana@example.com>", via: "Gmail", from: "pat@example.com", subject: "Lunch", text: "1pm?", status: "pending" } }).returning("*");
     const logged = context.mock.method(console, "info", () => {});
     const sent = await bots.settleDraft(bot.id, card.id, { action: "send", text: "1pm Tuesday?" }, as(userId));
     logged.mock.restore();
     assert.equal(sent.messages[0].body.status, "sent");
     assert.deepEqual(calls, [], "nothing reached Gmail");
-    assert.deepEqual(logged.mock.calls.map((call) => call.arguments).filter(([fields]) => fields?.sideEffects), [[
-      { sideEffects: "simulate", kind: "email", from: "Gmail: pat@example.com", to: ["ana@example.com"], cc: [] },
-      'Test copy: the email "Lunch" from Gmail: pat@example.com to ana@example.com was simulated, not sent (SIDE_EFFECTS is not live).'
+    assert.deepEqual(logged.mock.calls.map((call) => call.arguments).filter(([fields]) => fields?.appEnv), [[
+      { appEnv: "test", kind: "email", from: "Gmail: pat@example.com", to: ["ana@example.com"], cc: [] },
+      'Test: the email "Lunch" from Gmail: pat@example.com to ana@example.com was logged, not sent.'
     ]]);
   } finally {
     globalThis.fetch = original;

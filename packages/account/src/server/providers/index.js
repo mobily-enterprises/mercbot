@@ -1,4 +1,4 @@
-import { sideEffectsAreLive } from "@jskit-ai/kernel/shared/support/sideEffects";
+import { isDeployed } from "@jskit-ai/kernel/shared/support/appEnvironment";
 import { createMeteredFetch, keepingErrors } from "../meter.js";
 import { deepinfra } from "./deepinfra.js";
 import { gemini } from "./gemini.js";
@@ -69,13 +69,13 @@ export function settingOf(env, name) {
 
 /**
  * Where a test copy's stand-in model answers (D-83): MERCBOT_TEST_AI_URL, which every Preview and Test Preview sets to
- * Mercbot's stand-in (tools/standInModel.mjs, through tools/previewAi.mjs). Never in production or the live copy
- * (D-69), where it's "" whatever the setting says.
+ * Mercbot's stand-in (tools/standInModel.mjs, through tools/previewAi.mjs). Never in staging or production (APP_ENV,
+ * D-87), which refuse development shortcuts: there it's "" whatever the setting says.
  * @param {import("@jskit-ai/kernel/server/types").RuntimeEnv} env
  */
 export function standInAddress(env) {
-  if (env.NODE_ENV === "production" || sideEffectsAreLive(env)) return "";
-  return settingOf(env, "MERCBOT_TEST_AI_URL").replace(/\/+$/u, "");
+  const address = settingOf(env, "MERCBOT_TEST_AI_URL").replace(/\/+$/u, "");
+  return address && !isDeployed(env) ? address : "";
 }
 
 // What a kind on the stand-in sends as its key: the stand-in needs none, and no provider ever sees it.

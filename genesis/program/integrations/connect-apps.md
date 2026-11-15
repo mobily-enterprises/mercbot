@@ -201,7 +201,7 @@ account out (Needs auth) with 409 `integrations_sign_in_ran_out`; any other fail
 `integrations_renewal_failed` and leaves it signed in. `connections.accessToken(reach, id, options, {refused})`
 also renews a key the provider turned down before it ran out (`refused`, D-80), under the same lock and only while
 it's still the saved key, so of several servers that saw it turned down one asks the provider; it answers `renewed`
-when this call asked. A home's files kept in Google Drive get their keys this way (D-80). Outside production only, `MERCBOT_TEST_GOOGLE_DRIVE_URL` makes the
+when this call asked. A home's files kept in Google Drive get their keys this way (D-80). Outside staging and production only (`APP_ENV`, D-87), `MERCBOT_TEST_GOOGLE_DRIVE_URL` makes the
 stand-in Drive (`tests/support/fakeDrive.mjs`) Google's sign-in for connected accounts too
 (`standInGoogle` in `IntegrationsFeature.js`), for the Test Preview.
 

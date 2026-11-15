@@ -44,6 +44,8 @@ console.log(`This Test Preview's AI is the stand-in model at ${process.env.MERCB
 
 // Set before the server loads: .env never replaces a variable that is already set, even to "".
 Object.assign(process.env, {
+  // A test copy (D-87), whatever .env or the shell says, as JSKIT's browser test servers run: it logs every send.
+  APP_ENV: "test",
   DB_NAME: testDatabase,
   // Connections never reach the real hub.
   MERCBOT_HUB_URL: "",

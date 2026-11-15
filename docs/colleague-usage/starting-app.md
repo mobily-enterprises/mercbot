@@ -40,10 +40,12 @@ opens `/open` with the copy's key (the Test Preview's from `.data-test`) and giv
 other address is refused ("This copy of Mercbot has one person, you@mercbot.localhost."), and signing out in the
 menu drops the key's cookie. On a person's own computer, `mercbot open` does the same.
 
-Every copy that isn't switched to Live is a test copy, the Preview included: it only logs what bots
-would send from connected accounts and what Apps scripts would send to outside web services. A
-built copy, such as the Test Preview or a published
-one, also shows a small "Test copy" tab at the top; the Preview's pages, which Vite serves, don't.
+`APP_ENV` says where a copy runs (D-87), and every copy whose `APP_ENV` isn't `production` is a test
+copy: the Preview (`development`, which `npm run develop` sets whatever Env says), the Test Preview
+(`test`) and a published copy a host gives `staging`. A test copy only logs what bots would send from
+connected accounts and what Apps scripts would send to outside web services, and every page shows a
+small tab naming the environment. A copy without `APP_ENV`, or with the old `SIDE_EFFECTS` setting,
+doesn't start, naming the fix.
 
 ## Publishing
 
@@ -57,8 +59,8 @@ tools (`npm run deploy:prepare`), then Build, Migrate and Start (`scripts/serve.
 - **Secrets:** Vibe64 generates `AUTH_LOCAL_SESSION_SECRET`, `MERCBOT_VAULT_KEY` and the first
   account's setup code (`AUTH_LOCAL_SETUP_CODE`) once, keeps them in Production Env across releases,
   and shows the setup code on the Production page.
-- **Going live (a human step):** the published copy stays a test copy until someone switches it to
-  Live under **Test copy or Live** on the Production page.
+- **Real sends:** a copy a host publishes from the workspace runs as `staging` and stays a test copy;
+  only a production deploy, with `APP_ENV=production` and `NODE_ENV=production`, sends for real.
 
 ## When a start stops
 
@@ -78,4 +80,4 @@ tools (`npm run deploy:prepare`), then Build, Migrate and Start (`scripts/serve.
 
 Colleague can explain these steps, and offer to run the ones it may run, such as
 `npm run tools:install` or the host check, only after the person asks or accepts. Adding keys,
-approving sandbox allowances and going Live are the person's own steps.
+approving sandbox allowances and deploying to production are the person's own steps.

@@ -28,10 +28,12 @@ function waitForChild(child) {
  * (vite.config.mjs). A Preview reaches no outside service (genesis/stack.md, Outputs): with .env loaded, every
  * credential it was given is emptied (tools/previewAi.mjs), so a feature whose key that was is off here, and every kind
  * of AI is Mercbot's stand-in model, so bots answer without a provider (D-83); `npm start` is the copy that uses its
- * keys. It stops when Vite does, or on SIGTERM or SIGINT; a failed start is reported and sets the exit code.
+ * keys. It runs with APP_ENV=development, whatever .env or the shell says, as JSKIT's development launcher does (D-87).
+ * It stops when Vite does, or on SIGTERM or SIGINT; a failed start is reported and sets the exit code.
  * @param {{ gate?: boolean }} [options]
  */
 export async function develop({ gate } = {}) {
+  process.env.APP_ENV = "development";
   const previewHost = String(process.env.HOST || "").trim() || "0.0.0.0";
   const previewPort = requiredPort(process.env.PORT || String(DEFAULT_PORT));
   let previewAi = null;

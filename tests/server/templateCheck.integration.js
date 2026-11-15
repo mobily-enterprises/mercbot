@@ -4,8 +4,8 @@ import { access, mkdtemp, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test, { after, before } from "node:test";
-import { logSimulatedSideEffect } from "@jskit-ai/kernel/server/runtime/sideEffects";
-import { sideEffectsAreLive } from "@jskit-ai/kernel/shared/support/sideEffects";
+import { logSideEffect } from "@jskit-ai/kernel/server/runtime/appEnvironment";
+import { appEnvironment } from "@jskit-ai/kernel/shared/support/appEnvironment";
 import { createServer } from "../../server.js";
 import { behaviourFingerprint } from "../../packages/bots/src/server/templateResults.js";
 import { GALLERY, setupNeeds } from "../../packages/bots/src/server/templates.js";
@@ -32,7 +32,7 @@ const settings = Object.freeze({
   AI_IMAGES_PROVIDER: "",
   AI_IMAGES_API_KEY: "",
   NODE_ENV: "test",
-  SIDE_EFFECTS: "",
+  APP_ENV: "test",
   HOST: "127.0.0.1",
   PORT: "3001"
 });
@@ -103,13 +103,13 @@ test("a bot that skips a question, starts its routines unasked or sends without 
   const sent = await checkTemplateEndToEnd({ person, template: template("kids-activities-planner"), players, run });
   assert.equal(sent.passed, false);
   assert.ok(sent.reasons.length >= 1);
-  for (const reason of sent.reasons) assert.match(reason, /^It sent something without a yes: .*was simulated, not sent/u);
+  for (const reason of sent.reasons) assert.match(reason, /^It sent something without a yes: .*Test: .*was logged, not sent/u);
 });
 
 test("the checked copy is a test copy whose files, uploads and computers stay in its own folder", async () => {
-  const live = { ...env, SIDE_EFFECTS: "live", MERCBOT_HUB_URL: "https://hub.example.com", MERCBOT_FILES_DIR: "/srv/mercbot-files", MERCBOT_DATA_DIR: ".data" };
+  const live = { ...env, APP_ENV: "production", NODE_ENV: "production", MERCBOT_HUB_URL: "https://hub.example.com", MERCBOT_FILES_DIR: "/srv/mercbot-files", MERCBOT_DATA_DIR: ".data" };
   const copy = await checkCopyEnv(live, { database: "mercbot_test_copy", dataDir });
-  assert.equal(sideEffectsAreLive(copy), false, "sends are simulated (D-69)");
+  assert.equal(appEnvironment(copy), "test", "sends are logged, not sent (D-69, D-87)");
   assert.deepEqual([copy.DB_NAME, copy.TEST_DB_NAME, copy.MERCBOT_HUB_URL], ["mercbot_test_copy", "mercbot_test_copy", ""]);
   assert.deepEqual(
     [copy.MERCBOT_DATA_DIR, copy.MERCBOT_FILES_DIR, copy.JSKIT_STORAGE_FS_BASE_PATH],
@@ -122,12 +122,13 @@ test("the checked copy is a test copy whose files, uploads and computers stay in
 test("the check hears every send a test copy simulates, and knows which templates need a connected app", () => {
   const sends = watchSends();
   try {
-    logSimulatedSideEffect(console, { kind: "email", summary: "an email to someone@example.com" });
+    for (const where of ["development", "test", "staging"]) logSideEffect(console, where, { kind: "email", summary: "an email to someone@example.com" });
+    console.info({ appEnv: "test" }, "APP_ENV is test: email, SMS, push notifications, webhooks and connector writes are logged, not sent.");
   } finally {
     sends.stop();
   }
-  assert.equal(sends.lines.length, 1);
-  assert.match(sends.lines[0], /was simulated, not sent/u);
+  assert.equal(sends.lines.length, 3, "each send, and not the start's line about the copy");
+  for (const line of sends.lines) assert.match(line, /^\{.*\} (?:Development|Test|Staging): an email to someone@example\.com was logged, not sent/u);
   assert.deepEqual(setupNeeds(template("pull-request-digest")), ["GitHub"]);
   assert.deepEqual(setupNeeds(template("weekly-meal-planner")), []);
   // The real run refuses without both text kinds of AI (D-72).
