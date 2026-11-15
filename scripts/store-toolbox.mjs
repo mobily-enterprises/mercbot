@@ -1,9 +1,10 @@
 // Makes the bots' toolbox from the host's read-only store (MERCBOT_TOOLBOX_STORE) in MERCBOT_TOOLBOX_DIR
-// (packages/files/src/server/storeToolbox.js). scripts/serve.sh runs it at every start on such a host. It stops the
+// (packages/files/src/server/storeToolbox.js, imported by its package name, as an app holding Mercbot's packages only
+// as installed ones reaches it). scripts/serve.sh runs it at every start on such a host. It stops the
 // start, saying so, when bots' computers couldn't start with what the store has, as the hosting script does without
 // Xvfb (D-68); without everything the command line needs, Mercbot starts without the command line and says what's missing.
 // Usage: node scripts/store-toolbox.mjs
-import { makeStoreToolbox } from "../packages/files/src/server/storeToolbox.js";
+import { makeStoreToolbox } from "@local/files/server/storeToolbox";
 
 let made;
 try {

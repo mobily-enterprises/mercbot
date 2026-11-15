@@ -10,6 +10,7 @@
     "./own-machine": "./src/server/ownMachine.js",
     "./gvisor": "./src/server/gvisor.js",
     "./server/pageHeaders": "./src/server/pageHeaders.js",
+    "./server/storeToolbox": "./src/server/storeToolbox.js",
     "./server/types": "./src/server/types.js"
   },
   "dependencies": {
