@@ -3,14 +3,15 @@ import { defineFeature } from "@jskit-ai/kernel/server/features";
 import { passedOn } from "@jskit-ai/resource-runtime/server";
 import { homeWebsiteResource, pagePublicationResource } from "./tableResources.js";
 import { registerWebsiteRoutes } from "./websiteRoutes.js";
-import { createWebsites } from "./websites.js";
+import { createWebsites, websiteFoldersOn } from "./websites.js";
 
 /** The tables the websites feature owns. */
 export const WEBSITES_OWNS = Object.freeze([homeWebsiteResource, pagePublicationResource]);
 
-// A home's own website (D-84): a folder a web server already serves, or S3-compatible storage, and the address it is
-// served at; the pages people publish there follow their files as they move or go. The whole feature is this package,
-// so a server composed without it has no website, its routes or its tables.
+// A home's own website (D-84): a folder a web server already serves (unless MERCBOT_WEBSITE_FOLDERS=off), or
+// S3-compatible storage, and the address it is served at; the pages people publish there follow their files as they
+// move or go. The whole feature is this package, so a server composed without it has no website, its routes or its
+// tables.
 const WebsitesFeature = defineFeature({
   id: "mercbot.websites",
   domain: "websites",
@@ -38,7 +39,9 @@ const WebsitesFeature = defineFeature({
     const runsThisCopy = (options) => account.runsThisCopy(resolveAuditActorId(options?.context), passedOn(options));
     const websites = createWebsites({ resources, systemContext, env, pages: files.pages, runsThisCopy });
     files.pages.follow(websites.pageChanged);
-    registerWebsiteRoutes(http, { websites, pages: files.pages, directory: records.directory, runsThisCopy });
+    // A folder on this computer is offered only to whoever runs the copy, and only where the copy keeps websites in folders.
+    const mayUseFolder = async (options) => websiteFoldersOn(env) && runsThisCopy(options);
+    registerWebsiteRoutes(http, { websites, pages: files.pages, directory: records.directory, mayUseFolder });
     return {};
   }
 });

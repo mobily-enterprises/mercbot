@@ -34,7 +34,10 @@ point at `http://localhost`. No key stops the start: each turns its feature on, 
 for each one missing (`packages/account/src/server/keys.js`). In production `AUTH_LOCAL_EMAIL_CONFIRMATION` is `false`
 unless set (`resolveRuntimeEnv`): nobody registers, and JSKIT's confirmation links, which Mercbot has no sender for,
 would otherwise stop the start. `scripts/serve.sh` leaves the files volume off, saying so, when `MERCBOT_FILES_DIR` is set
-without `MERCBOT_FILES_PASSPHRASE`. `npm run develop` (`bin/develop.js`, `server/lib/develop.js`), the Preview, empties
+without `MERCBOT_FILES_PASSPHRASE`; `MERCBOT_FILES_CACHE_SIZE` bounds the volume's local cache (`scripts/mount-files.sh`).
+The server believes `X-Forwarded-For` only from the proxies `TRUSTED_PROXIES` names (`trustedProxies`, JSKIT's
+`resolveTrustedProxies`; a proxy on this computer without it), so behind a load balancer each visitor keeps their own
+address for the sign-in limits, and a value that would believe anyone stops the start. `npm run develop` (`bin/develop.js`, `server/lib/develop.js`), the Preview, empties
 every credential-shaped setting and runs on the stand-in model (`tools/previewAi.mjs`, D-83), so a Preview reaches no
 outside service. It starts only on loopback and its HTTP server is the single-user gate
 (`genesis/program/single-user/single-user.md`), unless a copy built on Mercbot that serves many people passes

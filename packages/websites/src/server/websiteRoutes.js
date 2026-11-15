@@ -13,10 +13,10 @@ import { WebsiteError } from "./websiteError.js";
  * @param {ReturnType<typeof import("./websites.js").createWebsites>} dependencies.websites
  * @param {{ isPagePath: (path: string) => boolean }} dependencies.pages files.pages
  * @param {object} dependencies.directory records.directory: the bots the request's home holds
- * @param {(options: object) => Promise<boolean>} dependencies.runsThisCopy whether the person runs this copy, and so may
+ * @param {(options: object) => Promise<boolean>} dependencies.mayUseFolder whether the person runs this copy, and so may
  *   choose a folder on its computer
  */
-export function registerWebsiteRoutes(http, { websites, pages, directory, runsThisCopy }) {
+export function registerWebsiteRoutes(http, { websites, pages, directory, mayUseFolder }) {
   const router = http.router;
   const home = Object.freeze({ auth: "required", contextPolicy: "required", visibility: checkRouteVisibility("workspace_user") });
   const site = "/api/w/:workspaceSlug/website";
@@ -53,7 +53,7 @@ export function registerWebsiteRoutes(http, { websites, pages, directory, runsTh
   // The website's answers say whether the person may change it, and may choose a folder on this computer.
   async function siteAnswer(request, work) {
     const options = await request.callOptions();
-    return { ...(await work(options)), canManage: manages(request), canUseFolder: await runsThisCopy(options) };
+    return { ...(await work(options)), canManage: manages(request), canUseFolder: await mayUseFolder(options) };
   }
 
   router.register("GET", site, home, answered((request) => siteAnswer(request, (options) => websites.describe(options))));

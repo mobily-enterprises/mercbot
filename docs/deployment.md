@@ -104,6 +104,9 @@ doesn't accept, a public address that isn't https) still stops the start, saying
   connected accounts build their links from it, never from a request's Host header. With `NODE_ENV=production` the
   server refuses to start with one that isn't an `https://` address (D-65), or `http://localhost`, `http://127.0.0.1`
   or `http://[::1]` while `HOST` is `127.0.0.1` or `::1`. Without one it starts, and links point at `http://localhost`.
+- `TRUSTED_PROXIES`: the addresses (or ranges) of a proxy or load balancer in front of the server, whose
+  `X-Forwarded-For` it believes, so each visitor keeps their own address for the sign-in limits. Unset, only a proxy on
+  this computer is believed. A value that would believe anyone's header (`true`, a hop count) stops the start.
 - The database: `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`.
 - Mercbot's three kinds of AI (D-72), each with its provider (the type, which picks the provider's layer
   in `packages/account/src/server/providers/`) and its key there. Each kind accepts one provider for now.
@@ -126,6 +129,9 @@ doesn't accept, a public address that isn't https) still stops the start, saying
   its pages (D-84) with that website's keys. Keep it safe; anything sealed with a lost key can't be recovered.
   `mercbot backup` keeps it with the settings.
 - `AUTH_LOCAL_SESSION_SECRET` as JSKIT requires.
+- `MERCBOT_WEBSITE_FOLDERS=off` on a copy run on more than one server: homes' websites (D-84) are then only in
+  S3-compatible storage, since a page written to a folder would be on one server alone. Unset, whoever runs the copy may
+  choose a folder on its computer.
 - `HOSTING_SCRIPT=scripts/hosting/local.sh` (D-68), and `MERCBOT_TRUSTED_DIR`: where the root step put root's own
   `unshare` and `runsc` (above); `/usr/local/lib/mercbot` by default.
 - Bots' files (D-20, D-21): without `MERCBOT_FILES_DIR`, or without `MERCBOT_FILES_PASSPHRASE` (`scripts/serve.sh`
@@ -172,6 +178,8 @@ doesn't accept, a public address that isn't https) still stops the start, saying
 - `MERCBOT_SANDBOX_USER`: the powerless user bots' sandboxes run as (above); unset, they run as
   Mercbot's own user.
 - `MERCBOT_FILES_CACHE`: the files volume's JuiceFS cache, on fast local disk.
+- `MERCBOT_FILES_CACHE_SIZE`: the most that cache holds, in MiB (JuiceFS's own default is 100 GiB). Set it on a
+  machine whose only writable space is memory.
 - People who keep files in their own storage (D-26) have it mounted with rclone, with its cache under
   `MERCBOT_DATA_DIR` (`mount-cache`); that needs FUSE and `MERCBOT_VAULT_KEY`.
 - Profile pictures are with bots' files (`profile-pictures/`). One saved before 2026-11-11 in JSKIT's own folder

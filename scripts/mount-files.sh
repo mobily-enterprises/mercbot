@@ -13,6 +13,8 @@
 #                                               ACCESS_KEY and SECRET_KEY, when the storage needs
 #                                               them (default: a local folder, for one machine)
 #   MERCBOT_FILES_CACHE                         this machine's cache folder (default .tools/juicefs/cache)
+#   MERCBOT_FILES_CACHE_SIZE                    the most that cache holds, in MiB (default JuiceFS's own,
+#                                               100 GiB): set it where the cache is in memory
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -43,7 +45,9 @@ else
   log="$CACHE/../mount.log"
   # --no-agent: no debugging listener. Mercbot may bind only its own port (D-68), so JuiceFS's
   # metrics listener, which it has no switch for, is refused once and logs that; nothing uses it.
-  "$JUICEFS" mount -d --no-usage-report --no-agent --cache-dir "$CACHE" --log "$log" "$META" "$MERCBOT_FILES_DIR" >/dev/null 2>>"$log" ||
+  cache_size=()
+  [ -z "${MERCBOT_FILES_CACHE_SIZE:-}" ] || cache_size=(--cache-size "$MERCBOT_FILES_CACHE_SIZE")
+  "$JUICEFS" mount -d --no-usage-report --no-agent --cache-dir "$CACHE" "${cache_size[@]}" --log "$log" "$META" "$MERCBOT_FILES_DIR" >/dev/null 2>>"$log" ||
     { echo "Mounting failed; see $log" >&2; exit 1; }
   echo "Mounted at $MERCBOT_FILES_DIR"
 fi

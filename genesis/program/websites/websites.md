@@ -41,7 +41,10 @@ copy and `files.pages.follow` for its moves.
   access key and its secret. Keys left empty keep the saved ones for the same endpoint. The place is checked before
   it's saved: the folder is there and writable, or the bucket lists with the keys. `describe` never answers the keys,
   only `hasKeys`. While a page is published, the place can't change and the website can't be removed (409
-  `websites_pages_published`). A new place or base URL is confirmed again at its next first publish.
+  `websites_pages_published`). A new place or base URL is confirmed again at its next first publish. A copy run on more
+  than one server sets `MERCBOT_WEBSITE_FOLDERS=off` (`websiteFoldersOn`): nobody is offered a folder there, and saving
+  one, or publishing to one set up before, is refused (403 `websites_folders_off`), since its pages would be on one
+  server alone.
 - **Publishing** (`publish`): refused without a website (409 `websites_not_set_up`) and, until the website's first
   publish, without `confirmed` (409 `websites_confirm_first`). The copy is `files.pages.published`: the page as it
   opens on its own (`withoutForbidden`, `withoutScripts`, the shell's look without its helper), the same policy in a

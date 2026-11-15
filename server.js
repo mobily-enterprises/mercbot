@@ -1,6 +1,6 @@
 import Fastify from "fastify";
 import SerializerSelector from "@fastify/fast-json-stringify-compiler";
-import { createCachedResponseSerializerFactory } from "@jskit-ai/kernel/server/http";
+import { createCachedResponseSerializerFactory, resolveTrustedProxies } from "@jskit-ai/kernel/server/http";
 import fastifyStatic from "@fastify/static";
 import { buildLoggerOptions } from "./server/lib/loggerOptions.js";
 import { existsSync, readFileSync } from "node:fs";
@@ -93,6 +93,17 @@ function canServeStaticFile(distRoot, relativePath) {
 }
 
 /**
+ * The proxies whose X-Forwarded-For the server believes, for Fastify's `trustProxy`: TRUSTED_PROXIES (addresses,
+ * ranges, or loopback, linklocal and uniquelocal), else a proxy on this computer only. Behind a load balancer every
+ * request comes from the balancer, so without its addresses here each visitor would have the balancer's address, and
+ * the sign-in limits, which count by address, would refuse almost everyone once a few had tried.
+ * @param {RuntimeEnv} runtimeEnv
+ */
+function trustedProxies(runtimeEnv) {
+  return resolveTrustedProxies(runtimeEnv);
+}
+
+/**
  * The Fastify server with Mercbot's JSKIT runtime installed, for the environment given, and the `providers` of
  * `settings.providers` beside the installed packages' (a test's probe of the runtime it built). It is one person's own
  * copy, behind the single-user gate, unless `settings.gate` is false (seam S1: a copy built on Mercbot that serves many
@@ -105,6 +116,7 @@ async function createServerWith({ runtimeEnv, providers, gate = true }) {
   if (gate) checkSingleUserHost(runtimeEnv);
   const app = Fastify({
     ...(gate ? { serverFactory: singleUserServer(loadKey(runtimeEnv)) } : {}),
+    trustProxy: trustedProxies(runtimeEnv),
     logger: buildLoggerOptions(),
     schemaController: {
       compilersFactory: {
@@ -279,4 +291,4 @@ async function serve({ gate } = {}) {
   }
 }
 
-export { createServer, createServerWith, serve, startServer };
+export { createServer, createServerWith, serve, startServer, trustedProxies };

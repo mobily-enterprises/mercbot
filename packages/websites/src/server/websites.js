@@ -107,6 +107,19 @@ async function onPrivateNetwork(address) {
 }
 
 /**
+ * Whether this copy keeps websites in folders on its computer at all: MERCBOT_WEBSITE_FOLDERS=off turns them off, for a
+ * copy run on more than one server, where a page written to a folder would be on one server only and vanish with it.
+ * @param {{ MERCBOT_WEBSITE_FOLDERS?: string }} env
+ */
+export function websiteFoldersOn(env) {
+  return !/^(?:off|false|no|0)$/iu.test(String(env.MERCBOT_WEBSITE_FOLDERS || "").trim());
+}
+
+const foldersOff = () => new WebsiteError(403, "This copy of Mercbot runs on more than one server, so a website can't be a folder on one of them. Choose S3-compatible storage.", {
+  code: "websites_folders_off"
+});
+
+/**
  * @param {object} dependencies
  * @param {{ homeWebsites: object, pagePublications: object }} dependencies.resources this feature's handles
  * @param {(reason: string) => object} dependencies.systemContext the feature's system scope
@@ -135,7 +148,11 @@ export function createWebsites({ resources, systemContext, env, pages, runsThisC
   }
   const placeOf = (found) => ({ kind: found.kind, ...unseal(found.settings, keyOf()) });
   // Storage set up by someone who doesn't run the copy is reached only at public internet addresses.
-  const siteOf = (place) => (place.kind === "folder" ? createFolderSite(place.folder) : createS3Site({ ...place, guarded: place.setUpByRunner !== true }));
+  const siteOf = (place) => {
+    if (place.kind !== "folder") return createS3Site({ ...place, guarded: place.setUpByRunner !== true });
+    if (!websiteFoldersOn(env)) throw foldersOff();
+    return createFolderSite(place.folder);
+  };
 
   async function publicationOf({ botId, path: pagePath }, options) {
     const filters = { botId: String(botId), path: pagePath };
@@ -166,6 +183,7 @@ export function createWebsites({ resources, systemContext, env, pages, runsThisC
   async function save(input, options) {
     // Mercbot writes in a folder on this computer with the server's own rights, so only the people who run this copy
     // choose one; anyone else's website is in storage of their own, and on the internet.
+    if (input?.kind === "folder" && !websiteFoldersOn(env)) throw foldersOff();
     const setUpByRunner = await runsThisCopy(options);
     if (input?.kind === "folder" && !setUpByRunner) {
       throw new WebsiteError(403, "Only the people who run this copy of Mercbot can publish to a folder on its computer. Choose S3-compatible storage.", {

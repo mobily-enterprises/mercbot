@@ -11,7 +11,7 @@ import { checkAnswer } from "../../packages/websites/src/server/answerCheck.js";
 import { createFolderSite } from "../../packages/websites/src/server/folderSite.js";
 import { markerFile } from "../../packages/websites/src/server/marker.js";
 import { registerWebsiteRoutes } from "../../packages/websites/src/server/websiteRoutes.js";
-import { __testables, createWebsites } from "../../packages/websites/src/server/websites.js";
+import { __testables, createWebsites, websiteFoldersOn } from "../../packages/websites/src/server/websites.js";
 import { buildLoggerOptions } from "../../server/lib/loggerOptions.js";
 
 const { baseUrlOf, placeFrom, slugOf } = __testables;
@@ -218,7 +218,7 @@ test("only the home's owners and admins set up the website and publish to it; an
         return botId === "12" ? { id: botId } : null;
       }
     },
-    runsThisCopy: async () => runsIt
+    mayUseFolder: async () => runsIt
   });
   const manager = ["workspace.settings.update"];
   async function call(key, { permissions = [], body = {}, query = {}, botId = "12" } = {}) {
@@ -274,4 +274,26 @@ test("only the home's owners and admins set up the website and publish to it; an
   const { req } = buildLoggerOptions().serializers;
   const logged = JSON.stringify(req({ method: "PUT", url: "/api/w/home/website", body: { secretAccessKey: "SECRET-1" }, headers: {}, socket: {} }));
   assert.doesNotMatch(logged, /SECRET-1/u);
+});
+
+// A copy run on more than one server (MERCBOT_WEBSITE_FOLDERS=off) keeps every website in S3-compatible storage: a page
+// written to a folder would be on one server only, and vanish with it. Nobody is offered a folder there, even whoever
+// runs the copy, and a folder website already set up publishes nothing.
+test("with MERCBOT_WEBSITE_FOLDERS=off no website is a folder, even for whoever runs the copy", async () => {
+  for (const value of ["off", "OFF", "false", "no", "0", " off "]) assert.equal(websiteFoldersOn({ MERCBOT_WEBSITE_FOLDERS: value }), false, value);
+  for (const value of [undefined, "", "on", "true", "yes"]) assert.equal(websiteFoldersOn({ MERCBOT_WEBSITE_FOLDERS: value }), true, String(value));
+
+  const touched = [];
+  const untouchable = new Proxy({}, { get: (_target, name) => () => touched.push(name) });
+  const off = createWebsites({
+    resources: { homeWebsites: untouchable, pagePublications: untouchable }, systemContext: () => ({}), env: { MERCBOT_WEBSITE_FOLDERS: "off" },
+    pages: {}, runsThisCopy: async () => true
+  });
+  await assert.rejects(off.save({ kind: "folder", folder: "/srv/www", baseUrl: "https://example.com/" }, {}), {
+    statusCode: 403, code: "websites_folders_off",
+    message: "This copy of Mercbot runs on more than one server, so a website can't be a folder on one of them. Choose S3-compatible storage."
+  });
+  assert.deepEqual(touched, [], "refused before the website is looked at");
+  // S3-compatible storage gets past it (to the vault key, which this copy lacks).
+  await assert.rejects(off.save({ kind: "s3", endpoint: "https://s3.example.com", bucket: "pages", region: "eu-west-1", accessKeyId: "a", secretAccessKey: "b", baseUrl: "https://example.com/" }, {}), { code: "websites_vault_key_missing" });
 });
