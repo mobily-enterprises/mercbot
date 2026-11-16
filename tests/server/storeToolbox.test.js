@@ -6,7 +6,7 @@ import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import { desktopSandboxAvailable, startDesktopSandbox } from "../../packages/computer/src/server/desktopSandbox.js";
-import { sandboxSpec, shellAvailable } from "../../packages/files/src/server/gvisor.js";
+import { DESKTOP_GRAPHICS, sandboxSpec, shellAvailable } from "../../packages/files/src/server/gvisor.js";
 import { makeStoreToolbox, mountedNoexec } from "../../packages/files/src/server/storeToolbox.js";
 
 // On a host whose programs come from a read-only Nix store (MERCBOT_TOOLBOX_STORE), the bots' toolbox is a small system
@@ -25,7 +25,7 @@ function program(file, body = `echo ${path.basename(file)}`) {
  * A store with a browser, python3, bash, fonts and a fontconfig package's rules; a profile folder whose tmux leads into
  * the store; and a host folder whose python3 and xterm are the host's own. `extra` adds programs to the store's tools.
  */
-function place(context, { browser = true, extra = [] } = {}) {
+function place(context, { browser = true, extra = [], loader = false } = {}) {
   const dir = realpathSync(mkdtempSync(path.join(os.tmpdir(), "mb-store-toolbox-")));
   context.after(() => rmSync(dir, { recursive: true, force: true }));
   const store = path.join(dir, "nix");
@@ -35,6 +35,13 @@ function place(context, { browser = true, extra = [] } = {}) {
   program(path.join(packages, "ccc-bash-5.3/bin/bash"));
   program(path.join(packages, "ddd-tmux-3.7/bin/tmux"));
   for (const name of extra) program(path.join(packages, "eee-tools/bin", name));
+  if (loader) {
+    // nixpkgs' nix-ld, and glibc's bin/ld.so: a link to the glibc package's loader, as nixpkgs has it.
+    program(path.join(packages, "hhh-nix-ld-2.0/bin/nix-ld"));
+    program(path.join(packages, "iii-glibc-2.42/lib/ld-linux-x86-64.so.2"));
+    mkdirSync(path.join(packages, "jjj-glibc-2.42-bin/bin"), { recursive: true });
+    symlinkSync("../../iii-glibc-2.42/lib/ld-linux-x86-64.so.2", path.join(packages, "jjj-glibc-2.42-bin/bin/ld.so"));
+  }
   mkdirSync(path.join(packages, "fff-liberation-fonts-2.1/share/fonts/truetype"), { recursive: true });
   mkdirSync(path.join(packages, "ggg-fontconfig-2.16/etc/fonts/conf.d"), { recursive: true });
   mkdirSync(path.join(store, "profile/bin"), { recursive: true });
@@ -43,7 +50,8 @@ function place(context, { browser = true, extra = [] } = {}) {
   program(path.join(dir, "host/bin/xterm"));
   program(path.join(dir, "runsc"));
   const searchPath = [path.join(dir, "host/bin"), path.join(store, "profile/bin"), path.join(packages, "aaa-chromium-157/bin"),
-    path.join(packages, "bbb-python3-3.13/bin"), path.join(packages, "ccc-bash-5.3/bin"), path.join(packages, "eee-tools/bin")].join(":");
+    path.join(packages, "bbb-python3-3.13/bin"), path.join(packages, "ccc-bash-5.3/bin"), path.join(packages, "eee-tools/bin"),
+    ...(loader ? [path.join(packages, "hhh-nix-ld-2.0/bin"), path.join(packages, "jjj-glibc-2.42-bin/bin")] : [])].join(":");
   const env = { MERCBOT_TOOLBOX_STORE: store, MERCBOT_TOOLBOX_DIR: path.join(dir, "toolbox"), MERCBOT_RUNSC: path.join(dir, "runsc"), PATH: searchPath };
   return { dir, store, packages, env, box: env.MERCBOT_TOOLBOX_DIR };
 }
@@ -127,7 +135,90 @@ test("the start stops, saying so, when the store lacks what computers need, and 
   const { env } = place(context);
   const made = run(env);
   assert.equal(made.status, 0, made.stderr);
-  assert.match(made.stdout, /^Toolbox made from the store: \d+ programs, 1 font folders, in .+\.\nBots have no command line on this server: the store lacks tail, ffmpeg, /u);
+  assert.match(made.stdout, /^Toolbox made from the store: \d+ programs, 1 font folders, 0 libraries, in .+\.\nBots have no command line on this server: the store lacks tail, ffmpeg, /u);
+  assert.match(made.stdout, /\nThe office apps, voice memos and coding tools can't start in this toolbox, as they're made for an ordinary Linux system: the store lacks nix-ld and ld\.so on PATH\.\n$/u);
+  const loaded = run(place(context, { loader: true }).env);
+  assert.equal(loaded.status, 0, loaded.stderr);
+  assert.doesNotMatch(loaded.stdout, /can't start in this toolbox/u);
+});
+
+/** Library packages in `packages`: each `name` holding `files` in lib/ (a library is a file; `name -> target` a link). */
+function libraries(packages, name, files) {
+  for (const file of files) {
+    const [entry, target] = file.split(" -> ");
+    mkdirSync(path.join(packages, name, "lib"), { recursive: true });
+    if (target) symlinkSync(target, path.join(packages, name, "lib", entry));
+    else writeFileSync(path.join(packages, name, "lib", entry), "");
+  }
+  return path.join(packages, name, "lib");
+}
+
+test("programs made for an ordinary Linux system find nix-ld as their loader, with the store's ld.so and the named libraries where nix-ld looks", (context) => {
+  const { dir, packages, env, box } = place(context, { loader: true });
+  const alsa = libraries(packages, "kkk-alsa-lib-1.2", ["libasound.so.2.0.0", "libasound.so.2 -> libasound.so.2.0.0", "libasound.a"]);
+  const gcc = libraries(packages, "lll-gcc-15-lib", ["libstdc++.so.6", "libasound.so.2", "libgcc_s.so.1"]);
+  mkdirSync(path.join(gcc, "pkgconfig"));
+  writeFileSync(path.join(dir, "host-libz.so.1"), "");
+  symlinkSync(path.join(dir, "host-libz.so.1"), path.join(gcc, "libz.so.1"));
+  const made = makeStoreToolbox({ ...env, MERCBOT_TOOLBOX_LIBRARIES: `${alsa}:${gcc}` });
+  assert.equal(made.loader, true);
+  assert.deepEqual(made.missing.loader, []);
+  assert.equal(readlinkSync(path.join(box, "lib64/ld-linux-x86-64.so.2")), path.join(packages, "hhh-nix-ld-2.0/bin/nix-ld"), "nix-ld, where such programs ask for their loader");
+  const folder = path.join(box, "run/current-system/sw/share/nix-ld/lib");
+  assert.equal(readlinkSync(path.join(folder, "ld.so")), path.join(packages, "iii-glibc-2.42/lib/ld-linux-x86-64.so.2"), "glibc's loader by its real path, where nix-ld looks for it");
+  assert.equal(readlinkSync(path.join(folder, "libasound.so.2")), path.join(alsa, "libasound.so.2.0.0"), "the first folder's library of a name, by its real path");
+  assert.equal(readlinkSync(path.join(folder, "libstdc++.so.6")), path.join(gcc, "libstdc++.so.6"));
+  assert.equal(readlinkSync(path.join(folder, "libgcc_s.so.1")), path.join(gcc, "libgcc_s.so.1"));
+  assert.equal(existsSync(path.join(folder, "libasound.a")) || existsSync(path.join(folder, "pkgconfig")), false, "only shared libraries");
+  assert.equal(existsSync(path.join(folder, "libz.so.1")), false, "a library whose real file is outside the store couldn't be seen in a sandbox");
+  assert.equal(made.libraries, 4);
+  assert.equal(readlinkSync(path.join(box, "usr/bin/nix-ld")), path.join(packages, "hhh-nix-ld-2.0/bin/nix-ld"), "both are programs on PATH as any other");
+});
+
+test("without nix-ld or ld.so on PATH such programs have no loader, and the toolbox says which is missing", (context) => {
+  const { packages, env, box } = place(context, { loader: true });
+  const alsa = libraries(packages, "kkk-alsa-lib-1.2", ["libasound.so.2"]);
+  for (const [gone, folder] of [["nix-ld", "hhh-nix-ld-2.0/bin"], ["ld.so", "jjj-glibc-2.42-bin/bin"]]) {
+    const searchPath = env.PATH.split(":").filter((dir) => dir !== path.join(packages, folder)).join(":");
+    const made = makeStoreToolbox({ ...env, PATH: searchPath, MERCBOT_TOOLBOX_LIBRARIES: alsa });
+    assert.equal(made.loader, false);
+    assert.deepEqual(made.missing.loader, [gone]);
+    assert.equal(made.libraries, 0);
+    assert.equal(existsSync(path.join(box, "lib64")) || existsSync(path.join(box, "run")), false, `no loader without ${gone}`);
+  }
+});
+
+test("a library folder that isn't a folder in the store stops the toolbox, naming it", (context) => {
+  const { dir, packages, env } = place(context, { loader: true });
+  const alsa = libraries(packages, "kkk-alsa-lib-1.2", ["libasound.so.2"]);
+  mkdirSync(path.join(dir, "host/lib"));
+  for (const folder of [path.join(dir, "host/lib"), path.join(packages, "nowhere/lib"), path.join(alsa, "libasound.so.2")]) {
+    assert.throws(() => makeStoreToolbox({ ...env, MERCBOT_TOOLBOX_LIBRARIES: `${alsa}:${folder}` }), (error) => error.message ===
+      `MERCBOT_TOOLBOX_LIBRARIES names ${folder}, which isn't a folder in the store (${env.MERCBOT_TOOLBOX_STORE}).`);
+  }
+});
+
+test("Mesa's driver manifests are where a computer's desktop looks for them, from the Mesa named, which must have both", (context) => {
+  const { dir, packages, env, box } = place(context);
+  const mesa = path.join(packages, "mmm-mesa-26.1");
+  for (const manifest of ["share/vulkan/icd.d/lvp_icd.x86_64.json", "share/glvnd/egl_vendor.d/50_mesa.json"]) {
+    mkdirSync(path.dirname(path.join(mesa, manifest)), { recursive: true });
+    writeFileSync(path.join(mesa, manifest), "{}");
+  }
+  const made = makeStoreToolbox({ ...env, MERCBOT_TOOLBOX_MESA: mesa });
+  assert.equal(made.graphics, true);
+  assert.equal(readlinkSync(path.join(box, DESKTOP_GRAPHICS.vulkan)), path.join(mesa, "share/vulkan/icd.d/lvp_icd.x86_64.json"), "lavapipe's Vulkan manifest");
+  assert.equal(readlinkSync(path.join(box, DESKTOP_GRAPHICS.egl)), path.join(mesa, "share/glvnd/egl_vendor.d/50_mesa.json"), "Mesa's EGL vendor file");
+  const none = makeStoreToolbox(env);
+  assert.equal(none.graphics, false);
+  assert.equal(existsSync(path.join(box, "usr/share")), false, "no Mesa named, no manifests");
+  // A Mesa without either manifest, or a folder that isn't in the store, is refused by name.
+  rmSync(path.join(mesa, "share/glvnd"), { recursive: true });
+  mkdirSync(path.join(dir, "host/mesa"));
+  for (const [named, message] of [[mesa, `MERCBOT_TOOLBOX_MESA names ${mesa}, which has no share/glvnd/egl_vendor.d/50_mesa.json.`],
+    [path.join(dir, "host/mesa"), `MERCBOT_TOOLBOX_MESA names ${path.join(dir, "host/mesa")}, which isn't a folder in the store (${env.MERCBOT_TOOLBOX_STORE}).`]]) {
+    assert.throws(() => makeStoreToolbox({ ...env, MERCBOT_TOOLBOX_MESA: named }), (error) => error.message === message);
+  }
 });
 
 test("every sandbox sees the store read-only at the same path, its programs startable, and none without a store", (context) => {
@@ -159,6 +250,9 @@ done`);
     const spec = JSON.parse(readFileSync(path.join(dir, "spec.json"), "utf8"));
     assert.deepEqual(spec.mounts.find((mount) => mount.destination === store), { destination: store, type: "bind", source: store, options: ["rbind", "ro", "nosuid", "nodev"] });
     assert.equal(spec.root.path, env.MERCBOT_TOOLBOX_DIR);
+    // Its Vulkan loader and glvnd look for Mesa's drivers where the toolbox puts the store's (MERCBOT_TOOLBOX_MESA).
+    assert.ok(spec.process.env.includes(`VK_ICD_FILENAMES=${DESKTOP_GRAPHICS.vulkan}`));
+    assert.ok(spec.process.env.includes(`__EGL_VENDOR_LIBRARY_FILENAMES=${DESKTOP_GRAPHICS.egl}`));
     // Every folder keeps nosuid and nodev, and the display's socket folder noexec, which a host may have set (its /tmp).
     assert.ok(spec.mounts.filter((mount) => mount.type === "bind").every((mount) => mount.options.includes("nosuid") && mount.options.includes("nodev")));
     assert.deepEqual(spec.mounts.find((mount) => mount.destination === "/tmp/.X11-unix").options, ["rbind", "ro", "noexec", "nosuid", "nodev"]);

@@ -88,8 +88,19 @@ store, their commands are on `PATH`, and nothing is installed or built there (D-
   writable and allow programs; on a host where only one work folder does, put them and `MERCBOT_TOOLBOX_DIR` there.
   Every folder a sandbox sees keeps `nosuid` and `nodev`, and the display's sockets `noexec`, so a sandbox never asks
   to drop a restriction the host set on them.
-- The office apps, voice memos, coding runs, JuiceFS and rclone come from `npm run tools:install` and aren't part of
-  the store's toolbox: without them their features are off, as on any server without them.
+- The office apps, voice memos, coding runs, JuiceFS and rclone come from `npm run tools:install`'s pinned downloads
+  (or the same downloads put in `MERCBOT_TOOLS_DIR` by whatever builds the host's release), not from the store:
+  without them their features are off, as on any server without them.
+- The office apps, Piper and Claude Code are made for an ordinary Linux system and ask for its loader and libraries
+  (D-89). With `nix-ld` and glibc on `PATH` (nixpkgs' `nix-ld` and `glibc`), the toolbox makes nix-ld their loader with
+  glibc's `ld.so`, and gives them the libraries of the folders `MERCBOT_TOOLBOX_LIBRARIES` names (folders in the store,
+  separated by `:`; the first file of each name wins): gcc's runtime libraries, `libstdc++.so.6` and `libgcc_s.so.1`,
+  for all of them (Codex is a static program and needs nothing), and on a server that holds computers what the office
+  apps' windows load, the `lib` folders of nixpkgs' `libx11`, `libxcursor`, `libxi`, `libxkbcommon` (X11, its cursors,
+  input and keyboard), `alsa-lib` (sound) and `vulkan-loader`, or `libglvnd` to draw through EGL instead. There
+  `MERCBOT_TOOLBOX_MESA` names nixpkgs' `mesa`, whose software drivers they draw with: its lavapipe Vulkan manifest and
+  EGL vendor file go where the desktop looks for them. Without nix-ld or `ld.so` the start says those features can't
+  start; a library folder that isn't in the store, or a Mesa without both files, stops the start, naming it.
 
 ### Root steps (once per computer)
 

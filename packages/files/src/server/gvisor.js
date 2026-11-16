@@ -67,6 +67,16 @@ export function toolboxRoot(env) {
 }
 
 /**
+ * Where a computer's desktop sandbox has its Vulkan loader and glvnd find Mesa's software drivers, which the office
+ * apps' windows draw with (desktopSandbox.js's VK_ICD_FILENAMES and __EGL_VENDOR_LIBRARY_FILENAMES): Ubuntu Mesa's own
+ * places in the toolbox scripts/build-toolbox.sh builds, which storeToolbox.js fills from the store's Mesa.
+ */
+export const DESKTOP_GRAPHICS = Object.freeze({
+  vulkan: "/usr/share/vulkan/icd.d/lvp_icd.json",
+  egl: "/usr/share/glvnd/egl_vendor.d/50_mesa.json"
+});
+
+/**
  * gVisor's platform: its default (systrap), or KVM when MERCBOT_GVISOR_PLATFORM=kvm. KVM is only
  * faster on a machine with hardware virtualisation of its own (bare metal); inside a virtual
  * machine (nested KVM) it measured slower on everything that matters (D-49), so it's turned on per

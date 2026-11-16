@@ -1919,3 +1919,32 @@ it, and behaves as before.
   address, when it was last seen, whether that was in the last 45 seconds and how many computers it holds that
   aren't asleep: one read of `mercbot_servers` and the live servers' count (D-15), so a feature can show them without
   reading Mercbot's tables.
+
+## D-89 — Programs made for an ordinary Linux system start on the store's toolbox through nix-ld (2026-11-16)
+
+The office apps, Piper (voice memos) and Claude Code are pinned downloads built for an ordinary Linux system (glibc's,
+such as Ubuntu's): each asks for its loader at `/lib64/ld-linux-x86-64.so.2` and its libraries in the system's
+folders, which a toolbox made from a read-only Nix store (D-86) doesn't have, so on such a host they couldn't start and
+their features were off. A host that can't install anything must keep them (D-68), with the same pinned versions and
+sums. Building them from nixpkgs isn't that (no Craft apps there, another Piper, other Claude Code and Codex
+versions), and taking them from the host's own system would bind its libraries into every sandbox at whatever versions
+it has. So the store gives them a loader and the libraries they need, named, and they are otherwise as everywhere.
+- **The loader:** with `nix-ld` and glibc's `ld.so` on `PATH` (nixpkgs' `nix-ld` and `glibc`), the store toolbox
+  links `lib64/ld-linux-x86-64.so.2` to nix-ld and puts glibc's loader and the libraries where nix-ld looks when
+  nothing names another place (`run/current-system/sw/share/nix-ld/lib`), so no sandbox sets anything for it. nix-ld
+  starts the program with the store's glibc loader and those libraries, then gives it its own environment back before
+  it runs (an unset `LD_LIBRARY_PATH` comes back empty, which glibc's loader ignores), so nothing it runs inherits them.
+  The store's own programs never go through it. Without either, the start says the office apps, voice memos and coding
+  tools can't start, and their features stay off as on any server without them.
+- **Libraries named, not found:** `MERCBOT_TOOLBOX_LIBRARIES` names the folders (in the store, separated by `:`), and
+  the first file of each name wins; a folder that isn't one in the store stops the start, naming it. What these
+  programs need, read from them: gcc's runtime libraries (`libstdc++.so.6`, `libgcc_s.so.1`) for all of them, Claude
+  Code needs only glibc, and Codex is a static program run by Node; on a computer the office apps' windows also load
+  sound, X11 and its keyboard, Vulkan and EGL (docs/deployment.md lists the packages).
+- **Software drawing:** a computer has no GPU, so the office apps draw with Mesa's software drivers, as in Mercbot's own
+  toolbox. `MERCBOT_TOOLBOX_MESA` names Mesa's folder in the store, and its lavapipe Vulkan manifest and EGL vendor
+  file go where the desktop sandbox tells Vulkan and glvnd to look (`DESKTOP_GRAPHICS`, `gvisor.js`); each names its
+  library at its store path. A Mesa without both stops the start, naming the one it lacks.
+- **The programs themselves** still come from `npm run tools:install`'s pinned downloads, or from the same downloads
+  put in the tools folder by whatever builds the host's release; the store gives them only what an ordinary system
+  would have.

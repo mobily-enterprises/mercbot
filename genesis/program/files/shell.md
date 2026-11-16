@@ -54,7 +54,14 @@ folders and without network (D-47).
   `ffprobe`, `convert`, `tesseract`, `pdftotext`, `pdftoppm`, `qpdf`, `gs`, `pandoc`, `python3` with pandas, numpy,
   matplotlib, openpyxl, python-docx and python-pptx, `node`, `npm`, `sqlite3`, `jq`); otherwise the start says
   which are missing and bots have no command line. Without a browser, `python3` or `sh` there, the start stops,
-  saying so. `serve.sh` also points `FONTCONFIG_FILE` at the toolbox's fonts.conf for the desktops' own programs.
+  saying so. Programs made for an ordinary Linux system (the office apps, Piper, Claude Code; D-89) get their loader
+  when `nix-ld` and `ld.so` are on `PATH`: `lib64/ld-linux-x86-64.so.2` leads to nix-ld, and
+  `run/current-system/sw/share/nix-ld/lib`, where nix-ld looks, holds glibc's `ld.so` and a link to each library in
+  the folders `MERCBOT_TOOLBOX_LIBRARIES` names (`storeLibraries`: `lib*.so*` files whose real file is in the store,
+  the first of each name; a folder that isn't one in the store stops the start, naming it). Without either program
+  the start says those features can't start. `MERCBOT_TOOLBOX_MESA` names Mesa's folder in the store, whose lavapipe
+  Vulkan manifest and EGL vendor file are linked where the desktop sandbox names them (`mesaManifests`,
+  `DESKTOP_GRAPHICS` in `gvisor.js`); one lacking either stops the start, naming it. `serve.sh` also points `FONTCONFIG_FILE` at the toolbox's fonts.conf for the desktops' own programs.
   `HOSTING_SCRIPT=scripts/hosting/store.sh` is such a host's script: `host_check` refuses without the two settings or
   without `runsc` on `PATH` (it sets `MERCBOT_RUNSC`), then checks namespaces and `/dev/fuse` as on Vibe64; its
   install steps refuse, as nothing is installed there.

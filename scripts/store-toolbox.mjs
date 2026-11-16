@@ -18,7 +18,11 @@ if (!made.computers) {
     `Not found on PATH in ${process.env.MERCBOT_TOOLBOX_STORE}: ${made.missing.computers.join(", ")}`);
   process.exit(1);
 }
-console.log(`Toolbox made from the store: ${made.programs} programs, ${made.fonts} font folders, in ${process.env.MERCBOT_TOOLBOX_DIR}.`);
+console.log(`Toolbox made from the store: ${made.programs} programs, ${made.fonts} font folders, ${made.libraries} libraries${made.graphics ? " and Mesa's drivers" : ""}, in ${process.env.MERCBOT_TOOLBOX_DIR}.`);
 if (!made.commandLine) {
   console.log(`Bots have no command line on this server: the store lacks ${made.missing.commandLine.join(", ")}.`);
+}
+if (!made.loader) {
+  console.log("The office apps, voice memos and coding tools can't start in this toolbox, as they're made for an ordinary " +
+    `Linux system: the store lacks ${made.missing.loader.join(" and ")} on PATH.`);
 }

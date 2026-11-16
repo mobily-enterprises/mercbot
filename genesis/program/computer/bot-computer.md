@@ -76,7 +76,9 @@ apps:
   start (`files/shell.md`), `/opt/chrome/chrome` is the store's Chromium, and the sandbox sees the store read-only at
   its own path; the desktop's own programs (`Xvfb`, `x11vnc`, `openbox`, `tint2`, `hsetroot`, `xterm`) are found on
   `PATH` as anywhere, and the browser's launcher (`chrome.sh` in the server's temporary folder) needs that folder to
-  allow programs. The display's socket folder is mounted `noexec` and every folder keeps `nosuid,nodev`, so a host's
+  allow programs. The office apps there start through the toolbox's nix-ld (D-89) and draw with the store's Mesa,
+  whose manifests are where `VK_ICD_FILENAMES` and `__EGL_VENDOR_LIBRARY_FILENAMES` lead (`DESKTOP_GRAPHICS`, the
+  same places as in Mercbot's own toolbox). The display's socket folder is mounted `noexec` and every folder keeps `nosuid,nodev`, so a host's
   `/tmp` that forbids programs doesn't stop the sandbox.
 - **Chrome:** Mercbot starts it itself (headful, `--display=:N`, `--no-sandbox` since gVisor is
   the sandbox, `--proxy-server=http://127.0.0.1:3128`), with remote control on port 9222 inside

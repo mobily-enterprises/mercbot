@@ -6,7 +6,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
-import { folderMount, platformFlags, runsc, sandboxUser, storeMounts, toolboxRoot } from "@local/files/gvisor";
+import { DESKTOP_GRAPHICS, folderMount, platformFlags, runsc, sandboxUser, storeMounts, toolboxRoot } from "@local/files/gvisor";
 import { FORWARDER, PROXY_ENV, startGateway } from "./gateway.js";
 import { quote } from "./shellQuote.js";
 
@@ -87,7 +87,7 @@ export async function startDesktopSandbox({ runtimeEnv, computerId, display, pro
     `HOME=${home}`, `DISPLAY=:${display}`, "LANG=C.UTF-8", "LC_ALL=C.UTF-8",
     "XDG_CACHE_HOME=/tmp/.cache", `XDG_CONFIG_HOME=${folders ? "/files/mine/.apps" : "/tmp/.config"}`,
     ...PROXY_ENV,
-    "VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/lvp_icd.json", "__EGL_VENDOR_LIBRARY_FILENAMES=/usr/share/glvnd/egl_vendor.d/50_mesa.json",
+    `VK_ICD_FILENAMES=${DESKTOP_GRAPHICS.vulkan}`, `__EGL_VENDOR_LIBRARY_FILENAMES=${DESKTOP_GRAPHICS.egl}`,
     ...extraEnv
   ];
   const spec = {

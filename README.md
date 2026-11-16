@@ -64,7 +64,10 @@ the error underneath; Mercbot never switches its computers or mounts off quietly
   fonts) as links, which every gVisor sandbox can follow because it sees the store read-only at the same path. The
   host must also give Mercbot its own namespaces and `/dev/fuse`, have `Xvfb`, `x11vnc` and `openbox` on `PATH`, and
   let programs run in its temporary folder, its data folder (the computers' launchers) and the toolbox's folder (gVisor
-  mounts it again). docs/deployment.md lists the packages.
+  mounts it again). The office apps, voice memos and coding tools are still `npm run tools:install`'s downloads, made
+  for an ordinary Linux system: with `nix-ld` and glibc on `PATH`, and their libraries' folders in
+  `MERCBOT_TOOLBOX_LIBRARIES` (and Mesa's in `MERCBOT_TOOLBOX_MESA` for the office apps' windows), they start there
+  too. docs/deployment.md lists the packages.
 - **Other hosts** are not supported yet. Another host needs its own `scripts/hosting/<name>.sh` with
   the same functions (`host_check`, `host_display_programs`, `host_toolbox_packages`,
   `host_desktop_tools`, `host_fuse_tools`, `host_unpack_deb`; those for Ubuntu are shared in
