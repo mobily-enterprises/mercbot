@@ -286,7 +286,13 @@ export function makeStoreToolbox(env) {
   renameSync(fresh, root);
   rmSync(`${root}.old`, { recursive: true, force: true });
   return {
-    programs: programs.size, fonts: fonts.fonts, computers: missing.computers.length === 0, commandLine, loader,
-    libraries: loader ? libraries.size : 0, graphics: graphics.length > 0, missing
+    programs: programs.size,
+    fonts: fonts.fonts,
+    computers: missing.computers.length === 0,
+    commandLine,
+    loader,
+    libraries: loader ? libraries.size : 0,
+    graphics: graphics.length > 0,
+    missing
   };
 }
