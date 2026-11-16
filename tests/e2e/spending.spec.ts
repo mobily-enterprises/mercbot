@@ -195,6 +195,10 @@ test("the person reads what was spent by day, week and range, and downloads it a
     await expect(report.getByRole("button", { name: "Later" })).toBeDisabled();
     await report.getByRole("button", { name: "Earlier" }).click();
     await expect(report.getByText("Nothing was spent in this period.")).toBeVisible();
+    // Back to today before its week: the report keeps the day it shows when the period changes, and yesterday's week
+    // (Monday to Sunday) or month leaves today out on a Monday or a 1st.
+    await report.getByRole("button", { name: "Later" }).click();
+    await expect(report.getByTestId("report-total")).toHaveText("$21.00");
     await settings.getByRole("button", { name: "Period" }).click();
     await page.getByRole("option", { name: "Week" }).click();
     await expect(report.getByTestId("report-total")).toHaveText("$21.00");
