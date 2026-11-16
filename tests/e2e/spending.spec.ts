@@ -199,8 +199,13 @@ test("the person reads what was spent by day, week and range, and downloads it a
     // (Monday to Sunday) or month leaves today out on a Monday or a 1st.
     await report.getByRole("button", { name: "Later" }).click();
     await expect(report.getByTestId("report-total")).toHaveText("$21.00");
+    // A day has no chart, and its total is the week's too, so the week's chart is what shows the week's report has
+    // come, before the next menu opens over where it is drawn.
+    const chart = report.getByRole("img", { name: /^Bar chart of spending by day/u });
+    await expect(chart).toHaveCount(0);
     await settings.getByRole("button", { name: "Period" }).click();
     await page.getByRole("option", { name: "Week" }).click();
+    await expect(chart).toBeVisible();
     await expect(report.getByTestId("report-total")).toHaveText("$21.00");
     await settings.getByRole("button", { name: "Period" }).click();
     await page.getByRole("option", { name: "Custom range" }).click();
