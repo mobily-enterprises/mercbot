@@ -88,13 +88,17 @@ const HEADERS = Object.freeze({
 /**
  * Fastify's serverFactory for a person's own copy: an HTTP server that checks every request and websocket upgrade
  * (refusalOf) before any listener sees it. Socket.IO, the live screen and the browsers' remote control listen on this
- * same server, so they are checked too.
+ * same server, so they are checked too. It keeps idle connections open as long as a server Fastify makes itself
+ * (its keepAliveTimeout, 72 s unless set), which Fastify sets only on its own servers: with Node's 5 s, a client that
+ * keeps an idle connection longer than the server says it will, as Playwright's request context does, can send a
+ * request on it just as the server closes it, and gets ECONNRESET.
  * @param {string} key
- * @returns {(handler: import("node:http").RequestListener) => import("node:http").Server}
+ * @returns {(handler: import("node:http").RequestListener, options?: { keepAliveTimeout?: number }) => import("node:http").Server}
  */
 export function singleUserServer(key) {
-  return (handler) => {
+  return (handler, options = {}) => {
     const server = http.createServer(handler);
+    if (options.keepAliveTimeout) server.keepAliveTimeout = options.keepAliveTimeout;
     const emit = server.emit.bind(server);
     const copy = () => ({ key, port: server.address()?.port });
     server.emit = (event, ...args) => {

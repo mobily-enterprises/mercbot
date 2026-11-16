@@ -4,7 +4,8 @@ import { chmodSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync }
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { checkSingleUserHost, cookieOf, refusalOf } from "../../packages/single-user/src/server/gate.js";
+import Fastify from "fastify";
+import { checkSingleUserHost, cookieOf, refusalOf, singleUserServer } from "../../packages/single-user/src/server/gate.js";
 import { keyFile, keyMatches, loadKey } from "../../packages/single-user/src/server/key.js";
 
 // A person's own copy (D-81): every request passes the gate before anything else sees it. Each rule, broken.
@@ -138,4 +139,14 @@ test("a single-user copy starts only on loopback", () => {
     assert.throws(() => checkSingleUserHost({ HOST }), /listens on this computer only: set HOST to 127\.0\.0\.1 or ::1/u, String(HOST));
   }
   assert.equal(cookieOf({ headers: { cookie: "a=1;  mercbot_key = v ; b" } }, "mercbot_key"), "v");
+});
+
+// Node's own 5 s let an idle connection close under a request Playwright's request context was sending on it.
+test("the gate's server keeps idle connections open as long as Fastify's own server does", async () => {
+  const servers = [Fastify(), Fastify({ serverFactory: singleUserServer(key) }), Fastify({ serverFactory: singleUserServer(key), keepAliveTimeout: 9_000 })];
+  try {
+    assert.deepEqual(servers.map(({ server }) => server.keepAliveTimeout), [72_000, 72_000, 9_000]);
+  } finally {
+    await Promise.all(servers.map((server) => server.close()));
+  }
 });
