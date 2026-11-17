@@ -107,11 +107,13 @@ test("screenshots and the pictures and videos bots save are checked afterwards, 
     assert.equal(existsSync(cat), false, "the blocked picture is gone");
     assert.deepEqual(await fs.readFile(dog), MP4, "the allowed video stays");
     assert.deepEqual(await rows(), []);
-    assert.deepEqual(asked.map((item) => [item.origin, item.path, item.mime, item.workspaceId, item.userId, item.botId, item.conversationId, item.ip]), [
+    // A batch's files are checked at once, so the checker is asked in whichever order they are read: compared by path.
+    const byPath = (a, b) => a.path.localeCompare(b.path);
+    assert.deepEqual([...asked].sort(byPath).map((item) => [item.origin, item.path, item.mime, item.workspaceId, item.userId, item.botId, item.conversationId, item.ip]), [
       ["saved_file", "/files/mine/cat.png", "image/png", home, userId, "41", "5", null],
       ["saved_file", "/files/mine/dog.mp4", "video/mp4", home, userId, "41", "5", null]
     ]);
-    assert.deepEqual(asked[0].bytes, PICTURE);
+    assert.deepEqual(asked.find((item) => item.path === "/files/mine/cat.png").bytes, PICTURE);
     assert.match(said.mock.calls[0].arguments[0], /^A file \/files\/mine\/cat\.png \(home \d+\) was removed: its check blocked it \(check-1\)\.$/u);
   });
 
