@@ -489,10 +489,12 @@ export function createRemoteMounts({ env, dataDir = path.resolve(env.MERCBOT_DAT
     const deadline = Date.now() + ms;
     while (Date.now() < deadline && !blocked()) {
       await entry.pushing;
+      // The wait ends with the push: a timer left running would hold a stopping server up to SETTLE_MS.
+      let late = null;
       const pushed = await Promise.race([
         entry.tree.push("").then(() => true, () => false),
-        sleep(Math.max(0, deadline - Date.now())).then(() => false)
-      ]);
+        new Promise((resolve) => (late = setTimeout(resolve, Math.max(0, deadline - Date.now()), false)))
+      ]).finally(() => clearTimeout(late));
       if (pushed) return;
       await sleep(500);
     }

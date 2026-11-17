@@ -26,14 +26,16 @@ import { ownedHandles } from "./ownedHandles.mjs";
 const CATALOGUE = Object.freeze([{ id: "google-drive", name: "Google Drive", oauth: { provider: "google", scopes: ["https://www.googleapis.com/auth/drive"] } }]);
 
 /**
- * The environment of a server whose homes keep files on `filesDir` (made Mercbot's shared volume here) or in the
- * stand-in Drive, which its rclone reaches through the stand-in's proxy.
+ * The environment of a test server (APP_ENV=test, D-87, which the stand-in Drive needs) whose homes keep files on
+ * `filesDir` (made Mercbot's shared volume here) or in the stand-in Drive, which its rclone reaches through the
+ * stand-in's proxy.
  * @param {{ vault: string, drive: { url: string, proxy: string, caFile: string }, filesDir: string }} options
  */
 export async function filesEnv({ vault, drive, filesDir }) {
   await fs.writeFile(path.join(filesDir, ".mercbot-files"), "");
   return {
     PATH: process.env.PATH,
+    APP_ENV: "test",
     APP_PUBLIC_URL: "http://localhost:4000",
     MERCBOT_VAULT_KEY: vault,
     MERCBOT_FILES_DIR: filesDir,
