@@ -48,10 +48,12 @@ function run(command, args, input) {
  * @param {object} dependencies
  * @param {ReturnType<typeof import("./computerRecords.js").createComputerRecords>} dependencies.records the saved browsers' records
  * @param {import("@jskit-ai/kernel/server/types").RuntimeEnv} dependencies.env
- * @param {(computerId: number | string) => Promise<string>} dependencies.folderOf The computer's
- *   folder on the shared volume.
+ * @param {(computerId: number | string, how?: { fresh?: boolean }) => Promise<string>} dependencies.folderOf The
+ *   computer's folder on the shared volume, brought up to date (`fresh`: even if it was a moment ago).
+ * @param {(computerId: number | string) => Promise<void>} dependencies.settle Sends what was written in that folder
+ *   to where the files are kept (the files bucket, D-91), before it's recorded.
  */
-export function createBrowserState({ records, env, folderOf }) {
+export function createBrowserState({ records, env, folderOf, settle }) {
   const key = vaultKey(env);
   const available = Boolean(key);
 
@@ -62,6 +64,7 @@ export function createBrowserState({ records, env, folderOf }) {
     const folder = await folderOf(computerId);
     const file = `profile-${Date.now()}-${randomBytes(4).toString("hex")}.sealed`;
     await writeFile(path.join(folder, file), sealed);
+    await settle(computerId);
     const written = await records.saveBrowser(computerId, {
       profileFile: file,
       profileSha256: sha256(sealed),
@@ -72,10 +75,14 @@ export function createBrowserState({ records, env, folderOf }) {
     // The conversation is gone: so is what it would have kept.
     if (!written) {
       await rm(path.join(folder, file), { force: true });
+      await settle(computerId);
       return;
     }
     const { before, saved } = written;
-    if (before?.profileFile && before.profileFile !== file) await rm(path.join(folder, before.profileFile), { force: true });
+    if (before?.profileFile && before.profileFile !== file) {
+      await rm(path.join(folder, before.profileFile), { force: true });
+      await settle(computerId);
+    }
     await writeFile(path.join(profileDir, MARKER), new Date(saved.profileSavedAt).toISOString());
   }
 
@@ -86,6 +93,7 @@ export function createBrowserState({ records, env, folderOf }) {
     const temporary = path.join(folder, `${COOKIES}.${randomBytes(4).toString("hex")}`);
     await writeFile(temporary, sealed);
     await rename(temporary, path.join(folder, COOKIES));
+    await settle(computerId);
     await records.saveBrowser(computerId, { cookiesSha256: sha256(sealed), cookiesSavedAt: new Date().toISOString(), url });
   }
 
@@ -105,7 +113,8 @@ export function createBrowserState({ records, env, folderOf }) {
     if (!available) return { cookies: [], url: "" };
     const row = await records.savedBrowser(computerId);
     if (!row) return { cookies: [], url: "" };
-    const folder = await folderOf(computerId);
+    // Saved a moment ago on another server, perhaps: looked for afresh.
+    const folder = await folderOf(computerId, { fresh: true });
     if (row.profileFile) {
       const saved = new Date(row.profileSavedAt).toISOString();
       const local = await readFile(path.join(profileDir, MARKER), "utf8").catch(() => "");
@@ -132,6 +141,7 @@ export function createBrowserState({ records, env, folderOf }) {
     for (const name of await readdir(folder).catch(() => [])) {
       if (name.startsWith("profile-") || name.startsWith(COOKIES)) await rm(path.join(folder, name), { force: true });
     }
+    await settle(computerId);
   }
 
   return Object.freeze({

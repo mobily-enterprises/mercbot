@@ -146,8 +146,14 @@ export function createMediaChecks({ guard, mediaChecks, systemContext, store, ti
       if (!SCREENSHOT_NAME.test(row.path)) return null;
       // Without the volume a screenshot is neither there nor gone: it waits.
       if (!(await store.available())) throw new Error("the files volume isn't available on this server");
-      const real = path.join(store.computersRoot, String(Number(row.conversationId)), "screenshots", row.path);
-      return { real, remove: () => fs.rm(real, { force: true }) };
+      const conversation = Number(row.conversationId);
+      // Taken on another server, it's fetched from the files bucket first (D-91).
+      const real = (await store.computerFile(conversation, `screenshots/${row.path}`)) ?? path.join(store.computersRoot, String(conversation), "screenshots", row.path);
+      async function remove() {
+        await fs.rm(real, { force: true });
+        await store.settleComputer(conversation);
+      }
+      return { real, remove };
     }
     const found = await store.existingFile(row.place, row.path).catch((error) => {
       if (missing(error)) return null;

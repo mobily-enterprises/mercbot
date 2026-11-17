@@ -407,6 +407,9 @@ export function createShell({
         await fs.writeFile(path.join(dirs.runs, `${row.id}.log`), result.full)
           .catch((error) => console.error(`Keeping run ${row.id}'s output: ${error.message}`));
       }
+      // What it wrote reaches where the home's files are kept before its turn goes on (D-91), and its output too.
+      await store.settle(place.homeId).catch((error) => console.warn(`Sending run ${row.id}'s files on failed: ${error?.message}`));
+      if (conversationId && dirs.runs) await store.settleRuns(conversationId);
       const status = ["shutdown", "paused"].includes(result.killed) ? "stopped" : result.exitCode === 0 ? "done" : "failed";
       const saved = await runs.finish(row, { status, exitCode: result.exitCode, output: result.output, changed });
       return { result, status, changed, saved, everyChange };
@@ -481,22 +484,18 @@ export function createShell({
   let lastOutputSweep = 0;
   async function removeOldOutputs({ now = Date.now() } = {}) {
     const oldest = now - limits.outputFullDays * 86400 * 1000;
-    const conversations = await fs.readdir(store.runsRoot).catch(() => []);
-    for (const conversation of conversations) {
-      const dir = path.join(store.runsRoot, conversation);
-      for (const name of await fs.readdir(dir).catch(() => [])) {
-        const stat = await fs.stat(path.join(dir, name)).catch(() => null);
-        if (stat && stat.mtimeMs < oldest) await fs.rm(path.join(dir, name), { force: true });
-      }
-      if (!(await fs.readdir(dir).catch(() => ["keep"])).length) await fs.rmdir(dir).catch(() => {});
+    // Wherever they're kept: the files folder, or the files bucket (D-91).
+    for (const output of await store.runOutputs()) {
+      if (output.modified < oldest) await store.removeRunOutput(output.conversation, output.name);
     }
   }
 
   /** A run's whole output (/runs/<run>.log), when it was kept: of a run row, check()'s, or a commandOutput. */
   async function wholeOutputOf(row) {
     const conversationId = row?.conversationId ?? row?.conversation_id;
-    if (!conversationId || !store.runsRoot) return null;
-    return fs.readFile(path.join(store.runsRoot, String(conversationId), `${row.id}.log`), "utf8").catch(() => null);
+    if (!conversationId || !store.runsFolder) return null;
+    const dir = await store.runsFolder(conversationId).catch(() => null);
+    return dir ? fs.readFile(path.join(dir, `${row.id}.log`), "utf8").catch(() => null) : null;
   }
 
   /**

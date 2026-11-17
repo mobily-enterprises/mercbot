@@ -53,20 +53,6 @@ host_unpack_deb() { # deb dir
   dpkg-deb -x "$1" "$2"
 }
 
-# fusermount3 without its set-user-ID bit, from Ubuntu's fuse3 package for this machine, for rclone
-# in Mercbot's own namespace (packages/files/src/server/remoteMounts.js): run as the namespace's
-# root, it mounts directly through /dev/fuse, which the application sandbox's `fuse` allows.
-host_fuse_tools() { # tools downloads
-  local TOOLS="$1" DOWNLOADS="$2"
-  [ -x "$TOOLS/fuse/fusermount3" ] && return 0
-  rm -f "$DOWNLOADS"/fuse3_*.deb && rm -rf "$TOOLS/fuse-package"
-  (cd "$DOWNLOADS" && apt-get download fuse3 >/dev/null)
-  dpkg-deb -x "$DOWNLOADS"/fuse3_*.deb "$TOOLS/fuse-package"
-  mkdir -p "$TOOLS/fuse"
-  install -m 0755 "$(find "$TOOLS/fuse-package" -name fusermount3 -type f | head -1)" "$TOOLS/fuse/fusermount3"
-  rm -rf "$TOOLS/fuse-package"
-  echo "fusermount3 unpacked for mounting in Mercbot's namespace"
-}
 
 # The programs bots' desktops run on the host beside the toolbox, the system's own where it has
 # them, else Ubuntu's packages for this machine, downloaded with the host's apt and unpacked into

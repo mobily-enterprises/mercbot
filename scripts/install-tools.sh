@@ -1,14 +1,12 @@
 #!/usr/bin/env bash
-# Installs the desktop apps bots use on their computers, and JuiceFS for their files (D-20),
+# Installs the desktop apps bots use on their computers, and rclone for people's own storage,
 # into .tools/ without root. Versions are pinned and every download is checked against the
 # project's published SHA-256 sums. Run it on every machine image. Each tool is installed once per
 # version into the tools' store and linked into .tools/ (scripts/tools-store.sh, D-70), so a
 # tool already in the store at its pinned version is reused and only a missing or changed one is
 # installed.
 #
-#   .tools/bin/juicefs                  JuiceFS client (bots' shared, disposable-safe files)
-#   .tools/bin/rclone                   mounts a person's own storage as a folder
-#   .tools/fuse/fusermount3             how rclone mounts in Mercbot's namespace (host_fuse_tools)
+#   .tools/bin/rclone                   reaches a person's own storage (WebDAV, Google Drive)
 #   .tools/piper/                       Piper text-to-speech and one English voice, for voice memos
 #   .tools/apps/<app>/bin/<app>[-cli]   ArtCraft apps: WordCraft, GridCraft, DeckCraft, PdfCraft
 #   .tools/coding/node_modules/.bin/    Claude Code and Codex CLI, which people sign in to with their
@@ -39,7 +37,6 @@ rm -rf "$TOOLS/downloads"
 
 # Raised when an install step below changes, so stores install those tools again.
 REVISION=1
-JUICEFS_VERSION="1.4.2"
 GVISOR_RELEASE="release-20261026.0"
 RCLONE_VERSION="1.75.2"
 APPS=(
@@ -62,18 +59,7 @@ fetch() { # url sums-url name
   (cd "$DOWNLOADS" && grep " \*\?$name\$" "$name.sums" | sed 's/ \*/  /' | sha256sum -c --quiet -) || { rm -f "$DOWNLOADS/$name"; return 1; }
 }
 
-# JuiceFS
-install_juicefs() { # dir
-  local name="juicefs-$JUICEFS_VERSION-linux-amd64.tar.gz"
-  local base="https://github.com/juicedata/juicefs/releases/download/v$JUICEFS_VERSION"
-  fetch "$base/$name" "$base/checksums.txt" "$name"
-  mkdir -p "$1/bin"
-  tar -xzf "$DOWNLOADS/$name" -C "$1/bin" juicefs
-  echo "JuiceFS $JUICEFS_VERSION installed"
-}
-tools_install juicefs "$JUICEFS_VERSION-r$REVISION" install_juicefs bin/juicefs
-
-# rclone mounts a person's own storage (WebDAV, Nextcloud, Google Drive) as a folder (D-26)
+# rclone reaches a person's own storage (WebDAV, Nextcloud, Google Drive) for their working copy (D-26, D-91)
 install_rclone() { # dir
   local name="rclone-v$RCLONE_VERSION-linux-amd64.deb"
   local base="https://github.com/rclone/rclone/releases/download/v$RCLONE_VERSION"
@@ -85,12 +71,6 @@ install_rclone() { # dir
   echo "rclone $RCLONE_VERSION installed"
 }
 tools_install rclone "$RCLONE_VERSION-r$REVISION" install_rclone bin/rclone
-
-# rclone mounts in Mercbot's own namespace through this, the host's way (D-68).
-install_fuse() { # dir
-  host_fuse_tools "$1" "$DOWNLOADS"
-}
-tools_install fuse "$HOST_KEY-r$REVISION" install_fuse fuse
 
 # Piper speaks bots' voice memos on the server, with one English voice. Both are
 # MIT-licensed and pinned by checksum.

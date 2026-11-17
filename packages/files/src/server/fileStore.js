@@ -43,25 +43,34 @@ export class FilesError extends AppError {
 /**
  * The bots' and homes' files on this server (see the file header).
  * @param {object} dependencies
- * @param {string} [dependencies.root] The shared volume (MERCBOT_FILES_DIR), when there is one.
+ * @param {string} [dependencies.root] A folder the host shares between servers (MERCBOT_FILES_DIR), when there is one.
  * @param {string} dependencies.fallback The folder used without one: `<MERCBOT_DATA_DIR>/files` (filesFolder).
- * @param {(homeId: number | string, how: { reading: boolean }) => Promise<string | null>} dependencies.ownStorage The
- *   folder of the home's own storage when it connected one (D-26), or null for Mercbot's; while the home's files are
- *   being moved (D-80) it refuses all but `reading`.
+ * @param {{ kind: string, root: string, available?: () => Promise<boolean>, tree?: object | null }} [dependencies.volume]
+ *   The files bucket (filesVolume.js, D-91): with one, `root` and `fallback` give way to its working copy here.
+ * @param {(homeId: number | string, how: { reading: boolean }) => Promise<string | { dir: string, tree: object } | null>}
+ *   dependencies.ownStorage The folder of the home's own storage when it connected one (D-26), with the synced tree
+ *   that keeps it (remoteMounts.js), or null for Mercbot's; while the home's files are being moved (D-80) it refuses
+ *   all but `reading`.
  * @param {(homeId: number | string) => Promise<void>} dependencies.settle Waits until saves there have arrived.
  * @param {(homeId: number | string) => Promise<void>} dependencies.explain Throws why the home's own storage
  *   didn't answer, when that's known (a Google Drive to sign in again, D-80).
  */
-export function createFileStore({ root, fallback, ownStorage, settle, explain }) {
-  const configured = Boolean(root);
-  const base = path.resolve(root || fallback);
+export function createFileStore({ root, fallback, volume = null, ownStorage, settle, explain }) {
+  const bucket = volume?.kind === "bucket" ? volume : null;
+  const configured = Boolean(root) && !bucket;
+  const base = path.resolve(bucket ? bucket.root : root || fallback);
+  const unavailable = () => new FilesError(503, "Files aren't available on this server right now.", { code: "files_unavailable" });
+  /** A folder of Mercbot's own, as a path inside the bucket's tree ("homes/4/shared"). */
+  const inBucket = (dir) => path.relative(base, dir).split(path.sep).join("/");
 
   /**
-   * A configured folder is a shared volume (JuiceFS on servers, D-20) and must be mounted; its
-   * marker proves it, so a server whose mount is missing never writes files onto its own disk
-   * (D-19). Without one, a single machine keeps them in its data folder's files/.
+   * The files bucket (D-91) is available once its key opened. Without a bucket, a configured folder
+   * (MERCBOT_FILES_DIR) is one the host shares between servers and must be mounted; its marker
+   * proves it, so a server whose mount is missing never writes files onto its own disk (D-19).
+   * Without either, a single machine keeps them in its data folder's files/.
    */
   async function available() {
+    if (bucket) return bucket.available();
     if (!configured) {
       await fs.mkdir(base, { recursive: true });
       return true;
@@ -76,22 +85,67 @@ export function createFileStore({ root, fallback, ownStorage, settle, explain })
    * them while the home's files are being moved to other storage (D-80): every other call is
    * refused then, so whatever writes is refused unless it says it only reads.
    */
-  async function folders({ homeId, botId, userId, everyone = false, home: homeOnly = false }, { reading = false } = {}) {
+  async function folders({ homeId, botId, userId, everyone = false, home: homeOnly = false }, { reading = false, fresh = false } = {}) {
     if (!homeId || !(homeOnly || (botId && (userId || everyone)))) {
       throw new Error("A file place needs a home, and a bot with a person or everyone.");
     }
-    const own = await ownStorage(homeId, { reading });
-    if (!own && !(await available())) {
-      throw new FilesError(503, "Files aren't available on this server right now.", { code: "files_unavailable" });
-    }
-    const home = own || path.join(base, "homes", String(homeId));
+    const given = await ownStorage(homeId, { reading });
+    const own = typeof given === "string" ? { dir: given, tree: null } : given;
+    if (!own && !(await available())) throw unavailable();
+    const home = own?.dir || path.join(base, "homes", String(homeId));
     const shared = path.join(home, "shared");
-    if (homeOnly) return { mine: null, bot: null, shared, personal: false };
     const bot = path.join(home, "bots", String(botId));
     const everyoneFolder = path.join(bot, "everyone");
-    return everyone
-      ? { mine: everyoneFolder, bot: everyoneFolder, shared, personal: false }
-      : { mine: path.join(bot, "people", String(userId)), bot: everyoneFolder, shared, personal: true };
+    const dirs = homeOnly
+      ? { mine: null, bot: null, shared, personal: false }
+      : everyone
+        ? { mine: everyoneFolder, bot: everyoneFolder, shared, personal: false }
+        : { mine: path.join(bot, "people", String(userId)), bot: everyoneFolder, shared, personal: true };
+    await pullFolders(dirs, own, homeId, { fresh });
+    return dirs;
+  }
+
+  /**
+   * Brings the place's folders here up to date from where they're kept (D-91): the home's own storage, through its
+   * synced tree, or the files bucket. A home's own storage that doesn't answer says why when that's known, as below.
+   */
+  async function pullFolders(dirs, own, homeId, { fresh }) {
+    const tree = own ? own.tree : bucket?.tree;
+    if (!tree) return;
+    const relative = (dir) => (own ? path.relative(own.dir, dir).split(path.sep).join("/") : inBucket(dir));
+    try {
+      await Promise.all([...new Set(rootsOf(dirs).map(([, dir]) => relative(dir)))].map((rel) => tree.pull(rel, { fresh })));
+    } catch (error) {
+      if (!own) {
+        console.warn(`Reading files from the files bucket failed: ${error?.message}`);
+        throw unavailable();
+      }
+      await explain(homeId);
+      throw new FilesError(503, "This home's storage isn't answering right now. Try again in a few minutes.", { code: "files_storage_not_answering" });
+    }
+  }
+
+  /** Sends what changed in the bucket's folder `rel` here; a failure is said and tried again by the volume's own push. */
+  async function pushFolder(rel) {
+    if (!bucket?.tree) return;
+    await bucket.tree.push(rel).catch((error) => console.warn(`Sending ${rel} to the files bucket failed; it's sent again in a moment: ${error?.message}`));
+  }
+
+  /**
+   * A folder of Mercbot's own in the bucket's tree, pulled here first (`fresh`: even if it was a moment ago; `shallow`:
+   * only the files straight in it).
+   */
+  async function bucketFolder(rel, { fresh = false, shallow = false } = {}) {
+    if (!await available()) throw unavailable();
+    if (bucket?.tree) {
+      await bucket.tree.pull(rel, { fresh, shallow }).catch((error) => {
+        console.warn(`Reading ${rel} from the files bucket failed: ${error?.message}`);
+        throw unavailable();
+      });
+    }
+    const dir = path.join(base, ...rel.split("/"));
+    await fs.mkdir(dir, { recursive: true });
+    return dir;
   }
 
   const rootsOf = (dirs) => [[MINE, dirs.mine], [BOT, dirs.bot], [SHARED, dirs.shared]].filter(([, dir]) => dir);
@@ -121,39 +175,94 @@ export function createFileStore({ root, fallback, ownStorage, settle, explain })
    * an empty folder over a person's files, nor fills a server's own disk.
    */
   async function ownFolder(homeId) {
-    if (!(await available())) throw new FilesError(503, "Files aren't available on this server right now.", { code: "files_unavailable" });
-    return path.join(base, "homes", String(homeId));
+    return bucketFolder(`homes/${homeId}`, { fresh: true });
+  }
+
+  /** Deletes the home's folder on Mercbot's own storage, wherever it's kept: a move's old or cancelled copy (D-80). */
+  async function removeOwnFolder(homeId) {
+    if (!(await available())) throw unavailable();
+    if (bucket?.tree) return bucket.tree.removeTree(`homes/${homeId}`);
+    await fs.rm(path.join(base, "homes", String(homeId)), { recursive: true, force: true });
   }
 
   // A conversation's whole command outputs (D-48), on Mercbot's own shared volume, outside every
   // person's folders: the sandbox sees them read-only at /runs. `runsRoot` is where they all are.
   const runsRoot = path.join(base, "runs");
-  async function runsFolder(conversationId) {
-    if (!await available()) throw new FilesError(503, "Files aren't available on this server right now.", { code: "files_unavailable" });
-    const dir = path.join(runsRoot, String(conversationId));
-    await fs.mkdir(dir, { recursive: true });
-    return dir;
-  }
+  const runsFolder = (conversationId, how) => bucketFolder(`runs/${conversationId}`, how);
+  /** Sends a conversation's command outputs written here to the bucket. */
+  const settleRuns = (conversationId) => pushFolder(`runs/${conversationId}`);
 
   // A bot computer's own files (D-50): its screenshots and its saved browser, also on Mercbot's
   // own shared volume and outside every person's folders, never in the database or on a server's
   // own disk. `computersRoot` is where they all are.
   const computersRoot = path.join(base, "computers");
-  async function computerFolder(conversationId) {
-    if (!await available()) throw new FilesError(503, "Files aren't available on this server right now.", { code: "files_unavailable" });
-    const dir = path.join(computersRoot, String(conversationId));
-    await fs.mkdir(dir, { recursive: true });
-    return dir;
+  // Only its own files are pulled: its screenshots are fetched one at a time (computerFile).
+  const computerFolder = (conversationId, how) => bucketFolder(`computers/${conversationId}`, { ...how, shallow: true });
+
+  /** A file in a computer's folder (`name`, such as "screenshots/<file>"), by its path here, or null when there's none. */
+  async function computerFile(conversationId, name) {
+    if (!await available()) throw unavailable();
+    const rel = `computers/${conversationId}/${name}`;
+    if (bucket?.tree) {
+      return bucket.tree.fetch(rel).catch((error) => {
+        console.warn(`Reading ${rel} from the files bucket failed: ${error?.message}`);
+        throw unavailable();
+      });
+    }
+    const file = path.join(base, ...rel.split("/"));
+    return (await fs.lstat(file).catch(() => null))?.isFile() ? file : null;
+  }
+  /** Sends a computer's files written here (its screenshots, its saved browser) to the bucket. */
+  const settleComputer = (conversationId) => pushFolder(`computers/${conversationId}`);
+
+  /** The conversations that have a computer folder, wherever they're kept. */
+  async function computerIds() {
+    if (!await available()) return [];
+    if (bucket?.tree) return bucket.tree.children("computers");
+    return fs.readdir(computersRoot).catch(() => []);
+  }
+
+  /** Removes a computer's folder, wherever it's kept. */
+  async function removeComputerFolder(conversationId) {
+    if (bucket?.tree) return bucket.tree.removeTree(`computers/${conversationId}`);
+    await fs.rm(path.join(computersRoot, String(conversationId)), { recursive: true, force: true });
+  }
+
+  /**
+   * The command outputs kept, wherever they are: `{ conversation, name, modified }` (`modified` in ms), and how to
+   * remove one (D-48's week).
+   */
+  async function runOutputs() {
+    if (bucket?.tree) {
+      if (!await available()) return [];
+      return (await bucket.tree.entries("runs")).filter((entry) => !entry.dir && entry.path.split("/").length === 3)
+        .map((entry) => ({ conversation: entry.path.split("/")[1], name: entry.path.split("/")[2], modified: entry.modified }));
+    }
+    const found = [];
+    for (const conversation of await fs.readdir(runsRoot).catch(() => [])) {
+      for (const name of await fs.readdir(path.join(runsRoot, conversation)).catch(() => [])) {
+        const stat = await fs.stat(path.join(runsRoot, conversation, name)).catch(() => null);
+        if (stat?.isFile()) found.push({ conversation, name, modified: stat.mtimeMs });
+      }
+    }
+    return found;
+  }
+  async function removeRunOutput(conversation, name) {
+    if (bucket?.tree) return bucket.tree.removeFile(`runs/${conversation}/${name}`);
+    await fs.rm(path.join(runsRoot, String(conversation), String(name)), { force: true });
+    await fs.rmdir(path.join(runsRoot, String(conversation))).catch(() => {});
   }
 
   // People's profile pictures (D-19, profilePictures.js), on Mercbot's own shared volume as well,
   // outside every person's folders, never on a server's own disk.
-  async function profilePicturesFolder() {
-    if (!await available()) throw new FilesError(503, "Files aren't available on this server right now.", { code: "files_unavailable" });
-    const dir = path.join(base, "profile-pictures");
-    await fs.mkdir(dir, { recursive: true });
-    return dir;
+  // With the bucket, `userId` names the person whose folder is pulled first.
+  async function profilePicturesFolder(userId) {
+    if (userId === undefined) return bucketFolder("profile-pictures");
+    await bucketFolder(`profile-pictures/${userId}`);
+    return path.join(base, "profile-pictures");
   }
+  /** Sends a person's profile picture written or removed here to the bucket. */
+  const settleProfilePicture = (userId) => pushFolder(`profile-pictures/${userId}`);
 
   /**
    * A folder of a copy built on Mercbot's own, by its name, beside the store's folders on the shared volume (or in the
@@ -167,9 +276,7 @@ export function createFileStore({ root, fallback, ownStorage, settle, explain })
     if (!PRIVATE_NAME.test(String(name)) || STORE_FOLDERS.has(name)) {
       throw new Error(`"${name}" can't be a private folder's name: use 3 to 41 lowercase letters, digits and hyphens, not one of ${[...STORE_FOLDERS].join(", ")}.`);
     }
-    if (!await available()) throw new FilesError(503, "Files aren't available on this server right now.", { code: "files_unavailable" });
-    const dir = path.join(base, name);
-    await fs.mkdir(dir, { recursive: true, mode: 0o700 });
+    const dir = await bucketFolder(name);
     await fs.chmod(dir, 0o700);
     return dir;
   }
@@ -193,8 +300,14 @@ export function createFileStore({ root, fallback, ownStorage, settle, explain })
   async function existingEntry(place, virtualPath, { folder = false, reading = false } = {}) {
     const real = await resolve(place, virtualPath, { reading });
     if (!real) throw new FilesError(400, "That's not one of the bot's files.", { code: "files_path_outside" });
-    const stat = await fs.lstat(real).catch(() => null);
-    if (!(stat?.isFile() || (folder && stat?.isDirectory()))) {
+    const found = (stat) => stat?.isFile() || (folder && stat?.isDirectory());
+    let stat = await fs.lstat(real).catch(() => null);
+    // Kept elsewhere (D-91), it may have come since this server last looked: looked for once more, just pulled.
+    if (!found(stat) && (bucket || (await ownStorage(place.homeId, { reading: true }))?.tree)) {
+      await folders(place, { reading, fresh: true });
+      stat = await fs.lstat(real).catch(() => null);
+    }
+    if (!found(stat)) {
       throw new FilesError(404, "That file isn't there any more.", { code: "files_file_gone" });
     }
     const dirs = await folders(place, { reading });
@@ -416,6 +529,20 @@ export function createFileStore({ root, fallback, ownStorage, settle, explain })
     await fs.mkdir(target, { recursive: true });
   }
 
+  /**
+   * Waits until what changed in the home's files here has reached where they're kept: the files bucket (D-91) and the
+   * home's own storage (`settle`, D-26).
+   */
+  /** Sends what changed in a private folder (privateFolder) here to the bucket. */
+  function settlePrivate(name) {
+    return pushFolder(name);
+  }
+
+  async function settleHome(homeId) {
+    await pushFolder(`homes/${homeId}`);
+    await settle(homeId);
+  }
+
   /** Where a bot's files are for a person: a shared bot's are everyone's in its home (D-36). */
   function placeFor(bot, userId) {
     return bot.sharing === "shared"
@@ -429,6 +556,7 @@ export function createFileStore({ root, fallback, ownStorage, settle, explain })
   return Object.freeze({
     available,
     ownFolder,
+    removeOwnFolder,
     prepare,
     resolve,
     existingFile,
@@ -440,14 +568,23 @@ export function createFileStore({ root, fallback, ownStorage, settle, explain })
     move,
     remove,
     makeFolder,
-    settle,
+    settle: settleHome,
     placeFor,
     homePlace,
     runsFolder,
     runsRoot,
+    settleRuns,
+    runOutputs,
+    removeRunOutput,
     computerFolder,
+    computerFile,
     computersRoot,
+    settleComputer,
+    computerIds,
+    removeComputerFolder,
     profilePicturesFolder,
-    privateFolder
+    settleProfilePicture,
+    privateFolder,
+    settlePrivate
   });
 }

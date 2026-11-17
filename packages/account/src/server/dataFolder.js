@@ -10,8 +10,8 @@ export function dataFolder(env) {
 }
 
 /**
- * Where bots' and homes' files live: the shared volume (MERCBOT_FILES_DIR, D-20) when there is one, else
- * `<data folder>/files` on this machine.
+ * Where bots' and homes' files live on this server: MERCBOT_FILES_DIR when it's set, else `<data folder>/files`. With
+ * the files bucket (D-91) it's this server's working copy of the bucket.
  * @param {{ MERCBOT_FILES_DIR?: string, MERCBOT_DATA_DIR?: string }} env
  */
 export function filesFolder(env) {

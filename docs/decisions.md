@@ -158,6 +158,8 @@ never lose their website sign-ins when a machine goes.
 
 ## D-20 — Office apps on every server, bot files on JuiceFS (2026-10-25)
 
+*Since D-91 (2026-11-18), bots' files are in an S3 bucket Mercbot reaches itself, with no JuiceFS volume and no FUSE.*
+
 Bots get desktop office apps they can drive themselves: the ArtCraft apps WordCraft,
 GridCraft, DeckCraft and PdfCraft (word processing, spreadsheets, slides, PDFs). Video
 apps are left out for now. Every server has the same pinned versions, installed
@@ -1030,6 +1032,8 @@ app or switch bots' computers off, a project may ask for exactly these, with the
   user and mount namespace of its own, where it mounts the files volume and people's storage as that namespace's
   root. The mounts are seen only inside it. With `MERCBOT_SANDBOX_USER` (D-51, outside Vibe64) it stays in the host's
   namespace as before.
+- *Since D-91 (2026-11-18) nothing mounts: bots' files are in an S3 bucket and people's storage goes through rclone's
+  remote control, so the Stack asks only for `gvisor`, and no host is asked for `/dev/fuse` or a `fusermount3`.*
 - **Mounting directly, never through the set-user-ID helper:** JuiceFS mounts directly as the namespace's root. rclone's
   FUSE libraries mount only through a program named `fusermount3`, so in the namespace rclone finds the hosting
   script's copy from Ubuntu's `fuse3` package first (`.tools/fuse/fusermount3`, without the set-user-ID bit), which as
@@ -1997,3 +2001,58 @@ pictures it draws.
   one statement through the homes' index, the person's own conversations in the homes named, latest activity first:
   only `{ id, botId, workspaceId, createdAt, lastActivityAt }`, never a title or a message. A system context's options
   reach every home, a request's its own.
+
+## D-91 — Bots' files in an S3 bucket, with no FUSE (2026-11-18)
+
+Bots' files were on a JuiceFS volume (D-20) and people's own storage on rclone mounts (D-26, D-80), both through FUSE,
+which a host must give (D-68) and many don't. Mercbot now keeps its files in an S3 bucket it reaches itself, and
+people's storage through rclone's remote control: nothing mounts, and nothing needs `/dev/fuse` or JuiceFS.
+- **Any S3 store:** AWS S3 or any store speaking its API (Garage, MinIO, R2 and the like), reached path-style at
+  `<endpoint>/<bucket>/<key>`, which they all answer, with requests signed by aws4fetch (the signer JSKIT's storage
+  uses) and files sent and fetched as streams (`packages/files/src/server/s3Bucket.js`).
+- **Settings:** `MERCBOT_FILES_S3_BUCKET`, `MERCBOT_FILES_S3_REGION`, `MERCBOT_FILES_S3_ACCESS_KEY_ID` and
+  `MERCBOT_FILES_S3_SECRET_ACCESS_KEY`, with `MERCBOT_FILES_PASSPHRASE`. `MERCBOT_FILES_S3_ENDPOINT` is optional (AWS's
+  for the region by default), and so is `MERCBOT_FILES_S3_PREFIX`, which puts every key under a folder of the bucket.
+  With any of the five missing, files stay in the files folder as before, and the start names each missing setting
+  (keys.js, "Bots' file storage"). `MERCBOT_FILES_DIR` is optional: where the files folder is. Without a bucket it is
+  still a folder the host shares between servers, which must hold the `.mercbot-files` marker (D-19).
+- **A working copy on each server:** each server works on a copy of what it uses in its files folder
+  (`MERCBOT_FILES_DIR`, else `<data folder>/files`), so the routes, the sandboxes, the office apps and the desktops
+  keep working on real folders (`syncedTree.js`, `filesVolume.js`). The bucket is the truth every server shares. A
+  folder is pulled before it's read (again only once its last pull is a second old, and at once when a file asked for
+  isn't there), and what changed here is pushed when it's settled (D-19: before a reply is reported done, when a
+  command ends, after a profile picture, a computer's screenshot or saved browser, or a command's output is written,
+  and before a month of usage leaves the database), every 5 seconds, and when the server stops. A change made here
+  and not yet pushed wins at the next pull; between servers, the last one pushed wins. A folder is an empty object
+  named with a trailing `/`. Links aren't kept in the bucket: a link a bot made stays on its server. Pulls and pushes
+  in one place (a home, a computer, a conversation's outputs) run one at a time.
+- **Sealed before it leaves:** every file is sealed on this server before it reaches the bucket (`filesCipher.js`):
+  AES-256-GCM in pieces of 64 KiB, each piece's nonce its number and whether it's the last (the STREAM construction), so
+  a piece changed, moved, dropped or cut off fails to open. Each object has its own key, made with HKDF from one random
+  files key and the object's own random salt. The files key is kept in the bucket as `.mercbot-files`, sealed with a
+  key made from `MERCBOT_FILES_PASSPHRASE` (scrypt), so a server needs only the passphrase, as with the volume. Sealing
+  here rather than asking the store to (SSE-S3, SSE-C) means the store's owner never holds a readable file, and it
+  works the same on every S3-compatible store.
+- **One key for every server:** the first server that finds no key record makes the files key and writes the record
+  only if there's still none (If-None-Match), then reads back the one the bucket kept 3 seconds later, so servers that
+  start together on a new bucket agree on one key, also on a store that ignores If-None-Match. A passphrase that
+  doesn't open the record keeps the bucket off, and the log says why.
+- **The files folder is the server's own:** in a bucket's case it's emptied when the server starts using it, since what
+  was there was pushed when the server stopped, or is from a server that stopped without it. A folder holding files
+  Mercbot didn't put there is never emptied: the bucket stays off and the log says to empty it or name another.
+- **People's own storage:** a home's WebDAV or Google Drive storage is reached through `rclone rcd`, rclone's remote
+  control, one per home on each server that needs it (`remoteMounts.js`): the home's folders are a working copy here,
+  pulled before they're read and pushed every 2 seconds and when settled. Drive's keys come from this server's route as
+  before (D-80), and a home whose Drive needs signing in again keeps its saves here until it's signed in.
+- **The usage archive** (D-73) is written in the files folder too: the files feature hands its working copy
+  (`files.volume.sync`) to the account's sweeps (`mercbot.account.sweeps`, `useFilesSync`), so retention pushes a
+  month's archive to the bucket before the month's rows are dropped, and finds old months in the bucket, whichever
+  server archived them, to delete them.
+- **The Stack** declares the bucket as a resource (`files`, of kind `bucket`) binding the bucket, region, endpoint and
+  the two keys to the names above, lists `MERCBOT_FILES_PASSPHRASE` among the Generated secrets, and asks the sandbox
+  for `gvisor` only. `npm run tools:install` no longer installs JuiceFS or a `fusermount3`, `scripts/serve.sh` mounts
+  nothing, and `scripts/mount-files.sh` and `npm run files:mount` are gone.
+- **Limits:** a server's working copy is not trimmed yet: what it pulled stays until it restarts. A home's folders are
+  pulled whole the first time they're used on a server. Saves a home's Drive is waiting for (signed out) are lost if
+  that server restarts before it's signed in again. A JuiceFS volume's files aren't moved to the bucket by Mercbot:
+  they must be copied by hand.

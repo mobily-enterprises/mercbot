@@ -17,18 +17,20 @@ export const PROFILE_PICTURES = "users:avatars";
 
 /**
  * @param {object} dependencies
- * @param {() => Promise<string>} dependencies.folder The pictures' folder on the volume; it refuses
- *   (files_unavailable) when the volume isn't there.
+ * @param {(userId?: string) => Promise<string>} dependencies.folder The pictures' folder on the volume, the person's own
+ *   brought up to date first when they're named (D-91); it refuses (files_unavailable) when the volume isn't there.
+ * @param {(userId: string) => Promise<void>} [dependencies.saved] Sends a person's picture written or removed here to
+ *   where the files are kept (the files bucket, D-91).
  * @param {{ getItemRaw: (key: string) => Promise<unknown>, removeItem: (key: string) => Promise<void> }} dependencies.earlier
  *   The storage's own driver, where pictures were kept before.
  * @param {Pick<import("./types.js").MediaGuard, "check">} [dependencies.media] the copy's checker, or none
  */
-export function profilePictureDriver({ folder, earlier, media = createMediaGuard(null) }) {
+export function profilePictureDriver({ folder, saved = async () => {}, earlier, media = createMediaGuard(null) }) {
   // JSKIT names a picture <user>:avatar; anything else, such as "..", is refused.
   async function fileOf(key) {
     const parts = String(key).split(":");
     if (parts.some((part) => !/^[\w-]+$/u.test(part))) throw new Error(`"${key}" isn't a profile picture's name.`);
-    return path.join(await folder(), ...parts);
+    return path.join(await folder(parts[0]), ...parts);
   }
 
   async function read(file) {
@@ -64,6 +66,7 @@ export function profilePictureDriver({ folder, earlier, media = createMediaGuard
     const before = await earlier.getItemRaw(`${PROFILE_PICTURES}:${key}`);
     if (before === null || before === undefined) return null;
     await write(file, Buffer.from(before), { replace: false });
+    await saved(String(key).split(":")[0]);
     await earlier.removeItem(`${PROFILE_PICTURES}:${key}`);
     return read(file);
   }
@@ -75,10 +78,12 @@ export function profilePictureDriver({ folder, earlier, media = createMediaGuard
     const refusal = mediaRefusal(await media.check({ bytes: data, origin: "profile_picture", userId }));
     if (refusal) throw new FilesError(refusal.status, refusal.message, { code: refusal.code });
     await write(file, data);
+    await saved(userId);
   }
 
   async function removeItem(key) {
     await fs.rm(await fileOf(key), { force: true });
+    await saved(String(key).split(":")[0]);
     await earlier.removeItem(`${PROFILE_PICTURES}:${key}`);
   }
 

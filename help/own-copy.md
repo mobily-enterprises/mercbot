@@ -16,15 +16,14 @@ Mercbot runs on your own Linux computer (Ubuntu 24.04 or Debian 12 on x86_64), f
 | The application | A standard Node application (Node 26), run as your own service, `mercbot.service` |
 | PostgreSQL | One database holds everything: your homes, bots, chats, routines, approvals, the vault and Apps data |
 | Bots' computers | Each awake bot computer is a small desktop on your computer: a virtual display (Xvfb), a window manager (openbox), Chrome and a screen-sharing server (x11vnc), all bound to the computer itself |
-| Bots' files | A folder in your copy's data folder, or an encrypted file volume if you set one up. It also holds bots' saved browsers and screenshots |
-| Tools | The office apps bots use to make documents, spreadsheets, slides and PDFs, the file volume software and a sandbox, installed by Mercbot's own script without root |
+| Bots' files | A folder in your copy's data folder, or an S3 bucket if you set one up. It also holds bots' saved browsers and screenshots |
+| Tools | The office apps bots use to make documents, spreadsheets, slides and PDFs, rclone for a home's own storage, and a sandbox, installed by Mercbot's own script without root |
 
 ### What your computer needs
 
 - Ubuntu 24.04 or Debian 12 on x86_64, and Node 26.
 - For bots' computers: Xvfb, openbox, x11vnc and `tar` with zstd. Two small programs draw the desktop's bars and wallpaper; Mercbot's install script unpacks them when the system lacks them.
 - A working sandbox. The office apps and the bots' browser only ever run sandboxed, which needs user namespaces. Ubuntu lets only programs it trusts make them, so the installer's one root step puts root's own copies of the two programs Mercbot needs in `/usr/local/lib/mercbot`, allowed just those. Mercbot never switches the restriction off for the whole computer. Without a working sandbox, the apps are unavailable and bots' computers don't start.
-- FUSE, if you keep files on an encrypted volume or in a storage of your own.
 
 Before starting, Mercbot checks the computer and says which command fixes anything missing, such as `sudo apt-get install xvfb x11vnc openbox`.
 
@@ -61,7 +60,7 @@ Settings are in `mercbot.env`. Keep their values private.
 | AI | `AI_PREMIUM_PROVIDER=together` and `AI_PREMIUM_API_KEY`, `AI_ECONOMY_PROVIDER=deepinfra` and `AI_ECONOMY_API_KEY`, `AI_IMAGES_PROVIDER=gemini` and `AI_IMAGES_API_KEY` | Mercbot's three kinds of AI, each with its provider and key: the premium AI (Together AI) for chats and the bots' browser steps, the slower, cheaper AI (DeepInfra) for the Builder and background work such as routines, watches, long jobs and summaries, and images (Google Gemini) for pictures and for reading contact details from photos in the vault. Without the premium or the slower, cheaper AI, your bots don't work: each says your copy's AI isn't set up and which settings to add. Without images, bots say pictures aren't set up on your copy, and the vault's photo buttons say reading photos isn't. Keys stay in Mercbot and never enter a bot's computer |
 | Vault key | `MERCBOT_VAULT_KEY` | 32 random bytes. Seals vault secrets, connected-account tokens and bots' saved browsers |
 | Hosting | `HOSTING_SCRIPT=scripts/hosting/local.sh` | The checks for your own computer, and where the root step's programs are (`MERCBOT_TRUSTED_DIR`, `/usr/local/lib/mercbot` by default) |
-| Bots' files | `MERCBOT_FILES_DIR`, `MERCBOT_FILES_PASSPHRASE`, `MERCBOT_FILES_STORAGE`, `MERCBOT_FILES_BUCKET`, and access keys if the storage needs them | Optional: an encrypted file volume instead of the data folder, the passphrase that unlocks it, and the object storage behind it |
+| Bots' files | `MERCBOT_FILES_S3_BUCKET`, `MERCBOT_FILES_S3_REGION`, `MERCBOT_FILES_S3_ACCESS_KEY_ID`, `MERCBOT_FILES_S3_SECRET_ACCESS_KEY`, `MERCBOT_FILES_PASSPHRASE`, and `MERCBOT_FILES_S3_ENDPOINT` for a store other than AWS | Optional: an S3 bucket (AWS's, or any store speaking the S3 API) to keep your bots' files in instead of the data folder, and the passphrase that seals every file before it leaves your computer. Keep the passphrase safe: the files can't be read without it |
 | Where it runs | `APP_ENV`, `NODE_ENV` | Both `production` when your copy is for real use. `APP_ENV` set to `development` (or `staging`, which also needs `NODE_ENV=production`) makes a test copy that only logs what it would send. Mercbot doesn't start without `APP_ENV`, or while the old `SIDE_EFFECTS` setting is still there |
 | Connected accounts | `GOOGLE_CLIENT_ID` / `_SECRET`, `MICROSOFT_CLIENT_ID` / `_SECRET`, `GITHUB_CLIENT_ID` / `_SECRET` | Your own registered apps with each provider, if you have them |
 | Hub | `MERCBOT_HUB_URL` | Another Mercbot this copy may link to, to connect accounts through its apps. No default |
@@ -71,9 +70,9 @@ An optional setting, `MERCBOT_MAX_COMPUTERS`, sets how many bots' computers are 
 ### Two settings you mustn't lose
 
 - **The vault key.** Anything sealed with it (vault items, connected-account tokens, saved browsers, a home's own storage password, where a home publishes its pages and that website's keys) can't be recovered with a different key. Without any vault key, logins and cards can't be saved and bots' browsers aren't kept when their computer sleeps. `mercbot backup` keeps it with the rest.
-- **The files passphrase,** if you set up an encrypted file volume. It unlocks the volume's encryption key.
+- **The files passphrase,** if you keep files in an S3 bucket. Every file is sealed with a key it opens, kept in the bucket; without the passphrase the files can't be read.
 
-Mercbot starts without any of these keys: each one you leave out turns its feature off, the feature says so where it's used, and Mercbot's log names each missing key when it starts. Without `MERCBOT_FILES_PASSPHRASE`, the encrypted file volume isn't mounted and files stay in the data folder.
+Mercbot starts without any of these keys: each one you leave out turns its feature off, the feature says so where it's used, and Mercbot's log names each missing key when it starts. Without `MERCBOT_FILES_PASSPHRASE` or any of the bucket's settings, files stay in the data folder.
 
 Unless `APP_ENV` is `production`, your copy is a test copy: what bots would send or show to others from connected accounts (emails, calendar invitations and answers, Drive sharing and comments, on GitHub comments, reviews, new and changed issues and pull requests, merges, releases, discussion changes and reruns of automation runs, and the actions of Calendly, Notion and Todoist that tell other people, such as cancelling a meeting or adding a comment) and scripts' web calls other than reads are written to the log instead, and every page shows a small tab at the top naming where it runs, such as "Development" or "Staging". Everything else works as usual.
 
@@ -105,8 +104,8 @@ Your copy is reached only on this computer, so it can't receive the provider's r
 ## Where files are kept
 
 - **In the data folder:** without `MERCBOT_FILES_DIR`, bots' files stay in a folder in your copy's data folder.
-- **On an encrypted file volume:** with `MERCBOT_FILES_DIR` and its other settings, files are on an encrypted volume, with its index in the app's database and the data in object storage. Mercbot mounts it before it starts and unmounts it after it stops; while it isn't mounted, Mercbot says files are unavailable rather than writing them elsewhere.
-- **A home's own storage:** you can choose to keep a home's files in your own WebDAV storage, such as Nextcloud, or in a Google Drive account connected in Connect apps (which needs Google sign-in set up, or a linked hub). That storage needs FUSE and the vault key. A Google Drive mount asks Mercbot for each key, on Mercbot's own port, so the account's permission never leaves the app.
+- **In an S3 bucket:** with the bucket's settings and the files passphrase, files are kept in an S3 bucket (AWS's, or any store speaking the S3 API, at `MERCBOT_FILES_S3_ENDPOINT`), each sealed on your computer before it's sent, so the bucket's owner can't read them. Mercbot keeps a copy of the files it uses in its data folder and sends what changes to the bucket within seconds, and before it stops. While the bucket can't be reached or the passphrase doesn't open it, Mercbot says files are unavailable rather than writing them elsewhere.
+- **A home's own storage:** you can choose to keep a home's files in your own WebDAV storage, such as Nextcloud, or in a Google Drive account connected in Connect apps (which needs Google sign-in set up, or a linked hub). That storage needs the vault key; Mercbot reaches it through rclone, with no mount, and keeps a copy of what it uses. Google Drive asks Mercbot for each key, on Mercbot's own port, so the account's permission never leaves the app.
 
 While a bot's computer is awake, its browser profile lives in the data folder. When it sleeps or Mercbot stops, the profile is saved, sealed, with the bots' files; its cookies are also saved every 30 seconds while awake, so it wakes again with its sign-ins intact.
 

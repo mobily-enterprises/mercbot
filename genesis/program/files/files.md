@@ -11,6 +11,10 @@ card in the chat with a viewer and a download (D-20, D-21).
 - `packages/files/src/server/registerRoutes.js`
 - `packages/files/src/server/types.js`
 - `packages/files/src/server/fileStore.js`
+- `packages/files/src/server/filesVolume.js`
+- `packages/files/src/server/s3Bucket.js`
+- `packages/files/src/server/filesCipher.js`
+- `packages/files/src/server/syncedTree.js`
 - `packages/files/src/server/profilePictures.js`
 - `packages/files/src/server/officeApps.js`
 - `packages/files/src/server/mcpClient.js`
@@ -29,7 +33,6 @@ card in the chat with a viewer and a download (D-20, D-21).
 - `packages/files/package.json`
 - `scripts/install-tools.sh`
 - `scripts/tools-store.sh`
-- `scripts/mount-files.sh`
 - `scripts/serve.sh`
 - `scripts/namespace.sh`
 - `scripts/hosting/vibe64.sh`
@@ -42,14 +45,15 @@ card in the chat with a viewer and a download (D-20, D-21).
 - `src/components/files/MercbotFilesEntry.vue`
 - `src/pages/w/[workspaceSlug]/files/index.vue`
 - `tests/server/files.test.js`
+- `tests/server/filesBucket.test.js`
 - `tests/server/mediaChecks.integration.js`
 - `tests/server/mediaCheckRoutes.integration.js`
 - `tests/server/driveMount.test.js`
-- `tests/server/mountFiles.integration.js`
 - `tests/server/driveStorage.integration.js`
 - `tests/server/fileMoves.integration.js`
 - `tests/server/memberRemoval.integration.js`
 - `tests/support/fakeDrive.mjs`
+- `tests/support/s3Bucket.mjs`
 - `tests/support/filesServer.mjs`
 - `tests/support/moveServer.mjs`
 - `tests/client/storageNotices.vitest.js`
@@ -61,34 +65,54 @@ card in the chat with a viewer and a download (D-20, D-21).
 
 The `mercbot.files` capability gives `store`, `apps`, `mounts`, `shell` (the bots' command
 line, see `shell.md`), `pages` (the pages bots write, see `pages.md`) and `storageKinds(workspaceIds, options)`: where
-each of a batch of homes keeps its files (`mercbot`, `webdav`, `drive`; a home with no row keeps them on Mercbot's own volume), in
-one statement over every home the options reach.
+each of a batch of homes keeps its files (`mercbot`, `webdav`, `drive`; a home with no row keeps them in Mercbot's own storage), in
+one statement over every home the options reach. The runtime also gives `volume` (`filesVolume.js`): where Mercbot's own
+files are kept.
 
-- Files live under `MERCBOT_FILES_DIR` (a JuiceFS volume shared by every server,
-  mounted by `scripts/mount-files.sh`, which formats it once however many servers start together, under a
-  PostgreSQL advisory lock, and leaves a `.mercbot-files` marker; deployed servers
-  start through `scripts/serve.sh`, which mounts it first and unmounts it on exit), or
-  `.data/files` when it isn't set. Files belong to a home (D-36, D-47), in three folders:
+- Mercbot's own files are kept in an S3 bucket every server shares (D-91), when `MERCBOT_FILES_S3_BUCKET`,
+  `_REGION`, `_ACCESS_KEY_ID`, `_SECRET_ACCESS_KEY` and `MERCBOT_FILES_PASSPHRASE` are all set (`_ENDPOINT`, AWS's
+  for the region by default, and `_PREFIX`, a folder of the bucket every key goes under, are optional). Each server
+  works on a copy of what it uses in its files folder (`MERCBOT_FILES_DIR`, else `<data folder>/files`; `filesFolder`
+  in `@local/account/data-folder`), kept in step with the bucket by a synced tree (`syncedTree.js`): a folder is pulled
+  before it's read (again once its last pull is a second old, at once when a file asked for isn't there), and what
+  changed here is pushed when it's settled (`store.settle(home)`, `settleRuns`, `settleComputer`,
+  `settleProfilePicture`, `settlePrivate`), every 5 seconds once the server listens (`volume.startSyncing`), and when
+  it stops (`volume.stop`). The bucket is the truth: a change here not yet pushed wins at the next pull, and between
+  servers the last pushed wins; a folder is an empty object named with a trailing `/`; links stay on their server.
+  Objects are addressed path-style (`<endpoint>/<bucket>/<key>`) and signed with aws4fetch (`s3Bucket.js`), and each
+  file is sealed before it leaves (`filesCipher.js`: AES-256-GCM in 64 KiB pieces, a key per object made from the
+  files key). The files key is kept in the bucket as `.mercbot-files`, sealed with a key made from the passphrase
+  (scrypt): the first server to find none makes it and writes it only if there's still none, then reads back the one
+  the bucket kept 3 seconds later, so servers starting together use one key. The files folder is the server's own: it's
+  emptied when the server starts using it, and one holding files Mercbot didn't put there keeps the bucket off. The
+  bucket is unavailable (503 `files_unavailable`) until its key opens; a failure is logged and tried again after
+  30 seconds. With any setting missing, files are in the files folder itself: `MERCBOT_FILES_DIR`, a folder the host
+  shares between servers, which must hold a `.mercbot-files` marker, or `.data/files` when it isn't set.
+  Files belong to a home (D-36, D-47), in three folders:
   `homes/<home>/shared/` (`/files/shared`, everyone and every bot in the home),
   `homes/<home>/bots/<bot>/everyone/` (`/files/bot`, everyone in the home using that bot) and
   `homes/<home>/bots/<bot>/people/<user>/` (`/files/mine`, one person with that bot). A place is
   `{homeId, botId, userId}`; `{homeId, botId, everyone: true}` where nothing personal may be
   reached (a shared bot, a group), which has no private folder and whose `/files/mine/…` paths
   lead to the bot folder; or `store.homePlace(homeId)`, the home's folder alone. A configured
-  folder without the marker is unavailable, so files never land on one server's own disk.
-- People's profile pictures (D-19) are on the volume too, in `profile-pictures/<user>/avatar`
-  (`store.profilePicturesFolder()`, unavailable like the rest without the volume). JSKIT's users
+  folder without the marker is unavailable, so files never land on one server's own disk. What
+  writes into the files folder outside the store (the usage archive, D-73) reaches the bucket
+  through the working copy the files feature hands the account's sweeps (`files.volume.sync`, `useFilesSync`).
+- People's profile pictures (D-19) are kept with the bots' files, in `profile-pictures/<user>/avatar`
+  (`store.profilePicturesFolder(user)`, which pulls that person's folder first; unavailable like the rest), and
+  pushed once written or removed (`settleProfilePicture`). JSKIT's users
   package keeps them in its runtime storage under `users/avatars`; the files feature mounts
   `profilePictureDriver` there (`profilePictures.js`), so JSKIT's own folder (`data/storage`, or
   `JSKIT_STORAGE_FS_BASE_PATH`) no longer holds them. Each is written whole and then renamed. A picture
-  still in JSKIT's folder from before is moved to the volume the first time that server reads it,
+  still in JSKIT's folder from before is moved over the first time that server reads it,
   linked in only where there's none yet, so a picture saved meanwhile through any server stays;
   removing a picture removes both copies.
 - A copy built on Mercbot may keep files of its own where nothing serves them (D-90): `store.privateFolder(name)`
-  makes and answers `<volume>/<name>` (mode 700), beside the store's own folders and outside every place, so no route
+  makes and answers `<files folder>/<name>` (mode 700, pulled from the bucket first; `store.settlePrivate(name)` sends
+  what's written there), beside the store's own folders and outside every place, so no route
   serves it and no sandbox mounts it. `name` is 3 to 41 lowercase letters, digits and hyphens, starting with a letter,
-  and not one the store uses (`homes`, `runs`, `computers`, `profile-pictures`, `usage-archive`); without the volume it
-  answers 503 `files_unavailable`.
+  and not one the store uses (`homes`, `runs`, `computers`, `profile-pictures`, `usage-archive`); while the files
+  aren't available it answers 503 `files_unavailable`.
 - **Checking pictures and videos (D-90):** a copy built on Mercbot may provide `mercbot.media-check` (`MediaCheck`,
   `@local/account/server/types`), which the files feature reads and gives on as `files.media` (`mediaChecks.js`):
   `check` and `checkText` (the guard of `@local/account/media-check`, which sniffs a file's first bytes, passes
@@ -136,23 +160,21 @@ one statement over every home the options reach.
 - `appFor(path)` names the app that opens a file, and `appIcon(app)` its icon. On a computer's
   desktop the apps run in its desktop sandbox (`computer/bot-computer.md`).
 
-- **Mounts live in Mercbot's own namespace (D-68):** `serve.sh` and `npm run develop` run Mercbot
-  through `scripts/namespace.sh`, in a user and mount namespace of its own, where it mounts FUSE
-  through `/dev/fuse` as that namespace's root. The files volume and people's rclone storage are
-  seen only inside it, never by the host or other apps. JuiceFS mounts directly; rclone, whose FUSE
-  library mounts only through a program named `fusermount3`, gets the hosting script's copy without
-  the set-user-ID bit (`.tools/fuse`) first on its `PATH`, which mounts directly too. Both come off
-  with plain `umount` (`serve.sh`, `remoteMounts`). With `MERCBOT_SANDBOX_USER` (outside
-  Vibe64) it stays in the host's namespace, since sudo can't work in one, and mounts and unmounts
-  with the host's `fusermount3`.
+- **Nothing mounts (D-91):** the bucket is reached over HTTP and people's storage through
+  rclone's remote control, so no host is asked for FUSE. `serve.sh` and `npm run develop` still
+  run Mercbot through `scripts/namespace.sh`, in a user and mount namespace of its own, for its
+  sandboxes (D-68).
 
 - A home may keep its files in its own WebDAV storage instead (D-26): the home's
   `file_storage` row holds the choice, sealed with the vault key. `storage.folder`
-  mounts it with rclone (`remoteMounts`: rclone's settings come from the
-  environment, uploads one second after a file closes, a 10-second listing cache,
-  a private control socket) and the home's folders live under that mount.
-  `store.settle(home)` waits until rclone's upload queue is empty; a reply that
-  saved files waits for it before it's done, and shutdown settles every mount.
+  starts the home's `rclone rcd` (`remoteMounts`: rclone's remote control on a private
+  socket, its settings from the environment, no mount) and answers `{dir, tree}`: the
+  home's folders are a working copy in `<data folder>/mounts/<home>` (emptied when it
+  starts; still called the home's mount), a synced tree whose remote is that rclone
+  (`operations/list`, `copyfile`, `deletefile`, `mkdir`, `rmdir`), pulled before
+  they're read and pushed every 2 seconds. `store.settle(home)` waits
+  until what changed there has reached the storage (at most 30 s); a reply that saved
+  files waits for it before it's done, and shutdown settles every home's copy.
 
 - Or in a Google Drive account connected in Connect apps (D-26, D-80; `driveStorage`):
   the person's own (`google-drive` plugin, reached `{ personal: true }`) or the
@@ -163,8 +185,8 @@ one statement over every home the options reach.
   nothing else is kept, so the same account chosen again reuses its folder while
   it's there and not in the bin; only a folder that's gone (404) or in the bin is
   made again. `userId` is whose account it is: the home's jobs reach it as that
-  person (`forWorkspaceUser`). rclone's Drive backend mounts that folder
-  (`root_folder_id`, scope `drive`, no change polling) and asks this server for
+  person (`forWorkspaceUser`). rclone's Drive backend reaches that folder
+  (`root_folder_id`, scope `drive`) through the home's `rclone rcd`, as for WebDAV, and asks this server for
   each key at `POST /api/files/drive-token` (`driveTokenRoute`), on the server's
   own port (D-68): a form with a random key of that mount as its refresh key,
   answered only for this machine's own connections that came through no proxy
@@ -179,18 +201,18 @@ one statement over every home the options reach.
   elsewhere (a mount another server kept), `503` otherwise. The account's
   refresh key never leaves Mercbot. rclone asks for a key only once its own runs
   out, even when Drive turns it down: the mount reads rclone's log (stderr, kept
-  nowhere) for Drive's 401 and asks `storage.driveKey(…, {refused})` at once
+  nowhere) and its answers for Drive's 401 and asks `storage.driveKey(…, {refused})` at once
   (`remoteMounts.keyRefused`), once per key, under the account's row lock
   (`connections.accessToken`), so a refused renewal signs the account out within
   seconds; a renewal that fails otherwise waits 15 s before the next, doubling to
   5 minutes. Until a renewal works or the account is signed in again (the mount
   was refused a key for good, or Drive turned its key down and the renewal
   failed), the mount's saves can't arrive, so `store.settle` and shutdown don't
-  wait for them. `storage.folder` refuses a Drive whose
+  wait for them; they stay in the home's copy here and go with a later push. `storage.folder` refuses a Drive whose
   account needs signing in again (409 `files_storage_sign_in_again`) or was
-  removed (409 `files_storage_drive_gone`) before mounting, and the bots'
+  removed (409 `files_storage_drive_gone`) before starting it, and the bots'
   recent-files note says so. A home's own storage that answers its folders with an
-  I/O error (WebDAV offline, a Drive key turned down, a mount gone) is 503
+  error (WebDAV offline, a Drive key turned down, its rclone gone) is 503
   `files_storage_not_answering`, after `storage.explain` waits up to 1.5 s for that
   home's mount here to renew a turned-down key and answers 409
   `files_storage_sign_in_again` instead when Google refused it. Mercbot looks at
@@ -214,7 +236,7 @@ one statement over every home the options reach.
   (`moveLeaseExpired`), sets `move_claim` and a 60-second lease, and beats every 10 s, writing the progress; another
   server's sweep (every 30 s, `startSweeping`) takes over a move whose lease ran out. The move: the
   `whenStarting` listeners (the computer feature puts the home's awake computers to sleep), 15 s for saves still on
-  their way through other servers' mounts when the files are in a Drive or WebDAV, a Drive source's folder out of the
+  their way from other servers' copies when the files are in a Drive or WebDAV, a Drive source's folder out of the
   bin, then rclone (`mounts.transfer`: one run with `src:`/`dst:` remotes from the environment, Drive keys asked of
   this server like a mount's, its JSON stats as progress) `size`, `sync` (`--ignore-times` the first time,
   `--checksum` after, `--create-empty-src-dirs`, `--drive-stop-on-upload-limit`), the home's commands that started

@@ -185,15 +185,20 @@ export function createFileMoves({ fileStorage, systemContext, env, store, mounts
 
   /** rclone's name for one end of the move, and the remote it needs: Mercbot's own storage is a local folder. */
   async function endOf(homeId, settings, name) {
-    if (settings.kind === "drive") return { path: `${name}:`, remotes: { [name]: settings } };
-    if (settings.kind === "webdav") return { path: `${name}:Mercbot`, remotes: { [name]: settings } };
+    // rclone reaches a home's own storage itself, so there's nothing to bring up to date or send.
+    const direct = async () => {};
+    if (settings.kind === "drive") return { path: `${name}:`, remotes: { [name]: settings }, refresh: direct, settle: direct };
+    if (settings.kind === "webdav") return { path: `${name}:Mercbot`, remotes: { [name]: settings }, refresh: direct, settle: direct };
     const folder = await store.ownFolder(homeId);
     await fs.mkdir(folder, { recursive: true });
-    return { path: folder, remotes: {} };
+    // With the files bucket (D-91) the folder is this server's copy: brought up to date before rclone reads it, and
+    // what rclone wrote in it sent to the bucket after.
+    return { path: folder, remotes: {}, refresh: () => store.ownFolder(homeId), settle: () => store.settle(homeId) };
   }
 
   /** The number of files and their bytes at one end. */
   async function size(job, at, { source = false, signal }) {
+    await at.refresh();
     const { code, stdout } = await mounts.transfer(job.homeId, ["size", "--json", at.path], at.remotes, { signal });
     signal.throwIfAborted();
     if (code !== 0) {
@@ -210,6 +215,7 @@ export function createFileMoves({ fileStorage, systemContext, env, store, mounts
    */
   async function sync(job, from, to, { everything, signal }) {
     const move = job.move;
+    await from.refresh();
     const { code, errors } = await mounts.transfer(job.homeId, [
       "sync", from.path, to.path, "--create-empty-src-dirs", everything ? "--ignore-times" : "--checksum",
       "--transfers", "4", "--checkers", "8", "--retries", "3",
@@ -222,6 +228,7 @@ export function createFileMoves({ fileStorage, systemContext, env, store, mounts
         move.bytesDone = Math.min(move.bytes ?? Infinity, Number(stats.bytes) || 0);
       }
     });
+    await to.settle();
     signal.throwIfAborted();
     if (code !== 0) {
       console.warn("Copying a home's files to the storage it chose failed.", errors.join(" | "));
@@ -323,7 +330,7 @@ export function createFileMoves({ fileStorage, systemContext, env, store, mounts
     } else if (source.kind === "mercbot") {
       const [row] = await fileStorage.queryAll({ filters: { workspaceId: job.homeId }, fields: ["kind"] }, inHome(job.homeId));
       // Never the folder the home uses now.
-      if (row && row.kind !== "mercbot") await fs.rm(await store.ownFolder(job.homeId), { recursive: true, force: true });
+      if (row && row.kind !== "mercbot") await store.removeOwnFolder(job.homeId);
     }
     await mounts.stop(job.homeId).catch(() => {});
     const { target: _target, source: _source, ...kept } = job.move;
@@ -363,7 +370,7 @@ export function createFileMoves({ fileStorage, systemContext, env, store, mounts
       await drive.trash(job.homeId, place, true).catch((binned) => console.warn("Putting a stopped move's copy in Google Drive's bin failed.", binned?.message));
     } else if (place.kind === "mercbot") {
       const [row] = await fileStorage.queryAll({ filters: { workspaceId: job.homeId }, fields: ["kind"] }, inHome(job.homeId));
-      if (row && row.kind !== "mercbot") await fs.rm(await store.ownFolder(job.homeId), { recursive: true, force: true });
+      if (row && row.kind !== "mercbot") await store.removeOwnFolder(job.homeId);
     }
   }
 

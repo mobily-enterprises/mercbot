@@ -4,6 +4,7 @@ import { createDriveStorage } from "./driveStorage.js";
 import { createFileMoves } from "./fileMoves.js";
 import { createFileStorageRepository } from "./fileStorageRepository.js";
 import { createFileStore } from "./fileStore.js";
+import { createFilesVolume } from "./filesVolume.js";
 import { createMediaChecks } from "./mediaChecks.js";
 import { createOfficeApps } from "./officeApps.js";
 import { createPages } from "./pages.js";
@@ -31,9 +32,12 @@ export function createFilesRuntime({ resources, systemContext, env, meter, integ
   // A Google Drive mount's keys come through the home's storage choice, so a mount the home left gets none.
   const mounts = createRemoteMounts({ env, driveKey: (homeId, settings, why) => storage.driveKey(homeId, settings, why) });
   const runs = createShellRuns({ shellRuns: resources.shellRuns, systemContext });
+  // The files bucket (D-91), when its settings are given; otherwise files stay in the files folder.
+  const volume = createFilesVolume({ env, folder: filesFolder(env) });
   const store = createFileStore({
     root: env.MERCBOT_FILES_DIR,
     fallback: filesFolder(env),
+    volume,
     ownStorage: (homeId, how) => storage.folder(homeId, how),
     settle: mounts.settle,
     explain: (homeId) => storage.explain(homeId)
@@ -50,6 +54,7 @@ export function createFilesRuntime({ resources, systemContext, env, meter, integ
   const pages = createPages({ store, resources, systemContext, env });
   return Object.freeze({
     store,
+    volume,
     apps,
     storage,
     mounts,

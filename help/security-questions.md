@@ -73,7 +73,7 @@ Mercbot runs one AI model at two providers: Together AI in the United States for
 
 ### Where is data kept?
 
-In PostgreSQL and an encrypted file volume, wherever you run your copy. Together AI, which receives what a bot needs to answer in chats, runs in the United States. DeepInfra receives the same for the Builder's replies and background work.
+In PostgreSQL and in your copy's files: a folder on its computer, or an S3 bucket in which every file is sealed before it's sent, wherever you run your copy. Together AI, which receives what a bot needs to answer in chats, runs in the United States. DeepInfra receives the same for the Builder's replies and background work.
 
 ### Can we run Mercbot ourselves?
 
@@ -85,7 +85,7 @@ Only when a provider stops accepting Mercbot's key, or a sign-in is cancelled or
 
 ### What happens to a bot's computer when it shuts down?
 
-When it sleeps or its server stops, the browser profile is sealed with the vault key and saved on the shared file volume, so sign-ins survive on any server. **Settings**, **Computer**, **Reset** clears it.
+When it sleeps or its server stops, the browser profile is sealed with the vault key and saved with the bots' files, so sign-ins survive on any server. **Settings**, **Computer**, **Reset** clears it.
 
 ### Does Mercbot hold security certifications?
 

@@ -41,6 +41,25 @@
 }
 ```
 
+```json genesis-resource
+{
+  "id": "files",
+  "kind": "bucket",
+  "environmentAlternatives": [
+    {
+      "bindings": {
+        "accessKeyId": "MERCBOT_FILES_S3_ACCESS_KEY_ID",
+        "bucket": "MERCBOT_FILES_S3_BUCKET",
+        "endpoint": "MERCBOT_FILES_S3_ENDPOINT",
+        "region": "MERCBOT_FILES_S3_REGION",
+        "secretAccessKey": "MERCBOT_FILES_S3_SECRET_ACCESS_KEY"
+      },
+      "preferred": true
+    }
+  ]
+}
+```
+
 ## Environment defaults
 
 - Default `DB_CLIENT`: `pg`
@@ -61,9 +80,9 @@
 
 - Runtimes: `nodejs`
 - Recreate on restore: `node_modules` `.tools`
-- Generated secrets: `AUTH_LOCAL_SESSION_SECRET` `MERCBOT_VAULT_KEY`
+- Generated secrets: `AUTH_LOCAL_SESSION_SECRET` `MERCBOT_VAULT_KEY` `MERCBOT_FILES_PASSPHRASE`
 - Setup code: `AUTH_LOCAL_SETUP_CODE`
-- Sandbox allows: `gvisor` `fuse`
+- Sandbox allows: `gvisor`
 - Ready when: `GET` `/api/health` returns `200`
 - Prepare `Install dependencies and tools`: `npm` `run` `deploy:prepare`
 - Build `Build`: `npm` `run` `build`

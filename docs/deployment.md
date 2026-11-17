@@ -24,13 +24,13 @@ starts Mercbot's server without the single-user gate (`gate: false`) and describ
 - `npm run deploy:prepare` (`npm ci --include=dev`, then `npm run tools:install` with its store in
   the home's cache), then `npm run build`. The install reapplies the patches in `patches/`. `mercbot upgrade` does
   both for a new release, beside the one that runs.
-- `npm run tools:install` (part of `deploy:prepare`): the office apps bots make files with (D-20), JuiceFS,
-  Piper for voice memos, all pinned and checksummed, into `.tools/`. No root needed.
+- `npm run tools:install` (part of `deploy:prepare`): the office apps bots make files with (D-20), rclone for people's
+  own storage, Piper for voice memos, all pinned and checksummed, into `.tools/`. No root needed.
 - `npm run tools:install` also installs gVisor (`runsc`, pinned) and builds the toolbox (D-47,
   `scripts/build-toolbox.sh`): Ubuntu 24.04 with the tools and Chrome for Testing, about 2.3 GB in
   `.tools/toolbox`, around 10 minutes the first time and skipped afterwards until its package list
   changes. It needs `apt-get` and Ubuntu's package archive reachable while preparing, and
-  user namespaces and `/dev/fuse` (README → Hosting requirements). The host's script
+  user namespaces (README → Hosting requirements; nothing needs FUSE, D-91). The host's script
   (`HOSTING_SCRIPT`, D-68) checks them and obtains the toolbox's packages; it stops,
   saying so, on a host without them. No root. **Everything bots run is in gVisor (D-49):** their commands, their computers' Chrome and
   Craft apps, the office apps behind their document tools and previews, and voice memos. Without
@@ -55,10 +55,9 @@ starts Mercbot's server without the single-user gate (`gate: false`) and describ
   system than the release is copied from instead of linked.
 - `mercbot start` runs `bash scripts/serve.sh` as the person's systemd service. It
   runs Mercbot in a user and mount namespace of its own (`scripts/namespace.sh`, D-68), or stops saying the host
-  doesn't allow one. When `MERCBOT_FILES_DIR` is set it first mounts the files volume there
-  (`npm run files:mount`, through `/dev/fuse` as the namespace's root), creating it the first
-  time, and unmounts it after Mercbot stops. The mount, and people's storage (rclone), exist only
-  inside that namespace. On SIGTERM Mercbot drains for up to 25 seconds, then exits.
+  doesn't allow one. It mounts nothing: bots' files are in the files bucket or folder (below), which
+  Mercbot reaches itself. On SIGTERM Mercbot drains for up to 25 seconds, sends what it wrote to the
+  files bucket, then exits.
 - Migrations: `mercbot upgrade` runs `npm run db:migrate` for the new release after a backup, and puts the database
   back from that backup if a migration fails.
 
@@ -88,7 +87,7 @@ store, their commands are on `PATH`, and nothing is installed or built there (D-
   writable and allow programs; on a host where only one work folder does, put them and `MERCBOT_TOOLBOX_DIR` there.
   Every folder a sandbox sees keeps `nosuid` and `nodev`, and the display's sockets `noexec`, so a sandbox never asks
   to drop a restriction the host set on them.
-- The office apps, voice memos, coding runs, JuiceFS and rclone come from `npm run tools:install`'s pinned downloads
+- The office apps, voice memos, coding runs and rclone come from `npm run tools:install`'s pinned downloads
   (or the same downloads put in `MERCBOT_TOOLS_DIR` by whatever builds the host's release), not from the store:
   without them their features are off, as on any server without them.
 - The office apps, Piper and Claude Code are made for an ordinary Linux system and ask for its loader and libraries
@@ -117,7 +116,7 @@ Everything bots run is in gVisor (D-49). These steps need root, so the person ag
      only Mercbot's `runsc`. A program that got out of gVisor can't read Mercbot's settings
      file or process environment (database password, keys).
    - **Shared files:** the two users share the group `mercbot-shared` for the folders both write.
-   - **Run it again** after the files volume or `.tools` moves.
+   - **Run it again** after the files folder or `.tools` moves.
 3. **KVM for gVisor, only if it's faster.** The setup script adds `mercbot-sandbox` to the `kvm`
    group (without a sandbox user, add Mercbot's user: `usermod -aG kvm <Mercbot's user>`). KVM is
    off until `MERCBOT_GVISOR_PLATFORM=kvm` is set. Set it only if measuring shows it faster.
@@ -174,21 +173,27 @@ doesn't accept, a public address that isn't https) still stops the start, saying
   choose a folder on its computer.
 - `HOSTING_SCRIPT=scripts/hosting/local.sh` (D-68), and `MERCBOT_TRUSTED_DIR`: where the root step put root's own
   `unshare` and `runsc` (above); `/usr/local/lib/mercbot` by default.
-- Bots' files (D-20, D-21): without `MERCBOT_FILES_DIR`, or without `MERCBOT_FILES_PASSPHRASE` (`scripts/serve.sh`
-  then says the volume isn't mounted), files stay in `<MERCBOT_DATA_DIR>/files` (`.data/files` without
-  `MERCBOT_DATA_DIR`). With both, they're on an encrypted JuiceFS volume mounted at `MERCBOT_FILES_DIR`:
-  `MERCBOT_FILES_PASSPHRASE` unlocks the volume's encryption key (keep it safe), and `MERCBOT_FILES_STORAGE` and
-  `MERCBOT_FILES_BUCKET` (e.g. `s3` and the bucket's address) say where the data goes, with `ACCESS_KEY` and
-  `SECRET_KEY` when the storage needs them. The volume's metadata lives in the app's database, in its own `juicefs`
-  schema. While the volume isn't mounted, Mercbot says files are unavailable rather than writing them to its own disk.
+- Bots' files (D-20, D-21, D-91): on a copy run on more than one server, an S3 bucket they all share, AWS's or any
+  store speaking the S3 API (Garage, MinIO, R2 and the like): `MERCBOT_FILES_S3_BUCKET`, `MERCBOT_FILES_S3_REGION`,
+  `MERCBOT_FILES_S3_ACCESS_KEY_ID`, `MERCBOT_FILES_S3_SECRET_ACCESS_KEY` and `MERCBOT_FILES_PASSPHRASE`, with
+  `MERCBOT_FILES_S3_ENDPOINT` for a store other than AWS (reached path-style, `<endpoint>/<bucket>/<key>`) and
+  `MERCBOT_FILES_S3_PREFIX` to keep Mercbot's keys in one folder of a bucket shared with other things. Every file is
+  sealed before it leaves the server; the passphrase opens the key that seals them, which is kept in the bucket
+  (`.mercbot-files`): keep the passphrase safe, as the files can't be read without it. Each server works on a copy of
+  what it uses in its files folder (`MERCBOT_FILES_DIR`, else `<MERCBOT_DATA_DIR>/files`), emptied at every start, so
+  give it fast local disk with room for the files in use. Without every one of the five settings (the start names each
+  missing one), files stay in that folder: one machine's, or, with `MERCBOT_FILES_DIR`, a folder the host shares
+  between servers, which must hold an empty `.mercbot-files` file to show it's there. While the bucket can't be used
+  (a passphrase that doesn't open its key, a store that doesn't answer) or that shared folder isn't there, Mercbot says
+  files are unavailable rather than writing them to its own disk.
 - `AUTH_LOCAL_EMAIL_CONFIRMATION`: whether new accounts confirm their email address, which needs a sender for the
   links that Mercbot doesn't have. In staging and production it is `false` unless set, as nobody registers on a person's own copy;
   a copy built on Mercbot that confirms new accounts' addresses sets it and adds its own sender.
 - Usage (D-73) needs no setting: every AI call is recorded with what it cost at its provider, and a
   computer's days and its commands' time as use, with no cost; nothing is ever refused or paused. Daily
   totals older than 13 months are archived to
-  `<MERCBOT_FILES_DIR>/usage-archive/daily/<YYYY-MM>/homes-<from>-<to>.csv.gz`, one file per 100,000 homes,
-  so the files volume holds seven years of them; each AI call's own row is kept 14 days in the database and
+  `usage-archive/daily/<YYYY-MM>/homes-<from>-<to>.csv.gz` with bots' files, one file per 100,000 homes,
+  so the files bucket or folder holds seven years of them; each AI call's own row is kept 14 days in the database and
   not archived.
 - `APP_ENV=production` with `NODE_ENV=production` in a copy for real use (D-87); `SIDE_EFFECTS` is gone, and JSKIT
   refuses to start while it is set. Mercbot doesn't start without `APP_ENV`, naming the fix. In `development`, `test`
@@ -221,10 +226,7 @@ doesn't accept, a public address that isn't https) still stops the start, saying
   gVisor's own default.
 - `MERCBOT_SANDBOX_USER`: the powerless user bots' sandboxes run as (above); unset, they run as
   Mercbot's own user.
-- `MERCBOT_FILES_CACHE`: the files volume's JuiceFS cache, on fast local disk.
-- `MERCBOT_FILES_CACHE_SIZE`: the most that cache holds, in MiB (JuiceFS's own default is 100 GiB). Set it on a
-  machine whose only writable space is memory.
-- People who keep files in their own storage (D-26) have it mounted with rclone, with its cache under
-  `MERCBOT_DATA_DIR` (`mount-cache`); that needs FUSE and `MERCBOT_VAULT_KEY`.
+- People who keep files in their own storage (D-26) reach it through rclone's remote control, with each home's
+  working copy under `MERCBOT_DATA_DIR` (`mounts/<home>`); that needs `MERCBOT_VAULT_KEY`, and no FUSE.
 - Profile pictures are with bots' files (`profile-pictures/`). One saved before 2026-11-11 in JSKIT's own folder
   (`data/storage`, or `JSKIT_STORAGE_FS_BASE_PATH`) moves there the first time it's shown.

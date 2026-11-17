@@ -171,8 +171,9 @@ WebDAV storage or in a connected Google Drive account, through `mercbot.integrat
 when a home chooses another place, and answering whose own Drive holds them (`storage.heldInTheirDrive`), which a copy
 that removes people from homes asks first, and the pictures and videos a copy built on Mercbot checks (D-90): uploads and
 profile pictures before they're kept, a bot's screenshots and saved files afterwards, from `media_checks`, and a folder
-of such a copy's own (`store.privateFolder`). The files volume's metadata lives in the database's `juicefs` schema, managed
-by JuiceFS itself.
+of such a copy's own (`store.privateFolder`). Mercbot's own files are kept in an S3 bucket when one is configured, each
+sealed, with the files key sealed in the bucket's `.mercbot-files` record (D-91); each server works on a copy in its
+files folder.
 
 ### Source
 

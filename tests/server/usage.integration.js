@@ -246,7 +246,7 @@ test("daily totals older than 13 months are archived by home range once, by serv
   }));
   await knex("usage_daily").insert(rows);
   const env = { MERCBOT_FILES_DIR: folder };
-  const retention = (server) => createRetention({ resources, systemContext, env, knex, archivedColumns: [], server });
+  const retention = (server) => createRetention({ resources, systemContext, env, knex, archivedColumns: [], filesSync: () => null, server });
   const [one, two] = await Promise.all([retention("one").sweep(), retention("two").sweep()]);
   assert.deepEqual([...one, ...two], [month], "one server archived it");
   assert.equal((await knex.raw("select to_regclass(?) as found", [table])).rows[0].found, null, "its partition was dropped whole");

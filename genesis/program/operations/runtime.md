@@ -36,8 +36,9 @@ isn't https (D-65), unless it's an http one on
 point at `http://localhost`. No key stops the start: each turns its feature on, and the server logs one line at start
 for each one missing (`packages/account/src/server/keys.js`). In staging and production `AUTH_LOCAL_EMAIL_CONFIRMATION` is
 `false` unless set (`resolveRuntimeEnv`): nobody registers, and JSKIT's confirmation links, which Mercbot has no sender for,
-would otherwise stop the start. `scripts/serve.sh` leaves the files volume off, saying so, when `MERCBOT_FILES_DIR` is set
-without `MERCBOT_FILES_PASSPHRASE`; `MERCBOT_FILES_CACHE_SIZE` bounds the volume's local cache (`scripts/mount-files.sh`).
+would otherwise stop the start. Bots' files are in the files bucket only with all of its settings and
+`MERCBOT_FILES_PASSPHRASE` (D-91); with any missing they stay in the files folder, and the start names each one. Once
+the server listens it sends what changed in its working copy every 5 seconds, and it sends the rest as it stops.
 The server believes `X-Forwarded-For` only from the proxies `TRUSTED_PROXIES` names (`trustedProxies`, JSKIT's
 `resolveTrustedProxies`; a proxy on this computer without it), so behind a load balancer each visitor keeps their own
 address for the sign-in limits, and a value that would believe anyone stops the start. `npm run develop` (`bin/develop.js`, `server/lib/develop.js`), the Preview, runs with

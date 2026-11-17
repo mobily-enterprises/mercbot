@@ -1,14 +1,11 @@
 #!/usr/bin/env bash
 # Runs a command in Mercbot's own user and mount namespace (D-68), where it is the namespace's
-# root: the files volume (JuiceFS) and people's storage (rclone) mount there through /dev/fuse,
-# with no set-user-ID fusermount3, which a host running Mercbot with no new privileges (Vibe64's
-# application sandbox) switches off. Nothing outside the namespace sees those mounts, and they go
-# when its last process ends. The hosting script (HOSTING_SCRIPT, default
-# scripts/hosting/vibe64.sh) checks first that the host allows all this and has the computers' X programs, and stops Mercbot
-# saying so if not: computers and mounts are never switched off quietly. It also names the unshare to use
-# (MERCBOT_UNSHARE: on a person's own computer, the installer's trusted copy). With MERCBOT_SANDBOX_USER
-# set (D-49), sandboxes run as that user through sudo, which can't work inside a user namespace,
-# so Mercbot stays outside and mounts with fusermount3.
+# root, and where its gVisor sandboxes start. Nothing mounts there since bots' files left FUSE (D-91). The hosting
+# script (HOSTING_SCRIPT, default scripts/hosting/vibe64.sh) checks first that the host allows this and has the
+# computers' X programs, and stops Mercbot saying so if not: computers are never switched off quietly. It also names
+# the unshare to use (MERCBOT_UNSHARE: on a person's own computer, the installer's trusted copy). With
+# MERCBOT_SANDBOX_USER set (D-49), sandboxes run as that user through sudo, which can't work inside a user namespace,
+# so Mercbot stays outside.
 #
 #   bash scripts/namespace.sh --check        checks this host, and nothing else
 #   bash scripts/namespace.sh COMMAND...     runs COMMAND in Mercbot's namespace

@@ -344,7 +344,9 @@ What these waited for has happened, so nothing stops them now.
   unbounded, "a key Drive turns down before it runs out is renewed at once, once…" passed in 50.0 s and "a renewal
   that fails for another reason isn't tried again at once" in 38.7 s. A file stopped at its bound leaves its rclone
   mount for a few seconds (gone by the next look). Recommended: find where those tests' time goes (rclone's own
-  retry pacing after a refused key, against the 10–25 s waits in the tests) before changing the bound.
+  retry pacing after a refused key, against the 10–25 s waits in the tests) before changing the bound. Since D-91
+  (2026-11-18) rclone mounts nothing (its remote control and a working copy instead), so the `TMPDIR` refusal no
+  longer applies and the tests need no FUSE; their times are to be measured again.
 
 ## 6. Docs that say something the code doesn't
 

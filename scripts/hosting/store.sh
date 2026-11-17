@@ -9,7 +9,7 @@
 . "$(dirname "${BASH_SOURCE[0]}")/lib/ubuntu.sh"
 
 # The store, the toolbox's folder and gVisor on PATH (named as MERCBOT_RUNSC unless the host named its own), then the
-# same checks as on Vibe64: Mercbot's own namespaces and /dev/fuse.
+# same check as on Vibe64: Mercbot's own namespaces.
 host_check() {
   local error
   export MERCBOT_UNSHARE=unshare
@@ -24,10 +24,6 @@ host_check() {
     host_refuse "This host doesn't let Mercbot create its own sandboxes, which its bots' computers need." \
       "${error:-unshare --user --map-root-user --mount failed.}"
   fi
-  if ! error="$( { exec 3<>/dev/fuse; } 2>&1)"; then
-    host_refuse "This host gives Mercbot no FUSE device (/dev/fuse), which its files volume and people's storage need." \
-      "${error:-/dev/fuse could not be opened.}"
-  fi
 }
 
 host_display_programs() {
@@ -40,5 +36,4 @@ host_store_only() {
 }
 host_toolbox_packages() { host_store_only; }
 host_unpack_deb() { host_store_only; }
-host_fuse_tools() { host_store_only; }
 host_desktop_tools() { host_store_only; }

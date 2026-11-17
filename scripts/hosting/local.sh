@@ -51,10 +51,6 @@ host_check() {
     host_refuse "This computer has a trusted copy of unshare for Mercbot but none of runsc, which its bots' sandboxes need. $LOCAL_ROOT_STEP" \
       "$LOCAL_TRUSTED/runsc: not found"
   fi
-  if ! error="$( { exec 3<>/dev/fuse; } 2>&1)"; then
-    host_refuse "This computer gives Mercbot no FUSE device (/dev/fuse), which people's storage needs. Install FUSE with: sudo apt-get install fuse3" \
-      "${error:-/dev/fuse could not be opened.}"
-  fi
 }
 
 host_display_programs() {

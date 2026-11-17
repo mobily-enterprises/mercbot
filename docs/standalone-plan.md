@@ -71,7 +71,8 @@ longer applies.
   computers and people's own storage use (`computerManager.js:159`,
   `packages/files/src/server/remoteMounts.js:131`). Profile pictures go with the files, in
   `profile-pictures/` (since 2026-11-11; before, in JSKIT's `data/storage`). An upgrade that unpacks a release beside the old one leaves them behind,
-  and `MERCBOT_FILES_DIR` can't name a plain folder, since `scripts/serve.sh:12-21` mounts JuiceFS there.
+  and `MERCBOT_FILES_DIR` couldn't name a plain folder, since `scripts/serve.sh` mounted JuiceFS there (until D-91,
+  which keeps files in an S3 bucket or a plain folder, with no mount).
 - **Two AI accounts.** Mercbot doesn't start without premium (`together`) and economy (`deepinfra`), each
   with its own key (D-72, `checkAiSettings` in `packages/account/src/server/providers/index.js`). Images
   (`gemini`) are optional; without them, a bot says pictures aren't set up.
@@ -104,13 +105,13 @@ longer applies.
 - **gVisor is Linux only.** It is a kernel for Linux programs, built on Linux's namespaces and system-call
   filters.
 - **Apple Silicon** runs arm64 VMs, and gVisor isn't expected to work under Rosetta, since it traps every
-  system call. gVisor, Node, Ubuntu, JuiceFS, rclone and Piper have arm64 builds; Chrome would become an
+  system call. gVisor, Node, Ubuntu, rclone and Piper have arm64 builds; Chrome would become an
   arm64 Chromium; the Craft apps' arm64 builds are unknown.
-- **WSL2** is a real Linux kernel built into Windows 10 and 11. Its Ubuntu has apt and `/dev/fuse`, and
+- **WSL2** is a real Linux kernel built into Windows 10 and 11. Its Ubuntu has apt, and
   with no AppArmor in its kernel the restriction above shouldn't apply (unproven). WSL may stop Ubuntu
   when its last window closes, which would stop routines.
-- **Docker** must let the container make namespaces and open `/dev/fuse`, through `--privileged` or
-  through unconfined seccomp and AppArmor plus `--device /dev/fuse`. On a Linux host that amounts to root.
+- **Docker** must let the container make namespaces, through `--privileged` or through unconfined seccomp
+  and AppArmor (Mercbot needs no FUSE since D-91). On a Linux host that amounts to root.
 
 ## The smallest path
 
@@ -128,7 +129,7 @@ container stays inside Docker's VM.
    memory and 15 GB of free disk (to be measured). It names whatever is missing. Debian 12 is unproven:
    its PostgreSQL is 15, and the toolbox would be built through Debian's apt.
 2. **One root step,** shown first and run with sudo once the person agrees: `apt-get install postgresql
-   xvfb x11vnc openbox fuse3 zstd`, the database and its user, lingering (so Mercbot runs while nobody is
+   xvfb x11vnc openbox zstd`, the database and its user, lingering (so Mercbot runs while nobody is
    signed in) and, on Ubuntu, question 2.
 3. **Installs as the person:** Node 26 and the release go into `~/.local/share/mercbot`, then it runs
    `npm run deploy:prepare` (tools kept in `~/.cache/mercbot-tools`, D-70), `npm run build` and

@@ -32,16 +32,17 @@ Open Mercbot with its key, as a person's own copy opens (D-81): http://localhost
 ## Hosting requirements
 
 Bots' computers and commands run in gVisor (`runsc --rootless`), and Mercbot itself runs in a user
-and mount namespace of its own (`scripts/namespace.sh`), where its files volume and people's storage
-mount through FUSE (D-68). What depends on the host lives in one hosting script, named by
+and mount namespace of its own (`scripts/namespace.sh`, D-68). Nothing mounts and no host is asked for FUSE: bots'
+files are in an S3 bucket Mercbot reaches itself, or a folder, and people's storage goes through rclone's remote
+control (D-91). What depends on the host lives in one hosting script, named by
 `HOSTING_SCRIPT` relative to Mercbot's folder (default `scripts/hosting/vibe64.sh`): it
-checks that the host lets Mercbot make its own namespaces and gives it `/dev/fuse`, finds `Xvfb`,
+checks that the host lets Mercbot make its own namespaces, finds `Xvfb`,
 `x11vnc` and `openbox`, and obtains the Ubuntu packages Mercbot needs: the toolbox's, and the desktops' own
 programs (`tint2`, `hsetroot`, `xterm`) where the system lacks them. Everything the same on every
-host (gVisor, the toolbox's base image and its install inside gVisor, the apps, Chrome, JuiceFS,
+host (gVisor, the toolbox's base image and its install inside gVisor, the apps, Chrome,
 rclone, Piper) stays in the shared install. A host that lacks any of these stops
 `npm run tools:install`, `npm run develop` and `scripts/serve.sh` with one sentence saying so and
-the error underneath; Mercbot never switches its computers or mounts off quietly. Check a host with
+the error underneath; Mercbot never switches its computers off quietly. Check a host with
 `bash scripts/namespace.sh --check`.
 
 - **Vibe64** (`scripts/hosting/vibe64.sh`), for developing Mercbot in a Vibe64 session: Vibe64's machines have
@@ -50,7 +51,7 @@ the error underneath; Mercbot never switches its computers or mounts off quietly
   home (`$HOME/.cache/mercbot-tools`), so a later install reinstalls only a tool whose version changed (D-70).
 - **A person's own computer** (`scripts/hosting/local.sh`, Ubuntu 24.04 or Debian 12 on x86_64; not yet
   proven on a fresh computer, docs/standalone-plan.md): the same checks, and each refusal names the
-  command that fixes it (`sudo apt-get install xvfb x11vnc openbox`, `sudo apt-get install fuse3`, or the
+  command that fixes it (`sudo apt-get install xvfb x11vnc openbox`, or the
   installer's root step). Ubuntu lets only programs AppArmor trusts make namespaces, so there Mercbot uses
   the root step's own copies of `unshare` and `runsc` in `/usr/local/lib/mercbot` (`MERCBOT_TRUSTED_DIR`),
   only if root owns them, and refuses to start once the tools' gVisor is newer than that copy. Such a copy
@@ -62,7 +63,7 @@ the error underneath; Mercbot never switches its computers or mounts off quietly
   programs may run, and each
   start makes the bots' toolbox there from the store's programs on `PATH` (gVisor's `runsc`, Chromium, Python, bash,
   fonts) as links, which every gVisor sandbox can follow because it sees the store read-only at the same path. The
-  host must also give Mercbot its own namespaces and `/dev/fuse`, have `Xvfb`, `x11vnc` and `openbox` on `PATH`, and
+  host must also give Mercbot its own namespaces, have `Xvfb`, `x11vnc` and `openbox` on `PATH`, and
   let programs run in its temporary folder, its data folder (the computers' launchers) and the toolbox's folder (gVisor
   mounts it again). The office apps, voice memos and coding tools are still `npm run tools:install`'s downloads, made
   for an ordinary Linux system: with `nix-ld` and glibc on `PATH`, and their libraries' folders in
@@ -70,9 +71,9 @@ the error underneath; Mercbot never switches its computers or mounts off quietly
   too. docs/deployment.md lists the packages.
 - **Other hosts** are not supported yet. Another host needs its own `scripts/hosting/<name>.sh` with
   the same functions (`host_check`, `host_display_programs`, `host_toolbox_packages`,
-  `host_desktop_tools`, `host_fuse_tools`, `host_unpack_deb`; those for Ubuntu are shared in
+  `host_desktop_tools`, `host_unpack_deb`; those for Ubuntu are shared in
   `scripts/hosting/lib/ubuntu.sh`), named by `HOSTING_SCRIPT`, and must provide: Linux that lets the
-  app create its own user, mount, PID, IPC, UTS and network namespaces; `/dev/fuse`; `x11vnc`, `openbox` and
+  app create its own user, mount, PID, IPC, UTS and network namespaces; `x11vnc`, `openbox` and
   `Xvfb`; and a way to obtain and unpack Ubuntu packages (on a host without Debian's apt, for
   example by downloading them inside the sandbox).
 

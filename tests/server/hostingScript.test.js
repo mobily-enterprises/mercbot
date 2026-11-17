@@ -33,13 +33,19 @@ test("the install and the toolbox build check the host and take their host steps
   assert.ok(lines("scripts/namespace.sh").includes('hosting="${HOSTING_SCRIPT:-scripts/hosting/vibe64.sh}"'), "namespace.sh's default");
 });
 
-test("in Mercbot's namespace rclone mounts through the hosting script's fusermount3, never the host's set-user-ID one", () => {
+// D-91: bots' files are in an S3 bucket Mercbot reaches itself, and people's storage through rclone's remote control,
+// so no host is asked for FUSE: no hosting script opens /dev/fuse, the install brings neither JuiceFS nor a
+// fusermount3, the start mounts nothing, and rclone is started as a remote control, never a mount.
+test("nothing needs FUSE: no host is asked for /dev/fuse, and nothing is mounted", () => {
   const read = (file) => readFileSync(path.join(ROOT, file), "utf8");
-  assert.ok(read("scripts/install-tools.sh").split("\n").includes('  host_fuse_tools "$1" "$DOWNLOADS"'));
-  assert.match(read("scripts/hosting/lib/ubuntu.sh"), /install -m 0755 .+ "\$TOOLS\/fuse\/fusermount3"/u);
+  for (const file of ["scripts/hosting/vibe64.sh", "scripts/hosting/local.sh", "scripts/hosting/store.sh", "scripts/hosting/lib/ubuntu.sh"]) {
+    assert.doesNotMatch(read(file), /\/dev\/fuse|fusermount|host_fuse_tools/u, file);
+  }
+  assert.doesNotMatch(read("scripts/install-tools.sh"), /juicefs|fuse/iu);
+  assert.doesNotMatch(read("scripts/serve.sh"), /mount-files|umount|juicefs/u);
   const mounts = read("packages/files/src/server/remoteMounts.js");
-  assert.match(mounts, /ownNamespace\(env\) \? `\$\{path\.resolve\(env\.MERCBOT_TOOLS_DIR \|\| "\.tools", "fuse"\)\}:\$\{env\.PATH\}`/u);
-  assert.match(mounts, /ownNamespace\(env\) \? run\("umount", \["-l", dir\]\)/u);
+  assert.match(mounts, /spawn\(rcloneBinary\(env\), \[\n\s+"rcd",/u);
+  assert.doesNotMatch(mounts, /"mount"|fusermount|umount/u);
 });
 
 test("nothing the install does the host's way is left outside the hosting script", () => {
@@ -82,7 +88,7 @@ test("on a host whose programs come from a store, the store, the toolbox's folde
   } finally {
     rmSync(store, { recursive: true, force: true });
   }
-  for (const step of ["host_toolbox_packages", "host_unpack_deb", "host_fuse_tools", "host_desktop_tools"]) {
+  for (const step of ["host_toolbox_packages", "host_unpack_deb", "host_desktop_tools"]) {
     const refused = bash(`. scripts/hosting/store.sh; ${step} a b`);
     assert.equal(refused.status, 1, step);
     assert.match(refused.stderr, /^On this host Mercbot's programs come from its store, so npm run tools:install isn't used here\./u, step);
@@ -154,11 +160,7 @@ test("on a person's computer each missing piece is refused with the command that
   }
 });
 
-test("where the computer allows namespaces, Mercbot uses its own unshare and the tools' gVisor", (t) => {
-  if (bash("{ exec 3<>/dev/fuse; } 2>/dev/null").status !== 0) {
-    t.skip("this machine has no /dev/fuse to open, so host_check stops before it answers; the desktop and office test hosts have one");
-    return;
-  }
+test("where the computer allows namespaces, Mercbot uses its own unshare and the tools' gVisor", () => {
   const trusted = mkdtempSync(path.join(os.tmpdir(), "mercbot-trusted-"));
   const shims = shimFolder({ unshare: "exit 0" });
   try {

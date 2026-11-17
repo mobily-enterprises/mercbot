@@ -246,8 +246,9 @@ export function createComputers({
       .catch((error) => console.warn(`Telling who listens that computer ${computerId} ${kind === "made_room" ? "made room" : "couldn't start"} failed.`, error));
   }
   /** A computer's screenshots and saved browser are files on the shared volume (D-50). */
-  const folderOf = (computerId) => files.store.computerFolder(computerId);
-  const state = createBrowserState({ records, env, folderOf });
+  const folderOf = (computerId, how) => files.store.computerFolder(computerId, how);
+  // What it writes there reaches where the files are kept before it's recorded (D-91), so another server finds it.
+  const state = createBrowserState({ records, env, folderOf, settle: (computerId) => files.store.settleComputer(computerId) });
   // Each awake computer's apps run in gVisor (D-47, branch computer-gvisor): Chrome and the Craft
   // apps in one desktop sandbox per computer, on the internet only through its gateway.
   const boxes = new Map();
@@ -356,13 +357,12 @@ export function createComputers({
    */
   async function sweepFiles() {
     if (!await files.store.available()) return;
-    const names = (await fs.readdir(files.store.computersRoot).catch(() => [])).filter((name) => /^\d+$/u.test(name));
+    // Wherever they're kept: the files folder, or the files bucket (D-91).
+    const names = (await files.store.computerIds()).filter((name) => /^\d+$/u.test(name));
     for (let start = 0; start < names.length; start += 1000) {
       const batch = names.slice(start, start + 1000);
       const alive = await directory.liveConversationIds(batch, system());
-      for (const name of batch.filter((id) => !alive.has(id))) {
-        await fs.rm(path.join(files.store.computersRoot, name), { recursive: true, force: true });
-      }
+      for (const name of batch.filter((id) => !alive.has(id))) await files.store.removeComputerFolder(name);
     }
   }
 
@@ -392,6 +392,7 @@ export function createComputers({
     const dir = path.join(await folderOf(computerId), "screenshots");
     await fs.mkdir(dir, { recursive: true });
     await fs.writeFile(path.join(dir, name), data);
+    await files.store.settleComputer(computerId);
     return name;
   }
 
@@ -548,7 +549,8 @@ export function createComputers({
 
   async function screenshotData(computerId, name) {
     if (!new RegExp(`^${Number(computerId)}-[0-9a-f]{16}\\.jpg$`, "u").test(String(name))) return null;
-    return fs.readFile(path.join(files.store.computersRoot, String(Number(computerId)), "screenshots", String(name))).catch(() => null);
+    const file = await files.store.computerFile(Number(computerId), `screenshots/${name}`).catch(() => null);
+    return file ? fs.readFile(file).catch(() => null) : null;
   }
 
   async function shutdown() {

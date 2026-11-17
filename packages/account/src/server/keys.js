@@ -58,14 +58,16 @@ const OTHER_ENTRIES = [
   },
   {
     name: "Bots' file storage",
-    purpose: "The shared, encrypted file volume bots keep their files on, and the object storage behind it.",
+    purpose: "The S3 bucket every server keeps bots' files in, each file sealed with the passphrase (any store speaking the S3 API, at its endpoint).",
     settings: [
-      { name: "MERCBOT_FILES_DIR" },
+      { name: "MERCBOT_FILES_S3_BUCKET" },
+      { name: "MERCBOT_FILES_S3_REGION" },
+      { name: "MERCBOT_FILES_S3_ACCESS_KEY_ID" },
+      { name: "MERCBOT_FILES_S3_SECRET_ACCESS_KEY" },
       { name: "MERCBOT_FILES_PASSPHRASE" },
-      { name: "MERCBOT_FILES_STORAGE", optional: true },
-      { name: "MERCBOT_FILES_BUCKET", optional: true },
-      { name: "ACCESS_KEY", optional: true },
-      { name: "SECRET_KEY", optional: true }
+      { name: "MERCBOT_FILES_S3_ENDPOINT", optional: true },
+      { name: "MERCBOT_FILES_S3_PREFIX", optional: true },
+      { name: "MERCBOT_FILES_DIR", optional: true }
     ],
     missing: "Files stay in a folder on this machine, which only suits a single server."
   },

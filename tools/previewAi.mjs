@@ -3,8 +3,8 @@ import { startStandInModel } from "./standInModel.mjs";
 
 // Every outside service's credential, whatever its name: the AI keys (AI_PREMIUM_API_KEY, AI_IMAGES_API_KEY, ...),
 // Turnstile's, and every sign-in or connection app's (AUTH_<PROVIDER>_CLIENT_ID, <APP>_CLIENT_SECRET, and the
-// <APP>_TEST_CLIENT_ID pair the integrations use on a local address), and the files volume's object storage keys
-// (ACCESS_KEY, SECRET_KEY). The database's password and the copy's own secrets (the session secret, the Vault key, the
+// <APP>_TEST_CLIENT_ID pair the integrations use on a local address), and the files bucket's keys
+// (MERCBOT_FILES_S3_ACCESS_KEY_ID, MERCBOT_FILES_S3_SECRET_ACCESS_KEY), so a Preview's files stay in its own folder. The database's password and the copy's own secrets (the session secret, the Vault key, the
 // files passphrase) don't match.
 const CREDENTIAL = /(^|_)(API_KEY|CLIENT_ID|CLIENT_SECRET|SECRET_KEY|SITE_KEY|ACCESS_KEY|ACCESS_KEY_ID|SECRET_ACCESS_KEY|TOKEN)$/u;
 

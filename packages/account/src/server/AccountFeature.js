@@ -59,7 +59,8 @@ const AccountFeature = defineFeature({
   provides: {
     account: "mercbot.account",
     meter: "mercbot.meter",
-    // Provided so the shutdown hook can stop the sweeps.
+    // Provided so the shutdown hook can stop the sweeps, and the files feature can keep the usage archive in the files
+    // bucket (D-91).
     sweeps: "mercbot.account.sweeps"
   },
   /**
@@ -89,7 +90,9 @@ const AccountFeature = defineFeature({
       ...createReports({ resources, systemContext, profiles })
     };
     const archivedColumns = usageRecorder?.archivedColumns ?? [];
-    const retention = createRetention({ resources, systemContext, env, knex: database.knex, archivedColumns });
+    // The files bucket's working copy (D-91), which the files feature hands over once it has one (useFilesSync).
+    let filesSync = null;
+    const retention = createRetention({ resources, systemContext, env, knex: database.knex, archivedColumns, filesSync: () => filesSync });
     const meter = createMeter({ recorder, recordError: aiFailures ? aiFailures.record : logAiFailure });
     registerRoutes(http, { account, spending, uploads, track: meter.track, media: createMediaGuard(mediaCheck) });
     // Every serving server keeps the usage tables (D-15), every hour and once at start so their partitions are there;
@@ -116,6 +119,10 @@ const AccountFeature = defineFeature({
       sweeps: Object.freeze({
         stop() {
           for (const timer of timers.splice(0)) clearInterval(timer);
+        },
+        /** Keeps the usage archive in the files bucket (D-91): the files feature's working copy, or null without one. */
+        useFilesSync(sync) {
+          filesSync = sync;
         }
       })
     };

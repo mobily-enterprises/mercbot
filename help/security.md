@@ -7,10 +7,10 @@ This page is for people reviewing Mercbot for security or compliance. It goes to
 Mercbot is a web application. People use it in a browser on a computer or phone.
 
 - **Your computer.** Mercbot runs as a Node server on your own computer, for you alone, and answers only there (see **Opening Mercbot** below).
-- **Database.** Everything people need lives in one PostgreSQL database: accounts, homes, bots, chats, routines, approvals, the vault, and Apps data. Bots' files, saved browser profiles and screenshots are on a shared file volume instead (see below). Work that must happen once, such as a routine run, is claimed through the database so only one server does it.
+- **Database.** Everything people need lives in one PostgreSQL database: accounts, homes, bots, chats, routines, approvals, the vault, and Apps data. Bots' files, saved browser profiles and screenshots are kept with the bots' files instead (see below). Work that must happen once, such as a routine run, is claimed through the database so only one server does it.
 - **The AI model.** One AI model, at two providers: Together AI and DeepInfra (see [Data storage and the AI model](#data-storage-and-the-ai-model)). Every model call is made from the servers. The provider keys never leave them.
 - **Bots' computers.** Each awake bot computer is a small desktop running on your computer, with Chrome and the office apps in gVisor.
-- **Files.** Bots' files are kept on a shared, encrypted file volume, or in a home's own WebDAV storage if its owners choose.
+- **Files.** Bots' files are kept in an S3 bucket every server shares, each file sealed before it leaves the server, or in a folder on a single machine, or in a home's own WebDAV storage or Google Drive if its owners choose.
 - **Connected apps.** Mercbot calls Google, Microsoft, GitHub, Calendly, Notion and Todoist on people's behalf with keys they grant by signing in on the provider's own page.
 
 **The server's state is the truth.** Cards, buttons and waiting states are drawn only from what the server has recorded. The model can only ask for changes through tools, so its words can't create, approve or cancel anything. A reply that claims an action no tool performed is sent back to be corrected.
@@ -45,7 +45,7 @@ Mercbot is a web application. People use it in a browser on a computer or phone.
 - **Local-only ports.** The browser's debugging port and the screen-sharing server listen only on the machine itself.
 - **Live view.** People watch a bot's screen through the Mercbot servers with a one-time ticket that's valid for 30 seconds. Watching is view-only until the person presses **Take control**. People can open the live view only for their own conversation's computer, or for a shared conversation they're in.
 - **No model key on the computer.** All model calls happen on the servers. The computer only receives concrete actions, such as a click or typing into a field, so a web page can't reach the model key.
-- **Saved browsers.** When a computer sleeps or its server stops, its browser profile is archived without caches, sealed with the vault key and kept on the shared file volume, outside everyone's folders; the database records only which file is current and its checksum. People can clear it with **Settings**, **Computer**, **Reset**.
+- **Saved browsers.** When a computer sleeps or its server stops, its browser profile is archived without caches, sealed with the vault key and kept with the bots' files, outside everyone's folders; the database records only which file is current and its checksum. People can clear it with **Settings**, **Computer**, **Reset**.
 - **Screenshots** of the pages bots work on are files on the same volume, readable only through their own chat, and deleted with it.
 
 The browser reaches the web only through the gateway described above.
@@ -82,9 +82,9 @@ See [Approvals, safety and privacy](/help/approvals-and-privacy).
 
 ## Data storage and the AI model
 
-- **Database.** PostgreSQL holds accounts, chats, memories, approvals, the vault, Apps data and usage. Files, saved browsers and screenshots are on the file volume.
-- **Files.** Bots' files live on a shared file volume that's encrypted when it's created; its index is in the database and its data in object storage. A home can choose its own WebDAV storage instead.
-- **Machines are disposable.** Nothing a person needs is kept only on one server. Profile pictures are on the file volume too.
+- **Database.** PostgreSQL holds accounts, chats, memories, approvals, the vault, Apps data and usage. Files, saved browsers and screenshots are kept with the bots' files.
+- **Files.** Bots' files live in an S3 bucket every server shares, each file sealed with AES-256-GCM before it leaves the server, with a key only the copy's files passphrase opens, so the bucket's owner can't read them. Each server keeps a copy of the files it uses and sends what changes to the bucket within seconds. A home can choose its own WebDAV storage or Google Drive instead.
+- **Machines are disposable.** Nothing a person needs is kept only on one server. Profile pictures are kept with the bots' files too.
 - **What goes to the model.** To answer, the model receives the bot's instructions, the conversation (recent messages word for word and a summary of older ones), a note of the bot's current state and the results of its tools, including text it read from pages, mail and files, and pictures attached to the message. Lasting facts a person asked bots to remember are included too.
 - **Providers.** Mercbot runs one AI model at two providers. Together AI, in the United States, answers in chats, including groups and requests between bots. DeepInfra writes the Builder's replies, and does the work nobody is waiting on: routines, watches, follow-ups to long commands, long jobs that carry on by themselves, and summaries of long conversations. Each receives what that work needs, as listed above. Mercbot doesn't offer a choice of provider or region.
 - **Pictures.** When it's set up, bots draw and edit pictures with Google's Gemini; a picture to be edited is sent with the request. Gemini also reads contact details from a photo a person chooses on the vault's contact form, told never to follow instructions written in it.

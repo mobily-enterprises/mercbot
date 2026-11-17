@@ -24,7 +24,7 @@ Preview, what it needs first, opening it, publishing, and what to do when a star
    key values in the chat.
 2. **Bots' tools.** Bots' computers, their command line, and the office apps behind their documents
    need `npm run tools:install`: gVisor, the toolbox (Ubuntu with Chrome and the command-line tools),
-   the office apps, JuiceFS, rclone and Piper, all pinned, into `.tools/`. The first install takes
+   the office apps, rclone and Piper, all pinned, into `.tools/`. The first install takes
    15 to 25 minutes; later ones reinstall only a tool whose version changed. Without them bots still
    chat, but have no computer, command line or office apps.
 3. **Optional settings** in Env: `AI_IMAGES_PROVIDER=gemini` with `AI_IMAGES_API_KEY` (pictures;
@@ -52,21 +52,25 @@ doesn't start, naming the fix.
 Publishing follows the Stack's Deployment (genesis/stack.md): Prepare installs dependencies and
 tools (`npm run deploy:prepare`), then Build, Migrate and Start (`scripts/serve.sh`).
 
-- **Sandbox allowances (a human step):** the Deployment asks for `gvisor` and `fuse`. The workspace
+- **Sandbox allowances (a human step):** the Deployment asks for `gvisor`. The workspace
   owner approves them once on the project's **Production** page, and Publish waits until they do.
 - **The first Publish on a host** installs the tools and builds the toolbox (15 to 25 minutes).
   Later ones keep them in the app's own home and take seconds unless a tool changed.
-- **Secrets:** Vibe64 generates `AUTH_LOCAL_SESSION_SECRET`, `MERCBOT_VAULT_KEY` and the first
-  account's setup code (`AUTH_LOCAL_SETUP_CODE`) once, keeps them in Production Env across releases,
-  and shows the setup code on the Production page.
+- **Secrets:** Vibe64 generates `AUTH_LOCAL_SESSION_SECRET`, `MERCBOT_VAULT_KEY`,
+  `MERCBOT_FILES_PASSPHRASE` and the first account's setup code (`AUTH_LOCAL_SETUP_CODE`) once, keeps
+  them in Production Env across releases, and shows the setup code on the Production page.
+- **Files bucket (optional):** the Stack declares an S3 bucket (`files`). With its settings in
+  Production Env (`MERCBOT_FILES_S3_BUCKET`, `_REGION`, `_ENDPOINT`, `_ACCESS_KEY_ID`,
+  `_SECRET_ACCESS_KEY`), bots' files are kept there, each sealed with the passphrase; without them,
+  in the copy's data folder. Never ask for or paste the keys in the chat.
 - **Real sends:** a copy a host publishes from the workspace runs as `staging` and stays a test copy;
   only a production deploy, with `APP_ENV=production` and `NODE_ENV=production`, sends for real.
 
 ## When a start stops
 
 - **A sentence ending "See README → Hosting requirements."**, such as "This host doesn't let Mercbot
-  create its own sandboxes…", "…no FUSE device…" or "…no Xvfb or x11vnc…": the host lacks something
-  bots' computers or files need, and Mercbot never starts with them quietly switched off.
+  create its own sandboxes…" or "…no Xvfb or x11vnc…": the host lacks something
+  bots' computers need, and Mercbot never starts with them quietly switched off.
   `bash scripts/namespace.sh --check` checks the host alone. On a published copy, check that the
   sandbox allowances are approved.
 - **"Mercbot's AI isn't set up."**, then one sentence per setting to add or fix: add those AI

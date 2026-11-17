@@ -19,6 +19,7 @@
     "@jskit-ai/resource-core": "0.1.218",
     "@jskit-ai/resource-runtime": "0.2.39",
     "@local/account": "0.1.0",
+    "aws4fetch": "1.0.20",
     "parse5": "8.1.1"
   },
   "jskit": {
@@ -36,7 +37,8 @@
         "runtime.resources",
         "mercbot.bots.records",
         "mercbot.meter",
-        "mercbot.integrations"
+        "mercbot.integrations",
+        "mercbot.account.sweeps"
       ]
     },
     "runtime": {

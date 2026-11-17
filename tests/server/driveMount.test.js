@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, rmSync } from "node:fs";
+import { existsSync } from "node:fs";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -11,31 +11,17 @@ import { answerDriveToken, registerDriveTokenRoute } from "../../packages/files/
 import { createRemoteMounts } from "../../packages/files/src/server/remoteMounts.js";
 import { startFakeDrive } from "../support/fakeDrive.mjs";
 
-// A home's files kept in Google Drive (D-80), mounted for real: rclone's Drive backend against the stand-in Drive
-// (tests/support/fakeDrive.mjs, reached through its proxy and test authority), asking this server's own route for each
-// key. Listing, upload (small, and big in resumable chunks), download, rename and delete reach the Drive folder; while
-// the account needs signing in again rclone is refused a key and keeps the save, which arrives once it's signed in. A
-// key Drive turns down before it runs out (access removed in Google) is renewed at once, once, from rclone's log; until
-// a renewal works or the account is signed in again, settling the home's saves doesn't wait for them.
-// Needs the toolbox's rclone (npm run tools:install), FUSE this user may mount with, and openssl.
+// A home's files kept in Google Drive (D-80), for real: rclone's Drive backend, driven through its remote control with
+// no mount (D-91), against the stand-in Drive (tests/support/fakeDrive.mjs, reached through its proxy and test
+// authority), asking this server's own route for each key. The home's folder here is a working copy: what's in Drive is
+// pulled into it, and what's saved, renamed or deleted in it reaches the Drive folder (small files, and big ones in
+// resumable chunks); while the account needs signing in again rclone is refused a key and the save waits here, and
+// arrives once it's signed in. A key Drive turns down before it runs out (access removed in Google) is renewed at once,
+// once, from what rclone says; until a renewal works or the account is signed in again, settling the home's saves
+// doesn't wait for them. Needs the toolbox's rclone (npm run tools:install) and openssl.
 const RCLONE = path.resolve(".tools/bin/rclone");
 const has = (command) => spawnSync("sh", ["-c", `command -v ${command}`]).status === 0;
-
-/** Whether this user may mount with FUSE here (a host may refuse it): rclone mounts an empty folder for a moment. */
-function fuseAllowed() {
-  const dir = mkdtempSync(path.join(os.tmpdir(), "mercbot-fuse-"));
-  try {
-    for (const name of ["from", "to"]) mkdirSync(path.join(dir, name));
-    const args = ["mount", path.join(dir, "from"), path.join(dir, "to"), "--config", "/dev/null", "--daemon", "--daemon-wait", "5s"];
-    const mounted = spawnSync(RCLONE, args, { timeout: 15000 });
-    if (mounted.status !== 0) return false;
-    spawnSync("fusermount3", ["-uz", path.join(dir, "to")]);
-    return true;
-  } finally {
-    rmSync(dir, { recursive: true, force: true });
-  }
-}
-const ready = existsSync(RCLONE) && existsSync("/dev/fuse") && has("fusermount3") && has("openssl") && fuseAllowed();
+const ready = existsSync(RCLONE) && has("openssl");
 const FOLDER = "application/vnd.google-apps.folder";
 
 /** A Drive call on the stand-in's own address, with a key it handed out. */
@@ -142,7 +128,7 @@ test("the stand-in Drive, its proxy and its test authority are never used in sta
   assert.equal(driveStandIn({}), null);
 });
 
-const SKIP = ready ? false : "rclone (npm run tools:install), FUSE or openssl isn't installed, or this host refuses FUSE mounts";
+const SKIP = ready ? false : "rclone (npm run tools:install) or openssl isn't installed";
 
 test("a Google Drive folder is mounted: listed, saved to, read, renamed and deleted, and a refused key loses nothing", { skip: SKIP }, async (context) => {
   // The account's key, as driveStorage.js gives it: a short one, so rclone asks for each call; refused while the
@@ -177,8 +163,9 @@ test("a Google Drive folder is mounted: listed, saved to, read, renamed and dele
     ].join("\r\n")
   });
 
-  const dir = await mounts.folder("3", settings);
+  const { dir, tree } = await mounts.folder("3", settings);
   assert.ok(existsSync(dir));
+  await tree.pull("");
   assert.deepEqual(asked[0], ["3", "41"], "the mount asks for the home's account's key");
 
   // Listing and download: what the person put there.
@@ -240,7 +227,7 @@ test("a key Drive turns down before it runs out is renewed at once, once; a refu
     return key;
   }, { keySeconds: 2 });
   const { settings } = await mercbotFolder(drive);
-  const dir = await mounts.folder("3", settings);
+  const { dir } = await mounts.folder("3", settings);
   await fs.writeFile(path.join(dir, "first.txt"), "Saved with the first key.");
   await mounts.settle("3");
   assert.ok(drive.named("first.txt"));
@@ -288,7 +275,7 @@ test("a renewal that fails for another reason isn't tried again at once", { skip
     return key;
   }, { keySeconds: 2 });
   const { settings } = await mercbotFolder(drive);
-  const dir = await mounts.folder("3", settings);
+  const { dir } = await mounts.folder("3", settings);
   await fs.writeFile(path.join(dir, "first.txt"), "Saved.");
   await mounts.settle("3");
 

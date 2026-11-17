@@ -10,34 +10,34 @@ import { createInterface } from "node:readline";
 import { promisify } from "node:util";
 import { driveStandIn } from "./driveStorage.js";
 import { FilesError } from "./fileStore.js";
+import { createSyncedTree } from "./syncedTree.js";
 import { ownOrigin } from "./ownMachine.js";
 
 const run = promisify(execFile);
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-// A person's own storage (D-26), mounted with rclone as a folder on the server that needs it, so
-// the apps, the sandbox and the desktop work on it like on any other folder. Proven on
-// 2026-10-25 against WebDAV, which taught three rules:
-// - Saves upload one second after the app closes the file. Uploading at once breaks the apps'
-//   save (write a temporary file, then rename it).
-// - Before a reply is reported done, and before the server stops, Mercbot waits until rclone has
-//   uploaded everything (`settle`). A machine that vanishes after that loses nothing; one that
-//   vanishes before it can lose the last second of saves.
-// - The control socket needs a short path, and a stale one is removed before mounting.
-// Each server mounts independently; another server's changes show within about 10 seconds.
-// Google Drive (D-80) is mounted the same way with rclone's Drive backend, rooted at the folder Mercbot made there.
-// rclone asks this server for each key (`token`) at DRIVE_TOKEN_PATH on its own port: its refresh key is a random
-// key of that mount, known only to this process, and the account's own permission stays here. Each key it gets
-// lasts at most KEY_SECONDS; the mount reads the home's choice and the account's key again every CHECK_SECONDS, so it
-// follows its account and the home's choice within minutes (signed out, signed in again, renewed by another server,
-// the home's files kept elsewhere), and a renewed key reaches rclone within a minute.
+// A home's own storage (D-26): WebDAV, or a Google Drive folder (D-80), reached through rclone's remote control
+// (`rclone rcd`, one per home on each server that needs it) with no mount and no FUSE (D-91). The home's folders are a
+// working copy here (syncedTree.js), so the apps, the sandbox and the desktop work on them like on any other folder:
+// pulled from the storage before they're read, pushed after a write, a reply or a command (`settle`) and every
+// PUSH_EVERY_MS, and pushed whole before the server stops. Proven on 2026-10-25 against WebDAV, through a mount, which
+// taught two rules kept here:
+// - Before a reply is reported done, and before the server stops, Mercbot waits until what was saved has reached the
+//   storage (`settle`). A machine that vanishes after that loses nothing.
+// - The control socket needs a short path, and a stale one is removed before starting.
+// Each server works on its own copy; another server's changes show at the next pull, within about a second.
+// rclone asks this server for each Drive key (`token`) at DRIVE_TOKEN_PATH on its own port: its refresh key is a random
+// key of that home's rclone, known only to this process, and the account's own permission stays here. Each key it gets
+// lasts at most KEY_SECONDS; the home's rclone reads the home's choice and the account's key again every
+// CHECK_SECONDS, so it follows its account and the home's choice within minutes (signed out, signed in again, renewed
+// by another server, the home's files kept elsewhere), and a renewed key reaches rclone within a minute.
 // rclone only asks for a key once its own has run out, even when Drive turns that key down (access removed in the
-// Google account): the mount hears it in rclone's log and asks for a new one at once (`keyRefused`), once per key,
-// waiting longer each time a renewal fails for a reason other than Google refusing it, which signs the account out.
-// Until a renewal works or the account is signed in again, the mount is `blocked`: its saves can't reach Drive, so
-// `settle` doesn't wait for them.
-const WRITE_BACK = "1s";
-const DIR_CACHE = "10s";
+// Google account): Mercbot hears it in what rclone answers or logs and asks for a new one at once (`keyRefused`), once
+// per key, waiting longer each time a renewal fails for a reason other than Google refusing it, which signs the account
+// out. Until a renewal works or the account is signed in again, the home's rclone is `blocked`: its saves can't reach
+// Drive, so `settle` doesn't wait for them; they stay here and go with a later push.
+const PUSH_EVERY_MS = 2000;
+const SETTLE_MS = 30000;
 const KEY_SECONDS = 60;
 const CHECK_SECONDS = 240;
 const RETRY_FIRST_MS = 15000;
@@ -49,29 +49,10 @@ const REFUSED = Object.freeze(["files_storage_sign_in_again", "integrations_acco
 // What rclone logs when Drive turns its key down (Google's API library words its 401s so).
 const KEY_TURNED_DOWN = /googleapi: (?:Error 401\b|got HTTP response code 401\b)/u;
 
-// In Mercbot's own namespace (D-68, scripts/namespace.sh) the server is the namespace's root, so
-// rclone mounts directly: its FUSE library mounts only through a program named fusermount3, and
-// the one it finds first is the hosting script's copy without the set-user-ID bit (.tools/fuse),
-// which as the namespace's root makes the mount itself, as JuiceFS does. Mounts come off with plain
-// umount. The host's set-user-ID fusermount3 is for a server outside the namespace (development,
-// D-49); on Ubuntu its AppArmor profile only allows mounts under home, /tmp, /mnt and /media.
-function ownNamespace(env) {
-  return env.MERCBOT_NAMESPACE === "own";
-}
-
-function unmount(env, dir) {
-  return ownNamespace(env) ? run("umount", ["-l", dir]) : run("fusermount3", ["-uz", dir]);
-}
-
 function rcloneBinary(env) {
   const tools = path.resolve(env.MERCBOT_TOOLS_DIR || ".tools");
   const unpacked = path.join(tools, "bin", "rclone");
   return existsSync(unpacked) ? unpacked : "rclone";
-}
-
-/** The PATH rclone runs with: in Mercbot's own namespace, the hosting script's fusermount3 first. */
-function rclonePath(env) {
-  return ownNamespace(env) ? `${path.resolve(env.MERCBOT_TOOLS_DIR || ".tools", "fuse")}:${env.PATH}` : env.PATH;
 }
 
 /**
@@ -86,7 +67,7 @@ function driveEnvironment(env, settings, { key, tokenUrl }, remote = "PERSON") {
   const standIn = driveStandIn(env);
   const config = `RCLONE_CONFIG_${remote}_`;
   return {
-    PATH: rclonePath(env),
+    PATH: env.PATH,
     [`${config}TYPE`]: "drive",
     [`${config}SCOPE`]: "drive",
     [`${config}ROOT_FOLDER_ID`]: settings.folderId,
@@ -101,11 +82,6 @@ function driveEnvironment(env, settings, { key, tokenUrl }, remote = "PERSON") {
 
 /** rclone trusts a test copy's stand-in Drive (driveStandIn), which has no rate limit to keep to. */
 const standInFlags = (env) => (driveStandIn(env)?.ca ? ["--ca-cert", driveStandIn(env).ca, "--drive-pacer-min-sleep", "1ms"] : []);
-
-/** What a Drive mount's rclone is told beyond its remote's settings. */
-function driveFlags(env) {
-  return ["--poll-interval", "0", ...standInFlags(env)];
-}
 
 /**
  * rclone takes its settings from the environment, so no secret is ever written to disk or put
@@ -126,7 +102,7 @@ async function environment(env, settings, remote = "PERSON") {
   });
   const config = `RCLONE_CONFIG_${remote}_`;
   return {
-    PATH: rclonePath(env),
+    PATH: env.PATH,
     [`${config}TYPE`]: "webdav",
     [`${config}URL`]: settings.url,
     [`${config}VENDOR`]: settings.vendor || "other",
@@ -155,36 +131,100 @@ export async function checkStorage(env, settings) {
   }
 }
 
-function request(socketPath, method) {
+/** An error rclone's remote control answered: its own sentence, such as "object not found". */
+class RcloneError extends Error {}
+
+/** One call to a home's rclone over its control socket; rclone's own failures throw RcloneError with its sentence. */
+function request(socketPath, method, body = {}, timeout = 120000) {
   return new Promise((resolve, reject) => {
     const req = http.request({
       socketPath,
       path: `/${method}`,
       method: "POST",
       headers: { "content-type": "application/json" },
-      timeout: 5000
+      timeout
     }, (response) => {
-      let body = "";
+      let text = "";
       response.on("data", (chunk) => {
-        body += chunk;
+        text += chunk;
       });
       response.on("end", () => {
+        let answer;
         try {
-          resolve(JSON.parse(body));
+          answer = JSON.parse(text || "{}");
         } catch (error) {
           reject(error);
+          return;
         }
+        if (response.statusCode === 200) resolve(answer);
+        else reject(new RcloneError(String(answer?.error || `rclone answered ${response.statusCode}`)));
       });
     });
     req.once("error", reject);
     req.once("timeout", () => req.destroy(new Error("rclone didn't answer.")));
-    req.end("{}");
+    req.end(JSON.stringify(body));
   });
 }
 
-async function mounted(dir) {
-  const table = await fs.readFile("/proc/self/mounts", "utf8").catch(() => "");
-  return table.split("\n").some((line) => line.split(" ")[1] === dir);
+const NOT_FOUND = /not found|doesn't exist|does not exist|no such/iu;
+const versionOf = (item) => `${item.Size}:${item.ModTime}`;
+
+/**
+ * A home's storage, through its rclone's remote control, as a synced tree's remote: `fsName` is the folder Mercbot
+ * keeps there ("person:Mercbot" in WebDAV, "person:" in Drive, rooted at Mercbot's folder); a file is copied between it
+ * and this server's folder by rclone itself. `refused` hears each of rclone's answers that says Drive turned its key
+ * down.
+ */
+function rcloneRemote(socket, fsName, refused) {
+  const at = (rel) => (rel ? `${fsName}${fsName.endsWith(":") ? "" : "/"}${rel}` : fsName);
+  const call = (method, body) => request(socket, method, body).catch((error) => {
+    if (KEY_TURNED_DOWN.test(String(error?.message))) refused();
+    throw error;
+  });
+  return {
+    async list(prefix) {
+      let answer;
+      try {
+        answer = await call("operations/list", { fs: at(prefix), remote: "", opt: { recurse: true } });
+      } catch (error) {
+        if (error instanceof RcloneError && NOT_FOUND.test(error.message)) return [];
+        throw error;
+      }
+      const under = (rel) => (prefix ? `${prefix}/${rel}` : rel);
+      return [
+        ...(prefix ? [{ path: prefix, dir: true }] : []),
+        ...(answer.list || []).map((item) => item.IsDir
+          ? { path: under(item.Path), dir: true }
+          : { path: under(item.Path), size: item.Size, version: versionOf(item), modified: Date.parse(item.ModTime) })
+      ];
+    },
+    async download(rel, file) {
+      try {
+        await call("operations/copyfile", { srcFs: fsName, srcRemote: rel, dstFs: path.dirname(file), dstRemote: path.basename(file) });
+      } catch (error) {
+        if (error instanceof RcloneError && NOT_FOUND.test(error.message)) return null;
+        throw error;
+      }
+      return "";
+    },
+    async upload(file, rel) {
+      await call("operations/copyfile", { srcFs: path.dirname(file), srcRemote: path.basename(file), dstFs: fsName, dstRemote: rel });
+      const { item } = await call("operations/stat", { fs: fsName, remote: rel });
+      return item ? versionOf(item) : "";
+    },
+    async remove(rel) {
+      await call("operations/deletefile", { fs: fsName, remote: rel }).catch((error) => {
+        if (!(error instanceof RcloneError && NOT_FOUND.test(error.message))) throw error;
+      });
+    },
+    makeDir: (rel) => call("operations/mkdir", { fs: fsName, remote: rel }).then(() => {}),
+    async removeDir(rel) {
+      // A folder something else filled meanwhile stays.
+      await call("operations/rmdir", { fs: fsName, remote: rel }).catch((error) => {
+        if (!(error instanceof RcloneError)) throw error;
+      });
+    }
+  };
 }
 
 /** A key request a mount's rclone can't be given a key for: `refused` once its account needs signing in again. */
@@ -196,7 +236,7 @@ export class DriveKeyError extends Error {
 }
 
 /**
- * Each home's own storage mounted with rclone.
+ * Each home's own storage, kept here as a working copy through its rclone.
  * @param {object} dependencies
  * @param {import("@jskit-ai/kernel/server/types").RuntimeEnv} dependencies.env
  * @param {string} [dependencies.dataDir]
@@ -227,43 +267,56 @@ export function createRemoteMounts({ env, dataDir = path.resolve(env.MERCBOT_DAT
     origin = ownOrigin(address, "http");
   }
 
+  /**
+   * Starts the home's rclone (remote control only, no mount) and its synced tree: a fresh working copy here, filled as
+   * its folders are pulled.
+   */
   async function start(userId, settings) {
     const dir = path.join(dataDir, "mounts", String(userId));
-    const cache = path.join(dataDir, "mount-cache", String(userId));
     const socket = path.join(sockets, `${userId}.sock`);
     const drive = settings.kind === "drive";
     if (drive && !origin) throw new Error("This server isn't listening yet.");
-    if (await mounted(dir)) await unmount(env, dir).catch(() => {});
     await fs.rm(socket, { force: true });
+    // What a copy here held before was pushed when it stopped, or is from a server that stopped without it.
+    await fs.rm(dir, { recursive: true, force: true });
+    await fs.rm(`${dir}.mbsync`, { recursive: true, force: true });
     await fs.mkdir(dir, { recursive: true });
-    await fs.mkdir(cache, { recursive: true });
     const driveKeyOf = drive ? randomBytes(32).toString("hex") : null;
     if (drive) driveMounts.set(driveKeyOf, driveEntry(userId, settings));
     const child = spawn(rcloneBinary(env), [
-      "mount", drive ? "person:" : "person:Mercbot", dir,
-      "--config", "/dev/null",
-      "--vfs-cache-mode", "full", "--vfs-write-back", WRITE_BACK, "--dir-cache-time", DIR_CACHE,
-      "--cache-dir", cache,
-      "--rc", "--rc-addr", `unix://${socket}`, "--rc-no-auth",
-      ...(drive ? driveFlags(env) : [])
+      "rcd", "--config", "/dev/null",
+      "--rc-addr", `unix://${socket}`, "--rc-no-auth",
+      ...(drive ? standInFlags(env) : [])
     ], {
       env: drive ? driveEnvironment(env, settings, { key: driveKeyOf, tokenUrl: `${origin}${DRIVE_TOKEN_PATH}` }) : await environment(env, settings),
-      // A Drive mount's log is read for Drive turning its key down, and goes nowhere else.
+      // A Drive's log is read for Drive turning its key down, and goes nowhere else.
       stdio: drive ? ["ignore", "ignore", "pipe"] : "ignore"
     });
     child.once("error", () => {});
+    const refused = () => drive && keyRefused(driveMounts.get(driveKeyOf));
     if (drive) {
       createInterface({ input: child.stderr }).on("line", (line) => {
-        if (KEY_TURNED_DOWN.test(line)) keyRefused(driveMounts.get(driveKeyOf));
+        if (KEY_TURNED_DOWN.test(line)) refused();
       });
     }
-    const entry = { dir, socket, child, key: JSON.stringify(settings), driveKey: driveKeyOf };
+    // Fetched files wait beside the home's folder, never in it, where the home would see them.
+    const tree = createSyncedTree({
+      root: dir, remote: rcloneRemote(socket, drive ? "person:" : "person:Mercbot", refused), oneScope: true, temporary: `${dir}.mbsync`
+    });
+    const entry = { dir, socket, child, tree, key: JSON.stringify(settings), driveKey: driveKeyOf, pushing: null, timer: null };
     child.once("exit", () => {
+      clearInterval(entry.timer);
       if (entry.driveKey) driveMounts.delete(entry.driveKey);
       if (mounts.get(userId) === entry) mounts.delete(userId);
     });
     for (let tries = 0; tries < 100 && child.exitCode === null; tries += 1) {
-      if (await mounted(dir)) {
+      if (await request(socket, "rc/noop", {}, 2000).then(() => true, () => false)) {
+        if (!drive) await request(socket, "operations/mkdir", { fs: "person:Mercbot", remote: "" }).catch(() => {});
+        // Saves made by the apps, the desktop and commands go every PUSH_EVERY_MS, as the mount's did a second after.
+        entry.timer = setInterval(() => {
+          entry.pushing ??= tree.push("").catch(() => {}).finally(() => (entry.pushing = null));
+        }, PUSH_EVERY_MS);
+        entry.timer.unref();
         mounts.set(userId, entry);
         return entry;
       }
@@ -363,7 +416,7 @@ export function createRemoteMounts({ env, dataDir = path.resolve(env.MERCBOT_DAT
    */
   async function transfer(homeId, args, remotes, { onStats = () => {}, signal } = {}) {
     const keys = [];
-    const variables = { PATH: rclonePath(env) };
+    const variables = { PATH: env.PATH };
     try {
       for (const [remote, settings] of Object.entries(remotes)) {
         if (settings.kind !== "drive") {
@@ -406,44 +459,51 @@ export function createRemoteMounts({ env, dataDir = path.resolve(env.MERCBOT_DAT
     }
   }
 
-  /** The person's storage as a folder here, mounting it if needed (again if the settings changed). */
+  /**
+   * The home's storage as a folder here, with the synced tree that keeps it (`{ dir, tree }`), starting its rclone if
+   * needed (again if the settings changed).
+   */
   async function folder(userId, settings) {
     const key = String(userId);
     const entry = mounts.get(key);
-    if (entry?.key === JSON.stringify(settings) && entry.child.exitCode === null) return entry.dir;
+    if (entry?.key === JSON.stringify(settings) && entry.child.exitCode === null) return { dir: entry.dir, tree: entry.tree };
     if (!starting.has(key)) {
       starting.set(key, (async () => {
         if (entry) await stop(key);
         return start(key, settings);
       })().finally(() => starting.delete(key)));
     }
-    return (await starting.get(key)).dir;
+    const started = await starting.get(key);
+    return { dir: started.dir, tree: started.tree };
   }
 
   /**
-   * Waits until every save has reached the person's storage (at most `ms`), or the Drive mount is `blocked`: its saves
-   * can't arrive before a renewal works or the account is signed in again, so a reply or a shutdown doesn't wait for them.
+   * Waits until what changed in the home's folder here has reached its storage (at most `ms`), unless its Drive is
+   * `blocked`: its saves can't arrive before a renewal works or the account is signed in again, so a reply or a shutdown
+   * doesn't wait for them; they stay here, and the next push sends them.
    */
-  async function settle(userId, ms = 30000) {
+  async function settle(userId, ms = SETTLE_MS) {
     const entry = mounts.get(String(userId));
-    if (!entry?.socket) return;
+    if (!entry) return;
+    const blocked = () => Boolean(driveMounts.get(entry.driveKey)?.blocked);
     const deadline = Date.now() + ms;
-    const since = Date.now();
-    while (Date.now() < deadline && !driveMounts.get(entry.driveKey)?.blocked) {
-      const queued = await request(entry.socket, "vfs/queue").then((answer) => answer.queue?.length ?? 0, () => 0);
-      // A save closed a moment ago may not be queued yet, so "empty" counts after a short while.
-      if (queued === 0 && Date.now() - since > 300) return;
-      await sleep(100);
+    while (Date.now() < deadline && !blocked()) {
+      await entry.pushing;
+      const pushed = await Promise.race([
+        entry.tree.push("").then(() => true, () => false),
+        sleep(Math.max(0, deadline - Date.now())).then(() => false)
+      ]);
+      if (pushed) return;
+      await sleep(500);
     }
   }
 
   async function stop(userId) {
     const entry = mounts.get(String(userId));
     if (!entry) return;
+    clearInterval(entry.timer);
     await settle(userId);
     entry.child.kill("SIGTERM");
-    await sleep(300);
-    await unmount(env, entry.dir).catch(() => {});
     if (entry.driveKey) driveMounts.delete(entry.driveKey);
     mounts.delete(String(userId));
   }

@@ -36,7 +36,8 @@ const FilesFeature = defineFeature({
     storage: "runtime.storage",
     integrations: "mercbot.integrations",
     env: "runtime.env",
-    meter: "mercbot.meter"
+    meter: "mercbot.meter",
+    sweeps: "mercbot.account.sweeps"
   },
   optional: {
     mediaCheck: "mercbot.media-check"
@@ -54,12 +55,15 @@ const FilesFeature = defineFeature({
    * @param {import("@local/integrations/server/types").Integrations} capabilities.integrations
    * @param {import("@jskit-ai/kernel/server/types").RuntimeEnv} capabilities.env
    * @param {import("@local/account/server/types").Meter} capabilities.meter what the bots' commands run is recorded through (D-73)
+   * @param {{ useFilesSync: (sync: object | null) => void }} capabilities.sweeps the account's sweeps, whose usage archive
+   *   is kept in the files bucket when there is one (D-91)
    * @param {import("@local/account/server/types").MediaCheck | null} capabilities.mediaCheck how a copy checks pictures and videos (D-90)
    * @param {Record<string, any>} capabilities.resources this feature's handles
    * @param {(reason: string) => object} capabilities.systemContext
    */
-  async setup({ records, http, fastify, uploads, storage, integrations, env, meter, mediaCheck, resources, systemContext }) {
+  async setup({ records, http, fastify, uploads, storage, integrations, env, meter, sweeps, mediaCheck, resources, systemContext }) {
     const files = createFilesRuntime({ resources, systemContext, env, meter, integrations, mediaCheck });
+    sweeps.useFilesSync(files.volume.sync);
     registerRoutes(http, { files, directory: records.directory, uploads });
     // A Google Drive mount's rclone asks this server for its keys, at its own address (D-80), and so does a move's,
     // so this server carries on moves whose server stopped only once it listens.
@@ -69,11 +73,18 @@ const FilesFeature = defineFeature({
       files.moves.startSweeping();
       // Every server checks the pictures and videos waiting for a check (D-15), with a copy that checks them.
       files.media.startSweeping();
+      // What this server writes in its copy of the files bucket goes there every few seconds too (D-91).
+      if (files.volume.kind === "bucket") files.volume.startSyncing();
     });
     registerPageRoutes(http, { pages: files.pages, directory: records.directory });
     // JSKIT's profile pictures go on the shared volume, from wherever JSKIT's storage kept them.
     const earlier = storage.getMount().driver;
-    storage.mount(PROFILE_PICTURES, profilePictureDriver({ folder: files.store.profilePicturesFolder, earlier, media: files.media }));
+    storage.mount(PROFILE_PICTURES, profilePictureDriver({
+      folder: files.store.profilePicturesFolder,
+      saved: files.store.settleProfilePicture,
+      earlier,
+      media: files.media
+    }));
     return { files };
   },
   // Shutting down (D-19): every save reaches people's own storage before the mounts close.
@@ -84,6 +95,8 @@ const FilesFeature = defineFeature({
     outputs.files.media.stop();
     await outputs.files.shell.drain();
     await outputs.files.mounts.closeAll();
+    // Everything written here reaches the files bucket before the server stops (D-19, D-91).
+    if (outputs.files.volume.kind === "bucket") await outputs.files.volume.stop();
   }
 });
 

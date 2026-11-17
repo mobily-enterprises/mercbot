@@ -31,7 +31,7 @@ window shows the list beside the open section, or beside the first section on
 the list's own page.
 
 Signed-in people can view and update their display name, avatar, locale and
-format preferences. Avatars are kept on Mercbot's shared files volume, where every server finds
+format preferences. Avatars are kept with Mercbot's own files (the files bucket, D-91), where every server finds
 them (`files/files.md`, D-19). Mercbot sends no notification emails, so there are no
 notification choices. The account email is visible but
 cannot be edited as profile data. Loading preserves the settings layout,

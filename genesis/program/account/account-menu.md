@@ -166,11 +166,13 @@ time, formula-like names prefixed with an apostrophe. `GET …/spending/bots` is
 Retention (`retention.js`), every server each hour: `mercbot_charge_partitions()` (the migration's) makes the
 partitions ahead and drops per-call days older than 14 whole. Each month of daily totals older than 13 months is
 claimed in `usage_jobs` (`claimJob` in `jobs.js`: one server at a time, and a claim left by a server that died is taken
-by another after an hour), written to `<MERCBOT_FILES_DIR>/usage-archive/daily/YYYY-MM/homes-<from>-<to>.csv.gz` (one
+by another after an hour), written to `<files folder>/usage-archive/daily/YYYY-MM/homes-<from>-<to>.csv.gz` (one
 file per 100,000 homes by id, with a copy's `archivedColumns` after Mercbot's own), read back and checked against the
 database (its rows, and the sums of `cost_nano` and the added columns), and its partition dropped by the server holding
-the claim with its row locked; archives older than seven years are deleted. A configured files volume that isn't
-mounted is never written to. Every server also sweeps once as it starts serving.
+the claim with its row locked; archives older than seven years are deleted. With the files bucket (D-91) a month's
+files are sent to it before its partition drops, and old months are found and deleted in the bucket, through the
+working copy the files feature hands over (`mercbot.account.sweeps`'s `useFilesSync`, retention's `filesSync`); while the bucket isn't
+available, or a configured files folder without a bucket lacks its marker, nothing is archived. Every server also sweeps once as it starts serving.
 
 Providers (D-16): Mercbot runs on the deployment's own provider keys. It has three kinds of AI (D-72), `AI_KINDS` in `providers/index.js`: the premium AI,
 the slower, cheaper AI and images. Each has two settings, `AI_<KIND>_PROVIDER`, the type, which picks the provider's layer,
@@ -190,7 +192,7 @@ its AI isn't set up. Whoever runs it sets …, then starts it again."), and `bot
 
 Every key a copy can be given (D-72, amended 2026-11-12): `KEYS` in `packages/account/src/server/keys.js` lists each
 one, what it's for, the settings that give it and what's off without it, from the AI kinds to the public address,
-the Vault key, email, the apps to connect, visitors' sign-ins, the human check, the files volume and another Mercbot to
+the Vault key, email, the apps to connect, visitors' sign-ins, the human check, the files bucket and another Mercbot to
 link to. Mercbot starts without any of them. `startServer` logs one line for each setting a feature that's off still
 needs (`missingKeyLines`: "<SETTING> isn't set, so this is off: <name>. <what's off>"); a kind on the stand-in model is
 on without its key. `keysOf(env)` gives each key's settings, whether each is set (never a value) and `set`, `partly`

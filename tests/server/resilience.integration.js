@@ -71,7 +71,7 @@ test("a bot's browser profile and newer cookies come back on another machine", a
     system: () => ({ context: systemContext("save and restore the test bot's browser") }),
     homeOf: async () => String(bot.workspace_id)
   });
-  const state = createBrowserState({ records, env: process.env, folderOf: (id) => store.computerFolder(id) });
+  const state = createBrowserState({ records, env: process.env, folderOf: (id) => store.computerFolder(id), settle: (id) => store.settleComputer(id) });
   const machineA = await mkdtemp(path.join(os.tmpdir(), "mercbot-a-"));
   const machineB = await mkdtemp(path.join(os.tmpdir(), "mercbot-b-"));
   context.after(() => Promise.all([machineA, machineB, volume].map((dir) => rm(dir, { recursive: true, force: true }))));

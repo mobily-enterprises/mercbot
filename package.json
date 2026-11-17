@@ -30,7 +30,6 @@
     "test:e2e": "playwright test tests/e2e",
     "db:prepare": "node ./scripts/prepare-database.js",
     "tools:install": "bash ./scripts/install-tools.sh",
-    "files:mount": "bash ./scripts/mount-files.sh",
     "deploy:prepare": "npm ci --include=dev && MERCBOT_TOOLS_STORE=\"${MERCBOT_TOOLS_STORE:-$HOME/.cache/mercbot-tools}\" npm run tools:install",
     "db:migrate": "knex --knexfile ./knexfile.js migrate:latest",
     "db:migrate:rollback": "knex --knexfile ./knexfile.js migrate:rollback",

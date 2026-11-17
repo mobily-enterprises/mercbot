@@ -32,6 +32,16 @@ const ROWS_PER_READ = 5000;
 // The files volume's marker (files fileStore.js): a configured volume that isn't mounted is never written to (D-19).
 const VOLUME_MARKER = ".mercbot-files";
 
+/**
+ * @typedef {object} FilesSync the files bucket's working copy (files filesVolume.js), for the archive, which is written
+ *   into the files folder outside the file store. Each path is inside the files folder, such as "usage-archive/daily";
+ *   each call fails when the bucket isn't available.
+ * @property {() => Promise<boolean>} available
+ * @property {(rel: string, how?: { shallow?: boolean }) => Promise<void>} pull
+ * @property {(rel: string) => Promise<void>} push sends what changed here, before anything relies on it (D-19)
+ * @property {(rel: string) => Promise<void>} removeTree removes a folder in the bucket and here
+ */
+
 const COLUMNS = Object.freeze([
   "workspace_id", "day", "bot_id", "user_id", "kind", "bot_name", "calls", "estimated_calls", "cache_hit_tokens", "cache_miss_tokens",
   "output_tokens", "images", "seconds", "cost_nano"
@@ -58,11 +68,13 @@ const monthsBefore = (at, months) => new Date(Date.UTC(at.getUTCFullYear(), at.g
  * @param {import("knex").Knex} dependencies.knex the database connection
  * @param {ReadonlyArray<string>} dependencies.archivedColumns the columns a copy adds to the daily totals, archived after
  *   Mercbot's own (`mercbot.usage-recorder`), none without one: each a whole number, summed in the archive's check
+ * @param {() => FilesSync | null} dependencies.filesSync the files bucket's working copy, once the files feature has
+ *   one (D-91); null while files are kept in the files folder itself
  * @param {() => Date} [dependencies.now]
  * @param {string} [dependencies.server] who this server is, in a claim
  */
 export function createRetention({
-  resources, systemContext, env, knex, archivedColumns, now = () => new Date(), server = `${os.hostname()}:${process.pid}`.slice(0, 120)
+  resources, systemContext, env, knex, archivedColumns, filesSync, now = () => new Date(), server = `${os.hostname()}:${process.pid}`.slice(0, 120)
 }) {
   const { usageJobs } = resources;
   const added = archivedColumns.filter((column) => !COLUMNS.includes(column));
@@ -76,6 +88,9 @@ export function createRetention({
   const folder = path.join(filesFolder(env), "usage-archive");
 
   async function volumeReady() {
+    // In the files bucket (D-91), once it's there to use.
+    const sync = filesSync();
+    if (sync) return sync.available();
     if (!configured) return true;
     return fs.access(path.join(path.dirname(folder), VOLUME_MARKER)).then(() => true, () => false);
   }
@@ -177,8 +192,11 @@ export function createRetention({
         const [held] = await usageJobs.lockWhere({ job: "archive", period: month }, txOptions);
         if (held?.server !== server || held.state !== "running") return false;
         for (const { partial, file } of files) await fs.rename(partial, file);
-        await txOptions.trx.raw("drop table if exists ??", [table]);
         const base = path.dirname(folder);
+        // In the files bucket, the month's files are in it before its rows go (D-19).
+        const sync = filesSync();
+        if (sync) await sync.push(path.relative(base, place).split(path.sep).join("/"));
+        await txOptions.trx.raw("drop table if exists ??", [table]);
         const kept = files.map(({ partial: _partial, file, ...written }) => ({ ...written, file: path.relative(base, file) }));
         await usageJobs.patchWhere(
           { job: "archive", period: month },
@@ -195,9 +213,13 @@ export function createRetention({
   /** Removes the archive files of months more than seven years ago. */
   async function removeOld() {
     const oldest = monthsBefore(now(), ARCHIVE_YEARS * 12);
+    // In the files bucket, every month it keeps, whichever server archived it.
+    const sync = filesSync();
+    if (sync) await sync.pull("usage-archive/daily", { shallow: true });
     const months = await fs.readdir(path.join(folder, "daily")).catch(() => []);
     for (const month of months.filter((name) => /^\d{4}-\d{2}$/u.test(name) && name < oldest)) {
-      await fs.rm(path.join(folder, "daily", month), { recursive: true, force: true });
+      if (sync) await sync.removeTree(`usage-archive/daily/${month}`);
+      else await fs.rm(path.join(folder, "daily", month), { recursive: true, force: true });
     }
   }
 

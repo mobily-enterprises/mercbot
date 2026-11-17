@@ -63,7 +63,7 @@ folders and without network (D-47).
   Vulkan manifest and EGL vendor file are linked where the desktop sandbox names them (`mesaManifests`,
   `DESKTOP_GRAPHICS` in `gvisor.js`); one lacking either stops the start, naming it. `serve.sh` also points `FONTCONFIG_FILE` at the toolbox's fonts.conf for the desktops' own programs.
   `HOSTING_SCRIPT=scripts/hosting/store.sh` is such a host's script: `host_check` refuses without the two settings or
-  without `runsc` on `PATH` (it sets `MERCBOT_RUNSC`), then checks namespaces and `/dev/fuse` as on Vibe64; its
+  without `runsc` on `PATH` (it sets `MERCBOT_RUNSC`), then checks namespaces as on Vibe64; its
   install steps refuse, as nothing is installed there.
 - **Tools' store (D-70):** every tool `npm run tools:install` installs, the toolbox included, is
   installed once per pinned version (with the install's `REVISION`) into its own folder of a store
@@ -77,11 +77,10 @@ folders and without network (D-47).
   account's own home, kept across releases. One install runs at a time per store (`flock`).
 - **Hosting script (D-68):** `HOSTING_SCRIPT` names it, relative to Mercbot's folder (default
   `scripts/hosting/vibe64.sh`); it is the only host-specific part: `host_check` (the host lets
-  Mercbot make its own namespaces and gives it `/dev/fuse`), `host_display_programs` (finds `Xvfb`
+  Mercbot make its own namespaces; nothing asks for FUSE since D-91), `host_display_programs` (finds `Xvfb`
   and `x11vnc` and sets `MERCBOT_XVFB` and `MERCBOT_X11VNC`), `host_desktop_tools` (the desktops'
   `tint2`, `hsetroot` and `xterm` where the system lacks them),
-  `host_fuse_tools` (a `fusermount3` without the set-user-ID bit from Ubuntu's `fuse3`, through which
-  rclone mounts in Mercbot's namespace), `host_unpack_deb` (rclone's release) and `host_toolbox_packages` (on Vibe64, the host's `apt-get
+  `host_unpack_deb` (rclone's release) and `host_toolbox_packages` (on Vibe64, the host's `apt-get
   download`). The install (`npm run tools:install`, which the Stack's Deployment Prepare step runs
   through `npm run deploy:prepare`) and the start check the host through it before anything else
   (`scripts/namespace.sh --check`). A path to no file stops them naming the variable, the path it
@@ -125,8 +124,9 @@ folders and without network (D-47).
   - **Limits:** each process gets `RLIMIT_AS` 2 GB, 128 processes, 1024 open files and 4 GB per
     file. A watchdog kills the sandbox above 3 GB in all. Output keeps the first and last 8 KB;
     when that cuts it, the whole output (up to 16 MB) is written once at the end as
-    `/runs/<run>.log` (D-48): the conversation's runs folder (`store.runsFolder`, on the shared
-    volume, outside every person's folders), mounted read-only at `/runs` in its sandboxes.
+    `/runs/<run>.log` (D-48): the conversation's runs folder (`store.runsFolder`, with the bots'
+    files, outside every person's folders; pulled from the files bucket first and sent to it once
+    written, `store.settleRuns`, D-91), mounted read-only at `/runs` in its sandboxes.
   - **Concurrency:** at most `MERCBOT_SHELL_RUNS` (2) at once per server; one per conversation,
     else `{status: "busy"}`.
   - **Answer:** `{status: done|failed|stopped, run, exitCode, output, truncated, seconds, stopped?,

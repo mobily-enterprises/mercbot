@@ -179,10 +179,12 @@ idle ones sleep after 5 minutes unless someone is watching or a hand-over is
 pending. While awake, a browser profile lives under `MERCBOT_DATA_DIR` (default
 `.data`) on the server running the computer.
 
-**The computer's files (D-50)** are on the shared files volume, in
+**The computer's files (D-50)** are kept with the bots' files, in
 `<files>/computers/<conversation>/` (`store.computerFolder`), outside every person's folders, and
-never in the database or on a server's own disk: without the volume there are no screenshots and
-nothing is saved.
+never in the database or only on a server's own disk: with the files bucket (D-91) the folder here is
+a working copy, its own files pulled before they're read, a screenshot fetched alone
+(`store.computerFile`), and what's written sent to the bucket at once (`store.settleComputer`).
+While the files aren't available there are no screenshots and nothing is saved.
 - **Screenshots:** `screenshots/<conversation>-<16 hex>.jpg`, served only for that conversation. With a copy
   built on Mercbot that checks pictures (D-90), each is queued in `media_checks` before it's written (one that can't be
   queued isn't kept) and checked within minutes; a blocked one is removed and then answers as missing.
