@@ -12,6 +12,31 @@ export class PictureError extends Error {}
 export const PICTURES_NOT_SET_UP =
   "Pictures aren't set up on this copy of Mercbot. Tell the person that plainly, in one line: you can't make or edit pictures here.";
 
+// What the bot is told when a copy that checks pictures (D-90) doesn't allow one: what was asked for, before anything is
+// drawn, or a picture once it's made, which is then neither kept nor shown. The checker's own sentence, when it gives
+// one, is what the bot says.
+const SAY = "Tell the person that plainly, in one line";
+const REFUSED = Object.freeze({
+  prompt: {
+    block: `That picture can't be made from this description, so none was made. ${SAY}, and don't try again with the same description.`,
+    unavailable: `Pictures can't be checked right now, so none was made. ${SAY}: they can try again in a few minutes.`
+  },
+  picture: {
+    block: `The picture that was made can't be shown, so it wasn't kept. ${SAY}.`,
+    unavailable: `The picture can't be checked right now, so it wasn't kept or shown. ${SAY}: they can try again in a few minutes.`
+  }
+});
+
+/**
+ * What make_picture tells the bot when a check didn't allow what was asked for (`prompt`) or what was made (`picture`).
+ * @param {"prompt" | "picture"} what
+ * @param {{ verdict: "block" | "unavailable", notice: string | null }} answer the check's
+ */
+export function pictureRefusal(what, { verdict, notice }) {
+  const told = REFUSED[what][verdict === "block" ? "block" : "unavailable"];
+  return notice ? `${told} Say it in these words: "${notice}"` : told;
+}
+
 /**
  * Whether this copy can make pictures: the images kind of AI is set up, with its key.
  * @param {import("@jskit-ai/kernel/server/types").RuntimeEnv} env

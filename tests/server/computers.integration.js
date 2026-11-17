@@ -13,8 +13,13 @@ import { FREE_RECORDER } from "../support/botDoubles.mjs";
 import { COMPUTER_OWNS } from "../../packages/computer/src/server/ComputerFeature.js";
 import { createComputerRecords } from "../../packages/computer/src/server/computerRecords.js";
 import { createComputers, PLACE_HERE } from "../../packages/computer/src/server/computers.js";
+import { createMediaGuard } from "../../packages/account/src/server/mediaCheck.js";
 import { createFileStore } from "../../packages/files/src/server/fileStore.js";
+import { createMediaChecks } from "../../packages/files/src/server/mediaChecks.js";
 import { testBot } from "./testHome.js";
+
+// A copy that checks no pictures (Mercbot's own): nothing is queued.
+const NO_CHECKS = createMediaChecks({ guard: createMediaGuard(null), mediaChecks: null, systemContext: null, store: null });
 
 // Bot computers shared by several servers (D-15), against the disposable test database.
 // A stand-in replaces the real desktop, so this needs no Xvfb or Chrome.
@@ -80,11 +85,11 @@ function conversationsOf(knex) {
   };
 }
 
-async function startServer(knex, context, name, log, store, placement = PLACE_HERE, events = undefined) {
+async function startServer(knex, context, name, log, store, placement = PLACE_HERE, events = undefined, media = NO_CHECKS) {
   const notices = createNotices({ knex });
   const { resources, systemContext } = (await ownedHandles(knex, context, { "mercbot.computer": COMPUTER_OWNS })).features["mercbot.computer"];
   const computers = createComputers({
-    resources, systemContext, directory: conversationsOf(knex), env: process.env, notices, files: { store },
+    resources, systemContext, directory: conversationsOf(knex), env: process.env, notices, files: { store, media },
     meter: createMeter({ recorder: FREE_RECORDER }), createManager: fakeDesktops(log, name), placement, events
   });
   const httpServer = http.createServer(async (request, response) => {
@@ -123,8 +128,17 @@ test("two servers share one bot computer through the database", async (context) 
   // The servers share one files volume, as they do in production.
   const volume = await mkdtemp(path.join(os.tmpdir(), "mercbot-volume-"));
   const store = createFileStore({ root: "", fallback: volume, ownStorage: async () => null, settle: async () => {}, explain: async () => {} });
-  const a = await startServer(knex, context, "integration-A", log, store);
-  const b = await startServer(knex, context, "integration-B", log, store);
+  // A copy that checks pictures (D-90) has each screenshot queued for its check before it's written.
+  const queued = [];
+  const media = {
+    on: true,
+    screenshotLater: async (screenshot) => {
+      const file = path.join(volume, "computers", String(screenshot.computerId), "screenshots", screenshot.name);
+      queued.push({ ...screenshot, written: existsSync(file) });
+    }
+  };
+  const a = await startServer(knex, context, "integration-A", log, store, PLACE_HERE, undefined, media);
+  const b = await startServer(knex, context, "integration-B", log, store, PLACE_HERE, undefined, media);
   const user = await knex("users").insert({ username: `computers-${Date.now()}` }).returning("id").catch(() => null);
   const userId = user?.[0]?.id ?? (await knex("users").first())?.id;
   assert.ok(userId, "the test database needs a user row");
@@ -157,6 +171,9 @@ test("two servers share one bot computer through the database", async (context) 
   assert.equal(await knex.schema.hasTable("bot_screenshots"), false);
   assert.equal(await there.computers.screenshotData(computerId, `../${page.screenshot}`), null);
   assert.equal(await there.computers.screenshotData(String(Number(computerId) + 1), page.screenshot), null, "another conversation can't read it");
+  assert.deepEqual(queued, [{
+    computerId, name: page.screenshot, workspaceId: String(bot.workspace_id), userId: String(userId), botId: String(bot.id), written: false
+  }], "the screenshot was queued for its check, with its conversation's home, person and bot, before it was written");
 
   // A sign-in's chain lives with the browser (D-77): starting one, reading the page in front and ending it run on the owner.
   await there.computers.startSignIn(computerId, "https://example.com/sign-in");
@@ -224,7 +241,8 @@ test("refused, a coding run doesn't start: its computer can't open its day", asy
   };
   const files = {
     store: createFileStore({ root: "", fallback: volume, ownStorage: async () => null, settle: async () => {}, explain: async () => {} }),
-    shell: { available: () => false, detach: async () => {} }
+    shell: { available: () => false, detach: async () => {} },
+    media: NO_CHECKS
   };
   const computers = createComputers({
     resources, systemContext, directory: conversationsOf(knex), env: { ...process.env, MERCBOT_SERVER_ID: "integration-refused" }, notices, files,

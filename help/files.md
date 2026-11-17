@@ -28,6 +28,7 @@ In a bot's own chat, each file you attach is kept in the bot's **Uploads** folde
 | Each attached file | Up to 25 MB. |
 | Pictures the bot can look at | Up to 10 MB each. |
 | HEIC photos (common on iPhones) | Can't be opened. Send them as JPEG or PNG. |
+| "This file can't be used." | A copy built on Mercbot may check every picture and video before it's kept or sent; that one can't be attached or uploaded there. |
 | Very long documents | The bot reads a large amount of text, but the very end of an extremely long file may be cut off. Point it to the part you need. |
 | Group chats | Files aren't kept for the bots. Only the text of small text files (up to about 200 KB) reaches them. Send other files to a bot's own chat. |
 

@@ -64,5 +64,24 @@ export const pageVersionResource = defineTableResource({
   }
 });
 
+/** media_checks: the pictures and videos waiting for a copy's check, which every server takes from in turn (D-90) */
+export const mediaCheckResource = defineTableResource({
+  name: "mediaChecks",
+  tableName: "media_checks",
+  ownership: "workspace",
+  schema: {
+    attempts: { type: "integer" },
+    botId: { type: "id", nullable: true, search: true },
+    checkAfter: { type: "dateTime" },
+    conversationId: { type: "id", nullable: true, search: true },
+    createdAt: { type: "dateTime" },
+    origin: { type: "string", maxLength: 16, noTrim: true, required: true, search: true },
+    path: { type: "string", noTrim: true, required: true, search: true },
+    place: { type: "object", nullable: true, additionalProperties: true },
+    userId: { type: "id", nullable: true, search: true },
+    workspaceId: { type: "id", hidden: true, search: true }
+  }
+});
+
 /** Every table resource this feature owns, in table order. */
-export const TABLE_RESOURCES = Object.freeze([fileStorageResource, pageVersionResource, shellRunResource]);
+export const TABLE_RESOURCES = Object.freeze([fileStorageResource, mediaCheckResource, pageVersionResource, shellRunResource]);

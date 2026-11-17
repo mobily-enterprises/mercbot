@@ -18,6 +18,7 @@ D-76, docs/architecture.md §3.8).
 - `packages/computer/src/server/computerDays.js`
 - `packages/account/src/server/accountService.js`
 - `packages/account/src/server/registerRoutes.js`
+- `packages/account/src/server/mediaCheck.js`
 - `packages/account/src/server/vaultEntry.js`
 - `packages/account/src/server/vaultPhoto.js`
 - `packages/account/src/shared/vault.js`
@@ -34,6 +35,7 @@ D-76, docs/architecture.md §3.8).
 - `migrations/20261113120000_baseline.cjs`
 - `tests/server/vault.test.js`
 - `tests/server/vault.integration.js`
+- `tests/server/mediaCheck.test.js`
 - `tests/client/vaultImport.vitest.js`
 - `tests/e2e/vault.spec.ts`
 - `tests/server/aiKinds.test.js`
@@ -82,6 +84,15 @@ address actually connected to is the one checked, and `publicFetch`, a fetch thr
 redirect itself. A refusal's error has the code `PRIVATE_ADDRESS`. Scripts' web calls (apps), pages' copied files,
 the general connector's requests to apps (integrations, through `publicFetch`) and the storage and read-back of a
 website set up by someone who doesn't run the copy (websites) use them.
+
+Checking pictures and videos (D-90): `@local/account/media-check` gives `sniffMedia(bytes)` (what a file is by its first
+bytes: `{ kind: "image" | "video", mime }` or null; `SNIFF_BYTES` of them say it), `createMediaGuard(mediaCheck)` (`{ on,
+check, checkText }`: without a checker everything is allowed; with one, only pictures and videos are passed to it, with
+their sniffed type and ids as strings, and a throw or an answer without a verdict counts as `unavailable`, logged in one
+line without the file) and `mediaRefusal(answer)` (422 `media_blocked` "This file can't be used." or 503
+`media_check_unavailable` "This file can't be checked right now. Try again in a few minutes.", in the checker's own
+`notice` when it gave one). The account feature reads `mercbot.media-check` (`MediaCheck` in `types.js`) for the
+Vault's photos, and the files feature for the rest (`files/files.md`).
 
 Metering (D-56, D-73): work done for someone runs inside `track({ userId, botId, workspaceId })` from
 `@local/account/meter`. Bots routes, routine runs and computer work forwarded to another server run inside it. Every AI
@@ -288,7 +299,9 @@ open General; the palette's section commands and See spending open their section
     sides): Scan with camera (getUserMedia, on only while its view shows, which it does
     at once, so Cancel works while the browser asks) or Upload a
     photo makes a JPEG of at most 1600 px and posts it to `POST /api/w/:home/vault/read-photo`
-    (multipart field `photo`, at most 8 MB, an image by its bytes). The server sends
+    (multipart field `photo`, at most 8 MB, an image by its bytes). A copy built on Mercbot that checks pictures (D-90)
+    checks it first: blocked, or not checkable now, it answers 422 `media_blocked` or 503 `media_check_unavailable` and
+    sends nothing on. The server sends
     it once to the images kind of AI (D-72: `AI_IMAGES_PROVIDER=gemini`, `AI_IMAGES_API_KEY`;
     its layer's `readPicture`, model `gemini-flash-latest`, through `aiFetch(env, "photos")`
     inside the meter's `track` for the person and the home in the address, so a failure goes to the meter's

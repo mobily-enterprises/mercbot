@@ -13,6 +13,7 @@
     "./reports": "./src/server/reports.js",
     "./data-folder": "./src/server/dataFolder.js",
     "./keys": "./src/server/keys.js",
+    "./media-check": "./src/server/mediaCheck.js",
     "./model": "./src/server/providers/index.js",
     "./public-address": "./src/server/publicAddress.js",
     "./vault-crypto": "./src/server/vaultCrypto.js",

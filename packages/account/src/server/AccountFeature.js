@@ -1,6 +1,7 @@
 // readable-check: allow no-direct-knex - infrastructure: hands the database connection to retention.js, which makes, archives and drops the usage tables' partitions
 import { defineFeature } from "@jskit-ai/kernel/server/features";
 import { createAccountService } from "./accountService.js";
+import { createMediaGuard } from "./mediaCheck.js";
 import { createMeter, logAiFailure } from "./meter.js";
 import { registerRoutes } from "./registerRoutes.js";
 import { createReports } from "./reports.js";
@@ -33,7 +34,7 @@ const UPKEEP_MS = 60 * 60 * 1000;
 // through the meter provided here: by Mercbot's own recorder (usage.js), with what each call cost at its provider, or
 // by a copy built on Mercbot that records it its own way (`mercbot.usage-recorder`), which then also answers what a
 // home has spent. The AI providers' failures go to `mercbot.provider-failures` when a feature provides it, and to the server
-// log otherwise.
+// log otherwise. A photo the Vault reads is checked first by a copy that checks pictures (`mercbot.media-check`, D-90).
 const AccountFeature = defineFeature({
   id: "mercbot.account",
   domain: "account",
@@ -52,7 +53,8 @@ const AccountFeature = defineFeature({
   optional: {
     aiFailures: "mercbot.provider-failures",
     usageRecorder: "mercbot.usage-recorder",
-    copyRunners: "mercbot.copy-runners"
+    copyRunners: "mercbot.copy-runners",
+    mediaCheck: "mercbot.media-check"
   },
   provides: {
     account: "mercbot.account",
@@ -73,11 +75,12 @@ const AccountFeature = defineFeature({
    * @param {import("./types.js").UsageRecorder | null} capabilities.usageRecorder a copy's own recording of what work uses
    * @param {{ runsThisCopy: (userId: string, options: object) => Promise<boolean> } | null} capabilities.copyRunners whom a
    *   copy names as its runners
+   * @param {import("./types.js").MediaCheck | null} capabilities.mediaCheck how a copy checks pictures before they're used (D-90)
    * @param {Record<string, any>} capabilities.resources this feature's handles
    * @param {(reason: string) => object} capabilities.systemContext
    */
   async setup({
-    records, http, uploads, env, database, fastify, profiles, aiFailures, usageRecorder, copyRunners, resources, systemContext
+    records, http, uploads, env, database, fastify, profiles, aiFailures, usageRecorder, copyRunners, mediaCheck, resources, systemContext
   }) {
     const account = createAccountService({ resources, systemContext, env, copyRunners });
     const recorder = usageRecorder || createUsageRecorder({ resources, systemContext, directory: records.directory });
@@ -88,7 +91,7 @@ const AccountFeature = defineFeature({
     const archivedColumns = usageRecorder?.archivedColumns ?? [];
     const retention = createRetention({ resources, systemContext, env, knex: database.knex, archivedColumns });
     const meter = createMeter({ recorder, recordError: aiFailures ? aiFailures.record : logAiFailure });
-    registerRoutes(http, { account, spending, uploads, track: meter.track });
+    registerRoutes(http, { account, spending, uploads, track: meter.track, media: createMediaGuard(mediaCheck) });
     // Every serving server keeps the usage tables (D-15), every hour and once at start so their partitions are there;
     // a failure is logged and tried again next time.
     const timers = [];

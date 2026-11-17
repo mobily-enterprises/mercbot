@@ -1,6 +1,8 @@
 import { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
+import { createMediaGuard, mediaRefusal } from "@local/account/media-check";
+import { FilesError } from "./fileStore.js";
 
 // People's profile pictures (D-19). JSKIT's users package keeps them in its runtime storage
 // (unstorage) under users/avatars/<user>/avatar, which on its own is a folder on the server's disk
@@ -8,7 +10,9 @@ import path from "node:path";
 // volume instead, in <files>/profile-pictures/<user>/avatar: every server shows the same picture,
 // and a Publish, which starts from a fresh folder, keeps them. Without the volume none is saved or
 // shown; nothing falls back to a server's disk. A picture saved before the move, still in JSKIT's own
-// folder on the server that took it, moves over the first time it's read there.
+// folder on the server that took it, moves over the first time it's read there. A copy built on Mercbot that checks
+// pictures (D-90) checks each new one before it's written: one it blocks, or can't check now, isn't kept, and JSKIT's
+// avatar route answers with the refusal (422 media_blocked, 503 media_check_unavailable).
 export const PROFILE_PICTURES = "users:avatars";
 
 /**
@@ -17,8 +21,9 @@ export const PROFILE_PICTURES = "users:avatars";
  *   (files_unavailable) when the volume isn't there.
  * @param {{ getItemRaw: (key: string) => Promise<unknown>, removeItem: (key: string) => Promise<void> }} dependencies.earlier
  *   The storage's own driver, where pictures were kept before.
+ * @param {Pick<import("./types.js").MediaGuard, "check">} [dependencies.media] the copy's checker, or none
  */
-export function profilePictureDriver({ folder, earlier }) {
+export function profilePictureDriver({ folder, earlier, media = createMediaGuard(null) }) {
   // JSKIT names a picture <user>:avatar; anything else, such as "..", is refused.
   async function fileOf(key) {
     const parts = String(key).split(":");
@@ -64,7 +69,12 @@ export function profilePictureDriver({ folder, earlier }) {
   }
 
   async function setItemRaw(key, value) {
-    await write(await fileOf(key), Buffer.from(value));
+    const file = await fileOf(key);
+    const data = Buffer.from(value);
+    const [userId] = String(key).split(":");
+    const refusal = mediaRefusal(await media.check({ bytes: data, origin: "profile_picture", userId }));
+    if (refusal) throw new FilesError(refusal.status, refusal.message, { code: refusal.code });
+    await write(file, data);
   }
 
   async function removeItem(key) {

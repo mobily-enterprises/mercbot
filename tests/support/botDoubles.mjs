@@ -2,10 +2,12 @@
 // around them. Each neutral double stands for a home with nothing set up: no computer, nothing
 // connected, no files, no apps, no other bot to ask. A test passes the parts it exercises (a real
 // file store, a computer that answers) and the rest are filled in, member by member.
+import { createMediaGuard } from "../../packages/account/src/server/mediaCheck.js";
 import { createMeter } from "../../packages/account/src/server/meter.js";
 import { createBotsService } from "../../packages/bots/src/server/botsService.js";
 import { NO_TEMPLATE_LINKS } from "../../packages/bots/src/server/botTemplates.js";
 import { createChatModel } from "../../packages/bots/src/server/model.js";
+import { createMediaChecks } from "../../packages/files/src/server/mediaChecks.js";
 import { isPagePath } from "../../packages/files/src/server/pageDocument.js";
 
 /** A recorder that records nothing and refuses nothing. */
@@ -92,7 +94,9 @@ const neutral = {
       edited: async () => null,
       pathChanged: async () => {},
       standalone: missing("pages")
-    }
+    },
+    // No copy's check of pictures and videos (D-90): everything is allowed, and nothing is queued.
+    media: createMediaChecks({ guard: createMediaGuard(null), mediaChecks: null, systemContext: null, store: null })
   }),
   apps: () => ({
     // No apps in the home: none found by id (a Builder room) or by a search.

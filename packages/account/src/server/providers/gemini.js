@@ -2,6 +2,12 @@ const BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
 const MODEL = "gemini-3.1-flash-image";
 // Gemini's latest Flash model reads pictures well and cheaply.
 const READING_MODEL = "gemini-flash-latest";
+// A picture is drawn with every harm category Gemini's API can be set for at its strictest: anything rated a low
+// chance of harm or more is refused, as "blocked" (D-90).
+const PICTURE_SAFETY = Object.freeze(
+  ["HARM_CATEGORY_HARASSMENT", "HARM_CATEGORY_HATE_SPEECH", "HARM_CATEGORY_SEXUALLY_EXPLICIT", "HARM_CATEGORY_DANGEROUS_CONTENT"]
+    .map((category) => Object.freeze({ category, threshold: "BLOCK_LOW_AND_ABOVE" }))
+);
 
 /**
  * A portrait (3:4) picture from a prompt and the pictures to start from, which it edits rather than drawing afresh:
@@ -26,6 +32,7 @@ async function makePicture({ baseURL, apiKey, prompt, sources, fetch: send }) {
           ]
         }
       ],
+      safetySettings: PICTURE_SAFETY,
       generationConfig: { responseModalities: ["IMAGE"], imageConfig: { aspectRatio: "3:4" } }
     }),
     signal: AbortSignal.timeout(150000)

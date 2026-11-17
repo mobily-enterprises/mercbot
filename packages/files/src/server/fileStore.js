@@ -23,6 +23,10 @@ const WALK_LIMIT = 5000;
 // A folder's files are looked at this many at a time: one after another, a turn's listing of
 // thousands of files on the shared volume waited for each in turn.
 const STAT_BATCH = 32;
+// The folders at the volume's top that Mercbot keeps there: homes' files, command outputs, computers' files, profile
+// pictures and the usage archive (account retention.js). A private folder (privateFolder) is never one of them.
+const STORE_FOLDERS = new Set(["homes", "runs", "computers", "profile-pictures", "usage-archive"]);
+const PRIVATE_NAME = /^[a-z][a-z0-9-]{2,40}$/u;
 
 export class FilesError extends AppError {
   /**
@@ -151,6 +155,25 @@ export function createFileStore({ root, fallback, ownStorage, settle, explain })
     return dir;
   }
 
+  /**
+   * A folder of a copy built on Mercbot's own, by its name, beside the store's folders on the shared volume (or in the
+   * data folder's files, without one; D-90): outside every person's, home's and computer's folders, so no route serves it
+   * and no bot's sandbox mounts it, and made for this server's user alone (mode 700). A name the store already uses, or
+   * one that isn't a short lowercase word with hyphens, is refused; so is every name while the volume isn't mounted
+   * (files_unavailable).
+   * @param {string} name
+   */
+  async function privateFolder(name) {
+    if (!PRIVATE_NAME.test(String(name)) || STORE_FOLDERS.has(name)) {
+      throw new Error(`"${name}" can't be a private folder's name: use 3 to 41 lowercase letters, digits and hyphens, not one of ${[...STORE_FOLDERS].join(", ")}.`);
+    }
+    if (!await available()) throw new FilesError(503, "Files aren't available on this server right now.", { code: "files_unavailable" });
+    const dir = path.join(base, name);
+    await fs.mkdir(dir, { recursive: true, mode: 0o700 });
+    await fs.chmod(dir, 0o700);
+    return dir;
+  }
+
   /** "/files/mine/a/b.docx" → the real path, or null outside the place's folders; for writing unless `reading`. */
   async function resolve(place, virtualPath, { reading = false } = {}) {
     const value = path.posix.normalize(String(virtualPath || "").trim());
@@ -261,6 +284,23 @@ export function createFileStore({ root, fallback, ownStorage, settle, explain })
       if (walked[index].partial) partial.push(key);
     });
     return { ...listing, left, partial };
+  }
+
+  /**
+   * Every file in the place's folders and their sub-folders, hidden ones too, changed at or after `since` (a time in
+   * ms), by its path. Unlike `list` it has no limit, so it costs what the place holds: only a copy that checks pictures
+   * and videos asks it, once a command ends, for every file the command may have written (D-90).
+   */
+  async function changedSince(place, since) {
+    const changed = [];
+    async function walkAll(dir, prefix) {
+      const entries = await fs.readdir(dir, { withFileTypes: true }).catch(() => []);
+      const files = await filesIn(dir, prefix, entries.filter((entry) => entry.isFile()));
+      changed.push(...files.filter((file) => Date.parse(file.modified) >= since).map((file) => file.path));
+      for (const entry of entries.filter((each) => each.isDirectory())) await walkAll(path.join(dir, entry.name), `${prefix}/${entry.name}`);
+    }
+    for (const [, dir, prefix] of sectionsOf(await prepare(place, { reading: true }))) await walkAll(dir, prefix);
+    return changed;
   }
 
   /**
@@ -394,6 +434,7 @@ export function createFileStore({ root, fallback, ownStorage, settle, explain })
     existingFile,
     existingFolder,
     list,
+    changedSince,
     listFolder,
     folderTree,
     move,
@@ -406,6 +447,7 @@ export function createFileStore({ root, fallback, ownStorage, settle, explain })
     runsRoot,
     computerFolder,
     computersRoot,
-    profilePicturesFolder
+    profilePicturesFolder,
+    privateFolder
   });
 }

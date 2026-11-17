@@ -1,9 +1,9 @@
 import fs from "node:fs";
 import path from "node:path";
-import { pipeline } from "node:stream/promises";
 import { hasPermission } from "@jskit-ai/kernel/shared/support";
 import { checkRouteVisibility } from "@jskit-ai/kernel/shared/support/visibility";
 import { BOT, FilesError, MINE, SHARED } from "./fileStore.js";
+import { UPLOAD_LIMIT, tooBig, writeUpload } from "./uploadedFile.js";
 
 // Types a page may show inline. Anything else (HTML and SVG included) is only ever downloaded.
 const INLINE = Object.freeze({
@@ -21,7 +21,6 @@ const INLINE = Object.freeze({
 });
 
 const TEXT_LIMIT = 200000;
-const UPLOAD_LIMIT = 25 * 1024 * 1024;
 
 /**
  * A bot's files for the chat's file cards, the viewer and the file browsers (D-20, D-21, D-36,
@@ -127,7 +126,7 @@ export function registerRoutes(http, { files, directory, uploads }) {
 
     // An upload: a file the person attaches in the chat goes in Uploads in the bot's
     // folder for them; the file browser names the folder (?folder=/files/bot/Invoices). A name
-    // already taken gets a number.
+    // already taken gets a number. A copy that checks pictures and videos checks one before it's kept (D-90).
     router.register("POST", `${base}/upload`, home, served(async function uploadFile(request, reply) {
       const place = await where(request);
       const dirs = await store.prepare(place);
@@ -146,7 +145,6 @@ export function registerRoutes(http, { files, directory, uploads }) {
         maxBytes: UPLOAD_LIMIT,
         required: true
       });
-      await fs.promises.mkdir(folder, { recursive: true });
       const clean = [...path.basename(part.fileName || "file")]
         .filter((char) => char >= " " && char !== "/" && char !== "\\")
         .join("")
@@ -156,10 +154,22 @@ export function registerRoutes(http, { files, directory, uploads }) {
       let name = clean;
       for (let count = 2; fs.existsSync(path.join(folder, name)); count += 1) name = `${stem} (${count})${ext}`;
       const target = path.join(folder, name);
-      await pipeline(part.stream, fs.createWriteStream(target));
+      await writeUpload(part.stream, {
+        target,
+        media: files.media,
+        item: {
+          origin: "upload",
+          workspaceId: place.homeId,
+          userId: request.user.id,
+          botId: place.botId ?? null,
+          conversationId: null,
+          path: `${virtualFolder}/${name}`,
+          ip: request.ip ?? null
+        }
+      });
       if (part.stream.truncated) {
         await fs.promises.rm(target, { force: true });
-        throw new FilesError(413, "That file is too big; the limit is 25 MB.", { code: "files_upload_too_big", params: { limitMb: 25 } });
+        throw tooBig();
       }
       await store.settle(place.homeId);
       const { size } = await fs.promises.stat(target);

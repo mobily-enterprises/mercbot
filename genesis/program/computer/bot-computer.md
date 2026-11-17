@@ -183,7 +183,9 @@ pending. While awake, a browser profile lives under `MERCBOT_DATA_DIR` (default
 `<files>/computers/<conversation>/` (`store.computerFolder`), outside every person's folders, and
 never in the database or on a server's own disk: without the volume there are no screenshots and
 nothing is saved.
-- **Screenshots:** `screenshots/<conversation>-<16 hex>.jpg`, served only for that conversation.
+- **Screenshots:** `screenshots/<conversation>-<16 hex>.jpg`, served only for that conversation. With a copy
+  built on Mercbot that checks pictures (D-90), each is queued in `media_checks` before it's written (one that can't be
+  queued isn't kept) and checked within minutes; a blocked one is removed and then answers as missing.
 - **Lifetime:** a conversation's folder goes with it. Each server looks, at most hourly
   (`sweepFiles`), for folders whose conversation is gone, whatever way it went.
 

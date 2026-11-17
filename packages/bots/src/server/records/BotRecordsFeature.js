@@ -97,7 +97,7 @@ const BotRecordsFeature = defineFeature({
       // Bots, seats, rooms, read points, groups, sections, the notebook and memories; and messages.
       conversations: createConversationRepository({ resources, systemContext, profiles, memberships, workspaces }),
       messages: createMessageRepository({ resources, systemContext }),
-      // The bots a person made, with their homes, in every home a system context reaches.
+      // The bots a person made and their own conversations, with their homes, in every home a system context reaches.
       makers: createMakerRepository(resources),
       // Requests between bots, routines and their cards; a person's approval rules and auto-review.
       work,

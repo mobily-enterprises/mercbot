@@ -199,6 +199,13 @@ test("pictures are drawn by the images kind's layer, and a refusal says why in t
   assert.equal(sent[0].url, "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image:generateContent");
   assert.equal(sent[0].key, "images-secret");
   assert.deepEqual(sent[0].body.contents[0].parts, [{ inlineData: { mimeType: "image/jpeg", data: Buffer.from("jpg").toString("base64") } }, { text: "A cake" }]);
+  // Every harm category is set at its strictest (D-90).
+  assert.deepEqual(sent[0].body.safetySettings, [
+    { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_LOW_AND_ABOVE" },
+    { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_LOW_AND_ABOVE" },
+    { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_LOW_AND_ABOVE" },
+    { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_LOW_AND_ABOVE" }
+  ]);
   const refusal = async (status, body) => {
     answer = { status, body };
     return makePicture(ALL, "A cake").then(() => "made", (error) => error.message);
@@ -207,6 +214,7 @@ test("pictures are drawn by the images kind's layer, and a refusal says why in t
   assert.match(await refusal(429, { error: { message: "Slow down" } }), /at its limit right now/u);
   assert.equal(await refusal(400, { error: { message: "Bad image" } }), "Bad image");
   assert.match(await refusal(200, { candidates: [{ finishReason: "IMAGE_SAFETY" }] }), /couldn't be made \(IMAGE_SAFETY\)/u);
+  assert.match(await refusal(200, { promptFeedback: { blockReason: "SAFETY" } }), /couldn't be made \(SAFETY\)/u);
   const { AI_IMAGES_API_KEY: _key, ...withoutImages } = ALL;
   assert.match(await makePicture(withoutImages, "A cake").then(() => "made", (error) => error.message), /^Pictures aren't set up on this copy/u);
 });

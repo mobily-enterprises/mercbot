@@ -117,6 +117,7 @@ onboarding and the bot's typed replies.
 - `tests/server/driveTools.test.js`
 - `tests/server/githubTools.test.js`
 - `packages/bots/src/server/pictureMaker.js`
+- `tests/server/pictureChecks.test.js`
 - `packages/bots/skills/pictures.md`
 - `tests/server/googleApps.test.js`
 - `tests/server/approvals.test.js`
@@ -127,6 +128,10 @@ onboarding and the bot's typed replies.
 
 - `mercbot.bots.records`' `makers.botsMadeBy(userId, limit, options)`: the bots and group chats a person made, newest
   first, with their homes, in every home the options reach (a system context's reads every home; a request's, its own).
+- `makers.conversationsOf(userId, workspaceIds, limit, options)`: a person's own conversations (`user_id` theirs) in the
+  homes named, latest activity first, at most `limit`, in one statement through `(workspace_id, user_id)`, as
+  `{ id, botId, workspaceId, createdAt, lastActivityAt }` (ISO times), never a title or a message; the options reach
+  homes as `botsMadeBy`'s do (D-90).
 
 Long chats are compacted in the background (D-41):
 - A reply reads the conversation's newest summary (`agent_summaries`) and every message after
@@ -570,7 +575,11 @@ posting anything, and the bot says so. Pictures given in `from` (an earlier one 
 sent) are edited rather than drawn afresh; `variants: 2` makes two side by side. One call per reply (two variants come from that one call); its acknowledgement line is posted at once, before the 20–60 s of drawing. The pictures aren't written into the bot's history as text, and a reply that speaks of pictures the person asked for without making any is sent back once, on a copy that can make them (`run.picturesOn`). Each is saved
 in the bot's `Pictures` folder and posted as a `pictures` message under the reply: 144 × 192
 thumbnails that open in the viewer with the bot's one-line caption, and each is a Library entry
-with a thumbnail.
+with a thumbnail. Gemini draws with every harm category at `BLOCK_LOW_AND_ABOVE` (D-90). A copy built on Mercbot that checks
+pictures (D-90) checks the prompt before anything is drawn (`checkText`) and each picture before it's kept or shown
+(`check`); one not allowed is neither, the others of the request still are, and the bot says why in one line
+(`pictureRefusal`); a refused request counts as answered (`run.madePicture()`), so the reply isn't sent back. The files
+a reply saved are queued for that copy's check when it closes (`run.close()`, `files.media.filesLater`).
 
 Files (D-20, D-21): bots list their own and shared files, look up an office
 app's tools (`app_help`), call them (`use_app`, up to 40 steps in a reply) and

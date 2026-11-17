@@ -7,11 +7,11 @@ import { createFileStorageRepository } from "../../packages/files/src/server/fil
 import { FILES_OWNS } from "../../packages/files/src/server/FilesFeature.js";
 import { memberOptions, startBotRecordsForChecks } from "../support/botRecords.mjs";
 import { ownedHandles } from "../support/ownedHandles.mjs";
-import { queriesDuring } from "../support/queryCount.mjs";
+import { plansDuring, queriesDuring } from "../support/queryCount.mjs";
 import { connectTestDatabase } from "../support/testDatabase.mjs";
 
-// The reads over every home a system context reaches: the bots and apps a person made, with their homes, how many
-// public apps each home has, and where each home keeps its files. Each is one statement however many homes it names,
+// The reads over every home a system context reaches: the bots and apps a person made, with their homes, the person's own
+// conversations in a few homes, how many public apps each home has, and where each home keeps its files. Each is one statement however many homes it names,
 // and a home's own request still reads only that home.
 assert.ok(process.env.TEST_DB_NAME?.trim(), "TEST_DB_NAME must identify a disposable test database.");
 assert.equal(process.env.DB_NAME, process.env.TEST_DB_NAME, "DB_NAME must match the dedicated TEST_DB_NAME.");
@@ -35,7 +35,7 @@ test("a person's bots and apps across their homes, each home's public apps and i
   }
   const [first, second, third] = homes;
   context.after(async () => {
-    for (const table of ["file_storage", "apps", "bots", "workspace_memberships"]) await knex(table).whereIn("workspace_id", homes).del();
+    for (const table of ["file_storage", "apps", "bot_conversations", "bots", "workspace_memberships"]) await knex(table).whereIn("workspace_id", homes).del();
     await knex("workspaces").whereIn("id", homes).del();
     await knex.destroy();
   });
@@ -101,4 +101,56 @@ test("a person's bots and apps across their homes, each home's public apps and i
     assert.deepEqual([...result], [[second, "webdav"]]);
     assert.equal(count, 1);
   });
+});
+
+test("a person's own conversations in a few homes, latest activity first, through the homes' index, without their words", async (context) => {
+  const knex = await connectTestDatabase();
+  const [person, other] = (await knex("users").orderBy("id").limit(2).pluck("id")).map(String);
+  const stamp = randomBytes(5).toString("hex");
+  const homes = [];
+  for (const name of ["first", "second", "elsewhere"]) {
+    const [row] = await knex("workspaces").insert({ slug: `talks-${name}-${stamp}`, name, owner_user_id: person, is_personal: false }).returning("id");
+    homes.push(String(row.id ?? row));
+  }
+  const [first, second, elsewhere] = homes;
+  context.after(async () => {
+    for (const table of ["bot_conversations", "bots", "workspace_memberships"]) await knex(table).whereIn("workspace_id", homes).del();
+    await knex("workspaces").whereIn("id", homes).del();
+    await knex.destroy();
+  });
+  await knex("workspace_memberships").insert(homes.map((id) => ({ workspace_id: id, user_id: person, role_sid: "owner", status: "active" })));
+  const at = (minutes) => new Date(Date.UTC(2099, 0, 1, 9, minutes));
+  const conversation = async (workspaceId, userId, minutes, title = null) => {
+    const [bot] = await knex("bots").insert({ workspace_id: workspaceId, user_id: person, name: "Talker", color: "#1E86FC" }).returning("id");
+    const [row] = await knex("bot_conversations")
+      .insert({ workspace_id: workspaceId, bot_id: bot.id ?? bot, user_id: userId, title, created_at: at(0), last_activity_at: at(minutes) })
+      .returning(["id", "bot_id"]);
+    return { id: String(row.id), botId: String(row.bot_id) };
+  };
+  const older = await conversation(first, person, 1);
+  const newer = await conversation(second, person, 3);
+  const latest = await conversation(first, person, 5);
+  await conversation(first, other, 9);
+  await conversation(elsewhere, person, 7);
+  await conversation(second, null, 8, "A shared room");
+
+  const { records, systemContext } = await startBotRecordsForChecks(knex, context);
+  const everyHome = { context: systemContext("read a person's conversations in a few homes") };
+  let result = null;
+  const plans = await plansDuring(knex, async () => (result = await records.makers.conversationsOf(person, [first, second], 10, everyHome)));
+  assert.deepEqual(result, [
+    { id: latest.id, botId: latest.botId, workspaceId: first, createdAt: at(0).toISOString(), lastActivityAt: at(5).toISOString() },
+    { id: newer.id, botId: newer.botId, workspaceId: second, createdAt: at(0).toISOString(), lastActivityAt: at(3).toISOString() },
+    { id: older.id, botId: older.botId, workspaceId: first, createdAt: at(0).toISOString(), lastActivityAt: at(1).toISOString() }
+  ], "only the person's own, in the homes named, latest activity first, and only when and where each is");
+  const read = plans.filter((plan) => /from "bot_conversations"/u.test(plan.sql));
+  assert.equal(read.length, 1, "one statement for every home named");
+  assert.ok(read[0].indexes.has("bot_conversations_workspace_id_user_id_index"), `it reads through the homes' index: ${JSON.stringify(read[0].plan)}`);
+  // Its three rows, read through the index and then the table: no other person's, room's or home's.
+  assert.ok(read[0].rowsRead <= 6, `it reads the person's rows in those homes alone: ${read[0].rowsRead}`);
+  assert.deepEqual((await records.makers.conversationsOf(person, [first, second], 1, everyHome)).map((row) => row.id), [latest.id], "the limit is the database's");
+  assert.deepEqual(await records.makers.conversationsOf(person, [], 10, everyHome), []);
+  // A request in one home reads that home's alone, whatever homes it names.
+  const inFirst = await records.makers.conversationsOf(person, [first, second], 10, memberOptions({ userId: person, homeId: first, role: "owner" }));
+  assert.deepEqual(inFirst.map((row) => row.id), [latest.id, older.id]);
 });

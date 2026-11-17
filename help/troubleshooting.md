@@ -151,6 +151,8 @@ Routines run at most every 10 minutes. If Mercbot was briefly unavailable, runs 
 
 Each attachment can be up to 25 MB. Pictures in the HEIC format, used by some iPhones, aren't accepted; send them as JPEG or PNG.
 
+A copy built on Mercbot may check every picture and video before it's kept or sent. If it says "This file can't be used.", that file can't be attached or uploaded there; if it says it can't be checked right now, try again in a few minutes.
+
 ### A file doesn't show a preview
 
 The viewer shows pictures of up to the first 20 pages of a document, spreadsheet, slide deck or PDF, and shows pictures and plain text as they are. A file with no preview can still be downloaded from the viewer.

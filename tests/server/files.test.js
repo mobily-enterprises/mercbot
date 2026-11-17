@@ -32,7 +32,7 @@ test("files live in the data folder without a volume", () => {
 // them into the data folder's files/, beside the copy's other files, so a new release folder still finds them.
 test("a move to Mercbot's storage ends in the data folder without a volume", async () => {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), "mercbot-files-test-"));
-  const files = createFilesRuntime({ resources: {}, systemContext: () => ({}), env: { MERCBOT_DATA_DIR: dir }, integrations: {} });
+  const files = createFilesRuntime({ resources: {}, systemContext: () => ({}), env: { MERCBOT_DATA_DIR: dir }, integrations: {}, mediaCheck: null });
   try {
     assert.equal(await files.store.ownFolder(7), path.join(dir, "files", "homes", "7"));
   } finally {
@@ -49,7 +49,7 @@ test("in a person's own copy, a coding run works on its project in the copy's da
   const env = { MERCBOT_DATA_DIR: dir, MERCBOT_RUNSC: "/usr/local/lib/mercbot/runsc" };
   // The home keeps its files in Mercbot's storage: it has no file_storage row.
   const resources = { fileStorage: { queryAll: async () => [] } };
-  const files = createFilesRuntime({ resources, systemContext: () => ({ forWorkspace: () => ({}) }), env, integrations: {} });
+  const files = createFilesRuntime({ resources, systemContext: () => ({ forWorkspace: () => ({}) }), env, integrations: {}, mediaCheck: null });
   try {
     const { mine } = await files.store.prepare(at(3, 7, 1));
     await fs.mkdir(path.join(mine, "site"));

@@ -206,6 +206,8 @@ export function buildTools({
   const pages = new Map();
   const charts = [];
   const pictures = [];
+  // What make_picture said instead when a check didn't allow the picture asked for (D-90).
+  const refusedPictures = [];
   const memos = [];
   const startedAt = Date.now();
 
@@ -300,7 +302,24 @@ export function buildTools({
   }
   Object.assign(
     tools,
-    buildFileTools({ env, model, files, place, personal, office, postLead, inTime, saved, sending, pages, charts, pictures, memos })
+    buildFileTools({
+      env,
+      model,
+      files,
+      place,
+      personal,
+      office,
+      postLead,
+      inTime,
+      saved,
+      sending,
+      pages,
+      charts,
+      pictures,
+      memos,
+      refusedPictures,
+      whose: { workspaceId: homeId, userId, botId, conversationId }
+    })
   );
   // The command line (D-47), where this server has it.
   if (files.shell.available()) {
@@ -365,15 +384,24 @@ export function buildTools({
     await signIns?.finished();
   }
 
-  /** The reply only counts as done once its saves have reached the person's storage (D-26). */
+  /**
+   * The reply only counts as done once its saves have reached the person's storage (D-26). A copy that checks pictures
+   * and videos (D-90) then checks the ones it saved, within minutes; they stay meanwhile.
+   */
   async function close() {
     office.close();
     if (saved.size || pictures.length) await files.store.settle(homeId);
+    if (!saved.size) return;
+    await files.media.filesLater({ place, paths: saved, workspaceId: homeId, userId, botId, conversationId })
+      .catch((error) => console.warn(`Queueing a reply's saved files for a check failed: ${error?.message}`));
   }
 
-  /** Whether this reply made a picture. */
+  /**
+   * Whether this reply made a picture, or asked for one a check didn't allow (D-90): either way make_picture answered
+   * it, so the reply isn't sent back to make one.
+   */
   function madePicture() {
-    return pictures.length > 0;
+    return pictures.length > 0 || refusedPictures.length > 0;
   }
 
   // Whether this copy makes pictures at all: images is optional (D-72), and without it make_picture only says so.

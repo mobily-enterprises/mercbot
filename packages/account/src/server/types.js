@@ -1,5 +1,6 @@
-// The types of the `mercbot.account` and `mercbot.meter` capabilities, for features that require them, and of
-// `mercbot.provider-failures` and `mercbot.usage-recorder`, which the account feature reads when a feature provides them.
+// The types of the `mercbot.account` and `mercbot.meter` capabilities, for features that require them, of
+// `mercbot.provider-failures` and `mercbot.usage-recorder`, which the account feature reads when a feature provides them,
+// and of `mercbot.media-check`, which the account and files features read when a feature provides it (D-90).
 
 /** @typedef {ReturnType<typeof import("./accountService.js").createAccountService>} Account */
 
@@ -52,6 +53,57 @@
  * Where the AI providers' failures are kept (`mercbot.provider-failures`): `record` gets each one, its message already
  * without the key; the meter doesn't wait for it.
  * @typedef {{ record: (failure: { kind: string, provider: string, status: number | null, message: string }) => Promise<void> }} AiFailures
+ */
+
+/**
+ * Where a picture or video to check came from: a file the person uploaded or attached, a picture a bot made, a photo the
+ * Vault reads, a profile picture, a bot's computer's screenshot or a file a bot saved in a turn.
+ * @typedef {"upload" | "picture" | "vault_photo" | "profile_picture" | "screenshot" | "saved_file"} MediaOrigin
+ */
+
+/**
+ * A checker's answer: `notice`, when given, is the sentence the person is shown in place of Mercbot's own for that
+ * verdict; `ref` is the checker's own reference to its record of the check.
+ * @typedef {{ verdict: "allow" | "block" | "unavailable", notice?: string, ref?: string }} MediaVerdict
+ */
+
+/**
+ * A picture or video to check: the whole file, its type as its own first bytes say (mediaCheck.js sniffMedia, never its
+ * name's or a browser's), where it came from, whose it is, where it would be kept (a virtual path such as
+ * "/files/mine/Uploads/cat.jpg", or a computer's screenshot's name) and the address of the request that brought it in.
+ * @typedef {{
+ *   bytes: Buffer,
+ *   mime: string,
+ *   origin: MediaOrigin,
+ *   workspaceId: string | null,
+ *   userId: string | null,
+ *   botId: string | null,
+ *   conversationId: string | null,
+ *   path: string | null,
+ *   ip: string | null
+ * }} MediaItem
+ */
+
+/**
+ * What a picture is asked to show, before it's made.
+ * @typedef {{
+ *   text: string,
+ *   origin: "picture_prompt",
+ *   workspaceId: string | null,
+ *   userId: string | null,
+ *   botId: string | null,
+ *   conversationId: string | null
+ * }} MediaText
+ */
+
+/**
+ * How a copy built on Mercbot checks every picture and video before it's kept or sent (`mercbot.media-check`, D-90;
+ * Mercbot has none, and allows everything). A verdict of "block" or "unavailable" keeps nothing, except a screenshot or a
+ * file a bot saved, which is checked afterwards and removed only when blocked. A throw counts as "unavailable".
+ * @typedef {{
+ *   check: (item: MediaItem) => Promise<MediaVerdict>,
+ *   checkText: (item: MediaText) => Promise<MediaVerdict>
+ * }} MediaCheck
  */
 
 export {};

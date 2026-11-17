@@ -4,7 +4,7 @@ import { createTool, textPart } from "@jskit-ai/agent/server";
 import { z } from "zod";
 import { APPS } from "@local/files/office-apps";
 import { PICTURE_LIMIT, lookAtPicture, pictureType } from "./botAgent.js";
-import { PICTURES_NOT_SET_UP, PictureError, canMakePictures, makePicture } from "./pictureMaker.js";
+import { PICTURES_NOT_SET_UP, PictureError, canMakePictures, makePicture, pictureRefusal } from "./pictureMaker.js";
 
 /** The files whose names are most like a missing one (send_files), by shared letter triples. */
 function closestFiles(wanted, paths, count = 3) {
@@ -55,6 +55,9 @@ const REMOVED_NOTE =
  * @param {object[]} shared.charts
  * @param {object[][]} shared.pictures
  * @param {object[]} shared.memos
+ * @param {string[]} shared.refusedPictures what make_picture said instead of a picture a check didn't allow (D-90)
+ * @param {{ workspaceId: string, userId: string | null, botId: string, conversationId: string | null }} shared.whose
+ *   whose turn it is, for those checks
  */
 export function buildFileTools({
   env,
@@ -70,7 +73,9 @@ export function buildFileTools({
   pages,
   charts,
   pictures,
-  memos
+  memos,
+  refusedPictures,
+  whose
 }) {
   const tools = {};
   const apps = Object.keys(APPS);
@@ -268,14 +273,21 @@ export function buildFileTools({
   // Pictures: made fresh, or edited from an earlier picture
   // or a photo the person sent, and shown under the reply as their own block, a row when there
   // are two. Each is kept in the bot's Pictures folder and listed in its Library. A copy without the
-  // images kind of AI, which is optional (D-72), still offers the tool, which says pictures aren't set up.
+  // images kind of AI, which is optional (D-72), still offers the tool, which says pictures aren't set up. A copy that
+  // checks pictures (D-90) checks what's asked for before anything is drawn, and each picture before it's kept or shown.
   async function makePictureTool({ acknowledgement, prompt, title, caption, from = [], variants = 1 }) {
     if (!canMakePictures(env)) return { error: PICTURES_NOT_SET_UP };
     // One call per reply, so a request gets one picture, or two side by side.
     if (pictures.length) {
       return { status: "already made", note: "You've already made this reply's picture; one call per reply. Write your message now." };
     }
+    const refused = (said) => {
+      refusedPictures.push(said);
+      return { error: said };
+    };
     try {
+      const asked = await files.media.checkText({ text: prompt, origin: "picture_prompt", ...whose });
+      if (asked.verdict !== "allow") return refused(pictureRefusal("prompt", asked));
       // The person sees this at once; drawing takes 20 to 60 seconds.
       await postLead(acknowledgement);
       const sources = [];
@@ -286,20 +298,27 @@ export function buildFileTools({
       }
       const slug = title.toLowerCase().normalize("NFKD").replace(/[^\w\s-]/gu, "").trim().replace(/\s+/gu, "-").slice(0, 50) || "picture";
       const made = await inTime(Promise.all(Array.from({ length: variants }, () => makePicture(env, prompt, sources))), "Making the picture");
+      const stamp = Date.now().toString(36);
+      const pathOf = (index) => `/files/mine/Pictures/${slug}-${stamp}${index ? `-${index + 1}` : ""}.png`;
+      const answers = await Promise.all(made.map((picture, index) => files.media.check({ bytes: picture.data, origin: "picture", ...whose, path: pathOf(index) })));
       const images = [];
       for (const [index, picture] of made.entries()) {
-        const picturePath = `/files/mine/Pictures/${slug}-${Date.now().toString(36)}${index ? `-${index + 1}` : ""}.png`;
-        const real = await files.store.resolve(place, picturePath);
+        if (answers[index].verdict !== "allow") continue;
+        const real = await files.store.resolve(place, pathOf(index));
         await mkdir(dirname(real), { recursive: true });
         await writeFile(real, picture.data);
-        images.push({ path: picturePath, title: `${title.trim()}${index ? ` (${index + 1})` : ""}`, caption: caption.trim() });
+        images.push({ path: pathOf(index), title: `${title.trim()}${images.length ? ` (${images.length + 1})` : ""}`, caption: caption.trim() });
       }
+      // The first picture not allowed says why; with none left, nothing is shown.
+      const notAllowed = answers.find((answer) => answer.verdict !== "allow");
+      if (!images.length) return refused(pictureRefusal("picture", notAllowed));
       pictures.push(images);
       return {
         status: "shown",
         paths: images.map((image) => image.path),
         note:
-          "The pictures are shown below your message text (say below, never above), and your acknowledgement line is already posted, so don't repeat it. In your text say what you made (for two, \"the first … the second …\") and offer changes in words; don't describe them at length."
+          "The pictures are shown below your message text (say below, never above), and your acknowledgement line is already posted, so don't repeat it. In your text say what you made (for two, \"the first … the second …\") and offer changes in words; don't describe them at length." +
+          (notAllowed ? ` Only ${images.length} of the ${made.length} pictures is shown: ${pictureRefusal("picture", notAllowed)}` : "")
       };
     } catch (error) {
       if (error instanceof PictureError) return { error: error.message };

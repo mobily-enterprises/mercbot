@@ -1,5 +1,6 @@
 import { checkRouteVisibility } from "@jskit-ai/kernel/shared/support/visibility";
 import { AccountError } from "./accountError.js";
+import { mediaRefusal } from "./mediaCheck.js";
 import { readerOf } from "./spending.js";
 import { PHOTO_LIMIT } from "./vaultPhoto.js";
 
@@ -33,8 +34,9 @@ function answering(work) {
  * @param {import("./types.js").Spending} capabilities.spending what a home has spent
  * @param {import("@jskit-ai/uploads-runtime/server/types").RuntimeUploads} capabilities.uploads
  * @param {ReturnType<typeof import("./meter.js").createMeter>["track"]} capabilities.track the meter's, for the AI work a route does for the person
+ * @param {ReturnType<typeof import("./mediaCheck.js").createMediaGuard>} capabilities.media how a copy checks pictures (D-90)
  */
-export function registerRoutes(http, { account, spending, uploads, track }) {
+export function registerRoutes(http, { account, spending, uploads, track, media }) {
   const homeId = (request) => String(request.workspace.id);
 
   async function usage(request) {
@@ -82,6 +84,12 @@ export function registerRoutes(http, { account, spending, uploads, track }) {
     if (!type.startsWith("image/")) {
       throw new AccountError(400, "Send the photo as a JPEG, PNG or WebP picture.", { code: "account_vault_photo_type" });
     }
+    // A copy that checks pictures (D-90) checks the photo before the images AI sees it: one it blocks, or can't check now,
+    // goes nowhere.
+    const refusal = mediaRefusal(await media.check({
+      bytes: data, origin: "vault_photo", workspaceId: homeId(request), userId: request.user.id, path: null, ip: request.ip ?? null
+    }));
+    if (refusal) throw new AccountError(refusal.status, refusal.message, { code: refusal.code });
     return track({ userId: request.user.id, workspaceId: homeId(request) }, () => account.readVaultPhoto({ data, type }));
   }
 

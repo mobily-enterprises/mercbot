@@ -1948,3 +1948,52 @@ it has. So the store gives them a loader and the libraries they need, named, and
 - **The programs themselves** still come from `npm run tools:install`'s pinned downloads, or from the same downloads
   put in the tools folder by whatever builds the host's release; the store gives them only what an ordinary system
   would have.
+
+## D-90 — A copy built on Mercbot may check every picture and video before it's kept or sent (2026-11-17)
+
+A copy built on Mercbot may need to check the pictures and videos people and bots bring into it before they're kept,
+shown or sent on, and to keep a few files of its own where nothing serves them. Mercbot checks nothing itself and
+behaves as before; it gets one seam for the check, one folder for such a copy's files, and stricter settings for the
+pictures it draws.
+- **The seam:** an optional capability, `mercbot.media-check` (`MediaCheck` in `packages/account/src/server/types.js`),
+  which the account and files features read. `check(item)` gets a whole picture or video (`bytes`), its type as its own
+  first bytes say (`mime`), where it came from (`origin`: `upload`, `picture`, `vault_photo`, `profile_picture`,
+  `screenshot` or `saved_file`), whose it is (`workspaceId`, `userId`, `botId`, `conversationId`), where it would be kept
+  (`path`) and the address of the request that brought it (`ip`); `checkText(item)` gets what a picture is asked to
+  show (`origin: "picture_prompt"`). Each answers `{ verdict: "allow" | "block" | "unavailable", notice?, ref? }`:
+  `notice` is the sentence the person sees instead of Mercbot's, and `ref` the checker's own reference, which
+  Mercbot only logs.
+- **What a file is** comes from its first bytes (`sniffMedia`, `@local/account/media-check`), never its name or what a
+  browser said: JPEG, PNG, GIF, WebP, BMP, TIFF, HEIC, HEIF, AVIF and icons; MP4, M4V, MOV, 3GP, WebM, Matroska, AVI,
+  MPEG, Ogg video, FLV and ASF. Any other ISO media file, an MPEG-4 sound included, could hold a video, so it's checked
+  as one. Only pictures and videos reach the checker; every other file is kept as before.
+- **Fail closed:** a checker that throws, or answers no verdict, counts as `unavailable`, logged in one line without the
+  file. Nothing that couldn't be checked is let through as if it had been.
+- **Checked on the way in:** an upload to a bot's files or the home's (read whole, up to its 25 MB, before anything is
+  written), a photo the Vault reads (before the images AI sees it) and a new profile picture (before it's written).
+  Blocked, the route answers 422 `media_blocked`, "This file can't be used."; not checkable now, 503
+  `media_check_unavailable`, "This file can't be checked right now. Try again in a few minutes."; and nothing is kept.
+  The chat's attachments and the file browser show that sentence.
+- **Pictures a bot makes:** `make_picture` checks what's asked for before anything is drawn, and each picture before
+  it's kept or shown. One not allowed is neither, and the bot says so in one line (the checker's sentence when it gave
+  one); the others of the same request are still shown. Either way the reply isn't sent back to make a picture.
+- **Checked afterwards:** a bot's computer's screenshots and the files a bot's turn saves (every file its commands
+  change included, however many, found by `store.changedSince`) are too many to hold a turn for, so they're
+  checked within minutes. Each picture or video among them waits in `media_checks` (one row: its home, origin,
+  where it is and whose), queued before a screenshot is written and once a turn's saves are settled. Every server
+  sweeps every 20 seconds, taking up to 25 rows whose time has come through the database (`SKIP LOCKED`, D-15)
+  and holding them for five minutes while it checks them three at a time. A blocked file is removed (a removed
+  screenshot answers as missing); one that can't be checked now waits a minute, then twice as long each time, up to
+  half an hour; a file gone by then just leaves the queue. A file bigger than 100 MB can't be read whole to check,
+  so it's removed. Files stay where they are meanwhile. Without a checker nothing is queued and no sweep runs.
+- **A copy's own folder:** `files.store.privateFolder(name)` makes and answers a folder of the copy's own beside the
+  store's folders on the shared volume (mode 700), outside every person's, home's and computer's folders, so no route
+  serves it and no sandbox mounts it. Its name is a short lowercase word with hyphens, never one the store uses; while
+  the volume isn't there it answers 503 `files_unavailable`.
+- **Pictures drawn more strictly:** Gemini draws with each harm category its API takes (harassment, hate speech,
+  sexually explicit, dangerous content) at `BLOCK_LOW_AND_ABOVE`; what it won't draw stays a "blocked" picture, as
+  before. Reading a photo for the Vault is unchanged: it makes no picture, and the photo is checked first anyway.
+- **A person's own conversations:** `records.makers.conversationsOf(userId, workspaceIds, limit, options)` answers, in
+  one statement through the homes' index, the person's own conversations in the homes named, latest activity first:
+  only `{ id, botId, workspaceId, createdAt, lastActivityAt }`, never a title or a message. A system context's options
+  reach every home, a request's its own.

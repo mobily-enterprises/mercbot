@@ -274,12 +274,15 @@ function backgroundNote(foregroundSeconds, maxSeconds) {
  * @param {string} [dependencies.server]
  * @param {Pick<import("@local/account/server/types").Meter, "startComputation">} dependencies.meter each command's
  *   computation is recorded through it a block at a time (D-73)
+ * @param {Pick<import("./types.js").MediaChecks, "on" | "filesLater">} [dependencies.media] every file a command changes is
+ *   checked through, with a copy that checks pictures and videos (D-90)
  */
 export function createShell({
   store,
   runs,
   env,
   meter,
+  media = { on: false, filesLater: async () => {} },
   limits = { ...LIMITS, perServer: Number(env.MERCBOT_SHELL_RUNS) || LIMITS.perServer },
   server = `${os.hostname()}:${process.pid}`
 }) {
@@ -390,6 +393,15 @@ export function createShell({
       settle();
       release();
       const changed = await changedSince(place, startedAt);
+      // With a copy that checks pictures and videos (D-90), every file it changed, however many: `changed` names the
+      // newest 50.
+      let everyChange = [];
+      if (media.on) {
+        everyChange = await store.changedSince(place, startedAt - 10).catch((error) => {
+          console.warn(`Reading what run ${row.id} changed, for its check, failed: ${error?.message}`);
+          return [];
+        });
+      }
       // The whole output, when the shown one was cut, written once as /runs/<run>.log (D-48).
       if (result.full !== null && dirs.runs) {
         await fs.writeFile(path.join(dirs.runs, `${row.id}.log`), result.full)
@@ -397,9 +409,14 @@ export function createShell({
       }
       const status = ["shutdown", "paused"].includes(result.killed) ? "stopped" : result.exitCode === 0 ? "done" : "failed";
       const saved = await runs.finish(row, { status, exitCode: result.exitCode, output: result.output, changed });
-      return { result, status, changed, saved };
+      return { result, status, changed, saved, everyChange };
     });
     live.set(String(row.id), { job, finished });
+    const checkLater = (paths) => {
+      if (!paths.length) return;
+      media.filesLater({ place, paths, workspaceId, userId, botId, conversationId })
+        .catch((error) => console.warn(`Queueing run ${row.id}'s changed files for a check failed: ${error?.message}`));
+    };
     // The wait's timer is cleared once the run finishes, so it doesn't hold the process for its whole length.
     let wait;
     const inTime = await Promise.race([
@@ -409,7 +426,10 @@ export function createShell({
     clearTimeout(wait);
     if (inTime) {
       // As its record says: stopped when this server stopped it or its home's work was paused.
-      const { result, status, changed } = inTime;
+      const { result, status, changed, everyChange } = inTime;
+      // Its turn queues the files it's told the run changed (D-90); the run queues the rest.
+      const told = new Set(changed);
+      checkLater(everyChange.filter((file) => !told.has(file)));
       return {
         status,
         run: String(row.id),
@@ -423,7 +443,11 @@ export function createShell({
     }
     mine.background = true;
     await runs.inBackground(row).catch(() => {});
-    finished.then(({ saved }) => saved && ended(saved), () => {});
+    finished.then(({ saved, everyChange }) => {
+      // Its turn has ended, so it queues every file it changed itself (D-90).
+      checkLater(everyChange);
+      return saved && ended(saved);
+    }, () => {});
     return { status: "running", run: String(row.id), note: backgroundNote(foregroundSeconds, maxSeconds) };
   }
 

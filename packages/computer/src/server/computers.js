@@ -378,11 +378,17 @@ export function createComputers({
 
   /**
    * Screenshots are files in the computer's folder on the shared volume, never anywhere else:
-   * without the volume there are none (D-50).
+   * without the volume there are none (D-50). A copy that checks pictures (D-90) checks each one afterwards, within
+   * minutes, so it's queued before it's written; one that can't be queued isn't kept.
    */
   async function storeScreenshot(computerId, data) {
     if (!folderOf) throw new Error("Screenshots need the files volume.");
     const name = `${computerId}-${randomBytes(8).toString("hex")}.jpg`;
+    if (files.media.on) {
+      const found = await conversationOf(computerId);
+      if (!found) throw new Error(`Computer ${computerId}'s conversation is gone, so its screenshot isn't kept.`);
+      await files.media.screenshotLater({ computerId, name, workspaceId: found.workspaceId, userId: found.userId, botId: found.botId });
+    }
     const dir = path.join(await folderOf(computerId), "screenshots");
     await fs.mkdir(dir, { recursive: true });
     await fs.writeFile(path.join(dir, name), data);

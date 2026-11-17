@@ -169,7 +169,9 @@ write and their sealed viewer (D-74), the sandboxed office apps bots make files 
 routes that show, send and change those files (D-20, D-21, D-47), and where each home keeps them: on Mercbot, in its own
 WebDAV storage or in a connected Google Drive account, through `mercbot.integrations` (D-26, D-80), moving every file
 when a home chooses another place, and answering whose own Drive holds them (`storage.heldInTheirDrive`), which a copy
-that removes people from homes asks first. The files volume's metadata lives in the database's `juicefs` schema, managed
+that removes people from homes asks first, and the pictures and videos a copy built on Mercbot checks (D-90): uploads and
+profile pictures before they're kept, a bot's screenshots and saved files afterwards, from `media_checks`, and a folder
+of such a copy's own (`store.privateFolder`). The files volume's metadata lives in the database's `juicefs` schema, managed
 by JuiceFS itself.
 
 ### Source
@@ -185,6 +187,7 @@ by JuiceFS itself.
 ### Data owned
 
 - Table `database` `default` `file_storage`
+- Table `database` `default` `media_checks`
 - Table `database` `default` `page_versions`
 - Table `database` `default` `shell_runs`
 
@@ -270,7 +273,9 @@ Owns usage (every AI call, picture, computer's day and command, D-73, with what 
 the meter around that work and the recorder that counts it, which a copy built on Mercbot may replace
 (`mercbot.usage-recorder`), the spending reports (D-76), the archive of old usage, Mercbot's three kinds of AI and
 their providers (D-16, D-72), who runs this copy (whom `mercbot.copy-runners` names: Mercbot's one person, or a copy built on Mercbot's
-own), the Vault (D-17), the account menu, About and help pages that show them,
+own), the Vault (D-17), the check a copy built on Mercbot may make of every picture and video (`mercbot.media-check`, its
+guard and the sniffer of what a file is, D-90; the Vault's photos are checked here), the account menu, About and help
+pages that show them,
 and Settings' sections, the account menu, Settings → General and help, to which a copy built on Mercbot may add
 its own or, for a Settings section, put one in the place of Mercbot's (extensions.js).
 
