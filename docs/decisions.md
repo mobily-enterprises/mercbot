@@ -1874,6 +1874,8 @@ it, and is unchanged without it.
   computer needs.
 - **Launchers stay as they are:** the computers' browser and dock launchers are still scripts written while Mercbot
   runs, so such a host must give Mercbot a temporary folder and a data folder where programs may run.
+- *Since D-92 (2026-11-19), such a host's release brings its downloads: `npm run tools:install` with its hosting script
+  installs them where the release is built, and never the toolbox or the desktops' programs.*
 
 ## D-87 — APP_ENV says where a copy runs; only production sends (2026-11-15)
 
@@ -2060,3 +2062,22 @@ people's storage through rclone's remote control: nothing mounts, and nothing ne
   pulled whole the first time they're used on a server. Saves a home's Drive is waiting for (signed out) are lost if
   that server restarts before it's signed in again. A JuiceFS volume's files aren't moved to the bucket by Mercbot:
   they must be copied by hand.
+
+## D-92 — A store host's release brings its downloads, never a toolbox (2026-11-19)
+
+A host whose programs come from a read-only store (D-86) makes the bots' toolbox from the store at every start, and its
+desktops' programs are the store's. Its release is built somewhere else, with the host's packages, and its folder is
+all the host takes of it, so the downloads its servers run (rclone, Piper, the Craft apps, the coding tools and
+gVisor, D-89) must be in that folder. `npm run tools:install` refused such a host outright, so a release built for one
+ran the Ubuntu host's install, which built the Ubuntu toolbox (2.2 GB, about 7 of a build's 9.5 minutes) and could obtain
+desktop programs that no server there reads: the first release built for such a host came to 4440 MiB, past the
+4096 MiB its builds may keep (18 Nov 2026).
+- **Downloads only:** the hosting scripts gain `host_store_toolbox`, true only for `scripts/hosting/store.sh`
+  (`lib/ubuntu.sh` answers false for Ubuntu and Debian). With it `install-tools.sh` installs the downloads as
+  everywhere, through the tools' store (D-70), skips `build-toolbox.sh` and the desktop programs, and removes a
+  `.tools/toolbox` or `.tools/desktop` an earlier install left. The same release came to 2167 MiB.
+- **Checked where it runs:** the install's first check is `namespace.sh --check-install`, the host's whole check except
+  on a store host, whose servers are checked by `scripts/serve.sh` when they start (the store, the toolbox's folder,
+  gVisor, namespaces and the display programs), since the install for it runs where its release is built.
+- **Unchanged:** an Ubuntu host's install, the store toolbox (D-86), and `build-toolbox.sh`, which a store host still
+  refuses, as it does obtaining desktop programs. A store host unpacks rclone's Debian package as Ubuntu does.

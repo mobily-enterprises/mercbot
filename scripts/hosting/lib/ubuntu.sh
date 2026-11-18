@@ -48,6 +48,10 @@ host_toolbox_packages() {
   cp "$apt"/var/cache/apt/archives/*.deb "$rootfs/debs/"
 }
 
+# Whether the bots' toolbox and their desktops' programs come from the host's store (D-92): never on Ubuntu or Debian,
+# where scripts/install-tools.sh obtains the desktop programs the system lacks and builds the toolbox.
+host_store_toolbox() { return 1; }
+
 # A Debian package's files, unpacked into DIR without installing it (rclone's release is one).
 host_unpack_deb() { # deb dir
   dpkg-deb -x "$1" "$2"

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -26,8 +26,9 @@ test("a HOSTING_SCRIPT that names no file stops the install and the start, namin
 
 test("the install and the toolbox build check the host and take their host steps from the same script", () => {
   const lines = (file) => readFileSync(path.join(ROOT, file), "utf8").split("\n");
-  for (const file of ["scripts/install-tools.sh", "scripts/build-toolbox.sh"]) {
-    assert.ok(lines(file).includes('bash "$ROOT/scripts/namespace.sh" --check'), file);
+  // The install's check is the same but on a store host, which is checked when Mercbot starts there (D-92).
+  for (const [file, check] of [["scripts/install-tools.sh", "--check-install"], ["scripts/build-toolbox.sh", "--check"]]) {
+    assert.ok(lines(file).includes(`bash "$ROOT/scripts/namespace.sh" ${check}`), file);
     assert.ok(lines(file).includes('. "$ROOT/${HOSTING_SCRIPT:-scripts/hosting/vibe64.sh}"'), file);
   }
   assert.ok(lines("scripts/namespace.sh").includes('hosting="${HOSTING_SCRIPT:-scripts/hosting/vibe64.sh}"'), "namespace.sh's default");
@@ -76,7 +77,7 @@ test("a host without Xvfb, x11vnc or openbox is refused by name, never started w
   }
 });
 
-test("on a host whose programs come from a store, the store, the toolbox's folder and gVisor are checked first, and nothing is installed", () => {
+test("on a host whose programs come from a store, the store, the toolbox's folder and gVisor are checked first, and the toolbox and desktop programs are never made there", () => {
   const unset = bash(". scripts/hosting/store.sh; host_check", { MERCBOT_TOOLBOX_STORE: "", MERCBOT_TOOLBOX_DIR: "" });
   assert.equal(unset.status, 1);
   assert.match(unset.stderr, /^On this host Mercbot's bots' toolbox comes from the store: MERCBOT_TOOLBOX_STORE names the store and MERCBOT_TOOLBOX_DIR the folder the toolbox is made in\. See README → Hosting requirements\.\nMERCBOT_TOOLBOX_STORE= MERCBOT_TOOLBOX_DIR=\n$/u);
@@ -88,10 +89,66 @@ test("on a host whose programs come from a store, the store, the toolbox's folde
   } finally {
     rmSync(store, { recursive: true, force: true });
   }
-  for (const step of ["host_toolbox_packages", "host_unpack_deb", "host_desktop_tools"]) {
+  for (const step of ["host_toolbox_packages", "host_desktop_tools"]) {
     const refused = bash(`. scripts/hosting/store.sh; ${step} a b`);
     assert.equal(refused.status, 1, step);
-    assert.match(refused.stderr, /^On this host Mercbot's programs come from its store, so npm run tools:install isn't used here\./u, step);
+    assert.match(refused.stderr, /^On this host Mercbot's bots' toolbox and their desktops' programs come from its store, so they're never built or installed here\./u, step);
+  }
+  // The install's downloads unpack as on Ubuntu (rclone's release is a Debian package), and only a store host says
+  // its toolbox comes from the store.
+  assert.equal(bash(". scripts/hosting/store.sh; declare -f host_unpack_deb | grep -q 'dpkg-deb -x'").status, 0);
+  assert.equal(bash(". scripts/hosting/store.sh; host_store_toolbox").status, 0);
+  for (const hosting of ["vibe64", "local"]) assert.equal(bash(`. scripts/hosting/${hosting}.sh; host_store_toolbox`).status, 1, hosting);
+});
+
+// D-92: the install for a store host, run where its release is built, brings only the downloads its servers use, never
+// the toolbox or the desktops' programs, which the store gives them at every start; an Ubuntu host's install is
+// unchanged. It runs the real install-tools.sh, namespace.sh and hosting scripts in a copy of scripts/ whose tools'
+// store and toolbox build are stand-ins that record what they are asked to install.
+test("on a host whose programs come from a store, the install brings only the downloads: no toolbox and no desktop programs", () => {
+  const root = mkdtempSync(path.join(os.tmpdir(), "mercbot-store-install-"));
+  const shims = shimFolder({ unshare: "exit 0", Xvfb: "exit 0", x11vnc: "exit 0", openbox: "exit 0" });
+  try {
+    mkdirSync(path.join(root, "scripts/hosting/lib"), { recursive: true });
+    mkdirSync(path.join(root, "scripts/coding-tools"), { recursive: true });
+    for (const file of ["scripts/install-tools.sh", "scripts/namespace.sh", "scripts/hosting/store.sh", "scripts/hosting/vibe64.sh",
+      "scripts/hosting/local.sh", "scripts/hosting/lib/ubuntu.sh", "scripts/coding-tools/package.json", "scripts/coding-tools/package-lock.json"]) {
+      writeFileSync(path.join(root, file), readFileSync(path.join(ROOT, file)));
+    }
+    writeFileSync(path.join(root, "scripts/tools-store.sh"), 'STORE="$MERCBOT_TOOLS_STORE"\ntools_install() { echo "$1" >> "$INSTALLED"; }\n');
+    writeFileSync(path.join(root, "scripts/build-toolbox.sh"), 'echo toolbox >> "$INSTALLED"\n');
+    const install = (hosting) => {
+      const installed = path.join(root, `installed-${hosting}`);
+      // What an earlier install left in the checkout: a toolbox and desktop programs.
+      mkdirSync(path.join(root, ".tools/toolbox/rootfs/etc"), { recursive: true });
+      mkdirSync(path.join(root, ".tools/desktop/usr/bin"), { recursive: true });
+      const result = spawnSync("bash", ["scripts/install-tools.sh"], {
+        cwd: root,
+        encoding: "utf8",
+        env: {
+          ...process.env, PATH: `${shims}:${process.env.PATH}`, HOSTING_SCRIPT: `scripts/hosting/${hosting}.sh`, INSTALLED: installed,
+          MERCBOT_TOOLS_STORE: path.join(root, "store"), MERCBOT_TOOLBOX_STORE: "", MERCBOT_TOOLBOX_DIR: "", MERCBOT_NAMESPACE: ""
+        }
+      });
+      return {
+        status: result.status,
+        stderr: result.stderr,
+        installed: existsSync(installed) ? readFileSync(installed, "utf8").split("\n").filter(Boolean) : [],
+        left: ["toolbox", "desktop"].filter((folder) => existsSync(path.join(root, ".tools", folder)))
+      };
+    };
+    const downloads = ["rclone", "piper", "wordcraft", "gridcraft", "deckcraft", "pdfcraft", "coding", "gvisor"];
+    // A store host's build: it has none of the store's settings, which only its servers get.
+    const store = install("store");
+    assert.equal(store.status, 0, store.stderr);
+    assert.deepEqual(store.installed, downloads);
+    assert.deepEqual(store.left, [], "no .tools/toolbox or .tools/desktop on a store host");
+    const vibe64 = install("vibe64");
+    assert.equal(vibe64.status, 0, vibe64.stderr);
+    assert.deepEqual(vibe64.installed, [...downloads.slice(0, 7), "desktop", "gvisor", "toolbox"]);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+    rmSync(shims, { recursive: true, force: true });
   }
 });
 

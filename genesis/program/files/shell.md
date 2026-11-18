@@ -63,8 +63,12 @@ folders and without network (D-47).
   Vulkan manifest and EGL vendor file are linked where the desktop sandbox names them (`mesaManifests`,
   `DESKTOP_GRAPHICS` in `gvisor.js`); one lacking either stops the start, naming it. `serve.sh` also points `FONTCONFIG_FILE` at the toolbox's fonts.conf for the desktops' own programs.
   `HOSTING_SCRIPT=scripts/hosting/store.sh` is such a host's script: `host_check` refuses without the two settings or
-  without `runsc` on `PATH` (it sets `MERCBOT_RUNSC`), then checks namespaces as on Vibe64; its
-  install steps refuse, as nothing is installed there.
+  without `runsc` on `PATH` (it sets `MERCBOT_RUNSC`), then checks namespaces as on Vibe64. Its
+  `host_store_toolbox` says the toolbox and the desktops' programs come from the store (D-92): `install-tools.sh`,
+  run with it where the release is built, installs only the downloads (rclone, Piper, the Craft apps, the coding
+  tools, gVisor), skips `build-toolbox.sh` and the desktop programs and leaves no `.tools/toolbox` or `.tools/desktop`,
+  and its first check (`namespace.sh --check-install`) leaves the host to the start's check; its toolbox and desktop
+  steps refuse.
 - **Tools' store (D-70):** every tool `npm run tools:install` installs, the toolbox included, is
   installed once per pinned version (with the install's `REVISION`) into its own folder of a store
   and hard-linked into `.tools/` (`scripts/tools-store.sh`), so readers of `.tools` and
@@ -80,10 +84,11 @@ folders and without network (D-47).
   Mercbot make its own namespaces; nothing asks for FUSE since D-91), `host_display_programs` (finds `Xvfb`
   and `x11vnc` and sets `MERCBOT_XVFB` and `MERCBOT_X11VNC`), `host_desktop_tools` (the desktops'
   `tint2`, `hsetroot` and `xterm` where the system lacks them),
-  `host_unpack_deb` (rclone's release) and `host_toolbox_packages` (on Vibe64, the host's `apt-get
-  download`). The install (`npm run tools:install`, which the Stack's Deployment Prepare step runs
+  `host_unpack_deb` (rclone's release), `host_toolbox_packages` (on Vibe64, the host's `apt-get
+  download`) and `host_store_toolbox` (whether the toolbox and the desktops' programs come from the
+  host's store, D-92). The install (`npm run tools:install`, which the Stack's Deployment Prepare step runs
   through `npm run deploy:prepare`) and the start check the host through it before anything else
-  (`scripts/namespace.sh --check`). A path to no file stops them naming the variable, the path it
+  (`scripts/namespace.sh --check-install` and `--check`; the install's leaves a store host to the start's). A path to no file stops them naming the variable, the path it
   was given and the scripts in `scripts/hosting/`; a host without one of these stops them with one
   plain sentence ending "See README → Hosting requirements." and the error underneath. gVisor, the
   base image, the offline install inside gVisor, the Craft apps and Chrome are the same on every

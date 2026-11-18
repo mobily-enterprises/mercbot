@@ -15,13 +15,18 @@
 #                                       the host's way (host_desktop_tools in the hosting script)
 #   .tools/bin/runsc                    gVisor, the sandbox bots' commands run in (D-47)
 #   .tools/toolbox/rootfs               the Ubuntu toolbox those commands see (scripts/build-toolbox.sh)
+#
+# On a host whose programs come from a store (scripts/hosting/store.sh, host_store_toolbox), the toolbox and the
+# desktops' programs come from the store at every start (D-86), so this installs only the downloads above, wherever
+# it runs (the release's build), and leaves no .tools/desktop or .tools/toolbox (D-92).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 TOOLS="$ROOT/.tools"
 # The hosting script (HOSTING_SCRIPT, D-68) checks first that this host gives Mercbot what it needs,
-# so a host that doesn't stops here, saying why, before anything is downloaded.
-bash "$ROOT/scripts/namespace.sh" --check
+# so a host that doesn't stops here, saying why, before anything is downloaded; a store host is checked when
+# Mercbot starts there, as the install for it runs where its release is built (D-92).
+bash "$ROOT/scripts/namespace.sh" --check-install
 # What the install does the host's way comes from it too.
 # shellcheck source=hosting/vibe64.sh
 . "$ROOT/${HOSTING_SCRIPT:-scripts/hosting/vibe64.sh}"
@@ -123,11 +128,15 @@ install_coding() { # dir
 tools_install coding "$(sha256sum < "$ROOT/scripts/coding-tools/package-lock.json" | cut -c1-12)-r$REVISION" install_coding coding
 
 # The bots' desktops' own programs on the host, the host's way (D-68), which depend on what the
-# system has.
+# system has; a store host has them in its store (D-92).
 install_desktop() { # dir
   host_desktop_tools "$1" "$DOWNLOADS"
 }
-tools_install desktop "$(echo "$HOST_KEY $(command -v tint2 hsetroot xterm || true)" | sha256sum | cut -c1-12)-r$REVISION" install_desktop desktop
+if host_store_toolbox; then
+  rm -rf "$TOOLS/desktop"
+else
+  tools_install desktop "$(echo "$HOST_KEY $(command -v tint2 hsetroot xterm || true)" | sha256sum | cut -c1-12)-r$REVISION" install_desktop desktop
+fi
 
 # gVisor runs bots' commands with its own kernel, rootless and without network (D-47)
 install_gvisor() { # dir
@@ -140,8 +149,13 @@ install_gvisor() { # dir
   echo "gVisor $GVISOR_RELEASE installed"
 }
 tools_install gvisor "$GVISOR_RELEASE-r$REVISION" install_gvisor bin/runsc bin/gvisor-bin
-# Without the lock's descriptor: this script holds the lock, and gVisor gets only what it needs.
-bash "$ROOT/scripts/build-toolbox.sh" 9>&-
+# The toolbox, except on a store host, whose servers make theirs from the store at every start (D-86, D-92).
+if host_store_toolbox; then
+  rm -rf "$TOOLS/toolbox"
+else
+  # Without the lock's descriptor: this script holds the lock, and gVisor gets only what it needs.
+  bash "$ROOT/scripts/build-toolbox.sh" 9>&-
+fi
 
 # The store keeps only what's installed.
 rm -rf "$DOWNLOADS"

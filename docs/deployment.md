@@ -64,8 +64,13 @@ starts Mercbot's server without the single-user gate (`gate: false`) and describ
 ### A host whose programs come from a read-only Nix store
 
 Some hosts start applications from a read-only Nix store: Mercbot and the packages the host was asked for are in the
-store, their commands are on `PATH`, and nothing is installed or built there (D-86). On such a host Mercbot doesn't run
-`npm run tools:install`; the bots' toolbox is made from the store at every start instead.
+store, their commands are on `PATH`, and nothing is installed or built there (D-86). On such a host the bots' toolbox is
+made from the store at every start, and its desktops' programs are the store's. Mercbot's release brings its downloads
+(D-92): `npm run tools:install` with `HOSTING_SCRIPT=scripts/hosting/store.sh`, run where the release is built (such as
+`HOSTING_SCRIPT=scripts/hosting/store.sh npm run deploy:prepare`), installs rclone, Piper, the Craft apps, the coding
+tools and gVisor into `.tools/` as everywhere, and never builds the toolbox (`.tools/toolbox`) or obtains the desktops'
+programs (`.tools/desktop`); it doesn't check the host either, which is checked when Mercbot starts there. That keeps a
+release about 2.2 GB smaller than one built for an Ubuntu host, and its build about 7 minutes shorter.
 
 - `HOSTING_SCRIPT=scripts/hosting/store.sh`, `MERCBOT_TOOLBOX_STORE`: the store (such as `/nix`), and
   `MERCBOT_TOOLBOX_DIR`: a writable folder the toolbox is made in, where programs may run. It holds only links and

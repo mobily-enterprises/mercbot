@@ -59,7 +59,8 @@ the error underneath; Mercbot never switches its computers off quietly. Check a 
   opens with its key by `mercbot open`. `scripts/mercbot` runs it (`start`, `stop`, `status`, `open`, `new-key`, `backup`,
   `restore`, `upgrade`) from `~/.local/share/mercbot`.
 - **A host whose programs come from a read-only Nix store** (`scripts/hosting/store.sh`): nothing is installed
-  there. `MERCBOT_TOOLBOX_STORE` names the store (such as `/nix`) and `MERCBOT_TOOLBOX_DIR` a writable folder where
+  there; Mercbot's release brings its downloads, which `npm run tools:install` with this hosting script installs where
+  the release is built, without the toolbox or the desktops' programs (D-92). `MERCBOT_TOOLBOX_STORE` names the store (such as `/nix`) and `MERCBOT_TOOLBOX_DIR` a writable folder where
   programs may run, and each
   start makes the bots' toolbox there from the store's programs on `PATH` (gVisor's `runsc`, Chromium, Python, bash,
   fonts) as links, which every gVisor sandbox can follow because it sees the store read-only at the same path. The
@@ -71,7 +72,7 @@ the error underneath; Mercbot never switches its computers off quietly. Check a 
   too. docs/deployment.md lists the packages.
 - **Other hosts** are not supported yet. Another host needs its own `scripts/hosting/<name>.sh` with
   the same functions (`host_check`, `host_display_programs`, `host_toolbox_packages`,
-  `host_desktop_tools`, `host_unpack_deb`; those for Ubuntu are shared in
+  `host_desktop_tools`, `host_unpack_deb`, `host_store_toolbox`; those for Ubuntu are shared in
   `scripts/hosting/lib/ubuntu.sh`), named by `HOSTING_SCRIPT`, and must provide: Linux that lets the
   app create its own user, mount, PID, IPC, UTS and network namespaces; `x11vnc`, `openbox` and
   `Xvfb`; and a way to obtain and unpack Ubuntu packages (on a host without Debian's apt, for

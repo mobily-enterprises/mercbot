@@ -7,12 +7,15 @@
 # MERCBOT_SANDBOX_USER set (D-49), sandboxes run as that user through sudo, which can't work inside a user namespace,
 # so Mercbot stays outside.
 #
-#   bash scripts/namespace.sh --check        checks this host, and nothing else
-#   bash scripts/namespace.sh COMMAND...     runs COMMAND in Mercbot's namespace
+#   bash scripts/namespace.sh --check            checks this host, and nothing else
+#   bash scripts/namespace.sh --check-install    what scripts/install-tools.sh checks first: the same, except on a host
+#                                                whose toolbox comes from its store (host_store_toolbox, D-92), where
+#                                                the install brings only downloads and the host is checked at start
+#   bash scripts/namespace.sh COMMAND...         runs COMMAND in Mercbot's namespace
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 [ "$#" -gt 0 ] || { echo "Usage: bash scripts/namespace.sh --check | COMMAND..." >&2; exit 2; }
-if [ -n "${MERCBOT_NAMESPACE:-}" ] && [ "$1" != "--check" ]; then exec "$@"; fi
+if [ -n "${MERCBOT_NAMESPACE:-}" ] && [ "$1" != "--check" ] && [ "$1" != "--check-install" ]; then exec "$@"; fi
 
 hosting="${HOSTING_SCRIPT:-scripts/hosting/vibe64.sh}"
 if [ ! -f "$ROOT/$hosting" ]; then
@@ -21,9 +24,10 @@ if [ ! -f "$ROOT/$hosting" ]; then
 fi
 # shellcheck source=hosting/vibe64.sh
 . "$ROOT/$hosting"
+if [ "$1" = "--check-install" ] && host_store_toolbox; then exit 0; fi
 host_check
 host_display_programs
-if [ "$1" = "--check" ]; then exit 0; fi
+if [ "$1" = "--check" ] || [ "$1" = "--check-install" ]; then exit 0; fi
 
 if [ -n "${MERCBOT_SANDBOX_USER:-}" ]; then
   export MERCBOT_NAMESPACE=host
