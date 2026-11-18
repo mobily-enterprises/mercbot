@@ -34,11 +34,11 @@ async function timed(phases, phase, work) {
   return result;
 }
 
-/** The end of a Test Preview's log, for an error that outlives the temporary folder. */
-async function logTail(log) {
-  const text = await readFile(log, "utf8").catch(() => "");
-  return text.trimEnd().split("\n").slice(-15).join("\n");
-}
+/** A Test Preview's log, read once it has stopped. */
+const readLog = (log) => readFile(log, "utf8").catch(() => "");
+
+/** The end of a log, for an error that outlives the temporary folder. */
+const logTail = (text) => text.trimEnd().split("\n").slice(-15).join("\n");
 
 /**
  * Starts a Test Preview on `port` (0: the system picks one) and resolves with its origin once it
@@ -66,7 +66,10 @@ async function startPreview(port, env, log, servers) {
       });
     });
   } catch (error) {
-    throw new Error(`A Test Preview ${error.message}. The end of its log:\n${await logTail(log)}`);
+    const text = await readLog(log);
+    // The whole log decides whether its port was taken: the app's warnings, one line a missing key, follow the error,
+    // so the end of the log no longer shows it.
+    throw Object.assign(new Error(`A Test Preview ${error.message}. The end of its log:\n${logTail(text)}`), { portTaken: /EADDRINUSE/u.test(text) });
   }
 }
 
@@ -89,7 +92,7 @@ async function makeFixtures(env, log, servers) {
       resolve(code ?? signal);
     });
   });
-  if (ended !== 0) throw new Error(`The browser suite's fixtures failed (${ended}). The end of their log:\n${await logTail(log)}`);
+  if (ended !== 0) throw new Error(`The browser suite's fixtures failed (${ended}). The end of their log:\n${logTail(await readLog(log))}`);
 }
 
 function stop(server) {
@@ -160,7 +163,7 @@ export default async function globalSetup(config) {
       // Another process can take a picked port in the moment before the app listens on it (rare):
       // then it starts once more, on a new one.
       const origin = await start().catch((error) => {
-        if (basePort || !/EADDRINUSE/u.test(error.message)) throw error;
+        if (basePort || !error.portTaken) throw error;
         return start();
       });
       const storageState = path.join(runDir, `signed-in-${index}.json`);
