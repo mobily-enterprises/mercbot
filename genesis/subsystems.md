@@ -188,6 +188,7 @@ files folder.
 ### Data owned
 
 - Table `database` `default` `file_storage`
+- Table `database` `default` `files_keys`
 - Table `database` `default` `media_checks`
 - Table `database` `default` `page_versions`
 - Table `database` `default` `shell_runs`

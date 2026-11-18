@@ -9,7 +9,7 @@ import { missingKeyLines } from "../../packages/account/src/server/keys.js";
 import { createRetention } from "../../packages/account/src/server/retention.js";
 import { createFileStore } from "../../packages/files/src/server/fileStore.js";
 import { PIECE_BYTES, SealError, newSealedKey, openSealedKey, openStream, sealStream, sealedSize } from "../../packages/files/src/server/filesCipher.js";
-import { createFilesVolume } from "../../packages/files/src/server/filesVolume.js";
+import { bucketId, createFilesVolume } from "../../packages/files/src/server/filesVolume.js";
 import { S3Error, createS3Bucket, s3Settings } from "../../packages/files/src/server/s3Bucket.js";
 import { startS3Bucket } from "../support/s3Bucket.mjs";
 
@@ -21,12 +21,24 @@ const at = (homeId, botId, userId) => ({ homeId, botId, userId });
 // Another server sees a change at its next pull, which comes once its last is a second old (syncedTree.js).
 const nextPull = () => new Promise((resolve) => setTimeout(resolve, 1100));
 
+// The database's files_keys, as databaseFilesKeys keeps it: the first record offered for a bucket is kept, and every
+// offer answers it (tests/server/filesKeys.integration.js keeps them in PostgreSQL). One for every server here.
+const keptKeys = new Map();
+const offered = [];
+const keys = Object.freeze({
+  async keep(bucket, record) {
+    offered.push(bucket);
+    if (!keptKeys.has(bucket)) keptKeys.set(bucket, record);
+    return keptKeys.get(bucket);
+  }
+});
+
 /** One server on the bucket: its files folder, volume and store, stopped after the test. */
-async function server(context, s3, { env = {}, folder = null, verifyMs = 50 } = {}) {
+async function server(context, s3, { env = {}, folder = null } = {}) {
   const dir = folder ?? await mkdtemp(path.join(os.tmpdir(), "mercbot-bucket-"));
   const logs = [];
   const serverEnv = { ...s3.env, MERCBOT_FILES_DIR: dir, ...env };
-  const volume = createFilesVolume({ env: serverEnv, folder: dir, log: (line) => logs.push(line), verifyMs });
+  const volume = createFilesVolume({ env: serverEnv, folder: dir, keys, log: (line) => logs.push(line) });
   const store = createFileStore({ root: dir, fallback: dir, volume, ownStorage: async () => null, settle: async () => {}, explain: async () => {} });
   context.after(async () => {
     await volume.stop();
@@ -98,8 +110,6 @@ test("the bucket is reached path-style at its own endpoint, as Garage and MinIO 
   assert.ok(s3.requests.every((request) => request.headers.host === new URL(s3.endpoint).host && request.status < 300));
   assert.match(s3.requests[0].headers.authorization, /^AWS4-HMAC-SHA256 Credential=GKtest\/\d{8}\/garage\/s3\/aws4_request, /u);
 
-  assert.equal(await bucket.write("plain.txt", Buffer.from("again"), { onlyNew: true }), null, "only a new key is written");
-  assert.equal((await bucket.read("plain.txt")).toString(), "body of plain.txt");
   await bucket.remove("plain.txt");
   await bucket.remove("plain.txt");
   assert.equal(await bucket.read("plain.txt"), null);
@@ -129,12 +139,12 @@ test("without every bucket setting files stay in the files folder, the bucket is
   for (const name of Object.keys(s3.env)) {
     const env = { ...s3.env, [name]: "" };
     if (name === "MERCBOT_FILES_S3_ENDPOINT") continue;
-    assert.equal(createFilesVolume({ env, folder: dir }).kind, "folder", name);
+    assert.equal(createFilesVolume({ env, folder: dir, keys }).kind, "folder", name);
     assert.deepEqual(missingKeyLines(env).filter((line) => line.includes("Bots' file storage")), [
       `${name} isn't set, so this is off: Bots' file storage. Files stay in a folder on this machine, which only suits a single server.`
     ], name);
   }
-  assert.equal(createFilesVolume({ env: { ...s3.env, MERCBOT_FILES_S3_ENDPOINT: "" }, folder: dir }).kind, "bucket", "the endpoint is AWS's by default");
+  assert.equal(createFilesVolume({ env: { ...s3.env, MERCBOT_FILES_S3_ENDPOINT: "" }, folder: dir, keys }).kind, "bucket", "the endpoint is AWS's by default");
   assert.deepEqual(s3.requests, []);
 });
 
@@ -215,22 +225,35 @@ test("a change made here and not yet sent wins over the bucket's, and goes when 
   assert.equal(await readFile(path.join(shared, "plan.txt"), "utf8"), "written as the server stopped");
 });
 
-test("servers that start together on a new bucket use one files key, also on a store that ignores If-None-Match", async (context) => {
-  for (const ignoreIfNoneMatch of [false, true]) {
-    const s3 = await startS3Bucket(context, { ignoreIfNoneMatch });
+test("servers that start together on a new bucket use one files key, the database's, whatever the store does with conditional writes", async (context) => {
+  // A store that takes If-None-Match, one that ignores it, and one that refuses it 501 NotImplemented.
+  const stores = { takes: {}, ignores: { ignoreIfNoneMatch: true }, refuses: { refuseConditionalWrites: true } };
+  for (const [store, options] of Object.entries(stores)) {
+    const s3 = await startS3Bucket(context, options);
     const servers = [];
-    for (let index = 0; index < 3; index += 1) servers.push(await server(context, s3, { verifyMs: 3000 }));
-    assert.deepEqual(await Promise.all(servers.map(({ volume }) => volume.available())), [true, true, true]);
-    assert.equal(s3.objects.has(".mercbot-files"), true);
+    for (let index = 0; index < 3; index += 1) servers.push(await server(context, s3));
+    const before = offered.length;
+    assert.deepEqual(await Promise.all(servers.map(({ volume }) => volume.available())), [true, true, true], store);
+    // Each server offered the key it made, at once; the database kept one, which is the bucket's record.
+    assert.equal(offered.length - before, 3, store);
+    const id = bucketId({ endpoint: s3.endpoint, bucket: "mercbot-files", prefix: "" });
+    assert.equal(s3.objects.get(".mercbot-files").body.toString("utf8"), keptKeys.get(id), store);
+    assert.equal(s3.requests.filter((one) => one.headers["if-none-match"] || one.headers["if-match"]).length, 0, `${store}: no conditional write`);
+    assert.equal(s3.requests.filter((one) => one.status >= 500).length, 0, store);
     const { shared } = await servers[0].store.prepare(at(3, 7, 1));
     await writeFile(path.join(shared, "made-first.txt"), "one key for all");
     await servers[0].store.settle(3);
     for (const other of servers.slice(1)) {
       const found = await other.store.existingFile(at(3, 7, 1), "/files/shared/made-first.txt");
-      assert.equal(await readFile(found.real, "utf8"), "one key for all", `ignoreIfNoneMatch: ${ignoreIfNoneMatch}`);
+      assert.equal(await readFile(found.real, "utf8"), "one key for all", store);
     }
+    // A server starting later reads the bucket's record and asks the database nothing.
+    const later = await server(context, s3);
+    assert.equal(await later.volume.available(), true, store);
+    assert.equal(offered.length - before, 3, `${store}: the bucket's record is enough`);
   }
 });
+
 
 test("a wrong passphrase, or a files folder holding anything else, keeps the bucket off and says why; nothing is written", async (context) => {
   const s3 = await startS3Bucket(context);

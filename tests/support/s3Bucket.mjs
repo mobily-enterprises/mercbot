@@ -5,8 +5,10 @@ import { AwsV4Signer } from "aws4fetch";
 // A stand-in for an S3-compatible store, for tests only (D-91): one bucket on 127.0.0.1, reached path-style at a custom
 // endpoint as Garage and MinIO are, holding its objects in memory. Every request's AWS signature (SigV4) is worked out
 // again from what reached it, as S3 checks it, and a wrong one refused with S3's own codes. It answers PutObject (with
-// If-None-Match: * unless `ignoreIfNoneMatch`, as some stores do), GetObject, DeleteObject and ListObjectsV2 (pages of
-// `pageSize` keys, with continuation tokens), with MD5 ETags and LastModified, and records each request.
+// If-None-Match: * unless `ignoreIfNoneMatch`, as some stores do, or, with `refuseConditionalWrites`, refusing a write
+// with If-None-Match or If-Match 501 NotImplemented, as some stores do), GetObject, DeleteObject and
+// ListObjectsV2 (pages of `pageSize` keys, with continuation tokens), with MD5 ETags and LastModified, and records each
+// request.
 
 const xmlEscape = (text) => String(text).replace(/[<>&"']/gu, (char) => `&#${char.codePointAt(0)};`);
 const xml = (status, code, message) => ({
@@ -39,10 +41,11 @@ async function refusal(request, { region, accessKeyId, secretAccessKey }) {
 /**
  * @param {{ after: (work: () => unknown) => void }} context the test's context, which closes the server
  * @param {{ bucket?: string, region?: string, accessKeyId?: string, secretAccessKey?: string, pageSize?: number,
- *   ignoreIfNoneMatch?: boolean }} [options]
+ *   ignoreIfNoneMatch?: boolean, refuseConditionalWrites?: boolean }} [options]
  */
 export async function startS3Bucket(context, {
-  bucket = "mercbot-files", region = "garage", accessKeyId = "GKtest", secretAccessKey = "test-secret", pageSize = 1000, ignoreIfNoneMatch = false
+  bucket = "mercbot-files", region = "garage", accessKeyId = "GKtest", secretAccessKey = "test-secret", pageSize = 1000, ignoreIfNoneMatch = false,
+  refuseConditionalWrites = false
 } = {}) {
   /** @type {Map<string, { body: Buffer, etag: string, modified: Date }>} */
   const objects = new Map();
@@ -81,6 +84,9 @@ export async function startS3Bucket(context, {
     const key = decodeURIComponent(rest.join("/"));
     if (!key) return request.method === "GET" && url.searchParams.get("list-type") === "2" ? list(url.searchParams) : xml(405, "MethodNotAllowed", "Not allowed.");
     if (request.method === "PUT") {
+      if (refuseConditionalWrites && (request.headers["if-none-match"] || request.headers["if-match"])) {
+        return xml(501, "NotImplemented", "A header you provided implies functionality that is not implemented");
+      }
       if (!ignoreIfNoneMatch && request.headers["if-none-match"] === "*" && objects.has(key)) return xml(412, "PreconditionFailed", "At least one of the preconditions failed.");
       const etag = `"${createHash("md5").update(body).digest("hex")}"`;
       objects.set(key, { body, etag, modified: new Date() });

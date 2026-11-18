@@ -4,7 +4,7 @@ import { createDriveStorage } from "./driveStorage.js";
 import { createFileMoves } from "./fileMoves.js";
 import { createFileStorageRepository } from "./fileStorageRepository.js";
 import { createFileStore } from "./fileStore.js";
-import { createFilesVolume } from "./filesVolume.js";
+import { createFilesVolume, databaseFilesKeys } from "./filesVolume.js";
 import { createMediaChecks } from "./mediaChecks.js";
 import { createOfficeApps } from "./officeApps.js";
 import { createPages } from "./pages.js";
@@ -33,7 +33,8 @@ export function createFilesRuntime({ resources, systemContext, env, meter, integ
   const mounts = createRemoteMounts({ env, driveKey: (homeId, settings, why) => storage.driveKey(homeId, settings, why) });
   const runs = createShellRuns({ shellRuns: resources.shellRuns, systemContext });
   // The files bucket (D-91), when its settings are given; otherwise files stay in the files folder.
-  const volume = createFilesVolume({ env, folder: filesFolder(env) });
+  const keys = databaseFilesKeys({ filesKeys: resources.filesKeys, systemContext });
+  const volume = createFilesVolume({ env, folder: filesFolder(env), keys });
   const store = createFileStore({
     root: env.MERCBOT_FILES_DIR,
     fallback: filesFolder(env),

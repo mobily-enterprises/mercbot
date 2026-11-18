@@ -1,6 +1,6 @@
 import { createReadStream, createWriteStream } from "node:fs";
 import fs from "node:fs/promises";
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import path from "node:path";
 import { pipeline } from "node:stream/promises";
 import { newSealedKey, openSealedKey, openStream, sealStream, SealError } from "./filesCipher.js";
@@ -14,10 +14,12 @@ import { createSyncedTree } from "./syncedTree.js";
 //   written and every PUSH_EVERY_MS, and pushed whole when the server stops. Nothing needs FUSE.
 // - Without them, files are in the files folder itself: a single machine's, or a folder the host shares between
 //   servers, which then holds the `.mercbot-files` marker (D-20).
-// The bucket's key record is `.mercbot-files` at the prefix's top. The first server that finds none makes the files
-// key and writes the record only if there's still none (If-None-Match), then reads back the one the bucket kept after
-// VERIFY_MS, so servers that start together on a new bucket all use one key, also on a store that ignores
-// If-None-Match (the last record written is then the one every server reads back).
+// The bucket's key record is `.mercbot-files` at the prefix's top. A server that finds none makes a files key and
+// offers its record to the database (files_keys, one row a bucket): the first offer is kept, and every server, of those
+// starting together too, takes the kept one and writes it to the bucket, the same record every time. The database
+// decides, not the store, so servers that start together on a new bucket all use one key on any store speaking the S3
+// API: one that takes conditional writes, one that ignores them, and one that refuses them (answering If-None-Match
+// 501 NotImplemented).
 // The files folder is this server's own working copy in bucket mode, one server's alone: it's emptied when the server
 // starts using it, since what's there was either pushed before it stopped or is from a server that stopped without
 // it. One that holds files Mercbot didn't put there is never emptied: the bucket stays off and says why.
@@ -25,7 +27,6 @@ export const MARKER = ".mercbot-files";
 const WORKING = ".mercbot-files-working";
 const PUSH_EVERY_MS = 5000;
 const RETRY_MS = 30000;
-const VERIFY_MS = 3000;
 
 /**
  * The bucket as a synced tree's remote: each file sealed on its way up and opened on its way down, a folder an empty
@@ -63,13 +64,34 @@ function bucketRemote(bucket, filesKey, temporary) {
 }
 
 /**
+ * Which files key each bucket keeps, in the database (files_keys): `keep(bucket, record)` answers the record kept for
+ * the bucket, `record` when it's the first offered. Of offers made at once, one is kept and every other answers it
+ * (findOrCreate, outside a transaction).
+ * @param {{ filesKeys: object, systemContext: (reason: string) => object }} dependencies
+ */
+export function databaseFilesKeys({ filesKeys, systemContext }) {
+  return Object.freeze({
+    async keep(bucket, record) {
+      const kept = await filesKeys.findOrCreate({ id: bucket, record }, { context: systemContext("keep which files key a new files bucket uses") });
+      return kept.record;
+    }
+  });
+}
+
+/** A bucket's name in files_keys: a digest of its endpoint, name and prefix, the same on every server. */
+export function bucketId({ endpoint, bucket, prefix = "" }) {
+  return createHash("sha256").update(`${endpoint}\n${bucket}\n${prefix}`).digest("hex");
+}
+
+/**
  * @param {object} options
  * @param {import("@jskit-ai/kernel/server/types").RuntimeEnv} options.env
  * @param {string} options.folder the files folder (filesFolder)
+ * @param {{ keep: (bucket: string, record: string) => Promise<string> }} options.keys which files key a new bucket keeps
+ *   (databaseFilesKeys)
  * @param {(line: string) => void} [options.log]
- * @param {number} [options.verifyMs] how long a server that made the files key waits before reading back the one kept
  */
-export function createFilesVolume({ env, folder, log = (line) => console.warn(line), verifyMs = VERIFY_MS }) {
+export function createFilesVolume({ env, folder, keys, log = (line) => console.warn(line) }) {
   const settings = s3Settings(env);
   const passphrase = String(env.MERCBOT_FILES_PASSPHRASE ?? "");
   const root = path.resolve(folder);
@@ -102,15 +124,15 @@ export function createFilesVolume({ env, folder, log = (line) => console.warn(li
     await fs.writeFile(path.join(root, WORKING), "a working copy of the files bucket\n");
   }
 
-  /** The files key, made the first time the bucket has none. */
+  /** The files key: the bucket's, or, the first time it has none, the one the database keeps for it. */
   async function filesKey() {
-    const kept = await bucket.read(MARKER);
-    if (kept) return openSealedKey(passphrase, kept);
+    const found = await bucket.read(MARKER);
+    if (found) return openSealedKey(passphrase, found);
     const made = await newSealedKey(passphrase);
-    await bucket.write(MARKER, Buffer.from(made.record), { onlyNew: true });
-    // A store that ignored If-None-Match keeps the last record written: a moment later every server reads that one.
-    await new Promise((resolve) => setTimeout(resolve, verifyMs));
-    return openSealedKey(passphrase, await bucket.read(MARKER));
+    const kept = await keys.keep(bucketId(settings), made.record);
+    // Every server writes the record kept, the same bytes: a plain write, which every S3 store takes.
+    await bucket.write(MARKER, Buffer.from(kept));
+    return openSealedKey(passphrase, kept);
   }
 
   async function start() {

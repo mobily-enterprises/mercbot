@@ -82,8 +82,9 @@ files are kept.
   Objects are addressed path-style (`<endpoint>/<bucket>/<key>`) and signed with aws4fetch (`s3Bucket.js`), and each
   file is sealed before it leaves (`filesCipher.js`: AES-256-GCM in 64 KiB pieces, a key per object made from the
   files key). The files key is kept in the bucket as `.mercbot-files`, sealed with a key made from the passphrase
-  (scrypt): the first server to find none makes it and writes it only if there's still none, then reads back the one
-  the bucket kept 3 seconds later, so servers starting together use one key. The files folder is the server's own: it's
+  (scrypt): a server that finds none makes one and offers it to the database (`files_keys`, one row a bucket), which
+  keeps the first offer; every server writes and uses the kept one, so servers starting together use one key on any S3
+  store, with no conditional write (some stores refuse If-None-Match, 501). The files folder is the server's own: it's
   emptied when the server starts using it, and one holding files Mercbot didn't put there keeps the bucket off. The
   bucket is unavailable (503 `files_unavailable`) until its key opens; a failure is logged and tried again after
   30 seconds. With any setting missing, files are in the files folder itself: `MERCBOT_FILES_DIR`, a folder the host

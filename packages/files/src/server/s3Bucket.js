@@ -179,12 +179,12 @@ export function createS3Bucket({ bucket, region, endpoint, accessKeyId, secretAc
   }
 
   /**
-   * Writes an object from a Buffer or a file (`{ file, size }`), and answers its ETag. With `onlyNew`, a key that
-   * already holds an object is left alone and answers null (If-None-Match, which S3 and the stores like it keep).
+   * Writes an object from a Buffer or a file (`{ file, size }`), and answers its ETag. A plain write, never a
+   * conditional one: not every store speaking the S3 API takes If-None-Match (some answer it 501).
    */
-  async function write(key, body, { onlyNew = false } = {}) {
-    const answer = await send("PUT", key, { body, headers: onlyNew ? { "if-none-match": "*" } : {}, accept: onlyNew ? [409, 412] : [] });
-    return answer.status === 412 || answer.status === 409 ? null : String(answer.headers.etag ?? "");
+  async function write(key, body) {
+    const answer = await send("PUT", key, { body });
+    return String(answer.headers.etag ?? "");
   }
 
   /** Removes an object; one already gone is fine, as S3 answers it. */

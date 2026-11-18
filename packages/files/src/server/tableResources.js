@@ -23,6 +23,21 @@ export const fileStorageResource = defineTableResource({
   }
 });
 
+/** files_keys: the files key each files bucket keeps, decided by the first server to make one (D-91)
+ * deployment-wide
+ */
+export const filesKeyResource = defineTableResource({
+  name: "filesKeys",
+  tableName: "files_keys",
+  ownership: "public",
+  idProperty: "bucket",
+  schema: {
+    id: { type: "string", primary: true, maxLength: 64, noTrim: true, required: true, storage: { column: "bucket" } },
+    record: { type: "string", noTrim: true, required: true },
+    createdAt: { type: "dateTime" }
+  }
+});
+
 /** shell_runs */
 export const shellRunResource = defineTableResource({
   name: "shellRuns",

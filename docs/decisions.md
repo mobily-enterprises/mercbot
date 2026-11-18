@@ -2033,10 +2033,14 @@ people's storage through rclone's remote control: nothing mounts, and nothing ne
   key made from `MERCBOT_FILES_PASSPHRASE` (scrypt), so a server needs only the passphrase, as with the volume. Sealing
   here rather than asking the store to (SSE-S3, SSE-C) means the store's owner never holds a readable file, and it
   works the same on every S3-compatible store.
-- **One key for every server:** the first server that finds no key record makes the files key and writes the record
-  only if there's still none (If-None-Match), then reads back the one the bucket kept 3 seconds later, so servers that
-  start together on a new bucket agree on one key, also on a store that ignores If-None-Match. A passphrase that
-  doesn't open the record keeps the bucket off, and the log says why.
+- **One key for every server:** a server that finds no key record makes a files key and offers its record to the
+  database (`files_keys`, one row a bucket, named by a digest of its endpoint, name and prefix): PostgreSQL keeps the
+  first offer, every server, of those starting together too, takes the kept record and writes it to the bucket (the
+  same bytes each time, a plain write), so servers that start together on a new bucket agree on one key on any store
+  speaking the S3 API. The database decides rather than the store: some stores ignore a conditional write
+  (If-None-Match), and some refuse it, 501 NotImplemented (18 Nov 2026; on such a store the earlier write-if-new and
+  read-back-after-3-seconds left the bucket with no key at all). A passphrase that doesn't open the record keeps the
+  bucket off, and the log says why.
 - **The files folder is the server's own:** in a bucket's case it's emptied when the server starts using it, since what
   was there was pushed when the server stopped, or is from a server that stopped without it. A folder holding files
   Mercbot didn't put there is never emptied: the bucket stays off and the log says to empty it or name another.

@@ -84,7 +84,7 @@
     },
     {
       "feature": "mercbot.files",
-      "systemScope": "open each home's own file storage for its bots, move a home's files to the storage it chose and sweep the moves whose server stopped, start, beat, finish and sweep the bots' command runs, and keep the versions of the pages bots save, which run on no request, in any home; reach the Google Drive account a home keeps its files in, as the person it belongs to; queue and check the pictures and videos bots save and their computers' screenshots, in every home"
+      "systemScope": "open each home's own file storage for its bots, move a home's files to the storage it chose and sweep the moves whose server stopped, start, beat, finish and sweep the bots' command runs, and keep the versions of the pages bots save, which run on no request, in any home; reach the Google Drive account a home keeps its files in, as the person it belongs to; queue and check the pictures and videos bots save and their computers' screenshots, in every home; keep which files key a new files bucket uses, for every server"
     },
     {
       "feature": "mercbot.computer",

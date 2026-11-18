@@ -7,11 +7,12 @@ import { registerPageRoutes } from "./pageRoutes.js";
 import { PROFILE_PICTURES, profilePictureDriver } from "./profilePictures.js";
 import { registerRoutes } from "./registerRoutes.js";
 import { SHELL_RUN_FILTERS } from "./shellRuns.js";
-import { fileStorageResource, mediaCheckResource, pageVersionResource, shellRunResource } from "./tableResources.js";
+import { fileStorageResource, filesKeyResource, mediaCheckResource, pageVersionResource, shellRunResource } from "./tableResources.js";
 
 /** The tables the files feature owns, with their search entries. */
 export const FILES_OWNS = Object.freeze([
   { resource: fileStorageResource, searchSchema: FILE_STORAGE_FILTERS },
+  filesKeyResource,
   { resource: mediaCheckResource, searchSchema: MEDIA_CHECK_FILTERS },
   pageVersionResource,
   { resource: shellRunResource, searchSchema: SHELL_RUN_FILTERS }
@@ -27,7 +28,7 @@ const FilesFeature = defineFeature({
   domain: "files",
   owns: FILES_OWNS,
   systemScope:
-    "open each home's own file storage for its bots, move a home's files to the storage it chose and sweep the moves whose server stopped, start, beat, finish and sweep the bots' command runs, and keep the versions of the pages bots save, which run on no request, in any home; reach the Google Drive account a home keeps its files in, as the person it belongs to; queue and check the pictures and videos bots save and their computers' screenshots, in every home",
+    "open each home's own file storage for its bots, move a home's files to the storage it chose and sweep the moves whose server stopped, start, beat, finish and sweep the bots' command runs, and keep the versions of the pages bots save, which run on no request, in any home; reach the Google Drive account a home keeps its files in, as the person it belongs to; queue and check the pictures and videos bots save and their computers' screenshots, in every home; keep which files key a new files bucket uses, for every server",
   requires: {
     records: "mercbot.bots.records",
     http: "runtime.http",
