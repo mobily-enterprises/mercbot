@@ -10,6 +10,7 @@ import { SEDNA_ONLY_OWN_CHAT, sendSednaMessage } from "../../packages/bots/src/s
 import { SEDNA_READS, SEDNA_WRITES } from "../../packages/bots/src/server/sednaTools.js";
 import { startFakeSedna } from "../support/fakeSedna.mjs";
 import { turnDoubles } from "../support/botDoubles.mjs";
+import { accessOf } from "../support/appKey.mjs";
 
 // Sedna's writes (D-94), against the stand-in Sedna (fakeSedna.mjs) over HTTP: always as the person's own Sedna user from
 // one of their teams, only on messages in their teams, through approvals, never in a room, and real only in a live copy.
@@ -36,7 +37,7 @@ async function setup(context) {
     connections: {
       accessToken: async (_reach, _id, _call, { refused = "" } = {}) => {
         if (refused) key = await mint();
-        return { accessToken: key, api };
+        return { ...accessOf(key), api };
       },
       appPerson: async () => who
     }

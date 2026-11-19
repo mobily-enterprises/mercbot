@@ -1,14 +1,15 @@
-import { ConnectedAppError, localTime, zoned } from "./connectedApps.js";
+import { ConnectedAppError, localTime, unlessBusy, zoned } from "./connectedApps.js";
 
 // Bots using the person's connected Microsoft account (D-31): Outlook mail, calendar and contacts,
-// and OneDrive, through Microsoft Graph. The same calls as googleApps.js, so tools treat both alike.
+// and OneDrive, through Microsoft Graph. The same calls as googleApps.js, so tools treat both alike. Every request goes
+// through the account's own fetch (`key`, an AppKey), in its Request pace (D-96).
 
 const GRAPH = "https://graph.microsoft.com/v1.0/me";
 
 async function call(key, url, options = {}) {
-  const response = await fetch(url.startsWith("http") ? url : `${GRAPH}${url}`, {
+  const response = await key.fetch(url.startsWith("http") ? url : `${GRAPH}${url}`, {
     ...options,
-    headers: { authorization: `Bearer ${key}`, "content-type": "application/json", ...options.headers },
+    headers: { authorization: `Bearer ${key.token}`, "content-type": "application/json", ...options.headers },
     signal: AbortSignal.timeout(30000)
   });
   const body = response.status === 202 || response.status === 204 ? {} : await response.json().catch(() => ({}));
@@ -67,7 +68,7 @@ export async function calendarEvents(key, { from, to, timeZone }) {
   const lists = await Promise.all(calendars.map(async (calendar) => {
     const { value = [] } = await call(key, `/calendars/${encodeURIComponent(calendar.id)}/calendarView?${query}`, {
       headers: IN_UTC
-    }).catch(() => ({}));
+    }).catch(unlessBusy({}));
     return value.map((event) => toEvent(calendar, event, timeZone));
   }));
   return { timeZone, events: lists.flat().sort((a, b) => a.start.localeCompare(b.start)) };
@@ -463,8 +464,8 @@ export async function saveFile(key, { name, data, folder = "Mercbot" }) {
     method: "POST",
     body: JSON.stringify({ item: { "@microsoft.graph.conflictBehavior": "rename" } })
   });
-  // The upload address carries its own permission, so it takes no key.
-  const response = await fetch(session.uploadUrl, {
+  // The upload address carries its own permission, so it takes no key; it's still a request to OneDrive, in its pace.
+  const response = await key.fetch(session.uploadUrl, {
     method: "PUT",
     headers: { "content-length": String(data.length), "content-range": `bytes 0-${data.length - 1}/${data.length}` },
     body: data,
@@ -497,7 +498,7 @@ const kindOf = (file) => {
 };
 
 export async function recentFiles(key, limit = 5) {
-  const found = await call(key, "/drive/recent").catch(() => null);
+  const found = await call(key, "/drive/recent").catch(unlessBusy(null));
   const items = found?.value?.length
     ? found.value.map((item) =>
       item.remoteItem
@@ -550,7 +551,7 @@ export async function listFolder(key, folder = "") {
 export async function fileDetails(key, id) {
   const [item, { value: permissions = [] }] = await Promise.all([
     call(key, ITEM(id)),
-    call(key, `${ITEM(id)}/permissions`).catch(() => ({}))
+    call(key, `${ITEM(id)}/permissions`).catch(unlessBusy({}))
   ]);
   return {
     ...toItem(item),
@@ -570,7 +571,7 @@ export async function fileDetails(key, id) {
 }
 
 async function itemBytes(key, url) {
-  const response = await fetch(`${GRAPH}${url}`, { headers: { authorization: `Bearer ${key}` }, signal: AbortSignal.timeout(120000) });
+  const response = await key.fetch(`${GRAPH}${url}`, { headers: { authorization: `Bearer ${key.token}` }, signal: AbortSignal.timeout(120000) });
   if (!response.ok) await call(key, url);
   return Buffer.from(await response.arrayBuffer());
 }

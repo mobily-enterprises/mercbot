@@ -12,6 +12,8 @@ export const pluginAccountResource = defineTableResource({
     connectedAt: { type: "dateTime", nullable: true },
     label: { type: "string", maxLength: 200, noTrim: true, nullable: true },
     name: { type: "string", maxLength: 80, noTrim: true, required: true, search: true },
+    // The Request pace chosen in Connect apps (D-96): "gentle", "normal" or "fast"; null is Gentle.
+    pace: { type: "string", maxLength: 16, noTrim: true, nullable: true },
     pluginId: { type: "string", maxLength: 64, noTrim: true, required: true, search: true },
     signInState: { type: "string", maxLength: 16, noTrim: true, nullable: true },
     status: { type: "string", maxLength: 16, noTrim: true, search: true },
@@ -40,6 +42,20 @@ export const pluginAccountPersonResource = defineTableResource({
     status: { type: "string", maxLength: 16, noTrim: true, required: true, search: true },
     userId: { type: "id", required: true, search: true },
     workspaceId: { type: "id", hidden: true, search: true }
+  }
+});
+
+/** plugin_account_turns
+ * each connected account's next turn to send a request to its app, shared by every server (D-96, appRequests.js)
+ */
+export const pluginAccountTurnResource = defineTableResource({
+  name: "pluginAccountTurns",
+  tableName: "plugin_account_turns",
+  ownership: "public",
+  idProperty: "account_id",
+  schema: {
+    id: { type: "id", primary: true, required: true, storage: { column: "account_id" } },
+    nextAt: { type: "dateTime", required: true }
   }
 });
 
@@ -155,6 +171,7 @@ export const connectorAppResource = defineTableResource({
 export const TABLE_RESOURCES = Object.freeze([
   pluginAccountResource,
   pluginAccountPersonResource,
+  pluginAccountTurnResource,
   oauthStateResource,
   userPluginResource,
   userSkillResource,

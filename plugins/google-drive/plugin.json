@@ -108,5 +108,11 @@
       "id": "save_to_drive",
       "name": "Save a bot's file to the drive"
     }
-  ]
+  ],
+  "limits": {
+    "requests": 3000,
+    "seconds": 60,
+    "source": "https://developers.google.com/workspace/drive/api/guides/limits",
+    "says": "325,000 quota units a minute per user: about 3,250 requests at the 100 units of a list, its dearest read."
+  }
 }

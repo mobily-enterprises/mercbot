@@ -85,7 +85,7 @@ const IntegrationsFeature = defineFeature({
   domain: "integrations",
   owns: INTEGRATIONS_OWNS,
   systemScope:
-    "write people's own connected accounts, which belong to no home, once a scoped read found them the caller's; finish provider sign-ins, which no one is signed in to; act on a person's own apps and skills for a job; count app demand",
+    "write people's own connected accounts, which belong to no home, once a scoped read found them the caller's; finish provider sign-ins, which no one is signed in to; act on a person's own apps and skills for a job; count app demand; pace each connected account's requests to its app",
   requires: {
     http: "runtime.http",
     env: "runtime.env",
@@ -124,6 +124,7 @@ const IntegrationsFeature = defineFeature({
       recordActivity: (entry, options) => apps.activity.record(entry, options),
       bridgedSignIns: bridgedSignIns || null,
       credentialKinds: credentialKinds(env),
+      systemContext,
       ...homeDirectory({ memberships, profiles }),
       ...standInGoogle(env)
     });

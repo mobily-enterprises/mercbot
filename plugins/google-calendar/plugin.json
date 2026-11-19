@@ -76,5 +76,11 @@
       "id": "answer_invitation",
       "name": "Reply to invitations"
     }
-  ]
+  ],
+  "limits": {
+    "requests": 600,
+    "seconds": 60,
+    "source": "https://developers.google.com/workspace/calendar/api/guides/quota",
+    "says": "600 requests a minute per user."
+  }
 }

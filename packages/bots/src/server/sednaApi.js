@@ -1,5 +1,4 @@
-import { setTimeout as wait } from "node:timers/promises";
-import { ConnectedAppError } from "./connectedApps.js";
+import { ConnectedAppError, appBusy } from "./connectedApps.js";
 
 // Bots using the home's Sedna (D-93), the shipping teams' shared email, with the hourly key integrations makes from
 // the organisation's API credentials. That key reaches every team's inbox, so everything here is kept to the asking
@@ -7,16 +6,18 @@ import { ConnectedAppError } from "./connectedApps.js";
 // teams only (filter[team]) and drop any message outside them, and a message named by its id is checked against them
 // before anything of it is shown or changed; writes (D-94) are in sednaChanges.js. `access` is `{ api, key, renew? }`,
 // `api` the address integrations built (https://<tenant>.sednanetwork.com/platform/2019-01-01), never one a bot or Sedna
-// names; `renew` makes a key Sedna refused again, once for the access.
+// names; `key` the account's AppKey, whose own fetch sends every request in the account's Request pace and says when
+// Sedna is busy (D-96); `renew` makes a key Sedna refused again, once for the access. A busy Sedna stops whatever was
+// reading: no list goes on to its next message, so a busy Sedna gets no more requests from it.
 // API reference: https://developers.sedna.com/llms.txt (Event, Message, Category Tag, Job Reference, Contact, Template,
 // Document).
 
 /**
  * The Authorization header for a key integrations made: a token from Sedna's token endpoint is a bearer token; credentials
  * Sedna takes only as a username and password come as their whole "Basic …" header (sednaCredentials.js, D-94).
- * @param {string} key
+ * @param {string} token
  */
-const authorization = (key) => (String(key).startsWith("Basic ") ? String(key) : `Bearer ${key}`);
+const authorization = (token) => (String(token).startsWith("Basic ") ? String(token) : `Bearer ${token}`);
 
 /** Sedna refused the key (401): integrations makes a new one once, and then it's reported. */
 export class SednaAuthError extends ConnectedAppError {}
@@ -24,8 +25,6 @@ export class SednaAuthError extends ConnectedAppError {}
 /** A change Sedna may or may not have made (no answer, or its own failure): never tried again by itself. */
 export class SednaUncertainError extends ConnectedAppError {}
 
-// A 429's Retry-After is waited out once when it's this short; a longer one is reported at once.
-const RETRY_AFTER_MAX_S = 30;
 // How far back the events feed is read for recent messages, and how many messages are opened to find the person's.
 const EVENT_PAGES = 5;
 const MESSAGES_OPENED = 40;
@@ -42,14 +41,6 @@ const UNANSWERED_CHANGE =
   "Sedna didn't answer, so it isn't known whether the change was made. Say so plainly: the person checks in Sedna " +
   "(Sent, or the message itself) before anything is tried again. Don't try again by yourself.";
 
-/** Seconds a Retry-After asks for: a number of seconds or an HTTP date; 1 when it says nothing usable. */
-function retryAfterSeconds(value) {
-  const seconds = Number(value);
-  if (Number.isFinite(seconds) && seconds >= 0) return Math.ceil(seconds);
-  const at = Date.parse(String(value || ""));
-  return Number.isFinite(at) ? Math.max(0, Math.ceil((at - Date.now()) / 1000)) : 1;
-}
-
 /** What Sedna said about a refusal, short, as information. */
 async function refusalOf(response) {
   const body = await response.json().catch(() => ({}));
@@ -58,11 +49,12 @@ async function refusalOf(response) {
 }
 
 /**
- * One call to Sedna's API: its JSON body (`{}` when it has none), or with `raw` the response itself (a redirect). A 429
- * is waited out once when its Retry-After is short, then reported, never retried in a loop: Sedna did nothing. A
- * refused key is made again once (`access.renew`), as Sedna did nothing either. A change Sedna didn't answer, or failed
- * on its side, is never tried again: it may have been made (SednaUncertainError).
- * @param {{ api: string, key: string, renew?: (refused: string) => Promise<string>, renewed?: boolean }} access
+ * One call to Sedna's API: its JSON body (`{}` when it has none), or with `raw` the response itself (a redirect). The
+ * request waits its turn in the account's Request pace, and a busy Sedna (429) is the key's fetch's to handle: waited out
+ * once when short, else integrations' AppBusyError, which goes up as it is (D-96). A refused key is made again once
+ * (`access.renew`), as Sedna did nothing. A change Sedna didn't answer, or failed on its side, is never tried again: it
+ * may have been made (SednaUncertainError).
+ * @param {{ api: string, key: import("./connectedApps.js").AppKey, renew?: (refused: string) => Promise<string>, renewed?: boolean }} access
  * @param {string} method
  * @param {string} path below the API's address, e.g. /message/12
  * @param {{ params?: Record<string, string | number | boolean>, body?: object, raw?: boolean }} [request]
@@ -71,10 +63,10 @@ export async function sednaCall(access, method, path, { params = {}, body, raw =
   const change = method !== "GET";
   const url = new URL(`${access.api}${path}`);
   for (const [name, value] of Object.entries(params)) if (value !== "" && value != null) url.searchParams.set(name, String(value));
-  const ask = () => fetch(url, {
+  const ask = () => access.key.fetch(url, {
     method,
     headers: {
-      authorization: authorization(access.key),
+      authorization: authorization(access.key.token),
       accept: "application/vnd.api+json, application/json",
       "user-agent": "Mercbot",
       ...(body ? { "content-type": "application/vnd.api+json" } : {})
@@ -82,24 +74,16 @@ export async function sednaCall(access, method, path, { params = {}, body, raw =
     ...(body ? { body: JSON.stringify(body) } : {}),
     ...(raw ? { redirect: "manual" } : {}),
     signal: AbortSignal.timeout(change ? 60000 : 30000)
-  }).catch(() => {
+  }).catch((error) => {
+    // Busy: nothing was sent, or Sedna did nothing (D-96).
+    if (appBusy(error)) throw error;
     throw change ? new SednaUncertainError(UNANSWERED_CHANGE) : new ConnectedAppError("Sedna didn't answer. Try again in a few minutes.");
   });
-  const waitedOut = async (response) => {
-    if (response.status !== 429) return response;
-    const seconds = retryAfterSeconds(response.headers.get("retry-after"));
-    const again = seconds <= RETRY_AFTER_MAX_S ? (await wait(seconds * 1000), await ask()) : response;
-    if (again.status === 429) {
-      const asked = retryAfterSeconds(again.headers.get("retry-after"));
-      throw new ConnectedAppError(`Sedna is busy: it asked to wait ${asked} seconds before more requests. Say so, and try again after that; don't keep retrying.`);
-    }
-    return again;
-  };
-  let response = await waitedOut(await ask());
+  let response = await ask();
   if (response.status === 401 && access.renew && !access.renewed) {
     access.renewed = true;
-    access.key = await access.renew(access.key);
-    response = await waitedOut(await ask());
+    access.key = { ...access.key, token: await access.renew(access.key.token) };
+    response = await ask();
   }
   if (response.status === 401) throw new SednaAuthError("Sedna refused this copy's API credentials. An owner or admin of the home enters them again in Connect apps.");
   if (response.status === 403) {
@@ -131,7 +115,7 @@ export async function sednaCall(access, method, path, { params = {}, body, raw =
 
 /**
  * One read of Sedna's API: its JSON body.
- * @param {{ api: string, key: string }} access
+ * @param {{ api: string, key: import("./connectedApps.js").AppKey }} access
  * @param {string} path below the API's address, e.g. /message/12
  * @param {Record<string, string | number>} [params]
  */
@@ -203,9 +187,21 @@ export async function ownMessage(access, person, id) {
 }
 
 /**
+ * One message of a list, as ownMessage gives it, or null when it can't be shown (gone, not in the person's teams, or a
+ * read Sedna turned down): the list goes on without it. A refused key, or a busy Sedna, stops the list (D-96).
+ */
+async function listedMessage(access, person, id) {
+  return ownMessage(access, person, id).catch((error) => {
+    if (error instanceof SednaAuthError || !(error instanceof ConnectedAppError)) throw error;
+    return null;
+  });
+}
+
+/**
  * The newest messages that came into the person's teams, from Sedna's events feed (event.message.received), newest
- * first: up to `limit`, received since `since` when given. Each is opened and checked against their teams.
- * @param {{ api: string, key: string }} access
+ * first: up to `limit`, received since `since` when given. Each is opened and checked against their teams: one request
+ * a message, as Sedna has no list of messages by id; the feed's events name only the message.
+ * @param {{ api: string, key: import("./connectedApps.js").AppKey }} access
  * @param {{ teams: Array<{ id: string, name: string }> }} person
  * @param {{ limit?: number, since?: string }} [query]
  */
@@ -231,10 +227,7 @@ export async function recentMessages(access, person, { limit = 10, since = "" } 
   const messages = [];
   for (const candidate of candidates.slice(0, MESSAGES_OPENED)) {
     if (messages.length >= limit) break;
-    const message = await ownMessage(access, person, candidate.id).catch((error) => {
-      if (error instanceof SednaAuthError) throw error;
-      return null;
-    });
+    const message = await listedMessage(access, person, candidate.id);
     if (message) messages.push(summary(message, person));
   }
   return { messages, eventsRead: events.length, olderNotRead: more };
@@ -284,23 +277,27 @@ export const userName = (user) => [user?.attributes?.firstName, user?.attributes
 
 /**
  * One message in the person's teams: who sent it to whom, its text, its tags and job references, the team's comments on
- * it and its attachments' names. Comments need COMMENT_READ; without it they're said to be unavailable.
+ * it and its attachments' names. Comments need COMMENT_READ; without it they're said to be unavailable. Its tags, job
+ * references and attachments are read only when the message names some (an empty list in its relationships needs no
+ * request), one after another in the account's pace.
  */
 export async function readMessage(access, person, id) {
   const message = await ownMessage(access, person, id);
   const attributes = message.attributes || {};
   const listed = (path) => sednaGet(access, `/message/${message.id}${path}`, {}).then((body) => body.data || []);
+  const related = (relationship) => {
+    const data = message.relationships?.[relationship]?.data;
+    return Array.isArray(data) && !data.length ? [] : listed(`/${relationship}`);
+  };
   const unless = (error) => {
-    if (error instanceof SednaAuthError) throw error;
+    if (error instanceof SednaAuthError || !(error instanceof ConnectedAppError)) throw error;
     return null;
   };
-  const [tags, jobs, documents, comments, assigned] = await Promise.all([
-    listed("/category-tag"),
-    listed("/job-reference"),
-    listed("/document"),
-    listed("/comment").catch(unless),
-    listed("/assignment").catch(unless)
-  ]);
+  const tags = await related("category-tag");
+  const jobs = await related("job-reference");
+  const documents = await related("document");
+  const comments = await listed("/comment").catch(unless);
+  const assigned = await listed("/assignment").catch(unless);
   return {
     ...summary(message, person),
     to: attributes.to || [],
@@ -397,7 +394,9 @@ export async function downloadDocument(access, document) {
   if (!link || (link.protocol !== "https:" && link.origin !== new URL(access.api).origin)) {
     throw new ConnectedAppError(`Sedna didn't give a download link for ${document.name}.`);
   }
-  const file = await fetch(link, { headers: { "user-agent": "Mercbot" }, signal: AbortSignal.timeout(120000) }).catch(() => {
+  // The signed link is a request to Sedna's storage, not its API: it still goes in the account's pace.
+  const file = await access.key.fetch(link, { headers: { "user-agent": "Mercbot" }, signal: AbortSignal.timeout(120000) }).catch((error) => {
+    if (appBusy(error)) throw error;
     throw new ConnectedAppError(`${document.name} didn't download. Try again in a few minutes.`);
   });
   if (!file.ok) throw new ConnectedAppError(`${document.name} didn't download (${file.status}). Try again in a few minutes.`);
@@ -463,8 +462,9 @@ const cursorOf = (link, access) => (link ? new URL(link, access.api).searchParam
  * oldest first, and where it read up to. `position` is `{ cursor, seen }`: the page it stopped on and the events of that
  * page already handled. With none (its first run), the feed is read from its newest event, and events from before
  * `startedAt` (when the routine was made) are skipped. A run reads FEED_PAGES pages, opens FEED_OPENED messages and hands
- * FEED_MESSAGES at most; what's left waits for the next run (`more`), never dropped.
- * @param {{ api: string, key: string }} access
+ * FEED_MESSAGES at most; what's left waits for the next run (`more`), never dropped. A refused key or a busy Sedna stops
+ * the run with nothing kept, so its next run reads the same events again: no mail is skipped (D-96).
+ * @param {{ api: string, key: import("./connectedApps.js").AppKey }} access
  * @param {{ teams: Array<{ id: string, name: string }> }} person
  * @param {{ cursor: string, seen: string[] } | null} position
  * @param {{ startedAt?: string }} [options]
@@ -489,10 +489,7 @@ export async function feedSince(access, person, position, { startedAt = "" } = {
       const id = String(event.relationships?.message?.data?.id || "");
       const time = Date.parse(event.attributes?.time || "");
       if (!id || event.attributes?.eventType !== "event.message.received" || (Number.isFinite(from) && !(time >= from))) continue;
-      const message = await ownMessage(access, person, id).catch((error) => {
-        if (error instanceof SednaAuthError) throw error;
-        return null;
-      });
+      const message = await listedMessage(access, person, id);
       opened += 1;
       if (message) messages.push(summary(message, person));
     }
@@ -516,10 +513,7 @@ export async function feedSince(access, person, position, { startedAt = "" } = {
       const time = Date.parse(event.attributes?.time || "");
       if (!id || (type && type !== "event.message.received") || (Number.isFinite(from) && Number.isFinite(time) && time < from)) continue;
       opened += 1;
-      const message = await ownMessage(access, person, id).catch((error) => {
-        if (error instanceof SednaAuthError) throw error;
-        return null;
-      });
+      const message = await listedMessage(access, person, id);
       if (message && !messages.some((entry) => entry.id === String(message.id))) messages.push(summary(message, person));
     }
     if (more) {

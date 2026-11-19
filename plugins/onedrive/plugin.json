@@ -90,5 +90,11 @@
       "id": "save_to_drive",
       "name": "Save a bot's file to the drive"
     }
-  ]
+  ],
+  "limits": {
+    "requests": 3000,
+    "seconds": 300,
+    "source": "https://learn.microsoft.com/en-us/sharepoint/dev/general-development/how-to-avoid-getting-throttled-or-blocked-in-sharepoint-online",
+    "says": "3,000 requests in 5 minutes per user, for all the apps that call for them together."
+  }
 }

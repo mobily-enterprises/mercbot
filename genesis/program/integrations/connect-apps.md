@@ -53,6 +53,12 @@ their accounts, and keeps the private skills their bots have made.
 - `tests/support/fakeMcpServer.mjs`
 - `tests/client/appsCatalogue.vitest.js`
 - `tests/e2e/connector.spec.ts`
+- `packages/integrations/src/server/appRequests.js`
+- `migrations/20261119220000_request_pace.cjs`
+- `src/components/mercbot/MercbotRequestPace.vue`
+- `tests/server/appRequests.test.js`
+- `tests/server/requestPace.integration.js`
+- `tests/support/appKey.mjs`
 
 ## Public contract
 
@@ -78,7 +84,9 @@ home's (`workspace_id` set). In a shared bot's room, only the home's are reached
 - `PATCH …/plugin-accounts/:accountId`: renames an account.
 - `DELETE …/plugin-accounts/:accountId`: removes a home's account (owners and admins), or the person's own while it isn't connected and the app keeps another account.
 - `PATCH /api/skills/:skillId` and `DELETE /api/skills/:skillId` (skills stay personal).
-- Changing a home's account (rename, sign in, disconnect, remove) needs `workspace.settings.update`.
+- `PUT …/plugin-accounts/:accountId/pace {pace}`: the account's Request pace, `gentle`, `normal` or `fast` (400
+  otherwise), answering the list.
+- Changing a home's account (rename, sign in, disconnect, remove, its pace) needs `workspace.settings.update`.
 
 **Signing in.**
 - Sign-in opens `/account/connect?plugin=<id>&home=<slug>&account=<id>` in a new tab.
@@ -171,6 +179,28 @@ such as Preview or a home server):
   Notion and Todoist take each refresh key once (D-15). Disconnecting withdraws the sign-in at the app too, where it
   offers revocation.
 
+**Request pace** (D-96, `appRequests.js`): every request to a connected account's app goes through the account's own
+`fetch`, which integrations makes: `connections.accessToken` answers it beside the key (`fetch`), and the bots' keys,
+the general connector's actions and listings, a credentials kind's reads and the home's Drive storage use it.
+- Each plugin that reaches a service declares the service's published limit, `limits: { requests, seconds, source,
+  says }` in plugin.json (one a second when none is declared). An account's `pace` (`plugin_accounts.pace`, null for
+  every account that never chose one, which is Gentle) takes a share of it: Gentle a tenth, Normal four tenths, Fast nine
+  tenths; half that share may go at once and the rest is spread evenly over the limit's window (a turn every
+  `seconds / (share / 2)`, rounded up to a whole millisecond, as the turn is kept).
+- An account's next turn is `plugin_account_turns.next_at`, one row per account, taken under the row's lock
+  (`lockOrCreate`), so every server's requests share it (D-15); a request then waits its turn. One more than 20 s off is
+  refused with `AppBusyError` (503 `integrations_app_busy`, `{ app, seconds }`, "Sedna is busy: try again in 24 s.
+  Nothing was done.").
+- A busy answer (429 or 529; 503 with Retry-After; 403 with Retry-After, or with no requests left until the window's
+  reset; Google's 403 rate-limit reasons) moves the account's next turn past the wait it names (5 s when it names none,
+  an hour at most). A wait of 10 s or less is waited out once, in turn; a longer one, or a second busy answer, is
+  `AppBusyError`. A 503 to a change is answered to its caller and never sent again.
+- `PUT …/plugin-accounts/:accountId/pace` (`integrations.choosePace`) changes it: a home's account its owners and admins, one's own account its
+  person (403 for anyone else, 404 for an account the person doesn't reach). The app's page shows **Request pace** with
+  a choice per connected account (`MercbotRequestPace.vue`); the list's accounts carry `pace` (`gentle` when unset).
+- A general connector's session handshake (initialize, initialized, ending the session) is the protocol's own and goes
+  unpaced; making a key (sign-in, renewal, a credentials kind's `mint`) is too.
+
 **Connect card:** an app Mercbot can't connect to yet still gets its card, with an "Ask for it" button that opens the app's page.
 
 **Bots.** Bot tools reach accounts through `integrations.reachableAccounts(reach, options, filters)`
@@ -244,8 +274,9 @@ is empty makes the second add lose the insert race and find the first, D-94), ad
   each declared field (400 `integrations_credentials_field_missing`, `_long`), the kind's `normalize` (Sedna: the
   tenant one DNS label, 400 `integrations_sedna_tenant_invalid`), a key (`mint`: 400 `integrations_credentials_refused`
   for a wrong ID or secret, 400 `integrations_sedna_tenant_unknown` for no such organisation) and `check` (Sedna:
-  `GET /company/me`, whose name labels the account, and the home's people matched by email address, the first 50, five
-  at a time). It then seals `{ values, access, expiresAt }` in `plugin_accounts.tokens`, marks the account connected
+  `GET /company/me`, whose name labels the account, and the home's first 50 people matched by email address: the
+  organisation's users a hundred a request when they fill no more pages than there are people, else one person at a
+  time, each in the account's Request pace). It then seals `{ values, access, expiresAt }` in `plugin_accounts.tokens`, marks the account connected
   (`accounts.connectedHere`, which tells `whenConnected` listeners), and answers `{ credentials: { app, label, matched,
   unmatched, more }, plugins, skills }`.
 - `connections.accessToken` makes a key from the credentials when the saved one is about to run out or was refused,

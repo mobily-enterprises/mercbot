@@ -3,9 +3,11 @@ import test from "node:test";
 import { z } from "zod";
 import { buildSednaTools } from "../../packages/bots/src/server/sednaTools.js";
 import { createSednaCredentials, sednaTenant } from "../../packages/integrations/src/server/sednaCredentials.js";
+import { appKey } from "../support/appKey.mjs";
 
 // Bots reading the home's Sedna (D-93), against a stand-in for Sedna's API: only the asking person's own teams, a message
-// read by its id checked against them, outside text kept as information, and a busy Sedna waited out once at most.
+// read by its id checked against them, outside text kept as information, and a busy Sedna waited out once at most, by the
+// account's own paced fetch (D-96), which every request goes through.
 const API = "https://acme.sednanetwork.com/platform/2019-01-01";
 const PAT = { id: "201", name: "Pat Doe", email: "pat@acme.example", teams: [{ id: "11", name: "Chartering" }] };
 
@@ -52,14 +54,18 @@ const MESSAGES = {
   "GET /message/1003/comment": [403, { errors: [{ status: "403" }] }]
 };
 
-/** The tools for a person, with the account's key and who they are in Sedna as integrations would give them. */
+/**
+ * The tools for a person, with the account's key and who they are in Sedna as integrations would give them: one account,
+ * whose requests all go through its own paced fetch (`paced.sent` counts them).
+ */
 function tools({ person = PAT, who = null, removed = [], renewed = [] } = {}) {
+  const paced = appKey("9", { app: "Sedna" });
   const integrations = {
     reachableAccounts: async () => [{ id: "9", pluginId: "sedna", name: "", label: "Acme Shipping", status: "connected", home: true }],
     connections: {
       accessToken: async (_reach, _id, _call, { refused = "" } = {}) => {
         if (refused) renewed.push(refused);
-        return { accessToken: refused ? "key-2" : "key-1", api: API };
+        return { accessToken: refused ? "key-2" : "key-1", api: API, fetch: paced.fetch };
       },
       appPerson: async () => who || { person, via: "email" }
     }
@@ -81,7 +87,7 @@ function tools({ person = PAT, who = null, removed = [], renewed = [] } = {}) {
     inTime: (work) => work,
     untrustedMail: (text) => `<<${text}>>`
   });
-  return { ...built, attempted };
+  return { ...built, attempted, paced };
 }
 
 test("reads stay in the person's own teams: lists ask Sedna for them, a message read by id is checked first", async (context) => {
@@ -107,7 +113,7 @@ test("reads stay in the person's own teams: lists ask Sedna for them, a message 
       { id: "503", attributes: { firstName: "Shared", lastName: "Desk", emailAddresses: [], phoneNumbers: [] }, relationships: teams() }
     ] }]
   });
-  const { sednaMessages, sednaLists, attempted } = tools();
+  const { sednaMessages, sednaLists, attempted, paced } = tools();
 
   const recent = await sednaMessages.execute({ action: "recent" });
   assert.deepEqual(recent.result.messages.map((entry) => entry.id), ["1003", "1001"], "newest first, the other team's message left out");
@@ -139,6 +145,7 @@ test("reads stay in the person's own teams: lists ask Sedna for them, a message 
   assert.deepEqual((await sednaLists.execute({ action: "teams" })).result, [{ id: "11", name: "Chartering" }]);
   assert.deepEqual((await sednaLists.execute({ action: "contacts" })).result.map((contact) => contact.name), ["Kim Broker", "Shared Desk"]);
   assert.ok(attempted.includes("sedna_messages") && attempted.includes("sedna_lists"));
+  assert.equal(paced.sent, calls.length, "every request to Sedna went through the account's paced fetch");
 });
 
 test("a message whose answer doesn't name its teams is checked against Sedna's list of them", async (context) => {
@@ -175,11 +182,14 @@ test("a busy Sedna is waited out once when it asks briefly, then reported; a ref
     "GET /contact": [401, {}]
   });
   const { sednaLists } = tools();
-  assert.match((await sednaLists.execute({ action: "tags" })).error, /Sedna is busy: it asked to wait 0 seconds .* don't keep retrying/u);
+  // The tool hands the busy app to `failed`, which gives the bot its answer (calendarInfo.test.js checks the real one).
+  assert.equal((await sednaLists.execute({ action: "tags" })).error, "Sedna is busy: try again in 1 s. Nothing was done.");
   assert.equal(calls.filter((call) => call.url.pathname.endsWith("/category-tag")).length, 2, "one wait and one more try, no loop");
   assert.deepEqual((await sednaLists.execute({ action: "tags" })).result, [], "the next call goes through");
-  assert.match((await sednaLists.execute({ action: "jobs" })).error, /asked to wait 120 seconds/u);
+  assert.match((await sednaLists.execute({ action: "jobs" })).error, /^Sedna is busy: try again in 120 s\./u);
   assert.equal(calls.filter((call) => call.url.pathname.endsWith("/job-reference")).length, 1, "a long wait is reported at once");
+  assert.match((await sednaLists.execute({ action: "tags" })).error, /^Sedna is busy: try again in 1[12]\d s\./u, "every read waits out what Sedna asked");
+  assert.equal(calls.filter((call) => call.url.pathname.endsWith("/category-tag")).length, 3, "and nothing is sent meanwhile");
 
   const renewed = [];
   const refused = tools({ renewed });

@@ -6,6 +6,7 @@ import { passedOn } from "@jskit-ai/resource-runtime/server";
 import { createConnector } from "./connector.js";
 import { createConnectorAccounts } from "./connectorAccounts.js";
 import { createAppPeople } from "./appPeople.js";
+import { createAppRequests } from "./appRequests.js";
 import { credentialKind, credentialValues, credentialsMissing, credentialsOnly } from "./credentials.js";
 import { ConnectionError, PROVIDERS, callbackUrl, createOAuth, credentials, fresh } from "./oauth.js";
 import { createTokenRenewal, ranOut } from "./tokenRenewal.js";
@@ -147,6 +148,7 @@ function missingScopes(tokens, scopes) {
  * @param {(userId: string, options: object) => Promise<string>} dependencies.emailOf a person's sign-in address
  * @param {(email: string, options: object) => Promise<string | null>} dependencies.memberWithEmail the id of the call's
  *   home's person who signs in with an address, or null
+ * @param {(reason: string) => object} dependencies.systemContext the feature's system scope, for each account's turns (D-96)
  */
 export function createConnections({
   resources,
@@ -163,7 +165,8 @@ export function createConnections({
   credentialKinds,
   homePeople,
   emailOf,
-  memberWithEmail
+  memberWithEmail,
+  systemContext
 }) {
   const { oauthStates, bridgeLink } = resources;
   const key = () => {
@@ -175,7 +178,17 @@ export function createConnections({
   const opened = (value) => unseal(value, key());
   const pluginOf = (pluginId) => catalogue.find((entry) => entry.id === pluginId) || null;
   const connector = createConnector({ connectorApps: resources.connectorApps, env, sealed, opened, fetch: fetchImpl });
-  const connectorAccounts = createConnectorAccounts({ connector, accounts, oauthClient, pluginOf, sealed, opened });
+  // Every request to a connected account's app waits its turn in the account's Request pace (D-96).
+  const requests = createAppRequests({ turns: resources.pluginAccountTurns, systemContext });
+  const connectorAccounts = createConnectorAccounts({
+    connector,
+    accounts,
+    oauthClient,
+    pluginOf,
+    sealed,
+    opened,
+    paced: (account, plugin) => requests.fetchFor(account, plugin, fetchImpl)
+  });
   const { renewedTokens, mintedTokens } = createTokenRenewal({ accounts, oauthClient, sealed, opened });
 
   /**
@@ -369,19 +382,24 @@ export function createConnections({
   /**
    * A key for calling the provider's API for this account, valid for at least a minute (`renewed` when this call renewed
    * it): one about to run out is renewed, and so is `refused`, a key the provider turned down before it ran out (D-80).
+   * `fetch` is the account's own way to its app, the only one its callers use: each request waits its turn in the
+   * account's Request pace, and a busy app says when to try again (appRequests.js, D-96).
    */
   async function accessToken(reach, accountId, options, { refused = "" } = {}) {
     const account = await accounts.reachableAccount(reach, accountId, options, { tokens: true });
-    if (pluginOf(account.pluginId)?.credentials) return credentialToken(account, options, refused);
+    const paced = requests.fetchFor(account, pluginOf(account.pluginId));
+    if (pluginOf(account.pluginId)?.credentials) return { ...await credentialToken(account, options, refused), fetch: paced };
     const { provider } = await signInFor(account.pluginId, options);
     if (account.tokens) {
       const stored = opened(account.tokens);
-      if (fresh(stored) && stored.access !== refused) return { accessToken: stored.access, expiresAt: stored.expiresAt, renewed: false };
+      if (fresh(stored) && stored.access !== refused) {
+        return { accessToken: stored.access, expiresAt: stored.expiresAt, renewed: false, fetch: paced };
+      }
       const { tokens, renewed } = await renewedTokens(account, provider, refused || stored.access, options);
-      return { accessToken: tokens.access, expiresAt: tokens.expiresAt, renewed };
+      return { accessToken: tokens.access, expiresAt: tokens.expiresAt, renewed, fetch: paced };
     }
     const hub = account.bridgeRef ? await linkedHub(options) : null;
-    if (hub) return hub.token(account.bridgeRef);
+    if (hub) return { ...await hub.token(account.bridgeRef), fetch: paced };
     throw new ConnectionError(409, `${account.name} isn't signed in to ${provider.name}.`, {
       code: "integrations_account_signed_out",
       params: { account: account.name, provider: provider.name }
@@ -427,7 +445,8 @@ export function createConnections({
     }
     const values = kind.normalize(credentialValues(plugin, body));
     const minted = await kind.mint(values);
-    const checked = await kind.check({ values, access: minted.access, people: await homePeople(options) });
+    const access = { token: minted.access, fetch: requests.fetchFor(account, plugin) };
+    const checked = await kind.check({ values, access, people: await homePeople(options) });
     await accounts.connectedHere(account, {
       tokens: sealed({ values, access: minted.access, expiresAt: minted.expiresAt }),
       label: checked.label,
@@ -442,7 +461,10 @@ export function createConnections({
     accounts,
     links: resources.pluginAccountPeople,
     kindOf: (account) => credentialKind(pluginOf(account.pluginId), credentialKinds),
-    keyFor: async (account, options) => ({ access: (await credentialToken(account, options, "")).accessToken, values: opened(account.tokens).values }),
+    keyFor: async (account, options) => ({
+      access: { token: (await credentialToken(account, options, "")).accessToken, fetch: requests.fetchFor(account, pluginOf(account.pluginId)) },
+      values: opened(account.tokens).values
+    }),
     homePeople,
     emailOf,
     memberWithEmail

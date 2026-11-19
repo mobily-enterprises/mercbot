@@ -2,15 +2,16 @@ import { ConnectedAppError } from "./connectedApps.js";
 
 // Bots using the person's connected GitHub account (D-31): finding and reading issues and pull
 // requests, with their comments, reviews and test results, and commenting once approved. Real
-// coding work goes to a dedicated coding service, not to these tools.
+// coding work goes to a dedicated coding service, not to these tools. Every request goes through the account's own
+// fetch (`key`, an AppKey), in its Request pace (D-96).
 
 const API = "https://api.github.com";
 
 async function call(key, path, options = {}) {
-  const response = await fetch(`${API}${path}`, {
+  const response = await key.fetch(`${API}${path}`, {
     ...options,
     headers: {
-      authorization: `Bearer ${key}`,
+      authorization: `Bearer ${key.token}`,
       accept: "application/vnd.github+json",
       "x-github-api-version": "2022-11-28",
       "user-agent": "Mercbot",
@@ -184,9 +185,9 @@ export async function graphql(key, query, variables = {}) {
 }
 
 export async function githubText(key, path) {
-  const response = await fetch(`${API}${path}`, {
+  const response = await key.fetch(`${API}${path}`, {
     headers: {
-      authorization: `Bearer ${key}`,
+      authorization: `Bearer ${key.token}`,
       accept: "application/vnd.github+json",
       "x-github-api-version": "2022-11-28",
       "user-agent": "Mercbot"

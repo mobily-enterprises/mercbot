@@ -3,6 +3,10 @@ import test from "node:test";
 import * as google from "../../packages/bots/src/server/googleApps.js";
 import * as microsoft from "../../packages/bots/src/server/microsoftApps.js";
 import { MAIL_ACTIONS, buildMailTools } from "../../packages/bots/src/server/mailTools.js";
+import { appKey } from "../support/appKey.mjs";
+
+// The account's key as integrations hands it over (D-96): its token, and its own paced fetch to the stand-in app.
+const KEY = appKey("k");
 
 // The rest of the mailbox (D-42), against stand-ins for Gmail's and Graph's APIs.
 function fakeApi(context, routes) {
@@ -29,11 +33,11 @@ test("Gmail: sorting mail uses labels and the bin, and undo reverses each", asyn
     "/trash": [200, {}],
     "/untrash": [200, {}]
   });
-  await google.organiseEmail("k", "m1", { action: "archive" });
-  await google.organiseEmail("k", "m1", { action: "spam", undo: true });
-  await google.organiseEmail("k", "m1", { action: "bin" });
-  await google.organiseEmail("k", "m1", { action: "bin", undo: true });
-  await google.organiseEmail("k", "m1", { action: "move", label: "receipts" });
+  await google.organiseEmail(KEY, "m1", { action: "archive" });
+  await google.organiseEmail(KEY, "m1", { action: "spam", undo: true });
+  await google.organiseEmail(KEY, "m1", { action: "bin" });
+  await google.organiseEmail(KEY, "m1", { action: "bin", undo: true });
+  await google.organiseEmail(KEY, "m1", { action: "move", label: "receipts" });
   const changes = calls.filter((call) => call.method === "POST").map((call) => `${call.url.split("/m1/")[1]} ${JSON.stringify(call.body)}`);
   assert.deepEqual(changes, [
     'modify {"addLabelIds":[],"removeLabelIds":["INBOX"]}',
@@ -42,7 +46,7 @@ test("Gmail: sorting mail uses labels and the bin, and undo reverses each", asyn
     "untrash null",
     'modify {"addLabelIds":["Label_7"],"removeLabelIds":["INBOX"]}'
   ]);
-  await assert.rejects(google.organiseEmail("k", "m1", { action: "label", label: "Nope" }), /no label called Nope/u);
+  await assert.rejects(google.organiseEmail(KEY, "m1", { action: "label", label: "Nope" }), /no label called Nope/u);
 });
 
 test("Gmail: a saved draft keeps what wasn't changed, and a forward carries the original below a note", async (context) => {
@@ -54,16 +58,16 @@ test("Gmail: a saved draft keeps what wasn't changed, and a forward carries the 
     "GET /messages/m9": [200, { threadId: "t9", payload: { mimeType: "text/plain", headers: [{ name: "From", value: "Ana <ana@example.com>" }, { name: "Subject", value: "Tickets" }, { name: "To", value: "pat@example.com" }], body: { data: Buffer.from("Two tickets attached.").toString("base64url") } } }],
     "/messages/send": [200, { id: "s1" }]
   });
-  await google.updateDraft("k", "d1", { subject: "Friday dinner" });
+  await google.updateDraft(KEY, "d1", { subject: "Friday dinner" });
   const update = calls.find((call) => call.method === "PUT");
   const raw = decoded(update.body.message.raw);
   assert.match(raw, /^To: kim@example\.com/mu);
   assert.match(raw, /^Subject: Friday dinner/mu);
   assert.equal(Buffer.from(raw.split("\r\n\r\n")[1], "base64").toString(), "Hi Kim,\nSee you Friday.");
 
-  assert.deepEqual(await google.createDraft("k", { to: ["sam@example.com"], subject: "Hello", text: "Hi Sam" }), { id: "d2" });
+  assert.deepEqual(await google.createDraft(KEY, { to: ["sam@example.com"], subject: "Hello", text: "Hi Sam" }), { id: "d2" });
 
-  const sent = await google.forwardEmail("k", "m9", { to: ["sam@example.com"], note: "FYI" });
+  const sent = await google.forwardEmail(KEY, "m9", { to: ["sam@example.com"], note: "FYI" });
   assert.deepEqual([sent.subject, sent.attachmentsLeftOut], ["Fwd: Tickets", true]);
   const forward = decoded(calls.find((call) => call.url.endsWith("/messages/send")).body.raw);
   const text = Buffer.from(forward.split("\r\n\r\n")[1], "base64").toString();
@@ -79,20 +83,20 @@ test("Outlook: sorting moves to Outlook's own folders, labels are categories, a 
     "GET /messages/m2?$select=subject": [200, { subject: "Tickets" }],
     "/forward": [202, {}]
   });
-  assert.deepEqual(await microsoft.organiseEmail("k", "m1", { action: "spam" }), { id: "m1-moved" });
-  await microsoft.organiseEmail("k", "m1", { action: "bin", undo: true });
-  await microsoft.organiseEmail("k", "m1", { action: "label", label: "Receipts" });
-  await microsoft.organiseEmail("k", "m1", { action: "star" });
+  assert.deepEqual(await microsoft.organiseEmail(KEY, "m1", { action: "spam" }), { id: "m1-moved" });
+  await microsoft.organiseEmail(KEY, "m1", { action: "bin", undo: true });
+  await microsoft.organiseEmail(KEY, "m1", { action: "label", label: "Receipts" });
+  await microsoft.organiseEmail(KEY, "m1", { action: "star" });
   assert.deepEqual(calls.filter((call) => call.method !== "GET").map((call) => JSON.stringify(call.body)), [
     '{"destinationId":"junkemail"}',
     '{"destinationId":"inbox"}',
     '{"categories":["Red","Receipts"]}',
     '{"flag":{"flagStatus":"flagged"}}'
   ]);
-  const sent = await microsoft.forwardEmail("k", "m2", { to: ["sam@example.com"], note: "FYI" });
+  const sent = await microsoft.forwardEmail(KEY, "m2", { to: ["sam@example.com"], note: "FYI" });
   assert.equal(sent.subject, "FW: Tickets");
   assert.deepEqual(calls.at(-1).body, { comment: "FYI", toRecipients: [{ emailAddress: { address: "sam@example.com" } }] });
-  await assert.rejects(microsoft.mailFilters("k"), /this is for Gmail/u);
+  await assert.rejects(microsoft.mailFilters(KEY), /this is for Gmail/u);
 });
 
 test("Outlook: Gmail's in: words search Outlook's own folders, or one of the person's by name", async (context) => {
@@ -101,8 +105,8 @@ test("Outlook: Gmail's in: words search Outlook's own folders, or one of the per
     "GET /mailFolders?$top": [200, { value: [{ id: "F42", displayName: "Receipts" }] }],
     "/mailFolders/F42/messages": [200, { value: [] }]
   });
-  assert.equal((await microsoft.searchEmail("k", "in:spam"))[0].id, "j1");
-  await microsoft.searchEmail("k", "in:receipts from:shop");
+  assert.equal((await microsoft.searchEmail(KEY, "in:spam"))[0].id, "j1");
+  await microsoft.searchEmail(KEY, "in:receipts from:shop");
   assert.match(decodeURIComponent(calls.at(-1).url), /\/mailFolders\/F42\/messages\?\$search="from:shop"/u);
 });
 

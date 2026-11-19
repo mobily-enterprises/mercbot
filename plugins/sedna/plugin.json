@@ -168,5 +168,11 @@
       "id": "sedna_inbox.new",
       "name": "Watch new mail in routines"
     }
-  ]
+  ],
+  "limits": {
+    "requests": 100,
+    "seconds": 1,
+    "source": "https://developers.sedna.com/reference/errors",
+    "says": "SEDNA allows 100 requests, per second, per API key or IP address. The organisation's other programs may use the same key."
+  }
 }

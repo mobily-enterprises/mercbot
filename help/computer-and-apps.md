@@ -190,6 +190,18 @@ You can connect several accounts of the same app, such as a work and a personal 
 
 With several accounts, a bot reads all of them unless you name one, and groups its answer by account. You can name an account by its label, its address, or its app ("the Google one"). "My calendar" means your own address. When a bot has to choose one account for a change, it asks once and keeps to your answer in that chat.
 
+### Request pace: how fast Mercbot uses an app
+
+Every app limits how many requests it takes from one account, and Mercbot keeps each connected account to a share of that limit, from all your bots and routines together. An app's page shows **Request pace** with three choices for each connected account:
+
+- **Gentle** (the default, for every account until someone changes it) uses a tenth of what the app allows. Keep it when other programs use the same account, such as your Sedna organisation's other integrations.
+- **Normal** uses four tenths.
+- **Fast** uses nine tenths: close to the app's limit, never over it.
+
+You choose the pace of your own accounts; a home's account's pace is chosen by the home's owners and admins. Sedna, for example, allows 100 requests a second: Gentle sends at most 10.
+
+If an app asks Mercbot to wait, Mercbot sends that account nothing until the wait is over, and a bot or card says, for example, **Sedna is busy: try again in 30 s. Nothing was done.** It says the same when the account's pace has no turn free in the next 20 seconds because your bots already used it. Try again after the time it names. A routine that meets a busy app reads the same new mail on its next run, so nothing is skipped.
+
 ## Account states
 
 Each account on an app's page shows where it stands:
@@ -287,7 +299,7 @@ Bots work in your own Sedna teams' shared email, as you: the Sedna user with you
 - **Attachments:** save one or all of a message's attachments into the bot's files.
 - **Contacts:** add a contact or change one, only when you ask.
 
-Everything happens only in your own chats with your bots, never in a shared conversation, and only on your own teams' messages. Sending and assigning reach other people, so they ask first unless you asked for exactly that; see [What always asks first](/help/approvals-and-privacy#what-always-asks-first). A copy of Mercbot that isn't live (Development, Test or Staging) changes nothing in Sedna: it logs what it would have done. Sedna has no search across message text: bots find messages by tag, by job reference or among the newest. If Sedna asks Mercbot to slow down, the bot says so and tries later.
+Everything happens only in your own chats with your bots, never in a shared conversation, and only on your own teams' messages. Sending and assigning reach other people, so they ask first unless you asked for exactly that; see [What always asks first](/help/approvals-and-privacy#what-always-asks-first). A copy of Mercbot that isn't live (Development, Test or Staging) changes nothing in Sedna: it logs what it would have done. Sedna has no search across message text: bots find messages by tag, by job reference or among the newest. Mercbot keeps to Sedna's [Request pace](#request-pace-how-fast-mercbot-uses-an-app), and if Sedna asks it to wait, the bot says when to try again.
 
 If Sedna doesn't answer a send or a change, the bot never tries again by itself: it may have gone through. The card or the bot says so: look in Sedna first, then try again if it isn't there. Message comments are read only, because Sedna's API can't add them.
 

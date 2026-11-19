@@ -11,6 +11,7 @@ import { createBotsService } from "../../packages/bots/src/server/botsService.js
 import { appCard } from "../../packages/bots/src/server/botActions.js";
 import { buildCardTools } from "../../packages/bots/src/server/cardTools.js";
 import { connectedKeys } from "../../packages/bots/src/server/connectedApps.js";
+import { accessOf } from "../support/appKey.mjs";
 
 // What the bots and Connect apps read of a person's apps, accounts and skills (D-31, D-37), against the
 // disposable test database: an app's name and card come from the catalogue, a tool asks only for the connected
@@ -32,7 +33,7 @@ const CATALOGUE = Object.freeze([
 // each account's key names it. No provider is called.
 const CONNECTIONS = Object.freeze({
   lacksAccess: (row) => row.label === "old-access@example.com",
-  accessToken: async (_reach, accountId) => ({ accessToken: `key-${accountId}` })
+  accessToken: async (_reach, accountId) => accessOf(`key-${accountId}`)
 });
 
 /** The integrations service with the catalogue above, on the test's Knex. */
@@ -88,7 +89,7 @@ test("a bot's tool asks only for the connected accounts of its own apps", async 
   };
 
   const keys = await connectedKeys({ integrations, reach: REACH, call: as }, ["gmail", "outlook"], "mail");
-  assert.deepEqual(keys.map((key) => [key.app, key.address, key.key]), [["Gmail", "lee@example.com", `key-${ids[0]}`], ["Outlook", "lee@work.example", `key-${ids[3]}`]]);
+  assert.deepEqual(keys.map((key) => [key.app, key.address, key.key.token]), [["Gmail", "lee@example.com", `key-${ids[0]}`], ["Outlook", "lee@work.example", `key-${ids[3]}`]]);
   assert.deepEqual(read, [ids[0], ids[3]], "not the Gmail account waiting for sign-in, nor the calendar's");
 
   // Switched off for Gmail, its account is still told apart from an app that isn't connected.

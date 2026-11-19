@@ -3,6 +3,10 @@ import test from "node:test";
 import * as google from "../../packages/bots/src/server/googleApps.js";
 import * as microsoft from "../../packages/bots/src/server/microsoftApps.js";
 import { DRIVE_ACTIONS, buildDriveTools } from "../../packages/bots/src/server/driveTools.js";
+import { appKey } from "../support/appKey.mjs";
+
+// The account's key as integrations hands it over (D-96): its token, and its own paced fetch to the stand-in app.
+const KEY = appKey("k");
 
 // The rest of the person's drive (D-42), against stand-ins for Drive's and Graph's APIs.
 function fakeApi(context, routes) {
@@ -31,10 +35,10 @@ test("Drive: search looks in names and contents, a folder is found by name, and 
     "/files/d1/export": [200, "The plan, in words."],
     "/files/d1?fields=id,name,mimeType": [200, { id: "d1", name: "Plan", mimeType: "application/vnd.google-apps.document" }]
   });
-  assert.deepEqual((await google.searchFiles("k", "Kim's plan")).map((file) => file.kind), ["a Google Doc"]);
+  assert.deepEqual((await google.searchFiles(KEY, "Kim's plan")).map((file) => file.kind), ["a Google Doc"]);
   assert.match(calls[0].url, /name contains 'Kim\\'s plan' or fullText contains 'Kim\\'s plan'/u);
-  assert.deepEqual((await google.listFolder("k", "Projects")).map((file) => file.name), ["Plan"]);
-  assert.deepEqual(await google.readFileText("k", "d1"), { name: "Plan", text: "The plan, in words." });
+  assert.deepEqual((await google.listFolder(KEY, "Projects")).map((file) => file.name), ["Plan"]);
+  assert.deepEqual(await google.readFileText(KEY, "d1"), { name: "Plan", text: "The plan, in words." });
   assert.match(calls.at(-1).url, /export\?mimeType=text\/plain/u);
 });
 
@@ -48,14 +52,14 @@ test("Drive: a Doc exports to the format asked, sharing names the role, moving s
     "name = 'Archive'": [200, { files: [{ id: "F9", name: "Archive" }] }],
     "/files/d1?fields=parents": [200, { parents: ["root"] }]
   });
-  const pdf = await google.downloadFile("k", "d1", "pdf");
+  const pdf = await google.downloadFile(KEY, "d1", "pdf");
   assert.deepEqual([pdf.name, pdf.data.toString()], ["Plan.pdf", "%PDF-1.4"]);
-  await assert.rejects(google.downloadFile("k", "d1", "xlsx"), /can be exported as pdf, docx, html, txt/u);
-  const shared = await google.shareFile("k", "d1", { email: "kim@example.com", role: "comment", notify: false });
+  await assert.rejects(google.downloadFile(KEY, "d1", "xlsx"), /can be exported as pdf, docx, html, txt/u);
+  const shared = await google.shareFile(KEY, "d1", { email: "kim@example.com", role: "comment", notify: false });
   assert.deepEqual(JSON.parse(calls.find((call) => call.url.includes("/permissions")).body), { type: "user", role: "commenter", emailAddress: "kim@example.com" });
   assert.match(calls.find((call) => call.url.includes("/permissions")).url, /sendNotificationEmail=false/u);
   assert.deepEqual(shared.sharedWith, [{ who: "kim@example.com", role: "commenter" }]);
-  const moved = await google.moveFile("k", "d1", { folder: "Archive", name: "Plan 2026" });
+  const moved = await google.moveFile(KEY, "d1", { folder: "Archive", name: "Plan 2026" });
   assert.equal(moved.name, "Plan 2026");
   assert.match(calls.at(-1).url, /addParents=F9&removeParents=root/u);
 });
@@ -67,12 +71,12 @@ test("OneDrive: a folder by path, a file made from text, a PDF conversion, and n
     "/drive/items/A3/content?format=pdf": [200, "%PDF"],
     "/drive/items/A3": [200, { id: "A3", name: "Report.docx" }]
   });
-  assert.deepEqual((await microsoft.listFolder("k", "Projects/2026")).map((item) => item.name), ["notes.txt"]);
-  assert.equal((await microsoft.createFile("k", { name: "list.csv", text: "a,b", folder: "Projects" })).link, "https://onedrive/a2");
+  assert.deepEqual((await microsoft.listFolder(KEY, "Projects/2026")).map((item) => item.name), ["notes.txt"]);
+  assert.equal((await microsoft.createFile(KEY, { name: "list.csv", text: "a,b", folder: "Projects" })).link, "https://onedrive/a2");
   assert.equal(calls.at(-1).body, "a,b");
-  assert.equal((await microsoft.downloadFile("k", "A3", "pdf")).name, "Report.pdf");
-  await assert.rejects(microsoft.downloadFile("k", "A3", "xlsx"), /only to PDF/u);
-  await assert.rejects(microsoft.listComments("k", "A3"), /this is for Google Drive/u);
+  assert.equal((await microsoft.downloadFile(KEY, "A3", "pdf")).name, "Report.pdf");
+  await assert.rejects(microsoft.downloadFile(KEY, "A3", "xlsx"), /only to PDF/u);
+  await assert.rejects(microsoft.listComments(KEY, "A3"), /this is for Google Drive/u);
 });
 
 test("each drive action is its own switch, and sharing or commenting asks unless the person asked for it", () => {

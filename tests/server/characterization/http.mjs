@@ -85,6 +85,7 @@ export async function signUp(app, knex, name) {
     get: (url) => request("GET", url),
     post: (url, body = {}) => request("POST", url, body),
     patch: (url, body = {}) => request("PATCH", url, body),
+    put: (url, body = {}) => request("PUT", url, body),
     delete: (url) => request("DELETE", url)
   });
 }

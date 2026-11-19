@@ -16,10 +16,10 @@ import { ConnectionError } from "./oauth.js";
 const TENANT = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/u;
 const DOMAIN = ".sednanetwork.com";
 const API_VERSION = "2019-01-01";
-// How many people are looked up at once while credentials are checked: Sedna takes 100 requests a second.
-const LOOKUPS_AT_ONCE = 5;
 // People matched while credentials are checked; the rest are matched when they first ask.
 const PEOPLE_CHECKED = 50;
+// The organisation's users are read this many a request (Sedna's own default) to match the home's people at once.
+const USERS_PAGE = 100;
 // Credentials Sedna takes only as Basic auth are checked with it again this often, as a key would be made again.
 const BASIC_RECHECK_S = 3600;
 // The permission (Sedna's name on its API Credential Management page) each read made at Connect needs.
@@ -59,10 +59,12 @@ export function createSednaCredentials({ standIn = "", fetch: fetchImpl = (...ar
   };
   const host = (values) => `${sednaTenant(values.tenant)}${DOMAIN}`;
 
-  async function send(url, options, values) {
+  /** A request to Sedna: through the account's own way to it (`via`, in its Request pace, D-96), or for a key, directly. */
+  async function send(url, options, values, via = fetchImpl) {
     try {
-      return await fetchImpl(url, { ...options, signal: AbortSignal.timeout(15000) });
-    } catch {
+      return await via(url, { ...options, signal: AbortSignal.timeout(15000) });
+    } catch (error) {
+      if (error?.code === "integrations_app_busy") throw error;
       throw new ConnectionError(502, `Couldn't reach ${host(values)}. Check the Sedna address and this server's internet connection.`, {
         code: "integrations_sedna_unreachable",
         params: { host: host(values) }
@@ -70,11 +72,19 @@ export function createSednaCredentials({ standIn = "", fetch: fetchImpl = (...ar
     }
   }
 
-  /** One read of Sedna's API with a key: its JSON:API body, or a ConnectionError saying what Sedna answered. */
+  /**
+   * One read of Sedna's API with the account's key, through its own way to Sedna (in its Request pace, D-96): its JSON:API
+   * body, or a ConnectionError saying what Sedna answered. A busy Sedna is integrations' AppBusyError.
+   * @param {object} values
+   * @param {{ token: string, fetch: typeof fetch }} access
+   * @param {string} path
+   * @param {Record<string, string | number>} [params]
+   */
   async function read(values, access, path, params = {}) {
     const url = new URL(`${platform(values)}/${API_VERSION}${path}`);
     for (const [name, value] of Object.entries(params)) url.searchParams.set(name, String(value));
-    const response = await send(url, { headers: { authorization: authorization(access), accept: "application/vnd.api+json, application/json", "user-agent": "Mercbot" } }, values);
+    const headers = { authorization: authorization(access.token), accept: "application/vnd.api+json, application/json", "user-agent": "Mercbot" };
+    const response = await send(url, { headers }, values, access.fetch);
     if (response.ok) return response.json().catch(() => ({}));
     if (response.status === 403) {
       const what = path.split("/")[1];
@@ -82,9 +92,6 @@ export function createSednaCredentials({ standIn = "", fetch: fetchImpl = (...ar
         code: "integrations_sedna_permission_missing",
         params: { what, permission: PERMISSION[what] }
       });
-    }
-    if (response.status === 429) {
-      throw new ConnectionError(503, "Sedna is busy (too many requests just now). Try again in a minute.", { code: "integrations_sedna_busy" });
     }
     throw new ConnectionError(502, `Sedna answered ${response.status} to ${path}.`, { code: "integrations_sedna_failed", params: { status: response.status } });
   }
@@ -207,15 +214,28 @@ export function createSednaCredentials({ standIn = "", fetch: fetchImpl = (...ar
 
   /**
    * The Sedna user each of `people` is by their email address, in order (null for none), for the first PEOPLE_CHECKED of
-   * them, a few at a time: Sedna takes 100 requests a second.
-   * @param {{ values: object, access: string, people: Array<{ email: string }> }} input
+   * them; exactly one user that isn't archived must have the address, as for `user`. Whichever costs Sedna fewer requests
+   * is used: reading all the organisation's users, a hundred a request, when they fill no more pages than there are
+   * people to match; else looking each person up, one or two requests each.
+   * @param {{ values: object, access: { token: string, fetch: typeof fetch }, people: Array<{ email: string }> }} input
    */
   async function matches({ values, access, people }) {
-    const found = [];
     const checked = people.slice(0, PEOPLE_CHECKED);
-    for (let at = 0; at < checked.length; at += LOOKUPS_AT_ONCE) {
-      found.push(...await Promise.all(checked.slice(at, at + LOOKUPS_AT_ONCE).map((entry) => user(values, access, entry.email))));
+    if (!checked.length) return [];
+    const byEmail = new Map();
+    for (let page = 0; ; page += 1) {
+      const body = await read(values, access, "/user", { "page[limit]": USERS_PAGE, "page[offset]": page * USERS_PAGE });
+      const listed = body?.data || [];
+      for (const found of listed.filter((entry) => !entry?.attributes?.archived).map(asUser)) {
+        for (const email of found.emails) byEmail.set(email, byEmail.has(email) ? null : found);
+      }
+      const total = Number(body?.meta?.total);
+      const pages = Number.isFinite(total) ? Math.ceil(total / USERS_PAGE) : Infinity;
+      if (listed.length < USERS_PAGE || page + 1 >= pages) return checked.map((entry) => byEmail.get(String(entry.email || "").trim().toLowerCase()) || null);
+      if (pages > checked.length) break;
     }
+    const found = [];
+    for (const entry of checked) found.push(await user(values, access, entry.email));
     return found;
   }
 
@@ -223,7 +243,7 @@ export function createSednaCredentials({ standIn = "", fetch: fetchImpl = (...ar
    * Credentials about to be saved: the company they belong to (its name labels the account), and each of the home's
    * people matched to their Sedna user by email address. People with no Sedna user are listed: they pick themselves,
    * and their bots read nothing there until an owner or admin confirms it.
-   * @param {{ values: object, access: string, people: Array<{ id: string, name: string, email: string }> }} input
+   * @param {{ values: object, access: { token: string, fetch: typeof fetch }, people: Array<{ id: string, name: string, email: string }> }} input
    */
   async function check({ values, access, people }) {
     const company = await read(values, access, "/company/me");

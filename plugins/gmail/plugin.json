@@ -131,5 +131,11 @@
       "id": "mail_labels.delete",
       "name": "Delete labels"
     }
-  ]
+  ],
+  "limits": {
+    "requests": 300,
+    "seconds": 60,
+    "source": "https://developers.google.com/workspace/gmail/api/reference/quota",
+    "says": "6,000 quota units a minute per user: 300 requests at the 20 units of the reads Mercbot makes most (messages.get with metadata). A full message costs 60, a thread 120, a send 100."
+  }
 }

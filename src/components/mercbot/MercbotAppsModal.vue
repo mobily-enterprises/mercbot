@@ -5,6 +5,7 @@ import MercbotAppPeople from "./MercbotAppPeople.vue";
 import MercbotAvatar from "./MercbotAvatar.vue";
 import MercbotCredentialsForm from "./MercbotCredentialsForm.vue";
 import MercbotPluginLogo from "./MercbotPluginLogo.vue";
+import MercbotRequestPace from "./MercbotRequestPace.vue";
 import { openSignIn, pluginsApi } from "./pluginsApi.js";
 import { sleep } from "./botsApi.js";
 import { useHomes } from "./homesApi.js";
@@ -70,6 +71,11 @@ const {
   newAccountLabel, addingAccount, forHome, removingAccount, confirmingDisconnect, disconnect, removeAccount, canChange,
   startAddAccount, authorizeNewAccount, renamingAccountId, accountName, startAccountRename, commitAccountRename
 } = useAppAccounts({ plugins, managesHome, signIn, onFailure });
+
+/** A list a change answered with, shown at once. */
+const showPlugins = (list) => {
+  plugins.value = list;
+};
 
 async function load() {
   // The screen stays usable with the list it last had while this read is on its way, so an answer that came
@@ -494,6 +500,14 @@ function openTemplates() {
         </section>
 
         <MercbotAppPeople v-if="homeConnected" :key="homeConnected.id" :plugin="current" :account="homeConnected" :manages-home="managesHome" />
+
+        <MercbotRequestPace
+          v-if="current.limits && current.accounts.some(working)"
+          :plugin="current"
+          :accounts="current.accounts.filter(working)"
+          :manages-home="managesHome"
+          @changed="showPlugins"
+        />
 
         <section v-if="current.actions?.length && current.accounts.some(working)" class="mb-detail__group">
           <h3>Tools</h3>

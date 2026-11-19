@@ -50,6 +50,10 @@ name and **Connected**, for everyone in the home, and a note says how many of th
 email address. **Change credentials** enters new ones (checked the same way); **Disconnect** deletes them from Mercbot.
 A member sees Sedna connected but can't connect, change or disconnect it.
 
+**Request pace.** Sedna allows 100 requests a second per credential, and the organisation's other programs may use the
+same one. Mercbot uses a tenth of that (**Gentle**) unless an owner or admin chooses **Normal** or **Fast** under
+**Request pace** on Sedna's page in Connect apps: see [Choose how fast Mercbot uses an app](request-pace.md).
+
 ## Who each person is in Sedna
 
 The credentials could read every team's inbox, so a bot reads only what its person's own Sedna user sees.
@@ -96,7 +100,9 @@ refusal means is in [Work with Sedna mail](working-with-sedna-mail.md).
 - **A bot says the person isn't matched to a Sedna user, or is waiting for confirmation:** pick yourself, or confirm
   them under **People**.
 - **A bot says a message isn't in the person's teams:** it's another team's; the bot shows nothing of it.
-- **A bot says Sedna is busy:** Sedna asked Mercbot to slow down. Try again after the wait it names.
+- **A bot says "Sedna is busy: try again in N s. Nothing was done."** Sedna asked Mercbot to wait, or Sedna's Request
+  pace has no turn free just now: nothing more goes to Sedna until then. Try again after the wait it names. See
+  [Choose how fast Mercbot uses an app](request-pace.md).
 
 ## What Colleague can do
 

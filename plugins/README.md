@@ -32,3 +32,9 @@ make them, a `page` link to that place (`{tenant}` is filled from the typed addr
 with an `id`, a `label` and optionally `secret`, `prefix`, `suffix`, `hint`, `optional` and `maxLength`. Connect apps
 shows the form in place of a sign-in, the kind checks the values with the app before they're saved, and its
 `skill.md` is the app's guidance for bots, as above.
+
+Every integration that reaches a service of its own (`oauth`, `mcp` or `credentials`) declares that service's published
+limit for one account in a `limits` block (D-96, `packages/integrations/src/server/appRequests.js`): `requests` in
+`seconds`, the `source` that publishes it, and what it `says`. Every request to the app waits its turn in the account's
+Request pace, a share of that limit (Gentle a tenth, Normal four tenths, Fast nine tenths); a service that publishes no
+number gets a conservative one, and `says` gives the reason. A test refuses an integration without one.

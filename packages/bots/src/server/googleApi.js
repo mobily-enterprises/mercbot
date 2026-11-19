@@ -1,18 +1,20 @@
 // The one way bots call Google's own APIs (D-31), with the person's hourly key from Connect apps,
-// and what a refusal tells the bot.
+// and what a refusal tells the bot. Every request goes through the account's own fetch, in its Request pace (D-96).
 
 import { ConnectedAppError } from "./connectedApps.js";
 
+/** @typedef {import("./connectedApps.js").AppKey} AppKey */
+
 /**
  * A call to one of Google's APIs with the person's key; a refusal throws what the bot should say.
- * @param {string} key
+ * @param {AppKey} key
  * @param {string} url
  * @param {RequestInit} [options]
  */
 export async function call(key, url, options = {}) {
-  const response = await fetch(url, {
+  const response = await key.fetch(url, {
     ...options,
-    headers: { authorization: `Bearer ${key}`, "content-type": "application/json", ...options.headers },
+    headers: { authorization: `Bearer ${key.token}`, "content-type": "application/json", ...options.headers },
     signal: AbortSignal.timeout(30000)
   });
   const body = await response.json().catch(() => ({}));

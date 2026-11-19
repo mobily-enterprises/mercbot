@@ -5,7 +5,7 @@ import { passedOn } from "@jskit-ai/resource-core/shared/callOptions";
 import { z } from "zod";
 import { appCard } from "./botActions.js";
 import { buildCalendarTools } from "./calendarTools.js";
-import { ConnectedAppError, connectedKey, connectedKeys } from "./connectedApps.js";
+import { ConnectedAppError, appBusy, busyAnswer, connectedKey, connectedKeys } from "./connectedApps.js";
 import * as github from "./githubApps.js";
 import * as google from "./googleApps.js";
 import * as microsoft from "./microsoftApps.js";
@@ -107,6 +107,8 @@ export function buildAccountTools({
 }) {
   const tools = {};
   const failed = (error) => {
+    // A busy app (D-96) is the tool's answer too: it says when to try again.
+    if (appBusy(error)) return busyAnswer(error);
     if (error instanceof ConnectedAppError) return { error: error.message };
     throw error;
   };

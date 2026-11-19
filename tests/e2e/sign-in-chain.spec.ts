@@ -3,6 +3,7 @@ import { chromium, expect, test } from "@playwright/test";
 import puppeteer, { type Browser, type Page } from "puppeteer-core";
 import { WebSocket, WebSocketServer } from "ws";
 import { buildSignInCodeTools, SIGN_IN_CODE_ACTIONS } from "../../packages/bots/src/server/signInCodes.js";
+import { accessOf } from "../support/appKey.mjs";
 import { createComputerManager } from "../../packages/computer/src/server/computerManager.js";
 import { SIGN_IN_CHAIN_MS } from "../../packages/computer/src/server/signInChain.js";
 
@@ -190,7 +191,8 @@ function personTurn(said = "Please sign in to example.com for me") {
   const after: { kind: string; body: { question: string; subline: string; action: { id: string; args: Record<string, string> } } }[] = [];
   const integrations = {
     reachableAccounts: async () => [{ id: "1", pluginId: "gmail", label: "pat@example.org", name: "Pat", home: false }],
-    connections: { accessToken: async () => ({ accessToken: "stand-in" }) },
+    // The account's own paced fetch (D-96), as connections.accessToken answers it: the real pacer, over turns in memory.
+    connections: { accessToken: async () => accessOf("stand-in", { app: "Gmail" }) },
     toolSwitches: async () => ({ skip: {}, removed: [], turnedOff: [] })
   };
   const reach = { userId: "7", homeId: "3", personal: true };

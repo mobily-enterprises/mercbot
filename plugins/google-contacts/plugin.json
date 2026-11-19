@@ -34,5 +34,11 @@
       "id": "find_contact",
       "name": "Find contacts"
     }
-  ]
+  ],
+  "limits": {
+    "requests": 60,
+    "seconds": 60,
+    "source": "https://developers.google.com/people/v1/contacts",
+    "says": "Google publishes no number per user for the People API, only that each read counts against its critical-read quota: one request a second is assumed."
+  }
 }

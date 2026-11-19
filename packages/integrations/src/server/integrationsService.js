@@ -3,6 +3,7 @@ import { retryLostInsertRace } from "@jskit-ai/database-runtime/shared";
 import { passedOn, resolveUserScopeValue } from "@jskit-ai/resource-runtime/server";
 import { personName } from "@local/homes/server/personName";
 import { IntegrationsError } from "./accounts.js";
+import { PACES, paceOf } from "./appRequests.js";
 import { resultText } from "./connector.js";
 
 /**
@@ -27,6 +28,8 @@ function toAccount(account, lacksAccess, names) {
     status: account.status === "needs-auth" && account.signInState ? account.signInState : lacksAccess(account) ? "more-access" : account.status,
     label: account.label || null,
     home: account.home,
+    // Its Request pace (D-96): the one chosen in Connect apps, or Gentle.
+    pace: paceOf(account),
     ...(account.home ? { addedBy: names.get(account.userId) || "" } : {})
   };
 }
@@ -248,6 +251,24 @@ export function createIntegrationsService({ resources, accounts, catalogue, conn
     if (!clean) throw new IntegrationsError(400, "Give the account a name.", { code: "integrations_account_name_missing" });
     const found = await accounts.manageableAccount(reach, accountId, options);
     await accounts.patchAccount(found, { name: clean }, options);
+    return list(reach, options);
+  }
+
+  /**
+   * Chooses an account's Request pace (D-96): how fast Mercbot sends its app requests, as a share of the app's own limit.
+   * Who may change the account may choose it: a home's, its owners and admins; a person's own, that person.
+   * @param {{ personal?: boolean }} reach
+   * @param {string} accountId
+   * @param {unknown} pace "gentle", "normal" or "fast"
+   * @param {object} options
+   */
+  async function choosePace(reach, accountId, pace, options) {
+    const found = await accounts.manageableAccount(reach, accountId, options);
+    const chosen = String(pace ?? "");
+    if (!Object.hasOwn(PACES, chosen)) {
+      throw new IntegrationsError(400, "Choose Gentle, Normal or Fast.", { code: "integrations_account_pace_unknown" });
+    }
+    await accounts.patchAccount(found, { pace: chosen }, options);
     return list(reach, options);
   }
 
@@ -489,6 +510,7 @@ export function createIntegrationsService({ resources, accounts, catalogue, conn
     uninstall,
     addAccount,
     renameAccount,
+    choosePace,
     removeAccount,
     updateSkill,
     deleteSkill,

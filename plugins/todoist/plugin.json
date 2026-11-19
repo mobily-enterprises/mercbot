@@ -35,5 +35,11 @@
   },
   "tier": 1,
   "rank": 170,
-  "logo": "todoist"
+  "logo": "todoist",
+  "limits": {
+    "requests": 1000,
+    "seconds": 900,
+    "source": "https://developer.todoist.com/api/v1/",
+    "says": "1,000 partial sync requests in 15 minutes per user; no other per-user limit is published."
+  }
 }

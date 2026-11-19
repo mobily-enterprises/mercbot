@@ -2,7 +2,7 @@ import { retryLostInsertRace } from "@jskit-ai/database-runtime/shared";
 import { ACTIONS, APPROVAL_OPTIONS, EMAIL_ADDRESS } from "./botActions.js";
 import { MAIL } from "./mailTools.js";
 import { saveLogin } from "./vaultLogins.js";
-import { ConnectedAppError, connectedKey, sendOrSimulate } from "./connectedApps.js";
+import { ConnectedAppError, appBusy, connectedKey, sendOrSimulate } from "./connectedApps.js";
 import { sendSednaMessage } from "./sednaActions.js";
 import { SednaUncertainError } from "./sednaApi.js";
 import { BotsError } from "./botsError.js";
@@ -236,7 +236,7 @@ export function createBotCards({ records, account, env, computer, integrations, 
         );
       } catch (error) {
         await messages.setBody(message.id, { ...body, status: "pending" }, options);
-        if (error instanceof ConnectedAppError) {
+        if (error instanceof ConnectedAppError || appBusy(error)) {
           throw new BotsError(502, `It wasn't sent: ${error.message}`, {
             code: "bots_draft_send_failed",
             params: { reason: error.message }
@@ -281,7 +281,7 @@ export function createBotCards({ records, account, env, computer, integrations, 
     } catch (error) {
       const unsure = error instanceof SednaUncertainError;
       await messages.setBody(message.id, { ...body, status: "pending", ...(unsure ? { unsure: true } : {}) }, options);
-      if (error instanceof ConnectedAppError) {
+      if (error instanceof ConnectedAppError || appBusy(error)) {
         throw new BotsError(502, `It wasn't sent: ${error.message}`, { code: "bots_draft_send_failed", params: { reason: error.message } });
       }
       throw error;

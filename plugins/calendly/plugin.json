@@ -36,5 +36,11 @@
   },
   "tier": 1,
   "rank": 150,
-  "logo": "calendly"
+  "logo": "calendly",
+  "limits": {
+    "requests": 50,
+    "seconds": 60,
+    "source": "https://developer.calendly.com/api-docs/overview/rate-limits",
+    "says": "50 requests a minute per user on the Free plan (500 on paid plans)."
+  }
 }

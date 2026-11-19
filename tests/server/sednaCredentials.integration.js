@@ -45,7 +45,8 @@ async function setup(context) {
     { workspace_id: homeId, user_id: kim, role_sid: "member", status: "active" },
     { workspace_id: homeId, user_id: ari, role_sid: "admin", status: "active" }
   ]);
-  const [account] = await knex("plugin_accounts").insert({ user_id: pat, workspace_id: homeId, plugin_id: "sedna", name: "" }).returning("*");
+  // Fast, so these tests don't wait their turns (requestPace.integration.js tests the paces themselves, D-96).
+  const [account] = await knex("plugin_accounts").insert({ user_id: pat, workspace_id: homeId, plugin_id: "sedna", name: "", pace: "fast" }).returning("*");
   context.after(async () => {
     await knex("workspaces").where({ id: homeId }).del();
     await knex("users").whereIn("id", [pat, lee, sam, kim, ari]).del();
@@ -60,6 +61,7 @@ async function setup(context) {
   const connections = createConnections({
     resources,
     accounts,
+    systemContext,
     catalogue,
     env: { APP_ENV: "test", APP_PUBLIC_URL: "http://localhost:4000", MERCBOT_VAULT_KEY: VAULT },
     providers: {},

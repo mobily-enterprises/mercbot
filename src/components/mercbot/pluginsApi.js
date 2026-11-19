@@ -16,6 +16,8 @@ export const pluginsApi = {
   // One account as Connect apps shows it, while the screen waits for its sign-in.
   account: (accountId) => requestInHome(client, `/plugin-accounts/${accountId}`),
   renameAccount: (accountId, name) => requestInHome(client, `/plugin-accounts/${accountId}`, { method: "PATCH", body: { name } }),
+  // An account's Request pace (D-96): "gentle", "normal" or "fast".
+  choosePace: (accountId, pace) => requestInHome(client, `/plugin-accounts/${accountId}/pace`, { method: "PUT", body: { pace } }),
   // An action's switch on an app's page.
   setAction: (pluginId, actionId, enabled) => requestInHome(client, `/plugins/${pluginId}/actions/${actionId}`, { method: "PUT", body: { enabled } }),
   removeAccount: (accountId) => requestInHome(client, `/plugin-accounts/${accountId}`, { method: "DELETE" }),

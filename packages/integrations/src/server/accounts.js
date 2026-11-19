@@ -10,7 +10,7 @@ import { isSystemContext, passedOn, resolveWorkspaceScopeValue } from "@jskit-ai
 // home's owners or admins (`workspace.settings.update`).
 
 /** What a read answers; tokens only when this package's own sign-ins ask for them. */
-const ACCOUNT_FIELDS = Object.freeze(["pluginId", "name", "label", "status", "signInState", "bridgeRef", "userId", "workspaceId"]);
+const ACCOUNT_FIELDS = Object.freeze(["pluginId", "name", "label", "status", "signInState", "bridgeRef", "pace", "userId", "workspaceId"]);
 
 export class IntegrationsError extends AppError {
   /**
@@ -69,6 +69,7 @@ function toRecord(record, withTokens) {
     status: record.status,
     signInState: record.signInState ?? null,
     bridgeRef: record.bridgeRef ?? null,
+    pace: record.pace ?? null,
     userId: String(record.userId),
     home: record.workspaceId != null,
     ...(withTokens ? { tokens: record.tokens ?? null } : {})

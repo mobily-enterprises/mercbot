@@ -1,6 +1,6 @@
 import { createTool } from "@jskit-ai/agent/server";
 import { z } from "zod";
-import { ConnectedAppError, connectedAccounts, sendOrSimulate } from "./connectedApps.js";
+import { ConnectedAppError, appBusy, busyAnswer, connectedAccounts, sendOrSimulate } from "./connectedApps.js";
 
 // Apps that host their own connection point (D-34: Calendly, Notion, Todoist…), through the general
 // connector in integrations. Their actions come from each app, so a bot first reads what an app can
@@ -25,6 +25,7 @@ function inputLine(schema) {
 
 /** An integrations refusal (not connected, switched off, the app's own error) as a bot tool's error. */
 function failed(error) {
+  if (appBusy(error)) return busyAnswer(error);
   if (error instanceof ConnectedAppError || String(error?.code || "").startsWith("integrations_")) return { error: error.message };
   throw error;
 }

@@ -147,7 +147,7 @@ async function setup(context) {
     recordActivity: (entry, options) => auditEvents.create(entry, { ...passedOn(options), returning: "none" })
   };
   const accounts = createAccounts({ pluginAccounts: resources.pluginAccounts, systemContext });
-  const connections = (fields) => createConnections({ resources, accounts, ...homeDependencies, ...fields });
+  const connections = (fields) => createConnections({ resources, accounts, systemContext, ...homeDependencies, ...fields });
   const service = (env, hubFor = null, bridgedSignIns = null) =>
     connections({ catalogue, env, providers, oauthClient: createOAuth({ env, insecure: true }), bridgedSignIns, ...(hubFor ? { hubFor } : {}) });
   // The person signed in outside any home, as the Connect apps routes' options describe them.

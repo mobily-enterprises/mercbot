@@ -2255,3 +2255,51 @@ in the chat asks.
   The yes is checked as the person who gives it: in a shared bot, someone who may not change the instructions is told
   so politely (by the bot, before any card, or on the card), and a card made before another change of the
   instructions is refused rather than overwriting it. The next reply reads the new text.
+
+## D-96 — Every request to a connected app waits its turn in the account's Request pace (2026-11-19)
+
+A connected Sedna was overwhelmed by Mercbot's requests. Nothing kept Mercbot's requests to an app in check: each connector called its app with
+its own `fetch`, as fast as it could, from every bot, routine and server at once; Sedna's matching of a home's people
+looked each person up (1–2 requests each, five at once, on every People panel); reading a message asked five lists at
+once; and a list of messages that met a busy answer went on to its next message, which met one too, while Sedna's own
+wait was slept through and the same request sent again. A routine's run marked those messages read, so their mail was
+never handed on. The owner asked on 19 November for a limit on every app Mercbot calls for people, defaulting to
+gentle, with a setting per connection.
+- **One way to every app:** integrations makes each connected account's own `fetch` (`appRequests.js`), and every
+  request to its app goes through it: the bots' Gmail, Google Calendar, Contacts and Drive, Outlook and OneDrive,
+  GitHub and Sedna calls (their key is `{ token, fetch }`, `connectedApps.js` AppKey), the general connector's apps
+  (Notion, Todoist, Calendly: each action and listing; opening and ending its session are the protocol's own
+  messages), Sedna's checks in Connect apps, and the home's Google Drive storage settings. Making a key (a sign-in, an
+  hourly renewal) isn't paced: it happens once an hour at most. A home's Drive mount keeps to rclone's own Drive
+  pacer (one request every 100 ms at most, backing off when Drive says it's busy).
+- **Each app declares its service's limit** in plugin.json, `limits: { requests, seconds, source, says }`, from the
+  service's published documentation (Google Contacts publishes none: one request a second is assumed). A test refuses
+  an app that reaches a service without one; an app without one is paced as one request a second.
+- **Request pace, per connection:** Gentle uses a tenth of the limit, Normal four tenths, Fast nine tenths. Half of that
+  share may go at once (a search and the messages it found), the rest is spread evenly over the limit's window, so no
+  window ever holds more than the share. Gentle is every connection's until someone chooses another, and the pace of
+  every connection made before this one: `plugin_accounts.pace` is null for them, which is Gentle. Who may change the
+  connection chooses it in Connect apps (`PUT …/plugin-accounts/:accountId/pace {pace}`): a home's, its owners and
+  admins; a person's own, that person. Sedna, for example, allows 100 requests a second per key or address: Gentle
+  sends at most 10 (5 at once, then one every 200 ms), Fast at most 90 (45 at once, then one every 23 ms: each turn's
+  spacing is rounded up to a whole millisecond, as it's kept).
+- **Shared by every server (D-15):** each account's next turn is a row of `plugin_account_turns`, taken under the
+  row's lock; a request waits its turn after the lock is let go. A turn more than 20 seconds off isn't taken: the app is
+  busy for that request.
+- **A busy answer holds the account off on every server, for as long as the app asks:** 429 from any app, 529
+  (Notion), 503 with a Retry-After (Microsoft), 403 with a Retry-After or no requests left until the window's reset
+  (GitHub), and Google's 403 rate-limit reasons. One asking for 10 seconds or less is waited out once, in turn, since the
+  app did nothing; otherwise, and when it's busy again, the call is refused with integrations' AppBusyError, "Sedna is
+  busy: try again in 59 s. Nothing was done." A 503 to a change is never sent again (the app may have made it): the
+  account is held off and the connector reports the answer as it always did. Tools give the bot the busy message with
+  "don't try again before then, and don't keep retrying"; draft cards say "It wasn't sent: …".
+- **A busy app stops the read:** Sedna's lists of messages and a routine's run on its events feed stop at the first
+  busy answer instead of going on to the next message, and the run keeps no new position, so its next run reads the
+  same events again; a calendar or a file detail that's left out when its read fails is not left out silently when the
+  app is busy.
+- **Fewer requests where the API allows it:** matching a home's people reads the Sedna organisation's users a hundred a
+  request when they fill no more pages than there are people (a 41-person home in an organisation of 150 users: 2
+  requests, where it took up to 82), else looks each person up as before; reading a message asks only for the lists its
+  answer names (a message with no tags, job references or attachments: 3 requests, where it took 6); assigning a
+  message finds the colleague in one request (`filter[user.team]`). Sedna has no read of several messages by id, and its
+  events name only the message, so opening the messages found is one request each, as before, now in turn.

@@ -11,6 +11,7 @@ import { testBot } from "./testHome.js";
 import { startBotsService, turnDoubles } from "../support/botDoubles.mjs";
 import { claimedWork, memberOptions, startBotParts, startBotRecordsWithAccount } from "../support/botRecords.mjs";
 import { cleanupStack } from "../support/cleanupStack.mjs";
+import { accessOf } from "../support/appKey.mjs";
 
 // Disposable machines (D-19), against the disposable test database: a bot's browser state comes
 // back on another machine, and repeated sends and replies don't double up.
@@ -452,7 +453,7 @@ test("a calendar event with guests waits for approval, then goes on the connecte
   try {
     const integrations = {
       ...await connectAppsReads(knex, cleanup, [{ id: "google-calendar", name: "Google Calendar" }]),
-      connections: { accessToken: async (reach, accountId) => ({ accessToken: `key-${reach.userId}-${accountId}` }) },
+      connections: { accessToken: async (reach, accountId) => accessOf(`key-${reach.userId}-${accountId}`) },
       skills: async () => []
     };
     let state = "";
@@ -517,7 +518,7 @@ test("Send on an email draft sends it from the connected mailbox, once", async (
       : new Response(JSON.stringify({ id: "m1" }), { status: 200 });
   };
   try {
-    const integrations = { reachableAccounts: await connectedAccounts(knex, cleanup), connections: { accessToken: async () => ({ accessToken: "key" }) } };
+    const integrations = { reachableAccounts: await connectedAccounts(knex, cleanup), connections: { accessToken: async () => accessOf("key") } };
     const bots = startBotsService(cleanup, { knex, ...parts, integrations, env: live(), approvals: { decide: async () => "allow" }, reply: async () => ({ text: "ok", transcript: [] }) });
     const [card] = await knex("bot_messages").insert({ workspace_id: bot.workspace_id, bot_id: bot.id, conversation_id: bot.conversation_id, kind: "draft", role: "bot", body: { to: "Ana <ana@example.com>", via: "Gmail", from: "pat@example.com", subject: "Lunch", text: "1pm?", status: "pending" } }).returning("*");
     await assert.rejects(bots.settleDraft(bot.id, card.id, { action: "send", text: "1pm Tuesday?" }, as(userId)), /It wasn't sent: Backend Error/u);
@@ -548,7 +549,7 @@ test("a test copy's Send on an email draft is logged and marked sent, and nothin
     return new Response(JSON.stringify({ id: "m1" }), { status: 200 });
   };
   try {
-    const integrations = { reachableAccounts: await connectedAccounts(knex, cleanup), connections: { accessToken: async () => ({ accessToken: "key" }) } };
+    const integrations = { reachableAccounts: await connectedAccounts(knex, cleanup), connections: { accessToken: async () => accessOf("key") } };
     const bots = startBotsService(cleanup, { knex, ...parts, integrations, env: { ...process.env, APP_ENV: "test" }, approvals: { decide: async () => "allow" }, reply: async () => ({ text: "ok", transcript: [] }) });
     const [card] = await knex("bot_messages").insert({ workspace_id: bot.workspace_id, bot_id: bot.id, conversation_id: bot.conversation_id, kind: "draft", role: "bot", body: { to: "Ana <ana@example.com>", via: "Gmail", from: "pat@example.com", subject: "Lunch", text: "1pm?", status: "pending" } }).returning("*");
     const logged = context.mock.method(console, "info", () => {});
@@ -585,7 +586,7 @@ test("a reply draft answers from the receiving mailbox to the reply-to address, 
     }), { status: 200 });
   };
   try {
-    const integrations = { reachableAccounts: await connectedAccounts(knex, cleanup), connections: { accessToken: async () => ({ accessToken: "key" }) }, skills: async () => [] };
+    const integrations = { reachableAccounts: await connectedAccounts(knex, cleanup), connections: { accessToken: async () => accessOf("key") }, skills: async () => [] };
     const results = [];
     const bots = startBotsService(cleanup, {
       knex, ...parts, integrations, env: live(), approvals: { decide: async () => "allow" },
@@ -624,7 +625,7 @@ test("a task for an unconnected app shows a connect card, and one Mercbot can't 
       { id: "google-drive", name: "Google Drive", logo: "googledrive", color: "#4285F4", icon: "folder", oauth: {} },
       { id: "todoist", name: "Todoist", soon: true }
     ]),
-    connections: { accessToken: async () => ({ accessToken: "key" }) },
+    connections: { accessToken: async () => accessOf("key") },
     skills: async () => [],
     // No files here: send_files is switched off, so "the card below" isn't a claim of attached files.
     toolSwitches: async () => ({ skip: {}, removed: ["send_files"], turnedOff: [], connected: [] })
@@ -884,7 +885,7 @@ test("a calendar claim without the tool is sent back, and an event goes in one c
   try {
     const integrations = {
       ...await connectAppsReads(knex, cleanup, [{ id: "google-calendar", name: "Google Calendar" }]),
-      connections: { accessToken: async (_who, accountId) => ({ accessToken: `key-${accountId}` }) },
+      connections: { accessToken: async (_who, accountId) => accessOf(`key-${accountId}`) },
       skills: async () => []
     };
     const prompts = [];
@@ -1000,7 +1001,7 @@ test("my calendar is the person's own account, and an explicit invite goes ahead
   try {
     const integrations = {
       ...await connectAppsReads(knex, cleanup, [{ id: "google-calendar", name: "Google Calendar", logo: "googlecalendar", color: "#4285F4", icon: "calendar" }]),
-      connections: { accessToken: async (_who, accountId) => ({ accessToken: `key-${accountId}` }) },
+      connections: { accessToken: async (_who, accountId) => accessOf(`key-${accountId}`) },
       skills: async () => []
     };
     let state = "";

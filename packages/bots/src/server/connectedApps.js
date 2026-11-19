@@ -7,6 +7,35 @@ import { appEnvironment } from "@jskit-ai/kernel/shared/support/appEnvironment";
 export class ConnectedAppError extends Error {}
 
 /**
+ * An app asked Mercbot to wait, or the account's Request pace has no turn for it soon (integrations' AppBusyError,
+ * D-96): nothing was done, and its message says when to try again. A tool gives it to the bot as its answer.
+ * @param {unknown} error
+ */
+export const appBusy = (error) => /** @type {{ code?: string }} */ (error)?.code === "integrations_app_busy";
+
+/** What a tool tells the bot when its app is busy: the app's own words, and not to keep trying. */
+export const busyAnswer = (error) => ({
+  error: `${/** @type {Error} */ (error).message} Say so plainly; don't try again before then, and don't keep retrying.`
+});
+
+/**
+ * For a read whose failure leaves a part out (one calendar of several, a detail): `fallback` for any failure but a busy
+ * app, which goes up as it is, so the answer says when to try again instead of leaving things out unsaid.
+ * @template T
+ * @param {T} fallback
+ */
+export const unlessBusy = (fallback) => (error) => {
+  if (appBusy(error)) throw error;
+  return fallback;
+};
+
+/**
+ * An account's key as tools use it (D-96): the token, and `fetch`, the account's own way to its app, which every
+ * request to the app goes through: it waits its turn in the account's Request pace and says when the app is busy.
+ * @typedef {{ token: string, fetch: typeof fetch }} AppKey
+ */
+
+/**
  * Something a connected account sends to other people (an email, a calendar invitation, update,
  * cancellation or answer, a comment or review): `act` sends it when this copy's APP_ENV is
  * `production`. A test copy (development, test or staging, D-87) logs `effect` instead, as JSKIT logs a
@@ -124,15 +153,16 @@ export async function connectedAccounts({ integrations, reach, skip = [], call, 
 }
 
 /**
- * The accounts connectedAccounts picks, each with a key for calling its app, and for an app connected with API
- * credentials (D-93) `api`, the address that key is for, which integrations builds from the credentials alone.
+ * The accounts connectedAccounts picks, each with its `key` for calling its app (AppKey: the token, and the account's
+ * own paced way to the app), and for an app connected with API credentials (D-93) `api`, the address that key is for,
+ * which integrations builds from the credentials alone.
  */
 export async function connectedKeys(access, pluginIds, name, wanted = "") {
   const chosen = await connectedAccounts(access, pluginIds, name, wanted);
   const { integrations, reach, call } = access;
   return Promise.all(chosen.map(async (entry) => {
     const token = await integrations.connections.accessToken(reach, entry.id, call);
-    return { ...entry, key: token.accessToken, ...(token.api ? { api: token.api } : {}) };
+    return { ...entry, key: { token: token.accessToken, fetch: token.fetch }, ...(token.api ? { api: token.api } : {}) };
   }));
 }
 

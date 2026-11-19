@@ -298,20 +298,23 @@ export async function createJob(access, person, team, { name, type = "" }, commi
   }
 }
 
-/** A colleague a message in the person's teams can be assigned to: an active Sedna user in one of its teams that's theirs. */
+/**
+ * A colleague a message in the person's teams can be assigned to: an active Sedna user in one of its teams that's theirs.
+ * One request: Sedna lists only the users of the message's teams (filter[user.team]), and any user whose answer names
+ * other teams only is still left out.
+ */
 async function colleague(access, person, wanted, messageTeams) {
   const text = String(wanted ?? "").trim();
   if (!text) throw new ConnectedAppError("Say who it's for: a colleague's name or email address.");
   if (/^(me|myself)$/iu.test(text) || text === String(person.id)) return { id: String(person.id), name: person.name };
-  const found = /^\d{1,20}$/u.test(text)
-    ? [(await sednaGet(access, `/user/${text}`, {})).data].filter(Boolean)
-    : (await sednaGet(access, "/user", { "filter[user.search]": text, "page[limit]": 25 })).data || [];
-  const inTeams = [];
-  for (const user of found.slice(0, 10)) {
-    if (user.attributes?.archived) continue;
-    const teams = linkedTeams(user) || ((await sednaGet(access, `/user/${user.id}/team`, {})).data || []).map((team) => String(team.id));
-    if (teams.some((id) => messageTeams.includes(id))) inTeams.push(user);
-  }
+  const found = (await sednaGet(access, "/user", {
+    [/^\d{1,20}$/u.test(text) ? "filter[user.id]" : "filter[user.search]"]: text,
+    "filter[user.team]": messageTeams.join(","),
+    "page[limit]": 25
+  })).data || [];
+  const inTeams = found.filter(
+    (user) => !user.attributes?.archived && (linkedTeams(user) || messageTeams).some((id) => messageTeams.includes(id))
+  );
   const lower = text.toLowerCase();
   const exact = inTeams.filter((user) => userName(user).toLowerCase() === lower || String(user.attributes?.individualEmail || "").toLowerCase() === lower);
   const chosen = exact.length ? exact : inTeams;

@@ -7,6 +7,7 @@ import { ACTIONS } from "../../packages/bots/src/server/botActions.js";
 import { sendOrSimulate } from "../../packages/bots/src/server/connectedApps.js";
 import { SEDNA_ACTIONS } from "../../packages/bots/src/server/sednaActions.js";
 import { startFakeSedna } from "../support/fakeSedna.mjs";
+import { accessOf } from "../support/appKey.mjs";
 
 // Mercbot's own sends follow APP_ENV (D-69, D-87): the live copy (`production`) sends them; any other copy, a
 // test copy, logs each one and answers as if it went out. Reads, and changes that reach nobody, run in both.
@@ -41,7 +42,7 @@ async function logged(context, work) {
 const contextOf = (pluginId, label, env) => ({
   integrations: {
     reachableAccounts: async () => [{ id: "4", pluginId, name: "", label, status: "connected" }],
-    connections: { accessToken: async () => ({ accessToken: "key" }) },
+    connections: { accessToken: async () => accessOf("key") },
     app: () => null
   },
   reach: { userId: 7 },
@@ -335,7 +336,7 @@ test("every Sedna change is made only from the live copy; a test copy checks it,
     integrations: {
       reachableAccounts: async () => [{ id: "9", pluginId: "sedna", name: "", label: "Acme Shipping", status: "connected", home: true }],
       connections: {
-        accessToken: async () => ({ accessToken: key, api: `${fake.url}/acme/platform/2019-01-01` }),
+        accessToken: async () => ({ ...accessOf(key), api: `${fake.url}/acme/platform/2019-01-01` }),
         appPerson: async () => ({ person: { id: "201", name: "Pat Doe", email: "pat@acme.example", teams: [{ id: "11", name: "Chartering" }] }, via: "email" })
       },
       app: () => null

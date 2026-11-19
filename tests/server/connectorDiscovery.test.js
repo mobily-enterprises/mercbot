@@ -119,7 +119,7 @@ test("a description is read only at https addresses, through no redirect to plai
 
 test("a key goes only to the app's connection point: an answer redirecting it elsewhere is an error", async () => {
   const { connector, asked } = standIn({ [`POST ${APP}`]: () => redirect("https://elsewhere.example/mcp") });
-  await assert.rejects(connector.tools(PLUGIN, "the-key"), (error) => {
+  await assert.rejects(connector.tools(PLUGIN, { token: "the-key" }), (error) => {
     assert.equal(error.code, "integrations_connector_failed");
     assert.equal(error.params.status, 307);
     return true;
@@ -183,5 +183,5 @@ test("the code exchange, renewals and withdrawals reach the app's sign-in server
 test("an MCP call goes through the same guard: a connection point at a private address is never reached", async () => {
   const connector = createConnector({ connectorApps: {}, env: ENV, sealed: (value) => value, opened: (value) => value });
   const plugin = { ...PLUGIN, mcp: { url: "https://169.254.169.254/mcp" } };
-  await assert.rejects(connector.tools(plugin, "the-key"), { code: "integrations_connector_unreachable" });
+  await assert.rejects(connector.tools(plugin, { token: "the-key" }), { code: "integrations_connector_unreachable" });
 });

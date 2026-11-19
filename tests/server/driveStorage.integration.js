@@ -27,7 +27,7 @@ assert.equal(process.env.DB_NAME, process.env.TEST_DB_NAME, "DB_NAME must match 
 const VAULT = randomBytes(32).toString("base64");
 const VAULT_KEY = Buffer.from(VAULT, "base64");
 const SETTINGS_UPDATE = "workspace.settings.update";
-const catalogue = [{ id: "google-drive", name: "Google Drive", oauth: { provider: "google", scopes: ["https://www.googleapis.com/auth/drive"] } }];
+const catalogue = [{ id: "google-drive", name: "Google Drive", oauth: { provider: "google", scopes: ["https://www.googleapis.com/auth/drive"] }, limits: { requests: 3000, seconds: 60 } }];
 
 async function setup(context) {
   const knex = await connectTestDatabase();

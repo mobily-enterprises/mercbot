@@ -2,7 +2,7 @@
 // comments, and copies of the bot's own files kept there. googleApps.js offers these with the rest
 // of the Google calls.
 
-import { ConnectedAppError } from "./connectedApps.js";
+import { ConnectedAppError, unlessBusy } from "./connectedApps.js";
 import { call } from "./googleApi.js";
 
 /** A copy of one of the bot's files in the person's Google Drive, in a Mercbot folder Mercbot made. */
@@ -135,7 +135,7 @@ export async function searchFiles(key, words, limit = 15) {
 /** A folder by its id or name; "" is the top of the Drive. */
 async function folderOf(key, folder) {
   if (!folder || /^(root|my drive|top)$/iu.test(folder)) return "root";
-  const [byName] = await listed(key, `mimeType = '${FOLDER}' and name = ${quoted(folder)}`, 1).catch(() => []);
+  const [byName] = await listed(key, `mimeType = '${FOLDER}' and name = ${quoted(folder)}`, 1).catch(unlessBusy([]));
   return byName?.id || folder;
 }
 
@@ -188,7 +188,7 @@ const EXPORTS = {
   }
 };
 async function bytes(key, url) {
-  const response = await fetch(url, { headers: { authorization: `Bearer ${key}` }, signal: AbortSignal.timeout(120000) });
+  const response = await key.fetch(url, { headers: { authorization: `Bearer ${key.token}` }, signal: AbortSignal.timeout(120000) });
   if (!response.ok) await call(key, url);
   return Buffer.from(await response.arrayBuffer());
 }

@@ -151,6 +151,11 @@ another program uses with Sedna's API as a username and password (Basic auth) ar
 the client ID, the password the client secret. Mercbot asks Sedna for a key with them first, and uses them as Basic
 auth when Sedna gives none; the account works the same either way.
 
+Every request to Sedna waits its turn in the account's Request pace (D-96): Gentle, every account's until an owner or
+admin chooses Normal or Fast, sends at most 10 a second of the 100 Sedna allows per key or address, which the
+organisation's other programs may share. A busy answer (429) holds every server's requests off for as long as Sedna
+asks, and the bot says when to try again.
+
 ### The five-minute test, on a real tenant
 
 Needs a Sedna organisation, credentials that may at least read (COMPANY_READ, USER_READ, TEAM_READ, MESSAGE_READ, EVENT_READ, CATEGORYTAG_READ, JOBREFERENCE_READ, COMMENT_READ, DOCUMENT_READ, TEMPLATE_READ and CONTACT_READ), and a Mercbot home whose owner's email is a Sedna user's (else pick
@@ -174,8 +179,8 @@ yourself in step 1).
    again. The bot says Sedna isn't connected and that an owner or admin enters the credentials again; Connect apps
    shows **Enter API credentials**. Then **Disconnect** in Connect apps.
 5. Verdict, as above. Also note what the real tenant answered where the documentation is silent: the events feed's
-   order and how far back it goes, whether `filter[user.search]` finds people by email, and whether a token can be
-   asked for with read scopes only.
+   order and how far back it goes, whether `filter[user.search]` finds people by email, whether a token can be
+   asked for with read scopes only, and, if Sedna ever answers 429, whether it says how long to wait (Retry-After).
 
 ### Writes, on a real tenant (another five minutes)
 

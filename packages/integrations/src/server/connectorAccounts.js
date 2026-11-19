@@ -16,8 +16,10 @@ const TOOLS_MINUTES = 10;
  * @param {(pluginId: string) => object | null} dependencies.pluginOf the catalogue's entry for an app
  * @param {(value: unknown) => object} dependencies.sealed seals with the vault key
  * @param {(value: object) => any} dependencies.opened
+ * @param {(account: object, plugin: object) => typeof fetch} dependencies.paced the account's own way to its app, in its
+ *   Request pace (appRequests.js, D-96)
  */
-export function createConnectorAccounts({ connector, accounts, oauthClient, pluginOf, sealed, opened }) {
+export function createConnectorAccounts({ connector, accounts, oauthClient, pluginOf, sealed, opened, paced }) {
   // Each account's list of its app's actions, as this server last asked for it: a bot asks for the
   // list before using an app, and each action it runs is checked against it.
   const toolLists = new Map();
@@ -98,14 +100,15 @@ export function createConnectorAccounts({ connector, accounts, oauthClient, plug
       tokens = renewed.tokens;
     };
     if (!fresh(tokens)) await renew();
+    const fetch = paced(account, plugin);
     try {
-      return await work(plugin, tokens.access, account);
+      return await work(plugin, { token: tokens.access, fetch }, account);
     } catch (error) {
       if (!(error instanceof ConnectorAuthError)) throw error;
     }
     await renew();
     try {
-      return await work(plugin, tokens.access, account);
+      return await work(plugin, { token: tokens.access, fetch }, account);
     } catch (error) {
       if (error instanceof ConnectorAuthError) throw await signedOutByApp(account, plugin, options);
       throw error;

@@ -2,7 +2,7 @@
 // own APIs with an hourly key from Connect apps. The key comes from this copy's own sign-in or
 // the hub's bridge; either way the calls go straight from this server to Google.
 
-import { ConnectedAppError, zoned } from "./connectedApps.js";
+import { ConnectedAppError, unlessBusy, zoned } from "./connectedApps.js";
 import { call } from "./googleApi.js";
 
 const CALENDAR = "https://www.googleapis.com/calendar/v3";
@@ -61,7 +61,7 @@ export async function calendarEvents(key, { from, to, timeZone }) {
     timeZone: zone
   });
   const lists = await Promise.all(calendars.filter((calendar) => calendar.selected !== false).map(async (calendar) => {
-    const { items = [] } = await call(key, `${CALENDAR}/calendars/${encodeURIComponent(calendar.id)}/events?${query}`).catch(() => ({}));
+    const { items = [] } = await call(key, `${CALENDAR}/calendars/${encodeURIComponent(calendar.id)}/events?${query}`).catch(unlessBusy({}));
     return items.map((event) => toEvent(calendar, event));
   }));
   return { timeZone: zone, events: lists.flat().sort((a, b) => String(a.start).localeCompare(String(b.start))) };
@@ -98,7 +98,7 @@ export async function getCalendarEvent(key, { calendarId = "primary", eventId })
 
 /** A new event on the person's main calendar; anyone invited gets Google's invitation. */
 export async function addCalendarEvent(key, { title, start, end, timeZone, location, description, attendees = [] }) {
-  const primary = await call(key, `${CALENDAR}/users/me/calendarList/primary`).catch(() => ({}));
+  const primary = await call(key, `${CALENDAR}/users/me/calendarList/primary`).catch(unlessBusy({}));
   const zone = primary.timeZone || timeZone;
   const body = {
     summary: title,
@@ -441,7 +441,7 @@ export async function findContacts(key, name) {
   const url = (query) =>
     "https://people.googleapis.com/v1/people:searchContacts?" +
     new URLSearchParams({ query, readMask: "names,emailAddresses,phoneNumbers", pageSize: "10" });
-  await call(key, url("")).catch(() => null); // Google asks for one empty search first, to warm its cache.
+  await call(key, url("")).catch(unlessBusy(null)); // Google asks for one empty search first, to warm its cache.
   const { results = [] } = await call(key, url(name));
   return results.map(({ person }) => ({
     name: person.names?.[0]?.displayName || "",

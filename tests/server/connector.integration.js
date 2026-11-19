@@ -40,7 +40,8 @@ async function setup(context, { mcp = {} } = {}) {
   const fake = await startFakeMcp(context);
   const userId = String((await knex("users").first()).id);
   const pluginId = `tasks-${Date.now().toString(36)}-${Math.floor(Math.random() * 1e6)}`;
-  const catalogue = [{ id: pluginId, name: "Tasks", mcp: { url: fake.url, whoami: "whoami", sends: ["add-comment"], ...mcp } }];
+  // Its limit as plugin.json declares one (D-96): plenty, so these tests never wait their turns.
+  const catalogue = [{ id: pluginId, name: "Tasks", mcp: { url: fake.url, whoami: "whoami", sends: ["add-comment"], ...mcp }, limits: { requests: 6000, seconds: 60 } }];
   const [account] = await knex("plugin_accounts").insert({ user_id: userId, plugin_id: pluginId, name: "default" }).returning("*");
   context.after(async () => {
     await knex("plugin_actions_off").where({ plugin_id: pluginId }).del();
@@ -90,7 +91,7 @@ async function keysOf(row) {
 }
 
 test("an app is found from what it says about itself, registered once, signed in to, and its actions listed and run", async (context) => {
-  const { fake, pluginId, accountId, serve, as, row, app } = await setup(context);
+  const { knex, fake, pluginId, accountId, serve, as, row, app } = await setup(context);
   const integrations = serve();
 
   // Discovery and registration: the app's 401 named its description, which named its sign-in server.
@@ -143,6 +144,8 @@ test("an app is found from what it says about itself, registered once, signed in
     return true;
   });
   assert.deepEqual(fake.state.calls.slice(-4).map((call) => call.name), ["list-tasks", "add-task", "broken", "refused"]);
+  // Each action and listing waited its turn in the account's Request pace (D-96), kept with the account for every server.
+  assert.ok(await knex("plugin_account_turns").where({ account_id: accountId }).first(), "the account's requests took its turns");
 
   // An action the person switched off in Connect apps isn't offered, and isn't run.
   await integrations.switchAction(REACH, pluginId, "delete-task", false, as);

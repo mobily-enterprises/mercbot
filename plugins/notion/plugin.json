@@ -30,5 +30,11 @@
     ]
   },
   "rank": 160,
-  "logo": "notion"
+  "logo": "notion",
+  "limits": {
+    "requests": 180,
+    "seconds": 60,
+    "source": "https://developers.notion.com/reference/request-limits",
+    "says": "180 requests a minute per connection (600 on Business and Enterprise plans)."
+  }
 }

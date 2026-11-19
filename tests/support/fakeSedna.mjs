@@ -6,7 +6,8 @@ import http from "node:http";
 // Each organisation answers at `<url>/<tenant>/platform`, as https://<tenant>.sednanetwork.com/platform does; only
 // `acme` exists. It answers, in JSON:API, what Mercbot asks:
 // - POST /oauth/token: an hourly key for the client id and secret (client credentials, a form), else 401;
-// - GET /2019-01-01/company/me; /user (filter[user.search], filter[user.individualEmail]), /user/:id, /user/:id/team;
+// - GET /2019-01-01/company/me; /user (filter[user.search], filter[user.individualEmail], filter[user.id] and
+//   filter[user.team] comma-separated, page[limit] and page[offset], meta.total), /user/:id, /user/:id/team;
 //   /team; /event (event.message.received, two a page, oldest first, page[cursor]); /message/:id and its /team,
 //   /category-tag, /job-reference, /document and /comment; /category-tag and /job-reference (filter[name]) and their
 //   /:id/messageV2 (filter[team]: without it, every team's messages, as Sedna's own); /contact (filter[name]).
@@ -21,7 +22,10 @@ import http from "node:http";
 // Every API call needs a key it handed out that hasn't run out, or the client id and secret as Basic auth, else 401.
 // `state.basicOnly` has the token endpoint turn the client id and secret down, as for credentials an organisation uses
 // only as a username and password. `state.busy` answers that many calls 429 with
-// `state.retryAfter`; `state.tokenDelay` makes a key take that long, so two renewals overlap; `state.expiresIn` is a new
+// `state.retryAfter`; `state.window` (`{ requests, ms }`) is Sedna's rate limit: past that many API calls in any `ms`, each
+// call is answered 429 with a Retry-After of the seconds until one would be taken again, and counted in `state.refused`.
+// `addUsers(count)` adds that many users of the organisation, none of them the home's people.
+// `state.tokenDelay` makes a key take that long, so two renewals overlap; `state.expiresIn` is a new
 // key's life in seconds; `state.hideTeams` leaves the teams out of a message's own answer; `state.revoked` turns every
 // client id and secret down, as an organisation's admin deleting the credentials does. `state.forbidden` lists API paths
 // (as "/company/me") answered 403, as for credentials without that permission. `requests` records each call.
@@ -122,7 +126,13 @@ const asContact = (contact) => ({
 export async function startFakeSedna() {
   const keys = new Map();
   const requests = [];
-  const state = { tokens: 0, busy: 0, retryAfter: "1", tokenDelay: 0, expiresIn: HOUR, hideTeams: false, revoked: false, basicOnly: false, forbidden: [], failNext: 0, hang: false };
+  const state = {
+    tokens: 0, busy: 0, retryAfter: "1", window: null, refused: 0, tokenDelay: 0, expiresIn: HOUR, hideTeams: false, revoked: false, basicOnly: false,
+    forbidden: [], failNext: 0, hang: false
+  };
+  const users = USERS.map((user) => ({ ...user }));
+  // When each API call in the current window was taken, for `state.window`.
+  let taken = [];
   const all = messages();
   const contacts = CONTACTS.map((contact) => ({ ...contact }));
   const jobs = JOBS.map((job) => ({ ...job }));
@@ -148,6 +158,7 @@ export async function startFakeSedna() {
       ...(teams ? { team: teamLinks(message.teams) } : {}),
       "category-tag": { data: message.tags.map((id) => ({ id, type: "category-tag" })) },
       "job-reference": { data: message.jobs.map((id) => ({ id, type: "job-reference" })) },
+      document: { data: message.documents.map((doc) => ({ id: doc.id, type: "document" })) },
       ...(message.sender ? { sender: { data: { id: message.sender, type: "user" } } } : {})
     }
   });
@@ -178,12 +189,16 @@ export async function startFakeSedna() {
     if (kind === "user" && !id) {
       const search = String(query.get("filter[user.search]") || "").toLowerCase();
       const exact = String(query.get("filter[user.individualEmail]") || "").toLowerCase();
-      const found = USERS.filter((user) => (search ? `${user.firstName} ${user.lastName} ${user.firstName.toLowerCase()} ${user.individualEmail}`.toLowerCase().includes(search) : true) &&
-        (exact ? user.individualEmail === exact : true));
-      return [200, { data: found.map(asUser) }];
+      const ids = query.get("filter[user.id]")?.split(",").filter(Boolean);
+      const inTeams = query.get("filter[user.team]")?.split(",").filter(Boolean);
+      const found = users.filter((user) => (search ? `${user.firstName} ${user.lastName} ${user.firstName.toLowerCase()} ${user.individualEmail}`.toLowerCase().includes(search) : true) &&
+        (exact ? user.individualEmail === exact : true) && (!ids || ids.includes(user.id)) && (!inTeams || user.teams.some((team) => inTeams.includes(team))));
+      const offset = Number(query.get("page[offset]")) || 0;
+      const limit = Number(query.get("page[limit]")) || 100;
+      return [200, { data: found.slice(offset, offset + limit).map(asUser), meta: { total: found.length } }];
     }
     if (kind === "user") {
-      const user = USERS.find((entry) => entry.id === id);
+      const user = users.find((entry) => entry.id === id);
       if (!user) return [404, { errors: [{ status: "404", title: "Not found" }] }];
       if (sub === "team") return [200, { data: TEAMS.filter((team) => user.teams.includes(team.id)).map(asTeam) }];
       return [200, { data: asUser(user) }];
@@ -211,7 +226,7 @@ export async function startFakeSedna() {
       if (sub === "job-reference") return [200, { data: JOBS.filter((job) => message.jobs.includes(job.id)).map(named("job-reference")) }];
       if (sub === "document") return [200, { data: message.documents.map((doc) => ({ id: doc.id, type: "document", attributes: { name: doc.name, type: doc.type, size: doc.size } })) }];
       if (sub === "comment") return [200, { data: message.comments.map((comment) => ({ id: comment.id, type: "comment", attributes: { content: comment.content, createdAt: ago(comment.minutes) } })) }];
-      if (sub === "assignment") return [200, { data: (assignments.get(message.id) || []).map((userId) => asUser(USERS.find((user) => user.id === userId))) }];
+      if (sub === "assignment") return [200, { data: (assignments.get(message.id) || []).map((userId) => asUser(users.find((user) => user.id === userId))) }];
     }
     if (kind === "download" && id === "document") {
       if (!FILES[sub]) return [404, { errors: [{ status: "404" }] }];
@@ -243,7 +258,7 @@ export async function startFakeSedna() {
 
   /** A message Sedna would send from these attributes: always as the user and team named, never anyone else. */
   function outgoing(attributes) {
-    const user = USERS.find((entry) => entry.id === String(attributes.fromUser));
+    const user = users.find((entry) => entry.id === String(attributes.fromUser));
     if (!user || user.archived) return [400, { errors: [{ status: "400", detail: "fromUser is not an active user" }] }];
     if (!user.teams.includes(String(attributes.fromTeam))) return [400, { errors: [{ status: "400", detail: "fromUser is not in fromTeam" }] }];
     if (!attributes.body) return [400, { errors: [{ status: "400", detail: "body is required" }] }];
@@ -385,6 +400,15 @@ export async function startFakeSedna() {
       state.busy -= 1;
       return send(429, { errors: [{ status: "429" }] }, { "retry-after": state.retryAfter });
     }
+    if (state.window) {
+      const now = Date.now();
+      taken = taken.filter((at) => at > now - state.window.ms);
+      if (taken.length >= state.window.requests) {
+        state.refused += 1;
+        return send(429, { errors: [{ status: "429", title: "Too Many Requests" }] }, { "retry-after": String(Math.max(1, Math.ceil((taken[0] + state.window.ms - now) / 1000))) });
+      }
+      taken.push(now);
+    }
     if (request.method === "GET") return send(...answer(path, url.searchParams));
     if (state.hang) return undefined;
     if (state.failNext) {
@@ -403,13 +427,20 @@ export async function startFakeSedna() {
     clientSecret: CLIENT_SECRET,
     state,
     requests,
-    users: USERS,
+    users,
     sent,
     changes,
     messages: all,
     contacts,
     jobs,
     assignments,
+    /** `count` more users of the organisation, in Chartering, whose addresses none of the home's people sign in with. */
+    addUsers(count) {
+      for (let at = 0; at < count; at += 1) {
+        const id = String(3000 + users.length);
+        users.push({ id, firstName: "Crew", lastName: id, individualEmail: `crew${id}@acme.example`, teams: ["11"] });
+      }
+    },
     /** Mail coming into a team: a message and its event at the end of the feed. */
     receive({ team = "11", subject = "New mail", fromEmail = "kim@brokers.example", text = "Hello" } = {}) {
       const message = { id: String(nextId++), teams: [team], tags: [], jobs: [], minutes: 0, subject, fromName: "", fromEmail, to: ["chartering@acme.example"], bodyText: text, hasAttachment: false, comments: [], documents: [] };

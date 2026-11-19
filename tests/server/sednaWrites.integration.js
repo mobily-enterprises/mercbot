@@ -7,6 +7,7 @@ import { startBotsService } from "../support/botDoubles.mjs";
 import { claimedWork, memberOptions, startBotParts } from "../support/botRecords.mjs";
 import { cleanupStack } from "../support/cleanupStack.mjs";
 import { startFakeSedna } from "../support/fakeSedna.mjs";
+import { accessOf } from "../support/appKey.mjs";
 
 // Sedna's writes through the bots service (D-94), on the disposable test database and the stand-in Sedna
 // (fakeSedna.mjs): a Sedna draft card's Send goes out once as the person's own Sedna user, a test copy only logs it, a
@@ -40,7 +41,7 @@ async function setup(context, bot = {}) {
     reachableAccounts: async () => [{ id: "9", pluginId: "sedna", name: "", label: "Acme Shipping", status: "connected", home: true }],
     toolSwitches: async () => ({ skip: {}, removed: [], turnedOff: [], connected: ["sedna"] }),
     app: (id) => (id === "sedna" ? { id: "sedna", name: "Sedna", credentials: { home: true } } : null),
-    connections: { accessToken: async () => ({ accessToken: key, api }), appPerson: async () => ({ person: PAT, via: "email" }), whenConnected: () => () => {} }
+    connections: { accessToken: async () => ({ ...accessOf(key), api }), appPerson: async () => ({ person: PAT, via: "email" }), whenConnected: () => () => {} }
   };
   const service = (env, reply = async () => ({ text: "ok", transcript: [] })) =>
     startBotsService(cleanup, { knex, ...parts, integrations, env, approvals: { decide: async () => "allow" }, reply });

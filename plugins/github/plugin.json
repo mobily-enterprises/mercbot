@@ -239,5 +239,11 @@
       "id": "github_change.run_rerun",
       "name": "Re-run automation"
     }
-  ]
+  ],
+  "limits": {
+    "requests": 5000,
+    "seconds": 3600,
+    "source": "https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api",
+    "says": "5,000 requests an hour per user, shared with every other app that calls for them; no more than 900 points (reads) a minute."
+  }
 }

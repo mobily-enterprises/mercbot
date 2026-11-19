@@ -83,6 +83,10 @@ export function registerRoutes(http, { integrations, catalogue, env }) {
     return integrations.renameAccount(REACH, request.params.accountId, request.body?.name, options);
   }
 
+  function choosePace(request, options) {
+    return integrations.choosePace(REACH, request.params.accountId, request.body?.pace, options);
+  }
+
   function switchAction(request, options) {
     return integrations.switchAction(REACH, request.params.pluginId, request.params.actionId, request.body?.enabled !== false, options);
   }
@@ -211,6 +215,8 @@ export function registerRoutes(http, { integrations, catalogue, env }) {
   router.register("POST", "/api/w/:workspaceSlug/plugins/:pluginId/accounts", IN_HOME, handle(addAccount));
   router.register("GET", "/api/w/:workspaceSlug/plugin-accounts/:accountId", IN_HOME, handle(pluginAccount));
   router.register("PATCH", "/api/w/:workspaceSlug/plugin-accounts/:accountId", IN_HOME, handle(renameAccount));
+  // An account's Request pace (D-96): Gentle, Normal or Fast.
+  router.register("PUT", "/api/w/:workspaceSlug/plugin-accounts/:accountId/pace", IN_HOME, handle(choosePace));
   // An action's switch on an app's page.
   router.register("PUT", "/api/w/:workspaceSlug/plugins/:pluginId/actions/:actionId", IN_HOME, handle(switchAction));
   router.register("DELETE", "/api/w/:workspaceSlug/plugin-accounts/:accountId", IN_HOME, handle(removeAccount));

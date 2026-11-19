@@ -104,7 +104,10 @@ every check a live copy makes, then records what it would have done. Its cards f
   whether the last try went: check Sent in Sedna before you press Send again." Look in Sedna first.
 - **"Sedna refused it (…): … Nothing was changed."** Sedna turned the change down and said why, for example a
   credential without MESSAGE_WRITE: an owner or admin gives the credential the permission in Sedna.
-- **"Sedna is busy …"** Sedna asked Mercbot to slow down: try after the wait it names.
+- **"Sedna is busy: try again in N s. Nothing was done."** Sedna asked Mercbot to wait, or the account's Request pace
+  has no turn free just now: try after the wait it names. A list or a routine's run stops there rather than leave
+  messages out, and the routine reads the same new mail on its next run. See
+  [Choose how fast Mercbot uses an app](request-pace.md).
 - **"Sedna is used only in each person's own chat with their bot …"** The person asked in a shared conversation: ask
   in their own chat.
 - **"A routine never sends a Sedna draft: the person presses Send on its card."** Sending is the person's.

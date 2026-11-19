@@ -170,5 +170,11 @@
       "id": "find_contact",
       "name": "Find contacts"
     }
-  ]
+  ],
+  "limits": {
+    "requests": 10000,
+    "seconds": 600,
+    "source": "https://learn.microsoft.com/en-us/graph/throttling-limits",
+    "says": "Outlook: 10,000 API requests in a 10-minute period for each app and mailbox, four at once."
+  }
 }

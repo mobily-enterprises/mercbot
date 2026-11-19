@@ -23,7 +23,7 @@ import { ownedHandles } from "./ownedHandles.mjs";
 // test database and the stand-in Drive (fakeDrive.mjs), which is Google's sign-in too. Several can run at once, in this
 // process or another (moveServer.mjs), as servers do. Needs the toolbox's rclone (npm run tools:install).
 
-const CATALOGUE = Object.freeze([{ id: "google-drive", name: "Google Drive", oauth: { provider: "google", scopes: ["https://www.googleapis.com/auth/drive"] } }]);
+const CATALOGUE = Object.freeze([{ id: "google-drive", name: "Google Drive", oauth: { provider: "google", scopes: ["https://www.googleapis.com/auth/drive"] }, limits: { requests: 3000, seconds: 60 } }]);
 
 /**
  * The environment of a test server (APP_ENV=test, D-87, which the stand-in Drive needs) whose homes keep files on

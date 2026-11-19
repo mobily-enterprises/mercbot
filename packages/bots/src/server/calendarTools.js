@@ -1,7 +1,7 @@
 import { createTool } from "@jskit-ai/agent/server";
 import { z } from "zod";
 import { CALENDARS, zoneName } from "./botActions.js";
-import { connectedKey, connectedKeys, localTime, zoned } from "./connectedApps.js";
+import { connectedKey, connectedKeys, localTime, unlessBusy, zoned } from "./connectedApps.js";
 import * as google from "./googleApps.js";
 
 // Calendars of one family often show the same shared events, which says nothing about whose each
@@ -56,17 +56,18 @@ export function buildCalendarTools({
   const zone = (what) => z.string().min(1).max(64).describe(what);
   // The person's zone for every calendar: their primary Google calendar's own zone, where
   // their events live, when it has a real one; otherwise the one their browser gave. So Outlook,
-  // which reports UTC, shows the same times as Google, and the bot never asks which zone is meant.
+  // which reports UTC, shows the same times as Google, and the bot never asks which zone is meant. A busy Google
+  // Calendar (D-96) is the answer for the turn's calendar reads, which it would be busy for too.
   let calendarHome;
   const zoneFor = async (given) => {
     calendarHome ??= connectedKeys({ integrations, reach, call }, ["google-calendar"], "calendar")
-      .then((keys) => Promise.all(keys.map((entry) => google.listCalendars(entry.key).catch(() => []))))
+      .then((keys) => Promise.all(keys.map((entry) => google.listCalendars(entry.key).catch(unlessBusy([])))))
       .then(
         (lists) =>
           lists.flat().find((calendar) => calendar.primary && calendar.timeZone && !/^(Etc\/)?(UTC|GMT)$/iu.test(calendar.timeZone))
             ?.timeZone
       )
-      .catch(() => undefined);
+      .catch(unlessBusy(undefined));
     return (await calendarHome) || given;
   };
   async function calendarEvents({ acknowledgement, from, to, timezone, account: wanted }) {

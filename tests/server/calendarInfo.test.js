@@ -4,6 +4,10 @@ import { buildTools } from "../../packages/bots/src/server/botTools.js";
 import * as google from "../../packages/bots/src/server/googleApps.js";
 import * as microsoft from "../../packages/bots/src/server/microsoftApps.js";
 import { turnDoubles } from "../support/botDoubles.mjs";
+import { accessOf, appKey } from "../support/appKey.mjs";
+
+// The account's key as integrations hands it over (D-96): its token, and its own paced fetch to the stand-in app.
+const KEY = appKey("k");
 
 // The rest of reading calendars (D-42), against stand-ins for Google's and Graph's APIs.
 function fakeApi(context, routes) {
@@ -26,15 +30,15 @@ test("calendars are listed with whose they are, and a repeating event's dates co
     "/events/r1/instances": [200, { items: [{ id: "r1_20261104", recurringEventId: "r1", summary: "Standup", start: { dateTime: "2026-11-04T09:00:00+08:00" }, end: { dateTime: "2026-11-04T09:15:00+08:00" } }] }],
     "/me/calendars": [200, { value: [{ id: "c1", name: "Calendar", isDefaultCalendar: true, canEdit: true, owner: { address: "pat@example.com" } }] }]
   });
-  assert.deepEqual(await google.listCalendars("k"), [
+  assert.deepEqual(await google.listCalendars(KEY), [
     { id: "pat@example.com", name: "Pat", primary: true, timeZone: "Australia/Perth", access: "owner" },
     { id: "fam@group", name: "Family", timeZone: undefined, access: "reader", hidden: true }
   ]);
-  const { timeZone, events } = await google.eventOccurrences("k", { eventId: "r1", from: "2026-11-01", to: "2026-11-08", timeZone: "UTC" });
+  const { timeZone, events } = await google.eventOccurrences(KEY, { eventId: "r1", from: "2026-11-01", to: "2026-11-08", timeZone: "UTC" });
   assert.equal(timeZone, "Australia/Perth");
   assert.deepEqual([events[0].title, events[0].repeats], ["Standup", "r1"]);
   assert.match(decodeURIComponent(calls.find((url) => url.includes("/instances"))), /timeMin=2026-11-01T00:00:00\+08:00/u);
-  assert.deepEqual(await microsoft.listCalendars("k"), [{ id: "c1", name: "Calendar", primary: true, owner: "pat@example.com", access: "writer" }]);
+  assert.deepEqual(await microsoft.listCalendars(KEY), [{ id: "c1", name: "Calendar", primary: true, owner: "pat@example.com", access: "writer" }]);
 });
 
 test("availability merges busy times across calendars and gives the free gaps between", async (context) => {
@@ -50,7 +54,7 @@ test("availability merges busy times across calendars and gives the free gaps be
   });
   const integrations = {
     reachableAccounts: async () => [{ id: "1", pluginId: "google-calendar", name: "", label: "pat@example.com", status: "connected" }],
-    connections: { accessToken: async () => ({ accessToken: "k" }) }
+    connections: { accessToken: async () => accessOf("k") }
   };
   const { tools } = buildTools(turnDoubles({ approvals: {}, computer: null, integrations, homeId: "1", userId: "7", botId: "3", conversationId: "5" }));
   const result = await tools.calendarInfo.execute({ action: "availability", from: "2026-11-04T08:00", to: "2026-11-04T14:00", timezone: "Australia/Perth" });
@@ -65,4 +69,22 @@ test("availability merges busy times across calendars and gives the free gaps be
 
   const found = await tools.calendarInfo.execute({ action: "search", words: "lunch", from: "2026-11-04T00:00", to: "2026-11-05T00:00", timezone: "Australia/Perth" });
   assert.deepEqual(found.calendars[0].events.map((event) => event.title), ["Lunch"]);
+});
+
+test("a busy calendar is the tool's answer: when to try again, and not to keep trying (D-96)", async (context) => {
+  // Google answers 429 with no wait named: Mercbot waits 5 s once, in turn, then the tool says so, from the first read
+  // (the calendars' own zone), without reading the events too.
+  const calls = fakeApi(context, { "/calendarList": [429, { error: { message: "Rate Limit Exceeded" } }] });
+  const access = accessOf("k", { app: "Google Calendar" });
+  const integrations = {
+    reachableAccounts: async () => [{ id: "1", pluginId: "google-calendar", name: "", label: "pat@example.com", status: "connected" }],
+    connections: { accessToken: async () => access }
+  };
+  const { tools } = buildTools(turnDoubles({ approvals: {}, computer: null, integrations, homeId: "1", userId: "7", botId: "3", conversationId: "5" }));
+  const result = await tools.calendarInfo.execute({ action: "availability", from: "2026-11-04T08:00", to: "2026-11-04T14:00", timezone: "Australia/Perth" });
+  assert.equal(
+    result.error,
+    "Google Calendar is busy: try again in 5 s. Nothing was done. Say so plainly; don't try again before then, and don't keep retrying."
+  );
+  assert.equal(calls.length, 2, "waited out once, then reported: never a loop");
 });

@@ -1,5 +1,6 @@
 import { passedOn } from "@jskit-ai/resource-runtime/server";
 import { publicFetch } from "@local/account/public-address";
+import { AppBusyError, busyFor } from "./appRequests.js";
 import { ConnectionError, callbackUrl, credentials } from "./oauth.js";
 
 // The general connector (D-34): one way to connect every app that hosts its own connection point for
@@ -300,13 +301,19 @@ export function createConnector({ connectorApps, env, sealed, opened, fetch: fet
   /**
    * One conversation with the app's connection point over Streamable HTTP: it starts (initialize),
    * runs `work` with its `request`, then ends. Every conversation is short and starts afresh, so any
-   * server may hold the next one (D-15).
+   * server may hold the next one (D-15). `access` is the account's key and its own way to the app, which waits each
+   * request's turn in the account's Request pace (D-96): the work's requests go that way, each one the app does
+   * something for, while opening and ending the session are the protocol's own messages, sent directly. Right after a
+   * sign-in, before an account uses it, the key alone: every request is sent directly, as every sign-in step is. An
+   * app that answers busy (429, or 503 with a Retry-After) is an AppBusyError either way.
+   * @param {object} plugin
+   * @param {{ token: string, fetch?: typeof fetch }} access
    */
-  async function conversation(plugin, token, work, { timeout = CALL_MS } = {}) {
+  async function conversation(plugin, { token, fetch: paced = fetchImpl }, work, { timeout = CALL_MS } = {}) {
     const state = { session: "", version: "" };
     let nextId = 0;
 
-    async function post(message) {
+    async function post(message, send = paced) {
       const headers = {
         accept: "application/json, text/event-stream",
         "content-type": "application/json",
@@ -316,13 +323,15 @@ export function createConnector({ connectorApps, env, sealed, opened, fetch: fet
         ...(state.version ? { "mcp-protocol-version": state.version } : {})
       };
       // The key goes only to the connection point itself: an answer sending it elsewhere is an error.
-      const response = await fetchImpl(plugin.mcp.url, {
+      const response = await send(plugin.mcp.url, {
         method: "POST",
         headers,
         body: JSON.stringify({ jsonrpc: "2.0", ...message }),
         redirect: "manual",
         signal: AbortSignal.timeout(timeout)
       }).catch((error) => {
+        // The app busy for now (D-96): nothing was sent, or it did nothing; the caller says when to try again.
+        if (error instanceof AppBusyError) throw error;
         const late = error?.name === "TimeoutError";
         throw new ConnectionError(502, late ? `${plugin.name} took too long to answer.` : `Couldn't reach ${plugin.name}. Try again in a few minutes.`, {
           code: late ? "integrations_connector_slow" : "integrations_connector_unreachable",
@@ -332,6 +341,11 @@ export function createConnector({ connectorApps, env, sealed, opened, fetch: fet
       if (response.status === 401 || response.status === 403) {
         await response.body?.cancel().catch(() => {});
         throw new ConnectorAuthError(`${plugin.name} refused the key (${response.status}).`);
+      }
+      const busy = response.ok ? null : await busyFor(response);
+      if (busy !== null) {
+        await response.body?.cancel().catch(() => {});
+        throw new AppBusyError(plugin.name, busy);
       }
       if (!response.ok) {
         const said = (await response.text().catch(() => "")).replace(/\s+/gu, " ").slice(0, 200);
@@ -363,9 +377,9 @@ export function createConnector({ connectorApps, env, sealed, opened, fetch: fet
     }
 
     const request = (method, params) => post({ id: ++nextId, method, params });
-    const started = await request("initialize", INITIALIZE);
+    const started = await post({ id: ++nextId, method: "initialize", params: INITIALIZE }, fetchImpl);
     state.version = started?.protocolVersion || PROTOCOL_VERSION;
-    await post({ method: "notifications/initialized" });
+    await post({ method: "notifications/initialized" }, fetchImpl);
     try {
       return await work(request);
     } finally {
@@ -403,14 +417,14 @@ export function createConnector({ connectorApps, env, sealed, opened, fetch: fet
     return tools;
   }
 
-  /** The app's actions, for an account's key. */
-  function tools(plugin, token) {
-    return conversation(plugin, token, listTools);
+  /** The app's actions, for an account's key and its own way to the app. */
+  function tools(plugin, access) {
+    return conversation(plugin, access, listTools);
   }
 
   /** One action, with its input: what the app answered (`content`, `isError`). */
-  function call(plugin, token, name, input) {
-    return conversation(plugin, token, (request) => request("tools/call", { name, arguments: input || {} }));
+  function call(plugin, access, name, input) {
+    return conversation(plugin, access, (request) => request("tools/call", { name, arguments: input || {} }));
   }
 
   /**
@@ -419,7 +433,7 @@ export function createConnector({ connectorApps, env, sealed, opened, fetch: fet
    * address, or else its name, is the label.
    */
   async function signedIn(plugin, token) {
-    return conversation(plugin, token, async (request) => {
+    return conversation(plugin, { token }, async (request) => {
       const listed = await listTools(request);
       let label = null;
       if (plugin.mcp.whoami && listed.some((tool) => tool.name === plugin.mcp.whoami)) {

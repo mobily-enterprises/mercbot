@@ -1,7 +1,7 @@
 import { createTool } from "@jskit-ai/agent/server";
 import { z } from "zod";
 import { EMAIL_ADDRESS } from "./botActions.js";
-import { ConnectedAppError, connectedKey } from "./connectedApps.js";
+import { ConnectedAppError, appBusy, busyAnswer, connectedKey } from "./connectedApps.js";
 import { MAIL } from "./mailTools.js";
 
 /**
@@ -60,6 +60,7 @@ export function buildDraftTools({ turns, call, conversationId, viaBot, routineRu
         Object.assign(body, { to: to.trim(), ...(from ? { from: from.trim() } : {}), ...(subject ? { subject: subject.trim() } : {}) });
       }
     } catch (error) {
+      if (appBusy(error)) return busyAnswer(error);
       if (error instanceof ConnectedAppError) return { error: error.message };
       throw error;
     }

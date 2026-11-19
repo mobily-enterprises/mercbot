@@ -3,6 +3,7 @@ import test from "node:test";
 import { baseDomain, buildSignInCodeTools, namesSite, SIGN_IN_CODE_ACTIONS, signInCodeIn } from "../../packages/bots/src/server/signInCodes.js";
 import { buildTools } from "../../packages/bots/src/server/botTools.js";
 import { turnDoubles } from "../support/botDoubles.mjs";
+import { accessOf } from "../support/appKey.mjs";
 
 // Sign-in codes a site emails the person, which the bot fetches itself from an inbox it can read, against
 // stand-ins for Gmail's and Graph's APIs.
@@ -92,7 +93,7 @@ function signInTool({
     connections: {
       accessToken: async (_reach, id) => {
         read.push(id);
-        return { accessToken: `key-${id}` };
+        return accessOf(`key-${id}`);
       }
     },
     toolSwitches: async () => ({ skip: {}, removed: [], turnedOff: [] })

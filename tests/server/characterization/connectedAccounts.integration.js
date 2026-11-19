@@ -138,3 +138,33 @@ test("another person's account and another home's are not found", async () => {
   assert.equal(await nameOf(accounts.homeB), "Home B's");
   assert.notEqual(await nameOf(accounts.kimOwn), "Not yours");
 });
+
+// Each account's Request pace (D-96): how fast Mercbot sends its app requests. A stored account that never chose one,
+// as every account did before the setting, is Gentle; whoever may change the account chooses it.
+test("an account's Request pace is Gentle until chosen, and chosen only by whoever may change the account", async () => {
+  const paceOf = async (id) => (await knex("plugin_accounts").where({ id }).first("pace"))?.pace;
+  const listedPace = async (person, home, name) => (await listedAccounts(person, home)).find((account) => account.id === accounts[name]).pace;
+  assert.equal(await paceOf(accounts.homeA), null);
+  assert.equal(await listedPace(kim, homeA, "homeA"), "gentle");
+  assert.equal(await listedPace(pat, homeA, "patOwn"), "gentle");
+
+  const kimSets = await kim.put(`${homeA.url}/plugin-accounts/${accounts.homeA}/pace`, { pace: "fast" });
+  assert.equal(kimSets.status, 403, JSON.stringify(kimSets.body));
+  assert.equal(kimSets.body.code, "integrations_account_manage_forbidden");
+  const notYours = await kim.put(`${homeA.url}/plugin-accounts/${accounts.patOwn}/pace`, { pace: "fast" });
+  assert.equal(notYours.status, 404, JSON.stringify(notYours.body));
+  for (const pace of ["turbo", "", undefined]) {
+    const refused = await pat.put(`${homeA.url}/plugin-accounts/${accounts.homeA}/pace`, { pace });
+    assert.equal(refused.status, 400, `${pace}: ${JSON.stringify(refused.body)}`);
+    assert.equal(refused.body.code, "integrations_account_pace_unknown");
+  }
+  assert.deepEqual([await paceOf(accounts.homeA), await paceOf(accounts.patOwn)], [null, null], "nothing refused changed a pace");
+
+  const patSets = await pat.put(`${homeA.url}/plugin-accounts/${accounts.homeA}/pace`, { pace: "fast" });
+  assert.equal(patSets.status, 200, JSON.stringify(patSets.body));
+  assert.equal(await paceOf(accounts.homeA), "fast");
+  assert.equal(await listedPace(kim, homeA, "homeA"), "fast", "everyone in the home sees the home's account's pace");
+  const kimOwn = await kim.put(`${homeA.url}/plugin-accounts/${accounts.kimOwn}/pace`, { pace: "normal" });
+  assert.equal(kimOwn.status, 200, JSON.stringify(kimOwn.body));
+  assert.equal(await paceOf(accounts.kimOwn), "normal", "a member chooses their own account's");
+});

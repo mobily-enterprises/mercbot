@@ -6,6 +6,8 @@ import { FilesError } from "./fileStore.js";
 // and nowhere else; rclone's Drive backend mounts that folder like WebDAV storage (remoteMounts.js), asking this
 // server for each key (driveKey), so the account's long-lived permission never leaves Mercbot and is renewed under the
 // account's row lock (connections.js). Here: the accounts a person may choose, the folder, and the key for a mount.
+// Mercbot's own requests to Drive go through the account's own fetch, in its Request pace (D-96); rclone's mount keeps
+// to rclone's Drive pacer (a request every 100 ms at most, backing off when Drive says it's busy).
 
 export const DRIVE_PLUGIN = "google-drive";
 const FOLDER = "application/vnd.google-apps.folder";
@@ -44,9 +46,8 @@ const signInAgain = (label) =>
  * @param {import("@local/integrations/server/types").Integrations} dependencies.integrations
  * @param {(reason: string) => object} dependencies.systemContext the feature's system scope
  * @param {import("@jskit-ai/kernel/server/types").RuntimeEnv} dependencies.env
- * @param {typeof fetch} [dependencies.fetch]
  */
-export function createDriveStorage({ integrations, systemContext, env, fetch: fetchImpl = globalThis.fetch }) {
+export function createDriveStorage({ integrations, systemContext, env }) {
   const api = driveStandIn(env)?.url || DRIVE;
 
   /** The account's owner, as a job in the home: their own accounts and the home's are reachable. */
@@ -55,10 +56,14 @@ export function createDriveStorage({ integrations, systemContext, env, fetch: fe
       .forWorkspaceUser(String(homeId), String(settings.userId), { actorId: String(settings.userId) })
   });
 
+  /**
+   * One request to Drive with a key connections.accessToken gave: through the account's own fetch, in its pace (D-96).
+   * @param {{ accessToken: string, fetch: typeof fetch }} key
+   */
   async function call(key, path, init = {}) {
-    const response = await fetchImpl(`${api}${path}`, {
+    const response = await key.fetch(`${api}${path}`, {
       ...init,
-      headers: { authorization: `Bearer ${key}`, "content-type": "application/json", ...init.headers },
+      headers: { authorization: `Bearer ${key.accessToken}`, "content-type": "application/json", ...init.headers },
       signal: AbortSignal.timeout(20000)
     });
     const body = await response.json().catch(() => ({}));
@@ -98,7 +103,7 @@ export function createDriveStorage({ integrations, systemContext, env, fetch: fe
     }
     const label = account.label || account.name;
     if (account.status !== "connected") throw signInAgain(label);
-    const { accessToken: key } = await keyFor(account.id, options, label);
+    const key = await keyFor(account.id, options, label);
     // Whose Drive it is: a person's own account is reached as them, a home's by anyone in it (asOwner).
     const chosen = { accountId: account.id, userId: account.userId, label };
     const home = String(options?.context?.workspace?.name || "").trim();
@@ -144,7 +149,7 @@ export function createDriveStorage({ integrations, systemContext, env, fetch: fe
    * The key a home's mount asks for (remoteMounts.js), renewed under the account's row lock when it's about to run out,
    * or at once when Drive turned down `refused`, the key the mount had.
    * @param {{ refused?: string }} [why]
-   * @returns {Promise<{ accessToken: string, expiresAt: number | null, renewed?: boolean }>}
+   * @returns {Promise<{ accessToken: string, expiresAt: number | null, renewed?: boolean, fetch: typeof fetch }>}
    */
   function key(homeId, settings, { refused = "" } = {}) {
     return keyFor(settings.accountId, asOwner(homeId, settings), settings.label, refused);
@@ -157,20 +162,18 @@ export function createDriveStorage({ integrations, systemContext, env, fetch: fe
    * turns down is renewed once (signing the account out if Google refuses that too).
    * @param {string} homeId
    * @param {{ accountId: string, userId: string, label: string, folderId: string }} settings
-   * @param {{ accessToken: string } | null} [given] a key already in hand
+   * @param {{ accessToken: string, fetch: typeof fetch } | null} [given] a key already in hand
    * @returns {Promise<{ folder: "here" | "bin" | "missing", used: number, limit: number | null } | null>}
    */
   async function look(homeId, settings, given = null) {
-    let { accessToken } = given || await key(homeId, settings);
+    let access = given || await key(homeId, settings);
     for (let attempt = 0; attempt < 2; attempt += 1) {
-      const [folder, about] = await Promise.all([
-        call(accessToken, `/drive/v3/files/${encodeURIComponent(settings.folderId)}?fields=trashed`),
-        call(accessToken, "/drive/v3/about?fields=storageQuota")
-      ]);
+      const folder = await call(access, `/drive/v3/files/${encodeURIComponent(settings.folderId)}?fields=trashed`);
+      const about = await call(access, "/drive/v3/about?fields=storageQuota");
       if (folder.status === 401 || about.status === 401) {
         if (attempt) return null;
         // Drive turned the key down before it ran out: renewed once, or the account is signed out.
-        ({ accessToken } = await key(homeId, settings, { refused: accessToken }));
+        access = await key(homeId, settings, { refused: access.accessToken });
         continue;
       }
       if (![200, 404].includes(folder.status) || about.status !== 200) return null;
@@ -191,8 +194,7 @@ export function createDriveStorage({ integrations, systemContext, env, fetch: fe
    * gone already is left.
    */
   async function trash(homeId, settings, trashed) {
-    const { accessToken } = await key(homeId, settings);
-    const { status } = await call(accessToken, `/drive/v3/files/${encodeURIComponent(settings.folderId)}?fields=id`, {
+    const { status } = await call(await key(homeId, settings), `/drive/v3/files/${encodeURIComponent(settings.folderId)}?fields=id`, {
       method: "PATCH",
       body: JSON.stringify({ trashed })
     });

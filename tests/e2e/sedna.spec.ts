@@ -69,6 +69,13 @@ test("the owner enters Sedna's API credentials in Connect apps, then picks who t
     await people.getByRole("listitem").filter({ hasText: "Sam Poe" }).getByRole("button", { name: "This is me" }).click();
     await expect(people).toContainText("Sam Poe, picked and confirmed. Your bots read only your Sedna teams: Chartering, Operations.");
 
+    // Its Request pace (D-96): Gentle until the owner chooses another.
+    const pace = modal.getByRole("region", { name: "Request pace for Sedna" });
+    await expect(pace.getByRole("radio", { name: "Gentle" })).toBeChecked();
+    await pace.getByRole("radio", { name: "Normal" }).click();
+    await expect(pace.getByRole("radio", { name: "Normal" })).toBeChecked();
+    expect((await knex("plugin_accounts").where({ id: accountId }).first()).pace).toBe("normal");
+
     // Disconnecting clears the credentials.
     const row = modal.locator(".mb-detail__row").filter({ hasText: "Acme Shipping" });
     await row.getByRole("button", { name: "Disconnect" }).click();

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { z } from "zod";
 import { GITHUB_ACTIONS, buildGithubTools } from "../../packages/bots/src/server/githubTools.js";
+import { accessOf } from "../support/appKey.mjs";
 
 // The rest of the person's GitHub (D-42), against a stand-in for GitHub's API.
 function fakeGithub(context, routes) {
@@ -13,16 +14,24 @@ function fakeGithub(context, routes) {
       const [method, part] = /^(GET|POST|PUT|PATCH|DELETE) /u.test(pattern) ? [pattern.split(" ")[0], pattern.slice(pattern.indexOf(" ") + 1)] : ["", pattern];
       return (!method || method === (options.method || "GET")) && decodeURIComponent(String(url)).includes(part);
     });
-    const [status, body] = match ? match[1] : [404, { message: "Not Found" }];
-    return new Response(typeof body === "string" ? body : JSON.stringify(body), { status });
+    const [status, body, headers = {}] = match ? match[1] : [404, { message: "Not Found" }];
+    return new Response(typeof body === "string" ? body : JSON.stringify(body), { status, headers });
   };
   context.after(() => { globalThis.fetch = original; });
   return calls;
 }
 
+// Each key handed out, with its own paced fetch (appKey.mjs, D-96).
+const handed = [];
 const integrations = {
   reachableAccounts: async () => [{ id: "4", pluginId: "github", name: "", label: "pat", status: "connected" }],
-  connections: { accessToken: async () => ({ accessToken: "gh-key" }) }
+  connections: {
+    accessToken: async () => {
+      const access = accessOf("gh-key", { app: "GitHub" });
+      handed.push(access.key);
+      return access;
+    }
+  }
 };
 const shared = {
   appFor: () => ({ integrations, reach: { userId: 7 } }),
@@ -84,4 +93,24 @@ test("each GitHub action is its own switch", () => {
   assert.equal(tools.githubChange.inputSchema.shape.action.options.includes("pr_merge"), false);
   assert.equal(tools.githubChange.inputSchema.shape.action.options.length, 17);
   assert.deepEqual(Object.keys(tools), ["githubCode", "githubPulls", "githubIssues", "githubDiscussions", "githubChange"]);
+});
+
+// Every GitHub request waits its turn in the account's Request pace (D-96), and GitHub saying no requests are left until
+// its window starts again stops the tool at once, saying when.
+test("GitHub's requests go through the account's own paced fetch; out of requests, it says when to try again", async (context) => {
+  const reset = Math.floor(Date.now() / 1000) + 600;
+  const calls = fakeGithub(context, {
+    "/repos/pat/app/contents/src/main.js": [200, { path: "src/main.js", size: 6, content: Buffer.from("run();").toString("base64") }],
+    "/pulls/12/files": [403, { message: "API rate limit exceeded" }, { "x-ratelimit-remaining": "0", "x-ratelimit-reset": String(reset) }]
+  });
+  const tools = buildGithubTools({ ...shared, failed: (error) => ({ error: error.message, code: error.code }), attempt: async () => ({}), attempted: [], removed: [] });
+  handed.length = 0;
+  await tools.githubCode.execute({ action: "file", repo: "pat/app", path: "src/main.js" });
+  assert.ok(calls.length > 0);
+  assert.equal(handed.reduce((sum, key) => sum + key.sent, 0), calls.length, "every request went through the account's paced fetch");
+  const before = calls.length;
+  const busy = await tools.githubPulls.execute({ action: "diff", repo: "pat/app", number: 12 });
+  assert.equal(busy.code, "integrations_app_busy");
+  assert.match(busy.error, /^GitHub is busy: try again in (59\d|600) s\. Nothing was done\.$/u, "until GitHub's window starts again");
+  assert.equal(calls.length - before, 1, "reported at once, not tried again");
 });

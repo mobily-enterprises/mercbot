@@ -10,7 +10,8 @@ import { ConnectionError } from "./oauth.js";
 // A kind (sednaCredentials.js): `{ name, normalize(values), org(values), api(values), mint(values), check({ values,
 // access, people }), matches({ values, access, people }), person({ values, access, address }), personById({ values,
 // access, id }), users({ values, access, words }) }`. `mint` throws a ConnectionError coded CREDENTIALS_REFUSED when the
-// app no longer takes the values.
+// app no longer takes the values. `access` is `{ token, fetch }`: the key, and the account's own way to the app, in its
+// Request pace (appRequests.js, D-96), which every read but making the key goes through.
 
 /** The app turned the credentials down: a ConnectionError whose code says so, which signs a renewal's account out. */
 export const CREDENTIALS_REFUSED = "integrations_credentials_refused";
