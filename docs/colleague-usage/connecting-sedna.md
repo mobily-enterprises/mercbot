@@ -38,7 +38,7 @@ chat or put it in a file.
 
 ## Enter them in Connect apps (owners and admins)
 
-1. Open **Connect apps** (Ctrl+Alt+W, or search for it) and open **Sedna**, then select **Connect**. A form opens on
+1. Open **Connect apps** (Ctrl+Shift+M, or search for it) and open **Sedna**, then select **Connect**. A form opens on
    the page; there is no sign-in tab.
 2. Type the **Sedna address**: the first part of the address the organisation opens Sedna at (the *acme* of
    `acme.sednanetwork.com`; pasting the whole address works too). The form then links to that Sedna's API Credential

@@ -7,7 +7,7 @@ asks it to. This guide covers choosing the pace, what each one means for each ap
 
 ## Choose the pace
 
-1. Open **Connect apps** (Ctrl+Alt+W, or search for it) and open the app.
+1. Open **Connect apps** (Ctrl+Shift+M, or search for it) and open the app.
 2. Under **Request pace**, each connected account has three choices: **Gentle**, **Normal** and **Fast**. Select one;
    it applies at once, to every bot and routine using that account.
 
