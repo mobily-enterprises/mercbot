@@ -3,6 +3,12 @@
   margin-bottom: 22px;
 }
 
+/* Its label sits as far below the section before it as every boxed section's label does (.mb-sharing's 22px), which
+   the Apps section's own smaller margin collapses into. */
+.mb-instructions__label:not(:first-child) {
+  margin-top: 22px;
+}
+
 .mb-instructions__shown {
   display: block;
   width: 100%;

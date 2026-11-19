@@ -340,7 +340,7 @@ const instructionsNote = computed(() => [
           </p>
         </template>
         <template v-if="!isGroup && instructions">
-          <p class="mb-details__section">Instructions</p>
+          <p class="mb-details__section mb-instructions__label">Instructions</p>
           <div v-if="editingInstructions" class="mb-instructions">
             <textarea
               ref="instructionsBox"
