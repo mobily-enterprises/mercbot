@@ -27,7 +27,7 @@
   "dependencies": {
     "@jskit-ai/kernel": "0.2.28",
     "@jskit-ai/resource-core": "0.1.219",
-    "@jskit-ai/resource-runtime": "0.2.41"
+    "@jskit-ai/resource-runtime": "0.2.42"
   },
   "jskit": {
     "kind": "runtime",
