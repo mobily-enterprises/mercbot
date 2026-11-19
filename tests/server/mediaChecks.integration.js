@@ -14,9 +14,10 @@ import { ownedHandles } from "../support/ownedHandles.mjs";
 import { statementsDuring } from "../support/queryCount.mjs";
 import { connectTestDatabase } from "../support/testDatabase.mjs";
 
-// What a copy that checks pictures and videos checks afterwards (D-90): a bot's computer's screenshots and the files
+// What a copy that checks pictures and videos checks afterwards (D-90): the screenshots a bot's reply shows and the files
 // bots save wait in media_checks, every server takes a batch of the due ones in turn (D-15), a blocked file is removed,
-// and one that can't be checked now waits, longer each time. Without a checker nothing is queued.
+// and one that can't be checked now waits, longer each time. Without a checker nothing is queued. A copy whose own
+// review judges a file later removes it by the item its check gave (`remove`).
 assert.ok(process.env.TEST_DB_NAME?.trim(), "TEST_DB_NAME must identify a disposable test database.");
 assert.equal(process.env.DB_NAME, process.env.TEST_DB_NAME, "DB_NAME must match the dedicated TEST_DB_NAME.");
 
@@ -40,7 +41,9 @@ test("screenshots and the pictures and videos bots save are checked afterwards, 
     await fs.rm(volume, { recursive: true, force: true });
   });
   const { resources, systemContext } = (await ownedHandles(knex, context, { "mercbot.files": FILES_OWNS })).features["mercbot.files"];
-  const store = createFileStore({ root: volume, ownStorage: async () => null, settle: async () => {}, explain: async () => {} });
+  // The homes whose files were settled, newest last.
+  const settled = [];
+  const store = createFileStore({ root: volume, ownStorage: async () => null, settle: async (homeId) => settled.push(String(homeId)), explain: async () => {} });
   const place = { homeId: home, botId: "41", userId };
   await store.prepare(place);
   const save = async (name, data) => {
@@ -113,6 +116,7 @@ test("screenshots and the pictures and videos bots save are checked afterwards, 
       ["saved_file", "/files/mine/cat.png", "image/png", home, userId, "41", "5", null],
       ["saved_file", "/files/mine/dog.mp4", "video/mp4", home, userId, "41", "5", null]
     ]);
+    for (const item of asked) assert.deepEqual(item.place, place, "each with the place its row kept");
     assert.deepEqual(asked.find((item) => item.path === "/files/mine/cat.png").bytes, PICTURE);
     assert.match(said.mock.calls[0].arguments[0], /^A file \/files\/mine\/cat\.png \(home \d+\) was removed: its check blocked it \(check-1\)\.$/u);
   });
@@ -148,20 +152,20 @@ test("screenshots and the pictures and videos bots save are checked afterwards, 
     assert.ok(existsSync(fox));
   });
 
-  await context.test("a screenshot is queued before it's written, checked once it's due, and removed when blocked", async () => {
+  await context.test("a screenshot a reply shows is queued after it's written, checked 30 seconds later, and removed when blocked", async () => {
     const name = "77-0123456789abcdef.jpg";
-    await checks.screenshotLater({ computerId: "77", name, workspaceId: home, userId, botId: "41" });
-    const [queued] = await rows();
-    assert.deepEqual([queued.origin, queued.path, String(queued.conversation_id), queued.place, queued.wait], ["screenshot", name, "77", null, 30]);
-    assert.equal(await checks.sweep(), 0, "a screenshot waits until it's written");
     const shot = path.join(volume, "computers", "77", "screenshots", name);
     await fs.mkdir(path.dirname(shot), { recursive: true });
     await fs.writeFile(shot, JPEG);
+    await checks.screenshotLater({ computerId: "77", name, workspaceId: home, userId, botId: "41" });
+    const [queued] = await rows();
+    assert.deepEqual([queued.origin, queued.path, String(queued.conversation_id), queued.place, queued.wait], ["screenshot", name, "77", null, 30]);
+    assert.equal(await checks.sweep(), 0, "not before its 30 seconds");
     await due();
     verdicts = { [name]: { verdict: "block" } };
     assert.equal(await checks.sweep(), 1);
     assert.equal(existsSync(shot), false);
-    assert.equal(asked.at(-1).mime, "image/jpeg");
+    assert.deepEqual([asked.at(-1).mime, asked.at(-1).conversationId, asked.at(-1).place], ["image/jpeg", "77", null]);
     assert.deepEqual(await rows(), []);
     // One that's gone by its time just leaves the queue, unchecked.
     await checks.screenshotLater({ computerId: "77", name: `77-${"f".repeat(16)}.jpg`, workspaceId: home });
@@ -170,6 +174,89 @@ test("screenshots and the pictures and videos bots save are checked afterwards, 
     assert.equal(await checks.sweep(), 1);
     assert.equal(asked.length, before);
     assert.deepEqual(await rows(), []);
+  });
+
+  await context.test("a copy removes a file it allowed when its own review judges it later, by the item its check gave", async () => {
+    const computers = [];
+    const watched = {
+      ...store,
+      async settleComputer(id) {
+        computers.push(String(id));
+        await store.settleComputer(id);
+      }
+    };
+    const later = createMediaChecks({ guard: createMediaGuard(copy), mediaChecks: resources.mediaChecks, systemContext, store: watched });
+    // What a checker keeps of an item and gives back: JSON, without the file.
+    const kept = ({ origin, place: where = null, path: virtualPath, conversationId = null, workspaceId }) =>
+      JSON.parse(JSON.stringify({ origin, place: where, path: virtualPath, conversationId, workspaceId }));
+    const write = async (where, virtualPath) => {
+      const real = await store.resolve(where, virtualPath);
+      await fs.mkdir(path.dirname(real), { recursive: true });
+      await fs.writeFile(real, PICTURE);
+      return real;
+    };
+
+    // An upload, from each place an upload route writes to: the bot's for the person, a group's everyone place, the home's.
+    const everyone = { homeId: home, botId: "41", everyone: true };
+    for (const [where, virtualPath] of [[place, "/files/mine/Uploads/late.png"], [everyone, "/files/bot/Uploads/group.png"], [store.homePlace(home), "/files/shared/Uploads/team.png"]]) {
+      await store.prepare(where);
+      const real = await write(where, virtualPath);
+      const item = kept({ origin: "upload", place: where, path: virtualPath, workspaceId: home });
+      settled.length = 0;
+      assert.equal(await later.remove(item), "removed", virtualPath);
+      assert.equal(existsSync(real), false);
+      assert.deepEqual(settled, [home], "the home's files are settled");
+      assert.equal(await later.remove(item), "gone", "a file no longer there is gone");
+    }
+
+    // A saved file, by the item the sweep's check gave, with the place its row kept.
+    const late = await save("late.png", PICTURE);
+    await checks.filesLater(turn(["late.png"]));
+    verdicts = {};
+    assert.equal(await checks.sweep(), 1);
+    assert.ok(existsSync(late), "allowed, it's kept");
+    const checked = kept(asked.findLast((item) => item.path === "/files/mine/late.png"));
+    assert.deepEqual(checked, { origin: "saved_file", place, path: "/files/mine/late.png", conversationId: "5", workspaceId: home });
+    assert.equal(await later.remove(checked), "removed");
+    assert.equal(existsSync(late), false);
+    assert.equal(await later.remove(checked), "gone");
+
+    // A screenshot: its name and its computer.
+    const name = `77-${"c".repeat(16)}.jpg`;
+    const shot = path.join(volume, "computers", "77", "screenshots", name);
+    await fs.mkdir(path.dirname(shot), { recursive: true });
+    await fs.writeFile(shot, JPEG);
+    const screenshot = kept({ origin: "screenshot", path: name, conversationId: "77", workspaceId: home });
+    assert.equal(await later.remove(screenshot), "removed");
+    assert.equal(existsSync(shot), false);
+    assert.deepEqual(computers, ["77"], "the computer's files are settled");
+    assert.equal(await later.remove(screenshot), "gone");
+
+    // Every other origin's file isn't kept where Mercbot removes it: nothing is done.
+    const stays = await save("stays.png", PICTURE);
+    for (const origin of ["vault_photo", "profile_picture", "picture"]) {
+      assert.equal(await later.remove(kept({ origin, place, path: "/files/mine/stays.png", workspaceId: home })), "not_kept_here", origin);
+    }
+    assert.ok(existsSync(stays));
+
+    // A path outside its place, even through a linked folder, a place in another home or none, and a name that isn't a
+    // screenshot's are refused, and nothing is removed. A link itself is no file kept there.
+    const outside = path.join(volume, "outside.png");
+    await fs.writeFile(outside, PICTURE);
+    await fs.symlink(outside, await store.resolve(place, "/files/mine/link.png"));
+    await fs.symlink(volume, await store.resolve(place, "/files/mine/linked"));
+    const refusal = (item) => later.remove(item).then((answer) => answer, (error) => [error.statusCode, error.code]);
+    assert.equal(await refusal(kept({ origin: "upload", place, path: "/files/mine/link.png", workspaceId: home })), "gone");
+    for (const virtualPath of ["/files/mine/../../../outside.png", "/outside.png", "/files/mine/linked/outside.png", "../outside.png"]) {
+      assert.deepEqual(await refusal(kept({ origin: "upload", place, path: virtualPath, workspaceId: home })), [400, "files_path_outside"], virtualPath);
+    }
+    assert.deepEqual(await refusal(kept({ origin: "saved_file", place: null, path: "/files/mine/stays.png", workspaceId: home })), [400, "media_place_invalid"]);
+    assert.deepEqual(await refusal(kept({ origin: "upload", place, path: "/files/mine/stays.png", workspaceId: `${home}0` })), [400, "media_place_invalid"]);
+    for (const [badName, computer] of [["../outside.png", "77"], [`77-${"c".repeat(15)}.jpg`, "77"], [name, "../77"], [name, null]]) {
+      assert.deepEqual(await refusal(kept({ origin: "screenshot", path: badName, conversationId: computer, workspaceId: home })), [400, "media_screenshot_invalid"], `${badName} on ${computer}`);
+    }
+    assert.ok(existsSync(outside) && existsSync(stays));
+    for (const link of ["/files/mine/link.png", "/files/mine/linked"]) await fs.unlink(await store.resolve(place, link));
   });
 
   await context.test("a picture or video too big to check isn't kept", async (t) => {

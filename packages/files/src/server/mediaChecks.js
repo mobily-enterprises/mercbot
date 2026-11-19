@@ -1,13 +1,15 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { SNIFF_BYTES, sniffMedia } from "@local/account/media-check";
+import { FilesError } from "./fileStore.js";
 
 // A copy built on Mercbot may check every picture and video before it's kept or sent (`mercbot.media-check`, D-90).
-// Most are checked on their way in (an upload, a picture a bot makes, a profile picture). A bot's computer takes
-// screenshots by the dozen, and a bot's turn may save many files, so those are checked afterwards instead, within
+// Most are checked on their way in (an upload, a picture a bot makes, a profile picture). The screenshots a bot's reply
+// shows people, and the files a bot's turn saves, may be many, so those are checked afterwards instead, within
 // minutes: each waits in media_checks, where every server takes a batch in turn (D-15), and stays visible meanwhile. A
 // blocked one is removed; one that can't be checked now stays waiting, and is tried again later, further each time,
-// so none is ever left unchecked. Without a checker nothing is queued, and nothing here runs.
+// so none is ever left unchecked. A screenshot nobody is shown is never queued. Without a checker nothing is queued,
+// and nothing here runs. A copy whose own review later judges a file it allowed removes it (`remove`).
 
 const SWEEP_MS = 20000;
 // The most rows one server takes in one sweep, and checks a few at a time.
@@ -18,13 +20,15 @@ const LEASE_SECONDS = 300;
 // A check that couldn't be made is tried again after a minute, then twice as long each time, up to half an hour.
 const FIRST_RETRY_SECONDS = 60;
 const LAST_RETRY_SECONDS = 30 * 60;
-// A screenshot is queued just before it's written, so it's taken no sooner than this after.
+// A screenshot is queued once the reply that shows it is over, and taken no sooner than this after.
 const SCREENSHOT_WAIT_SECONDS = 30;
 // A file is checked whole, in memory; a picture or video bigger than this can't be, so it isn't kept.
 const CHECK_LIMIT = 100 * 1024 * 1024;
 const SCREENSHOT_NAME = /^\d+-[0-9a-f]{16}\.jpg$/u;
 const FIELDS = Object.freeze(["id", "workspaceId", "origin", "place", "path", "botId", "userId", "conversationId", "attempts"]);
 const GONE = new Set(["files_file_gone", "files_path_outside"]);
+// The origins whose file is kept in a files place, which `remove` takes it from; a screenshot is a computer's.
+const IN_A_PLACE = new Set(["upload", "saved_file"]);
 
 /** The search entries media_checks' owns entry adds: rows that may be taken now, on the database's clock. */
 export const MEDIA_CHECK_FILTERS = Object.freeze({
@@ -85,9 +89,9 @@ export function createMediaChecks({ guard, mediaChecks, systemContext, store, ti
   }
 
   /**
-   * A screenshot about to be kept in a computer's folder (its name, computers.js storeScreenshot), queued before it's
-   * written, so none is ever there unqueued, and taken about `screenshotWaitSeconds` later (by this server's clock: a new
-   * row's time can't be the database's), once it is. A computer's key is its conversation's id.
+   * A screenshot a reply shows people (its name in the computer's folder, computers.js storeScreenshot), queued once the
+   * reply's turn is over (botTools.js close), after it was written, and taken about `screenshotWaitSeconds` later (by
+   * this server's clock: a new row's time can't be the database's). A computer's key is its conversation's id.
    * @param {{ computerId: string, name: string, workspaceId: string | null, userId?: string | null, botId?: string | null }} screenshot
    */
   function screenshotLater({ computerId, name, workspaceId, userId = null, botId = null }) {
@@ -202,6 +206,8 @@ export function createMediaChecks({ guard, mediaChecks, systemContext, store, ti
       userId: row.userId,
       botId: row.botId,
       conversationId: row.conversationId,
+      // A saved file's place; a screenshot's row has none.
+      place: row.place ?? null,
       path: row.path,
       ip: null
     });
@@ -211,6 +217,54 @@ export function createMediaChecks({ guard, mediaChecks, systemContext, store, ti
       console.info(`A ${where(row)} was removed: its check blocked it${answer.ref ? ` (${answer.ref})` : ""}.`);
     }
     return true;
+  }
+
+  /**
+   * A computer's screenshot, by its name and its computer, as a check gave them: refused unless the name is one a
+   * computer gives a screenshot (storeScreenshot) and the computer an id. Answers its path here, or null when it's gone.
+   */
+  async function screenshotFile(conversationId, name) {
+    if (!SCREENSHOT_NAME.test(String(name)) || !/^\d+$/u.test(String(conversationId))) {
+      throw new FilesError(400, "That's not a computer's screenshot.", { code: "media_screenshot_invalid" });
+    }
+    const conversation = Number(conversationId);
+    return { conversation, real: await store.computerFile(conversation, `screenshots/${name}`) };
+  }
+
+  /**
+   * Removes a file a check allowed, when a copy's own review judges it later (D-90). `item` is as that check gave it:
+   * `{ origin, place, path, conversationId, workspaceId }`. An upload's or a saved file's is removed from its place,
+   * writing, so it waits while the home's files are moved (D-80), and the home's files are settled; a screenshot's
+   * (`path` its name, `conversationId` its computer) from its computer's folder, which is then settled. It answers
+   * "removed", or "gone" when the file isn't there any more; and "not_kept_here", doing nothing, for any other origin,
+   * whose item names no place (a Vault photo is never kept, a picture a bot makes is checked before it's kept, and a
+   * profile picture is JSKIT's, removed through its users service). A path outside its place, a place in another home
+   * than the item's or a name that isn't a screenshot's is refused (a FilesError, 400).
+   * @param {{ origin: string, place?: object | null, path: string, conversationId?: string | null,
+   *   workspaceId?: string | null }} item
+   * @returns {Promise<"removed" | "gone" | "not_kept_here">}
+   */
+  async function remove({ origin, place = null, path: virtualPath, conversationId = null, workspaceId = null }) {
+    if (origin === "screenshot") {
+      const { conversation, real } = await screenshotFile(conversationId, virtualPath);
+      if (!real) return "gone";
+      await fs.rm(real, { force: true });
+      await store.settleComputer(conversation);
+      return "removed";
+    }
+    if (!IN_A_PLACE.has(origin)) return "not_kept_here";
+    const otherHome = workspaceId !== null && workspaceId !== undefined && String(workspaceId) !== String(place?.homeId);
+    if (!place || typeof place !== "object" || !place.homeId || otherHome) {
+      throw new FilesError(400, "That file's place isn't one of its home's.", { code: "media_place_invalid" });
+    }
+    const found = await store.existingFile(place, String(virtualPath ?? ""), { writing: true }).catch((error) => {
+      if (error?.code === "ENOENT" || error?.code === "files_file_gone") return null;
+      throw error;
+    });
+    if (!found) return "gone";
+    await fs.rm(found.real, { force: true });
+    await store.settle(place.homeId);
+    return "removed";
   }
 
   /**
@@ -260,6 +314,7 @@ export function createMediaChecks({ guard, mediaChecks, systemContext, store, ti
     checkText: guard.checkText,
     screenshotLater,
     filesLater,
+    remove,
     sweep,
     startSweeping,
     stop

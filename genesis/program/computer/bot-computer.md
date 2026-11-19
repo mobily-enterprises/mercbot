@@ -201,8 +201,9 @@ a working copy, its own files pulled before they're read, a screenshot fetched a
 (`store.computerFile`), and what's written sent to the bucket at once (`store.settleComputer`).
 While the files aren't available there are no screenshots and nothing is saved.
 - **Screenshots:** `screenshots/<conversation>-<16 hex>.jpg`, served only for that conversation. With a copy
-  built on Mercbot that checks pictures (D-90), each is queued in `media_checks` before it's written (one that can't be
-  queued isn't kept) and checked within minutes; a blocked one is removed and then answers as missing.
+  built on Mercbot that checks pictures (D-90), only the ones a reply shows people are queued in `media_checks`, by
+  that reply once its turn is over (bots' `botTools.js`), and checked within minutes; a blocked one is removed and
+  then answers as missing. `storeScreenshot` queues none, so every other screenshot is kept unchecked.
 - **Lifetime:** a conversation's folder goes with it. Each server looks, at most hourly
   (`sweepFiles`), for folders whose conversation is gone, whatever way it went.
 

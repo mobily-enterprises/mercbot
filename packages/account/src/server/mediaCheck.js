@@ -88,6 +88,8 @@ export function sniffMedia(bytes) {
 }
 
 const idOf = (value) => (value === null || value === undefined || value === "" ? null : String(value));
+// Where a file is kept, as the checker gets it: a copy of its own, JSON-safe, so a checker may keep it and give it back.
+const placeOf = (place) => (place && typeof place === "object" ? JSON.parse(JSON.stringify(place)) : null);
 
 /** A checker's answer as Mercbot keeps it: its verdict, and its own sentence and reference when it gave them. */
 function answerOf(answer) {
@@ -120,10 +122,13 @@ export function createMediaGuard(mediaCheck) {
   }
 
   /**
+   * `place` is the files place a file is kept in (fileStore.js), given only for an upload and a saved file.
    * @param {{ bytes: Buffer, origin: import("./types.js").MediaOrigin, workspaceId?: unknown, userId?: unknown,
-   *   botId?: unknown, conversationId?: unknown, path?: string | null, ip?: string | null }} item
+   *   botId?: unknown, conversationId?: unknown, place?: object | null, path?: string | null, ip?: string | null }} item
    */
-  async function check({ bytes, origin, workspaceId = null, userId = null, botId = null, conversationId = null, path = null, ip = null }) {
+  async function check({
+    bytes, origin, workspaceId = null, userId = null, botId = null, conversationId = null, place = null, path = null, ip = null
+  }) {
     if (!on) return ALLOWED;
     const media = sniffMedia(bytes);
     if (!media) return ALLOWED;
@@ -135,6 +140,7 @@ export function createMediaGuard(mediaCheck) {
       userId: idOf(userId),
       botId: idOf(botId),
       conversationId: idOf(conversationId),
+      place: placeOf(place),
       path: path ?? null,
       ip: ip ?? null
     }));

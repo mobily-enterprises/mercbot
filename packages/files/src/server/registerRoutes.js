@@ -163,6 +163,8 @@ export function registerRoutes(http, { files, directory, uploads }) {
           userId: request.user.id,
           botId: place.botId ?? null,
           conversationId: null,
+          // Where it's kept, so a copy's later review can remove it (files.media.remove).
+          place,
           path: `${virtualFolder}/${name}`,
           ip: request.ip ?? null
         }

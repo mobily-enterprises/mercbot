@@ -172,7 +172,8 @@ routes that show, send and change those files (D-20, D-21, D-47), and where each
 WebDAV storage or in a connected Google Drive account, through `mercbot.integrations` (D-26, D-80), moving every file
 when a home chooses another place, and answering whose own Drive holds them (`storage.heldInTheirDrive`), which a copy
 that removes people from homes asks first, and the pictures and videos a copy built on Mercbot checks (D-90): uploads and
-profile pictures before they're kept, a bot's screenshots and saved files afterwards, from `media_checks`, and a folder
+profile pictures before they're kept, the screenshots a bot's reply shows and the files it saves afterwards, from
+`media_checks`, removing later a file such a copy's own review judges (`files.media.remove`), and a folder
 of such a copy's own (`store.privateFolder`). Mercbot's own files are kept in an S3 bucket when one is configured, each
 sealed, with the files key sealed in the bucket's `.mercbot-files` record (D-91); each server works on a copy in its
 files folder.

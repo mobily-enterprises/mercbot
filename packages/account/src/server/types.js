@@ -70,7 +70,10 @@
 /**
  * A picture or video to check: the whole file, its type as its own first bytes say (mediaCheck.js sniffMedia, never its
  * name's or a browser's), where it came from, whose it is, where it would be kept (a virtual path such as
- * "/files/mine/Uploads/cat.jpg", or a computer's screenshot's name) and the address of the request that brought it in.
+ * "/files/mine/Uploads/cat.jpg", or a computer's screenshot's name, whose computer is `conversationId`) and the address
+ * of the request that brought it in. `place` is the files place that path is in, for an upload (the bot's place for the
+ * person, a group's everyone place or the home's) and a file a bot saved, and null for every other origin: an opaque,
+ * JSON-safe object a checker may keep and give back to `files.media.remove` (D-90).
  * @typedef {{
  *   bytes: Buffer,
  *   mime: string,
@@ -79,6 +82,7 @@
  *   userId: string | null,
  *   botId: string | null,
  *   conversationId: string | null,
+ *   place: object | null,
  *   path: string | null,
  *   ip: string | null
  * }} MediaItem
@@ -98,8 +102,9 @@
 
 /**
  * How a copy built on Mercbot checks every picture and video before it's kept or sent (`mercbot.media-check`, D-90;
- * Mercbot has none, and allows everything). A verdict of "block" or "unavailable" keeps nothing, except a screenshot or a
- * file a bot saved, which is checked afterwards and removed only when blocked. A throw counts as "unavailable".
+ * Mercbot has none, and allows everything). A verdict of "block" or "unavailable" keeps nothing, except a screenshot a
+ * reply shows or a file a bot saved, which is checked afterwards and removed only when blocked. A throw counts as
+ * "unavailable". A copy whose own review later judges a file it allowed removes it with `files.media.remove(item)`.
  * @typedef {{
  *   check: (item: MediaItem) => Promise<MediaVerdict>,
  *   checkText: (item: MediaText) => Promise<MediaVerdict>

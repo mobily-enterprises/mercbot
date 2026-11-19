@@ -128,13 +128,13 @@ test("two servers share one bot computer through the database", async (context) 
   // The servers share one files volume, as they do in production.
   const volume = await mkdtemp(path.join(os.tmpdir(), "mercbot-volume-"));
   const store = createFileStore({ root: "", fallback: volume, ownStorage: async () => null, settle: async () => {}, explain: async () => {} });
-  // A copy that checks pictures (D-90) has each screenshot queued for its check before it's written.
+  // A copy that checks pictures (D-90) checks only the screenshots a reply shows, queued once its turn is over
+  // (botTools.js), so a computer queues none as it keeps them.
   const queued = [];
   const media = {
     on: true,
     screenshotLater: async (screenshot) => {
-      const file = path.join(volume, "computers", String(screenshot.computerId), "screenshots", screenshot.name);
-      queued.push({ ...screenshot, written: existsSync(file) });
+      queued.push(screenshot);
     }
   };
   const a = await startServer(knex, context, "integration-A", log, store, PLACE_HERE, undefined, media);
@@ -171,9 +171,7 @@ test("two servers share one bot computer through the database", async (context) 
   assert.equal(await knex.schema.hasTable("bot_screenshots"), false);
   assert.equal(await there.computers.screenshotData(computerId, `../${page.screenshot}`), null);
   assert.equal(await there.computers.screenshotData(String(Number(computerId) + 1), page.screenshot), null, "another conversation can't read it");
-  assert.deepEqual(queued, [{
-    computerId, name: page.screenshot, workspaceId: String(bot.workspace_id), userId: String(userId), botId: String(bot.id), written: false
-  }], "the screenshot was queued for its check, with its conversation's home, person and bot, before it was written");
+  assert.deepEqual(queued, [], "a screenshot is kept without being queued for a check: a reply that shows it queues it");
 
   // A sign-in's chain lives with the browser (D-77): starting one, reading the page in front and ending it run on the owner.
   await there.computers.startSignIn(computerId, "https://example.com/sign-in");

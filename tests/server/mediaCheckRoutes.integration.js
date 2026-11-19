@@ -20,6 +20,8 @@ assert.equal(process.env.DB_NAME, process.env.TEST_DB_NAME, "DB_NAME must be thi
 const BLOCKED = Object.freeze({ error: "This file can't be used.", code: "media_blocked" });
 const UNAVAILABLE = Object.freeze({ error: "This file can't be checked right now. Try again in a few minutes.", code: "media_check_unavailable" });
 const refusal = (response) => ({ error: response.body.error, code: response.body.code });
+// A place as the checker got it, its ids as text whichever way the server holds them: the place is opaque to it.
+const placeText = (place) => (place ? JSON.parse(JSON.stringify(place), (key, value) => (typeof value === "number" ? String(value) : value)) : place);
 
 test("uploads, Vault photos and profile pictures are checked before anything is kept", async (t) => {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), "mercbot-media-routes-"));
@@ -112,6 +114,7 @@ test("uploads, Vault photos and profile pictures are checked before anything is 
     );
     assert.deepEqual(asked[0].bytes, PICTURE);
     assert.ok(asked[0].ip, "with the address it came from");
+    assert.deepEqual(placeText(asked[0].place), { homeId, botId, userId }, "and the place it would be kept in");
 
     answer = failing;
     const held = await request("POST", botUpload, { upload: ["file", "cat.png", "image/png", PICTURE] });
@@ -142,7 +145,7 @@ test("uploads, Vault photos and profile pictures are checked before anything is 
     const shared = await request("POST", homeUpload, { upload: ["file", "team.png", "image/png", PICTURE] });
     assert.equal(shared.status, 422, JSON.stringify(shared.body));
     assert.deepEqual(refusal(shared), BLOCKED);
-    assert.deepEqual([asked.at(-1).path, asked.at(-1).botId], ["/files/shared/Uploads/team.png", null]);
+    assert.deepEqual([asked.at(-1).path, asked.at(-1).botId, placeText(asked.at(-1).place)], ["/files/shared/Uploads/team.png", null, { homeId, home: true }]);
     assert.equal(existsSync(path.join(volume, "homes", homeId, "shared", "Uploads", "team.png")), false);
     answer = failing;
     assert.deepEqual(refusal(await request("POST", homeUpload, { upload: ["file", "team.png", "image/png", PICTURE] })), UNAVAILABLE);
@@ -157,7 +160,7 @@ test("uploads, Vault photos and profile pictures are checked before anything is 
     const blocked = await request("POST", readPhoto, { upload: ["photo", "card.png", "image/png", PICTURE] });
     assert.equal(blocked.status, 422, JSON.stringify(blocked.body));
     assert.deepEqual(refusal(blocked), BLOCKED);
-    assert.deepEqual([asked.at(-1).origin, asked.at(-1).workspaceId, asked.at(-1).userId, asked.at(-1).path], ["vault_photo", homeId, userId, null]);
+    assert.deepEqual([asked.at(-1).origin, asked.at(-1).workspaceId, asked.at(-1).userId, asked.at(-1).path, asked.at(-1).place], ["vault_photo", homeId, userId, null, null]);
     answer = failing;
     const held = await request("POST", readPhoto, { upload: ["photo", "card.png", "image/png", PICTURE] });
     assert.equal(held.status, 503, JSON.stringify(held.body));
@@ -177,7 +180,7 @@ test("uploads, Vault photos and profile pictures are checked before anything is 
     assert.match(JSON.stringify(blocked.body), /This file can't be used\./u);
     assert.match(JSON.stringify(blocked.body), /media_blocked/u);
     assert.equal(existsSync(picture), false);
-    assert.deepEqual([asked.at(-1).origin, asked.at(-1).userId], ["profile_picture", userId]);
+    assert.deepEqual([asked.at(-1).origin, asked.at(-1).userId, asked.at(-1).place], ["profile_picture", userId, null]);
     answer = failing;
     const held = await request("POST", "/api/settings/profile/avatar", { upload: ["avatar", "me.png", "image/png", PICTURE] });
     assert.equal(held.status, 503, JSON.stringify(held.body));

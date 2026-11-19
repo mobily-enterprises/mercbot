@@ -88,8 +88,9 @@ website set up by someone who doesn't run the copy (websites) use them.
 Checking pictures and videos (D-90): `@local/account/media-check` gives `sniffMedia(bytes)` (what a file is by its first
 bytes: `{ kind: "image" | "video", mime }` or null; `SNIFF_BYTES` of them say it), `createMediaGuard(mediaCheck)` (`{ on,
 check, checkText }`: without a checker everything is allowed; with one, only pictures and videos are passed to it, with
-their sniffed type and ids as strings, and a throw or an answer without a verdict counts as `unavailable`, logged in one
-line without the file) and `mediaRefusal(answer)` (422 `media_blocked` "This file can't be used." or 503
+their sniffed type, ids as strings and a JSON copy of the files `place` they're kept in (an upload's or a saved file's,
+otherwise null), and a throw or an answer without a verdict counts as `unavailable`, logged in one line without the
+file) and `mediaRefusal(answer)` (422 `media_blocked` "This file can't be used." or 503
 `media_check_unavailable` "This file can't be checked right now. Try again in a few minutes.", in the checker's own
 `notice` when it gave one). The account feature reads `mercbot.media-check` (`MediaCheck` in `types.js`) for the
 Vault's photos, and the files feature for the rest (`files/files.md`).

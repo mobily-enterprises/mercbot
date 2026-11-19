@@ -98,13 +98,21 @@ test("without a checker everything is allowed, and only pictures and videos are 
   assert.equal(guard.on, true);
   assert.equal((await guard.check({ bytes: Buffer.from("plain text"), origin: "upload" })).verdict, "allow");
   assert.equal(copy.asked.length, 0, "a file that isn't a picture or video never reaches the checker");
-  const answer = await guard.check({ bytes: PNG, origin: "upload", workspaceId: 5, userId: 7, botId: 9, path: "/files/mine/Uploads/a.png", ip: "10.0.0.1" });
+  const place = { homeId: 5, botId: 9, userId: 7 };
+  const answer = await guard.check({ bytes: PNG, origin: "upload", workspaceId: 5, userId: 7, botId: 9, place, path: "/files/mine/Uploads/a.png", ip: "10.0.0.1" });
   assert.deepEqual(answer, { verdict: "block", notice: "Not on this copy.", ref: "check-17" });
   assert.deepEqual(copy.asked, [{
-    bytes: PNG, mime: "image/png", origin: "upload", workspaceId: "5", userId: "7", botId: "9", conversationId: null, path: "/files/mine/Uploads/a.png", ip: "10.0.0.1"
-  }], "it gets the sniffed type and the ids as strings, null where there's none");
+    bytes: PNG, mime: "image/png", origin: "upload", workspaceId: "5", userId: "7", botId: "9", conversationId: null, place, path: "/files/mine/Uploads/a.png", ip: "10.0.0.1"
+  }], "it gets the sniffed type, the ids as strings, null where there's none, and where the file is kept");
+  // The place is the checker's own copy, JSON-safe, which it may keep and give back: changing it changes nothing here.
+  assert.notEqual(copy.asked[0].place, place);
+  copy.asked[0].place.homeId = 6;
+  assert.equal(place.homeId, 5);
   await guard.checkText({ text: "a cat on a mat", origin: "picture_prompt", workspaceId: 5, userId: 7, botId: 9, conversationId: 11 });
   assert.deepEqual(copy.asked[1], { text: "a cat on a mat", origin: "picture_prompt", workspaceId: "5", userId: "7", botId: "9", conversationId: "11" });
+  // An item kept nowhere a place says (a picture a bot makes, a Vault photo, a profile picture, a screenshot) has none.
+  await guard.check({ bytes: PNG, origin: "screenshot", workspaceId: 5, conversationId: 11, path: "11-0123456789abcdef.jpg" });
+  assert.equal(copy.asked[2].place, null);
 
   // A checker that fails, or answers no verdict, counts as "unavailable": logged in one line, never with the file.
   const warned = t.mock.method(console, "warn", () => {});
@@ -145,7 +153,9 @@ async function tempFolder(t) {
 
 /** An upload as the multipart reader streams it: `chunks`, and `truncated` once it stopped at the limit. */
 const uploaded = (chunks, truncated = false) => Object.assign(Readable.from(chunks), { truncated });
-const ITEM = Object.freeze({ origin: "upload", workspaceId: "5", userId: "7", botId: "9", conversationId: null, path: "/files/mine/Uploads/a.png", ip: "10.0.0.1" });
+const ITEM = Object.freeze({
+  origin: "upload", workspaceId: "5", userId: "7", botId: "9", conversationId: null, place: { homeId: "5", botId: "9", userId: "7" }, path: "/files/mine/Uploads/a.png", ip: "10.0.0.1"
+});
 const refusalOf = (promise) => promise.then(() => "kept", (error) => (error instanceof FilesError ? [error.statusCode, error.code, error.message] : error));
 
 test("an upload that's a picture or video is read whole and checked before anything is written", async (t) => {
@@ -166,6 +176,7 @@ test("an upload that's a picture or video is read whole and checked before anyth
   await writeUpload(uploaded(pieces), { target: target("cat.png"), media: createMediaGuard(allowing), item: ITEM });
   assert.deepEqual(allowing.asked[0].bytes, big);
   assert.equal(allowing.asked[0].mime, "image/png");
+  assert.deepEqual(allowing.asked[0].place, ITEM.place, "with the place it's kept in");
   assert.deepEqual(await fs.readFile(target("cat.png")), big);
 
   // Blocked, or not checkable now, it's refused, and nothing is written.

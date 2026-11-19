@@ -130,6 +130,7 @@ onboarding and the bot's typed replies.
 - `tests/server/githubTools.test.js`
 - `packages/bots/src/server/pictureMaker.js`
 - `tests/server/pictureChecks.test.js`
+- `tests/server/screenshotChecks.test.js`
 - `packages/bots/skills/pictures.md`
 - `tests/server/googleApps.test.js`
 - `tests/server/approvals.test.js`
@@ -625,7 +626,11 @@ with a thumbnail. Gemini draws with every harm category at `BLOCK_LOW_AND_ABOVE`
 pictures (D-90) checks the prompt before anything is drawn (`checkText`) and each picture before it's kept or shown
 (`check`); one not allowed is neither, the others of the request still are, and the bot says why in one line
 (`pictureRefusal`); a refused request counts as answered (`run.madePicture()`), so the reply isn't sent back. The files
-a reply saved are queued for that copy's check when it closes (`run.close()`, `files.media.filesLater`).
+a reply saved are queued for that copy's check when it closes (`run.close()`, `files.media.filesLater`), and so are the
+screenshots it shows (`files.media.screenshotLater`): the last four under the reply (`run.finish()`) and a hand-over
+card's, which a group posts even when the turn failed before `finish`. Every other screenshot its computer took is
+never queued. One that can't be queued isn't shown: the `screenshots` message goes and the card's `screenshot` is
+null. A routine's run that posted nothing (`nothing_new`) queues none.
 
 Files (D-20, D-21): bots list their own and shared files, look up an office
 app's tools (`app_help`), call them (`use_app`, up to 40 steps in a reply) and

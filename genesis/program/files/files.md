@@ -118,21 +118,31 @@ files are kept.
   `@local/account/server/types`), which the files feature reads and gives on as `files.media` (`mediaChecks.js`):
   `check` and `checkText` (the guard of `@local/account/media-check`, which sniffs a file's first bytes, passes
   only pictures and videos to the checker, and counts a failure as `unavailable`), `screenshotLater`, `filesLater`,
-  `sweep`, `startSweeping` and `stop`. Mercbot has none: everything is allowed and nothing is queued. With one, an
-  upload (`uploadedFile.js` `writeUpload`) and a new profile picture are checked before they're written; refused,
-  the upload route answers 422 `media_blocked` or 503 `media_check_unavailable` with `{error, code}`, and JSKIT's
-  avatar route the same `FilesError`. A bot's computer's screenshots and the files a bot's turn saves are checked
-  afterwards, every file a command changes included: a command's `changed` names its newest 50, so the shell queues
-  the rest itself from `store.changedSince(place, since)` (every file, hidden ones too, without `list`'s limits,
-  read only with a checker), and all of them once the command runs on after its turn. Each picture or video among
-  them gets a `media_checks` row (`{workspaceId, origin, place, path, botId, userId, conversationId, attempts,
-  checkAfter}`), a screenshot's before it's written and taken 30 seconds later, a turn's once its saves are
-  settled. Every server sweeps every 20 seconds once it listens: one transaction claims up to 25 due rows (`SKIP
-  LOCKED`) and holds them five minutes; they're checked three at a time, and the rows done go in one statement. A
-  blocked file is removed (a file through `existingFile(…, {writing: true})`, so it waits while the home's
-  files move, D-80); one that can't be checked now waits a minute, then twice as long each time, up to 30 minutes;
+  `remove`, `sweep`, `startSweeping` and `stop`. Mercbot has none: everything is allowed and nothing is queued. With
+  one, an upload (`uploadedFile.js` `writeUpload`) and a new profile picture are checked before they're written;
+  refused, the upload route answers 422 `media_blocked` or 503 `media_check_unavailable` with `{error, code}`, and
+  JSKIT's avatar route the same `FilesError`. An upload's check gets the place the route writes to (the bot's for
+  the person, a group's everyone place or the home's) as the item's `place`, and a saved file's the place in its
+  row; every other origin's is null. The screenshots a bot's reply shows (the last four under it and a hand-over
+  card's) and the files a bot's turn saves are checked afterwards, every file a command changes included: a
+  command's `changed` names its newest 50, so the shell queues the rest itself from `store.changedSince(place,
+  since)` (every file, hidden ones too, without `list`'s limits, read only with a checker), and all of them once the
+  command runs on after its turn. Each picture or video among them gets a `media_checks` row (`{workspaceId, origin,
+  place, path, botId, userId, conversationId, attempts, checkAfter}`), a shown screenshot's once its reply's turn is
+  over (botTools.js `close`, after it was written) and taken 30 seconds later, a turn's once its saves are settled;
+  a screenshot nobody is shown is never queued. Every server sweeps every 20 seconds once it listens: one
+  transaction claims up to 25 due rows (`SKIP LOCKED`) and holds them five minutes; they're checked three at a time,
+  and the rows done go in one statement. A blocked file is removed (a file through `existingFile(…, {writing:
+  true})`, so it waits while the home's files move, D-80); one that can't be checked now waits a minute, then twice as long each time, up to 30 minutes;
   a file gone, or no longer a picture or video, leaves the queue; one over 100 MB is removed unchecked. Shutdown
-  stops the sweep; rows this server held go to another once their hold ends.
+  stops the sweep; rows this server held go to another once their hold ends. A copy whose own review later judges a
+  file its check allowed removes it with `remove({origin, place, path, conversationId, workspaceId})`, as the check
+  gave them: an upload's or a saved file's from its place as the sweep does (`existingFile(…, {writing: true})`,
+  then `store.settle(place.homeId)`), a screenshot's from its computer's folder (`store.computerFile`, then
+  `store.settleComputer`), answering `"removed"` or `"gone"`; any other origin answers `"not_kept_here"` and does
+  nothing. A path outside the place is refused (`files_path_outside`), as are a place missing or in another home
+  than the item's (`media_place_invalid`) and a name or computer that isn't a screenshot's
+  (`media_screenshot_invalid`), each a 400 `FilesError`.
 - `store.prepare(place)` answers `{mine, bot, shared, personal}`. `resolve`, `existingFile`,
   `list(place)` (the files of each folder and its sub-folders, newest first, `{mine?, bot?,
   shared, left, partial}`: each folder's newest 300 files, and in `left` how many older ones each

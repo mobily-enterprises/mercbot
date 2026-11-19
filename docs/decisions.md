@@ -1979,7 +1979,9 @@ pictures it draws.
   which the account and files features read. `check(item)` gets a whole picture or video (`bytes`), its type as its own
   first bytes say (`mime`), where it came from (`origin`: `upload`, `picture`, `vault_photo`, `profile_picture`,
   `screenshot` or `saved_file`), whose it is (`workspaceId`, `userId`, `botId`, `conversationId`), where it would be kept
-  (`path`) and the address of the request that brought it (`ip`); `checkText(item)` gets what a picture is asked to
+  (`path`, and since 2026-11-19 `place`: for an upload or a file a bot saved, the files place that path is in, an
+  opaque JSON-safe copy a checker may keep and give back; null for every other origin) and the address of the request
+  that brought it (`ip`); `checkText(item)` gets what a picture is asked to
   show (`origin: "picture_prompt"`). Each answers `{ verdict: "allow" | "block" | "unavailable", notice?, ref? }`:
   `notice` is the sentence the person sees instead of Mercbot's, and `ref` the checker's own reference, which
   Mercbot only logs.
@@ -1997,15 +1999,33 @@ pictures it draws.
 - **Pictures a bot makes:** `make_picture` checks what's asked for before anything is drawn, and each picture before
   it's kept or shown. One not allowed is neither, and the bot says so in one line (the checker's sentence when it gave
   one); the others of the same request are still shown. Either way the reply isn't sent back to make a picture.
-- **Checked afterwards:** a bot's computer's screenshots and the files a bot's turn saves (every file its commands
-  change included, however many, found by `store.changedSince`) are too many to hold a turn for, so they're
-  checked within minutes. Each picture or video among them waits in `media_checks` (one row: its home, origin,
-  where it is and whose), queued before a screenshot is written and once a turn's saves are settled. Every server
-  sweeps every 20 seconds, taking up to 25 rows whose time has come through the database (`SKIP LOCKED`, D-15)
-  and holding them for five minutes while it checks them three at a time. A blocked file is removed (a removed
-  screenshot answers as missing); one that can't be checked now waits a minute, then twice as long each time, up to
-  half an hour; a file gone by then just leaves the queue. A file bigger than 100 MB can't be read whole to check,
-  so it's removed. Files stay where they are meanwhile. Without a checker nothing is queued and no sweep runs.
+- **Checked afterwards:** the screenshots a bot's reply shows people (the last four under it and a hand-over card's)
+  and the files a bot's turn saves (every file its commands change included, however many, found by
+  `store.changedSince`) are too many to hold a turn for, so they're checked within minutes. Each picture or video
+  among them waits in `media_checks` (one row: its home, origin, where it is and whose): a shown screenshot queued
+  once the reply's turn is over (`run.close()`), after it was written, and a turn's saves once they're settled. Every
+  server sweeps every 20 seconds, taking up to 25 rows whose time has come through the database (`SKIP LOCKED`,
+  D-15) and holding them for five minutes while it checks them three at a time; a screenshot's row comes due 30
+  seconds after it's queued. A blocked file is removed (a removed screenshot answers as missing); one that can't be checked
+  now waits a minute, then twice as long each time, up to half an hour; a file gone by then just leaves the queue.
+  A file bigger than 100 MB can't be read whole to check, so it's removed. Files stay where they are meanwhile.
+  Without a checker nothing is queued and no sweep runs. *Since 2026-11-19 only the screenshots a reply shows are
+  queued, by that reply, where every screenshot a bot's computer took was queued before it was written: a copy that
+  checks pictures wants the ones people see, not every frame its bots look at. The others are kept unqueued and
+  unchecked, as without a checker. A shown screenshot is now queued after it's written, so it's on the volume
+  unqueued for the rest of its turn; one that can't be queued isn't shown (the screenshots under the reply go, and a
+  hand-over card shows none), and a routine's run that posts nothing queues nothing.*
+- **Removed later (2026-11-19):** a copy that lets a file through and judges it afterwards, in a review of its own,
+  removes one it judges against its rules with `files.media.remove(item)`, giving back `{ origin, place, path,
+  conversationId, workspaceId }` as its check gave them. An upload's or a saved file's is removed from its place as
+  the sweep removes one: writing, so it waits while the home's files move (D-80), then the home's files are settled.
+  A screenshot's (`path` its name, `conversationId` its computer) is removed from its computer's folder, which is then
+  settled. It answers `"removed"`, or `"gone"` when the file isn't there any more (a link in the place is no file
+  kept there); and `"not_kept_here"`, doing nothing, for a Vault photo (never kept), a picture a bot makes (checked
+  before it's kept, with no place) and a profile picture (JSKIT's, removed through its users service). A path outside
+  its place, through a linked folder too, is refused (400 `files_path_outside`), and so are a place missing or in
+  another home than the item's (`media_place_invalid`) and a name that isn't a computer's screenshot, or a computer
+  that isn't an id (`media_screenshot_invalid`).
 - **A copy's own folder:** `files.store.privateFolder(name)` makes and answers a folder of the copy's own beside the
   store's folders on the shared volume (mode 700), outside every person's, home's and computer's folders, so no route
   serves it and no sandbox mounts it. Its name is a short lowercase word with hyphens, never one the store uses; while
