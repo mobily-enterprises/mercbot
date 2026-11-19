@@ -58,6 +58,8 @@ render across compact, medium, and expanded layouts.
 
 - The initial document shows loading and Reload before JavaScript is available.
   Successful mounting replaces it; initialization failure retains a retry explanation.
+- The page's title, which a browser tab, a bookmark and a phone's home-screen shortcut show, is `Mercbot` from the
+  initial document on; the help centre sets its own page's title while it is open and gives it back.
 - The `home` surface uses the app-owned Mercbot shell: sidebar or compact
   rail, chat panel and Details panel, with per-device layout choices (compact,
   widths, Details open, accent). Other surfaces keep the JSKIT shell.

@@ -18,6 +18,8 @@ for (const width of [390, 768, 1280]) {
     });
     try {
       await page.goto("/home", { waitUntil: "commit" });
+      // The tab, a bookmark and a phone's home-screen shortcut take the page's title: Mercbot's own, from the start.
+      await expect(page).toHaveTitle("Mercbot");
       await expect(page.getByRole("status")).toHaveText("Loading application…");
       await expect(page.getByRole("status")).toBeVisible();
       await expect(page.getByRole("link", { name: "Reload page" })).toBeVisible();
@@ -34,6 +36,7 @@ for (const width of [390, 768, 1280]) {
     }
     await expect(page.locator("#app[data-v-app]")).toBeVisible();
     await expect(page.locator("#startup-shell")).toHaveCount(0);
+    await expect(page).toHaveTitle("Mercbot");
   });
 }
 
