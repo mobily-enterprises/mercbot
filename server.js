@@ -3,7 +3,7 @@ import SerializerSelector from "@fastify/fast-json-stringify-compiler";
 import { createCachedResponseSerializerFactory, resolveTrustedProxies } from "@jskit-ai/kernel/server/http";
 import fastifyStatic from "@fastify/static";
 import { buildLoggerOptions } from "./server/lib/loggerOptions.js";
-import { existsSync, readFileSync } from "node:fs";
+import { readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import {
   createInstalledRuntime,
@@ -37,6 +37,18 @@ function isApiPath(pathname) {
 
 function hasFileExtension(pathname) {
   return path.extname(normalizePathname(pathname)) !== "";
+}
+
+/**
+ * Whether a path names a file rather than a page: one with an extension, anything under /assets/ (Vite's built files)
+ * and anything below a root file such as /robots.txt. No page route starts there, so such a path is a built file or a
+ * 404, never the page: the page sent for /assets/app.js/x would load its own relative references from the wrong place
+ * (relative path confusion).
+ * @param {string} pathname
+ */
+function namesFile(pathname) {
+  const [first = ""] = normalizePathname(pathname).replace(/^\/+/u, "").split("/");
+  return hasFileExtension(pathname) || first === "assets" || path.extname(first) !== "";
 }
 
 function buildGlobalUiPaths(runtimeGlobalUiPaths) {
@@ -89,7 +101,50 @@ function canServeStaticFile(distRoot, relativePath) {
     return false;
   }
 
-  return existsSync(resolvedPath);
+  // A file only: /assets names the folder, which is no file to send.
+  return statSync(resolvedPath, { throwIfNoEntry: false })?.isFile() === true;
+}
+
+/** The 404 every other route gets. */
+function notFound(reply, method, pathname) {
+  return reply.code(404).send({
+    message: `Route ${method}:${pathname} not found`,
+    error: "Not Found",
+    statusCode: 404
+  });
+}
+
+/**
+ * What answers a request no route took: a 404 for an API path or a method other than GET and HEAD; a built file, or a
+ * 404, for a path that names a file (namesFile); otherwise the page, which the client routes. Without a web build
+ * (no `spaDocument`) the page paths are 404s too.
+ * @param {{ distRoot: string, spaDocument: string }} build
+ */
+function pageFallback({ distRoot, spaDocument }) {
+  const hasWebBuild = Boolean(spaDocument);
+  return async (request, reply) => {
+    const pathname = toRequestPathname(request?.url);
+    const method = String(request?.method || "GET").trim().toUpperCase();
+    if (isApiPath(pathname) || (method !== "GET" && method !== "HEAD")) {
+      return notFound(reply, method, pathname);
+    }
+    if (namesFile(pathname)) {
+      const staticFilePath = toStaticFilePath(pathname);
+      if (hasWebBuild && staticFilePath && canServeStaticFile(distRoot, staticFilePath)) {
+        // Vite names every built file in assets/ by its content's hash, so a browser may keep it for
+        // good: a page load then asks for none of them again (each was a request answered "304 Not
+        // Modified" before, about 140 a load). Everything else, the page included, is asked for anew.
+        return staticFilePath.startsWith("assets/") ? reply.sendFile(staticFilePath, BUILT_FILE) : reply.sendFile(staticFilePath);
+      }
+      return notFound(reply, method, pathname);
+    }
+    if (!hasWebBuild) {
+      return reply.code(404).send({
+        error: "Frontend build is not available. Run `npm run build`."
+      });
+    }
+    return reply.type("text/html; charset=utf-8").send(spaDocument);
+  };
 }
 
 /**
@@ -171,37 +226,7 @@ async function createServerWith({ runtimeEnv, providers, gate = true }) {
     app.log.warn("Frontend build not found (dist/index.html). Page routes will return 404 until `npm run build`.");
   }
 
-  app.setNotFoundHandler(async (request, reply) => {
-    const pathname = toRequestPathname(request?.url);
-    const method = String(request?.method || "GET").trim().toUpperCase();
-    if (isApiPath(pathname) || (method !== "GET" && method !== "HEAD")) {
-      return reply.code(404).send({
-        message: `Route ${method}:${pathname} not found`,
-        error: "Not Found",
-        statusCode: 404
-      });
-    }
-    if (hasFileExtension(pathname)) {
-      const staticFilePath = toStaticFilePath(pathname);
-      if (hasWebBuild && staticFilePath && canServeStaticFile(distRoot, staticFilePath)) {
-        // Vite names every built file in assets/ by its content's hash, so a browser may keep it for
-        // good: a page load then asks for none of them again (each was a request answered "304 Not
-        // Modified" before, about 140 a load). Everything else, the page included, is asked for anew.
-        return staticFilePath.startsWith("assets/") ? reply.sendFile(staticFilePath, BUILT_FILE) : reply.sendFile(staticFilePath);
-      }
-      return reply.code(404).send({
-        message: `Route ${method}:${pathname} not found`,
-        error: "Not Found",
-        statusCode: 404
-      });
-    }
-    if (!hasWebBuild) {
-      return reply.code(404).send({
-        error: "Frontend build is not available. Run `npm run build`."
-      });
-    }
-    return reply.type("text/html; charset=utf-8").send(spaDocument);
-  });
+  app.setNotFoundHandler(pageFallback({ distRoot, spaDocument }));
 
   app.log.info(
     {
@@ -291,4 +316,4 @@ async function serve({ gate } = {}) {
   }
 }
 
-export { createServer, createServerWith, serve, startServer, trustedProxies };
+export { createServer, createServerWith, pageFallback, serve, startServer, trustedProxies };
