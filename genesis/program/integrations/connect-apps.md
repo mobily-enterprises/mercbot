@@ -131,6 +131,8 @@ such as Preview or a home server):
 - `sign_in_state` is `started` when a sign-in begins and `failed` when it's cancelled or refused; it's cleared on success or disconnect.
 - Rows show Connected, or Needs auth with Sign in, Reconnect or Retry.
 - The installed overview shows each app's worst state, its parts ("1 connector, 2 skills"), and six apps before "Show all N plugins".
+- Private skills follow it, with "Open a skill to change its name, description or instructions." once there is one. Skills
+  (the shell's, `openSkills`) opens the modal on this page (`startPage: "manage"`) scrolled to them.
 
 **Sign-in pages:**
 - A cancelled sign-in says nothing was connected.

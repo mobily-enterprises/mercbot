@@ -55,7 +55,7 @@ Teaching isn't available in group chats, which have no computer.
 
 ## Manage your skills
 
-Your skills are listed in **Connect apps**. Select the summary at the top (such as "3 connected") to open **Your apps and skills**, then look under **Private skills**. A skill link in the chat opens the same page.
+Select **Skills** (the book) at the bottom of the sidebar, press **Ctrl+Alt+W**, or type "Skills" in the search palette (**Ctrl+K**): **Your apps and skills** opens at **Private skills**. In **Connect apps**, the summary at the top (such as "3 connected") opens the same page. Open a skill there to change it; a skill link in the chat opens it straight away.
 
 - Change the skill's **Name**, **Description** or **Instructions**, then select **Save**.
 - Select **Delete skill**, then **Delete for good?** to remove it.

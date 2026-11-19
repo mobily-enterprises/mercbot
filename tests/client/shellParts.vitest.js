@@ -80,7 +80,7 @@ describe("search palette rows", () => {
   it("lists unread, pinned, then recent bots, then the commands, before typing", () => {
     expect(rows("").map((row) => row.title)).toEqual([
       "News", "Pinned", "Ada", "Otto",
-      "New Bot", "New group chat", "Keyboard shortcuts", "Settings: General", "Connect Apps", "Theme: System", "Theme: Light", "Theme: Dark"
+      "New Bot", "New group chat", "Keyboard shortcuts", "Settings: General", "Connect Apps", "Skills", "Theme: System", "Theme: Light", "Theme: Dark"
     ]);
     expect(commands.find((command) => command.id === "theme:dark").checked).toBe(true);
   });

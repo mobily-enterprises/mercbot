@@ -126,7 +126,7 @@ Reset is useful when a website is stuck in a strange state, or when you want a b
 
 ## Connect apps
 
-**Connect apps** is where you choose which outside apps your bots can use. Open it from the sidebar, or type "Connect Apps" in the search palette (**Ctrl+K**). On a phone it fills the screen.
+**Connect apps** is where you choose which outside apps your bots can use. Open it from the sidebar, or type "Connect Apps" in the search palette (**Ctrl+K**). On a phone it fills the screen. **Skills**, the book beside it in the sidebar, opens it straight on your private skills.
 
 The catalogue shows:
 

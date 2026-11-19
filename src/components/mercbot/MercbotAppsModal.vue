@@ -1,6 +1,6 @@
 <script setup>
 import { useDisplay } from "vuetify";
-import { computed, ref, watch } from "vue";
+import { computed, nextTick, ref, watch } from "vue";
 import MercbotAppPeople from "./MercbotAppPeople.vue";
 import MercbotAvatar from "./MercbotAvatar.vue";
 import MercbotCredentialsForm from "./MercbotCredentialsForm.vue";
@@ -42,7 +42,9 @@ const props = defineProps({
   // Opens straight on one private skill, as from a skill link in the chat,
   // or on one app's page, as from the search palette.
   skillId: { type: String, default: "" },
-  appId: { type: String, default: "" }
+  appId: { type: String, default: "" },
+  // "manage" opens on Your apps and skills, at Private skills, as Skills does (Ctrl+Alt+W, the sidebar).
+  startPage: { type: String, default: "" }
 });
 const open = defineModel({ type: Boolean, default: false });
 const emit = defineEmits(["failure"]);
@@ -63,6 +65,7 @@ const enteringCredentials = ref("");
 const { current: currentHome } = useHomes();
 const homeName = computed(() => currentHome.value?.name || "this home");
 const managesHome = ref(false);
+const skillsHeading = ref(null);
 let toastTimer = null;
 const onFailure = (error) => emit("failure", error);
 const { skill, skillDraft, confirmingDelete, openSkill, skillChanged, saveSkill, deleteSkill } =
@@ -95,7 +98,7 @@ async function load() {
 
 watch(open, async (value) => {
   if (!value) return;
-  page.value = "catalogue";
+  page.value = props.startPage || "catalogue";
   category.value = "All";
   query.value = "";
   await load();
@@ -104,6 +107,10 @@ watch(open, async (value) => {
   if (app) openPlugin(app);
   else if (linked) openSkill(linked);
   else if (props.skillId) showToast("That skill has been deleted.");
+  else if (page.value === "manage") {
+    await nextTick();
+    skillsHeading.value?.scrollIntoView({ block: "start" });
+  }
 }, { immediate: true });
 
 // Coming-soon apps can't be signed in to, so they never count among the added ones.
@@ -599,8 +606,9 @@ function openTemplates() {
           </button>
         </section>
         <section class="mb-detail__group">
-          <h3>Private skills</h3>
+          <h3 ref="skillsHeading">Private skills</h3>
           <p v-if="!skills.length" class="mb-apps-modal__empty">Skills your bots learn will show up here.</p>
+          <p v-else class="mb-apps-modal__hint">Open a skill to change its name, description or instructions.</p>
           <div class="mb-apps-modal__grid">
             <button v-for="entry in skills" :key="entry.id" type="button" class="mb-app-row mb-app-row__main" @click="openSkill(entry)">
               <span class="mb-skill-icon"><v-icon icon="$description" size="20" /></span>

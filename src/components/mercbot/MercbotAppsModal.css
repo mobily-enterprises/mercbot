@@ -287,7 +287,8 @@
   cursor: pointer;
 }
 
-.mb-apps-modal__empty {
+.mb-apps-modal__empty,
+.mb-apps-modal__hint {
   margin: 4px 0;
   font-size: 13px;
   color: rgb(var(--v-theme-on-surface-variant));

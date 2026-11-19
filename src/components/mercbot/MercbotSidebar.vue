@@ -29,11 +29,11 @@ const props = defineProps({
   // The person's own picture, shown on the account button in place of their initials ("" when they have none).
   picture: { type: String, default: "" }
 });
-const emit = defineEmits(["select", "command", "search", "new-bot", "connect-apps", "resize"]);
+const emit = defineEmits(["select", "command", "search", "new-bot", "connect-apps", "skills", "resize"]);
 const rail = computed(() => buildRailModel(props.model));
 
-// The footer: at rest the account's name and a square Connect apps button; while
-// the footer is hovered, or the button has focus, the avatar and a wide pill with app icons.
+// The footer: at rest the account's name and square Skills and Connect apps buttons; while
+// the footer is hovered, or Connect apps has focus, the avatar, Skills and a wide Connect apps pill with app icons.
 const footerHovered = ref(false);
 const appsFocused = ref(false);
 const appsWide = computed(() => footerHovered.value || appsFocused.value);
@@ -102,6 +102,13 @@ const appIcons = ["$calendarToday", "$mail", "$description"];
         @settings="emit('command', { name: 'openSettings' })"
         @usage="emit('command', { name: 'openUsage' })"
       />
+      <MercbotTooltip text="Skills">
+        <template #default="{ props: tooltipProps }">
+          <button v-bind="tooltipProps" type="button" class="mb-apps mb-apps--square" aria-label="Skills" @click="emit('skills')">
+            <v-icon icon="$menuBook" size="16" />
+          </button>
+        </template>
+      </MercbotTooltip>
       <MercbotTooltip text="Connect apps">
         <template #default="{ props: tooltipProps }">
           <button
@@ -141,6 +148,13 @@ const appIcons = ["$calendarToday", "$mail", "$description"];
         tone="bare"
         size="small"
         @click="emit('connect-apps')"
+      />
+      <MercbotIconButton
+        icon="$menuBook"
+        label="Skills"
+        tone="bare"
+        size="small"
+        @click="emit('skills')"
       />
       <MercbotAccountMenu
         :display-name="displayName"
@@ -324,6 +338,10 @@ const appIcons = ["$calendarToday", "$mail", "$description"];
   padding: 0;
   border-radius: 9px;
   color: rgb(var(--v-theme-on-surface-variant));
+}
+
+.mb-apps--square + .mb-apps--square {
+  margin-left: 0;
 }
 
 .mb-apps__label {

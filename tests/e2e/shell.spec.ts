@@ -253,7 +253,7 @@ test("the search palette lists bots then commands, and runs what is chosen", asy
   const commands = [
     "New Bot", "New group chat", "Keyboard shortcuts", "Settings: General", "Settings: Computer",
     "Settings: Permissions", "Settings: Files", "Settings: Website", "Settings: Memory", "Settings: Vault", "Settings: Spending",
-    "Settings: Mercbot account", "Settings: About", "Connect Apps", "Theme: System", "Theme: Light", "Theme: Dark"
+    "Settings: Mercbot account", "Settings: About", "Connect Apps", "Skills", "Theme: System", "Theme: Light", "Theme: Dark"
   ];
   const texts = (await options.allTextContents()).slice(-commands.length);
   expect(texts.map((entry, index) => entry.includes(commands[index]) ? commands[index] : entry)).toEqual(commands);
@@ -285,7 +285,7 @@ test("the search palette lists bots then commands, and runs what is chosen", asy
 
 test("Connect apps and skills searches its catalogue and opens an app's page", async ({ page }) => {
   await openHome(page);
-  await page.keyboard.press("Control+Alt+w");
+  await page.keyboard.press("Control+Shift+m");
   const modal = page.locator(".mb-apps-modal");
   await expect(modal.getByRole("heading", { name: "Connect apps", level: 2 })).toBeVisible();
   await modal.getByRole("textbox", { name: "Search apps and skills" }).fill("mail");
@@ -299,6 +299,43 @@ test("Connect apps and skills searches its catalogue and opens an app's page", a
   await expect(modal.getByRole("heading", { name: "Connect apps", level: 2 })).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(modal).toBeHidden();
+});
+
+test("Skills opens Your apps and skills at Private skills, from its shortcut, the sidebar and the search palette", async ({ page }) => {
+  await openHome(page);
+  const modal = page.locator(".mb-apps-modal");
+  // Closed with its button: Escape goes to the overlay on top, which may be a tooltip the pointer left behind.
+  const close = async () => {
+    await modal.getByRole("button", { name: "Close", exact: true }).click();
+    await expect(modal).toBeHidden();
+  };
+  const atSkills = async () => {
+    await expect(modal.getByRole("heading", { name: "Your apps and skills", level: 2 })).toBeVisible();
+    await expect(modal.getByRole("heading", { name: "Private skills", level: 3 })).toBeInViewport();
+    await expect(modal.getByText("Open a skill to change its name, description or instructions.")).toBeVisible();
+    await expect(modal.getByRole("button", { name: /Weekly report/u })).toBeVisible();
+    await close();
+  };
+  // One private skill, as a bot makes one, so Private skills lists it under its hint.
+  await page.route(`**/api${HOME}/plugins`, async (route) => {
+    if (route.request().method() !== "GET") return route.fallback();
+    const response = await route.fetch();
+    const json = await response.json();
+    json.skills = [...(json.skills || []), { id: "weekly-report", name: "Weekly report", description: "Sums up the week" }];
+    await route.fulfill({ response, json });
+  });
+  await page.keyboard.press("Control+Alt+w");
+  await atSkills();
+  await page.getByRole("navigation", { name: "Bots" }).getByRole("button", { name: "Skills", exact: true }).click();
+  await atSkills();
+  await page.keyboard.press("Control+k");
+  await page.keyboard.type("Skills");
+  await page.getByRole("dialog", { name: "Search" }).getByRole("option").filter({ hasText: "Your private skills" }).click();
+  await atSkills();
+  // Connect apps itself still opens on its catalogue.
+  await page.keyboard.press("Control+Shift+m");
+  await expect(modal.getByRole("heading", { name: "Connect apps", level: 2 })).toBeVisible();
+  await close();
 });
 
 test("the group picker names the chosen bots in the composer and offers a new bot by name", async ({ page }) => {

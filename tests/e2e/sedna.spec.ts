@@ -32,7 +32,7 @@ test("the owner enters Sedna's API credentials in Connect apps, then picks who t
   try {
     await clear();
     await openHome(page);
-    await page.keyboard.press("Control+Alt+w");
+    await page.keyboard.press("Control+Shift+m");
     const modal = page.locator(".mb-apps-modal");
     await modal.getByRole("textbox", { name: "Search apps and skills" }).fill("Sedna");
     await modal.getByRole("listbox").getByRole("button", { name: "Sedna", exact: true }).click();

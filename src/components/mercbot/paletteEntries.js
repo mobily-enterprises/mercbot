@@ -6,7 +6,7 @@ const GENERAL_KEYWORDS = ["theme appearance accent language spell microphone tim
 
 /**
  * The search palette's commands: new bot and group, shortcuts, the open group's members,
- * each settings section, Connect Apps and the three themes, the current one checked.
+ * each settings section, Connect Apps, Skills and the three themes, the current one checked.
  * @param {{
  *   currentBot: import("../../types.js").Bot | null,
  *   settingsSections: Array<{ value: string, title: string }>,
@@ -27,6 +27,7 @@ export function paletteCommands({ currentBot, settingsSections, theme: currentTh
       keywords: section.value === "general" ? GENERAL_KEYWORDS : ""
     })),
     { id: "connectApps", title: "Connect Apps", category: "Search across apps and skills", icon: "$extension" },
+    { id: "skills", title: "Skills", category: "Your private skills", icon: "$menuBook" },
     ...["system", "light", "dark"].map((theme) => ({
       id: `theme:${theme}`,
       title: `Theme: ${theme[0].toUpperCase()}${theme.slice(1)}`,

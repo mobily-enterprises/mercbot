@@ -63,9 +63,11 @@ render across compact, medium, and expanded layouts.
   widths, Details open, accent). Other surfaces keep the JSKIT shell.
 - The account menu offers Settings (the account page); a copy built on Mercbot adds its own entries, such as Sign
   out (`extensions.js` `accountMenu`).
-- The sidebar footer shows the account's name and a square
-  Connect apps button at rest; while hovered, the avatar alone and a wide
-  Connect apps pill with app icons. The account button's avatar, there and in
+- The sidebar footer shows the account's name and square Skills (a book) and
+  Connect apps buttons at rest; while hovered, the avatar alone, Skills and a wide
+  Connect apps pill with app icons. The rail has both below New bot. Skills, also
+  Ctrl+Alt+W and the palette's Skills, opens Connect apps on Your apps and skills
+  (`startPage: "manage"`), scrolled to Private skills. The account button's avatar, there and in
   the rail, is the picture the person uploaded in account settings
   (`GET /api/settings/profile/avatar`), else their initials. It comes from the
   placement context's user, as JSKIT's account bar reads it (JSKIT's own
@@ -148,7 +150,7 @@ render across compact, medium, and expanded layouts.
   Empty, it lists bots and groups (unread, then pinned in tile order, then by
   latest activity; hidden bots left out), then commands: New Bot, New group chat,
   Keyboard shortcuts, Members (in a group), Settings: Profile, Preferences, Bots
-  and Notifications, Connect Apps, and Theme: System, Light or Dark (ticked, applied
+  and Notifications, Connect Apps, Skills, and Theme: System, Light or Dark (ticked, applied
   at once and saved to the account). Typing matches loosely, letters in order,
   ranking by where the first letter falls, and lists bots and groups (by name or
   label), apps (by name or description; opens the app's page), hidden bots (tagged),

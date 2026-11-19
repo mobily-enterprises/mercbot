@@ -5,8 +5,8 @@ import { botsApi } from "./botsApi.js";
 import { openSignIn, pluginsApi } from "./pluginsApi.js";
 
 /**
- * Connect apps: the catalogue modal, opened straight on one app or one skill,
- * and the explainer before signing in from a chat card. A sign-in started from a
+ * Connect apps: the catalogue modal, opened straight on one app or one skill, or on
+ * the person's apps and skills for Skills, and the explainer before signing in from a chat card. A sign-in started from a
  * bot's connect card tells the bot, which finishes its task once the app is connected.
  * `reportFailure` explains a step that failed; `currentBot` is the bot whose chat is open.
  * @param {{ reportFailure: import("../../types.js").ReportFailure, currentBot: import("vue").Ref<{ id: string } | null> }} options
@@ -18,6 +18,8 @@ export function useConnectApps({ reportFailure, currentBot }) {
   const appsOpen = ref(false);
   const appsSkillId = ref("");
   const appsAppId = ref("");
+  /** The page the modal opens on when not on one app or skill: "manage" for Skills, else the catalogue. */
+  const appsPage = ref("");
   const explainerOpen = ref(false);
   const explainerPlugin = ref(null);
   /** The connect card the explainer was opened from, while it waits for its app: { botId, messageId }. */
@@ -27,6 +29,7 @@ export function useConnectApps({ reportFailure, currentBot }) {
     if (open) return;
     appsSkillId.value = "";
     appsAppId.value = "";
+    appsPage.value = "";
   });
 
   function openApp(pluginId) {
@@ -36,6 +39,12 @@ export function useConnectApps({ reportFailure, currentBot }) {
 
   function openSkill(skillId) {
     appsSkillId.value = String(skillId);
+    appsOpen.value = true;
+  }
+
+  /** Skills (Ctrl+Alt+W, the sidebar's button, the palette): Your apps and skills, at Private skills. */
+  function openSkills() {
+    appsPage.value = "manage";
     appsOpen.value = true;
   }
 
@@ -81,5 +90,5 @@ export function useConnectApps({ reportFailure, currentBot }) {
       reportFailure("Your bot won't carry on by itself after you sign in. Ask it once you're connected.", error));
   }
 
-  return { appsOpen, appsSkillId, appsAppId, explainerOpen, explainerPlugin, openApp, openSkill, explainConnect, continueConnect };
+  return { appsOpen, appsSkillId, appsAppId, appsPage, explainerOpen, explainerPlugin, openApp, openSkill, openSkills, explainConnect, continueConnect };
 }

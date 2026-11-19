@@ -193,7 +193,7 @@ function editRoutine(routine) {
 
 const { onboardingTiming, chooseName } = useOnboarding({ currentBot, store, focusComposer, reportFailure });
 
-const { appsOpen, appsSkillId, appsAppId, explainerOpen, explainerPlugin, openApp, openSkill, explainConnect, continueConnect } =
+const { appsOpen, appsSkillId, appsAppId, appsPage, explainerOpen, explainerPlugin, openApp, openSkill, openSkills, explainConnect, continueConnect } =
   useConnectApps({ reportFailure, currentBot });
 const mainBot = computed(() => bots.value.find((bot) => bot.isMain) || null);
 const { liveView, liveBot, openComputer, takeOver, workOnFile, teach, finishTeaching, settleHandover } =
@@ -288,7 +288,7 @@ const ACTIONS = {
   newBot: openNewBot,
   newGroup: openGroupPicker,
   connectApps: () => { appsOpen.value = true; },
-  skills: () => { appsOpen.value = true; },
+  skills: openSkills,
   settings: () => openSettings("general"),
   shortcuts: () => { shortcutsOpen.value = !shortcutsOpen.value; },
   toggleCompact,
@@ -347,6 +347,7 @@ watch(() => currentHomeEntry.value?.slug, () => loadBuilderBot(), { immediate: t
         @search="paletteOpen = true"
         @new-bot="openNewBot"
         @connect-apps="appsOpen = true"
+        @skills="openSkills"
         @resize="resizeSidebar"
       />
       <div v-if="geometry.phone && !shownPage" class="mb-shell__menu">
@@ -471,7 +472,7 @@ watch(() => currentHomeEntry.value?.slug, () => loadBuilderBot(), { immediate: t
     />
     <MercbotNewBotDialog v-model="newBotOpen" :busy="creating" :error="createError" :initial-name="newBotName" :bots="bots" @create="createBot" />
     <MercbotTemplatePreview :slug="templateSlug" @added="addedFromTemplate" @close="closeTemplate()" />
-    <MercbotAppsModal v-model="appsOpen" :main-bot="mainBot" :skill-id="appsSkillId" :app-id="appsAppId" @failure="reportFailure('That didn\'t work. Try again.', $event)" />
+    <MercbotAppsModal v-model="appsOpen" :main-bot="mainBot" :skill-id="appsSkillId" :app-id="appsAppId" :start-page="appsPage" @failure="reportFailure('That didn\'t work. Try again.', $event)" />
     <MercbotConnectExplainer v-model="explainerOpen" :plugin="explainerPlugin" :bot-name="currentBot.name" @continue="continueConnect" />
     <MercbotLiveView
       v-if="liveView"

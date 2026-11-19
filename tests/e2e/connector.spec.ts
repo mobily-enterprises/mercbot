@@ -24,7 +24,7 @@ async function openHome(page: Page) {
 
 test("Connect apps offers Calendly, Notion and Todoist to connect, in beta, no longer coming soon", async ({ page }) => {
   await openHome(page);
-  await page.keyboard.press("Control+Alt+w");
+  await page.keyboard.press("Control+Shift+m");
   const modal = page.locator(".mb-apps-modal");
   await expect(modal.getByRole("heading", { name: "Connect apps", level: 2 })).toBeVisible();
   for (const app of ["Calendly", "Notion", "Todoist"]) {
@@ -54,7 +54,7 @@ test("a read of Connect apps that lands late never undoes what was done meanwhil
     await openHome(page);
     const modal = page.locator(".mb-apps-modal");
     const search = modal.getByRole("textbox", { name: "Search apps and skills" });
-    await page.keyboard.press("Control+Alt+w");
+    await page.keyboard.press("Control+Shift+m");
     await search.fill("Dropbox");
     await expect(modal.getByRole("listbox").getByRole("button", { name: "Dropbox", exact: true })).toBeVisible();
     await page.keyboard.press("Escape");
@@ -70,7 +70,7 @@ test("a read of Connect apps that lands late never undoes what was done meanwhil
       await held;
       await route.fulfill({ response, json });
     });
-    await page.keyboard.press("Control+Alt+w");
+    await page.keyboard.press("Control+Shift+m");
     await search.fill("Dropbox");
     await modal.getByRole("listbox").getByRole("button", { name: "Dropbox", exact: true }).click();
     const head = modal.locator(".mb-detail__head");
