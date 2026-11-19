@@ -72,7 +72,9 @@ new bot greets them and asks what to help with first. Connect apps lists the int
 people can add or remove them and see which still need signing in, and manage
 the private skills their bots have made. The Details panel
 lets people rename a
-bot, give it a label, pause, resume, edit or delete its routines, and check on its computer.
+bot, give it a label, write the instructions it follows in every reply (its maker and the home's owners
+and admins; a bot also changes them when asked, on a card the person approves), pause, resume, edit or
+delete its routines, and check on its computer.
 People ask a bot in plain words to do something on a schedule; it sets up a
 routine, says when it will run with the time zone, and then runs it on its own
 while they are away, posting the result in the chat and marking itself unread.

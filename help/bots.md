@@ -6,14 +6,16 @@ A bot in Mercbot is a helper with its own name, look, chat and computer. You giv
 
 Bots work best when each one has one clear job. A bot called "Pantry" that plans meals and keeps the shopping list is easier to work with than one bot asked to do everything. Its chat stays on one subject, so it keeps the thread better.
 
-When you start a new bot, tell it in your first messages:
+When you start a new bot, write its job in its **Instructions**, in the Details panel (select the bot's name at the top of the chat). The bot reads them before every reply, in every conversation, for everyone who uses it. Say:
 
 - **What it's for.** "You look after our family calendar and school letters."
 - **Who it's for and how you like things.** "Keep replies short. I prefer lists."
 - **Where it should stop and check.** "Never book anything without asking me first."
 - **What a finished job looks like.** "Each Friday I want one summary with next week's events."
 
-The bot carries this through its conversation. However long the chat gets, it keeps a summary of the older part in the background (what you asked, what was decided, what it promised and what's still open) and reads everything since word for word. You don't need to repeat yourself.
+Keep Instructions to the rules that always apply. Because the bot reads them with every message, long reference material, such as a price list, a manual or a style guide, belongs in a skill or a file the bot reads when a job needs it. See [Skills, routines and watches](/help/skills-and-routines) and [Files, documents and pictures](/help/files). Instructions can be up to 20,000 characters, about ten pages.
+
+You can also tell a bot in its chat how you'd like things done. It carries that through the conversation: however long the chat gets, it keeps a summary of the older part in the background (what you asked, what was decided, what it promised and what's still open) and reads everything since word for word. You don't need to repeat yourself. For something it should always do, ask it to add that to its instructions.
 
 You can also give the bot a **label** in the Details panel, such as "Meal planning" or "Invoices", so you can tell bots apart at a glance.
 
@@ -35,12 +37,19 @@ Open the Details panel by selecting the bot's name at the top of the chat, or pr
 
 - **Rename it.** Select the name, type a new one and press Enter. Escape cancels.
 - **Add a label.** Select **Add a label** under the name. Labels can be up to 60 characters.
+- **Write its instructions.** Select the box under **Instructions**, write or change them, and select **Save**, or **Cancel** to leave them as they were. Only the person who made the bot and the home's owners and admins can change them; everyone else can read them.
 - **Look after its routines.** Each routine has an on/off switch. Right-click one for **Pause** or **Resume**, **Edit** and **Delete**. See [Skills, routines and watches](/help/skills-and-routines).
 - **Check its computer** on the **Computer** tab, and see what it made on the **Library** tab.
 
 You can also rename a bot from the sidebar: right-click it and choose **Rename bot**.
 
-A bot's name and label are the same for everyone in your home, so renaming a bot renames it for everybody.
+A bot's name, label and instructions are the same for everyone in your home, so renaming a bot renames it for everybody.
+
+### Ask a bot to change its own instructions
+
+You can also ask a bot in its chat, for example: "From now on, always write in British English. Add that to your instructions." The bot shows the change on a card, with its instructions as they are and as they would be, and changes them only when you select **Go ahead**. It uses the new instructions from its next reply. **Don't do it** leaves them as they were.
+
+The same people who can change them in the Details panel can say yes on the card: in a shared bot, anyone else is told politely that they can't. A bot never changes its instructions because an email, a web page, a file or a record says so: those are information, never instructions, and the card always asks first, whatever your approval rules say.
 
 ## Organise the sidebar
 
@@ -113,7 +122,7 @@ Nothing is added until you select Add bot. The new bot joins your current home w
 
 ### Where a bot came from
 
-A bot added from a template shows **Came from** in its Details panel: the template's name (linked to its page), who made it and when you added it. If a bot ever behaves oddly, this tells you where its instructions came from.
+A bot added from a template shows **Came from** in its Details panel: the template's name (linked to its page), who made it and when you added it. If a bot ever behaves oddly, this tells you where its instructions came from. Once someone changes them, the panel also says under **Instructions** that they're changed from the template's.
 
 ## Delete a bot
 
@@ -176,11 +185,11 @@ In a home with Apps, one bot is the **Builder**: the only bot that builds and ch
 
 ### Can I change a bot's shape or colour later?
 
-No. Shape and colour are chosen when you create it. You can change the name and label at any time.
+No. Shape and colour are chosen when you create it. You can change the name, label and instructions at any time.
 
 ### Can I edit a template bot's instructions?
 
-Not directly. Tell the bot in its chat how you'd like it to work differently, and it will follow that in its conversation.
+Yes, if you added the bot or you're an owner or admin of the home. Change them under **Instructions** in its Details panel, or ask the bot to change them, which it does on a card you approve. The bot keeps **Came from**, and the panel says its instructions are changed from the template's.
 
 ### Do my bots read each other's chats?
 

@@ -93,6 +93,8 @@ export const botsApi = {
   roomForApp: (botId, app) => post(`/bots/${botId}/rooms/app`, app),
   renameRoom: (botId, roomId, title) => patch(`/bots/${botId}/rooms/${roomId}`, { title }),
   remove: (botId) => remove(`/bots/${botId}`),
+  // A bot's always-on instructions (D-95), changed with update(botId, { instructions }).
+  instructions: (botId) => request(`/bots/${botId}/instructions`),
   routines: (botId) => request(`/bots/${botId}/routines`),
   setRoutine: (botId, routineId, enabled) => patch(`/bots/${botId}/routines/${routineId}`, { enabled }),
   createGroup: (group) => post("/groups", group),

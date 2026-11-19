@@ -240,6 +240,7 @@ export function createBotsService({
     answerOnce: chat.answerOnce,
     react: chat.react,
     updateBot: settings.updateBot,
+    instructionsOf: settings.instructionsOf,
     notebook: memory.notebook,
     removeNote: memory.removeNote,
     createRoom: settings.createRoom,

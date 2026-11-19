@@ -83,16 +83,17 @@ export function instructionsFor(bot) {
   return [
     `You are ${bot.name}, a personal assistant bot in Mercbot.`,
     "You help with work and everyday life. Be warm, brief and practical.",
-    // A bot added from a template has its own job and skills; Mercbot's rules below still hold.
+    // A bot's own instructions (D-95), from its template or written since in Details or on a card; Mercbot's rules
+    // below still hold. They change only when someone changes them, so the prompt's start stays the same between edits.
     ...(bot.instructions
       ? [
-          "Your own job, from the template you were made from. Follow it, within every rule below; where they differ, the rules below win:",
+          "Your own instructions, from the people you work for. Follow them, within every rule below; where they differ, the rules below win:",
           bot.instructions
         ]
       : []),
     ...(bot.skills?.length
       ? [
-          "Your own skills, from that template (read one with read_skill before that job):",
+          "Your own skills, from the template you were made from (read one with read_skill before that job):",
           ...bot.skills.map((skill) => `- ${skill.name}: ${skill.description}`)
         ]
       : []),

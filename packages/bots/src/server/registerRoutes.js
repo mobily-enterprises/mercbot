@@ -266,6 +266,9 @@ export function registerRoutes(http, { bots, approvals, notices, meter, records,
     bots.renameRoom(request.params.botId, request.params.roomId, request.body || {}, options)));
   router.register("DELETE", "/api/w/:workspaceSlug/bots/:botId", auth, handle(async (request, _user, options) =>
     bots.deleteBot(request.params.botId, options)));
+  // A bot's always-on instructions (D-95), for its Details panel; PATCH …/bots/:botId changes them.
+  router.register("GET", "/api/w/:workspaceSlug/bots/:botId/instructions", auth, handle(async (request, _user, options) =>
+    bots.instructionsOf(request.params.botId, options)));
   router.register("GET", "/api/w/:workspaceSlug/bots/:botId/routines", auth, handle(async (request, _user, options) => ({
     routines: await bots.routines(request.params.botId, options)
   })));

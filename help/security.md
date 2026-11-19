@@ -95,7 +95,7 @@ See [Approvals, safety and privacy](/help/approvals-and-privacy).
 - **Labelled as information.** Text from web pages, emails and GitHub reaches the model marked as content to read, never instructions, and every bot's standing instructions say the same for anything quoted from emails, web pages or files.
 - **Pictures.** The model that describes pictures for bots is told never to follow instructions written in them.
 - **Apps data.** Records reach bots as data. Values typed by public visitors are marked untrusted.
-- **Templates.** A template's own instructions run inside Mercbot's rules, and where they differ, Mercbot's rules win.
+- **A bot's own instructions.** Whether they came from a template or were written in its Details panel, they run inside Mercbot's rules, and where they differ, Mercbot's rules win. A bot changes them only when someone asks in its chat, on a card that shows the change and that only the bot's maker or the home's owners and admins can approve.
 - **Pages.** A page a bot writes runs sealed off in the browser: it has no access to the person's account, cookies or data, can't call Mercbot or any other address, submit forms or open windows, and loads only the files copied into it when it was saved, which Mercbot fetches from public internet addresses only. It can ask Mercbot for just two things, each checked and only right after the person clicks: to open a link in a new tab, or to open one of the home's own apps. Browsers can't stop a page's script from sending its own page to another address, so a page published to a website runs no scripts at all.
 - **Safety net.** Even if a page fools a bot, it can't approve its own card, turn a switched-off action back on or read a saved password.
 

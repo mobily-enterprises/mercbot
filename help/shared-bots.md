@@ -101,6 +101,7 @@ Yes. You can start a group chat with up to six bots from your home, shared or no
 
 - **Creating bots.** Anyone in the home can create a bot or add one from a template. It becomes part of the home.
 - **Renaming.** Anyone can rename a bot or change its label, and the new name shows for everyone.
+- **Instructions.** Everyone can read a bot's instructions in its Details panel, but only the person who made the bot and the home's owners and admins can change them, there or by saying yes on the card the bot shows when asked to change them. Anyone else who asks is told politely that they can't.
 - **Organising.** Pins, sections, hidden bots and unread marks are personal. Hiding a bot only hides it for you.
 - **Deleting.** Anyone in the home can delete a bot other than the main bot. It's deleted for everyone, with all its conversations, so agree on it first.
 
@@ -113,6 +114,7 @@ The home's, whoever's chat or conversation the work comes from. Owners and admin
 On top of everything members can do, owners and admins can:
 
 - choose each bot's mode under Who sees what;
+- change any bot's instructions, not only the ones they made;
 - remove any note from a bot's home notebook;
 - connect accounts for everyone in the home, and remove them;
 - choose where the home keeps its files, in **Settings → Files**;

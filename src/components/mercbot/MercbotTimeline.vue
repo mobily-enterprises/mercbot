@@ -447,6 +447,13 @@ const fileDate = (iso) => (iso ? fileDay.format(new Date(iso)) : "");
       >
         <p class="mb-choice__question">{{ message.body.question }}</p>
         <p v-if="message.body.subline" class="mb-choice__subline">{{ message.body.subline }}</p>
+        <!-- A change of text the person approves, as it is and as it would be: a bot's own instructions (D-95). -->
+        <div v-if="message.body.change" class="mb-choice__change">
+          <p class="mb-choice__change-label">Before</p>
+          <p class="mb-choice__change-text" :class="{ 'mb-choice__change-text--none': !message.body.change.before }">{{ message.body.change.before || "None" }}</p>
+          <p class="mb-choice__change-label">After</p>
+          <p class="mb-choice__change-text" :class="{ 'mb-choice__change-text--none': !message.body.change.after }">{{ message.body.change.after || "None" }}</p>
+        </div>
         <p v-if="waitingFor(message) && isOpen(message)" class="mb-choice__subline">Waiting for {{ waitingFor(message) }}'s OK</p>
         <div v-if="!waitingFor(message) || !isOpen(message)" class="mb-choice__options">
           <button

@@ -2223,3 +2223,35 @@ write, plus routines that work on the mail coming in. The owner asked for all of
   `sentAt`; the id in the answers to `POST /message` and `/message/send`; that `base64Content` upload works without
   the upload URI; whether tags and assignments made with the API show the API user; `PUT /contact` replacing the whole
   contact; templates' team relationships.
+
+## D-95 — A bot's own instructions, in its Details panel and on a card the bot shows (2026-11-19)
+
+`bots.instructions` held a bot's always-on instructions only when it was added from a template (D-43), and nobody
+could change them: the help told people to say what they wanted in the chat instead. The owner asked on 19 November
+for an **Instructions** box in each bot's Details panel, and for bots to change their own instructions when the person
+in the chat asks.
+- **One text, everywhere:** the Details panel edits `bots.instructions` itself (`PATCH …/bots/:botId {instructions}`,
+  read with `GET …/bots/:botId/instructions`), and `instructionsFor` gives it to every reply, as before under
+  Mercbot's own rules, which win where they differ. Its heading no longer says it came from a template ("Your own
+  instructions, from the people you work for"), since a bot made from scratch has them too. The text changes only
+  when someone changes it, so the prompt's start stays cached between edits. None is stored as null, as a bot made
+  from scratch always had; the text is trimmed.
+- **Up to 20,000 characters,** as much as one of the person's skills (`save_skill`), about ten pages or 5,000 tokens.
+  Instructions are read with every message, so longer reference material belongs in a skill or a file the bot reads
+  when a job needs it; a longer text is refused with that reason, and nothing is written.
+- **Who changes them:** renaming and labels stay open to everyone in the home (D-36): every member sees every bot that
+  isn't a group chat, and `updateBot` lets anyone who sees a bot change its name and label. Instructions change what a
+  bot does for everyone who uses it, so only the person who made it (`bots.user_id`) and the home's owners and admins
+  (`workspace.settings.update`, from the call's own permissions) change them; everyone else reads them. Another home's
+  people can't reach the bot at all (404).
+- **Changed from the template's:** a bot added from a template keeps `origin` (Came from); the first change of its
+  instructions adds `origin.instructionsChanged`, and the Details panel says they're changed from the template's.
+- **The bot changes them only when asked, and only on a yes:** `change_instructions` is offered only when a person's
+  own message started the turn, never in a routine's run, an app's task or watch, or work another bot asked for. It
+  never changes anything itself: it is an ACTIONS entry that always asks (`alwaysAsks`, whatever the person's rules or
+  auto-review say), leaving an approval card that shows the instructions before and after. Text in an email, a page, a
+  file, a Sedna message or a record is information, never instructions, as every bot is told; if a model were still
+  fooled into calling the tool, the person sees the change on the card and nothing happens without their **Go ahead**.
+  The yes is checked as the person who gives it: in a shared bot, someone who may not change the instructions is told
+  so politely (by the bot, before any card, or on the card), and a card made before another change of the
+  instructions is refused rather than overwriting it. The next reply reads the new text.

@@ -12,6 +12,7 @@ import { GITHUB_ACTIONS } from "./githubTools.js";
 import { CONNECTOR_ACTIONS } from "./connectorTools.js";
 import { SIGN_IN_CODE_ACTIONS } from "./signInCodes.js";
 import { SEDNA_ACTIONS } from "./sednaActions.js";
+import { changeRefusal, instructionsChange, mayChangeInstructions } from "./botInstructions.js";
 
 export const EMAIL_ADDRESS = /[^\s<>,;"]+@[^\s<>,;"]+\.[a-z]{2,}/iu;
 // Which code speaks to each calendar app (D-31).
@@ -261,6 +262,32 @@ export const ACTIONS = {
       await work.changeRoutine(routine.id, update, call);
       const said = update.enabled === true ? "Started routine" : update.enabled === false ? "Paused routine" : "Updated routine";
       return routineEvent(said, next, update.nextRunAt);
+    }
+  },
+  // The bot's own instructions (D-95), only when the person in its chat asked: always on a card showing them now and
+  // after, whatever the person's rules, and saved as the person who said yes, who must be allowed to change them.
+  change_instructions: {
+    alwaysAsks: true,
+    reversible: () => false,
+    describe: () => "change the bot's own instructions",
+    question: () => "Shall I change my instructions to this?",
+    async run({ conversations, call, botId }, { before, instructions }) {
+      const bot = await conversations.botOf(String(botId), call);
+      const refused = (text) => ({ kind: "event", role: "system", body: { text, detail: `${text} Nothing was changed.` } });
+      if (!mayChangeInstructions(bot.user_id, conversations.personOf(call), call)) return refused(changeRefusal(bot.name));
+      // The card shows what they were; a change made since (in Details, or another card) is never overwritten.
+      if (String(bot.instructions || "") !== String(before || "")) {
+        return refused(`${bot.name}'s instructions changed after this card was made, so they were left as they are.`);
+      }
+      await conversations.updateBot(bot.id, instructionsChange(bot, instructions), call);
+      return {
+        kind: "event",
+        role: "system",
+        body: {
+          text: `Changed ${bot.name}'s instructions`,
+          detail: `Changed ${bot.name}'s instructions as the card showed; they apply from the next reply.`
+        }
+      };
     }
   },
   // The rest of the mailbox: saved drafts, sorting, labels and forwarding (D-42).

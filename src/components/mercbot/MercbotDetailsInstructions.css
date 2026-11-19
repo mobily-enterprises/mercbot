@@ -1,0 +1,78 @@
+/* The Details tab's Instructions box (D-95), in the panel's own box, type and pills. */
+.mb-instructions {
+  margin-bottom: 22px;
+}
+
+.mb-instructions__shown {
+  display: block;
+  width: 100%;
+  padding: 8px 12px;
+  font: inherit;
+  color: rgb(var(--v-theme-on-surface));
+  text-align: left;
+  cursor: text;
+}
+
+.mb-instructions__shown:hover:not(:disabled) {
+  background: rgb(var(--v-theme-surface-container-high));
+}
+
+.mb-instructions__shown:disabled {
+  cursor: default;
+}
+
+.mb-instructions__shown:focus-visible {
+  outline: 2px solid rgb(var(--v-theme-secondary));
+  outline-offset: 2px;
+}
+
+/* The hint a bot with none shows, spaced as the sharing options' descriptions are. */
+.mb-instructions__shown .mb-sharing__description {
+  display: block;
+}
+
+/* Long instructions show their first lines here; the box shows them all while they're edited. */
+.mb-instructions__text {
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: 13px;
+  line-height: 18px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 8;
+}
+
+.mb-instructions__box {
+  display: block;
+  width: 100%;
+  min-height: 160px;
+  padding: 8px 12px;
+  border: 1px solid rgb(var(--v-theme-outline-variant));
+  border-radius: 12px;
+  background: rgb(var(--v-theme-surface));
+  font: inherit;
+  font-size: 13px;
+  line-height: 18px;
+  color: rgb(var(--v-theme-on-surface));
+  outline: none;
+  resize: vertical;
+}
+
+.mb-instructions__box:focus {
+  border-color: rgb(var(--v-theme-outline));
+}
+
+.mb-instructions__problem {
+  margin: 6px 4px 0;
+  font-size: 12px;
+  line-height: 16px;
+  color: rgb(var(--v-theme-error));
+}
+
+.mb-instructions__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 8px;
+}

@@ -24,7 +24,7 @@ Yes. A job you've started carries on in the background, and routines run at thei
 
 ## What do bots remember?
 
-Within a chat, a bot keeps the thread however long it gets: it summarises the older part in the background and reads the recent part word for word. Across chats, it remembers lasting facts you tell it, such as preferences or an allergy. All your bots share those facts, but your chats with each bot stay private.
+Within a chat, a bot keeps the thread however long it gets: it summarises the older part in the background and reads the recent part word for word. Across chats, it remembers lasting facts you tell it, such as preferences or an allergy. All your bots share those facts, but your chats with each bot stay private. What a bot should always do goes in its **Instructions**, in its Details panel. See [Bots](/help/bots).
 
 ## Can I see or correct what a bot remembers?
 

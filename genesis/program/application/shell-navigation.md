@@ -24,6 +24,8 @@ render across compact, medium, and expanded layouts.
 - `src/components/mercbot/MercbotPageShare.vue`
 - `src/components/mercbot/useBotNotebook.js`
 - `src/components/mercbot/useBotRoutines.js`
+- `src/components/mercbot/useBotInstructions.js`
+- `tests/e2e/instructions.spec.ts`
 - `src/components/mercbot/MercbotContextMenu.vue`
 - `src/components/mercbot/MercbotConfirmDialog.vue`
 - `src/components/mercbot/MercbotGroupPicker.vue`
@@ -99,6 +101,14 @@ render across compact, medium, and expanded layouts.
   bot's or the home's). "…" or a right-click opens its menu: Pin or Unpin, and for
   a page Open, Share… (who can open it, with Copy text and Download) and Delete,
   which asks first in the app's own dialog.
+- Instructions sit in one bordered box on the Details tab, after Came from
+  (`useBotInstructions.js`, D-95): the bot's text, or a hint when it has none.
+  Its maker and the home's owners and admins select it to edit in a text box
+  with Cancel and Save (pills, as Settings' forms); a refusal shows under the box
+  in the server's words, and a note says when a template bot's are changed or who
+  can change them. They're read again as the bot's activity changes, so an
+  approved change card shows there too. An approval card that carries a
+  `change` shows it as Before and After.
 - Routines sit as rows in one bordered box on the Details tab, each
   with an on/off switch. A click only highlights a row; right-click offers Pause
   or Resume, Edit (puts `Edit your routine "<name>": ` in the composer and

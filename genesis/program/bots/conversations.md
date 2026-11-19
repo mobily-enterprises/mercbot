@@ -118,6 +118,10 @@ onboarding and the bot's typed replies.
 - `migrations/20261119180000_routine_feeds.cjs`
 - `packages/bots/src/server/githubActions.js`
 - `packages/bots/src/server/connectorTools.js`
+- `packages/bots/src/server/botInstructions.js`
+- `tests/server/botInstructions.test.js`
+- `tests/server/botInstructions.integration.js`
+- `tests/server/instructionsPrompt.test.js`
 - `tests/server/connectorTools.test.js`
 - `packages/bots/src/server/eventMessage.js`
 - `tests/server/mailTools.test.js`
@@ -291,7 +295,18 @@ status line (none when the model doesn't answer) and may add the bot's own emoji
 on a bot message. Sidebar previews are plain text.
 
 Details: bots have an optional label (`PATCH /api/bots/:botId` with
-`label`). `GET /api/bots/:botId/routines` lists a bot's routines, `PATCH
+`label`). Anyone in the home renames a bot or changes its label. A bot's
+always-on instructions (D-95, `botInstructions.js`) are its **Instructions**
+box: `GET /api/bots/:botId/instructions` gives the text, whether the person may
+change it and whether a template bot's are changed from the template's, and
+`PATCH /api/bots/:botId` with `instructions` writes them (trimmed, none as
+null, at most 20,000 characters, refused past that), only for the bot's maker
+and the home's owners and admins (403 for other members). The bot changes them
+itself only through `change_instructions` (`memoryTools.js`), offered when a
+person's own message started the turn: an ACTIONS entry that always asks,
+whose approval card shows them before and after, and which runs as the person
+who says yes, refused when they may not or when the instructions changed since
+the card was made. `GET /api/bots/:botId/routines` lists a bot's routines, `PATCH
 /api/bots/:botId/routines/:routineId` pauses or resumes one (resuming counts the
 next run from now and clears its failures in a row), and `DELETE` removes it.
 

@@ -152,8 +152,11 @@ export function buildTools({
     await post([{ kind: "text", role: "bot", body: { text: line, lead: true } }]);
   }
 
-  /** An action parked on a "Go ahead" / "Don't do it" card under the reply, run as it is if they say yes. */
-  function askFirst({ question, subline = "", action }) {
+  /**
+   * An action parked on a "Go ahead" / "Don't do it" card under the reply, run as it is if they say yes. `change`: what
+   * the card shows before and after, for a change of text (the bot's instructions, D-95).
+   */
+  function askFirst({ question, subline = "", change = null, action }) {
     after.push({
       kind: "choice",
       role: "bot",
@@ -161,6 +164,7 @@ export function buildTools({
         purpose: "approval",
         question,
         ...(subline ? { subline } : {}),
+        ...(change ? { change } : {}),
         options: APPROVAL_OPTIONS,
         multi: false,
         chosen: null,
@@ -170,8 +174,11 @@ export function buildTools({
     });
   }
 
-  /** lead: a status line posted only when the action goes ahead ("Adding it for Tuesday at 1pm"). */
-  async function attempt(actionId, input, lead = "") {
+  /**
+   * lead: a status line posted only when the action goes ahead ("Adding it for Tuesday at 1pm"). change: what its card
+   * shows before and after, for a change of text (the bot's instructions, D-95).
+   */
+  async function attempt(actionId, input, lead = "", change = null) {
     // Work another bot asked for is never the person's own request (D-46): whatever the model
     // says, the person approves anything that needs it.
     const args = viaBot ? { ...input, personAsked: false } : input;
@@ -180,9 +187,10 @@ export function buildTools({
     const reversible = action.reversible(args);
     // A routine's run leaves a card for a Sedna send or assignment unless a rule allows it (D-94).
     const strict = routineRun && Boolean(action.asksInRoutines);
-    const decision = await approvals.decide(action.describe(args), { reversible, strict }, call);
+    // An action that always asks (the bot's own instructions, D-95) is never let through by a rule or auto-review.
+    const decision = action.alwaysAsks ? "ask" : await approvals.decide(action.describe(args), { reversible, strict }, call);
     if (decision === "ask") {
-      askFirst({ question: action.question(args), action: { id: actionId, args } });
+      askFirst({ question: action.question(args), change, action: { id: actionId, args } });
       return {
         status: "waiting_for_approval",
         note:
@@ -192,7 +200,20 @@ export function buildTools({
     await postLead(lead);
     let ran;
     try {
-      ran = await action.run({ call, env, work: records.work, botId, conversationId, integrations, userId, reach, files, place }, args);
+      const context = {
+        call,
+        env,
+        work: records.work,
+        conversations: records.conversations,
+        botId,
+        conversationId,
+        integrations,
+        userId,
+        reach,
+        files,
+        place
+      };
+      ran = await action.run(context, args);
     } catch (error) {
       // A change that failed didn't happen, so a reply claiming it is still checked.
       attempted.splice(attempted.lastIndexOf(actionId), 1);
@@ -229,7 +250,19 @@ export function buildTools({
   // Notes for the job in hand and a to-do list the person sees as a card (D-48, @jskit-ai/agent-runtime
   // planning), both in front of the bot at every turn.
   if (!routineRun) Object.assign(tools, planningTools({ planning: records.turns.planning(call), conversationId, post }));
-  Object.assign(tools, buildMemoryTools({ turns: records.turns, integrations, botSkills, userId, botId, personal, acknowledge, call }));
+  Object.assign(tools, buildMemoryTools({
+    turns: records.turns,
+    bots: records.conversations,
+    integrations,
+    botSkills,
+    userId,
+    botId,
+    personal,
+    personInChat: !routineRun && !viaBot && !appsVia,
+    attempt,
+    acknowledge,
+    call
+  }));
 
   if (routineRun) {
     /** A routine that only reports changes can finish without posting anything. */

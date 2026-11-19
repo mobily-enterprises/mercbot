@@ -1,10 +1,12 @@
 import { retryLostInsertRace } from "@jskit-ai/database-runtime/shared";
 import { BotsError } from "./botsError.js";
 import { cleanName, cleanTitle, toBot, toRoom } from "./botRows.js";
+import { changeRefusal, instructionsChange, mayChangeInstructions } from "./botInstructions.js";
 
 /**
- * A bot's settings and a shared bot's rooms (D-36): its name, label and sharing, the person's own pins, section and
- * reading state, rooms opened, made and renamed, and a bot deleted. Every method takes the call's options last.
+ * A bot's settings and a shared bot's rooms (D-36): its name, label, instructions (D-95) and sharing, the person's own
+ * pins, section and reading state, rooms opened, made and renamed, and a bot deleted. Every method takes the call's
+ * options last.
  * @param {object} dependencies
  * @param {import("./types.js").BotRecords} dependencies.records mercbot.bots.records
  * @param {import("./types.js").BotConversations} dependencies.conversations
@@ -24,6 +26,14 @@ export function createBotSettings({ records, conversations, apps }) {
         own.last_activity_at = new Date().toISOString();
       }
       if (patch.label !== undefined) shared.label = String(patch.label || "").trim().slice(0, 60) || null;
+      // Its always-on instructions (D-95): only its maker and the home's owners and admins change them.
+      if (patch.instructions !== undefined) {
+        if (row.kind === "group") throw new BotsError(400, "A group chat has no instructions of its own.", { code: "bots_group_instructions" });
+        if (!mayChangeInstructions(row.created_by, conversations.personOf(txOptions), txOptions)) {
+          throw new BotsError(403, changeRefusal(row.name), { code: "bots_instructions_forbidden" });
+        }
+        Object.assign(shared, instructionsChange(row, patch.instructions));
+      }
       // Replace the main bot: this bot becomes the home's main bot, the one that can't
       // be deleted; the route lets only owners and admins do it.
       if (patch.main === true && !row.is_main) {
@@ -70,6 +80,19 @@ export function createBotSettings({ records, conversations, apps }) {
       await conversations.publish(await conversations.everyoneIn(options), { botId: String(changed.id), type: "changed" });
     }
     return toBot(changed);
+  }
+
+  /**
+   * A bot's instructions as its Details panel shows them (D-95): the text ("" for none), whether the person may change
+   * them, and, for a bot added from a template, whether they're no longer the template's.
+   */
+  async function instructionsOf(botId, options) {
+    const row = await conversations.ownedSingleBot(botId, options);
+    return {
+      instructions: row.instructions || "",
+      canChange: mayChangeInstructions(row.created_by, conversations.personOf(options), options),
+      changedFromTemplate: Boolean(row.origin?.instructionsChanged)
+    };
   }
 
   /**
@@ -133,6 +156,7 @@ export function createBotSettings({ records, conversations, apps }) {
 
   return Object.freeze({
     updateBot,
+    instructionsOf,
     roomForApp,
     createRoom,
     renameRoom,

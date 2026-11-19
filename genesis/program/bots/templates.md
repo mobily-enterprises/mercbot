@@ -85,7 +85,9 @@ templates a link opens, when a copy built on Mercbot keeps them (D-43).
   `tests/server/templateChecks.test.js` checks every file statically (schema, skills and tools,
   no personal details, routines paused, asks before sending, a setup interview); the stand-in model
   (`tools/standInModel.mjs`) proves the end-to-end check in the database suite and is every Preview's and
-  Test Preview's AI (D-83), so a template's setup interview can be walked through there by hand.
+  Test Preview's AI (D-83), so a template's setup interview can be walked through there by hand. It
+  also says any bot's own instructions when asked, and changes them through `change_instructions`
+  when told to (D-95), for the browser suite.
 - **Adding:** the share page's button opens Mercbot at `/?template=<code>`, which carries on into the
   home and opens the preview: everything opened out, nothing added before **Add bot**. Owners and
   admins may also install the paired app as a draft. `POST …/bots/from-template {slug}` makes the
@@ -98,7 +100,9 @@ templates a link opens, when a copy built on Mercbot keeps them (D-43).
   skills reach the model through `instructionsFor` (`botAgent.js`), and `read_skill`,
   `create_routine` (`paused`) and `update_routine` (`running`) in `memoryTools.js` and `routineTools.js`.
 - **A bot's own job:** `instructionsFor` adds the bot's `instructions` (below Mercbot's own rules,
-  which win) and lists its own skills; `read_skill` opens them by name.
+  which win) and lists its own skills; `read_skill` opens them by name. The instructions stay editable
+  after adding (D-95, conversations.md): a change adds `origin.instructionsChanged`, so Details says
+  they're changed from the template's, and Came from stays.
 
 ## Owned data
 

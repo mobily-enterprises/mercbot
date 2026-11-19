@@ -20,6 +20,7 @@ import { shellPreferences } from "./shellPreferences.js";
 import { itemAge, itemIcon, itemMeta, itemType, pageAccess, useBotLibrary } from "./useBotLibrary.js";
 import { noteAge, useBotNotebook } from "./useBotNotebook.js";
 import { useBotRoutines } from "./useBotRoutines.js";
+import { useBotInstructions } from "./useBotInstructions.js";
 import { useGroupMembers } from "./useGroupMembers.js";
 import { usePaths } from "@jskit-ai/shell-web/client/navigation/usePaths";
 import { COMPUTER_GREY } from "@/theme/palettes.js";
@@ -152,6 +153,24 @@ watch(() => props.bot.id, () => {
 
 const { routines, routinesLoaded, toggleRoutine, highlightedRoutineId, routineMenu, pendingRoutineDelete, openRoutineMenu, deleteRoutine } =
   useBotRoutines({ bot: () => props.bot, tab, onEdit: (routine) => emit("edit-routine", routine), onFailure: (error) => emit("failure", error) });
+
+// Its always-on instructions (D-95): its maker and the home's owners and admins edit them here.
+const {
+  instructions, editingInstructions, instructionsDraft, savingInstructions, instructionsProblem, instructionsBox, instructionsChanged,
+  editInstructions, cancelInstructions, saveInstructions
+} = useBotInstructions({
+  bot: () => props.bot,
+  isGroup,
+  tab,
+  onSaved: () => emit("notify", "Instructions saved"),
+  onFailure: (error) => emit("failure", error)
+});
+const instructionsHint = computed(() =>
+  `What ${props.bot.name} is for, how you like things done and where it should stop and ask. It reads these before every reply.`);
+const instructionsNote = computed(() => [
+  instructions.value?.changedFromTemplate ? "Changed from the template's instructions." : "",
+  instructions.value && !instructions.value.canChange ? `The person who made ${props.bot.name} and the home's owners and admins change these.` : ""
+].filter(Boolean).join(" "));
 </script>
 
 <template>
@@ -320,6 +339,41 @@ const { routines, routinesLoaded, toggleRoutine, highlightedRoutineId, routineMe
             by {{ bot.origin.creator }}, added {{ new Date(bot.origin.addedAt).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" }) }}
           </p>
         </template>
+        <template v-if="!isGroup && instructions">
+          <p class="mb-details__section">Instructions</p>
+          <div v-if="editingInstructions" class="mb-instructions">
+            <textarea
+              ref="instructionsBox"
+              v-model="instructionsDraft"
+              class="mb-instructions__box"
+              aria-label="Instructions"
+              rows="10"
+              :placeholder="instructionsHint"
+              :disabled="savingInstructions"
+              @keydown.esc.stop.prevent="cancelInstructions"
+            />
+            <p v-if="instructionsProblem" class="mb-instructions__problem" role="alert">{{ instructionsProblem }}</p>
+            <div class="mb-instructions__actions">
+              <button type="button" class="mb-set-pill" :disabled="savingInstructions" @click="cancelInstructions">Cancel</button>
+              <button type="button" class="mb-set-pill mb-set-pill--dark" :disabled="savingInstructions || !instructionsChanged" @click="saveInstructions">
+                {{ savingInstructions ? "Saving…" : "Save" }}
+              </button>
+            </div>
+          </div>
+          <button
+            v-else
+            type="button"
+            class="mb-sharing mb-instructions__shown"
+            :aria-label="instructions.canChange ? 'Edit instructions' : 'Instructions'"
+            :disabled="!instructions.canChange"
+            @click="editInstructions"
+          >
+            <span v-if="instructions.instructions" class="mb-instructions__text">{{ instructions.instructions }}</span>
+            <span v-else class="mb-sharing__description">{{ instructionsHint }}</span>
+          </button>
+          <p v-if="instructionsNote && !editingInstructions" class="mb-sharing__note">{{ instructionsNote }}</p>
+        </template>
+
         <p class="mb-details__section">Who sees what</p>
         <div class="mb-sharing" role="radiogroup" aria-label="Who sees what">
           <button
@@ -515,3 +569,4 @@ const { routines, routinesLoaded, toggleRoutine, highlightedRoutineId, routineMe
 </template>
 
 <style scoped src="./MercbotDetailsPanel.css"></style>
+<style scoped src="./MercbotDetailsInstructions.css"></style>

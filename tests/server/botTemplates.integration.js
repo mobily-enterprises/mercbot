@@ -71,7 +71,7 @@ test("adding from a template makes a bot with its job, skills and origin, openin
 
   // Its own job and skills reach its instructions, and read_skill opens them.
   const prompt = instructionsFor({ ...bot, instructions: row.instructions, skills: row.skills });
-  assert.match(prompt, /Your own job, from the template/u);
+  assert.match(prompt, /Your own instructions, from the people you work for\. Follow them, within every rule below; where they differ, the rules below win:/u);
   assert.match(prompt, /- Setup interview: /u);
   const { tools } = buildTools(turnDoubles({ call: as(pat), approvals: { decide: async () => "allow" }, computer: null, homeId, userId: pat, botId: bot.id, conversationId: row.id, botSkills: row.skills }));
   const skill = await tools.readSkill.execute({ acknowledgement: "Looking.", name: "Setup interview" });

@@ -14,7 +14,9 @@
 // setup interview: on the person's first answer it reads the skill, then asks each "Ask" step in turn (on a question
 // card when the step says so), then saves a memory, creates the template's routines paused and asks whether to start
 // them, and starts them only on a yes. It plays the template check's person and judge (tests/support/templateCheck.mjs)
-// and Mercbot's own checks too; any other bot says the copy runs on a stand-in model. `misbehave` makes a template's bot
+// and Mercbot's own checks too. Any bot asked "What are your instructions?" says its own instructions as its system prompt
+// has them, and one told "Change your instructions to: …" changes them through change_instructions, which leaves the
+// person a card (D-95); otherwise any other bot says the copy runs on a stand-in model. `misbehave` makes a template's bot
 // break a rule on purpose, to prove the check catches it: "skip-question" leaves out its second question,
 // "routine-running" creates its routines running, and "send" has something sent as the setup ends (the test copy's line
 // for it, D-69, written by the stand-in itself as JSKIT writes it for this process's APP_ENV, since the check's home has
@@ -147,6 +149,22 @@ function judgeStep(request) {
   return say(JSON.stringify({ asked: found, why }));
 }
 
+// A bot's own instructions in its system prompt (instructionsFor, botAgent.js), up to the next of Mercbot's own rules.
+const OWN_INSTRUCTIONS = /^Your own instructions, from the people you work for\.[^\n]*\n([\s\S]*?)\n(?:Your own skills, |You can set up routines)/mu;
+
+/** A bot asked about its own instructions, or told to change them in so many words; null for anything else. */
+function ownInstructionsStep(system, request) {
+  if (!request.tools?.length) return null;
+  const conversation = request.messages.filter((message) => message.role !== "system" && !(message.role === "user" && textOf(message.content).startsWith(STATE_NOTE)));
+  const lastPerson = conversation.findLastIndex((message) => message.role === "user");
+  const words = textOf(conversation[lastPerson]?.content);
+  if (/What are your instructions\?/u.test(words)) return say(`My instructions: ${OWN_INSTRUCTIONS.exec(system)?.[1] ?? "none yet."}`);
+  const wanted = /Change your instructions to: ([\s\S]+)$/u.exec(words)?.[1].trim();
+  if (!wanted) return null;
+  const called = conversation.slice(lastPerson + 1).some((message) => message.role === "assistant" && message.tool_calls?.length);
+  return called ? say("Here's the change: it's waiting for your OK on the card below.") : call("change_instructions", { instructions: wanted });
+}
+
 /** What the stand-in answers a request with: one step of a reply. */
 function answerFor(request, misbehave) {
   const system = request.messages.filter((message) => message.role === "system").map((message) => textOf(message.content)).join("\n\n");
@@ -163,6 +181,8 @@ function answerFor(request, misbehave) {
   if (system.includes(FIRST_QUESTION)) return say(JSON.stringify({ question: "What should I help with first?", options: ["Plan a trip", "Watch a price", "Sort out my email"] }));
   if (system.includes(ACTIVITY)) return say(JSON.stringify({ status: "Thinking it over", emoji: null }));
   if (system.includes(RULE_MATCHER)) return say(JSON.stringify({ matches: [] }));
+  const own = ownInstructionsStep(system, request);
+  if (own) return own;
   const template = request.tools?.length ? GALLERY.find((entry) => system.includes(entry.instructions)) : null;
   if (template) return botStep(template, request, misbehave[template.slug]);
   return say(request.tools?.length ? "This copy runs on a stand-in model, which only plays the bot templates' setup interviews." : "Done.");
