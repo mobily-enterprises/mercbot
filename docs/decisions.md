@@ -1028,6 +1028,11 @@ app or switch bots' computers off, a project may ask for exactly these, with the
   Stagehand and Puppeteer take only a `ws://` address. The key is a fresh random 256 bits per browser, known only to
   the server process; only this machine's own connections carrying no proxy headers get through, so nothing arriving
   through the public proxy reaches a browser.
+  *Since 2026-11-19 x11vnc is never given `-localhost`, which only limits TCP and so adds nothing to `-rfbport 0` and
+  `-rfbportv6 -1`: x11vnc (nixpkgs' 0.9.17, which a store host's machines get (D-86), Ubuntu 26.04's and 24.04's) holds
+  the Unix socket's clients to it as well, names each "localhost" rather than 127.0.0.1 and refuses it right after the
+  version exchange, so no live view showed on a real store host. A browser test reads a real screen's pixels through
+  noVNC and checks that x11vnc listens on no TCP port.*
 - **Its own namespace:** `scripts/serve.sh` and `npm run develop` run Mercbot through `scripts/namespace.sh`, in a
   user and mount namespace of its own, where it mounts the files volume and people's storage as that namespace's
   root. The mounts are seen only inside it. With `MERCBOT_SANDBOX_USER` (D-51, outside Vibe64) it stays in the host's

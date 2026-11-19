@@ -66,7 +66,7 @@ Everything a computer runs is in gVisor (D-49), and nothing listens on a TCP por
 own (D-68), which is all a published server may bind. Waking a bot's computer starts, on a free
 display number picked at that moment: `Xvfb :N` (1280×800, no TCP, no shared memory), the desktop,
 `x11vnc` on that display listening only on a Unix socket of the server's own temporary folder
-(`-unixsock`, `-rfbport 0`, no IPv6, `-noshm`), and the computer's **desktop
+(`x11vncArgs`: `-unixsock`, `-rfbport 0`, no IPv6, `-noshm`), and the computer's **desktop
 sandbox** (`desktopSandbox.js`). That sandbox is one gVisor sandbox (`runsc --rootless
 --network=none`, on KVM only with `MERCBOT_GVISOR_PLATFORM=kvm`) holding Chrome and the Craft
 apps:
@@ -96,6 +96,13 @@ apps:
   in gVisor would send ids from gVisor's own that Xvfb looks up in Mercbot's, where the same id can
   name x11vnc's segment; Chrome then drew into memory Xvfb never read and produced no frames
   (found on a real host, 2026-11-10). So Xvfb offers no MIT-SHM and x11vnc doesn't use it.
+- **No `-localhost`:** it only limits TCP, which `-rfbport 0` and `-rfbportv6 -1` already turn off. x11vnc (nixpkgs'
+  0.9.17, which a store host's machines get (D-86), Ubuntu 26.04's and 24.04's) holds the Unix socket's clients to it too:
+  it names each "localhost", which doesn't match the 127.0.0.1 it allows, and drops it right after the version
+  exchange, so every live view ended in "Couldn't reach the screen" (found on a real store host, 2026-11-19).
+  `tests/e2e/live-screen.spec.ts` wakes a computer with a real Xvfb, x11vnc and Chromium, reads its pixels through
+  noVNC and the relay, and checks that x11vnc listens on no TCP port, with `MERCBOT_X11VNC`'s x11vnc or the one on
+  `PATH`.
 - **Internet:** the only way out is the gateway (`gateway.js`), an HTTP proxy on the sandbox's
   `/io/gateway.sock`, reached through a forwarder inside it. It resolves names itself, and refuses
   loopback, private, link-local (cloud metadata), CGNAT, reserved and multicast addresses, the
@@ -105,9 +112,13 @@ apps:
   folders are named after their server's process.
 
 Sleeping, or Mercbot stopping, shuts everything down, with any apps the person opened. If x11vnc
-stops while the computer is awake, why is logged and it starts again on a new socket (open live
+stops by itself while the computer is awake, why is logged and it starts again on a new socket (open live
 views reconnect with a new ticket); only after more than 3 stops in a minute does the computer
-sleep with "The screen connection stopped."
+sleep with "The screen connection stopped." One stopped by putting the computer away is neither: a computer
+stays awake until its put-away has ended (`puttingAway`), and its x11vnc, ended with the display, used to be taken
+for a stop, logged ("stopped (code 2): caught signal: 15"), started again on the display already gone ("didn't start
+again", x11vnc's can't-open-display text) and the computer put away a second time with that error. A computer is
+put away once: an idle timer or anything else asking while it's under way waits for the same put-away.
 
 The desktop (D-23, `desktop.js`) is written fresh into
 `<data>/computers/desktop-<bot>` on every wake: openbox with our theme (red,

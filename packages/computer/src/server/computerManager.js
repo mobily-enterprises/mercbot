@@ -59,6 +59,17 @@ const LAST_DISPLAY = 499;
 const NO_SHARED_MEMORY = ["-extension", "MIT-SHM"];
 /** Xvfb's arguments for a computer's display; scripts/measure-browser-speed.mjs starts its display with them too. */
 export const xvfbArgs = (display) => [`:${display}`, "-screen", "0", `${WIDTH}x${HEIGHT}x24`, "-nolisten", "tcp", ...NO_SHARED_MEMORY];
+/**
+ * x11vnc's arguments for a computer's screen: VNC on the Unix socket `socketPath` and nowhere else (D-68), as
+ * `-rfbport 0` opens no TCP port and `-rfbportv6 -1` none on IPv6. Never `-localhost`: it only limits TCP, which is off,
+ * and x11vnc (nixpkgs' 0.9.17, Ubuntu 26.04's and 24.04's) holds the socket's clients to it too, names each "localhost"
+ * rather than 127.0.0.1 and refuses it right after the version exchange, so the live view never showed.
+ * tests/e2e/live-screen.spec.ts wakes a computer with a real x11vnc and reads its screen through noVNC.
+ */
+const x11vncArgs = (display, socketPath) => [
+  "-display", `:${display}`, "-unixsock", socketPath, "-rfbport", "0",
+  "-forever", "-shared", "-nopw", "-quiet", "-noxdamage", "-noipv6", "-rfbportv6", "-1", "-noshm"
+];
 // Stagehand's extension dials CDP from inside the browser's gVisor sandbox, which can't reach
 // Mercbot's port and the bridge (D-68): it gets Chrome's own address there instead.
 const insideBrowserUrl = (cdpUrl, debugPort) => `ws://127.0.0.1:${debugPort}${cdpUrl.slice(cdpUrl.indexOf("/devtools/"))}`;
@@ -389,25 +400,27 @@ export function createComputerManager({
   }
 
   /**
-   * The screen-sharing server (x11vnc). If it stops while the computer is awake, why is logged
+   * The screen-sharing server (x11vnc). If it stops by itself while the computer is awake, why is logged
    * and it starts again: the browser and the bot's work carry on, and open live views reconnect
    * with a new ticket. Only when it stops more than 3 times in a minute does the computer sleep.
+   * One stopped by putting the computer away, or by its server stopping, is neither logged nor started again: a computer
+   * stays "awake" while it's put away, until its display and every helper are gone.
    */
   async function startScreen(computer, displayEnv) {
     computer.vncSocket = path.join(os.tmpdir(), `mbvnc-${process.pid}-${computer.display}.sock`);
     await rm(computer.vncSocket, { force: true });
-    const vnc = await startProcess("x11vnc", env.MERCBOT_X11VNC || "x11vnc", [
-      "-display", `:${computer.display}`, "-unixsock", computer.vncSocket, "-rfbport", "0", "-localhost",
-      "-forever", "-shared", "-nopw", "-quiet", "-noxdamage", "-noipv6", "-rfbportv6", "-1", "-noshm"
-    ], { env: displayEnv, ready: () => canConnect(computer.vncSocket) });
+    const vnc = await startProcess("x11vnc", env.MERCBOT_X11VNC || "x11vnc", x11vncArgs(computer.display, computer.vncSocket), {
+      env: displayEnv,
+      ready: () => canConnect(computer.vncSocket)
+    });
     computer.vnc = vnc;
     let errors = "";
     vnc.stderr.on("data", (chunk) => {
       errors = (errors + chunk).slice(-2000);
     });
+    const puttingAway = () => stopping || Boolean(computer.puttingAway) || computer.state !== "awake";
     vnc.once("exit", async (code, signal) => {
-      // Putting the computer away stopped it: a stopping server's computers stay "awake" while they're put away.
-      if (stopping || computer.vnc !== vnc || computer.state !== "awake") return;
+      if (computer.vnc !== vnc || puttingAway()) return;
       console.error(
         `Computer ${computer.computerId}: the screen-sharing server stopped (${signal || `code ${code}`}): ` +
         `${errors.trim().slice(-500) || "no message"}`
@@ -417,9 +430,10 @@ export function createComputerManager({
       if (computer.screenStops.length <= 3) {
         try {
           await startScreen(computer, displayEnv);
-          if (computer.state !== "awake") computer.vnc?.kill("SIGKILL");
+          if (puttingAway()) computer.vnc?.kill("SIGKILL");
           return;
         } catch (error) {
+          if (puttingAway()) return;
           console.error(`Computer ${computer.computerId}: the screen-sharing server didn't start again: ${error.message}`);
         }
       }
@@ -427,11 +441,13 @@ export function createComputerManager({
     });
   }
 
-  async function putToSleep(computerId, error = "") {
+  /** Puts a computer away once: asked again while that's under way (its idle timer, its screen server), it waits for that. */
+  function putToSleep(computerId, error = "") {
     const computer = entry(computerId);
-    if (computer.state === "asleep") return;
-    await teardown(computer);
-    setState(computer, "asleep", { url: "", error });
+    if (computer.state === "asleep") return Promise.resolve();
+    computer.puttingAway ??= teardown(computer).then(() => setState(computer, "asleep", { url: "", error }))
+      .finally(() => (computer.puttingAway = null));
+    return computer.puttingAway;
   }
 
   // Every 30 seconds an awake computer's cookies are saved if they changed, so a machine that

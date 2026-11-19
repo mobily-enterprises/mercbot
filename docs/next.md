@@ -218,10 +218,18 @@ What these waited for has happened, so nothing stops them now.
   (`serveComputers`), the bridge's close ends any connection left, a stopping server starts no computer and doesn't
   restart a screen server its put-away stopped. Checked on a test host with a real computer: the server ends at once
   with its browser saved, where it used to wait out the 25 s and save nothing.
-- [ ] **The live view on x11vnc 0.9.17** (`computerManager.js` startScreen): this x11vnc, from a test host's Ubuntu,
+- [x] **The live view on x11vnc 0.9.17** (`computerManager.js` startScreen): this x11vnc, from a test host's Ubuntu,
   closes every client on its Unix socket right after the version exchange when given `-localhost`, so the screen
   never shows (`Couldn't reach the screen.`). `-localhost` only limits TCP, which `-rfbport 0` already turns off.
   Recommended: check the computer's x11vnc version, and drop `-localhost` before any host has 0.9.17.
+  Fixed 2026-11-19, after a store host's computers showed no screen at all: nixpkgs' x11vnc 0.9.17, Ubuntu 26.04's
+  0.9.17-2 and Ubuntu 24.04's 0.9.16 (on its own libvncserver 0.9.14 too) each log `denying client: localhost does not
+  match 127.0.0.1` for every client of the socket. x11vnc no longer gets `-localhost` and still listens on no TCP
+  port, IPv4 or IPv6. `tests/e2e/live-screen.spec.ts` wakes a computer with a real Xvfb, x11vnc and Chromium and reads
+  the bot's pages through noVNC and the relay (D-68); it failed with `-localhost` on all three x11vnc builds and passes
+  without it. A sleeping computer's x11vnc, ended with its display, is no longer taken for a stop: it was logged
+  (`stopped (code 2): caught signal: 15`), started again on the display already gone (`didn't start again`, with
+  x11vnc's can't-open-display text), and the computer put away a second time with "The screen connection stopped.".
 - [ ] **A fresh toolbox has no mount points, and a sandbox user can't make them** (D-51,
   `scripts/build-toolbox.sh`, `scripts/setup-sandbox-user.sh`): gVisor's gofer makes each missing mount point
   (`/files/mine`, `/runs`, `/io`, `/profile`, `/gateway`, `/opt/coding`, ...) in the toolbox itself the first time a
