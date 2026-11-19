@@ -1203,7 +1203,9 @@ a day and the computation its commands use. D-56's design (docs/usage-tracking-d
   their first step, steps already running finish, and the bot says why (`pausedMessage`). Nothing is deleted. A
   routine's run stopped this way isn't a failed run, so it never pauses the routine (D-77).
 - **What people see.** Everyone sees what was spent: owners and admins the whole home, members their own use. A bot's
-  price tag is this month, with all time on hover. Days and months are UTC's.
+  price tag is this month, with all time on hover, and shows only while the pointer is over its bot in the sidebar or the
+  bot has keyboard focus; a touch screen shows none (the owner, 2026-11-19: "only display the money amount when hovering
+  over them"). Days and months are UTC's.
 - **Built for scale (2026-11-12).** Money is whole nanodollars in bigint: micro-units can't hold a per-token price
   such as $0.006 a million tokens, which is 6 nanodollars a token. Everything people see is read from totals that each
   finished piece of work adds to, keyed by home, bot, person, kind and day (`usage_daily`) or month (`usage_monthly`),

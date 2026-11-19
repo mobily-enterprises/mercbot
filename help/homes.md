@@ -123,7 +123,7 @@ A home's spending is what its bots' work cost at the AI providers, counted for t
 - **For owners and admins:** the whole home's spending, by day, kind, bot and person.
 - **For members:** their own use (what the home's bots did for them).
 
-Each bot shows this month's figure beside its name in the sidebar, the same way: the whole home's for owners and admins, your own for members. Spending is only reported: the home's bots never stop because of it.
+Pointing at a bot in the sidebar shows this month's figure beside its name, the same way: the whole home's for owners and admins, your own for members. Spending is only reported: the home's bots never stop because of it.
 
 ## Recommended setup
 

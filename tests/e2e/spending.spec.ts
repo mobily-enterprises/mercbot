@@ -3,7 +3,7 @@ import knexLib from "knex";
 import { expect, test, testDatabaseName, type Page } from "./harness";
 
 // Spending (D-73, D-76) on the Test Preview target: what the home's work cost at its AI providers, by kind, bot and
-// person, for any period and as a CSV, with each bot's cost tag. Nothing is held and no work is ever refused: a bot's
+// person, for any period and as a CSV, with each bot's cost tag (shown on hover or keyboard focus). Nothing is held and no work is ever refused: a bot's
 // reply is recorded with its provider's cost. The home is this file's own, a new home of the copy's one person, so no
 // other spec's use reaches its figures. The first two tests add their use straight to its daily and monthly totals,
 // today (UTC), as recording does (the stand-in model's calls cost a small fraction of a cent), the person's and some for
@@ -110,8 +110,9 @@ async function openSpending(page: Page) {
   return settings;
 }
 
-const costTag = (page: Page, name: string) => page.getByRole("navigation", { name: "Bots" })
-  .getByRole("button", { name, exact: true }).locator('[title$=" all time"]').first();
+const botButton = (page: Page, name: string) => page.getByRole("navigation", { name: "Bots" })
+  .getByRole("button", { name, exact: true }).first();
+const costTag = (page: Page, name: string) => botButton(page, name).locator('[title$=" all time"]');
 const fitsTheWidth = (page: Page) => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1);
 
 test("the person sees what the home's work cost by kind, bot and person, and each bot's cost tag", async ({ page }, testInfo) => {
@@ -121,8 +122,29 @@ test("the person sees what the home's work cost by kind, bot and person, and eac
     // The chart drawn at once, so the screenshots show its bars at their height rather than growing.
     await page.emulateMedia({ reducedMotion: "reduce" });
     await openHome(page, use.home);
-    await expect(costTag(page, "Otto")).toHaveText("$1.88");
-    await expect(costTag(page, "Otto")).toHaveAttribute("title", "$1.88 this month · $1.88 all time");
+    // Otto's cost tag shows only while the pointer is over Otto or Otto has keyboard focus, in a place it keeps while
+    // hidden, so nothing moves when it shows; all time is its tooltip.
+    const otto = botButton(page, "Otto");
+    const tag = costTag(page, "Otto");
+    const place = () => tag.evaluate((element) => JSON.stringify(element.getBoundingClientRect()));
+    await expect(tag).toHaveText("$1.88");
+    await expect(tag).toBeHidden();
+    const hiddenPlace = await place();
+    await page.screenshot({ path: testInfo.outputPath("sidebar.png") });
+    await otto.hover();
+    await expect(tag).toBeVisible();
+    await expect(tag).toHaveAttribute("title", "$1.88 this month · $1.88 all time");
+    expect(await place()).toBe(hiddenPlace);
+    await page.screenshot({ path: testInfo.outputPath("sidebar-hover.png") });
+    await page.mouse.move(page.viewportSize()!.width - 20, page.viewportSize()!.height / 2);
+    await expect(tag).toBeHidden();
+    // Onto Otto with the keyboard, from whatever comes before it.
+    await otto.focus();
+    await page.keyboard.press("Shift+Tab");
+    await expect(tag).toBeHidden();
+    await page.keyboard.press("Tab");
+    await expect(otto).toBeFocused();
+    await expect(tag).toBeVisible();
 
     // The account menu's first row is this month's spending, whose it is, and the way to Settings → Spending.
     await page.locator(".mb-account").click();

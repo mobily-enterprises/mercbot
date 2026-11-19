@@ -243,8 +243,10 @@ items open Settings → Spending (D-73). Above the composer the shell shows the 
 Mercbot adds there (`extensions.js` `shellParts` whose `place` is `notice`): each gets `pulse`, the open conversation's
 message count, and may emit `open-settings` with a section's `value` to open it. Mercbot adds none. The shell opens a
 Settings section for `?settings=<section>` (a link in an email, or back from another site), takes `settings` out of the
-address and leaves the rest for the section to read (`useShellDialogs.js`). Each bot in the sidebar shows its price tag
-(`usePriceTags.js`), read again when a bot finishes working, when the home changes and when the page is shown again.
+address and leaves the rest for the section to read (`useShellDialogs.js`). Each bot in the sidebar has its price tag
+(`usePriceTags.js`), read again when a bot finishes working, when the home changes and when the page is shown again,
+and shown only while the pointer is over the bot or the bot has keyboard focus, never on a touch screen
+(`MercbotBotList.css`; the owner, 2026-11-19).
 Settings → Permissions holds the auto-review switch and the Always ask and Allow without asking rule lists.
 
 The account menu also has Help and support and Settings. Help and support opens a Help centre
