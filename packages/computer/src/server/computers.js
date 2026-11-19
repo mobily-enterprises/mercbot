@@ -1,5 +1,5 @@
 import { randomBytes, timingSafeEqual } from "node:crypto";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -45,6 +45,22 @@ function filePlace(files, found) {
 }
 
 /**
+ * What starts xterm as the host's own user. In Mercbot's own user namespace (MERCBOT_NAMESPACE=own, D-68) Mercbot is
+ * that namespace's root, and xterm started as root gives the program in its window root's groups (initgroups) before
+ * starting it, which a user namespace refuses (setgroups is denied there): the program never started and the window
+ * closed at once ("Cannot chown /dev/pts/N to 0,5"), the Terminal on every host without MERCBOT_SANDBOX_USER. There
+ * xterm runs in a user namespace of its own as the user and group Mercbot's namespace maps its root to, the host's own,
+ * as it runs where Mercbot keeps the host's namespace (D-51). Nothing is given up: Mercbot's namespace has only those.
+ * @param {import("@jskit-ai/kernel/server/types").RuntimeEnv} env
+ */
+function asHostUser(env) {
+  if (env.MERCBOT_NAMESPACE !== "own") return [];
+  const outside = (file) => readFileSync(file, "utf8").trim().split(/\s+/u)[1];
+  return [env.MERCBOT_UNSHARE || "unshare", "--user", `--map-user=${outside("/proc/self/uid_map")}`,
+    `--map-group=${outside("/proc/self/gid_map")}`, "--"];
+}
+
+/**
  * An xterm window on the desktop titled `title`, showing `argv`; null without xterm. One this server
  * opens itself names the computer's `display`; the dock's are started on it already.
  */
@@ -52,7 +68,7 @@ function xtermCommand(env, title, argv, display = null) {
   const xterm = program(env, "xterm");
   if (!xterm || !argv) return null;
   const libraries = path.join(path.resolve(env.MERCBOT_TOOLS_DIR || ".tools"), "desktop", "usr", "lib", "x86_64-linux-gnu");
-  return ["env", `LD_LIBRARY_PATH=${libraries}`, "LANG=C.UTF-8", "LC_ALL=C.UTF-8",
+  return [...asHostUser(env), "env", `LD_LIBRARY_PATH=${libraries}`, "LANG=C.UTF-8", "LC_ALL=C.UTF-8",
     xterm, ...(display === null ? [] : ["-display", `:${display}`]), "-u8", "-T", title, "-fa", "DejaVu Sans Mono", "-fs", "11", "-geometry", "118x34",
     "-bg", "#16181D", "-fg", "#E8EAED", "-xrm", "XTerm*selectToClipboard: true", "-e", ...argv];
 }

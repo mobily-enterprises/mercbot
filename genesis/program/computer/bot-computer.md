@@ -129,6 +129,10 @@ Chrome) and the office apps, and a Terminal. Right-clicking the desktop shows th
 office apps run in the desktop sandbox. The Terminal is an xterm attached to the
 conversation's command-line session (`files/shell.md`): the bot's commands live above, the
 person's own shell below. Without `tint2` or `hsetroot` the desktop has no bars or wallpaper.
+Every xterm the server opens there (`xtermCommand`: the Terminal, a coding run's progress, a sign-in) runs, in
+Mercbot's own namespace (D-68), in a user namespace of its own as the host's own user (`asHostUser`): as that
+namespace's root, xterm gives its program root's groups before starting it, which a user namespace refuses, and the
+window closed at once. `tests/server/xtermWindow.test.js` starts one there with a real Xvfb and xterm.
 `POST /api/bots/:botId/computer/open` (`{path}`, a bot path) wakes the computer
 where it runs (the `open` operation is forwarded like the others) and opens that
 file in its app; the viewer's "Edit on computer" calls it, then opens the live

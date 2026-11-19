@@ -1037,6 +1037,13 @@ app or switch bots' computers off, a project may ask for exactly these, with the
   user and mount namespace of its own, where it mounts the files volume and people's storage as that namespace's
   root. The mounts are seen only inside it. With `MERCBOT_SANDBOX_USER` (D-51, outside Vibe64) it stays in the host's
   namespace as before.
+  *Since 2026-11-19 every xterm Mercbot opens on a bot's computer (the dock's Terminal, a coding run's progress, a
+  coding tool's sign-in) runs in a user namespace of its own as the host's own user and group, the ones Mercbot's
+  namespace maps its root to (`MERCBOT_UNSHARE --user --map-user --map-group`). Started as the namespace's root, xterm
+  gives its program root's groups (initgroups) before starting it, which a user namespace refuses, so the program never
+  started and the window closed at once ("Cannot chown /dev/pts/N to 0,5"), with nixpkgs' xterm 410 (a store host's)
+  and Ubuntu 26.04's 407 alike: the Terminal never opened on a store host or on Vibe64. A test starts xterm as Mercbot
+  does in its namespace, with a real Xvfb, and checks that its program starts.*
 - *Since D-91 (2026-11-18) nothing mounts: bots' files are in an S3 bucket and people's storage goes through rclone's
   remote control, so the Stack asks only for `gvisor`, and no host is asked for `/dev/fuse` or a `fusermount3`.*
 - **Mounting directly, never through the set-user-ID helper:** JuiceFS mounts directly as the namespace's root. rclone's
