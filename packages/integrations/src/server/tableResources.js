@@ -21,6 +21,28 @@ export const pluginAccountResource = defineTableResource({
   }
 });
 
+/** plugin_account_people
+ * who a home's person is at an app connected with the home's API credentials, when their address finds no one there:
+ * the user they picked, asked until an owner or admin confirms it (D-93)
+ */
+export const pluginAccountPersonResource = defineTableResource({
+  name: "pluginAccountPeople",
+  tableName: "plugin_account_people",
+  ownership: "workspace",
+  schema: {
+    accountId: { type: "id", required: true, search: true },
+    appUserId: { type: "string", maxLength: 64, noTrim: true, required: true, search: true },
+    appUserName: { type: "string", maxLength: 200, noTrim: true, required: true },
+    confirmedAt: { type: "dateTime", nullable: true },
+    confirmedBy: { type: "id", nullable: true },
+    createdAt: { type: "dateTime" },
+    org: { type: "string", maxLength: 100, noTrim: true, required: true, search: true },
+    status: { type: "string", maxLength: 16, noTrim: true, required: true, search: true },
+    userId: { type: "id", required: true, search: true },
+    workspaceId: { type: "id", hidden: true, search: true }
+  }
+});
+
 /** oauth_states
  * a sign-in in progress, found by its unguessable state on the provider's callback
  */
@@ -132,6 +154,7 @@ export const connectorAppResource = defineTableResource({
 /** Every table resource this feature owns, in table order. */
 export const TABLE_RESOURCES = Object.freeze([
   pluginAccountResource,
+  pluginAccountPersonResource,
   oauthStateResource,
   userPluginResource,
   userSkillResource,

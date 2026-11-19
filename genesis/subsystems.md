@@ -122,6 +122,7 @@ that host their own connection point (D-34).
 - Table `database` `default` `plugin_actions_off`
 - Table `database` `default` `user_plugins`
 - Table `database` `default` `plugin_accounts`
+- Table `database` `default` `plugin_account_people`
 - Table `database` `default` `user_skills`
 - Table `database` `default` `oauth_states`
 - Table `database` `default` `bridge_link`

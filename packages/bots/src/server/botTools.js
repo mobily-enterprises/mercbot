@@ -72,7 +72,8 @@ function inTime(work, what) {
  * @param {boolean} [options.routineRun]
  * @param {boolean} [options.personal]
  * @param {import("./types.js").Place} [options.place]
- * @param {{ skip: Record<string, string[]>, removed: string[] }} [options.toolSwitches]
+ * @param {{ skip: Record<string, string[]>, removed: string[], connected: string[] }} [options.toolSwitches] `connected`:
+ *   the apps the call reaches a connected account of
  */
 export function buildTools({
   call,
@@ -106,7 +107,7 @@ export function buildTools({
   routineRun = false,
   personal = true,
   place = { homeId, botId, userId },
-  toolSwitches = { skip: {}, removed: [] }
+  toolSwitches = { skip: {}, removed: [], connected: [] }
 }) {
   // Whose connected accounts the tools reach: the person's own and the home's (D-37).
   const reach = { userId, homeId, personal };
@@ -272,6 +273,7 @@ export function buildTools({
       office,
       saved,
       removed: toolSwitches.removed,
+      connectedApps: toolSwitches.connected,
       appFor,
       attempt,
       attempted,

@@ -108,6 +108,9 @@ onboarding and the bot's typed replies.
 - `packages/bots/src/server/mailTools.js`
 - `packages/bots/src/server/driveTools.js`
 - `packages/bots/src/server/githubTools.js`
+- `packages/bots/src/server/sednaTools.js`
+- `packages/bots/src/server/sednaApi.js`
+- `tests/server/sednaTools.test.js`
 - `packages/bots/src/server/githubActions.js`
 - `packages/bots/src/server/connectorTools.js`
 - `tests/server/connectorTools.test.js`
@@ -531,6 +534,15 @@ offers only the actions still on, and none at all when every one is off:
 - GitHub (`githubTools.js`): `github_code`, `github_pulls`, `github_issues`, `github_find` and
   `github_discussions` read; `github_change` and `github_discussions` change, from one table of
   actions (GraphQL for discussions and drafts).
+- Sedna (`sednaTools.js`, `sednaApi.js`, D-93), offered only on the person's own turn in their own chat once the
+  home's Sedna is connected (`toolSwitches.connected`): `sedna_messages` (recent, by_tag, by_job, read) and
+  `sedna_lists` (tags, jobs, teams, contacts), reads only, as the person's own Sedna user
+  (`connections.appPerson`, found once a reply; a person who is no one in Sedna is told why and what to do). Lists of
+  messages ask Sedna for the person's teams (`filter[team]`) and drop messages naming other teams only; recent reads up
+  to five pages of the events feed (only the next page's cursor is taken from Sedna's link) and opens each message; a
+  message read by id is checked against the person's teams, from its answer or `GET /message/:id/team`, before
+  anything of it is shown. Subjects, senders, text and comments are wrapped as information. A 429 is waited out once
+  when its Retry-After is 30 seconds or less, then reported; a refused key is made again once.
 - apps that host their own connection point (`connectorTools.js`, D-34: Calendly, Notion, Todoist):
   `connected_app_actions` (an app's actions with their inputs and whether they change anything, the
   app's guidance, and the switched-off ones; or one action's whole description and input schema) and

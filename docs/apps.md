@@ -138,3 +138,36 @@ written to the log.
 4. Break: in Todoist, Settings → Integrations, remove Mercbot, then ask the step 2 question again: the bot
    says Todoist isn't connected any more and offers to reconnect. Then **Disconnect** in Connect apps.
 5. Verdict.
+
+## Apps connected with a home's API credentials: Sedna (D-93, built 2026-11-19)
+
+Sedna (sedna.com, a shared email for shipping teams) has no sign-in for other apps: an admin of the Sedna
+organisation makes API credentials on its API Credential Management page (in Sedna, Settings → API Credential
+Management, at `https://<tenant>.sednanetwork.com/platform/settings/api-credential-management`), and an owner or
+admin of the home enters them in Connect apps. If that page isn't there, the organisation's Sedna plan may not include
+the API: ask Sedna's support. The first slice reads only. Checked against developers.sedna.com on 2026-11-19;
+nothing was asked of Sedna.
+
+### The five-minute test, on a real tenant
+
+Needs a Sedna organisation, credentials that may at least read (company, users, teams, messages, events, comments,
+tags, job references, contacts and documents), and a Mercbot home whose owner's email is a Sedna user's (else pick
+yourself in step 1).
+
+1. Connect: Connect apps → Sedna → **Connect**, type the tenant (the *X* of X.sednanetwork.com), the client ID and
+   secret, and **Save**. First a wrong secret: the form says Sedna didn't accept it, and nothing is saved. Then the
+   right one: the account shows Connected, named by the company, and the note counts the people found by email.
+   **Who you are in Sedna** names your user and your teams; with no match, find yourself and **This is me**.
+2. Read: "What came into my Sedna today?", then "Show me the messages on job VOY-123" (a real job reference) and
+   "Read the first one with its comments." Real messages of your own teams only, with senders and dates.
+3. Teams: as a person of the home in a different Sedna team (or after **That's not me** and picking a user in another
+   team, confirmed by an owner), ask for a message id from step 2 that's only in your team: the bot says it isn't in
+   their teams and shows nothing of it. A member who picks themselves reads nothing until an owner or admin confirms
+   it under **People**.
+4. Break: delete the credential on Sedna's API Credential Management page, wait for the hourly key to run out (or
+   **Change credentials** with a wrong secret, which is refused and keeps the old ones), then ask the step 2 question
+   again. The bot says Sedna isn't connected and that an owner or admin enters the credentials again; Connect apps
+   shows **Enter API credentials**. Then **Disconnect** in Connect apps.
+5. Verdict, as above. Also note what the real tenant answered where the documentation is silent: the events feed's
+   order and how far back it goes, whether `filter[user.search]` finds people by email, and whether a token can be
+   asked for with read scopes only.

@@ -152,6 +152,18 @@ A bot can also suggest an app. If you ask for something that needs an app you ha
 
 If you run your own copy of Mercbot that's only reachable from your own machine, the sign-in may not be able to come back to Mercbot by itself. The app's page then shows a box: paste the whole address the sign-in tab ended on and select **Finish**.
 
+### Apps connected with API credentials: Sedna
+
+Some apps have no sign-in for other apps. Sedna, the shared email for shipping teams, connects with API credentials that an admin of your Sedna organisation makes, and they're the whole home's: only the home's owners and admins connect it.
+
+1. In Sedna, an admin opens **Settings**, then **API Credential Management**, and makes a credential. Note its client ID and secret. If Sedna lets you choose what the credential may do, reading is enough for now. If that page isn't there, your Sedna plan may not include the API: ask Sedna's support.
+2. In Connect apps, open **Sedna** and select **Connect**. A form opens on the page instead of a sign-in tab.
+3. Type your **Sedna address** (the first part of the address you open Sedna at, the *acme* of acme.sednanetwork.com), the **Client ID** and the **Client secret**, and select **Save**. Once you've typed the address, the form also links to your Sedna's API Credential Management page.
+
+Mercbot checks the credentials with Sedna before keeping them: a wrong ID or secret is refused in the form, and nothing is saved. Once they're accepted, the account shows your company's name and **Connected**, and a note says how many of the home's people Sedna knows by their email address. **Change credentials** enters new ones; **Disconnect** deletes them from Mercbot.
+
+**Who you are in Sedna.** The credentials read the whole organisation, so a bot reads only what *your* Sedna teams see. Mercbot finds you by your email address. If no Sedna user has it, Sedna's page shows **Who you are in Sedna**: type your name, find yourself and select **This is me**. An owner or admin confirms it under **People** (an owner's or admin's own choice counts at once). Until then your bots read nothing in Sedna. Nobody can choose a Sedna user that someone else in the home already is.
+
 ### Just me, or everyone in the home
 
 An account you connect is yours. Your bots use it in your own chats, and nobody else in the home can use it.
@@ -259,6 +271,17 @@ Google Drive asks for access to your whole Drive, so bots can work with any of y
 - Make changes: comment, create and update issues and labels, add sub-issues, create, update, review and merge pull requests, create branches and releases, and re-run automation.
 
 GitHub changes go ahead only when you asked for exactly that change; otherwise the bot asks first. Comments on issues and pull requests always ask.
+
+### Sedna
+
+Reading only, for now: nothing in Sedna changes.
+
+- The newest messages that came into your teams ("anything new from the brokers today?").
+- Messages with a tag, or linked to a job reference such as a voyage or deal number.
+- One message: who sent it to whom, its text, its tags and job references, your team's comments and its attachments' names.
+- Lists of tags, job references, your teams and your teams' contacts.
+
+Only your own Sedna teams' messages are read, and only in your own chats with your bots, never in a shared conversation. Sedna has no search across message text: bots find messages by tag, by job reference or among the newest. If Sedna asks Mercbot to slow down, the bot says so and tries later.
 
 ### Calendly, Notion and Todoist
 

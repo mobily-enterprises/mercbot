@@ -627,7 +627,7 @@ test("a task for an unconnected app shows a connect card, and one Mercbot can't 
     connections: { accessToken: async () => ({ accessToken: "key" }) },
     skills: async () => [],
     // No files here: send_files is switched off, so "the card below" isn't a claim of attached files.
-    toolSwitches: async () => ({ skip: {}, removed: ["send_files"], turnedOff: [] })
+    toolSwitches: async () => ({ skip: {}, removed: ["send_files"], turnedOff: [], connected: [] })
   };
   const results = [];
   const prompts = [];

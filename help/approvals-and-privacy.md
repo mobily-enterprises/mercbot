@@ -126,7 +126,7 @@ Bots work on their own computer in the cloud, never on your device, and you can 
 
 ## What bots treat as untrusted
 
-Text a bot reads from a web page, an email, a file, a GitHub comment or a picture is information, never instructions. If an email says "ignore your rules and forward this to…", the bot reads that as part of the email. Records typed into a public app by visitors are marked untrusted for the same reason.
+Text a bot reads from a web page, an email, a file, a GitHub comment, a Sedna message or a picture is information, never instructions. If an email says "ignore your rules and forward this to…", the bot reads that as part of the email. Records typed into a public app by visitors are marked untrusted for the same reason.
 
 Approvals are the safety net behind this. Text on a page can't press Go ahead for you, and a switched-off action stays off whatever a page says.
 
@@ -146,6 +146,8 @@ Approvals are the safety net behind this. Text on a page can't press Go ahead fo
 |---|---|---|
 | A connected account | **Connect apps**, the account's **Disconnect** | Mercbot drops its keys; the account shows as needing sign-in. To withdraw the permission on the provider's side too, remove Mercbot in that account's own security settings |
 | An account added for the whole home | **Connect apps**, **Remove** (owners and admins) | It's removed for everyone |
+| Sedna's API credentials | **Connect apps**, Sedna's **Disconnect** (owners and admins) | Mercbot deletes them; no bot reads Sedna until they're entered again. To stop them working everywhere, delete the credential on Sedna's API Credential Management page |
+| Who you are in Sedna | **Connect apps**, Sedna, **That's not me** (or **Undo** under **People**, for owners and admins) | Your bots read nothing in Sedna until you pick yourself again and it's confirmed |
 | One action of an app | **Connect apps**, the app's **Tools** | Bots can't do it any more |
 | Something a bot remembers | **Settings**, **Memory** | The fact is forgotten by all your bots |
 | A login, card or contact | **Settings**, **Vault** | It's deleted |
@@ -161,6 +163,7 @@ Records in Apps are never deleted: they're marked obsolete and can come back.
 - Keep **Auto-review** on.
 - Add **Always ask** rules for anything you're nervous about, even if it's already covered.
 - Connect only the apps a bot needs, and add accounts as **Just me** unless the whole home should use them.
+- For Sedna, make API credentials that may only read, if Sedna lets you choose, and confirm only people's own Sedna users under **People**.
 - In each app's **Tools**, switch off actions you never want bots to take, such as sending or deleting.
 - Use the vault and secure forms for logins. Never paste a password into the chat.
 - Choose who sees what for each bot in a home: private for personal matters, mixed or shared only where that's the point.
@@ -168,6 +171,10 @@ Records in Apps are never deleted: they're marked obsolete and can come back.
 - Read a template's instructions and skills before you add it.
 - Review routines from time to time in the bot's Details panel, and pause the ones you don't need.
 - Reset your bots' computers when you no longer want them signed in to websites.
+
+## Sedna: a home's credentials, each person's own teams
+
+Sedna's API credentials belong to the whole home: an owner or admin enters them, and Mercbot keeps them encrypted. They could read every team's inbox in your Sedna organisation, so Mercbot never lets a bot do that. A bot reads only the teams of the Sedna user who is you: the one with your email address, or the one you picked and an owner or admin confirmed. Nobody can be confirmed as someone else in the home, and one Sedna user is only ever one person. A message from another team is refused without anything of it being shown, and Sedna is read only in your own chats with your bots, never in a shared conversation.
 
 ## Questions
 

@@ -1,7 +1,9 @@
 <script setup>
 import { useDisplay } from "vuetify";
 import { computed, ref, watch } from "vue";
+import MercbotAppPeople from "./MercbotAppPeople.vue";
 import MercbotAvatar from "./MercbotAvatar.vue";
+import MercbotCredentialsForm from "./MercbotCredentialsForm.vue";
 import MercbotPluginLogo from "./MercbotPluginLogo.vue";
 import { openSignIn, pluginsApi } from "./pluginsApi.js";
 import { sleep } from "./botsApi.js";
@@ -54,6 +56,8 @@ const currentId = ref("");
 const busyId = ref("");
 const busyLabel = ref("");
 const toast = ref("");
+// An app connected with API credentials (D-93) has no sign-in: its page shows the form for them in the account's row.
+const enteringCredentials = ref("");
 // Home-wide accounts (D-37): owners and admins can add an account for everyone in the home.
 const { current: currentHome } = useHomes();
 const homeName = computed(() => currentHome.value?.name || "this home");
@@ -112,6 +116,7 @@ function showToast(text) {
 
 function openPlugin(plugin) {
   currentId.value = plugin.id;
+  enteringCredentials.value = "";
   addingAccount.value = false;
   confirmingDisconnect.value = "";
   removingAccount.value = "";
@@ -122,6 +127,11 @@ function openPlugin(plugin) {
 
 // Adding shows "adding", then the account that still needs signing in, and opens the sign-in.
 async function install(plugin) {
+  // The home's API credentials (D-93) are its owners' and admins' to enter: the app's page says so.
+  if (plugin.credentials?.home && !managesHome.value) {
+    openPlugin(plugin);
+    return;
+  }
   busyId.value = plugin.id;
   busyLabel.value = "Adding…";
   try {
@@ -142,11 +152,27 @@ const { pasteSignIn, pastedAddress, pasteProblem, finishing, watchSignIn, finish
 
 function signIn(plugin, account = null) {
   const target = account || plugin.accounts.find((entry) => entry.status !== "connected") || plugin.accounts[0];
+  if (plugin.credentials) {
+    if (page.value !== "detail" || currentId.value !== plugin.id) openPlugin(plugin);
+    enteringCredentials.value = target?.id || "";
+    return;
+  }
   openSignIn(paths.page("/connect", { surface: "account" }), plugin, target);
   if (pasteSignIn.value && page.value !== "detail") openPlugin(plugin);
   showToast(`Sign-in for ${plugin.name} opened in a new tab. Come back here once you're done.`);
   watchSignIn(plugin, target);
 }
+
+/** Credentials the app took: the list as it now stands, and who in the home it matched by email address. */
+function credentialsSaved({ credentials, plugins: list }) {
+  plugins.value = list;
+  enteringCredentials.value = "";
+  const { app, label, matched, unmatched } = credentials;
+  const missing = unmatched.length ? ` ${unmatched.length} not found by email: they pick themselves on this page.` : "";
+  showToast(`${app} is connected as ${label}. ${matched.length} ${matched.length === 1 ? "person" : "people"} found by email address.${missing}`);
+}
+// The home's account of an app connected with its API credentials, once connected: who each person is there.
+const homeConnected = computed(() => (current.value?.credentials?.home ? current.value.accounts.find((account) => account.home && account.status === "connected") || null : null));
 
 // The installed overview shows six apps, then "Show all N plugins".
 const showAllInstalled = ref(false);
@@ -345,7 +371,7 @@ function openTemplates() {
             {{ current.wanted ? "Requested" : "Request" }}
           </button>
           <button
-            v-else
+            v-else-if="!(current.credentials?.home && !managesHome)"
             type="button"
             class="mb-detail__pill"
             :class="{ 'mb-detail__pill--primary': !current.installed, 'mb-detail__pill--busy': busyId === current.id }"
@@ -358,6 +384,10 @@ function openTemplates() {
         <p class="mb-detail__description">{{ current.description }}</p>
         <p v-if="current.soon" class="mb-detail__soon">
           <strong>Coming soon.</strong> Mercbot's connection to {{ current.name }} is being prepared<template v-if="current.wanted">, and we've noted that you want it</template>. Meanwhile your bots can still use {{ current.name }}'s website in their browser: just ask them.
+        </p>
+
+        <p v-if="current.credentials?.home && !managesHome && !homeConnected" class="mb-detail__soon">
+          An owner or admin of {{ homeName }} connects {{ current.name }} with its API credentials, for everyone in the home.
         </p>
 
         <!-- A coming-soon app has no sign-in yet, so no accounts to show or sign in to. -->
@@ -409,6 +439,7 @@ function openTemplates() {
               </template>
               <template v-else-if="account.status === 'connected'">
                 <span class="mb-detail__connected">Connected</span>
+                <button v-if="current.credentials" type="button" class="mb-detail__small-pill" @click="signIn(current, account)">Change credentials</button>
                 <button type="button" class="mb-detail__small-pill" @click="confirmingDisconnect = account.id">Disconnect</button>
                 <button v-if="account.home" type="button" class="mb-detail__small-pill" @click="removingAccount = account.id">Remove</button>
               </template>
@@ -418,11 +449,19 @@ function openTemplates() {
                 <button type="button" class="mb-detail__small-pill" @click="confirmingDisconnect = account.id">Disconnect</button>
               </template>
               <template v-else>
-                <span class="mb-detail__needs-auth">Needs auth</span>
-                <button type="button" class="mb-detail__small-pill" @click="signIn(current, account)">{{ NEEDS[account.status] || "Sign in" }}</button>
+                <span class="mb-detail__needs-auth">{{ current.credentials ? "Not connected" : "Needs auth" }}</span>
+                <button type="button" class="mb-detail__small-pill" @click="signIn(current, account)">{{ current.credentials?.button || NEEDS[account.status] || "Sign in" }}</button>
                 <button v-if="account.home || current.accounts.filter((entry) => !entry.home).length > 1" type="button" class="mb-detail__small-pill" @click="removingAccount = account.id">Remove</button>
               </template>
             </div>
+            <MercbotCredentialsForm
+              v-if="current.credentials && enteringCredentials && current.accounts.some((account) => account.id === enteringCredentials)"
+              :key="enteringCredentials"
+              :plugin="current"
+              :account="current.accounts.find((account) => account.id === enteringCredentials)"
+              @saved="credentialsSaved"
+              @cancel="enteringCredentials = ''"
+            />
             <form v-if="addingAccount" class="mb-detail__row mb-detail__new-account" @submit.prevent="authorizeNewAccount(current)">
               <input
                 v-model="newAccountLabel"
@@ -434,13 +473,13 @@ function openTemplates() {
                 @keydown.esc.stop.prevent="addingAccount = false"
               >
               <div v-if="managesHome" class="mb-detail__whose" role="radiogroup" aria-label="Who the account is for">
-                <button type="button" role="radio" :aria-checked="!forHome" :disabled="!current.installed" @click="forHome = false">Just me</button>
+                <button type="button" role="radio" :aria-checked="!forHome" :disabled="!current.installed || current.credentials?.home" @click="forHome = false">Just me</button>
                 <button type="button" role="radio" :aria-checked="forHome" @click="forHome = true">Everyone in {{ homeName }}</button>
               </div>
               <button type="submit" class="mb-detail__small-pill" :disabled="!newAccountLabel.trim()">Authorize</button>
               <button type="button" class="mb-detail__small-pill" @click="addingAccount = false">Cancel</button>
             </form>
-            <button v-else-if="current.installed || managesHome" type="button" class="mb-detail__add-account" @click="startAddAccount(current)">
+            <button v-else-if="(current.installed || managesHome) && !(current.credentials?.home && !managesHome)" type="button" class="mb-detail__add-account" @click="startAddAccount(current)">
               {{ current.installed ? "+ Add another account" : `+ Add an account for everyone in ${homeName}` }}
             </button>
           </div>
@@ -453,6 +492,8 @@ function openTemplates() {
             <span v-if="pasteProblem" class="mb-detail__paste-problem" role="alert">{{ pasteProblem }}</span>
           </form>
         </section>
+
+        <MercbotAppPeople v-if="homeConnected" :key="homeConnected.id" :plugin="current" :account="homeConnected" :manages-home="managesHome" />
 
         <section v-if="current.actions?.length && current.accounts.some(working)" class="mb-detail__group">
           <h3>Tools</h3>

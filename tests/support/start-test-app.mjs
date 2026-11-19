@@ -7,6 +7,7 @@ import knexLib from "knex";
 import { loadEnvFile } from "../../server/lib/envFile.js";
 import { startPreviewAi, withoutCredentials } from "../../tools/previewAi.mjs";
 import { startFakeDrive } from "./fakeDrive.mjs";
+import { startFakeSedna } from "./fakeSedna.mjs";
 import { testPreviewExtensions } from "./testPreviewExtensions.mjs";
 
 // Test Preview (Outputs target `test-app`): the app on the disposable test database, for browser
@@ -68,6 +69,10 @@ Object.assign(process.env, {
   MERCBOT_TEST_GOOGLE_DRIVE_CA: fakeDrive.caFile
 });
 process.once("exit", () => rmSync(path.dirname(fakeDrive.caFile), { recursive: true, force: true }));
+
+// Sedna connected with a home's API credentials (D-93) goes to a local stand-in (fakeSedna.mjs) for every tenant.
+const fakeSedna = await startFakeSedna();
+process.env.MERCBOT_TEST_SEDNA_URL = fakeSedna.url;
 
 // What a copy built on Mercbot adds to its Test Preview: its own settings, and stand-ins for the services it reaches
 // (testPreviewExtensions.mjs). Mercbot adds nothing.

@@ -12,6 +12,7 @@ import * as microsoft from "./microsoftApps.js";
 import { MAIL, buildMailTools } from "./mailTools.js";
 import { DRIVES, buildDriveTools } from "./driveTools.js";
 import { buildGithubTools } from "./githubTools.js";
+import { buildSednaTools } from "./sednaTools.js";
 
 // Which code speaks to each contacts app (D-31).
 const CONTACTS = { "google-contacts": google, outlook: microsoft };
@@ -64,6 +65,7 @@ const SEVERAL_ACCOUNTS =
  * @param {import("./types.js").OfficeSession} shared.office
  * @param {Set<string>} shared.saved
  * @param {string[]} shared.removed
+ * @param {string[]} shared.connectedApps the apps the call reaches a connected account of (toolSwitches)
  * @param {import("./types.js").AppFor} shared.appFor
  * @param {import("./types.js").AttemptAction} shared.attempt
  * @param {string[]} shared.attempted
@@ -87,6 +89,7 @@ export function buildAccountTools({
   office,
   saved,
   removed,
+  connectedApps,
   appFor,
   attempt,
   attempted,
@@ -513,5 +516,11 @@ export function buildAccountTools({
     })
   );
   Object.assign(tools, buildGithubTools({ appFor, attempt, attempted, removed, failed, statusLine, personAsked, inTime, untrusted }));
+  // The home's Sedna, read for the asking person (D-93): only in their own chat, where nobody else reads the answer,
+  // and only once the home connected it.
+  if (reach.personal && connectedApps.includes("sedna")) {
+    const guide = integrations.app("sedna")?.guide || "";
+    Object.assign(tools, buildSednaTools({ appFor, attempted, removed, failed, statusLine, inTime, untrustedMail, guide }));
+  }
   return tools;
 }

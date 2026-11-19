@@ -165,6 +165,7 @@ export function createIntegrationsService({ resources, accounts, catalogue, conn
       await appInterest.createMany([{ pluginId: entry.id }], { ...own(options), onConflict: { keys: ["userId", "pluginId"], action: "ignore" } });
       return list(reach, options);
     }
+    if (entry.credentials?.home) return installForHome(reach, entry, options);
     // Added once: a second Add at the same time loses the unique (user, app) race and finds the first.
     await retryLostInsertRace(options, () => userPlugins.withTransaction(passedOn(options), async (txOptions) => {
       const mine = own(txOptions);
@@ -173,6 +174,27 @@ export function createIntegrationsService({ resources, accounts, catalogue, conn
       await userPlugins.create({ pluginId: entry.id }, { ...mine, returning: "none" });
       // The first account has no label: it's shown by its address once signed in.
       await accounts.addPersonalAccount({ pluginId: entry.id, name: "" }, txOptions);
+    }));
+    return list(reach, options);
+  }
+
+  /**
+   * An app whose API credentials are the whole home's (D-93), such as an organisation's: only the home's owners and
+   * admins add it, and adding it makes the home's account, which still needs its credentials, unless the home has one.
+   */
+  async function installForHome(reach, entry, options) {
+    if (!accounts.managesHome(options)) {
+      throw new IntegrationsError(403, `Only the home's owners and admins can connect ${entry.name}: its API credentials are the whole home's.`, {
+        code: "integrations_home_app_forbidden",
+        params: { app: entry.name }
+      });
+    }
+    await retryLostInsertRace(options, () => userPlugins.withTransaction(passedOn(options), async (txOptions) => {
+      const mine = own(txOptions);
+      const [added] = await userPlugins.queryAll({ filters: { pluginId: entry.id }, fields: ["pluginId"] }, mine);
+      if (!added) await userPlugins.create({ pluginId: entry.id }, { ...mine, returning: "none" });
+      const [homes] = await accounts.reachable(reach, txOptions, { filters: { pluginId: entry.id, homeOnly: true } });
+      if (!homes) await accounts.addHomeAccount({ pluginId: entry.id, name: "" }, txOptions);
     }));
     return list(reach, options);
   }
@@ -196,6 +218,12 @@ export function createIntegrationsService({ resources, accounts, catalogue, conn
    */
   async function addAccount(reach, pluginId, label, { forHome = false } = {}, options) {
     const entry = plugin(pluginId);
+    if (entry.credentials?.home && !forHome) {
+      throw new IntegrationsError(409, `${entry.name}'s accounts are the whole home's: add one for everyone in the home.`, {
+        code: "integrations_home_account_only",
+        params: { app: entry.name }
+      });
+    }
     if (forHome && !accounts.managesHome(options)) {
       throw new IntegrationsError(403, "Only the home's owners and admins can add accounts for everyone.", {
         code: "integrations_home_account_forbidden"
@@ -348,7 +376,7 @@ export function createIntegrationsService({ resources, accounts, catalogue, conn
       }
     }
     const removed = [...offered].filter(([id, apps]) => apps.every((app) => skip[id]?.includes(app))).map(([id]) => id);
-    return { skip, removed, turnedOff };
+    return { skip, removed, turnedOff, connected: [...connected] };
   }
 
   /** An app's catalogue entry (its name, logo, colour, sign-in and actions), or null; read from no table. */

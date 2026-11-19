@@ -219,7 +219,7 @@ test("a reply that claims files it didn't attach is sent back, and the person ge
     records,
     files: { store, apps: { session: () => ({ close() {} }) } },
     // No computer to hand over here: ask_for_help is switched off, so "card below" is about files only.
-    integrations: { toolSwitches: async () => ({ skip: {}, removed: ["ask_for_help"], turnedOff: [] }) },
+    integrations: { toolSwitches: async () => ({ skip: {}, removed: ["ask_for_help"], turnedOff: [], connected: [] }) },
     approvals: { decide: async () => "allow" },
     reply: async (_bot, _history, tools, _state, prompt) => {
       passes.push(prompt);

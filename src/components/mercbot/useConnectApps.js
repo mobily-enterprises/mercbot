@@ -58,8 +58,9 @@ export function useConnectApps({ reportFailure, currentBot }) {
       reportFailure("Couldn't load that app. Try again.", error);
       return;
     }
-    // An app that isn't connectable yet opens its page, where asking for it is noted (D-33).
-    if (explainerPlugin.value?.soon) openApp(explainerPlugin.value.id);
+    // An app that isn't connectable yet opens its page, where asking for it is noted (D-33); so does one connected with
+    // API credentials (D-93), where an owner or admin enters them.
+    if (explainerPlugin.value?.soon || explainerPlugin.value?.credentials) openApp(explainerPlugin.value.id);
     else if (explainerPlugin.value) explainerOpen.value = true;
     else appsOpen.value = true;
   }

@@ -142,6 +142,24 @@ export function registerRoutes(http, { integrations, catalogue, env }) {
     return connections.connect(REACH, request.params.accountId, options);
   }
 
+  /** API credentials entered for an account (D-93), checked with the app, saved sealed: who they matched, and the list. */
+  async function enterCredentials(request, options) {
+    const credentials = await connections.saveCredentials(REACH, request.params.accountId, request.body || {}, options);
+    return { credentials, ...await integrations.list(REACH, options) };
+  }
+
+  // Who each of the home's people is at an app connected with the home's API credentials (D-93, appPeople.js).
+  const appPerson = (request, options) => connections.appPerson(REACH, request.params.accountId, options);
+  const appPeople = (request, options) => connections.appPeople(REACH, request.params.accountId, options);
+  const appUsers = async (request, options) => ({
+    users: await connections.appUsers(REACH, request.params.accountId, request.query?.q, options)
+  });
+  const pickAppUser = (request, options) => connections.pickAppUser(REACH, request.params.accountId, request.body?.appUserId, options);
+  const confirmAppPerson = (request, options) =>
+    connections.confirmAppPerson(REACH, request.params.accountId, request.params.userId, options);
+  const forgetAppPerson = (request, options) =>
+    connections.forgetAppPerson(REACH, request.params.accountId, request.params.userId, options);
+
   async function disconnectAccount(request, options) {
     await connections.disconnect(REACH, request.params.accountId, options);
     return integrations.list(REACH, options);
@@ -201,9 +219,18 @@ export function registerRoutes(http, { integrations, catalogue, env }) {
   router.register("GET", "/api/plugins/:pluginId/source", PUBLIC, pluginSource);
   router.register("GET", "/api/plugins/:pluginId/logo.svg", PUBLIC, pluginLogo);
   router.register("GET", "/api/plugins/:pluginId/logo.png", PUBLIC, pluginLogoImage);
-  // Signing an account in (D-31): the consent screen's address, and disconnecting.
+  // Signing an account in (D-31): the consent screen's address, an app's API credentials (D-93), and disconnecting.
   router.register("POST", "/api/w/:workspaceSlug/plugin-accounts/:accountId/connect", IN_HOME, handle(connectAccount));
+  router.register("POST", "/api/w/:workspaceSlug/plugin-accounts/:accountId/credentials", IN_HOME, handle(enterCredentials));
   router.register("DELETE", "/api/w/:workspaceSlug/plugin-accounts/:accountId/connection", IN_HOME, handle(disconnectAccount));
+  // Who the home's people are at an app connected with its API credentials (D-93): a person's own, and picking it when
+  // their address finds no one; everyone's, and confirming picks, for the home's owners and admins.
+  router.register("GET", "/api/w/:workspaceSlug/plugin-accounts/:accountId/people/me", IN_HOME, handle(appPerson));
+  router.register("PUT", "/api/w/:workspaceSlug/plugin-accounts/:accountId/people/me", IN_HOME, handle(pickAppUser));
+  router.register("GET", "/api/w/:workspaceSlug/plugin-accounts/:accountId/people", IN_HOME, handle(appPeople));
+  router.register("POST", "/api/w/:workspaceSlug/plugin-accounts/:accountId/people/:userId/confirm", IN_HOME, handle(confirmAppPerson));
+  router.register("DELETE", "/api/w/:workspaceSlug/plugin-accounts/:accountId/people/:userId", IN_HOME, handle(forgetAppPerson));
+  router.register("GET", "/api/w/:workspaceSlug/plugin-accounts/:accountId/app-users", IN_HOME, handle(appUsers));
   router.register("POST", "/api/w/:workspaceSlug/connections/finish", IN_HOME, handle(finishPasted));
   router.register("GET", "/api/connections/callback", PUBLIC, signInCallback);
   // This copy's link to a hub (Settings → Mercbot account). Its status and unlinking are asked from a

@@ -31,6 +31,19 @@ their accounts, and keeps the private skills their bots have made.
 - `src/pages/account/connect.vue`
 - `src/components/mercbot/MercbotSettingsLink.vue`
 - `packages/integrations/src/server/accounts.js`
+- `packages/integrations/src/server/credentials.js`
+- `packages/integrations/src/server/sednaCredentials.js`
+- `packages/integrations/src/server/appPeople.js`
+- `packages/integrations/src/server/tableResources.js`
+- `migrations/20261119150000_plugin_account_people.cjs`
+- `src/components/mercbot/MercbotCredentialsForm.vue`
+- `src/components/mercbot/MercbotAppPeople.vue`
+- `src/components/mercbot/MercbotCredentials.css`
+- `plugins/sedna/plugin.json`
+- `plugins/sedna/skill.md`
+- `tests/server/sednaCredentials.integration.js`
+- `tests/support/fakeSedna.mjs`
+- `tests/e2e/sedna.spec.ts`
 - `plugins/calendly/plugin.json`
 - `plugins/notion/plugin.json`
 - `plugins/todoist/plugin.json`
@@ -217,3 +230,41 @@ person is an active member of (`workspaces.memberships`), asking from that home,
 linker's account is gone (`linked_by` null). Anyone else gets 403 `integrations_unlink_forbidden` (`unlinking.js`);
 the status says `canUnlink`, and Settings asks before unlinking. An unlink from a home is recorded in that
 home's Activity trail through `mercbot.apps`' `activity.record` (via `settings`, `changes.unlinkedCopy`).
+
+**Apps connected with a home's API credentials** (D-93): a plugin's `credentials` block names its `kind`
+(`credentials.js`; Sedna's is `sednaCredentials.js`), the `fields` of its form (`id`, `label`, `secret`, `prefix`,
+`suffix`, `hint`, `optional`, `maxLength`), `help`, a `page` link (`{tenant}` filled from the typed address) and
+`home: true`, which makes its account the home's. Only owners and admins add such an app (`POST …/plugins/:pluginId/install`
+answers a member 403 `integrations_home_app_forbidden`, and makes one home account however many add it), add its accounts
+(only for the home: 409 `integrations_home_account_only`), enter its credentials and disconnect it.
+- `POST …/plugin-accounts/:accountId/credentials {fields…}` checks the values with the app before saving anything:
+  each declared field (400 `integrations_credentials_field_missing`, `_long`), the kind's `normalize` (Sedna: the
+  tenant one DNS label, 400 `integrations_sedna_tenant_invalid`), a key (`mint`: 400 `integrations_credentials_refused`
+  for a wrong ID or secret, 400 `integrations_sedna_tenant_unknown` for no such organisation) and `check` (Sedna:
+  `GET /company/me`, whose name labels the account, and the home's people matched by email address, the first 50, five
+  at a time). It then seals `{ values, access, expiresAt }` in `plugin_accounts.tokens`, marks the account connected
+  (`accounts.connectedHere`, which tells `whenConnected` listeners), and answers `{ credentials: { app, label, matched,
+  unmatched, more }, plugins, skills }`.
+- `connections.accessToken` makes a key from the credentials when the saved one is about to run out or was refused,
+  under the account's row lock (`tokenRenewal.js`, the kind's `mint` in place of a refresh); it answers `api`, the
+  address the key is for, built from the credentials alone (Sedna: `https://<tenant>.sednanetwork.com/platform/2019-01-01`).
+  The app turning the credentials down signs the account out with 409 `integrations_credentials_missing`. A sign-in,
+  here or through the hub, is refused with 409 `integrations_credentials_only`; disconnecting clears the credentials.
+- Outside staging and production only (`isDeployed`, D-87), `MERCBOT_TEST_SEDNA_URL` points every tenant at the
+  stand-in Sedna (`tests/support/fakeSedna.mjs`, `credentialKinds` in `IntegrationsFeature.js`), for the Test Preview.
+
+**Who each person is at such an app** (`appPeople.js`, `plugin_account_people`, kept to the home):
+- `GET …/plugin-accounts/:accountId/people/me`: the call's person, `{ app, person, via }` with `person` their app user
+  and teams and `via` `email` or `picked`, or `person: null` with `asked` (their pick waiting), `taken` (the user their
+  address finds is confirmed for someone else) or `gone` (their confirmed user archived or deleted). A confirmed pick
+  comes first, then the one active user with their sign-in address (`homeDirectory` in `IntegrationsFeature.js`).
+- `GET …/app-users?q=`: the app's active users whose name or address holds the words (two letters at least), for
+  picking oneself.
+- `PUT …/people/me {appUserId}`: picks one's own user when one's address finds none (409
+  `integrations_app_person_matched` otherwise); 404 `integrations_app_user_unknown` for no such active user, 409
+  `integrations_app_user_taken` for one another person of the home has by address or is confirmed as. It waits as
+  `asked`, unless the person is an owner or admin, whose pick is `confirmed` at once.
+- `GET …/people` (owners and admins): the home's people with who each is; `POST …/people/:userId/confirm` confirms a
+  waiting pick, checked again (404 `integrations_app_person_not_asked`); `DELETE …/people/:userId` forgets a pick, one's
+  own (`me`) or, for owners and admins, anyone's. No two people are confirmed as one user of one organisation (a unique
+  index), and a pick holds only for the organisation (`org`, Sedna's tenant) it was made in.

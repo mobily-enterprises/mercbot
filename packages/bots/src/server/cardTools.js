@@ -40,7 +40,7 @@ export function buildCardTools({ integrations, reach, notebook, after, call }) {
     }
     // An app Mercbot can't sign in to yet still gets its card: its button asks for it,
     // and the bot offers the website meanwhile.
-    const ready = !plugin.soon && Boolean(plugin.oauth || plugin.mcp);
+    const ready = !plugin.soon && Boolean(plugin.oauth || plugin.mcp || plugin.credentials);
     after.push({
       kind: "connect",
       role: "bot",

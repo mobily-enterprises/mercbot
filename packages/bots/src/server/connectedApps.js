@@ -1,6 +1,6 @@
 // The person's connected accounts as bot tools use them (D-31): which accounts a
 // request means, how they're named, a key for each, and what a test copy sends instead (D-69).
-// Shared by Google, Microsoft and GitHub.
+// Shared by Google, Microsoft, GitHub and Sedna.
 import { logSideEffect } from "@jskit-ai/kernel/server/runtime/appEnvironment";
 import { appEnvironment } from "@jskit-ai/kernel/shared/support/appEnvironment";
 
@@ -44,7 +44,8 @@ const APP_NAMES = {
   "google-drive": "Google Drive",
   outlook: "Outlook",
   onedrive: "OneDrive",
-  github: "GitHub"
+  github: "GitHub",
+  sedna: "Sedna"
 };
 const appName = (account) => APP_NAMES[account.pluginId] || account.pluginId;
 
@@ -122,14 +123,17 @@ export async function connectedAccounts({ integrations, reach, skip = [], call, 
   }));
 }
 
-/** The accounts connectedAccounts picks, each with a key for calling its app. */
+/**
+ * The accounts connectedAccounts picks, each with a key for calling its app, and for an app connected with API
+ * credentials (D-93) `api`, the address that key is for, which integrations builds from the credentials alone.
+ */
 export async function connectedKeys(access, pluginIds, name, wanted = "") {
   const chosen = await connectedAccounts(access, pluginIds, name, wanted);
   const { integrations, reach, call } = access;
-  return Promise.all(chosen.map(async (entry) => ({
-    ...entry,
-    key: (await integrations.connections.accessToken(reach, entry.id, call)).accessToken
-  })));
+  return Promise.all(chosen.map(async (entry) => {
+    const token = await integrations.connections.accessToken(reach, entry.id, call);
+    return { ...entry, key: token.accessToken, ...(token.api ? { api: token.api } : {}) };
+  }));
 }
 
 /**

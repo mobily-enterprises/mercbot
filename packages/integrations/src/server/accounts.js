@@ -80,7 +80,7 @@ function toRecord(record, withTokens) {
  * call's reach. A change of one account the call reached goes through `patchAccount` or
  * `deleteAccount`, and a system write names the account's owner, except the unlink sign-out, which
  * is every account of the deployment that borrowed the hub's sign-in. An account turning connected
- * (`signedIn`, `connectedThroughHub`) is saved with what waits for it elsewhere (`whenConnected`).
+ * (`signedIn`, `connectedHere`) is saved with what waits for it elsewhere (`whenConnected`).
  * @param {object} dependencies
  * @param {object} dependencies.pluginAccounts the plugin_accounts handle
  * @param {(reason: string) => object} dependencies.systemContext the feature's system scope
@@ -343,11 +343,12 @@ export function createAccounts({ pluginAccounts, systemContext }) {
   }
 
   /**
-   * A sign-in through the hub found finished (syncPending): the account a scoped read answered, connected with
-   * `changes`. That read was in the call's home, so a home's account is that home's.
+   * An account a scoped read answered, connected with `changes`: a sign-in through the hub found finished
+   * (syncPending), or API credentials an owner or admin entered and the app took (D-93), sealed in `changes`. That read
+   * was in the call's home, so a home's account is that home's.
    * @param {{ id: string, home: boolean, pluginId: string, userId: string }} account
    */
-  function connectedThroughHub(account, changes, options) {
+  function connectedHere(account, changes, options) {
     return savedConnected(options, async (txOptions) => {
       await patchAccount(account, changes, txOptions);
       const homeId = account.home ? String(resolveWorkspaceScopeValue(options?.context)) : null;
@@ -369,7 +370,7 @@ export function createAccounts({ pluginAccounts, systemContext }) {
   return Object.freeze({
     signingIn,
     signedIn,
-    connectedThroughHub,
+    connectedHere,
     whenConnected,
     signInFailed,
     personOf,

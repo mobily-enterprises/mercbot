@@ -42,8 +42,9 @@ export function useAppAccounts({ plugins, managesHome, signIn, onFailure }) {
 
   function startAddAccount(plugin) {
     newAccountLabel.value = "";
-    // Without the app added for themselves, an owner or admin adds one for the home.
-    forHome.value = !plugin.installed;
+    // Without the app added for themselves, an owner or admin adds one for the home; the home's API credentials (D-93)
+    // are always the home's.
+    forHome.value = !plugin.installed || Boolean(plugin.credentials?.home);
     addingAccount.value = true;
   }
 

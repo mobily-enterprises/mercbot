@@ -63,14 +63,18 @@ export const parts = (plugin) => [
 /** How many of an app's tools the bot may use. */
 export const enabledCount = (plugin) => plugin.actions.filter((action) => action.enabled).length;
 
-/** Whether people sign in to the app: through Google, Microsoft or GitHub, or the app's own connection point (D-34). */
-export const signsIn = (plugin) => Boolean(plugin.oauth || plugin.mcp);
+/**
+ * Whether people connect the app: by signing in through Google, Microsoft or GitHub, or the app's own connection point
+ * (D-34), or with API credentials an owner or admin enters (D-93).
+ */
+export const signsIn = (plugin) => Boolean(plugin.oauth || plugin.mcp || plugin.credentials);
 
 /** The Information table's availability follows the accounts once sign-in exists for the app. */
 export function availability(plugin) {
   if (!signsIn(plugin)) return plugin.info.availability;
   const connected = plugin.accounts.filter(working).length;
   if (connected) return connected > 1 ? `Connected (${connected} accounts)` : "Connected";
+  if (plugin.credentials) return plugin.accounts.length ? "Added; needs its API credentials" : "Not added yet";
   return plugin.installed ? "Added; needs sign-in" : "Not added yet";
 }
 

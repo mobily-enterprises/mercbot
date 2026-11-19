@@ -1,0 +1,86 @@
+{
+  "id": "sedna",
+  "name": "Sedna",
+  "category": "Communication",
+  "kind": "add",
+  "description": "Read your teams' shared email in Sedna: new messages, tags, job references and contacts.",
+  "color": "#0E4C73",
+  "icon": "inbox",
+  "recommended": false,
+  "connectors": [
+    "sedna"
+  ],
+  "skills": [],
+  "info": {
+    "capabilities": "Reads your own Sedna teams' messages; changes nothing in Sedna",
+    "developer": "Sedna",
+    "website": "https://sedna.com",
+    "availability": "An owner or admin enters the home's Sedna API credentials"
+  },
+  "credentials": {
+    "kind": "sedna",
+    "home": true,
+    "button": "Enter API credentials",
+    "help": "An admin of your Sedna organisation makes these on Sedna's API Credential Management page: in Sedna, Settings, then API Credential Management. If Sedna lets you choose what the credential may do, reading is enough for now. If the page isn't there, your Sedna plan may not include the API: ask Sedna's support.",
+    "fields": [
+      {
+        "id": "tenant",
+        "label": "Sedna address",
+        "prefix": "https://",
+        "suffix": ".sednanetwork.com",
+        "hint": "The first part of the address you open Sedna at",
+        "maxLength": 300
+      },
+      {
+        "id": "clientId",
+        "label": "Client ID",
+        "maxLength": 300
+      },
+      {
+        "id": "clientSecret",
+        "label": "Client secret",
+        "secret": true,
+        "maxLength": 500
+      }
+    ],
+    "page": {
+      "label": "Open Sedna's API Credential Management page",
+      "url": "https://{tenant}.sednanetwork.com/platform/settings/api-credential-management"
+    }
+  },
+  "rank": 1080,
+  "actions": [
+    {
+      "id": "sedna_messages.recent",
+      "name": "Read new messages"
+    },
+    {
+      "id": "sedna_messages.by_tag",
+      "name": "Find messages by tag"
+    },
+    {
+      "id": "sedna_messages.by_job",
+      "name": "Find messages by job reference"
+    },
+    {
+      "id": "sedna_messages.read",
+      "name": "Read a message with its comments"
+    },
+    {
+      "id": "sedna_lists.tags",
+      "name": "List tags"
+    },
+    {
+      "id": "sedna_lists.jobs",
+      "name": "List job references"
+    },
+    {
+      "id": "sedna_lists.teams",
+      "name": "List your teams"
+    },
+    {
+      "id": "sedna_lists.contacts",
+      "name": "List contacts"
+    }
+  ]
+}

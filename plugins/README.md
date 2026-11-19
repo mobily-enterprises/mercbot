@@ -23,3 +23,12 @@ app that doesn't let Mercbot register itself. Everything else, the sign-in and t
 actions, comes from the app. Its `skill.md` is the app's guidance for bots: a
 `name:`, `description:` and `source:` head (the maker's documentation it was
 written from), then `---` and the guidance.
+
+An app that connects with API credentials someone makes in the app itself, with no sign-in for other apps, adds a
+`credentials` block (D-93, `packages/integrations/src/server/credentials.js`): its `kind` (one of the kinds the
+integrations package builds; `sedna` is the only one), `home: true` when the credentials are the whole home's (added,
+entered and changed by its owners and admins only), the `button` that opens the form, the `help` that says where to
+make them, a `page` link to that place (`{tenant}` is filled from the typed address), and the form's `fields`, each
+with an `id`, a `label` and optionally `secret`, `prefix`, `suffix`, `hint`, `optional` and `maxLength`. Connect apps
+shows the form in place of a sign-in, the kind checks the values with the app before they're saved, and its
+`skill.md` is the app's guidance for bots, as above.

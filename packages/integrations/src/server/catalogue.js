@@ -31,11 +31,12 @@ export async function loadCatalogue(root = path.resolve(process.cwd(), "plugins"
       const plugin = JSON.parse(await readFile(path.join(root, entry.name, "plugin.json"), "utf8"));
       // An app with no sign-in set up yet can't be connected, so it's coming soon like the apps on
       // the owner's list: Add records interest instead of adding something that can't work. An app
-      // that hosts its own connection point signs in through the general connector (D-34).
+      // that hosts its own connection point signs in through the general connector (D-34); one connected with API
+      // credentials is entered in Connect apps (D-93).
       if (plugin.id === entry.name) {
-        const guide = plugin.mcp ? await readSkill(path.join(root, entry.name, "skill.md")) : null;
+        const guide = plugin.mcp || plugin.credentials ? await readSkill(path.join(root, entry.name, "skill.md")) : null;
         plugins.push(
-          plugin.oauth || plugin.mcp || plugin.soon
+          plugin.oauth || plugin.mcp || plugin.credentials || plugin.soon
             ? { ...plugin, ...(guide ? { guide } : {}) }
             : { ...plugin, soon: true, info: { ...plugin.info, availability: "Coming soon" } }
         );

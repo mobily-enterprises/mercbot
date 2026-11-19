@@ -2,6 +2,10 @@
 
 What's new in Mercbot, newest first. To see which version you're using, open the account menu, choose **Help and support**, then **About Mercbot**. You can also ask any bot "What's new in Mercbot?"
 
+## 19 November 2026
+
+- **Sedna:** bots can read your teams' shared email in Sedna: the newest messages, messages by tag or job reference, one message with its comments and attachments' names, and lists of tags, job references, teams and contacts. An owner or admin connects it in **Connect apps** with API credentials made on Sedna's **API Credential Management** page. Bots read only your own Sedna teams, found by your email address, or by the Sedna user you pick and an owner or admin confirms. Nothing in Sedna changes yet.
+
 ## 15 November 2026
 
 - **Where a copy runs:** the small tab at the top of a copy that isn't live now names where it runs, **Development**, **Test** or **Staging**, instead of **Test copy**. As before, such a copy only records what bots would send or share from your connected accounts and what Apps scripts would send to outside web services. Only a copy set up for real use (`APP_ENV=production`) sends them, and a copy that doesn't say where it runs doesn't start, saying what to set.

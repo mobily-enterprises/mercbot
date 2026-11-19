@@ -1,6 +1,7 @@
 import { defineFeature } from "@jskit-ai/kernel/server/features";
 import { isDeployed } from "@jskit-ai/kernel/shared/support/appEnvironment";
 import { passedOn } from "@jskit-ai/resource-runtime/server";
+import { personName } from "@local/homes/server/personName";
 import { ACCOUNT_FILTERS, createAccounts } from "./accounts.js";
 import { loadCatalogue } from "./catalogue.js";
 import { SIGN_IN_STATE_FILTERS, createConnections } from "./connections.js";
@@ -8,6 +9,7 @@ import { ACTION_SWITCH_FILTERS, createIntegrationsService } from "./integrations
 import { PROVIDERS, createOAuth } from "./oauth.js";
 import { registerRoutes } from "./registerRoutes.js";
 import { reachableAccounts } from "./rowPolicies.js";
+import { createSednaCredentials } from "./sednaCredentials.js";
 import { TABLE_RESOURCES, oauthStateResource, pluginAccountResource, pluginActionsOffResource } from "./tableResources.js";
 
 /**
@@ -27,6 +29,40 @@ function standInGoogle(env) {
     whoami: { ...PROVIDERS.google.whoami, url: `${url}/oauth2/v3/userinfo` }
   };
   return { env: standInEnv, providers: { ...PROVIDERS, google }, oauthClient: createOAuth({ env: standInEnv, insecure: true }) };
+}
+
+/**
+ * The apps connected with API credentials (D-93), by the kind plugin.json names. Outside staging and production only
+ * (APP_ENV, D-87), the Test Preview's stand-in Sedna (tests/support/fakeSedna.mjs) at MERCBOT_TEST_SEDNA_URL answers
+ * for every tenant instead of <tenant>.sednanetwork.com. Otherwise Sedna is always Sedna.
+ * @param {import("@jskit-ai/kernel/server/types").RuntimeEnv} env
+ */
+function credentialKinds(env) {
+  const url = String(env.MERCBOT_TEST_SEDNA_URL || "").trim();
+  return { sedna: createSednaCredentials({ standIn: url && !isDeployed(env) ? url : "" }) };
+}
+
+/**
+ * The call's home's people, `[{ id, name, email }]`, a person's sign-in address, and the person of the home who signs in
+ * with an address: whom an app connected with the home's API credentials matches to its users (D-93, appPeople.js).
+ * JSKIT confirms an address before it is a person's.
+ * @param {{ memberships: import("@jskit-ai/workspaces-core/server/types").WorkspacesMemberships,
+ *   profiles: import("@jskit-ai/users-core/server/types").UsersProfiles }} capabilities
+ */
+export function homeDirectory({ memberships, profiles }) {
+  return {
+    homePeople: async (options) => {
+      const ids = await memberships.activeMemberIds(options.context?.workspace?.id, passedOn(options));
+      return (await profiles.listByIds(ids, passedOn(options))).map((user) => ({ id: String(user.id), name: personName(user), email: String(user.email || "") }));
+    },
+    emailOf: async (userId, options) => String((await profiles.findById(userId, passedOn(options)))?.email || ""),
+    memberWithEmail: async (email, options) => {
+      const person = await profiles.findByEmail(email, passedOn(options));
+      const homeId = options.context?.workspace?.id;
+      const member = person && await memberships.findActiveByWorkspaceIdAndUserId(homeId, person.id, passedOn(options));
+      return member ? String(person.id) : null;
+    }
+  };
 }
 
 /** Each owned table's row policy and search entries, by resource. */
@@ -87,6 +123,8 @@ const IntegrationsFeature = defineFeature({
         Boolean(await memberships.findActiveByWorkspaceIdAndUserId(homeId, userId, passedOn(options))),
       recordActivity: (entry, options) => apps.activity.record(entry, options),
       bridgedSignIns: bridgedSignIns || null,
+      credentialKinds: credentialKinds(env),
+      ...homeDirectory({ memberships, profiles }),
       ...standInGoogle(env)
     });
     const integrations = createIntegrationsService({ resources, accounts, catalogue, connections, profiles, systemContext });

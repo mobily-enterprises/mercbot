@@ -2083,3 +2083,52 @@ desktop programs that no server there reads: the first release built for such a 
   gVisor, namespaces and the display programs), since the install for it runs where its release is built.
 - **Unchanged:** an Ubuntu host's install, the store toolbox (D-86), and `build-toolbox.sh`, which a store host still
   refuses, as it does obtaining desktop programs. A store host unpacks rclone's Debian package as Ubuntu does.
+
+## D-93 — Apps connected with a home's API credentials, and who each person is there: Sedna, reads only (2026-11-19)
+
+Sedna (sedna.com), a shared email for shipping teams, has no sign-in for other apps and no connection point of its
+own: an admin of the Sedna organisation makes API credentials (a client ID and secret) on its API Credential Management
+page, and an app gets an hourly key for them by OAuth 2.0 client credentials at
+`https://<tenant>.sednanetwork.com/platform/oauth/token` (developers.sedna.com). That key reads the whole organisation,
+every team's inbox, so connecting it is the home's, not one person's, and what a bot reads depends on who asks.
+- **A third way of connecting, `credentials`:** beside `oauth` (D-31) and `mcp` (D-34), a plugin.json may declare a
+  `credentials` block: the `kind` of credentials (`packages/integrations/src/server/credentials.js`, Sedna's in
+  `sednaCredentials.js`), the `fields` its form asks for, the help on where to make them and a link to that page.
+  Connect apps shows the form ("Enter API credentials") in place of a sign-in tab, and posts it to
+  `POST …/plugin-accounts/:accountId/credentials`. The values are checked with the app before anything is saved (a
+  key is made, `GET /company/me` names the organisation, which labels the account, and the home's people are matched
+  by email address), then sealed in `plugin_accounts.tokens` with the key. `accessToken()` makes a new key from them
+  when the last one runs out or the app refused it, under the account's row lock as a renewal is (D-15); the app
+  turning the credentials down signs the account out, for an owner or admin to enter them again. Disconnecting clears
+  them. The hub never lends them (each copy keeps its own, D-31): signing in to such an app, here or through the hub,
+  is refused. The kind is generic; only Sedna's is built.
+- **The home's, from its owners and admins:** `home: true` makes the app's account the home's (D-37). Only the home's
+  owners and admins add it (a member's Connect is refused, and the page says who connects it), enter or change its
+  credentials and disconnect it; every person of the home then sees it connected.
+- **Sedna's address is fixed:** the tenant is one DNS label (letters, digits and dashes; a pasted address is cut to
+  it), and the host is always `<tenant>.sednanetwork.com`: nothing typed can point Mercbot anywhere else. Bots call
+  the address integrations builds from the credentials, never one Sedna's answers name (an events page's next link
+  gives only its cursor). Outside staging and production only (`isDeployed`, D-87), `MERCBOT_TEST_SEDNA_URL` points
+  every tenant at the stand-in `tests/support/fakeSedna.mjs`.
+- **Who each person is in Sedna, never someone else:** a person is the Sedna user with their sign-in address (JSKIT
+  confirms an address before it is a person's; exactly one active user must have it). When none has it, they pick their
+  own user in Connect apps, and the pick waits until an owner or admin of the home confirms it
+  (`plugin_account_people`, `appPeople.js`); an owner's or admin's own pick is confirmed at once, as they hold the
+  organisation's credentials anyway. Nobody picks a user another person of the home has by address, nor one confirmed
+  for someone else (one user is one person), and a pick holds only for the organisation it was made in. A person found
+  neither way is no one in Sedna, and their bots read nothing there. This is the person every later action of theirs is
+  done as: Sedna's `fromUser` and assignments will be theirs alone.
+- **Reads kept to the person's own teams:** the Sedna tools (`sedna_messages`, `sedna_lists`,
+  `packages/bots/src/server/sednaApi.js`) are offered on a person's own turn in their own chat once the home's Sedna is
+  connected, never in a shared room. Lists of messages ask Sedna for the person's teams only (`filter[team]`; without it
+  Sedna answers every team's, solo inboxes too) and drop any message naming other teams; the events feed, which has no
+  team filter, is read for message ids and each message is opened and checked; a message read by its id is checked
+  against the person's teams (its own answer, else `GET /message/:id/team`) before anything of it is shown. Tags, job
+  references and contacts shared by other teams only are left out. Subjects, senders, text and comments are wrapped as
+  information, never instructions. A 429 is waited out once when its Retry-After is 30 seconds or less, then reported,
+  never retried in a loop; a refused key is made again once.
+- **Reads only, for now:** recent messages, messages by tag and by job reference, one message with its tags, job
+  references, comments and attachments' names, and lists of tags, job references, the person's teams and contacts.
+  Drafts, sending, tags, job-reference links, assignments, attachments, templates and routines watching the events
+  feed come next, each as the person's own Sedna user. Sedna has no free-text message search and no thread endpoint,
+  and the events feed's order and window aren't documented: the tools sort by time and read at most five pages.

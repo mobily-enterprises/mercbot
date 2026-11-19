@@ -23,7 +23,15 @@ export const pluginsApi = {
   deleteSkill: (skillId) => client.request(`/api/skills/${skillId}`, { method: "DELETE" }),
   connect: (accountId) => requestInHome(client, `/plugin-accounts/${accountId}/connect`, { method: "POST", body: {} }),
   disconnect: (accountId) => requestInHome(client, `/plugin-accounts/${accountId}/connection`, { method: "DELETE" }),
-  finishSignIn: (address) => requestInHome(client, "/connections/finish", { method: "POST", body: { address } })
+  finishSignIn: (address) => requestInHome(client, "/connections/finish", { method: "POST", body: { address } }),
+  // An app connected with the home's API credentials (D-93): entering them, and who each person is at the app.
+  enterCredentials: (accountId, values) => requestInHome(client, `/plugin-accounts/${accountId}/credentials`, { method: "POST", body: values }),
+  appPerson: (accountId) => requestInHome(client, `/plugin-accounts/${accountId}/people/me`),
+  appPeople: (accountId) => requestInHome(client, `/plugin-accounts/${accountId}/people`),
+  appUsers: (accountId, words) => requestInHome(client, `/plugin-accounts/${accountId}/app-users?${new URLSearchParams({ q: words })}`),
+  pickAppUser: (accountId, appUserId) => requestInHome(client, `/plugin-accounts/${accountId}/people/me`, { method: "PUT", body: { appUserId } }),
+  confirmAppPerson: (accountId, userId) => requestInHome(client, `/plugin-accounts/${accountId}/people/${userId}/confirm`, { method: "POST", body: {} }),
+  forgetAppPerson: (accountId, userId) => requestInHome(client, `/plugin-accounts/${accountId}/people/${userId}`, { method: "DELETE" })
 };
 
 // This copy's link to a hub, another Mercbot that connects accounts for it (D-31). Its status

@@ -5,6 +5,8 @@ import { resolveActorId } from "@jskit-ai/kernel/server/actions/actionContributo
 import { passedOn } from "@jskit-ai/resource-runtime/server";
 import { createConnector } from "./connector.js";
 import { createConnectorAccounts } from "./connectorAccounts.js";
+import { createAppPeople } from "./appPeople.js";
+import { credentialKind, credentialValues, credentialsMissing, credentialsOnly } from "./credentials.js";
 import { ConnectionError, PROVIDERS, callbackUrl, createOAuth, credentials, fresh } from "./oauth.js";
 import { createTokenRenewal, ranOut } from "./tokenRenewal.js";
 import { mayUnlink, unlinkedEntry } from "./unlinking.js";
@@ -138,6 +140,13 @@ function missingScopes(tokens, scopes) {
  * @param {typeof fetch} [dependencies.fetch] how the general connector reaches apps: public addresses only (tests: publicFetch(true))
  * @param {import("./types.js").BridgedSignIns | null} dependencies.bridgedSignIns the feature this copy lends its
  *   registered apps' sign-ins to (`mercbot.integrations.bridged-sign-ins`), or null when none does
+ * @param {Record<string, object>} dependencies.credentialKinds the apps connected with API credentials, by the kind
+ *   plugin.json names (credentials.js, D-93)
+ * @param {(options: object) => Promise<Array<{ id: string, name: string, email: string }>>} dependencies.homePeople the
+ *   call's home's people, matched to the app's users when credentials are entered
+ * @param {(userId: string, options: object) => Promise<string>} dependencies.emailOf a person's sign-in address
+ * @param {(email: string, options: object) => Promise<string | null>} dependencies.memberWithEmail the id of the call's
+ *   home's person who signs in with an address, or null
  */
 export function createConnections({
   resources,
@@ -150,7 +159,11 @@ export function createConnections({
   isMember,
   recordActivity,
   fetch: fetchImpl = publicFetch(),
-  bridgedSignIns
+  bridgedSignIns,
+  credentialKinds,
+  homePeople,
+  emailOf,
+  memberWithEmail
 }) {
   const { oauthStates, bridgeLink } = resources;
   const key = () => {
@@ -163,7 +176,7 @@ export function createConnections({
   const pluginOf = (pluginId) => catalogue.find((entry) => entry.id === pluginId) || null;
   const connector = createConnector({ connectorApps: resources.connectorApps, env, sealed, opened, fetch: fetchImpl });
   const connectorAccounts = createConnectorAccounts({ connector, accounts, oauthClient, pluginOf, sealed, opened });
-  const { renewedTokens } = createTokenRenewal({ accounts, oauthClient, sealed, opened });
+  const { renewedTokens, mintedTokens } = createTokenRenewal({ accounts, oauthClient, sealed, opened });
 
   /**
    * A connected account signed in before its app asked for more, as when Google Drive moved to full
@@ -186,6 +199,8 @@ export function createConnections({
    */
   async function signInFor(pluginId, options) {
     const plugin = pluginOf(pluginId);
+    // Entered in Connect apps, never signed in to, on this copy or through the hub (D-93).
+    if (plugin?.credentials) throw credentialsOnly(plugin);
     if (plugin?.mcp) return { plugin, provider: await connector.provider(plugin, options), scopes: [] };
     const provider = plugin?.oauth && providers[plugin.oauth.provider];
     if (!provider) {
@@ -346,7 +361,7 @@ export function createConnections({
     for (const account of waiting) {
       const result = await hub.status(account.bridgeRef).catch(() => null);
       if (result?.connected) {
-        await accounts.connectedThroughHub(account, { status: "connected", label: result.label || null, connectedAt: new Date().toISOString() }, options);
+        await accounts.connectedHere(account, { status: "connected", label: result.label || null, connectedAt: new Date().toISOString() }, options);
       }
     }
   }
@@ -357,6 +372,7 @@ export function createConnections({
    */
   async function accessToken(reach, accountId, options, { refused = "" } = {}) {
     const account = await accounts.reachableAccount(reach, accountId, options, { tokens: true });
+    if (pluginOf(account.pluginId)?.credentials) return credentialToken(account, options, refused);
     const { provider } = await signInFor(account.pluginId, options);
     if (account.tokens) {
       const stored = opened(account.tokens);
@@ -371,6 +387,66 @@ export function createConnections({
       params: { account: account.name, provider: provider.name }
     });
   }
+
+  // ---- Apps connected with API credentials (D-93) ----
+
+  /**
+   * An hourly key for an account connected with API credentials, made from them when the last one runs out or the app
+   * refused it, under the account's row lock (tokenRenewal.js), and `api`: the address the key is for, which the app's
+   * kind builds from the credentials alone.
+   */
+  async function credentialToken(account, options, refused) {
+    const kind = credentialKind(pluginOf(account.pluginId), credentialKinds);
+    if (!account.tokens || account.status !== "connected") throw credentialsMissing(kind);
+    const stored = opened(account.tokens);
+    const api = kind.api(stored.values);
+    if (fresh(stored) && stored.access !== refused) return { accessToken: stored.access, expiresAt: stored.expiresAt, renewed: false, api };
+    const { tokens, renewed } = await mintedTokens(account, kind, refused || stored.access, options);
+    return { accessToken: tokens.access, expiresAt: tokens.expiresAt, renewed, api };
+  }
+
+  /**
+   * Saves an account's API credentials, entered in Connect apps by someone who may change it (a home's: its owners and
+   * admins). Nothing is saved until the app has taken them: a key is made, and the kind's check reads who they belong to
+   * (the account's label) and matches the home's people to the app's users by address. Answers the label and who was
+   * matched; the others pick themselves (appPeople.js).
+   * @param {{ personal?: boolean }} reach
+   * @param {string} accountId
+   * @param {Record<string, unknown>} body the form's values, by field id
+   * @param {object} options
+   */
+  async function saveCredentials(reach, accountId, body, options) {
+    const account = await accounts.manageableAccount(reach, accountId, options);
+    const plugin = pluginOf(account.pluginId);
+    const kind = credentialKind(plugin, credentialKinds);
+    if (plugin.credentials.home && !account.home) {
+      throw new ConnectionError(409, `${plugin.name}'s credentials are the whole home's: add its account for everyone in the home.`, {
+        code: "integrations_credentials_home_only",
+        params: { app: plugin.name }
+      });
+    }
+    const values = kind.normalize(credentialValues(plugin, body));
+    const minted = await kind.mint(values);
+    const checked = await kind.check({ values, access: minted.access, people: await homePeople(options) });
+    await accounts.connectedHere(account, {
+      tokens: sealed({ values, access: minted.access, expiresAt: minted.expiresAt }),
+      label: checked.label,
+      status: "connected",
+      signInState: null,
+      connectedAt: new Date().toISOString()
+    }, options);
+    return { app: plugin.name, label: checked.label, matched: checked.matched, unmatched: checked.unmatched, more: checked.more };
+  }
+
+  const people = createAppPeople({
+    accounts,
+    links: resources.pluginAccountPeople,
+    kindOf: (account) => credentialKind(pluginOf(account.pluginId), credentialKinds),
+    keyFor: async (account, options) => ({ access: (await credentialToken(account, options, "")).accessToken, values: opened(account.tokens).values }),
+    homePeople,
+    emailOf,
+    memberWithEmail
+  });
 
   async function disconnect(reach, accountId, options) {
     await disconnected(await accounts.manageableAccount(reach, accountId, options, { tokens: true }), options);
@@ -606,6 +682,13 @@ export function createConnections({
     connectorCall: connectorAccounts.call,
     storedConnectorActions: connector.storedTools,
     connect,
+    saveCredentials,
+    appPerson: people.appPerson,
+    appUsers: people.appUsers,
+    pickAppUser: people.pickAppUser,
+    confirmAppPerson: people.confirmAppPerson,
+    forgetAppPerson: people.forgetAppPerson,
+    appPeople: people.appPeople,
     callback,
     finishPasted,
     accessToken,
