@@ -70,8 +70,12 @@ export const oauthStateResource = defineTableResource({
   schema: {
     id: { type: "string", primary: true, maxLength: 64, noTrim: true, required: true, storage: { column: "state" } },
     accountId: { type: "id", nullable: true, search: true },
+    // The hash of the cookie the browser that started it keeps (D-97, signInBinding.js).
+    binding: { type: "string", nullable: true, maxLength: 64, noTrim: true },
     bridgeConnectionId: { type: "id", nullable: true, search: true },
     createdAt: { type: "dateTime" },
+    // A lent sign-in's: the account the linked copy is linked to, who begins it here signed in (D-97).
+    lentTo: { type: "id", nullable: true },
     provider: { type: "string", maxLength: 32, noTrim: true, required: true, search: true },
     verifier: { type: "object", required: true, additionalProperties: true }
   }

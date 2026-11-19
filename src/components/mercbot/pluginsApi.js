@@ -26,6 +26,8 @@ export const pluginsApi = {
   connect: (accountId) => requestInHome(client, `/plugin-accounts/${accountId}/connect`, { method: "POST", body: {} }),
   disconnect: (accountId) => requestInHome(client, `/plugin-accounts/${accountId}/connection`, { method: "DELETE" }),
   finishSignIn: (address) => requestInHome(client, "/connections/finish", { method: "POST", body: { address } }),
+  // A sign-in this copy lends a copy linked to the person's account, begun here signed in (D-97): `{ url, app }`.
+  beginLentSignIn: (state) => client.request("/api/connections/lent/begin", { method: "POST", body: { state } }),
   // An app connected with the home's API credentials (D-93): entering them, and who each person is at the app.
   enterCredentials: (accountId, values) => requestInHome(client, `/plugin-accounts/${accountId}/credentials`, { method: "POST", body: values }),
   appPerson: (accountId) => requestInHome(client, `/plugin-accounts/${accountId}/people/me`),

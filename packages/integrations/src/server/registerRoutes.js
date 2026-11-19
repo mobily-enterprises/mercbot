@@ -5,7 +5,8 @@ import { checkRouteVisibility } from "@jskit-ai/kernel/shared/support/visibility
 import { IntegrationsError } from "./accounts.js";
 import { logoSvg, tileLogoSvg } from "./catalogue.js";
 import { ConnectionError, isLocal } from "./oauth.js";
-import { signInPage } from "./signInPage.js";
+import { cookieName, cookieOptions } from "./signInBinding.js";
+import { SIGN_IN_PAGE_SCRIPT, signInPage } from "./signInPage.js";
 
 const SIGNED_IN = Object.freeze({ auth: "required", visibility: checkRouteVisibility("user") });
 // Connect apps belongs to a home (D-37): JSKIT checks the person is in it and fills their rights.
@@ -15,12 +16,12 @@ const PUBLIC = Object.freeze({ auth: "public" });
 /**
  * A route handler that answers what `work` returns for the request and its call options, or a
  * Connect apps error with its status code and message.
- * @param {(request: import("fastify").FastifyRequest, options: { context: object }) => Promise<unknown>} work
+ * @param {(request: import("fastify").FastifyRequest, options: { context: object }, reply: import("fastify").FastifyReply) => Promise<unknown>} work
  */
 function handle(work) {
   return async function answer(request, reply) {
     try {
-      reply.code(200).send(await work(request, await request.callOptions()));
+      reply.code(200).send(await work(request, await request.callOptions(), reply));
     } catch (error) {
       if (error instanceof IntegrationsError || error instanceof ConnectionError) {
         reply.code(error.statusCode).send({ error: error.message, code: error.code, params: error.params });
@@ -142,8 +143,19 @@ export function registerRoutes(http, { integrations, catalogue, env }) {
       .send(image);
   }
 
-  function connectAccount(request, options) {
-    return connections.connect(REACH, request.params.accountId, options);
+  /** A sign-in's answer for the page, with its browser's cookie set rather than shown to the page (D-97). */
+  function keptInBrowser(reply, { cookie, ...answer }) {
+    if (cookie) reply.setCookie(cookie.name, cookie.value, cookieOptions(env));
+    return answer;
+  }
+
+  async function connectAccount(request, options, reply) {
+    return keptInBrowser(reply, await connections.connect(REACH, request.params.accountId, options));
+  }
+
+  /** A sign-in this copy lends a linked copy, begun by the account it's linked to, signed in (D-97). */
+  async function beginLentSignIn(request, options, reply) {
+    return keptInBrowser(reply, await connections.beginLentSignIn(request.body?.state, options));
   }
 
   /** API credentials entered for an account (D-93), checked with the app, saved sealed: who they matched, and the list. */
@@ -174,11 +186,16 @@ export function registerRoutes(http, { integrations, catalogue, env }) {
     return { ...result, ...await integrations.list(REACH, options) };
   }
 
-  /** Where every provider sends people back: a small page saying how it went. */
+  /**
+   * Where every provider sends people back: a small page saying how it went. Only the browser a sign-in started in
+   * finishes it, by the cookie it was given (D-97), which goes once it has come back.
+   */
   async function signInCallback(request, reply) {
+    const cookie = cookieName(String(request.query?.state || ""));
+    if (request.cookies?.[cookie] !== undefined) reply.clearCookie(cookie, cookieOptions(env, 0));
     let page;
     try {
-      const { provider, label } = await connections.callback(request.query || {}, await request.callOptions());
+      const { provider, label } = await connections.callback(request.query || {}, request.cookies || {}, await request.callOptions());
       const signedInAs = label ? `Signed in as ${label}. ` : "";
       page = signInPage(`Connected to ${provider}`, `${signedInAs}It's all set: you can close this tab.`, { back: "/" });
     } catch (error) {
@@ -191,6 +208,11 @@ export function registerRoutes(http, { integrations, catalogue, env }) {
         : signInPage("Nothing was connected", didNotConnect, { back: "/" });
     }
     reply.code(200).header("content-type", "text/html; charset=utf-8").header("cache-control", "no-store").send(page);
+  }
+
+  /** The sign-in page's one script, its Copy button, kept out of the page so a Content Security Policy needs no inline script. */
+  function signInPageScript(_request, reply) {
+    reply.header("content-type", "text/javascript; charset=utf-8").header("cache-control", "public, max-age=3600").send(SIGN_IN_PAGE_SCRIPT);
   }
 
   function linkStatus(_request, options) {
@@ -239,6 +261,9 @@ export function registerRoutes(http, { integrations, catalogue, env }) {
   router.register("GET", "/api/w/:workspaceSlug/plugin-accounts/:accountId/app-users", IN_HOME, handle(appUsers));
   router.register("POST", "/api/w/:workspaceSlug/connections/finish", IN_HOME, handle(finishPasted));
   router.register("GET", "/api/connections/callback", PUBLIC, signInCallback);
+  router.register("GET", "/api/connections/sign-in-page.js", PUBLIC, signInPageScript);
+  // A sign-in this copy lends a linked copy (D-31) is begun by the account that copy is linked to, signed in (D-97).
+  router.register("POST", "/api/connections/lent/begin", SIGNED_IN, handle(beginLentSignIn));
   // This copy's link to a hub (Settings → Mercbot account). Its status and unlinking are asked from a
   // home: its owners and admins may unlink too (D-31), and its Activity trail records who did.
   router.register("GET", "/api/w/:workspaceSlug/bridge/link", IN_HOME, handle(linkStatus));

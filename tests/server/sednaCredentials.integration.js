@@ -106,7 +106,7 @@ test("credentials are checked with Sedna before they're saved, sealed, and match
   assert.ok(sedna.requests.some((entry) => entry.route === "/2019-01-01/company/me"));
   // The home's account is the home's: another home's admin can't reach it, and the hub never lends it.
   await assert.rejects(connections.connect(REACH, account.id, as(pat, true)), { statusCode: 409, code: "integrations_credentials_only" });
-  await assert.rejects(connections.startBridgedSignIn("sedna", async () => "1", as(pat)), { statusCode: 409, code: "integrations_credentials_only" });
+  await assert.rejects(connections.startBridgedSignIn("sedna", { connectionFor: async () => "1", lentTo: "1" }, as(pat)), { statusCode: 409, code: "integrations_credentials_only" });
   await assert.rejects(connections.bridgedToken("sedna", stored.tokens, async () => {}, as(pat)), { code: "integrations_credentials_only" });
 });
 

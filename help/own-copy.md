@@ -95,6 +95,8 @@ If you don't want to register apps, link your copy to an account on another Merc
 3. A tab opens on the hub. Sign in there, check that it shows the same code, and approve.
 4. Your copy now shows "Linked to *hub* as *name*". Connecting Google, Microsoft or GitHub goes through your account there.
 
+When you connect an account, the sign-in tab opens on the hub first: sign in there with the account your copy is linked to, if that browser isn't signed in already, and it goes on to the provider's page. This ties the sign-in to your browser, so a sign-in link that reaches anyone else connects nothing. Signed in to the hub with another account, the tab says the sign-in is for another Mercbot account: sign in with the linked one and start again from your copy.
+
 Providers send you back to the hub, which keeps the long-lived permission. Your copy gets short-lived keys every hour and talks to the provider directly, so your mail, calendars and files don't go through the hub. **Unlink** stops it at any time. A hub can also list the copies linked to your account there, each with its own **Unlink**.
 
 Without either, bots can still use the providers' websites in their browser.

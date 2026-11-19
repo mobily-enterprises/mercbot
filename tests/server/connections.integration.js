@@ -67,11 +67,15 @@ const catalogue = [{ id: "testmail", name: "Testmail", oauth: { provider: "test"
 const REACH = Object.freeze({ personal: true });
 // Calls no one is signed in to: the provider sending the browser back, a linked copy calling the hub.
 const NO_ONE = requestContextOptions({});
+// A sign-in's state, and the cookies of the browser it started in, which its callback brings back (D-97).
+const stateOf = (started) => new URL(started.url).searchParams.get("state");
+const browserOf = (started) => ({ [started.cookie.name]: started.cookie.value });
 
 // A stand-in for the hub a copy links to (D-31): its link approved by setting `approved`, and the sign-ins it lends kept
 // in memory as the feature lending them would keep them (`lent`, mercbot.integrations.bridged-sign-ins). `forCopy` is
-// what a linked copy reaches it through, the hub's own connections (`hub`) doing the signing in.
-function standInHub() {
+// what a linked copy reaches it through, the hub's own connections (`hub`) doing the signing in for `owner`, the account
+// on the hub the copy is linked to.
+function standInHub(owner) {
   const request = { id: "request-1", code: "KQ7M-3PXD", pollSecret: "poll-secret" };
   const state = { name: null, approved: false, unlinked: false, rows: new Map() };
   const byRef = (ref) => [...state.rows.values()].find((row) => row.remoteRef === ref) || null;
@@ -94,11 +98,12 @@ function standInHub() {
       },
       start: async ({ pluginId, remoteRef }) => {
         linked();
-        return hub.startBridgedSignIn(pluginId, async (plugin) => {
+        const connectionFor = async (plugin) => {
           const id = String(state.rows.size + 1);
           state.rows.set(id, { remoteRef, pluginId: plugin, tokens: null, label: null });
           return id;
-        }, NO_ONE);
+        };
+        return hub.startBridgedSignIn(pluginId, { connectionFor, lentTo: owner }, NO_ONE);
       },
       status: async (ref) => {
         linked();
@@ -159,7 +164,7 @@ const HUB_ENV = Object.freeze({ APP_PUBLIC_URL: "https://hub.example", TESTMAIL_
 
 test("a copy without its own apps links to a hub and borrows its sign-in, which the hub lends", async (context) => {
   const { knex, userId, account, service, as } = await setup(context);
-  const standIn = standInHub();
+  const standIn = standInHub(userId);
   const hub = service(HUB_ENV, null, standIn.lent);
   const local = service({ APP_PUBLIC_URL: "http://localhost:4000", MERCBOT_HUB_URL: "https://hub.example", MERCBOT_VAULT_KEY: VAULT }, (_url, installToken) => standIn.forCopy(hub, installToken));
 
@@ -179,15 +184,31 @@ test("a copy without its own apps links to a hub and borrows its sign-in, which 
   standIn.state.approved = true;
   assert.equal((await local.checkLink(as)).linked, true);
 
-  // Connecting goes through the hub's app, and the provider sends the person back to the hub, which hands the sign-in to
+  // Connecting goes through the hub's app. The person begins it on the hub, signed in to the account the copy is linked
+  // to, which ties it to their browser there (D-97); the provider sends them back to the hub, which hands the sign-in to
   // the bridge connection it lent it for: its app, its label, and its tokens sealed.
-  const { url } = await local.connect(REACH, account.id, as);
-  const consent = new URL(url);
+  const started = await local.connect(REACH, account.id, as);
+  assert.deepEqual(Object.keys(started), ["url"], "the copy's browser keeps nothing: the sign-in is the hub's");
+  const page = new URL(started.url);
+  assert.equal(`${page.origin}${page.pathname}`, "https://hub.example/account/connect");
+  const state = page.searchParams.get("lent");
+  // Begun by anyone else, or finished before it was begun, it's no one's.
+  await assert.rejects(hub.beginLentSignIn(state, requestContextOptions({ user: { id: "999999999" } })), { statusCode: 403, code: "integrations_sign_in_other_account" });
+  await assert.rejects(hub.beginLentSignIn(state, NO_ONE), { statusCode: 403, code: "integrations_sign_in_other_account" });
+  await assert.rejects(hub.beginLentSignIn("not-a-state", as), { code: "integrations_sign_in_link_expired" });
+  await assert.rejects(hub.callback({ code: "good", state }, {}, NO_ONE), { code: "integrations_sign_in_other_browser" });
+  const begun = await hub.beginLentSignIn(state, as);
+  assert.equal(begun.app, "Testmail");
+  const consent = new URL(begun.url);
+  assert.equal(consent.searchParams.get("state"), state);
   assert.equal(consent.searchParams.get("client_id"), "client");
   assert.equal(consent.searchParams.get("redirect_uri"), "https://hub.example/api/connections/callback");
   assert.equal(consent.searchParams.get("code_challenge_method"), "S256");
   assert.equal(consent.searchParams.get("scope"), "profile mail");
-  const result = await hub.callback({ code: "good", state: consent.searchParams.get("state") }, NO_ONE);
+  // The consent link alone, signed in to in another browser (someone it was sent to), connects nothing.
+  await assert.rejects(hub.callback({ code: "good", state }, {}, NO_ONE), { code: "integrations_sign_in_other_browser" });
+  assert.deepEqual([...standIn.state.rows.values()].map((row) => row.tokens), [null], "nothing is saved");
+  const result = await hub.callback({ code: "good", state }, browserOf(begun), NO_ONE);
   assert.equal(result.label, "pat@example.com");
   const [bridged] = standIn.state.rows.values();
   assert.deepEqual([bridged.pluginId, bridged.label], ["testmail", "pat@example.com"]);
@@ -225,7 +246,7 @@ test("a copy without its own apps links to a hub and borrows its sign-in, which 
   assert.equal(unseal(bridged.tokens, key).access, "access-2");
 
   // A sign-in link only works once.
-  await assert.rejects(hub.callback({ code: "good", state: consent.searchParams.get("state") }, NO_ONE), /expired/u);
+  await assert.rejects(hub.callback({ code: "good", state }, browserOf(begun), NO_ONE), /expired/u);
 
   // Disconnecting removes the hub's permission; unlinking tells the hub, so the copy's token stops working there.
   await local.disconnect(REACH, account.id, as);
@@ -240,21 +261,28 @@ test("a copy without its own apps links to a hub and borrows its sign-in, which 
 // The provider's callback for a sign-in lent to a bridge connection (oauth_states.bridge_connection_id) is finished only
 // through the feature that keeps those connections, and only while it still has the connection.
 test("a sign-in lent for a bridge connection is finished only through the feature that keeps it", async (context) => {
-  const { service } = await setup(context);
-  const lentOnce = async (lender) => {
-    const { url } = await lender.startBridgedSignIn("testmail", async (pluginId) => {
-      assert.equal(pluginId, "testmail");
-      return "41";
-    }, NO_ONE);
-    return new URL(url).searchParams.get("state");
+  const { userId, service, as } = await setup(context);
+  const connectionFor = async (pluginId) => {
+    assert.equal(pluginId, "testmail");
+    return "41";
   };
+  const lentOnce = async (lender) => new URL((await lender.startBridgedSignIn("testmail", { connectionFor, lentTo: userId }, NO_ONE)).url).searchParams.get("lent");
+  // Lending needs the account the copy is linked to.
+  const kept = [];
+  const lending = { pluginOf: async () => "testmail", signedIn: async (...args) => kept.push(args) };
+  await assert.rejects(service(HUB_ENV, null, lending).startBridgedSignIn("testmail", { connectionFor, lentTo: null }, NO_ONE), /needs the account the copy is linked to/u);
   // No feature keeps bridge connections on this server.
   const alone = service(HUB_ENV);
-  await assert.rejects(alone.callback({ code: "good", state: await lentOnce(alone) }, NO_ONE), { code: "integrations_sign_in_unavailable" });
-  // The feature no longer has the connection.
-  const kept = [];
-  const gone = service(HUB_ENV, null, { pluginOf: async () => null, signedIn: async (...args) => kept.push(args) });
-  await assert.rejects(gone.callback({ code: "good", state: await lentOnce(gone) }, NO_ONE), { code: "integrations_sign_in_unavailable" });
+  await assert.rejects(alone.beginLentSignIn(await lentOnce(alone), as), { code: "integrations_sign_in_unavailable" });
+  // The feature no longer has the connection, when it's begun or by the time the provider sends the person back.
+  const gone = service(HUB_ENV, null, { ...lending, pluginOf: async () => null });
+  await assert.rejects(gone.beginLentSignIn(await lentOnce(gone), as), { code: "integrations_sign_in_unavailable" });
+  let held = true;
+  const vanishing = service(HUB_ENV, null, { ...lending, pluginOf: async () => (held ? "testmail" : null) });
+  const state = await lentOnce(vanishing);
+  const begun = await vanishing.beginLentSignIn(state, as);
+  held = false;
+  await assert.rejects(vanishing.callback({ code: "good", state }, browserOf(begun), NO_ONE), { code: "integrations_sign_in_unavailable" });
   assert.deepEqual(kept, []);
   // A key from a lent sign-in that ran out with nothing to renew it with is refused, and nothing is saved.
   const key = Buffer.from(VAULT, "base64");
@@ -267,20 +295,48 @@ test("a sign-in lent for a bridge connection is finished only through the featur
 test("a copy with its own app signs in directly", async (context) => {
   const { knex, account, service, as } = await setup(context);
   const local = service({ APP_PUBLIC_URL: "http://localhost:4000", TESTMAIL_TEST_CLIENT_ID: "client", TESTMAIL_TEST_CLIENT_SECRET: "secret", MERCBOT_VAULT_KEY: VAULT });
-  const consent = new URL((await local.connect(REACH, account.id, as)).url);
+  const started = await local.connect(REACH, account.id, as);
+  const consent = new URL(started.url);
   assert.equal(consent.searchParams.get("redirect_uri"), "http://localhost:4000/api/connections/callback");
   // Started and not finished, then cancelled: Reconnect, then Retry.
   assert.equal((await knex("plugin_accounts").where({ id: account.id }).first()).sign_in_state, "started");
-  await assert.rejects(local.callback({ error: "access_denied", state: consent.searchParams.get("state") }, NO_ONE), /cancelled, so nothing was connected/u);
+  await assert.rejects(local.callback({ error: "access_denied", state: stateOf(started) }, browserOf(started), NO_ONE), /cancelled, so nothing was connected/u);
   assert.equal((await knex("plugin_accounts").where({ id: account.id }).first()).sign_in_state, "failed");
 
-  const again = new URL((await local.connect(REACH, account.id, as)).url);
-  await local.callback({ code: "good", state: again.searchParams.get("state") }, NO_ONE);
+  const again = await local.connect(REACH, account.id, as);
+  await local.callback({ code: "good", state: stateOf(again) }, browserOf(again), NO_ONE);
   const row = await knex("plugin_accounts").where({ id: account.id }).first();
   assert.equal(row.status, "connected");
   assert.equal(row.sign_in_state, null);
   assert.ok(row.tokens && !JSON.stringify(row.tokens).includes("access-1"), "tokens are sealed");
   assert.equal((await local.accessToken(REACH, account.id, as)).accessToken, "access-1");
+});
+
+// Account-linking CSRF (D-97): someone starts a sign-in to their own account and sends its consent link to someone else,
+// who signs in. The provider sends that person's browser back with the sign-in's state, but not with the cookie the
+// browser that started it was given, so nothing is connected and no token is kept anywhere.
+test("a sign-in finishes only in the browser it started in: from another, nothing is saved", async (context) => {
+  const { knex, account, service, as } = await setup(context);
+  const local = service({ APP_PUBLIC_URL: "https://mercbot.example", TESTMAIL_CLIENT_ID: "client", TESTMAIL_CLIENT_SECRET: "secret", MERCBOT_VAULT_KEY: VAULT });
+  const started = await local.connect(REACH, account.id, as);
+  const state = stateOf(started);
+  assert.match(started.cookie.name, /^mercbot_sign_in_[\w-]{16}$/u);
+  const kept = await knex("oauth_states").where({ state }).first();
+  assert.ok(kept.binding && !JSON.stringify(kept).includes(started.cookie.value), "the sign-in keeps only the cookie's hash");
+  for (const [cookies, why] of [
+    [{}, "a browser without the cookie"],
+    [{ [started.cookie.name]: "another-value" }, "another browser's cookie for it"],
+    [{ mercbot_sign_in_another: started.cookie.value }, "the value under another sign-in's name"]
+  ]) {
+    await assert.rejects(local.callback({ code: "good", state }, cookies, NO_ONE), { statusCode: 400, code: "integrations_sign_in_other_browser" }, why);
+  }
+  const row = await knex("plugin_accounts").where({ id: account.id }).first();
+  assert.deepEqual([row.status, row.tokens, row.label], ["needs-auth", null, null], "no token is stored");
+  assert.ok(await knex("oauth_states").where({ state }).first(), "the sign-in is left for its own browser");
+  // The browser it started in still finishes it, once.
+  assert.equal((await local.callback({ code: "good", state }, browserOf(started), NO_ONE)).label, "pat@example.com");
+  assert.equal((await knex("plugin_accounts").where({ id: account.id }).first()).status, "connected");
+  await assert.rejects(local.callback({ code: "good", state }, browserOf(started), NO_ONE), { code: "integrations_sign_in_link_expired" });
 });
 
 test("a sign-in that couldn't come back is finished from the pasted address, only by its owner", async (context) => {
@@ -304,11 +360,11 @@ test("a sign-in that couldn't come back is finished from the pasted address, onl
 test("a sign-in where the person unticked part of the access isn't connected", async (context) => {
   const { knex, account, service, connections, as } = await setup(context);
   const local = service({ APP_PUBLIC_URL: "http://localhost:4000", TESTMAIL_CLIENT_ID: "client", TESTMAIL_CLIENT_SECRET: "secret", MERCBOT_VAULT_KEY: VAULT });
-  const first = new URL((await local.connect(REACH, account.id, as)).url).searchParams.get("state");
-  await assert.rejects(local.callback({ code: "partial", state: first }, NO_ONE), /didn't give Testmail access/u);
+  const first = await local.connect(REACH, account.id, as);
+  await assert.rejects(local.callback({ code: "partial", state: stateOf(first) }, browserOf(first), NO_ONE), /didn't give Testmail access/u);
   assert.equal((await knex("plugin_accounts").where({ id: account.id }).first()).status, "needs-auth");
-  const again = new URL((await local.connect(REACH, account.id, as)).url).searchParams.get("state");
-  await local.callback({ code: "full", state: again }, NO_ONE);
+  const again = await local.connect(REACH, account.id, as);
+  await local.callback({ code: "full", state: stateOf(again) }, browserOf(again), NO_ONE);
   const row = await knex("plugin_accounts").where({ id: account.id }).first();
   assert.equal(row.status, "connected");
 
@@ -430,8 +486,8 @@ test("the linker, and the owners and admins of a home the linker is in, may unli
 test("whoever runs the copy lists the accounts a person added in every home, and disconnects any by its id", async (context) => {
   const { knex, userId, account, service, accounts, as } = await setup(context);
   const local = service({ APP_PUBLIC_URL: "http://localhost:4000", TESTMAIL_TEST_CLIENT_ID: "client", TESTMAIL_TEST_CLIENT_SECRET: "secret", MERCBOT_VAULT_KEY: VAULT });
-  const consent = new URL((await local.connect(REACH, account.id, as)).url);
-  await local.callback({ code: "good", state: consent.searchParams.get("state") }, NO_ONE);
+  const started = await local.connect(REACH, account.id, as);
+  await local.callback({ code: "good", state: stateOf(started) }, browserOf(started), NO_ONE);
   const [home] = await knex("workspaces").insert({ slug: `across-accounts-${randomBytes(4).toString("hex")}`, name: "Across", owner_user_id: userId, is_personal: false }).returning("id");
   const homeId = String(home.id ?? home);
   const [homeAccount] = await knex("plugin_accounts")

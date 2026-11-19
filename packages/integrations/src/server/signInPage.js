@@ -1,4 +1,14 @@
 /**
+ * The page's one script, served at /api/connections/sign-in-page.js (registerRoutes.js) rather than written into the
+ * page, so it runs under a Content Security Policy without inline scripts: the Copy button copies the approval link.
+ */
+export const SIGN_IN_PAGE_SCRIPT = `document.querySelector("[data-copy]")?.addEventListener("click", (event) => {
+  navigator.clipboard.writeText(document.getElementById("approval").value);
+  event.currentTarget.textContent = "Copied";
+});
+`;
+
+/**
  * Text made safe to put in HTML.
  * @param {unknown} text
  */
@@ -17,9 +27,8 @@ export function signInPage(title, text, { approval = "", back = "" } = {}) {
   const approvalBlock = approval
     ? `<p class="approval"><label for="approval">Approval link for your IT team</label>` +
       `<textarea id="approval" readonly rows="3">${escape(approval)}</textarea>` +
-      `<button type="button"` +
-      ` onclick="navigator.clipboard.writeText(document.getElementById('approval').value);this.textContent='Copied'">` +
-      "Copy the link</button></p>"
+      `<button type="button" data-copy>Copy the link</button></p>` +
+      `<script src="/api/connections/sign-in-page.js" defer></script>`
     : "";
   const backLink = back ? `<p class="back"><a href="${escape(back)}">Back to Mercbot</a></p>` : "";
   return `<!doctype html><html lang="en"><head><meta charset="utf-8">` +

@@ -135,8 +135,10 @@ async function setup(context, replies = {}) {
   const [card] = await knex("bot_messages").insert(connectCard(bot)).returning("*");
   /** Signs in on server A from start to the callback; `query` is what the provider sends back. */
   const signIn = async (query = { code: "good" }) => {
-    const state = new URL((await a.connections.connect(REACH, account.id, person)).url).searchParams.get("state");
-    return a.connections.callback({ ...query, state }, NO_ONE);
+    const { url, cookie } = await a.connections.connect(REACH, account.id, person);
+    const state = new URL(url).searchParams.get("state");
+    // The browser the sign-in started in comes back with its cookie (D-97).
+    return a.connections.callback({ ...query, state }, { [cookie.name]: cookie.value }, NO_ONE);
   };
   const followUp = () => knex("connect_follow_ups").where({ message_id: card.id }).first();
   const cardStatus = async () => (await knex("bot_messages").where({ id: card.id }).first()).body.status;

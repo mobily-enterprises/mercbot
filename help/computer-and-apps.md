@@ -148,6 +148,8 @@ Select an app to open its page. It shows a description, your accounts, the app's
 
 The app's maker handles your login on its own page, so Mercbot gets a key to act for you, never your password. Connect apps keeps checking for a few minutes while you sign in, so there's nothing to refresh.
 
+Finish the sign-in in the browser you started it in, within 15 minutes. A sign-in belongs to that browser: if the app's page sends another browser back to Mercbot, such as one you copied the sign-in page's address into or someone you sent it to, the tab says **This sign-in was started in another browser, so nothing was connected**, and nothing is. Start again from Connect apps in the browser you sign in with.
+
 A bot can also suggest an app. If you ask for something that needs an app you haven't connected, the bot posts a card for it in the chat. Its button explains what connecting means (nothing is changed or sent without your yes, and you can unlink it at any time), then takes you to the sign-in. As soon as you've signed in, the card shows **Connected** and the bot finishes the job it was waiting to do, by itself: there's no need to ask again. If the bot is busy with another of your messages, it finishes that first. It waits up to 30 minutes for you to finish signing in; if you cancel the sign-in, the card stays as it was, so you can select its button again.
 
 If you run your own copy of Mercbot that's only reachable from your own machine, the sign-in may not be able to come back to Mercbot by itself. The app's page then shows a box: paste the whole address the sign-in tab ended on and select **Finish**.
@@ -216,7 +218,7 @@ Each account on an app's page shows where it stands:
 
 **Your apps and skills** shows each app with its worst state, so an app that needs you stands out. Its button (**Sign in**, **Reconnect**, **Retry** or **Sign in again**) goes straight to the account that needs attention. Six apps show at first; **Show all** lists the rest.
 
-If a sign-in is cancelled, the sign-in tab says **Nothing was connected**, and you can try again from Connect apps.
+If a sign-in is cancelled, the sign-in tab says **Nothing was connected**, and you can try again from Connect apps. Never sign in from a link someone else sent you to connect an app: it would connect your account to theirs, and Mercbot refuses it.
 
 ### Work accounts that need approval
 

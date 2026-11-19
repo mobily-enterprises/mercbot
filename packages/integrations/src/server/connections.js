@@ -5,99 +5,28 @@ import { resolveActorId } from "@jskit-ai/kernel/server/actions/actionContributo
 import { passedOn } from "@jskit-ai/resource-runtime/server";
 import { createConnector } from "./connector.js";
 import { createConnectorAccounts } from "./connectorAccounts.js";
+import { createHttpHub, createHubLink } from "./hubLink.js";
 import { createAppPeople } from "./appPeople.js";
 import { createAppRequests } from "./appRequests.js";
 import { credentialKind, credentialValues, credentialsMissing, credentialsOnly } from "./credentials.js";
-import { ConnectionError, PROVIDERS, callbackUrl, createOAuth, credentials, fresh } from "./oauth.js";
+import { ConnectionError, PROVIDERS, callbackUrl, createOAuth, credentials, fresh, publicUrl } from "./oauth.js";
+import { SIGN_IN_MINUTES, newBinding, sameBrowser } from "./signInBinding.js";
 import { createTokenRenewal, ranOut } from "./tokenRenewal.js";
-import { mayUnlink, unlinkedEntry } from "./unlinking.js";
 
-const STATE_MINUTES = 15;
 // A sign-in to an app that hosts its own connection point (D-34), in oauth_states.provider.
 const CONNECTOR = "connector";
 
 const token = () => randomBytes(32).toString("base64url");
 const olderThan = (minutes) => new Date(Date.now() - minutes * 60000).toISOString();
 
+/** A sign-in that is gone, ran out, or was finished already. */
+const linkExpired = () =>
+  new ConnectionError(400, "This sign-in link has expired. Start again from Connect apps.", { code: "integrations_sign_in_link_expired" });
+
 /** The search entries the owns entry of oauth_states adds. */
 export const SIGN_IN_STATE_FILTERS = Object.freeze({
   createdBefore: { type: "dateTime", actualField: "created_at", filterOperator: "<" }
 });
-
-/** What this copy is called on the hub, e.g. "Pat's laptop". */
-const copyName = (name) => String(name || "").trim().slice(0, 80) || "My Mercbot";
-
-function hubUrl(env) {
-  return String(env.MERCBOT_HUB_URL || "").replace(/\/+$/u, "");
-}
-
-/**
- * The hub's bridge, over HTTPS. A copy only ever sends its install token and its own references.
- * @param {string} base
- * @param {string | null} [installToken]
- */
-function createHttpHub(base, installToken = null) {
-  async function call(method, path, body) {
-    const response = await fetch(`${base}${path}`, {
-      method,
-      headers: {
-        "content-type": "application/json",
-        ...(installToken ? { authorization: `Bearer ${installToken}` } : {})
-      },
-      body: body ? JSON.stringify(body) : undefined,
-      signal: AbortSignal.timeout(15000)
-    }).catch(() => {
-      const host = base.replace(/^https?:\/\//u, "");
-      throw new ConnectionError(502, `Couldn't reach ${host}. Check this server's internet connection and try again.`, {
-        code: "integrations_hub_unreachable",
-        params: { host }
-      });
-    });
-    const result = await response.json().catch(() => ({}));
-    if (response.ok) return result;
-    const answered = response.status === 401 ? 401 : 502;
-    if (!result.error) throw new ConnectionError(answered, "Mercbot's hub didn't answer.", { code: "integrations_hub_silent" });
-    // The hub's own refusal, passed on with its code.
-    throw new ConnectionError(answered, result.error, { code: result.code || "integrations_hub_refused", params: result.params });
-  }
-  function createLinkRequest(name) {
-    return call("POST", "/api/bridge/link-requests", { name });
-  }
-
-  function claim(id, pollSecret) {
-    return call("POST", `/api/bridge/link-requests/${encodeURIComponent(id)}/claim`, { pollSecret });
-  }
-
-  function start(body) {
-    return call("POST", "/api/bridge/connections", body);
-  }
-
-  function status(ref) {
-    return call("GET", `/api/bridge/connections/${ref}`);
-  }
-
-  function connectionToken(ref) {
-    return call("POST", `/api/bridge/connections/${ref}/token`, {});
-  }
-
-  function disconnect(ref) {
-    return call("DELETE", `/api/bridge/connections/${ref}`);
-  }
-
-  function unlink() {
-    return call("DELETE", "/api/bridge/install");
-  }
-
-  return Object.freeze({
-    createLinkRequest,
-    claim,
-    start,
-    status,
-    token: connectionToken,
-    disconnect,
-    unlink
-  });
-}
 
 /**
  * Whether what a sign-in was given lacks some of what the app asks for. Providers name scopes
@@ -125,7 +54,7 @@ function missingScopes(tokens, scopes) {
  * Everything lives in PostgreSQL, so any server can finish a sign-in or hand out a key (D-15).
  *
  * Every method takes the call's options last. The provider's callback has no one signed in: what proves it is the
- * unguessable state it carries.
+ * unguessable state it carries, and the cookie of the browser the sign-in started in (D-97, signInBinding.js).
  * @param {object} dependencies
  * @param {Record<string, any>} dependencies.resources this feature's handles
  * @param {import("./types.js").Accounts} dependencies.accounts
@@ -226,110 +155,41 @@ export function createConnections({
     return { plugin, provider, scopes: plugin.oauth.scopes || [] };
   }
 
+  /**
+   * Starts a sign-in, kept with its PKCE verifier and what it is for. It belongs to the browser of the call (D-97): the
+   * answer's `cookie` is for that browser, and `url` is the provider's consent screen. A sign-in lent to a linked copy
+   * (`lentTo`, the account that copy is linked to) is begun here by that account, signed in: its `url` is that page,
+   * and it gets its browser there (beginLentSignIn).
+   */
   async function startSignIn(provider, scopes, row, options) {
     const state = oauthClient.random();
     const verifier = oauthClient.random();
-    await oauthStates.deleteWhere({ createdBefore: olderThan(STATE_MINUTES) }, passedOn(options));
+    const lent = row.lentTo != null;
+    const { cookie, binding } = newBinding(state);
+    await oauthStates.deleteWhere({ createdBefore: olderThan(SIGN_IN_MINUTES) }, passedOn(options));
     await oauthStates.create({
       id: state,
       provider: row.provider,
       accountId: row.accountId ?? null,
       bridgeConnectionId: row.bridgeId ?? null,
+      lentTo: lent ? String(row.lentTo) : null,
+      binding: lent ? null : binding,
       verifier: sealed(verifier)
     }, { ...passedOn(options), returning: "none" });
-    return { url: await oauthClient.authorizeUrl(provider, scopes, state, verifier) };
+    if (lent) return { url: `${publicUrl(env)}/account/connect?${new URLSearchParams({ lent: state })}` };
+    return { url: await oauthClient.authorizeUrl(provider, scopes, state, verifier), cookie };
   }
 
-  // ---- This copy's link to a hub ----
-
-  /** This copy's one link to a hub, deployment-wide (bridge_link is `public`), or null. */
-  async function linkRow(options) {
-    const { records } = await bridgeLink.query({ sort: ["id"], page: { size: 1 } }, passedOn(options));
-    return records[0] || null;
-  }
-
-  async function linkedHub(options) {
-    const row = await linkRow(options);
-    return row?.token ? hubFor(row.hubUrl, opened(row.token)) : null;
-  }
-
-  const unlinkRules = { managesHome: accounts.managesHome, isMember };
-
-  async function linkStatus(options) {
-    const row = await linkRow(options);
-    return {
-      hubUrl: row?.hubUrl || hubUrl(env),
-      linked: Boolean(row?.token),
-      pending: Boolean(row?.pending && !row?.token),
-      name: row?.name || null,
-      canUnlink: Boolean(row?.token) && (await mayUnlink(row, options, unlinkRules))
-    };
-  }
-
-  /** Asks the hub for a link; the person approves it there, signed in to their account. */
-  async function startLink(name, options) {
-    const row = await linkRow(options);
-    if (row?.token) throw new ConnectionError(409, "This copy is already linked.", { code: "integrations_link_already_linked" });
-    const clean = copyName(name);
-    const base = hubUrl(env);
-    if (!base) {
-      throw new ConnectionError(409, "No Mercbot to link to is set up for this copy (MERCBOT_HUB_URL).", {
-        code: "integrations_link_hub_unset"
-      });
-    }
-    const request = await hubFor(base).createLinkRequest(clean);
-    await bridgeLink.deleteWhere({}, { ...passedOn(options), all: true });
-    await bridgeLink.create({
-      hubUrl: base,
-      name: clean,
-      linkedBy: resolveActorId(options.context),
-      pending: sealed({ id: request.id, pollSecret: request.pollSecret })
-    }, { ...passedOn(options), returning: "none" });
-    return { approveUrl: request.approveUrl, code: request.code };
-  }
-
-  /** Picks up the install token once the person has approved the link. */
-  async function checkLink(options) {
-    const row = await linkRow(options);
-    if (row?.pending && !row.token) {
-      const { id, pollSecret } = opened(row.pending);
-      const result = await hubFor(row.hubUrl).claim(id, pollSecret);
-      if (result.token) {
-        await bridgeLink.patch(row.id, { token: sealed(result.token), pending: null }, { ...passedOn(options), returning: "none", missing: "skip" });
-      }
-    }
-    return linkStatus(options);
-  }
-
-  /**
-   * Unlinks this copy from its hub: every account that borrowed the hub's sign-in is signed out, in
-   * every home, and the call's home's Activity trail records who did it. A link still waiting for
-   * approval is simply withdrawn.
-   */
-  async function unlink(options) {
-    const row = await linkRow(options);
-    if (!row) return linkStatus(options);
-    if (row.token && !(await mayUnlink(row, options, unlinkRules))) {
-      throw new ConnectionError(403, "Only the person who linked this copy, or an owner or admin of a home they're in, can unlink it.", {
-        code: "integrations_unlink_forbidden"
-      });
-    }
-    if (row.token) {
-      await hubFor(row.hubUrl, opened(row.token))
-        .unlink()
-        .catch((error) => console.warn("Telling the hub about an unlink failed; this copy is unlinked anyway.", error));
-    }
-    await bridgeLink.deleteWhere({}, { ...passedOn(options), all: true });
-    await accounts.signOutBridged(options);
-    if (row.token && options.context?.workspace?.id) await recordActivity(unlinkedEntry(row, options.context), options);
-    return linkStatus(options);
-  }
+  // This copy's one link to a hub (hubLink.js).
+  const hubLink = createHubLink({ bridgeLink, env, hubFor, sealed, opened, accounts, isMember, recordActivity });
+  const { linkedHub } = hubLink;
 
   // ---- This copy's accounts ----
 
   /**
-   * The consent screen to send the person to: through this copy's own app, or the hub's. A
-   * home's account is signed in by its owners or admins (D-37).
+   * The consent screen to send the person to: through this copy's own app, with the `cookie` for the browser that asked
+   * (D-97), or the hub's (whose page the person begins it on, signed in there). A home's account is signed in by its
+   * owners or admins (D-37).
    */
   async function connect(reach, accountId, options) {
     const account = await accounts.manageableAccount(reach, accountId, options);
@@ -351,7 +211,9 @@ export function createConnections({
     }
     const ref = account.bridgeRef || token();
     if (!account.bridgeRef) await accounts.patchAccount(account, { bridgeRef: ref }, options);
-    return hub.start({ pluginId: plugin.id, remoteRef: ref });
+    // The hub's page that begins it, signed in there (D-97); a browser here has nothing to keep.
+    const { url } = await hub.start({ pluginId: plugin.id, remoteRef: ref });
+    return { url };
   }
 
   /**
@@ -506,15 +368,32 @@ export function createConnections({
 
   // ---- Where providers send people back (this copy's sign-ins and the ones it lends) ----
 
-  async function callback(query, options) {
-    // Taken once: of two callbacks with the same state, only the one whose delete removed it goes on.
+  /**
+   * The provider sending a browser back, with that request's cookies. Only the browser the sign-in started in finishes
+   * it (D-97): any other, such as one someone sent the consent link of a sign-in they started, is refused before
+   * anything is taken or saved, and the sign-in stays for its own browser.
+   * @param {Record<string, string>} query
+   * @param {Record<string, string | undefined>} cookies
+   * @param {object} options
+   */
+  async function callback(query, cookies, options) {
     const state = String(query.state || "");
     const row = state ? await oauthStates.get(state, {}, { ...passedOn(options), missing: "skip" }) : null;
-    const taken = row ? await oauthStates.delete(state, { ...passedOn(options), missing: "skip" }) : null;
-    if (!row || taken == null || new Date(row.createdAt) < olderThan(STATE_MINUTES)) {
-      throw new ConnectionError(400, "This sign-in link has expired. Start again from Connect apps.", {
-        code: "integrations_sign_in_link_expired"
-      });
+    if (row && !sameBrowser(row, cookies)) {
+      throw new ConnectionError(
+        400,
+        "This sign-in was started in another browser, so nothing was connected. To connect an account, start from Connect apps in this browser.",
+        { code: "integrations_sign_in_other_browser" }
+      );
+    }
+    return finish(row, query, options);
+  }
+
+  async function finish(row, query, options) {
+    // Taken once: of two callbacks with the same state, only the one whose delete removed it goes on.
+    const taken = row ? await oauthStates.delete(row.id, { ...passedOn(options), missing: "skip" }) : null;
+    if (!row || taken == null || new Date(row.createdAt) < olderThan(SIGN_IN_MINUTES)) {
+      throw linkExpired();
     }
     try {
       return await finishSignIn(row, query, options);
@@ -554,9 +433,7 @@ export function createConnections({
 
   async function finishSignIn(row, query, options) {
     const connecting = row.provider === CONNECTOR ? pluginOf(await signInPluginId(row, options)) : null;
-    if (row.provider === CONNECTOR && !connecting) {
-      throw new ConnectionError(400, "This sign-in link has expired. Start again from Connect apps.", { code: "integrations_sign_in_link_expired" });
-    }
+    if (row.provider === CONNECTOR && !connecting) throw linkExpired();
     const provider = connecting ? (await signInFor(connecting.id, options)).provider : providers[row.provider];
     if (query.error) {
       const pluginId = row.accountId ? await signInPluginId(row, options) : null;
@@ -631,7 +508,8 @@ export function createConnections({
 
   /**
    * The address a provider sent the person back to, pasted when their browser couldn't reach this
-   * copy. It must be this copy's own return address, for a sign-in to one of their own accounts.
+   * copy. It must be this copy's own return address, for a sign-in to one of their own accounts: the person pasting it,
+   * signed in, is what ties it to them, in place of the callback's cookie (D-97).
    */
   async function finishPasted(address, options) {
     let url;
@@ -649,7 +527,7 @@ export function createConnections({
     }
     const query = Object.fromEntries(url.searchParams);
     const state = String(query.state || "");
-    const signIn = state ? await oauthStates.get(state, { fields: ["accountId"] }, { ...passedOn(options), missing: "skip" }) : null;
+    const signIn = state ? await oauthStates.get(state, {}, { ...passedOn(options), missing: "skip" }) : null;
     // A sign-in of one of the person's own accounts: their own, or one they added to this home.
     const person = accounts.personOf(options);
     const mine = signIn?.accountId && person
@@ -660,17 +538,21 @@ export function createConnections({
         code: "integrations_sign_in_state_unknown"
       });
     }
-    return callback(query, options);
+    return finish(signIn, query, options);
   }
 
   // ---- The sign-ins this copy lends (`bridgedSignIns`) ----
 
   /**
    * Starts signing someone in, with this copy's registered app, for a bridge connection of the feature it lends sign-ins
-   * to: `connectionFor(pluginId)` makes or finds that connection and answers its id. Each copy signs in to an app that
-   * hosts its own connection point itself (D-34), so those are never lent.
+   * to: `connectionFor(pluginId)` makes or finds that connection and answers its id, and `lentTo` is the account here the
+   * linked copy is linked to, the only one who may begin it (D-97). Answers the page here that begins it. Each copy signs
+   * in to an app that hosts its own connection point itself (D-34), so those are never lent.
+   * @param {string} pluginId
+   * @param {{ connectionFor: (pluginId: string) => Promise<string>, lentTo: string }} lending
+   * @param {object} options
    */
-  async function startBridgedSignIn(pluginId, connectionFor, options) {
+  async function startBridgedSignIn(pluginId, { connectionFor, lentTo }, options) {
     const found = pluginOf(pluginId);
     const { plugin, provider, scopes } = found?.mcp ? { plugin: found, provider: found } : await signInFor(pluginId, options);
     if (plugin.mcp || !credentials(provider, env)) {
@@ -679,8 +561,34 @@ export function createConnections({
         params: { provider: provider.name }
       });
     }
+    if (!/^\d+$/u.test(String(lentTo ?? ""))) throw new TypeError("A lent sign-in needs the account the copy is linked to (lentTo).");
     const id = await connectionFor(plugin.id);
-    return startSignIn(provider, scopes, { provider: plugin.oauth.provider, bridgeId: String(id) }, options);
+    return startSignIn(provider, scopes, { provider: plugin.oauth.provider, bridgeId: String(id), lentTo }, options);
+  }
+
+  /**
+   * Begins a sign-in this copy lends a linked copy, in the browser of the account that copy is linked to, signed in here
+   * (D-97): the provider's consent screen, the app's name, and the `cookie` that ties the sign-in to this browser. Anyone
+   * else is refused, so its page sent to someone else signs no one in. Beginning it again moves it to the browser that
+   * did.
+   * @param {string} state
+   * @param {object} options
+   */
+  async function beginLentSignIn(state, options) {
+    const row = state ? await oauthStates.get(String(state), {}, { ...passedOn(options), missing: "skip" }) : null;
+    if (!row?.lentTo || new Date(row.createdAt) < olderThan(SIGN_IN_MINUTES)) throw linkExpired();
+    if (String(row.lentTo) !== String(resolveActorId(options.context) ?? "")) {
+      throw new ConnectionError(
+        403,
+        "This sign-in is for another Mercbot account, the one the copy of Mercbot that started it is linked to." +
+          " Sign in here with that account, then start again from that copy.",
+        { code: "integrations_sign_in_other_account" }
+      );
+    }
+    const { plugin, provider, scopes } = await signInFor(await signInPluginId(row, options), options);
+    const { cookie, binding } = newBinding(row.id);
+    await oauthStates.patch(row.id, { binding }, { ...passedOn(options), returning: "none", missing: "skip" });
+    return { url: await oauthClient.authorizeUrl(provider, scopes, row.id, opened(row.verifier)), app: plugin.name, cookie };
   }
 
   /**
@@ -719,11 +627,12 @@ export function createConnections({
     syncPending,
     whenConnected: accounts.whenConnected,
     lacksAccess,
-    linkStatus,
-    startLink,
-    checkLink,
-    unlink,
+    linkStatus: hubLink.linkStatus,
+    startLink: hubLink.startLink,
+    checkLink: hubLink.checkLink,
+    unlink: hubLink.unlink,
     startBridgedSignIn,
+    beginLentSignIn,
     bridgedToken
   });
 }

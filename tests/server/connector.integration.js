@@ -79,10 +79,16 @@ async function setup(context, { mcp = {} } = {}) {
 
 /** Connect, the person agreeing at the app, and the app sending the browser back: the callback's answer. */
 async function signIn(integrations, fake, accountId, as) {
-  const url = new URL((await integrations.connections.connect(REACH, accountId, as)).url);
+  const started = await integrations.connections.connect(REACH, accountId, as);
+  const url = new URL(started.url);
   const back = await fake.consent(url);
   assert.equal(`${back.origin}${back.pathname}`, CALLBACK);
-  return { url, result: await integrations.connections.callback(Object.fromEntries(back.searchParams), NO_ONE) };
+  return { url, result: await integrations.connections.callback(Object.fromEntries(back.searchParams), browserOf(started), NO_ONE) };
+}
+
+/** The cookies of the browser a sign-in started in, which its callback brings back (D-97). */
+function browserOf(started) {
+  return { [started.cookie.name]: started.cookie.value };
 }
 
 /** The key the account now holds, opened. */
@@ -247,7 +253,8 @@ test("an app whose sign-in can't be trusted or used gets a plain answer", async 
 
   // A sign-in this copy would lend to another copy (startBridgedSignIn) is refused before the app is even looked at.
   const lent = [];
-  await assert.rejects(serve().connections.startBridgedSignIn(pluginId, async (id) => lent.push(id), NO_ONE), { code: "integrations_hub_sign_in_unset" });
+  const connectionFor = async (id) => lent.push(id);
+  await assert.rejects(serve().connections.startBridgedSignIn(pluginId, { connectionFor, lentTo: "1" }, NO_ONE), { code: "integrations_hub_sign_in_unset" });
   assert.deepEqual(lent, [], "no bridge connection is made for it");
   assert.equal(fake.state.registrations, 0);
   const refusal = (code, message) => (error) => {
@@ -277,10 +284,10 @@ test("an app whose sign-in can't be trusted or used gets a plain answer", async 
 
   // An app that has forgotten this copy's registration: the sign-in fails plainly, and the next one registers again.
   const integrations = serve();
-  const url = new URL((await integrations.connections.connect(REACH, accountId, as)).url);
-  const back = await fake.consent(url);
+  const started = await integrations.connections.connect(REACH, accountId, as);
+  const back = await fake.consent(new URL(started.url));
   fake.forgetClients();
-  await assert.rejects(integrations.connections.callback(Object.fromEntries(back.searchParams), NO_ONE), /Tasks/u);
+  await assert.rejects(integrations.connections.callback(Object.fromEntries(back.searchParams), browserOf(started), NO_ONE), /Tasks/u);
   for (let waited = 0; (await app()) && waited < 2000; waited += 50) await new Promise((resolve) => setTimeout(resolve, 50));
   assert.equal(await app(), undefined, "the forgotten registration is dropped");
   await signIn(serve(), fake, accountId, as);

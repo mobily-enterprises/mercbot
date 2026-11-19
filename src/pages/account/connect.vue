@@ -8,13 +8,30 @@ import { setCurrentHome } from "@/components/mercbot/homeApi.js";
 
 // Where an app's sign-in starts (D-31): this tab asks Mercbot for the provider's consent
 // screen, through this copy's own app or the hub it's linked to, and goes there.
-// When that isn't possible it says why, plainly.
+// When that isn't possible it says why, plainly. On a hub, `lent` is a sign-in a copy linked to
+// the person's account asked for: it begins here, signed in, so it's tied to this browser (D-97).
 const route = useRoute();
 const plugins = ref([]);
 const problem = ref("");
+const lent = computed(() => String(route.query.lent || ""));
+const lentApp = ref("");
 const plugin = computed(() => plugins.value.find((entry) => entry.id === route.query.plugin));
 
+async function beginLent() {
+  try {
+    const { url, app } = await pluginsApi.beginLentSignIn(lent.value);
+    lentApp.value = app || "";
+    leaveApp(url, { replace: true });
+  } catch (error) {
+    problem.value = error?.message || "Signing in didn't start. Close this tab and start again from your copy of Mercbot.";
+  }
+}
+
 onMounted(async () => {
+  if (lent.value) {
+    await beginLent();
+    return;
+  }
   // The home the sign-in was started in (D-37): its accounts are reached through it.
   setCurrentHome(route.query.home);
   try {
@@ -44,6 +61,10 @@ onMounted(async () => {
         <p class="mb-connect-page__text">You can close this tab.</p>
       </template>
       <p v-else class="mb-connect-page__text">Taking you to {{ plugin.name }} to approve the link…</p>
+    </div>
+    <div v-else-if="lent" class="mb-connect-page__card">
+      <h1 class="mb-connect-page__title">Signing in{{ lentApp ? ` to ${lentApp}` : "" }}</h1>
+      <p class="mb-connect-page__text">{{ problem || "Taking you there to approve the link…" }}</p>
     </div>
     <p v-else-if="problem" class="mb-connect-page__text">{{ problem }}</p>
   </div>

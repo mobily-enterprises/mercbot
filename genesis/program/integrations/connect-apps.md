@@ -12,6 +12,8 @@ their accounts, and keeps the private skills their bots have made.
 - `packages/integrations/src/server/types.js`
 - `packages/integrations/src/server/catalogue.js`
 - `packages/integrations/src/server/connections.js`
+- `packages/integrations/src/server/signInBinding.js`
+- `packages/integrations/src/server/hubLink.js`
 - `packages/integrations/src/server/oauth.js`
 - `packages/integrations/src/server/connector.js`
 - `packages/integrations/src/server/connectorAccounts.js`
@@ -36,6 +38,7 @@ their accounts, and keeps the private skills their bots have made.
 - `packages/integrations/src/server/appPeople.js`
 - `packages/integrations/src/server/tableResources.js`
 - `migrations/20261119150000_plugin_account_people.cjs`
+- `migrations/20261120020000_sign_in_binding.cjs`
 - `src/components/mercbot/MercbotCredentialsForm.vue`
 - `src/components/mercbot/MercbotAppPeople.vue`
 - `src/components/mercbot/MercbotCredentials.css`
@@ -49,6 +52,7 @@ their accounts, and keeps the private skills their bots have made.
 - `plugins/notion/plugin.json`
 - `plugins/todoist/plugin.json`
 - `tests/server/connections.integration.js`
+- `tests/server/signInBinding.test.js`
 - `tests/server/connector.integration.js`
 - `tests/support/fakeMcpServer.mjs`
 - `tests/client/appsCatalogue.vitest.js`
@@ -220,7 +224,14 @@ provider (`google`, `microsoft`, `github` in `oauth.js`) and scopes. With the
 copy's own registered app in Env (`<PROVIDER>_CLIENT_ID`/`_SECRET`, or `_TEST_`
 ones while `APP_PUBLIC_URL` is local), a copy signs people in directly; every
 provider returns to the public `GET /api/connections/callback`, which answers with a
-small page. Without one, a copy linked to a hub (`MERCBOT_HUB_URL`, another Mercbot that connects accounts for it;
+small page (its approval page's Copy button is `GET /api/connections/sign-in-page.js`, so the page has no inline
+script). A sign-in belongs to the browser that started it (D-97, `signInBinding.js`): `POST
+…/plugin-accounts/:accountId/connect` gives that browser a cookie of its own, `mercbot_sign_in_<first 16 characters of
+the state>`, HttpOnly, SameSite=Lax, path the callback's, Secure at an https address, 15 minutes, and
+`oauth_states.binding` keeps only its sha256. The callback finishes a sign-in only when its request brings that cookie
+back, and clears it; from any other browser it answers 400 `integrations_sign_in_other_browser` before anything is
+taken or saved, so the sign-in stays for its own browser. A pasted address (`connections/finish`) is tied to the
+signed-in person who owns the account instead. Without one, a copy linked to a hub (`MERCBOT_HUB_URL`, another Mercbot that connects accounts for it;
 no default, and without it Settings says none is set up and linking refuses) borrows the hub's app: the hub keeps the
 long-lived permission and the copy fetches hourly keys, calling the provider itself. Linking is Settings → Mercbot
 account (`POST /api/bridge/link`, `POST /api/bridge/link/check`; its status and unlinking are asked from the current
@@ -229,11 +240,18 @@ home, `GET/DELETE /api/w/:workspaceSlug/bridge/link`): the copy asks the hub for
 install token once (`POST /api/bridge/link-requests/:id/claim`). It then calls the hub's
 `POST /api/bridge/connections`, `GET /api/bridge/connections/:ref`, `POST /api/bridge/connections/:ref/token`,
 `DELETE /api/bridge/connections/:ref` and `DELETE /api/bridge/install` with `Authorization: Bearer <install token>`
-(`createHttpHub` in `connections.js`). Mercbot itself is no hub: it keeps no linked copies. A feature that is one lends
-this copy's registered apps through the optional capability `mercbot.integrations.bridged-sign-ins` (`BridgedSignIns`
-in `types.js`): `connections.startBridgedSignIn(pluginId, connectionFor)` refuses an app this copy has no registered
+(`createHttpHub` in `hubLink.js`, which keeps the link too). Mercbot itself is no hub: it keeps no linked copies. A
+feature that is one lends this copy's registered apps through the optional capability
+`mercbot.integrations.bridged-sign-ins` (`BridgedSignIns` in `types.js`):
+`connections.startBridgedSignIn(pluginId, { connectionFor, lentTo })` refuses an app this copy has no registered
 app for (409 `integrations_hub_sign_in_unset`) or that hosts its own connection point, asks the feature for its bridge
-connection and starts the sign-in for it (`oauth_states.bridge_connection_id`); the callback asks the feature which
+connection and starts the sign-in for it (`oauth_states.bridge_connection_id`), for `lentTo`, the account the linked
+copy is linked to (`oauth_states.lent_to`, D-97). It answers this server's page `/account/connect?lent=<state>`, not
+the consent screen: that person begins it there signed in (`POST /api/connections/lent/begin {state}`,
+`beginLentSignIn`), which gives their browser the sign-in's cookie and answers the consent screen and the app's name;
+anyone else gets 403 `integrations_sign_in_other_account`, an unknown or old state 400
+`integrations_sign_in_link_expired`, and beginning again moves the sign-in to the browser that did. The copy's own
+browser keeps nothing: `connect` answers only the hub's `url`. The callback asks the feature which
 app that connection is for (`pluginOf`, none once it's gone or when no feature keeps them, which refuses the sign-in)
 and hands it the label and the sealed tokens (`signedIn`); `connections.bridgedToken(pluginId, sealedTokens, save)`
 answers an hourly key, renewing it, and handing the renewed tokens sealed to `save`, when it ran out. Tokens are

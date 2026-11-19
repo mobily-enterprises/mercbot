@@ -2330,3 +2330,31 @@ gentle, with a setting per connection.
   answer names (a message with no tags, job references or attachments: 3 requests, where it took 6); assigning a
   message finds the colleague in one request (`filter[user.team]`). Sedna has no read of several messages by id, and its
   events name only the message, so opening the messages found is one request each, as before, now in turn.
+
+## D-97 — A sign-in to an app is finished only in the browser that started it (2026-11-20)
+
+A security review of Mercbot's sign-ins to apps (Connect apps, D-31) found that the provider's callback finished a
+sign-in for whoever held its link: the state was random, single-use and short-lived, but tied to no browser. Someone
+could start a sign-in to their own Mercbot account, send the provider's consent link to someone else, and if that
+person signed in, their Gmail or Drive would be connected to the first person's account (account-linking CSRF; the
+review's 3.2.2).
+- **Directly:** starting a sign-in (`POST …/plugin-accounts/:accountId/connect`, signed in and with JSKIT's CSRF token)
+  gives the browser that asked a cookie of its own, `mercbot_sign_in_<first 16 characters of the state>`, HttpOnly,
+  SameSite=Lax (the provider sends the browser back with a link from its own site), sent only to the callback's path,
+  Secure at an https address, for the 15 minutes a sign-in may take. One per sign-in, so several may run at once.
+  `oauth_states.binding` keeps only its sha256, and the page never sees it.
+- **The callback** finishes a sign-in only when its request brings that cookie back (compared in constant time), and
+  clears it. From any other browser it answers "This sign-in was started in another browser, so nothing was
+  connected" (`integrations_sign_in_other_browser`) before anything is taken or saved: the sign-in stays, so its own
+  browser can still finish it.
+- **Lent sign-ins (a copy linked to a hub, D-31):** the copy's browser starts on the copy and comes back to the hub,
+  and anything the hub hands the copy, the copy's owner can pass on, so a cookie a link sets would tie nothing. The
+  hub's only proof of a browser is its own sign-in: the hub records the account the copy is linked to
+  (`oauth_states.lent_to`, given as `startBridgedSignIn`'s `lentTo`) and answers the copy its page
+  `/account/connect?lent=<state>`. That person, signed in there (the page asks them to sign in first), begins it
+  (`POST /api/connections/lent/begin`), which sets the same cookie and goes on to the consent screen; anyone else is
+  refused (`integrations_sign_in_other_account`). Since linking already needs that account, the price is signing in
+  to the hub in the browser that connects.
+- **Not cookies:** a pasted address (`connections/finish`, for a copy the provider can't send the browser back to) is
+  tied to the signed-in person who owns the account, as before.
+- A sign-in started before this keeps no cookie's hash and can't be finished; it is started again.
