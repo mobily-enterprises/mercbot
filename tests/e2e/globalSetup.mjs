@@ -37,6 +37,16 @@ async function timed(phases, phase, work) {
 /** A Test Preview's log, read once it has stopped. */
 const readLog = (log) => readFile(log, "utf8").catch(() => "");
 
+// The ports browsers and fetch refuse to connect to, the Fetch standard's bad ports (https://fetch.spec.whatwg.org/#bad-port,
+// as undici and Chromium apply them): a Test Preview on one starts, but neither its sign-in nor a page reaches it ("fetch
+// failed"). Only a PLAYWRIGHT_PORT can put one there; the system picks ports above all of them.
+const BAD_PORTS = new Set([
+  1, 7, 9, 11, 13, 15, 17, 19, 20, 21, 22, 23, 25, 37, 42, 43, 53, 69, 77, 79, 87, 95, 101, 102, 103, 104, 109, 110, 111, 113,
+  115, 117, 119, 123, 135, 137, 139, 143, 161, 179, 389, 427, 465, 512, 513, 514, 515, 526, 530, 531, 532, 540, 548, 554, 556,
+  563, 587, 601, 636, 989, 990, 993, 995, 1719, 1720, 1723, 2049, 3659, 4045, 4190, 5060, 5061, 6000, 6566, 6665, 6666, 6667,
+  6668, 6669, 6679, 6697, 10080
+]);
+
 /** The end of a log, for an error that outlives the temporary folder. */
 const logTail = (text) => text.trimEnd().split("\n").slice(-15).join("\n");
 
@@ -128,10 +138,16 @@ export default async function globalSetup(config) {
   // never one a developer's .env holds, and the specs that open it read the same; without a key those features refuse
   // (503), as they should.
   process.env.MERCBOT_VAULT_KEY = randomBytes(32).toString("base64");
+  const basePort = Number(process.env.PLAYWRIGHT_PORT) || 0;
+  const refused = basePort ? Array.from({ length: config.workers }, (_, index) => basePort + index).filter((port) => BAD_PORTS.has(port)) : [];
+  if (refused.length) {
+    throw new Error(`PLAYWRIGHT_PORT ${basePort} and the next ports, one Test Preview each for ${config.workers} workers, take port `
+      + `${refused.join(", ")}, which browsers and fetch refuse (the Fetch standard's bad ports). Give a PLAYWRIGHT_PORT whose next `
+      + `${config.workers} ports miss it, or run fewer workers.`);
+  }
   const runDir = await mkdtemp(path.join(os.tmpdir(), "mercbot-e2e-"));
   const phases = [];
   const started = performance.now();
-  const basePort = Number(process.env.PLAYWRIGHT_PORT) || 0;
   const servers = [];
   const teardown = async () => {
     await Promise.all(servers.map(stop));
@@ -159,7 +175,8 @@ export default async function globalSetup(config) {
     const targets = await timed(phases, `${config.workers} Test Preview(s)`, () => Promise.all(Array.from({ length: config.workers }, async (_, index) => {
       const database = await copyTestTemplate(testCopyName(process.pid, `e${index}`), process.env, fixtures);
       const env = { ...previewEnv(database, `data-${index}`), MERCBOT_TEST_FIXTURES_DONE: "1" };
-      const start = () => startPreview(basePort && basePort + index, env, path.join(runDir, `server-${index}.log`), servers);
+      const log = path.join(runDir, `server-${index}.log`);
+      const start = () => startPreview(basePort && basePort + index, env, log, servers);
       // Another process can take a picked port in the moment before the app listens on it (rare):
       // then it starts once more, on a new one.
       const origin = await start().catch((error) => {
@@ -167,7 +184,10 @@ export default async function globalSetup(config) {
         return start();
       });
       const storageState = path.join(runDir, `signed-in-${index}.json`);
-      await signInAsPreviewOwner(origin, storageState, { ...process.env, MERCBOT_DATA_DIR: env.MERCBOT_TEST_DATA_DIR });
+      // A Test Preview that started but can't be signed in to says why in its log, which the teardown deletes.
+      await signInAsPreviewOwner(origin, storageState, { ...process.env, MERCBOT_DATA_DIR: env.MERCBOT_TEST_DATA_DIR }).catch(async (error) => {
+        throw new Error(`${error.message}\nThe end of the Test Preview's log:\n${logTail(await readLog(log))}`);
+      });
       return { baseURL: origin, storageState, database };
     })));
     const file = path.join(runDir, "targets.json");
