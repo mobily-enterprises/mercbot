@@ -1,5 +1,5 @@
 import { defineFeature } from "@jskit-ai/kernel/server/features";
-import { isDeployed } from "@jskit-ai/kernel/shared/support/appEnvironment";
+import { isStagingOrProduction } from "@jskit-ai/kernel/shared/support/appEnvironment";
 import { passedOn } from "@jskit-ai/resource-runtime/server";
 import { personName } from "@local/homes/server/personName";
 import { ACCOUNT_FILTERS, createAccounts } from "./accounts.js";
@@ -20,7 +20,7 @@ import { TABLE_RESOURCES, oauthStateResource, pluginAccountResource, pluginActio
  */
 function standInGoogle(env) {
   const url = String(env.MERCBOT_TEST_GOOGLE_DRIVE_URL || "").trim();
-  if (!url || isDeployed(env)) return {};
+  if (!url || isStagingOrProduction(env)) return {};
   // The stand-in's own client, whichever pair this copy would pick (credentials in oauth.js).
   const standInEnv = { ...env, GOOGLE_CLIENT_ID: "stand-in", GOOGLE_CLIENT_SECRET: "stand-in", GOOGLE_TEST_CLIENT_ID: "stand-in", GOOGLE_TEST_CLIENT_SECRET: "stand-in" };
   const google = {
@@ -39,7 +39,7 @@ function standInGoogle(env) {
  */
 function credentialKinds(env) {
   const url = String(env.MERCBOT_TEST_SEDNA_URL || "").trim();
-  return { sedna: createSednaCredentials({ standIn: url && !isDeployed(env) ? url : "" }) };
+  return { sedna: createSednaCredentials({ standIn: url && !isStagingOrProduction(env) ? url : "" }) };
 }
 
 /**

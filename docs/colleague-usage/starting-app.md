@@ -2,7 +2,7 @@
 
 Mercbot is a Node application on PostgreSQL whose bots each have a small desktop computer and a
 Linux command line, both in gVisor sandboxes. This guide covers starting it in a Vibe64 session's
-Preview, what it needs first, opening it, publishing, and what to do when a start stops.
+Preview, what it needs first, opening it, publishing to staging, and what to do when a start stops.
 
 ## What runs
 
@@ -42,37 +42,38 @@ menu drops the key's cookie. On a person's own computer, `mercbot open` does the
 
 `APP_ENV` says where a copy runs (D-87), and every copy whose `APP_ENV` isn't `production` is a test
 copy: the Preview (`development`, which `npm run develop` sets whatever Env says), the Test Preview
-(`test`) and a published copy a host gives `staging`. A test copy only logs what bots would send from
-connected accounts and what Apps scripts would send to outside web services, and every page shows a
-small tab naming the environment. A copy without `APP_ENV`, or with the old `SIDE_EFFECTS` setting,
-doesn't start, naming the fix.
+(`test`) and a copy published to staging, which a host gives `staging`. A test copy only logs what
+bots would send from connected accounts and what Apps scripts would send to outside web services,
+and every page shows a small tab naming the environment. A copy without `APP_ENV`, or with the old
+`SIDE_EFFECTS` setting, doesn't start, naming the fix.
 
-## Publishing
+## Publishing to staging
 
 Publishing follows the Stack's Deployment (genesis/stack.md): Prepare installs dependencies and
 tools (`npm run deploy:prepare`), then Build, Migrate and Start (`scripts/serve.sh`).
 
 - **Sandbox allowances (a human step):** the Deployment asks for `gvisor`. The workspace
-  owner approves them once on the project's **Production** page, and Publish waits until they do.
-- **The first Publish on a host** installs the tools and builds the toolbox (15 to 25 minutes).
-  Later ones keep them in the app's own home and take seconds unless a tool changed.
+  owner approves them once on the project's **Sandbox allowances** card, and Publish to staging
+  waits until they do.
+- **The first Publish to staging on a host** installs the tools and builds the toolbox (15 to 25
+  minutes). Later ones keep them in the app's own home and take seconds unless a tool changed.
 - **Secrets:** Vibe64 generates `AUTH_LOCAL_SESSION_SECRET`, `MERCBOT_VAULT_KEY`,
   `MERCBOT_FILES_PASSPHRASE` and the first account's setup code (`AUTH_LOCAL_SETUP_CODE`) once, keeps
-  them in Production Env across releases, and shows the setup code on the Production page.
+  them in Staging Env across releases, and shows the setup code to the workspace owner.
 - **Files bucket (optional):** the Stack declares an S3 bucket (`files`). With its settings in
-  Production Env (`MERCBOT_FILES_S3_BUCKET`, `_REGION`, `_ENDPOINT`, `_ACCESS_KEY_ID`,
+  Staging Env (`MERCBOT_FILES_S3_BUCKET`, `_REGION`, `_ENDPOINT`, `_ACCESS_KEY_ID`,
   `_SECRET_ACCESS_KEY`), bots' files are kept there, each sealed with the passphrase; without them,
   in the copy's data folder. Never ask for or paste the keys in the chat.
-- **Real sends:** a copy a host publishes from the workspace runs as `staging` and stays a test copy;
-  only a production deploy, with `APP_ENV=production` and `NODE_ENV=production`, sends for real.
+- **Real sends:** a copy published to staging runs as `staging` and stays a test copy; only a
+  production deploy, with `APP_ENV=production` and `NODE_ENV=production`, sends for real.
 
 ## When a start stops
 
 - **A sentence ending "See README → Hosting requirements."**, such as "This host doesn't let Mercbot
   create its own sandboxes…" or "…no Xvfb or x11vnc…": the host lacks something
   bots' computers need, and Mercbot never starts with them quietly switched off.
-  `bash scripts/namespace.sh --check` checks the host alone. On a published copy, check that the
-  sandbox allowances are approved.
+  `bash scripts/namespace.sh --check` checks the host alone. On Staging or Production, check that
+  the sandbox allowances are approved.
 - **"Mercbot's AI isn't set up."**, then one sentence per setting to add or fix: add those AI
   settings in Env (step 1), then start again.
 - **"HOSTING_SCRIPT is …, which doesn't exist"**: `HOSTING_SCRIPT` names a file that isn't there;

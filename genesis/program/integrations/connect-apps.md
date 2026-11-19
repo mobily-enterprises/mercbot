@@ -250,8 +250,9 @@ answers a member 403 `integrations_home_app_forbidden`, and makes one home accou
   address the key is for, built from the credentials alone (Sedna: `https://<tenant>.sednanetwork.com/platform/2019-01-01`).
   The app turning the credentials down signs the account out with 409 `integrations_credentials_missing`. A sign-in,
   here or through the hub, is refused with 409 `integrations_credentials_only`; disconnecting clears the credentials.
-- Outside staging and production only (`isDeployed`, D-87), `MERCBOT_TEST_SEDNA_URL` points every tenant at the
-  stand-in Sedna (`tests/support/fakeSedna.mjs`, `credentialKinds` in `IntegrationsFeature.js`), for the Test Preview.
+- Outside staging and production only (`isStagingOrProduction`, D-87), `MERCBOT_TEST_SEDNA_URL` points every tenant at
+  the stand-in Sedna (`tests/support/fakeSedna.mjs`, `credentialKinds` in `IntegrationsFeature.js`), for the Test
+  Preview.
 
 **Who each person is at such an app** (`appPeople.js`, `plugin_account_people`, kept to the home):
 - `GET …/plugin-accounts/:accountId/people/me`: the call's person, `{ app, person, via }` with `person` their app user

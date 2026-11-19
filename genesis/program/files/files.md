@@ -222,9 +222,9 @@ files are kept.
   or saves, and after each renewal of the home's key (about hourly, in the
   background), never for a file; it keeps what it saw in `file_storage.drive_look`
   (`{folderId, folder: here|bin|missing, used, limit, at}`, nothing secret), told
-  only while `folderId` is still the home's folder. Outside production only, `MERCBOT_TEST_GOOGLE_DRIVE_URL`,
-  `_PROXY` and `_CA` name the stand-in Drive (`tests/support/fakeDrive.mjs`),
-  which the Test Preview starts.
+  only while `folderId` is still the home's folder. Outside staging and production only,
+  `MERCBOT_TEST_GOOGLE_DRIVE_URL`, `_PROXY` and `_CA` name the stand-in Drive
+  (`tests/support/fakeDrive.mjs`), which the Test Preview starts.
 
 - Choosing another place moves every file there first (D-80, `fileMoves`). `storage.choose` saves at once only the
   same place again, or `withoutFiles` when the files can't be read where they are (`unreadable`: a Drive to sign in

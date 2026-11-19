@@ -13,12 +13,12 @@
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { isDeployed } from "@jskit-ai/kernel/shared/support/appEnvironment";
+import { isStagingOrProduction } from "@jskit-ai/kernel/shared/support/appEnvironment";
 import { loadEnvFile } from "../server/lib/envFile.js";
 
 loadEnvFile();
 // Never on a staging or production server, whose settings are real (APP_ENV, D-87); anywhere else it runs as a test.
-if (String(process.env.APP_ENV ?? "").trim() && isDeployed(process.env)) {
+if (String(process.env.APP_ENV ?? "").trim() && isStagingOrProduction(process.env)) {
   console.error(`The template check never runs where APP_ENV is ${process.env.APP_ENV.trim()}: it runs as a test copy. Nothing was checked.`);
   process.exit(2);
 }

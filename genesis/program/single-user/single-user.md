@@ -46,4 +46,4 @@ Vibe64's Preview opens the copy the same way (`tools/preview-identity`, the Stac
 Test Preview's `.data-test`, else `MERCBOT_DATA_DIR`, else `.data`) and hands the browser the cookies it set; anyone
 else is refused (`mercbot_one_person`); signing out expires the key's cookie. In development (`bin/develop.js`) Vite
 serves the pages and hands `/open`, the API and Socket.IO to the server behind it, passing a request from its own page
-on as from the server's own address, so the gate checks it as it does in production.
+on as from the server's own address, so the gate checks it as it does outside development.

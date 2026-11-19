@@ -1,4 +1,4 @@
-import { isDeployed } from "@jskit-ai/kernel/shared/support/appEnvironment";
+import { isStagingOrProduction } from "@jskit-ai/kernel/shared/support/appEnvironment";
 import { FilesError } from "./fileStore.js";
 
 // A home's files kept in a person's own Google Drive (D-26, D-80), through a Google Drive account connected in Connect
@@ -21,7 +21,7 @@ const REACH = Object.freeze({ personal: true });
  */
 export function driveStandIn(env) {
   const url = String(env.MERCBOT_TEST_GOOGLE_DRIVE_URL || "").trim();
-  if (!url || isDeployed(env)) return null;
+  if (!url || isStagingOrProduction(env)) return null;
   return { url, proxy: String(env.MERCBOT_TEST_GOOGLE_DRIVE_PROXY || "").trim(), ca: String(env.MERCBOT_TEST_GOOGLE_DRIVE_CA || "").trim() };
 }
 

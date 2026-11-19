@@ -55,11 +55,11 @@ test("in staging and production, AUTH_LOCAL_EMAIL_CONFIRMATION is false unless i
   const confirmation = (env) => resolved(env).AUTH_LOCAL_EMAIL_CONFIRMATION;
   try {
     for (const APP_ENV of ["staging", "production"]) {
-      const deployed = { APP_ENV, NODE_ENV: "production", APP_PUBLIC_URL: "https://mercbot.example" };
-      for (const env of [deployed, { APP_ENV, NODE_ENV: "production" }, { ...deployed, AUTH_LOCAL_EMAIL_CONFIRMATION: "  " }]) {
+      const stagingOrProduction = { APP_ENV, NODE_ENV: "production", APP_PUBLIC_URL: "https://mercbot.example" };
+      for (const env of [stagingOrProduction, { APP_ENV, NODE_ENV: "production" }, { ...stagingOrProduction, AUTH_LOCAL_EMAIL_CONFIRMATION: "  " }]) {
         assert.equal(confirmation(env), "false", JSON.stringify(env));
       }
-      assert.equal(confirmation({ ...deployed, AUTH_LOCAL_EMAIL_CONFIRMATION: "true" }), "true", "set, it stands");
+      assert.equal(confirmation({ ...stagingOrProduction, AUTH_LOCAL_EMAIL_CONFIRMATION: "true" }), "true", "set, it stands");
       assert.equal(confirmation({ APP_ENV, NODE_ENV: "production", AUTH_LOCAL_EMAIL_CONFIRMATION: "false" }), "false", "set, it stands");
     }
     assert.equal(confirmation({ APP_ENV: "development" }), "");

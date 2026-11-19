@@ -1895,15 +1895,15 @@ them gives them `staging`, so they send nothing for real; a copy for real use se
 - **A copy says where it runs, or doesn't start:** `resolveRuntimeEnv` asks JSKIT (`assertAppEnvironment`) before
   anything else, so a start without `APP_ENV`, with an unknown one, with `SIDE_EFFECTS` set at all, or in staging or
   production without `NODE_ENV=production` stops with JSKIT's words, naming the fix. Code that asks where it runs
-  with an environment that names none (`appEnvironment`, `isDeployed`) throws, never guesses.
+  with an environment that names none (`appEnvironment`, `isStagingOrProduction`) throws, never guesses.
 - **Only production sends (D-69's list, unchanged):** what bots send from connected accounts (`sendOrSimulate`) and
   scripts' web calls other than GET (`webAccess.js`) act only in production. Development, test and staging log each
   one with JSKIT's line (`logSideEffect`: "Test: … was logged, not sent.", "Staging: … was logged, not sent: only
   production acts for real.") and answer as if it went out. Staging logs a connected mailbox's email too, as JSKIT
   logs every connector write there, rather than sending it to `STAGING_EMAIL_TO`: it would go out from the person's
   own account. Mercbot sends no email of its own, so it needs no `STAGING_EMAIL_TO` or `STAGING_SMS_TO`.
-- **Development shortcuts stop at staging:** what `NODE_ENV=production` turned off now follows `isDeployed` (staging
-  and production): the stand-in model (`MERCBOT_TEST_AI_URL`, D-83), the stand-in Google Drive
+- **Development shortcuts stop at staging:** what `NODE_ENV=production` turned off now follows JSKIT's
+  `isStagingOrProduction`: the stand-in model (`MERCBOT_TEST_AI_URL`, D-83), the stand-in Google Drive
   (`MERCBOT_TEST_GOOGLE_DRIVE_URL`, D-80) and a test copy's own template results (`MERCBOT_TEST_TEMPLATE_RESULTS`) are
   ignored there, as before. The https rule for `APP_PUBLIC_URL` (D-65) and `AUTH_LOCAL_EMAIL_CONFIRMATION=false` by
   default hold in staging and production. Staging always had `NODE_ENV=production`, so it behaves as before.
@@ -2113,8 +2113,8 @@ every team's inbox, so connecting it is the home's, not one person's, and what a
 - **Sedna's address is fixed:** the tenant is one DNS label (letters, digits and dashes; a pasted address is cut to
   it), and the host is always `<tenant>.sednanetwork.com`: nothing typed can point Mercbot anywhere else. Bots call
   the address integrations builds from the credentials, never one Sedna's answers name (an events page's next link
-  gives only its cursor). Outside staging and production only (`isDeployed`, D-87), `MERCBOT_TEST_SEDNA_URL` points
-  every tenant at the stand-in `tests/support/fakeSedna.mjs`.
+  gives only its cursor). Outside staging and production only (`isStagingOrProduction`, D-87),
+  `MERCBOT_TEST_SEDNA_URL` points every tenant at the stand-in `tests/support/fakeSedna.mjs`.
 - **Who each person is in Sedna, never someone else:** a person is the Sedna user with their sign-in address (JSKIT
   confirms an address before it is a person's; exactly one active user must have it). When none has it, they pick their
   own user in Connect apps, and the pick waits until an owner or admin of the home confirms it

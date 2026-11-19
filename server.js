@@ -227,11 +227,11 @@ function createServer({ runtimeEnv, gate }) {
 
 /**
  * Starts the server on the host and port given, else on the environment's HOST and PORT. It refuses to start, saying
- * which setting to fix, with a public address in production that isn't https (D-65; http on loopback only while it
- * listens on loopback), with a kind of AI naming a provider it doesn't accept (D-72), or, behind the single-user gate,
- * listening anywhere but loopback (D-81). A key it isn't given leaves that feature off: the log says so, one line a key
- * (keys.js). The gate is on unless `options.gate` is false (seam S1): a copy built on Mercbot that serves many people
- * passes `gate: false`.
+ * which setting to fix, with a public address in staging or production that isn't https (D-65; http on loopback only
+ * while it listens on loopback), with a kind of AI naming a provider it doesn't accept (D-72), or, behind the
+ * single-user gate, listening anywhere but loopback (D-81). A key it isn't given leaves that feature off: the log says
+ * so, one line a key (keys.js). The gate is on unless `options.gate` is false (seam S1): a copy built on Mercbot that
+ * serves many people passes `gate: false`.
  * @param {{ host?: string, port?: number, gate?: boolean }} [options]
  */
 async function startServer({ host, port, gate } = {}) {

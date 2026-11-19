@@ -69,8 +69,8 @@ templates a link opens, when a copy built on Mercbot keeps them (D-43).
   skills, `@jskit-ai/agent` and `agent-runtime`'s `src` as installed, the setup tools, approvals,
   drafts and sending, the chat kind's provider and model), each by its path in the list and its
   content, worked out once at start, the same on every server of a release (D-79). A result without
-  `behaviour` (one recorded under the old generation number) counts for none. Outside production
-  `MERCBOT_TEST_TEMPLATE_RESULTS` names another results file, as Test Previews do. `npm test` ends
+  `behaviour` (one recorded under the old generation number) counts for none. Outside staging and
+  production, `MERCBOT_TEST_TEMPLATE_RESULTS` names another results file, as Test Previews do. `npm test` ends
   with a warning (never a failure) counting the team's templates Not tested yet for the current
   fingerprint (`untestedCount`, `tests/support/unitRun.mjs`), and fails while a path the list names
   is missing.

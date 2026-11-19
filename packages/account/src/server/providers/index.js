@@ -1,4 +1,4 @@
-import { isDeployed } from "@jskit-ai/kernel/shared/support/appEnvironment";
+import { isStagingOrProduction } from "@jskit-ai/kernel/shared/support/appEnvironment";
 import { createMeteredFetch, keepingErrors } from "../meter.js";
 import { deepinfra } from "./deepinfra.js";
 import { gemini } from "./gemini.js";
@@ -75,7 +75,7 @@ export function settingOf(env, name) {
  */
 export function standInAddress(env) {
   const address = settingOf(env, "MERCBOT_TEST_AI_URL").replace(/\/+$/u, "");
-  return address && !isDeployed(env) ? address : "";
+  return address && !isStagingOrProduction(env) ? address : "";
 }
 
 // What a kind on the stand-in sends as its key: the stand-in needs none, and no provider ever sees it.

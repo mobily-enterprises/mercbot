@@ -4,7 +4,7 @@
 // end-to-end check in the database suite (tests/server/templateCheck.integration.js). It lives in tools/, which a
 // composition of Mercbot keeps, so a Preview of one runs on it too. startStandInModel() serves it on a local port; with
 // MERCBOT_TEST_AI_URL naming that address, the app sends every kind's requests there instead of to its provider
-// (outside production and the live copy, packages/account/src/server/providers/index.js), through Mercbot's own
+// (outside staging and production, packages/account/src/server/providers/index.js), through Mercbot's own
 // provider layers, metering and agent loop. A text kind's chat API (/<kind>/chat/completions) gets an OpenAI-style
 // answer, streamed when asked for; the images kind's Gemini API (/images/models/<model>:generateContent) gets a small
 // picture, or the contact details it was asked to read.

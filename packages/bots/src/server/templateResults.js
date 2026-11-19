@@ -3,7 +3,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { isDeployed } from "@jskit-ai/kernel/shared/support/appEnvironment";
+import { isStagingOrProduction } from "@jskit-ai/kernel/shared/support/appEnvironment";
 
 // The bot templates' end-to-end checks (D-43, D-79): what `npm run check:templates` found for each of Mercbot's own
 // templates, kept in one committed file and read when Mercbot starts, so the gallery and the preview before Add bot
@@ -169,7 +169,7 @@ export function readResults(file = RESULTS_FILE) {
  */
 export function resultsFileFor(env) {
   const own = String(env.MERCBOT_TEST_TEMPLATE_RESULTS || "").trim();
-  return own && !isDeployed(env) ? own : RESULTS_FILE;
+  return own && !isStagingOrProduction(env) ? own : RESULTS_FILE;
 }
 
 /**

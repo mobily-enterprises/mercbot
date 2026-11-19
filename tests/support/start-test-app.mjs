@@ -130,9 +130,9 @@ if (!process.env.MERCBOT_TEST_TEMPLATE_RESULTS) {
 if (process.env.MERCBOT_TEST_FIXTURES_DONE !== "1") await run(process.execPath, ["tests/support/fixtures.mjs"]);
 if (process.env.MERCBOT_TEST_FIXTURES_ONLY === "1") process.exit(0);
 
-// A production build, as deployed: Vite's development server rebuilds on demand, and a page that
-// opened mid-rebuild failed ("The application could not open"), most often in tests that open
-// several pages at once.
+// A production build, as staging and production serve one: Vite's development server rebuilds on
+// demand, and a page that opened mid-rebuild failed ("The application could not open"), most often in
+// tests that open several pages at once.
 if (process.env.MERCBOT_TEST_APP_BUILT !== "1") await run("npm", ["run", "build"]);
 
 // PORT 0: the system picks a free port just before the app starts, so runs side by side never

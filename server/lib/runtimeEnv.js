@@ -1,5 +1,5 @@
 import { assertAppEnvironment } from "@jskit-ai/kernel/server/runtime/appEnvironment";
-import { appEnvironment, isDeployed } from "@jskit-ai/kernel/shared/support/appEnvironment";
+import { appEnvironment, isStagingOrProduction } from "@jskit-ai/kernel/shared/support/appEnvironment";
 import { isLoopbackHost } from "@local/account/this-copy";
 import { loadEnvFile } from "./envFile.js";
 import { surfaceRuntime } from "./surfaceRuntime.js";
@@ -34,7 +34,7 @@ function resolveRuntimeEnv() {
     process.env.JSKIT_SERVER_SURFACE || process.env.SERVER_SURFACE
   );
   assertAppEnvironment(process.env);
-  const unconfirmed = isDeployed(process.env) && !String(process.env.AUTH_LOCAL_EMAIL_CONFIRMATION || "").trim();
+  const unconfirmed = isStagingOrProduction(process.env) && !String(process.env.AUTH_LOCAL_EMAIL_CONFIRMATION || "").trim();
   return {
     ...process.env,
     ...(unconfirmed ? { AUTH_LOCAL_EMAIL_CONFIRMATION: "false" } : {}),
@@ -54,7 +54,7 @@ function resolveRuntimeEnv() {
  * @param {import("@jskit-ai/kernel/server/types").RuntimeEnv} env
  */
 function checkPublicUrl(env) {
-  if (!isDeployed(env)) return;
+  if (!isStagingOrProduction(env)) return;
   const value = String(env.APP_PUBLIC_URL || "").trim();
   if (!value) return;
   const url = URL.canParse(value) ? new URL(value) : null;
