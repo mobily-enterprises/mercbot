@@ -4,7 +4,9 @@ What's new in Mercbot, newest first. To see which version you're using, open the
 
 ## 19 November 2026
 
-- **Sedna:** bots can read your teams' shared email in Sedna: the newest messages, messages by tag or job reference, one message with its comments and attachments' names, and lists of tags, job references, teams and contacts. An owner or admin connects it in **Connect apps** with API credentials made on Sedna's **API Credential Management** page. Bots read only your own Sedna teams, found by your email address, or by the Sedna user you pick and an owner or admin confirms. Nothing in Sedna changes yet.
+- **Sedna:** bots can read your teams' shared email in Sedna: the newest messages, messages by tag or job reference, one message with its comments and attachments' names, and lists of tags, job references, teams and contacts. An owner or admin connects it in **Connect apps** with API credentials made on Sedna's **API Credential Management** page. Bots read only your own Sedna teams, found by your email address, or by the Sedna user you pick and an owner or admin confirms.
+- **Working in Sedna:** bots can also write messages and replies for you on a draft card that sends from Sedna as you, from one of your teams, with a team's template or files from the bot's files. They can save and change your own Sedna drafts, tag messages, link job references, assign a message to a colleague (asking first), save attachments into the bot's files, and add or change contacts when you ask. A reply goes out as a new message with the original quoted, because Sedna's API can't answer inside a conversation's thread. A routine can work on new Sedna mail, a bounded batch each run, leaving sends for you. A copy that isn't live changes nothing in Sedna. Credentials another program uses with Sedna as a username and password work too: the username is the client ID, the password the client secret, and Mercbot uses them as a username and password when Sedna gives no key for them.
+- **Adding Sedna twice at once:** two owners or admins adding Sedna at the same moment now make one account for the home between them, instead of two empty ones.
 
 ## 15 November 2026
 

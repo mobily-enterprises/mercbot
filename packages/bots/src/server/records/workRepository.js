@@ -377,7 +377,7 @@ const REQUEST_FIELDS = Object.freeze([
   "toBotId", "toConversationId", "toMessageId", "turns", "updatedAt", "userId"
 ]);
 const ROUTINE_FIELDS = Object.freeze([
-  "botId", "conversationId", "createdAt", "cron", "enabled", "failures", "instructions", "lastRunAt", "name", "nextRunAt", "once", "runAttempts",
+  "botId", "conversationId", "createdAt", "cron", "enabled", "failures", "feeds", "instructions", "lastRunAt", "name", "nextRunAt", "once", "runAttempts",
   "runId", "runLeaseUntil", "runSteps", "schedule", "timezone"
 ]);
 /** A routine with no run in progress. */

@@ -71,8 +71,11 @@ export function createApprovals({ policies, match }) {
     return policy(options);
   }
 
-  /** Returns "ask" or "allow" for a write action described in plain words. */
-  async function decide(action, { reversible = false } = {}, options) {
+  /**
+   * Returns "ask" or "allow" for a write action described in plain words. `strict`: it asks unless a rule allows it, even
+   * with auto-review off, as a Sedna send or assignment in a routine's run does (D-94).
+   */
+  async function decide(action, { reversible = false, strict = false } = {}, options) {
     const { autoReview, rules } = await policy(options);
     let matched = [];
     try {
@@ -82,7 +85,7 @@ export function createApprovals({ policies, match }) {
     }
     if (matched.some((rule) => rule.behaviour === "ask")) return "ask";
     if (matched.some((rule) => rule.behaviour === "allow")) return "allow";
-    return autoReview && !reversible ? "ask" : "allow";
+    return strict || (autoReview && !reversible) ? "ask" : "allow";
   }
 
   return Object.freeze({

@@ -11,6 +11,7 @@ import { DRIVE_ACTIONS } from "./driveTools.js";
 import { GITHUB_ACTIONS } from "./githubTools.js";
 import { CONNECTOR_ACTIONS } from "./connectorTools.js";
 import { SIGN_IN_CODE_ACTIONS } from "./signInCodes.js";
+import { SEDNA_ACTIONS } from "./sednaActions.js";
 
 export const EMAIL_ADDRESS = /[^\s<>,;"]+@[^\s<>,;"]+\.[a-z]{2,}/iu;
 // Which code speaks to each calendar app (D-31).
@@ -271,7 +272,9 @@ export const ACTIONS = {
   // A change in an app that hosts its own connection point (D-34).
   ...CONNECTOR_ACTIONS,
   // A sign-in code the person said yes to, for a page outside a sign-in's chain (D-77).
-  ...SIGN_IN_CODE_ACTIONS
+  ...SIGN_IN_CODE_ACTIONS,
+  // The home's Sedna, changed as the person's own Sedna user (D-94).
+  ...SEDNA_ACTIONS
 };
 
 /** The centred event line shows the words and the name; the model also gets the schedule and next run. */

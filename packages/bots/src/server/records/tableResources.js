@@ -220,6 +220,8 @@ export const botRoutineResource = defineTableResource({
     cron: { type: "string", maxLength: 120, noTrim: true, nullable: true },
     enabled: { type: "boolean" },
     failures: { type: "integer" },
+    // Where the routine read each app's events feed up to (D-94), by account: { "sedna:<id>": { cursor, seen } }.
+    feeds: { type: "object", nullable: true, additionalProperties: true },
     instructions: { type: "string", noTrim: true },
     lastRunAt: { type: "dateTime", nullable: true },
     name: { type: "string", maxLength: 120, noTrim: true, required: true, search: true },

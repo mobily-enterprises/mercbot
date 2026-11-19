@@ -71,6 +71,12 @@ The bot adds a **Created routine** line with the routine's name, then tells you 
 
 If the instructions say to report only changes, and nothing has changed, the bot posts nothing at all for that run.
 
+### Routines on new Sedna mail
+
+A routine can work on the mail that comes into your Sedna teams, such as "every 15 minutes, tag new fixture recaps Fixtures, link them to their voyage and draft a reply for me to check." Each run reads only the mail that came in since its last run, in your own teams, oldest first. It can tag messages, link them to job references, write replies as draft cards for you to send, and post a summary. It never sends or assigns by itself unless one of your rules allows it.
+
+A run looks at 10 new messages at most. If more came in, it says so and the next run carries on from there: nothing is skipped. A run that fails reads the same mail again next time, so it may tag a message or write a draft for it twice. Its first run starts from when the routine was made: older mail isn't new to it. Routines on Sedna run only in your own chats with your bots.
+
 ### When a run fails
 
 A run that couldn't finish posts a short message saying so, and the routine tries again at its next scheduled time. If a routine fails five runs in a row, it pauses itself: the bot says so in its chat, with a **Paused routine** line, and the routine shows **Paused** in the Details panel. Resume it with its switch, or ask the bot to resume it, once whatever was wrong is fixed. A run that works, or resuming it, starts the count again.

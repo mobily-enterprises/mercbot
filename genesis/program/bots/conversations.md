@@ -111,6 +111,11 @@ onboarding and the bot's typed replies.
 - `packages/bots/src/server/sednaTools.js`
 - `packages/bots/src/server/sednaApi.js`
 - `tests/server/sednaTools.test.js`
+- `packages/bots/src/server/sednaActions.js`
+- `packages/bots/src/server/sednaChanges.js`
+- `tests/server/sednaWrites.test.js`
+- `tests/server/sednaWrites.integration.js`
+- `migrations/20261119180000_routine_feeds.cjs`
 - `packages/bots/src/server/githubActions.js`
 - `packages/bots/src/server/connectorTools.js`
 - `tests/server/connectorTools.test.js`
@@ -515,7 +520,9 @@ Current state note lists the connected accounts per app as "label · address"; w
 bot uses is that bot's choice in its own chat, and `remember` refuses to save it for all bots.
 An email draft with `from` set to a connected mailbox is sent from it when the person presses
 Send (`settleDraft` claims it as `sending`, then marks it `sent`, or puts it back to pending if
-the provider refuses); other drafts are still sent by the bot on its computer.
+the provider refuses); a Sedna draft (`body.sedna`) is sent from Sedna as the person's own user from its
+team (D-94), only from the person's own chat, and back to pending with `unsure` when Sedna didn't answer;
+other drafts are still sent by the bot on its computer.
 
 The rest of each external app (D-42) comes as grouped tools whose `action` picks one of
 several, each action its own switch in Connect apps (`tool.action`, e.g. `mail_drafts.send`); a tool
@@ -534,15 +541,27 @@ offers only the actions still on, and none at all when every one is off:
 - GitHub (`githubTools.js`): `github_code`, `github_pulls`, `github_issues`, `github_find` and
   `github_discussions` read; `github_change` and `github_discussions` change, from one table of
   actions (GraphQL for discussions and drafts).
-- Sedna (`sednaTools.js`, `sednaApi.js`, D-93), offered only on the person's own turn in their own chat once the
-  home's Sedna is connected (`toolSwitches.connected`): `sedna_messages` (recent, by_tag, by_job, read) and
-  `sedna_lists` (tags, jobs, teams, contacts), reads only, as the person's own Sedna user
-  (`connections.appPerson`, found once a reply; a person who is no one in Sedna is told why and what to do). Lists of
-  messages ask Sedna for the person's teams (`filter[team]`) and drop messages naming other teams only; recent reads up
-  to five pages of the events feed (only the next page's cursor is taken from Sedna's link) and opens each message; a
-  message read by id is checked against the person's teams, from its answer or `GET /message/:id/team`, before
-  anything of it is shown. Subjects, senders, text and comments are wrapped as information. A 429 is waited out once
-  when its Retry-After is 30 seconds or less, then reported; a refused key is made again once.
+- Sedna (`sednaTools.js`, `sednaApi.js` for reads, `sednaChanges.js` for writes, `sednaActions.js`, D-93, D-94), offered only on the person's own turn in their
+  own chat once the home's Sedna is connected (`toolSwitches.connected`), as the person's own Sedna user
+  (`connections.appPerson`, found once a reply; a person who is no one in Sedna is told why and what to do). Reads:
+  `sedna_messages` (recent, by_tag, by_job, read, with who a message is assigned to), `sedna_lists` (tags, jobs, teams,
+  contacts, contact, templates, template) and `sedna_attachments` (list, save, save_all into
+  `/files/mine/Sedna/<subject>/`, at most 10 files or 60 MB a call, from Sedna's signed link fetched without its key).
+  Lists of messages ask Sedna for the person's teams (`filter[team]`) and drop messages naming other teams only; recent
+  reads up to five pages of the events feed (only the next page's cursor is taken from Sedna's link) and opens each
+  message; a message read by id is checked against the person's teams, from its answer or `GET /message/:id/team`,
+  before anything of it is shown. Writes, each an ACTIONS entry through `approvals.decide` and `sendOrSimulate`:
+  `sedna_draft` (one draft card a reply, or one a message handed in a routine's run, from "Name · Team (Sedna)", its
+  team, answered message, template and files in `body.sedna`; Send in `botCards.js`), `sedna_mail` (send, save_draft,
+  update_draft, send_draft, attach), `sedna_sort` (tag, untag, link_job, unlink_job, create_job only when the person
+  asked), `sedna_assign` (assign, to an active colleague in the message's teams) and `sedna_contacts` (create, update,
+  only when asked). `fromUser` and `fromTeam` are always the person's and one of their teams; a message, draft, tag,
+  job reference, template or contact outside them is refused before any write. A reply is a new message to the
+  sender with "Re:" and the original quoted (no answer field in the API). A routine's run also gets `sedna_inbox`
+  (new): `event.message.received` since its last good run, at most 10 messages a run, the position kept per account in
+  `bot_routines.feeds` by `botReplies.js` as the run ends well. Subjects, senders, text and comments are wrapped as
+  information. A 429 is waited out once when its Retry-After is 30 seconds or less, then reported; a refused key is
+  made again once; a change Sedna didn't answer (`SednaUncertainError`) is never tried again.
 - apps that host their own connection point (`connectorTools.js`, D-34: Calendly, Notion, Todoist):
   `connected_app_actions` (an app's actions with their inputs and whether they change anything, the
   app's guidance, and the switched-off ones; or one action's whole description and input schema) and
@@ -635,6 +654,8 @@ ordinary message and marks the bot unread, posts nothing when the bot calls
 A claimed run holds its routine with a run id (`run_id`, a UUID) and a 90-second lease
 (`run_lease_until`, on the database's clock) that its server renews every 20 seconds
 (`runLease.js`), and saves its steps in `run_steps`; a routine with a run going isn't due again.
+Where its runs have read an app's events feed up to (`feeds`, D-94: Sedna's, by account) is written by the server
+holding the run as it ends well, with its post or quietly; a failed run reads the same events again.
 When nothing is due, the loop takes over a run whose lease lapsed (its server stopped, D-59) with a
 new run id, so the old server's heartbeat, steps and ending no longer match, and carries it on
 from its saved steps; a run whose routine was paused or whose next run has come ends unrun

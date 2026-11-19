@@ -139,31 +139,36 @@ written to the log.
    says Todoist isn't connected any more and offers to reconnect. Then **Disconnect** in Connect apps.
 5. Verdict.
 
-## Apps connected with a home's API credentials: Sedna (D-93, built 2026-11-19)
+## Apps connected with a home's API credentials: Sedna (D-93, D-94, built 2026-11-19)
 
 Sedna (sedna.com, a shared email for shipping teams) has no sign-in for other apps: an admin of the Sedna
 organisation makes API credentials on its API Credential Management page (in Sedna, Settings → API Credential
 Management, at `https://<tenant>.sednanetwork.com/platform/settings/api-credential-management`), and an owner or
 admin of the home enters them in Connect apps. If that page isn't there, the organisation's Sedna plan may not include
-the API: ask Sedna's support. The first slice reads only. Checked against developers.sedna.com on 2026-11-19;
-nothing was asked of Sedna.
+the API: ask Sedna's support. Bots read (D-93), and write and run routines on new mail (D-94), always as the
+person's own Sedna user. Checked against developers.sedna.com on 2026-11-19; nothing was asked of Sedna. Credentials
+another program uses with Sedna's API as a username and password (Basic auth) are the same credential: the username is
+the client ID, the password the client secret. Mercbot asks Sedna for a key with them first, and uses them as Basic
+auth when Sedna gives none; the account works the same either way.
 
 ### The five-minute test, on a real tenant
 
-Needs a Sedna organisation, credentials that may at least read (company, users, teams, messages, events, comments,
-tags, job references, contacts and documents), and a Mercbot home whose owner's email is a Sedna user's (else pick
+Needs a Sedna organisation, credentials that may at least read (COMPANY_READ, USER_READ, TEAM_READ, MESSAGE_READ, EVENT_READ, CATEGORYTAG_READ, JOBREFERENCE_READ, COMMENT_READ, DOCUMENT_READ, TEMPLATE_READ and CONTACT_READ), and a Mercbot home whose owner's email is a Sedna user's (else pick
 yourself in step 1).
 
 1. Connect: Connect apps → Sedna → **Connect**, type the tenant (the *X* of X.sednanetwork.com), the client ID and
    secret, and **Save**. First a wrong secret: the form says Sedna didn't accept it, and nothing is saved. Then the
    right one: the account shows Connected, named by the company, and the note counts the people found by email.
-   **Who you are in Sedna** names your user and your teams; with no match, find yourself and **This is me**.
+   **Who you are in Sedna** names your user and your teams; with no match, find yourself and **This is me**. A
+   credential without COMPANY_READ is named as missing it, not as wrong.
 2. Read: "What came into my Sedna today?", then "Show me the messages on job VOY-123" (a real job reference) and
    "Read the first one with its comments." Real messages of your own teams only, with senders and dates.
 3. Teams: as a person of the home in a different Sedna team (or after **That's not me** and picking a user in another
    team, confirmed by an owner), ask for a message id from step 2 that's only in your team: the bot says it isn't in
    their teams and shows nothing of it. A member who picks themselves reads nothing until an owner or admin confirms
-   it under **People**.
+   it under **People**. Also note whose the credential is (Sedna's docs don't say): if a person in a team the
+   credential's maker isn't in reads their own team's mail, it reads the whole organisation; if they get nothing, it
+   reads only as its maker.
 4. Break: delete the credential on Sedna's API Credential Management page, wait for the hourly key to run out (or
    **Change credentials** with a wrong secret, which is refused and keeps the old ones), then ask the step 2 question
    again. The bot says Sedna isn't connected and that an owner or admin enters the credentials again; Connect apps
@@ -171,3 +176,39 @@ yourself in step 1).
 5. Verdict, as above. Also note what the real tenant answered where the documentation is silent: the events feed's
    order and how far back it goes, whether `filter[user.search]` finds people by email, and whether a token can be
    asked for with read scopes only.
+
+### Writes, on a real tenant (another five minutes)
+
+Writes are real only in a copy with `APP_ENV=production`; any other copy makes every check, then logs the change
+(`appEnv` in the server log) and says "logged, not done in Sedna". So first run steps 1 to 3 below in a test copy
+against the real tenant: Sedna must show nothing new. Then run them in the live copy, in a Sedna team made for the
+test (a test team with one test address of yours, or a team the organisation agrees can see a test message), and undo
+what they did afterwards. The credential needs the read permissions above and MESSAGE_WRITE, MESSAGE_DELETE,
+JOBREFERENCE_WRITE and CONTACT_WRITE.
+
+1. Draft and send: "Reply to <a message in the test team>: say we'll confirm tomorrow." A Sedna draft card, from you
+   and the team, "Re:" the subject, with the note that it goes out as a new message. Edit a word, **Send**: it folds
+   to "Sent from Sedna", and the message is in the team's Sent in Sedna, from your user, with the original quoted.
+   Check whether Sedna shows it in the conversation's thread or apart (the API has no answer field). In a test copy
+   it folds to "Logged, not sent (test copy)" and Sedna has nothing. Then a second person of the home, who isn't the
+   credential's maker, sends one the same way: Sedna must show their user as the sender. If it shows the maker (or
+   refuses the send), Sedna ties the credential to its maker whatever `fromUser` says: stop writes for other people and
+   record it in D-94.
+2. Sort and assign: "Tag it <a tag>, link it to <a job reference>, and assign it to <a colleague in the team>." The
+   tag and link happen; the assignment asks first (it notifies them) unless you said exactly that. Check in Sedna who
+   it shows made the change (your user, or the API's). Then untag and unlink it by asking; unassign in Sedna itself.
+3. Files, templates, contacts: "Save its attachments to my files", "Draft a message to me from the <template> template
+   and attach the file you saved", "Add a contact Ana Test, ana@example.com". The files are in the bot's files under
+   Sedna; the draft card shows the template's text and the file; the contact is in the team's contacts only after you
+   asked for it. Delete the contact in Sedna afterwards.
+4. Refusals: ask the bot to send as a colleague ("send it from Sam"): it sends only as you. Ask about a message of a
+   team you're not in: nothing of it is shown and nothing changes. In a shared bot's room, ask for a Sedna draft: the
+   bot says Sedna is used only in each person's own chat.
+5. Routine: "Every 15 minutes, tag new mail in my team Test and draft a reply for me to check." Send a message to the
+   team from outside, wait for the run: it's tagged and a draft card waits, nothing sent. Send 12 at once: the run
+   says it looked at 10 and the next one carries on; all 12 are tagged in the end. Pause the routine afterwards.
+
+Note what the tenant answered where the documentation is silent: the events feed's order, whether
+`/event/latest`'s next link is the cursor after it, whether a draft's answer has `relationships.sender` and a null
+`sentAt`, the id in the answers to `POST /message` and `POST /message/send`, whether `base64Content` upload works, who
+tags and assignments show as made by, whether `PUT /contact` replaces the whole contact, and templates' teams.

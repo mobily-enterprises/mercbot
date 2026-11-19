@@ -71,7 +71,9 @@ async function setup(context) {
   const integrations = createIntegrationsService({ resources, accounts, catalogue, connections, profiles, systemContext });
   const as = (id, manage = false) => requestContextOptions({ user: { id }, workspace: { id: homeId }, permissions: manage ? MANAGE : [] });
   const good = { tenant: "https://acme.sednanetwork.com/", clientId: sedna.clientId, clientSecret: sedna.clientSecret };
-  return { knex, sedna, connections, accounts, integrations, account, homeId, people: { pat, lee, sam, kim, ari }, as, good };
+  // The service on other accounts (a test that holds their reads).
+  const serviceWith = (changed) => createIntegrationsService({ resources, accounts: changed, catalogue, connections, profiles, systemContext });
+  return { knex, sedna, connections, accounts, integrations, serviceWith, account, homeId, people: { pat, lee, sam, kim, ari }, as, good };
 }
 
 test("credentials are checked with Sedna before they're saved, sealed, and match the home's people by email", async (context) => {
@@ -194,7 +196,14 @@ test("a bot reads only its person's Sedna teams, through the whole chain", async
   };
   const botOf = (userId) => buildSednaTools({
     appFor: () => ({ integrations, reach: { userId, personal: true }, call: as(userId) }),
+    attempt: async () => ({ error: "No changes in this test." }),
     attempted: [],
+    files: { store: {} },
+    place: {},
+    keep: async () => {
+      throw new Error("No files are kept in this test.");
+    },
+    after: [],
     removed: [],
     failed: (error) => {
       if (error?.constructor?.name === "ConnectedAppError" || error?.statusCode) return { error: error.message };
@@ -222,6 +231,51 @@ test("a bot reads only its person's Sedna teams, through the whole chain", async
   assert.match((await botOf(kim).sednaMessages.execute({ action: "recent" })).error, /isn't matched to a Sedna user/u);
 });
 
+test("credentials Sedna takes only as a username and password (Basic auth) connect the same way, and bots read with them; one without COMPANY_READ is named as missing it", async (context) => {
+  const { sedna, connections, accounts, account, people: { pat }, as, good } = await setup(context);
+  // Without COMPANY_READ, Sedna takes the credential but won't name the company: Connect names the permission, by a key
+  // and as Basic auth alike, rather than calling the credential wrong.
+  sedna.state.forbidden = ["/company/me"];
+  const noCompany = { code: "integrations_sedna_permission_missing", message: /give them COMPANY_READ/u };
+  await assert.rejects(connections.saveCredentials(REACH, account.id, good, as(pat, true)), noCompany);
+  // Sedna's token endpoint turns this credential down, as for one an organisation uses only as Basic auth elsewhere.
+  sedna.state.basicOnly = true;
+  const basicFrom = sedna.requests.length;
+  await assert.rejects(connections.saveCredentials(REACH, account.id, good, as(pat, true)), noCompany);
+  sedna.state.forbidden = [];
+  await assert.rejects(connections.saveCredentials(REACH, account.id, { ...good, clientSecret: "wrong" }, as(pat, true)), { code: "integrations_credentials_refused" });
+  const saved = await connections.saveCredentials(REACH, account.id, good, as(pat, true));
+  assert.equal(saved.label, "Acme Shipping");
+  const integrations = {
+    reachableAccounts: async (reach, call) => (await accounts.reachable(reach, call)).filter((entry) => entry.pluginId === "sedna" && entry.status === "connected"),
+    connections
+  };
+  const bot = buildSednaTools({
+    appFor: () => ({ integrations, reach: { userId: pat, personal: true }, call: as(pat) }),
+    attempt: async () => ({ error: "No changes in this test." }),
+    attempted: [],
+    files: { store: {} },
+    place: {},
+    keep: async () => {
+      throw new Error("No files are kept in this test.");
+    },
+    after: [],
+    removed: [],
+    failed: (error) => {
+      if (error?.constructor?.name === "ConnectedAppError" || error?.statusCode) return { error: error.message };
+      throw error;
+    },
+    statusLine: z.string().optional(),
+    inTime: (work) => work,
+    untrustedMail: (text) => text
+  });
+  const recent = await bot.sednaMessages.execute({ action: "recent" });
+  assert.deepEqual(recent.result.messages.map((entry) => entry.id), ["1003", "1001"]);
+  const reads = sedna.requests.slice(basicFrom).filter((entry) => entry.route.startsWith("/2019-01-01/"));
+  assert.ok(reads.length > 2);
+  assert.deepEqual([...new Set(reads.map((entry) => entry.scheme))], ["Basic"], "every call as Basic auth, none with a key");
+});
+
 test("only the home's owners and admins add Sedna, and only for everyone in the home", async (context) => {
   const { knex, connections, integrations, account, homeId, people: { pat, lee, sam }, as, good } = await setup(context);
   await knex("plugin_accounts").where({ id: account.id }).del();
@@ -240,4 +294,32 @@ test("only the home's owners and admins add Sedna, and only for everyone in the 
   const seen = (await integrations.list(REACH, as(sam))).plugins.find((entry) => entry.id === "sedna");
   assert.deepEqual([seen.installed, seen.accounts.map((entry) => [entry.status, entry.label])], [false, [["connected", "Acme Shipping"]]]);
   assert.deepEqual((await integrations.toolSwitches(REACH, as(sam))).connected, ["sedna"]);
+});
+
+test("two owners adding Sedna at the same moment make one home account between them", async (context) => {
+  const { knex, accounts, serviceWith, account, homeId, people: { pat, lee }, as } = await setup(context);
+  await knex("plugin_accounts").where({ id: account.id }).del();
+  // Each looks for the home's account and finds none before either makes one: the race, every time.
+  const looked = [];
+  let both;
+  const met = new Promise((resolve) => { both = resolve; });
+  const racing = serviceWith({
+    ...accounts,
+    async reachable(reach, call, query) {
+      const found = await accounts.reachable(reach, call, query);
+      if (query?.filters?.homeOnly && looked.length < 2) {
+        looked.push(found.length);
+        if (looked.length === 2) both();
+        await met;
+      }
+      return found;
+    }
+  });
+  await Promise.all([racing.install(REACH, "sedna", as(pat, true)), racing.install(REACH, "sedna", as(lee, true))]);
+  assert.deepEqual(looked, [0, 0]);
+  const made = await knex("plugin_accounts").where({ workspace_id: homeId, plugin_id: "sedna" });
+  assert.equal(made.length, 1, "the second found the first's");
+  // The index keeps it so for any other writer; an account added for everyone with a label isn't held to it.
+  await assert.rejects(knex("plugin_accounts").insert({ user_id: lee, workspace_id: homeId, plugin_id: "sedna", name: "" }), { code: "23505" });
+  await knex("plugin_accounts").insert({ user_id: lee, workspace_id: homeId, plugin_id: "sedna", name: "Second desk" });
 });

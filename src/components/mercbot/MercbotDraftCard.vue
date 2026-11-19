@@ -3,7 +3,8 @@ import { computed, ref } from "vue";
 
 // A message the bot wrote for the person to send as themselves: an
 // editable card with From, In reply to, To and Cc, sent only by Send (or by telling the bot to).
-// Once sent it folds into one row that opens again.
+// Once sent it folds into one row that opens again. A Sedna message (D-94) says its team in From, its
+// attachments, and, for a reply, that it goes out as a new message that may show outside Sedna's thread.
 const props = defineProps({
   message: { type: Object, required: true },
   // In a group, whom the draft is waiting for when it isn't the person looking (D-46).
@@ -19,8 +20,11 @@ const pending = body.status === "pending" && !props.waitingFor;
 const sending = ref(false);
 const open = ref(false);
 const isMail = Boolean(body.from || body.subject !== undefined || body.inReplyTo);
+const sedna = body.sedna || null;
+const kind = sedna ? "Sedna" : isMail ? "Mail" : "Message";
+const attached = (sedna?.files || []).map((path) => String(path).split("/").pop()).join(", ");
 const sentText = computed(() => ({
-  sent: `Sent email · ${body.to}`,
+  sent: body.simulated ? `Logged, not sent (test copy) · ${body.to}` : `${sedna ? "Sent from Sedna" : "Sent email"} · ${body.to}`,
   send: `Sent on your OK · ${body.to}`,
   sending: `Sending · ${body.to}`
 }[body.status] || ""));
@@ -43,7 +47,8 @@ function send() {
   <section class="mb-draft" :class="{ 'mb-draft--folded': !pending && body.status !== 'discarded' }" :aria-label="`Draft to ${body.to}`">
     <p v-if="waitingFor && body.status === 'pending'" class="mb-draft__waiting">Waiting for {{ waitingFor }} to send or discard it</p>
     <template v-if="pending || body.status === 'discarded'">
-      <p class="mb-draft__head"><v-icon icon="$mail" size="16" />{{ isMail ? "Mail" : "Message" }}<span v-if="body.status === 'discarded'" class="mb-draft__gone">· Discarded, not sent</span></p>
+      <p class="mb-draft__head"><v-icon icon="$mail" size="16" />{{ kind }}<span v-if="body.status === 'discarded'" class="mb-draft__gone">· Discarded, not sent</span></p>
+      <p v-if="pending && body.unsure" class="mb-draft__waiting">It isn't known whether the last try went: check Sent in Sedna before you press Send again.</p>
       <input v-if="pending && body.subject !== undefined" v-model="subject" class="mb-draft__subject" aria-label="Subject">
       <p v-else-if="body.subject" class="mb-draft__subject mb-draft__subject--read">{{ body.subject }}</p>
       <dl class="mb-draft__rows">
@@ -58,7 +63,9 @@ function send() {
           <dd><input v-if="pending" v-model="cc" class="mb-draft__field" placeholder="name@example.com" aria-label="Cc"><template v-else>{{ body.cc }}</template></dd>
         </div>
         <div v-if="!body.from" class="mb-draft__row"><dt>Via</dt><dd>{{ body.via }}</dd></div>
+        <div v-if="attached" class="mb-draft__row"><dt>Attached</dt><dd>{{ attached }}</dd></div>
       </dl>
+      <p v-if="sedna?.replyTo" class="mb-draft__note">Goes out as a new message with theirs quoted below: Sedna may show it outside that conversation's thread.</p>
       <textarea v-if="pending" v-model="text" class="mb-draft__text" rows="7" aria-label="Message" />
       <p v-else class="mb-draft__sent">{{ body.text }}</p>
       <div v-if="pending" class="mb-draft__actions">
@@ -82,7 +89,7 @@ function send() {
     <template v-else>
       <button type="button" class="mb-draft__fold" :aria-expanded="open" @click="open = !open">
         <v-icon icon="$mail" size="16" />
-        <span>{{ isMail ? "Mail" : "Message" }}</span>
+        <span>{{ kind }}</span>
         <span class="mb-draft__gone">{{ sentText }}</span>
         <v-icon :icon="open ? '$collapse' : '$expand'" size="16" class="mb-draft__chevron" />
       </button>
@@ -92,6 +99,7 @@ function send() {
           <div v-if="body.from" class="mb-draft__row"><dt>From</dt><dd>{{ body.from }}</dd></div>
           <div class="mb-draft__row"><dt>To</dt><dd>{{ body.to }}</dd></div>
           <div v-if="body.cc" class="mb-draft__row"><dt>Cc</dt><dd>{{ body.cc }}</dd></div>
+          <div v-if="attached" class="mb-draft__row"><dt>Attached</dt><dd>{{ attached }}</dd></div>
         </dl>
         <p class="mb-draft__sent">{{ body.text }}</p>
       </template>
@@ -238,6 +246,12 @@ function send() {
   font-size: 12px;
   color: rgb(var(--v-theme-on-surface-variant));
   cursor: pointer;
+}
+
+.mb-draft__note {
+  margin: 0;
+  font-size: 12px;
+  color: rgb(var(--v-theme-on-surface-variant));
 }
 
 .mb-draft__sent {

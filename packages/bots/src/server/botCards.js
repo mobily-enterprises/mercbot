@@ -3,6 +3,8 @@ import { ACTIONS, APPROVAL_OPTIONS, EMAIL_ADDRESS } from "./botActions.js";
 import { MAIL } from "./mailTools.js";
 import { saveLogin } from "./vaultLogins.js";
 import { ConnectedAppError, connectedKey, sendOrSimulate } from "./connectedApps.js";
+import { sendSednaMessage } from "./sednaActions.js";
+import { SednaUncertainError } from "./sednaApi.js";
 import { BotsError } from "./botsError.js";
 import { toBot } from "./botRows.js";
 
@@ -18,8 +20,10 @@ import { toBot } from "./botRows.js";
  * @param {import("@local/integrations/server/types").Integrations} dependencies.integrations
  * @param {import("./types.js").BotConversations} dependencies.conversations
  * @param {import("./types.js").BotRequests} dependencies.requests
+ * @param {import("@local/files/server/types").Files} dependencies.files the bot's files, which an approved action or a
+ *   Sedna draft's Send attaches
  */
-export function createBotCards({ records, account, env, computer, integrations, conversations, requests }) {
+export function createBotCards({ records, account, env, computer, integrations, conversations, requests, files }) {
   const { conversations: store, messages, work } = records;
 
   /**
@@ -69,7 +73,9 @@ export function createBotCards({ records, account, env, computer, integrations, 
             userId: actor.user_id,
             botId: actor.id,
             conversationId: actor.conversation_id,
-            computerId
+            computerId,
+            files,
+            place: files.store.placeFor(actor, actor.user_id)
           },
           choice.body.action.args
         );
@@ -195,6 +201,8 @@ export function createBotCards({ records, account, env, computer, integrations, 
       to: edited("to"),
       ...(edited("cc") ? { cc: edited("cc") } : {})
     };
+    // A Sedna message goes out as the person's own Sedna user from their team (D-94), in a live copy; a test copy logs it.
+    if (send && message.body.sedna) return sendSednaCard(row, actor, message, body, options);
     // An email from a connected mailbox goes straight out from it (D-31), in a live copy; a test
     // copy logs it instead and marks the card sent (D-69). Anything else is sent by the bot on its
     // computer once it hears about the Send.
@@ -239,6 +247,53 @@ export function createBotCards({ records, account, env, computer, integrations, 
       return { bot: toBot(row), messages: [sent] };
     }
     return { bot: toBot(row), messages: [await messages.setBody(message.id, { ...body, status: send ? "send" : "discarded" }, options)] };
+  }
+
+  /**
+   * Send on a Sedna draft card (D-94): the press is the person's approval. Claimed first, so a second press (or another
+   * server) can't send it twice, then sent as the person's own Sedna user from the card's team, never in a room or a group
+   * others read; a reply quotes the answered message, read again in their teams. A failure puts the card back with what
+   * happened; one where it isn't known whether it went says to check Sedna first, and nothing tries again by itself.
+   */
+  async function sendSednaCard(row, actor, message, body, options) {
+    const addresses = String(body.to || "").match(new RegExp(EMAIL_ADDRESS.source, "giu")) || [];
+    if (!addresses.length) {
+      throw new BotsError(400, "This draft has no email address to send to. Ask the bot to add one.", { code: "bots_draft_recipient_missing" });
+    }
+    if (!(await messages.claimBody(message.id, "pending", { ...body, status: "sending" }, options))) {
+      throw new BotsError(409, "That draft has already been dealt with.", { code: "bots_draft_closed" });
+    }
+    let sent;
+    try {
+      sent = await sendSednaMessage(
+        { call: options, env, integrations, reach: conversations.reachOf(actor), files, place: files.store.placeFor(actor, actor.user_id) },
+        {
+          team: body.sedna.team?.id,
+          to: body.to,
+          cc: body.cc,
+          subject: body.subject ?? "",
+          text: body.text,
+          replyTo: body.sedna.replyTo,
+          files: body.sedna.files
+        }
+      );
+    } catch (error) {
+      const unsure = error instanceof SednaUncertainError;
+      await messages.setBody(message.id, { ...body, status: "pending", ...(unsure ? { unsure: true } : {}) }, options);
+      if (error instanceof ConnectedAppError) {
+        throw new BotsError(502, `It wasn't sent: ${error.message}`, { code: "bots_draft_send_failed", params: { reason: error.message } });
+      }
+      throw error;
+    }
+    const done = await messages.setBody(message.id, {
+      ...body,
+      status: "sent",
+      sentAt: new Date().toISOString(),
+      ...(sent.result?.simulated ? { simulated: true } : {})
+    }, options);
+    // The event line says what went where, as an approved action's does.
+    const { result: _result, ...line } = sent;
+    return { bot: toBot(row), messages: [done, ...(await conversations.append(row, [line], options))] };
   }
 
   /** The person cancels a request from either card (D-46). */

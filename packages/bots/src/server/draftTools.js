@@ -13,11 +13,12 @@ import { MAIL } from "./mailTools.js";
  * @param {import("./types.js").CallOptions} shared.call the turn's call options
  * @param {string} shared.conversationId
  * @param {boolean} shared.viaBot
+ * @param {boolean} [shared.routineRun] a routine's run, which never sends a Sedna draft card: the person presses Send
  * @param {import("./types.js").SettleDraft} shared.settleDraft
  * @param {import("./types.js").AppFor} shared.appFor
  * @param {object[]} shared.after
  */
-export function buildDraftTools({ turns, call, conversationId, viaBot, settleDraft, appFor, after }) {
+export function buildDraftTools({ turns, call, conversationId, viaBot, routineRun = false, settleDraft, appFor, after }) {
   const tools = {};
   async function showDraft({ replyTo, to, cc, via, from, subject, text }) {
     if (after.some((message) => message.kind === "draft")) return { status: "already shown" };
@@ -113,6 +114,8 @@ export function buildDraftTools({ turns, call, conversationId, viaBot, settleDra
     if (viaBot) return { error: "Only the person can send this: they press Send on the card, or tell you in their own chat." };
     const draft = await latestDraft();
     if (!draft) return { error: "There's no draft waiting to be sent." };
+    // A Sedna draft a routine wrote waits for the person's Send (D-94).
+    if (routineRun && draft.body.sedna) return { error: "A routine never sends a Sedna draft: the person presses Send on its card." };
     try {
       const { messages } = await settleDraft(draft.id, { action: "send" });
       return messages[0]?.body.status === "sent"

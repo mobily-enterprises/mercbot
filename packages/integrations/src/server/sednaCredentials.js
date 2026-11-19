@@ -3,9 +3,12 @@ import { ConnectionError } from "./oauth.js";
 
 // Sedna (sedna.com, the shipping teams' shared email) connected with API credentials (D-93): an admin of the Sedna
 // organisation makes a client id and secret in Sedna (Settings → API credential management), and Mercbot gets an hourly
-// key for them with OAuth 2.0 client credentials at https://<tenant>.sednanetwork.com/platform/oauth/token. The host is
+// key for them with OAuth 2.0 client credentials at https://<tenant>.sednanetwork.com/platform/oauth/token, or, when the
+// token endpoint turns them down, uses them as Sedna's docs also allow: as a username and password (Basic auth, D-94),
+// the way another program may already reach the organisation's API. The host is
 // always <tenant>.sednanetwork.com, the tenant one DNS label: no value entered can point Mercbot anywhere else. A key
-// reads the whole organisation, every team's inbox, so who a Mercbot person is in Sedna (their user, found by their
+// may read the whole organisation, every team's inbox (Sedna's docs don't say a credential is limited to its maker's
+// teams), so who a Mercbot person is in Sedna (their user, found by their
 // email address or picked once and confirmed, appPeople.js) decides whose teams their bots read
 // (packages/bots/src/server/sednaApi.js).
 // API reference: https://developers.sedna.com/llms.txt (Authentication, Company, User).
@@ -17,6 +20,17 @@ const API_VERSION = "2019-01-01";
 const LOOKUPS_AT_ONCE = 5;
 // People matched while credentials are checked; the rest are matched when they first ask.
 const PEOPLE_CHECKED = 50;
+// Credentials Sedna takes only as Basic auth are checked with it again this often, as a key would be made again.
+const BASIC_RECHECK_S = 3600;
+// The permission (Sedna's name on its API Credential Management page) each read made at Connect needs.
+const PERMISSION = { company: "COMPANY_READ", user: "USER_READ and TEAM_READ" };
+
+/**
+ * The Authorization header for a key: one from Sedna's token endpoint is a bearer token; credentials Sedna takes as a
+ * username and password are kept as their whole "Basic …" header (mint).
+ * @param {string} access
+ */
+const authorization = (access) => (String(access).startsWith("Basic ") ? String(access) : `Bearer ${access}`);
 
 /**
  * The tenant, the X of X.sednanetwork.com: what the person typed, or their Sedna address pasted whole.
@@ -60,12 +74,13 @@ export function createSednaCredentials({ standIn = "", fetch: fetchImpl = (...ar
   async function read(values, access, path, params = {}) {
     const url = new URL(`${platform(values)}/${API_VERSION}${path}`);
     for (const [name, value] of Object.entries(params)) url.searchParams.set(name, String(value));
-    const response = await send(url, { headers: { authorization: `Bearer ${access}`, accept: "application/vnd.api+json, application/json", "user-agent": "Mercbot" } }, values);
+    const response = await send(url, { headers: { authorization: authorization(access), accept: "application/vnd.api+json, application/json", "user-agent": "Mercbot" } }, values);
     if (response.ok) return response.json().catch(() => ({}));
     if (response.status === 403) {
-      throw new ConnectionError(400, `These API credentials may not read ${path.split("/")[1]} in Sedna. Give them the read permissions Connect apps lists.`, {
+      const what = path.split("/")[1];
+      throw new ConnectionError(400, `These API credentials may not read ${what} in Sedna: give them ${PERMISSION[what]} (Connect apps lists every permission bots use).`, {
         code: "integrations_sedna_permission_missing",
-        params: { what: path.split("/")[1] }
+        params: { what, permission: PERMISSION[what] }
       });
     }
     if (response.status === 429) {
@@ -89,8 +104,11 @@ export function createSednaCredentials({ standIn = "", fetch: fetchImpl = (...ar
   }
 
   /**
-   * An hourly key for the credentials, by OAuth 2.0 client credentials: `{ access, expiresAt }`. Sedna turning the
-   * client id and secret down throws a CredentialsRefused (CREDENTIALS_REFUSED).
+   * An hourly key for the credentials, by OAuth 2.0 client credentials: `{ access, expiresAt }`. When the token endpoint
+   * turns the client id and secret down, they're tried once as Basic auth on the organisation's own API, which Sedna's
+   * docs allow with the same credentials; taken that way, `access` is the whole "Basic …" header. A 403 there is Sedna
+   * taking them without COMPANY_READ, which check() then names. Sedna turning them down both ways throws a
+   * CredentialsRefused (CREDENTIALS_REFUSED).
    */
   async function mint(values) {
     const form = new URLSearchParams({ grant_type: "client_credentials", client_id: values.clientId, client_secret: values.clientSecret });
@@ -106,6 +124,11 @@ export function createSednaCredentials({ standIn = "", fetch: fetchImpl = (...ar
       return { access: String(access), expiresAt: Date.now() + seconds * 1000 };
     }
     if ([400, 401, 403].includes(response.status)) {
+      const basic = `Basic ${Buffer.from(`${values.clientId}:${values.clientSecret}`).toString("base64")}`;
+      const tried = await send(`${platform(values)}/${API_VERSION}/company/me`, {
+        headers: { authorization: basic, accept: "application/vnd.api+json, application/json", "user-agent": "Mercbot" }
+      }, values);
+      if (tried.ok || tried.status === 403) return { access: basic, expiresAt: Date.now() + BASIC_RECHECK_S * 1000 };
       throw new ConnectionError(400, `Sedna didn't accept that client ID and secret for ${host(values)}. Check them in Sedna's API credential management.`, {
         code: CREDENTIALS_REFUSED,
         params: { host: host(values) }

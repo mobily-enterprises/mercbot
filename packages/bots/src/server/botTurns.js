@@ -81,7 +81,10 @@ export function createBotTurns({
   /** The signed-in accounts from Connect apps (D-31), e.g. "Gmail (pat@example.com)". */
   async function connectedAccounts(row, call) {
     const reach = conversations.reachOf(row);
-    const reachable = await integrations.reachableAccounts(reach, call);
+    // An app the home connected with its API credentials acts as each person's own user there (D-93, D-94), so a room
+    // or a group others read never uses it.
+    const reachable = (await integrations.reachableAccounts(reach, call))
+      .filter((entry) => reach.personal || !integrations.app(entry.pluginId)?.credentials);
     // Grouped per app, so "Gmail: 2 accounts" is never read as three mailboxes. The account
     // whose address is the person's own sign-in is theirs: "my calendar" means it.
     const own = String((await profiles.findById(row.user_id, passedOn(call)))?.email || "").toLowerCase();
@@ -196,7 +199,8 @@ export function createBotTurns({
                 `Nobody's personal memories, connected accounts, saved passwords or own skills are ` +
                 `used here, because everyone would see them: if someone needs those, suggest they ` +
                 `ask you in a bot that isn't shared.`,
-            `- The home's own connected accounts, which you may use here: ${await connectedAccounts(row, call)}.`
+            `- The home's own connected accounts, which you may use here: ${await connectedAccounts(row, call)}. ` +
+              `Sedna, if the home has it, is used only in each person's own chat with their bot, never here: say so if asked.`
           ]
         : [
             `- What you remember about the person (shared by all their bots): ${await memoriesOf(call)}.`,
@@ -322,6 +326,7 @@ export function createBotTurns({
       language,
       turn,
       routineRun = false,
+      routine = null,
       appsVia = null,
       computerId = row.conversation_id,
       personal = !row.room,
@@ -353,6 +358,7 @@ export function createBotTurns({
       conversationId: row.conversation_id,
       computerId,
       routineRun,
+      routine,
       botSkills: row.skills || [],
       apps,
       appsVia,

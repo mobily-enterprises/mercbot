@@ -1,5 +1,6 @@
 import { APP_ACTIONS } from "./appTools.js";
 import { MAIL_CHANGES } from "./mailTools.js";
+import { SEDNA_CHANGES } from "./sednaActions.js";
 import { validTimeZone } from "./routineSchedule.js";
 import { withoutPaths } from "./botAgent.js";
 import { LEAKED_MARKUP, reportsActions, stoppedShort, toolRecord, withoutClosingWords, withoutMarkup } from "@jskit-ai/agent/server";
@@ -140,6 +141,7 @@ export function createBotReplies({
       language,
       turn,
       routineRun,
+      routine,
       appsVia,
       inbox,
       // Goals in a bot's own chat or a room (not groups, not a bot's request); only the person's own
@@ -197,6 +199,14 @@ export function createBotReplies({
      * account of what it did, and counts as failed all the same.
      */
     let failed = false;
+    /**
+     * Where a routine's run read each events feed up to (D-94) is kept only when the run went well, by the server still
+     * holding it, before the run ends: a failed run, or one another server took over, reads the same events again.
+     */
+    const keepFeeds = async (options) => {
+      const feeds = routine?.runId && !failed ? run.feeds() : null;
+      if (feeds) await records.work.changeRoutineRun(routine, { feeds: { ...(routine.feeds || {}), ...feeds } }, options);
+    };
     const throwIf = routineRun
       ? (_error, steps) => {
           failed = true;
@@ -290,16 +300,17 @@ export function createBotReplies({
        * have labels, so a change in one answers for those words in the others.
        */
       const wrote = (...lists) => run.attempted.some((id) => lists.some((list) => list.includes(id)));
-      if (!decided && run.tools.forwardEmail && !wrote(MAIL_CHANGES, GITHUB_WRITES) && CLAIMS_MAIL.test(replyText)) {
+      if (!decided && run.tools.forwardEmail && !wrote(MAIL_CHANGES, GITHUB_WRITES, SEDNA_CHANGES) && CLAIMS_MAIL.test(replyText)) {
         ({ text: replyText, transcript, account = "" } = await again(MAIL_CHECK));
       }
-      if (!decided && run.tools.githubChange && !wrote(GITHUB_WRITES, MAIL_CHANGES) && CLAIMS_GITHUB.test(replyText)) {
+      if (!decided && run.tools.githubChange && !wrote(GITHUB_WRITES, MAIL_CHANGES, SEDNA_CHANGES) && CLAIMS_GITHUB.test(replyText)) {
         ({ text: replyText, transcript, account = "" } = await again(GITHUB_CHECK));
       }
       // And an app, table, field or record only changed if an Apps tool ran (D-35).
       // A reply that ends by asking the person something hasn't claimed it did anything.
       const asking = run.after.some((message) => message.kind === "choice");
-      if (!decided && !asking && run.tools.dataCreate && !wrote(APP_ACTIONS, MAIL_CHANGES, GITHUB_WRITES) && CLAIMS_APPS.test(replyText)) {
+      const wroteAny = wrote(APP_ACTIONS, MAIL_CHANGES, GITHUB_WRITES, SEDNA_CHANGES);
+      if (!decided && !asking && run.tools.dataCreate && !wroteAny && CLAIMS_APPS.test(replyText)) {
         ({ text: replyText, transcript, account = "" } = await again(APPS_CHECK));
       }
       let carriedOn = false;
@@ -339,8 +350,11 @@ export function createBotReplies({
       replyText = withoutPaths(withoutMarkup(replyText));
       // A line already posted (I'll draw it now) isn't said again at the top of the reply.
       replyText = withoutRepeat(replyText, posted);
-      // A run with nothing new posts nothing, and the bot stays read.
-      if (run.quiet()) return [];
+      // A run with nothing new posts nothing, and the bot stays read; it still moves on in the feeds it read.
+      if (run.quiet()) {
+        await keepFeeds(call);
+        return [];
+      }
       await run.finish();
     } finally {
       await run.close();
@@ -361,6 +375,7 @@ export function createBotReplies({
       ...(routine ? { routine: String(routine.id) } : {})
     };
     const appended = await conversations.withTransaction(call, async (txOptions) => {
+      await keepFeeds(txOptions);
       // A routine's or a task's run ends with its result, so only the server holding it posts it.
       const ending = checkpoint ? await checkpoint.settle(txOptions, { failed }) : [];
       const messages = await conversations.append(row, [

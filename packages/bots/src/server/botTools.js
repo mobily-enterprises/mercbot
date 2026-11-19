@@ -70,6 +70,8 @@ function inTime(work, what) {
  * @param {boolean} [options.isBuilder]
  * @param {string} [options.computerId]
  * @param {boolean} [options.routineRun]
+ * @param {{ id: string, runId?: string | null, createdAt?: string, feeds?: object | null } | null} [options.routine] the
+ *   routine this run is for, whose events-feed positions it reads and moves on (D-94)
  * @param {boolean} [options.personal]
  * @param {import("./types.js").Place} [options.place]
  * @param {{ skip: Record<string, string[]>, removed: string[], connected: string[] }} [options.toolSwitches] `connected`:
@@ -105,6 +107,7 @@ export function buildTools({
   isBuilder = false,
   computerId = conversationId,
   routineRun = false,
+  routine = null,
   personal = true,
   place = { homeId, botId, userId },
   toolSwitches = { skip: {}, removed: [], connected: [] }
@@ -175,7 +178,9 @@ export function buildTools({
     attempted.push(actionId);
     const action = ACTIONS[actionId];
     const reversible = action.reversible(args);
-    const decision = await approvals.decide(action.describe(args), { reversible }, call);
+    // A routine's run leaves a card for a Sedna send or assignment unless a rule allows it (D-94).
+    const strict = routineRun && Boolean(action.asksInRoutines);
+    const decision = await approvals.decide(action.describe(args), { reversible, strict }, call);
     if (decision === "ask") {
       askFirst({ question: action.question(args), action: { id: actionId, args } });
       return {
@@ -187,7 +192,7 @@ export function buildTools({
     await postLead(lead);
     let ran;
     try {
-      ran = await action.run({ call, env, work: records.work, botId, conversationId, integrations, userId, reach }, args);
+      ran = await action.run({ call, env, work: records.work, botId, conversationId, integrations, userId, reach, files, place }, args);
     } catch (error) {
       // A change that failed didn't happen, so a reply claiming it is still checked.
       attempted.splice(attempted.lastIndexOf(actionId), 1);
@@ -212,10 +217,14 @@ export function buildTools({
   const memos = [];
   const startedAt = Date.now();
 
+  // Where this routine's run read each events feed up to (D-94): kept only once the run ends well (botReplies.js).
+  const feedPositions = new Map();
+  const routineFeed = routineRun && routine?.runId ? { routine, positions: feedPositions } : null;
+
   const tools = {};
   Object.assign(tools, buildRoutineTools({ work: records.work, call, conversationId, attempt, acknowledge }));
   Object.assign(tools, buildBotRequestTools({ handOff, requestTools, goalOperations }));
-  Object.assign(tools, buildDraftTools({ turns: records.turns, call, conversationId, viaBot, settleDraft, appFor, after }));
+  Object.assign(tools, buildDraftTools({ turns: records.turns, call, conversationId, viaBot, routineRun, settleDraft, appFor, after }));
   Object.assign(tools, buildCardTools({ integrations, reach, notebook, after, call }));
   // Notes for the job in hand and a to-do list the person sees as a card (D-48, @jskit-ai/agent-runtime
   // planning), both in front of the bot at every turn.
@@ -274,6 +283,8 @@ export function buildTools({
       saved,
       removed: toolSwitches.removed,
       connectedApps: toolSwitches.connected,
+      routineRun,
+      routineFeed,
       appFor,
       attempt,
       attempted,
@@ -447,6 +458,7 @@ export function buildTools({
     showsCard,
     finish,
     close,
-    quiet
+    quiet,
+    feeds: () => (feedPositions.size ? Object.fromEntries(feedPositions) : null)
   });
 }

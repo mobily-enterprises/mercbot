@@ -147,7 +147,7 @@ export function createBotsService({
     ...(goalLimits ? { limits: { ...GOAL_LIMITS, ...goalLimits } } : {})
   });
 
-  const cards = createBotCards({ records, env, account, computer, integrations, conversations, requests });
+  const cards = createBotCards({ records, env, account, computer, integrations, conversations, requests, files });
   const turns = createBotTurns({
     records,
     profiles,

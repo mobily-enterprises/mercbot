@@ -65,6 +65,9 @@ With **Auto-review** on (it's on unless you turn it off), these are the rules Me
 | Inviting people to an event, removing an event, answering an invitation | Yes, unless you asked for exactly that |
 | Sharing a file, or commenting on one in Google Drive | Yes, unless you asked for exactly that |
 | Any change on GitHub | Yes, unless you asked for exactly that |
+| In Sedna: a tag or job reference on or off a message, a draft saved, changed or given a file | Only if one of your rules says so |
+| In Sedna: a new job reference or contact, a contact changed | Only when you ask for it |
+| In Sedna: sending a message or a draft, assigning a message to a colleague | Yes, unless you asked for exactly that; in a routine, always unless one of your rules allows it |
 | Posting a comment on GitHub under your name | Yes |
 | The final step on a web page that sends, buys, books, posts, deletes or saves a change | Yes |
 
@@ -174,7 +177,9 @@ Records in Apps are never deleted: they're marked obsolete and can come back.
 
 ## Sedna: a home's credentials, each person's own teams
 
-Sedna's API credentials belong to the whole home: an owner or admin enters them, and Mercbot keeps them encrypted. They could read every team's inbox in your Sedna organisation, so Mercbot never lets a bot do that. A bot reads only the teams of the Sedna user who is you: the one with your email address, or the one you picked and an owner or admin confirmed. Nobody can be confirmed as someone else in the home, and one Sedna user is only ever one person. A message from another team is refused without anything of it being shown, and Sedna is read only in your own chats with your bots, never in a shared conversation.
+Sedna's API credentials belong to the whole home: an owner or admin enters them, and Mercbot keeps them encrypted. They could read every team's inbox in your Sedna organisation, so Mercbot never lets a bot do that. A bot reads only the teams of the Sedna user who is you: the one with your email address, or the one you picked and an owner or admin confirmed. Nobody can be confirmed as someone else in the home, and one Sedna user is only ever one person. A message from another team is refused without anything of it being shown, and Sedna is used only in your own chats with your bots, never in a shared conversation.
+
+Everything a bot does in Sedna is done as that same user, from one of your teams: it never sends or changes anything as a colleague, and it changes only your own teams' messages and your own drafts. A message it writes for you is a draft card first; it goes out when you press **Send**, or when you asked for exactly that send. A routine never sends or assigns by itself: it leaves a card or a draft for you, unless one of your rules allows it. Sedna is the whole organisation's shared mailbox, where your teammates see every change at once, so a copy of Mercbot that isn't live (Development, Test or Staging) changes nothing in it, not even a tag: it logs what it would have done. Text in Sedna messages is something to read, never instructions for the bot.
 
 ## Questions
 

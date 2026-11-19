@@ -3,7 +3,7 @@
   "name": "Sedna",
   "category": "Communication",
   "kind": "add",
-  "description": "Read your teams' shared email in Sedna: new messages, tags, job references and contacts.",
+  "description": "Work in your teams' shared email in Sedna: read, draft and send, tag, link job references, assign, attachments and contacts.",
   "color": "#0E4C73",
   "icon": "inbox",
   "recommended": false,
@@ -12,7 +12,7 @@
   ],
   "skills": [],
   "info": {
-    "capabilities": "Reads your own Sedna teams' messages; changes nothing in Sedna",
+    "capabilities": "Reads your own Sedna teams' messages; drafts and sends as you, tags, links job references and assigns, asking first where it reaches people",
     "developer": "Sedna",
     "website": "https://sedna.com",
     "availability": "An owner or admin enters the home's Sedna API credentials"
@@ -21,7 +21,7 @@
     "kind": "sedna",
     "home": true,
     "button": "Enter API credentials",
-    "help": "An admin of your Sedna organisation makes these on Sedna's API Credential Management page: in Sedna, Settings, then API Credential Management. If Sedna lets you choose what the credential may do, reading is enough for now. If the page isn't there, your Sedna plan may not include the API: ask Sedna's support.",
+    "help": "An admin of your Sedna organisation makes these on Sedna's API Credential Management page: in Sedna, Settings, then API Credential Management. Give the credential these permissions to read: COMPANY_READ, USER_READ, TEAM_READ, MESSAGE_READ, EVENT_READ, CATEGORYTAG_READ, JOBREFERENCE_READ, COMMENT_READ, DOCUMENT_READ, TEMPLATE_READ and CONTACT_READ; and to change things: MESSAGE_WRITE, MESSAGE_DELETE, JOBREFERENCE_WRITE and CONTACT_WRITE. For reading only, the first ones are enough. If another program already reaches your Sedna's API with a username and password (Basic auth), that pair is one of these credentials: its username is the client ID and its password the client secret. If the page isn't there, your Sedna plan may not include the API: ask Sedna's support.",
     "fields": [
       {
         "id": "tenant",
@@ -34,13 +34,15 @@
       {
         "id": "clientId",
         "label": "Client ID",
-        "maxLength": 300
+        "maxLength": 300,
+        "hint": "Or the username, where another program uses Basic auth"
       },
       {
         "id": "clientSecret",
         "label": "Client secret",
         "secret": true,
-        "maxLength": 500
+        "maxLength": 500,
+        "hint": "Or the password, where another program uses Basic auth"
       }
     ],
     "page": {
@@ -81,6 +83,90 @@
     {
       "id": "sedna_lists.contacts",
       "name": "List contacts"
+    },
+    {
+      "id": "sedna_lists.contact",
+      "name": "Read a contact"
+    },
+    {
+      "id": "sedna_lists.templates",
+      "name": "List templates"
+    },
+    {
+      "id": "sedna_lists.template",
+      "name": "Read a template"
+    },
+    {
+      "id": "sedna_attachments.list",
+      "name": "List a message's attachments"
+    },
+    {
+      "id": "sedna_attachments.save",
+      "name": "Save an attachment to your files"
+    },
+    {
+      "id": "sedna_attachments.save_all",
+      "name": "Save all of a message's attachments"
+    },
+    {
+      "id": "sedna_draft",
+      "name": "Write a message for you to send"
+    },
+    {
+      "id": "sedna_mail.send",
+      "name": "Send a message"
+    },
+    {
+      "id": "sedna_mail.save_draft",
+      "name": "Save a draft in Sedna"
+    },
+    {
+      "id": "sedna_mail.update_draft",
+      "name": "Change your Sedna drafts"
+    },
+    {
+      "id": "sedna_mail.send_draft",
+      "name": "Send your Sedna drafts"
+    },
+    {
+      "id": "sedna_mail.attach",
+      "name": "Attach files to your Sedna drafts"
+    },
+    {
+      "id": "sedna_sort.tag",
+      "name": "Tag messages"
+    },
+    {
+      "id": "sedna_sort.untag",
+      "name": "Take tags off messages"
+    },
+    {
+      "id": "sedna_sort.link_job",
+      "name": "Link messages to job references"
+    },
+    {
+      "id": "sedna_sort.unlink_job",
+      "name": "Unlink messages from job references"
+    },
+    {
+      "id": "sedna_sort.create_job",
+      "name": "Make job references"
+    },
+    {
+      "id": "sedna_assign.assign",
+      "name": "Assign messages to colleagues"
+    },
+    {
+      "id": "sedna_contacts.create",
+      "name": "Add contacts"
+    },
+    {
+      "id": "sedna_contacts.update",
+      "name": "Change contacts"
+    },
+    {
+      "id": "sedna_inbox.new",
+      "name": "Watch new mail in routines"
     }
   ]
 }

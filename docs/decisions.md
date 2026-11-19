@@ -2094,8 +2094,9 @@ desktop programs that no server there reads: the first release built for such a 
 Sedna (sedna.com), a shared email for shipping teams, has no sign-in for other apps and no connection point of its
 own: an admin of the Sedna organisation makes API credentials (a client ID and secret) on its API Credential Management
 page, and an app gets an hourly key for them by OAuth 2.0 client credentials at
-`https://<tenant>.sednanetwork.com/platform/oauth/token` (developers.sedna.com). That key reads the whole organisation,
-every team's inbox, so connecting it is the home's, not one person's, and what a bot reads depends on who asks.
+`https://<tenant>.sednanetwork.com/platform/oauth/token` (developers.sedna.com). That key may read the whole
+organisation, every team's inbox (the docs don't say a credential is limited to its maker's teams; D-94), so connecting
+it is the home's, not one person's, and what a bot reads depends on who asks.
 - **A third way of connecting, `credentials`:** beside `oauth` (D-31) and `mcp` (D-34), a plugin.json may declare a
   `credentials` block: the `kind` of credentials (`packages/integrations/src/server/credentials.js`, Sedna's in
   `sednaCredentials.js`), the `fields` its form asks for, the help on where to make them and a link to that page.
@@ -2137,3 +2138,88 @@ every team's inbox, so connecting it is the home's, not one person's, and what a
   Drafts, sending, tags, job-reference links, assignments, attachments, templates and routines watching the events
   feed come next, each as the person's own Sedna user. Sedna has no free-text message search and no thread endpoint,
   and the events feed's order and window aren't documented: the tools sort by time and read at most five pages.
+
+## D-94 — Sedna's writes, as the person's own Sedna user, and routines on its events feed (2026-11-19)
+
+D-93 connected Sedna for reading. Every write its public API (developers.sedna.com, 2019-01-01) offers now follows, each
+an ACTIONS entry (`packages/bots/src/server/sednaActions.js`) that goes through `approvals.decide` like every other
+write, plus routines that work on the mail coming in. The owner asked for all of it on 19 November.
+- **Only ever as the person:** every write sends `fromUser` as the person's own matched Sedna user (D-93) and
+  `fromTeam` as one of their teams, never a value the bot names; a person who is no one in Sedna changes nothing. A
+  message to change, tag, link or assign is read first and must be in one of the person's teams; a draft to change,
+  attach to or send must be unsent and have the person as its sender (`relationships.sender`); a tag, job reference,
+  template or contact used must be their teams'; an assignee must be an active user in the message's teams that are
+  also the person's. Each of these refusals comes before any write, in a test copy too.
+- **Never in a room:** the Sedna tools, and every Sedna action, need the person's own chat (`reach.personal`). A
+  shared bot's room, or a group with more than one person, gets no Sedna tools, its connected-accounts note leaves
+  Sedna out, and an action or a draft card's Send from one is refused with one line (`SEDNA_ONLY_OWN_CHAT`).
+- **Drafts and sending:** `sedna_draft` writes a message or a reply on Mercbot's draft card (D-31), from
+  "Name · Team (Sedna)", with the team, the answered message, a template and attachments kept in `body.sedna`; Send
+  (`botCards.js`) claims the card, then sends with `POST /message/send` (with files: a draft, its documents, then
+  `POST /message/:id/send`, and a failure part-way names the draft). `sedna_mail` sends directly (asking first unless
+  the person asked for exactly that), saves a draft in Sedna, and changes, attaches to and sends the person's own
+  drafts. Sedna's API has no field for answering a message, so a reply is a new message to the original's sender, with
+  "Re:" and their message quoted below; the card, the tool and the help say it may show outside Sedna's thread.
+  `SEDNA_REPLY_FIELD` in `sednaChanges.js` is where a real answer field goes once Sedna documents one. The tool asks the
+  bot to write in the person's own style (their writing-style skill).
+- **Sorting, assigning, attachments, templates, contacts:** tags and job references put on and taken off; a job
+  reference is made only when the person asks for a new one (Sedna's 409 on a name already there finds that one);
+  assigning tells the colleague, so it asks unless the person asked in so many words, and there is no unassign
+  endpoint. Attachments are saved into the bot's files from Sedna's signed link (`GET /download/document/:id`; its
+  307 is followed only to https or the API's own origin, without Sedna's key, 25 MB at most) and added to a draft by
+  Sedna's base64 upload (10 MB each, 5 a message); the zip download isn't used. Templates are read and a draft starts
+  from one (its own attachments aren't added). Contacts are read, and added or changed only when asked (a change reads
+  the contact and puts it back whole, as Sedna's PUT replaces it). Message comments stay read-only: the API has no
+  write endpoint for them.
+- **Which ask first:** sends (`sedna_mail.send`, `send_draft`) and assignments reach other people, so they ask unless
+  the person asked for exactly that; tags, job references, drafts and attachments can be undone and ask only by a rule.
+  Work another bot asked for never counts as the person asking (D-46).
+- **Real only in production, tags included:** every Sedna write goes through `sendOrSimulate` (D-69), so only a copy
+  with `APP_ENV=production` changes Sedna, and any other copy logs it after every check a live copy makes. Unlike a
+  label in the person's own mailbox, a Sedna tag or job-reference link is a change to the organisation's shared
+  mailbox that the whole team sees at once and that can set off Sedna's own workflows, so a test copy connected to a
+  real tenant must not re-sort the live inbox. Downloads into the bot's files are reads and run everywhere.
+- **No blind retries, no idempotency keys:** Sedna offers none. A refused key (401) is made again once, and a 429 is
+  waited out once when it says 30 seconds or less: Sedna did nothing then. A change Sedna didn't answer (no reply in
+  60 seconds, or a 5xx) is a `SednaUncertainError` and is never tried again by Mercbot: the bot says it may have gone
+  through, and the draft card goes back to waiting with "check Sent in Sedna first". The card's claim
+  (`pending` → `sending`) stops a second press sending twice.
+- **Routines on the events feed:** in a routine's run, `sedna_inbox` reads `event.message.received` from where the
+  routine's last good run got to, kept in the new `bot_routines.feeds` (by account, `sedna:<id>`: the page's cursor and
+  the events of it already handled). Its first run starts from `GET /event/latest`, so older mail isn't new; mail older
+  than the routine is skipped. Each message is opened and kept only if it's in the routine owner's teams. A run hands
+  at most 10 messages, opening at most 30 and reading at most 10 pages, and says when more came: the next run carries
+  on from there, so nothing is dropped. The position is written only by the server holding the run, as the run ends
+  well (with its post, or quietly with `nothing_new`); a failed run reads the same events again and may tag or draft
+  twice. In a routine every send and assignment always asks (`approvals.decide(…, { strict: true })`) unless an allow
+  rule matches, a routine never sends a draft card, and a job reference or contact isn't made.
+- **One unlabelled home account per app:** two owners adding Sedna at once each found no home account and made one.
+  A partial unique index on `plugin_accounts (workspace_id, plugin_id) WHERE workspace_id IS NOT NULL AND name = ''`
+  makes the second lose the insert race, and `installForHome`'s `retryLostInsertRace` then finds the first. The
+  migration refuses a home that already has two, naming it and the fix, before it changes anything.
+- **Credentials as Basic auth too:** Sedna's docs let one API credential be used two ways, the OAuth
+  client-credentials token (recommended) or HTTP Basic with the client ID as username and the client secret as
+  password, so a username and password another program uses with Sedna's API are that credential's client ID and
+  secret, and the form's help says so. Mercbot asks the token endpoint first; when it turns the pair down, the pair is
+  tried once as Basic on `GET /company/me`, and if Sedna takes it, the account keeps the whole `Basic …` header as its
+  key, checked again hourly as a key is made again (`sednaCredentials.js` mint). Every call sends the key as it is
+  stored: a bearer token, or that header. Turned down both ways, the credentials are refused as before; a 403 there is
+  Sedna taking them without COMPANY_READ, which Connect names.
+- **Permissions, by the docs' names:** each endpoint's page says "Required API Permissions", and the OAuth scheme
+  lists the same names. Reading needs COMPANY_READ (`/company/me` at Connect), USER_READ and TEAM_READ, MESSAGE_READ,
+  EVENT_READ, CATEGORYTAG_READ, JOBREFERENCE_READ, COMMENT_READ, DOCUMENT_READ, TEMPLATE_READ and CONTACT_READ;
+  changing needs MESSAGE_WRITE (drafts, sends, tag and job-reference links, assignments, attachments), MESSAGE_DELETE
+  (taking a tag or job reference off), JOBREFERENCE_WRITE and CONTACT_WRITE. A permission missing at Connect is
+  named in the refusal.
+- **Whose the credential is, not in the docs:** they don't say whether an API credential acts for the organisation or
+  as the admin who made it, seeing only their teams; nor whether a `fromUser` naming another user is credited to that
+  user or needs a permission (the only word is that `fromUser` "is mandatory for API users", which reads as the
+  credential being no person of its own). Mercbot needs neither: every write names the asking person's own user, every
+  read keeps to their teams, so a credential seeing only its maker's teams gives other people less, never more. The
+  first connection to a real tenant (reads first, then one send by someone other than the maker) settles it. A client
+  ID's shape isn't documented either, so the tenant is still typed, never taken from the ID.
+- **Not in the docs, to check on a real tenant:** the events feed's order and how long it keeps events, and whether
+  `/event/latest`'s next link is the cursor after it; whether a draft's answer carries `relationships.sender` and a null
+  `sentAt`; the id in the answers to `POST /message` and `/message/send`; that `base64Content` upload works without
+  the upload URI; whether tags and assignments made with the API show the API user; `PUT /contact` replacing the whole
+  contact; templates' team relationships.

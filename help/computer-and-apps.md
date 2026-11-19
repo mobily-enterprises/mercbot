@@ -156,7 +156,9 @@ If you run your own copy of Mercbot that's only reachable from your own machine,
 
 Some apps have no sign-in for other apps. Sedna, the shared email for shipping teams, connects with API credentials that an admin of your Sedna organisation makes, and they're the whole home's: only the home's owners and admins connect it.
 
-1. In Sedna, an admin opens **Settings**, then **API Credential Management**, and makes a credential. Note its client ID and secret. If Sedna lets you choose what the credential may do, reading is enough for now. If that page isn't there, your Sedna plan may not include the API: ask Sedna's support.
+1. In Sedna, an admin opens **Settings**, then **API Credential Management**, and makes a credential. Note its client ID and secret. Give it these permissions to read: COMPANY_READ, USER_READ, TEAM_READ, MESSAGE_READ, EVENT_READ, CATEGORYTAG_READ, JOBREFERENCE_READ, COMMENT_READ, DOCUMENT_READ, TEMPLATE_READ and CONTACT_READ; and to change things: MESSAGE_WRITE, MESSAGE_DELETE, JOBREFERENCE_WRITE and CONTACT_WRITE. For reading only, the first ones are enough. If that page isn't there, your Sedna plan may not include the API: ask Sedna's support.
+
+   If another program of yours already uses Sedna's API with a **username and password** (Sedna calls that Basic auth), that pair is one of these credentials: paste its username as the **Client ID** and its password as the **Client secret**. Mercbot first asks Sedna for a key with them; if Sedna gives none, it uses them as a username and password, as your other program does.
 2. In Connect apps, open **Sedna** and select **Connect**. A form opens on the page instead of a sign-in tab.
 3. Type your **Sedna address** (the first part of the address you open Sedna at, the *acme* of acme.sednanetwork.com), the **Client ID** and the **Client secret**, and select **Save**. Once you've typed the address, the form also links to your Sedna's API Credential Management page.
 
@@ -274,14 +276,20 @@ GitHub changes go ahead only when you asked for exactly that change; otherwise t
 
 ### Sedna
 
-Reading only, for now: nothing in Sedna changes.
+Bots work in your own Sedna teams' shared email, as you: the Sedna user with your email address, or the one you picked and an owner or admin confirmed.
 
-- The newest messages that came into your teams ("anything new from the brokers today?").
-- Messages with a tag, or linked to a job reference such as a voyage or deal number.
-- One message: who sent it to whom, its text, its tags and job references, your team's comments and its attachments' names.
-- Lists of tags, job references, your teams and your teams' contacts.
+- **Read:** the newest messages that came into your teams ("anything new from the brokers today?"), messages with a tag or linked to a job reference such as a voyage or deal number, and one message: who sent it to whom, its text, tags and job references, who it's assigned to, your team's comments and its attachments. Lists of tags, job references, your teams, contacts and templates.
+- **Write a message or a reply:** the bot shows it on a draft card, from you and one of your teams, with To, Cc, subject and text you can edit. **Send** sends it from Sedna. It can start from one of your teams' templates, and attach files from the bot's files. Ask the bot to write in your own style if you've set one up.
+- **Replies:** Sedna's API can't answer a message inside its conversation, so a reply goes out as a new message to the sender, with "Re:" and their message quoted below. Sedna may show it outside that conversation's thread. The card says so.
+- **Drafts in Sedna:** the bot can also save a draft in your Sedna Drafts, change one of your own drafts, add files to it and send it.
+- **Sort:** add or remove tags, and link or unlink job references. A new job reference is made only when you ask for one.
+- **Assign** a message to a colleague in its team. Sedna tells them, so the bot asks first unless you asked for exactly that. Sedna's API can't take an assignment off: do that in Sedna.
+- **Attachments:** save one or all of a message's attachments into the bot's files.
+- **Contacts:** add a contact or change one, only when you ask.
 
-Only your own Sedna teams' messages are read, and only in your own chats with your bots, never in a shared conversation. Sedna has no search across message text: bots find messages by tag, by job reference or among the newest. If Sedna asks Mercbot to slow down, the bot says so and tries later.
+Everything happens only in your own chats with your bots, never in a shared conversation, and only on your own teams' messages. Sending and assigning reach other people, so they ask first unless you asked for exactly that; see [What always asks first](/help/approvals-and-privacy#what-always-asks-first). A copy of Mercbot that isn't live (Development, Test or Staging) changes nothing in Sedna: it logs what it would have done. Sedna has no search across message text: bots find messages by tag, by job reference or among the newest. If Sedna asks Mercbot to slow down, the bot says so and tries later.
+
+If Sedna doesn't answer a send or a change, the bot never tries again by itself: it may have gone through. The card or the bot says so: look in Sedna first, then try again if it isn't there. Message comments are read only, because Sedna's API can't add them.
 
 ### Calendly, Notion and Todoist
 

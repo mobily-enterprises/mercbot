@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
+import { mkdtemp, rm, stat, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import test from "node:test";
 import { ACTIONS } from "../../packages/bots/src/server/botActions.js";
 import { sendOrSimulate } from "../../packages/bots/src/server/connectedApps.js";
+import { SEDNA_ACTIONS } from "../../packages/bots/src/server/sednaActions.js";
+import { startFakeSedna } from "../support/fakeSedna.mjs";
 
 // Mercbot's own sends follow APP_ENV (D-69, D-87): the live copy (`production`) sends them; any other copy, a
 // test copy, logs each one and answers as if it went out. Reads, and changes that reach nobody, run in both.
@@ -314,4 +319,68 @@ test("only production sends; development, test and staging log it; a missing APP
     await assert.rejects(sendOrSimulate({ env }, effect, act), /APP_ENV is (?:not set|"live", which is not an environment JSKIT knows)/u, JSON.stringify(env));
   }
   assert.equal(sent, 1, "nor did a copy that doesn't say where it runs");
+});
+
+test("every Sedna change is made only from the live copy; a test copy checks it, logs it and changes nothing in Sedna", async (context) => {
+  const fake = await startFakeSedna();
+  const folder = await mkdtemp(path.join(tmpdir(), "sedna-copy-"));
+  context.after(async () => {
+    await fake.close();
+    await rm(folder, { recursive: true, force: true });
+  });
+  await writeFile(path.join(folder, "notes.txt"), "Laycan notes");
+  const form = new URLSearchParams({ grant_type: "client_credentials", client_id: fake.clientId, client_secret: fake.clientSecret });
+  const key = (await (await fetch(`${fake.url}/acme/platform/oauth/token`, { method: "POST", body: form })).json()).access_token;
+  const sednaContext = (env) => ({
+    integrations: {
+      reachableAccounts: async () => [{ id: "9", pluginId: "sedna", name: "", label: "Acme Shipping", status: "connected", home: true }],
+      connections: {
+        accessToken: async () => ({ accessToken: key, api: `${fake.url}/acme/platform/2019-01-01` }),
+        appPerson: async () => ({ person: { id: "201", name: "Pat Doe", email: "pat@acme.example", teams: [{ id: "11", name: "Chartering" }] }, via: "email" })
+      },
+      app: () => null
+    },
+    reach: { userId: 7, personal: true },
+    call: {},
+    env,
+    files: { store: { existingFile: async (_place, virtual) => ({ real: path.join(folder, path.basename(virtual)), stat: await stat(path.join(folder, path.basename(virtual))) }) } },
+    place: { homeId: "1", botId: "3", userId: "7" }
+  });
+  // Each action, with what it was asked to do.
+  const asked = {
+    "sedna_mail.send": { to: "kim@brokers.example", subject: "Laycan", text: "Hi Kim" },
+    "sedna_mail.save_draft": { to: "kim@brokers.example", subject: "Laycan", text: "Hi Kim" },
+    "sedna_mail.update_draft": { id: "1004", text: "Kim, can owners do 5-7 Dec?" },
+    "sedna_mail.attach": { id: "1004", files: ["/files/mine/notes.txt"] },
+    "sedna_mail.send_draft": { id: "1004" },
+    "sedna_sort.tag": { id: "1003", tag: "Fixtures" },
+    "sedna_sort.untag": { id: "1001", tag: "Fixtures" },
+    "sedna_sort.link_job": { id: "1003", job: "VOY-101" },
+    "sedna_sort.unlink_job": { id: "1001", job: "VOY-101" },
+    "sedna_sort.create_job": { name: "VOY-303" },
+    "sedna_assign.assign": { id: "1001", to: "Sam" },
+    "sedna_contacts.create": { firstName: "Ana", emails: ["ana@owners.example"] },
+    "sedna_contacts.update": { id: "501", title: "Senior broker" }
+  };
+  assert.deepEqual(Object.keys(asked).sort(), Object.keys(SEDNA_ACTIONS).sort(), "every Sedna action is here");
+  const changes = () => fake.requests.filter((entry) => entry.method !== "GET" && entry.route !== "/oauth/token").length;
+
+  for (const [id, args] of Object.entries(asked)) {
+    const copy = await logged(context, () => SEDNA_ACTIONS[id].run(sednaContext(TEST_COPY), args));
+    assert.equal(changes(), 0, id);
+    assert.equal(copy.lines.length, 1, id);
+    assert.equal(copy.lines[0][0].appEnv, "test", id);
+    assert.match(copy.result.body.detail, /test copy, so it was logged, not done in Sedna/u, id);
+  }
+  assert.deepEqual([fake.sent, fake.changes, [...fake.assignments]], [[], [], []]);
+  // A test copy still refuses what the live one would: another team's message.
+  await assert.rejects(SEDNA_ACTIONS["sedna_sort.tag"].run(sednaContext(TEST_COPY), { id: "1002", tag: "Fixtures" }), /isn't in any of the person's Sedna teams/u);
+
+  for (const [id, args] of Object.entries(asked)) {
+    const before = changes();
+    const live = await logged(context, () => SEDNA_ACTIONS[id].run(sednaContext(LIVE), args));
+    assert.deepEqual(live.lines, [], id);
+    assert.ok(changes() > before, `${id} changed Sedna`);
+  }
+  assert.deepEqual(fake.sent.map((entry) => entry.subject), ["Laycan", "Laycan question"]);
 });

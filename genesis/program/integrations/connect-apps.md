@@ -44,6 +44,7 @@ their accounts, and keeps the private skills their bots have made.
 - `tests/server/sednaCredentials.integration.js`
 - `tests/support/fakeSedna.mjs`
 - `tests/e2e/sedna.spec.ts`
+- `migrations/20261119181000_one_unlabelled_home_account.cjs`
 - `plugins/calendly/plugin.json`
 - `plugins/notion/plugin.json`
 - `plugins/todoist/plugin.json`
@@ -235,7 +236,9 @@ home's Activity trail through `mercbot.apps`' `activity.record` (via `settings`,
 (`credentials.js`; Sedna's is `sednaCredentials.js`), the `fields` of its form (`id`, `label`, `secret`, `prefix`,
 `suffix`, `hint`, `optional`, `maxLength`), `help`, a `page` link (`{tenant}` filled from the typed address) and
 `home: true`, which makes its account the home's. Only owners and admins add such an app (`POST …/plugins/:pluginId/install`
-answers a member 403 `integrations_home_app_forbidden`, and makes one home account however many add it), add its accounts
+answers a member 403 `integrations_home_app_forbidden`, and makes one home account however many add it, even at the
+same moment: the partial unique index `ix_plugin_accounts_home_unlabelled` on `(workspace_id, plugin_id)` where `name`
+is empty makes the second add lose the insert race and find the first, D-94), add its accounts
 (only for the home: 409 `integrations_home_account_only`), enter its credentials and disconnect it.
 - `POST …/plugin-accounts/:accountId/credentials {fields…}` checks the values with the app before saving anything:
   each declared field (400 `integrations_credentials_field_missing`, `_long`), the kind's `normalize` (Sedna: the

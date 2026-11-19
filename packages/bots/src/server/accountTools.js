@@ -66,6 +66,9 @@ const SEVERAL_ACCOUNTS =
  * @param {Set<string>} shared.saved
  * @param {string[]} shared.removed
  * @param {string[]} shared.connectedApps the apps the call reaches a connected account of (toolSwitches)
+ * @param {boolean} [shared.routineRun] a routine's run: nothing in it counts as the person asking in so many words
+ * @param {{ routine: object, positions: Map<string, object> } | null} [shared.routineFeed] a routine's run's events-feed
+ *   positions (D-94)
  * @param {import("./types.js").AppFor} shared.appFor
  * @param {import("./types.js").AttemptAction} shared.attempt
  * @param {string[]} shared.attempted
@@ -90,6 +93,8 @@ export function buildAccountTools({
   saved,
   removed,
   connectedApps,
+  routineRun = false,
+  routineFeed,
   appFor,
   attempt,
   attempted,
@@ -516,11 +521,28 @@ export function buildAccountTools({
     })
   );
   Object.assign(tools, buildGithubTools({ appFor, attempt, attempted, removed, failed, statusLine, personAsked, inTime, untrusted }));
-  // The home's Sedna, read for the asking person (D-93): only in their own chat, where nobody else reads the answer,
-  // and only once the home connected it.
+  // The home's Sedna, used as the asking person (D-93, D-94): only in their own chat, where nobody else reads the answer
+  // and nothing is done as anyone else, and only once the home connected it.
   if (reach.personal && connectedApps.includes("sedna")) {
     const guide = integrations.app("sedna")?.guide || "";
-    Object.assign(tools, buildSednaTools({ appFor, attempted, removed, failed, statusLine, inTime, untrustedMail, guide }));
+    Object.assign(tools, buildSednaTools({
+      appFor,
+      attempt,
+      attempted,
+      removed,
+      failed,
+      statusLine,
+      personAsked,
+      inTime,
+      untrustedMail,
+      guide,
+      files,
+      place,
+      keep,
+      after,
+      routineRun,
+      routineFeed
+    }));
   }
   return tools;
 }

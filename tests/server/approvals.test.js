@@ -28,6 +28,14 @@ test("a matching allow rule skips asking, and ask wins over allow", async () => 
   assert.equal(await both.decide("create a routine", {}, call), "ask");
 });
 
+test("a strict action (a routine's send or assignment, D-94) asks even with auto-review off, unless an allow rule matches", async () => {
+  const off = createApprovals({ policies: fakePolicies({ autoReview: false }), match: matchNone });
+  assert.equal(await off.decide("send the Sedna message", { strict: true }, call), "ask");
+  assert.equal(await off.decide("send the Sedna message", { reversible: true, strict: true }, call), "ask");
+  const allowed = createApprovals({ policies: fakePolicies({ rules: [rule(1, "allow")] }), match: matchAll });
+  assert.equal(await allowed.decide("send the Sedna message", { strict: true }, call), "allow");
+});
+
 test("reversible actions only ask when a rule says so", async () => {
   const unmatched = createApprovals({ policies: fakePolicies({}), match: matchNone });
   assert.equal(await unmatched.decide("create a routine", { reversible: true }, call), "allow");
