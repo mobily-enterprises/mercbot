@@ -62,6 +62,16 @@ A Shared bot shows its conversations as tabs under its name at the top of the ch
 
 If your home uses Apps and its Builder bot is Shared, the Builder keeps one conversation for each app. **Ask Builder** in an app opens that app's own tab, named after the app, whichever tab you had open. See [Build an app with the Builder](/help/apps-builder).
 
+## When the bot answers
+
+In a shared tab, people talk to each other as much as to the bot, so a Shared bot doesn't answer every message when two or more people use the home. With **Bots decide when to join in** on, as it is unless an owner or admin turns it off, the bot answers when it makes sense, without being called: when a message asks it something, asks for something its job covers, asks everyone a question it can usefully answer, or carries on a conversation you're having with it. When people are chatting, thanking each other, agreeing or saying goodbye, it stays out: no reply and no "working" line.
+
+- **Calling it always works.** The bot always answers a message that names it (its name as a word, in any case), @-mentions it or replies to one of its messages, your answer to one of its cards, and the first message in a new tab.
+- **Several messages close together** get one decision, on the latest.
+- **Deciding is a small AI call**, counted in the home's usage like the bot's other work. If it fails, the bot stays out; call it by name to get an answer.
+- **With the setting off,** the bot answers only when called. Owners and admins change it in **Settings** → **General**, under **Home**. See [Settings](/help/settings).
+- **Where it doesn't apply:** in You only, in a home with only you, and with Private and Mixed bots, the bot answers every message. Group chats keep their own rule: with several people in one, bots answer when someone @-mentions them or uses @everyone. See [Messaging and working together](/help/messaging).
+
 ## Your own tab: You only
 
 You only is your own chat with the bot: the same one you had before the bot was Shared, with its messages, routines, files and computer. Only you ever see it; the home's owners and admins can't read it either.
@@ -207,6 +217,7 @@ Owners and admins can't read other people's own chats with any bot, You only tab
 | A message says "This conversation is archived. Resume it to continue." | Someone archived the tab while you had it open. | Resume it from **Archived**, or carry on in another tab. |
 | A resumed tab says **Paused while archived**, and its routines don't run. | Archiving paused them, and they stay paused after Resume. | Ask the bot in that tab to resume them, or switch a routine back on under Routines in its Details panel. |
 | A shared bot can't read my email or calendar. | Shared tabs use only the home's accounts. | Ask in your You only tab, or ask an owner or admin to connect a home account. |
+| A Shared bot didn't answer my message in a shared tab. | It decided the message was for the people there, or **Bots decide when to join in** is off. | Name it, @-mention it or reply to one of its messages. See [When the bot answers](#when-the-bot-answers). |
 | A shared bot doesn't know my allergy or preferences. | Memories are never used in shared tabs. | Mention what matters in the conversation, or ask in You only. |
 | A shared bot won't use my saved password. | Vault logins are never used in shared tabs. | Ask in You only for sites that need your own login. |
 | A skill I picked does nothing in a shared tab. | Your own skills aren't used there. | Use the skill in your You only tab. |

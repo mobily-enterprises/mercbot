@@ -9,21 +9,22 @@
 // answer, streamed when asked for; the images kind's Gemini API (/images/models/<model>:generateContent) gets a small
 // picture, or the contact details it was asked to read.
 //
-// It answers Mercbot's own one-shot writing (botWriting.js, approvals.js) in the shape each asks for: a new bot's
-// greeting and its first question card, a message's status line, which rules apply. It plays a template's bot by its
-// setup interview: on the person's first answer it reads the skill, then asks each "Ask" step in turn (on a question
-// card when the step says so), then saves a memory, creates the template's routines paused and asks whether to start
-// them, and starts them only on a yes. It plays the template check's person and judge (tests/support/templateCheck.mjs)
-// and Mercbot's own checks too. Any bot asked "What are your additions?" says its own additions as its system prompt
-// has them, and one told "Change your additions to: …" changes them through change_additions, which leaves the
-// person a card (D-98, D-95). It drafts a home's templates (packages/bots/src/server/templateDrafts.js) as fixed drafts:
-// a new one from its sentence, one from a bot from that bot's template (its additions on the end when they're folded
-// in), and a change by putting the request at the end of the instructions, or, for "Description: …", in place of the
-// description. Otherwise any other bot says the copy runs on a stand-in model. `misbehave` makes a template's bot
-// break a rule on purpose, to prove the check catches it: "skip-question" leaves out its second question,
-// "routine-running" creates its routines running, and "send" has something sent as the setup ends (the test copy's line
-// for it, D-69, written by the stand-in itself as JSKIT writes it for this process's APP_ENV, since the check's home has
-// no app to send through).
+// It answers Mercbot's own one-shot writing (botWriting.js, approvals.js, joiningIn.js) in the shape each asks for: a
+// new bot's greeting and its first question card, a message's status line, which rules apply, and whether a Shared bot
+// joins in a shared tab (D-102): yes only when the message decided on asks something, ending with a "?". It plays a
+// template's bot by its setup interview: on the person's first answer it reads the skill, then asks each "Ask" step in
+// turn (on a question card when the step says so), then saves a memory, creates the template's routines paused and asks
+// whether to start them, and starts them only on a yes. It plays the template check's person and judge
+// (tests/support/templateCheck.mjs) and Mercbot's own checks too. Any bot asked "What are your additions?" says its own
+// additions as its system prompt has them, and one told "Change your additions to: …" changes them through
+// change_additions, which leaves the person a card (D-98, D-95). It drafts a home's templates
+// (packages/bots/src/server/templateDrafts.js) as fixed drafts: a new one from its sentence, one from a bot from that
+// bot's template (its additions on the end when they're folded in), and a change by putting the request at the end of
+// the instructions, or, for "Description: …", in place of the description. Otherwise any other bot says the copy runs on
+// a stand-in model. `misbehave` makes a template's bot break a rule on purpose, to prove the check catches it:
+// "skip-question" leaves out its second question, "routine-running" creates its routines running, and "send" has
+// something sent as the setup ends (the test copy's line for it, D-69, written by the stand-in itself as JSKIT writes
+// it for this process's APP_ENV, since the check's home has no app to send through).
 import { createServer } from "node:http";
 import { logSideEffect } from "@jskit-ai/kernel/server/runtime/appEnvironment";
 import { appEnvironment } from "@jskit-ai/kernel/shared/support/appEnvironment";
@@ -54,6 +55,7 @@ const FIRST_QUESTION = "You write one short question card for a new assistant bo
 const ACTIVITY = "You label what an assistant is about to do";
 const RULE_MATCHER = "You decide which of a person's plain-language rules apply";
 const TEMPLATE_WRITER = "You write bot templates for Mercbot.";
+const JOIN_IN = /^You decide whether .+, a bot in a shared conversation, should answer the latest message\./u;
 
 /** A message's words, whether its content is a string or a list of parts. */
 const textOf = (content) => (typeof content === "string" ? content : (content || []).map((part) => part.text || "").join(""));
@@ -235,6 +237,8 @@ function answerFor(request, misbehave) {
   if (system.includes(ACTIVITY)) return say(JSON.stringify({ status: "Thinking it over", emoji: null }));
   if (system.includes(RULE_MATCHER)) return say(JSON.stringify({ matches: [] }));
   if (system.startsWith(TEMPLATE_WRITER)) return say(JSON.stringify(templateDraft(system, textOf(request.messages.at(-1)?.content))));
+  // Whether a Shared bot joins in: the conversation's last line is the message decided on; people chatting don't ask.
+  if (JOIN_IN.test(system)) return say(JSON.stringify({ reply: textOf(request.messages.at(-1)?.content).trim().endsWith("?") }));
   const own = ownAdditionsStep(system, request);
   if (own) return own;
   const template = request.tools?.length ? GALLERY.find((entry) => system.includes(entry.instructions)) : null;

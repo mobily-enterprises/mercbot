@@ -6,7 +6,7 @@ import MercbotHomeName from "./MercbotHomeName.vue";
 import MercbotSettingsSelect from "./MercbotSettingsSelect.vue";
 import MercbotSwitch from "./MercbotSwitch.vue";
 import { accountApi } from "./accountApi.js";
-import { SHARING_MODES, chooseHere, homeDefault, readHere } from "./homeDefault.js";
+import { JOIN_IN, SHARING_MODES, chooseHere, chooseJoinIn, homeDefault, readHere } from "./homeDefault.js";
 import { useHomes } from "./homesApi.js";
 import { detectedTimeZone, shellPreferences } from "./shellPreferences.js";
 import { pageMediaDevices, supportedTimeZones } from "@/browser.js";
@@ -15,7 +15,8 @@ import extensions from "./extensions.js";
 
 // Settings → General: the account, appearance, the microphone, the
 // bots' time zone with asking-first rules, and the home: its name, which its owners and admins change (D-103), and for
-// them how its new bots are shared (D-100). Everything applies as soon as it's changed; a name, when it's saved.
+// them how its new bots are shared (D-100) and whether its bots decide when to join in shared tabs (D-102). Everything
+// applies as soon as it's changed; a name, when it's saved.
 const paths = usePaths();
 const props = defineProps({
   theme: { type: String, default: "system" },
@@ -71,6 +72,10 @@ onMounted(async () => {
 const newBotSharing = computed({
   get: () => homeDefault.value.newBotSharing,
   set: (value) => chooseHere(value).catch((error) => emit("failure", error))
+});
+const botsJoinIn = computed({
+  get: () => homeDefault.value.botsJoinIn !== false,
+  set: (value) => chooseJoinIn(value).catch((error) => emit("failure", error))
 });
 const THEMES = [
   { value: "system", label: "Follow system" },
@@ -189,6 +194,13 @@ onMounted(async () => {
             <span class="mb-set-row__description">Bots you already have keep their mode; change one in its Details → Who sees what.</span>
           </span>
           <MercbotSettingsSelect v-model="newBotSharing" label="New bots in this home" :options="SHARING_MODES" :width="240" />
+        </div>
+        <div v-if="manages" class="mb-set-row">
+          <span class="mb-set-row__text">
+            <span class="mb-set-row__label">{{ JOIN_IN.label }}</span>
+            <span class="mb-set-row__description">{{ botsJoinIn ? JOIN_IN.on : JOIN_IN.off }}</span>
+          </span>
+          <MercbotSwitch v-model="botsJoinIn" :label="JOIN_IN.label" />
         </div>
       </div>
     </template>

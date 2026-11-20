@@ -1,5 +1,5 @@
-// A home's settings for its bots (D-100): one row per home in `home_settings`, made the first time one is set. Its one
-// read and its one write are here, with who joined the home for the question its owners and admins are asked, and the
+// A home's settings for its bots (D-100, D-102): one row per home in `home_settings`, made the first time one is set.
+// Its one read and its one write are here, with who joined the home for the question its owners and admins are asked, and the
 // bots' services reach them through homeDefaults.js. Every method takes the call's options last; the table's ownership
 // keeps each read and write in the call's home.
 import { passedOn } from "@jskit-ai/resource-core/shared/callOptions";
@@ -8,12 +8,12 @@ import { createCallerReaders } from "./recordRows.js";
 
 /** @typedef {import("@jskit-ai/resource-runtime/server/types").ResourceCallOptions} CallOptions */
 /**
- * A home's settings as they're kept: null where nothing was chosen.
- * @typedef {{ newBotSharing: string | null, teamQuestionAnsweredAt: string | null }} HomeSettings
+ * A home's settings as they're kept: null where nothing was chosen, and whether its bots decide when to join in.
+ * @typedef {{ newBotSharing: string | null, teamQuestionAnsweredAt: string | null, botsJoinIn: boolean }} HomeSettings
  */
 
 // What a read answers of the home's row.
-const FIELDS = Object.freeze(["newBotSharing", "teamQuestionAnsweredAt"]);
+const FIELDS = Object.freeze(["newBotSharing", "teamQuestionAnsweredAt", "botsJoinIn"]);
 
 /**
  * @param {object} dependencies
@@ -35,7 +35,11 @@ export function createHomeSettingsRepository({ resources, systemContext, members
     const { records: [row] } = await homeSettings.query({ fields: FIELDS, page: { size: 1 } }, passedOn(options));
     if (!row) return null;
     const answered = row.teamQuestionAnsweredAt;
-    return { newBotSharing: row.newBotSharing ?? null, teamQuestionAnsweredAt: answered ? new Date(answered).toISOString() : null };
+    return {
+      newBotSharing: row.newBotSharing ?? null,
+      teamQuestionAnsweredAt: answered ? new Date(answered).toISOString() : null,
+      botsJoinIn: row.botsJoinIn !== false
+    };
   }
 
   /**

@@ -35,12 +35,13 @@ The home you're in:
 
 - **Home name:** owners and admins type a new name and select **Save**; **Escape** puts back the name it has. Everyone in the home sees the new name at once, in the sidebar and the list of homes. Members see the name, and that owners and admins change it. A name can't be empty, and has at most 160 characters. See [Homes](/help/homes).
 - **New bots in this home** (owners and admins): **Private**, **Mixed** or **Shared**, the mode every bot made in the home from now on gets. Bots you already have keep their mode; change one in its **Details** → **Who sees what**.
+- **Bots decide when to join in** (owners and admins): on unless you turn it off. On: "In shared tabs, bots answer when it makes sense, without being called." Off: "In shared tabs, bots answer only when named, @-mentioned or replied to." It applies to Shared bots' shared tabs in a home of two or more people. See [When the bot answers](/help/shared-bots#when-the-bot-answers).
 
 ### Bots
 
 - **Timezone:** used for routines and the times your bots mention. The list can be searched and shows the time now in each zone.
 
-Language, accent, timezone, spell check and microphone are kept on the device you're using. The home's name and its mode for new bots are kept for the whole home. Set them on each computer or phone you use.
+Language, accent, timezone, spell check and microphone are kept on the device you're using. The home's name, its mode for new bots and whether its bots decide when to join in are kept for the whole home. Set them on each computer or phone you use.
 
 ## Permissions
 

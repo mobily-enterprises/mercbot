@@ -5,9 +5,12 @@ import { toOwnTab, toRoom } from "./botRows.js";
 // A home's default for new bots (D-100): the sharing every bot made in the home from then on gets, Private, Mixed or
 // Shared, Mixed while nobody has chosen. Its owners and admins choose it, in the New home form, on the card the main
 // bot's first conversation shows, in Settings → General, or when the first other person joins. Bots already there keep
-// their mode, and group chats never read it.
+// their mode, and group chats never read it. The same row keeps whether the home's bots decide when to join in a Shared
+// bot's shared tabs (D-102, joiningIn.js), on unless an owner or admin turns it off.
 
 const SHARING = Object.freeze(["private", "mixed", "shared"]);
+// Whether a home's bots decide when to join in (D-102): on unless an owner or admin turned it off, nothing set included.
+const joinsInOf = (settings) => settings?.botsJoinIn ?? true;
 // The answers to the question asked once a home's people go from one to two.
 const TEAM_ANSWERS = Object.freeze(["shared", "keep"]);
 
@@ -19,9 +22,10 @@ export function managesHome(options) {
   return hasPermission(options?.context?.permissions || [], "workspace.settings.update");
 }
 
-const forbidden = () => new BotsError(403, "Only the home's owners and admins choose how new bots are shared.", {
+const forbidden = () => new BotsError(403, "Only the home's owners and admins change how its bots are set up.", {
   code: "bots_home_default_forbidden"
 });
+const unknownSharing = () => new BotsError(400, "Choose Private, Mixed or Shared.", { code: "bots_home_default_unknown" });
 
 /**
  * @param {object} dependencies
@@ -56,6 +60,15 @@ export function createHomeDefaults({ records }) {
   }
 
   /**
+   * Whether the home's bots decide when to join in a Shared bot's shared tabs (D-102): on unless an owner or admin
+   * turned it off, a home with nothing set included. One read.
+   * @param {import("./types.js").CallOptions} options
+   */
+  async function joinsIn(options) {
+    return joinsInOf(await store.read(options));
+  }
+
+  /**
    * Whether the home's default is still unchosen: its first conversation then asks.
    * @param {import("./types.js").CallOptions} options
    */
@@ -66,8 +79,8 @@ export function createHomeDefaults({ records }) {
   /**
    * The home's default as the page shows it: the sharing new bots get, whether it was chosen, and for its owners and
    * admins the question asked once its people went from one to two (`teamQuestion`, naming who joined), until one of
-   * them answers it; null otherwise, and while new bots are Shared. A read of the settings, and while the question may
-   * be asked one of the home's people: never one per bot.
+   * them answers it; null otherwise, and while new bots are Shared. With it, whether its bots decide when to join in
+   * (D-102). A read of the settings, and while the question may be asked one of the home's people: never one per bot.
    * @param {import("./types.js").CallOptions} options
    */
   async function asSeen(options) {
@@ -75,7 +88,12 @@ export function createHomeDefaults({ records }) {
     const newBotSharing = settings?.newBotSharing || "mixed";
     const asked = newBotSharing !== "shared" && !settings?.teamQuestionAnsweredAt && managesHome(options);
     const name = asked ? await store.joinedName(conversations.personOf(options), options) : "";
-    return { newBotSharing, chosen: Boolean(settings?.newBotSharing), teamQuestion: name ? { name, sharing: newBotSharing } : null };
+    return {
+      newBotSharing,
+      chosen: Boolean(settings?.newBotSharing),
+      teamQuestion: name ? { name, sharing: newBotSharing } : null,
+      botsJoinIn: joinsInOf(settings)
+    };
   }
 
   /**
@@ -87,19 +105,42 @@ export function createHomeDefaults({ records }) {
   async function set(sharing, options) {
     if (!managesHome(options)) throw forbidden();
     if (!SHARING.includes(sharing)) {
-      throw new BotsError(400, "Choose Private, Mixed or Shared.", { code: "bots_home_default_unknown" });
+      throw unknownSharing();
     }
     await store.write({ newBotSharing: sharing }, conversations.personOf(options), options);
   }
 
   /**
-   * Settings → General and the New home form: sets the default, and answers it as the page shows it.
+   * Settings → General's home part: changes how new bots are shared (`newBotSharing`) and whether bots decide when to
+   * join in (`botsJoinIn`, D-102), either or both, in one write, for owners and admins (403 for anyone else), and
+   * answers the settings as the page shows them. Neither changes a bot already there.
+   * @param {{ newBotSharing?: unknown, botsJoinIn?: unknown }} changes
+   * @param {import("./types.js").CallOptions} options
+   */
+  async function change({ newBotSharing, botsJoinIn } = {}, options) {
+    if (!managesHome(options)) throw forbidden();
+    if (newBotSharing !== undefined && !SHARING.includes(newBotSharing)) {
+      throw unknownSharing();
+    }
+    if (botsJoinIn !== undefined && typeof botsJoinIn !== "boolean") {
+      throw new BotsError(400, "Turn joining in on or off.", { code: "bots_join_in_unknown" });
+    }
+    const changes = {
+      ...(newBotSharing !== undefined ? { newBotSharing } : {}),
+      ...(botsJoinIn !== undefined ? { botsJoinIn } : {})
+    };
+    if (!Object.keys(changes).length) throw new BotsError(400, "Nothing to change.", { code: "bots_home_settings_empty" });
+    await store.write(changes, conversations.personOf(options), options);
+    return asSeen(options);
+  }
+
+  /**
+   * The New home form: sets the default, and answers it as the page shows it.
    * @param {unknown} sharing
    * @param {import("./types.js").CallOptions} options
    */
   async function choose(sharing, options) {
-    await set(sharing, options);
-    return asSeen(options);
+    return change({ newBotSharing: sharing }, options);
   }
 
   /**
@@ -128,10 +169,12 @@ export function createHomeDefaults({ records }) {
   return Object.freeze({
     sharingOf,
     firstTabs,
+    joinsIn,
     unchosen,
     asSeen,
     set,
     choose,
+    change,
     answerTeamQuestion
   });
 }

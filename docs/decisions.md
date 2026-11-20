@@ -2709,6 +2709,52 @@ costing there, until someone resumes it, as it was. Extends D-99, whose hidden t
   `…/resume` (You only by the person's own conversation's id) answer the bot as listed; `GET …/bots/:botId/archived`
   is the list.
 
+## D-102 — Bots decide when to join in a Shared bot's shared tabs (2026-11-20)
+
+Amends D-36 (a Shared bot answering every message in its shared tabs) and D-100 (the home's settings). The owner's
+decision: in a shared tab where more than one person can talk, people talk to each other as much as to the bot, so the
+bot answers when it makes sense, without being called, instead of after every message.
+- **Where.** A Shared bot's shared tabs (General, the others and app tabs) in a home with two or more active people.
+  You only (D-99), a home of one, Private and Mixed bots answer every message as before, and group chats keep D-46's
+  rule (with several people, a bot answers when someone @-mentions it or everyone).
+- **The setting.** **Bots decide when to join in**, in Settings → General's part for the home, for its owners and
+  admins (`workspace.settings.update`; a member is refused 403, `bots_home_default_forbidden`): on by default, "In
+  shared tabs, bots answer when it makes sense, without being called."; off, "In shared tabs, bots answer only when
+  named, @-mentioned or replied to." Kept as `home_settings.bots_join_in` (boolean NOT NULL DEFAULT true; a home with no
+  row is on). `GET …/home-settings` and the bot list's `home` answer `botsJoinIn`, and `PATCH …/home-settings` takes
+  `{ newBotSharing?, botsJoinIn? }`, writing only what it is given, so each keeps the other's value.
+- **Always called, on or off:** a person message that names the bot (its name as a word, in any case), @-mentions it
+  (`<@bot:ID>`) or replies to one of its messages (`body.replyTo` naming a bot message); the reply after the person
+  answers one of its cards (a choice, a draft's Send, a secure form or a hand-over: the page says so, `afterCard`); and
+  the first person message in a new tab. A reply carried on (D-48) and a connect follow-up are never judged either.
+- **On, not called:** one judging call before anything shows. **Yes** runs the normal turn; **no** posts nothing and
+  sends no "working" news, and the message is marked `body.judged = "quiet"`. The page that sent it shows the bot
+  working, and asks what it is doing, only once the server says the bot started, so a "no" shows nothing there either.
+  **Off, not called:** the same quiet outcome without a call. While the home is paused (D-73) no new AI work starts,
+  so only a call is answered.
+- **Bursts.** Replies are one at a time per conversation (`claimReply`), and a message that arrives meanwhile is taken
+  up after (`answerWaiting`). The judge decides on the tab's newest person message, with the others since the bot last
+  spoke or a judgement left the tab quiet: one judgement on the latest, and any of them that calls the bot is answered.
+  A "no" marks the newest; a page asking again from an older one of them finds it settled (`answeredAfter`), and
+  `answerWaiting` finds nothing left.
+- **The judging call.** One `generateOnce`, without reasoning, on the chat kind of work, at most 24 tokens out, metered
+  on the turn's own ticket (its home, person and bot), as a reply's small calls are. A failure, or an answer that isn't
+  `{"reply": true|false}` (a code fence around it is read), is a no, logged without the conversation. Its fixed
+  instructions name the bot and its job (its template's description, else the general bot's): "You decide whether
+  {bot}, a bot in a shared conversation, should answer the latest message…", answering true when the latest message
+  asks the bot something, asks for something its job covers, asks everyone a question it can usefully answer or
+  carries on a conversation with it, and false for people talking to each other, chatting, thanking, agreeing, saying
+  goodbye or when an answer would interrupt, and when unsure. The user message is "The conversation, oldest first;
+  decide on the last message:" and the tab's last 12 text messages, oldest first, one line each, `[Speaker]: text`,
+  each clipped to 400 characters (`packages/bots/src/server/joiningIn.js`).
+- **Cost.** Measured (`tests/server/joinInPrompt.test.js`): the instructions are 688 characters for a 61-character
+  job, about 170 tokens and cached by the provider after the first call; 12 typical messages make 893 characters
+  (about 400 tokens in all), and 12 at the clip 4,967 (about 1,400 tokens in all), with about 8 tokens out. At Premium
+  AI's $0.30 per million tokens in and $1.20 out, that is about $0.0001–0.0004 a judged message at the provider. A
+  "yes" then costs a reply, as before.
+- **Statements.** A judged reply reads the home's people, the tab's last 12 text messages and the home's setting, and
+  writes one mark on a no, whatever the tab's length (the same count for a tab of 4 messages and one of 40).
+
 ## D-103 — A home's owners and admins rename it, in Settings → General (2026-11-20)
 
 The owner's decision: a home kept the name it was made with, its first home "<First name>'s home" included, and the

@@ -38,7 +38,9 @@ export function useBotEvents({ store, work, dropBot }) {
   }
 
   function onWorking(event) {
-    const { botId, working, status, speakers } = JSON.parse(event.data);
+    const { botId, roomId, working, status, speakers } = JSON.parse(event.data);
+    // A reply this page asked for in a shared tab shows once the bot starts on it there (D-102).
+    if (working && (!roomId || roomId === store.roomOf(botId))) work.workStarted(botId);
     work.speakersByBot.value = { ...work.speakersByBot.value, [botId]: working ? speakers || [] : [] };
     const alreadyWorking = ["attention", "thinking", "working"].includes(work.moodByBot.value[botId]);
     if (!working) work.playMood(botId, [["happy", 5000], ["settled", 3000]]);

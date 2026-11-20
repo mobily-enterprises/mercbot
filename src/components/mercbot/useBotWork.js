@@ -44,10 +44,33 @@ export function useBotWork({ bots, store }) {
     });
   }
 
-  async function requestReply(botId) {
+  // In a shared tab a Shared bot may leave a message to the people (D-102): the page shows it working only once the
+  // server says it started (workStarted, from the bot events), and a reply with nothing in it shows nothing.
+  const starts = new Map();
+  function workStarted(botId) {
+    const start = starts.get(botId);
+    starts.delete(botId);
+    start?.();
+  }
+
+  /**
+   * Asks the bot for its reply and shows it working meanwhile.
+   * @param {string} botId
+   * @param {{ untilStarted?: boolean, onStart?: () => void, afterCard?: boolean }} [options] `untilStarted`: show
+   *   nothing until the server says the bot started, then run `onStart` too; `afterCard`: the reply follows a card's answer
+   */
+  async function requestReply(botId, { untilStarted = false, onStart = null, afterCard = false } = {}) {
     const group = bots.value.find((bot) => bot.id === botId)?.kind === "group";
-    playMood(botId, [["attention", 500], ["thinking", 1000], ["working", Infinity]]);
-    const thinking = setTimeout(() => setWork(botId, workByBot.value[botId] || (group ? "Picked it up" : "Thinking it over")), 300);
+    let thinking = null;
+    let started = false;
+    const start = () => {
+      started = true;
+      playMood(botId, [["attention", 500], ["thinking", 1000], ["working", Infinity]]);
+      thinking = setTimeout(() => setWork(botId, workByBot.value[botId] || (group ? "Picked it up" : "Thinking it over")), 300);
+      onStart?.();
+    };
+    if (untilStarted) starts.set(botId, start);
+    else start();
     try {
       // The reply comes after the newest message the page has (so a retry can't make two).
       const latest = [...(store.messagesByBot.value[botId] || [])].reverse().find((message) => /^\d+$/u.test(String(message.id)));
@@ -57,7 +80,7 @@ export function useBotWork({ bots, store }) {
       const room = store.roomOf(botId);
       const ask = () =>
         botsApi
-          .reply(botId, after, room)
+          .reply(botId, after, room, { afterCard })
           .catch((error) => (error?.status >= 400 && error?.status < 500 ? Promise.reject(error) : { pending: true }));
       let result = await ask();
       const giveUpAt = Date.now() + REPLY_GIVE_UP_MS;
@@ -67,6 +90,12 @@ export function useBotWork({ bots, store }) {
       }
       if (result.pending) throw new Error("The reply is still going.");
       clearTimeout(thinking);
+      if (starts.get(botId) === start) starts.delete(botId);
+      // The bot left it to the people: nothing to show.
+      if (!started && !result.messages.length) {
+        store.updateBot(result.bot);
+        return;
+      }
       playMood(botId, [["concentrating", Infinity]]);
       await sleep(600);
       setWork(botId, "");
@@ -76,6 +105,7 @@ export function useBotWork({ bots, store }) {
       playMood(botId, [["happy", 5000], ["settled", 3000]]);
     } catch {
       clearTimeout(thinking);
+      if (starts.get(botId) === start) starts.delete(botId);
       setWork(botId, "");
       playMood(botId, [["idle", Infinity]]);
       store.appendMessages(botId, [{ id: `error-${Date.now()}`, kind: "error", role: "system", body: { text: "Couldn't get a reply." } }]);
@@ -96,5 +126,5 @@ export function useBotWork({ bots, store }) {
     }
   }
 
-  return { workByBot, speakersByBot, moodByBot, setWork, playMood, replyNews, requestReply, describeWork };
+  return { workByBot, speakersByBot, moodByBot, setWork, playMood, replyNews, workStarted, requestReply, describeWork };
 }

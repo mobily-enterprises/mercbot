@@ -63,6 +63,12 @@ onboarding and the bot's typed replies.
 - `tests/server/homeDefault.integration.js`
 - `tests/client/homeDefault.vitest.js`
 - `tests/e2e/home-default.spec.ts`
+- `packages/bots/src/server/joiningIn.js`
+- `migrations/20261120160000_home_settings_bots_join_in.cjs`
+- `tests/server/joinIn.integration.js`
+- `tests/server/joinInPrompt.test.js`
+- `tests/client/joinIn.vitest.js`
+- `tests/e2e/join-in.spec.ts`
 - `src/components/mercbot/MercbotVoiceMemo.vue`
 - `src/components/mercbot/MercbotDraftCard.vue`
 - `packages/bots/skills/shopping.md`
@@ -268,8 +274,9 @@ Sharing (D-36, D-99, D-101):
   one write, an upsert on the unique `workspace_id`. `createBot` and `addFromTemplate` read `sharingOf` when they make
   the bot; a shared one gets its General room at once and its maker's own conversation open as You only
   (`firstTabs`), where its intro or greeting is. Group chats, the main bot `ensureFirstBot` makes and bots already
-  there never change. `GET …/home-settings` answers `{ newBotSharing, chosen, teamQuestion }` for everyone;
-  `PATCH …/home-settings {newBotSharing}` and `POST …/home-settings/team-question {answer: "shared" | "keep"}` are for
+  there never change. `GET …/home-settings` answers `{ newBotSharing, chosen, teamQuestion, botsJoinIn }` for
+  everyone; `PATCH …/home-settings {newBotSharing?, botsJoinIn?}` (`homeDefaults.change`, writing only what it's
+  given; `bots_join_in`, D-102, below) and `POST …/home-settings/team-question {answer: "shared" | "keep"}` are for
   owners and admins (`workspace.settings.update`), anyone else 403 `bots_home_default_forbidden`. The whole list
   (`GET …/bots`) carries the same as `home`; `teamQuestion` is `{ name, sharing }` for an owner or admin while new
   bots aren't shared and nobody has answered, naming the first of the home's active people by name who is neither
@@ -402,6 +409,21 @@ what's left, from a log of its steps; web steps fail after two minutes;
 status line (none when the model doesn't answer) and may add the bot's own emoji reaction; `PUT
 /api/bots/:botId/messages/:messageId/reaction` sets or clears the user's reaction
 on a bot message. Sidebar previews are plain text.
+
+Joining in (D-102, `joiningIn.js`): in a Shared bot's shared tab, in a home of two or more active people, `runReply`
+asks `staysQuiet` first, unless the reply carries one on, follows a connect, or follows a card's answer (the page sends
+`afterCard`). It reads the home's people and the tab's last 12 text messages; the newest person message, with those
+since the bot last spoke or a quiet mark, is answered when any of them names the bot as a word, @-mentions it or
+replies to one of its messages, or is the tab's first person message. Otherwise, with `home_settings.bots_join_in` on
+(no row is on) and the home not paused, one `generateOnce` without reasoning, metered on the turn's ticket as chat
+work, decides (`{"reply": true|false}`; a failure or another shape is no, logged without the conversation). A no, or
+off, marks the newest `body.judged = "quiet"` and ends the reply with no `working` or `messages` news and
+`{ bot, messages: [] }`; `answeredAfter` counts a quiet mark at or after the message a page asks from as settled
+(`turnRepository` `quietFrom`), so neither a page asking again nor `answerWaiting` takes it up. The page that sent the
+message (`useChatActions.send`, `useBotWork.requestReply` with `untilStarted`) shows the bot working, and reads its
+status line, only on the server's `working` news for that tab (`useBotEvents` → `workStarted`); Settings → General's
+switch is `chooseJoinIn` (`homeDefault.js`, `JOIN_IN`). The stand-in model says yes only when the message decided on
+ends with "?".
 
 Details: anyone in the home renames a bot; labels are gone (D-98), the
 template's tag shows instead. A bot's **Instructions** (D-98, templates.md) are

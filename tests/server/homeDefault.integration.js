@@ -79,12 +79,12 @@ test("every way of making a bot follows the home's default, and group chats and 
   const { bots, pat, newHome, as, sharingOf } = await setup(context);
   const homeId = await newHome();
   const owner = as(pat, homeId, "owner");
-  assert.deepEqual(await bots.homeDefault(owner), { newBotSharing: "mixed", chosen: false, teamQuestion: null }, "unchosen: Mixed");
+  assert.deepEqual(await bots.homeDefault(owner), { newBotSharing: "mixed", chosen: false, teamQuestion: null, botsJoinIn: true }, "unchosen: Mixed");
   const before = await bots.createBot({ name: "Before", color: COLOR }, owner);
   assert.equal(before.sharing, "mixed");
   assert.equal(before.rooms, null, "a Mixed bot has no tabs");
 
-  assert.deepEqual(await bots.chooseHomeDefault("shared", owner), { newBotSharing: "shared", chosen: true, teamQuestion: null });
+  assert.deepEqual(await bots.chooseHomeDefault("shared", owner), { newBotSharing: "shared", chosen: true, teamQuestion: null, botsJoinIn: true });
   assert.equal(await sharingOf(before.id), "mixed", "choosing changes no bot already there");
 
   // New bot: Shared, with General for everyone and its maker's own conversation, You only, open with its intro to come.
@@ -164,7 +164,7 @@ test("only the home's owners and admins set it: a member is refused 403, through
   const asked = await call("POST /api/w/:workspaceSlug/home-settings/team-question", kim, "member", { answer: "shared" });
   assert.deepEqual([asked.status, asked.body.code], [403, "bots_home_default_forbidden"]);
   const read = await call("GET /api/w/:workspaceSlug/home-settings", kim, "member");
-  assert.deepEqual([read.status, read.body], [200, { newBotSharing: "mixed", chosen: false, teamQuestion: null }], "everyone reads it");
+  assert.deepEqual([read.status, read.body], [200, { newBotSharing: "mixed", chosen: false, teamQuestion: null, botsJoinIn: true }], "everyone reads it");
   const byAdmin = await call(patch, lee, "admin", { newBotSharing: "shared" });
   assert.deepEqual([byAdmin.status, byAdmin.body.newBotSharing], [200, "shared"], "an admin sets it");
   const row = await knex("home_settings").where({ workspace_id: homeId }).first();
@@ -189,7 +189,7 @@ test("the question shows once a second person joins, to owners and admins only, 
   await join(kept, lee, "admin");
   assert.deepEqual(await questionFor(lee, kept, "admin"), { name: "Kim", sharing: "mixed" }, "an admin is asked too");
   const keep = await bots.answerTeamQuestion("keep", as(pat, kept, "owner"));
-  assert.deepEqual(keep, { newBotSharing: "mixed", chosen: true, teamQuestion: null });
+  assert.deepEqual(keep, { newBotSharing: "mixed", chosen: true, teamQuestion: null, botsJoinIn: true });
   assert.deepEqual([await questionFor(pat, kept, "owner"), await questionFor(lee, kept, "admin")], [null, null], "once answered, nobody is asked");
   assert.equal((await bots.answerTeamQuestion("shared", as(lee, kept, "admin"))).newBotSharing, "mixed", "a later answer changes nothing");
   assert.equal(await sharingOf(old.id), "mixed");
@@ -199,7 +199,7 @@ test("the question shows once a second person joins, to owners and admins only, 
   const first = await bots.createBot({ name: "First", color: COLOR }, as(pat, shared, "owner"));
   await join(shared, kim);
   assert.equal((await questionFor(pat, shared, "owner")).name, "Kim");
-  assert.deepEqual(await bots.answerTeamQuestion("shared", as(pat, shared, "owner")), { newBotSharing: "shared", chosen: true, teamQuestion: null });
+  assert.deepEqual(await bots.answerTeamQuestion("shared", as(pat, shared, "owner")), { newBotSharing: "shared", chosen: true, teamQuestion: null, botsJoinIn: true });
   assert.equal(await sharingOf(first.id), "mixed", "Make them Shared changes no bot already there");
   assert.equal((await bots.createBot({ name: "Next", color: COLOR }, as(pat, shared, "owner"))).sharing, "shared");
 
@@ -238,7 +238,7 @@ test("the first conversation asks right after its bot is named, the answer sets 
   assert.deepEqual((await bots.advanceOnboarding(main.id, "home-default", user, owner)).messages, [], "nothing runs until it's answered");
   const answered = await bots.answerChoice(main.id, card.id, ["My team"], owner);
   assert.equal(answered.bot.onboardingStep, "about", "the conversation carries on");
-  assert.deepEqual(answered.home, { newBotSharing: "shared", chosen: true, teamQuestion: null });
+  assert.deepEqual(answered.home, { newBotSharing: "shared", chosen: true, teamQuestion: null, botsJoinIn: true });
   assert.equal(await sharingOf(main.id), "mixed", "the main bot keeps its mode");
   assert.equal((await bots.createBot({ name: "Next", color: COLOR }, owner)).sharing, "shared");
 
@@ -260,7 +260,7 @@ test("the first conversation asks right after its bot is named, the answer sets 
   const sent = await bots.sendMessage(busy.main.id, { text: "Hello there" }, busy.owner);
   assert.equal(sent.messages.find((message) => message.id === busy.card.id)?.body.inactive, true);
   assert.equal(sent.bot.onboardingStep, "about");
-  assert.deepEqual(await bots.homeDefault(busy.owner), { newBotSharing: "mixed", chosen: false, teamQuestion: null });
+  assert.deepEqual(await bots.homeDefault(busy.owner), { newBotSharing: "mixed", chosen: false, teamQuestion: null, botsJoinIn: true });
 });
 
 test("the bot list reads the default and the question in the same statements for 4 bots as for 60", async (context) => {

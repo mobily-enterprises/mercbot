@@ -1,6 +1,10 @@
 import { botsApi } from "./botsApi.js";
 import { homeDefault } from "./homeDefault.js";
 import { copyPictureToClipboard } from "./messageMenus.js";
+import { ownTabOpen } from "./openTabs.js";
+
+/** Whether the bot is open on one of a Shared bot's shared tabs, not You only (D-99) nor a group's chat. */
+const inSharedTab = (bot) => bot.kind !== "group" && bot.sharing === "shared" && Boolean(bot.roomId) && !ownTabOpen(bot);
 
 /**
  * What the person does in the open chat: send and retry, react, answer cards, settle drafts and
@@ -43,6 +47,12 @@ export function useChatActions({ currentBot, picker, startGroup, store, work, re
     appendMessages(bot.id, result.messages);
     updateBot(result.bot);
     const userMessage = result.messages[result.messages.length - 1];
+    // In a shared tab the bot may leave the message to the people (D-102): it shows it's working, and what on, only
+    // once it starts.
+    if (inSharedTab(bot)) {
+      await requestReply(bot.id, { untilStarted: true, onStart: () => describeWork(bot.id, userMessage.id) });
+      return;
+    }
     if (bot.kind !== "group") describeWork(bot.id, userMessage.id);
     await requestReply(bot.id);
   }
@@ -50,7 +60,7 @@ export function useChatActions({ currentBot, picker, startGroup, store, work, re
   function retry(message) {
     if (message.kind === "error") {
       removeMessage(currentBot.value.id, message.id);
-      requestReply(currentBot.value.id);
+      requestReply(currentBot.value.id, { untilStarted: inSharedTab(currentBot.value) });
     } else if (message.failed) {
       send(message.payload, message);
     }
@@ -85,7 +95,7 @@ export function useChatActions({ currentBot, picker, startGroup, store, work, re
       reportFailure("That answer didn't go through. Try again.", error);
       return;
     }
-    await requestReply(botId);
+    await requestReply(botId, { afterCard: true });
   }
 
   // Send or Discard on a draft the bot wrote. An email from a connected mailbox has
@@ -102,7 +112,7 @@ export function useChatActions({ currentBot, picker, startGroup, store, work, re
       reportFailure(error?.message || "That didn't go through. Try again.", error);
       return;
     }
-    if (answer.action === "send" && result.messages[0]?.body.status === "send") await requestReply(botId);
+    if (answer.action === "send" && result.messages[0]?.body.status === "send") await requestReply(botId, { afterCard: true });
   }
 
   // The person's answer on a bot's secure form; then the bot carries on.
@@ -115,7 +125,7 @@ export function useChatActions({ currentBot, picker, startGroup, store, work, re
       reportFailure(error?.message || "That didn't go through. Try again.", error);
       return;
     }
-    await requestReply(botId);
+    await requestReply(botId, { afterCard: true });
   }
 
   // A voice conversation leaves a line in the chat with how long it lasted.

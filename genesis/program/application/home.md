@@ -85,7 +85,9 @@ popover. Scrolled up, the chat stays where it is as messages arrive: the
 round scroll-down button turns into an "N new messages" pill counting what came after the
 last message the reader had (not their own messages or time stamps); the pill goes down to
 the newest, its × dismisses it, and sending always goes down. While a bot works, a status line describes the work and the bot's
-avatar changes expression (attention, thinking, working, concentrating, happy).
+avatar changes expression (attention, thinking, working, concentrating, happy). In a Shared bot's shared tab, where
+the bot may leave a message to the people (D-102), the sender's page shows that only once the server says the bot
+started (`useBotWork.requestReply` `untilStarted`, `workStarted`).
 Avatars (D-44) are clouds, never balls, each shape with its own kind of manga
 eyes; the cloud never moves and the eyes never blink: only the irises glance
 around inside them. The home's Builder alone wears a propeller beanie. The

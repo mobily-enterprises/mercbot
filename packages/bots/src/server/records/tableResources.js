@@ -348,6 +348,8 @@ export const homeSettingResource = defineTableResource({
     newBotSharing: { type: "string", maxLength: 16, noTrim: true, nullable: true },
     // When an owner or admin answered the question asked once its people went from one to two.
     teamQuestionAnsweredAt: { type: "dateTime", nullable: true },
+    // Whether its bots decide when to join in a Shared bot's shared tabs (D-102): true unless turned off.
+    botsJoinIn: { type: "boolean" },
     updatedAt: { type: "dateTime" },
     updatedBy: { type: "id", nullable: true },
     workspaceId: { type: "id", hidden: true, search: true }

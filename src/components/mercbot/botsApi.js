@@ -81,8 +81,10 @@ export const botsApi = {
   // `clientId` makes a repeated send store the message once.
   send: (botId, message) => retrying(() => post(`/bots/${botId}/messages`, message)),
   // The person's time zone and language, as set in Settings or from the browser.
-  // `afterMessageId` makes a repeated request return the reply already made instead of a second one.
-  reply: (botId, afterMessageId = null, room = null) => retrying(() => post(`/bots/${botId}/reply`, { timeZone: currentTimeZone(), language: currentLanguage(), afterMessageId, room })),
+  // `afterMessageId` makes a repeated request return the reply already made instead of a second one. `afterCard` says it
+  // follows the person answering one of the bot's cards, which a Shared bot always answers (D-102).
+  reply: (botId, afterMessageId = null, room = null, { afterCard = false } = {}) => retrying(() =>
+    post(`/bots/${botId}/reply`, { timeZone: currentTimeZone(), language: currentLanguage(), afterMessageId, room, afterCard })),
   activity: (botId, messageId) => post(`/bots/${botId}/messages/${messageId}/activity`),
   react: (botId, messageId, emoji) => request(`/bots/${botId}/messages/${messageId}/reaction`, { method: "PUT", body: { emoji } }),
   advance: (botId, step) => post(`/bots/${botId}/onboarding/advance`, { step }),

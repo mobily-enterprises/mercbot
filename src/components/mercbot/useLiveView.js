@@ -64,7 +64,7 @@ export function useLiveView({ currentBot, bots, store, work, reportFailure }) {
       reportFailure("That didn't go through. Try again.", error);
       return;
     }
-    if (outcome === "done") await work.requestReply(botId);
+    if (outcome === "done") await work.requestReply(botId, { afterCard: true });
   }
 
   return { liveView, liveBot, openComputer, takeOver, workOnFile, teach, finishTeaching, settleHandover };

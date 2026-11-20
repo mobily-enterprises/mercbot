@@ -192,6 +192,9 @@ export function createBotsService({
     requests,
     goals,
     turns,
+    // A Shared bot's shared tabs judge whether it joins in (D-102), with the home's setting and the chat model.
+    homeDefaults,
+    model,
     groupReplies,
     // The Builder making apps runs as "build" (D-59), unless it's already background work.
     reply: (bot, timeline, tools, state, prompt, options) =>
@@ -305,6 +308,7 @@ export function createBotsService({
     deleteSection: botList.deleteSection,
     homeDefault: homeDefaults.asSeen,
     chooseHomeDefault: homeDefaults.choose,
+    changeHomeSettings: homeDefaults.change,
     answerTeamQuestion: homeDefaults.answerTeamQuestion
   });
 }

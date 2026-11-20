@@ -6,16 +6,22 @@ import { homeRoute } from "./homesApi.js";
 
 // A home's default for new bots (D-100): the sharing every bot made in it from then on gets, Mixed while nobody has
 // chosen. The bot list's read brings it for the home the page is in, with the question its owners and admins are asked
-// once a second person joins; the New home form, Settings → General and that question change it.
+// once a second person joins; the New home form, Settings → General and that question change it. With it comes whether
+// the home's bots decide when to join in a Shared bot's shared tabs (D-102), which Settings → General turns on and off.
 const client = createHttpClient({ credentials: "include", csrf: { sessionPath: AUTH_PATHS.SESSION } });
 
 /**
- * The home's default as the server answers it.
- * @typedef {{ newBotSharing: string, chosen: boolean, teamQuestion: { name: string, sharing: string } | null }} HomeDefault
+ * The home's default as the server answers it, and whether its bots join in.
+ * @typedef {{
+ *   newBotSharing: string,
+ *   chosen: boolean,
+ *   teamQuestion: { name: string, sharing: string } | null,
+ *   botsJoinIn: boolean
+ * }} HomeDefault
  */
 
 // readable-check: allow module-state - shared resource: the bot list's read sets it, and Who sees what, Settings and the banner read it
-export const homeDefault = ref(/** @type {HomeDefault} */ ({ newBotSharing: "mixed", chosen: false, teamQuestion: null }));
+export const homeDefault = ref(/** @type {HomeDefault} */ ({ newBotSharing: "mixed", chosen: false, teamQuestion: null, botsJoinIn: true }));
 
 /** The three modes, as Settings → General offers them, each with what it adds to everyone's own chat (D-99). */
 export const SHARING_MODES = Object.freeze([
@@ -72,6 +78,23 @@ export async function readHere() {
  */
 export async function chooseHere(sharing) {
   homeDefault.value = await chooseHomeDefault(currentHome(), sharing);
+  return homeDefault.value;
+}
+
+/** Settings → General's switch for whether bots join in (D-102): its label, and what it means as it stands. */
+export const JOIN_IN = Object.freeze({
+  label: "Bots decide when to join in",
+  on: "In shared tabs, bots answer when it makes sense, without being called.",
+  off: "In shared tabs, bots answer only when named, @-mentioned or replied to."
+});
+
+/**
+ * Settings → General: turns joining in on or off for the home the page is in (owners and admins only: anyone else is
+ * refused), and the page shows what the server keeps.
+ * @param {boolean} on
+ */
+export async function chooseJoinIn(on) {
+  homeDefault.value = await client.request(settingsOf(currentHome()), { method: "PATCH", body: { botsJoinIn: on } });
   return homeDefault.value;
 }
 

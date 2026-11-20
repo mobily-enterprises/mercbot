@@ -31,6 +31,10 @@ export const TURN_MESSAGE_SEARCH = Object.freeze({
   answersFrom: onBody("integer", (query, body, input, column) => query.where((inner) => inner
     .whereRaw("(?? ->> 'answers')::bigint >= ?", [body, Number(input)])
     .orWhereRaw("?? ->> 'answers' is null and ?? < ?", [body, column("createdAt"), ANSWERS_SINCE]))),
+  // A person's message a judgement left to the people in a shared tab (D-102): the message `input` or a later one.
+  quietFrom: onBody("integer", (query, body, input, column) => query
+    .whereRaw("?? ->> 'judged' = 'quiet'", [body])
+    .where(column("id"), ">=", Number(input))),
   // A question card the person answered.
   answeredQuestion: onBody("boolean", (query, body) => query.whereRaw("?? ->> 'purpose' = 'question' and ?? ->> 'chosen' is not null", [body, body])),
   // The to-do card of one conversation (agent-runtime planning: body.list is its conversation id).
