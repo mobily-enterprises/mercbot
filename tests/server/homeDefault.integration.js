@@ -237,7 +237,8 @@ test("the first conversation asks right after its bot is named, the answer sets 
   );
   assert.deepEqual((await bots.advanceOnboarding(main.id, "home-default", user, owner)).messages, [], "nothing runs until it's answered");
   const answered = await bots.answerChoice(main.id, card.id, ["My team"], owner);
-  assert.equal(answered.bot.onboardingStep, "about", "the conversation carries on");
+  // The conversation carries on, offering a team next while the home has no other bot (D-105: teams.integration.js).
+  assert.equal(answered.bot.onboardingStep, "team-offer", "the conversation carries on");
   assert.deepEqual(answered.home, { newBotSharing: "shared", chosen: true, teamQuestion: null, botsJoinIn: true });
   assert.equal(await sharingOf(main.id), "mixed", "the main bot keeps its mode");
   assert.equal((await bots.createBot({ name: "Next", color: COLOR }, owner)).sharing, "shared");
@@ -248,11 +249,11 @@ test("the first conversation asks right after its bot is named, the answer sets 
   assert.equal((await bots.answerChoice(single.main.id, single.card.id, ["Just me"], single.owner)).home.newBotSharing, "mixed");
   assert.equal((await bots.homeDefault(single.owner)).chosen, true);
 
-  // Chosen already (the New home form): no card, and on to "about".
+  // Chosen already (the New home form): no card of its own; the team's comes instead (D-105).
   const formed = await newHome();
   await bots.chooseHomeDefault("shared", as(pat, formed, "owner"));
   const quiet = await named(formed);
-  assert.deepEqual([quiet.card, quiet.renamed.bot.onboardingStep], [undefined, "about"]);
+  assert.deepEqual([quiet.card?.body.purpose, quiet.renamed.bot.onboardingStep], ["team", "team"]);
 
   // Typing instead of answering: the card closes, the conversation carries on, and the default stays unchosen.
   const typed = await newHome();

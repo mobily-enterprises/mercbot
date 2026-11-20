@@ -33,7 +33,7 @@ const unknownSharing = () => new BotsError(400, "Choose Private, Mixed or Shared
  *   and the home's lock
  */
 export function createHomeDefaults({ records }) {
-  const { homeSettings: store, conversations } = records;
+  const { homeSettings: store, conversations, newBots } = records;
 
   /**
    * The sharing a bot made now in the call's home gets: the home's default, Mixed while none was chosen. Every way of
@@ -45,18 +45,31 @@ export function createHomeDefaults({ records }) {
   }
 
   /**
-   * The first tabs of a bot just made, as the list gives them: none unless the home's default made it Shared. A Shared
-   * one gets its General tab at once, for everyone in the home, and opens on its maker's own conversation, You only
-   * (D-99), where its introduction or greeting is.
+   * The first tabs of bots just made, as the list gives them, in the order given: none for a bot the home's default
+   * didn't make Shared. A Shared one gets its General tab at once, for everyone in the home, and opens on its maker's own
+   * conversation, You only (D-99), where its introduction or greeting is. The same statements for one bot as for a
+   * team's (D-105).
+   * @param {Array<{ bot: { id: string, sharing: string }, seat: { id: string, last_activity_at: string, unread?: boolean } }>} made
+   *   each bot with its maker's own conversation
+   * @param {import("./types.js").CallOptions} options
+   */
+  async function firstTabsOf(made, options) {
+    const shared = made.filter(({ bot }) => bot.sharing === "shared");
+    if (!shared.length) return made.map(() => null);
+    const generals = await newBots.startTabs(shared, options);
+    const tabs = new Map(shared.map(({ bot, seat }, at) => [String(bot.id), [{ ...toRoom(generals[at]), unread: false }, toOwnTab(seat)]]));
+    return made.map(({ bot }) => tabs.get(String(bot.id)) || null);
+  }
+
+  /**
+   * One bot's first tabs (firstTabsOf).
    * @param {{ id: string, sharing: string }} bot
    * @param {{ id: string, last_activity_at: string, unread?: boolean }} seat its maker's own conversation
    * @param {import("./types.js").CallOptions} options
    */
   async function firstTabs(bot, seat, options) {
-    if (bot.sharing !== "shared") return null;
-    const general = await conversations.createRoom(bot, { title: "General" }, options);
-    await conversations.updateConversation(seat.id, { room_id: seat.id }, options);
-    return [{ ...toRoom(general), unread: false }, toOwnTab(seat)];
+    const [tabs] = await firstTabsOf([{ bot, seat }], options);
+    return tabs;
   }
 
   /**
@@ -168,6 +181,7 @@ export function createHomeDefaults({ records }) {
 
   return Object.freeze({
     sharingOf,
+    firstTabsOf,
     firstTabs,
     joinsIn,
     unchosen,

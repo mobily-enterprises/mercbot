@@ -8,6 +8,7 @@ import { behaviourFingerprint, lastCheck, readResults, resultsFileFor, testedOn 
 import { CATEGORIES, GALLERY, GENERAL, LIBRARY, LIBRARY_TAGS, TAG, TEAM, details, freeTag, oneLine, setupNeeds, setupSkillOf, summary } from "./templates.js";
 import { checkedDraft, manageRefusal, managesTemplates, takenTags } from "./templateDrafts.js";
 import { templateBody } from "../shared/templateBody.js";
+import { TEAMS, teamSummary } from "./teams.js";
 import { cleanName, toBot } from "./botRows.js";
 
 /** The templates links open when the copy adds none (`mercbot.template-links` absent): no code opens one. */
@@ -38,9 +39,14 @@ export function createBotTemplates({ records, profiles, integrations, conversati
   const noTemplate = () => new BotsError(404, "There's no bot template at that link.", { code: "bots_template_not_found" });
   const store = records.conversations;
 
-  /** The bot template gallery (D-43): curated, Mercbot's own templates only. */
+  /** The bot template gallery (D-43): curated, Mercbot's own templates only, and its teams of them (D-105). */
   function templateGallery() {
-    return { categories: CATEGORIES, team: TEAM, templates: GALLERY.map((template) => summary(withTested(template))) };
+    return {
+      categories: CATEGORIES,
+      team: TEAM,
+      templates: GALLERY.map((template) => summary(withTested(template))),
+      teams: TEAMS.map(teamSummary)
+    };
   }
 
   /**
@@ -79,18 +85,32 @@ export function createBotTemplates({ records, profiles, integrations, conversati
   }
 
   /**
-   * A template's greeting for the person, from the bot it now runs as: their first name, never an account handle
-   * ("Samrivera" from samrivera@…), or with no real name none; and the bot's own name where the template says its own.
-   * A template without one has none.
+   * The name a template's greeting greets the person by: their first name, never an account handle ("Samrivera" from
+   * samrivera@…), or with no real name "". One read of the person, however many greetings it goes in.
+   * @param {string} displayName
+   * @param {object} options the call's options
    */
-  async function greetingFor(template, botName, displayName, options) {
-    if (!template.greeting) return "";
+  async function firstNameFor(displayName, options) {
     const person = await profiles.findById(conversations.personOf(options), passedOn(options));
     const first = firstNameOf(person?.displayName || displayName || "");
     const handle = String(person?.email || "").split("@")[0].replace(/[^a-z]/giu, "").toLowerCase();
-    const real = first && first.toLowerCase().replace(/[^a-z]/giu, "") !== handle ? first : "";
+    return first && first.toLowerCase().replace(/[^a-z]/giu, "") !== handle ? first : "";
+  }
+
+  /**
+   * A template's greeting for a person greeted as `first` (firstNameFor), from the bot it now runs as: the bot's own name
+   * where the template says its own. A template without one has none.
+   */
+  function greetingWith(template, botName, first) {
+    if (!template.greeting) return "";
     const named = template.greeting.replaceAll(`I'm ${template.name}`, `I'm ${botName}`);
-    return real ? named.replaceAll("{firstName}", real) : named.replace(/\s*\{firstName\}/gu, "");
+    return first ? named.replaceAll("{firstName}", first) : named.replace(/\s*\{firstName\}/gu, "");
+  }
+
+  /** A template's greeting for the person (greetingWith), their name read (firstNameFor). */
+  async function greetingFor(template, botName, displayName, options) {
+    if (!template.greeting) return "";
+    return greetingWith(template, botName, await firstNameFor(displayName, options));
   }
 
   /**
@@ -181,18 +201,19 @@ export function createBotTemplates({ records, profiles, integrations, conversati
   /**
    * What a bot New bot makes on a chosen template starts with (D-98): the columns pointing it at the template, and the
    * greeting it opens with, which asks the template's setup questions; none for Mercbot's general template, whose bot
-   * starts with its own short introduction (onboarding.js).
-   * @param {{ library?: string, home?: string, draft?: object }} choice
-   * @param {string} botName
+   * starts with its own short introduction (onboarding.js) when the person first opens it. `firstName`, when the caller
+   * has read it (firstNameFor: a team's bots greet one person), saves reading the person again (D-105).
+   * @param {{ choice: { library?: string, home?: string, draft?: object }, botName: string, firstName?: string }} start
    * @param {object} options the call's options, in the bot's transaction
    */
-  async function startOn(choice, botName, options) {
+  async function startOn({ choice, botName, firstName }, options) {
     const pointer = await pointerTo(choice, options);
     const columns = { ...pointer, template_since: new Date().toISOString() };
     if (pointer.library_template === GENERAL.slug) return { columns, greeting: "" };
     const template = await templateOf({ name: botName, ...pointer }, records.homeTemplates, options);
     const words = template.greeting || `Hi {firstName}, I'm ${botName}. ${template.description}`;
-    return { columns, greeting: await greetingFor({ ...template, greeting: words }, botName, "", options) };
+    const first = firstName ?? (await firstNameFor("", options));
+    return { columns, greeting: greetingWith({ ...template, greeting: words }, botName, first) };
   }
 
   /**
@@ -404,6 +425,7 @@ export function createBotTemplates({ records, profiles, integrations, conversati
     templateGallery,
     templateChecks,
     templateDetails,
+    firstNameFor,
     addFromTemplate,
     changeTemplate,
     instructionsOf,

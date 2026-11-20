@@ -91,6 +91,8 @@ export const READ_SEARCH = Object.freeze({ conversationIds: idList("conversation
 export const BOT_SEARCH = Object.freeze({
   // The bots pointing at some of the home's templates (D-98): how many use each.
   homeTemplateIds: idList("homeTemplateId"),
+  // The bots following some of Mercbot's templates (D-105): a team leaves out the ones the home has.
+  libraryTemplates: Object.freeze({ type: "array", actualField: "libraryTemplate", filterOperator: "in", items: { type: "string" } }),
   // The home's main bot: the one that is replaced when another becomes it.
   isMain: Object.freeze({ type: "boolean", actualField: "isMain" }),
   // A bot named in any case: a bot asks another by name (directory.js botNamed).

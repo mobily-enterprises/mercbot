@@ -11,6 +11,8 @@ import { isStagingOrProduction } from "@jskit-ai/kernel/shared/support/appEnviro
 const APP_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../..");
 export const TEMPLATES_DIR = path.join(APP_ROOT, "bot-templates");
 export const RESULTS_FILE = path.join(TEMPLATES_DIR, "checks", "results.json");
+// Mercbot's teams (D-105), beside the templates and not one of them: each a set of the library's templates (teams.js).
+export const TEAMS_FILE = path.join(TEMPLATES_DIR, "teams.json");
 
 /**
  * The source that defines how bots behave (D-79), in the owner's five parts. A check's result counts only for the

@@ -1,11 +1,13 @@
 <script setup>
 import { onMounted, ref } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import MercbotAvatar from "@/components/mercbot/MercbotAvatar.vue";
 import MercbotIntro from "@/components/mercbot/MercbotIntro.vue";
 import MercbotShell from "@/components/mercbot/MercbotShell.vue";
 import { ONBOARDING_BLACK } from "@/theme/palettes.js";
 import { botsApi } from "@/components/mercbot/botsApi.js";
 import { useHomes } from "@/components/mercbot/homesApi.js";
+import { addWholeTeam } from "@/components/mercbot/teamChoice.js";
 
 // First run: intro slides, then a short transition while the first bot is created.
 // Returning users go straight to the shell.
@@ -15,6 +17,17 @@ const sections = ref([]);
 const loadFailed = ref(false);
 const firstBot = { name: "Mercbot", color: ONBOARDING_BLACK };
 const { load: loadHomes } = useHomes();
+const route = useRoute();
+const router = useRouter();
+
+// A new home made for a team (?team=, D-105: the New home form): its bots come with it, made once its main bot is, in a
+// section named after the team. When that doesn't work the address keeps the team, and the shell opens its team screen.
+async function addChosenTeam() {
+  const teamId = route.query.team ? String(route.query.team) : "";
+  if (!teamId || !(await addWholeTeam(teamId))) return;
+  const { team: _added, ...rest } = route.query;
+  await router.replace({ query: rest });
+}
 
 async function load() {
   loadFailed.value = false;
@@ -36,6 +49,7 @@ async function finishIntro() {
   const pause = new Promise((resolve) => setTimeout(resolve, 2000));
   try {
     await botsApi.createFirst();
+    await addChosenTeam();
     const [result] = await Promise.all([botsApi.list(), pause]);
     bots.value = result.bots;
     sections.value = result.sections;

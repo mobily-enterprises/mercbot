@@ -2,6 +2,7 @@
 // the client waits the step's delay, then asks the server to advance.
 import { writeFirstQuestion, writeGreeting } from "./botWriting.js";
 import { isModelFailure, modelFailure } from "./modelFailures.js";
+import { TEAMS } from "./teams.js";
 
 export const DEFAULT_BOT_NAME = "Mercbot";
 export const DEFAULT_BOT_COLOR = "#1C1C1C";
@@ -38,6 +39,22 @@ const homeDefaultCard = () => ({
   }
 });
 
+// A new home's first conversation offers a team (D-105), once the home's default for new bots is settled, while the home
+// has no bot but its main one: the teams by name, and NO_TEAM. Choosing one opens the team screen, where nothing is added
+// until the person says so; typing instead skips it, as for the home's default.
+const NO_TEAM = "Not now";
+const teamCard = () => ({
+  kind: "choice",
+  role: "bot",
+  body: {
+    purpose: "team",
+    question: "Want a ready-made team?",
+    options: [...TEAMS.map((team) => team.name), NO_TEAM],
+    subline: "A team is a few bots for one purpose, made together. Pick one to see its bots first, or just type to skip.",
+    chosen: null
+  }
+});
+
 // step -> (context) => { messages, next, rename? }
 export const ONBOARDING_STEPS = {
   start: ({ firstName }) => ({
@@ -61,15 +78,18 @@ export const ONBOARDING_STEPS = {
     messages: [text({ text: `${chosenName} it is. Nice to meet you properly, ${firstName}!` })]
   }),
   // A home whose default for new bots is unchosen asks for it right after its bot is named (D-100): the step,
-  // "home-default", waits for the answer, which moves it on to "about".
-  rename: ({ chosenName, askHomeDefault = false }) => ({
-    next: askHomeDefault ? "home-default" : "about",
+  // "home-default", waits for the answer, which moves it on to "team-offer". With the default chosen, a home offered a
+  // team (D-105) is offered it here: the step "team" waits for the answer, which moves it on to "about".
+  rename: ({ chosenName, askHomeDefault = false, offerTeam = false }) => ({
+    next: askHomeDefault ? "home-default" : offerTeam ? "team" : "about",
     rename: chosenName,
     messages: [
       { kind: "event", role: "system", body: { text: `Renamed to ${chosenName}` } },
-      ...(askHomeDefault ? [homeDefaultCard()] : [])
+      ...(askHomeDefault ? [homeDefaultCard()] : offerTeam ? [teamCard()] : [])
     ]
   }),
+  // After the home's default is answered: the team card while the home is still offered one (D-105), else on.
+  "team-offer": ({ offerTeam = false }) => (offerTeam ? { next: "team", messages: [teamCard()] } : { next: "about", messages: [] }),
   about: () => ({
     next: "connect",
     messages: [

@@ -12,6 +12,7 @@ import { createBotTurns } from "./botTurns.js";
 import { createGroupReplies } from "./groupReplies.js";
 import { createBotReplies } from "./botReplies.js";
 import { createBotList } from "./botList.js";
+import { createBotTeams } from "./botTeams.js";
 import { createBotSettings } from "./botSettings.js";
 import { createBotArchive } from "./botArchive.js";
 import { createBotChat } from "./botChat.js";
@@ -207,6 +208,7 @@ export function createBotsService({
   integrations.connections.whenConnected(replies.connectFollowUps.connected);
   const templates = createBotTemplates({ records, profiles, integrations, conversations, env, templateLinks, homeDefaults });
   const botList = createBotList({ records, conversations, homeDefaults, templates });
+  const teams = createBotTeams({ records, botList, templates });
   const settings = createBotSettings({ records, conversations, apps });
   const archive = createBotArchive({ records, conversations, apps, listedBot: botList.listedBot });
   const chat = createBotChat({
@@ -251,6 +253,8 @@ export function createBotsService({
     templateChecks: templates.templateChecks,
     templateDetails: templates.templateDetails,
     addFromTemplate: templates.addFromTemplate,
+    teamFor: teams.teamFor,
+    addTeam: teams.addTeam,
     changeTemplate: templates.changeTemplate,
     homeTemplates: templates.homeTemplates,
     homeTemplate: templates.homeTemplate,

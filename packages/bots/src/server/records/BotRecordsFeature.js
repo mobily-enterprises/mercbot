@@ -9,6 +9,7 @@ import { createHomeSettingsRepository } from "./homeSettingsRepository.js";
 import { createHomeTemplateRepository } from "./homeTemplateRepository.js";
 import { createMakerRepository } from "./makerRepository.js";
 import { createMessageRepository } from "./messageRepository.js";
+import { createNewBotRepository } from "./newBotRepository.js";
 import { createPolicyRepository } from "./policyRepository.js";
 import { botVisibility, conversationVisibility, messageVisibility } from "./rowPolicies.js";
 import { BOT_SEARCH, CONVERSATION_SEARCH, GROUP_SEARCH, MESSAGE_SEARCH, NOTEBOOK_SEARCH, READ_SEARCH } from "./searchSchemas.js";
@@ -114,6 +115,8 @@ const BotRecordsFeature = defineFeature({
       turns: createTurnRepository({ resources, work }),
       // A bot made from a template opening its conversation.
       templates: createTemplateRepository(resources),
+      // New bots made together, New bot's one and a team's several, in the same statements (D-105).
+      newBots: createNewBotRepository({ resources, systemContext, homeTemplates }),
       // The home's own bot templates and what changed in them (D-98).
       homeTemplates,
       // The home's settings for its bots: the sharing its new bots get, and whether its team question was answered (D-100).

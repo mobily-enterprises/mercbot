@@ -31,11 +31,37 @@ To create a home:
 
 1. Click the home's name at the top of the sidebar.
 2. Choose **Create a home**.
-3. Type a name (for example, "The Smiths" or "Shop team").
-4. Under **Who's it for?**, keep **Just me**, or choose **A team** to make the home's new bots Shared.
-5. Press **Create**.
+3. Under **What's this home for?**, choose a team, such as **Busy household** or **Small shop**, or keep **Something else** for a home without one. A team names the home after itself and its bots come with the home: see [Start with a team](#start-with-a-team).
+4. Type a name, or change the team's (for example, "The Smiths" or "Shop team").
+5. Under **Who's it for?**, keep **Just me**, or choose **A team** to make the home's new bots Shared.
+6. Press **Create**.
 
 You're the owner of every home you create. The sidebar, bots, Connect apps and Apps all change to the home you're in. Each home keeps its own pinned bots, sections and pinned apps for you.
+
+## Start with a team
+
+A team is a few bots for one situation, made together, such as the six that help run a busy household or the five a small shop needs. Since each home has its own bots, files and Apps, a team usually goes with a home of its own:
+
+- **New home:** choose the team under **What's this home for?** when you create the home. The home takes the team's name, which you can change before you press **Create**, and opens with the team's bots in a sidebar section named after the team, beside your main bot.
+- **A new home's first conversation:** in a home made without a team, your first bot asks **Want a ready-made team?** after you name it. Choose a team to see its bots and add them, or **Not now**; typing a message instead skips the question.
+- **Add a team**, at the foot of **New bot**'s list of what the bot will do, adds a team to the home you're in, for example when a company adds another part of its work. See [Add a team](/help/bots#add-a-team).
+
+Each team bot is one of Mercbot's templates and starts as New bot would make it: in the home's mode for new bots (Mixed, unless its owners or admins chose otherwise), with its template's greeting waiting for you. Nothing runs until you open a bot and answer it, so adding a team costs no AI work. A bot whose template the home already has isn't added twice. Anyone in a home can add a team, as anyone can add a bot.
+
+The teams and their bots:
+
+- **Busy household**: Sweep (chores), Pantry (meals), Kitbag (kids), Satchel (school), Billfold (bills), Joist (upkeep)
+- **Personal life**: Streak (habits), Nest Egg (money), Parley (language), Fernhill (plants), Waypoint (job search)
+- **Local service business**, for a salon, a plumber, a clinic: Porchlight (enquiries), Slotwise (bookings), Tender (quotes), Rapport (follow-up), Kindly (reviews), Docket (invoices)
+- **Small shop**: Restock (stock), Chorus (social), Kindly (reviews), Docket (invoices), Rapport (follow-up)
+- **Marketing team**: Chorus (social), Longhand (blog), Broadsheet (newsletter), Earshot (mentions), Periscope (rivals), Tuning Fork (voice)
+- **Sales team**: Wayfarer (prospects), Cuecard (call prep), Quotewright (proposals), Keel (deals), Evergreen (renewals)
+- **Software company**: Sieve (triage), Patchwork (pull requests), Bisect (builds), Baton (on-call), Mile Marker (releases)
+- **Design studio**: Crit (critique), Tooltip (interface words), Ramp (accessibility), Tuning Fork (voice), Lectern (slides)
+- **Growing team (hiring)**: Jobsmith (job ads), Shortlist (hiring), Doorstep (onboarding), Leeway (time off), Pulse (check-ins)
+- **Office manager**: Minute Hand (recaps), Gauge (KPIs), Shoebox (expenses), Tickler (contracts), Par Level (reorders)
+- **Startup founder**: Gauge (KPIs), Minute Hand (recaps), Wayfarer (prospects), Chorus (social), Patchwork (pull requests), Tickler (contracts)
+- **Consultancy**: Wayfarer (prospects), Cuecard (call prep), Quotewright (proposals), Minute Hand (recaps), Lectern (slides), Keel (deals), Docket (invoices)
 
 ## Rename a home
 

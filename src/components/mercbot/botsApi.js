@@ -65,6 +65,9 @@ export const botsApi = {
   create: (bot) => post("/bots", bot),
   // A bot from a template a shared link opens, after the person has seen it all (D-98: it becomes the home's).
   fromTemplate: (slug) => post("/bots/from-template", { slug }),
+  // Teams (D-105): a team's bots as the home has them, and Add N bots, which answers the whole list and the bots it added.
+  team: (teamId) => request(`/teams/${encodeURIComponent(teamId)}`),
+  addTeam: (teamId, templates) => post(`/teams/${encodeURIComponent(teamId)}`, { templates }),
   answer: (botId, messageId, selected) => post(`/bots/${botId}/choices/${messageId}`, { selected }),
   // A shared bot's messages are its open tab's (D-36): the newest page and whether older ones are
   // left (`more`). With `since`, an earlier answer's cursor, only what was written or changed after
@@ -161,5 +164,7 @@ export const ONBOARDING_TIMING = {
   settle: { delay: 4000, status: "Setting up your apps" },
   "await-nudge": { delay: 180000, status: "" },
   "intro-greet": { delay: 2500, status: "Typing" },
-  "intro-ask": { delay: 1500, status: "Typing" }
+  "intro-ask": { delay: 1500, status: "Typing" },
+  // After the home's default is answered, a new home's first conversation offers a team (D-105).
+  "team-offer": { delay: 1500, status: "Typing" }
 };

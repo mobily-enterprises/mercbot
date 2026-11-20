@@ -17,10 +17,11 @@ const inSharedTab = (bot) => bot.kind !== "group" && bot.sharing === "shared" &&
  *   store: import("../../types.js").BotMessages,
  *   work: import("../../types.js").BotWork,
  *   reportFailure: import("../../types.js").ReportFailure,
- *   notify: (message: string) => void
- * }} options
+ *   notify: (message: string) => void,
+ *   openTeam: (teamId: string) => void
+ * }} options `openTeam` opens New bot on a team's screen (D-105)
  */
-export function useChatActions({ currentBot, picker, startGroup, store, work, reportFailure, notify }) {
+export function useChatActions({ currentBot, picker, startGroup, store, work, reportFailure, notify, openTeam }) {
   const { messagesByBot, updateBot, appendMessages, replaceMessage, removeMessage } = store;
   const { playMood, requestReply, describeWork } = work;
 
@@ -89,6 +90,11 @@ export function useChatActions({ currentBot, picker, startGroup, store, work, re
       // The home's default for new bots (D-100): the first conversation carries on with its own next step, no reply.
       if (result.home) {
         homeDefault.value = result.home;
+        return;
+      }
+      // A team (D-105): the same, and a team chosen opens on its team screen, where nothing is added until Add.
+      if ("team" in result) {
+        if (result.team) openTeam(result.team);
         return;
       }
     } catch (error) {

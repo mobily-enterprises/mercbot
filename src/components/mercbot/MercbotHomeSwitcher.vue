@@ -1,15 +1,19 @@
 <script setup>
-import { nextTick, ref } from "vue";
+import { computed, nextTick, ref } from "vue";
 import { useRouter } from "vue-router";
 import { currentHome } from "./homeApi.js";
 import { HOME_NAME_MAX, roleLabel, useHomes } from "./homesApi.js";
 import { HOME_FOR, makeHome } from "./homeDefault.js";
+import { templatesApi } from "../templates/templatesApi.js";
+import { nameFor } from "./teamChoice.js";
 import { usePaths } from "@jskit-ai/shell-web/client/navigation/usePaths";
 import { HOME_TILES, ON_IDENTITY } from "@/theme/palettes.js";
 
 // The home switcher (D-36), top left of the sidebar: which home you're in, the others you
-// belong to, and making a new one, which asks who it's for: how its new bots are shared (D-100). A home's tile is its
-// initial in a colour picked from its name, so the same home always looks the same.
+// belong to, and making a new one, which asks what it's for, one of Mercbot's teams or Something else (D-105), and who
+// it's for: how its new bots are shared (D-100). A team chosen suggests its name for the home, which can be changed, and
+// its bots come with the home (?team=, pages/w/[workspaceSlug]/index.vue). A home's tile is its initial in a colour
+// picked from its name, so the same home always looks the same.
 const paths = usePaths();
 const props = defineProps({
   rail: { type: Boolean, default: false }
@@ -24,6 +28,11 @@ const forWhom = ref(HOME_FOR[0].value);
 const busy = ref(false);
 const problem = ref("");
 const input = ref(null);
+const purpose = ref(null);
+// Mercbot's teams, read when the form opens, and the one chosen ("" for Something else).
+const teams = ref([]);
+const teamId = ref("");
+const chosenTeam = computed(() => teams.value.find((team) => team.id === teamId.value) || null);
 
 const tileColour = (home) => HOME_TILES[[...home.name].reduce((sum, letter) => sum + letter.charCodeAt(0), 0) % HOME_TILES.length];
 const tileStyle = (home) => ({ background: home ? tileColour(home) : HOME_TILES[0], color: ON_IDENTITY });
@@ -43,14 +52,23 @@ function go(home) {
 async function startNaming() {
   naming.value = true;
   problem.value = "";
+  templatesApi.gallery().then((gallery) => { teams.value = gallery.teams || []; }).catch(() => {});
   await nextTick();
-  input.value?.focus();
+  purpose.value?.focus();
+}
+
+// A team chosen names the home after it while the name is empty or still a team's: a name typed stays.
+function choosePurpose(event) {
+  const before = chosenTeam.value;
+  teamId.value = event.target.value;
+  name.value = nameFor(name.value, before, chosenTeam.value);
 }
 
 function cancelNaming() {
   naming.value = false;
   name.value = "";
   forWhom.value = HOME_FOR[0].value;
+  teamId.value = "";
   problem.value = "";
 }
 
@@ -61,9 +79,10 @@ async function createHome() {
   problem.value = "";
   try {
     const home = await makeHome(create, wanted, forWhom.value);
+    const team = teamId.value;
     open.value = false;
     cancelNaming();
-    router.push(paths.page("/", { params: { workspaceSlug: home.slug } }));
+    router.push({ path: paths.page("/", { params: { workspaceSlug: home.slug } }), query: team ? { team } : {} });
   } catch (error) {
     problem.value = error?.message || "That home couldn't be made. Try again.";
   } finally {
@@ -122,6 +141,14 @@ async function createHome() {
       </v-list>
       <v-divider class="my-1" />
       <form v-if="naming" class="mb-home-menu__new" @submit.prevent="createHome" @keydown.esc.stop.prevent="cancelNaming">
+        <label class="mb-home-menu__purpose">
+          <span class="mb-home-menu__for-label">What's this home for?</span>
+          <select ref="purpose" class="mb-home-menu__input" :value="teamId" @change="choosePurpose">
+            <option v-for="team in teams" :key="team.id" :value="team.id">{{ team.name }}</option>
+            <option value="">Something else</option>
+          </select>
+        </label>
+        <p v-if="chosenTeam" class="mb-home-menu__hint">{{ chosenTeam.templates.length }} bots come with it: {{ chosenTeam.description }}</p>
         <input
           ref="input"
           v-model="name"
@@ -277,6 +304,24 @@ async function createHome() {
 .mb-home-menu__input:focus {
   outline: 2px solid rgb(var(--v-theme-secondary));
   outline-offset: 0;
+}
+
+.mb-home-menu__purpose {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+}
+
+.mb-home-menu__purpose .mb-home-menu__for-label {
+  float: none;
+}
+
+.mb-home-menu__hint {
+  margin: -2px 0 0;
+  font-size: 12px;
+  line-height: 16px;
+  color: rgb(var(--v-theme-on-surface-variant));
 }
 
 .mb-home-menu__for {

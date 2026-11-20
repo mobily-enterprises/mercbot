@@ -2773,3 +2773,50 @@ help only said how to name a new one. Its owners and admins can now change it.
   any change JSKIT reports to a home (`home-changed`), and reads their homes again. Signing in again doesn't name a
   first home again: JSKIT names it only when it makes it. JSKIT gives an invitation's email the home as it is when the
   invitation is sent, so a copy built on Mercbot that sends invitations names it by its new name from then on.
+
+## D-105 — Teams: a home that comes with a few bots for its situation (2026-11-20)
+
+The owner's decision: Mercbot pre-creates bots for a purpose. A team is a ready-made bundle of Mercbot's templates for
+one situation; since each home has its own database, Apps and files, a team mainly goes with a home of its own.
+- **Data.** `bot-templates/teams.json`, written by the Mercbot team like the templates and beside them, is no template
+  (the loader and the static checks read every other JSON file there, `templateFiles()`): each team an id, a name, a
+  one-line description and its templates' slugs, in the order shown. Mercbot doesn't start on a team naming a template
+  the library hasn't got or one twice (`teams.js` `checkTeams`; `tests/server/teams.test.js`). Twelve, named for their
+  situation, their ids kept: family-home **Busy household**, just-me **Personal life**, front-desk **Local service
+  business** ("For a salon, a plumber, a clinic…"), shop **Small shop**, marketing **Marketing team**, sales **Sales
+  team**, software **Software company**, product-design **Design studio**, people **Growing team (hiring)**,
+  back-office **Office manager**, founder **Startup founder** and consultancy **Consultancy**. The gallery's read
+  (`GET /api/templates`) lists them as `teams`.
+- **One name per bot.** team-check-in's bot is **Pulse**, where it was Tuningfork beside brand-voice-editor's Tuning
+  Fork: two of a team's bots would have been told apart by a space. Bots already made keep their names; its template's
+  `changes` says so. A static check keeps the library's bot names distinct, ignoring case and spaces.
+- **Where, by weight.** 1. **New home**: the form asks **What's this home for?**, the teams then **Something else**
+  (the default, no team). A team suggests its name as the home's, which stays editable, and its bots come with the
+  home: the page opens the new home with `?team=<id>`, makes its main bot as for any new home, then adds every bot of
+  the team (`teamChoice.js` `addWholeTeam`) before the shell shows; if that fails the address keeps the team and the
+  shell opens its team screen. 2. **The first conversation** of a home that has no bot but its main one: after the
+  home's default (D-100) is settled, a `choice` card with purpose `team` asks **Want a ready-made team?**, the teams and
+  **Not now**. Its step is `team`, reached at `rename` when the default is chosen already, or through `team-offer` once
+  it is answered; a team chosen answers `team: <id>` and the page opens its team screen, adding nothing by itself;
+  typing past it skips it, as for D-100's card. No AI reply follows either answer. 3. **Add a team**, at the foot of New
+  bot's **What will it do?**, secondary: the teams with their bots' faces, then the team's screen.
+- **The team screen** (`MercbotTeamScreen.vue`, `GET /api/w/:workspaceSlug/teams/:teamId`): each bot with its name,
+  look, tag and line, all ticked, untickable; a bot whose template a bot of the home already follows
+  (`library_template`) says **Already in this home** and can't be ticked. An owner or admin gets C3's box under a bot
+  whose template pairs with an app, ticked, which sets that app up as a draft afterwards, each app once. **Add N bots**.
+- **One path.** `POST /api/w/:workspaceSlug/teams/:teamId` with `{ templates }` makes the ones chosen in one
+  transaction through `botList.makeBots`, the same function New bot's `createBot` now makes its one bot with: bots,
+  their makers' own conversations, first messages and, for Shared bots, General tabs are each one statement for all of
+  them (`records/newBotRepository.js`), and `homeDefaults.sharingOf` is read once, so every bot gets the home's default
+  as New bot's does: no rule of its own. Each takes its template's name and look and opens with its greeting, its
+  person's first name read once. All or none: any failed write makes none. The home is locked while the templates its
+  bots follow are read, so two adds at once never make a template's bot twice; a chosen template already followed is
+  left out (`skipped`), and choosing only those is refused 409 `bots_team_all_in_home`. The bots go in the person's
+  sidebar section named after the team, at the end, made then or reused. The answer is the list as the person sees it,
+  with `added` and `sectionId`; the first new bot opens. Adding a team makes the same statements for 1 bot as for 6, in
+  a home of 4 bots or 60, Mixed or Shared (`tests/server/teams.integration.js`).
+- **Cost.** No AI turn at creation: a template bot's greeting is its template's own text, written as it is made, and it
+  waits for the person (no onboarding step). New bot already worked so; nothing was deferred.
+- **Who.** Whoever may add a bot: anyone in the home. JSKIT refuses someone outside it (403 at this JSKIT; 404 from
+  workspaces-core 0.2.58). An unknown team is 400 `bots_team_unknown`, an empty choice 400 `bots_team_empty`, a
+  template the team hasn't got 400 `bots_team_template_unknown`.

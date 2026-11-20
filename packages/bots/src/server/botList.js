@@ -11,17 +11,36 @@ const BRAND_SHAPE = "mercbot";
 const generalTemplate = () => ({ library_template: GENERAL.slug, template_since: new Date().toISOString() });
 
 /**
+ * What a new bot starts with: the template columns pointing it at its template, and the greeting it opens with, "" for a
+ * general one, which introduces itself when the person first opens it.
+ * @typedef {{ columns: Record<string, unknown>, greeting: string }} NewBotStart
+ */
+
+/**
+ * A new bot's name, cloud and colour as New bot gives them, checked: Mercbot's own cloud always in its orange, any other
+ * in one of the palette's colours (400 otherwise).
+ * @param {{ name?: unknown, shape?: unknown, color?: unknown }} input
+ */
+export function lookOf(input) {
+  const name = cleanName(input.name);
+  const shape = cloudShape(input.shape);
+  const color = shape === BRAND_SHAPE ? BRAND_COLOR : String(input.color || "").toUpperCase();
+  if (!BOT_PALETTE.includes(color)) throw new BotsError(400, "Pick one of the colours.", { code: "bots_colour_unknown" });
+  return { name, shape, color };
+}
+
+/**
  * The person's list of bots: the home's bots and their own group chats as they see them, new bots, pins and sections.
  * Every method takes the call's options last: the person and the home are its context.
  * @param {object} dependencies
  * @param {import("./types.js").BotRecords} dependencies.records mercbot.bots.records
  * @param {import("./types.js").BotConversations} dependencies.conversations
  * @param {import("./types.js").HomeDefaults} dependencies.homeDefaults the sharing the home's new bots get (D-100)
- * @param {{ startOn: (choice: object, botName: string, options: object) => Promise<{ columns: object, greeting: string }> }}
+ * @param {{ startOn: (start: { choice: object, botName: string, firstName?: string }, options: object) => Promise<NewBotStart> }}
  *   dependencies.templates what a new bot made on a chosen template starts with (botTemplates.js)
  */
 export function createBotList({ records, conversations, homeDefaults, templates }) {
-  const { conversations: store, messages } = records;
+  const { conversations: store, messages, newBots } = records;
 
   /**
    * The home's bots and the person's own group chats, each as this person sees it (the row policy
@@ -122,30 +141,53 @@ export function createBotList({ records, conversations, homeDefaults, templates 
   }
 
   /**
-   * New bot: unpinned, top of its group by activity, on the template chosen in New bot (`template`: `{ library: slug }`,
-   * `{ home: id }` or `{ draft }`, a new one of the home's; D-98), or with none chosen on Mercbot's general one, and
-   * shared as the home's new bots are (D-100): a Shared one has its General tab at once, and opens on the person's own,
-   * where its intro or greeting is. A template's bot greets with its template's greeting and asks its setup questions; a
-   * general one starts its own short intro.
+   * New bots, made together in the call's transaction: New bot's one, or a team's several (D-105), through the same
+   * statements, each one for all of them, so six cost what one does. Each `{ name, shape, color, start }` (lookOf, and
+   * NewBotStart) is unpinned, top of its group by activity, in the person's section `sectionId` when given, and shared
+   * as the home's new bots are (D-100): a Shared one has its General tab at once, and opens on the person's own, where
+   * its intro or greeting is. A template's bot opens with its template's greeting, written as it is made, and asks its
+   * setup questions once the person answers; a general one introduces itself when the person first opens it. Neither
+   * starts any AI work as it is made. Answers each as New bot does, in the order given.
+   * @param {Array<{ name: string, shape: string, color: string, start: NewBotStart }>} entries
+   * @param {string | null} sectionId
+   * @param {import("./types.js").CallOptions} txOptions
+   */
+  async function makeBots(entries, sectionId, txOptions) {
+    const person = conversations.personOf(txOptions);
+    const sharing = await homeDefaults.sharingOf(txOptions);
+    const now = new Date().toISOString();
+    const made = await newBots.createBots(entries.map(({ name, shape, color, start }) =>
+      ({ user_id: person, name, shape, color, sharing, ...start.columns })), txOptions);
+    const greetingOf = (at) => entries[at].start.greeting;
+    const seats = await newBots.createSeats(made.map((bot, at) => ({
+      bot_id: bot.id,
+      onboarding_step: greetingOf(at) ? null : "intro-greet",
+      section_id: sectionId,
+      unread: Boolean(greetingOf(at)),
+      last_activity_at: now
+    })), txOptions);
+    await newBots.openWith(seats.flatMap((seat, at) => {
+      const where = { bot_id: made[at].id, conversation_id: seat.id };
+      const greeting = greetingOf(at) ? [{ ...where, kind: "text", role: "bot", body: { text: greetingOf(at) } }] : [];
+      return [{ ...where, kind: "timestamp", role: "system", body: { at: now } }, ...greeting];
+    }), txOptions);
+    const tabs = await homeDefaults.firstTabsOf(made.map((bot, at) => ({ bot, seat: seats[at] })), txOptions);
+    return made.map((bot, at) => ({ ...toBot(conversations.asSeen(bot, seats[at])), rooms: tabs[at], preview: greetingOf(at) }));
+  }
+
+  /**
+   * New bot (makeBots): on the template chosen in New bot (`template`: `{ library: slug }`, `{ home: id }` or
+   * `{ draft }`, a new one of the home's; D-98), or with none chosen on Mercbot's general one.
    */
   async function createBot(input = {}, options) {
-    const name = cleanName(input.name);
-    const shape = cloudShape(input.shape);
-    const color = shape === BRAND_SHAPE ? BRAND_COLOR : String(input.color || "").toUpperCase();
-    if (!BOT_PALETTE.includes(color)) throw new BotsError(400, "Pick one of the colours.", { code: "bots_colour_unknown" });
-    // The seat, or a new template's tag, lost to a race runs the whole transaction again.
+    const look = lookOf(input);
+    // A new template's tag lost to a race runs the whole transaction again.
     return retryLostInsertRace(options, () => store.withTransaction(options, async (txOptions) => {
-      const start = input.template == null ? { columns: generalTemplate(), greeting: "" } : await templates.startOn(input.template, name, txOptions);
-      const sharing = await homeDefaults.sharingOf(txOptions);
-      const made = { user_id: conversations.personOf(txOptions), name, shape, color, sharing, ...start.columns };
-      const bot = await store.createBot(made, txOptions);
-      const seat = await conversations.conversationOf(bot, txOptions, { onboarding_step: start.greeting ? null : "intro-greet" });
-      const row = conversations.asSeen(bot, seat);
-      await conversations.append(row, [
-        { kind: "timestamp", role: "system", body: { at: new Date().toISOString() } },
-        ...(start.greeting ? [{ kind: "text", role: "bot", body: { text: start.greeting } }] : [])
-      ], txOptions);
-      return { ...toBot(row), rooms: await homeDefaults.firstTabs(bot, seat, txOptions), preview: start.greeting };
+      const start = input.template == null
+        ? { columns: generalTemplate(), greeting: "" }
+        : await templates.startOn({ choice: input.template, botName: look.name }, txOptions);
+      const [made] = await makeBots([{ ...look, start }], null, txOptions);
+      return made;
     }));
   }
 
@@ -202,6 +244,7 @@ export function createBotList({ records, conversations, homeDefaults, templates 
     listBots,
     listedBot,
     ensureFirstBot,
+    makeBots,
     createBot,
     reorderPins,
     ownedSection: store.ownedSection,

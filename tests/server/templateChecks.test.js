@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -21,7 +21,9 @@ import {
   testedOn,
   untestedCount
 } from "../../packages/bots/src/server/templateResults.js";
-import { GALLERY, GENERAL, LIBRARY, LIBRARY_TAGS, checkTemplate, freeTag, setupNeeds, setupSkillOf } from "../../packages/bots/src/server/templates.js";
+import {
+  GALLERY, GENERAL, LIBRARY, LIBRARY_TAGS, checkTemplate, freeTag, setupNeeds, setupSkillOf, templateFiles
+} from "../../packages/bots/src/server/templates.js";
 import { loadCatalogue } from "../../packages/integrations/src/server/catalogue.js";
 import { turnDoubles } from "../support/botDoubles.mjs";
 
@@ -29,7 +31,8 @@ import { turnDoubles } from "../support/botDoubles.mjs";
 // schema, the skills and tools it relies on, no personal details, routines created paused, nothing sent without a yes,
 // and a setup interview. The end-to-end check (npm run check:templates) plays each one with a real model.
 
-const files = readdirSync(TEMPLATES_DIR).filter((file) => file.endsWith(".json")).sort();
+// Every JSON file in the folder but its teams (D-105), which teams.test.js checks.
+const files = templateFiles();
 const written = files.map((file) => ({ file, template: JSON.parse(readFileSync(path.join(TEMPLATES_DIR, file), "utf8")) }));
 
 /** Everything a template says: its greeting, job, every skill and every routine. */

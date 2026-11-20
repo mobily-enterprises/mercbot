@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { BOT_PALETTE } from "./botPalette.js";
-import { TEMPLATES_DIR, templateFingerprint } from "./templateResults.js";
+import { TEAMS_FILE, TEMPLATES_DIR, templateFingerprint } from "./templateResults.js";
 import { TAG, TEMPLATE_LIMITS, setupSkillOf, templateProblems } from "../shared/templateBody.js";
 
 // Bot templates (D-43, D-98). Mercbot's library is curated: its templates are files in bot-templates/, one JSON file
@@ -113,8 +113,13 @@ export function checkTemplate(template, file = template.slug) {
   return template;
 }
 
+/** The library's template files, by name: every JSON file in bot-templates/ but its teams (D-105). */
+export function templateFiles() {
+  return readdirSync(TEMPLATES_DIR).filter((file) => file.endsWith(".json") && file !== path.basename(TEAMS_FILE)).sort();
+}
+
 function load() {
-  const files = readdirSync(TEMPLATES_DIR).filter((file) => file.endsWith(".json")).sort();
+  const files = templateFiles();
   const templates = files.map((file) => {
     const written = JSON.parse(readFileSync(path.join(TEMPLATES_DIR, file), "utf8"));
     // Its fingerprint ties a check's result to the template as it was then (D-79).

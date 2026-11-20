@@ -8,6 +8,7 @@ import { SednaUncertainError } from "./sednaApi.js";
 import { BotsError } from "./botsError.js";
 import { toBot } from "./botRows.js";
 import { HOME_DEFAULT_ANSWERS } from "./onboarding.js";
+import { teamNamed } from "./teams.js";
 
 /**
  * The person's answers on the cards a bot posts (D-46): a question or approval, a hand-over, a secure
@@ -27,7 +28,7 @@ import { HOME_DEFAULT_ANSWERS } from "./onboarding.js";
  *   bot's first conversation asks (D-100)
  */
 export function createBotCards({ records, account, env, computer, integrations, conversations, requests, files, homeDefaults }) {
-  const { conversations: store, messages, work } = records;
+  const { conversations: store, messages, work, newBots } = records;
 
   /**
    * Answering a question card: one pick, or several for multi-select. No user bubble.
@@ -56,8 +57,12 @@ export function createBotCards({ records, account, env, computer, integrations, 
       // carries on.
       if (choice.body.purpose === "home-default") {
         await homeDefaults.set(HOME_DEFAULT_ANSWERS[picks[0]], txOptions);
-        if (row.onboarding_step === "home-default") update.onboarding_step = "about";
+        // Then a team, while the home has no bot but its main one (D-105).
+        const next = (await newBots.anyBesidesMain(txOptions)) ? "about" : "team-offer";
+        if (row.onboarding_step === "home-default") update.onboarding_step = next;
       }
+      // A team (D-105): the conversation carries on, and the page opens the team screen for the one chosen.
+      if (choice.body.purpose === "team" && row.onboarding_step === "team") update.onboarding_step = "about";
       const updated = await messages.setBody(choice.id, { ...choice.body, chosen: choice.body.multi ? picks : picks[0] }, txOptions);
       if (choice.body.purpose === "first-task") update.onboarding_step = null;
       await store.updateConversation(row.conversation_id, update, txOptions);
@@ -103,6 +108,7 @@ export function createBotCards({ records, account, env, computer, integrations, 
     if (choice.body.purpose === "approval" && choice.body.requestId) await requests.approvalAnswered(choice.body.requestId, options);
     const bot = toBot(await conversations.refresh(row, options));
     if (choice.body.purpose === "home-default") return { bot, messages: [updated, ...results], home: await homeDefaults.asSeen(options) };
+    if (choice.body.purpose === "team") return { bot, messages: [updated, ...results], team: teamNamed(picks[0])?.id ?? null };
     return { bot, messages: [updated, ...results] };
   }
 

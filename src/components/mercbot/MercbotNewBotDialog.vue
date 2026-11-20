@@ -9,6 +9,7 @@ import { templatesApi } from "../templates/templatesApi.js";
 import { appsApi } from "../apps/appsApi.js";
 import MercbotAvatar from "./MercbotAvatar.vue";
 import MercbotConfirmDialog from "./MercbotConfirmDialog.vue";
+import MercbotTeamScreen from "./MercbotTeamScreen.vue";
 import MercbotTemplateDraft from "./MercbotTemplateDraft.vue";
 import MercbotTemplateTag from "./MercbotTemplateTag.vue";
 import { BOT_COLOURS, BOT_PALETTE } from "@/theme/palettes.js";
@@ -21,7 +22,9 @@ import { botsApi } from "./botsApi.js";
 // or Make a new template, drafted from a sentence on the draft screen. A template chosen is shown whole before Next.
 // Then its name, cloud and colour, and Create: the shell creates it (useNewBot.js) with the template chosen, so a new
 // template and its bot are made together. A template a link opens (?template=) starts New bot with it chosen; a bot a
-// person shared keeps its own name and look, so it's added from there. On a phone it fills the screen.
+// person shared keeps its own name and look, so it's added from there. Add a team, at the foot of the templates, makes a
+// few bots at once (D-105: MercbotTeamScreen.vue); a new home's first conversation or its New home form starts New bot
+// there with the team chosen. On a phone it fills the screen.
 const props = defineProps({
   busy: { type: Boolean, default: false },
   error: { type: String, default: "" },
@@ -32,15 +35,20 @@ const props = defineProps({
   // The home's bots, so a new one starts in a colour and cloud nobody has yet (D-44).
   bots: { type: Array, default: () => [] },
   // The template a link opened New bot with: one of Mercbot's library, or a bot a person shared.
-  templateSlug: { type: String, default: "" }
+  templateSlug: { type: String, default: "" },
+  // The team chosen elsewhere (D-105): New bot opens on its team screen.
+  teamId: { type: String, default: "" }
 });
 const open = defineModel({ type: Boolean, default: false });
-const emit = defineEmits(["create"]);
+const emit = defineEmits(["create", "addTeam"]);
 
 const display = useDisplay();
 const phone = computed(() => display.width.value < 600);
-// pick, preview (a template chosen), draft (Make a new template) or look (name, cloud and colour).
+// pick, preview (a template chosen), draft (Make a new template), look (name, cloud and colour) or team (Add a team).
 const step = ref("pick");
+// The team on the team screen, "" for the list of teams.
+const team = ref("");
+const teamScreen = ref(null);
 const home = ref(null);
 // The template chosen: as the browser gave it ({ library }, { home }), { link } from a link, { general } or { draft }.
 const chosen = shallowRef(null);
@@ -80,7 +88,7 @@ const library = computed(() => Boolean(detail.value?.team));
 const shared = computed(() => Boolean(chosen.value?.link) && Boolean(detail.value) && !library.value);
 const chosenTag = computed(() => detail.value && { template: { tag: detail.value.tag, source: chosen.value?.home ? "home" : "library", description: detail.value.description } });
 const homeTags = computed(() => (home.value || []).map((template) => template.tag));
-const title = computed(() => ({ pick: "New bot", preview: "New bot", draft: "Make a new template", look: "Name your bot" })[step.value]);
+const title = computed(() => ({ pick: "New bot", preview: "New bot", draft: "Make a new template", look: "Name your bot", team: "Add a team" })[step.value]);
 
 watch(open, async (value) => {
   if (!value) return;
@@ -95,6 +103,8 @@ watch(open, async (value) => {
   shape.value = pickFresh(SHAPES.map((entry) => entry.id), new Set(bots.map((bot) => bot.shape)));
   color.value = pickFresh(BOT_PALETTE.map((entry) => entry.color), new Set(bots.map((bot) => (isBlack(bot.color) ? BOT_COLOURS.Black : String(bot.color).toUpperCase()))));
   botsApi.homeTemplates().then((read) => { home.value = read.templates; }).catch(() => { home.value = []; });
+  team.value = props.teamId;
+  if (props.teamId) return toTeams();
   if (props.templateSlug) return choose({ link: props.templateSlug });
   await nextTick();
   browser.value?.focusSearch();
@@ -151,15 +161,22 @@ function saveDraft({ draft }) {
   toLook();
 }
 
+/** Add a team: the list of teams, or the one chosen. */
+function toTeams() {
+  step.value = "team";
+}
+
 function toPicker() {
   step.value = "pick";
+  team.value = "";
   drafting.value = false;
   nextTick(() => browser.value?.focusSearch());
 }
 
 function back() {
   if (props.busy) return;
-  if (step.value === "look" && drafting.value) step.value = "draft";
+  if (step.value === "team") teamScreen.value?.back();
+  else if (step.value === "look" && drafting.value) step.value = "draft";
   else if (step.value === "look" && !chosen.value?.general) step.value = "preview";
   else if (step.value === "draft" && draftScreen.value?.dirty) leaving.value = toPicker;
   else toPicker();
@@ -219,6 +236,16 @@ function onKeydown(event) {
                 <span class="mb-newbot__lead-text">
                   <strong>General helper</strong>
                   <span>An all-round helper for whatever you ask: it asks what you need and grows from there.</span>
+                </span>
+                <v-icon icon="$chevronRight" size="18" />
+              </button>
+            </template>
+            <template #foot>
+              <button type="button" class="mb-newbot__team" data-template-entry @click="toTeams">
+                <v-icon icon="$groupAdd" size="20" />
+                <span class="mb-newbot__lead-text">
+                  <strong>Add a team</strong>
+                  <span>A few bots for one situation, such as a small shop or a busy household, made together.</span>
                 </span>
                 <v-icon icon="$chevronRight" size="18" />
               </button>
@@ -300,6 +327,12 @@ function onKeydown(event) {
               <button v-if="shared" type="button" class="mb-ctemp__button mb-ctemp__button--primary" :disabled="busy" @click="create">{{ busy ? "Adding…" : "Add bot" }}</button>
               <button v-else type="button" class="mb-ctemp__button mb-ctemp__button--primary" :disabled="!detail" @click="toLook">Next</button>
             </div>
+          </div>
+        </Transition>
+
+        <Transition name="mb-ctemp-step">
+          <div v-if="step === 'team'" class="mb-ctemp__step">
+            <MercbotTeamScreen ref="teamScreen" v-model:team="team" :busy="busy" :error="error" @add="emit('addTeam', $event)" @back="toPicker" />
           </div>
         </Transition>
 

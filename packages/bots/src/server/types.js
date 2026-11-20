@@ -49,8 +49,8 @@
  * The bots' tables (`mercbot.bots.records`, records/BotRecordsFeature.js): the directory other features read, the
  * conversations' and messages' repositories, the bots a person made across homes, the bots' work (requests, routines,
  * cards) and policies, the connect follow-ups, what a turn reads beside its conversation, a bot made from a template
- * opening its chat, the home's own templates (D-98), the home's settings for its bots (D-100), conversations archived and
- * resumed (D-101), and agent-runtime's stores.
+ * opening its chat, new bots made together (D-105), the home's own templates (D-98), the home's settings for its bots
+ * (D-100), conversations archived and resumed (D-101), and agent-runtime's stores.
  * @typedef {{
  *   directory: BotDirectory,
  *   conversations: ReturnType<typeof import("./records/conversationRepository.js").createConversationRepository>,
@@ -62,6 +62,7 @@
  *   policies: PolicyRepository,
  *   turns: TurnRepository,
  *   templates: ReturnType<typeof import("./records/templateRepository.js").createTemplateRepository>,
+ *   newBots: ReturnType<typeof import("./records/newBotRepository.js").createNewBotRepository>,
  *   homeTemplates: HomeTemplateRepository,
  *   homeSettings: HomeSettingsRepository,
  *   agent: { createRuns: Function, createSummaries: Function, createGoals: Function }
@@ -82,6 +83,8 @@
  */
 /** @typedef {ReturnType<typeof import("./botConversations.js").createBotConversations>} BotConversations */
 /** @typedef {ReturnType<typeof import("./homeDefaults.js").createHomeDefaults>} HomeDefaults */
+/** @typedef {ReturnType<typeof import("./botList.js").createBotList>} BotList */
+/** @typedef {ReturnType<typeof import("./botTemplates.js").createBotTemplates>} BotTemplates */
 /** @typedef {ReturnType<typeof import("./botHistory.js").createBotHistory>} BotHistory */
 /** @typedef {ReturnType<typeof import("./backgroundWork.js").createBackgroundWork>} BackgroundWork */
 /**

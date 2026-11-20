@@ -33,7 +33,7 @@ const FIND_LIMIT = 200;
  *   default for new bots (D-100)
  */
 export function createBotChat({ records, model, integrations, conversations, goals, activity, pausedMessage, homeDefaults }) {
-  const { conversations: store, messages: history } = records;
+  const { conversations: store, messages: history, newBots } = records;
 
   /**
    * A conversation's messages (D-15). Without options, its newest page, whether older ones
@@ -94,12 +94,15 @@ export function createBotChat({ records, model, integrations, conversations, goa
       return { bot: toBot(before), messages: [] };
     }
     const chosenName = (await history.latestOfKind(before.conversation_id, "choice", options))?.body?.chosen;
-    // Named, the bot asks how the home's new bots are shared while that's unchosen, of an owner or admin (D-100).
+    // Named, the bot asks how the home's new bots are shared while that's unchosen, of an owner or admin (D-100); with
+    // that settled, it offers a team while the home has no bot but its main one (D-105).
     const askHomeDefault = step === "rename" && managesHome(options) && (await homeDefaults.unchosen(options));
+    const offerTeam = (step === "team-offer" || (step === "rename" && !askHomeDefault)) && !(await newBots.anyBesidesMain(options));
     const result = await ONBOARDING_STEPS[step]({
       firstName: firstNameOf(user?.displayName),
       chosenName,
       askHomeDefault,
+      offerTeam,
       bot: toBot(before),
       // A paused home (D-73) gets the steps' own words, with no AI call.
       model: (await pausedMessage(before.workspace_id)) ? null : model
@@ -172,12 +175,12 @@ export function createBotChat({ records, model, integrations, conversations, goa
     if (row.onboarding_step === "await-nudge") {
       await store.updateConversation(row.conversation_id, { onboarding_step: null }, options);
     }
-    // Typing while a choice card is open makes the card inactive; onboarding carries on without a rename, or without
-    // the home's default for new bots (D-100), which stays unchosen: Mixed.
+    // Typing while a choice card is open makes the card inactive; onboarding carries on without a rename, without
+    // the home's default for new bots (D-100), which stays unchosen: Mixed, or without a team (D-105).
     const openChoice = await history.latestOfKind(row.conversation_id, "choice", options);
     if (openChoice && !openChoice.body.chosen && !openChoice.body.inactive) {
       changed.push(await history.setBody(openChoice.id, { ...openChoice.body, inactive: true }, options));
-      if (row.onboarding_step === "ask-name" || row.onboarding_step === "home-default") {
+      if (["ask-name", "home-default", "team"].includes(row.onboarding_step)) {
         await store.updateConversation(row.conversation_id, { onboarding_step: "about" }, options);
       }
     }

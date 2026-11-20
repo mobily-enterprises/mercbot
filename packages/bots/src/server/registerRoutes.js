@@ -193,6 +193,11 @@ export function registerRoutes(http, { bots, approvals, notices, meter, records,
   router.register("POST", "/api/w/:workspaceSlug/bots/from-template", auth, handle(async (request, user, options) => ({
     bot: await bots.addFromTemplate(String(request.body?.slug || ""), user.displayName, options)
   })));
+  // Teams (D-105): a team's bots as the home has them, and Add N bots, for everyone in the home, as New bot is.
+  router.register("GET", "/api/w/:workspaceSlug/teams/:teamId", auth, handle(async (request, _user, options) =>
+    bots.teamFor(request.params.teamId, options)));
+  router.register("POST", "/api/w/:workspaceSlug/teams/:teamId", auth, handle(async (request, user, options) =>
+    bots.addTeam(request.params.teamId, request.body?.templates, user.displayName, options)));
   // A template drafted by the bot (D-98): one billed call, like a reply, refused in a paused home; nothing is kept.
   router.register("POST", "/api/w/:workspaceSlug/bots/templates/draft", auth, handle(async (request, _user, options) => {
     await unlessPaused(request);

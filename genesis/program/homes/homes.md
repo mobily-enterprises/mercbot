@@ -24,7 +24,9 @@ routes (`config/public.js`), and a copy built on Mercbot that serves many people
 ## Public contract
 
 - **First home:** a new account gets "<First name>'s home", where they're the
-  owner. Anyone can create more homes.
+  owner. Anyone can create more homes. New home (the home switcher) asks what the home is for: one of Mercbot's teams,
+  whose name it suggests and whose bots come with the home, or Something else (D-105: Bot templates' Teams), and who
+  it's for (D-100).
 - **Renaming (D-103):** a home's owners and admins rename it in Settings → General (`MercbotHomeName.vue`), on JSKIT's
   own `PATCH /api/w/<home>` (`workspace.workspaces.update`, which needs `workspace.settings.update`): a member is
   refused 403, someone outside the home as JSKIT refuses any workspace they aren't in, and an empty name or one over

@@ -14,7 +14,8 @@ import { galleryChips, galleryView } from "./galleryView.js";
 // it. On the page a template opens its own page and Add its share page. In a picker (`picking`) a template is a button
 // that picks it ({ library: slug }, or { home: id } for one of `home`, the home's own, listed first): the search box has
 // the keyboard first, the arrows move through the templates in reading order (Up from the first goes back to the
-// search), and Enter picks the one focused, or the first found from the search box. A picker's `lead` slot comes first.
+// search), and Enter picks the one focused, or the first found from the search box. A picker's `lead` slot comes first
+// and its `foot` slot last (New bot's Add a team, D-105).
 const props = defineProps({
   picking: { type: Boolean, default: false },
   // The home's own templates (id, tag, description, usedBy), in a picker; null on the page.
@@ -208,6 +209,7 @@ defineExpose({ focusSearch: () => search.value?.focus() });
             </component>
           </div>
         </section>
+        <slot name="foot" />
       </template>
     </div>
   </div>

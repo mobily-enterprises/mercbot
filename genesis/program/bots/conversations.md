@@ -271,9 +271,10 @@ Sharing (D-36, D-99, D-101):
 - **The home's default for new bots (D-100, `homeDefaults.js`):** `home_settings` holds, per home, the sharing every
   bot made there from then on gets (`new_bot_sharing`, NULL until chosen, which is mixed) and when its team question
   was answered (`team_question_answered_at`); `records.homeSettings` (`homeSettingsRepository.js`) is its one read and
-  one write, an upsert on the unique `workspace_id`. `createBot` and `addFromTemplate` read `sharingOf` when they make
-  the bot; a shared one gets its General room at once and its maker's own conversation open as You only
-  (`firstTabs`), where its intro or greeting is. Group chats, the main bot `ensureFirstBot` makes and bots already
+  one write, an upsert on the unique `workspace_id`. `createBot` (through `makeBots`, which a team's bots share, D-105)
+  and `addFromTemplate` read `sharingOf` when they make the bot; a shared one gets its General room at once and its
+  maker's own conversation open as You only (`firstTabsOf`, one statement each for all the bots made), where its intro
+  or greeting is. Group chats, the main bot `ensureFirstBot` makes and bots already
   there never change. `GET …/home-settings` answers `{ newBotSharing, chosen, teamQuestion, botsJoinIn }` for
   everyone; `PATCH …/home-settings {newBotSharing?, botsJoinIn?}` (`homeDefaults.change`, writing only what it's
   given; `bots_join_in`, D-102, below) and `POST …/home-settings/team-question {answer: "shared" | "keep"}` are for
@@ -283,8 +284,13 @@ Sharing (D-36, D-99, D-101):
   its owner nor the reader (`homeSettings.joinedName`), and null in a home of one. The main bot's first
   conversation, after `rename`, shows a `choice` card with purpose `home-default` ("Will anyone else use this home
   with you?", Just me → mixed, My team → shared) while the default is unchosen and the person manages the home; its
-  step `home-default` waits for the answer (`answerChoice` sets the default and moves on to `about`, answering
-  `home` too, and the page asks no reply) or for a typed message (the card closes, unchosen). The page keeps it in
+  step `home-default` waits for the answer (`answerChoice` sets the default and moves on to `team-offer`, or to `about`
+  once the home has a bot besides its main one, answering `home` too, and the page asks no reply) or for a typed
+  message (the card closes, unchosen). Then, while the home has no bot but its main one, a `choice` card with purpose
+  `team` offers Mercbot's teams (D-105: "Want a ready-made team?", the teams by name and Not now), at `rename` when
+  the default is chosen already or at `team-offer`; its step `team` waits, `answerChoice` moves on to `about` and
+  answers `team` (the team's id, or null), which opens New bot on that team's screen (`useChatActions.js`
+  `openTeam`), and typing past it skips it. The page keeps it in
   `homeDefault.js` (`homeDefault`, set by the list's read): the sidebar's `MercbotTeamQuestion.vue` above the list,
   read again on `homeChanges`, and the New home form and Settings → General (`chooseHomeDefault`, `makeHome`,
   `chooseHere`, `readHere`).

@@ -203,8 +203,9 @@ const { liveView, liveBot, openComputer, takeOver, workOnFile, teach, finishTeac
   useLiveView({ currentBot, bots, store, work, reportFailure });
 
 const paletteOpen = ref(false);
-const { newBotOpen, creating, createError, createProblems, newBotName, newBotTemplate, openNewBot, createBot } = useNewBot({
+const { newBotOpen, creating, createError, createProblems, newBotName, newBotTemplate, newBotTeam, openNewBot, openTeam, createBot, addTeam } = useNewBot({
   bots,
+  sections,
   store,
   picker,
   selectBot,
@@ -217,6 +218,16 @@ watch(templateSlug, (slug) => {
   if (!slug) return;
   openNewBot("", slug);
   const { template: _shown, ...rest } = route.query;
+  router.replace({ query: rest });
+}, { immediate: true });
+
+// A team (D-105): ?team=<id> opens New bot on its team screen, and leaves the address. A new home made for a team adds
+// its bots before the shell shows (pages/w/[workspaceSlug]/index.vue), and leaves it there only when that didn't work.
+const teamQuery = computed(() => (route.query.team ? String(route.query.team) : ""));
+watch(teamQuery, (teamId) => {
+  if (!teamId) return;
+  openTeam(teamId);
+  const { team: _shown, ...rest } = route.query;
   router.replace({ query: rest });
 }, { immediate: true });
 
@@ -235,7 +246,7 @@ provide(MERCBOT_CHAT_KEY, Object.freeze({
 }));
 
 const { send, retry, react, answerChoice, settleDraft, answerSecureForm, endVoiceConversation, cancelRequest, copyToClipboard, copyMessage, copyPicture } =
-  useChatActions({ currentBot, picker, startGroup, store, work, reportFailure, notify });
+  useChatActions({ currentBot, picker, startGroup, store, work, reportFailure, notify, openTeam });
 
 // Cards a change in Details rewrote, such as a page deleted from the Library, in their bot's chat.
 function showChanged({ botId, messages }) {
@@ -485,8 +496,10 @@ watch(() => currentHomeEntry.value?.slug, () => loadBuilderBot(), { immediate: t
       :problems="createProblems"
       :initial-name="newBotName"
       :template-slug="newBotTemplate"
+      :team-id="newBotTeam"
       :bots="bots"
       @create="createBot"
+      @add-team="addTeam"
     />
     <MercbotAppsModal v-model="appsOpen" :main-bot="mainBot" :skill-id="appsSkillId" :app-id="appsAppId" :start-page="appsPage" @failure="reportFailure('That didn\'t work. Try again.', $event)" />
     <MercbotConnectExplainer v-model="explainerOpen" :plugin="explainerPlugin" :bot-name="currentBot.name" @continue="continueConnect" />

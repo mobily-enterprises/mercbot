@@ -31,6 +31,7 @@ You can also tell a bot in its chat how you'd like things done. It carries that 
    - **General helper**, first: an all-round bot that asks what you need.
    - One of your home's templates, listed next with how many bots use each.
    - One of Mercbot's templates, with the gallery's search, job areas and **Tested** badges.
+   - **Add a team**, at the foot of the list: a few bots for one situation, made together. See [Add a team](#add-a-team).
    - **Make a new template**, at the bottom, when nothing fits. See [Make your home's own template](#make-your-home-s-own-template).
 3. A template you choose is shown whole: its instructions and skills, and for one of Mercbot's its routines and apps too. Select **Next**, or **Back** to choose another.
 4. Type a name in **What should your bot be called?** One of Mercbot's templates starts with its own name, cloud and colour, which you can change.
@@ -43,6 +44,18 @@ The new bot opens straight away. A General helper greets you and asks what it sh
 A new bot starts in the home's mode for new bots: Mixed, unless the home's owners or admins chose otherwise (see [Homes](/help/homes)). A new Shared bot opens on your own **You only** tab, with its General tab beside it for everyone in the home.
 
 Shape and colour are set when you create the bot, and the dialog starts with a colour and cloud your other bots don't have yet. Each bot's eyes show how it's doing: they glance around now and then, look up while it thinks, dart from side to side while it works, look down as it concentrates, and turn into happy smiles when it's done. The bot that builds your apps wears a propeller hat.
+
+## Add a team
+
+A team is a few of Mercbot's templates for one situation, such as **Small shop** or **Busy household**, made into bots together. A new home can come with one (see [Start with a team](/help/homes#start-with-a-team), with every team and its bots); **Add a team** adds one to the home you're in:
+
+1. Select **New bot** and scroll to **Add a team**, at the foot of **What will it do?**.
+2. Choose a team. Each one shows its bots' faces and how many there are.
+3. The team's bots are listed with their name, look, tag and what they do, all ticked. Untick any you don't want. A bot whose template the home already has says **Already in this home** and isn't added again.
+4. If a bot works with an app in Apps and you're an owner or admin of the home, a box under it sets up that app as a draft for you to review, as New bot does; untick it to leave the app out.
+5. Select **Add N bots**. **Back** or the close button leaves without adding anything.
+
+The bots are added together, all or none, in a sidebar section named after the team, and the first of them opens. Each starts in the home's mode for new bots and greets you with its template's greeting and setup questions when you open it; until you answer, none of them does any AI work. Anyone in a home can add a team.
 
 ## Edit and rename a bot
 

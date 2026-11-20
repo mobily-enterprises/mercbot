@@ -1,5 +1,6 @@
 /* New bot (MercbotNewBotDialog.vue): Change template's frame and steps (MercbotChangeTemplateDialog.css), with what it
-   will do above the templates, Make a new template at their foot, and the name, cloud and colour as their own step. */
+   will do above the templates, Add a team and Make a new template at their foot, and the name, cloud and colour as their
+   own step. */
 .mb-newbot__question {
   flex: none;
   margin: 0 var(--mb-tbrowse-gutter) 12px;
@@ -7,8 +8,9 @@
   font-weight: 600;
 }
 
-/* Mercbot's General helper, first: the quick all-round choice. */
-.mb-newbot__lead {
+/* Mercbot's General helper, first: the quick all-round choice; Add a team, last (D-105). */
+.mb-newbot__lead,
+.mb-newbot__team {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -24,8 +26,14 @@
   cursor: pointer;
 }
 
+.mb-newbot__team {
+  margin: 16px 0 0;
+}
+
 .mb-newbot__lead:hover,
-.mb-newbot__lead:focus-visible {
+.mb-newbot__lead:focus-visible,
+.mb-newbot__team:hover,
+.mb-newbot__team:focus-visible {
   background: rgb(var(--v-theme-surface-container-low));
   outline: none;
 }
