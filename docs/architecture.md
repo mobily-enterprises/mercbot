@@ -345,7 +345,7 @@ good seed for the benchmark (§7).
   - Firecracker microVMs with snapshot/restore;
   - a DeepSeek capacity request and a US/EU inference provider option;
   - load tests at thousands of concurrent runs;
-  - the self-host installer and upgrade command, and a one-click app on a Vibe64 VPS;
+  - the self-host installer and upgrade command, and a one-click app for a server of your own;
   - export/import.
 
 ---

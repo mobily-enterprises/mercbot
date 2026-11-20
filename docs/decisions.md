@@ -2400,7 +2400,7 @@ three words everywhere, **Bot**, **Template** (with a tag) and **Additions**.
 
 ### Data
 
-- `home_templates` (`bot_templates` is Mercbot Online's published templates): `id`, `workspace_id`, `tag`,
+- `home_templates` (`bot_templates` is a different table, outside this repository): `id`, `workspace_id`, `tag`,
   `description` (one line, up to 120 characters), `instructions` (up to 20,000 characters, as D-95), `skills` (jsonb,
   the library's shape: its setup interview among them), `greeting`, `created_by` (null once the account is gone),
   `created_at`, `updated_at`. Unique `(workspace_id, tag)`.
