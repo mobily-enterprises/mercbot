@@ -6,7 +6,7 @@ import { expect, test, testDatabaseName, type Page } from "./harness";
 // lists it, with who archived it, and Resume brings it back in its place with its messages. Light and dark, with
 // screenshots of the menu, the question and the list; at a phone's width a long press opens the same menu. A person's
 // own copy has one person (D-81), so "another person" here is another page of theirs; the server's tests show it for
-// another person. Each test makes its own bot and deletes it. Run with:
+// another person. Screenshots are taken with transitions finished. Each test makes its own bot and deletes it. Run with:
 // vibe64-helper playwright --target test-app test tests/e2e/archive-conversations.spec.ts
 const HOME = "/w/you";
 test.describe.configure({ mode: "serial" });
@@ -95,7 +95,7 @@ test("a tab archived from its menu goes for another page that had it open, and R
       await expect(menuItems(page)).toHaveCount(0);
       await tab(page, "Plans").click({ button: "right" });
       await expect(menuItems(page)).toHaveText(["Rename", "Archive"]);
-      await page.screenshot({ path: testInfo.outputPath(`menu-${colorScheme}.png`) });
+      await page.screenshot({ path: testInfo.outputPath(`menu-${colorScheme}.png`), animations: "disabled" });
       await menuItems(page).filter({ hasText: "Archive" }).click();
 
       // The question first.
@@ -104,7 +104,7 @@ test("a tab archived from its menu goes for another page that had it open, and R
         "It's hidden for everyone in the home, and its routines and watches pause. Anyone who started it, or an owner or admin, " +
           "can resume it from Archived conversations."
       );
-      await page.screenshot({ path: testInfo.outputPath(`question-${colorScheme}.png`) });
+      await page.screenshot({ path: testInfo.outputPath(`question-${colorScheme}.png`), animations: "disabled" });
       const archived = page.waitForResponse((response) => new URL(response.url()).pathname === `/api${HOME}/bots/${bot.id}/rooms/${bot.planId}/archive`);
       await question(page).getByRole("button", { name: "Archive" }).click();
       expect((await archived).ok()).toBe(true);
@@ -116,14 +116,14 @@ test("a tab archived from its menu goes for another page that had it open, and R
       await expect(tab(other, "General")).toHaveAttribute("aria-selected", "true");
       await expect(chat(other).getByText("The plan for Saturday is ready.")).toHaveCount(0);
       await expect(archivedButton(other)).toHaveText("Archived (1)");
-      await other.screenshot({ path: testInfo.outputPath(`gone-elsewhere-${colorScheme}.png`) });
+      await other.screenshot({ path: testInfo.outputPath(`gone-elsewhere-${colorScheme}.png`), animations: "disabled" });
       await other.close();
 
       // Archived (1) lists it, with who archived it; Resume brings it back in its place, open, as it was.
       await archivedButton(page).click();
       const row = archivedList(page).getByRole("listitem").filter({ hasText: "Plans" });
       await expect(row).toContainText("Archived by you");
-      await page.screenshot({ path: testInfo.outputPath(`archived-list-${colorScheme}.png`) });
+      await page.screenshot({ path: testInfo.outputPath(`archived-list-${colorScheme}.png`), animations: "disabled" });
       const resumed = page.waitForResponse((response) => new URL(response.url()).pathname === `/api${HOME}/bots/${bot.id}/rooms/${bot.planId}/resume`);
       await row.getByRole("button", { name: "Resume Plans" }).click();
       expect((await resumed).ok()).toBe(true);
@@ -156,14 +156,14 @@ test("on a phone a long press opens a tab's menu, and You only is archived for i
     await own.dispatchEvent("pointerdown", at);
     await expect(menuItems(page)).toHaveText(["Archive"]);
     await own.dispatchEvent("pointerup", at);
-    await page.screenshot({ path: testInfo.outputPath("long-press-phone.png") });
+    await page.screenshot({ path: testInfo.outputPath("long-press-phone.png"), animations: "disabled" });
     await menuItems(page).filter({ hasText: "Archive" }).click();
     await expect(question(page).locator(".mb-confirm__title")).toHaveText("Archive You only?");
     await expect(question(page).locator(".mb-confirm__text")).toContainText("hidden for you only");
     await question(page).getByRole("button", { name: "Archive" }).click();
     await expect(tabs(page)).toHaveText(["General", "Plans"]);
     await expect(archivedButton(page)).toHaveText("Archived (1)");
-    await page.screenshot({ path: testInfo.outputPath("you-only-archived-phone.png") });
+    await page.screenshot({ path: testInfo.outputPath("you-only-archived-phone.png"), animations: "disabled" });
 
     // Details → Conversations lists it too, and resumes it.
     const details = page.getByRole("complementary", { name: "Details" });
