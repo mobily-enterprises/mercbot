@@ -16,8 +16,10 @@ const generalTemplate = () => ({ library_template: GENERAL.slug, template_since:
  * @param {import("./types.js").BotRecords} dependencies.records mercbot.bots.records
  * @param {import("./types.js").BotConversations} dependencies.conversations
  * @param {import("./types.js").HomeDefaults} dependencies.homeDefaults the sharing the home's new bots get (D-100)
+ * @param {{ startOn: (choice: object, botName: string, options: object) => Promise<{ columns: object, greeting: string }> }}
+ *   dependencies.templates what a new bot made on a chosen template starts with (botTemplates.js)
  */
-export function createBotList({ records, conversations, homeDefaults }) {
+export function createBotList({ records, conversations, homeDefaults, templates }) {
   const { conversations: store, messages } = records;
 
   /**
@@ -109,23 +111,30 @@ export function createBotList({ records, conversations, homeDefaults }) {
   }
 
   /**
-   * New bot: unpinned, top of its group by activity, starting its own short intro, and shared as the home's new bots are
-   * (D-100): a Shared one has its General tab at once, and opens on the person's own, where its intro is.
+   * New bot: unpinned, top of its group by activity, on the template chosen in New bot (`template`: `{ library: slug }`,
+   * `{ home: id }` or `{ draft }`, a new one of the home's; D-98), or with none chosen on Mercbot's general one, and
+   * shared as the home's new bots are (D-100): a Shared one has its General tab at once, and opens on the person's own,
+   * where its intro or greeting is. A template's bot greets with its template's greeting and asks its setup questions; a
+   * general one starts its own short intro.
    */
   async function createBot(input = {}, options) {
     const name = cleanName(input.name);
     const shape = cloudShape(input.shape);
     const color = shape === BRAND_SHAPE ? BRAND_COLOR : String(input.color || "").toUpperCase();
     if (!BOT_PALETTE.includes(color)) throw new BotsError(400, "Pick one of the colours.", { code: "bots_colour_unknown" });
+    // The seat, or a new template's tag, lost to a race runs the whole transaction again.
     return retryLostInsertRace(options, () => store.withTransaction(options, async (txOptions) => {
-      // Until New bot asks what it's for (D-98, stage b), a new bot points at Mercbot's general template.
+      const start = input.template == null ? { columns: generalTemplate(), greeting: "" } : await templates.startOn(input.template, name, txOptions);
       const sharing = await homeDefaults.sharingOf(txOptions);
-      const made = { user_id: conversations.personOf(txOptions), name, shape, color, sharing, ...generalTemplate() };
+      const made = { user_id: conversations.personOf(txOptions), name, shape, color, sharing, ...start.columns };
       const bot = await store.createBot(made, txOptions);
-      const seat = await conversations.conversationOf(bot, txOptions, { onboarding_step: "intro-greet" });
+      const seat = await conversations.conversationOf(bot, txOptions, { onboarding_step: start.greeting ? null : "intro-greet" });
       const row = conversations.asSeen(bot, seat);
-      await conversations.append(row, [{ kind: "timestamp", role: "system", body: { at: new Date().toISOString() } }], txOptions);
-      return { ...toBot(row), rooms: await homeDefaults.firstTabs(bot, seat, txOptions), preview: "" };
+      await conversations.append(row, [
+        { kind: "timestamp", role: "system", body: { at: new Date().toISOString() } },
+        ...(start.greeting ? [{ kind: "text", role: "bot", body: { text: start.greeting } }] : [])
+      ], txOptions);
+      return { ...toBot(row), rooms: await homeDefaults.firstTabs(bot, seat, txOptions), preview: start.greeting };
     }));
   }
 

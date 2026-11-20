@@ -193,11 +193,21 @@ export function registerRoutes(http, { bots, approvals, notices, meter, records,
   router.register("POST", "/api/w/:workspaceSlug/bots/from-template", auth, handle(async (request, user, options) => ({
     bot: await bots.addFromTemplate(String(request.body?.slug || ""), user.displayName, options)
   })));
-  // The home's own templates (D-98), for everyone in it: each one's tag, description and how many bots use it.
+  // A template drafted by the bot (D-98): one billed call, like a reply, refused in a paused home; nothing is kept.
+  router.register("POST", "/api/w/:workspaceSlug/bots/templates/draft", auth, handle(async (request, _user, options) => {
+    await unlessPaused(request);
+    return bots.draftTemplate(request.body || {}, options);
+  }));
+  // The home's own templates (D-98), for everyone in it: each one's tag, description and how many bots use it. Its owners
+  // and admins change one (PUT, naming the updatedAt they opened) and delete one no bot uses.
   router.register("GET", "/api/w/:workspaceSlug/home-templates", auth, handle(async (_request, _user, options) =>
     bots.homeTemplates(options)));
   router.register("GET", "/api/w/:workspaceSlug/home-templates/:templateId", auth, handle(async (request, _user, options) =>
     bots.homeTemplate(request.params.templateId, options)));
+  router.register("PUT", "/api/w/:workspaceSlug/home-templates/:templateId", auth, handle(async (request, _user, options) =>
+    bots.editHomeTemplate(request.params.templateId, { draft: request.body?.draft, updatedAt: request.body?.updatedAt }, options)));
+  router.register("DELETE", "/api/w/:workspaceSlug/home-templates/:templateId", auth, handle(async (request, _user, options) =>
+    bots.deleteHomeTemplate(request.params.templateId, options)));
   // The sharing the home's new bots get (D-100), for everyone in it; its owners and admins change it (403 for anyone
   // else) and answer the question asked once a second person joins.
   router.register("GET", "/api/w/:workspaceSlug/home-settings", auth, handle(async (_request, _user, options) =>
@@ -280,7 +290,8 @@ export function registerRoutes(http, { bots, approvals, notices, meter, records,
   router.register("DELETE", "/api/w/:workspaceSlug/bots/:botId", auth, handle(async (request, _user, options) =>
     bots.deleteBot(request.params.botId, options)));
   // A bot's template and additions (D-98), for its Details panel's Instructions; PATCH …/bots/:botId changes its
-  // additions, and PUT …/template points it at another template ({ library: slug } or { home: id }).
+  // additions, and PUT …/template points it at another template ({ library: slug } or { home: id }), or at a new one of
+  // the home's made from a draft ({ draft, foldAdditions }).
   router.register("GET", "/api/w/:workspaceSlug/bots/:botId/instructions", auth, handle(async (request, _user, options) =>
     bots.instructionsOf(request.params.botId, options)));
   router.register("PUT", "/api/w/:workspaceSlug/bots/:botId/template", auth, handle(async (request, user, options) => ({

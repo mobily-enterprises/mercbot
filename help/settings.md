@@ -8,7 +8,7 @@ Settings is where you choose how Mercbot looks and behaves for you, manage your 
 - In the search palette (**Ctrl+K**), type "Settings" to jump straight to a section, such as **Settings: Vault**.
 - **See spending** in the account menu opens **Spending**.
 
-Settings opens over the app, with the sections listed on the left: **General**, **Computer**, **Permissions**, **Files**, **Memory**, **Vault**, **Spending**, **Mercbot account** and **About**. Close it with **×**, **Escape** or a click outside. On a phone, Settings fills the screen and shows one section at a time; **All settings** at the top returns to the list.
+Settings opens over the app, with the sections listed on the left: **General**, **Computer**, **Permissions**, **Files**, **Memory**, **Templates**, **Vault**, **Spending**, **Mercbot account** and **About**. Close it with **×**, **Escape** or a click outside. On a phone, Settings fills the screen and shows one section at a time; **All settings** at the top returns to the list.
 
 Most controls apply as soon as you change them. The exceptions say so: forms in **Files** and the **Vault** have their own **Save** button.
 
@@ -74,7 +74,7 @@ Then enter **Its address on the web**: where the web server serves that folder, 
 
 Each page you publish goes in a folder of its own there, at the address followed by the page's name. Mercbot only ever replaces or removes folders it put there itself. While pages are published, the folder or bucket can't be changed and **Remove website** is refused: unpublish them first. A new address or place asks for confirmation again at its next first publish. Only owners and admins set this up. See [Publish a page to your website](/help/files).
 
-## Computer, Memory and Vault
+## Computer, Memory, Templates and Vault
 
 ### Computer
 
@@ -86,6 +86,15 @@ See [The bots' computer and connected apps](/help/computer-and-apps).
 ### Memory
 
 **What your bots remember about you:** the lasting facts you've told your bots, such as an allergy or a preference. All your bots know them. Select **×** next to a fact to make your bots forget it. Only these facts are shared between your bots; your chats with each bot stay private.
+
+### Templates
+
+**Your home's templates:** the templates your home made, each with its tag, its description and how many bots use it, such as **Used by 2 bots**. Everyone in the home sees the list; Mercbot's own templates are in the gallery. Owners and admins can change and delete them:
+
+- **Edit** opens the template on the same screen it was made on: change any part by typing, or under **Ask for changes** ask the bot to change it, with **Undo**. See [Make your home's own template](/help/bots#make-your-home-s-own-template).
+- **Save** first says what it reaches, such as **Changes reach 2 bots from their next reply**, then saves. Each of those bots' **Instructions** then shows what changed and who changed it, for example "Instructions and setup questions changed by Ada".
+- If someone else saved the template after you opened it, your save is refused with "Someone saved *tag* since you opened it. Open it again to see their changes." Close it and open it again.
+- **Delete** works only for a template no bot uses, and asks first. For one in use, change those bots' template first, with **Change template** in each bot's Details panel.
 
 ### Vault
 

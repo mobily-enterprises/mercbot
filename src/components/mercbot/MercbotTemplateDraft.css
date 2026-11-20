@@ -1,0 +1,238 @@
+/* The draft screen (MercbotTemplateDraft.vue): the template's parts as a form that scrolls, what changed tinted with its
+   words marked, and the save at the foot, in whichever dialog shows it. */
+.mb-tdraft {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.mb-tdraft__scroll {
+  flex: 1;
+  min-height: 0;
+  padding: 12px var(--mb-tbrowse-gutter, 24px) 24px;
+  overflow-y: auto;
+}
+
+.mb-tdraft__describe,
+.mb-tdraft__ask {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.mb-tdraft__ask {
+  margin-top: 28px;
+  padding-top: 20px;
+  border-top: 1px solid rgb(var(--v-theme-outline-variant));
+}
+
+.mb-tdraft__question {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.mb-tdraft__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 30px;
+  margin-bottom: 8px;
+}
+
+.mb-tdraft__count {
+  font-size: 13px;
+  font-weight: 600;
+  color: rgb(var(--v-theme-primary));
+}
+
+.mb-tdraft__fold {
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgb(var(--v-theme-surface-container-low));
+  font-size: 14px;
+}
+
+.mb-tdraft__fold label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mb-tdraft__field {
+  margin-top: 14px;
+  padding: 0;
+  border-radius: 10px;
+  transition: background var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard);
+}
+
+/* A part the latest draft changed: tinted, with a bar at its start. */
+.mb-tdraft__field--changed {
+  margin-left: -10px;
+  padding: 6px 10px 8px;
+  box-shadow: inset 3px 0 0 rgb(var(--v-theme-primary));
+  background: rgba(var(--v-theme-primary), 0.06);
+}
+
+.mb-tdraft__label {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: rgb(var(--v-theme-on-surface-variant));
+}
+
+.mb-tdraft__input {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid rgb(var(--v-theme-outline-variant));
+  border-radius: 10px;
+  background: rgb(var(--v-theme-surface));
+  color: inherit;
+  font: inherit;
+  font-size: 13px;
+  line-height: 18px;
+  resize: vertical;
+  outline: none;
+}
+
+.mb-tdraft__input:focus {
+  border-color: rgb(var(--v-theme-outline));
+}
+
+.mb-tdraft__input[aria-invalid="true"] {
+  border-color: rgb(var(--v-theme-error));
+}
+
+.mb-tdraft__hint {
+  margin: 4px 2px 0;
+  font-size: 12px;
+  line-height: 16px;
+  color: rgb(var(--v-theme-on-surface-variant));
+}
+
+.mb-tdraft__problem {
+  margin: 4px 2px 0;
+  font-size: 12px;
+  line-height: 16px;
+  color: rgb(var(--v-theme-error));
+}
+
+.mb-tdraft__failure {
+  margin-top: 12px;
+}
+
+/* What changed in a long part, word by word. */
+.mb-tdraft__diff {
+  margin: 6px 0 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgb(var(--v-theme-surface));
+  font-size: 12px;
+  line-height: 17px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.mb-tdraft__diff ins {
+  background: rgba(var(--v-theme-success), 0.18);
+  text-decoration: none;
+}
+
+.mb-tdraft__diff del {
+  background: rgba(var(--v-theme-error), 0.14);
+  color: rgb(var(--v-theme-on-surface-variant));
+}
+
+.mb-tdraft__section {
+  margin-top: 24px;
+}
+
+.mb-tdraft__heading {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.mb-tdraft__skill {
+  margin-top: 12px;
+  padding: 2px 12px 12px;
+  border-radius: 12px;
+  background: rgb(var(--v-theme-surface-container-low));
+}
+
+.mb-tdraft__state {
+  padding: 48px 0;
+  color: rgb(var(--v-theme-on-surface-variant));
+  text-align: center;
+}
+
+.mb-tdraft__foot {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 13px;
+  border-top: 1px solid rgb(var(--v-theme-outline-variant));
+}
+
+.mb-tdraft__foot .mb-tdraft__problem {
+  margin: 0 auto 0 0;
+}
+
+.mb-tdraft__button {
+  height: 30px;
+  margin-top: 8px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 15px;
+  background: rgb(var(--v-theme-surface-container-high));
+  font: inherit;
+  font-size: 13px;
+  color: inherit;
+  cursor: pointer;
+}
+
+.mb-tdraft__bar .mb-tdraft__button,
+.mb-tdraft__foot .mb-tdraft__button {
+  margin-top: 0;
+}
+
+.mb-tdraft__button--primary {
+  background: rgb(var(--v-theme-inverse-surface));
+  color: rgb(var(--v-theme-inverse-on-surface));
+}
+
+.mb-tdraft__button:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.mb-tdraft__button--primary:disabled {
+  background: rgba(var(--v-theme-on-surface), 0.12);
+  color: rgba(var(--v-theme-on-surface), 0.38);
+  opacity: 1;
+}
+
+.mb-tdraft__link {
+  margin-top: 8px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 12px;
+  color: rgb(var(--v-theme-on-surface-variant));
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.mb-tdraft__button:focus-visible,
+.mb-tdraft__link:focus-visible {
+  outline: 2px solid rgb(var(--v-theme-secondary));
+  outline-offset: 2px;
+}

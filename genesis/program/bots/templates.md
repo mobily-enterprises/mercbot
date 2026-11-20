@@ -12,6 +12,8 @@ templates a link opens, when a copy built on Mercbot keeps them (D-43).
 - `packages/bots/src/server/botTemplate.js`
 - `packages/bots/src/server/templates.js`
 - `packages/bots/src/server/records/homeTemplateRepository.js`
+- `packages/bots/src/server/templateDrafts.js`
+- `packages/bots/src/shared/templateBody.js`
 - `migrations/20261120120000_bot_templates_and_additions.cjs`
 - `packages/bots/src/server/templateResults.js`
 - `bot-templates/checks/results.json`
@@ -32,7 +34,10 @@ templates a link opens, when a copy built on Mercbot keeps them (D-43).
 - `src/components/templates/TemplateAvatar.vue`
 - `src/components/templates/TemplateTested.vue`
 - `src/components/templates/templatesApi.js`
-- `src/components/mercbot/MercbotTemplatePreview.vue`
+- `src/components/mercbot/MercbotTemplateDraft.vue`
+- `src/components/mercbot/templateDraft.js`
+- `src/components/mercbot/MercbotNewBotDialog.vue`
+- `src/components/mercbot/MercbotSettingsTemplates.vue`
 - `src/pages/templates/index.vue`
 - `src/pages/templates/[slug]/index.vue`
 - `src/pages/t/[slug].vue`
@@ -45,6 +50,10 @@ templates a link opens, when a copy built on Mercbot keeps them (D-43).
 - `tests/client/templateBadge.vitest.js`
 - `tests/support/unitRun.mjs`
 - `tests/e2e/templates.spec.ts`
+- `tests/server/templateDrafts.integration.js`
+- `tests/server/templateDraftPrompts.test.js`
+- `tests/client/templateDraft.vitest.js`
+- `tests/e2e/template-drafts.spec.ts`
 
 ## Public contract
 
@@ -98,8 +107,10 @@ templates a link opens, when a copy built on Mercbot keeps them (D-43).
   also says any bot's additions when asked, and changes them through `change_additions` when told
   to (D-98), for the browser suite.
 - **Adding:** the share page's button opens Mercbot at `/?template=<code>`, which carries on into the
-  home and opens the preview: everything opened out, nothing added before **Add bot**. Owners and
-  admins may also install the paired app as a draft. `POST …/bots/from-template {slug}` makes the
+  home and opens New bot with it chosen: everything opened out, then the name and look (the
+  template's own to start) and Create (`POST …/bots` with `{ library }`); a bot a person shared is
+  added with **Add bot** there, as they made it. Nothing is added before. Owners and admins may also
+  install the paired app as a draft. `POST …/bots/from-template {slug}` makes the
   bot with the template's name and look, pointing at it (`library_template`; for a template a link
   opens, a new home template made from it, `home_template_id`, its tag from its own or its name made
   free with `freeTag`), with no additions, skips the generic first conversation and posts the
@@ -129,8 +140,28 @@ templates a link opens, when a copy built on Mercbot keeps them (D-43).
   a library slug or one of the home's templates (404 otherwise, a choice is required: 400; a group
   has none: 400), the same template changes nothing; it keeps its additions, posts an event "Now a
   <tag> bot" and the template's greeting under the bot's own name, which asks its setup questions.
-  `GET …/home-templates` lists the home's templates with how many bots use each, and
-  `GET …/home-templates/:id` gives one in full, for everyone in the home.
+  `GET …/home-templates` lists the home's templates with how many bots use each (one aggregate read)
+  and `canManage`, and `GET …/home-templates/:id` gives one in full with its `updatedAt`, for everyone
+  in the home. `{ draft, foldAdditions }` keeps a draft as a new home template and points the bot at
+  it in one transaction, emptying its additions only when `foldAdditions` is true.
+- **Drafted templates (D-98, amended 20 November):** `POST …/bots/templates/draft` with
+  `{ purpose: "new" | "from-bot" | "change", botId?, describe?, draft?, request?, foldAdditions?, templateId? }`
+  answers `{ draft, problems }` and keeps nothing (`createTemplateDrafts`, `templateDrafts.js`): one
+  `generateOnce` on the chat kind, metered as chat work to the home, the person and the bot, refused
+  while the home is paused; an answer that isn't a whole valid template is asked for once more with
+  its problems (a second call), then refused 422 `bots_template_draft_failed`. From a bot it needs
+  `mayChangeBot` (403) and reads only the bot's template, its additions when folded, the newest
+  summary of the requesting person's own chat and its routines' names and schedules; another home's
+  bot or template is 404. Every body is checked whole by `templateProblems`
+  (`packages/bots/src/shared/templateBody.js`, the draft screen's rules too; 422
+  `bots_template_draft_invalid` with `problems`), and only its five parts are kept. `PUT
+  …/home-templates/:id { draft, updatedAt }` (owners and admins: `workspace.settings.update`, 403)
+  saves an edit, 409 `bots_template_stale` when `updatedAt` isn't the template's, and records a
+  `home_template_changes` line naming the parts changed and who changed them; `DELETE
+  …/home-templates/:id` removes one no bot uses (409 `bots_template_in_use`). The draft screen
+  (`MercbotTemplateDraft.vue`, `templateDraft.js`) serves New bot, Change template (Make a new
+  template, Start from this bot) and Settings → Templates (`MercbotSettingsTemplates.vue`); the
+  stand-in model answers drafting calls with fixed drafts for the browser suite.
 - **The upgrade (D-98):** the migration copies every bot's label, instructions, skills and origin to
   `bots_before_templates`, then points an unchanged gallery bot at its library template, a bot with
   no instructions at `general`, and a bot with its own at a home template made from them (one per

@@ -15,6 +15,7 @@ import { createBotList } from "./botList.js";
 import { createBotSettings } from "./botSettings.js";
 import { createBotChat } from "./botChat.js";
 import { createBotTemplates } from "./botTemplates.js";
+import { createTemplateDrafts, writeWith } from "./templateDrafts.js";
 import { createBotTeaching } from "./botTeaching.js";
 import { createBotGroups } from "./botGroups.js";
 import { createBotLibrary } from "./botLibrary.js";
@@ -49,6 +50,8 @@ import { createHomeDefaults } from "./homeDefaults.js";
  * @param {(bot: object, userMessage: object) => Promise<{ status: string, emoji: string | null }>} [dependencies.activity] the status line
  *   and the bot's reaction
  * @param {(lines: string[]) => Promise<object>} [dependencies.writeSkill] the skill a demonstration teaches
+ * @param {(system: string, messages: Array<{ role: string, content: string }>) => Promise<string>} [dependencies.writeTemplate]
+ *   the model's answer to one call drafting a template
  * @param {(input: { previous: string, text: string }) => Promise<string>} [dependencies.summarize] replaces the summary's model call
  * @param {import("./types.js").SummaryLimits} [dependencies.compactionLimits] replaces the summary limits
  * @param {Partial<typeof import("./botRequests.js").REQUEST_LIMITS>} [dependencies.requestLimits] limits over the requests' own
@@ -75,6 +78,7 @@ export function createBotsService({
   checkClaims = reply === generateReply ? (text, record) => unsupportedClaims({ model, reply: text, record }) : null,
   activity = (bot, userMessage) => describeActivity(model, bot, userMessage),
   writeSkill = (lines) => writeSkillFromDemo(model, lines),
+  writeTemplate = writeWith(model),
   summarize,
   compactionLimits,
   requestLimits,
@@ -197,7 +201,8 @@ export function createBotsService({
   });
   // A sign-in finishing on this server marks the connect follow-ups it reaches, as it is saved, and starts them here.
   integrations.connections.whenConnected(replies.connectFollowUps.connected);
-  const botList = createBotList({ records, conversations, homeDefaults });
+  const templates = createBotTemplates({ records, profiles, integrations, conversations, env, templateLinks, homeDefaults });
+  const botList = createBotList({ records, conversations, homeDefaults, templates });
   const settings = createBotSettings({ records, conversations, apps });
   const chat = createBotChat({
     records,
@@ -209,7 +214,14 @@ export function createBotsService({
     homeDefaults,
     pausedMessage: meter.pausedMessage
   });
-  const templates = createBotTemplates({ records, profiles, integrations, conversations, env, templateLinks, homeDefaults });
+  // A template drafted from a bot reads the newest summary of the person's own chat with it, never anyone else's.
+  const drafts = createTemplateDrafts({
+    records,
+    conversations,
+    meter,
+    summaryOf: async (conversationId) => (await chatHistory.compaction.current(conversationId))?.summary || "",
+    write: writeTemplate
+  });
   const teaching = createBotTeaching({ records, computer, integrations, conversations, background, writeSkill });
   const groups = createBotGroups({ records, conversations });
   const library = createBotLibrary({ records, conversations, apps, files });
@@ -237,6 +249,9 @@ export function createBotsService({
     changeTemplate: templates.changeTemplate,
     homeTemplates: templates.homeTemplates,
     homeTemplate: templates.homeTemplate,
+    editHomeTemplate: templates.editHomeTemplate,
+    deleteHomeTemplate: templates.deleteHomeTemplate,
+    draftTemplate: drafts.draftTemplate,
     messages: chat.messages,
     findOlder: chat.findOlder,
     advanceOnboarding: chat.advanceOnboarding,

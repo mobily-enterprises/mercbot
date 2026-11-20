@@ -15,7 +15,6 @@ import MercbotFileViewer from "./MercbotFileViewer.vue";
 import MercbotViewViewer from "@/components/apps/MercbotViewViewer.vue";
 import MercbotConnectExplainer from "./MercbotConnectExplainer.vue";
 import MercbotNewBotDialog from "./MercbotNewBotDialog.vue";
-import MercbotTemplatePreview from "./MercbotTemplatePreview.vue";
 import MercbotSearchPalette from "./MercbotSearchPalette.vue";
 import MercbotShortcutsDialog from "./MercbotShortcutsDialog.vue";
 import MercbotAboutDialog from "./MercbotAboutDialog.vue";
@@ -203,20 +202,22 @@ const { liveView, liveBot, openComputer, takeOver, workOnFile, teach, finishTeac
   useLiveView({ currentBot, bots, store, work, reportFailure });
 
 const paletteOpen = ref(false);
-const { newBotOpen, creating, createError, newBotName, openNewBot, createBot } = useNewBot({ bots, store, picker, selectBot });
+const { newBotOpen, creating, createError, createProblems, newBotName, newBotTemplate, openNewBot, createBot } = useNewBot({
+  bots,
+  store,
+  picker,
+  selectBot,
+  notify: (text) => setTimeout(() => chatPanel.value?.showToast(text), 600)
+});
 
-// A bot from a template or a shared link: ?template=<code> opens its preview; once added it
-// goes to the top of the list and its chat opens.
+// A bot from a template or a shared link (D-98): ?template=<code> opens New bot with it chosen, and leaves the address.
 const templateSlug = computed(() => (route.query.template ? String(route.query.template) : ""));
-function closeTemplate(extra = {}) {
+watch(templateSlug, (slug) => {
+  if (!slug) return;
+  openNewBot("", slug);
   const { template: _shown, ...rest } = route.query;
-  router.replace({ query: { ...rest, ...extra } });
-}
-function addedFromTemplate({ bot, appNote }) {
-  bots.value = [bot, ...bots.value];
-  closeTemplate({ bot: bot.id });
-  if (appNote) setTimeout(() => chatPanel.value?.showToast(appNote), 600);
-}
+  router.replace({ query: rest });
+}, { immediate: true });
 
 // The chat, for the parts a copy built on Mercbot adds beside the shell's dialogs, to Details and to the timeline
 // (shellChat.js). A part's dialog keeps the keyboard shortcuts away while it's open, as the shell's own dialogs do.
@@ -473,8 +474,16 @@ watch(() => currentHomeEntry.value?.slug, () => loadBuilderBot(), { immediate: t
       :theme="themePreference"
       @run="runPaletteEntry"
     />
-    <MercbotNewBotDialog v-model="newBotOpen" :busy="creating" :error="createError" :initial-name="newBotName" :bots="bots" @create="createBot" />
-    <MercbotTemplatePreview :slug="templateSlug" @added="addedFromTemplate" @close="closeTemplate()" />
+    <MercbotNewBotDialog
+      v-model="newBotOpen"
+      :busy="creating"
+      :error="createError"
+      :problems="createProblems"
+      :initial-name="newBotName"
+      :template-slug="newBotTemplate"
+      :bots="bots"
+      @create="createBot"
+    />
     <MercbotAppsModal v-model="appsOpen" :main-bot="mainBot" :skill-id="appsSkillId" :app-id="appsAppId" :start-page="appsPage" @failure="reportFailure('That didn\'t work. Try again.', $event)" />
     <MercbotConnectExplainer v-model="explainerOpen" :plugin="explainerPlugin" :bot-name="currentBot.name" @continue="continueConnect" />
     <MercbotLiveView

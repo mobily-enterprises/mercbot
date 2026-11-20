@@ -63,7 +63,7 @@ export const botsApi = {
   forgetMemory: (memoryId) => remove(`/memories/${memoryId}`),
   createFirst: () => post("/bots/first"),
   create: (bot) => post("/bots", bot),
-  // A bot from a template or a shared link, after the person has seen it all.
+  // A bot from a template a shared link opens, after the person has seen it all (D-98: it becomes the home's).
   fromTemplate: (slug) => post("/bots/from-template", { slug }),
   answer: (botId, messageId, selected) => post(`/bots/${botId}/choices/${messageId}`, { selected }),
   // A shared bot's messages are its open tab's (D-36): the newest page and whether older ones are
@@ -99,12 +99,17 @@ export const botsApi = {
   renameRoom: (botId, roomId, title) => patch(`/bots/${botId}/rooms/${roomId}`, { title }),
   remove: (botId) => remove(`/bots/${botId}`),
   // A bot's template and additions (D-98): its additions change with update(botId, { additions }), its template with
-  // changeTemplate(botId, { library: slug } or { home: id }).
+  // changeTemplate(botId, { library: slug }, { home: id } or { draft, foldAdditions }).
   instructions: (botId) => request(`/bots/${botId}/instructions`),
   changeTemplate: (botId, choice) => request(`/bots/${botId}/template`, { method: "PUT", body: choice }),
-  // The home's own templates (D-98): each one's tag, description and how many bots use it; one in full.
+  // A template drafted by the bot ({ purpose: "new" | "from-bot" | "change", … }): { draft, problems }, nothing kept.
+  draftTemplate: (body) => post("/bots/templates/draft", body),
+  // The home's own templates (D-98): each one's tag, description and how many bots use it; one in full; an owner's or
+  // admin's edit (naming the updatedAt it opened) and delete.
   homeTemplates: () => request("/home-templates"),
   homeTemplate: (templateId) => request(`/home-templates/${templateId}`),
+  editHomeTemplate: (templateId, draft, updatedAt) => request(`/home-templates/${templateId}`, { method: "PUT", body: { draft, updatedAt } }),
+  deleteHomeTemplate: (templateId) => remove(`/home-templates/${templateId}`),
   routines: (botId) => request(`/bots/${botId}/routines`),
   setRoutine: (botId, routineId, enabled) => patch(`/bots/${botId}/routines/${routineId}`, { enabled }),
   createGroup: (group) => post("/groups", group),

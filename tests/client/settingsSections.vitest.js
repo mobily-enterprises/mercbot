@@ -5,7 +5,7 @@ import { EVERYONE_SECTIONS, SETTINGS_SECTIONS, listedSections } from "../../src/
 // Settings' section list: Mercbot's own sections, then the ones a copy built on Mercbot adds
 // (extensions.js), each listed when it's for everyone or its `visible` check said yes, right after the section its
 // `after` names; one with the value of a section of Mercbot's own takes that section's place. Mercbot adds none itself.
-const OWN = ["general", "computer", "permissions", "files", "website", "memory", "vault", "usage", "link", "about"];
+const OWN = ["general", "computer", "permissions", "files", "website", "memory", "templates", "vault", "usage", "link", "about"];
 
 describe("Settings' sections", () => {
   it("are Mercbot's own, with no Home, and nothing added: a person's own copy has nobody to invite", () => {
@@ -29,6 +29,7 @@ describe("Settings' sections", () => {
       "Files",
       "Website",
       "Memory",
+      "Templates",
       "Vault",
       "Spending",
       "Mercbot account",

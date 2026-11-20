@@ -389,9 +389,11 @@ offers to add that to its additions. `GET /api/bots/:botId/routines` lists a bot
 next run from now and clears its failures in a row), and `DELETE` removes it.
 
 New bot: `POST /api/bots` creates an unpinned bot with a name, shape and
-palette colour, which then runs a short intro: a generated greeting and a
+palette colour and the template chosen (`template`: `{ library }`, `{ home }` or
+`{ draft }`, a new home template made in the same transaction; D-98). With none
+it's a General helper, which then runs a short intro: a generated greeting and a
 generated first question (single or multi-select, with a "something else"
-option). `POST /api/bots/:botId/choices/:messageId` answers a question card with
+option); on a template it greets with the template's greeting instead. `POST /api/bots/:botId/choices/:messageId` answers a question card with
 one or more picks (no user message).
 
 What a copy built on Mercbot adds to a bot's chat: `extensions.js` `botActions` (actions at the top of a

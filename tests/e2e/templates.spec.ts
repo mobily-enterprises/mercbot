@@ -59,32 +59,37 @@ test("a template's page shows its badge", async ({ page }) => {
   await expect(page.locator("[data-tested-badge]")).toHaveText(tested);
 });
 
-/** Mercbot, opened on a template's preview, past the first-run introduction a new account sees once. */
+/** Mercbot opened from a template's link: New bot, on the template's preview, past the introduction a new account sees once. */
 async function openPreview(page: Page, slug: string) {
   await page.goto(`${HOME}?template=${slug}`);
-  const next = page.getByRole("button", { name: "Next" });
-  const preview = page.getByRole("dialog", { name: "Add a bot" });
+  const next = page.locator(".mb-intro").getByRole("button", { name: "Next" });
+  const preview = page.getByRole("dialog", { name: "New bot" });
   await expect(preview.or(next).first()).toBeVisible();
   if (await next.isVisible()) {
     for (let slide = 0; slide < 3; slide += 1) await next.click();
   }
-  await expect(preview.getByRole("button", { name: "Add bot" })).toBeVisible();
+  await expect(preview.getByRole("button", { name: "Next" })).toBeEnabled();
   return preview;
 }
 
-test("the preview before Add bot shows the badge, and adding still works", async ({ page }) => {
+// 20 November (D-98, amended): a template's link opens New bot with it chosen, where Add bot's preview was; Next names
+// the bot, with the template's own name and look to start with, and Create makes it.
+test("the preview in New bot shows the badge, and adding still works", async ({ page }) => {
   await page.goto("/templates");
   const { tested } = await gallery(page);
   const untested = await openPreview(page, UNTESTED);
-  await expect(untested.locator("[data-tested-badge]")).toHaveText("Not tested yet");
-  await untested.getByRole("button", { name: "Cancel" }).click();
+  // The template's own badge: the templates to choose from wait, hidden, behind its preview.
+  await expect(untested.locator("[data-tested-badge]:visible")).toHaveText("Not tested yet");
+  await untested.getByRole("button", { name: "Close" }).click();
   await expect(untested).toBeHidden();
 
   const preview = await openPreview(page, TESTED);
-  await expect(preview.getByRole("heading", { name: "Pantry", exact: true })).toBeVisible();
-  await expect(preview.locator("[data-tested-badge]")).toHaveText(tested);
-  const added = page.waitForResponse((response) => response.request().method() === "POST" && new URL(response.url()).pathname === `/api${HOME}/bots/from-template`);
-  await preview.getByRole("button", { name: "Add bot" }).click();
+  await expect(preview.getByRole("heading", { name: /^Pantry/u })).toBeVisible();
+  await expect(preview.locator("[data-tested-badge]:visible")).toHaveText(tested);
+  await preview.getByRole("button", { name: "Next" }).click();
+  await expect(preview.getByRole("textbox", { name: "Bot name" })).toHaveValue("Pantry");
+  const added = page.waitForResponse((response) => response.request().method() === "POST" && new URL(response.url()).pathname === `/api${HOME}/bots`);
+  await preview.getByRole("button", { name: "Create" }).click();
   const { bot } = (await (await added).json()) as { bot: { id: string } };
   try {
     await expect(preview).toBeHidden();

@@ -5,7 +5,9 @@ import { BotsError } from "./botsError.js";
 import { changeRefusal, mayChangeBot } from "./botAdditions.js";
 import { templateOf } from "./botTemplate.js";
 import { behaviourFingerprint, lastCheck, readResults, resultsFileFor, testedOn } from "./templateResults.js";
-import { CATEGORIES, GALLERY, LIBRARY, LIBRARY_TAGS, TAG, TEAM, details, freeTag, oneLine, setupNeeds, summary } from "./templates.js";
+import { CATEGORIES, GALLERY, GENERAL, LIBRARY, LIBRARY_TAGS, TAG, TEAM, details, freeTag, oneLine, setupNeeds, setupSkillOf, summary } from "./templates.js";
+import { checkedDraft, manageRefusal, managesTemplates, takenTags } from "./templateDrafts.js";
+import { templateBody } from "../shared/templateBody.js";
 import { cleanName, toBot } from "./botRows.js";
 
 /** The templates links open when the copy adds none (`mercbot.template-links` absent): no code opens one. */
@@ -143,10 +145,26 @@ export function createBotTemplates({ records, profiles, integrations, conversati
   }
 
   /**
-   * The template columns a choice points a bot at: `{ library: slug }`, one of Mercbot's library, or `{ home: id }`, one
-   * of the caller's home's own (another home's is none). A template's body is never taken from the caller.
+   * A draft kept as a new template of the caller's home (D-98): checked whole, its tag free of the library's and the
+   * home's, and only its five parts taken, whatever else it was sent with.
+   */
+  async function saveDraft(draft, options) {
+    const body = checkedDraft(draft, await takenTags(records.homeTemplates, options));
+    return records.homeTemplates.create({ ...body, created_by: conversations.personOf(options) }, options);
+  }
+
+  /**
+   * The template columns a choice points a bot at: `{ library: slug }`, one of Mercbot's library, `{ home: id }`, one
+   * of the caller's home's own (another home's is none), or `{ draft }`, a new one of the home's, made from it. A
+   * template body from the caller is only ever a home template, never one of Mercbot's library.
    */
   async function pointerTo(choice, options) {
+    const given = ["library", "home", "draft"].filter((key) => choice?.[key] !== undefined);
+    if (given.length > 1) throw new BotsError(400, "Choose one template.", { code: "bots_template_two_choices" });
+    if (choice?.draft !== undefined) {
+      const made = await saveDraft(choice.draft, options);
+      return { library_template: null, home_template_id: String(made.id) };
+    }
     if (choice?.library !== undefined) {
       const template = LIBRARY.get(String(choice.library));
       if (!template) throw noTemplate();
@@ -161,12 +179,32 @@ export function createBotTemplates({ records, profiles, integrations, conversati
   }
 
   /**
-   * Change template (D-98): the bot points at another template and keeps its additions, which now sit under it. Its
-   * maker and the home's owners and admins change it. The bot says so in its chat and greets with the new template's
-   * greeting, which asks its setup questions; its routines stay as they are.
+   * What a bot New bot makes on a chosen template starts with (D-98): the columns pointing it at the template, and the
+   * greeting it opens with, which asks the template's setup questions; none for Mercbot's general template, whose bot
+   * starts with its own short introduction (onboarding.js).
+   * @param {{ library?: string, home?: string, draft?: object }} choice
+   * @param {string} botName
+   * @param {object} options the call's options, in the bot's transaction
+   */
+  async function startOn(choice, botName, options) {
+    const pointer = await pointerTo(choice, options);
+    const columns = { ...pointer, template_since: new Date().toISOString() };
+    if (pointer.library_template === GENERAL.slug) return { columns, greeting: "" };
+    const template = await templateOf({ name: botName, ...pointer }, records.homeTemplates, options);
+    const words = template.greeting || `Hi {firstName}, I'm ${botName}. ${template.description}`;
+    return { columns, greeting: await greetingFor({ ...template, greeting: words }, botName, "", options) };
+  }
+
+  /**
+   * Change template (D-98): the bot points at another template and keeps its additions, which now sit under it, or for
+   * a new template drafted from it with them folded in (`foldAdditions`), has them emptied. Its maker and the home's
+   * owners and admins change it. The bot says so in its chat and greets with the new template's greeting, which asks
+   * its setup questions; its routines stay as they are.
    */
   async function changeTemplate(botId, choice, displayName, options) {
-    const { row, changed } = await store.withTransaction(passedOn(options), async (txOptions) => {
+    // A new template's lost race for its tag runs it again, when the tag is then taken.
+    const run = (work) => retryLostInsertRace(passedOn(options), () => store.withTransaction(passedOn(options), work));
+    const { row, changed } = await run(async (txOptions) => {
       const before = await conversations.ownedBot(botId, txOptions, { lock: true });
       if (before.kind === "group") throw new BotsError(400, "A group chat has no template.", { code: "bots_group_template" });
       if (!mayChangeBot(before.created_by, conversations.personOf(txOptions), txOptions)) {
@@ -177,7 +215,8 @@ export function createBotTemplates({ records, profiles, integrations, conversati
         ? pointer.library_template === before.library_template
         : String(pointer.home_template_id) === String(before.home_template_id || "");
       if (same) return { row: before, changed: false };
-      await store.updateBot(before.id, { ...pointer, template_since: new Date().toISOString() }, txOptions);
+      const folded = choice.draft !== undefined && choice.foldAdditions === true ? { additions: "" } : {};
+      await store.updateBot(before.id, { ...pointer, ...folded, template_since: new Date().toISOString() }, txOptions);
       const after = await conversations.refresh(before, txOptions);
       const template = await templateOf(after, records.homeTemplates, txOptions);
       const where = template.source === "library" ? "Mercbot's" : "your home's";
@@ -234,35 +273,131 @@ export function createBotTemplates({ records, profiles, integrations, conversati
     return change ? { date: new Date(change.changed_at).toISOString(), text: change.summary } : null;
   }
 
-  /** The home's own templates (D-98), by tag: each one's description and how many of the home's bots use it. */
+  /** One of the home's templates as its list shows it, used by `usedBy` of its bots. */
+  const listed = (template, usedBy) => ({
+    id: String(template.id),
+    tag: template.tag,
+    description: template.description,
+    usedBy,
+    updatedAt: new Date(template.updated_at).toISOString()
+  });
+
+  /**
+   * The home's own templates (D-98), by tag, for everyone in it: each one's description and how many of the home's bots
+   * use it (one aggregate however many there are), and whether the person may edit and delete them.
+   */
   async function homeTemplates(options) {
     const list = await records.homeTemplates.list(options);
     const used = await records.homeTemplates.usedBy(list.map((template) => template.id), options);
+    const templates = list.map((template) => listed(template, used.get(String(template.id)) || 0));
+    return { templates, canManage: managesTemplates(options) };
+  }
+
+  /** One of the home's templates by its id from a request, or 404: another home's is none. */
+  async function ownTemplate(templateId, options, { lock = false } = {}) {
+    const id = String(templateId ?? "");
+    const read = lock ? records.homeTemplates.lock : records.homeTemplates.find;
+    const template = /^[1-9]\d{0,18}$/u.test(id) ? await read(id, options) : null;
+    if (!template) throw noTemplate();
+    return template;
+  }
+
+  /**
+   * One of the home's templates in full, for everyone in it: what a bot pointing at it follows, all its parts, as
+   * Settings → Templates → Edit starts from.
+   */
+  async function homeTemplate(templateId, options) {
+    const template = await ownTemplate(templateId, options);
+    const used = await records.homeTemplates.usedBy([template.id], options);
     return {
-      templates: list.map((template) => ({
-        id: String(template.id),
-        tag: template.tag,
-        description: template.description,
-        usedBy: used.get(String(template.id)) || 0,
-        updatedAt: new Date(template.updated_at).toISOString()
-      }))
+      ...listed(template, used.get(String(template.id)) || 0),
+      greeting: template.greeting || "",
+      instructions: template.instructions,
+      skills: (template.skills || []).map(({ name, description, instructions }) => ({ name, description, instructions }))
     };
   }
 
-  /** One of the home's templates in full, for everyone in it: what a bot pointing at it follows. Another home's is none. */
-  async function homeTemplate(templateId, options) {
-    const template = /^\d+$/u.test(String(templateId)) ? await records.homeTemplates.find(String(templateId), options) : null;
-    if (!template) throw noTemplate();
-    const used = await records.homeTemplates.usedBy([template.id], options);
-    return {
-      id: String(template.id),
-      tag: template.tag,
-      description: template.description,
-      instructions: template.instructions,
-      skills: (template.skills || []).map(({ name, description }) => ({ name, description })),
-      usedBy: used.get(String(template.id)) || 0,
-      updatedAt: new Date(template.updated_at).toISOString()
-    };
+  /**
+   * What an edit changed, in the words of its "what changed" line: the tag, the description, the greeting, the
+   * instructions, the setup questions and the other skills.
+   */
+  function changedParts(stored, after) {
+    // Both as bodies, so a skill's parts compare in one order whatever order its stored JSON keeps them in.
+    const before = templateBody(stored);
+    const setup = (template) => JSON.stringify(setupSkillOf(template) ?? null);
+    const others = (template) => JSON.stringify(template.skills.filter((skill) => skill !== setupSkillOf(template)));
+    return [
+      ["tag", before.tag !== after.tag],
+      ["description", before.description !== after.description],
+      ["greeting", before.greeting !== after.greeting],
+      ["instructions", before.instructions !== after.instructions],
+      ["setup questions", setup(before) !== setup(after)],
+      ["other skills", others(before) !== others(after)]
+    ].filter(([, changed]) => changed).map(([part]) => part);
+  }
+
+  /** "Instructions and setup questions changed by Ada", as each bot using the template shows it, dated. */
+  function changeLine(parts, who) {
+    const named = parts.length > 1 ? `${parts.slice(0, -1).join(", ")} and ${parts.at(-1)}` : parts[0];
+    return `${named.charAt(0).toUpperCase()}${named.slice(1)} changed by ${who}`.slice(0, 200);
+  }
+
+  /**
+   * Settings → Templates → Edit → Save (D-98): the home's owners and admins change one of its templates, checked whole,
+   * while it is still as they opened it (`updatedAt`; 409 if someone saved since). Every bot using it follows the change
+   * from its next reply, and a `home_template_changes` line says what changed and who changed it.
+   * @param {string} templateId
+   * @param {{ draft?: object, updatedAt?: string }} edit
+   * @param {object} options
+   */
+  async function editHomeTemplate(templateId, { draft, updatedAt } = {}, options) {
+    if (!managesTemplates(options)) throw manageRefusal();
+    // A lost race for a tag (the home's unique tags) runs it again, when the tag is then taken.
+    return retryLostInsertRace(passedOn(options), () => store.withTransaction(passedOn(options), async (txOptions) => {
+      const before = await ownTemplate(templateId, txOptions, { lock: true });
+      if (new Date(before.updated_at).toISOString() !== String(updatedAt)) {
+        throw new BotsError(409, `Someone saved ${before.tag} since you opened it. Open it again to see their changes.`, { code: "bots_template_stale" });
+      }
+      const body = checkedDraft(draft, await takenTags(records.homeTemplates, txOptions, before.tag));
+      const parts = changedParts(before, body);
+      let after = before;
+      if (parts.length) {
+        const now = new Date().toISOString();
+        const person = conversations.personOf(txOptions);
+        const name = (await profiles.findById(person, passedOn(txOptions)))?.displayName || "someone";
+        after = await records.homeTemplates.update(before.id, { ...body, updated_at: now }, txOptions);
+        const change = { summary: changeLine(parts, name), changed_by: person, changed_at: now };
+        await records.homeTemplates.addChange(before.id, change, txOptions);
+      }
+      const used = await records.homeTemplates.usedBy([before.id], txOptions);
+      return { template: listed(after, used.get(String(before.id)) || 0), changed: parts };
+    }));
+  }
+
+  /**
+   * Settings → Templates → Delete (D-98): the home's owners and admins delete one of its templates that no bot uses
+   * (409 while one does, which the bots' foreign key, ON DELETE RESTRICT, backs), with what changed in it.
+   */
+  async function deleteHomeTemplate(templateId, options) {
+    if (!managesTemplates(options)) throw manageRefusal();
+    const inUse = (tag, count) =>
+      new BotsError(409, `${count === 1 ? "A bot uses" : `${count} bots use`} ${tag}. Change their template first.`, {
+        code: "bots_template_in_use",
+        params: { usedBy: count }
+      });
+    return store.withTransaction(passedOn(options), async (txOptions) => {
+      const template = await ownTemplate(templateId, txOptions, { lock: true });
+      const count = (await records.homeTemplates.usedBy([template.id], txOptions)).get(String(template.id)) || 0;
+      if (count) throw inUse(template.tag, count);
+      try {
+        await records.homeTemplates.remove(template.id, txOptions);
+      } catch (error) {
+        // A bot pointed at it after the count (PostgreSQL's foreign key violation).
+        if (error?.code === "23503" || error?.cause?.code === "23503") throw inUse(template.tag, 1);
+        throw error;
+      }
+      return { deleted: String(template.id) };
+    });
   }
 
   return Object.freeze({
@@ -272,7 +407,10 @@ export function createBotTemplates({ records, profiles, integrations, conversati
     addFromTemplate,
     changeTemplate,
     instructionsOf,
+    startOn,
     homeTemplates,
-    homeTemplate
+    homeTemplate,
+    editHomeTemplate,
+    deleteHomeTemplate
   });
 }

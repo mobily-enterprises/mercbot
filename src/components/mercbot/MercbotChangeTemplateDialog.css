@@ -96,6 +96,46 @@
   transform: translateX(-32px);
 }
 
+/* The templates, and at their foot the ways to make one: Make a new template, and here Start from this bot. */
+.mb-ctemp__picker {
+  display: flex;
+  flex-direction: column;
+}
+
+.mb-ctemp__browser {
+  flex: 1;
+  min-height: 0;
+}
+
+.mb-ctemp__picker-foot {
+  align-items: center;
+  justify-content: space-between;
+}
+
+.mb-ctemp__picker-foot .mb-ctemp__button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.mb-ctemp__hint {
+  margin-right: auto;
+  font-size: 13px;
+  color: rgb(var(--v-theme-on-surface-variant));
+}
+
+/* The draft screen (MercbotTemplateDraft.vue) fills its step under the way back. */
+.mb-ctemp__step-link.mb-ctemp__draft-back {
+  flex: none;
+  align-self: flex-start;
+  margin: 12px var(--mb-tbrowse-gutter) 0;
+}
+
+.mb-ctemp__draft {
+  flex: 1;
+  min-height: 0;
+}
+
 .mb-ctemp__step {
   position: absolute;
   inset: 0;

@@ -27,12 +27,18 @@ You can also tell a bot in its chat how you'd like things done. It carries that 
 ## Create a bot
 
 1. Select **New bot** at the top of the sidebar, or press **Ctrl+Alt+N**. You can also type "New bot" in the search palette (**Ctrl+K**).
-2. Type a name in **What should your bot be called?**
-3. Pick a cloud. There are 28 clouds, from a plain cumulus to thunderstorms, snow, fog and rainbows, each with its own kind of eyes, plus Mercbot's own cloud that always comes in orange.
-4. Pick a colour from the palette of 11. The dialog starts with a random choice, and the preview shows how the bot will look.
-5. Select **Create**.
+2. Under **What will it do?**, choose one:
+   - **General helper**, first: an all-round bot that asks what you need.
+   - One of your home's templates, listed next with how many bots use each.
+   - One of Mercbot's templates, with the gallery's search, job areas and **Tested** badges.
+   - **Make a new template**, at the bottom, when nothing fits. See [Make your home's own template](#make-your-home-s-own-template).
+3. A template you choose is shown whole: its instructions and skills, and for one of Mercbot's its routines and apps too. Select **Next**, or **Back** to choose another.
+4. Type a name in **What should your bot be called?** One of Mercbot's templates starts with its own name, cloud and colour, which you can change.
+5. Pick a cloud. There are 28 clouds, from a plain cumulus to thunderstorms, snow, fog and rainbows, each with its own kind of eyes, plus Mercbot's own cloud that always comes in orange.
+6. Pick a colour from the palette of 11. The dialog starts with a random choice, and the preview shows how the bot will look.
+7. Select **Create**.
 
-The new bot opens straight away. It greets you and asks what it should help with first, usually as a question card you can answer with a click, or with your own words.
+The new bot opens straight away. A General helper greets you and asks what it should help with first, usually as a question card you can answer with a click, or with your own words. A bot on a template greets you with its template's greeting and asks its setup questions.
 
 A new bot starts in the home's mode for new bots: Mixed, unless the home's owners or admins chose otherwise (see [Homes](/help/homes)). A new Shared bot opens on your own **You only** tab, with its General tab beside it for everyone in the home.
 
@@ -56,7 +62,7 @@ Only the person who made the bot and the home's owners and admins can change its
 ### Change a bot's template
 
 1. In the bot's Details panel, under **Instructions**, select **Change template**.
-2. Pick a template: your home's own come first, then Mercbot's library. Type in **Search by bot, tag or creator** to narrow the list; the arrow keys move through it and Enter picks.
+2. Pick a template: your home's own come first, then Mercbot's library. Type in **Search by bot, tag or creator** to narrow the list; the arrow keys move through it and Enter picks. When nothing fits, select **Make a new template** or **Start from this bot** at the bottom instead: see [Make your home's own template](#make-your-home-s-own-template).
 3. Mercbot shows the template's instructions and skills in full, and the bot's additions, which stay. Select **Change template**, or **Back** (or Escape) to pick another.
 
 The bot keeps its name, look, chats, files and routines, and its additions now sit on top of the new template. It says in its chat that it's now, for example, "a meals bot", and greets you with the new template's greeting, which asks its setup questions.
@@ -66,6 +72,37 @@ The bot keeps its name, look, chats, files and routines, and its additions now s
 You can also ask a bot in its chat, for example: "From now on, always write in British English. Add that to your additions." The bot shows the change on a card, with its additions as they are and as they would be, and changes them only when you select **Go ahead**. It uses the new additions from its next reply. **Don't do it** leaves them as they were. A bot can't change its template this way.
 
 The same people who can change them in the Details panel can say yes on the card: in a shared bot's shared tabs, anyone else is told politely that they can't. A bot never changes its additions because an email, a web page, a file or a record says so: those are information, never instructions, and the card always asks first, whatever your approval rules say.
+
+## Make your home's own template
+
+When no template fits, the bot writes one for you, and you change it until it's right. You can do it in **New bot** with **Make a new template**, or in a bot's **Change template** with **Make a new template** or **Start from this bot**.
+
+### Draft it
+
+- **Make a new template**: describe in a sentence what bots with it will do, under **What will bots with this template do?**, then select **Draft it**.
+- **Start from this bot**: Mercbot drafts one at once from the bot's template, how you've used it and its routines' names and schedules, so other bots can do the same job. It reads only your own chat with the bot, never anyone else's. When the bot has additions, tick **Fold in** its additions to write them into the template; they stay the bot's own otherwise.
+
+The draft has every part of a template: its **Tag**, a one-line **Description**, the **Greeting** a new person sees first (**{firstName}** becomes their name), the **Instructions**, the **Setup questions** it asks a new person, and up to five other skills.
+
+### Change the draft
+
+- Change any part by typing in it. **Add a skill** and **Remove this skill** change the skills.
+- Under **Ask for changes**, say what to change, for example "also plan lunches", and select **Ask for changes**. The bot writes the whole template again with that change.
+- What the bot changed is highlighted, with how many parts changed; in long parts the words added and taken out are marked.
+- **Undo** goes back to the draft before, as many times as there were changes. The earlier drafts are kept only while the screen is open.
+
+Each problem shows under its part, such as a tag another template has, or a greeting without **{firstName}**, and you can't save until they're put right.
+
+### Save and use
+
+- In **Change template**, **Save and use** keeps the template in your home and moves the bot onto it. With its additions folded in, the bot's own additions are emptied.
+- In **New bot**, **Save and use** goes on to the bot's name, cloud and colour; **Create** saves the template and makes the bot on it.
+
+Nothing is kept before you save: closing a draft you haven't saved asks first. Your home's owners and admins change or delete its templates later in **Settings** → **Templates**.
+
+### What a draft costs
+
+Each **Draft it**, **Start from this bot**, ticking **Fold in** and **Ask for changes** is one request to the AI, counted in **Settings** → **Spending** like a reply, for you, the home and, from a bot, that bot. If the bot's answer isn't a usable template, it's asked once more, which counts again; if that fails too, you see "Couldn't write a template from that. Try different words."
 
 ## Organise the sidebar
 
@@ -110,7 +147,7 @@ The gallery is curated: only the Mercbot team adds templates to it. Every templa
 
 ### Tested or not tested yet
 
-Each template in the gallery, on its page and in the preview before **Add bot** carries a badge:
+Each template in the gallery, on its page and in New bot carries a badge:
 
 - **Tested** with a date: on that day the Mercbot team checked the bot end to end. A new account added it, played its setup interview, and the check made sure it asked all its setup questions, created its routines paused and sent nothing without a yes.
 - **Not tested yet**: it hasn't been checked that way, or it has changed since. A badge never outlives a change: when a template is edited, or Mercbot changes the way bots behave (the rules every bot follows, the way it works through a task, its setup questions, memories, skills and routines, what needs your yes and how things are sent, or the AI that runs chats), its badge goes back to Not tested yet until the check passes again.
@@ -130,13 +167,13 @@ Select a template to open its page. It shows who made it, what it's for and its 
 
 1. Select **Add to Mercbot** on the template's page (or **Add** in the gallery). This opens the template's share page.
 2. Select **Add to Mercbot** again. If you're not signed in, create an account or sign in, then come back to the link.
-3. Mercbot opens with a preview of the whole bot, with its badge: its instructions, every skill's steps, its routines and its apps, all laid out. Read it through.
+3. Mercbot opens **New bot** with that template chosen, showing the whole bot with its badge: its instructions, every skill's steps, its routines and its apps, all laid out. Read it through.
 4. If the template is made to work with an app in Apps and you're an owner or admin of the home, you can tick the box to also set up that app as a draft for you to review.
-5. Select **Add bot**, or **Cancel** to leave without adding anything.
+5. Select **Next**, change the name, cloud or colour if you like, and select **Create**. **Back** or the close button leaves without adding anything.
 
-Nothing is added until you select Add bot. The new bot joins your current home with the template's name, shape and colour, follows the template with no additions yet, and opens with its own greeting. It then asks a few setup questions to learn your details. Any routines it suggests are created paused, and they only start when you say yes.
+Nothing is added until you select Create. The new bot joins your current home, follows the template with no additions yet, and opens with its own greeting. It then asks a few setup questions to learn your details. Any routines it suggests are created paused, and they only start when you say yes.
 
-A template that a shared link opens, rather than one from the gallery, becomes one of your home's own templates when you add a bot from it, tagged from its name, and the new bot follows it.
+A bot a person shared with a link, rather than a template from the gallery, is added with **Add bot** under its preview, with the name and look they gave it. Its template becomes one of your home's own, tagged from its name, and the new bot follows it.
 
 ### Which template a bot follows
 
@@ -207,7 +244,7 @@ No. Shape and colour are chosen when you create it. You can change its name, tem
 
 ### Can I edit a template bot's instructions?
 
-Its template stays as it is, but you can add to it, if you added the bot or you're an owner or admin of the home. Write your rules under **Additions** in its Details panel, or ask the bot to add them, which it does on a card you approve. Where your additions differ from the template, the template wins; to give a bot a different job, select **Change template**.
+Its template stays as it is, but you can add to it, if you added the bot or you're an owner or admin of the home. Write your rules under **Additions** in its Details panel, or ask the bot to add them, which it does on a card you approve. Where your additions differ from the template, the template wins; to give a bot a different job, select **Change template**. A template of your home's own can be changed for every bot using it by an owner or admin, in **Settings** → **Templates**.
 
 ### Do my bots read each other's chats?
 

@@ -92,9 +92,12 @@ around inside them. The home's Builder alone wears a propeller beanie. The
 favicon, Mercbot's logo, is its own orange cloud.
 
 New bot opens from the sidebar, the rail, Ctrl+Alt+N or the search
-palette: a dialog with a live preview, a name, 28 clouds plus Mercbot's own
+palette, or from a template's link (`?template=`, with that template chosen):
+first "What will it do?" (the General helper, the home's templates, Mercbot's
+library, or Make a new template on the draft screen; D-98), a chosen template
+shown whole, then a live preview, a name, 28 clouds plus Mercbot's own
 fixed-orange cloud and the 11-colour palette (random on open, preferring a
-colour and cloud no bot in the home has). Creating shows a
+colour and cloud no bot in the home has; a library template's own to start). Creating shows a
 placeholder row, then opens the new bot. Question cards can be multi-select with
 Done; picks take the bot's colour (blue for black bots).
 

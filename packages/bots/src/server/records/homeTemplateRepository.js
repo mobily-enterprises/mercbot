@@ -52,6 +52,26 @@ export function createHomeTemplateRepository({ resources, systemContext }) {
     return find(id, options);
   }
 
+  /** One of the home's templates in full, its row locked until the transaction ends, or null. */
+  async function lock(id, options) {
+    return asRow(await homeTemplates.lock(String(id), { ...passedOn(options), missing: "skip" }), options);
+  }
+
+  /** Changes to one of the home's templates, given in its columns' names, read back in full. */
+  async function update(id, columns, options) {
+    return asRow(await homeTemplates.patch(String(id), fieldsOf(columns), passedOn(options)), options);
+  }
+
+  /** Deletes one of the home's templates and what changed in it; a bot pointing at it stops it (ON DELETE RESTRICT). */
+  async function remove(id, options) {
+    await homeTemplates.delete(String(id), passedOn(options));
+  }
+
+  /** Records what changed in one of the home's templates, its line written by Mercbot ("Instructions changed by Ada"). */
+  async function addChange(id, columns, options) {
+    await homeTemplateChanges.create(fieldsOf({ home_template_id: String(id), ...columns }), { ...passedOn(options), returning: "none" });
+  }
+
   /** How many of the home's bots use each of the templates among `ids`, by id; one statement. */
   async function usedBy(ids, options) {
     const wanted = [...new Set(ids.map(String))];
@@ -79,6 +99,10 @@ export function createHomeTemplateRepository({ resources, systemContext }) {
     list,
     tagsOf,
     create,
+    lock,
+    update,
+    remove,
+    addChange,
     usedBy,
     newestChangeAfter
   });

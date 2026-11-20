@@ -359,6 +359,8 @@ test("the group picker names the chosen bots in the composer and offers a new bo
   await field.fill("Pinned helper");
   await rows.filter({ hasText: "Pinned helper" }).dispatchEvent("mousedown");
   const newBot = page.getByRole("dialog", { name: "New bot" });
+  // What it will do comes first (20 November); the name typed waits for it.
+  await newBot.getByRole("button", { name: /^General helper/u }).click();
   await expect(newBot.getByRole("textbox", { name: "Bot name" })).toHaveValue("Pinned helper");
   await newBot.getByRole("button", { name: "Close" }).click();
   await expect(newBot).toBeHidden();

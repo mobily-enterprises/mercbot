@@ -2,6 +2,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { BOT_PALETTE } from "./botPalette.js";
 import { TEMPLATES_DIR, templateFingerprint } from "./templateResults.js";
+import { TAG, TEMPLATE_LIMITS, setupSkillOf, templateProblems } from "../shared/templateBody.js";
 
 // Bot templates (D-43, D-98). Mercbot's library is curated: its templates are files in bot-templates/, one JSON file
 // each, written by the Mercbot team and checked end to end with npm run check:templates, whose results
@@ -56,8 +57,8 @@ const SHAPES = [
   "mercbot"
 ];
 
-/** A template's setup interview skill: the one its bot runs first, and its end-to-end check plays (D-79). */
-export const setupSkillOf = (template) => template.skills?.find((skill) => /set ?up|first[- ]run|interview/iu.test(skill.name));
+// A template's setup interview skill, the one its bot runs first and its end-to-end check plays (D-79), and its tag.
+export { TAG, setupSkillOf };
 
 /**
  * The connected apps a template's setup needs before it can go on ("Check that GitHub is connected"), by name: its
@@ -66,12 +67,6 @@ export const setupSkillOf = (template) => template.skills?.find((skill) => /set 
 export function setupNeeds(template) {
   return [...setupSkillOf(template).instructions.matchAll(/^\d+\.\s+Check that ([A-Z][\w ]+?) is connected\b/gmu)].map((match) => match[1]);
 }
-
-/**
- * A template's tag (D-98): one short lowercase word, 2 to 10 letters or digits starting with a letter, unique across
- * Mercbot's library and a home's templates. A bot shows its template's tag beside its name.
- */
-export const TAG = /^[a-z][a-z0-9]{1,9}$/u;
 
 /**
  * A template file is checked when Mercbot starts, so a broken one never reaches the gallery; the static checks
@@ -83,24 +78,19 @@ export function checkTemplate(template, file = template.slug) {
   if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(template.slug || "") || template.slug.length > 40) {
     problems.push("slug: lowercase words joined by -");
   }
-  if (!TAG.test(template.tag || "")) problems.push("tag: 2 to 10 lowercase letters or digits, starting with a letter");
+  // The body's own rules are a home template's too (templateBody.js), with a library description of up to 240
+  // characters and any number of skills.
+  const body = new Set(templateProblems(template, { description: 240, skills: Infinity }).map(({ field }) => field.split(".")[0]));
+  if (body.has("tag")) problems.push("tag: 2 to 10 lowercase letters or digits, starting with a letter");
   if (!text(template.name, 40)) problems.push("name: up to 40 characters");
   if (!BOT_PALETTE.includes(template.color)) problems.push("color: one of the bot palette");
   if (!SHAPES.includes(template.shape)) problems.push("shape: one of the bot shapes");
   if (!CATEGORIES.some((category) => category.id === template.category)) problems.push("category: one of the gallery's");
-  if (!text(template.description, 240)) problems.push("description: up to 240 characters");
-  if (!text(template.greeting, 600) || !template.greeting.includes("{firstName}")) {
-    problems.push("greeting: up to 600 characters, greeting {firstName}");
-  }
-  if (!text(template.instructions, 8000)) problems.push("instructions: up to 8,000 characters");
-  if (
-    !Array.isArray(template.skills) ||
-    !template.skills.length ||
-    template.skills.some((skill) => !text(skill.name, 60) || !text(skill.description, 160) || !text(skill.instructions, 6000))
-  ) {
-    problems.push("skills: at least one, each with a name, description and instructions");
-  }
-  if (!setupSkillOf(template)) problems.push("skills: a setup interview");
+  if (body.has("description")) problems.push("description: one line of up to 240 characters");
+  if (body.has("greeting")) problems.push(`greeting: up to ${TEMPLATE_LIMITS.greeting} characters, greeting {firstName}`);
+  if (body.has("instructions")) problems.push(`instructions: up to ${TEMPLATE_LIMITS.instructions.toLocaleString("en")} characters`);
+  if (body.has("skills")) problems.push("skills: at least one, each with a name, description and instructions");
+  if (body.has("setup")) problems.push("skills: a setup interview");
   if (
     !Array.isArray(template.routines) ||
     template.routines.some((routine) => !text(routine.name, 80) || !text(routine.when, 80) || !text(routine.what, 400))

@@ -16,7 +16,10 @@
 // them, and starts them only on a yes. It plays the template check's person and judge (tests/support/templateCheck.mjs)
 // and Mercbot's own checks too. Any bot asked "What are your additions?" says its own additions as its system prompt
 // has them, and one told "Change your additions to: …" changes them through change_additions, which leaves the
-// person a card (D-98, D-95); otherwise any other bot says the copy runs on a stand-in model. `misbehave` makes a template's bot
+// person a card (D-98, D-95). It drafts a home's templates (packages/bots/src/server/templateDrafts.js) as fixed drafts:
+// a new one from its sentence, one from a bot from that bot's template (its additions on the end when they're folded
+// in), and a change by putting the request at the end of the instructions, or, for "Description: …", in place of the
+// description. Otherwise any other bot says the copy runs on a stand-in model. `misbehave` makes a template's bot
 // break a rule on purpose, to prove the check catches it: "skip-question" leaves out its second question,
 // "routine-running" creates its routines running, and "send" has something sent as the setup ends (the test copy's line
 // for it, D-69, written by the stand-in itself as JSKIT writes it for this process's APP_ENV, since the check's home has
@@ -24,7 +27,7 @@
 import { createServer } from "node:http";
 import { logSideEffect } from "@jskit-ai/kernel/server/runtime/appEnvironment";
 import { appEnvironment } from "@jskit-ai/kernel/shared/support/appEnvironment";
-import { GALLERY, setupSkillOf } from "@local/bots/server/templates";
+import { GALLERY, freeTag, setupSkillOf } from "@local/bots/server/templates";
 
 /** What the template check's person player answers once the setup is over (tests/support/templateCheck.mjs). */
 export const DONE = "[DONE]";
@@ -50,6 +53,7 @@ const GREETING = /^You are (.+), a brand-new personal assistant bot in Mercbot\.
 const FIRST_QUESTION = "You write one short question card for a new assistant bot.";
 const ACTIVITY = "You label what an assistant is about to do";
 const RULE_MATCHER = "You decide which of a person's plain-language rules apply";
+const TEMPLATE_WRITER = "You write bot templates for Mercbot.";
 
 /** A message's words, whether its content is a string or a list of parts. */
 const textOf = (content) => (typeof content === "string" ? content : (content || []).map((part) => part.text || "").join(""));
@@ -166,6 +170,54 @@ function ownAdditionsStep(system, request) {
   return called ? say("Here's the change: it's waiting for your OK on the card below.") : call("change_additions", { additions: wanted });
 }
 
+/**
+ * A home's template, drafted (templateDrafts.js): its tag made free of the ones the instructions list as taken, a new
+ * one's parts from its sentence, a bot's from its template, and a change as asked.
+ * @param {string} system
+ * @param {string} asked the user message
+ */
+function templateDraft(system, asked) {
+  const taken = new Set((/Not one of: ([^\n]*)\.\n/u.exec(system)?.[1] || "").split(", "));
+  const jsonAfter = (label) => {
+    try {
+      return JSON.parse(new RegExp(`^${label}(\\{.*\\})$`, "mu").exec(asked)?.[1] || "null");
+    } catch {
+      return null;
+    }
+  };
+  const setup = {
+    name: "Setup interview",
+    description: "The questions a new person is asked, one at a time.",
+    instructions: "1. Ask what matters most to them in this job.\n2. Ask how often they want to hear from you."
+  };
+  const change = /^Here is a template: /u.test(asked) ? jsonAfter("Here is a template: ") : null;
+  if (change) {
+    const request = asked.split("answer with the whole template:\n")[1] || "";
+    const description = /^Description: (.+)$/u.exec(request)?.[1];
+    return description ? { ...change, description } : { ...change, instructions: `${change.instructions}\n\n${request}` };
+  }
+  const bot = /^Write a template from this bot, (.+?), for every bot/u.exec(asked)?.[1];
+  if (bot) {
+    const now = jsonAfter("Its template now: ") || {};
+    const additions = /^Its additions, to fold into the template: ([\s\S]*)$/mu.exec(asked)?.[1];
+    return {
+      tag: freeTag(bot, taken),
+      description: `${bot}'s job, for every bot that does it.`,
+      greeting: now.greeting || `Hi {firstName}, I'm here for ${bot}'s job. First, a few questions to set me up.`,
+      instructions: `${now.instructions || `You do ${bot}'s job.`}${additions ? `\n\n${additions}` : ""}`,
+      skills: now.skills?.length ? now.skills : [setup]
+    };
+  }
+  const describe = asked.replace(/^Write a template for bots that will: /u, "");
+  return {
+    tag: freeTag(describe.split(/\s+/u).find((word) => word.length >= 4) || "helper", taken),
+    description: `Helps with: ${describe}`.slice(0, 120),
+    greeting: "Hi {firstName}, I'm here to help with this job. First, a few questions to set me up.",
+    instructions: `You help the people you work for with this job: ${describe}. Ask before doing anything that can't be undone, and say what you did.`,
+    skills: [setup]
+  };
+}
+
 /** What the stand-in answers a request with: one step of a reply. */
 function answerFor(request, misbehave) {
   const system = request.messages.filter((message) => message.role === "system").map((message) => textOf(message.content)).join("\n\n");
@@ -182,6 +234,7 @@ function answerFor(request, misbehave) {
   if (system.includes(FIRST_QUESTION)) return say(JSON.stringify({ question: "What should I help with first?", options: ["Plan a trip", "Watch a price", "Sort out my email"] }));
   if (system.includes(ACTIVITY)) return say(JSON.stringify({ status: "Thinking it over", emoji: null }));
   if (system.includes(RULE_MATCHER)) return say(JSON.stringify({ matches: [] }));
+  if (system.startsWith(TEMPLATE_WRITER)) return say(JSON.stringify(templateDraft(system, textOf(request.messages.at(-1)?.content))));
   const own = ownAdditionsStep(system, request);
   if (own) return own;
   const template = request.tools?.length ? GALLERY.find((entry) => system.includes(entry.instructions)) : null;

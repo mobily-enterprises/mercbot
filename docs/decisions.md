@@ -2475,8 +2475,7 @@ someone changes them, so the prompt's start stays cached between edits.
   (de-duplicated, editable later), and point at it, with no additions.
 - A bot with no instructions, the main bot among them, points at the library's **`general`** template: an all-round
   helper with no job beyond Mercbot's rules, the one library template exempt from "one job" and its setup interview,
-  and not listed in the gallery. Until New bot's "Let the bot ask" comes (stage b), a bot made with New bot points at
-  it too.
+  and not listed in the gallery. New bot's General helper points at it too.
 - **Labels go:** the tag replaces them and two chips would confuse. A one-word label is the first
   choice for the tag of a home template the upgrade makes from that bot; every label stays in the backup.
 - A bot the migration can't place stops it with an error naming the bot and why; nothing is half-moved.
@@ -2485,7 +2484,7 @@ someone changes them, so the prompt's start stays cached between edits.
 
 | Today | Then |
 | --- | --- |
-| New bot's Blank (name, cloud, colour) | Kept as New bot's second step; "Let the bot ask" replaces a blank bot |
+| New bot's Blank (name, cloud, colour) | Kept as New bot's second step, after "What will it do?" (amended below) |
 | The generated first-task card | One open question, "What will I be used for?" |
 | Add bot from a template: a copy of instructions and skills | A pointer; the template's skills are read from it |
 | The preview before adding, everything opened out (D-43) | Kept, in New bot and on the match and new-template cards |
@@ -2500,10 +2499,77 @@ someone changes them, so the prompt's start stays cached between edits.
 | Group chats | Not bots: no template, no chip |
 | A copy built on Mercbot's template links (`mercbot.template-links`) | Kept: adding from a link makes a home template in the adder's home, and the bot points at it |
 
-### Built in three stages, each landable with its help and screenshots
+### Built in stages, each landable with its help and screenshots
 
-(a) the model, pointer, additions, tags and chips, Details → Instructions, Change template and the upgrade;
-(b) New bot, the first messages and the match or new-template cards; (c) Settings → Templates and its changes.
+(a) the model, pointer, additions, tags and chips, Details → Instructions, Change template and the upgrade. Stages (b)
+and (c) as first planned (New bot's "Let the bot ask", the first messages' match or new-template cards, then Settings →
+Templates) are replaced by the owner's design of 20 November, below: the bot drafts a whole template on request, the
+person changes it on one screen, and nothing about it is kept until it's saved.
+
+### Amended 20 November: templates the bot drafts
+
+- **Make a new template**, in New bot and in Change template: a sentence ("What will bots with this template do?") and
+  **Draft it**. **Start from this bot**, in Change template: a draft from the bot's template, how it has been used and
+  its routines, with its additions folded in when **Fold in its additions** is ticked.
+- **One draft screen** for making and editing (`MercbotTemplateDraft.vue`): every part (tag, description, greeting,
+  instructions, setup questions, other skills) edited by hand and checked as the server checks it, each problem at its
+  part, Save off while there is one. **Ask for changes** is one call: the whole draft and the request in, a whole new
+  draft out. What changed is highlighted, word by word in the long parts, with "N changes"; **Undo** steps back through
+  the drafts before, kept on the page only and lost when it closes (closing a draft not yet saved asks first). No
+  conversation is kept, and no draft until it's saved.
+- **Save and use** in Change template keeps the draft as a home template and points the bot at it, in one transaction;
+  with the additions folded in, the bot's own are emptied, and only then. In New bot it goes on to the name, cloud and
+  colour, and Create makes the template and the bot together, so no template is left unused by a bot that failed.
+  Bots are made only by `createBot`, which takes the template chosen (`{ library }`, `{ home }` or `{ draft }`; none
+  for the General helper), and `addFromTemplate`.
+- **New bot** asks first **What will it do?**: the **General helper** (`general`, the quick all-round choice), the
+  home's templates, then Mercbot's library with its search, job areas and Tested badges, and **Make a new template** at
+  the foot. A template chosen is shown whole, with its paired app offered as before; then the name, cloud and colour
+  (a library template's own to start with) and **Create**. A template's link (`?template=`) opens New bot with it
+  chosen, where the preview before Add bot was; a bot a person shared is still added as they made it.
+- **Settings → Templates** lists the home's templates with their tag, description and "Used by N bots" (one aggregate
+  query, whatever their number), for everyone in the home. Owners and admins (`workspace.settings.update`) **Edit** one
+  on the draft screen, whose Save warns "Changes reach N bots from their next reply", names the `updatedAt` it opened
+  (409 when someone saved since) and records a `home_template_changes` line such as "Instructions and setup questions
+  changed by Ada"; and **Delete** one no bot uses (409 while one does).
+- **On the server.** A draft is checked whole by the library's rules with a home's limits
+  (`packages/bots/src/shared/templateBody.js`, which the draft screen uses too): a tag no other template has, a
+  one-line description of at most 120 characters, a greeting of at most 600 with `{firstName}`, instructions up to
+  8,000, 1 to 6 skills including the Setup interview, each skill's name up to 60 characters, what it's for up to 160
+  and its steps up to 6,000. A body from the client is only ever a home template, never one of Mercbot's library.
+  Another home's bot or template is none (404), and Start from this bot needs the right to change the bot.
+
+**The drafting call.** `POST /api/w/:home/bots/templates/draft` with `{ purpose: "new" | "from-bot" | "change", botId?,
+describe?, draft?, request?, foldAdditions?, templateId? }` answers `{ draft, problems }` and keeps nothing
+(`templateDrafts.js`). It is one call to the chat kind's model (`generateOnce`), metered like a reply, as chat work, to
+the home, the person and, from a bot, the bot, and refused while the home's AI work is paused. An answer that isn't one
+whole, valid template is asked for once more with its problems listed, a second billed call; a second failure is
+"Couldn't write a template from that. Try different words." The system prompt (`draftSystem`) gives the five parts and
+their limits, the tags already taken, and Mercbot's blog-article-desk template as the example. The user message:
+
+- new: `Write a template for bots that will: {describe}`, the sentence at most 600 characters;
+- from a bot: its name and its template now (JSON), how it has been used (the newest summary of the requesting
+  person's own chat with it, at most 1,500 characters, never anyone else's), its routines' names and schedules, and,
+  only when ticked, its additions to fold in;
+- change: the whole draft (JSON), "Change it as asked, keeping everything else exactly as it is", and the request, at
+  most 2,000 characters; `templateId`, in an owner's or admin's edit, frees that template's own tag.
+
+**Cost per call.** Mercbot's 48 library templates as JSON are 5,659 characters at the median (about 1,450 tokens at
+4 characters a token) and 7,243 at most. `tests/server/templateDraftPrompts.test.js` assembles the three prompts from
+fixtures and reports their sizes: SIZES. At the Premium AI provider's list prices
+(`packages/account/src/server/providers`: $0.30 per million tokens in, $1.20 per million out) and a charge of twice
+that:
+
+| Call | Tokens in | Tokens out | Charged at 2× |
+| --- | --- | --- | --- |
+| new (a sentence) | ~2,200 | ~1,600 | ~$0.005 |
+| change (the draft and the request; the system prompt cached) | ~2,100 cached + ~1,900 | ~1,600 | ~$0.005 |
+| from a bot (its template and summary) | ~4,500 | ~1,600 | ~$0.007 |
+| from a bot, 20,000 characters of additions folded in | ~9,500 | ~1,800 | ~$0.010 |
+
+So a draft costs about half a cent to a cent a call, before tax, and a retried answer the same again. These are
+list-price estimates from sizes: test hosts answer with the stand-in model, so a home's first real draft, in
+Spending, gives the exact figure.
 
 ## D-99 — A Shared bot keeps each person's own chat, as its last tab, "You only" (2026-11-20)
 

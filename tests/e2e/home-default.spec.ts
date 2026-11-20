@@ -60,6 +60,8 @@ test("a New home for A team makes its new bots Shared: General for everyone, and
     // A new bot there is Shared: General, then the person's own You only, which is open, with its intro.
     const created = page.waitForResponse((response) => response.request().method() === "POST" && new URL(response.url()).pathname === `/api/w/${slug}/bots`);
     await sidebar(page).getByRole("button", { name: "New bot", exact: true }).click();
+    // What it will do comes first (D-98, as drafting templates amended it): a General helper.
+    await newBotDialog(page).getByRole("button", { name: /^General helper/u }).click();
     await newBotDialog(page).getByRole("textbox", { name: "Bot name" }).fill("Crew");
     await newBotDialog(page).getByRole("button", { name: "Create" }).click();
     const { bot } = await (await created).json();

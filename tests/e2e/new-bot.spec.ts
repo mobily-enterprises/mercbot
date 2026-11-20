@@ -27,9 +27,11 @@ const bots = (page: Page) => page.getByRole("navigation", { name: "Bots" });
 const newBotDialog = (page: Page) => page.getByRole("dialog", { name: "New bot" });
 const created = (page: Page) => page.waitForResponse((response) => response.request().method() === "POST" && new URL(response.url()).pathname === `/api${HOME}/bots`);
 
-// New bot's dialog, from the sidebar, with `name` typed, up to Create.
+// New bot's dialog, from the sidebar: a General helper (20 November: New bot asks what it will do first), with `name`
+// typed, up to Create.
 async function startNewBot(page: Page, name: string) {
   await bots(page).getByRole("button", { name: "New bot", exact: true }).click();
+  await newBotDialog(page).getByRole("button", { name: /^General helper/u }).click();
   await newBotDialog(page).getByRole("textbox", { name: "Bot name" }).fill(name);
 }
 

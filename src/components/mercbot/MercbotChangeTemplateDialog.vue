@@ -5,14 +5,18 @@ import TemplateAvatar from "../templates/TemplateAvatar.vue";
 import TemplateBrowser from "../templates/TemplateBrowser.vue";
 import TemplateTested from "../templates/TemplateTested.vue";
 import { templatesApi } from "../templates/templatesApi.js";
+import MercbotConfirmDialog from "./MercbotConfirmDialog.vue";
+import MercbotTemplateDraft from "./MercbotTemplateDraft.vue";
 import MercbotTemplateTag from "./MercbotTemplateTag.vue";
 import { botsApi } from "./botsApi.js";
 
 // Change template (D-98): the picker (the home's own templates first, then Mercbot's library, as New bot shows them),
 // then a confirm showing the chosen template's instructions and skills in full and the bot's additions, which it keeps
 // under the new template. Change template points the bot at it; the bot then says so and asks the new template's setup
-// questions in its chat. Escape on the confirm goes back to the picker. On a phone it fills the screen, with its close,
-// title and action in a bar at the top.
+// questions in its chat. Escape on the confirm goes back to the picker. At the picker's foot, Make a new template
+// drafts one from a sentence, and Start from this bot drafts one from the bot itself (amended 20 November), on the draft
+// screen: Save and use makes it a template of the home's and points the bot at it, in one go. On a phone it fills the
+// screen, with its close, title and action in a bar at the top.
 const props = defineProps({
   bot: { type: Object, required: true },
   // The bot's additions, which stay.
@@ -32,6 +36,14 @@ const busy = ref(false);
 const problem = ref("");
 const browser = ref(null);
 const back = ref(null);
+// Make a new template ("new") or Start from this bot ("from-bot"), on the draft screen; a save's refused problems.
+const drafting = ref("");
+const draftScreen = ref(null);
+const saveProblems = ref([]);
+// Leaving a draft not yet saved asks first: what to do once agreed.
+const leaving = shallowRef(null);
+const asking = computed({ get: () => Boolean(leaving.value), set: (value) => { if (!value) leaving.value = null; } });
+const homeTags = computed(() => (home.value || []).map((template) => template.tag));
 
 const library = computed(() => Boolean(chosen.value?.library));
 // What the chosen template's tag looks like on a bot.
@@ -48,6 +60,7 @@ watch(open, async (value) => {
   chosen.value = null;
   detail.value = null;
   problem.value = "";
+  drafting.value = "";
   home.value = null;
   botsApi.homeTemplates().then((read) => { home.value = read.templates; }).catch(() => { home.value = []; });
   await nextTick();
@@ -71,8 +84,39 @@ async function pick(choice) {
 
 function toPicker() {
   if (busy.value) return;
+  if (drafting.value && draftScreen.value?.dirty && !leaving.value) {
+    leaving.value = () => {
+      drafting.value = "";
+      toPicker();
+    };
+    return;
+  }
   chosen.value = null;
+  drafting.value = "";
+  problem.value = "";
   nextTick(() => browser.value?.focusSearch());
+}
+
+function startDraft(purpose) {
+  problem.value = "";
+  saveProblems.value = [];
+  drafting.value = purpose;
+}
+
+/** Save and use: the draft becomes a template of the home's and the bot's, in one call; its additions folded if ticked. */
+async function saveDraft({ draft, foldAdditions }) {
+  busy.value = true;
+  problem.value = "";
+  try {
+    const { bot } = await botsApi.changeTemplate(props.bot.id, { draft, foldAdditions: drafting.value === "from-bot" && foldAdditions });
+    emit("changed", bot);
+    drafting.value = "";
+    open.value = false;
+  } catch (error) {
+    saveProblems.value = error?.params?.problems || [];
+    problem.value = saveProblems.value.length ? "Put the template's problems right, then save it again." : error?.message || "That didn't work. Try again.";
+  }
+  busy.value = false;
 }
 
 async function change() {
@@ -90,11 +134,13 @@ async function change() {
 }
 
 function close() {
-  if (!busy.value) open.value = false;
+  if (busy.value) return;
+  if (drafting.value && draftScreen.value?.dirty) leaving.value = () => { open.value = false; };
+  else open.value = false;
 }
 
 function onKeydown(event) {
-  if (event.key === "Escape" && chosen.value) {
+  if (event.key === "Escape" && (chosen.value || drafting.value)) {
     event.preventDefault();
     event.stopPropagation();
     toPicker();
@@ -103,7 +149,7 @@ function onKeydown(event) {
 </script>
 
 <template>
-  <v-dialog :model-value="open" width="auto" :fullscreen="phone" :persistent="busy" @update:model-value="close">
+  <v-dialog :model-value="open" width="auto" :fullscreen="phone" :persistent="busy || Boolean(drafting)" @update:model-value="close">
     <div
       class="mb-ctemp"
       :class="{ 'mb-ctemp--phone': phone }"
@@ -131,9 +177,34 @@ function onKeydown(event) {
       </div>
 
       <div class="mb-ctemp__body">
-        <div class="mb-ctemp__picker" :class="{ 'mb-ctemp__picker--behind': chosen }" :inert="Boolean(chosen)">
-          <TemplateBrowser ref="browser" picking :home="home || []" @pick="pick" />
+        <div class="mb-ctemp__picker" :class="{ 'mb-ctemp__picker--behind': chosen || drafting }" :inert="Boolean(chosen || drafting)">
+          <TemplateBrowser ref="browser" class="mb-ctemp__browser" picking :home="home || []" @pick="pick" />
+          <div class="mb-ctemp__foot mb-ctemp__picker-foot">
+            <span class="mb-ctemp__hint">Nothing that fits?</span>
+            <button type="button" class="mb-ctemp__button" @click="startDraft('from-bot')"><v-icon icon="$forkRight" size="15" /> Start from this bot</button>
+            <button type="button" class="mb-ctemp__button" @click="startDraft('new')"><v-icon icon="$editSquare" size="15" /> Make a new template</button>
+          </div>
         </div>
+        <Transition name="mb-ctemp-step">
+          <div v-if="drafting" class="mb-ctemp__step">
+            <button type="button" class="mb-ctemp__step-link mb-ctemp__draft-back" :disabled="busy" @click="toPicker">
+              <v-icon icon="$chevronLeft" size="16" /> All templates
+            </button>
+            <MercbotTemplateDraft
+              ref="draftScreen"
+              class="mb-ctemp__draft"
+              :purpose="drafting"
+              :bot="bot"
+              :additions="additions"
+              :home-tags="homeTags"
+              save-label="Save and use"
+              :saving="busy"
+              :save-error="problem"
+              :save-problems="saveProblems"
+              @save="saveDraft"
+            />
+          </div>
+        </Transition>
         <Transition name="mb-ctemp-step">
           <div v-if="chosen" class="mb-ctemp__step">
             <div class="mb-ctemp__scroll">
@@ -191,6 +262,13 @@ function onKeydown(event) {
         </Transition>
       </div>
     </div>
+    <MercbotConfirmDialog
+      v-model="asking"
+      title="Leave the new template?"
+      text="It isn't saved yet: the draft is lost when you leave it."
+      confirm-label="Leave"
+      @confirm="leaving?.()"
+    />
   </v-dialog>
 </template>
 

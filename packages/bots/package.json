@@ -10,7 +10,8 @@
     "./server/botRows": "./src/server/botRows.js",
     "./server/botTemplate": "./src/server/botTemplate.js",
     "./server/records/directory": "./src/server/records/directory.js",
-    "./server/templates": "./src/server/templates.js"
+    "./server/templates": "./src/server/templates.js",
+    "./shared/templateBody": "./src/shared/templateBody.js"
   },
   "dependencies": {
     "@jskit-ai/agent": "0.1.3",

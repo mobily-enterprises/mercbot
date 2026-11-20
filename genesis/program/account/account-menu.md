@@ -66,6 +66,7 @@ D-76, docs/architecture.md §3.8).
 - `src/components/mercbot/MercbotSettingsPermissions.vue`
 - `src/components/mercbot/MercbotSettingsComputer.vue`
 - `src/components/mercbot/MercbotSettingsVault.vue`
+- `src/components/mercbot/MercbotSettingsTemplates.vue`
 - `src/components/mercbot/MercbotVaultImport.vue`
 - `src/components/mercbot/vaultImport.js`
 - `src/components/mercbot/MercbotVaultPhoto.vue`
@@ -278,6 +279,9 @@ open General; the palette's section commands and See spending open their section
 - **Computer:** Update (always up to date) and Reset, which asks first and then calls
   `POST /api/computers/reset`. Each of the person's bots' computers sleeps on its
   owner server and has its browser profile deleted.
+- **Templates (D-98):** the home's own templates with their tag, description and "Used by N bots", for everyone;
+  owners and admins Edit (the draft screen, Save after "Changes reach N bots from their next reply") and Delete one no
+  bot uses. Its rules and routes are in the bot templates module (`genesis/program/bots/templates.md`).
 - **Vault (D-17):** tabs with counts, search, New item (login, card, contact info,
   Import from a CSV file), and dialogs that save only when valid. `GET/POST/DELETE
   /api/vault` keep items in `vault_items`. What makes an item complete is one set of

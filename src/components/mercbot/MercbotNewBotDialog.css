@@ -1,0 +1,162 @@
+/* New bot (MercbotNewBotDialog.vue): Change template's frame and steps (MercbotChangeTemplateDialog.css), with what it
+   will do above the templates, Make a new template at their foot, and the name, cloud and colour as their own step. */
+.mb-newbot__question {
+  flex: none;
+  margin: 0 var(--mb-tbrowse-gutter) 12px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+/* Mercbot's General helper, first: the quick all-round choice. */
+.mb-newbot__lead {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  margin-bottom: 16px;
+  padding: 10px 12px;
+  border: 1px solid rgb(var(--v-theme-outline-variant));
+  border-radius: 14px;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.mb-newbot__lead:hover,
+.mb-newbot__lead:focus-visible {
+  background: rgb(var(--v-theme-surface-container-low));
+  outline: none;
+}
+
+.mb-newbot__lead-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.mb-newbot__lead-text span {
+  color: rgb(var(--v-theme-on-surface-variant));
+}
+
+.mb-newbot__app {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 12px 0;
+  font-size: 14px;
+}
+
+.mb-newbot__look {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.mb-newbot__look .mb-ctemp__step-link {
+  align-self: flex-start;
+}
+
+.mb-newbot__chosen {
+  margin: 0;
+  font-size: 13px;
+  color: rgb(var(--v-theme-on-surface-variant));
+  text-align: center;
+}
+
+.mb-newbot__preview {
+  display: flex;
+  justify-content: center;
+  margin-top: 17px;
+  line-height: 0;
+}
+
+.mb-newbot__name {
+  align-self: center;
+  width: min(405px, 100%);
+  height: 36px;
+  margin-top: 11px;
+  padding: 0 12px;
+  border: 1px solid rgb(var(--v-theme-outline-variant));
+  border-radius: 10px;
+  background: rgb(var(--v-theme-surface));
+  font: inherit;
+  font-size: 14px;
+  color: inherit;
+  text-align: center;
+  outline: none;
+}
+
+.mb-newbot__name:focus {
+  border-color: rgb(var(--v-theme-outline));
+}
+
+.mb-newbot__name::placeholder {
+  color: rgb(var(--v-theme-on-surface-variant));
+}
+
+.mb-newbot__shapes {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 27px;
+}
+
+.mb-newbot__row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 20px;
+}
+
+/* The clouds sit ten to a row (D-44). */
+.mb-newbot__row--shapes {
+  gap: 10px;
+}
+
+.mb-newbot__shape {
+  display: inline-flex;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+  line-height: 0;
+}
+
+.mb-newbot__shape:hover,
+.mb-newbot__shape--selected,
+.mb-newbot__colour:hover,
+.mb-newbot__colour--selected {
+  box-shadow: 0 0 0 4px rgb(var(--v-theme-surface)), 0 0 0 5px rgb(var(--v-theme-outline));
+}
+
+.mb-newbot__shape:focus-visible,
+.mb-newbot__colour:focus-visible {
+  outline: 2px solid rgb(var(--v-theme-secondary));
+  outline-offset: 6px;
+}
+
+.mb-newbot__colours {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  margin-top: 36px;
+}
+
+.mb-newbot__row--colours {
+  gap: 18px;
+}
+
+.mb-newbot__colour {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  cursor: pointer;
+}
