@@ -7,6 +7,7 @@ import { sendSednaMessage } from "./sednaActions.js";
 import { SednaUncertainError } from "./sednaApi.js";
 import { BotsError } from "./botsError.js";
 import { toBot } from "./botRows.js";
+import { HOME_DEFAULT_ANSWERS } from "./onboarding.js";
 
 /**
  * The person's answers on the cards a bot posts (D-46): a question or approval, a hand-over, a secure
@@ -22,8 +23,10 @@ import { toBot } from "./botRows.js";
  * @param {import("./types.js").BotRequests} dependencies.requests
  * @param {import("@local/files/server/types").Files} dependencies.files the bot's files, which an approved action or a
  *   Sedna draft's Send attaches
+ * @param {import("./types.js").HomeDefaults} dependencies.homeDefaults the home's default for new bots, which the main
+ *   bot's first conversation asks (D-100)
  */
-export function createBotCards({ records, account, env, computer, integrations, conversations, requests, files }) {
+export function createBotCards({ records, account, env, computer, integrations, conversations, requests, files, homeDefaults }) {
   const { conversations: store, messages, work } = records;
 
   /**
@@ -48,8 +51,14 @@ export function createBotCards({ records, account, env, computer, integrations, 
       if (!picks.length || (!choice.body.multi && picks.length !== 1)) {
         throw new BotsError(400, "Choose an option first.", { code: "bots_choice_missing" });
       }
-      const updated = await messages.setBody(choice.id, { ...choice.body, chosen: choice.body.multi ? picks : picks[0] }, txOptions);
       const update = { last_activity_at: new Date().toISOString() };
+      // The home's default for new bots (D-100), for its owners and admins only (403), and the first conversation
+      // carries on.
+      if (choice.body.purpose === "home-default") {
+        await homeDefaults.set(HOME_DEFAULT_ANSWERS[picks[0]], txOptions);
+        if (row.onboarding_step === "home-default") update.onboarding_step = "about";
+      }
+      const updated = await messages.setBody(choice.id, { ...choice.body, chosen: choice.body.multi ? picks : picks[0] }, txOptions);
       if (choice.body.purpose === "first-task") update.onboarding_step = null;
       await store.updateConversation(row.conversation_id, update, txOptions);
       return { row, choice, picks, updated };
@@ -92,7 +101,9 @@ export function createBotCards({ records, account, env, computer, integrations, 
     }
     // An approval asked during a request (D-46): the bot carries on with it either way.
     if (choice.body.purpose === "approval" && choice.body.requestId) await requests.approvalAnswered(choice.body.requestId, options);
-    return { bot: toBot(await conversations.refresh(row, options)), messages: [updated, ...results] };
+    const bot = toBot(await conversations.refresh(row, options));
+    if (choice.body.purpose === "home-default") return { bot, messages: [updated, ...results], home: await homeDefaults.asSeen(options) };
+    return { bot, messages: [updated, ...results] };
   }
 
   /** The person finishes or skips a handover on the bot's computer. */

@@ -5,6 +5,7 @@ import MercbotConvoAvatar from "./MercbotConvoAvatar.vue";
 import MercbotBotList from "./MercbotBotList.vue";
 import { buildRailModel } from "./botDirectory.js";
 import MercbotHomeSwitcher from "./MercbotHomeSwitcher.vue";
+import MercbotTeamQuestion from "./MercbotTeamQuestion.vue";
 import MercbotAppsEntry from "../apps/MercbotAppsEntry.vue";
 import MercbotFilesEntry from "../files/MercbotFilesEntry.vue";
 import MercbotIconButton from "./MercbotIconButton.vue";
@@ -56,6 +57,7 @@ const appIcons = ["$calendarToday", "$mail", "$description"];
     <MercbotAppsEntry :rail="compact" />
 
     <div class="mb-sidebar__bots">
+      <MercbotTeamQuestion v-if="!compact" />
       <MercbotBotList
         v-if="!compact"
         :model="model"

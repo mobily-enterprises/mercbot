@@ -270,7 +270,9 @@ open General; the palette's section commands and See spending open their section
   has a `confirm`);
   Theme (saved to the account); Accent,
   Language (searchable, own name plus English name), Spell check (the message box)
-  and Microphone (the browser's inputs); Timezone (searchable, with the time now);
+  and Microphone (the browser's inputs); for the home's owners and admins, a part named after the home with New
+  bots in this home (Private, Mixed or Shared, D-100: "Bots you already have keep their mode; change one in its
+  Details → Who sees what.", `homeDefault.js` `chooseHere`); Timezone (searchable, with the time now);
   and the approval rules. Language, timezone, spell check and microphone are kept on the
   device. Replies send the language and time zone, and bots reply in that language.
 - **Computer:** Update (always up to date) and Reset, which asks first and then calls

@@ -198,6 +198,14 @@ export function registerRoutes(http, { bots, approvals, notices, meter, records,
     bots.homeTemplates(options)));
   router.register("GET", "/api/w/:workspaceSlug/home-templates/:templateId", auth, handle(async (request, _user, options) =>
     bots.homeTemplate(request.params.templateId, options)));
+  // The sharing the home's new bots get (D-100), for everyone in it; its owners and admins change it (403 for anyone
+  // else) and answer the question asked once a second person joins.
+  router.register("GET", "/api/w/:workspaceSlug/home-settings", auth, handle(async (_request, _user, options) =>
+    bots.homeDefault(options)));
+  router.register("PATCH", "/api/w/:workspaceSlug/home-settings", auth, handle(async (request, _user, options) =>
+    bots.chooseHomeDefault(request.body?.newBotSharing, options)));
+  router.register("POST", "/api/w/:workspaceSlug/home-settings/team-question", auth, handle(async (request, _user, options) =>
+    bots.answerTeamQuestion(request.body?.answer, options)));
   // Group chats: created by their first message; members added and removed in Details.
   router.register("POST", "/api/w/:workspaceSlug/groups", auth, handle(async (request, user, options) =>
     bots.createGroup(request.body || {}, user.displayName, options)));

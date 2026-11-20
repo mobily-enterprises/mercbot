@@ -1,4 +1,5 @@
 import { botsApi } from "./botsApi.js";
+import { homeDefault } from "./homeDefault.js";
 import { copyPictureToClipboard } from "./messageMenus.js";
 
 /**
@@ -74,6 +75,11 @@ export function useChatActions({ currentBot, picker, startGroup, store, work, re
       const result = await botsApi.answer(botId, message.id, selected);
       appendMessages(botId, result.messages);
       updateBot(result.bot);
+      // The home's default for new bots (D-100): the first conversation carries on with its own next step, no reply.
+      if (result.home) {
+        homeDefault.value = result.home;
+        return;
+      }
     } catch (error) {
       reportFailure("That answer didn't go through. Try again.", error);
       return;

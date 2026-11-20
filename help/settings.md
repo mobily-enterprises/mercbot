@@ -29,11 +29,17 @@ Your name and email address, with a button to copy the email. **Account details*
 
 **Microphone:** the microphone used for dictation and voice conversations.
 
+### The home
+
+Owners and admins see a part named after the home they're in:
+
+- **New bots in this home:** **Private**, **Mixed** or **Shared**, the mode every bot made in the home from now on gets. Bots you already have keep their mode; change one in its **Details** → **Who sees what**. See [Homes](/help/homes).
+
 ### Bots
 
 - **Timezone:** used for routines and the times your bots mention. The list can be searched and shows the time now in each zone.
 
-Language, accent, timezone, spell check and microphone are kept on the device you're using. Set them on each computer or phone you use.
+Language, accent, timezone, spell check and microphone are kept on the device you're using. The home's mode for new bots is kept for the whole home. Set them on each computer or phone you use.
 
 ## Permissions
 
@@ -138,7 +144,7 @@ A bot's own options are in its **Details** panel. Select the bot's name in the c
 
 - **Name:** edit it in place. The tag under it is the bot's template; select it to go to **Instructions**.
 - **Instructions:** the template the bot follows, read-only, with **Change template**, and its own **Additions**, which its maker and the home's owners and admins edit. See [Bots](/help/bots).
-- **Who sees what:** what the bot adds to everyone's own chat with it: private (nothing), mixed (a home notebook) or shared (conversations everyone sees, with your own as the last tab, **You only**). The home's owners and admins choose it, and Mercbot asks before each change. In a home with only you, it shows only for a bot that isn't mixed. See [Bots shared in a home](/help/shared-bots).
+- **Who sees what:** what the bot adds to everyone's own chat with it: private (nothing), mixed (a home notebook) or shared (conversations everyone sees, with your own as the last tab, **You only**). The home's owners and admins choose it, and Mercbot asks before each change. In a home with only you, it shows only for a bot that isn't on the home's mode for new bots. See [Bots shared in a home](/help/shared-bots).
 - **Notebook:** in a mixed bot, the home's notebook, and **Keep my chats with** the bot **out of it**.
 - **Routines:** each with a switch; right-click for **Pause**, **Resume**, **Edit** and **Delete**.
 - **Apps:** whether the bot is the home's Builder, and its watches.

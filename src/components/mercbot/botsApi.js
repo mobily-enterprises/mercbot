@@ -3,6 +3,7 @@ import { createHttpClient } from "@jskit-ai/http-runtime/client";
 import { AUTH_PATHS } from "@jskit-ai/auth-core/shared/authPaths";
 import { currentLanguage, currentTimeZone } from "./shellPreferences.js";
 import { requestInHome } from "./homeApi.js";
+import { homeDefault } from "./homeDefault.js";
 
 // Client for the bots package routes (packages/bots).
 const client = createHttpClient({ credentials: "include", csrf: { sessionPath: AUTH_PATHS.SESSION } });
@@ -32,10 +33,14 @@ const patch = (url, body) => request(url, { method: "PATCH", body });
 const remove = (url) => request(url, { method: "DELETE" });
 
 export const botsApi = {
-  // The whole list, with when its read began (`startedAt`, for useBotMessages' mergeBots).
+  // The whole list, with when its read began (`startedAt`, for useBotMessages' mergeBots). It brings the home's default
+  // for new bots and the question once a second person joins (D-100), which the page shows from homeDefault.
   list: () => {
     const startedAt = performance.now();
-    return request("/bots").then((listed) => ({ ...listed, startedAt }));
+    return request("/bots").then((listed) => {
+      if (listed?.home) homeDefault.value = listed.home;
+      return { ...listed, startedAt };
+    });
   },
   // One bot as the list shows it, when it has news (D-15).
   bot: (botId) => request(`/bots/${botId}`),

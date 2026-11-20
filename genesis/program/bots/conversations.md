@@ -49,6 +49,14 @@ onboarding and the bot's typed replies.
 - `src/components/mercbot/MercbotRoomTabs.vue`
 - `src/components/mercbot/openTabs.js`
 - `src/components/mercbot/useSharingChoice.js`
+- `packages/bots/src/server/homeDefaults.js`
+- `packages/bots/src/server/records/homeSettingsRepository.js`
+- `migrations/20261120150000_home_settings.cjs`
+- `src/components/mercbot/homeDefault.js`
+- `src/components/mercbot/MercbotTeamQuestion.vue`
+- `tests/server/homeDefault.integration.js`
+- `tests/client/homeDefault.vitest.js`
+- `tests/e2e/home-default.spec.ts`
 - `src/components/mercbot/MercbotVoiceMemo.vue`
 - `src/components/mercbot/MercbotDraftCard.vue`
 - `packages/bots/skills/shopping.md`
@@ -225,7 +233,27 @@ Sharing (D-36, D-99):
   everyone sees, as tabs; each person's own chat is the last tab, You only. The notebook isn't
   used.". A choice asks first ("Make <bot> <Mode>?", Make it <Mode> or Cancel), naming what it
   hides and for whom. It shows when anyone else is in the home (`homesApi.js` `hasOthers`) or the
-  bot isn't mixed, so a home of one can set a bot back; only owners and admins choose.
+  bot isn't on the home's default for new bots (below), so a home of one can set a bot back; only
+  owners and admins choose.
+- **The home's default for new bots (D-100, `homeDefaults.js`):** `home_settings` holds, per home, the sharing every
+  bot made there from then on gets (`new_bot_sharing`, NULL until chosen, which is mixed) and when its team question
+  was answered (`team_question_answered_at`); `records.homeSettings` (`homeSettingsRepository.js`) is its one read and
+  one write, an upsert on the unique `workspace_id`. `createBot` and `addFromTemplate` read `sharingOf` when they make
+  the bot; a shared one gets its General room at once and its maker's own conversation open as You only
+  (`firstTabs`), where its intro or greeting is. Group chats, the main bot `ensureFirstBot` makes and bots already
+  there never change. `GET …/home-settings` answers `{ newBotSharing, chosen, teamQuestion }` for everyone;
+  `PATCH …/home-settings {newBotSharing}` and `POST …/home-settings/team-question {answer: "shared" | "keep"}` are for
+  owners and admins (`workspace.settings.update`), anyone else 403 `bots_home_default_forbidden`. The whole list
+  (`GET …/bots`) carries the same as `home`; `teamQuestion` is `{ name, sharing }` for an owner or admin while new
+  bots aren't shared and nobody has answered, naming the first of the home's active people by name who is neither
+  its owner nor the reader (`homeSettings.joinedName`), and null in a home of one. The main bot's first
+  conversation, after `rename`, shows a `choice` card with purpose `home-default` ("Will anyone else use this home
+  with you?", Just me → mixed, My team → shared) while the default is unchosen and the person manages the home; its
+  step `home-default` waits for the answer (`answerChoice` sets the default and moves on to `about`, answering
+  `home` too, and the page asks no reply) or for a typed message (the card closes, unchosen). The page keeps it in
+  `homeDefault.js` (`homeDefault`, set by the list's read): the sidebar's `MercbotTeamQuestion.vue` above the list,
+  read again on `homeChanges`, and the New home form and Settings → General (`chooseHomeDefault`, `makeHome`,
+  `chooseHere`, `readHere`).
 - The tab bar (`MercbotRoomTabs.vue`) shows the rooms, then You only with a lock ("Only you see
   this conversation"), which double-click doesn't rename; "+" says "New conversation for everyone,
   starting empty" from You only, else "New conversation, starting from what “<tab>” knows". The

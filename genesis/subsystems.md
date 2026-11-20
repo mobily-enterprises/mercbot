@@ -92,6 +92,7 @@ owns through them.
 - Table `database` `default` `agent_summaries`
 - Table `database` `default` `agent_summary_queue`
 - Table `database` `default` `agent_commands`
+- Table `database` `default` `home_settings`
 
 ### Data used
 

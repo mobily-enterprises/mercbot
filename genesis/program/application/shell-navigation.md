@@ -83,8 +83,9 @@ render across compact, medium, and expanded layouts.
   (`src/pages/w/[workspaceSlug].vue`) runs JSKIT's Up for it.
 - The Follow System / Light / Dark theme preference applies at startup and
   tracks live system changes.
-- The sidebar bot list shows pinned tiles, then rows grouped by section
-  (or flat), then Hidden bots; rows sort by latest activity. Position hints, Go
+- The sidebar bot list shows, for the home's owners and admins once a second person has joined, the question about
+  the mode of the home's new bots at its top (`MercbotTeamQuestion.vue`, D-100), then pinned tiles, then rows grouped
+  by section (or flat), then Hidden bots; rows sort by latest activity. Position hints, Go
   to bot, previous/next and Switch bots follow that visual order. Drafts are kept
   per bot on the device. The chat shows the bot named in the address
   (`?bot=<id>`), which choosing a bot always sets (a new bot too, once it

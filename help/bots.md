@@ -34,6 +34,8 @@ You can also tell a bot in its chat how you'd like things done. It carries that 
 
 The new bot opens straight away. It greets you and asks what it should help with first, usually as a question card you can answer with a click, or with your own words.
 
+A new bot starts in the home's mode for new bots: Mixed, unless the home's owners or admins chose otherwise (see [Homes](/help/homes)). A new Shared bot opens on your own **You only** tab, with its General tab beside it for everyone in the home.
+
 Shape and colour are set when you create the bot, and the dialog starts with a colour and cloud your other bots don't have yet. Each bot's eyes show how it's doing: they glance around now and then, look up while it thinks, dart from side to side while it works, look down as it concentrates, and turn into happy smiles when it's done. The bot that builds your apps wears a propeller hat.
 
 ## Edit and rename a bot
@@ -88,7 +90,7 @@ To jump between bots, press **Ctrl+Alt+1** to **9** for the bots in sidebar orde
 
 ## Your main bot
 
-Every home has one main bot, marked with a badge in the sidebar. It's the home's first bot: the one that introduces itself when a new home starts and asks for its name. It's a good general helper and the natural place to start a new kind of job before you give it a bot of its own.
+Every home has one main bot, marked with a badge in the sidebar. It's the home's first bot: the one that introduces itself when a new home starts and asks for its name. Right after you name it, it asks "Will anyone else use this home with you?": **Just me** keeps the home's new bots Mixed, **My team** makes them Shared. It doesn't ask when that was already chosen, for example under **Who's it for?** when the home was created. It's a good general helper and the natural place to start a new kind of job before you give it a bot of its own.
 
 The main bot can't be deleted, so you always have someone to talk to. You can rename it, pin it, hide it or move it into a section like any other bot.
 

@@ -23,6 +23,21 @@ export function firstNameOf(displayName) {
 
 const text = (body) => ({ kind: "text", role: "bot", body });
 
+// The question the main bot's first conversation asks right after it's named, while the home's default for new bots is
+// unchosen (D-100), and the sharing each answer chooses for them.
+export const HOME_DEFAULT_ANSWERS = Object.freeze({ "Just me": "mixed", "My team": "shared" });
+const homeDefaultCard = () => ({
+  kind: "choice",
+  role: "bot",
+  body: {
+    purpose: "home-default",
+    question: "Will anyone else use this home with you?",
+    options: Object.keys(HOME_DEFAULT_ANSWERS),
+    subline: "It decides how new bots here are shared. You can change it any time in Settings → General.",
+    chosen: null
+  }
+});
+
 // step -> (context) => { messages, next, rename? }
 export const ONBOARDING_STEPS = {
   start: ({ firstName }) => ({
@@ -45,10 +60,15 @@ export const ONBOARDING_STEPS = {
     next: "rename",
     messages: [text({ text: `${chosenName} it is. Nice to meet you properly, ${firstName}!` })]
   }),
-  rename: ({ chosenName }) => ({
-    next: "about",
+  // A home whose default for new bots is unchosen asks for it right after its bot is named (D-100): the step,
+  // "home-default", waits for the answer, which moves it on to "about".
+  rename: ({ chosenName, askHomeDefault = false }) => ({
+    next: askHomeDefault ? "home-default" : "about",
     rename: chosenName,
-    messages: [{ kind: "event", role: "system", body: { text: `Renamed to ${chosenName}` } }]
+    messages: [
+      { kind: "event", role: "system", body: { text: `Renamed to ${chosenName}` } },
+      ...(askHomeDefault ? [homeDefaultCard()] : [])
+    ]
   }),
   about: () => ({
     next: "connect",

@@ -5,13 +5,16 @@ import MercbotConfirmDialog from "./MercbotConfirmDialog.vue";
 import MercbotSettingsSelect from "./MercbotSettingsSelect.vue";
 import MercbotSwitch from "./MercbotSwitch.vue";
 import { accountApi } from "./accountApi.js";
+import { SHARING_MODES, chooseHere, homeDefault, readHere } from "./homeDefault.js";
+import { useHomes } from "./homesApi.js";
 import { detectedTimeZone, shellPreferences } from "./shellPreferences.js";
 import { pageMediaDevices, supportedTimeZones } from "@/browser.js";
 import { usePaths } from "@jskit-ai/shell-web/client/navigation/usePaths";
 import extensions from "./extensions.js";
 
-// Settings → General: the account, appearance, the microphone, and the
-// bots' time zone with asking-first rules. Everything applies as soon as it's changed.
+// Settings → General: the account, appearance, the microphone, the
+// bots' time zone with asking-first rules, and for the home's owners and admins how its new bots are shared (D-100).
+// Everything applies as soon as it's changed.
 const paths = usePaths();
 const props = defineProps({
   theme: { type: String, default: "system" },
@@ -52,6 +55,22 @@ function act(action) {
 }
 
 const themeValue = computed({ get: () => props.theme, set: (value) => emit("theme", value) });
+
+// The home's default for new bots (D-100), read again as the page opens; a change the server refuses is said, and the
+// choice shows what the server keeps.
+const { current: home, manages, load: loadHomes } = useHomes();
+onMounted(async () => {
+  try {
+    await loadHomes();
+    if (manages.value) await readHere();
+  } catch {
+    // The list's own read gave the default; the page shows that.
+  }
+});
+const newBotSharing = computed({
+  get: () => homeDefault.value.newBotSharing,
+  set: (value) => chooseHere(value).catch((error) => emit("failure", error))
+});
 const THEMES = [
   { value: "system", label: "Follow system" },
   { value: "light", label: "Light" },
@@ -158,6 +177,19 @@ onMounted(async () => {
         <MercbotSettingsSelect v-model="shellPreferences.microphoneId" label="Microphone" :options="microphones" :width="240" />
       </div>
     </div>
+
+    <template v-if="manages">
+      <p class="mb-set-group">{{ home?.name || "This home" }}</p>
+      <div class="mb-set-card">
+        <div class="mb-set-row">
+          <span class="mb-set-row__text">
+            <span class="mb-set-row__label">New bots in this home</span>
+            <span class="mb-set-row__description">Bots you already have keep their mode; change one in its Details → Who sees what.</span>
+          </span>
+          <MercbotSettingsSelect v-model="newBotSharing" label="New bots in this home" :options="SHARING_MODES" :width="240" />
+        </div>
+      </div>
+    </template>
 
     <p class="mb-set-group">Bots</p>
     <div class="mb-set-card">

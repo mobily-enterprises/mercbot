@@ -23,7 +23,7 @@ Everyone in a home has their own chat with every bot, which only they see. Each 
 | Mode | What it adds |
 | --- | --- |
 | **Private** | Nothing more. The bot keeps nothing across people. |
-| **Mixed** (the default) | A home notebook of things that help everyone, which everyone can read. |
+| **Mixed** (the usual default) | A home notebook of things that help everyone, which everyone can read. |
 | **Shared** | Conversations everyone in the home sees, as tabs. Each person's own chat is the last tab, **You only**. The notebook isn't used. |
 
 Pick **Private** for a bot that handles personal matters, such as health or money. **Mixed** suits most bots: everyone has their own chat, and useful know-how builds up for the whole home. **Shared** suits a bot that works for a group, such as a family planner or a team's project helper, where everyone should see the same conversations, while each person can still talk with it on their own.
@@ -36,7 +36,9 @@ Pick **Private** for a bot that handles personal matters, such as health or mone
 
 Only the home's owners and admins can change it; everyone else sees the current choice and the note "The home's owners and admins choose this." Everyone in the home sees the change straight away.
 
-In a home where you're the only person, the modes differ only by a notebook nobody else reads, so Who sees what shows only for a bot that isn't on Mixed, the default. That way you can always set it back.
+A new bot starts in the home's mode for new bots: Mixed until an owner or admin chooses another, when creating the home (**Who's it for?**), in the first bot's first conversation, or in **Settings** → **General**. Changing it changes no bot already there. See [Homes](/help/homes).
+
+In a home where you're the only person, the modes differ only by a notebook nobody else reads, so Who sees what shows only for a bot that isn't on the home's mode for new bots. That way you can always set it back.
 
 ### What a change does
 
@@ -159,7 +161,7 @@ Owners and admins can't read other people's own chats with any bot, You only tab
 | --- | --- | --- |
 | I can't find a bot someone told me about. | It's in another home, it's hidden in your sidebar, or it was deleted. | Check the home switcher at the top of the sidebar, look under Hidden bots, or search with Ctrl+K. |
 | The Who sees what options are greyed out. | Only owners and admins can change them. | Ask an owner or admin of the home. |
-| There's no Who sees what in the Details panel. | You're the only person in the home, and the bot is on Mixed. | Nothing to do: with nobody else in the home, the modes make no difference to anyone. |
+| There's no Who sees what in the Details panel. | You're the only person in the home, and the bot is on the home's mode for new bots. | Nothing to do: with nobody else in the home, the modes make no difference to anyone. |
 | A bot's shared tabs have gone. | It isn't Shared any more, so they're hidden, not deleted. | Ask an owner or admin to make it Shared again. |
 | A tab says **Paused while hidden**. | The bot stopped being Shared, which paused that tab's routines and watches. | Once it's Shared again, resume them in that tab. |
 | A shared bot can't read my email or calendar. | Shared tabs use only the home's accounts. | Ask in your You only tab, or ask an owner or admin to connect a home account. |

@@ -23,8 +23,9 @@ export const NO_TEMPLATE_LINKS = Object.freeze({ find: async () => null });
  * @param {import("@jskit-ai/kernel/server/types").RuntimeEnv} dependencies.env where its end-to-end results are
  * @param {import("./types.js").TemplateLinks} dependencies.templateLinks the templates links open, beside Mercbot's own
  *   (`mercbot.template-links`; NO_TEMPLATE_LINKS when the copy adds none)
+ * @param {import("./types.js").HomeDefaults} dependencies.homeDefaults the sharing the home's new bots get (D-100)
  */
-export function createBotTemplates({ records, profiles, integrations, conversations, env, templateLinks }) {
+export function createBotTemplates({ records, profiles, integrations, conversations, env, templateLinks, homeDefaults }) {
   // How bots behave, and the day each of Mercbot's templates last passed its end-to-end check for that and for the
   // template as it is now, worked out once at start (D-79).
   const behaviour = behaviourFingerprint();
@@ -109,7 +110,8 @@ export function createBotTemplates({ records, profiles, integrations, conversati
   /**
    * Adding a bot from a template or a shared link (D-98): it takes the template's name and look and points at it, one of
    * Mercbot's library, or for a link a new template of the person's home made from it, and opens with the template's
-   * own greeting. Its routines aren't copied: its setup interview creates them, paused, once the person agrees.
+   * own greeting. Its routines aren't copied: its setup interview creates them, paused, once the person agrees. It is
+   * shared as the home's new bots are (D-100).
    */
   async function addFromTemplate(slug, displayName, options) {
     const template = await findTemplate(slug, options);
@@ -123,18 +125,20 @@ export function createBotTemplates({ records, profiles, integrations, conversati
         : { library_template: template.slug };
       const bot = await records.conversations.createBot({
         user_id: conversations.personOf(txOptions),
+        sharing: await homeDefaults.sharingOf(txOptions),
         name,
         shape: template.shape,
         color: template.color,
         ...pointer,
         template_since: new Date().toISOString()
       }, txOptions);
-      const row = conversations.asSeen(bot, await conversations.conversationOf(bot, txOptions, { onboarding_step: null }));
+      const seat = await conversations.conversationOf(bot, txOptions, { onboarding_step: null });
+      const row = conversations.asSeen(bot, seat);
       await records.templates.openWith(row, [
         { kind: "timestamp", role: "system", body: { at: new Date().toISOString() } },
         { kind: "text", role: "bot", body: { text: greeting } }
       ], txOptions);
-      return { ...toBot(row), preview: greeting };
+      return { ...toBot(row), rooms: await homeDefaults.firstTabs(bot, seat, txOptions), preview: greeting };
     }));
   }
 

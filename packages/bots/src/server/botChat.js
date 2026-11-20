@@ -1,6 +1,7 @@
 import { retryLostInsertRace } from "@jskit-ai/database-runtime/shared";
 import { refusalOf } from "@local/account/meter";
 import { ONBOARDING_STEPS, firstNameOf } from "./onboarding.js";
+import { managesHome } from "./homeDefaults.js";
 import { findSkill, pickable } from "./skills.js";
 import { withMentions } from "./mentions.js";
 import { BotsError } from "./botsError.js";
@@ -28,8 +29,10 @@ const FIND_LIMIT = 200;
  * @param {import("./types.js").Goals} dependencies.goals
  * @param {(bot: object, userMessage: object) => Promise<{ status: string, emoji: string | null }>} dependencies.activity
  * @param {(homeId: string) => Promise<string | null>} dependencies.pausedMessage why a home's new AI work is paused (D-73), or null
+ * @param {import("./types.js").HomeDefaults} dependencies.homeDefaults whether the home's first conversation asks its
+ *   default for new bots (D-100)
  */
-export function createBotChat({ records, model, integrations, conversations, goals, activity, pausedMessage }) {
+export function createBotChat({ records, model, integrations, conversations, goals, activity, pausedMessage, homeDefaults }) {
   const { conversations: store, messages: history } = records;
 
   /**
@@ -91,9 +94,12 @@ export function createBotChat({ records, model, integrations, conversations, goa
       return { bot: toBot(before), messages: [] };
     }
     const chosenName = (await history.latestOfKind(before.conversation_id, "choice", options))?.body?.chosen;
+    // Named, the bot asks how the home's new bots are shared while that's unchosen, of an owner or admin (D-100).
+    const askHomeDefault = step === "rename" && managesHome(options) && (await homeDefaults.unchosen(options));
     const result = await ONBOARDING_STEPS[step]({
       firstName: firstNameOf(user?.displayName),
       chosenName,
+      askHomeDefault,
       bot: toBot(before),
       // A paused home (D-73) gets the steps' own words, with no AI call.
       model: (await pausedMessage(before.workspace_id)) ? null : model
@@ -165,11 +171,12 @@ export function createBotChat({ records, model, integrations, conversations, goa
     if (row.onboarding_step === "await-nudge") {
       await store.updateConversation(row.conversation_id, { onboarding_step: null }, options);
     }
-    // Typing while a choice card is open makes the card inactive; onboarding carries on without a rename.
+    // Typing while a choice card is open makes the card inactive; onboarding carries on without a rename, or without
+    // the home's default for new bots (D-100), which stays unchosen: Mixed.
     const openChoice = await history.latestOfKind(row.conversation_id, "choice", options);
     if (openChoice && !openChoice.body.chosen && !openChoice.body.inactive) {
       changed.push(await history.setBody(openChoice.id, { ...openChoice.body, inactive: true }, options));
-      if (row.onboarding_step === "ask-name") {
+      if (row.onboarding_step === "ask-name" || row.onboarding_step === "home-default") {
         await store.updateConversation(row.conversation_id, { onboarding_step: "about" }, options);
       }
     }

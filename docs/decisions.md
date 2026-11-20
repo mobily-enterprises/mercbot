@@ -2547,8 +2547,55 @@ instead of the conversation, so some leaked one way or the other.
   You only simply becomes their chat again.
 - **Search opens a result in its tab**: a message, a routine or a made thing of a Shared bot opens the tab it's in,
   shared or You only.
-- **A home of one person** sees Who sees what only for a bot that isn't on the default (Mixed), so it can be set back:
-  with nobody else, the modes differ only by a notebook nobody else reads. Shared bots still show their tabs, so a
-  Shared Builder keeps a conversation per app.
+- **A home of one person** sees Who sees what only for a bot that isn't on the home's default for new bots (D-100;
+  Mixed while nobody has chosen it), so it can be set back: with nobody else, the modes differ only by a notebook
+  nobody else reads. Shared bots still show their tabs, so a Shared Builder keeps a conversation per app.
 - **The Builder (D-41):** Ask Builder in an app opens the app's conversation whenever the Builder is Shared, whichever
   tab is open, and making it Shared no longer takes anyone's own chat with it away.
+
+## D-100 — A home's default mode for new bots, asked when it starts and when a second person joins (2026-11-20)
+
+Amends D-36 (Mixed as every new bot's mode) and D-99 (its one-person rule). The owner's decision: a home used by a
+team should get Shared bots without setting each one, and a home used alone should not be asked about people it
+doesn't have.
+- **The setting.** "New bots in this home are Private / Mixed / Shared": the mode every bot made in the home from then
+  on gets, read when it is made, by New bot and by adding from a template or a link (both make bots through
+  `createBot` and `addFromTemplate`, so anything else that makes a bot through them follows it too). Nobody having
+  chosen means Mixed, as before. Group chats (D-46) don't read it, and changing it changes no bot already there,
+  the home's main bot made at the first visit included.
+- **A Shared new bot** starts as a bot made Shared does (D-99): its General tab is made with it, for everyone in the
+  home, and it opens on its maker's own conversation, You only, where its introduction (or a template's greeting) is.
+- **Who.** The home's owners and admins (`workspace.settings.update`); a member who tries is refused with 403
+  (`bots_home_default_forbidden`). Everyone in the home can read it.
+- **Where it's chosen.**
+  1. **New home** (home menu): the name form asks **Who's it for?**: **Just me** (new bots Mixed), preselected, or
+     **A team** (new bots Shared). The home is made, then its default is set; if that second step fails, the home is
+     still made and its first conversation asks.
+  2. **The first conversation.** In the main bot's first conversation, right after it is named, while the default is
+     unchosen and the person is an owner or admin, a `choice` card with purpose `home-default` asks "Will anyone else use
+     this home with you?": **Just me** (Mixed) or **My team** (Shared). The conversation waits for the answer (its step
+     is `home-default`) and then carries on, with no AI reply to the answer. Typing instead closes the card and carries
+     on, the default still unchosen.
+  3. **Settings → General**, a part named after the home, for its owners and admins: the three modes, with "Bots you
+     already have keep their mode; change one in its Details → Who sees what."
+- **Asked again when a second person joins.** While new bots aren't Shared and nobody has answered it, the home's owners
+  and admins see, at the top of the bot list, "<Name> joined. New bots here are Mixed: each person's own chat, plus
+  the home's notebook. Make new bots Shared, for the whole home?" (for Private, "each person's own chat"), with
+  **Make them Shared** and **Keep Mixed** (or **Keep Private**), and that bots already there keep their mode. Either
+  answer is kept (`team_question_answered_at`) and nobody is asked again; an answer after another owner's or admin's
+  changes nothing. <Name> is the first of the home's active people, by name, who is neither its owner nor the person
+  reading. A home of one person isn't asked. The page reads it again when the home's people change, so it shows as
+  someone joins.
+- **Read with the bot list.** The list answers `home: { newBotSharing, chosen, teamQuestion }`: the home's row and,
+  only while the question can be asked of the person reading, its active people; never a read per bot (the statements
+  for 4 bots and for 60 are the same).
+- **Data.** `home_settings`, owned by the bots package: one row per home, made the first time something is set, with
+  `new_bot_sharing` (private, mixed or shared, NULL until chosen), `team_question_answered_at`, `updated_by` (users,
+  ON DELETE SET NULL) and `updated_at`; it goes with its home (ON DELETE CASCADE). Its key is its own `id` and
+  `workspace_id` is unique, as every per-home table a JSKIT handle keeps in its home is (`app_settings`,
+  `app_themes`); a first write is an upsert on it. Its one read and one write, and the read of who joined, are in
+  `homeSettingsRepository.js`.
+  The migration counts every home that already had two active people or more as asked: their people joined before
+  this release, and they keep Mixed until an owner or admin chooses.
+- **Routes:** `GET /api/w/:workspaceSlug/home-settings`, `PATCH …/home-settings { newBotSharing }` and
+  `POST …/home-settings/team-question { answer: "shared" | "keep" }`.

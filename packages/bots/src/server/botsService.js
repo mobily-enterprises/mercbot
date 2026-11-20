@@ -19,6 +19,7 @@ import { createBotTeaching } from "./botTeaching.js";
 import { createBotGroups } from "./botGroups.js";
 import { createBotLibrary } from "./botLibrary.js";
 import { createBotMemory } from "./botMemory.js";
+import { createHomeDefaults } from "./homeDefaults.js";
 
 /**
  * The bots service (`mercbot.bots`): the person's bots and everything said and done in them, composed from one factory per
@@ -80,6 +81,8 @@ export function createBotsService({
   goalLimits
 }) {
   const conversations = createBotConversations({ records, notices });
+  // The sharing a home's new bots get (D-100): every way of making a bot reads it, and the home's first conversation asks.
+  const homeDefaults = createHomeDefaults({ records });
   const background = createBackgroundWork();
   const chatHistory = createBotHistory({
     records,
@@ -147,7 +150,7 @@ export function createBotsService({
     ...(goalLimits ? { limits: { ...GOAL_LIMITS, ...goalLimits } } : {})
   });
 
-  const cards = createBotCards({ records, env, account, computer, integrations, conversations, requests, files });
+  const cards = createBotCards({ records, env, account, computer, integrations, conversations, requests, files, homeDefaults });
   const turns = createBotTurns({
     records,
     profiles,
@@ -194,10 +197,19 @@ export function createBotsService({
   });
   // A sign-in finishing on this server marks the connect follow-ups it reaches, as it is saved, and starts them here.
   integrations.connections.whenConnected(replies.connectFollowUps.connected);
-  const botList = createBotList({ records, conversations });
+  const botList = createBotList({ records, conversations, homeDefaults });
   const settings = createBotSettings({ records, conversations, apps });
-  const chat = createBotChat({ records, model, integrations, conversations, goals, activity, pausedMessage: meter.pausedMessage });
-  const templates = createBotTemplates({ records, profiles, integrations, conversations, env, templateLinks });
+  const chat = createBotChat({
+    records,
+    model,
+    integrations,
+    conversations,
+    goals,
+    activity,
+    homeDefaults,
+    pausedMessage: meter.pausedMessage
+  });
+  const templates = createBotTemplates({ records, profiles, integrations, conversations, env, templateLinks, homeDefaults });
   const teaching = createBotTeaching({ records, computer, integrations, conversations, background, writeSkill });
   const groups = createBotGroups({ records, conversations });
   const library = createBotLibrary({ records, conversations, apps, files });
@@ -270,6 +282,9 @@ export function createBotsService({
     createSection: botList.createSection,
     updateSection: botList.updateSection,
     moveSection: botList.moveSection,
-    deleteSection: botList.deleteSection
+    deleteSection: botList.deleteSection,
+    homeDefault: homeDefaults.asSeen,
+    chooseHomeDefault: homeDefaults.choose,
+    answerTeamQuestion: homeDefaults.answerTeamQuestion
   });
 }

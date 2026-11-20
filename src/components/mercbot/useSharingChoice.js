@@ -1,5 +1,6 @@
 import { computed, ref, watch } from "vue";
 import { hasOthers } from "./homesApi.js";
+import { homeDefault } from "./homeDefault.js";
 
 const TITLES = { private: "Private", mixed: "Mixed", shared: "Shared" };
 
@@ -7,7 +8,8 @@ const TITLES = { private: "Private", mixed: "Mixed", shared: "Shared" };
  * Who sees what in a bot (D-36, D-99), as its Details panel offers it. Everyone has their own chat with the bot, and
  * each mode adds to it: Private nothing, Mixed the home's notebook, Shared conversations everyone sees (with each
  * person's own chat as its last tab, "You only"). Every change is asked first, naming what it hides and for whom.
- * A home of one person sees the choice only for a bot off the default (Mixed), so it can always be set back.
+ * A home of one person sees the choice only for a bot off the home's default for new bots (D-100; Mixed while unchosen),
+ * so it can always be set back.
  * @param {{
  *   bot: () => { name: string, sharing: string, rooms?: Array<{ title: string, own?: boolean }> | null },
  *   home: import("vue").Ref<{ slug: string, name: string } | null>,
@@ -33,7 +35,7 @@ export function useSharingChoice({ bot, home, onChoose }) {
     others.value = false;
     if (slug) others.value = await hasOthers(slug);
   }, { immediate: true });
-  const shown = computed(() => others.value || bot().sharing !== "mixed");
+  const shown = computed(() => others.value || bot().sharing !== homeDefault.value.newBotSharing);
 
   const pending = ref("");
   const question = computed(() => {

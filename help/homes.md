@@ -31,7 +31,9 @@ To create a home:
 
 1. Click the home's name at the top of the sidebar.
 2. Choose **Create a home**.
-3. Type a name (for example, "The Smiths" or "Shop team") and press **Create**.
+3. Type a name (for example, "The Smiths" or "Shop team").
+4. Under **Who's it for?**, keep **Just me**, or choose **A team** to make the home's new bots Shared.
+5. Press **Create**.
 
 You're the owner of every home you create. The sidebar, bots, Connect apps and Apps all change to the home you're in. Each home keeps its own pinned bots, sections and pinned apps for you.
 
@@ -46,10 +48,22 @@ Everyone in the home has their own chat with each bot, which only they see. Owne
 | Setting | What it adds |
 |---|---|
 | **Private** | Nothing more. The bot keeps nothing across people |
-| **Mixed** (the default) | What helps everyone goes in the home's notebook, which everyone can read |
+| **Mixed** (the usual default) | What helps everyone goes in the home's notebook, which everyone can read |
 | **Shared** | Conversations everyone in the home sees, as tabs. Each person's own chat is the last tab, **You only**. The notebook isn't used |
 
-Mercbot asks before changing it, saying what changes and for whom. In a home with only one person, Who sees what shows only for a bot that isn't on Mixed, so it can be set back.
+Mercbot asks before changing it, saying what changes and for whom. In a home with only one person, Who sees what shows only for a bot that isn't on the home's default for new bots, so it can be set back.
+
+### The mode new bots get
+
+Each home has a default for new bots: every bot made there, with **New bot** or from a template or a link, starts in that mode. It's Mixed until an owner or admin chooses. Bots you already have keep their mode, the home's first bot included, and group chats aren't affected. A new Shared bot starts with its General tab and opens on your own **You only**, where it introduces itself.
+
+Owners and admins choose it:
+
+- when they create a home, under **Who's it for?**: **Just me** makes new bots Mixed, **A team** makes them Shared;
+- in the first bot's first conversation, right after naming it, when Mercbot asks "Will anyone else use this home with you?": **Just me** (Mixed) or **My team** (Shared);
+- any time in **Settings** → **General**, under the home's name: **New bots in this home**.
+
+When a second person joins a home whose new bots aren't Shared, its owners and admins see a note at the top of the bot list, once: "*Name* joined. New bots here are Mixed…", with **Make them Shared** and **Keep Mixed**. Either answer is kept, and bots you already have keep their mode; change one in its **Details** → **Who sees what**.
 
 Group chats are always your own, even when their bots belong to the home. A group chat can't be shared.
 
@@ -136,7 +150,7 @@ Spending is only reported: the home's bots never stop because of it.
 A checklist for a new family or team home:
 
 1. Create the home and give it a name everyone will recognise.
-2. Decide who sees what for each bot: keep mixed for everyday helpers, private for anything personal, and shared for a bot the whole home talks to together.
+2. Choose the mode new bots get (**A team** for Shared), then decide who sees what for each bot: mixed for everyday helpers, private for anything personal, and shared for a bot the whole home talks to together.
 3. Add shared accounts (the family calendar, the team inbox) as **Everyone in** the home. Ask everyone to connect their own accounts as **Just me**.
 4. Choose where the home keeps its files, if you'd rather use your own storage.
 5. Pick a Builder for Apps. Everyone in the home sees all of its apps and data, so keep anything some members mustn't read out of them.

@@ -4,6 +4,7 @@ import { AGENT_TABLE_RESOURCES } from "./agentTables.js";
 import { createConversationRepository } from "./conversationRepository.js";
 import { createBotDirectory } from "./directory.js";
 import { FOLLOW_UP_SEARCH, createFollowUpRepository } from "./followUpRepository.js";
+import { createHomeSettingsRepository } from "./homeSettingsRepository.js";
 import { createHomeTemplateRepository } from "./homeTemplateRepository.js";
 import { createMakerRepository } from "./makerRepository.js";
 import { createMessageRepository } from "./messageRepository.js";
@@ -112,6 +113,8 @@ const BotRecordsFeature = defineFeature({
       templates: createTemplateRepository(resources),
       // The home's own bot templates and what changed in them (D-98).
       homeTemplates,
+      // The home's settings for its bots: the sharing its new bots get, and whether its team question was answered (D-100).
+      homeSettings: createHomeSettingsRepository({ resources, systemContext, memberships }),
       agent: Object.freeze({
         createRuns: (dependencies = {}) => createRuns({ ...dependencies, resources, systemContext }),
         createSummaries: (dependencies) => createSummaries({ ...dependencies, resources, systemContext }),

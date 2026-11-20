@@ -333,6 +333,24 @@ export const homeTemplateChangeResource = defineTableResource({
   }
 });
 
+/** home_settings
+ * a home's settings for its bots (D-100), one row per home, made the first time one is set; surrogateId (workspace_id)
+ */
+export const homeSettingResource = defineTableResource({
+  name: "homeSettings",
+  tableName: "home_settings",
+  ownership: "workspace",
+  schema: {
+    // The sharing a bot made in the home gets: private, mixed or shared; null until chosen, which means mixed.
+    newBotSharing: { type: "string", maxLength: 16, noTrim: true, nullable: true },
+    // When an owner or admin answered the question asked once its people went from one to two.
+    teamQuestionAnsweredAt: { type: "dateTime", nullable: true },
+    updatedAt: { type: "dateTime" },
+    updatedBy: { type: "id", nullable: true },
+    workspaceId: { type: "id", hidden: true, search: true }
+  }
+});
+
 /** Every table resource this feature owns, in table order. */
 export const TABLE_RESOURCES = Object.freeze([
   botResource,
@@ -350,5 +368,6 @@ export const TABLE_RESOURCES = Object.freeze([
   botPolicyResource,
   approvalRuleResource,
   homeTemplateResource,
-  homeTemplateChangeResource
+  homeTemplateChangeResource,
+  homeSettingResource
 ]);

@@ -3,12 +3,13 @@ import { nextTick, ref } from "vue";
 import { useRouter } from "vue-router";
 import { currentHome } from "./homeApi.js";
 import { roleLabel, useHomes } from "./homesApi.js";
+import { HOME_FOR, makeHome } from "./homeDefault.js";
 import { usePaths } from "@jskit-ai/shell-web/client/navigation/usePaths";
 import { HOME_TILES, ON_IDENTITY } from "@/theme/palettes.js";
 
 // The home switcher (D-36), top left of the sidebar: which home you're in, the others you
-// belong to, and making a new one. A home's tile is its initial in a colour picked from its
-// name, so the same home always looks the same.
+// belong to, and making a new one, which asks who it's for: how its new bots are shared (D-100). A home's tile is its
+// initial in a colour picked from its name, so the same home always looks the same.
 const paths = usePaths();
 const props = defineProps({
   rail: { type: Boolean, default: false }
@@ -19,6 +20,7 @@ const { homes, current, load, create } = useHomes();
 const open = ref(false);
 const naming = ref(false);
 const name = ref("");
+const forWhom = ref(HOME_FOR[0].value);
 const busy = ref(false);
 const problem = ref("");
 const input = ref(null);
@@ -48,6 +50,7 @@ async function startNaming() {
 function cancelNaming() {
   naming.value = false;
   name.value = "";
+  forWhom.value = HOME_FOR[0].value;
   problem.value = "";
 }
 
@@ -57,7 +60,7 @@ async function createHome() {
   busy.value = true;
   problem.value = "";
   try {
-    const home = await create(wanted);
+    const home = await makeHome(create, wanted, forWhom.value);
     open.value = false;
     cancelNaming();
     router.push(paths.page("/", { params: { workspaceSlug: home.slug } }));
@@ -127,6 +130,13 @@ async function createHome() {
           placeholder="Name your home, e.g. The Smiths"
           aria-label="Name of the new home"
         >
+        <fieldset class="mb-home-menu__for">
+          <legend class="mb-home-menu__for-label">Who's it for?</legend>
+          <label v-for="choice in HOME_FOR" :key="choice.value" class="mb-home-menu__for-choice">
+            <input v-model="forWhom" type="radio" name="home-for" :value="choice.value">
+            {{ choice.label }}
+          </label>
+        </fieldset>
         <p v-if="problem" class="mb-home-menu__problem" role="alert">{{ problem }}</p>
         <div class="mb-home-menu__actions">
           <button type="button" class="mb-home-menu__cancel" @click="cancelNaming">Cancel</button>
@@ -267,6 +277,36 @@ async function createHome() {
 .mb-home-menu__input:focus {
   outline: 2px solid rgb(var(--v-theme-secondary));
   outline-offset: 0;
+}
+
+.mb-home-menu__for {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 14px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  font-size: 13px;
+}
+
+.mb-home-menu__for-label {
+  float: left;
+  margin-right: 2px;
+  padding: 0;
+  color: rgb(var(--v-theme-on-surface-variant));
+}
+
+.mb-home-menu__for-choice {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+}
+
+.mb-home-menu__for-choice input {
+  margin: 0;
+  accent-color: rgb(var(--v-theme-secondary));
 }
 
 .mb-home-menu__problem {

@@ -15,15 +15,17 @@ const generalTemplate = () => ({ library_template: GENERAL.slug, template_since:
  * @param {object} dependencies
  * @param {import("./types.js").BotRecords} dependencies.records mercbot.bots.records
  * @param {import("./types.js").BotConversations} dependencies.conversations
+ * @param {import("./types.js").HomeDefaults} dependencies.homeDefaults the sharing the home's new bots get (D-100)
  */
-export function createBotList({ records, conversations }) {
+export function createBotList({ records, conversations, homeDefaults }) {
   const { conversations: store, messages } = records;
 
   /**
    * The home's bots and the person's own group chats, each as this person sees it (the row policy
    * keeps a group chat to its people): a bot they haven't talked to yet shows as new, with its
-   * introduction to come. With `botId`, just that bot, read the same way. A fixed number of reads,
-   * whatever the number of bots, rooms and groups.
+   * introduction to come. With `botId`, just that bot, read the same way. The whole list comes with the home's default
+   * for new bots and the question its owners and admins are asked once a second person joins (`home`, D-100). A fixed
+   * number of reads, whatever the number of bots, rooms and groups.
    * @param {import("@jskit-ai/resource-runtime/server/types").ResourceCallOptions} options
    * @param {{ botId?: string }} [only]
    */
@@ -79,7 +81,8 @@ export function createBotList({ records, conversations }) {
         rooms: tabs,
         preview: previewByBot.get(String(row.id)) || ""
       })),
-      sections
+      sections,
+      ...(botId ? {} : { home: await homeDefaults.asSeen(options) })
     };
   }
 
@@ -105,7 +108,10 @@ export function createBotList({ records, conversations }) {
     }));
   }
 
-  /** New bot: unpinned, top of its group by activity, starting its own short intro. */
+  /**
+   * New bot: unpinned, top of its group by activity, starting its own short intro, and shared as the home's new bots are
+   * (D-100): a Shared one has its General tab at once, and opens on the person's own, where its intro is.
+   */
   async function createBot(input = {}, options) {
     const name = cleanName(input.name);
     const shape = cloudShape(input.shape);
@@ -113,11 +119,13 @@ export function createBotList({ records, conversations }) {
     if (!BOT_PALETTE.includes(color)) throw new BotsError(400, "Pick one of the colours.", { code: "bots_colour_unknown" });
     return retryLostInsertRace(options, () => store.withTransaction(options, async (txOptions) => {
       // Until New bot asks what it's for (D-98, stage b), a new bot points at Mercbot's general template.
-      const made = { user_id: conversations.personOf(txOptions), name, shape, color, ...generalTemplate() };
+      const sharing = await homeDefaults.sharingOf(txOptions);
+      const made = { user_id: conversations.personOf(txOptions), name, shape, color, sharing, ...generalTemplate() };
       const bot = await store.createBot(made, txOptions);
-      const row = conversations.asSeen(bot, await conversations.conversationOf(bot, txOptions, { onboarding_step: "intro-greet" }));
+      const seat = await conversations.conversationOf(bot, txOptions, { onboarding_step: "intro-greet" });
+      const row = conversations.asSeen(bot, seat);
       await conversations.append(row, [{ kind: "timestamp", role: "system", body: { at: new Date().toISOString() } }], txOptions);
-      return { ...toBot(row), preview: "" };
+      return { ...toBot(row), rooms: await homeDefaults.firstTabs(bot, seat, txOptions), preview: "" };
     }));
   }
 
