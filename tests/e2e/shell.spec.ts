@@ -258,7 +258,8 @@ test("the search palette lists bots then commands, and runs what is chosen", asy
   await expect(options.first()).toHaveText(/^Otto\s*general$/u);
   const commands = [
     "New Bot", "New group chat", "Keyboard shortcuts", "Settings: General", "Settings: Computer",
-    "Settings: Permissions", "Settings: Files", "Settings: Website", "Settings: Memory", "Settings: Vault", "Settings: Spending",
+    "Settings: Permissions", "Settings: Files", "Settings: Website", "Settings: Memory", "Settings: Templates", "Settings: Vault",
+    "Settings: Spending",
     "Settings: Mercbot account", "Settings: About", "Connect Apps", "Skills", "Theme: System", "Theme: Light", "Theme: Dark"
   ];
   const texts = (await options.allTextContents()).slice(-commands.length);
