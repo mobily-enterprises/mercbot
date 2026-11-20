@@ -54,6 +54,7 @@ A Shared bot shows its conversations as tabs under its name at the top of the ch
 - **A new conversation continues from a shared tab.** Started from one, it knows everything said there up to that moment; anything said there afterwards doesn't flow into it. This lets you branch off: "Holiday 2027" can grow from "General" without cluttering it. Started from You only, it starts empty, so nothing of yours goes where others read. The **+** button's tooltip says which.
 - **Rename a shared tab** by double-clicking it. You only can't be renamed.
 - **Unread dots** on tabs show where there's something you haven't seen, You only included. Each tab is tracked on its own for each person, and the bot's dot in the sidebar shows while any of its tabs has news.
+- **The bot's line in the sidebar** shows its latest reply in the shared tabs, whichever tab you have open. Its replies in You only don't show there.
 - **Mercbot remembers your tab.** The bot opens on the tab you last had open.
 
 If your home uses Apps and its Builder bot is Shared, the Builder keeps one conversation for each app. **Ask Builder** in an app opens that app's own tab, named after the app, whichever tab you had open. See [Build an app with the Builder](/help/apps-builder).

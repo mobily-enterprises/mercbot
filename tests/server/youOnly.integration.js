@@ -187,6 +187,31 @@ test("each tab of a Shared bot is unread on its own, and the list reads no more 
   assert.equal(await queriesDuring(knex, () => bots.listBots(as(pat))), once, "the list's reads don't grow with bots or tabs");
 });
 
+test("a Shared bot's line in the list shows its newest reply in its shared tabs, whichever is open, never one in You only", async (context) => {
+  const { knex, bots, as, homeId, pat, kim, bot, makeBot, seatOf, listed, say } = await setup(context);
+  await say("Hello", undefined);
+  const patSeat = await seatOf(pat);
+  await bots.updateBot(bot.id, { sharing: "shared" }, as(pat));
+  const general = (await listed(pat)).rooms[0].id;
+  assert.equal((await listed(pat)).preview, "", "no tab has a reply yet: the private chat's isn't shown");
+  const { room: plans } = await bots.createRoom(bot.id, { title: "Plans" }, as(pat));
+  const post = (conversationId, text, fields = {}) =>
+    knex("bot_messages").insert({ workspace_id: homeId, bot_id: bot.id, conversation_id: conversationId, kind: "text", role: "bot", body: { text }, ...fields });
+  await post(general, "Rota is up");
+  await post(plans.id, "Trip booked");
+  await bots.updateBot(bot.id, { roomId: general, unread: false }, as(pat));
+  assert.equal((await listed(pat)).preview, "Trip booked", "the newer of two tabs' replies, with General open");
+  await post(patSeat, "Your private note");
+  await bots.updateBot(bot.id, { roomId: patSeat, unread: false }, as(pat));
+  assert.equal((await listed(pat)).preview, "Trip booked", "a newer reply in You only isn't the line, even with You only open");
+  await post(general, "Kim's question", { role: "user", body: { text: "Kim's question", from: { id: kim, name: "Kim" } } });
+  assert.equal((await listed(kim)).preview, "Trip booked", "someone's later message doesn't replace it, and everyone sees the same line");
+  // A Mixed bot's line is its own chat's, as before.
+  const diary = await makeBot("Diary");
+  await say("Hi", undefined, pat, diary.id);
+  assert.equal((await listed(pat, diary.id)).preview, "Noted.");
+});
+
 test("leaving Shared hides the shared tabs: their work pauses, You only is the chat again, and nothing runs or is found there", async (context) => {
   const pausedWatches = [];
   const { knex, parts, bots, as, homeId, pat, kim, bot, turns, watchCalls, seatOf, listed, say } = await setup(context, { pausedWatches });

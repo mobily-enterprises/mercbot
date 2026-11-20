@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { composerPlaceholder } from "../../src/components/mercbot/composerPlaceholder.js";
 import { followOpenTabs, ownTabOf, ownTabOpen, placeQuery } from "../../src/components/mercbot/openTabs.js";
 import { pageAccess } from "../../src/components/mercbot/useBotLibrary.js";
+import { useBotMessages } from "../../src/components/mercbot/useBotMessages.js";
 import { useSharingChoice } from "../../src/components/mercbot/useSharingChoice.js";
 
 // Whether the home has anyone else in it, as homesApi reads it: set per test.
@@ -103,5 +104,22 @@ describe("Who sees what", () => {
     expect(chosen).toEqual(["private"]);
     choice.ask("mixed");
     expect(choice.question.value.text).toMatch(/notes what helps everyone in Casa's notebook/u);
+  });
+});
+
+describe("a Shared bot's line in the list", () => {
+  it("takes the bot's replies in the shared tabs as they come, never one in You only", () => {
+    const tabs = [{ id: "10", title: "General" }, { id: "12", title: "You only", own: true }];
+    const bots = ref([
+      { id: "1", sharing: "shared", rooms: tabs, roomId: "10", preview: "" },
+      { id: "2", sharing: "shared", rooms: tabs, roomId: "12", preview: "Rota is up" },
+      { id: "3", sharing: "mixed", rooms: null, roomId: null, preview: "" }
+    ]);
+    const store = useBotMessages({ bots, currentBotId: () => null });
+    const reply = (id, text) => [{ id, role: "bot", kind: "text", body: { text } }];
+    store.appendMessages("1", reply("100", "Trip booked"));
+    store.appendMessages("2", reply("101", "Your private note"));
+    store.appendMessages("3", reply("102", "Noted."));
+    expect(bots.value.map((bot) => bot.preview)).toEqual(["Trip booked", "Rota is up", "Noted."]);
   });
 });

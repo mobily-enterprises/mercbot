@@ -59,11 +59,14 @@ export function createBotList({ records, conversations }) {
     });
     const rows = entries.map((entry) => entry.row);
     const sections = (await store.sectionsOf(options)).map(toSection);
-    // Each conversation's latest previewable message, one row per conversation however long the
-    // chats are; a group's preview is its latest message from anyone.
-    const conversationIds = rows.filter((row) => row.conversation_id).map((row) => row.conversation_id);
+    // Each row's latest previewable message, one row per conversation however long the chats are: a group's is its
+    // latest message from anyone; a Shared bot's is the bot's newest reply in any of its shared tabs, whichever is
+    // open, never one in You only (D-99); any other bot's is from the conversation the person has open.
+    const conversationIds = entries.flatMap(({ row, tabs }) =>
+      tabs ? tabs.filter((tab) => !tab.own).map((tab) => tab.id) : row.conversation_id ? [row.conversation_id] : []);
     const previews = await messages.latestPerConversation(conversationIds, options);
-    const previewByBot = new Map(previews.map((row) => [String(row.bot_id), previewOf(row)]));
+    const newestLast = previews.toSorted((a, b) => Number(a.id) - Number(b.id));
+    const previewByBot = new Map(newestLast.map((row) => [String(row.bot_id), previewOf(row)]));
     const groupIds = rows.filter((row) => row.kind === "group").map((row) => row.id);
     const members = await conversations.membersOf(groupIds, options);
     const people = await conversations.peopleOf(groupIds, options);

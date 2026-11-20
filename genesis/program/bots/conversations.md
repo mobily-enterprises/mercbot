@@ -176,6 +176,10 @@ Sharing (D-36, D-99):
   own unread), and the `roomId` the person last had open, the own conversation's id while You only
   is. A shared bot the person hasn't opened since it became shared has no tabs yet (`rooms` and
   `roomId` null), and its first look opens General. The bot is unread while any tab is.
+- Its `preview` is the bot's newest reply in its rooms, whichever tab is open, never one in You only
+  (`listBots` hands `latestPerConversation` the room ids in place of the open conversation's; the
+  page's `appendMessages` doesn't take a reply in You only either). Without tabs yet, it is the open
+  conversation's, as for any other bot.
 - `messages`, `send` and `reply` take the room, the person's own conversation's id naming You only
   (`seenBy`'s `room`; `own: true` or `false` asks for You only or a room whatever is open).
 - `POST …/rooms {title, from}` starts a tab. From a room, it continues from it: the bot's history

@@ -1,5 +1,6 @@
 import { ref } from "vue";
 import { botsApi } from "./botsApi.js";
+import { ownTabOpen } from "./openTabs.js";
 
 const previewOf = (message) => {
   if (message.kind === "choice") return message.body.question;
@@ -179,7 +180,9 @@ export function useBotMessages({ bots, currentBotId }) {
     for (const message of messages) byId.set(message.id, message);
     messagesByBot.value = { ...messagesByBot.value, [botId]: [...byId.values()] };
     const latest = [...messages].reverse().find((message) => message.role === "bot" && message.kind !== "timestamp");
-    if (latest) updateBot({ id: botId, preview: previewOf(latest) });
+    // A Shared bot's line shows its replies in the shared tabs, never one in You only (D-99).
+    const bot = bots.value.find((entry) => entry.id === botId);
+    if (latest && !(bot && ownTabOpen(bot))) updateBot({ id: botId, preview: previewOf(latest) });
   }
 
   function replaceMessage(botId, message) {

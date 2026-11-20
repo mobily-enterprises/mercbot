@@ -394,7 +394,8 @@ A workspace is called a **home** in the product.
     existing one: it inherits that conversation's context up to the fork, and later messages in the
     original don't flow into it (2026-10-28).
     Each public conversation appears as its own **named tab** under the bot, and every tab must
-    have a name. The bar for this screen is "the cleanest UI ever done".
+    have a name. The bar for this screen is "the cleanest UI ever done". The bot's line in the list
+    shows its newest reply in any of its tabs, whichever is open (2026-11-20, D-99).
   - **Mixed (the default):** private conversations plus a **home notebook**. After a
     conversation, the bot notes only reusable learning (no private details, secrets or
     third-party data) and tells the person in one line, so they can undo it. A person can keep a
@@ -2533,6 +2534,9 @@ instead of the conversation, so some leaked one way or the other.
   Everyone using the bot, and the home's.
 - **Each tab is unread on its own**, You only included; the bot's dot in the list shows while any tab has news. The
   list reads no more than before: the person's own conversation comes with the rows it already reads.
+- **The bot's line in the list** is its newest reply in its shared tabs, whichever tab is open, and never one in You
+  only, so it says what the home's conversations are doing; with no reply in a shared tab yet it's empty. It is read
+  with the other rows' lines, in the same statement.
 - **Changing mode asks first**, naming what it hides and for whom. Making a bot Shared opens General for whoever did
   it, and everyone's own chat becomes their You only. Making it Private or Mixed hides the shared tabs from everyone
   (kept, back when it's Shared again), and their routines and watches pause, each tab saying so in a line, to be
