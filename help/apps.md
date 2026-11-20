@@ -104,7 +104,7 @@ No. You describe what you want and the Builder makes it. You can read how an app
 Yes. Every bot in the home can read and add records, and can watch a table for changes. See [Bots working with app data](/help/apps-bots).
 
 ### Are apps shared between homes?
-No. Each home has its own apps and its own data. See [Homes: Mercbot for families and teams](/help/homes).
+No. Each home has its own apps and its own data. See [Homes: Mercbot for families and businesses](/help/homes).
 
 ## Related pages
 
@@ -112,4 +112,4 @@ No. Each home has its own apps and its own data. See [Homes: Mercbot for familie
 - [Build an app with the Builder](/help/apps-builder)
 - [Your data: tables, fields and records](/help/apps-data)
 - [App templates](/help/apps-templates)
-- [Homes: Mercbot for families and teams](/help/homes)
+- [Homes: Mercbot for families and businesses](/help/homes)

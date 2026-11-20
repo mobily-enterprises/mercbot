@@ -59,9 +59,10 @@ and a home the person doesn't belong to shows a not-yours card. The home layout 
 trail (D-64): its inner pages (Apps, an app, a table, Files) declare their parent in route meta and
 show shell-web's Up arrow first in their own top bar, and the chat, the home's top-level page, has none.
 In-app links are resolved by `usePaths().page()`. The switcher at
-the top of the sidebar lists the person's homes with their role and creates a
-new one by name, asking "Who's it for?" (Just me, preselected, or A team), which sets the new home's default for
-new bots, Mixed or Shared (D-100, `homeDefault.js` `makeHome`). A person with
+the top of the sidebar lists the person's homes with their role, and Create a home opens New home
+(`MercbotNewHomeDialog.vue`): what the home is for, as Mercbot's teams or Something else (D-105, Bot templates), its
+name, and "Who's it for?" (Just me, preselected, or Me and other people), which sets the new home's default for new
+bots, Mixed or Shared (D-100, `homeDefault.js` `makeHome`). A person with
 no bots sees the intro slides and a short transition while their first bot is
 created; everyone else lands in the Mercbot shell on their bots and saved
 conversations. The client waits each onboarding step's delay, then asks the

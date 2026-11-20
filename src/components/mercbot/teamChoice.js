@@ -1,6 +1,7 @@
+import { appsApi } from "../apps/appsApi.js";
 import { botsApi } from "./botsApi.js";
 
-// Teams (D-105) on the page: what the team screen adds and says, the New home form's name for a home made for a team,
+// Teams (D-105) on the page: what the team screen adds and says, New home's name and action for a home made for a team,
 // and that home's bots, added with it.
 
 /**
@@ -27,7 +28,7 @@ export function appsFor(adding, apps, withoutApp) {
 }
 
 /**
- * The New home form's name once its purpose changes from team `before` to team `chosen` (null for Something else):
+ * New home's name once its purpose changes from team `before` to team `chosen` (null for Something else):
  * the team's name while the name is empty or still the last team's; a name the person typed stays.
  * @param {string} name
  * @param {{ name: string } | null} before
@@ -35,19 +36,44 @@ export function appsFor(adding, apps, withoutApp) {
  */
 export const nameFor = (name, before, chosen) => (!name.trim() || name === before?.name ? chosen?.name || "" : name);
 
+/** The list of teams' first words, in New home and Add a team alike. */
+export const TEAM_INTRO = "Pick what you need help with. Mercbot adds a few bots that work well together, in their own section of your sidebar.";
+
+/** New home's action for a team: "Create home with 6 bots", following the ticks, or "Creating…" while it works. */
+export const newHomeLabel = (count, busy) => (busy ? "Creating…" : `Create home with ${count} ${count === 1 ? "bot" : "bots"}`);
+
 /**
- * A new home made for a team: every bot of it the home hasn't got, added (the New home form, through
- * pages/w/[workspaceSlug]/index.vue). Answers whether that went through; when it didn't, the team screen lets the
- * person try again.
- * @param {string} teamId
+ * The new home's address for the team chosen in New home: the team, its bots ticked and the apps asked for, which the
+ * home's first load adds (pages/w/[workspaceSlug]/index.vue, addChosenBots).
+ * @param {{ teamId: string, templates: string[], apps: Array<{ key: string }> }} choice
  */
-export async function addWholeTeam(teamId) {
+export function homeQuery({ teamId, templates, apps }) {
+  return { team: teamId, bots: templates.join(","), ...(apps.length ? { apps: apps.map((app) => app.key).join(",") } : {}) };
+}
+
+/**
+ * The choice an address carries (homeQuery), or null when it names no bots: a ?team= alone opens the team screen.
+ * @param {Record<string, unknown>} query
+ */
+export function choiceOf(query) {
+  const listed = (value) => (typeof value === "string" ? value.split(",").filter(Boolean) : []);
+  const templates = listed(query.bots);
+  return query.team && templates.length ? { teamId: String(query.team), templates, apps: listed(query.apps) } : null;
+}
+
+/**
+ * A new home made for a team: the bots chosen in New home, added in the home the page is in, then the apps asked for,
+ * as drafts. Answers whether the bots went through (when they didn't, the team screen lets the person try again) and
+ * the apps that couldn't be set up.
+ * @param {{ teamId: string, templates: string[], apps: string[] }} choice
+ */
+export async function addChosenBots({ teamId, templates, apps }) {
   try {
-    const team = await botsApi.team(teamId);
-    const templates = botsToAdd(team, new Set()).map((bot) => bot.slug);
-    if (templates.length) await botsApi.addTeam(teamId, templates);
-    return true;
+    await botsApi.addTeam(teamId, templates);
   } catch {
-    return false;
+    return { added: false, appsFailed: [] };
   }
+  const appsFailed = [];
+  for (const key of apps) await appsApi.installTemplate(key, false).catch(() => appsFailed.push(key));
+  return { added: true, appsFailed };
 }

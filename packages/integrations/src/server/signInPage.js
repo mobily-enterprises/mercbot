@@ -18,14 +18,14 @@ function escape(text) {
 
 /**
  * The small page a provider's sign-in ends on, in Mercbot's look, light or dark: a title and a
- * sentence, the approval link for an IT team when there is one, and the way back to Mercbot.
+ * sentence, the approval link for an IT department when there is one, and the way back to Mercbot.
  * @param {string} title
  * @param {string} text
  * @param {{ approval?: string, back?: string }} [links]
  */
 export function signInPage(title, text, { approval = "", back = "" } = {}) {
   const approvalBlock = approval
-    ? `<p class="approval"><label for="approval">Approval link for your IT team</label>` +
+    ? `<p class="approval"><label for="approval">Approval link for your IT department</label>` +
       `<textarea id="approval" readonly rows="3">${escape(approval)}</textarea>` +
       `<button type="button" data-copy>Copy the link</button></p>` +
       `<script src="/api/connections/sign-in-page.js" defer></script>`

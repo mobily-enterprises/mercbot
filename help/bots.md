@@ -47,7 +47,7 @@ Shape and colour are set when you create the bot, and the dialog starts with a c
 
 ## Add a team
 
-A team is a few of Mercbot's templates for one situation, such as **Small shop** or **Busy household**, made into bots together. A new home can come with one (see [Start with a team](/help/homes#start-with-a-team), with every team and its bots); **Add a team** adds one to the home you're in:
+Pick what you need help with, and Mercbot adds a few bots that work well together, such as **Small shop** or **Busy household**, in their own section of your sidebar. Each is one of Mercbot's templates. A new home can come with one (see [Start with a team](/help/homes#start-with-a-team), with every team and its bots); **Add a team** adds one to the home you're in:
 
 1. Select **New bot** and scroll to **Add a team**, at the foot of **What will it do?**.
 2. Choose a team. Each one shows its bots' faces and how many there are.
@@ -55,7 +55,7 @@ A team is a few of Mercbot's templates for one situation, such as **Small shop**
 4. If a bot works with an app in Apps and you're an owner or admin of the home, a box under it sets up that app as a draft for you to review, as New bot does; untick it to leave the app out.
 5. Select **Add N bots**. **Back** or the close button leaves without adding anything.
 
-The bots are added together, all or none, in a sidebar section named after the team, and the first of them opens. Each starts in the home's mode for new bots and greets you with its template's greeting and setup questions when you open it; until you answer, none of them does any AI work. Anyone in a home can add a team.
+The bots are added together, all or none, in a sidebar section named after the team, in the team's order, and the first of them opens. Each starts in the home's mode for new bots and greets you with its template's greeting and setup questions when you open it; until you answer, none of them does any AI work. Anyone in a home can add a team.
 
 ## Edit and rename a bot
 
@@ -140,7 +140,7 @@ To jump between bots, press **Ctrl+Alt+1** to **9** for the bots in sidebar orde
 
 ## Your main bot
 
-Every home has one main bot, marked with a badge in the sidebar. It's the home's first bot: the one that introduces itself when a new home starts and asks for its name. Right after you name it, it asks "Will anyone else use this home with you?": **Just me** keeps the home's new bots Mixed, **My team** makes them Shared. It doesn't ask when that was already chosen, for example under **Who's it for?** when the home was created. It's a good general helper and the natural place to start a new kind of job before you give it a bot of its own.
+Every home has one main bot, marked with a badge in the sidebar. It's the home's first bot: the one that introduces itself when a new home starts and asks for its name. Right after you name it, it asks "Will anyone else use this home with you?": **Just me** keeps the home's new bots Mixed, **Me and other people** makes them Shared. It doesn't ask when that was already chosen, for example under **Who's it for?** when the home was created. It's a good general helper and the natural place to start a new kind of job before you give it a bot of its own.
 
 The main bot can't be deleted, so you always have someone to talk to. You can rename it, pin it, hide it or move it into a section like any other bot.
 
@@ -270,5 +270,5 @@ No. Each bot's chat is private to it. Bots share only what you've asked them to 
 - [Files, documents and pictures](/help/files)
 - [Skills, routines and watches](/help/skills-and-routines)
 - [The vault: saved logins and secrets](/help/vault)
-- [Homes: Mercbot for families and teams](/help/homes)
+- [Homes: Mercbot for families and businesses](/help/homes)
 - [Settings and notifications](/help/settings)

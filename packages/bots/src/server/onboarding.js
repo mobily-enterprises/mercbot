@@ -26,7 +26,8 @@ const text = (body) => ({ kind: "text", role: "bot", body });
 
 // The question the main bot's first conversation asks right after it's named, while the home's default for new bots is
 // unchosen (D-100), and the sharing each answer chooses for them.
-export const HOME_DEFAULT_ANSWERS = Object.freeze({ "Just me": "mixed", "My team": "shared" });
+// (A team, in Mercbot, is only ever a set of bots: D-105.)
+export const HOME_DEFAULT_ANSWERS = Object.freeze({ "Just me": "mixed", "Me and other people": "shared" });
 const homeDefaultCard = () => ({
   kind: "choice",
   role: "bot",
@@ -50,7 +51,7 @@ const teamCard = () => ({
     purpose: "team",
     question: "Want a ready-made team?",
     options: [...TEAMS.map((team) => team.name), NO_TEAM],
-    subline: "A team is a few bots for one purpose, made together. Pick one to see its bots first, or just type to skip.",
+    subline: "A few bots that work well together, in their own section. Pick one to see them first, or just type to skip.",
     chosen: null
   }
 });

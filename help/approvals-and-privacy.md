@@ -200,6 +200,6 @@ Not in your own chats, a Shared bot's You only tab included: only you see those 
 - [The vault: saved logins and secrets](/help/vault)
 - [The bots' computer and connected apps](/help/computer-and-apps)
 - [Bots shared in a home](/help/shared-bots)
-- [Homes: Mercbot for families and teams](/help/homes)
+- [Homes: Mercbot for families and businesses](/help/homes)
 - [Settings and notifications](/help/settings)
 - [Security overview](/help/security)

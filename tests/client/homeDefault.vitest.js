@@ -40,14 +40,14 @@ beforeEach(() => {
 
 describe("the New home form", () => {
   it("asks who it's for, Just me first, and sets the new home's default after making it", async () => {
-    expect(HOME_FOR.map((choice) => [choice.label, choice.sharing])).toEqual([["Just me", "mixed"], ["A team", "shared"]]);
+    expect(HOME_FOR.map((choice) => [choice.label, choice.sharing])).toEqual([["Just me", "mixed"], ["Me and other people", "shared"]]);
     const made = [];
     const create = async (name) => {
       made.push(name);
       return { slug: "the smiths" };
     };
     answers.next = kept("shared");
-    expect(await makeHome(create, "The Smiths", "team")).toEqual({ slug: "the smiths" });
+    expect(await makeHome(create, "The Smiths", HOME_FOR[1].value)).toEqual({ slug: "the smiths" });
     expect(made).toEqual(["The Smiths"]);
     expect(calls).toEqual([["PATCH", "/api/w/the%20smiths/home-settings", { newBotSharing: "shared" }]]);
 
@@ -59,7 +59,7 @@ describe("the New home form", () => {
 
   it("still gives the home made when its default doesn't go through: its first conversation asks", async () => {
     answers.fail = true;
-    expect(await makeHome(async () => ({ slug: "casa-2" }), "Casa 2", "team")).toEqual({ slug: "casa-2" });
+    expect(await makeHome(async () => ({ slug: "casa-2" }), "Casa 2", HOME_FOR[1].value)).toEqual({ slug: "casa-2" });
   });
 });
 

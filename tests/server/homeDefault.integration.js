@@ -233,10 +233,10 @@ test("the first conversation asks right after its bot is named, the answer sets 
   assert.equal(renamed.bot.onboardingStep, "home-default", "the step waits for the answer");
   assert.deepEqual(
     [card.body.purpose, card.body.question, card.body.options],
-    ["home-default", "Will anyone else use this home with you?", ["Just me", "My team"]]
+    ["home-default", "Will anyone else use this home with you?", ["Just me", "Me and other people"]]
   );
   assert.deepEqual((await bots.advanceOnboarding(main.id, "home-default", user, owner)).messages, [], "nothing runs until it's answered");
-  const answered = await bots.answerChoice(main.id, card.id, ["My team"], owner);
+  const answered = await bots.answerChoice(main.id, card.id, ["Me and other people"], owner);
   // The conversation carries on, offering a team next while the home has no other bot (D-105: teams.integration.js).
   assert.equal(answered.bot.onboardingStep, "team-offer", "the conversation carries on");
   assert.deepEqual(answered.home, { newBotSharing: "shared", chosen: true, teamQuestion: null, botsJoinIn: true });

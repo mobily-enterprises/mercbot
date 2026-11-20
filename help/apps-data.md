@@ -151,4 +151,4 @@ It isn't stored: it's worked out each time a record is shown, so Mercbot can't s
 - [Bots working with app data](/help/apps-bots)
 - [Logic: formulas, scripts and automations](/help/apps-logic)
 - [Versions, activity and undoing changes](/help/apps-versions)
-- [Homes: Mercbot for families and teams](/help/homes)
+- [Homes: Mercbot for families and businesses](/help/homes)

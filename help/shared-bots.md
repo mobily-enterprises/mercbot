@@ -12,7 +12,7 @@ Everyone in the home. A home has three roles:
 | **Admin** | Choose who sees what, and connect accounts for the whole home. |
 | **Member** | Use every bot in the home, create new bots, and organise their own sidebar. |
 
-See [Homes: Mercbot for families and teams](/help/homes).
+See [Homes: Mercbot for families and businesses](/help/homes).
 
 You can belong to several homes. The switcher at the top of the sidebar lists them, and you only see the bots of the home you're in. The first time you open a bot someone else made, it introduces itself to you.
 
@@ -140,7 +140,7 @@ A Shared bot's Details panel always shows all three folders under **Files**: **J
 
 ### What about the home's accounts?
 
-Owners and admins can connect an account for the whole home, such as a family calendar or a team inbox, by choosing **Everyone in** the home when they add it in Connect apps. Everyone sees these accounts listed. Shared tabs use only these. See [The bots' computer and connected apps](/help/computer-and-apps).
+Owners and admins can connect an account for the whole home, such as a family calendar or a shared inbox, by choosing **Everyone in** the home when they add it in Connect apps. Everyone sees these accounts listed. Shared tabs use only these. See [The bots' computer and connected apps](/help/computer-and-apps).
 
 ### Is the home's shared folder private?
 
@@ -232,7 +232,7 @@ Owners and admins can't read other people's own chats with any bot, You only tab
 
 ## Related pages
 
-- [Homes: Mercbot for families and teams](/help/homes)
+- [Homes: Mercbot for families and businesses](/help/homes)
 - [Bots: create, shape, organise and remember](/help/bots)
 - [Messaging and working together](/help/messaging)
 - [Approvals, safety and privacy](/help/approvals-and-privacy)

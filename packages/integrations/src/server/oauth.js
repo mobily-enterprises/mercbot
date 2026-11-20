@@ -45,7 +45,7 @@ export const PROVIDERS = Object.freeze({
   })
 });
 
-// `approval` is a link for an organisation's IT team when its admin must approve Mercbot first.
+// `approval` is a link for an organisation's IT department when its admin must approve Mercbot first.
 export class ConnectionError extends AppError {
   /**
    * @param {number} status The HTTP status the route answers with.

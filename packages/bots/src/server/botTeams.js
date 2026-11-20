@@ -57,7 +57,8 @@ export function createBotTeams({ records, botList, templates }) {
 
   /**
    * Add N bots: the team's bots on the templates chosen (slugs of the team's; 400 for none, or for one the team hasn't
-   * got), in the team's order, made in one transaction through makeBots, so either all of them are made or none is,
+   * got), made last to first in one transaction through makeBots (the sidebar puts the newest first, so they read there
+   * in the team's order, its first bot on top), so either all of them are made or none is,
    * in the same statements however many there are. The home is locked meanwhile, so a template its bots follow, read
    * then, is never added twice (`skipped`); 409 when every one chosen is there already. Each bot takes its template's
    * name and look and opens with its greeting; none starts any AI work. Answers the list as the person sees it after,
@@ -90,10 +91,10 @@ export function createBotTeams({ records, botList, templates }) {
         const look = lookOf(LIBRARY.get(slug));
         entries.push({ ...look, start: await templates.startOn({ choice: { library: slug }, botName: look.name, firstName }, txOptions) });
       }
-      const made = await botList.makeBots(entries, section.id, txOptions);
+      const made = await botList.makeBots(entries.toReversed(), section.id, txOptions);
       return {
         ...(await botList.listBots(txOptions)),
-        added: made.map((bot) => bot.id),
+        added: made.map((bot) => bot.id).toReversed(),
         skipped: slugs.filter((slug) => followed.has(slug)),
         sectionId: String(section.id)
       };

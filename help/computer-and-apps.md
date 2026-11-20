@@ -172,7 +172,7 @@ Mercbot checks the credentials with Sedna before keeping them: a wrong ID or sec
 
 An account you connect is yours. Your bots use it in your own chats, and nobody else in the home can use it.
 
-Owners and admins can also connect an account for the whole home, such as a family calendar or a team inbox:
+Owners and admins can also connect an account for the whole home, such as a family calendar or a shared inbox:
 
 1. On the app's page, select **+ Add another account** (or **+ Add an account for everyone in** your home, if you haven't added the app for yourself).
 2. Type a label, such as "Family".
@@ -224,8 +224,8 @@ If a sign-in is cancelled, the sign-in tab says **Nothing was connected**, and y
 
 Some organisations only let their staff connect apps that an administrator has approved. If that happens with a Microsoft or Google work or school account, the sign-in tab says **Your organisation needs to approve Mercbot**. You did nothing wrong.
 
-1. Select **Copy the link** under **Approval link for your IT team**.
-2. Send the link to your IT team.
+1. Select **Copy the link** under **Approval link for your IT department**.
+2. Send the link to your IT department.
 3. Once they've approved Mercbot, select **Retry** or **Sign in** on the account and sign in again.
 
 ### Disconnect or remove

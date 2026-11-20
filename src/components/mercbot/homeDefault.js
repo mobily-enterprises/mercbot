@@ -6,7 +6,7 @@ import { homeRoute } from "./homesApi.js";
 
 // A home's default for new bots (D-100): the sharing every bot made in it from then on gets, Mixed while nobody has
 // chosen. The bot list's read brings it for the home the page is in, with the question its owners and admins are asked
-// once a second person joins; the New home form, Settings → General and that question change it. With it comes whether
+// once a second person joins; New home, Settings → General and that question change it. With it comes whether
 // the home's bots decide when to join in a Shared bot's shared tabs (D-102), which Settings → General turns on and off.
 const client = createHttpClient({ credentials: "include", csrf: { sessionPath: AUTH_PATHS.SESSION } });
 
@@ -30,10 +30,13 @@ export const SHARING_MODES = Object.freeze([
   { value: "shared", label: "Shared", hint: "Plus shared tabs" }
 ]);
 
-/** The New home form's "Who's it for?": Just me, preselected, makes new bots Mixed; A team makes them Shared. */
+/**
+ * New home's "Who's it for?": Just me, preselected, makes new bots Mixed; Me and other people makes them Shared. (A
+ * team, in Mercbot, is only ever a set of bots: D-105.)
+ */
 export const HOME_FOR = Object.freeze([
   { value: "me", label: "Just me", sharing: "mixed" },
-  { value: "team", label: "A team", sharing: "shared" }
+  { value: "others", label: "Me and other people", sharing: "shared" }
 ]);
 
 const settingsOf = (slug) => homeRoute(slug, "/home-settings");
@@ -49,7 +52,7 @@ export function chooseHomeDefault(slug, sharing) {
 }
 
 /**
- * The New home form: makes the home, then sets its default from "Who's it for?", so its first conversation doesn't ask
+ * New home: makes the home, then sets its default from "Who's it for?", so its first conversation doesn't ask
  * again. A home made whose default didn't go through is still made, Mixed, and its first conversation asks.
  * @param {(name: string) => Promise<{ slug: string }>} create makes the home (useHomes().create)
  * @param {string} name

@@ -30,7 +30,7 @@
       "pages": [
         { "slug": "settings", "title": "Settings and notifications", "words": 1700 },
         { "slug": "approvals-and-privacy", "title": "Approvals, safety and privacy", "words": 2100 },
-        { "slug": "homes", "title": "Homes: Mercbot for families and teams", "words": 2800 },
+        { "slug": "homes", "title": "Homes: Mercbot for families and businesses", "words": 2800 },
         { "slug": "own-copy", "title": "Running your own copy of Mercbot", "words": 1550 },
         { "slug": "security", "title": "Security overview", "words": 2200 },
         { "slug": "security-questions", "title": "Security questions and answers", "words": 1100 }

@@ -2638,11 +2638,11 @@ doesn't have.
   (`bots_home_default_forbidden`). Everyone in the home can read it.
 - **Where it's chosen.**
   1. **New home** (home menu): the name form asks **Who's it for?**: **Just me** (new bots Mixed), preselected, or
-     **A team** (new bots Shared). The home is made, then its default is set; if that second step fails, the home is
+     **Me and other people** (new bots Shared; D-105 renamed it from A team). The home is made, then its default is set; if that second step fails, the home is
      still made and its first conversation asks.
   2. **The first conversation.** In the main bot's first conversation, right after it is named, while the default is
      unchosen and the person is an owner or admin, a `choice` card with purpose `home-default` asks "Will anyone else use
-     this home with you?": **Just me** (Mixed) or **My team** (Shared). The conversation waits for the answer (its step
+     this home with you?": **Just me** (Mixed) or **Me and other people** (Shared; My team before D-105). The conversation waits for the answer (its step
      is `home-default`) and then carries on, with no AI reply to the answer. Typing instead closes the card and carries
      on, the default still unchosen.
   3. **Settings → General**, the home's part (**Home**, which D-103 shows everyone for its name), for its owners and
@@ -2790,11 +2790,18 @@ one situation; since each home has its own database, Apps and files, a team main
 - **One name per bot.** team-check-in's bot is **Pulse**, where it was Tuningfork beside brand-voice-editor's Tuning
   Fork: two of a team's bots would have been told apart by a space. Bots already made keep their names; its template's
   `changes` says so. A static check keeps the library's bot names distinct, ignoring case and spaces.
-- **Where, by weight.** 1. **New home**: the form asks **What's this home for?**, the teams then **Something else**
-  (the default, no team). A team suggests its name as the home's, which stays editable, and its bots come with the
-  home: the page opens the new home with `?team=<id>`, makes its main bot as for any new home, then adds every bot of
-  the team (`teamChoice.js` `addWholeTeam`) before the shell shows; if that fails the address keeps the team and the
-  shell opens its team screen. 2. **The first conversation** of a home that has no bot but its main one: after the
+- **One meaning of team.** In Mercbot a team is a set of bots. Who a home is for reads **Just me** or **Me and other
+  people** (D-100 said A team and My team, never released); the homes help is "Mercbot for families and businesses";
+  the approval link for a work account names the IT department. Sedna's teams keep Sedna's own word, and the library's
+  maker is still stored and shown as "the Mercbot team" (its `creator`), which a change of its own would rename.
+- **Where, by weight.** 1. **New home**, a dialog like New bot's: **What's this home for?** shows the teams as the
+  cards Add a team shows (name, line, faces, how many bots), then **Something else**, which starts with just Mercbot
+  and asks only the name and who it's for (**Create home**). A team shows its bots, all ticked, the home's name (the
+  team's, editable) and who it's for below them, and **Create home with N bots**, N following the ticks. The page
+  opens the new home with `?team=<id>&bots=<slugs>&apps=<keys>`, makes its main bot as for any new home, then adds the
+  bots ticked and sets up the apps asked for (`teamChoice.js` `addChosenBots`) before the shell shows, on the team's
+  first bot; if the bots don't go through the address keeps the team and the shell opens its team screen. One
+  component, `MercbotTeamScreen.vue`, shows teams for New home and Add a team alike. 2. **The first conversation** of a home that has no bot but its main one: after the
   home's default (D-100) is settled, a `choice` card with purpose `team` asks **Want a ready-made team?**, the teams and
   **Not now**. Its step is `team`, reached at `rename` when the default is chosen already, or through `team-offer` once
   it is answered; a team chosen answers `team: <id>` and the page opens its team screen, adding nothing by itself;
@@ -2812,8 +2819,9 @@ one situation; since each home has its own database, Apps and files, a team main
   person's first name read once. All or none: any failed write makes none. The home is locked while the templates its
   bots follow are read, so two adds at once never make a template's bot twice; a chosen template already followed is
   left out (`skipped`), and choosing only those is refused 409 `bots_team_all_in_home`. The bots go in the person's
-  sidebar section named after the team, at the end, made then or reused. The answer is the list as the person sees it,
-  with `added` and `sectionId`; the first new bot opens. Adding a team makes the same statements for 1 bot as for 6, in
+  sidebar section named after the team, at the end, made then or reused, and are made last to first: the sidebar puts
+  the newest first, so they read there in the team's order, its first bot on top, which a new home opens on. The answer
+  is the list as the person sees it, with `added` (in the team's order) and `sectionId`; the first new bot opens. Adding a team makes the same statements for 1 bot as for 6, in
   a home of 4 bots or 60, Mixed or Shared (`tests/server/teams.integration.js`).
 - **Cost.** No AI turn at creation: a template bot's greeting is its template's own text, written as it is made, and it
   waits for the person (no onboarding step). New bot already worked so; nothing was deferred.

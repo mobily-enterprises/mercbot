@@ -1,6 +1,6 @@
-# Homes: Mercbot for families and teams
+# Homes: Mercbot for families and businesses
 
-Everything in Mercbot lives in a home: its bots, their files and computers, its Apps and the people who use them. A home can be just you, a household sharing a family calendar, or a small team sharing an inbox and a sales pipeline. Everyone in a home works with the same bots, and each person's own chat with a bot stays theirs, whatever the bot's mode. This page explains what belongs to a home and what stays personal, how bots and accounts are shared, Apps in a home, spending, and a setup checklist to start from.
+Everything in Mercbot lives in a home: its bots, their files and computers, its Apps and the people who use them. A home can be just you, a household sharing a family calendar, or a small business sharing an inbox and a sales pipeline. Everyone in a home works with the same bots, and each person's own chat with a bot stays theirs, whatever the bot's mode. This page explains what belongs to a home and what stays personal, how bots and accounts are shared, Apps in a home, spending, and a setup checklist to start from.
 
 ## What a home holds
 
@@ -31,18 +31,19 @@ To create a home:
 
 1. Click the home's name at the top of the sidebar.
 2. Choose **Create a home**.
-3. Under **What's this home for?**, choose a team, such as **Busy household** or **Small shop**, or keep **Something else** for a home without one. A team names the home after itself and its bots come with the home: see [Start with a team](#start-with-a-team).
-4. Type a name, or change the team's (for example, "The Smiths" or "Shop team").
-5. Under **Who's it for?**, keep **Just me**, or choose **A team** to make the home's new bots Shared.
-6. Press **Create**.
+3. **What's this home for?** shows Mercbot's teams as cards, each with its bots' faces. Choose one, such as **Busy household** or **Small shop**, or **Something else** for a home that starts with just Mercbot.
+4. A team shows its bots, all ticked: untick any you don't want. See [Start with a team](#start-with-a-team).
+5. Under **Name your home**, keep the team's name or type another (for example, "The Smiths").
+6. Under **Who's it for?**, keep **Just me**, or choose **Me and other people** to make the home's new bots Shared.
+7. Press **Create home with 6 bots** (the number follows the bots ticked), or **Create home** for Something else.
 
 You're the owner of every home you create. The sidebar, bots, Connect apps and Apps all change to the home you're in. Each home keeps its own pinned bots, sections and pinned apps for you.
 
 ## Start with a team
 
-A team is a few bots for one situation, made together, such as the six that help run a busy household or the five a small shop needs. Since each home has its own bots, files and Apps, a team usually goes with a home of its own:
+Pick what you need help with, and Mercbot adds a few bots that work well together, in their own section of your sidebar: the six that help run a busy household, say, or the five a small shop needs. Since each home has its own bots, files and Apps, a team usually goes with a home of its own:
 
-- **New home:** choose the team under **What's this home for?** when you create the home. The home takes the team's name, which you can change before you press **Create**, and opens with the team's bots in a sidebar section named after the team, beside your main bot.
+- **New home:** choose the team under **What's this home for?** when you create the home, untick any bot you don't want, and press **Create home with 6 bots**. The home takes the team's name, which you can change first, and opens on the team's first bot, with the team's bots in a sidebar section named after the team, in the team's order, beside your main bot. A bot's app, when it works with one, is set up as a draft too, unless you untick it.
 - **A new home's first conversation:** in a home made without a team, your first bot asks **Want a ready-made team?** after you name it. Choose a team to see its bots and add them, or **Not now**; typing a message instead skips the question.
 - **Add a team**, at the foot of **New bot**'s list of what the bot will do, adds a team to the home you're in, for example when a company adds another part of its work. See [Add a team](/help/bots#add-a-team).
 
@@ -95,8 +96,8 @@ Each home has a default for new bots: every bot made there, with **New bot** or 
 
 Owners and admins choose it:
 
-- when they create a home, under **Who's it for?**: **Just me** makes new bots Mixed, **A team** makes them Shared;
-- in the first bot's first conversation, right after naming it, when Mercbot asks "Will anyone else use this home with you?": **Just me** (Mixed) or **My team** (Shared);
+- when they create a home, under **Who's it for?**: **Just me** makes new bots Mixed, **Me and other people** makes them Shared;
+- in the first bot's first conversation, right after naming it, when Mercbot asks "Will anyone else use this home with you?": **Just me** (Mixed) or **Me and other people** (Shared);
 - any time in **Settings** → **General**, under **Home**: **New bots in this home**.
 
 When a second person joins a home whose new bots aren't Shared, its owners and admins see a note at the top of the bot list, once: "*Name* joined. New bots here are Mixed…", with **Make them Shared** and **Keep Mixed**. Either answer is kept, and bots you already have keep their mode; change one in its **Details** → **Who sees what**.
@@ -132,7 +133,7 @@ A mixed bot keeps a notebook for the home. When a chat teaches it something that
 Connected accounts can belong to you or to the whole home.
 
 - **Just me** (the default when connecting): your own account, such as your personal Gmail. Bots use it only in your own chats. Nobody else's chats can reach it.
-- **Everyone in** *home*: an account for everyone, such as a family calendar or a team inbox. Only owners and admins can add, sign in, rename or remove one. Everyone sees it listed in **Connect apps**, marked "Everyone in *home* · added by *name*"; members see its status only.
+- **Everyone in** *home*: an account for everyone, such as a family calendar or a shared inbox. Only owners and admins can add, sign in, rename or remove one. Everyone sees it listed in **Connect apps**, marked "Everyone in *home* · added by *name*"; members see its status only.
 
 In your own chats, a Shared bot's You only tab included, a bot can use your accounts and the home's. In a Shared bot's shared tabs it uses only the home's, because everyone can see them. When several accounts fit a request (your Gmail and the family Gmail), the bot asks which one and keeps to your answer in that chat.
 
@@ -186,8 +187,8 @@ Spending is only reported: the home's bots never stop because of it.
 A checklist for a new family or team home:
 
 1. Create the home and give it a name everyone will recognise.
-2. Choose the mode new bots get (**A team** for Shared), then decide who sees what for each bot: mixed for everyday helpers, private for anything personal, and shared for a bot the whole home talks to together.
-3. Add shared accounts (the family calendar, the team inbox) as **Everyone in** the home. Ask everyone to connect their own accounts as **Just me**.
+2. Choose the mode new bots get (**Me and other people** for Shared), then decide who sees what for each bot: mixed for everyday helpers, private for anything personal, and shared for a bot the whole home talks to together.
+3. Add shared accounts (the family calendar, the shared inbox) as **Everyone in** the home. Ask everyone to connect their own accounts as **Just me**.
 4. Choose where the home keeps its files, if you'd rather use your own storage.
 5. Pick a Builder for Apps. Everyone in the home sees all of its apps and data, so keep anything some members mustn't read out of them.
 6. Ask everyone to check their own **Auto-review** switch and rules in Settings.

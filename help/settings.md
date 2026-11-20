@@ -213,6 +213,6 @@ No. It clears the bots' browsers only: open pages, sign-ins and website data.
 - [Approvals, safety and privacy](/help/approvals-and-privacy)
 - [The vault: saved logins and secrets](/help/vault)
 - [The bots' computer and connected apps](/help/computer-and-apps)
-- [Homes: Mercbot for families and teams](/help/homes)
+- [Homes: Mercbot for families and businesses](/help/homes)
 - [Bots: create, shape, organise and remember](/help/bots)
 - [Fixing common problems](/help/troubleshooting)

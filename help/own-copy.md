@@ -148,7 +148,7 @@ No. The hub only keeps the permission and hands your copy short-lived keys. Your
 
 - [Security overview](/help/security)
 - [Security questions and answers](/help/security-questions)
-- [Homes: Mercbot for families and teams](/help/homes)
+- [Homes: Mercbot for families and businesses](/help/homes)
 - [The bots' computer and connected apps](/help/computer-and-apps)
 - [Files, documents and pictures](/help/files)
 - [Settings and notifications](/help/settings)

@@ -32,11 +32,11 @@ Before each call on a salesperson's calendar, a bot researches the company on th
 
 ## The hiring coordinator
 
-A small team is hiring a designer. Their bot keeps the candidates in a hiring app, drafts polite replies to applicants, suggests interview slots from the interviewers' calendars, and writes up each interview from the notes people paste in. Anything sent to a candidate waits for a person's **Go ahead**.
+A small company is hiring a designer. Their bot keeps the candidates in a hiring app, drafts polite replies to applicants, suggests interview slots from the interviewers' calendars, and writes up each interview from the notes people paste in. Anything sent to a candidate waits for a person's **Go ahead**.
 
 ## The engineering helper
 
-A software team connects GitHub. Each morning a bot posts a digest of open pull requests: which are waiting for review, which have failing checks, and which have gone quiet. When a build breaks, someone asks the bot to read the failing checks and summarise the likely cause. It comments on GitHub only when asked, and asks first.
+A software company connects GitHub. Each morning a bot posts a digest of open pull requests: which are waiting for review, which have failing checks, and which have gone quiet. When a build breaks, someone asks the bot to read the failing checks and summarise the likely cause. It comments on GitHub only when asked, and asks first.
 
 ## The weekly numbers report
 
@@ -61,4 +61,4 @@ You don't have to start from scratch. The **Bot templates** gallery at [/templat
 - [Bots: create, shape, organise and remember](/help/bots)
 - [Skills, routines and watches](/help/skills-and-routines)
 - [Apps: what they are and when to use them](/help/apps)
-- [Homes: Mercbot for families and teams](/help/homes)
+- [Homes: Mercbot for families and businesses](/help/homes)

@@ -1,38 +1,25 @@
 <script setup>
-import { computed, nextTick, ref } from "vue";
+import { ref } from "vue";
 import { useRouter } from "vue-router";
 import { currentHome } from "./homeApi.js";
-import { HOME_NAME_MAX, roleLabel, useHomes } from "./homesApi.js";
-import { HOME_FOR, makeHome } from "./homeDefault.js";
-import { templatesApi } from "../templates/templatesApi.js";
-import { nameFor } from "./teamChoice.js";
+import { roleLabel, useHomes } from "./homesApi.js";
+import MercbotNewHomeDialog from "./MercbotNewHomeDialog.vue";
 import { usePaths } from "@jskit-ai/shell-web/client/navigation/usePaths";
 import { HOME_TILES, ON_IDENTITY } from "@/theme/palettes.js";
 
-// The home switcher (D-36), top left of the sidebar: which home you're in, the others you
-// belong to, and making a new one, which asks what it's for, one of Mercbot's teams or Something else (D-105), and who
-// it's for: how its new bots are shared (D-100). A team chosen suggests its name for the home, which can be changed, and
-// its bots come with the home (?team=, pages/w/[workspaceSlug]/index.vue). A home's tile is its initial in a colour
-// picked from its name, so the same home always looks the same.
+// The home switcher (D-36), top left of the sidebar: which home you're in, the others you belong to, and Create a home,
+// which opens New home (MercbotNewHomeDialog.vue: what it's for, one of Mercbot's teams or Something else, D-105, and
+// who it's for, D-100). A home's tile is its initial in a colour picked from its name, so the same home always looks
+// the same.
 const paths = usePaths();
 const props = defineProps({
   rail: { type: Boolean, default: false }
 });
 
 const router = useRouter();
-const { homes, current, load, create } = useHomes();
+const { homes, current, load } = useHomes();
 const open = ref(false);
-const naming = ref(false);
-const name = ref("");
-const forWhom = ref(HOME_FOR[0].value);
-const busy = ref(false);
-const problem = ref("");
-const input = ref(null);
-const purpose = ref(null);
-// Mercbot's teams, read when the form opens, and the one chosen ("" for Something else).
-const teams = ref([]);
-const teamId = ref("");
-const chosenTeam = computed(() => teams.value.find((team) => team.id === teamId.value) || null);
+const newHome = ref(false);
 
 const tileColour = (home) => HOME_TILES[[...home.name].reduce((sum, letter) => sum + letter.charCodeAt(0), 0) % HOME_TILES.length];
 const tileStyle = (home) => ({ background: home ? tileColour(home) : HOME_TILES[0], color: ON_IDENTITY });
@@ -41,7 +28,6 @@ const initial = (home) => (home.name.trim()[0] || "H").toUpperCase();
 function setOpen(value) {
   open.value = value;
   if (value) load({ fresh: true }).catch(() => {});
-  else cancelNaming();
 }
 
 function go(home) {
@@ -49,45 +35,9 @@ function go(home) {
   if (home.slug !== currentHome()) router.push(paths.page("/", { params: { workspaceSlug: home.slug } }));
 }
 
-async function startNaming() {
-  naming.value = true;
-  problem.value = "";
-  templatesApi.gallery().then((gallery) => { teams.value = gallery.teams || []; }).catch(() => {});
-  await nextTick();
-  purpose.value?.focus();
-}
-
-// A team chosen names the home after it while the name is empty or still a team's: a name typed stays.
-function choosePurpose(event) {
-  const before = chosenTeam.value;
-  teamId.value = event.target.value;
-  name.value = nameFor(name.value, before, chosenTeam.value);
-}
-
-function cancelNaming() {
-  naming.value = false;
-  name.value = "";
-  forWhom.value = HOME_FOR[0].value;
-  teamId.value = "";
-  problem.value = "";
-}
-
-async function createHome() {
-  const wanted = name.value.trim();
-  if (!wanted || busy.value) return;
-  busy.value = true;
-  problem.value = "";
-  try {
-    const home = await makeHome(create, wanted, forWhom.value);
-    const team = teamId.value;
-    open.value = false;
-    cancelNaming();
-    router.push({ path: paths.page("/", { params: { workspaceSlug: home.slug } }), query: team ? { team } : {} });
-  } catch (error) {
-    problem.value = error?.message || "That home couldn't be made. Try again.";
-  } finally {
-    busy.value = false;
-  }
+function startNewHome() {
+  open.value = false;
+  newHome.value = true;
 }
 </script>
 
@@ -140,46 +90,15 @@ async function createHome() {
         </v-list-item>
       </v-list>
       <v-divider class="my-1" />
-      <form v-if="naming" class="mb-home-menu__new" @submit.prevent="createHome" @keydown.esc.stop.prevent="cancelNaming">
-        <label class="mb-home-menu__purpose">
-          <span class="mb-home-menu__for-label">What's this home for?</span>
-          <select ref="purpose" class="mb-home-menu__input" :value="teamId" @change="choosePurpose">
-            <option v-for="team in teams" :key="team.id" :value="team.id">{{ team.name }}</option>
-            <option value="">Something else</option>
-          </select>
-        </label>
-        <p v-if="chosenTeam" class="mb-home-menu__hint">{{ chosenTeam.templates.length }} bots come with it: {{ chosenTeam.description }}</p>
-        <input
-          ref="input"
-          v-model="name"
-          class="mb-home-menu__input"
-          :maxlength="HOME_NAME_MAX"
-          placeholder="Name your home, e.g. The Smiths"
-          aria-label="Name of the new home"
-        >
-        <fieldset class="mb-home-menu__for">
-          <legend class="mb-home-menu__for-label">Who's it for?</legend>
-          <label v-for="choice in HOME_FOR" :key="choice.value" class="mb-home-menu__for-choice">
-            <input v-model="forWhom" type="radio" name="home-for" :value="choice.value">
-            {{ choice.label }}
-          </label>
-        </fieldset>
-        <p v-if="problem" class="mb-home-menu__problem" role="alert">{{ problem }}</p>
-        <div class="mb-home-menu__actions">
-          <button type="button" class="mb-home-menu__cancel" @click="cancelNaming">Cancel</button>
-          <button type="submit" class="mb-set-pill mb-set-pill--dark" :disabled="!name.trim() || busy">
-            {{ busy ? "Creating…" : "Create" }}
-          </button>
-        </div>
-      </form>
-      <v-list v-else density="compact" class="py-0">
-        <v-list-item min-height="36" class="mb-home-menu__item px-3" @click="startNaming">
+      <v-list density="compact" class="py-0">
+        <v-list-item min-height="36" class="mb-home-menu__item px-3" @click="startNewHome">
           <template #prepend><v-icon icon="$add" size="16" /></template>
           <span class="mb-home-menu__text">Create a home</span>
         </v-list-item>
       </v-list>
     </div>
   </v-menu>
+  <MercbotNewHomeDialog v-model:open="newHome" />
 </template>
 
 <style scoped>
@@ -280,100 +199,5 @@ async function createHome() {
 .mb-home-menu__role {
   font-size: 12px;
   color: rgb(var(--v-theme-on-surface-variant));
-}
-
-.mb-home-menu__new {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 6px 12px 8px;
-}
-
-.mb-home-menu__input {
-  width: 100%;
-  height: 34px;
-  padding: 0 10px;
-  border: 1px solid rgb(var(--v-theme-outline-variant));
-  border-radius: 8px;
-  background: transparent;
-  color: rgb(var(--v-theme-on-surface));
-  font: inherit;
-  font-size: 14px;
-}
-
-.mb-home-menu__input:focus {
-  outline: 2px solid rgb(var(--v-theme-secondary));
-  outline-offset: 0;
-}
-
-.mb-home-menu__purpose {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  font-size: 13px;
-}
-
-.mb-home-menu__purpose .mb-home-menu__for-label {
-  float: none;
-}
-
-.mb-home-menu__hint {
-  margin: -2px 0 0;
-  font-size: 12px;
-  line-height: 16px;
-  color: rgb(var(--v-theme-on-surface-variant));
-}
-
-.mb-home-menu__for {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px 14px;
-  margin: 0;
-  padding: 0;
-  border: 0;
-  font-size: 13px;
-}
-
-.mb-home-menu__for-label {
-  float: left;
-  margin-right: 2px;
-  padding: 0;
-  color: rgb(var(--v-theme-on-surface-variant));
-}
-
-.mb-home-menu__for-choice {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  cursor: pointer;
-}
-
-.mb-home-menu__for-choice input {
-  margin: 0;
-  accent-color: rgb(var(--v-theme-secondary));
-}
-
-.mb-home-menu__problem {
-  margin: 0;
-  font-size: 12px;
-  color: rgb(var(--v-theme-error));
-}
-
-.mb-home-menu__actions {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 12px;
-}
-
-.mb-home-menu__cancel {
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: rgb(var(--v-theme-on-surface-variant));
-  font: inherit;
-  font-size: 13px;
-  cursor: pointer;
 }
 </style>

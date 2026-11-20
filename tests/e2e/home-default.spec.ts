@@ -2,7 +2,8 @@ import knexLib from "knex";
 import { expect, test, testDatabaseName, type Page } from "./harness";
 
 // A home's default for new bots (D-100) as a person sets it, on the Test Preview target: New home, from the home menu,
-// asks "Who's it for?" (Just me preselected); A team makes the home's new bots Shared, so a bot made there opens with
+// asks "Who's it for?" (Just me preselected; here under Something else, D-105); Me and other people makes the home's new
+// bots Shared, so a bot made there opens with
 // General for everyone and the person's own You only, open, while the home's main bot keeps its mode. Then, with the
 // home's new bots Mixed, a second person joining shows its owner the question at the top of the bot list, which Keep
 // Mixed answers for good, and Settings → General changes the default. The test deletes the home and the person it
@@ -30,10 +31,10 @@ const connect = () => knexLib({
   connection: { host: process.env.DB_HOST, port: Number(process.env.DB_PORT) || 5432, user: process.env.DB_USER, password: process.env.DB_PASSWORD, database: testDatabaseName() }
 });
 
-test("a New home for A team makes its new bots Shared: General for everyone, and You only open", async ({ page }, testInfo) => {
+test("a New home for Me and other people makes its new bots Shared: General for everyone, and You only open", async ({ page }, testInfo) => {
   const knex = connect();
   const stamp = Date.now().toString(36);
-  const name = `Team ${stamp}`;
+  const name = `Together ${stamp}`;
   let slug = "";
   let joinerId: string | null = null;
   try {
@@ -41,14 +42,16 @@ test("a New home for A team makes its new bots Shared: General for everyone, and
     await pastIntro(page);
     await sidebar(page).getByRole("button", { name: /^Home: .+\. Switch home$/u }).click();
     await page.getByText("Create a home").click();
-    await page.getByRole("textbox", { name: "Name of the new home" }).fill(name);
-    const forWhom = page.getByRole("group", { name: "Who's it for?" });
+    const newHome = page.getByRole("dialog", { name: "New home" });
+    await newHome.getByRole("button", { name: /^Something else/u }).click();
+    await newHome.getByRole("textbox", { name: "Name of the new home" }).fill(name);
+    const forWhom = newHome.getByRole("group", { name: "Who's it for?" });
     await expect(forWhom.getByRole("radio", { name: "Just me" })).toBeChecked();
-    await forWhom.getByRole("radio", { name: "A team" }).check({ timeout: 10_000 });
-    await page.screenshot({ path: testInfo.outputPath("new-home-a-team.png") });
+    await forWhom.getByRole("radio", { name: "Me and other people" }).check({ timeout: 10_000 });
+    await page.screenshot({ path: testInfo.outputPath("new-home-others.png") });
 
     const chosen = page.waitForResponse((response) => response.request().method() === "PATCH" && new URL(response.url()).pathname.endsWith("/home-settings"));
-    await page.getByRole("button", { name: "Create", exact: true }).click();
+    await newHome.getByRole("button", { name: "Create home", exact: true }).click();
     const answer = await chosen;
     expect(answer.ok()).toBe(true);
     expect((await answer.json()).newBotSharing).toBe("shared");

@@ -9,6 +9,7 @@ import { DEFAULT_BOT_NAME } from "../../packages/bots/src/server/onboarding.js";
 import { LIBRARY } from "../../packages/bots/src/server/templates.js";
 import { TEAMS } from "../../packages/bots/src/server/teams.js";
 import { serviceDoubles } from "../support/botDoubles.mjs";
+import { buildSidebarModel } from "../../src/components/mercbot/botDirectory.js";
 import { memberOptions, startBotParts } from "../support/botRecords.mjs";
 
 // Teams (D-105), against the disposable test database, each test in homes of its own: Add a team makes the bots chosen
@@ -91,9 +92,14 @@ test("Add a team makes its bots together in a section named after it, each greet
   assert.deepEqual(made.map((bot) => bot.name), FAMILY.templates.map((slug) => LIBRARY.get(slug).name), "in the team's order");
   assert.ok(made.every((bot) => bot.sectionId === added.sectionId && bot.sharing === "mixed" && bot.unread), "in it, Mixed, each with news");
   assert.ok(made.every((bot) => bot.template.source === "library" && bot.onboardingStep === null), "on its template, nothing pending");
+  // Made last to first, so the sidebar, newest first, shows the team in its own order, its first bot on top: the one a
+  // new home opens on.
   const rows = await botsOf(homeId);
   assert.deepEqual(rows.filter((row) => !row.is_main).map((row) => [row.library_template, row.sharing, row.color]),
-    FAMILY.templates.map((slug) => [slug, "mixed", LIBRARY.get(slug).color]));
+    FAMILY.templates.map((slug) => [slug, "mixed", LIBRARY.get(slug).color]).toReversed());
+  const { visualOrder } = buildSidebarModel({ bots: added.bots, sections: added.sections });
+  assert.deepEqual(visualOrder.map((id) => added.bots.find((bot) => bot.id === id).name),
+    [...FAMILY.templates.map((slug) => LIBRARY.get(slug).name), main.name], "the sidebar reads in the team's order");
   for (const bot of made) {
     const { messages } = await bots.messages(bot.id, null, {}, owner);
     assert.deepEqual(messages.map((message) => message.kind), ["timestamp", "text"]);

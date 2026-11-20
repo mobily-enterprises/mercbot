@@ -63,10 +63,12 @@ templates a link opens, when a copy built on Mercbot keeps them (D-43).
 - `src/components/mercbot/teamChoice.js`
 - `src/components/mercbot/useNewBot.js`
 - `src/components/mercbot/MercbotHomeSwitcher.vue`
+- `src/components/mercbot/MercbotNewHomeDialog.vue`
+- `tests/e2e/team-new-home.spec.ts`
+- `tests/e2e/team-add.spec.ts`
 - `tests/server/teams.test.js`
 - `tests/server/teams.integration.js`
 - `tests/client/teams.vitest.js`
-- `tests/e2e/teams.spec.ts`
 
 ## Public contract
 
@@ -180,17 +182,24 @@ templates a link opens, when a copy built on Mercbot keeps them (D-43).
   template, once per team; ids and names distinct). `GET /api/templates` lists them as `teams`. `GET
   /api/w/:workspaceSlug/teams/:teamId` (`botTeams.js` `teamFor`) answers the team and each bot's slug, name, look, tag,
   line, `appTemplate` and `inHome`: whether a bot of the home follows that template (one read, `followedOf`). `POST
-  …/teams/:teamId {templates}` (`addTeam`) makes the chosen bots in one transaction, under the home's lock, through
+  …/teams/:teamId {templates}` (`addTeam`) makes the chosen bots, last to first so the sidebar (newest first) shows them
+  in the team's order, in one transaction, under the home's lock, through
   `botList.makeBots`, the function New bot's `createBot` makes its bot with: one statement each for the bots, their
   seats, their first messages and Shared bots' General tabs (`records/newBotRepository.js`), whatever their number;
   each takes its template's name and look and greeting, the home's default sharing, and the person's section named
   after the team (made or reused). Templates already followed are `skipped`; only those is 409
   `bots_team_all_in_home`; an unknown team, an empty choice or another team's template is 400; anyone in the home may
-  (JSKIT refuses outsiders, 403 at this pin). It answers the list as listed, with `added` and `sectionId`. The page:
-  New home's **What's this home for?** (`MercbotHomeSwitcher.vue`, `teamChoice.js` `nameFor`) opens the new home with
-  `?team=`, whose first load adds every bot of it (`addWholeTeam`); New bot's **Add a team** foot entry and the first
-  conversation's team card open `MercbotTeamScreen.vue` (`useNewBot.js` `openTeam`, `addTeam`), which sets up a
-  ticked bot's paired app afterwards as New bot does, each app once.
+  (JSKIT refuses outsiders: 403 at this pin, 404 from workspaces-core 0.2.58). It answers the list as listed, with
+  `added` (in the team's order) and `sectionId`. The page shows teams with one component, `MercbotTeamScreen.vue`:
+  the cards (name, line, faces, how many bots), then a team's bots, all ticked, each with its paired app's box for
+  someone who may set it up, and an action that counts the ticks. New home (`MercbotNewHomeDialog.vue`, from the
+  home switcher) shows it `fresh` (nothing in the home yet), its cards ending with Something else, the home's name
+  (the team's to start with, `teamChoice.js` `nameFor`) and who it's for below the bots, and Create home with N bots:
+  it makes the home and opens it with `?team=&bots=&apps=` (`homeQuery`), whose first load makes the main bot, then
+  adds the bots ticked and sets up the apps asked for (`choiceOf`, `addChosenBots`) before the shell shows, on the
+  team's first bot; when the bots don't go through, the address keeps `?team=` and the shell opens its team screen.
+  New bot's **Add a team** foot entry and the first conversation's team card open it in New bot (`useNewBot.js`
+  `openTeam`, `addTeam`), which sets up a ticked bot's paired app afterwards as New bot does, each app once.
 - **The upgrade (D-98):** the migration copies every bot's label, instructions, skills and origin to
   `bots_before_templates`, then points an unchanged gallery bot at its library template, a bot with
   no instructions at `general`, and a bot with its own at a home template made from them (one per

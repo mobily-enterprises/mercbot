@@ -99,6 +99,6 @@ If your question isn't answered here or in the [Security overview](/help/securit
 
 - [Security overview](/help/security)
 - [Approvals, safety and privacy](/help/approvals-and-privacy)
-- [Homes: Mercbot for families and teams](/help/homes)
+- [Homes: Mercbot for families and businesses](/help/homes)
 - [Running your own copy of Mercbot](/help/own-copy)
 - [Apps: what they are and when to use them](/help/apps)

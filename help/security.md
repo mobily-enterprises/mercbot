@@ -117,7 +117,7 @@ See [Approvals, safety and privacy](/help/approvals-and-privacy).
 
 - [Security questions and answers](/help/security-questions)
 - [Approvals, safety and privacy](/help/approvals-and-privacy)
-- [Homes: Mercbot for families and teams](/help/homes)
+- [Homes: Mercbot for families and businesses](/help/homes)
 - [The vault: saved logins and secrets](/help/vault)
 - [The bots' computer and connected apps](/help/computer-and-apps)
 - [Running your own copy of Mercbot](/help/own-copy)

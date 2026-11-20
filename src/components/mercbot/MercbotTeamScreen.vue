@@ -2,31 +2,41 @@
 import { computed, ref, watch } from "vue";
 import { templatesApi } from "../templates/templatesApi.js";
 import { appsApi } from "../apps/appsApi.js";
+import { ONBOARDING_BLACK } from "@/theme/palettes.js";
 import MercbotAvatar from "./MercbotAvatar.vue";
 import MercbotTemplateTag from "./MercbotTemplateTag.vue";
 import { botsApi } from "./botsApi.js";
-import { addLabel, appsFor, botsToAdd } from "./teamChoice.js";
+import { TEAM_INTRO, addLabel, appsFor, botsToAdd } from "./teamChoice.js";
 
-// Add a team (D-105), New bot's step for a few bots at once: first Mercbot's teams, each a situation with its line and
-// its bots' faces, then the team chosen, its bots each with its name, look, tag and line, all ticked. A bot the home
-// already has on the same template says "Already in this home" and isn't added. An owner or admin also sets up the app a
-// bot works with, as New bot does. Add N bots asks the shell to make the ones ticked (useNewBot.js addTeam).
+// Teams (D-105), as New home and New bot's Add a team both show them: first Mercbot's teams as cards, each a situation
+// with its line, its bots' faces and how many, then the team chosen, its bots each with its name, look, tag and line,
+// all ticked. A bot the home already has on the same template says "Already in this home" and isn't added. Someone who
+// may set up apps also gets the app a bot works with, as New bot offers it. The action asks the dialog to make the ones
+// ticked: Add N bots in a home (useNewBot.js addTeam), Create home with N bots in New home (`fresh`, with the home's
+// name and who it's for in the slot below the bots; MercbotNewHomeDialog.vue), whose list ends with Something else.
 const props = defineProps({
   busy: { type: Boolean, default: false },
-  error: { type: String, default: "" }
+  error: { type: String, default: "" },
+  // New home: the team's bots go in a home not made yet, so none is in it, and its maker, its owner, may set up apps.
+  fresh: { type: Boolean, default: false },
+  // The link above the list back to where the dialog came from ("" for none), and whether the action may run.
+  listBack: { type: String, default: "All templates" },
+  ready: { type: Boolean, default: true },
+  actionWords: { type: Function, default: addLabel }
 });
 // The team on screen, or "" for the list of teams.
 const teamId = defineModel("team", { type: String, default: "" });
-const emit = defineEmits(["add", "back"]);
+const emit = defineEmits(["add", "back", "other", "shown"]);
 
 const gallery = ref(null);
 const listFailed = ref(false);
 const team = ref(null);
 const teamFailed = ref(false);
 const unticked = ref(new Set());
-// The apps a team's bots work with, by key, when the person may set them up (an owner or admin), and those left out.
+// The apps a team's bots work with, by key, when the person may set them up, and those left out.
 const apps = ref(new Map());
 const withoutApp = ref(new Set());
+const mercbot = { id: "face-mercbot", name: "Mercbot", color: ONBOARDING_BLACK };
 
 const looks = computed(() => new Map((gallery.value?.templates || []).map((template) => [template.slug, template])));
 const facesOf = (entry) => entry.templates.map((slug) => looks.value.get(slug)).filter(Boolean);
@@ -51,14 +61,16 @@ async function loadTeam(id) {
   try {
     const read = await botsApi.team(id);
     if (teamId.value !== id) return;
-    team.value = read;
+    // A new home has none of them yet, whatever the home the page is in has.
+    team.value = props.fresh ? { ...read, bots: read.bots.map((bot) => ({ ...bot, inHome: false })) } : read;
+    emit("shown", team.value);
   } catch {
     if (teamId.value === id) teamFailed.value = true;
     return;
   }
   if (!team.value.bots.some((bot) => bot.appTemplate)) return;
   const { templates = [], canManage } = await appsApi.templates().catch(() => ({}));
-  apps.value = canManage ? new Map(templates.map((app) => [app.key, app])) : new Map();
+  apps.value = canManage || props.fresh ? new Map(templates.map((app) => [app.key, app])) : new Map();
 }
 
 watch(teamId, (id) => {
@@ -87,9 +99,9 @@ function back() {
   else emit("back");
 }
 
-/** Add N bots: the team's ticked bots, and the apps to set up for them, each once. */
+/** The action: the team's ticked bots, and the apps to set up for them, each once. */
 function add() {
-  if (!adding.value.length || props.busy) return;
+  if (!adding.value.length || !props.ready || props.busy) return;
   emit("add", {
     teamId: team.value.id,
     name: team.value.name,
@@ -98,17 +110,17 @@ function add() {
   });
 }
 
-defineExpose({ back });
+defineExpose({ back, add });
 </script>
 
 <template>
   <div class="mb-ctemp__scroll">
-    <button type="button" class="mb-ctemp__step-link" :disabled="busy" @click="back">
-      <v-icon icon="$chevronLeft" size="16" /> {{ teamId ? "All teams" : "All templates" }}
+    <button v-if="teamId || listBack" type="button" class="mb-ctemp__step-link" :disabled="busy" @click="back">
+      <v-icon icon="$chevronLeft" size="16" /> {{ teamId ? "All teams" : listBack }}
     </button>
 
     <template v-if="!teamId">
-      <p class="mb-team__intro">A team is a few bots for one situation, made together in a section of your sidebar.</p>
+      <p class="mb-team__intro">{{ TEAM_INTRO }}</p>
       <div v-if="listFailed" class="mb-ctemp__state" role="alert">
         <p>The teams couldn't be loaded.</p>
         <button type="button" class="mb-set-pill" @click="loadTeams">Try again</button>
@@ -122,6 +134,17 @@ defineExpose({ back });
             <span class="mb-team__faces" aria-hidden="true">
               <MercbotAvatar v-for="face in facesOf(entry)" :key="face.slug" :bot="{ id: `face-${face.slug}`, name: face.name, color: face.color, shape: face.shape }" :size="22" still />
               <span class="mb-team__count">{{ entry.templates.length }} bots</span>
+            </span>
+          </span>
+          <v-icon icon="$chevronRight" size="18" />
+        </button>
+        <button v-if="fresh" type="button" class="mb-team__choice" @click="emit('other')">
+          <span class="mb-team__text">
+            <strong>Something else</strong>
+            <span class="mb-team__line">Start with just Mercbot, and add bots whenever you like.</span>
+            <span class="mb-team__faces" aria-hidden="true">
+              <MercbotAvatar :bot="mercbot" :size="22" still />
+              <span class="mb-team__count">1 bot</span>
             </span>
           </span>
           <v-icon icon="$chevronRight" size="18" />
@@ -160,22 +183,29 @@ defineExpose({ back });
             </label>
             <label v-if="appOf(bot) && !bot.inHome && !unticked.has(bot.slug)" class="mb-team__app">
               <input type="checkbox" :checked="!withoutApp.has(bot.slug)" :disabled="busy" @change="tickApp(bot.slug)">
-              Also set up the {{ appOf(bot).name }} app it works with, as a draft for you to review
+              <span>Also set up its {{ appOf(bot).name }} app, as a draft for you to review</span>
             </label>
           </li>
         </ul>
         <p class="mb-ctemp__note">
-          They go in a section called {{ team.name }}, shared as this home's new bots are. Each greets you when you open it and does
-          nothing until you answer.
+          They go in their own section, {{ team.name }}, and each says hello when you open it. None does any work until you
+          answer.
         </p>
+        <slot />
       </template>
     </template>
   </div>
   <p v-if="error" class="mb-ctemp__error" role="alert">{{ error }}</p>
   <div class="mb-ctemp__foot">
-    <button type="button" class="mb-ctemp__button" :disabled="busy" @click="back">Back</button>
-    <button v-if="teamId" type="button" class="mb-ctemp__button mb-ctemp__button--primary" :disabled="!adding.length || busy" @click="add">
-      {{ addLabel(adding.length, busy) }}
+    <button type="button" class="mb-ctemp__button" :disabled="busy" @click="back">{{ teamId || listBack ? "Back" : "Cancel" }}</button>
+    <button
+      v-if="teamId"
+      type="button"
+      class="mb-ctemp__button mb-ctemp__button--primary"
+      :disabled="!adding.length || !ready || busy"
+      @click="add"
+    >
+      {{ actionWords(adding.length, busy) }}
     </button>
   </div>
 </template>
@@ -234,6 +264,7 @@ defineExpose({ back });
   display: flex;
   align-items: center;
   gap: 12px;
+  min-height: 44px;
   cursor: pointer;
 }
 
@@ -285,7 +316,8 @@ defineExpose({ back });
 
 .mb-team__faces {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  overflow: hidden;
   align-items: center;
   gap: 4px;
   margin-top: 4px;
@@ -293,6 +325,7 @@ defineExpose({ back });
 
 .mb-team__count {
   margin-left: 4px;
+  white-space: nowrap;
   font-size: 12px;
   color: rgb(var(--v-theme-on-surface-variant));
 }
@@ -301,7 +334,10 @@ defineExpose({ back });
   display: flex;
   align-items: center;
   gap: 8px;
-  margin: 8px 0 0 25px;
+  min-height: 44px;
+  margin: 2px 0 0 25px;
   font-size: 13px;
+  line-height: 18px;
+  cursor: pointer;
 }
 </style>

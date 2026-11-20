@@ -100,7 +100,7 @@ The app now asks for more access than when you signed in, for example full acces
 
 ### Your organisation has to approve the app
 
-Some work accounts can't connect until the organisation's IT team approves Mercbot. The sign-in page then gives you an approval link to copy. Send it to your IT team, and sign in again once they've approved it.
+Some work accounts can't connect until the organisation's IT department approves Mercbot. The sign-in page then gives you an approval link to copy. Send it to your IT department, and sign in again once they've approved it.
 
 ### A bot uses the wrong account
 

@@ -2,13 +2,13 @@ import { computed, ref } from "vue";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ONBOARDING_TIMING } from "../../src/components/mercbot/botsApi.js";
 import { setCurrentHome } from "../../src/components/mercbot/homeApi.js";
-import { addLabel, addWholeTeam, appsFor, botsToAdd, nameFor } from "../../src/components/mercbot/teamChoice.js";
+import { addChosenBots, addLabel, appsFor, botsToAdd, choiceOf, homeQuery, nameFor, newHomeLabel } from "../../src/components/mercbot/teamChoice.js";
 import { useChatActions } from "../../src/components/mercbot/useChatActions.js";
 import { useNewBot } from "../../src/components/mercbot/useNewBot.js";
 
 // Teams (D-105) on the page: the team screen adds the bots ticked that the home hasn't got and sets up each app asked
-// for once; the New home form names a home after its team until the person types a name; a home made for a team gets
-// its bots; Add N bots puts the list and its sections as the server answers them and opens the first new bot; and the
+// for once; New home names a home after its team until the person types a name, and its action counts the bots ticked;
+// a home made for a team gets the bots ticked and the apps asked for, carried in its address; Add N bots puts the list and its sections as the server answers them and opens the first new bot; and the
 // first conversation's team card opens that team's screen without asking the bot for a reply. The routes are a
 // stand-in that records each call and answers what the server would.
 const calls = vi.hoisted(() => []);
@@ -71,15 +71,25 @@ describe("New home", () => {
     expect(nameFor("   ", null, office)).toBe("Office manager");
   });
 
-  it("adds every bot of the team the home hasn't got, and says when that didn't go through", async () => {
-    answers.byUrl.set("GET /api/w/casa/teams/shop", shop);
-    expect(await addWholeTeam("shop")).toBe(true);
+  it("says Create home with as many bots as are ticked", () => {
+    expect([newHomeLabel(6, false), newHomeLabel(1, false), newHomeLabel(5, true)]).toEqual(["Create home with 6 bots", "Create home with 1 bot", "Creating…"]);
+  });
+
+  it("carries the team, its bots ticked and the apps asked for to the new home, which adds them, and says what didn't go", async () => {
+    const choice = { teamId: "shop", name: "Small shop", templates: ["shop-stock-keeper", "review-replies"], apps: [{ key: "stock", name: "Stock" }] };
+    const query = homeQuery(choice);
+    expect(query).toEqual({ team: "shop", bots: "shop-stock-keeper,review-replies", apps: "stock" });
+    expect(homeQuery({ ...choice, apps: [] })).toEqual({ team: "shop", bots: "shop-stock-keeper,review-replies" });
+    expect(choiceOf(query)).toEqual({ teamId: "shop", templates: ["shop-stock-keeper", "review-replies"], apps: ["stock"] });
+    expect([choiceOf({ team: "shop" }), choiceOf({})], "a team alone opens its screen instead").toEqual([null, null]);
+
+    expect(await addChosenBots(choiceOf(query))).toEqual({ added: true, appsFailed: [] });
     expect(calls).toEqual([
-      ["GET", "/api/w/casa/teams/shop", null],
-      ["POST", "/api/w/casa/teams/shop", { templates: ["shop-stock-keeper", "review-replies", "customer-follow-up", "receipts-and-invoices"] }]
+      ["POST", "/api/w/casa/teams/shop", { templates: ["shop-stock-keeper", "review-replies"] }],
+      ["POST", "/api/w/casa/apps-templates/stock/install", { sample: false }]
     ]);
     answers.fail = Object.assign(new Error("Network request failed."), { status: 0 });
-    expect(await addWholeTeam("shop")).toBe(false);
+    expect(await addChosenBots(choiceOf(query))).toEqual({ added: false, appsFailed: [] });
   });
 });
 

@@ -283,7 +283,7 @@ Sharing (D-36, D-99, D-101):
   bots aren't shared and nobody has answered, naming the first of the home's active people by name who is neither
   its owner nor the reader (`homeSettings.joinedName`), and null in a home of one. The main bot's first
   conversation, after `rename`, shows a `choice` card with purpose `home-default` ("Will anyone else use this home
-  with you?", Just me → mixed, My team → shared) while the default is unchosen and the person manages the home; its
+  with you?", Just me → mixed, Me and other people → shared) while the default is unchosen and the person manages the home; its
   step `home-default` waits for the answer (`answerChoice` sets the default and moves on to `team-offer`, or to `about`
   once the home has a bot besides its main one, answering `home` too, and the page asks no reply) or for a typed
   message (the card closes, unchosen). Then, while the home has no bot but its main one, a `choice` card with purpose
@@ -292,7 +292,7 @@ Sharing (D-36, D-99, D-101):
   answers `team` (the team's id, or null), which opens New bot on that team's screen (`useChatActions.js`
   `openTeam`), and typing past it skips it. The page keeps it in
   `homeDefault.js` (`homeDefault`, set by the list's read): the sidebar's `MercbotTeamQuestion.vue` above the list,
-  read again on `homeChanges`, and the New home form and Settings → General (`chooseHomeDefault`, `makeHome`,
+  read again on `homeChanges`, and New home and Settings → General (`chooseHomeDefault`, `makeHome`,
   `chooseHere`, `readHere`).
 - The tab bar (`MercbotRoomTabs.vue`) shows the rooms, then You only with a lock ("Only you see
   this conversation"), which double-click doesn't rename; "+" says "New conversation for everyone,
