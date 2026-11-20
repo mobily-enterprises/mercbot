@@ -64,7 +64,7 @@ onboarding and the bot's typed replies.
 - `tests/client/homeDefault.vitest.js`
 - `tests/e2e/home-default.spec.ts`
 - `packages/bots/src/server/joiningIn.js`
-- `migrations/20261120160000_home_settings_bots_join_in.cjs`
+- `migrations/20261120170000_home_settings_bots_join_in.cjs`
 - `tests/server/joinIn.integration.js`
 - `tests/server/joinInPrompt.test.js`
 - `tests/client/joinIn.vitest.js`
