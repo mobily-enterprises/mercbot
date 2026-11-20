@@ -8,10 +8,10 @@
   "exports": {},
   "dependencies": {
     "@aws-sdk/client-s3": "3.1167.0",
-    "@jskit-ai/database-runtime": "0.1.278",
-    "@jskit-ai/kernel": "0.2.28",
-    "@jskit-ai/resource-core": "0.1.219",
-    "@jskit-ai/resource-runtime": "0.2.42",
+    "@jskit-ai/database-runtime": "0.1.281",
+    "@jskit-ai/kernel": "0.2.31",
+    "@jskit-ai/resource-core": "0.1.222",
+    "@jskit-ai/resource-runtime": "0.2.45",
     "@local/account": "0.1.0",
     "@local/files": "0.1.0"
   },
