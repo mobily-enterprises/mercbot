@@ -395,7 +395,9 @@ A workspace is called a **home** in the product.
     original don't flow into it (2026-10-28).
     Each public conversation appears as its own **named tab** under the bot, and every tab must
     have a name. The bar for this screen is "the cleanest UI ever done". The bot's line in the list
-    shows its newest reply in any of its tabs, whichever is open (2026-11-20, D-99).
+    shows its newest reply in any of its tabs, whichever is open (2026-11-20, D-99). The name chip and
+    the tabs sit on a band of the page's background, solid down to the tabs' lower edge, so the chat
+    never shows through them (2026-11-20).
   - **Mixed (the default):** private conversations plus a **home notebook**. After a
     conversation, the bot notes only reusable learning (no private details, secrets or
     third-party data) and tells the person in one line, so they can undo it. A person can keep a

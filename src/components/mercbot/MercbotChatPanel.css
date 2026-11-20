@@ -21,13 +21,15 @@
   padding: 64px 0 136px;
 }
 
+/* The band behind the chip, and a Shared bot's tabs under it, is solid down to their lower edge and fades below it, so
+   messages scrolled under them never show through, in either theme; the column starts below it. */
 .mb-chat__fade {
   position: absolute;
   top: 0;
   right: 0;
   left: 0;
-  height: 56px;
-  background: linear-gradient(rgb(var(--v-theme-background)), rgba(var(--v-theme-background), 0));
+  height: 64px;
+  background: linear-gradient(rgb(var(--v-theme-background)) 54px, rgba(var(--v-theme-background), 0));
   pointer-events: none;
 }
 
@@ -36,7 +38,8 @@
 }
 
 .mb-chat__fade--tabs {
-  height: 96px;
+  height: 100px;
+  background: linear-gradient(rgb(var(--v-theme-background)) 90px, rgba(var(--v-theme-background), 0));
 }
 
 .mb-chat__continues {

@@ -189,3 +189,39 @@ test("You only and the question before a change, at desktop and phone width, lig
     await knex.destroy();
   }
 });
+
+// The band behind the name chip and a Shared bot's tabs is solid down to the tabs' lower edge, in both themes, so a long
+// chat scrolled under them never shows through the tab names; the chat starts below it.
+test("a Shared bot's tabs and name sit on a solid band over a long chat, light and dark", async ({ page }, testInfo) => {
+  const knex = connect();
+  const bot = await botWithChat(page, knex, "shared");
+  try {
+    const general = await knex("bot_conversations").where({ bot_id: bot.id, title: "General" }).whereNull("user_id").first();
+    await knex("bot_messages").insert(Array.from({ length: 40 }, (_, index) => ({
+      workspace_id: bot.homeId, bot_id: bot.id, conversation_id: general.id, kind: "text", role: "bot",
+      body: { text: `Line ${index + 1} of a long shared conversation, long enough to run under the tabs when scrolled.` }
+    })));
+    await page.setViewportSize({ width: 1280, height: 800 });
+    for (const colorScheme of ["light", "dark"] as const) {
+      await page.emulateMedia({ colorScheme, reducedMotion: "reduce" });
+      await openHome(page, `?bot=${bot.id}`);
+      await tabs(page).filter({ hasText: "General" }).click();
+      await expect(chat(page).getByText("Line 40 of a long shared conversation", { exact: false })).toBeVisible();
+      await chat(page).locator(".mb-chat__scroller").evaluate((scroller) => { scroller.scrollTop = scroller.scrollHeight / 2; });
+      const band = await chat(page).evaluate((main) => {
+        const box = (selector: string) => main.querySelector(selector)!.getBoundingClientRect();
+        const fade = main.querySelector(".mb-chat__fade")!;
+        // A gradient with no stop on its first colour fades from the top: solid down to nothing.
+        const [, color, stop] = getComputedStyle(fade).backgroundImage.match(/^linear-gradient\((rgba?\([^)]*\))(?: (\d+(?:\.\d+)?)px)?/u) || [];
+        return { color, solidTo: box(".mb-chat__fade").top + Number(stop || 0), tabs: box(".mb-tabs").bottom, chip: box(".mb-chip").bottom };
+      });
+      expect(band.color, "the band's color is opaque").toMatch(/^rgb\(|^rgba\([^)]*, 1\)$/u);
+      expect(band.solidTo, "solid below the tabs").toBeGreaterThanOrEqual(band.tabs);
+      expect(band.solidTo, "and below the name").toBeGreaterThanOrEqual(band.chip);
+      await page.screenshot({ path: testInfo.outputPath(`band-${colorScheme}.png`) });
+    }
+  } finally {
+    await bot.remove();
+    await knex.destroy();
+  }
+});
