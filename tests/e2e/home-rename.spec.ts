@@ -54,6 +54,8 @@ test("a home's owner renames it in Settings → General, and the sidebar and the
     await knex("workspace_memberships").insert({ workspace_id: homeId, user_id: person, role_sid: "owner", status: "active" });
     await knex("workspace_settings").insert({ workspace_id: homeId });
 
+    // Screenshots with transitions finished, so the Settings dialog isn't caught fading in.
+    await page.emulateMedia({ reducedMotion: "reduce" });
     await page.goto(`/w/${slug}`);
     await pastIntro(page);
     await expect(sidebar(page).getByRole("button", { name: `Home: Rename ${stamp}. Switch home` })).toBeVisible();
@@ -61,6 +63,7 @@ test("a home's owner renames it in Settings → General, and the sidebar and the
     const settings = await openGeneral(page);
     const field = settings.getByRole("textbox", { name: "Home name" });
     await expect(field).toHaveValue(`Rename ${stamp}`);
+    await field.scrollIntoViewIfNeeded();
     await expect(settings.getByRole("button", { name: "Save", exact: true }), "nothing to save until it changes").toHaveCount(0);
 
     // A name of spaces can't be saved.
@@ -115,6 +118,7 @@ test("a home's owner renames it in Settings → General, and the sidebar and the
     const asMember = await openGeneral(page);
     await expect(asMember.getByRole("textbox", { name: "Home name" })).toHaveCount(0);
     await expect(asMember.getByText("The home's owners and admins can change it.")).toBeVisible();
+    await asMember.getByText("The home's owners and admins can change it.").scrollIntoViewIfNeeded();
     await expect(asMember.getByText(`Kim's team ${stamp}`, { exact: true })).toBeVisible();
     for (const scheme of ["light", "dark"] as const) {
       await page.emulateMedia({ colorScheme: scheme });
