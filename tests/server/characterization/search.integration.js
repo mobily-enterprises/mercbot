@@ -87,5 +87,5 @@ test("each home's search finds only that home's messages", async () => {
   assert.deepEqual(hits(await search(kim, seeded.homeB)), expected("kimsInB"), "Kim in B finds only her chat in B");
   assert.deepEqual(hits(await search(sam, seeded.homeB)), [], "Sam finds nothing of Kim's chat with Sam's bot");
   const outside = await sam.get(`${seeded.homeA.url}/search?q=${encodeURIComponent(word)}`);
-  assert.equal(outside.status, 403, `someone outside A is refused: ${JSON.stringify(outside.body)}`);
+  assert.equal(outside.status, 404, `someone outside A is answered as a home that isn't there: ${JSON.stringify(outside.body)}`);
 });

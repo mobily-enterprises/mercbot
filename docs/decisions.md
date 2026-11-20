@@ -2766,9 +2766,10 @@ help only said how to name a new one. Its owners and admins can now change it.
 - **How.** JSKIT's own route for a workspace's profile, `PATCH /api/w/:workspaceSlug` with `{ name }`
   (`workspace.workspaces.update`), through `homesApi.js` `rename`; Mercbot adds no route or check of its own. JSKIT
   allows it with `workspace.settings.update`, which only owners and admins have (`config/roles.js`): a member is
-  refused 403, and so is someone outside the home, as JSKIT refuses any workspace they aren't in. It trims the name
-  and refuses an empty one or one longer than 160 characters (400), JSKIT's limit for a workspace's name, which the
-  page's field and its check follow (`HOME_NAME_MAX`). The home's address (its slug), bots and people stay as they were.
+  refused 403, and someone outside the home is answered 404, as JSKIT answers any workspace they aren't in: as one
+  that isn't there (`workspaces.workspace.notFound`). It trims the name and refuses an empty one or one longer than
+  160 characters (400), JSKIT's limit for a workspace's name, which the page's field and its check follow
+  (`HOME_NAME_MAX`). The home's address (its slug), bots and people stay as they were.
 - **Shown at once.** The page that renamed it keeps the name the server answered in its list of homes, so the sidebar
   and the home switcher show it without another read. Everyone else in the home hears of it on their bot events, as of
   any change JSKIT reports to a home (`home-changed`), and reads their homes again. Signing in again doesn't name a
@@ -2826,8 +2827,8 @@ one situation; since each home has its own database, Apps and files, a team main
   a home of 4 bots or 60, Mixed or Shared (`tests/server/teams.integration.js`).
 - **Cost.** No AI turn at creation: a template bot's greeting is its template's own text, written as it is made, and it
   waits for the person (no onboarding step). New bot already worked so; nothing was deferred.
-- **Who.** Whoever may add a bot: anyone in the home. JSKIT refuses someone outside it (403 at this JSKIT; 404 from
-  workspaces-core 0.2.58). An unknown team is 400 `bots_team_unknown`, an empty choice 400 `bots_team_empty`, a
+- **Who.** Whoever may add a bot: anyone in the home. JSKIT answers someone outside it 404, as for a home that isn't there
+  (`workspaces.workspace.notFound`). An unknown team is 400 `bots_team_unknown`, an empty choice 400 `bots_team_empty`, a
   template the team hasn't got 400 `bots_team_template_unknown`.
 
 ## D-106 — An app closes in one click, back to where it was opened from (2026-11-20)

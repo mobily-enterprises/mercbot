@@ -29,8 +29,8 @@ routes (`config/public.js`), and a copy built on Mercbot that serves many people
   it's for (D-100).
 - **Renaming (D-103):** a home's owners and admins rename it in Settings → General (`MercbotHomeName.vue`), on JSKIT's
   own `PATCH /api/w/<home>` (`workspace.workspaces.update`, which needs `workspace.settings.update`): a member is
-  refused 403, someone outside the home as JSKIT refuses any workspace they aren't in, and an empty name or one over
-  160 characters 400 (`homesApi.js` `HOME_NAME_MAX`, `homeNameProblem`). `rename` keeps the name the server answered in the list of homes, so the sidebar
+  refused 403, someone outside the home 404, as JSKIT answers any workspace they aren't in (as one that isn't there),
+  and an empty name or one over 160 characters 400 (`homesApi.js` `HOME_NAME_MAX`, `homeNameProblem`). `rename` keeps the name the server answered in the list of homes, so the sidebar
   and the switcher show it at once; JSKIT reports the change, so everyone else in the home gets `home-changed` (Live
   changes). Signing in again never renames a first home.
 - **People's names:** where the others in a home see someone (who added a home's

@@ -334,10 +334,9 @@ test("through the app's routes anyone in the home adds a team, someone outside i
   const teamRoute = (teamId) => `/api/w/${encodeURIComponent(slug)}/teams/${teamId}`;
 
   const bySam = await sam.request("POST", teamRoute("shop"), { templates: SHOP.templates });
-  // JSKIT refuses a workspace someone isn't in: 403 on the JSKIT this copy pins, 404 (as for a home that isn't there)
-  // from workspaces-core 0.2.58.
-  assert.ok([403, 404].includes(bySam.status), JSON.stringify(bySam.body));
-  assert.ok([403, 404].includes((await sam.request("GET", teamRoute("shop"))).status));
+  // JSKIT answers a workspace someone isn't in as one that isn't there: 404 workspaces.workspace.notFound.
+  assert.equal(bySam.status, 404, JSON.stringify(bySam.body));
+  assert.equal((await sam.request("GET", teamRoute("shop"))).status, 404);
   assert.equal(await knex("bots").where({ workspace_id: created.body.data.id }).first(), undefined, "nothing made");
   assert.equal(await knex("bot_sections").where({ workspace_id: created.body.data.id }).first(), undefined, "no section either");
 

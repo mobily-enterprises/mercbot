@@ -68,7 +68,7 @@ test("a shared bot's room is found in its own tab, by everyone in the home, and 
   assert.deepEqual(await found(pat, shared, { q: word, before: said.roomLast }, { room: general }), inRoom);
   assert.deepEqual(await found(kim, shared, { q: word, before: said.roomLast }, { room: general }), inRoom);
   assert.deepEqual(await found(kim, mine, { q: word, before: said.last }), { count: 0, newest: null, oldest: null }, "Kim's own chat with Pat's bot, never Pat's");
-  assert.equal((await find(sam, mine, { q: word, before: said.last })).status, 403, "nor anyone outside the home");
+  assert.equal((await find(sam, mine, { q: word, before: said.last })).status, 404, "nor anyone outside the home, answered as a home that isn't there");
 });
 
 test("a place that is no message, or words too long to find, are refused", async () => {

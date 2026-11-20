@@ -101,11 +101,11 @@ test("a shared bot's rooms are listed the same for every member, and each member
   }
 });
 
-test("someone outside the home is refused its bots", async () => {
+test("someone outside the home is refused its bots, answered as a home that isn't there", async () => {
   const { homeA, mine } = seeded;
   for (const path of [`${homeA.url}/bots`, `${homeA.url}/bots/${mine.id}`, `${homeA.url}/bots/${mine.id}/messages`]) {
     const answer = await sam.get(path);
-    assert.equal(answer.status, 403, `${path}: ${JSON.stringify(answer.body)}`);
+    assert.equal(answer.status, 404, `${path}: ${JSON.stringify(answer.body)}`);
   }
   assert.equal((await seats(mine, sam)).length, 0, "and gets no seat");
 });
