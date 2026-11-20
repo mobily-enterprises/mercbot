@@ -22,6 +22,7 @@ import { createBotGroups } from "./botGroups.js";
 import { createBotLibrary } from "./botLibrary.js";
 import { createBotMemory } from "./botMemory.js";
 import { createHomeDefaults } from "./homeDefaults.js";
+import { createJoiningIn } from "./joiningIn.js";
 
 /**
  * The bots service (`mercbot.bots`): the person's bots and everything said and done in them, composed from one factory per
@@ -193,8 +194,7 @@ export function createBotsService({
     goals,
     turns,
     // A Shared bot's shared tabs judge whether it joins in (D-102), with the home's setting and the chat model.
-    homeDefaults,
-    model,
+    joiningIn: createJoiningIn({ records, conversations, homeDefaults, meter, model }),
     groupReplies,
     // The Builder making apps runs as "build" (D-59), unless it's already background work.
     reply: (bot, timeline, tools, state, prompt, options) =>

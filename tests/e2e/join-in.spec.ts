@@ -138,13 +138,14 @@ test("in General with two people, a chat between them gets no reply and naming t
     const joinIn = settings.getByRole("switch", { name: "Bots decide when to join in" });
     await expect(joinIn).toHaveAttribute("aria-checked", "true");
     await expect(settings.getByText("In shared tabs, bots answer when it makes sense, without being called.")).toBeVisible();
+    await page.screenshot({ path: testInfo.outputPath("join-in-settings-on-light.png"), animations: "disabled" });
     const changed = page.waitForResponse((response) => response.request().method() === "PATCH" && new URL(response.url()).pathname === `/api/w/${slug}/home-settings`);
     await joinIn.click();
     const kept = await (await changed).json();
     expect([kept.botsJoinIn, kept.newBotSharing]).toEqual([false, "shared"]);
     await expect(joinIn).toHaveAttribute("aria-checked", "false");
     await expect(settings.getByText("In shared tabs, bots answer only when named, @-mentioned or replied to.")).toBeVisible();
-    await page.screenshot({ path: testInfo.outputPath("join-in-settings-light.png") });
+    await page.screenshot({ path: testInfo.outputPath("join-in-settings-off-light.png"), animations: "disabled" });
     expect((await knex("home_settings").where({ workspace_id: homeId }).first()).bots_join_in).toBe(false);
   } finally {
     if (page.url() !== "about:blank") await page.goto("about:blank");

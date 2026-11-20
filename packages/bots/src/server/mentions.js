@@ -24,7 +24,8 @@ export function plainMentions(text, members = []) {
   });
 }
 
-const escape = (text) => text.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+/** Text as it reads literally in a regular expression. */
+export const escape = (text) => text.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
 
 /** The model's "@Name" for a member becomes that member's marker; longer names win. */
 export function mentionMarkers(text, members = []) {

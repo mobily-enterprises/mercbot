@@ -187,7 +187,7 @@ test("on, a message that doesn't call the bot is judged once; yes runs the turn,
 });
 
 test("on and no: nothing is posted, no working line is sent, the message is marked, and nothing takes it up again", async (context) => {
-  const { bots, kim, pat, judging, turns, news, say, ask, tabTexts, bodyOf } = await setup(context);
+  const { kim, pat, judging, turns, news, say, ask, tabTexts, bodyOf } = await setup(context);
   await say(kim, "Are we still on for dinner?");
   await ask(kim);
   news.length = 0;
@@ -235,17 +235,19 @@ test("a call is always answered, never judged: the name, an @-mention, a reply t
   await ask(kim);
   assert.equal(judging.calls.length, 2);
 
-  // A card the bot showed, answered after a message it left quiet: the page asks for the card's reply, which runs.
+  // A message it left quiet, then a card it shows (as a reply carried on can), answered: the page asks for the card's
+  // reply, which runs, though the newest text message is one it left to the people. (Typing closes an open card.)
+  const quiet = await say(kim, "Nice weather today");
+  await ask(kim, { afterMessageId: quiet.id });
+  assert.equal(judging.calls.length, 3);
   const [card] = await knex("bot_messages").insert({
     workspace_id: homeId, bot_id: bot.id, conversation_id: general, kind: "choice", role: "bot",
     body: { question: "Book the usual table?", options: ["Yes", "No"], multi: false }
   }).returning("id");
-  const quiet = await say(kim, "Nice weather today");
-  await ask(kim, { afterMessageId: quiet.id });
-  assert.equal(judging.calls.length, 3);
   const before = turns.length;
   await bots.answerChoice(bot.id, String(card.id), ["Yes"], as(pat));
-  await ask(pat, { afterMessageId: quiet.id, afterCard: true });
+  // Asked from the newest message the page has, the card: without afterCard the quiet message would settle it.
+  await ask(pat, { afterMessageId: String(card.id), afterCard: true });
   assert.equal(turns.length, before + 1, "the card's answer is answered");
   assert.equal(judging.calls.length, 3, "and not judged");
 });

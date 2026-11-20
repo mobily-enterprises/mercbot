@@ -1,6 +1,6 @@
 import { generateOnce } from "@jskit-ai/agent/server";
 import { templateChipOf } from "./botTemplate.js";
-import { mentionsIn, plainMentions } from "./mentions.js";
+import { escape, mentionsIn, plainMentions } from "./mentions.js";
 import { isModelFailure, modelFailure } from "./modelFailures.js";
 import { GENERAL } from "./templates.js";
 
@@ -17,8 +17,6 @@ export const JUDGED_MESSAGES = 12;
 export const JUDGED_CHARACTERS = 400;
 // The judge answers {"reply": true} or {"reply": false}: a few tokens, with room for a code fence around it.
 const JUDGE_OUTPUT_TOKENS = 24;
-
-const escape = (text) => text.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
 
 /**
  * The judge's instructions: fixed for a bot, so the provider caches them.
@@ -139,10 +137,14 @@ export function createJoiningIn({ records, conversations, homeDefaults, meter, m
    * with the others that came since the bot last spoke or a judgement left the tab quiet: a burst gets one judgement,
    * on its latest, and any message in it that calls the bot is answered. The statements are the same however long the
    * tab: its people, its latest JUDGED_MESSAGES text messages, the home's setting, and a mark on a no.
+   * A reply carried on (D-48), a connect follow-up and a card's answer (`afterCard`) are never judged.
    * @param {object} row the bot as seen in the tab (asSeen)
+   * @param {{ resume?: unknown, connected?: unknown, afterCard?: boolean }} input what the reply was asked for
+   * @param {object | null} held a connect follow-up's run, if this reply is one
    * @param {import("./types.js").CallOptions} call
    */
-  async function staysQuiet(row, call) {
+  async function staysQuiet(row, input, held, call) {
+    if (input.resume || input.connected || input.afterCard || held) return null;
     if (row.kind === "group" || !row.room || row.sharing !== "shared") return null;
     if ((await conversations.everyoneIn(call)).length < 2) return null;
     const recent = (await records.messages.recentText(row.conversation_id, JUDGED_MESSAGES, call)).reverse();

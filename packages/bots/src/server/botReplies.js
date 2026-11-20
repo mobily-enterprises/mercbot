@@ -10,7 +10,6 @@ import { settledWithin } from "./backgroundWork.js";
 import { isModelFailure, modelFailure } from "./modelFailures.js";
 import { createBackgroundRuns, pausedNotice } from "./backgroundRuns.js";
 import { createConnectFollowUps } from "./connectFollowUps.js";
-import { createJoiningIn } from "./joiningIn.js";
 import { RUN_LEASE, RunTakenOver } from "./runLease.js";
 import { previewOf, toBot, toMessage } from "./botRows.js";
 import {
@@ -57,8 +56,8 @@ import {
  * @param {import("./types.js").BotRequests} dependencies.requests
  * @param {import("./types.js").Goals} dependencies.goals
  * @param {import("./types.js").BotTurns} dependencies.turns
- * @param {import("./types.js").HomeDefaults} dependencies.homeDefaults whether the home's bots join in (D-102)
- * @param {import("./types.js").ChatModel} dependencies.model the judging call's model (joiningIn.js)
+ * @param {ReturnType<typeof import("./joiningIn.js").createJoiningIn>} dependencies.joiningIn whether a Shared bot
+ *   leaves a shared tab's message to the people (D-102)
  * @param {ReturnType<typeof import("./groupReplies.js").createGroupReplies>} dependencies.groupReplies
  * @param {typeof import("./botAgent.js").generateReply} dependencies.reply
  * @param {((text: string, record: string) => Promise<string[]>) | null} dependencies.checkClaims the final-reply check, or null
@@ -75,16 +74,12 @@ export function createBotReplies({
   requests,
   goals,
   turns,
-  homeDefaults,
-  model,
+  joiningIn,
   groupReplies,
   reply,
   checkClaims,
   jobs
 }) {
-  // Whether a Shared bot answers a message in a shared tab that doesn't call it (D-102).
-  const joiningIn = createJoiningIn({ records, conversations, homeDefaults, meter, model });
-
   /**
    * In a paused home (D-73) the bot says why instead of replying: when it's paused before the turn starts, and when
    * the turn's work is refused part-way (meter.js refuseWork), the same way. A routine's or a task's run ends there
@@ -413,9 +408,8 @@ export function createBotReplies({
   /**
    * A reply counts as the answer to a message only if it saw that message (body.answers, the
    * newest person's message it read): one that started before a message arrived mid-reply
-   * doesn't, so that message still gets its own reply afterwards. In a shared tab, a judgement that left that message,
-   * or a later one, to the people (D-102) settles it too, unless `quietCounts` is false: a card's answer asks for a
-   * reply whatever was said since.
+   * doesn't, so that message still gets its own reply afterwards. In a shared tab so does a judgement that left it, or a
+   * later one, to the people (D-102), unless `quietCounts` is false (a card's answer is answered whatever was said since).
    */
   async function answeredAfter(row, after, call, { quietCounts = true } = {}) {
     if (!Number.isInteger(after) || after <= 0) return null;
@@ -424,10 +418,8 @@ export function createBotReplies({
     const asked = Number((await records.turns.latestMessage(row.conversation_id, { role: "user", kind: "text", atMostId: String(after) }, call))?.id) || 0;
     // A reply after that point that saw it (records/turnRepository.js answersFrom).
     const already = await records.turns.latestMessage(row.conversation_id, { role: "bot", kind: "text", afterId: String(after), answersFrom: asked }, call);
-    const settled = already || (quietCounts && asked && row.room
-      ? await records.turns.latestMessage(row.conversation_id, { role: "user", kind: "text", quietFrom: asked }, call)
-      : null);
-    if (!settled) return null;
+    const quiet = quietCounts && asked && row.room ? { role: "user", kind: "text", quietFrom: asked } : null;
+    if (!already && !(quiet && (await records.turns.latestMessage(row.conversation_id, quiet, call)))) return null;
     const messages = (await records.messages.messagesAfter(row.conversation_id, after, call)).map(toMessage);
     return { bot: toBot(await conversations.refresh(row, call)), messages };
   }
@@ -496,10 +488,8 @@ export function createBotReplies({
       // A group turn takes up the person's latest message even when no bot speaks (several people
       // and no bot named): it counts as answered, or answerWaiting would take it up again, and again.
       let heard = 0;
-      // Whether a Shared bot leaves a shared tab's message to the people (D-102): it then shows nothing, no working line
-      // and no message. A group keeps its own rule (D-46); a reply carried on, a connect follow-up and a card's answer
-      // are never judged.
-      let quiet = null;
+      // A Shared bot may leave a shared tab's message to the people (D-102): it then shows nothing at all.
+      const quiet = await joiningIn.staysQuiet(row, input, held, call);
       // In a group no one bot speaks for the home, so a paused home's notice is a line in the chat (D-73), before its
       // bots start or when one's work is refused part-way.
       const pausedLine = async (text) => {
@@ -509,8 +499,6 @@ export function createBotReplies({
       };
       try {
         const paused = row.kind === "group" ? await meter.pausedMessage(row.workspace_id) : null;
-        const judged = !(row.kind === "group" || input.resume || input.connected || input.afterCard || held);
-        quiet = judged ? await joiningIn.staysQuiet(row, call) : null;
         if (paused) {
           heard = await latestAsked(row, call);
           appended = await pausedLine(paused);
@@ -579,7 +567,6 @@ export function createBotReplies({
       }
       answered = Math.max(heard, ...appended.map((message) => Number(message.body?.answers) || 0));
       const bot = toBot(await conversations.refresh(row, call));
-      // Quiet, the bot's line in the list keeps what it showed.
       if (quiet) return { bot, messages: [] };
       const latest = [...appended].reverse().find((message) => message.kind !== "event") || appended[appended.length - 1];
       return { bot: { ...bot, preview: latest ? previewOf(latest) : "" }, messages: appended };
@@ -621,8 +608,7 @@ export function createBotReplies({
     const fresh = await conversations.refresh(row, call);
     const waiting = String(latest.body.text || "").slice(0, 1500);
     if (fresh) {
-      // The waiting message is what it answers, not the connected app it followed up (connectFollowUps.js) nor a card
-      // answered before it: in a shared tab it is judged like any (D-102).
+      // The waiting message is what it answers, not the connected app it followed up (connectFollowUps.js) nor a card.
       const next = { ...input, connected: null, afterCard: false, waiting };
       await meter.track({ userId: fresh.user_id, botId: String(fresh.id) }, () => runReply(fresh, next, person, call));
     }

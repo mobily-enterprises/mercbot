@@ -50,7 +50,7 @@ export function useBotWork({ bots, store }) {
   function workStarted(botId) {
     const start = starts.get(botId);
     starts.delete(botId);
-    start?.();
+    if (start) start();
   }
 
   /**
@@ -59,7 +59,7 @@ export function useBotWork({ bots, store }) {
    * @param {{ untilStarted?: boolean, onStart?: () => void, afterCard?: boolean }} [options] `untilStarted`: show
    *   nothing until the server says the bot started, then run `onStart` too; `afterCard`: the reply follows a card's answer
    */
-  async function requestReply(botId, { untilStarted = false, onStart = null, afterCard = false } = {}) {
+  async function requestReply(botId, { untilStarted = false, onStart = () => {}, afterCard = false } = {}) {
     const group = bots.value.find((bot) => bot.id === botId)?.kind === "group";
     let thinking = null;
     let started = false;
@@ -67,7 +67,7 @@ export function useBotWork({ bots, store }) {
       started = true;
       playMood(botId, [["attention", 500], ["thinking", 1000], ["working", Infinity]]);
       thinking = setTimeout(() => setWork(botId, workByBot.value[botId] || (group ? "Picked it up" : "Thinking it over")), 300);
-      onStart?.();
+      onStart();
     };
     if (untilStarted) starts.set(botId, start);
     else start();
