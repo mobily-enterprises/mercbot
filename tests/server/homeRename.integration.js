@@ -8,7 +8,7 @@ import { connectTestDatabase } from "../support/testDatabase.mjs";
 // Renaming a home (D-103), through the app's real routes on the disposable test database: JSKIT's own route for a
 // workspace's profile (PATCH /api/w/<home>, workspace.workspaces.update) renames it for its owners and admins, and every
 // person's list of homes, which the sidebar and the home switcher show, has the new name at once; a member is refused
-// 403 and someone outside the home 404, an empty name (spaces only included) and one longer than 160 characters are
+// 403 and someone outside the home too, an empty name (spaces only included) and one longer than 160 characters are
 // refused, each leaving the name as it was; everyone in the home hears of it (home-changed), so open pages read their
 // homes again; and a first home renamed keeps its name when its owner signs in again.
 for (const name of ["DB_HOST", "DB_PORT", "DB_NAME", "DB_USER", "TEST_DB_NAME"]) {
@@ -139,11 +139,13 @@ test("a home's owners and admins rename it for everyone in it; a member, an outs
   assert.equal((await namesSeenBy(ben)).get(slug), longest);
   assert.equal((await rename(ada, slug, "The Smiths")).status, 200);
 
-  // A member is refused, and someone outside the home is told it isn't there; the name stays.
+  // A member is refused, and so is someone outside the home, as JSKIT refuses a workspace they aren't in (403
+  // workspaces.workspace.accessDenied on the JSKIT this copy pins; 404, as for a home that isn't there, from
+  // workspaces-core 0.2.58); the name stays.
   const byMember = await rename(ben, slug, "Ben's now");
   assert.equal(byMember.status, 403, JSON.stringify(byMember.body));
   const byOutsider = await rename(sam, slug, "Sam's now");
-  assert.equal(byOutsider.status, 404, JSON.stringify(byOutsider.body));
+  assert.ok([403, 404].includes(byOutsider.status), JSON.stringify(byOutsider.body));
   assert.equal((await namesSeenBy(sam)).has(slug), false);
 
   // An empty name, spaces only, and one longer than 160 characters are refused; the name stays.

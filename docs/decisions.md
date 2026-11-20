@@ -2719,9 +2719,9 @@ help only said how to name a new one. Its owners and admins can now change it.
 - **How.** JSKIT's own route for a workspace's profile, `PATCH /api/w/:workspaceSlug` with `{ name }`
   (`workspace.workspaces.update`), through `homesApi.js` `rename`; Mercbot adds no route or check of its own. JSKIT
   allows it with `workspace.settings.update`, which only owners and admins have (`config/roles.js`): a member is
-  refused 403, and someone outside the home is told it isn't there (404). It trims the name and refuses an empty one
-  or one longer than 160 characters (400), JSKIT's limit for a workspace's name, which the page's field and its check
-  follow (`HOME_NAME_MAX`). The home's address (its slug), bots and people stay as they were.
+  refused 403, and so is someone outside the home, as JSKIT refuses any workspace they aren't in. It trims the name
+  and refuses an empty one or one longer than 160 characters (400), JSKIT's limit for a workspace's name, which the
+  page's field and its check follow (`HOME_NAME_MAX`). The home's address (its slug), bots and people stay as they were.
 - **Shown at once.** The page that renamed it keeps the name the server answered in its list of homes, so the sidebar
   and the home switcher show it without another read. Everyone else in the home hears of it on their bot events, as of
   any change JSKIT reports to a home (`home-changed`), and reads their homes again. Signing in again doesn't name a
