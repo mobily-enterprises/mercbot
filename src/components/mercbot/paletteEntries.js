@@ -75,7 +75,6 @@ function conversationRow(bot) {
     bot,
     title: bot.name,
     secondary: bot.kind === "group" ? (bot.members || []).map((member) => member.name).join(", ") : "",
-    chip: bot.kind === "group" ? "" : bot.label || "",
     tag: bot.hidden ? "hidden" : "",
     unread: bot.unread
   };
@@ -128,11 +127,11 @@ function whereAndWhen(message) {
 export function paletteEntries({ needle, bots: allBots, commands: allCommands, apps, routines, files, messages }) {
   const commands = allCommands.map((command) => ({ key: command.id, kind: "command", ...command }));
   if (!needle) return [...emptyOrder(allBots).map(conversationRow), ...commands];
-  // A bot's label is searched too; its contiguous match counts from where it starts.
-  const matched = byScore(allBots.map((bot) => ({
-    ...conversationRow(bot),
-    score: best(score(bot.name, needle), bot.label && bot.label.toLowerCase().includes(needle) ? bot.label.toLowerCase().indexOf(needle) + 100 : null)
-  })));
+  // A bot's template tag is searched too (D-98); its contiguous match counts from where it starts.
+  const matched = byScore(allBots.map((bot) => {
+    const tag = bot.template?.tag || "";
+    return { ...conversationRow(bot), score: best(score(bot.name, needle), tag.includes(needle) ? tag.indexOf(needle) + 100 : null) };
+  }));
   const bots = matched.filter((entry) => !entry.bot.hidden);
   const hidden = matched.filter((entry) => entry.bot.hidden);
   const appRows = byScore(apps.map((plugin) => ({

@@ -2,73 +2,73 @@ import { computed, nextTick, ref, watch } from "vue";
 import { botsApi } from "./botsApi.js";
 
 /**
- * Details tab: the bot's always-on instructions (D-95). Read on the Details tab, and read again there as the bot's
- * activity changes (an approved card may have changed them), unless they're being edited. Its maker and the home's
- * owners and admins edit them in place: Save writes them, Cancel puts them back, and a refusal (too long, not allowed)
- * shows under the box in the server's words.
+ * Details tab: the bot's Instructions (D-98), its template and its additions. Read on the Details tab, and read again
+ * there as the bot's activity changes (an approved card may have changed its additions), unless they're being edited.
+ * Its maker and the home's owners and admins edit the additions in place: Save writes them, Cancel puts them back, and a
+ * refusal (too long, not allowed) shows under the box in the server's words. The template is read-only here.
  * @param {{
  *   bot: () => import("../../types.js").Bot,
  *   isGroup: import("vue").ComputedRef<boolean>,
  *   tab: import("vue").ComputedRef<string>,
- *   onSaved: () => void,
+ *   onSaved: (bot: import("../../types.js").Bot) => void,
  *   onFailure: (error: unknown) => void
  * }} options
  */
 export function useBotInstructions({ bot, isGroup, tab, onSaved, onFailure }) {
   const instructions = ref(null);
-  const editingInstructions = ref(false);
-  const instructionsDraft = ref("");
-  const savingInstructions = ref(false);
-  const instructionsProblem = ref("");
-  const instructionsBox = ref(null);
-  const instructionsChanged = computed(() => instructions.value && instructionsDraft.value.trim() !== instructions.value.instructions);
+  const editingAdditions = ref(false);
+  const additionsDraft = ref("");
+  const savingAdditions = ref(false);
+  const additionsProblem = ref("");
+  const additionsBox = ref(null);
+  const additionsChanged = computed(() => instructions.value && additionsDraft.value.trim() !== instructions.value.additions);
 
   async function loadInstructions() {
-    if (isGroup.value || editingInstructions.value) return;
+    if (isGroup.value || editingAdditions.value) return;
     const botId = bot().id;
     try {
       const read = await botsApi.instructions(botId);
-      if (bot().id === botId && !editingInstructions.value) instructions.value = read;
+      if (bot().id === botId && !editingAdditions.value) instructions.value = read;
     } catch (error) {
       onFailure(error);
     }
   }
 
-  async function editInstructions() {
+  async function editAdditions() {
     if (!instructions.value?.canChange) return;
-    instructionsDraft.value = instructions.value.instructions;
-    instructionsProblem.value = "";
-    editingInstructions.value = true;
+    additionsDraft.value = instructions.value.additions;
+    additionsProblem.value = "";
+    editingAdditions.value = true;
     await nextTick();
-    instructionsBox.value?.focus();
+    additionsBox.value?.focus();
   }
 
-  function cancelInstructions() {
-    editingInstructions.value = false;
-    instructionsProblem.value = "";
+  function cancelAdditions() {
+    editingAdditions.value = false;
+    additionsProblem.value = "";
   }
 
-  async function saveInstructions() {
+  async function saveAdditions() {
     const botId = bot().id;
-    savingInstructions.value = true;
-    instructionsProblem.value = "";
+    savingAdditions.value = true;
+    additionsProblem.value = "";
     try {
-      await botsApi.update(botId, { instructions: instructionsDraft.value });
+      const { bot: changed } = await botsApi.update(botId, { additions: additionsDraft.value });
       instructions.value = await botsApi.instructions(botId);
-      editingInstructions.value = false;
-      onSaved();
+      editingAdditions.value = false;
+      onSaved(changed);
     } catch (error) {
-      instructionsProblem.value = error?.message || "That didn't save. Try again.";
+      additionsProblem.value = error?.message || "That didn't save. Try again.";
     }
-    savingInstructions.value = false;
+    savingAdditions.value = false;
   }
 
   let instructionsFor = null;
   watch([() => bot().id, () => bot().lastActivityAt, tab], () => {
     if (bot().id !== instructionsFor) {
       instructions.value = null;
-      editingInstructions.value = false;
-      instructionsProblem.value = "";
+      editingAdditions.value = false;
+      additionsProblem.value = "";
     }
     instructionsFor = bot().id;
     if (tab.value === "details") loadInstructions();
@@ -76,14 +76,15 @@ export function useBotInstructions({ bot, isGroup, tab, onSaved, onFailure }) {
 
   return {
     instructions,
-    editingInstructions,
-    instructionsDraft,
-    savingInstructions,
-    instructionsProblem,
-    instructionsBox,
-    instructionsChanged,
-    editInstructions,
-    cancelInstructions,
-    saveInstructions
+    loadInstructions,
+    editingAdditions,
+    additionsDraft,
+    savingAdditions,
+    additionsProblem,
+    additionsBox,
+    additionsChanged,
+    editAdditions,
+    cancelAdditions,
+    saveAdditions
   };
 }

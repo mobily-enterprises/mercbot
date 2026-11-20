@@ -85,7 +85,7 @@ export function createGroupReplies({ records, computer, conversations, chatHisto
             ...(several ? { place: "group" } : {})
           }
         }));
-      const { run, isBuilder } = await turns.turnTools(actor, {
+      const { run, isBuilder, template } = await turns.turnTools(actor, {
         timeZone,
         language: "",
         turn: { working: null, asking: null, viaBot: false },
@@ -103,7 +103,7 @@ export function createGroupReplies({ records, computer, conversations, chatHisto
       let refused = null;
       try {
         const context = await groupContext();
-        const out = await groupReply({ ...toBot(own), isBuilder, instructions: own.instructions || "", skills: own.skills || [] }, {
+        const out = await groupReply({ ...toBot(own), isBuilder, template, additions: own.additions || "" }, {
           groupName: row.name,
           members,
           person: asker.name,
@@ -123,7 +123,7 @@ export function createGroupReplies({ records, computer, conversations, chatHisto
         if (!quiet && Array.isArray(transcript) && (leaked || (!account && stoppedShort(text.trim())))) {
           const steps = withoutClosingWords(transcript);
           const sofar = { kind: "text", role: "bot", body: { text: "", speaker: member, transcript: steps } };
-          const more = await groupReply({ ...toBot(own), isBuilder, instructions: own.instructions || "", skills: own.skills || [] }, {
+          const more = await groupReply({ ...toBot(own), isBuilder, template, additions: own.additions || "" }, {
             groupName: row.name,
             members,
             person: asker.name,

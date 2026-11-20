@@ -76,8 +76,10 @@ const NOTEBOOK_PAGE = 50;
  * @param {import("@jskit-ai/users-core/server/types").UserProfilesRepository} dependencies.profiles users.profiles
  * @param {import("@jskit-ai/workspaces-core/server/types").WorkspaceMembershipsRepository} dependencies.memberships workspaces.memberships
  * @param {{ lock: (workspaceId: string, options: CallOptions) => Promise<{ id: string } | null> }} dependencies.workspaces workspaces
+ * @param {import("../types.js").HomeTemplateRepository} dependencies.homeTemplates the home's own templates (D-98), whose
+ *   tag and description every bot read here carries
  */
-export function createConversationRepository({ resources, systemContext, profiles, memberships, workspaces }) {
+export function createConversationRepository({ resources, systemContext, profiles, memberships, workspaces, homeTemplates }) {
   const {
     bots,
     botConversations: conversations,
@@ -93,7 +95,8 @@ export function createConversationRepository({ resources, systemContext, profile
 
   /** One bot of the home the caller sees, or null. */
   async function botOf(botId, options) {
-    return asRow(await bots.get(botId, {}, { ...passedOn(options), missing: "skip" }), options);
+    const [bot] = await homeTemplates.withSummaries([asRow(await bots.get(botId, {}, { ...passedOn(options), missing: "skip" }), options)], options);
+    return bot;
   }
 
   /** The person's own conversation with the bot, or null. */
@@ -302,13 +305,14 @@ export function createConversationRepository({ resources, systemContext, profile
   /** The bots of the home the caller sees, in id order: with `botId`, just that one. */
   async function listBots(options, { botId } = {}) {
     const records = await bots.queryAll({ filters: botId ? { id: botId } : {}, sort: ["id"] }, passedOn(options));
-    return records.map((record) => asRow(record, options));
+    return homeTemplates.withSummaries(records.map((record) => asRow(record, options)), options);
   }
 
   /** The home's bots of one kind among the ids given (a group's picks, a member to add). */
   async function homeBotsOf(ids, options, { kind = "bot" } = {}) {
     if (!ids.length) return [];
-    return (await bots.queryAll({ filters: { id: ids, kind } }, passedOn(options))).map((record) => asRow(record, options));
+    const records = await bots.queryAll({ filters: { id: ids, kind } }, passedOn(options));
+    return homeTemplates.withSummaries(records.map((record) => asRow(record, options)), options);
   }
 
   /** Bots of the home the caller sees among the ids given, of any kind, keyed by id (search's names). */
@@ -329,7 +333,8 @@ export function createConversationRepository({ resources, systemContext, profile
   /** The home's first bot, the oldest, or null. */
   async function firstBot(options) {
     const { records: [first] } = await bots.query({ sort: ["id"], page: { size: 1 } }, passedOn(options));
-    return asRow(first ?? null, options);
+    const [bot] = await homeTemplates.withSummaries([asRow(first ?? null, options)], options);
+    return bot;
   }
 
   /**

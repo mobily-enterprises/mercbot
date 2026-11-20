@@ -95,7 +95,8 @@ render across compact, medium, and expanded layouts.
   row never opens, so nothing asks the server about a bot that doesn't exist yet,
   and the new bot joins the list even when news reads the list again meanwhile.
 - The Details panel shows the bot's live avatar, an in-place editable name
-  and label, and Details, Library and Computer tabs; the chosen tab is shared
+  and its template's tag (`MercbotTemplateTag.vue`, a button to its
+  Instructions), and Details, Library and Computer tabs; the chosen tab is shared
   across bots and saved on the device. Escape closes it when nothing else is
   open. Its top shows, for a bot, the actions a copy built on Mercbot adds there
   (`extensions.js` `botActions`), before Close; Mercbot adds none.
@@ -105,11 +106,16 @@ render across compact, medium, and expanded layouts.
   bot's or the home's). "…" or a right-click opens its menu: Pin or Unpin, and for
   a page Open, Share… (who can open it, with Copy text and Download) and Delete,
   which asks first in the app's own dialog.
-- Instructions sit in one bordered box on the Details tab, after Came from
-  (`useBotInstructions.js`, D-95): the bot's text, or a hint when it has none.
-  Its maker and the home's owners and admins select it to edit in a text box
+- Instructions come first on the Details tab (`useBotInstructions.js`, D-98):
+  "This bot is a <tag> bot, plus its own additions.", the template's box
+  (read-only with a lock: its source, Tested day, the newest change, its
+  instructions with Show all, its skills, and Change template, which opens
+  `MercbotChangeTemplateDialog.vue`: the home's templates and Mercbot's in the
+  template browser, then a confirm with the template in full and the additions
+  that stay; Escape goes back), then the Additions box: its maker and the
+  home's owners and admins select it to edit in a text box
   with Cancel and Save (pills, as Settings' forms); a refusal shows under the box
-  in the server's words, and a note says when a template bot's are changed or who
+  in the server's words, and a note says who
   can change them. They're read again as the bot's activity changes, so an
   approved change card shows there too. An approval card that carries a
   `change` shows it as Before and After.
@@ -155,7 +161,7 @@ render across compact, medium, and expanded layouts.
   and Notifications, Connect Apps, Skills, and Theme: System, Light or Dark (ticked, applied
   at once and saved to the account). Typing matches loosely, letters in order,
   ranking by where the first letter falls, and lists bots and groups (by name or
-  label), apps (by name or description; opens the app's page), hidden bots (tagged),
+  template tag), apps (by name or description; opens the app's page), hidden bots (tagged),
   commands, routines (opens the bot with Details) and up to 5 messages from
   `GET /api/search` (opens the chat with the message at the top, ringed). Contiguous
   runs are bold; five placeholder rows show while only messages are pending, then

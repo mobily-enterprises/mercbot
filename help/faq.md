@@ -112,7 +112,9 @@ For a skill, ask the bot to save what it just did as a skill, or teach it by rec
 
 ## Can I share a bot with someone?
 
-Inside a home, everyone already uses the same bots, and owners and admins choose whether each bot is **Private**, **Mixed** or **Shared**.
+Inside a home, everyone already uses the same bots. Owners and admins choose whether each bot is **Private**, **Mixed** or **Shared** under **Who sees what** in its Details panel; see [Bots shared in a home](/help/shared-bots).
+
+Outside your home, you can share one of the ready-made bots in the [template gallery](/templates). A template's **Add to Mercbot** opens its share page: send someone that link, and its **Add to Mercbot** shows them everything the bot would be given before they add it to their own home. The gallery is curated by the Mercbot team, who alone add templates to it, so a bot you've made yourself can't go there, and Mercbot has no way to send your own bot to someone outside your home.
 
 ## How do I delete a bot?
 

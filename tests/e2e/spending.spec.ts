@@ -47,7 +47,7 @@ type Use = [who: "person" | "nobody", kind: string, amounts: Record<string, numb
 async function writeUse(address: string, botName: string, uses: Use[], { monthsBack = [] as Array<{ months: number, uses: Use[] }> } = {}) {
   const knex = database();
   const home = await knex("workspaces").where({ slug: address.slice("/w/".length) }).first();
-  const [bot] = await knex("bots").insert({ user_id: home.owner_user_id, workspace_id: home.id, name: botName, color: "#5C6BC0" }).returning("*");
+  const [bot] = await knex("bots").insert({ user_id: home.owner_user_id, workspace_id: home.id, name: botName, color: "#5C6BC0", library_template: "general" }).returning("*");
   // The person's own chat with it, past the short introduction a bot starts on its first look: that is an AI call, made
   // a moment after the chat opens, which would add to the figures these tests read exactly.
   await knex("bot_conversations").insert({ workspace_id: home.id, bot_id: bot.id, user_id: home.owner_user_id, onboarding_step: null });

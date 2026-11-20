@@ -27,8 +27,7 @@
   line-height: 0;
 }
 
-.mb-details__name,
-.mb-details__label {
+.mb-details__name {
   max-width: calc(100% - 32px);
   overflow: hidden;
   border: 0;
@@ -48,25 +47,16 @@
   line-height: 22px;
 }
 
-.mb-details__label {
-  margin-top: 4px;
-  padding: 1px 8px;
-  font-size: 12px;
-  line-height: 18px;
-  color: rgb(var(--v-theme-on-surface-variant));
+/* Its template's tag under its name (D-98), where the label was; selecting it opens its Instructions. */
+.mb-details__tag {
+  margin-top: 6px;
 }
 
-.mb-details__label--empty {
-  color: rgb(var(--v-theme-on-surface-variant));
-}
-
-.mb-details__name:hover,
-.mb-details__label:hover {
+.mb-details__name:hover {
   background: rgb(var(--v-theme-surface-container-high));
 }
 
 .mb-details__name:focus-visible,
-.mb-details__label:focus-visible,
 .mb-details__tab:focus-visible,
 .mb-switch:focus-visible {
   outline: 2px solid rgb(var(--v-theme-secondary));
@@ -88,12 +78,6 @@
   margin-top: 20px;
   height: 26px;
   font-size: 16px;
-}
-
-.mb-details__field--label {
-  margin-top: 4px;
-  height: 20px;
-  font-size: 12px;
 }
 
 .mb-details__tabs {
@@ -251,17 +235,6 @@
   margin: 0 0 8px;
   font-size: 13px;
   color: rgb(var(--v-theme-on-surface-variant));
-}
-
-.mb-details__origin {
-  margin: 0 0 16px;
-  font-size: 13px;
-  line-height: 19px;
-}
-
-.mb-details__origin a {
-  color: inherit;
-  font-weight: 500;
 }
 
 .mb-details__skeleton {

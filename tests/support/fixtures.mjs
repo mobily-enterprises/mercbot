@@ -70,9 +70,10 @@ try {
     await gate.create(ctx, "contacts", { name, email, stage });
   }
 
-  await knex("bots").insert({ user_id: user.id, workspace_id: workspaceId, name: "Otto", color: "#7E57C2" });
+  // Bots point at a template (D-98): these at Mercbot's general one, as a bot made with New bot does.
+  await knex("bots").insert({ user_id: user.id, workspace_id: workspaceId, name: "Otto", color: "#7E57C2", library_template: "general" });
   // The views tests' own bot: others make Otto the home's shared Builder, which takes its private chat out of view.
-  await knex("bots").insert({ user_id: user.id, workspace_id: workspaceId, name: "Vera", color: "#00897B" });
+  await knex("bots").insert({ user_id: user.id, workspace_id: workspaceId, name: "Vera", color: "#00897B", library_template: "general" });
 
   const definition = (columns) => ({
     home: "list",

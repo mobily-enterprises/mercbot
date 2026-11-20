@@ -2363,9 +2363,9 @@ review's 3.2.2).
   tied to the signed-in person who owns the account, as before.
 - A sign-in started before this keeps no cookie's hash and can't be finished; it is started again.
 
-## D-98 — Every bot is a template plus its own additions; a template's tag replaces the label (2026-11-20, proposed)
+## D-98 — Every bot is a template plus its own additions; a template's tag replaces the label (2026-11-20)
 
-*Proposed, for the owner to confirm before the data model is built. It supersedes D-43's copy of a template into a
+*Accepted by the owner on 20 November ("yes to all"). It supersedes D-43's copy of a template into a
 bot (the gallery itself, its curation, its preview before adding and its Tested badge stay), D-95's single
 instructions text (its rules for who changes them and for the card stay, for the additions), and the free bot label
 (D-36).* The owner asked on 20 November for one simple model, "CRYSTAL CLEAR and NOT CONFUSING", not slapped on top:
@@ -2383,7 +2383,9 @@ three words everywhere, **Bot**, **Template** (with a tag) and **Additions**.
   Mercbot team only, never published to by people), and **your home's templates**, made inside a home and seen only
   there.
 - **The tag:** every template has one short lowercase word, its tag (`meals`, `capt`, `travel`), unique across
-  Mercbot's library and the home's templates: 2 to 10 letters or digits, starting with a letter. A bot shows its
+  Mercbot's library and the home's templates: 2 to 10 lowercase letters or digits, starting with a letter. Should a
+  release's library bring a tag a home already uses, that release's upgrade renames the home's to the first free
+  `<tag>2`, `<tag>3`…, with a "what changed" line saying why. A bot shows its
   template's tag as a chip wherever its name shows, with `+` when it has additions (`meals+`), and a small Mercbot
   cloud on library tags only, so a home's tag is the plain one. Hovering the chip shows the template's one-line
   description and the additions in one line; selecting it opens the bot's Instructions in Details. Until a bot has a
@@ -2408,7 +2410,9 @@ three words everywhere, **Bot**, **Template** (with a tag) and **Additions**.
 - `bots`: `library_template` (a library slug) or `home_template_id` (a foreign key, `ON DELETE RESTRICT`, so a used
   template can't be deleted even by mistake), at most one of them set (a check constraint), neither only while a
   "Let the bot ask" bot is setting up; `additions` (text, empty when none, up to 20,000 characters); `template_since`.
-  `instructions`, `skills`, `origin` and `label` go, after the upgrade copies them into its backup.
+  `instructions`, `skills`, `origin` and `label` go, after the upgrade copies them into its backup: this release
+  stops reading them and leaves the columns in place, since the release before may still run beside it while it rolls
+  out, and a later release drops them (expand, then contract; `tests/server/migrationsExpandOnly.test.js`).
 - **Library tags** are added to the 49 files, plus `general` (below); `checkTemplate` refuses a missing, malformed or
   repeated tag. `templateFingerprint` leaves out `tag` and `changes`, so adding them resets no Tested badge (D-79).
 - **No query per bot:** the bot list reads the home's templates once (tag, description), library tags come from the
@@ -2420,8 +2424,7 @@ three words everywhere, **Bot**, **Template** (with a tag) and **Additions**.
 - Library: read by anyone; no route writes it. Making or pointing a bot takes a slug that must be a library file or
   the id of a template in the caller's own home (another home's: 404); a template body sent by a client is never
   taken as a library template.
-- Home templates: read by the home's people. **Made** by anyone who can make a bot, while making one (owner to
-  confirm). **Edited and deleted** by owners and admins only (`workspace.settings.update`); delete only when no bot
+- Home templates: read by the home's people. **Made** by anyone who can make a bot, while making one. **Edited and deleted** by owners and admins only (`workspace.settings.update`); delete only when no bot
   uses it.
 - A bot's template and additions: changed by the person who made the bot and the home's owners and admins, as D-95's
   instructions were; the bot proposes additions only on the **Go ahead** card (`change_additions`, D-95's
@@ -2468,8 +2471,10 @@ someone changes them, so the prompt's start stays cached between edits.
   home template made from their text (and skills), one per distinct text in a home, tagged from the bot's name
   (de-duplicated, editable later), and point at it, with no additions.
 - A bot with no instructions, the main bot among them, points at the library's **`general`** template: an all-round
-  helper with no job beyond Mercbot's rules, the one library template exempt from "one job" (owner to confirm).
-- **Labels:** proposed, they go: the tag replaces them and two chips would confuse. A one-word label is the first
+  helper with no job beyond Mercbot's rules, the one library template exempt from "one job" and its setup interview,
+  and not listed in the gallery. Until New bot's "Let the bot ask" comes (stage b), a bot made with New bot points at
+  it too.
+- **Labels go:** the tag replaces them and two chips would confuse. A one-word label is the first
   choice for the tag of a home template the upgrade makes from that bot; every label stays in the backup.
 - A bot the migration can't place stops it with an error naming the bot and why; nothing is half-moved.
 
@@ -2490,7 +2495,7 @@ someone changes them, so the prompt's start stays cached between edits.
 | Main bot's first conversation (name, about, Gmail) | Unchanged; it points at `general` |
 | Routines, memory, notebook, skills, chat summary | Unchanged (plus the corrected-twice offer) |
 | Group chats | Not bots: no template, no chip |
-| A copy built on Mercbot's template links (`mercbot.template-links`) | Owner to decide: adding from a link makes a home template in the adder's home, or the links go |
+| A copy built on Mercbot's template links (`mercbot.template-links`) | Kept: adding from a link makes a home template in the adder's home, and the bot points at it |
 
 ### Built in three stages, each landable with its help and screenshots
 

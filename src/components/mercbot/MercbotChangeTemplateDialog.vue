@@ -1,0 +1,197 @@
+<script setup>
+import { computed, nextTick, ref, shallowRef, watch } from "vue";
+import { useDisplay } from "vuetify";
+import TemplateAvatar from "../templates/TemplateAvatar.vue";
+import TemplateBrowser from "../templates/TemplateBrowser.vue";
+import TemplateTested from "../templates/TemplateTested.vue";
+import { templatesApi } from "../templates/templatesApi.js";
+import MercbotTemplateTag from "./MercbotTemplateTag.vue";
+import { botsApi } from "./botsApi.js";
+
+// Change template (D-98): the picker (the home's own templates first, then Mercbot's library, as New bot shows them),
+// then a confirm showing the chosen template's instructions and skills in full and the bot's additions, which it keeps
+// under the new template. Change template points the bot at it; the bot then says so and asks the new template's setup
+// questions in its chat. Escape on the confirm goes back to the picker. On a phone it fills the screen, with its close,
+// title and action in a bar at the top.
+const props = defineProps({
+  bot: { type: Object, required: true },
+  // The bot's additions, which stay.
+  additions: { type: String, default: "" }
+});
+const open = defineModel({ type: Boolean, default: false });
+const emit = defineEmits(["changed"]);
+
+const display = useDisplay();
+const phone = computed(() => display.width.value < 600);
+const home = ref(null);
+// The choice as the browser gave it, kept as is (not made reactive), so a reply is matched to the choice it answers.
+const chosen = shallowRef(null);
+const detail = ref(null);
+const loadFailed = ref(false);
+const busy = ref(false);
+const problem = ref("");
+const browser = ref(null);
+const back = ref(null);
+
+const library = computed(() => Boolean(chosen.value?.library));
+// What the chosen template's tag looks like on a bot.
+const chosenTag = computed(() => detail.value && { template: { tag: detail.value.tag, source: library.value ? "library" : "home", description: detail.value.description } });
+const current = computed(() => {
+  const now = props.bot.template;
+  if (!now || !detail.value) return false;
+  return now.source === (library.value ? "library" : "home") && now.tag === detail.value.tag;
+});
+const canChange = computed(() => Boolean(detail.value) && !current.value && !busy.value);
+
+watch(open, async (value) => {
+  if (!value) return;
+  chosen.value = null;
+  detail.value = null;
+  problem.value = "";
+  home.value = null;
+  botsApi.homeTemplates().then((read) => { home.value = read.templates; }).catch(() => { home.value = []; });
+  await nextTick();
+  browser.value?.focusSearch();
+}, { immediate: true });
+
+async function pick(choice) {
+  chosen.value = choice;
+  detail.value = null;
+  loadFailed.value = false;
+  problem.value = "";
+  try {
+    const read = choice.library ? await templatesApi.template(choice.library) : await botsApi.homeTemplate(choice.home);
+    if (chosen.value === choice) detail.value = read;
+  } catch {
+    if (chosen.value === choice) loadFailed.value = true;
+  }
+  await nextTick();
+  back.value?.focus();
+}
+
+function toPicker() {
+  if (busy.value) return;
+  chosen.value = null;
+  nextTick(() => browser.value?.focusSearch());
+}
+
+async function change() {
+  if (!canChange.value) return;
+  busy.value = true;
+  problem.value = "";
+  try {
+    const { bot } = await botsApi.changeTemplate(props.bot.id, chosen.value);
+    emit("changed", bot);
+    open.value = false;
+  } catch (error) {
+    problem.value = error?.message || "That didn't work. Try again.";
+  }
+  busy.value = false;
+}
+
+function close() {
+  if (!busy.value) open.value = false;
+}
+
+function onKeydown(event) {
+  if (event.key === "Escape" && chosen.value) {
+    event.preventDefault();
+    event.stopPropagation();
+    toPicker();
+  }
+}
+</script>
+
+<template>
+  <v-dialog :model-value="open" width="auto" :fullscreen="phone" :persistent="busy" @update:model-value="close">
+    <div
+      class="mb-ctemp"
+      :class="{ 'mb-ctemp--phone': phone }"
+      role="dialog"
+      aria-labelledby="mb-ctemp-title"
+      @keydown="onKeydown"
+    >
+      <div class="mb-ctemp__head">
+        <button v-if="phone" type="button" class="mb-ctemp__close" aria-label="Close" :disabled="busy" @click="close">
+          <v-icon icon="$close" size="18" />
+        </button>
+        <h2 id="mb-ctemp-title" class="mb-ctemp__title">Change {{ bot.name }}'s template</h2>
+        <button
+          v-if="phone && chosen"
+          type="button"
+          class="mb-ctemp__button mb-ctemp__button--primary mb-ctemp__action"
+          :disabled="!canChange"
+          @click="change"
+        >
+          {{ busy ? "Changing…" : "Change" }}
+        </button>
+        <button v-if="!phone" type="button" class="mb-ctemp__close" aria-label="Close" :disabled="busy" @click="close">
+          <v-icon icon="$close" size="14" />
+        </button>
+      </div>
+
+      <div class="mb-ctemp__body">
+        <div class="mb-ctemp__picker" :class="{ 'mb-ctemp__picker--behind': chosen }" :inert="Boolean(chosen)">
+          <TemplateBrowser ref="browser" picking :home="home || []" @pick="pick" />
+        </div>
+        <Transition name="mb-ctemp-step">
+          <div v-if="chosen" class="mb-ctemp__step">
+            <div class="mb-ctemp__scroll">
+              <button ref="back" type="button" class="mb-ctemp__step-link" :disabled="busy" @click="toPicker">
+                <v-icon icon="$chevronLeft" size="16" /> All templates
+              </button>
+              <div v-if="loadFailed" class="mb-ctemp__state" role="alert">
+                <p>That template couldn't be loaded.</p>
+                <button type="button" class="mb-set-pill" @click="pick(chosen)">Try again</button>
+              </div>
+              <div v-else-if="!detail" class="mb-ctemp__state" role="status" aria-label="Loading the template" />
+              <template v-else>
+                <div class="mb-ctemp__who">
+                  <TemplateAvatar v-if="library" :template="detail" :size="56" />
+                  <span v-else class="mb-ctemp__home-face"><v-icon icon="$home" size="26" /></span>
+                  <div class="mb-ctemp__who-text">
+                    <h3 class="mb-ctemp__name">
+                      {{ library ? detail.name : detail.tag }}
+                      <MercbotTemplateTag :bot="chosenTag" size="medium" :tooltip="false" />
+                    </h3>
+                    <p class="mb-ctemp__by">
+                      {{ library ? `Mercbot's library, by ${detail.creator}` : `Your home's template · ${detail.usedBy === 1 ? "used by 1 bot" : `used by ${detail.usedBy} bots`}` }}
+                      <TemplateTested v-if="library && detail.team" :template="detail" />
+                    </p>
+                  </div>
+                </div>
+                <p class="mb-ctemp__description">{{ detail.description }}</p>
+                <p v-if="current" class="mb-ctemp__note mb-ctemp__note--now">This is {{ bot.name }}'s template now.</p>
+
+                <p class="mb-ctemp__label"><v-icon icon="$lock" size="13" /> Its instructions</p>
+                <div class="mb-ctemp__text">{{ detail.instructions }}</div>
+                <template v-if="detail.skills?.length">
+                  <p class="mb-ctemp__label">Its skills</p>
+                  <ul class="mb-ctemp__skills">
+                    <li v-for="skill in detail.skills" :key="skill.name"><strong>{{ skill.name }}</strong> {{ skill.description }}</li>
+                  </ul>
+                </template>
+
+                <p class="mb-ctemp__label">{{ bot.name }}'s additions stay</p>
+                <div class="mb-ctemp__text" :class="{ 'mb-ctemp__text--none': !additions }">{{ additions || "Nothing added." }}</div>
+                <p class="mb-ctemp__note">
+                  {{ additions ? `They now sit under ${detail.tag}, still for ${bot.name} alone, and you can change them in its Instructions.` : "" }}
+                  {{ bot.name }} keeps its name, look, chats and routines, and asks the new template's setup questions in its chat.
+                </p>
+              </template>
+            </div>
+            <p v-if="problem" class="mb-ctemp__error" role="alert">{{ problem }}</p>
+            <div v-if="!phone" class="mb-ctemp__foot">
+              <button type="button" class="mb-ctemp__button" :disabled="busy" @click="toPicker">Back</button>
+              <button type="button" class="mb-ctemp__button mb-ctemp__button--primary" :disabled="!canChange" @click="change">
+                {{ busy ? "Changing…" : "Change template" }}
+              </button>
+            </div>
+          </div>
+        </Transition>
+      </div>
+    </div>
+  </v-dialog>
+</template>
+
+<style scoped src="./MercbotChangeTemplateDialog.css"></style>

@@ -1,10 +1,10 @@
 import { retryLostInsertRace } from "@jskit-ai/database-runtime/shared";
 import { BotsError } from "./botsError.js";
 import { cleanName, cleanTitle, toBot, toRoom } from "./botRows.js";
-import { changeRefusal, instructionsChange, mayChangeInstructions } from "./botInstructions.js";
+import { additionsChange, changeRefusal, mayChangeBot } from "./botAdditions.js";
 
 /**
- * A bot's settings and a shared bot's rooms (D-36): its name, label, instructions (D-95) and sharing, the person's own
+ * A bot's settings and a shared bot's rooms (D-36): its name, additions (D-98) and sharing, the person's own
  * pins, section and reading state, rooms opened, made and renamed, and a bot deleted. Every method takes the call's
  * options last.
  * @param {object} dependencies
@@ -25,14 +25,13 @@ export function createBotSettings({ records, conversations, apps }) {
         shared.name = cleanName(patch.name);
         own.last_activity_at = new Date().toISOString();
       }
-      if (patch.label !== undefined) shared.label = String(patch.label || "").trim().slice(0, 60) || null;
-      // Its always-on instructions (D-95): only its maker and the home's owners and admins change them.
-      if (patch.instructions !== undefined) {
-        if (row.kind === "group") throw new BotsError(400, "A group chat has no instructions of its own.", { code: "bots_group_instructions" });
-        if (!mayChangeInstructions(row.created_by, conversations.personOf(txOptions), txOptions)) {
-          throw new BotsError(403, changeRefusal(row.name), { code: "bots_instructions_forbidden" });
+      // Its additions to its template (D-98): only its maker and the home's owners and admins change them.
+      if (patch.additions !== undefined) {
+        if (row.kind === "group") throw new BotsError(400, "A group chat has no additions of its own.", { code: "bots_group_additions" });
+        if (!mayChangeBot(row.created_by, conversations.personOf(txOptions), txOptions)) {
+          throw new BotsError(403, changeRefusal(row.name), { code: "bots_additions_forbidden" });
         }
-        Object.assign(shared, instructionsChange(row, patch.instructions));
+        Object.assign(shared, additionsChange(patch.additions));
       }
       // Replace the main bot: this bot becomes the home's main bot, the one that can't
       // be deleted; the route lets only owners and admins do it.
@@ -80,19 +79,6 @@ export function createBotSettings({ records, conversations, apps }) {
       await conversations.publish(await conversations.everyoneIn(options), { botId: String(changed.id), type: "changed" });
     }
     return toBot(changed);
-  }
-
-  /**
-   * A bot's instructions as its Details panel shows them (D-95): the text ("" for none), whether the person may change
-   * them, and, for a bot added from a template, whether they're no longer the template's.
-   */
-  async function instructionsOf(botId, options) {
-    const row = await conversations.ownedSingleBot(botId, options);
-    return {
-      instructions: row.instructions || "",
-      canChange: mayChangeInstructions(row.created_by, conversations.personOf(options), options),
-      changedFromTemplate: Boolean(row.origin?.instructionsChanged)
-    };
   }
 
   /**
@@ -156,7 +142,6 @@ export function createBotSettings({ records, conversations, apps }) {
 
   return Object.freeze({
     updateBot,
-    instructionsOf,
     roomForApp,
     createRoom,
     renameRoom,

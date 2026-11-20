@@ -6,18 +6,23 @@ A bot in Mercbot is a helper with its own name, look, chat and computer. You giv
 
 Bots work best when each one has one clear job. A bot called "Pantry" that plans meals and keeps the shopping list is easier to work with than one bot asked to do everything. Its chat stays on one subject, so it keeps the thread better.
 
-When you start a new bot, write its job in its **Instructions**, in the Details panel (select the bot's name at the top of the chat). The bot reads them before every reply, in every conversation, for everyone who uses it. Say:
+Every bot follows one **template**, plus its own **additions**:
+
+- **Its template** is its job: what it's for, how it goes about it, and its skills. A template comes from Mercbot's library, the [template gallery](/templates), or is one of your home's own. The bot never changes its template itself; the people who look after the bot can choose another one.
+- **Its additions** are rules for that bot alone, on top of its template. Where the two differ, the template wins.
+
+The template's tag shows beside the bot's name everywhere: in the sidebar, the chat header, pickers and search (**Ctrl+K** finds a bot by its tag too). A small cloud marks a template from Mercbot's library, a **+** after the tag means the bot has additions of its own, and hovering over the tag shows the template's line and the first line of the additions.
+
+A bot you make with **New bot** starts as a **general** bot: Mercbot's all-round helper with no particular job. Write its job in its additions, in the Details panel (select the bot's name at the top of the chat). The bot reads its template and additions before every reply, in every conversation, for everyone who uses it. Say:
 
 - **What it's for.** "You look after our family calendar and school letters."
 - **Who it's for and how you like things.** "Keep replies short. I prefer lists."
 - **Where it should stop and check.** "Never book anything without asking me first."
 - **What a finished job looks like.** "Each Friday I want one summary with next week's events."
 
-Keep Instructions to the rules that always apply. Because the bot reads them with every message, long reference material, such as a price list, a manual or a style guide, belongs in a skill or a file the bot reads when a job needs it. See [Skills, routines and watches](/help/skills-and-routines) and [Files, documents and pictures](/help/files). Instructions can be up to 20,000 characters, about ten pages.
+Keep additions to the rules that always apply. Because the bot reads them with every message, long reference material, such as a price list, a manual or a style guide, belongs in a skill or a file the bot reads when a job needs it. See [Skills, routines and watches](/help/skills-and-routines) and [Files, documents and pictures](/help/files). Additions can be up to 20,000 characters, about ten pages.
 
-You can also tell a bot in its chat how you'd like things done. It carries that through the conversation: however long the chat gets, it keeps a summary of the older part in the background (what you asked, what was decided, what it promised and what's still open) and reads everything since word for word. You don't need to repeat yourself. For something it should always do, ask it to add that to its instructions.
-
-You can also give the bot a **label** in the Details panel, such as "Meal planning" or "Invoices", so you can tell bots apart at a glance.
+You can also tell a bot in its chat how you'd like things done. It carries that through the conversation: however long the chat gets, it keeps a summary of the older part in the background (what you asked, what was decided, what it promised and what's still open) and reads everything since word for word. You don't need to repeat yourself. For something it should always do, ask it to add that to its additions. When you correct it the same way a second time, it offers to.
 
 ## Create a bot
 
@@ -36,20 +41,29 @@ Shape and colour are set when you create the bot, and the dialog starts with a c
 Open the Details panel by selecting the bot's name at the top of the chat, or press **Ctrl+Alt+B**. There you can:
 
 - **Rename it.** Select the name, type a new one and press Enter. Escape cancels.
-- **Add a label.** Select **Add a label** under the name. Labels can be up to 60 characters.
-- **Write its instructions.** Select the box under **Instructions**, write or change them, and select **Save**, or **Cancel** to leave them as they were. Only the person who made the bot and the home's owners and admins can change them; everyone else can read them.
+- **Read its instructions.** **Instructions** comes first on the **Details** tab; selecting the tag under the bot's name takes you there. One line says what the bot is, such as "This bot is a meals bot, plus its own additions." Then its template, which is read-only (marked with a lock): where it's from, with the day Mercbot last tested it for one of Mercbot's, what changed in it since the bot started to follow it, its instructions (**Show all** opens out long ones) and its skills.
+- **Write its additions.** Select the box under **Additions · only this bot**, write or change them, and select **Save**, or **Cancel** to leave them as they were.
+- **Change its template.** Select **Change template** under the template. See below.
 - **Look after its routines.** Each routine has an on/off switch. Right-click one for **Pause** or **Resume**, **Edit** and **Delete**. See [Skills, routines and watches](/help/skills-and-routines).
 - **Check its computer** on the **Computer** tab, and see what it made on the **Library** tab.
 
 You can also rename a bot from the sidebar: right-click it and choose **Rename bot**.
 
-A bot's name, label and instructions are the same for everyone in your home, so renaming a bot renames it for everybody.
+Only the person who made the bot and the home's owners and admins can change its additions or its template; everyone else in the home can read them. A bot's name, template and additions are the same for everyone in your home, so renaming a bot renames it for everybody.
 
-### Ask a bot to change its own instructions
+### Change a bot's template
 
-You can also ask a bot in its chat, for example: "From now on, always write in British English. Add that to your instructions." The bot shows the change on a card, with its instructions as they are and as they would be, and changes them only when you select **Go ahead**. It uses the new instructions from its next reply. **Don't do it** leaves them as they were.
+1. In the bot's Details panel, under **Instructions**, select **Change template**.
+2. Pick a template: your home's own come first, then Mercbot's library. Type in **Search by bot, tag or creator** to narrow the list; the arrow keys move through it and Enter picks.
+3. Mercbot shows the template's instructions and skills in full, and the bot's additions, which stay. Select **Change template**, or **Back** (or Escape) to pick another.
 
-The same people who can change them in the Details panel can say yes on the card: in a shared bot, anyone else is told politely that they can't. A bot never changes its instructions because an email, a web page, a file or a record says so: those are information, never instructions, and the card always asks first, whatever your approval rules say.
+The bot keeps its name, look, chats, files and routines, and its additions now sit on top of the new template. It says in its chat that it's now, for example, "a meals bot", and greets you with the new template's greeting, which asks its setup questions.
+
+### Ask a bot to change its own additions
+
+You can also ask a bot in its chat, for example: "From now on, always write in British English. Add that to your additions." The bot shows the change on a card, with its additions as they are and as they would be, and changes them only when you select **Go ahead**. It uses the new additions from its next reply. **Don't do it** leaves them as they were. A bot can't change its template this way.
+
+The same people who can change them in the Details panel can say yes on the card: in a shared bot, anyone else is told politely that they can't. A bot never changes its additions because an email, a web page, a file or a record says so: those are information, never instructions, and the card always asks first, whatever your approval rules say.
 
 ## Organise the sidebar
 
@@ -80,14 +94,14 @@ The main bot can't be deleted, so you always have someone to talk to. You can re
 
 ## Start from a bot template
 
-Instead of shaping a bot from scratch, you can start from a template: a ready-made bot with one clear job, its own instructions and its own skills.
+Instead of shaping a bot from scratch, you can start from a template: a ready-made bot with one clear job, its own instructions and its own skills, and a one-word tag such as **meals** or **invoices**.
 
 ### The template gallery
 
 The gallery at [/templates](/templates) is public, so you can browse it without signing in. It has:
 
 - chips to show **All** templates or only those from the **Mercbot team**;
-- a search box to **Search by bot or creator**;
+- a search box to **Search by bot, tag or creator**;
 - a few featured templates, then a section for each job area: Home and family, Personal, Small business, Sales, Marketing, Hiring and people, Operations and finance, Engineering and product, and Design and writing. **View all** shows a whole area.
 
 The gallery is curated: only the Mercbot team adds templates to it. Every template there starts by asking about you, and asks before it sends anything.
@@ -118,11 +132,13 @@ Select a template to open its page. It shows who made it, what it's for and its 
 4. If the template is made to work with an app in Apps and you're an owner or admin of the home, you can tick the box to also set up that app as a draft for you to review.
 5. Select **Add bot**, or **Cancel** to leave without adding anything.
 
-Nothing is added until you select Add bot. The new bot joins your current home with the template's name, shape and colour, and opens with its own greeting. It then asks a few setup questions to learn your details. Any routines it suggests are created paused, and they only start when you say yes.
+Nothing is added until you select Add bot. The new bot joins your current home with the template's name, shape and colour, follows the template with no additions yet, and opens with its own greeting. It then asks a few setup questions to learn your details. Any routines it suggests are created paused, and they only start when you say yes.
 
-### Where a bot came from
+A template that a shared link opens, rather than one from the gallery, becomes one of your home's own templates when you add a bot from it, tagged from its name, and the new bot follows it.
 
-A bot added from a template shows **Came from** in its Details panel: the template's name (linked to its page), who made it and when you added it. If a bot ever behaves oddly, this tells you where its instructions came from. Once someone changes them, the panel also says under **Instructions** that they're changed from the template's.
+### Which template a bot follows
+
+A bot's template is under **Instructions** in its Details panel: its tag, whether it's from Mercbot's library or your home's own, and, for one of Mercbot's, the day it was last tested. When Mercbot changes one of its templates, the panel says what changed and when, so if a bot ever behaves differently, you can see why.
 
 ## Delete a bot
 
@@ -185,11 +201,11 @@ In a home with Apps, one bot is the **Builder**: the only bot that builds and ch
 
 ### Can I change a bot's shape or colour later?
 
-No. Shape and colour are chosen when you create it. You can change the name, label and instructions at any time.
+No. Shape and colour are chosen when you create it. You can change its name, template and additions at any time.
 
 ### Can I edit a template bot's instructions?
 
-Yes, if you added the bot or you're an owner or admin of the home. Change them under **Instructions** in its Details panel, or ask the bot to change them, which it does on a card you approve. The bot keeps **Came from**, and the panel says its instructions are changed from the template's.
+Its template stays as it is, but you can add to it, if you added the bot or you're an owner or admin of the home. Write your rules under **Additions** in its Details panel, or ask the bot to add them, which it does on a card you approve. Where your additions differ from the template, the template wins; to give a bot a different job, select **Change template**.
 
 ### Do my bots read each other's chats?
 

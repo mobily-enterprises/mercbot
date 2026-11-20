@@ -93,8 +93,13 @@ export const botsApi = {
   roomForApp: (botId, app) => post(`/bots/${botId}/rooms/app`, app),
   renameRoom: (botId, roomId, title) => patch(`/bots/${botId}/rooms/${roomId}`, { title }),
   remove: (botId) => remove(`/bots/${botId}`),
-  // A bot's always-on instructions (D-95), changed with update(botId, { instructions }).
+  // A bot's template and additions (D-98): its additions change with update(botId, { additions }), its template with
+  // changeTemplate(botId, { library: slug } or { home: id }).
   instructions: (botId) => request(`/bots/${botId}/instructions`),
+  changeTemplate: (botId, choice) => request(`/bots/${botId}/template`, { method: "PUT", body: choice }),
+  // The home's own templates (D-98): each one's tag, description and how many bots use it; one in full.
+  homeTemplates: () => request("/home-templates"),
+  homeTemplate: (templateId) => request(`/home-templates/${templateId}`),
   routines: (botId) => request(`/bots/${botId}/routines`),
   setRoutine: (botId, routineId, enabled) => patch(`/bots/${botId}/routines/${routineId}`, { enabled }),
   createGroup: (group) => post("/groups", group),

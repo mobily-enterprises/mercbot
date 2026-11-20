@@ -8,6 +8,7 @@ import { planningNotes } from "@jskit-ai/agent-runtime/server";
 import { accountTitle } from "./connectedApps.js";
 import { plainMentions } from "./mentions.js";
 import { blankPasswords } from "./replyChecks.js";
+import { templateOf } from "./botTemplate.js";
 
 /**
  * What a bot is told and given for one turn (D-14): the current state the server writes for the model, the pictures
@@ -342,6 +343,8 @@ export function createBotTurns({
     const toolSwitches = await integrations.toolSwitches(conversations.reachOf(row), call);
     /** The home's Builder gets the Apps tools and, in its instructions, what scripts can do. */
     const isBuilder = (await apps.apps.builder(call))?.id === String(row.id);
+    // The template it points at (D-98), whose skills it reads with read_skill.
+    const template = await templateOf(row, records.homeTemplates, call);
     const run = buildTools({
       call,
       records,
@@ -359,7 +362,7 @@ export function createBotTurns({
       computerId,
       routineRun,
       routine,
-      botSkills: row.skills || [],
+      botSkills: template?.skills || [],
       apps,
       appsVia,
       isBuilder,
@@ -381,7 +384,7 @@ export function createBotTurns({
       inbox,
       post
     });
-    return { run, isBuilder, toolSwitches };
+    return { run, isBuilder, toolSwitches, template };
   }
 
   /**

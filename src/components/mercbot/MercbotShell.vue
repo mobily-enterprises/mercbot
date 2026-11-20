@@ -423,7 +423,7 @@ watch(() => currentHomeEntry.value?.slug, () => loadBuilderBot(), { immediate: t
         @keep-out="keepOutOfNotebook"
         @resize="resizeDetails"
         @rename="runCommand({ name: 'renameBot', args: { botId: currentBot.id, name: $event } })"
-        @label="runCommand({ name: 'setLabel', args: { botId: currentBot.id, label: $event } })"
+        @changed="store.updateBot($event)"
         @failure="reportFailure('That didn\'t work. Try again.', $event)"
         @open-computer="openComputer"
         @edit-routine="editRoutine"

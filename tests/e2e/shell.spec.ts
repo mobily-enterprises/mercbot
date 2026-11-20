@@ -249,7 +249,8 @@ test("the search palette lists bots then commands, and runs what is chosen", asy
   await page.keyboard.press("Control+k");
   const palette = page.getByRole("dialog", { name: "Search" });
   const options = palette.getByRole("listbox", { name: "Results" }).getByRole("option");
-  await expect(options.first()).toHaveText("Otto");
+  // A bot's row carries its template's tag (D-98).
+  await expect(options.first()).toHaveText(/^Otto\s*general$/u);
   const commands = [
     "New Bot", "New group chat", "Keyboard shortcuts", "Settings: General", "Settings: Computer",
     "Settings: Permissions", "Settings: Files", "Settings: Website", "Settings: Memory", "Settings: Vault", "Settings: Spending",
@@ -265,7 +266,7 @@ test("the search palette lists bots then commands, and runs what is chosen", asy
   await page.keyboard.press("Escape");
   await page.keyboard.press("Control+k");
   await page.keyboard.type("Otto");
-  await expect(options.first()).toHaveText("Otto");
+  await expect(options.first()).toHaveText(/^Otto\s*general$/u);
   await page.keyboard.press("Enter");
   await expect(palette).toBeHidden();
   await expect(sidebarBot(page, "Otto")).toHaveAttribute("aria-current", "page");

@@ -30,7 +30,7 @@ test("the gallery shows every template's badge, on a computer and on a phone", a
   const { templates, tested } = await gallery(page);
   // The Mercbot team's chip lists every template, in the API's order.
   await page.getByRole("button", { name: "Mercbot team" }).click();
-  const rows = page.locator(".mb-gallery__row");
+  const rows = page.locator(".mb-tbrowse__row");
   await expect(rows).toHaveCount(templates.length);
   const shown = await rows.evaluateAll((links) => links.map((row) => [row.querySelector("strong")?.textContent?.trim(), row.querySelector("[data-tested-badge]")?.textContent?.trim()]));
   expect(shown).toEqual(templates.map((entry) => [entry.name, entry.slug === TESTED ? tested : "Not tested yet"]));

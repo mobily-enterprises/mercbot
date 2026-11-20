@@ -2,6 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import MercbotAvatar from "./MercbotAvatar.vue";
 import MercbotConvoAvatar from "./MercbotConvoAvatar.vue";
+import MercbotTemplateTag from "./MercbotTemplateTag.vue";
 import MercbotGroupPicker from "./MercbotGroupPicker.vue";
 import MercbotCallBar from "./MercbotCallBar.vue";
 import { useComposerTokens } from "./useComposerTokens.js";
@@ -290,6 +291,8 @@ defineExpose({ focusComposer, addSelection, startReply, toggleDictation, dictati
         <span class="mb-chip__name">{{ bot.name }}</span>
         <!-- A one-bot group names its bot under the group's name. -->
         <span v-if="bot.kind === 'group' && bot.members?.length === 1" class="mb-chip__tag">{{ bot.members[0].name }}</span>
+        <!-- A bot's template tag (D-98); the chip opens Details, where its Instructions come first. -->
+        <span v-else-if="bot.kind !== 'group'" class="mb-chip__tag"><MercbotTemplateTag :bot="bot" /></span>
       </span>
     </button>
 

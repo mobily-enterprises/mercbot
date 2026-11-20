@@ -2,23 +2,29 @@
 // and hooks go in the owner feature's `owns` entries.
 import { defineTableResource } from "@jskit-ai/resource-core/shared/tableResource";
 
-/** bots */
+/** bots
+ * label, instructions, skills and origin are no longer read (D-98): the upgrade copied them to bots_before_templates,
+ * and a later release drops them
+ */
 export const botResource = defineTableResource({
   name: "bots",
   tableName: "bots",
   ownership: "workspace",
   schema: {
+    // Its own additions to its template, for it alone (D-98): "" when none.
+    additions: { type: "string", noTrim: true },
     color: { type: "string", maxLength: 16, noTrim: true, required: true },
     createdAt: { type: "dateTime" },
-    instructions: { type: "string", noTrim: true, nullable: true },
+    // The template it points at (D-98): one of its home's, or one of Mercbot's library by slug; never both.
+    homeTemplateId: { type: "id", nullable: true, search: true },
     isMain: { type: "boolean" },
     kind: { type: "string", maxLength: 10, noTrim: true, search: true },
-    label: { type: "string", maxLength: 60, noTrim: true, nullable: true },
+    libraryTemplate: { type: "string", maxLength: 40, noTrim: true, nullable: true, search: true },
     name: { type: "string", maxLength: 80, noTrim: true, required: true, search: true },
-    origin: { type: "object", nullable: true, additionalProperties: true },
     shape: { type: "string", maxLength: 24, noTrim: true },
     sharing: { type: "string", maxLength: 16, noTrim: true },
-    skills: { type: "array" },
+    // When it started to point at its template: the template's changes after it are what changed.
+    templateSince: { type: "dateTime", nullable: true },
     updatedAt: { type: "dateTime" },
     userId: { type: "id", required: true, search: true },
     workspaceId: { type: "id", hidden: true, search: true }
@@ -291,6 +297,42 @@ export const approvalRuleResource = defineTableResource({
   }
 });
 
+/** home_templates
+ * a home's own bot templates (D-98); a bot pointing at one keeps it (bots ON DELETE RESTRICT)
+ */
+export const homeTemplateResource = defineTableResource({
+  name: "homeTemplates",
+  tableName: "home_templates",
+  ownership: "workspace",
+  schema: {
+    createdAt: { type: "dateTime" },
+    createdBy: { type: "id", nullable: true },
+    description: { type: "string", maxLength: 120, noTrim: true, required: true },
+    greeting: { type: "string", noTrim: true, nullable: true },
+    instructions: { type: "string", noTrim: true, required: true },
+    skills: { type: "array" },
+    tag: { type: "string", maxLength: 10, noTrim: true, required: true, search: true },
+    updatedAt: { type: "dateTime" },
+    workspaceId: { type: "id", hidden: true, search: true }
+  }
+});
+
+/** home_template_changes
+ * what changed in a home's template, dated (D-98); goes with its template
+ */
+export const homeTemplateChangeResource = defineTableResource({
+  name: "homeTemplateChanges",
+  tableName: "home_template_changes",
+  ownership: "workspace",
+  schema: {
+    changedAt: { type: "dateTime" },
+    changedBy: { type: "id", nullable: true },
+    homeTemplateId: { type: "id", required: true, search: true },
+    summary: { type: "string", maxLength: 200, noTrim: true, required: true },
+    workspaceId: { type: "id", hidden: true, search: true }
+  }
+});
+
 /** Every table resource this feature owns, in table order. */
 export const TABLE_RESOURCES = Object.freeze([
   botResource,
@@ -306,5 +348,7 @@ export const TABLE_RESOURCES = Object.freeze([
   botRoutineResource,
   connectFollowUpResource,
   botPolicyResource,
-  approvalRuleResource
+  approvalRuleResource,
+  homeTemplateResource,
+  homeTemplateChangeResource
 ]);

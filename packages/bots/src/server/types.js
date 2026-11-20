@@ -43,11 +43,12 @@
 /** @typedef {ReturnType<typeof import("./records/policyRepository.js").createPolicyRepository>} PolicyRepository */
 /** @typedef {ReturnType<typeof import("./records/followUpRepository.js").createFollowUpRepository>} FollowUpRepository */
 /** @typedef {ReturnType<typeof import("./records/turnRepository.js").createTurnRepository>} TurnRepository */
+/** @typedef {ReturnType<typeof import("./records/homeTemplateRepository.js").createHomeTemplateRepository>} HomeTemplateRepository */
 /**
  * The bots' tables (`mercbot.bots.records`, records/BotRecordsFeature.js): the directory other features read, the
  * conversations' and messages' repositories, the bots a person made across homes, the bots' work (requests, routines,
  * cards) and policies, the connect follow-ups, what a turn reads beside its conversation, a bot made from a template
- * opening its chat, and agent-runtime's stores.
+ * opening its chat, the home's own templates (D-98), and agent-runtime's stores.
  * @typedef {{
  *   directory: BotDirectory,
  *   conversations: ReturnType<typeof import("./records/conversationRepository.js").createConversationRepository>,
@@ -58,6 +59,7 @@
  *   policies: PolicyRepository,
  *   turns: TurnRepository,
  *   templates: ReturnType<typeof import("./records/templateRepository.js").createTemplateRepository>,
+ *   homeTemplates: HomeTemplateRepository,
  *   agent: { createRuns: Function, createSummaries: Function, createGoals: Function }
  * }} BotRecords
  */
@@ -65,7 +67,8 @@
  * The templates links open, beside Mercbot's own (`mercbot.template-links`, optional: a copy built on Mercbot provides
  * it). `find` answers the template a link's code names, in the gallery's shape (templates.js: slug, name, color, shape,
  * description, creator, greeting, instructions, skills each with name, description and instructions, routines, apps,
- * updatedAt), or null; it reads with the request's own options, whose person may be no one.
+ * updatedAt, and optionally a tag), or null; it reads with the request's own options, whose person may be no one. A bot
+ * added from one points at a new template of its home made from it (D-98).
  * @typedef {{ find: (code: string, options: CallOptions) => Promise<object | null> }} TemplateLinks
  */
 /**

@@ -1,5 +1,6 @@
 {
   "slug": "receipts-and-invoices",
+  "tag": "invoices",
   "name": "Docket",
   "color": "#959595",
   "shape": "cluster",

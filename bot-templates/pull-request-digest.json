@@ -1,5 +1,6 @@
 {
   "slug": "pull-request-digest",
+  "tag": "prs",
   "name": "Patchwork",
   "color": "#000000",
   "shape": "lopsided",

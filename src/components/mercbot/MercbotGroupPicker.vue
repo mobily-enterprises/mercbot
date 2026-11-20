@@ -1,6 +1,7 @@
 <script setup>
 import { computed, nextTick, onMounted, ref, watch } from "vue";
 import MercbotAvatar from "./MercbotAvatar.vue";
+import MercbotTemplateTag from "./MercbotTemplateTag.vue";
 
 // The recipient picker that starts a group chat: chosen bots as chips, a field that
 // filters the rest, Enter to add, Backspace to take the last one off, Escape to close the list
@@ -22,7 +23,7 @@ const rows = computed(() => {
   const chosenIds = new Set(props.chosen.map((bot) => bot.id));
   const text = query.value.trim().toLowerCase();
   const bots = props.candidates
-    .filter((bot) => !chosenIds.has(bot.id) && (!text || bot.name.toLowerCase().includes(text)))
+    .filter((bot) => !chosenIds.has(bot.id) && (!text || bot.name.toLowerCase().includes(text) || bot.template?.tag.includes(text)))
     .map((bot) => ({ key: bot.id, bot }));
   return text ? [{ key: "new", create: query.value.trim() }, ...bots] : bots;
 });
@@ -124,6 +125,7 @@ defineExpose({ focus: () => field.value?.focus() });
         <template v-else>
           <MercbotAvatar :bot="row.bot" :size="20" still />
           <span class="mb-picker__row-name">{{ row.bot.name }}</span>
+          <MercbotTemplateTag :bot="row.bot" :tooltip="false" />
           <span v-if="index === highlight" class="mb-picker__hint">Add to group</span>
         </template>
       </li>

@@ -1,6 +1,7 @@
 <script setup>
 import { computed, nextTick, ref, watch } from "vue";
 import MercbotConvoAvatar from "./MercbotConvoAvatar.vue";
+import MercbotTemplateTag from "./MercbotTemplateTag.vue";
 import MercbotPluginLogo from "./MercbotPluginLogo.vue";
 import { botsApi } from "./botsApi.js";
 import { paletteCommands, paletteEntries } from "./paletteEntries.js";
@@ -176,7 +177,7 @@ function onKeydown(event) {
                   <b v-if="part.bold">{{ part.text }}</b><template v-else>{{ part.text }}</template>
                 </template>
               </span>
-              <span v-if="entry.chip" class="mb-palette__chip">{{ entry.chip }}</span>
+              <MercbotTemplateTag v-if="entry.kind === 'conversation' && entry.bot.kind !== 'group'" :bot="entry.bot" :tooltip="false" />
             </span>
             <span v-if="entry.secondary || entry.category" class="mb-palette__secondary">{{ entry.secondary || entry.category }}</span>
           </span>
@@ -329,16 +330,6 @@ function onKeydown(event) {
 
 .mb-palette__title b {
   font-weight: 700;
-}
-
-.mb-palette__chip {
-  flex: none;
-  padding: 0 6px;
-  border-radius: 6px;
-  background: rgb(var(--v-theme-surface-container-high));
-  font-size: 11px;
-  line-height: 16px;
-  color: rgb(var(--v-theme-on-surface-variant));
 }
 
 .mb-palette__secondary {

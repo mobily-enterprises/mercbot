@@ -74,17 +74,13 @@
   white-space: nowrap;
 }
 
-.mb-tile__label {
-  overflow: hidden;
+/* Its template's tag under its name (D-98), where the label was. */
+.mb-tile__tag {
   max-width: 100%;
-  padding: 0 6px;
-  border-radius: 8px;
-  background: rgb(var(--v-theme-surface-container-highest));
-  font-size: 12px;
-  line-height: 16px;
-  color: rgb(var(--v-theme-on-surface-variant));
-  text-overflow: ellipsis;
-  white-space: nowrap;
+}
+
+.mb-row__tag {
+  margin-left: 2px;
 }
 
 .mb-badge {
@@ -240,9 +236,23 @@
   white-space: nowrap;
 }
 
+/* Its name gives way before its marks: a long name ends in "…", its tag (D-98) always shows whole. */
 .mb-row__name {
+  display: flex;
+  align-items: center;
+  gap: 4px;
   font-size: 14px;
   line-height: 18px;
+}
+
+.mb-row__name-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mb-row__name > :not(.mb-row__name-text) {
+  flex: none;
 }
 
 .mb-row__preview {

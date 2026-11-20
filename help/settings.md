@@ -136,13 +136,12 @@ The bar at the top says **Account settings**. Its back arrow returns to where yo
 
 A bot's own options are in its **Details** panel. Select the bot's name in the chat header or press **Ctrl+Alt+B**.
 
-- **Name and label:** edit them in place.
-- **Instructions:** the rules the bot follows in every reply, which its maker and the home's owners and admins edit. See [Bots](/help/bots).
+- **Name:** edit it in place. The tag under it is the bot's template; select it to go to **Instructions**.
+- **Instructions:** the template the bot follows, read-only, with **Change template**, and its own **Additions**, which its maker and the home's owners and admins edit. See [Bots](/help/bots).
 - **Who sees what:** private, mixed or shared, chosen by the home's owners and admins. See [Bots shared in a home](/help/shared-bots).
 - **Notebook:** in a mixed bot, the home's notebook, and **Keep my chats with** the bot **out of it**.
 - **Routines:** each with a switch; right-click for **Pause**, **Resume**, **Edit** and **Delete**.
 - **Apps:** whether the bot is the home's Builder, and its watches.
-- **Came from:** for a bot added from a template.
 - The **Library** and **Computer** tabs.
 
 Connected apps, their accounts and their tool switches are in **Connect apps**, in the sidebar.

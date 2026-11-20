@@ -136,7 +136,7 @@ export function createBotReplies({
           return fresh.map((message) => String(message.body.text || "").slice(0, 2000));
         }
         : null;
-    const { run, isBuilder, toolSwitches } = await turns.turnTools(row, {
+    const { run, isBuilder, toolSwitches, template } = await turns.turnTools(row, {
       timeZone,
       language,
       turn,
@@ -154,7 +154,7 @@ export function createBotReplies({
         await conversations.tell(row, { type: "messages" }, call);
       }
     }, call);
-    const bot = { ...toBot(row), isBuilder, instructions: row.instructions || "", skills: row.skills || [] };
+    const bot = { ...toBot(row), isBuilder, template, additions: row.additions || "" };
     const { summary, history } = routine
       ? await chatHistory.routineHistory(row, routine.id, call)
       : recentOnly ? await chatHistory.recentHistory(row, call) : await chatHistory.conversationHistory(row, call);

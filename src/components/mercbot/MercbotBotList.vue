@@ -1,6 +1,7 @@
 <script setup>
 import { nextTick, ref, watch } from "vue";
 import MercbotConvoAvatar from "./MercbotConvoAvatar.vue";
+import MercbotTemplateTag from "./MercbotTemplateTag.vue";
 import MercbotConfirmDialog from "./MercbotConfirmDialog.vue";
 import MercbotContextMenu from "./MercbotContextMenu.vue";
 import { botMenuItems, sectionMenuItems } from "./botMenus.js";
@@ -176,7 +177,7 @@ function previewText(bot) {
               </span>
             </span>
             <span class="mb-tile__name">{{ bot.name }}</span>
-            <span v-if="bot.label" class="mb-tile__label">{{ bot.label }}</span>
+            <MercbotTemplateTag v-if="bot.kind !== 'group'" :bot="bot" :tooltip="false" class="mb-tile__tag" />
             <kbd v-if="hints[bot.id]" class="mb-hint mb-hint--tile">{{ hints[bot.id] }}</kbd>
           </button>
         </template>
@@ -185,6 +186,12 @@ function previewText(bot) {
             <MercbotConvoAvatar :bot="bot" :size="14" />
             <span>{{ bot.name }}</span>
           </div>
+          <!-- Its template's line and its additions' first line (D-98), as its tag's tooltip says elsewhere. -->
+          <p v-if="bot.template" class="mb-tile-preview__template">
+            <MercbotTemplateTag :bot="bot" :tooltip="false" />
+            {{ bot.template.description }}
+          </p>
+          <p v-if="bot.hasAdditions" class="mb-tile-preview__template">Its additions: {{ bot.additionsLine }}</p>
           <p v-if="bot.preview" class="mb-tile-preview__text">{{ bot.preview }}</p>
         </div>
       </v-menu>
@@ -268,8 +275,9 @@ function previewText(bot) {
                   @blur="commitRename"
                 >
                 <span v-else class="mb-row__name">
-                  {{ bot.name }}
+                  <span class="mb-row__name-text">{{ bot.name }}</span>
                   <v-icon v-if="bot.sharing === 'shared'" icon="$group" size="13" class="mb-row__shared" aria-label="shared with everyone in this home" />
+                  <MercbotTemplateTag v-if="bot.kind !== 'group'" :bot="bot" class="mb-row__tag" />
                 </span>
                 <span v-if="bot.waitingTask" class="mb-row__preview mb-row__preview--waiting">Waiting for you: {{ bot.waitingTask }}</span>
                 <span v-else class="mb-row__preview">
@@ -355,6 +363,17 @@ function previewText(bot) {
   align-items: center;
   gap: 6px;
   font-size: 13px;
+}
+
+.mb-tile-preview__template {
+  margin: 4px 0 0;
+  font-size: 12px;
+  line-height: 18px;
+  color: rgb(var(--v-theme-on-surface-variant));
+}
+
+.mb-tile-preview__template .mb-ttag {
+  margin-right: 2px;
 }
 
 .mb-tile-preview__text {

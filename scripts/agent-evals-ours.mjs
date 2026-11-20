@@ -188,7 +188,7 @@ async function settle(bot) {
 
 async function runCase(name, attempt) {
   const dir = path.join(CASES, name);
-  const [bot] = await knex("bots").insert({ user_id: userId, workspace_id: homeId, name: `Eval ${name} ${attempt}`, color: "#1E86FC" }).returning("*");
+  const [bot] = await knex("bots").insert({ user_id: userId, workspace_id: homeId, name: `Eval ${name} ${attempt}`, color: "#1E86FC", library_template: "general" }).returning("*");
   await knex("bot_conversations").insert({ workspace_id: homeId, bot_id: bot.id, user_id: userId });
   const place = store.placeFor(bot, userId);
   const dirs = await store.prepare(place);
@@ -238,7 +238,7 @@ async function runAppCase(name, attempt) {
   const [home] = await knex("workspaces").insert({ slug: `eval-${name}-${Date.now().toString(36)}`, name: `Eval ${name}`, owner_user_id: userId, is_personal: false }).returning("*");
   await knex("workspace_memberships").insert({ workspace_id: home.id, user_id: userId, role_sid: "owner", status: "active" });
   await knex("workspace_settings").insert({ workspace_id: home.id }).catch(() => {});
-  const [bot] = await knex("bots").insert({ user_id: userId, workspace_id: home.id, name: "Builder", color: "#1C1C1C", is_main: true }).returning("*");
+  const [bot] = await knex("bots").insert({ user_id: userId, workspace_id: home.id, name: "Builder", color: "#1C1C1C", is_main: true, library_template: "general" }).returning("*");
   await knex("bot_conversations").insert({ workspace_id: home.id, bot_id: bot.id, user_id: userId });
   const actor = { type: "person", id: userId, name: "Eval" };
   const ctx = { knex, apps, workspaceId: home.id, userId, actor, bot };

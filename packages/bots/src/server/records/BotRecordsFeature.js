@@ -4,6 +4,7 @@ import { AGENT_TABLE_RESOURCES } from "./agentTables.js";
 import { createConversationRepository } from "./conversationRepository.js";
 import { createBotDirectory } from "./directory.js";
 import { FOLLOW_UP_SEARCH, createFollowUpRepository } from "./followUpRepository.js";
+import { createHomeTemplateRepository } from "./homeTemplateRepository.js";
 import { createMakerRepository } from "./makerRepository.js";
 import { createMessageRepository } from "./messageRepository.js";
 import { createPolicyRepository } from "./policyRepository.js";
@@ -92,10 +93,11 @@ const BotRecordsFeature = defineFeature({
    */
   setup({ resources, systemContext, profiles, memberships, workspaces }) {
     const work = createWorkRepository(resources);
+    const homeTemplates = createHomeTemplateRepository({ resources, systemContext });
     const records = Object.freeze({
       directory: createBotDirectory(resources, systemContext),
       // Bots, seats, rooms, read points, groups, sections, the notebook and memories; and messages.
-      conversations: createConversationRepository({ resources, systemContext, profiles, memberships, workspaces }),
+      conversations: createConversationRepository({ resources, systemContext, profiles, memberships, workspaces, homeTemplates }),
       messages: createMessageRepository({ resources, systemContext }),
       // The bots a person made and their own conversations, with their homes, in every home a system context reaches.
       makers: createMakerRepository(resources),
@@ -108,6 +110,8 @@ const BotRecordsFeature = defineFeature({
       turns: createTurnRepository({ resources, work }),
       // A bot made from a template opening its conversation.
       templates: createTemplateRepository(resources),
+      // The home's own bot templates and what changed in them (D-98).
+      homeTemplates,
       agent: Object.freeze({
         createRuns: (dependencies = {}) => createRuns({ ...dependencies, resources, systemContext }),
         createSummaries: (dependencies) => createSummaries({ ...dependencies, resources, systemContext }),

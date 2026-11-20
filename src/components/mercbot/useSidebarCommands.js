@@ -40,7 +40,6 @@ export function useSidebarCommands({
     hide: ({ botId }) => setBot(botId, { hidden: true }),
     show: ({ botId }) => setBot(botId, { hidden: false }),
     renameBot: ({ botId, name }) => setBot(botId, { name }),
-    setLabel: ({ botId, label }) => setBot(botId, { label }),
     moveBot: ({ botId, sectionId }) => setBot(botId, { sectionId }),
     copyId: ({ botId }) => copy(`mbc-${botId}`, "Conversation ID copied"),
     // The old main bot changes too, so read the whole list again.

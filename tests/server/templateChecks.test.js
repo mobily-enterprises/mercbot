@@ -21,7 +21,7 @@ import {
   testedOn,
   untestedCount
 } from "../../packages/bots/src/server/templateResults.js";
-import { GALLERY, checkTemplate, setupNeeds, setupSkillOf } from "../../packages/bots/src/server/templates.js";
+import { GALLERY, GENERAL, LIBRARY, LIBRARY_TAGS, checkTemplate, freeTag, setupNeeds, setupSkillOf } from "../../packages/bots/src/server/templates.js";
 import { loadCatalogue } from "../../packages/integrations/src/server/catalogue.js";
 import { turnDoubles } from "../support/botDoubles.mjs";
 
@@ -53,6 +53,35 @@ test("every template file is a valid template, listed once, with no tested date 
     assert.equal(`${template.slug}.json`, file, `${file}: named after its slug`);
     assert.equal("tested" in template, false, `${file}: whether it's tested is its check's, in ${path.basename(RESULTS_FILE)}`);
   }
+});
+
+// Every template has a tag (D-98): the one word a bot made from it shows beside its name. Each is one of a kind, general's
+// among them, and a home's own template is never given one of them.
+test("every template has a tag of its own, 2 to 10 lowercase letters or digits, and general is the library's too", () => {
+  const tags = written.map(({ template }) => template.tag);
+  for (const { file, template } of written) assert.match(template.tag, /^[a-z][a-z0-9]{1,9}$/u, `${file}: its tag`);
+  assert.equal(new Set(tags).size, tags.length, "no two templates share a tag");
+  assert.ok(!tags.includes("general"), "general is no file's");
+  assert.deepEqual([GENERAL.slug, GENERAL.tag, GENERAL.skills.length], ["general", "general", 0]);
+  assert.equal(LIBRARY.get("general"), GENERAL, "general is in the library");
+  assert.equal(GALLERY.some((entry) => entry.slug === "general"), false, "but not in the gallery: a bot with no job gets it");
+  assert.equal(LIBRARY.size, GALLERY.length + 1);
+  assert.ok(LIBRARY_TAGS.has("general") && LIBRARY_TAGS.has("meals"));
+  for (const bad of ["Meals", "m", "1meals", "meal-plans", "elevenchars"]) {
+    assert.throws(() => checkTemplate({ ...written[0].template, tag: bad, creator: "the Mercbot team" }, "bad.json"), /tag: 2 to 10 lowercase letters or digits/u, bad);
+  }
+  assert.throws(() => checkTemplate({ ...written[0].template, changes: [{ date: "2026-11-01", text: "Older" }, { date: "2026-11-02", text: "Newer" }], creator: "the Mercbot team" }, "bad.json"),
+    /changes: each with a date/u, "changes go newest first");
+});
+
+test("a home template's tag is made free of the library's and the home's, from any name", () => {
+  const taken = new Set([...LIBRARY_TAGS, "pantry"]);
+  assert.equal(freeTag("Pantry", taken), "pantry2");
+  assert.equal(freeTag("Meals", taken), "meals2", "a library tag is never a home's");
+  assert.equal(freeTag("Kitchen Helper!", taken), "kitchenhel");
+  assert.equal(freeTag("Zoë", taken), "zoe");
+  assert.equal(freeTag("42", taken), "bot");
+  assert.equal(freeTag("Généalogie familiale", new Set(["genealogie"])), "genealogi2");
 });
 
 test("every template's apps exist and can be connected, and its paired app is a ready-made one", async () => {
@@ -227,8 +256,10 @@ test("a template shows as tested only while its newest result passed for it and 
   const older = { date: "2026-11-11", commit: "abc1234", generation: 1, template: template.fingerprint, passed: true, reasons: [] };
   assert.deepEqual(resultProblems(older), []);
   assert.equal(testedOn(template, { "plant-care": older }, behaviour), null);
-  // The fingerprint follows what a template says, not how its file is laid out.
+  // The fingerprint follows what a template says, not how its file is laid out, nor its tag or its list of changes,
+  // which no bot's behaviour reads (D-98).
   assert.equal(templateFingerprint({ name: "Fern", slug: "plant-care" }), template.fingerprint);
+  assert.equal(templateFingerprint({ slug: "plant-care", tag: "plants", name: "Fern", changes: [{ date: "2026-11-20", text: "Waters less." }] }), template.fingerprint);
   assert.deepEqual(resultProblems({ ...passed, passed: false, reasons: [] }), ["reasons: why it failed"]);
   assert.ok(resultProblems({ ...passed, template: "abc" }).length);
   assert.deepEqual(resultProblems({ ...passed, behaviour: "a generation" }), ["behaviour: the fingerprint of how bots behaved"]);

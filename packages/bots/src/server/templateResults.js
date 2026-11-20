@@ -114,11 +114,13 @@ function sorted(value) {
 }
 
 /**
- * A template's fingerprint: its file's content as parsed, so any change to what it says or gives a bot changes it.
+ * A template's fingerprint: its file's content as parsed, so any change to what it says or gives a bot changes it. Its
+ * tag and its list of changes (D-98) aren't what it gives a bot, so they're left out: neither resets its Tested badge.
  * @param {object} template a template file's JSON, as parsed
  */
 export function templateFingerprint(template) {
-  return createHash("sha256").update(JSON.stringify(sorted(template))).digest("hex").slice(0, 16);
+  const given = Object.fromEntries(Object.entries(template).filter(([key]) => key !== "tag" && key !== "changes"));
+  return createHash("sha256").update(JSON.stringify(sorted(given))).digest("hex").slice(0, 16);
 }
 
 const DAY = /^\d{4}-\d{2}-\d{2}$/u;

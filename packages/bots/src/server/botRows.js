@@ -1,6 +1,7 @@
 // Bots, rooms, sections and messages as the page sees them, and the person's input cleaned on the way in.
 import { plainMentions } from "./mentions.js";
 import { BotsError } from "./botsError.js";
+import { templateChipOf } from "./botTemplate.js";
 
 export function toBot(row) {
   return {
@@ -11,7 +12,9 @@ export function toBot(row) {
     shape: cloudShape(row.shape),
     onboardingStep: row.onboarding_step || null,
     waitingTask: row.waiting_task || "",
-    label: row.label || "",
+    // Its template's chip and whether it has additions of its own, with their first line (D-98).
+    template: templateChipOf(row),
+    ...additionsOf(row),
     isMain: Boolean(row.is_main),
     pinPosition: row.pin_position ?? null,
     sectionId: row.section_id ? String(row.section_id) : null,
@@ -21,11 +24,17 @@ export function toBot(row) {
     lastActivityAt: new Date(row.last_activity_at).toISOString(),
     sharing: row.sharing || "mixed",
     keepOutOfNotebook: Boolean(row.keep_out_of_notebook),
-    // Where it came from, when it was added from a template or a shared link (D-43).
-    origin: row.origin || null,
     // A shared bot's open tab (D-36); its tabs come with the list of bots.
     roomId: row.room ? String(row.room.id) : null
   };
+}
+
+/** Whether a bot has additions (D-98), and their first line, for its chip's tooltip. */
+function additionsOf(row) {
+  const text = String(row.additions || "").trim();
+  if (!text || row.kind === "group") return { hasAdditions: false, additionsLine: "" };
+  const line = text.split("\n").find((entry) => entry.trim()).trim();
+  return { hasAdditions: true, additionsLine: line.length > 120 ? `${line.slice(0, 119)}…` : line };
 }
 
 /** A shared bot's public conversation, as a tab (D-36). */

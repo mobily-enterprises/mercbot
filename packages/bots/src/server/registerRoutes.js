@@ -193,6 +193,11 @@ export function registerRoutes(http, { bots, approvals, notices, meter, records,
   router.register("POST", "/api/w/:workspaceSlug/bots/from-template", auth, handle(async (request, user, options) => ({
     bot: await bots.addFromTemplate(String(request.body?.slug || ""), user.displayName, options)
   })));
+  // The home's own templates (D-98), for everyone in it: each one's tag, description and how many bots use it.
+  router.register("GET", "/api/w/:workspaceSlug/home-templates", auth, handle(async (_request, _user, options) =>
+    bots.homeTemplates(options)));
+  router.register("GET", "/api/w/:workspaceSlug/home-templates/:templateId", auth, handle(async (request, _user, options) =>
+    bots.homeTemplate(request.params.templateId, options)));
   // Group chats: created by their first message; members added and removed in Details.
   router.register("POST", "/api/w/:workspaceSlug/groups", auth, handle(async (request, user, options) =>
     bots.createGroup(request.body || {}, user.displayName, options)));
@@ -266,9 +271,13 @@ export function registerRoutes(http, { bots, approvals, notices, meter, records,
     bots.renameRoom(request.params.botId, request.params.roomId, request.body || {}, options)));
   router.register("DELETE", "/api/w/:workspaceSlug/bots/:botId", auth, handle(async (request, _user, options) =>
     bots.deleteBot(request.params.botId, options)));
-  // A bot's always-on instructions (D-95), for its Details panel; PATCH …/bots/:botId changes them.
+  // A bot's template and additions (D-98), for its Details panel's Instructions; PATCH …/bots/:botId changes its
+  // additions, and PUT …/template points it at another template ({ library: slug } or { home: id }).
   router.register("GET", "/api/w/:workspaceSlug/bots/:botId/instructions", auth, handle(async (request, _user, options) =>
     bots.instructionsOf(request.params.botId, options)));
+  router.register("PUT", "/api/w/:workspaceSlug/bots/:botId/template", auth, handle(async (request, user, options) => ({
+    bot: await bots.changeTemplate(request.params.botId, request.body || {}, user.displayName, options)
+  })));
   router.register("GET", "/api/w/:workspaceSlug/bots/:botId/routines", auth, handle(async (request, _user, options) => ({
     routines: await bots.routines(request.params.botId, options)
   })));

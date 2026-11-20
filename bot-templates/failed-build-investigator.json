@@ -1,5 +1,6 @@
 {
   "slug": "failed-build-investigator",
+  "tag": "builds",
   "name": "Bisect",
   "color": "#FB2B3E",
   "shape": "trefoil",

@@ -8,6 +8,7 @@
   "exports": {
     "./server/types": "./src/server/types.js",
     "./server/botRows": "./src/server/botRows.js",
+    "./server/botTemplate": "./src/server/botTemplate.js",
     "./server/records/directory": "./src/server/records/directory.js",
     "./server/templates": "./src/server/templates.js"
   },

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { botMenuItems, sectionMenuItems } from "../../src/components/mercbot/botMenus.js";
 import { composerPlaceholder } from "../../src/components/mercbot/composerPlaceholder.js";
 import { paletteCommands, paletteEntries } from "../../src/components/mercbot/paletteEntries.js";
+import { galleryView } from "../../src/components/templates/galleryView.js";
 
 const titles = (items) => items.map((item) => (item.divider ? "—" : item.title));
 
@@ -90,5 +91,40 @@ describe("search palette rows", () => {
       "conversation:Otto", "conversation:Hidden Otto", "command:Connect Apps", "command:Keyboard shortcuts", "command:New Bot", "command:New group chat"
     ]);
     expect(rows("ot").find((row) => row.title === "Hidden Otto").tag).toBe("hidden");
+  });
+  // A bot's template tag (D-98) finds it too, after the bots whose names match.
+  it("finds a bot by its template's tag, after the names that match", () => {
+    const tagged = [
+      { id: "6", name: "Kitchen", template: { tag: "meals", source: "library" }, lastActivityAt: "2026-11-01T10:00:00Z", pinPosition: null },
+      { id: "7", name: "Mealtime", template: { tag: "general", source: "library" }, lastActivityAt: "2026-11-01T10:00:00Z", pinPosition: null },
+      { id: "8", name: "Ledger", template: { tag: "bills", source: "home" }, lastActivityAt: "2026-11-01T10:00:00Z", pinPosition: null }
+    ];
+    const found = paletteEntries({ needle: "meal", bots: tagged, commands: [], apps: [], routines: [], files: [], messages: [] });
+    expect(found.map((row) => row.title)).toEqual(["Mealtime", "Kitchen"]);
+    expect(paletteEntries({ needle: "bills", bots: tagged, commands: [], apps: [], routines: [], files: [], messages: [] }).map((row) => row.title)).toEqual(["Ledger"]);
+    expect(paletteEntries({ needle: "xyz", bots: tagged, commands: [], apps: [], routines: [], files: [], messages: [] })).toEqual([]);
+  });
+});
+
+describe("template pickers (D-98)", () => {
+  const gallery = {
+    categories: [{ id: "home", name: "Home" }],
+    templates: [
+      { slug: "weekly-meal-planner", tag: "meals", name: "Pantry", creator: "the Mercbot team", team: true, featured: true, category: "home", description: "Plans dinners." },
+      { slug: "bill-tracker", tag: "bills", name: "Ledger", creator: "the Mercbot team", team: true, category: "home", description: "Tracks bills." }
+    ]
+  };
+  const home = [{ id: "4", tag: "kitchen", description: "Our own dinners." }];
+
+  it("lists the home's own templates first under All, keyed by id, never in an area", () => {
+    const all = galleryView(gallery, { chip: "all", query: "", home });
+    expect(all.order.map((row) => row.key)).toEqual(["home:4", "featured:weekly-meal-planner", "featured:bill-tracker", "home:weekly-meal-planner", "home:bill-tracker"]);
+    expect(all.home[0].template.home).toBe(true);
+    expect(galleryView(gallery, { chip: "home", query: "", home }).home).toEqual([]);
+  });
+
+  it("searches tags, the home's first", () => {
+    expect(galleryView(gallery, { chip: "all", query: "bills", home }).found.map((row) => row.key)).toEqual(["found:bill-tracker"]);
+    expect(galleryView(gallery, { chip: "all", query: "dinners", home }).found.map((row) => row.key)).toEqual(["home:4", "found:weekly-meal-planner"]);
   });
 });

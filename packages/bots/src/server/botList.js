@@ -3,8 +3,11 @@ import { DEFAULT_BOT_COLOR, DEFAULT_BOT_NAME } from "./onboarding.js";
 import { BOT_PALETTE, BRAND_COLOR } from "./botPalette.js";
 import { BotsError } from "./botsError.js";
 import { cleanName, cloudShape, previewOf, toBot, toRoom, toSection } from "./botRows.js";
+import { GENERAL } from "./templates.js";
 
 const BRAND_SHAPE = "mercbot";
+/** A new bot's template columns: Mercbot's general template, from now. */
+const generalTemplate = () => ({ library_template: GENERAL.slug, template_since: new Date().toISOString() });
 
 /**
  * The person's list of bots: the home's bots and their own group chats as they see them, new bots, pins and sections.
@@ -82,10 +85,9 @@ export function createBotList({ records, conversations }) {
       await store.lockHome(txOptions);
       const existing = await store.firstBot(txOptions);
       if (existing) return toBot(await conversations.seenBy(existing, txOptions));
-      const bot = await store.createBot(
-        { user_id: conversations.personOf(txOptions), name: DEFAULT_BOT_NAME, color: DEFAULT_BOT_COLOR, is_main: true },
-        txOptions
-      );
+      // The home's main bot points at Mercbot's general template (D-98).
+      const first = { user_id: conversations.personOf(txOptions), name: DEFAULT_BOT_NAME, color: DEFAULT_BOT_COLOR, is_main: true };
+      const bot = await store.createBot({ ...first, ...generalTemplate() }, txOptions);
       const row = conversations.asSeen(bot, await conversations.conversationOf(bot, txOptions, { onboarding_step: "start" }));
       await conversations.append(row, [{ kind: "timestamp", role: "system", body: { at: new Date().toISOString() } }], txOptions);
       return toBot(await conversations.refresh(row, txOptions));
@@ -99,7 +101,9 @@ export function createBotList({ records, conversations }) {
     const color = shape === BRAND_SHAPE ? BRAND_COLOR : String(input.color || "").toUpperCase();
     if (!BOT_PALETTE.includes(color)) throw new BotsError(400, "Pick one of the colours.", { code: "bots_colour_unknown" });
     return retryLostInsertRace(options, () => store.withTransaction(options, async (txOptions) => {
-      const bot = await store.createBot({ user_id: conversations.personOf(txOptions), name, shape, color }, txOptions);
+      // Until New bot asks what it's for (D-98, stage b), a new bot points at Mercbot's general template.
+      const made = { user_id: conversations.personOf(txOptions), name, shape, color, ...generalTemplate() };
+      const bot = await store.createBot(made, txOptions);
       const row = conversations.asSeen(bot, await conversations.conversationOf(bot, txOptions, { onboarding_step: "intro-greet" }));
       await conversations.append(row, [{ kind: "timestamp", role: "system", body: { at: new Date().toISOString() } }], txOptions);
       return { ...toBot(row), preview: "" };

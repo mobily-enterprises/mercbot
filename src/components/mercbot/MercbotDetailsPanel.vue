@@ -21,12 +21,13 @@ import { itemAge, itemIcon, itemMeta, itemType, pageAccess, useBotLibrary } from
 import { noteAge, useBotNotebook } from "./useBotNotebook.js";
 import { useBotRoutines } from "./useBotRoutines.js";
 import { useBotInstructions } from "./useBotInstructions.js";
+import MercbotTemplateTag from "./MercbotTemplateTag.vue";
+import MercbotChangeTemplateDialog from "./MercbotChangeTemplateDialog.vue";
+import { dayText } from "../templates/templatesApi.js";
 import { useGroupMembers } from "./useGroupMembers.js";
-import { usePaths } from "@jskit-ai/shell-web/client/navigation/usePaths";
 import { COMPUTER_GREY } from "@/theme/palettes.js";
 
-// Bot details panel: header with editable name and label, then three tabs.
-const paths = usePaths();
+// Bot details panel: header with its editable name and its template's tag (D-98), then its tabs.
 const props = defineProps({
   width: { type: Number, required: true },
   bot: { type: Object, required: true },
@@ -38,7 +39,7 @@ const props = defineProps({
   displayName: { type: String, default: "" }
 });
 const emit = defineEmits([
-  "close", "resize", "rename", "label", "failure", "notify", "messages", "open-computer", "edit-routine", "add-member",
+  "close", "resize", "rename", "changed", "failure", "notify", "messages", "open-computer", "edit-routine", "add-member",
   "remove-member", "add-person", "remove-person", "sharing", "keep-out", "open-page"
 ]);
 
@@ -83,14 +84,14 @@ const { members, pendingRemoval, memberSearch, addOpen, addable, addMember, peop
 
 const initialsOf = (name) => String(name || "?").split(/\s+/u).map((part) => part[0]).join("").slice(0, 2).toUpperCase();
 
-// Inline editing of the name and label: Enter or leaving the field saves, Escape cancels.
+// Inline editing of the name: Enter or leaving the field saves, Escape cancels.
 const editing = ref("");
 const editValue = ref("");
 const editInput = ref(null);
 
 async function startEdit(field) {
   editing.value = field;
-  editValue.value = field === "name" ? props.bot.name : props.bot.label || "";
+  editValue.value = props.bot.name;
   await nextTick();
   editInput.value?.focus();
   editInput.value?.select();
@@ -102,7 +103,6 @@ function commitEdit() {
   editing.value = "";
   const value = editValue.value.trim();
   if (field === "name" && value && value !== props.bot.name) emit("rename", value);
-  if (field === "label" && value !== (props.bot.label || "")) emit("label", value);
 }
 
 function onEditKeydown(event) {
@@ -154,23 +154,53 @@ watch(() => props.bot.id, () => {
 const { routines, routinesLoaded, toggleRoutine, highlightedRoutineId, routineMenu, pendingRoutineDelete, openRoutineMenu, deleteRoutine } =
   useBotRoutines({ bot: () => props.bot, tab, onEdit: (routine) => emit("edit-routine", routine), onFailure: (error) => emit("failure", error) });
 
-// Its always-on instructions (D-95): its maker and the home's owners and admins edit them here.
+// Its Instructions (D-98): the template it points at, read-only, and its own additions, which its maker and the home's
+// owners and admins edit here; they also change its template.
 const {
-  instructions, editingInstructions, instructionsDraft, savingInstructions, instructionsProblem, instructionsBox, instructionsChanged,
-  editInstructions, cancelInstructions, saveInstructions
+  instructions, loadInstructions, editingAdditions, additionsDraft, savingAdditions, additionsProblem, additionsBox, additionsChanged,
+  editAdditions, cancelAdditions, saveAdditions
 } = useBotInstructions({
   bot: () => props.bot,
   isGroup,
   tab,
-  onSaved: () => emit("notify", "Instructions saved"),
+  onSaved: (bot) => {
+    emit("changed", bot);
+    emit("notify", "Additions saved");
+  },
   onFailure: (error) => emit("failure", error)
 });
-const instructionsHint = computed(() =>
-  `What ${props.bot.name} is for, how you like things done and where it should stop and ask. It reads these before every reply.`);
-const instructionsNote = computed(() => [
-  instructions.value?.changedFromTemplate ? "Changed from the template's instructions." : "",
-  instructions.value && !instructions.value.canChange ? `The person who made ${props.bot.name} and the home's owners and admins change these.` : ""
-].filter(Boolean).join(" "));
+const template = computed(() => instructions.value?.template || null);
+const article = computed(() => (/^[aeiou]/u.test(props.bot.template?.tag || "") ? "an" : "a"));
+const templateSource = computed(() => {
+  if (!template.value) return "";
+  if (template.value.source === "home") return "Your home's template";
+  return `Mercbot's library${template.value.tested ? ` · Tested ${dayText(template.value.tested)}` : ""}`;
+});
+const changedLine = computed(() => {
+  const changed = template.value?.changed;
+  return changed ? `Changed ${dayText(String(changed.date).slice(0, 10))}: ${changed.text}` : "";
+});
+// Long instructions show their first lines until opened out.
+const allShown = ref(false);
+const longTemplate = computed(() => (template.value?.instructions || "").length > 420 || (template.value?.instructions || "").split("\n").length > 7);
+const additionsHint = "Rules for this bot alone, on top of its template: how you like things done and what to avoid. It reads these before every reply.";
+const additionsNote = computed(() =>
+  instructions.value && !instructions.value.canChange ? `The person who made ${props.bot.name} and the home's owners and admins change these.` : "");
+const changeOpen = ref(false);
+function templateChanged(bot) {
+  emit("changed", bot);
+  emit("notify", `${bot.name} is now ${/^[aeiou]/u.test(bot.template?.tag || "") ? "an" : "a"} ${bot.template?.tag || ""} bot`);
+  allShown.value = false;
+  loadInstructions();
+}
+// Its tag in the header opens its Instructions: the Details tab, scrolled to them.
+const instructionsSection = ref(null);
+async function openInstructions() {
+  shellPreferences.detailsTab = "details";
+  await nextTick();
+  instructionsSection.value?.scrollIntoView({ block: "start" });
+  instructionsSection.value?.focus({ preventScroll: true });
+}
 </script>
 
 <template>
@@ -196,26 +226,7 @@ const instructionsNote = computed(() => [
         @blur="commitEdit"
       >
       <button v-else type="button" class="mb-details__name" @click="startEdit('name')">{{ bot.name }}</button>
-      <input
-        v-if="editing === 'label'"
-        ref="editInput"
-        v-model="editValue"
-        class="mb-details__field mb-details__field--label"
-        aria-label="Bot label"
-        maxlength="60"
-        placeholder="Add a label"
-        @keydown="onEditKeydown"
-        @blur="commitEdit"
-      >
-      <button
-        v-else-if="!isGroup"
-        type="button"
-        class="mb-details__label"
-        :class="{ 'mb-details__label--empty': !bot.label }"
-        @click="startEdit('label')"
-      >
-        {{ bot.label || "Add a label" }}
-      </button>
+      <MercbotTemplateTag v-if="!isGroup" :bot="bot" size="medium" action class="mb-details__tag" @open="openInstructions" />
     </div>
 
     <div class="mb-details__tabs" role="tablist" aria-label="Details sections">
@@ -315,6 +326,7 @@ const instructionsNote = computed(() => [
             <button v-for="candidate in addable" :key="candidate.id" type="button" class="mb-add-member__row" @click="addMember(candidate)">
               <MercbotAvatar :bot="candidate" :size="20" still />
               <span class="mb-member__name">{{ candidate.name }}</span>
+              <MercbotTemplateTag :bot="candidate" :tooltip="false" />
             </button>
             <p v-if="!addable.length" class="mb-add-member__empty">No other bots to add</p>
           </div>
@@ -330,33 +342,66 @@ const instructionsNote = computed(() => [
       </template>
 
       <template v-else-if="tab === 'details'">
-        <MercbotAppsSection v-if="!isGroup" :bot="bot" />
-        <!-- Where it came from (D-43), so a bot added from a template or a link can be traced. -->
-        <template v-if="bot.origin">
-          <p class="mb-details__section">Came from</p>
-          <p class="mb-details__origin">
-            <a :href="paths.page(`/${encodeURIComponent(bot.origin.slug)}`, { surface: bot.origin.kind === 'gallery' ? 'templates' : 'share' })" target="_blank" rel="noopener">{{ bot.origin.name }}</a>
-            by {{ bot.origin.creator }}, added {{ new Date(bot.origin.addedAt).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" }) }}
+        <!-- Its Instructions (D-98): one sentence, its template read-only, its own additions. First, as what it is. -->
+        <section
+          v-if="!isGroup && instructions"
+          ref="instructionsSection"
+          class="mb-instructions-section"
+          tabindex="-1"
+          aria-labelledby="mb-instructions-title"
+        >
+          <p id="mb-instructions-title" class="mb-details__section mb-instructions__label">Instructions</p>
+          <p v-if="template" class="mb-instructions__sentence">
+            This bot is {{ article }} <MercbotTemplateTag :bot="{ ...bot, hasAdditions: false }" :tooltip="false" /> bot{{
+              instructions.additions ? ", plus its own additions." : ", with nothing added yet." }}
           </p>
-        </template>
-        <template v-if="!isGroup && instructions">
-          <p class="mb-details__section mb-instructions__label">Instructions</p>
-          <div v-if="editingInstructions" class="mb-instructions">
+          <p v-else class="mb-instructions__sentence">This bot has no template yet.</p>
+
+          <div v-if="template" class="mb-instructions__template">
+            <div class="mb-instructions__box-head">
+              <span class="mb-instructions__box-title">Template <span class="mb-instructions__tag">{{ template.tag }}</span></span>
+              <v-icon icon="$lock" size="14" class="mb-instructions__lock" aria-label="Read-only: the bot never changes it" />
+            </div>
+            <p class="mb-instructions__source">
+              <v-icon v-if="template.source === 'library'" icon="$cloud" size="12" class="mb-instructions__cloud" />
+              <v-icon v-else icon="$home" size="13" />
+              {{ templateSource }}
+            </p>
+            <p v-if="changedLine" class="mb-instructions__changed">{{ changedLine }}</p>
+            <p class="mb-instructions__text" :class="{ 'mb-instructions__text--clamped': longTemplate && !allShown }">{{ template.instructions }}</p>
+            <button v-if="longTemplate" type="button" class="mb-instructions__more" @click="allShown = !allShown">
+              {{ allShown ? "Show less" : "Show all" }}
+            </button>
+            <p v-if="template.skills.length" class="mb-instructions__skills">
+              Skills: {{ template.skills.map((skill) => skill.name).join(", ") }}
+            </p>
+            <div v-if="instructions.canChange" class="mb-instructions__actions">
+              <button type="button" class="mb-set-pill" @click="changeOpen = true">
+                <v-icon icon="$swapHoriz" size="16" /> Change template
+              </button>
+            </div>
+          </div>
+          <div v-else-if="instructions.canChange" class="mb-instructions__actions mb-instructions__actions--start">
+            <button type="button" class="mb-set-pill" @click="changeOpen = true">Choose a template</button>
+          </div>
+
+          <p class="mb-instructions__box-label">Additions · only this bot</p>
+          <div v-if="editingAdditions" class="mb-instructions">
             <textarea
-              ref="instructionsBox"
-              v-model="instructionsDraft"
+              ref="additionsBox"
+              v-model="additionsDraft"
               class="mb-instructions__box"
-              aria-label="Instructions"
-              rows="10"
-              :placeholder="instructionsHint"
-              :disabled="savingInstructions"
-              @keydown.esc.stop.prevent="cancelInstructions"
+              aria-label="Additions"
+              rows="8"
+              :placeholder="additionsHint"
+              :disabled="savingAdditions"
+              @keydown.esc.stop.prevent="cancelAdditions"
             />
-            <p v-if="instructionsProblem" class="mb-instructions__problem" role="alert">{{ instructionsProblem }}</p>
+            <p v-if="additionsProblem" class="mb-instructions__problem" role="alert">{{ additionsProblem }}</p>
             <div class="mb-instructions__actions">
-              <button type="button" class="mb-set-pill" :disabled="savingInstructions" @click="cancelInstructions">Cancel</button>
-              <button type="button" class="mb-set-pill mb-set-pill--dark" :disabled="savingInstructions || !instructionsChanged" @click="saveInstructions">
-                {{ savingInstructions ? "Saving…" : "Save" }}
+              <button type="button" class="mb-set-pill" :disabled="savingAdditions" @click="cancelAdditions">Cancel</button>
+              <button type="button" class="mb-set-pill mb-set-pill--dark" :disabled="savingAdditions || !additionsChanged" @click="saveAdditions">
+                {{ savingAdditions ? "Saving…" : "Save" }}
               </button>
             </div>
           </div>
@@ -364,15 +409,23 @@ const instructionsNote = computed(() => [
             v-else
             type="button"
             class="mb-sharing mb-instructions__shown"
-            :aria-label="instructions.canChange ? 'Edit instructions' : 'Instructions'"
+            :aria-label="instructions.canChange ? 'Edit additions' : 'Additions'"
             :disabled="!instructions.canChange"
-            @click="editInstructions"
+            @click="editAdditions"
           >
-            <span v-if="instructions.instructions" class="mb-instructions__text">{{ instructions.instructions }}</span>
-            <span v-else class="mb-sharing__description">{{ instructionsHint }}</span>
+            <span v-if="instructions.additions" class="mb-instructions__text mb-instructions__text--clamped">{{ instructions.additions }}</span>
+            <span v-else class="mb-sharing__description">Nothing added. Tweaks here apply only to this bot.</span>
           </button>
-          <p v-if="instructionsNote && !editingInstructions" class="mb-sharing__note">{{ instructionsNote }}</p>
-        </template>
+          <p v-if="additionsNote && !editingAdditions" class="mb-sharing__note">{{ additionsNote }}</p>
+        </section>
+        <MercbotChangeTemplateDialog
+          v-if="!isGroup"
+          v-model="changeOpen"
+          :bot="bot"
+          :additions="instructions?.additions || ''"
+          @changed="templateChanged"
+        />
+        <MercbotAppsSection v-if="!isGroup" :bot="bot" />
 
         <p class="mb-details__section">Who sees what</p>
         <div class="mb-sharing" role="radiogroup" aria-label="Who sees what">

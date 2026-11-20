@@ -3,11 +3,11 @@ import path from "node:path";
 import { BOT_PALETTE } from "./botPalette.js";
 import { TEMPLATES_DIR, templateFingerprint } from "./templateResults.js";
 
-// Bot templates (D-43). The gallery is curated: Mercbot's own templates are files in
-// bot-templates/, one JSON file each, written by the Mercbot team and checked end to end with
-// npm run check:templates, whose results (bot-templates/checks/results.json) say which are tested
-// (templateResults.js, D-79). A template a link opens comes from whatever keeps such templates
-// (mercbot.template-links), never listed in the gallery.
+// Bot templates (D-43, D-98). Mercbot's library is curated: its templates are files in bot-templates/, one JSON file
+// each, written by the Mercbot team and checked end to end with npm run check:templates, whose results
+// (bot-templates/checks/results.json) say which are tested (templateResults.js, D-79). Every bot points at one
+// template, from the library or its home's own (home_templates), plus its own additions. A template a link opens comes
+// from whatever keeps such templates (mercbot.template-links), never listed in the gallery.
 
 // The gallery's job areas, in the order they're shown.
 export const CATEGORIES = [
@@ -68,6 +68,12 @@ export function setupNeeds(template) {
 }
 
 /**
+ * A template's tag (D-98): one short lowercase word, 2 to 10 letters or digits starting with a letter, unique across
+ * Mercbot's library and a home's templates. A bot shows its template's tag beside its name.
+ */
+export const TAG = /^[a-z][a-z0-9]{1,9}$/u;
+
+/**
  * A template file is checked when Mercbot starts, so a broken one never reaches the gallery; the static checks
  * (tests/server/templateChecks.test.js) run it on every file too.
  */
@@ -77,6 +83,7 @@ export function checkTemplate(template, file = template.slug) {
   if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(template.slug || "") || template.slug.length > 40) {
     problems.push("slug: lowercase words joined by -");
   }
+  if (!TAG.test(template.tag || "")) problems.push("tag: 2 to 10 lowercase letters or digits, starting with a letter");
   if (!text(template.name, 40)) problems.push("name: up to 40 characters");
   if (!BOT_PALETTE.includes(template.color)) problems.push("color: one of the bot palette");
   if (!SHAPES.includes(template.shape)) problems.push("shape: one of the bot shapes");
@@ -101,6 +108,15 @@ export function checkTemplate(template, file = template.slug) {
     problems.push("routines: each with a name, when and what");
   }
   if (!Array.isArray(template.apps) || template.apps.some((app) => typeof app !== "string")) problems.push("apps: plugin ids");
+  // What the team changed, newest first (D-98): each bot using it shows the newest change since it started to.
+  if (
+    "changes" in template &&
+    (!Array.isArray(template.changes) ||
+      template.changes.some((change) => !/^\d{4}-\d{2}-\d{2}$/u.test(String(change?.date)) || !text(change?.text, 200)) ||
+      template.changes.some((change, index) => index && change.date > template.changes[index - 1].date))
+  ) {
+    problems.push("changes: each with a date (YYYY-MM-DD) and a line of text, newest first");
+  }
   // Whether it's tested is its end-to-end check's to say, in the results file (D-79), never the template's own.
   if ("tested" in template) problems.push("tested: kept in bot-templates/checks/results.json, not in the template");
   if (problems.length) throw new Error(`Bot template ${file}: ${problems.join("; ")}`);
@@ -115,14 +131,65 @@ function load() {
     return checkTemplate({ ...written, creator: TEAM, fingerprint: templateFingerprint(written) }, file);
   });
   const slugs = new Set();
+  const tags = new Set([GENERAL.tag]);
   for (const template of templates) {
     if (slugs.has(template.slug)) throw new Error(`Bot template ${template.slug} is listed twice.`);
+    if (tags.has(template.tag)) throw new Error(`Bot template ${template.slug}: its tag ${template.tag} is another template's.`);
     slugs.add(template.slug);
+    tags.add(template.tag);
   }
   return templates;
 }
 
+/**
+ * The library's one template that isn't in the gallery (D-98): an all-round helper with no job beyond Mercbot's rules,
+ * for a bot made with nothing more in mind (the home's main bot among them). It has no setup interview and no greeting
+ * of its own: such a bot starts with its short introduction (onboarding.js).
+ */
+export const GENERAL = Object.freeze({
+  slug: "general",
+  tag: "general",
+  name: "General helper",
+  description: "An all-round helper with no particular job, for whatever you ask.",
+  instructions: "You have no particular job: help with whatever the people you work for ask, in everyday life and at work alike.",
+  skills: Object.freeze([]),
+  creator: TEAM
+});
+
+/** The gallery: Mercbot's own templates, the files in bot-templates/. */
 export const GALLERY = load();
+
+/** Mercbot's whole library by slug, the gallery and GENERAL: what a bot's `library_template` names. */
+export const LIBRARY = new Map([...GALLERY, GENERAL].map((template) => [template.slug, template]));
+
+/**
+ * A tag for a home's new template (D-98), from a word or a name: its letters and digits, lowercase, starting with a
+ * letter, at most 10; "bot" when that leaves fewer than 2. When `taken` has it (Mercbot's library's tags and the
+ * home's), the first free number goes on the end: pantry2, pantry3…
+ * @param {string} words
+ * @param {Set<string>} taken
+ */
+export function freeTag(words, taken) {
+  const base = String(words || "").toLowerCase().normalize("NFKD").replace(/[^a-z0-9]/gu, "").replace(/^[0-9]+/u, "").slice(0, 10);
+  const tag = base.length >= 2 ? base : "bot";
+  if (!taken.has(tag)) return tag;
+  for (let number = 2; ; number += 1) {
+    const candidate = `${tag.slice(0, 10 - String(number).length)}${number}`;
+    if (!taken.has(candidate)) return candidate;
+  }
+}
+
+/** Mercbot's library's tags, which no home's template takes. */
+export const LIBRARY_TAGS = new Set([...LIBRARY.values()].map((template) => template.tag));
+
+/** Text as one line of at most `max` characters, cut at a word with "…" when longer: a home template's description. */
+export function oneLine(text, max) {
+  const line = String(text || "").replace(/\s+/gu, " ").trim();
+  if (line.length <= max) return line;
+  const cut = line.slice(0, max - 1);
+  const space = cut.lastIndexOf(" ");
+  return `${space > max / 2 ? cut.slice(0, space) : cut}…`;
+}
 
 /**
  * What the gallery lists for each template. `team` marks the Mercbot team's own, which the app says it made and which
@@ -131,6 +198,7 @@ export const GALLERY = load();
  */
 export const summary = (template) => ({
   slug: template.slug,
+  ...(template.tag ? { tag: template.tag } : {}),
   name: template.name,
   color: template.color,
   shape: template.shape,

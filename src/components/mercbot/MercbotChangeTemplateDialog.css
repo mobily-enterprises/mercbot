@@ -1,0 +1,300 @@
+/* Change template (MercbotChangeTemplateDialog.vue): the size of the app's other galleries (Connect apps, New bot's
+   templates), a template's confirm sliding in over the picker with Material 3's shared axis. On a phone it fills the
+   screen. */
+.mb-ctemp {
+  --mb-tbrowse-gutter: 24px;
+
+  display: flex;
+  flex-direction: column;
+  width: min(760px, calc(100vw - 48px));
+  height: 655px;
+  max-height: calc(100vh - 48px);
+  overflow: hidden;
+  border-radius: 16px;
+  background: rgb(var(--v-theme-surface));
+  color: rgb(var(--v-theme-on-surface));
+}
+
+.mb-ctemp--phone {
+  --mb-tbrowse-gutter: 16px;
+
+  width: 100%;
+  height: 100%;
+  max-height: none;
+  border-radius: 0;
+}
+
+.mb-ctemp__head {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+  height: 55px;
+  padding: 0 14px 0 17px;
+  border-bottom: 1px solid rgb(var(--v-theme-outline-variant));
+}
+
+/* A phone's top bar: close, title and the action. */
+.mb-ctemp--phone .mb-ctemp__head {
+  gap: 4px;
+  height: 64px;
+  padding: 0 12px 0 4px;
+}
+
+.mb-ctemp__title {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  font-size: 15px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mb-ctemp--phone .mb-ctemp__title {
+  font-size: 17px;
+}
+
+.mb-ctemp__close {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: rgb(var(--v-theme-on-surface-variant));
+  cursor: pointer;
+}
+
+.mb-ctemp--phone .mb-ctemp__close {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+}
+
+.mb-ctemp__body {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+
+.mb-ctemp__picker {
+  height: 100%;
+  padding-top: 16px;
+  transition:
+    opacity var(--md-sys-motion-duration-medium2) var(--md-sys-motion-easing-emphasized),
+    transform var(--md-sys-motion-duration-medium2) var(--md-sys-motion-easing-emphasized);
+}
+
+.mb-ctemp__picker--behind {
+  opacity: 0;
+  transform: translateX(-32px);
+}
+
+.mb-ctemp__step {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  background: rgb(var(--v-theme-surface));
+}
+
+.mb-ctemp-step-enter-active {
+  transition:
+    opacity var(--md-sys-motion-duration-medium2) var(--md-sys-motion-easing-emphasized-decelerate),
+    transform var(--md-sys-motion-duration-medium2) var(--md-sys-motion-easing-emphasized-decelerate);
+}
+
+.mb-ctemp-step-leave-active {
+  transition:
+    opacity var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-emphasized-accelerate),
+    transform var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-emphasized-accelerate);
+}
+
+.mb-ctemp-step-enter-from,
+.mb-ctemp-step-leave-to {
+  opacity: 0;
+  transform: translateX(32px);
+}
+
+.mb-ctemp__scroll {
+  flex: 1;
+  min-height: 0;
+  padding: 12px var(--mb-tbrowse-gutter) 24px;
+  overflow-y: auto;
+}
+
+/* Where the step goes, named, at its top left, as Connect apps' steps are. */
+.mb-ctemp__step-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin: 0 0 12px -4px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 13px;
+  color: rgb(var(--v-theme-on-surface-variant));
+  cursor: pointer;
+}
+
+.mb-ctemp__state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 48px 0;
+  color: rgb(var(--v-theme-on-surface-variant));
+}
+
+.mb-ctemp__who {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.mb-ctemp__home-face {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 18px;
+  background: rgb(var(--v-theme-surface-container-high));
+  color: rgb(var(--v-theme-on-surface-variant));
+}
+
+.mb-ctemp__who-text {
+  min-width: 0;
+}
+
+.mb-ctemp__name {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 28px;
+}
+
+.mb-ctemp__by {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  margin: 2px 0 0;
+  font-size: 13px;
+  color: rgb(var(--v-theme-on-surface-variant));
+}
+
+.mb-ctemp__description {
+  margin: 14px 0 0;
+  font-size: 14px;
+  line-height: 20px;
+}
+
+/* The boxed sections' labels, as the Details panel's are. */
+.mb-ctemp__label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 22px 0 8px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: rgb(var(--v-theme-on-surface-variant));
+}
+
+.mb-ctemp__text {
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgb(var(--v-theme-surface-container-low));
+  font-size: 13px;
+  line-height: 18px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.mb-ctemp__text--none {
+  color: rgb(var(--v-theme-on-surface-variant));
+}
+
+.mb-ctemp__skills {
+  margin: 0;
+  padding: 0 0 0 18px;
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.mb-ctemp__skills li + li {
+  margin-top: 4px;
+}
+
+.mb-ctemp__note {
+  margin: 8px 4px 0;
+  font-size: 12px;
+  line-height: 16px;
+  color: rgb(var(--v-theme-on-surface-variant));
+}
+
+.mb-ctemp__note--now {
+  margin-top: 12px;
+  color: rgb(var(--v-theme-primary));
+}
+
+.mb-ctemp__error {
+  margin: 0 var(--mb-tbrowse-gutter) 8px;
+  font-size: 12px;
+  color: rgb(var(--v-theme-error));
+  text-align: right;
+}
+
+.mb-ctemp__foot {
+  display: flex;
+  flex: none;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 13px;
+  border-top: 1px solid rgb(var(--v-theme-outline-variant));
+}
+
+.mb-ctemp__button {
+  height: 30px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 15px;
+  background: rgb(var(--v-theme-surface-container-high));
+  font: inherit;
+  font-size: 13px;
+  color: inherit;
+  cursor: pointer;
+}
+
+.mb-ctemp__button--primary {
+  background: rgb(var(--v-theme-inverse-surface));
+  color: rgb(var(--v-theme-inverse-on-surface));
+}
+
+.mb-ctemp__button:disabled {
+  cursor: default;
+}
+
+.mb-ctemp__button--primary:disabled {
+  background: rgba(var(--v-theme-on-surface), 0.12);
+  color: rgba(var(--v-theme-on-surface), 0.38);
+}
+
+.mb-ctemp__close:focus-visible,
+.mb-ctemp__step-link:focus-visible,
+.mb-ctemp__button:focus-visible {
+  outline: 2px solid rgb(var(--v-theme-secondary));
+  outline-offset: 2px;
+}

@@ -1,4 +1,110 @@
-/* The Details tab's Instructions box (D-95), in the panel's own box, type and pills. */
+/* The Details tab's Instructions (D-98): one sentence, the template's box (read-only, with its lock, source and Change
+   template) and the Additions box, in the panel's own boxes, type and pills. */
+.mb-instructions-section {
+  margin-bottom: 22px;
+  outline: none;
+  scroll-margin-top: 8px;
+}
+
+.mb-instructions__sentence {
+  margin: 0 0 10px;
+  font-size: 14px;
+  line-height: 22px;
+}
+
+.mb-instructions__template {
+  padding: 10px 12px 12px;
+  border: 1px solid rgb(var(--v-theme-outline-variant));
+  border-radius: 12px;
+  background: rgb(var(--v-theme-surface-container-low));
+}
+
+.mb-instructions__box-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.mb-instructions__box-title {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.mb-instructions__tag {
+  margin-left: 4px;
+  font-weight: 400;
+  color: rgb(var(--v-theme-on-surface-variant));
+}
+
+.mb-instructions__lock {
+  color: rgb(var(--v-theme-on-surface-variant));
+}
+
+.mb-instructions__source {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin: 2px 0 0;
+  font-size: 12px;
+  line-height: 18px;
+  color: rgb(var(--v-theme-on-surface-variant));
+}
+
+.mb-instructions__cloud {
+  color: rgb(var(--v-theme-primary));
+}
+
+/* What changed in the template since the bot started to use it, dated. */
+.mb-instructions__changed {
+  margin: 6px 0 0;
+  padding: 4px 8px;
+  border-radius: 8px;
+  background: rgb(var(--v-theme-secondary-container));
+  font-size: 12px;
+  line-height: 17px;
+  color: rgb(var(--v-theme-on-secondary-container));
+}
+
+.mb-instructions__template .mb-instructions__text {
+  margin: 10px 0 0;
+}
+
+.mb-instructions__more {
+  margin: 4px 0 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  color: rgb(var(--v-theme-primary));
+  cursor: pointer;
+}
+
+.mb-instructions__more:focus-visible {
+  outline: 2px solid rgb(var(--v-theme-secondary));
+  outline-offset: 2px;
+}
+
+.mb-instructions__skills {
+  margin: 8px 0 0;
+  font-size: 12px;
+  line-height: 17px;
+  color: rgb(var(--v-theme-on-surface-variant));
+}
+
+.mb-instructions__actions--start {
+  justify-content: flex-start;
+}
+
+/* The Additions box's label, under the template's box. */
+.mb-instructions__box-label {
+  margin: 16px 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* The Additions box (D-95's Instructions box before it). */
 .mb-instructions {
   margin-bottom: 22px;
 }
@@ -37,14 +143,17 @@
   display: block;
 }
 
-/* Long instructions show their first lines here; the box shows them all while they're edited. */
+/* Long text shows its first lines until opened out (the template) or edited (the additions). */
 .mb-instructions__text {
-  display: -webkit-box;
-  overflow: hidden;
   font-size: 13px;
   line-height: 18px;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+}
+
+.mb-instructions__text--clamped {
+  display: -webkit-box;
+  overflow: hidden;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 8;
 }

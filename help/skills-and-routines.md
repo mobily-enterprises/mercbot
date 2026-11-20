@@ -21,7 +21,7 @@ Your own skills sit beside Mercbot's. A bot makes one in two ways:
 
 Skills never contain passwords or codes. Your skills are yours: all your bots can use them in your own chats, but they're never used in a shared bot's conversation tabs.
 
-A skill isn't a bot's **Instructions**. A bot's instructions, in its Details panel, are the rules it follows in every reply, so keep them short; a skill is read only when its kind of job comes up, so it can hold long steps and reference material. You can ask a bot to change its own instructions too: like a skill, it changes them only when you agree, on a card that shows the change. See [Bots](/help/bots).
+A skill isn't a bot's **Instructions**. A bot's instructions, in its Details panel, are its template and its own additions, the rules it follows in every reply, so keep the additions short; a skill is read only when its kind of job comes up, so it can hold long steps and reference material. A template can bring skills of its own, listed under its instructions. You can ask a bot to change its additions too: like a skill, it changes them only when you agree, on a card that shows the change. See [Bots](/help/bots).
 
 A bot never runs a new skill until you ask. After saving one, it offers a test run.
 

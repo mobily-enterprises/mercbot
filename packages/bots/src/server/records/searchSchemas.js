@@ -73,6 +73,8 @@ export const GROUP_SEARCH = Object.freeze({ groupIds: idList("groupId") });
 export const READ_SEARCH = Object.freeze({ conversationIds: idList("conversationId") });
 
 export const BOT_SEARCH = Object.freeze({
+  // The bots pointing at some of the home's templates (D-98): how many use each.
+  homeTemplateIds: idList("homeTemplateId"),
   // The home's main bot: the one that is replaced when another becomes it.
   isMain: Object.freeze({ type: "boolean", actualField: "isMain" }),
   // A bot named in any case: a bot asks another by name (directory.js botNamed).

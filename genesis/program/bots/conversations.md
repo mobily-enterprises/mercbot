@@ -118,9 +118,9 @@ onboarding and the bot's typed replies.
 - `migrations/20261119180000_routine_feeds.cjs`
 - `packages/bots/src/server/githubActions.js`
 - `packages/bots/src/server/connectorTools.js`
-- `packages/bots/src/server/botInstructions.js`
-- `tests/server/botInstructions.test.js`
-- `tests/server/botInstructions.integration.js`
+- `packages/bots/src/server/botAdditions.js`
+- `tests/server/botAdditions.test.js`
+- `tests/server/botAdditions.integration.js`
 - `tests/server/instructionsPrompt.test.js`
 - `tests/server/connectorTools.test.js`
 - `packages/bots/src/server/eventMessage.js`
@@ -295,19 +295,22 @@ status line (none when the model doesn't answer) and may add the bot's own emoji
 /api/bots/:botId/messages/:messageId/reaction` sets or clears the user's reaction
 on a bot message. Sidebar previews are plain text.
 
-Details: bots have an optional label (`PATCH /api/bots/:botId` with
-`label`). Anyone in the home renames a bot or changes its label. A bot's
-always-on instructions (D-95, `botInstructions.js`) are its **Instructions**
-box: `GET /api/bots/:botId/instructions` gives the text, whether the person may
-change it and whether a template bot's are changed from the template's, and
-`PATCH /api/bots/:botId` with `instructions` writes them (trimmed, none as
-null, at most 20,000 characters, refused past that), only for the bot's maker
-and the home's owners and admins (403 for other members). The bot changes them
-itself only through `change_instructions` (`memoryTools.js`), offered when a
-person's own message started the turn: an ACTIONS entry that always asks,
-whose approval card shows them before and after, and which runs as the person
-who says yes, refused when they may not or when the instructions changed since
-the card was made. `GET /api/bots/:botId/routines` lists a bot's routines, `PATCH
+Details: anyone in the home renames a bot; labels are gone (D-98), the
+template's tag shows instead. A bot's **Instructions** (D-98, templates.md) are
+its template and its additions (`botAdditions.js`): `GET
+/api/bots/:botId/instructions` gives the template in full (source, tag,
+description, instructions, skills, Tested day, newest change since the bot
+started to follow it), the additions and whether the person may change them,
+and `PATCH /api/bots/:botId` with `additions` writes them (trimmed, none as
+empty, at most 20,000 characters, refused past that; never for a group), only
+for the bot's maker and the home's owners and admins (403 for other members),
+who also change its template. The bot changes its additions itself only through
+`change_additions` (`memoryTools.js`), offered when a person's own message
+started the turn: an ACTIONS entry that always asks, whose approval card shows
+them before and after, and which runs as the person who says yes, refused when
+they may not or when the additions changed since the card was made. It never
+changes its template. When the person corrects it the same way twice, it
+offers to add that to its additions. `GET /api/bots/:botId/routines` lists a bot's routines, `PATCH
 /api/bots/:botId/routines/:routineId` pauses or resumes one (resuming counts the
 next run from now and clears its failures in a row), and `DELETE` removes it.
 
