@@ -37,11 +37,12 @@ function privateAddress() {
 }
 
 /**
- * Whose files the computer works on: the home's shared folder and the person's own with the bot
- * (a shared bot's are everyone's). `found` is the computer's conversation (records.directory.computerOf).
+ * Whose files the computer works on: the home's shared folder and its conversation's own, the person's for their
+ * own conversation with the bot ("You only" in a Shared bot among them), the bot's everyone folder for a shared tab
+ * or a group's (D-36, D-99). `found` is the computer's conversation (records.directory.computerOf).
  */
 function filePlace(files, found) {
-  return found ? files.store.placeFor({ id: found.botId, workspace_id: found.workspaceId, sharing: found.botSharing }, found.userId) : null;
+  return found ? files.store.placeFor({ id: found.botId, workspace_id: found.workspaceId, room: !found.userId }, found.userId) : null;
 }
 
 /**

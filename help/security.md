@@ -23,7 +23,7 @@ Mercbot is a web application. People use it in a browser on a computer or phone.
 
 **Roles.** A home has one owner, and admins and members. Owners and admins manage sharing choices, the home's connected accounts and Apps settings. Members use the home's bots and Apps.
 
-**Private by default.** Each person's chats with a bot are their own. Owners and admins can't read them. A bot can be set to private, mixed (private chats plus a home notebook of reusable notes) or shared (conversations everyone in the home sees). What a bot remembers about a person, their own connected accounts, their vault and their own skills are never used in shared conversations.
+**Private by default.** Each person's own chat with a bot is theirs, whatever the bot's mode. Owners and admins can't read it. A bot can be set to private, mixed (adding a home notebook of reusable notes) or shared (adding conversations everyone in the home sees, as tabs beside each person's own, **You only**). What a bot remembers about a person, their own connected accounts, their vault and their own skills are never used in shared tabs, and nothing from a person's own chat goes into them. Changing a bot's mode asks first; a bot that stops being shared hides its shared tabs and pauses their routines and watches, so nothing runs where nobody can see or stop it.
 
 **Apps data.** Each home's Apps records are kept in a space of their own, which no other home can reach. Inside a home nothing in Apps is private: everyone in it sees every app and view and changes every table, and every change is recorded with who made it. Records are never deleted, only marked obsolete. No one outside the home reaches them.
 
@@ -31,7 +31,7 @@ Mercbot is a web application. People use it in a browser on a computer or phone.
 
 ## The bots' computers
 
-- **One computer per conversation.** With a private or mixed bot, each person has their own browser, so their website sign-ins never reach anyone else. A shared bot's conversation has one browser for everyone in it.
+- **One computer per conversation.** Each person's own chat with a bot, a shared bot's You only tab included, has its own browser, so their website sign-ins never reach anyone else. Each shared tab of a shared bot has one browser for everyone in it. Files follow the same line: a shared tab's are in the bot's folder for everyone, a person's own chat's in their own.
 - **Browser and office apps in gVisor.** On the computer's desktop, Chrome and the office apps run together in gVisor, which puts its own kernel between them and the server's. They see a fixed set of tools, the computer's screen, the browser's profile and the chat's file folders, and nothing of Mercbot. A server without gVisor doesn't start bots' computers at all.
 - **Internet only through a gateway.** The browser and apps have no network of their own. Their only way out is Mercbot's gateway, which connects only to public internet addresses, never to the server itself, its private network or cloud metadata addresses, and never to the ports used to send email.
 - **Office apps and voice memos outside the computer.** When a bot makes or reads a document with its document tools, draws a chart or records a voice memo, and when Mercbot shows a file's preview, the program runs in gVisor too, like the bot's commands: no network, and only that chat's file folders.
@@ -43,7 +43,7 @@ Mercbot is a web application. People use it in a browser on a computer or phone.
   
   When one bot works for another, the person's own folder and the home's are read-only to its commands. Every command is recorded with its output and shown in the chat. The command line runs on the same servers as Mercbot itself; moving it to separate machines that hold no secrets is planned as use grows.
 - **Local-only ports.** The browser's debugging port and the screen-sharing server listen only on the machine itself.
-- **Live view.** People watch a bot's screen through the Mercbot servers with a one-time ticket that's valid for 30 seconds. Watching is view-only until the person presses **Take control**. People can open the live view only for their own conversation's computer, or for a shared conversation they're in.
+- **Live view.** People watch a bot's screen through the Mercbot servers with a one-time ticket that's valid for 30 seconds. Watching is view-only until the person presses **Take control**. People can open the live view only for their own conversation's computer, or for a shared tab of a shared bot in their home; a tab hidden while its bot isn't shared is refused.
 - **No model key on the computer.** All model calls happen on the servers. The computer only receives concrete actions, such as a click or typing into a field, so a web page can't reach the model key.
 - **Saved browsers.** When a computer sleeps or its server stops, its browser profile is archived without caches, sealed with the vault key and kept with the bots' files, outside everyone's folders; the database records only which file is current and its checksum. People can clear it with **Settings**, **Computer**, **Reset**.
 - **Screenshots** of the pages bots work on are files on the same volume, readable only through their own chat, and deleted with it.

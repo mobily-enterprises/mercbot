@@ -11,6 +11,8 @@ import { fileKind, fileUrl, filesApi, formatSize, storageApi, uploadFile } from 
 // `sections` are { key, label, root }, where key is the listing's (mine, bot, shared).
 const props = defineProps({
   botId: { type: String, default: null },
+  // A Shared bot's tab whose files these are (D-99); without one, the tab it has open.
+  room: { type: String, default: undefined },
   sections: { type: Array, required: true },
   refreshKey: { type: [String, Number], default: 0 }
 });
@@ -49,7 +51,7 @@ for (const section of props.sections) at[section.key] = section.root;
 // One section's current folder; a reply for a folder left meanwhile is dropped.
 async function loadSection(section) {
   const folder = at[section.key];
-  const listed = await filesApi.list(props.botId, folder);
+  const listed = await filesApi.list(props.botId, folder, props.room);
   if (at[section.key] === folder) listings[section.key] = listed;
 }
 
@@ -72,7 +74,7 @@ async function load() {
   }
 }
 onMounted(load);
-watch(() => [props.botId, props.refreshKey], load);
+watch(() => [props.botId, props.room, props.refreshKey], load);
 
 function go(section, folder) {
   at[section.key] = folder;
@@ -129,7 +131,7 @@ async function uploadChosen(event) {
   if (!chosen.length || !uploadSection) return;
   const folder = at[uploadSection.key];
   await act(async () => {
-    for (const file of chosen) await uploadFile(props.botId, file, folder);
+    for (const file of chosen) await uploadFile(props.botId, file, folder, props.room);
   }, "That file didn't upload.");
 }
 
@@ -137,7 +139,7 @@ function startDialog(mode, section, entry = null) {
   Object.assign(dialog, { open: true, mode, entry, error: "", name: entry ? nameOf(entry.path) : "", folder: entry ? parentOf(entry.path) : at[section.key], section });
   if (mode !== "move") return;
   tree.value = null;
-  filesApi.folders(props.botId).then((found) => {
+  filesApi.folders(props.botId, props.room).then((found) => {
     tree.value = found;
   }, (error) => failed(error, "The folders couldn't load."));
 }
@@ -149,7 +151,7 @@ async function saveDialog() {
   }
   const target = dialog.mode === "move" ? `${dialog.folder}/${nameOf(dialog.entry.path)}` : `${dialog.folder}/${name}`;
   const done = await act(
-    () => (dialog.mode === "folder" ? filesApi.makeFolder(props.botId, target) : filesApi.move(props.botId, dialog.entry.path, target)),
+    () => (dialog.mode === "folder" ? filesApi.makeFolder(props.botId, target, props.room) : filesApi.move(props.botId, dialog.entry.path, target, props.room)),
     dialog.mode === "folder" ? "The folder couldn't be made." : "That couldn't be moved."
   );
   if (done) dialog.open = false;
@@ -161,12 +163,12 @@ function askDelete(entry) {
 }
 async function confirmDelete() {
   deleteOpen.value = false;
-  await act(() => filesApi.remove(props.botId, deleting.value.path), "That couldn't be deleted.");
+  await act(() => filesApi.remove(props.botId, deleting.value.path, props.room), "That couldn't be deleted.");
 }
 
 function menuFor(section, entry) {
   return [
-    ...(entry.folder ? [] : [{ title: "Open", action: () => open(section, entry) }, { title: "Download", href: fileUrl(props.botId, entry.path) }]),
+    ...(entry.folder ? [] : [{ title: "Open", action: () => open(section, entry) }, { title: "Download", href: fileUrl(props.botId, entry.path, { room: props.room }) }]),
     { title: "Move to…", action: () => startDialog("move", section, entry) },
     { title: "Rename", action: () => startDialog("rename", section, entry) },
     { title: "Delete", action: () => askDelete(entry) }
@@ -239,7 +241,7 @@ function menuFor(section, entry) {
       @confirm="confirmDelete"
     />
     <Teleport to="body">
-      <MercbotFileViewer v-if="viewing" :bot-id="botId" :file="viewing" @close="viewing = null" />
+      <MercbotFileViewer v-if="viewing" :bot-id="botId" :room="room" :file="viewing" @close="viewing = null" />
     </Teleport>
   </div>
 </template>

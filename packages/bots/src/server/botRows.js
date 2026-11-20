@@ -24,8 +24,21 @@ export function toBot(row) {
     lastActivityAt: new Date(row.last_activity_at).toISOString(),
     sharing: row.sharing || "mixed",
     keepOutOfNotebook: Boolean(row.keep_out_of_notebook),
-    // A shared bot's open tab (D-36); its tabs come with the list of bots.
-    roomId: row.room ? String(row.room.id) : null
+    // A shared bot's open tab (D-36), the person's own conversation when it's "You only" (D-99); its tabs come
+    // with the list of bots.
+    roomId: row.room ? String(row.room.id) : row.sharing === "shared" && row.kind !== "group" && row.seat_id ? String(row.seat_id) : null
+  };
+}
+
+/** The person's own conversation as a Shared bot's last tab, "You only" (D-99): nobody else sees it, and it has no other name. */
+export function toOwnTab(seat) {
+  return {
+    id: String(seat.id),
+    title: "You only",
+    parentId: null,
+    lastActivityAt: new Date(seat.last_activity_at).toISOString(),
+    own: true,
+    unread: Boolean(seat.unread)
   };
 }
 

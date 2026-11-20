@@ -46,8 +46,11 @@ export function createBotSettings({ records, conversations, apps }) {
         if (row.kind === "group") throw new BotsError(400, "A group chat is always your own.", { code: "bots_group_visibility_fixed" });
         shared.sharing = patch.sharing;
       }
-      // The tab the person has open in a shared bot, so it opens there next time.
-      if (patch.roomId !== undefined && row.room) own.room_id = row.room.id;
+      // The tab the person has open in a shared bot, so it opens there next time: "You only" is their own
+      // conversation (D-99). Making a bot Shared opens General for whoever made it so.
+      const sharingOn = shared.sharing === "shared" && row.sharing !== "shared";
+      if (patch.roomId !== undefined && conversations.isShared(row)) own.room_id = row.conversation_id;
+      if (sharingOn) own.room_id = null;
       if (patch.pinned === true && row.pin_position === null) {
         own.pin_position = await store.nextPinPosition(txOptions);
         own.section_id = null;
@@ -55,14 +58,19 @@ export function createBotSettings({ records, conversations, apps }) {
       if (patch.pinned === false) own.pin_position = null;
       if (patch.hidden !== undefined) own.hidden = Boolean(patch.hidden);
       if (patch.keepOutOfNotebook !== undefined) own.keep_out_of_notebook = Boolean(patch.keepOutOfNotebook);
-      if (patch.unread !== undefined) own.unread = Boolean(patch.unread);
+      // Unread is each tab's own (D-99): the person's own conversation keeps it on their row, a room in their read
+      // point there, so reading General leaves "You only" new and the other way round.
+      if (patch.unread !== undefined && !row.room) own.unread = Boolean(patch.unread);
       // Reading the bot moves the "new" divider's starting point past everything so far;
       // in a shared bot, for this person in this room. The conversation is locked, so nothing is
-      // written there between reading its latest message and recording it.
-      if (patch.unread === false) {
+      // written there between reading its latest message and recording it. Marking a room unread puts
+      // the person's read point just before its latest message.
+      if (patch.unread === false && !row.room) {
         const latest = await messages.latestId(row.conversation_id, txOptions);
-        if (!row.room) own.read_up_to = latest === null ? null : Number(latest);
-        else if (latest !== null) await store.markRead(row.conversation_id, latest, txOptions);
+        own.read_up_to = latest === null ? null : Number(latest);
+      } else if (patch.unread !== undefined && row.room) {
+        const latest = await messages.latestId(row.conversation_id, txOptions);
+        if (latest !== null) await store.markRead(row.conversation_id, patch.unread ? Number(latest) - 1 : latest, txOptions);
       }
       if (patch.sectionId !== undefined) {
         own.section_id = patch.sectionId ? (await store.ownedSection(patch.sectionId, txOptions)).id : null;
@@ -70,8 +78,10 @@ export function createBotSettings({ records, conversations, apps }) {
       }
       if (Object.keys(shared).length) await store.updateBot(row.id, shared, txOptions);
       if (Object.keys(own).length) await store.updateConversation(row.seat_id, own, txOptions);
+      if (row.sharing === "shared" && shared.sharing && shared.sharing !== "shared") await pauseHiddenWork(row, txOptions);
       // Read again as this person sees it now, which gives a newly shared bot its first room.
-      const changed = await conversations.seenBy(await store.botOf(row.id, txOptions), txOptions, { room: row.room?.id });
+      const bot = await store.botOf(row.id, txOptions);
+      const changed = await conversations.seenBy(bot, txOptions, { room: sharingOn ? null : row.conversation_id });
       return { changed, sharingChanged: Boolean(shared.sharing) && shared.sharing !== row.sharing };
     }));
     // Everyone in the home sees the bot change mode, on any server.
@@ -82,12 +92,40 @@ export function createBotSettings({ records, conversations, apps }) {
   }
 
   /**
+   * A bot leaving Shared hides its rooms (D-99): their routines and watches pause, as a person pausing each would,
+   * and each room with something paused says so in a line, read when the bot is Shared again. Nothing then runs
+   * where nobody sees it or can stop it; a goal there stops at its next round (conversations.rowOf answers null).
+   */
+  async function pauseHiddenWork(row, txOptions) {
+    const roomIds = (await conversations.roomsOf(row.id, txOptions)).map((room) => String(room.id));
+    if (!roomIds.length) return;
+    const routines = await records.work.pauseRoutinesIn(roomIds, txOptions);
+    const watches = await apps.watches.pauseIn({ botId: String(row.id), conversationIds: roomIds }, txOptions);
+    const paused = [
+      ...routines.map((routine) => ({ conversationId: String(routine.conversationId), name: `routine "${routine.name}"` })),
+      ...watches.map((watch) => ({ ...watch, name: `watch "${watch.name}"` }))
+    ];
+    for (const [roomId, list] of Map.groupBy(paused, (entry) => entry.conversationId)) {
+      await conversations.append({ id: row.id, conversation_id: roomId }, [{
+        kind: "event",
+        role: "system",
+        body: {
+          text: "Paused while hidden",
+          icon: "routine",
+          detail: `${row.name} stopped being Shared, which hid this conversation, so its ${list.map((entry) => entry.name).join(", ")} ` +
+            `paused. Resume them here once ${row.name} is Shared again.`
+        }
+      }], txOptions);
+    }
+  }
+
+  /**
    * A shared Builder keeps one conversation per app (owner, 2026-10-30): Ask Builder in an app opens
    * that app's room, made fresh the first time (it doesn't continue another), named after the app.
    */
   async function roomForApp(botId, { appId, title } = {}, options) {
     const row = await conversations.ownedBot(botId, options);
-    if (!row.room) {
+    if (row.kind === "group" || row.sharing !== "shared") {
       throw new BotsError(409, "Only a shared bot has a conversation for each app.", { code: "bots_app_conversations_shared_only" });
     }
     const app = await apps.apps.findApp(String(appId || ""), options, { kind: "app" });
@@ -101,16 +139,19 @@ export function createBotSettings({ records, conversations, apps }) {
 
   /**
    * A new tab in a shared bot (D-36): it continues from the open one, knowing everything said
-   * there so far but nothing said there afterwards. Every tab has a name.
+   * there so far but nothing said there afterwards. One made from "You only" starts empty: nothing
+   * said there goes where others read (D-99). Every tab has a name.
    */
   async function createRoom(botId, input = {}, options) {
     const title = cleanTitle(input.title);
     const row = await conversations.ownedBot(botId, options, { room: input.from });
-    if (!row.room || row.kind === "group") {
+    if (row.kind === "group" || row.sharing !== "shared") {
       throw new BotsError(400, "Only a shared bot has conversations for everyone.", { code: "bots_everyone_conversations_shared_only" });
     }
-    const latest = await messages.latestId(row.conversation_id, options);
-    const room = await store.createRoom(row, { title, parentId: row.conversation_id, forkedAtMessageId: latest }, options);
+    const from = row.room
+      ? { parentId: row.conversation_id, forkedAtMessageId: await messages.latestId(row.conversation_id, options) }
+      : {};
+    const room = await store.createRoom(row, { title, ...from }, options);
     await store.updateConversation(row.seat_id, { room_id: room.id }, options);
     const opened = await conversations.refresh({ ...row, conversation_id: room.id }, options);
     await conversations.tell(opened, { type: "changed" }, options);

@@ -113,8 +113,10 @@ test("a shared bot's computer is found by its room, reading that room and not ev
   assert.equal(found, rooms[17], "the room asked for");
   assert.ok(rows >= 2 && rows <= 4, `the seat and the room, not the bot's 30 rooms: ${rows} rows`);
   assert.equal(await computerFor({}), rooms[5], "else the tab the person has open");
-  assert.equal(await computerFor({ room: elsewhere }), rooms[5], "another bot's room is not this bot's");
-  assert.equal(await computerFor({ room: "not-a-room" }), rooms[5]);
+  // A tab asked for that isn't one of this bot's is refused, never another tab instead (D-99).
+  const refused = async (query) => (await status({ botId: String(shared.id) }, query)).status;
+  assert.equal(await refused({ room: elsewhere }), 404, "another bot's room is not this bot's");
+  assert.equal(await refused({ room: "not-a-room" }), 404);
   await knex("bot_conversations").where({ id: String(seat.id ?? seat) }).update({ room_id: null });
   assert.equal(await computerFor({}), rooms[0], "else the first room");
 });

@@ -37,7 +37,9 @@ routes (`config/public.js`), and a copy built on Mercbot that serves many people
   objects key by key, anything else replaced. A copy built on Mercbot replaces it whole.
 - **People in a home:** `homesApi.js` reads a home's whole list of people (JSKIT answers a page at a time; the page
   reads every page) for the group chats' Add person, and offers the parts a copy's own people screen builds on
-  (`homeRoute`, `homeList`, `sendJsonApi`, `readJsonApi`, `attributesOf`).
+  (`homeRoute`, `homeList`, `sendJsonApi`, `readJsonApi`, `attributesOf`). `hasOthers(slug)` answers whether anyone
+  but this person is in the home, from one short read per home, read again when its people change (`homeChanges`);
+  a failed read answers yes. A bot's Who sees what shows only then, or for a bot that isn't mixed (D-99).
 - **No mail:** Mercbot sends no email of its own (a person's own copy invites and registers nobody) and keeps no
   outbox. A copy built on Mercbot that sends email brings its own
   mail delivery.

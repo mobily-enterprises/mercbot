@@ -45,6 +45,14 @@ export const REQUEST_SEARCH = Object.freeze({
  * - nameIs: the name, in any case (findRoutine).
  */
 export const ROUTINE_SEARCH = Object.freeze({
+  // The routines still running in the conversations given: what a bot leaving Shared pauses in its rooms (D-99).
+  enabledIn: {
+    type: "array",
+    items: { type: "id" },
+    applyFilter(query, ids, { column }) {
+      query.where(column("enabled"), true).whereIn(column("conversationId"), ids.map(String));
+    }
+  },
   due: {
     type: "boolean",
     applyFilter(query, _due, { column }) {
@@ -333,6 +341,17 @@ export function createWorkRepository({ botRequests, botRoutines, botMessages }) 
   }
 
   /**
+   * Pauses every running routine of the conversations given, as a person pausing each would, and answers them
+   * (D-99: a bot leaving Shared hides its rooms). One statement, however many.
+   * @param {string[]} conversationIds
+   * @param {CallOptions} options
+   */
+  async function pauseRoutinesIn(conversationIds, options) {
+    if (!conversationIds.length) return [];
+    return botRoutines.patchWhere({ enabledIn: conversationIds }, { enabled: false, nextRunAt: null }, { ...options, returning: "records" });
+  }
+
+  /**
    * Deletes a routine of the conversation; answers whether one was deleted.
    * @param {string} routineId
    * @param {string} conversationId
@@ -366,6 +385,7 @@ export function createWorkRepository({ botRequests, botRoutines, botMessages }) 
     routineOf,
     createRoutine,
     changeRoutine,
+    pauseRoutinesIn,
     deleteRoutine
   });
 }

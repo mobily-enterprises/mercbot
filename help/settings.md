@@ -138,11 +138,11 @@ A bot's own options are in its **Details** panel. Select the bot's name in the c
 
 - **Name:** edit it in place. The tag under it is the bot's template; select it to go to **Instructions**.
 - **Instructions:** the template the bot follows, read-only, with **Change template**, and its own **Additions**, which its maker and the home's owners and admins edit. See [Bots](/help/bots).
-- **Who sees what:** private, mixed or shared, chosen by the home's owners and admins. See [Bots shared in a home](/help/shared-bots).
+- **Who sees what:** what the bot adds to everyone's own chat with it: private (nothing), mixed (a home notebook) or shared (conversations everyone sees, with your own as the last tab, **You only**). The home's owners and admins choose it, and Mercbot asks before each change. In a home with only you, it shows only for a bot that isn't mixed. See [Bots shared in a home](/help/shared-bots).
 - **Notebook:** in a mixed bot, the home's notebook, and **Keep my chats with** the bot **out of it**.
 - **Routines:** each with a switch; right-click for **Pause**, **Resume**, **Edit** and **Delete**.
 - **Apps:** whether the bot is the home's Builder, and its watches.
-- The **Library** and **Computer** tabs.
+- The **Files**, **Library** and **Computer** tabs. A shared bot's **Files** shows all three of its folders, and its **Computer** the computer of the tab you have open.
 
 Connected apps, their accounts and their tool switches are in **Connect apps**, in the sidebar.
 

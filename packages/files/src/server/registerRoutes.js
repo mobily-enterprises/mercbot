@@ -44,19 +44,31 @@ export function registerRoutes(http, { files, directory, uploads }) {
   /**
    * The bot named in the route, in the request's home, and where its files are for this person.
    * In a group with several people (?group=), a member bot's files are its everyone folder, the
-   * same place its turns there use, and only for the group's people (D-46).
+   * same place its turns there use, and only for the group's people (D-46). Otherwise they follow the
+   * conversation (D-99): a Shared bot's tab (?room=, else the one the person has open) is its everyone
+   * folder, the person's own conversation ("You only" in a Shared bot) their own. A tab asked for that isn't
+   * one of these, such as another person's conversation or a tab hidden while the bot isn't Shared, is refused.
    */
   async function placeOf(request) {
     const options = await request.callOptions();
     const bot = /^\d+$/u.test(String(request.params.botId)) ? await directory.findBot(String(request.params.botId), options, { kind: "bot" }) : null;
-    if (!bot) throw new FilesError(404, "Bot not found.", { code: "files_bot_not_found" });
+    const notFound = () => new FilesError(404, "Bot not found.", { code: "files_bot_not_found" });
+    if (!bot) throw notFound();
     const homeId = request.workspace.id;
     if (request.query?.group) {
       const member = /^\d+$/u.test(String(request.query.group)) && await directory.isGroupMember(String(request.query.group), bot.id, options);
-      if (!member) throw new FilesError(404, "Bot not found.", { code: "files_bot_not_found" });
+      if (!member) throw notFound();
       return { homeId, botId: bot.id, everyone: true };
     }
-    return store.placeFor({ id: bot.id, workspace_id: homeId, sharing: bot.sharing }, request.user.id);
+    const shared = bot.sharing === "shared";
+    const asked = request.query?.room ? String(request.query.room) : null;
+    const seat = shared || asked ? await directory.seatOf(bot.id, options) : null;
+    // The tab: the one asked for, else in a Shared bot the one the person has open.
+    const tab = asked ?? (shared && seat?.roomId != null ? String(seat.roomId) : null);
+    const place = (room) => store.placeFor({ id: bot.id, workspace_id: homeId, room }, request.user.id);
+    if (seat && tab === String(seat.id)) return place(false);
+    if (asked && !(shared && /^\d+$/u.test(asked) && await directory.roomOf(bot.id, asked, options))) throw notFound();
+    return place(shared);
   }
 
   const homePlaceOf = async (request) => store.homePlace(request.workspace.id);

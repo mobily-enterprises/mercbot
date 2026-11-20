@@ -2,7 +2,7 @@ import { retryLostInsertRace } from "@jskit-ai/database-runtime/shared";
 import { DEFAULT_BOT_COLOR, DEFAULT_BOT_NAME } from "./onboarding.js";
 import { BOT_PALETTE, BRAND_COLOR } from "./botPalette.js";
 import { BotsError } from "./botsError.js";
-import { cleanName, cloudShape, previewOf, toBot, toRoom, toSection } from "./botRows.js";
+import { cleanName, cloudShape, previewOf, toBot, toOwnTab, toRoom, toSection } from "./botRows.js";
 import { GENERAL } from "./templates.js";
 
 const BRAND_SHAPE = "mercbot";
@@ -34,7 +34,8 @@ export function createBotList({ records, conversations }) {
     // A shared bot's tabs, each unread while it has news from the bot or someone else (D-36).
     const rooms = await messages.roomsWithNews(bots.filter(conversations.isShared).map((bot) => bot.id), options);
     const roomsByBot = Map.groupBy(rooms, (room) => String(room.bot_id));
-    const rows = bots.map((bot) => {
+    // Each row with its tabs: a Shared bot's rooms and, last, the person's own conversation as "You only" (D-99).
+    const entries = bots.map((bot) => {
       const seat = seats.get(String(bot.id)) || {
         id: null,
         user_id: person,
@@ -44,11 +45,19 @@ export function createBotList({ records, conversations }) {
         last_activity_at: bot.created_at
       };
       const own = roomsByBot.get(String(bot.id)) || [];
-      if (!own.length) return conversations.asSeen(bot, seat);
-      const row = conversations.asSeen(bot, seat, own.find((room) => String(room.id) === String(seat.room_id)) || own[0]);
-      const latest = own.reduce((last, room) => (room.last_activity_at > last ? room.last_activity_at : last), own[0].last_activity_at);
-      return { ...row, unread: own.some((room) => room.unread), last_activity_at: latest };
+      if (!own.length) return { row: conversations.asSeen(bot, seat), tabs: null };
+      const group = bot.kind === "group";
+      const youOnly = !group && seat.id !== null && String(seat.room_id) === String(seat.id);
+      const row = youOnly
+        ? conversations.asSeen(bot, seat)
+        : conversations.asSeen(bot, seat, own.find((room) => String(room.id) === String(seat.room_id)) || own[0]);
+      const tabs = own.map((room) => ({ ...toRoom(room), unread: room.unread }));
+      if (!group && seat.id !== null) tabs.push(toOwnTab(seat));
+      const all = group || seat.id === null ? own : [...own, seat];
+      const latest = all.reduce((last, entry) => (entry.last_activity_at > last ? entry.last_activity_at : last), all[0].last_activity_at);
+      return { row: { ...row, unread: tabs.some((tab) => tab.unread), last_activity_at: latest }, tabs: group ? null : tabs };
     });
+    const rows = entries.map((entry) => entry.row);
     const sections = (await store.sectionsOf(options)).map(toSection);
     // Each conversation's latest previewable message, one row per conversation however long the
     // chats are; a group's preview is its latest message from anyone.
@@ -59,13 +68,12 @@ export function createBotList({ records, conversations }) {
     const members = await conversations.membersOf(groupIds, options);
     const people = await conversations.peopleOf(groupIds, options);
     return {
-      bots: rows.map((row) => ({
+      bots: entries.map(({ row, tabs }) => ({
         ...toBot(row),
         ...(row.kind === "group" ? { members: members.get(String(row.id)) || [], people: people.get(String(row.id)) || [] } : {}),
-        rooms:
-          row.room && row.kind !== "group"
-            ? roomsByBot.get(String(row.id)).map((room) => ({ ...toRoom(room), unread: room.unread }))
-            : null,
+        // A Shared bot nobody has opened since it became Shared has no tabs yet: its first look opens General.
+        ...(row.kind !== "group" && !tabs ? { roomId: null } : {}),
+        rooms: tabs,
         preview: previewByBot.get(String(row.id)) || ""
       })),
       sections

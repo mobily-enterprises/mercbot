@@ -44,7 +44,7 @@ Every home keeps its bots' files in three kinds of folder.
 
 | Folder | Who sees it |
 | --- | --- |
-| **Just me** (/files/mine) | You and that one bot. Files you attach, and files it makes for you, go here. A Shared bot has no "Just me" folder, because everyone talks with it together. |
+| **Just me** (/files/mine) | You and that one bot. Files you attach, and files it makes for you, go here. With a Shared bot, that's in your You only tab; in its shared tabs, they go in the folder for everyone using the bot instead. |
 | **Everyone using the bot** (/files/bot) | Everyone in the home who uses that bot. Good for the bot's working material, such as the invoices folder of a bookkeeping bot. |
 | **The home's folder** (/files/shared) | Everyone in the home, and all the home's bots. |
 
@@ -189,7 +189,7 @@ You can also ask a bot for files it made earlier, or any file in its folders, su
 - **Pictures** show as they are.
 - **Text files** show their text.
 - **Download** (the arrow at the top) saves the file to your device.
-- **Edit on computer** opens a document, spreadsheet, presentation or PDF in its app on the bot's own computer, where you can change it yourself. See [The bots' computer and connected apps](/help/computer-and-apps).
+- **Edit on computer** opens a document, spreadsheet, presentation or PDF in its app on the bot's own computer, where you can change it yourself. With a Shared bot, that's the computer of the tab you have open, so a file opened from the Details panel's **Files** while a shared tab is open has no Edit on computer. See [The bots' computer and connected apps](/help/computer-and-apps).
 
 If a file can't be previewed, the viewer offers to download it instead.
 
@@ -208,7 +208,7 @@ A page's menu also has **Open**, **Share…** and **Delete**:
 - **Share…** is the page's **Share**: everyone in the home can open it (see [Share a page](#share-a-page)). An older page, written before pages were web pages, shows who can open it by its folder: only you (**Just me**), everyone using the bot, or everyone in the home; select **Copy text** to copy its words, or **Download** to save it as a file.
 - **Delete** asks you to confirm, then deletes the page for good, with its versions, and takes it off your website if it was published there. Its cards stay in every chat, marked **Deleted**, and no longer open.
 
-You can also find files by name with the search palette (**Ctrl+K**). Matching files are listed before messages.
+You can also find files by name with the search palette (**Ctrl+K**). Matching files are listed before messages. A Shared bot's file opens in the tab it was made in, shared or You only.
 
 ## Google Drive and OneDrive
 
@@ -245,7 +245,7 @@ Deleting a bot deletes it and its whole conversation for good, so download anyth
 
 ### Can my other bots see files I sent to one bot?
 
-Not unless you ask. Files you attach stay in your "Just me" folder with that bot. Ask the bot to put a file in the home's folder, or move it there yourself in **Files**, to make it available to every bot in the home.
+Not unless you ask. Files you attach stay in your "Just me" folder with that bot (in a Shared bot's shared tabs, in its folder for everyone using it). Ask the bot to put a file in the home's folder, or move it there yourself in **Files**, to make it available to every bot in the home.
 
 ### The bot says it can't open my photo.
 

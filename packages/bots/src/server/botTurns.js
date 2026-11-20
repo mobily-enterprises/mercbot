@@ -64,7 +64,7 @@ export function createBotTurns({
     );
   }
 
-  /** Where a bot's files are for the person in this conversation (D-36). */
+  /** Where a bot's files are for the person in this conversation: a shared tab's are everyone's (D-36, D-99). */
   const filePlace = (row) => files.store.placeFor(row, row.user_id);
 
   /** The newest of the bot's own and shared files, so it can find what was made earlier (D-21). */
@@ -151,7 +151,12 @@ export function createBotTurns({
     const skills = !row.room ? await integrations.skillNames(call, { limit: SKILLS_SHOWN }) : [];
     // A shared Builder's conversation for one app (owner, 2026-10-30).
     const roomApp = row.room?.app_id ? await apps.apps.findApp(String(row.room.app_id), call) : null;
-    const groups = await groupMemory(row, call);
+    // What was said in the person's group chats is theirs: never in a room others read (D-99).
+    const groups = row.room ? [] : await groupMemory(row, call);
+    // A Shared bot's "You only" knows its shared tabs by name, never what's said in them (D-99).
+    const sharedTabs = !row.room && row.kind !== "group" && row.sharing === "shared"
+      ? (await conversations.roomsOf(row.id, call)).map((room) => `"${room.title}"`)
+      : null;
     const otherBots = (await records.directory.listHomeBots(call)).filter((bot) => String(bot.id) !== String(row.id));
     const approvals = history
       .filter(
@@ -199,11 +204,19 @@ export function createBotTurns({
                 `join. Several people may talk here; each person's message starts with their name. ` +
                 `Nobody's personal memories, connected accounts, saved passwords or own skills are ` +
                 `used here, because everyone would see them: if someone needs those, suggest they ` +
-                `ask you in a bot that isn't shared.`,
+                `ask you in their own "You only" tab, which nobody else sees.`,
             `- The home's own connected accounts, which you may use here: ${await connectedAccounts(row, call)}. ` +
               `Sedna, if the home has it, is used only in each person's own chat with their bot, never here: say so if asked.`
           ]
         : [
+            ...(sharedTabs
+              ? [
+                  `- This is the person's own conversation with you, the "You only" tab: nobody else sees it, and ` +
+                    `nothing from it goes anywhere others read. Everyone in this home also talks with you in shared ` +
+                    `conversations (${sharedTabs.join(", ") || "none yet"}); what's said there isn't here, so if the ` +
+                    `person needs it, suggest they look there.`
+                ]
+              : []),
             `- What you remember about the person (shared by all their bots): ${await memoriesOf(call)}.`,
             `- Connected accounts: ${await connectedAccounts(row, call)}.`,
             ...(turnedOff.length

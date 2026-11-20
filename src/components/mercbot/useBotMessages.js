@@ -40,6 +40,7 @@ export function useBotMessages({ bots, currentBotId }) {
   }
 
   const knowsBot = (botId) => bots.value.some((bot) => bot.id === botId);
+  const botOf = (botId) => bots.value.find((bot) => bot.id === botId) ?? null;
 
   // Where each loaded bot's messages were read up to: the room they're from and the server's
   // cursor (D-15). News then reads only what changed after it.
@@ -68,6 +69,12 @@ export function useBotMessages({ bots, currentBotId }) {
       messagesByBot.value = { ...messagesByBot.value, [botId]: [...messages, ...added] };
       setOlder(botId, more);
       cursors.set(botId, { room, cursor });
+      // Opening a Shared bot the first time made the person's own conversation with it, its last tab "You only"
+      // (D-99): the bot is read again so the tab shows.
+      const bot = botOf(botId);
+      if (bot?.sharing === "shared" && bot.kind !== "group" && bot.rooms && !bot.rooms.some((tab) => tab.own)) {
+        botsApi.bot(botId).then((listed) => listed.bot && updateBot(listed.bot)).catch(() => {});
+      }
     });
   }
 
@@ -194,6 +201,7 @@ export function useBotMessages({ bots, currentBotId }) {
     olderByBot,
     roomOf,
     knowsBot,
+    botOf,
     updateBot,
     markSeen,
     reloadMessages,

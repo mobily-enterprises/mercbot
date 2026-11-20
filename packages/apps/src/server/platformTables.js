@@ -136,7 +136,9 @@ const appPracticeSearch = Object.freeze({
 });
 
 const appWatchSearch = Object.freeze({
-  enabled
+  enabled,
+  // The watches of the conversations given: a bot leaving Shared pauses those of its rooms (D-99).
+  conversationIds: { type: "array", items: { type: "id" }, actualField: "conversationId", filterOperator: "in" }
 });
 
 // The audit trail's: a record's history and the Activity filters.

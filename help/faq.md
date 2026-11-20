@@ -48,7 +48,7 @@ Mercbot's own. You don't need to choose a model or enter any keys. There are two
 
 ## Who can see my chats?
 
-Your chats with a bot are your own, even when other people in your home use the same bot. The exception is a **Shared** bot, whose conversations are open to everyone in the home, as the bot tells you. A **Mixed** bot may note things that help everyone in a home notebook, never anything personal, and tells you in a line you can undo. See [Bots shared in a home](/help/shared-bots).
+Your own chat with a bot is yours, even when other people in your home use the same bot. A **Shared** bot also has conversations open to everyone in the home, as tabs, as the bot tells you; your own chat with it is its last tab, **You only**, which only you see. A **Mixed** bot may note things that help everyone in a home notebook, never anything personal, and tells you in a line you can undo. See [Bots shared in a home](/help/shared-bots).
 
 ## Do bots see my passwords?
 
@@ -112,7 +112,7 @@ For a skill, ask the bot to save what it just did as a skill, or teach it by rec
 
 ## Can I share a bot with someone?
 
-Inside a home, everyone already uses the same bots. Owners and admins choose whether each bot is **Private**, **Mixed** or **Shared** under **Who sees what** in its Details panel; see [Bots shared in a home](/help/shared-bots).
+Inside a home, everyone already uses the same bots, each with their own chat. Owners and admins choose whether each bot is **Private**, **Mixed** or **Shared** under **Who sees what** in its Details panel, and a Shared bot adds conversations everyone in the home sees; see [Bots shared in a home](/help/shared-bots).
 
 Outside your home, you can share one of the ready-made bots in the [template gallery](/templates). A template's **Add to Mercbot** opens its share page: send someone that link, and its **Add to Mercbot** shows them everything the bot would be given before they add it to their own home. The gallery is curated by the Mercbot team, who alone add templates to it, so a bot you've made yourself can't go there, and Mercbot has no way to send your own bot to someone outside your home.
 

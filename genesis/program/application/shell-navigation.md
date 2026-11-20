@@ -103,7 +103,8 @@ render across compact, medium, and expanded layouts.
 - The Library tab gives each row its age ("now", "5m", "3h", "4d",
   "2w", "1y") and a hover card: what it is, its name, the bot, when it was made
   and, for a page, who can open it (`pageAccess`, from its folder: Just me, the
-  bot's or the home's). "…" or a right-click opens its menu: Pin or Unpin, and for
+  bot's or the home's; in a shared bot's shared tab every folder is the home's, in
+  its "You only" tab Just me is the person's alone, D-99). "…" or a right-click opens its menu: Pin or Unpin, and for
   a page Open, Share… (who can open it, with Copy text and Download) and Delete,
   which asks first in the app's own dialog.
 - Instructions come first on the Details tab (`useBotInstructions.js`, D-98):
@@ -163,7 +164,8 @@ render across compact, medium, and expanded layouts.
   ranking by where the first letter falls, and lists bots and groups (by name or
   template tag), apps (by name or description; opens the app's page), hidden bots (tagged),
   commands, routines (opens the bot with Details) and up to 5 messages from
-  `GET /api/search` (opens the chat with the message at the top, ringed). Contiguous
+  `GET /api/search` (opens the chat with the message at the top, ringed); a shared
+  bot's routine, message or made file opens in the tab it's in (D-99). Contiguous
   runs are bold; five placeholder rows show while only messages are pending, then
   results or "No results". Up and Down stop at the ends.
 

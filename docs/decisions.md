@@ -2501,3 +2501,48 @@ someone changes them, so the prompt's start stays cached between edits.
 
 (a) the model, pointer, additions, tags and chips, Details → Instructions, Change template and the upgrade;
 (b) New bot, the first messages and the match or new-template cards; (c) Settings → Templates and its changes.
+
+## D-99 — A Shared bot keeps each person's own chat, as its last tab, "You only" (2026-11-20)
+
+Amends D-36 (the three modes and the bot's computer) and D-41 (the Builder's conversation per app). The owner's
+decision: people must still be able to talk with a Shared bot privately; group chats (D-46) keep working beside it.
+Before, making a bot Shared hid every person's own chat with it (not deleted, but reachable only through search,
+which couldn't open it), while its routines kept running and being paid for; and a few things followed the bot's mode
+instead of the conversation, so some leaked one way or the other.
+- **Everyone has their own chat with every bot, and the modes add to it.** Private adds nothing; Mixed (the default)
+  adds the home's notebook; Shared adds conversations everyone in the home sees, as tabs, with no notebook. In a
+  Shared bot the tabs are General, the other shared tabs, then, last, **You only**: the person's own conversation with
+  the bot, the same one they had before it was Shared, with its messages, routines, files and computer. It has a
+  lock, can't be renamed, and only its person ever sees it (the row policies already keep anyone else's out, the
+  home's owners and admins included). Its id is the person's own conversation's; having it open is that conversation
+  naming itself as the open tab. Nothing in the database changes.
+- **What the bot knows.** In a shared tab, as before: that tab and what it continues from, the home's own accounts,
+  nothing of anyone's own, and no longer the lines of the person's group chats (they had been added there too). In
+  You only, everything a private chat knows, plus the names of the shared tabs, never what's said in them.
+- **Nothing goes out of You only.** No notebook notes (a Shared bot uses no notebook), nothing posted into a shared
+  tab, and a tab made with "+" there starts empty instead of continuing from it. Asking another bot from a private
+  chat, You only among them, lands in that bot's private chat with the person too; from a shared tab, in one of its
+  shared tabs if it has them, else its private chat, as before.
+- **Files and the computer follow the conversation, not the mode.** A shared tab's (and a group's with others,
+  D-46) are the bot's everyone folder and its own computer; the person's own conversation's, You only included, are
+  their own folder and computer. This also fixes a private chat's routine saving into the everyone folder once the bot
+  was Shared, and a room's work using its maker's own folder once it wasn't. The files and computer routes take
+  `?room=` as they take `?group=`: one of the bot's shared tabs, or the person's own conversation; anything else
+  (another person's conversation, a tab hidden while the bot isn't Shared) is refused. Without it, the tab the person
+  has open. Details → Files of a Shared bot is read as You only has it, which reaches all three folders: Just me,
+  Everyone using the bot, and the home's.
+- **Each tab is unread on its own**, You only included; the bot's dot in the list shows while any tab has news. The
+  list reads no more than before: the person's own conversation comes with the rows it already reads.
+- **Changing mode asks first**, naming what it hides and for whom. Making a bot Shared opens General for whoever did
+  it, and everyone's own chat becomes their You only. Making it Private or Mixed hides the shared tabs from everyone
+  (kept, back when it's Shared again), and their routines and watches pause, each tab saying so in a line, to be
+  resumed there once it's Shared again; a goal in a hidden tab stops at its next round. Nothing runs, or costs, where
+  nobody can see or stop it: work queued there before ends unrun, and search doesn't find hidden tabs. Each person's
+  You only simply becomes their chat again.
+- **Search opens a result in its tab**: a message, a routine or a made thing of a Shared bot opens the tab it's in,
+  shared or You only.
+- **A home of one person** sees Who sees what only for a bot that isn't on the default (Mixed), so it can be set back:
+  with nobody else, the modes differ only by a notebook nobody else reads. Shared bots still show their tabs, so a
+  Shared Builder keeps a conversation per app.
+- **The Builder (D-41):** Ask Builder in an app opens the app's conversation whenever the Builder is Shared, whichever
+  tab is open, and making it Shared no longer takes anyone's own chat with it away.

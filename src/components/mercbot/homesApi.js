@@ -91,3 +91,24 @@ export async function homeList(slug, list) {
 export const peopleApi = {
   members: (slug) => homeList(slug, "members")
 };
+
+// readable-check: allow module-state - shared resource: each home's answer is read once, and again when its people change
+const othersByHome = new Map();
+/**
+ * Whether anyone but this person is in the home (D-99): its bots' Who sees what shows only then, or for a bot off
+ * the default. One short read per home, again after news of its people changing (homeChanges); a read that fails
+ * answers yes, so the choice shows.
+ * @param {string} slug
+ */
+export function hasOthers(slug) {
+  const key = `${slug} ${homeChanges.value}`;
+  if (!othersByHome.has(key)) {
+    othersByHome.set(key, read(homeRoute(slug, "/members?limit=2"))
+      .then((result) => (attributesOf(result).members || []).length > 1)
+      .catch(() => {
+        othersByHome.delete(key);
+        return true;
+      }));
+  }
+  return othersByHome.get(key);
+}

@@ -47,6 +47,8 @@ onboarding and the bot's typed replies.
 - `packages/bots/src/server/vaultLogins.js`
 - `src/components/mercbot/MercbotSecureForm.vue`
 - `src/components/mercbot/MercbotRoomTabs.vue`
+- `src/components/mercbot/openTabs.js`
+- `src/components/mercbot/useSharingChoice.js`
 - `src/components/mercbot/MercbotVoiceMemo.vue`
 - `src/components/mercbot/MercbotDraftCard.vue`
 - `packages/bots/skills/shopping.md`
@@ -162,29 +164,69 @@ Long chats are compacted in the background (D-41):
 - A room's first summary takes in the messages it inherited; group chats are summarised with each
   speaker's name. The page always shows the whole conversation.
 
-Sharing (D-36):
+Sharing (D-36, D-99):
 - Each bot has `sharing` (`private`, `mixed` by default, or `shared`), which owners and admins
   change with `PATCH …/bots/:botId {sharing}`. Others get 403, and a group chat can't be shared.
+- Every person has their own conversation with every bot (`user_id` theirs), whatever its mode,
+  and the modes add to it: mixed the home notebook, shared the rooms below.
 - A shared bot talks in rooms: `bot_conversations` rows with no person and a required title,
   starting with "General".
-- The list gives each shared bot `rooms` (title, parent, unread for this person) and the
-  `roomId` the person last had open.
-- `messages`, `send` and `reply` take the room.
-- `POST …/rooms {title, from}` starts a tab that continues from `from`. The bot's history there
-  is the parent's messages up to that moment, recursively, then the tab's own.
-- `PATCH …/rooms/:roomId {title}` renames a tab.
+- The list gives each shared bot `rooms`: its rooms (title, parent, unread for this person), then,
+  last, the person's own conversation as **You only** (`toOwnTab`: `own: true`, no parent, its
+  own unread), and the `roomId` the person last had open, the own conversation's id while You only
+  is. A shared bot the person hasn't opened since it became shared has no tabs yet (`rooms` and
+  `roomId` null), and its first look opens General. The bot is unread while any tab is.
+- `messages`, `send` and `reply` take the room, the person's own conversation's id naming You only
+  (`seenBy`'s `room`; `own: true` or `false` asks for You only or a room whatever is open).
+- `POST …/rooms {title, from}` starts a tab. From a room, it continues from it: the bot's history
+  there is the parent's messages up to that moment, recursively, then the tab's own. From You
+  only it starts empty, with no parent: nothing said there goes where others read.
+- `PATCH …/rooms/:roomId {title}` renames a room; You only has no other name.
 - A shared Builder keeps one room per app (owner, 2026-10-30): `POST …/rooms/app {appId, title}`
   finds the app's room (`bot_conversations.app_id`, one per bot and app) or makes it fresh, named
-  after the app, and opens it for the person; the Current state note names the room's app.
+  after the app, and opens it for the person whichever tab was open; the Current state note names
+  the room's app. Making the Builder shared leaves everyone's own chat with it as their You only.
 - Rows made on first use (a person's own conversation with a bot, the app's room, a member bot's
   computer for a group) are upserts on their unique keys (`bot_id` with `user_id`, `app_id` or
   `group_id`): several first uses at once make one row, and every caller gets it.
 - People's messages in rooms carry `from {id, name}`, and the bot reads each message with the
   name.
-- News about a room reaches everyone in the home, with `roomId`.
-- In rooms, no one's memories, connected accounts, vault logins or own skills are used, and the
-  bot's files are the shared bot's `everyone` folder.
-- Unread is per person per room (`conversation_reads`).
+- News about a room reaches everyone in the home, with `roomId`; news about a shared bot's own
+  conversation names it as `roomId` too, so a page showing another tab marks You only new.
+- In rooms, no one's memories, connected accounts, vault logins, own skills or group chats' lines
+  are used. In You only the bot has everything a private chat has, plus the rooms' names (never
+  what's said in them, which it points the person to); it notes nothing in a notebook and posts
+  into no room. In a room, the bot points anyone wanting something of their own to their You only.
+- Files and the computer follow the conversation, not the mode: a room's (and a group's with
+  others, D-46) are the bot's `everyone` folder and the room's own computer, the person's own
+  conversation's, You only included, their own (`files.store.placeFor(row, userId)`, `row.room`).
+  The files and computer routes take `?room=` as they take `?group=` (one of the bot's rooms, or the
+  person's own conversation; anything else, another person's conversation or a hidden room
+  included, is 404), else the tab the person has open. The page names the open tab in every file
+  and computer address (`openTabs.js`: the shell's `followOpenTabs(store.roomOf)`, `placeQuery`,
+  `ownTabOf`, `ownTabOpen`); Details → Files of a shared bot reads as You only, which reaches Just
+  me, Everyone using the bot and the home's folder.
+- Unread is per person per tab: a room's in `conversation_reads`, You only's on the person's own
+  row; `PATCH …/bots/:botId {roomId, unread}` opens or marks the tab given.
+- **Changing mode (D-99):** making a bot shared opens General for whoever did it. Leaving shared
+  hides the rooms, kept (`isHiddenRoom`: a room while its bot isn't shared), and in the same
+  transaction `pauseHiddenWork` pauses their running routines (`records.work.pauseRoutinesIn`) and
+  watches (`apps.watches.pauseIn`), posting in each room with any a "Paused while hidden" event
+  naming them, to resume there once shared again. `conversations.rowOf` answers null for a hidden
+  room, so goals, requests and queued replies don't run there; search and the files and computer
+  routes leave hidden rooms out. Each person's own conversation simply stops being a tab.
+- **Who sees what** in Details (`useSharingChoice.js`): an intro, "Everyone in <home> has their own
+  chat with <bot>, which only they see.", then Private "Nothing more.", Mixed "And what helps
+  everyone goes in <home>'s notebook, which everyone can read." and Shared "And conversations
+  everyone sees, as tabs; each person's own chat is the last tab, You only. The notebook isn't
+  used.". A choice asks first ("Make <bot> <Mode>?", Make it <Mode> or Cancel), naming what it
+  hides and for whom. It shows when anyone else is in the home (`homesApi.js` `hasOthers`) or the
+  bot isn't mixed, so a home of one can set a bot back; only owners and admins choose.
+- The tab bar (`MercbotRoomTabs.vue`) shows the rooms, then You only with a lock ("Only you see
+  this conversation"), which double-click doesn't rename; "+" says "New conversation for everyone,
+  starting empty" from You only, else "New conversation, starting from what “<tab>” knows". The
+  composer's placeholder in a shared bot says "Message <bot> · everyone in <home> sees this", or in
+  You only "Message <bot> · only you see this" (`composerPlaceholder.js`).
 
 The home notebook (D-36, mixed bots):
 - Notes are `bot_notebook` rows. `note_for_home(text)` is offered only in a mixed bot's private
@@ -337,7 +379,9 @@ Bots asking bots (D-46, step 1): `ask_bot` sends another bot in the home a
 brief (never the chat or memories) and waits; `message_bot` passes a task on for
 the other bot to answer the person itself. Each is a `bot_requests` row with a
 `bot_request` card in both conversations (the asker's, and the person's own
-conversation with the target, or the room they have open for a shared bot), showing
+conversation with the target when asked from their own conversation, a shared bot's You only
+included, or, asked from a room, the room they have open for a shared target, else its first
+room, D-99), showing
 status Starting, Working, Has a question, Waiting for your OK, Done, Couldn't
 finish or Cancelled. Next steps (`target_turn`, `asker_turn`) are claimed with a
 lease and SKIP LOCKED by `botRequests.js`, which every serving server runs, woken
@@ -470,7 +514,7 @@ newest 400 things, then every older pinned one (a `pinned` message filter), so a
 `DELETE /api/bots/:botId/library/pages/:messageId` deletes a page: its file goes, with its
 versions and link (`files.pages.pathChanged`, D-74), and every card of that page is marked `removed`
 wherever the same file shows (`markPageRemoved`): a page in the home's shared folder in every chat of
-the home, one in the bot's folder (or any page of a shared bot) in every chat and group the bot made it
+the home, one in the bot's folder (or any page made in a room) in every chat and group the bot made it
 in (the `madeBy` filter: the bot's own conversations, and group lines where it is the speaker), one in
 the person's own folder in this chat. The Library and search leave it out and the cards show "Deleted"
 and no longer open; the answer is the Library and this chat's cards. A pin merges only `pinned` into a
@@ -735,6 +779,9 @@ on the server and is removed after learning. Bots read skills with `read_skill`
 Search: `GET /api/search?q=` with no query returns every routine with its bot (the palette
 reads them once, as it opens); with a query, up to 5 text messages containing it across chats and
 groups, earliest match first, as plain one-line text with where they are and when, and no routines.
+Every routine, message and made thing names its conversation as `roomId`, so the palette opens a
+shared bot's in that tab, a room or You only (`usePaletteRunner.js`, `useRooms.js`
+`selectRoom(roomId, botId)`); rooms hidden while their bot isn't shared are left out (D-99).
 
 Find in chat: `GET /api/bots/:botId/find?q=&before=&room=` counts, case-insensitively, how many
 times the words appear in the text of the conversation's messages before `before` (the oldest message

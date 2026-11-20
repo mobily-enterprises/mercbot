@@ -94,11 +94,13 @@ files are kept.
   `homes/<home>/bots/<bot>/everyone/` (`/files/bot`, everyone in the home using that bot) and
   `homes/<home>/bots/<bot>/people/<user>/` (`/files/mine`, one person with that bot). A place is
   `{homeId, botId, userId}`; `{homeId, botId, everyone: true}` where nothing personal may be
-  reached (a shared bot, a group), which has no private folder and whose `/files/mine/…` paths
-  lead to the bot folder; or `store.homePlace(homeId)`, the home's folder alone. A configured
-  folder without the marker is unavailable, so files never land on one server's own disk. What
-  writes into the files folder outside the store (the usage archive, D-73) reaches the bucket
-  through the working copy the files feature hands the account's sweeps (`files.volume.sync`, `useFilesSync`).
+  reached (a shared bot's room, a group with others), which has no private folder and whose
+  `/files/mine/…` paths lead to the bot folder; or `store.homePlace(homeId)`, the home's folder
+  alone. A place follows the conversation, not the bot's mode (D-99): `store.placeFor(row, userId)`
+  gives a row with `room` the everyone place, and the person's own conversation, a shared bot's
+  "You only" included, their own. A configured folder without the marker is unavailable, so files
+  never land on one server's own disk. What writes into the files folder outside the store (the
+  usage archive, D-73) reaches the bucket through the working copy the files feature hands the account's sweeps (`files.volume.sync`, `useFilesSync`).
 - People's profile pictures (D-19) are kept with the bots' files, in `profile-pictures/<user>/avatar`
   (`store.profilePicturesFolder(user)`, which pulls that person's folder first; unavailable like the rest), and
   pushed once written or removed (`settleProfilePicture`). JSKIT's users
@@ -267,7 +269,12 @@ files are kept.
   a copy built on Mercbot that lets people be removed refuses while this answers.
 
 Routes, under `/api/w/:workspaceSlug` for a bot in that home (404 otherwise), work
-on the signed-in person's place with the bot, with `path` a bot path. The same `content`,
+on the signed-in person's place with the bot, with `path` a bot path. `?group=` names a group's
+place (D-46) and `?room=` a shared bot's tab: one of its rooms (the everyone place) or the person's
+own conversation (theirs); any other, such as another person's conversation or a room hidden while
+its bot isn't shared, is 404 `files_bot_not_found`. Without either, a shared bot's are those of
+the tab the person has open (D-99). The page names that tab in every address (`filesApi.js`
+through `openTabs.js`). The same `content`,
 `preview`, `upload`, listing, `move`, `folder` and `DELETE` routes exist for the home's own folder
 at `/api/w/:workspaceSlug/files…`:
 
@@ -321,7 +328,9 @@ The file browsers (D-47): `FileBrowser` shows a place's folders with breadcrumbs
 download, upload, new folder, Move to…, rename and delete. It reads each folder as it is opened,
 so a folder's older files and folders that hold only old files are reached however many newer
 files the rest of the place has. Each bot's Details has a Files tab
-(Just me for private and mixed bots, Everyone using the bot, the home's); the sidebar's Files
+(Just me, Everyone using the bot, the home's; a shared bot's read as its "You only" tab has them,
+`ownTabOf`, so all three show whichever tab is open, and the viewer offers Edit on computer only
+for a file of the tab open in the chat); the sidebar's Files
 entry, above Apps, opens `/w/<home>/files`, with the home's folder and the home's bots (`GET
 /api/w/:workspaceSlug/files/bots`: `{bots: [{id, name, color, shape}]}`, group chats left out),
 each leading to `?bot=<id>&files=1` (that bot's Details on Files).

@@ -10,7 +10,7 @@ No. Bots, files, computers, Apps and usage all belong to a home, and a request f
 
 ### Can owners and admins read members' chats?
 
-No. Each person's chats with a private or mixed bot are their own. Only a shared bot's conversations are seen by everyone in the home, and the bot says so.
+No. Each person's own chat with a bot is theirs, whatever the bot's mode, a shared bot's **You only** tab included. Only a shared bot's shared tabs are seen by everyone in the home, and the bot says so.
 
 ### Does a bot ever work on my own computer?
 
@@ -18,7 +18,7 @@ No. Bots work on their own computer in the cloud, a small desktop on one of Merc
 
 ### What can a bot's browser reach?
 
-The web, its own profile and the bot's file folders. It runs in a sandbox that sees none of Mercbot's own folders and only the parts of the system a browser needs. With private and mixed bots, each person has a separate browser, so sign-ins never cross between people. Its only way out is Mercbot's gateway, which connects only to public internet addresses, never to the server itself, its private network or cloud metadata addresses, and never to the ports used to send email.
+The web, its own profile and the bot's file folders. It runs in a sandbox that sees none of Mercbot's own folders and only the parts of the system a browser needs. Each person's own chat with a bot has a separate browser, a shared bot's You only tab included, so sign-ins never cross between people; a shared bot's shared tab has one browser for everyone in it. Its only way out is Mercbot's gateway, which connects only to public internet addresses, never to the server itself, its private network or cloud metadata addresses, and never to the ports used to send email.
 
 ## Network and outside services
 

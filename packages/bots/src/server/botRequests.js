@@ -35,7 +35,7 @@ const isOpen = (request) => OPEN_REQUESTS.includes(request.status);
  * @param {(reason: string) => object} dependencies.systemContext the bots' system context (BotsFeature's systemScope)
  * @param {import("@local/notices/server/types").Notices} dependencies.notices
  * @param {import("@local/account/server/types").Meter} dependencies.meter
- * @param {(botId: string, conversationId: string | null, options: CallOptions) => Promise<object | null>} dependencies.rowOf
+ * @param {(botId: string, conversationId: string | null, options: CallOptions, open?: { own?: boolean }) => Promise<object | null>} dependencies.rowOf
  *   a bot's chat with the call's person (conversations.rowOf)
  * @param {(row: object, options: object) => Promise<object[]>} dependencies.respond runs one turn in a chat
  * @param {(row: object, messages: object[], options: CallOptions) => Promise<object[]>} dependencies.append
@@ -124,7 +124,9 @@ export function createBotRequests({
     if (chain.includes(String(target.id))) return { error: `${target.name} is already working on this job, so it can't be asked again.` };
     const open = await work.openRequestBetween({ fromBotId: fromRow.id, toBotId: target.id, userId: fromRow.user_id }, options);
     if (open) return { error: `You've already asked ${target.name} something that isn't finished yet. Wait for that answer first.` };
-    const targetRow = await rowOf(target.id, null, options);
+    // Asked from the person's own conversation ("You only" in a Shared bot among them), the request goes to their own
+    // conversation with the other bot too; from a shared tab, to one of its shared tabs if it has them (D-99).
+    const targetRow = await rowOf(target.id, null, options, { own: !fromRow.room });
     const person = await personName(fromRow.user_id, options);
     const request = await work.withTransaction(options, async (txOptions) => {
       const created = await work.createRequest({

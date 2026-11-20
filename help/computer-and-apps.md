@@ -10,15 +10,15 @@ Every bot has a computer. It's a small desktop that runs on Mercbot's servers, n
 - a dock in the middle with **Browser** and the office apps for documents, spreadsheets, slides and PDFs (right-click the desktop for the same list);
 - windows that open full size, with red, yellow and green buttons on the left.
 
-Who gets which computer depends on how the bot is shared in your home:
+Which computer a bot uses depends on the conversation it's working in:
 
-| Bot | Computer |
+| Conversation | Computer |
 | --- | --- |
-| Private or mixed bot | Each person has their own computer with the bot. Your browser sign-ins never show up for anyone else in the home. |
-| Shared bot | Each conversation tab has one computer, used by everyone in that conversation. |
+| Your own chat with a bot, a Shared bot's **You only** tab included | Your own computer with the bot. Your browser sign-ins never show up for anyone else in the home. |
+| A Shared bot's shared tab | Each shared tab has one computer, used by everyone in that conversation. |
 | Group chat | Groups have no computer of their own. Each bot uses its own. |
 
-The computer can see the bot's folders: yours with the bot, the bot's for everyone using it, and your home's (see [Files, documents and pictures](/help/files)). Anything downloaded in its browser goes into your folder with the bot. When a bot makes a document, you can open it from the file viewer with **Edit on computer**. The file opens in its app on the bot's desktop, and you're put in control.
+The computer can see the bot's folders: yours with the bot, the bot's for everyone using it, and your home's (see [Files, documents and pictures](/help/files)). Anything downloaded in its browser goes into your folder with the bot; on a shared tab's computer, into the bot's folder for everyone using it. A Shared bot's **Computer** tab shows the computer of the tab you have open. When a bot makes a document, you can open it from the file viewer with **Edit on computer**. The file opens in its app on the bot's desktop, and you're put in control.
 
 ### What the computer is and isn't
 
@@ -120,7 +120,7 @@ A computer counts one day when it first starts each day (UTC), however often it 
 Open **Settings** > **Computer**:
 
 - **Update** always shows **Up to date**. Your bots' browsers are kept up to date for you, and updating keeps their saved sign-ins.
-- **Reset** starts every one of your bots' computers in this home afresh. Open pages close, and saved sign-ins and website data are cleared. Mercbot asks first. Your chats, routines and skills stay, and so does your vault. Computers in shared bots' conversation tabs aren't reset.
+- **Reset** starts every one of your bots' computers in this home afresh. Open pages close, and saved sign-ins and website data are cleared. Mercbot asks first. Your chats, routines and skills stay, and so does your vault. Computers of Shared bots' shared tabs aren't reset; your You only tabs' computers are.
 
 Reset is useful when a website is stuck in a strange state, or when you want a bot to forget every website it's signed in to.
 
@@ -183,8 +183,8 @@ A home's account shows "Everyone in" the home's name, and who added it. Everyone
 
 Which accounts a bot uses depends on where it's working:
 
-- **In your own chats** a bot can use your own accounts and the home's.
-- **In a shared bot's conversation tabs** it uses only the home's accounts, because everyone in the conversation can see the results.
+- **In your own chats**, a Shared bot's **You only** tab included, a bot can use your own accounts and the home's.
+- **In a Shared bot's shared tabs** it uses only the home's accounts, because everyone in the conversation can see the results.
 
 ### More than one account
 
@@ -331,7 +331,7 @@ No. You sign in on the app's own page, and Mercbot receives a key that lets your
 
 ### Can other people in my home use my Gmail?
 
-No. Accounts you connect with **Just me** are yours alone. Only accounts an owner or admin connects for **Everyone in** the home are used by everyone, and those are the only ones used in shared bots' conversation tabs.
+No. Accounts you connect with **Just me** are yours alone. Only accounts an owner or admin connects for **Everyone in** the home are used by everyone, and those are the only ones used in Shared bots' shared tabs.
 
 ### Why is my app showing "Needs more access"?
 

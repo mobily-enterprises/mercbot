@@ -47,6 +47,7 @@ import { useShellDialogs } from "./useShellDialogs.js";
 import { useShellKeys } from "./useShellKeys.js";
 import { useShellLayout } from "./useShellLayout.js";
 import { useShellTheme } from "./useShellTheme.js";
+import { followOpenTabs } from "./openTabs.js";
 import { useSidebarCommands } from "./useSidebarCommands.js";
 
 // The signed-in Mercbot shell around the user's saved bots and conversations (D-8).
@@ -117,6 +118,8 @@ const { drafts, currentDraft } = useDrafts({ currentBotId });
 
 const store = useBotMessages({ bots, currentBotId });
 const { messagesByBot, olderByBot, markSeen } = store;
+// A Shared bot's files and computer follow the tab it has open here (D-99).
+followOpenTabs(store.roomOf);
 const work = useBotWork({ bots, store });
 const { workByBot, speakersByBot, moodByBot } = work;
 const currentMessages = computed(() => (picker.value ? [] : messagesByBot.value[currentBot.value.id] || []));
@@ -301,7 +304,7 @@ const ACTIONS = {
   nextBot: () => selectIndex(currentIndex.value + 1)
 };
 
-const { foundFile, runPaletteEntry } = usePaletteRunner({ selectBot, showPage, store, chatPanel, openApp, openSettings, setTheme, actions: ACTIONS });
+const { foundFile, runPaletteEntry } = usePaletteRunner({ selectBot, selectRoom, showPage, store, chatPanel, openApp, openSettings, setTheme, actions: ACTIONS });
 
 const overlays = [shortcutsOpen, settingsOpen, aboutOpen, paletteOpen, newBotOpen, appsOpen, explainerOpen, liveView];
 const { positionHints, switchHighlightId } = useShellKeys({

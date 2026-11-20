@@ -2,15 +2,17 @@ import { createHttpClient } from "@jskit-ai/http-runtime/client";
 import { AUTH_PATHS } from "@jskit-ai/auth-core/shared/authPaths";
 import { onBeforeUnmount, ref, watch } from "vue";
 import { homePath } from "./homeApi.js";
+import { placeQuery } from "./openTabs.js";
 
 // The bot's computer: wake it, stream its screen, and send the person's input.
 const client = createHttpClient({ credentials: "include", csrf: { sessionPath: AUTH_PATHS.SESSION } });
 
 // A computer is a bot's (its id), or in a group the bot's own one for that group ({ id, group },
-// D-46).
+// D-46); a Shared bot's is its open tab's, or the tab given ({ id, room }, D-99, openTabs.js).
 const at = (target, path) => {
-  const { id, group = null } = typeof target === "object" && target ? target : { id: target };
-  return homePath(`/bots/${id}${path}${group ? `?group=${encodeURIComponent(group)}` : ""}`);
+  const { id, group = null, room } = typeof target === "object" && target ? target : { id: target };
+  const where = placeQuery(id, { group, room });
+  return homePath(`/bots/${id}${path}${where ? `?${where}` : ""}`);
 };
 
 export const computerApi = {
@@ -21,7 +23,10 @@ export const computerApi = {
 };
 
 // In a group, a bot's screenshots are from its own computer for that group (D-46).
-export const screenshotUrl = (botId, name, group = null) => homePath(`/bots/${botId}/screenshots/${encodeURIComponent(name)}${group ? `?group=${encodeURIComponent(group)}` : ""}`);
+export const screenshotUrl = (botId, name, group = null) => {
+  const where = placeQuery(botId, { group });
+  return homePath(`/bots/${botId}/screenshots/${encodeURIComponent(name)}${where ? `?${where}` : ""}`);
+};
 
 /**
  * Live state and address of a bot's computer while `active` is true. The screen is VNC.

@@ -45,7 +45,7 @@ If you send a new message instead of answering, the waiting card closes and its 
 
 ### In shared conversations and group chats
 
-- **A shared bot's conversation** is seen by everyone in it, cards included. Anyone in that conversation can answer a card.
+- **A Shared bot's shared tab** is seen by everyone in it, cards included. Anyone in that conversation can answer a card. Its **You only** tab is your own chat, where only you see and answer cards.
 - **In a group chat**, a bot that needs approval (for example, for a routine it wants to set up) posts the card in its own chat with you, not in the group.
 
 ## What always asks first
@@ -125,7 +125,7 @@ A few more protections:
 - Bots never see a saved card's number or security code.
 - When you teach a bot a task by recording it, what you type into password and card fields isn't recorded.
 
-Bots work on their own computer in the cloud, never on your device, and you can watch or take control at any time. With a private or mixed bot, your website sign-ins on its computer are yours alone. A shared bot's conversation has one browser for everyone in it, so sign-ins made there are shared too.
+Bots work on their own computer in the cloud, never on your device, and you can watch or take control at any time. In your own chat with a bot, a Shared bot's **You only** tab included, your website sign-ins on its computer are yours alone. Each shared tab of a Shared bot has one browser for everyone in it, so sign-ins made there are shared too.
 
 ## What bots treat as untrusted
 
@@ -139,7 +139,7 @@ Approvals are the safety net behind this. Text on a page can't press Go ahead fo
 |---|---|---|
 | A file in the shared folder | Everyone in the home and all its bots | Files a bot keeps for you in its own folder |
 | A mixed bot's notebook | Everyone in the home can read it | Your chats. The bot notes only reusable learning, refuses email addresses, long numbers and your vault passwords, and tells you in a line you can undo |
-| A shared bot's conversations | Everyone in the home who opens them | Your memories, your own connected accounts, your vault and your own skills: a shared bot never uses them |
+| A Shared bot's shared tabs | Everyone in the home who opens them | Your **You only** tab with the bot, and your memories, your own connected accounts, your vault and your own skills: shared tabs never use them |
 | An account added for **Everyone in** the home | Everyone sees it listed; bots use it in everyone's chats | Accounts you add as **Just me** |
 | Something your bots remember | All your bots in that home | Your chats with each bot |
 
@@ -193,7 +193,7 @@ Most likely your own message asked for exactly that, which counts as your OK. Ad
 
 ### Can someone in my home approve things on my behalf?
 
-Not in your private chats: only you see those cards. In a shared bot's conversation, anyone in it can answer.
+Not in your own chats, a Shared bot's You only tab included: only you see those cards. In a Shared bot's shared tab, anyone in it can answer.
 
 ## Related pages
 

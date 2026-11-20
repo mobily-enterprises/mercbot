@@ -131,7 +131,7 @@ test("a shared bot's conversations are everyone's, and a new one starts from wha
   assert.ok(!forkHistory.some((text) => text.includes("private")), "nor anyone's private conversation");
 
   const tabs = (await bots.listBots(as(pat))).bots.find((entry) => entry.id === String(bot.id)).rooms;
-  assert.deepEqual(tabs.map((room) => room.title).sort(), ["General", "Plan B"], "everyone sees every tab");
+  assert.deepEqual(tabs.map((room) => room.title), ["General", "Plan B", "You only"], "everyone sees every tab, and their own chat last (D-99)");
   await bots.renameRoom(bot.id, fork.id, { title: "Plan C" }, as(pat));
   assert.equal((await bots.listBots(as(kim))).bots.find((entry) => entry.id === String(bot.id)).rooms.find((room) => room.id === fork.id).title, "Plan C");
 

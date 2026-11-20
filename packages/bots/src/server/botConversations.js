@@ -37,7 +37,8 @@ export function createBotConversations({ records, notices }) {
 
   /**
    * News about a conversation for open pages on any server: a room's goes to everyone in the
-   * home, a private conversation's to its person (D-15, D-36).
+   * home, a private conversation's to its person (D-15, D-36). In a Shared bot it names the tab, "You only"
+   * (the person's own conversation, D-99) among them, so a page showing another tab marks it new instead.
    */
   const publish = (people, news) => notices.publishEach("bots", people, news)
     .catch((error) => console.warn("Telling people about a bot change failed; they see it on their next read.", error));
@@ -46,7 +47,8 @@ export function createBotConversations({ records, notices }) {
     const people = row.kind === "group"
       ? await conversations.groupPeople(row.id, options)
       : row.room ? await conversations.everyoneIn(options) : [row.user_id];
-    await publish(people, { botId: String(row.id), ...(row.room ? { roomId: String(row.conversation_id) } : {}), ...event });
+    const tab = row.room || conversations.isShared(row);
+    await publish(people, { botId: String(row.id), ...(tab ? { roomId: String(row.conversation_id) } : {}), ...event });
   }
 
   /**
@@ -67,6 +69,7 @@ export function createBotConversations({ records, notices }) {
     withTransaction: conversations.withTransaction,
     asSeen: conversations.asSeen,
     isShared: conversations.isShared,
+    isHiddenRoom: conversations.isHiddenRoom,
     personOf: conversations.personOf,
     roomsOf: conversations.roomsOf,
     groupPeople: conversations.groupPeople,

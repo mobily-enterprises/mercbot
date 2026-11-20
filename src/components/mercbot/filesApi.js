@@ -1,5 +1,6 @@
 import { createHttpClient } from "@jskit-ai/http-runtime/client";
 import { homePath } from "./homeApi.js";
+import { placeQuery } from "./openTabs.js";
 import { AUTH_PATHS } from "@jskit-ai/auth-core/shared/authPaths";
 
 // A bot's files (D-20, D-21, D-47): the file itself, and what the viewer shows for it. Without a
@@ -7,18 +8,28 @@ import { AUTH_PATHS } from "@jskit-ai/auth-core/shared/authPaths";
 const client = createHttpClient({ credentials: "include", csrf: { sessionPath: AUTH_PATHS.SESSION } });
 const query = (path) => `path=${encodeURIComponent(path)}`;
 const filesBase = (botId) => homePath(botId ? `/bots/${botId}/files` : "/files");
-// What a bot made in a group with several people is in its folder for everyone (D-46).
-const inGroup = (group) => (group ? `&group=${encodeURIComponent(group)}` : "");
-export const fileUrl = (botId, path, { download = true, group = null } = {}) => `${filesBase(botId)}/content?${query(path)}${download ? "&download=1" : ""}${inGroup(group)}`;
-export const previewUrl = (botId, path, group = null) => `${filesBase(botId)}/preview?${query(path)}${inGroup(group)}`;
+// What a bot made in a group with several people is in its folder for everyone (D-46); a Shared bot's files are its
+// open tab's, or the tab given (`room`, D-99): openTabs.js.
+const and = (botId, where) => {
+  const part = placeQuery(botId, where);
+  return part ? `&${part}` : "";
+};
+const first = (botId, where) => {
+  const part = placeQuery(botId, where);
+  return part ? `?${part}` : "";
+};
+export const fileUrl = (botId, path, { download = true, group = null, room } = {}) =>
+  `${filesBase(botId)}/content?${query(path)}${download ? "&download=1" : ""}${and(botId, { group, room })}`;
+export const previewUrl = (botId, path, group = null, room = undefined) => `${filesBase(botId)}/preview?${query(path)}${and(botId, { group, room })}`;
 
-// The file browsers (D-47): the folders a person sees with a bot, or the home's, and changing them.
+// The file browsers (D-47): the folders a person sees with a bot, or the home's, and changing them. `room` names a
+// Shared bot's tab, else the open one is used.
 export const filesApi = {
-  list: (botId, folder) => client.request(`${filesBase(botId)}?folder=${encodeURIComponent(folder)}`),
-  folders: (botId) => client.request(`${filesBase(botId)}/folders`),
-  move: (botId, from, to) => client.request(`${filesBase(botId)}/move`, { method: "POST", body: { from, to } }),
-  makeFolder: (botId, path) => client.request(`${filesBase(botId)}/folder`, { method: "POST", body: { path } }),
-  remove: (botId, path) => client.request(`${filesBase(botId)}?${query(path)}`, { method: "DELETE" }),
+  list: (botId, folder, room) => client.request(`${filesBase(botId)}?folder=${encodeURIComponent(folder)}${and(botId, { room })}`),
+  folders: (botId, room) => client.request(`${filesBase(botId)}/folders${first(botId, { room })}`),
+  move: (botId, from, to, room) => client.request(`${filesBase(botId)}/move${first(botId, { room })}`, { method: "POST", body: { from, to } }),
+  makeFolder: (botId, path, room) => client.request(`${filesBase(botId)}/folder${first(botId, { room })}`, { method: "POST", body: { path } }),
+  remove: (botId, path, room) => client.request(`${filesBase(botId)}?${query(path)}${and(botId, { room })}`, { method: "DELETE" }),
   // The home's bots, not group chats, as the home's Files page shows them: { id, name, color, shape }.
   homeBots: () => client.request(homePath("/files/bots"))
 };
@@ -36,10 +47,10 @@ export const pagesApi = {
 };
 
 // Ticks or unticks an old Markdown page's checklist item.
-export const checkPageItem = (botId, path, line, checked, group = null) => client.request(homePath(`/bots/${botId}/files/check${group ? `?group=${encodeURIComponent(group)}` : ""}`), { method: "POST", body: { path, line, checked } });
+export const checkPageItem = (botId, path, line, checked, group = null) => client.request(homePath(`/bots/${botId}/files/check${first(botId, { group })}`), { method: "POST", body: { path, line, checked } });
 
-// Opens the file in its app on the bot's desktop (D-23).
-export const openOnComputer = (botId, path) => client.request(homePath(`/bots/${botId}/computer/open`), { method: "POST", body: { path } });
+// Opens the file in its app on the bot's desktop (D-23): the computer of the conversation the file is in (D-99).
+export const openOnComputer = (botId, path) => client.request(homePath(`/bots/${botId}/computer/open${first(botId)}`), { method: "POST", body: { path } });
 
 // Kinds the desktop's apps open.
 export const EDITABLE = new Set(["docx", "doc", "odt", "rtf", "xlsx", "xls", "xlsm", "ods", "pptx", "pdf"]);
@@ -79,10 +90,10 @@ async function csrfToken() {
   return String((await response.json().catch(() => ({}))).csrfToken || "");
 }
 
-export async function uploadFile(botId, file, folder = "") {
+export async function uploadFile(botId, file, folder = "", room = undefined) {
   const form = new FormData();
   form.append("file", file, file.name);
-  const response = await fetch(`${filesBase(botId)}/upload${folder ? `?folder=${encodeURIComponent(folder)}` : ""}`, {
+  const response = await fetch(`${filesBase(botId)}/upload?folder=${encodeURIComponent(folder)}${and(botId, { room })}`, {
     method: "POST",
     credentials: "include",
     headers: { "csrf-token": await csrfToken() },

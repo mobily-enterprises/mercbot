@@ -7,6 +7,7 @@ import FileBrowser from "../files/FileBrowser.vue";
 import MercbotPageShare from "./MercbotPageShare.vue";
 import MercbotViewViewer from "@/components/apps/MercbotViewViewer.vue";
 import { fileUrl } from "./filesApi.js";
+import { ownTabOf } from "./openTabs.js";
 import MercbotAvatar from "./MercbotAvatar.vue";
 import MercbotConvoAvatar from "./MercbotConvoAvatar.vue";
 import MercbotConfirmDialog from "./MercbotConfirmDialog.vue";
@@ -25,6 +26,7 @@ import MercbotTemplateTag from "./MercbotTemplateTag.vue";
 import MercbotChangeTemplateDialog from "./MercbotChangeTemplateDialog.vue";
 import { dayText } from "../templates/templatesApi.js";
 import { useGroupMembers } from "./useGroupMembers.js";
+import { useSharingChoice } from "./useSharingChoice.js";
 import { COMPUTER_GREY } from "@/theme/palettes.js";
 
 // Bot details panel: header with its editable name and its template's tag (D-98), then its tabs.
@@ -43,13 +45,10 @@ const emit = defineEmits([
   "remove-member", "add-person", "remove-person", "sharing", "keep-out", "open-page"
 ]);
 
-// Who sees what (D-36): owners and admins choose; everyone else sees the choice.
+// Who sees what (D-36, D-99): owners and admins choose, after a question; everyone else sees the choice.
 const { current: home, manages } = useHomes();
-const SHARING = computed(() => [
-  { value: "private", title: "Private", text: `Each person's chats with ${props.bot.name} are their own.` },
-  { value: "mixed", title: "Mixed", text: `Chats are private. What helps everyone goes in ${home.value?.name || "the home"}'s notebook, which everyone can read.` },
-  { value: "shared", title: "Shared", text: `Everyone in ${home.value?.name || "this home"} talks with ${props.bot.name} in named conversations they all see.` }
-]);
+const sharing = useSharingChoice({ bot: () => props.bot, home, onChoose: (value) => emit("sharing", value) });
+const { intro: sharingIntro, options: sharingOptions, shown: sharingShown, question: sharingQuestion } = sharing;
 
 const TABS = [
   { value: "details", title: "Details" },
@@ -138,12 +137,14 @@ const { notes, notesLoaded, notesNext, moreNotes, removeNote } = useBotNotebook(
 
 // Computer tab: asleep until clicked, then waking, then a live thumbnail.
 const computerTab = computed(() => tab.value === "computer");
-const { state: computerState, error: computerError } = useComputerStream(computed(() => props.bot.id), computerTab);
+// A Shared bot's computer is its open tab's (D-99): switching tab shows that tab's.
+const computerTarget = computed(() => ({ id: props.bot.id, room: props.bot.roomId ?? null }));
+const { state: computerState, error: computerError } = useComputerStream(computerTarget, computerTab);
 
 function wakeComputer() {
   if (computerState.value === "asleep") {
     computerState.value = "waking";
-    computerApi.wake(props.bot.id).catch((error) => emit("failure", error));
+    computerApi.wake(computerTarget.value).catch((error) => emit("failure", error));
   }
 }
 
@@ -249,14 +250,16 @@ async function openInstructions() {
         Routines are jobs a bot repeats on a schedule. Set them up in one of your bots' own chats.
       </p>
 
-      <!-- The bot's files (D-47): the person's own with it, the bot's for everyone, the home's. -->
+      <!-- The bot's files (D-47): the person's own with it, the bot's for everyone, the home's. A Shared bot's are
+           read as its "You only" tab has them, which reaches all three whichever tab is open (D-99). -->
       <FileBrowser
         v-else-if="tab === 'files'"
         :key="bot.id"
         :bot-id="bot.id"
+        :room="ownTabOf(bot)"
         :refresh-key="bot.lastActivityAt || 0"
         :sections="[
-          ...(bot.sharing === 'shared' ? [] : [{ key: 'mine', label: 'Just me', root: '/files/mine' }]),
+          { key: 'mine', label: 'Just me', root: '/files/mine' },
           { key: 'bot', label: `Everyone using ${bot.name}`, root: '/files/bot' },
           { key: 'shared', label: home?.name || 'Whole home', root: '/files/shared' }
         ]"
@@ -427,29 +430,41 @@ async function openInstructions() {
         />
         <MercbotAppsSection v-if="!isGroup" :bot="bot" />
 
-        <p class="mb-details__section">Who sees what</p>
-        <div class="mb-sharing" role="radiogroup" aria-label="Who sees what">
-          <button
-            v-for="option in SHARING"
-            :key="option.value"
-            type="button"
-            role="radio"
-            class="mb-sharing__option"
-            :aria-checked="bot.sharing === option.value"
-            :disabled="!manages"
-            @click="bot.sharing !== option.value && emit('sharing', option.value)"
-          >
-            <span class="mb-sharing__text">
-              <span class="mb-sharing__title">
-                {{ option.title }}
-                <v-icon v-if="option.value === 'shared'" icon="$group" size="13" />
+        <template v-if="sharingShown">
+          <p class="mb-details__section">Who sees what</p>
+          <p class="mb-sharing__intro">{{ sharingIntro }}</p>
+          <div class="mb-sharing" role="radiogroup" aria-label="Who sees what">
+            <button
+              v-for="option in sharingOptions"
+              :key="option.value"
+              type="button"
+              role="radio"
+              class="mb-sharing__option"
+              :aria-checked="bot.sharing === option.value"
+              :disabled="!manages"
+              @click="sharing.ask(option.value)"
+            >
+              <span class="mb-sharing__text">
+                <span class="mb-sharing__title">
+                  {{ option.title }}
+                  <v-icon v-if="option.value === 'shared'" icon="$group" size="13" />
+                </span>
+                <span class="mb-sharing__description">{{ option.text }}</span>
               </span>
-              <span class="mb-sharing__description">{{ option.text }}</span>
-            </span>
-            <v-icon v-if="bot.sharing === option.value" icon="$check" size="16" class="mb-sharing__check" />
-          </button>
-        </div>
-        <p v-if="!manages" class="mb-sharing__note">The home's owners and admins choose this.</p>
+              <v-icon v-if="bot.sharing === option.value" icon="$check" size="16" class="mb-sharing__check" />
+            </button>
+          </div>
+          <p v-if="!manages" class="mb-sharing__note">The home's owners and admins choose this.</p>
+        </template>
+        <MercbotConfirmDialog
+          :model-value="Boolean(sharingQuestion)"
+          :title="sharingQuestion?.title || ''"
+          :text="sharingQuestion?.text || ''"
+          :confirm-label="sharingQuestion?.confirmLabel"
+          :danger="false"
+          @update:model-value="!$event && sharing.cancel()"
+          @confirm="sharing.confirm()"
+        />
 
         <template v-if="bot.sharing === 'mixed'">
           <p class="mb-details__section">{{ home?.name || "Home" }} notebook</p>

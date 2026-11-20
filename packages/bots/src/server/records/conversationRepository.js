@@ -61,6 +61,18 @@ function asSeen(bot, conversation, room = null) {
  */
 const isShared = (bot) => bot.kind === "group" || bot.sharing === "shared";
 
+/**
+ * A shared bot's tab while the bot isn't Shared any more (D-99): kept, but nobody sees it and no work runs
+ * there until the bot is Shared again. A person's own conversation and a group's rows are never one.
+ */
+const isHiddenRoom = (bot, conversation) => !conversation.user_id && !conversation.group_id && !isShared(bot);
+
+/**
+ * Whether a bot is seen in the person's own conversation `seat` rather than a room: a Shared bot's "You only" tab (D-99)
+ * when the tab asked for (`wanted`: else the one last open) is its id, or `own` says so. Never in a group.
+ */
+const isOwnTab = (bot, seat, wanted, own) => bot.kind !== "group" && (own ?? (wanted != null && String(wanted) === String(seat.id)));
+
 // The notebook's notes a page shows at a time, newest first (D-36).
 const NOTEBOOK_PAGE = 50;
 
@@ -161,13 +173,11 @@ export function createConversationRepository({ resources, systemContext, profile
     return { ...room, read_up_to: read?.readUpTo ?? null };
   }
 
-  /**
-   * A bot as this person sees it: their own conversation, or for a shared bot a room. With `lock`,
-   * inside the caller's transaction, the conversation it answers for is locked first.
-   */
-  async function seenBy(bot, options, { lock = false, room = null } = {}) {
+  /** A bot as this person sees it, in a shared bot's room or their own conversation (isOwnTab); `lock` locks that first. */
+  async function seenBy(bot, options, { lock = false, room = null, own } = {}) {
     let conversation = await conversationOf(bot, options);
-    let open = isShared(bot) ? await roomFor(bot, room || conversation.room_id, options) : null;
+    const wanted = room || conversation.room_id;
+    let open = isShared(bot) && !isOwnTab(bot, conversation, wanted, own) ? await roomFor(bot, wanted, options) : null;
     // FOR NO KEY UPDATE: a turn holds its conversation while everyone else's messages into it still go in.
     const holding = { ...passedOn(options), lockMode: "noKeyUpdate" };
     if (lock && open) open = { ...open, ...asRow(await conversations.lock(open.id, holding), options) };
@@ -202,23 +212,24 @@ export function createConversationRepository({ resources, systemContext, profile
     return row;
   }
 
-  /** The same bot and conversation read again, after a change. */
+  /** The same bot and conversation read again after a change: a room while it has rooms, else the person's own (D-99). */
   async function refresh(row, options) {
     const bot = await botOf(row.id, options);
     const seat = asRow(await conversations.get(row.seat_id, {}, passedOn(options)), options);
-    return asSeen(bot, seat, row.room ? await roomFor(bot, row.conversation_id, options) : null);
+    const inRoom = isShared(bot) && String(row.conversation_id) !== String(row.seat_id);
+    return asSeen(bot, seat, inRoom ? await roomFor(bot, row.conversation_id, options) : null);
   }
 
   /**
-   * A bot as seen in one conversation: the person's own, a room (with the person's seat), or,
-   * without a conversation, the one the person has open with it.
+   * A bot as seen in one conversation: the person's own, a room (with their seat), or without one the one they have open
+   * (`own` as seenBy takes it). Null for a room hidden while its bot isn't Shared (D-99): nothing runs there.
    */
-  async function rowOfConversation(botId, conversationId, options) {
+  async function rowOfConversation(botId, conversationId, options, { own } = {}) {
     const bot = await botOf(botId, options);
     if (!bot) return null;
-    if (!conversationId) return seenBy(bot, options);
+    if (!conversationId) return seenBy(bot, options, { own });
     const conversation = asRow(await conversations.get(conversationId, {}, { ...passedOn(options), missing: "skip" }), options);
-    if (!conversation) return null;
+    if (!conversation || isHiddenRoom(bot, conversation)) return null;
     return conversation.user_id ? asSeen(bot, conversation) : asSeen(bot, await conversationOf(bot, options), conversation);
   }
 
@@ -256,8 +267,8 @@ export function createConversationRepository({ resources, systemContext, profile
     return madeOnce({ botId: bot.id, title, appId: app.id, createdBy: personOf(options) }, ["botId", "appId"], find, options);
   }
 
-  /** A new tab in a shared bot, continuing from another one up to its latest message (D-36). */
-  async function createRoom(bot, { title, parentId, forkedAtMessageId }, options) {
+  /** A new tab in a shared bot, continuing from another up to its latest message (D-36), or empty (from You only, D-99). */
+  async function createRoom(bot, { title, parentId = null, forkedAtMessageId = null }, options) {
     return asRow(await conversations.create({
       botId: bot.id,
       title,
@@ -616,6 +627,7 @@ export function createConversationRepository({ resources, systemContext, profile
     withTransaction: conversations.withTransaction,
     asSeen,
     isShared,
+    isHiddenRoom,
     personOf,
     homeOf,
     botOf,
@@ -680,4 +692,4 @@ export function createConversationRepository({ resources, systemContext, profile
 }
 
 /** Pure parts the tests reach directly. */
-export const __testables = Object.freeze({ asSeen, isShared });
+export const __testables = Object.freeze({ asSeen, isShared, isHiddenRoom });

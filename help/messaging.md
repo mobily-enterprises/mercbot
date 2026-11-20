@@ -143,6 +143,8 @@ A bot can get another bot in your home to do part of a job, in two ways.
 
 **Pass it on.** When you just want the other bot to deal with it ("Ask Ledger to check last month's invoices"), the bot passes it on and Ledger answers you in its own chat. Both chats show a card for it too.
 
+Asked from your own chat with a bot, a shared bot's **You only** tab included, the other bot works in its chat with you. Asked from a shared bot's shared tab, it works in one of its own shared tabs if it has them, else in its chat with you.
+
 Either card has **Open … chat** to jump to the other bot, and **Cancel** while the request is open. Cancelling tells the first bot, which says so; a step already running finishes, but its answer isn't used.
 
 A bot's request is never your own words. Anything that needs your approval, such as sending, paying, deleting or inviting people, still shows you an approval card in the chat where the work happens, and the first bot's card says it's **Waiting for your OK**. Only you can tell a bot to send a draft.
@@ -177,7 +179,7 @@ Press **Ctrl+K** (or **Ctrl+Shift+F**, or the search button at the top of the si
 
 - With nothing typed, it lists your bots and groups (unread first, then pinned, then by latest activity), followed by commands such as **New Bot**, **New group chat**, **Keyboard shortcuts**, Settings sections, **Connect Apps** and the theme.
 - As you type, it finds bots and groups by name or label, apps, hidden bots, commands, routines, files your bots made, and up to five messages from your chats and groups.
-- Use the arrow keys and Enter to open a result. A message opens its chat with that message at the top, ringed so you can spot it.
+- Use the arrow keys and Enter to open a result. A message opens its chat with that message at the top, ringed so you can spot it. A shared bot's message, routine or file opens in the tab it's in, a shared one or **You only**.
 
 Files a bot made are also listed in its **Library**, in the Details panel. See [Files, documents and pictures](/help/files).
 

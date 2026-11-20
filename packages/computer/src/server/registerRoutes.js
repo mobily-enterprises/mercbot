@@ -21,38 +21,42 @@ export function registerRoutes(http, { computer, files, directory, streams, mete
   // person belongs to that home and fills request.workspace before the handler runs.
   const home = Object.freeze({ auth: "required", contextPolicy: "required", visibility: checkRouteVisibility("workspace_user") });
 
-  /**
-   * The computer a request is about (D-36): the person's own with the bot in the address, or
-   * for a shared bot the conversation asked for, else the tab the person has open, else the first.
-   */
   /** The bot in the address, of the request's home and a bot (not a group chat), or null. */
   function botOf(request, options) {
     return ID.test(String(request.params.botId)) ? directory.findBot(String(request.params.botId), options, { kind: "bot" }) : null;
   }
 
-  async function computerOf(request, reply) {
+  /**
+   * The computer a request is about (D-36, D-99), as its conversation: the person's own with the bot in the
+   * address, or for a shared bot the tab asked for (?room=: one of its shared tabs, or "You only", the person's own
+   * conversation), else the tab the person has open, else the first. A tab asked for that isn't one of these, such
+   * as another person's conversation or a tab hidden while the bot isn't Shared, is refused.
+   */
+  async function conversationOf(request, reply) {
     const options = await request.callOptions();
     const bot = await botOf(request, options);
+    const refuse = () => {
+      reply.code(404).send({ error: "Bot not found." });
+      return null;
+    };
     // A member bot's own computer for a group (?group=), for the group's people only (D-46).
     if (bot && request.query?.group) {
       const seat = ID.test(String(request.query.group)) ? await directory.groupSeat(bot.id, String(request.query.group), options) : null;
-      if (!seat) {
-        reply.code(404).send({ error: "Bot not found." });
-        return null;
-      }
-      return String(seat.id);
+      return seat || refuse();
     }
-    const seat = bot && await directory.seatOf(bot.id, options);
-    let found = seat;
-    if (bot?.sharing === "shared") {
-      const room = (id) => (id != null && ID.test(String(id)) ? directory.roomOf(bot.id, id, options) : null);
-      found = (await room(request.query?.room)) || (await room(seat?.roomId)) || (await directory.roomOf(bot.id, null, options));
-    }
-    if (!found) {
-      reply.code(404).send({ error: "Bot not found." });
-      return null;
-    }
-    return String(found.id);
+    if (!bot) return refuse();
+    const seat = await directory.seatOf(bot.id, options);
+    const shared = bot.sharing === "shared";
+    const room = (id) => (shared && id != null && ID.test(String(id)) ? directory.roomOf(bot.id, String(id), options) : null);
+    const asked = request.query?.room;
+    if (asked !== undefined && asked !== "") return (seat && String(asked) === String(seat.id) ? seat : await room(asked)) || refuse();
+    if (!shared || (seat && String(seat.roomId) === String(seat.id))) return seat || refuse();
+    return (await room(seat?.roomId)) || (await directory.roomOf(bot.id, null, options)) || refuse();
+  }
+
+  async function computerOf(request, reply) {
+    const found = await conversationOf(request, reply);
+    return found ? String(found.id) : null;
   }
 
   /**
@@ -92,12 +96,15 @@ export function registerRoutes(http, { computer, files, directory, streams, mete
   // One of the bot's files opened in its app on the bot's desktop (D-23), for the person to
   // work on in the live view.
   router.register("POST", "/api/w/:workspaceSlug/bots/:botId/computer/open", home, async function openFile(request, reply) {
-    const computerId = await computerOf(request, reply);
+    const found = await conversationOf(request, reply);
+    const computerId = found && String(found.id);
     if (!computerId || (await refusedWhilePaused(request, reply, computerId))) return;
     const virtualPath = String(request.body?.path || "");
     try {
-      const bot = await botOf(request, await request.callOptions());
-      const place = files.store.placeFor({ id: bot.id, workspace_id: request.workspace.id, sharing: bot.sharing }, request.user.id);
+      // The file is the computer's conversation's: a shared tab's or a group's in the bot's everyone folder, the
+      // person's own conversation's in theirs (D-99).
+      const conversation = { id: String(request.params.botId), workspace_id: request.workspace.id, room: !found.userId };
+      const place = files.store.placeFor(conversation, request.user.id);
       await files.store.existingFile(place, virtualPath);
     } catch (error) {
       reply.code(error.statusCode || 400).send({ error: error.message, code: error.code, params: error.params });

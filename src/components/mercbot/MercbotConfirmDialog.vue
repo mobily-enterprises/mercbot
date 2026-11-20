@@ -1,10 +1,11 @@
 <script setup>
-// A centred confirmation for something that can't be undone.
+// A centred confirmation for something that can't be undone, or (danger false) a change to agree to first.
 const open = defineModel({ type: Boolean, default: false });
 defineProps({
   title: { type: String, required: true },
   text: { type: String, default: "" },
   confirmLabel: { type: String, default: "Delete" },
+  danger: { type: Boolean, default: true },
   // Group dialogs dim the page to about half black.
   dim: { type: Boolean, default: false }
 });
@@ -23,7 +24,7 @@ function confirm() {
       <p v-if="text" class="mb-confirm__text">{{ text }}</p>
       <div class="mb-confirm__actions">
         <button type="button" class="mb-confirm__button" @click="open = false">Cancel</button>
-        <button type="button" class="mb-confirm__button mb-confirm__button--danger" @click="confirm">{{ confirmLabel }}</button>
+        <button type="button" class="mb-confirm__button" :class="{ 'mb-confirm__button--danger': danger, 'mb-confirm__button--go': !danger }" @click="confirm">{{ confirmLabel }}</button>
       </div>
     </div>
   </v-dialog>
@@ -74,5 +75,10 @@ function confirm() {
 .mb-confirm__button--danger {
   background: rgb(var(--v-theme-error));
   color: rgb(var(--v-theme-on-error));
+}
+
+.mb-confirm__button--go {
+  background: rgb(var(--v-theme-primary));
+  color: rgb(var(--v-theme-on-primary));
 }
 </style>

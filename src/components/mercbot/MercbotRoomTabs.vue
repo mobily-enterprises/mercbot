@@ -3,7 +3,9 @@ import { nextTick, ref, watch } from "vue";
 import MercbotIconButton from "./MercbotIconButton.vue";
 
 // A shared bot's conversations as named tabs (D-36), under the header chip. "+" names a new one,
-// which continues from the open tab; double-clicking a tab renames it. Every tab has a name.
+// which continues from the open tab; double-clicking a tab renames it. Every tab has a name. The last,
+// "You only", is the person's own conversation with the bot (D-99): locked, never renamed, and a tab made
+// from it starts empty.
 const props = defineProps({
   rooms: { type: Array, required: true },
   activeId: { type: String, default: null }
@@ -36,6 +38,7 @@ function startAdding() {
 }
 
 function startRenaming(room) {
+  if (room.own) return;
   adding.value = false;
   editing.value = room.id;
   draft.value = room.title;
@@ -90,10 +93,11 @@ watch(() => props.activeId, async () => {
           role="tab"
           class="mb-tabs__tab"
           :aria-selected="room.id === active()?.id"
-          :title="`${room.title} · double-click to rename`"
+          :title="room.own ? 'Only you see this conversation' : `${room.title} · double-click to rename`"
           @click="emit('select', room.id)"
           @dblclick="startRenaming(room)"
         >
+          <v-icon v-if="room.own" icon="$lock" size="13" class="mb-tabs__lock" />
           {{ room.title }}
           <span v-if="room.unread && room.id !== active()?.id" class="mb-tabs__dot" aria-label="new messages" />
         </button>
@@ -115,7 +119,7 @@ watch(() => props.activeId, async () => {
     <MercbotIconButton
       icon="$add"
       label="New conversation"
-      :tooltip="`New conversation, starting from what “${active()?.title}” knows`"
+      :tooltip="active()?.own ? 'New conversation for everyone, starting empty' : `New conversation, starting from what “${active()?.title}” knows`"
       size="x-small"
       :icon-size="15"
       tone="bare"
@@ -194,6 +198,11 @@ watch(() => props.activeId, async () => {
   outline: 2px solid rgb(var(--v-theme-secondary));
   outline-offset: -2px;
   border-radius: 8px;
+}
+
+.mb-tabs__lock {
+  margin-right: -1px;
+  opacity: 0.8;
 }
 
 .mb-tabs__dot {

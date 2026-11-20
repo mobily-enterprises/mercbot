@@ -1,6 +1,7 @@
 import { computed, ref, watch } from "vue";
 import { botsApi } from "./botsApi.js";
 import { fileKind, formatSize, isHtmlPage } from "./filesApi.js";
+import { ownTabOpen } from "./openTabs.js";
 
 /** "Today", "Yesterday", or the day as "Mon 3 Nov". */
 function dayLabel(iso) {
@@ -27,16 +28,17 @@ export function itemType(item) {
 
 /**
  * Who can open a page, as its hover card and Share… say: a web page is the home's (D-74).
- * For an older Markdown page, where its file is kept decides (D-36): the person's own folder with a
- * private or mixed bot is theirs alone; the bot's folder is everyone's who uses the bot; the home's
- * shared folder, and a shared bot's every folder, the home's.
- * @param {{ name: string, sharing?: string }} bot
+ * For an older Markdown page, where its file is kept decides (D-36): the person's own folder is theirs alone,
+ * "You only" in a Shared bot among them (D-99); the bot's folder is everyone's who uses the bot; the home's
+ * shared folder, and in a Shared bot's shared tab every folder, the home's.
+ * @param {{ name: string, sharing?: string, roomId?: string | null, rooms?: Array<{ id: string, own?: boolean }> | null }} bot
  * @param {string} path the page's file, as /files/mine/…, /files/bot/… or /files/shared/…
  * @param {string} homeName
  */
 export function pageAccess(bot, path, homeName) {
   const home = `Everyone in ${homeName || "the home"}`;
-  if (isHtmlPage(path) || bot.sharing === "shared" || path.startsWith("/files/shared/")) {
+  const sharedTab = bot.sharing === "shared" && !ownTabOpen(bot);
+  if (isHtmlPage(path) || sharedTab || path.startsWith("/files/shared/")) {
     return { icon: "$group", title: home, text: `${home} can open it.`, onlyYou: false };
   }
   if (path.startsWith("/files/bot/")) {

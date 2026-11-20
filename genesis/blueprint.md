@@ -32,15 +32,22 @@ person gets a first home the first time they open Mercbot, can create more, and
 switches between them from the top of the sidebar. A home has one person, its
 owner; nobody is invited in. A copy built on Mercbot that serves many people can
 add invitations, roles and removals, and the rest of Mercbot already works for a
-home with several people: each person's chats with a bot stay their own, a bot is
-private, mixed (the default) or shared, a shared bot talks with the whole home in
-named conversations shown as tabs under the bot, which anyone can start (each
-continues from what the open conversation knew at that moment) and rename, and a
-mixed bot keeps a notebook for the home: when a chat teaches it something that
-helps everyone (never anything personal), it notes it and says so in a line the
-person can undo. The notebook shows in the bot's details; its notes can be
-removed and chats kept out of it. In shared conversations the bot never uses
-anyone's personal memories, accounts or saved passwords.
+home with several people: each person's own chat with a bot stays theirs, whatever
+the bot's mode, and the mode adds to it. A bot is private (nothing more), mixed (the
+default) or shared. A mixed bot keeps a notebook for the home: when a chat teaches it
+something that helps everyone (never anything personal), it notes it and says so in
+a line the person can undo. The notebook shows in the bot's details; its notes can
+be removed and chats kept out of it. A shared bot also talks with the whole home in
+named conversations shown as tabs under the bot, which anyone can start (one
+started from a shared tab continues from what it knew at that moment) and rename;
+each person's own chat is its last tab, "You only", which only they see and from
+which nothing goes into the shared tabs. In shared tabs the bot never uses
+anyone's personal memories, accounts or saved passwords, and a bot's files and
+computer follow the conversation: a shared tab's are everyone's, a person's own
+chat's theirs. Changing a bot's mode asks first; a bot that stops being shared
+hides its shared tabs and pauses their routines and watches until it's shared
+again. With one person in the home, as on a person's own copy, the choice shows
+only for a bot off the default.
 Connected accounts belong to the person, or to the whole home (a family
 calendar, a team inbox). Bots use the person's own accounts and the home's;
 shared conversations use only the home's.

@@ -108,7 +108,7 @@ If you have several accounts for one app, such as personal and work email, the b
 
 ### A shared bot can't use your account
 
-In a shared bot's conversations, everyone in the home can see what the bot does, so it only uses accounts added for **The whole home**. It never uses anyone's own accounts or vault there. Ask an owner or admin to add an account for the whole home, or use the bot in your own chat.
+In a shared bot's shared tabs, everyone in the home can see what the bot does, so it only uses accounts added for **The whole home**. It never uses anyone's own accounts or vault there. Ask an owner or admin to add an account for the whole home, or ask in the bot's last tab, **You only**, your own chat with it.
 
 ### The app you want says "Coming soon"
 
@@ -142,6 +142,7 @@ Open the bot's **Details** panel and look at its routines. Then check:
 - **Was it a one-off?** A one-off reminder runs once, then is removed, with a line in the chat saying so.
 - **Did it come from a template?** Routines from a bot template start paused until you say yes.
 - **Was it made in a group chat?** Its messages and any approvals go to that bot's own chat.
+- **Was it in a shared bot's shared tab?** If the bot stopped being shared, that tab is hidden and its routines are paused; the tab says **Paused while hidden**. Resume them there once the bot is shared again.
 
 Routines run at most every 10 minutes. If Mercbot was briefly unavailable, runs missed in that time happen once when it's back. If a run couldn't finish, the bot posts a short message saying so.
 

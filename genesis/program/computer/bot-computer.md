@@ -49,17 +49,25 @@ watch and take over (docs/architecture.md §3.5, decisions D-11 to D-14).
 
 ## Public contract
 
-**One computer per conversation** (D-36). A bot's computer belongs to a conversation:
-- each person's own with a private or mixed bot, so their browser sign-ins never reach anyone else;
-- one per shared conversation, which everyone in it uses.
+**One computer per conversation** (D-36, D-99). A bot's computer belongs to a conversation, whatever
+the bot's mode:
+- each person's own with the bot, a shared bot's "You only" tab included, so their browser sign-ins
+  never reach anyone else;
+- one per shared conversation (a shared bot's room), which everyone in it uses.
 
 **Keying.** The computer service is keyed by `computerId`, the conversation's id.
 `bot_computers`, `computer_tickets` and `bot_browser_state` hold
 `conversation_id`. What a bot had before went with its maker's conversation.
 
 **Routes.** `…/bots/:botId/computer…` and `…/screenshots/:name` use the person's own conversation
-with that bot. For a shared bot they use the conversation asked for (`room`), else the open tab,
-else the first. Settings → Reset restarts the person's own computers in the home; shared
+with that bot. `?room=` names one of a shared bot's rooms or the person's own conversation (You
+only); anything else, such as another person's conversation or a room hidden while its bot isn't
+shared, is 404. Without it, a shared bot's use the tab the person has open (their own conversation
+while You only is), else the first room. The page names the open tab in each address
+(`computerApi.js` through `openTabs.js`), so the Details panel's Computer tab follows the tab. A
+computer's files are its conversation's: a room's the bot's everyone folder, a person's own
+conversation's their own (`files.store.placeFor`, `room`), and `POST …/computer/open` opens a file from there.
+Settings → Reset restarts the person's own computers in the home, You only's included; shared
 conversations' computers stay.
 
 Everything a computer runs is in gVisor (D-49), and nothing listens on a TCP port but the server's

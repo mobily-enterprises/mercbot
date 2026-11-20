@@ -6,10 +6,11 @@ import { botsApi, notebookChanges } from "./botsApi.js";
  * @param {{ currentBot: import("vue").ComputedRef<import("../../types.js").Bot>, store: import("../../types.js").BotMessages, reportFailure: import("../../types.js").ReportFailure }} options
  */
 export function useRooms({ currentBot, store, reportFailure }) {
-  // Switching tab forgets the messages shown, loads the tab's and remembers it for next time.
-  async function selectRoom(roomId) {
-    const bot = currentBot.value;
-    if (roomId === bot.roomId) return;
+  // Switching tab forgets the messages shown, loads the tab's and remembers it for next time. `botId` names
+  // another bot than the one open (search opening a result in its tab, D-99); a tab it doesn't have is left.
+  async function selectRoom(roomId, botId = null) {
+    const bot = botId ? store.botOf(botId) : currentBot.value;
+    if (!bot?.rooms?.some((room) => room.id === roomId) || roomId === bot.roomId) return;
     store.updateBot({ id: bot.id, roomId, rooms: bot.rooms.map((room) => (room.id === roomId ? { ...room, unread: false } : room)) });
     await store.reloadMessages(bot.id);
     botsApi.update(bot.id, { roomId, unread: false }).catch(() => {});
@@ -19,7 +20,9 @@ export function useRooms({ currentBot, store, reportFailure }) {
     const bot = currentBot.value;
     try {
       const result = await botsApi.createRoom(bot.id, { title, from: bot.roomId });
-      store.updateBot({ ...result.bot, rooms: [...bot.rooms, { ...result.room, unread: false }] });
+      // The new tab goes before "You only", which stays last (D-99).
+      const own = bot.rooms.filter((room) => room.own);
+      store.updateBot({ ...result.bot, rooms: [...bot.rooms.filter((room) => !room.own), { ...result.room, unread: false }, ...own] });
       await store.reloadMessages(bot.id);
     } catch (error) {
       reportFailure("That conversation couldn't be started. Try again.", error);

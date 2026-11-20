@@ -2,6 +2,7 @@
 import { onMounted, ref } from "vue";
 import { PAPER } from "@/theme/palettes.js";
 import { EDITABLE, fileKind, fileUrl, openOnComputer, previewUrl } from "./filesApi.js";
+import { openTabFor } from "./openTabs.js";
 import { useEscapeToClose } from "./useEscapeToClose.js";
 
 // A file the bot saved, shown large (D-20): documents, spreadsheets, slides and PDFs as pictures
@@ -11,6 +12,8 @@ const props = defineProps({
   botId: { type: String, default: null },
   // A file a bot made in a group with several people (D-46).
   group: { type: String, default: null },
+  // A Shared bot's tab whose files these are (D-99); without one, the tab it has open.
+  room: { type: String, default: undefined },
   file: { type: Object, required: true }
 });
 const emit = defineEmits(["close", "opened"]);
@@ -18,7 +21,10 @@ const emit = defineEmits(["close", "opened"]);
 const preview = ref(null);
 const problem = ref("");
 const loading = ref(true);
-const editable = Boolean(props.botId) && !props.group && EDITABLE.has(props.file.name.split(".").pop().toLowerCase());
+// It opens on the computer of the tab open in the chat, so a file read through another tab (Details' files of a Shared
+// bot are its "You only" tab's) isn't offered there.
+const onOpenTab = props.room === undefined || props.room === openTabFor(props.botId);
+const editable = Boolean(props.botId) && !props.group && onOpenTab && EDITABLE.has(props.file.name.split(".").pop().toLowerCase());
 const opening = ref(false);
 
 // Edit it in its app on the bot's computer; the live view takes over from here.
@@ -36,7 +42,7 @@ async function edit() {
 
 async function load() {
   try {
-    const response = await fetch(previewUrl(props.botId, props.file.path, props.group), { credentials: "include" });
+    const response = await fetch(previewUrl(props.botId, props.file.path, props.group, props.room), { credentials: "include" });
     if (!response.ok) {
       const body = await response.json().catch(() => ({}));
       problem.value = body.error || "This file can't be shown.";
@@ -62,16 +68,16 @@ onMounted(() => load());
       <button v-if="editable" type="button" class="mb-viewer__edit" :disabled="opening" @click="edit">
         <v-icon icon="$screenshotMonitor" size="16" />{{ opening ? "Opening…" : "Edit on computer" }}
       </button>
-      <a class="mb-viewer__button" :href="fileUrl(botId, file.path, { group })" :download="file.name" aria-label="Download"><v-icon icon="$download" size="18" /></a>
+      <a class="mb-viewer__button" :href="fileUrl(botId, file.path, { group, room })" :download="file.name" aria-label="Download"><v-icon icon="$download" size="18" /></a>
       <button type="button" class="mb-viewer__button" aria-label="Close" @click="emit('close')"><v-icon icon="$close" size="18" /></button>
     </div>
     <div class="mb-viewer__body" @click.self="emit('close')">
       <v-progress-circular v-if="loading" indeterminate color="white" size="32" width="3" />
       <div v-else-if="problem" class="mb-viewer__problem">
         <p>{{ problem }}</p>
-        <a class="mb-viewer__download" :href="fileUrl(botId, file.path, { group })" :download="file.name">Download {{ file.name }}</a>
+        <a class="mb-viewer__download" :href="fileUrl(botId, file.path, { group, room })" :download="file.name">Download {{ file.name }}</a>
       </div>
-      <img v-else-if="preview.kind === 'image'" class="mb-viewer__picture" :src="fileUrl(botId, file.path, { download: false, group })" :alt="file.name">
+      <img v-else-if="preview.kind === 'image'" class="mb-viewer__picture" :src="fileUrl(botId, file.path, { download: false, group, room })" :alt="file.name">
       <v-theme-provider v-else-if="preview.kind === 'text'" theme="light" with-background tag="pre" class="mb-viewer__text">{{ preview.text }}</v-theme-provider>
       <div v-else class="mb-viewer__pages">
         <img v-for="(page, index) in preview.pages" :key="index" class="mb-viewer__page" :style="{ background: PAPER }" :src="page" :alt="`Page ${index + 1}`">

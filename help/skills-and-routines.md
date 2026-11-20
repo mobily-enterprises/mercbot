@@ -19,7 +19,7 @@ Your own skills sit beside Mercbot's. A bot makes one in two ways:
 - **Saving one.** When a bot notices a job with several steps that will come back, it offers to save it as a skill. You can also ask: "Save what you just did as a skill called Weekly invoices." A bot only saves, changes or deletes a skill when you agree.
 - **Learning by watching.** You do the task once on the bot's computer, and the bot writes it up (see the next section).
 
-Skills never contain passwords or codes. Your skills are yours: all your bots can use them in your own chats, but they're never used in a shared bot's conversation tabs.
+Skills never contain passwords or codes. Your skills are yours: all your bots can use them in your own chats, a Shared bot's **You only** tab included, but they're never used in its shared tabs.
 
 A skill isn't a bot's **Instructions**. A bot's instructions, in its Details panel, are its template and its own additions, the rules it follows in every reply, so keep the additions short; a skill is read only when its kind of job comes up, so it can hold long steps and reference material. A template can bring skills of its own, listed under its instructions. You can ask a bot to change its additions too: like a skill, it changes them only when you agree, on a card that shows the change. See [Bots](/help/bots).
 
@@ -99,7 +99,7 @@ To watch a price, stock or a page for changes, ask for a routine that checks it.
 
 ## Manage routines
 
-A bot's routines are listed in its **Details** panel, on the **Details** tab, each with its schedule and an on/off switch. You can also find a routine by name in the search palette (**Ctrl+K**).
+A bot's routines are listed in its **Details** panel, on the **Details** tab, each with its schedule and an on/off switch. You can also find a routine by name in the search palette (**Ctrl+K**); a Shared bot's opens in the tab it runs in.
 
 - **Pause or resume:** use the switch, or right-click the routine and choose **Pause** or **Resume**. A paused routine shows **Paused**. When you resume it, the next run is counted from now; it doesn't catch up on runs it missed while paused.
 - **Edit:** right-click and choose **Edit**. The message box fills with `Edit your routine "<name>": `. Type the change in plain words and send it. The bot confirms the new schedule.
@@ -113,7 +113,7 @@ A bot can set up a routine paused, so it doesn't run until you're ready. Bots ma
 
 ### Routines in shared bots and groups
 
-A routine set up in a shared bot's conversation tab runs in that tab. In a group chat, a bot can set up its own routines; their **Created routine** lines and any approval cards go to that bot's own chat.
+A routine set up in a Shared bot's shared tab runs in that tab, and one set up in your **You only** tab runs there, for you alone. If the bot stops being Shared, its shared tabs are hidden and their routines pause, with a **Paused while hidden** line in each tab; resume them there once the bot is Shared again. Routines in your own chat, You only included, carry on. In a group chat, a bot can set up its own routines; their **Created routine** lines and any approval cards go to that bot's own chat.
 
 ## Watches on app data
 
@@ -129,6 +129,7 @@ Watches are listed in the bot's **Details** panel, under **Apps**, such as "Watc
 - A new or resumed watch only sees changes from that moment on.
 - Changes the watch's own run makes never set it off again.
 - A watch that runs more than 30 times in an hour pauses itself, and its bot tells you.
+- A watch set up in a Shared bot's shared tab pauses if the bot stops being Shared, and that tab says so in a **Paused while hidden** line.
 - What's in the records reaches the bot as information, never as instructions. Anything typed by visitors to a public app is marked as untrusted.
 
 For buttons in an app that hand a bot a task, see [Logic: formulas, scripts and automations](/help/apps-logic).
@@ -157,7 +158,7 @@ Routine runs, watch runs and skills are ordinary bot work, counted like any repl
 
 Check these in order:
 
-1. **Is it paused?** In the Details panel, a paused routine shows **Paused** and a watch's switch is off. A routine pauses itself after 5 failed runs in a row, and a watch after too many runs; its bot will have said so.
+1. **Is it paused?** In the Details panel, a paused routine shows **Paused** and a watch's switch is off. A routine pauses itself after 5 failed runs in a row, and a watch after too many runs; its bot will have said so. Routines and watches in a Shared bot's shared tabs also pause when it stops being Shared.
 2. **Was it a one-off?** One-off routines remove themselves after running. Look for **Routine finished and removed** in the chat.
 3. **Was there nothing new?** If the instructions say "only tell me if something changed", a run with no changes posts nothing.
 4. **Check the time zone.** The bot confirmed the zone when it set up the routine. If it's wrong, check **Settings** > **General** > **Timezone** and ask the bot to change the routine.

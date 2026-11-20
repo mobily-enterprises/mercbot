@@ -267,11 +267,21 @@ export function createMessageRepository({ resources, systemContext }) {
   }
 
   /** @param {CallOptions} options */
-  // Knex: subquery - the ids of the conversations a person searches: their own and the rooms they see,
-  // never a group computer's, for the search reports below to read inside
+  // Knex: subquery - the ids of the conversations a person searches: their own and the rooms they see, never a group
+  // computer's nor a shared tab hidden while its bot isn't Shared (D-99), for the search reports below to read inside
   async function searchedConversations(options) {
     const { query } = await conversations.scopedQuery({ alias: "c" }, passedOn(options));
-    return { query: query.whereNull(conversations.column("groupId", "c")).select(conversations.column("id", "c")) };
+    const { query: showing } = await bots.scopedQuery({ alias: "sb" }, passedOn(options));
+    showing
+      .select(1)
+      .whereColumn(bots.column("id", "sb"), conversations.column("botId", "c"))
+      .where((tabs) => tabs.where(bots.column("sharing", "sb"), "shared").orWhere(bots.column("kind", "sb"), "group"));
+    return {
+      query: query
+        .whereNull(conversations.column("groupId", "c"))
+        .where((seen) => seen.whereNotNull(conversations.column("userId", "c")).orWhereExists(showing))
+        .select(conversations.column("id", "c"))
+    };
   }
 
   /**
@@ -293,6 +303,7 @@ export function createMessageRepository({ resources, systemContext }) {
       .select({
         id: messages.column("id", "m"),
         bot_id: messages.column("botId", "m"),
+        conversation_id: messages.column("conversationId", "m"),
         role: messages.column("role", "m"),
         body,
         created_at: messages.column("createdAt", "m")
@@ -303,7 +314,7 @@ export function createMessageRepository({ resources, systemContext }) {
    * @param {string} text the words, at least two characters
    * @param {number} limit
    * @param {CallOptions} options
-   * @returns {Promise<Array<{ id: string, bot_id: string, kind: string, created_at: string, part: object }>>}
+   * @returns {Promise<Array<{ id: string, bot_id: string, conversation_id: string, kind: string, created_at: string, part: object }>>}
    */
   // Knex: newest-per-group - the newest things the bots made whose name holds the words, in the
   // conversations the person searches (searchedConversations): each made message's parts (a files card's files, a
@@ -317,7 +328,13 @@ export function createMessageRepository({ resources, systemContext }) {
     parts
       .whereIn(messages.column("conversationId", "m"), searched.query)
       .whereIn(kind, SEARCHED_MADE)
-      .select({ id: messages.column("id", "m"), bot_id: messages.column("botId", "m"), kind, created_at: messages.column("createdAt", "m") })
+      .select({
+        id: messages.column("id", "m"),
+        bot_id: messages.column("botId", "m"),
+        conversation_id: messages.column("conversationId", "m"),
+        kind,
+        created_at: messages.column("createdAt", "m")
+      })
       .select(messages.raw(
         "jsonb_array_elements(case ?? when 'files' then ?? -> 'files' when 'pictures' then ?? -> 'images' else jsonb_build_array(??) end) as part",
         [kind, body, body, body]
@@ -336,7 +353,14 @@ export function createMessageRepository({ resources, systemContext }) {
       .whereRaw("found.part ->> 'removed' is null")
       .orderBy("found.id", "desc")
       .limit(limit)
-      .select({ id: "found.id", bot_id: "found.bot_id", kind: "found.kind", created_at: "found.created_at", part: "found.part" });
+      .select({
+        id: "found.id",
+        bot_id: "found.bot_id",
+        conversation_id: "found.conversation_id",
+        kind: "found.kind",
+        created_at: "found.created_at",
+        part: "found.part"
+      });
   }
 
   /** @param {CallOptions} options */
@@ -353,7 +377,8 @@ export function createMessageRepository({ resources, systemContext }) {
         name: routines.column("name", "r"),
         schedule: routines.column("schedule", "r"),
         enabled: routines.column("enabled", "r"),
-        bot_id: routines.column("botId", "r")
+        bot_id: routines.column("botId", "r"),
+        conversation_id: routines.column("conversationId", "r")
       });
   }
 

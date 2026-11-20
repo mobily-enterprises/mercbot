@@ -85,9 +85,9 @@ export function createBotLibrary({ records, conversations, apps, files }) {
   /**
    * Deleting a page from the Library, after the person confirmed: its file goes (one already
    * gone is fine), with its versions and its link (D-74), and every card of it says it was deleted,
-   * wherever the same file shows: the home's shared folder is everyone's, the bot's folder (and a shared
-   * bot's every folder) is the bot's in all its chats and groups, and the person's own folder is only
-   * this chat's. Answers the Library and those cards.
+   * wherever the same file shows: the home's shared folder is everyone's, the bot's folder (and in a shared
+   * tab every folder) is the bot's in all its chats and groups, and the person's own folder is only
+   * this chat's, "You only" in a Shared bot among them (D-99). Answers the Library and those cards.
    */
   async function deletePage(botId, messageId, options) {
     const row = await conversations.ownedSingleBot(botId, options);
@@ -104,7 +104,7 @@ export function createBotLibrary({ records, conversations, apps, files }) {
     await files.pages.pathChanged({ homeId: place.homeId, botId: String(botId), from: pagePath, to: null });
     const where = pagePath.startsWith("/files/shared/")
       ? {}
-      : pagePath.startsWith("/files/bot/") || row.sharing === "shared"
+      : pagePath.startsWith("/files/bot/") || row.room
         ? { madeBy: String(botId) }
         : { conversationId: row.conversation_id };
     const cards = await messages.markPageRemoved(where, pagePath, row.conversation_id, options);
@@ -115,8 +115,8 @@ export function createBotLibrary({ records, conversations, apps, files }) {
    * Search palette: with no query, every routine, for the page to match as the person types;
    * with a query, up to 5 messages containing it, across chats and groups, earliest match in the text first, and the
    * made things and views whose name holds it. Conversations a person may search: their own and the home's shared
-   * rooms (D-36), a group's room only for the people in it (D-46), a group computer's row never
-   * (messages.searchedConversations).
+   * rooms (D-36), a group's room only for the people in it (D-46), a group computer's row never, nor a shared tab
+   * hidden while its bot isn't Shared (D-99) (messages.searchedConversations).
    */
   async function search(query, options) {
     const text = String(query || "").trim().slice(0, 100);
@@ -127,9 +127,12 @@ export function createBotLibrary({ records, conversations, apps, files }) {
     const made = text.length >= 2 ? await messages.searchMade(text, MADE_FOUND, options) : [];
     const bots = await store.botsById([...routines, ...found, ...made].map((row) => row.bot_id), options);
     const nameOf = (botId) => bots.get(String(botId))?.name;
+    // Each result names its conversation's tab (roomId), so a Shared bot's opens in that tab: a shared one or
+    // "You only" (D-99).
     const messagesFound = found.map((row) => ({
       id: String(row.id),
       conversationId: String(row.bot_id),
+      roomId: String(row.conversation_id),
       conversationName: nameOf(row.bot_id),
       conversationKind: bots.get(String(row.bot_id))?.kind,
       role: row.role,
@@ -139,7 +142,11 @@ export function createBotLibrary({ records, conversations, apps, files }) {
     }));
     let files = [];
     if (text.length >= 2) {
-      files = made.map((row) => ({ ...placed(entryOf(row.kind, row.part), row), botName: nameOf(row.bot_id) }));
+      files = made.map((row) => ({
+        ...placed(entryOf(row.kind, row.part), row),
+        botName: nameOf(row.bot_id),
+        roomId: String(row.conversation_id)
+      }));
       // Views (D-55): every one in the home, whoever's chat made it (D-66).
       const views = await apps.apps.searchViews(text, options, { limit: 5 });
       files = [...views.map((view) => ({ kind: "view", name: view.name, path: view.slug })), ...files];
@@ -150,7 +157,8 @@ export function createBotLibrary({ records, conversations, apps, files }) {
         name: row.name,
         schedule: row.enabled ? row.schedule : "Paused",
         botId: String(row.bot_id),
-        botName: nameOf(row.bot_id)
+        botName: nameOf(row.bot_id),
+        roomId: String(row.conversation_id)
       })),
       files,
       messages: messagesFound

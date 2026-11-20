@@ -543,11 +543,17 @@ export function createFileStore({ root, fallback, volume = null, ownStorage, set
     await settle(homeId);
   }
 
-  /** Where a bot's files are for a person: a shared bot's are everyone's in its home (D-36). */
-  function placeFor(bot, userId) {
-    return bot.sharing === "shared"
-      ? { homeId: bot.workspace_id, botId: bot.id, everyone: true }
-      : { homeId: bot.workspace_id, botId: bot.id, userId };
+  /**
+   * Where a bot's files are for a person in one conversation, which they follow whatever the bot's mode: a shared
+   * tab's or a group's with others (a row with `room`) are the bot's everyone folder in its home (D-36, D-46), the
+   * person's own conversation's, a Shared bot's "You only" among them, their own (D-99).
+   * @param {{ id: string, workspace_id: string, room?: unknown }} row the bot as seen in that conversation
+   * @param {string} userId
+   */
+  function placeFor(row, userId) {
+    return row.room
+      ? { homeId: row.workspace_id, botId: row.id, everyone: true }
+      : { homeId: row.workspace_id, botId: row.id, userId };
   }
 
   /** The home's own folder alone, for the home's Files page. */

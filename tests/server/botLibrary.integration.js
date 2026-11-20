@@ -174,7 +174,8 @@ test("a page in someone's own chat is theirs to delete; a shared bot's is anyone
   assert.deepEqual((await library.library(bot.id, mine)).items.map((item) => item.messageId), [page], "and so does the page");
 
   const [room] = await knex("bot_conversations").insert({ workspace_id: bot.workspace_id, bot_id: bot.id, title: "General" }).returning("*");
-  const shared = { ...bot, sharing: "shared", user_id: colleague, conversation_id: room.id };
+  // The bot as the colleague sees it in that room, as conversations.asSeen makes it: the room's row is its `room`.
+  const shared = { ...bot, sharing: "shared", user_id: colleague, conversation_id: room.id, room };
   const roomPath = `/files/mine/Pages/${tag}-room.md`;
   const roomFile = await saved(roomPath, shared);
   const [roomPage] = await made([["page", { path: roomPath, title: `${tag} room plan`, summary: "" }]], room.id);

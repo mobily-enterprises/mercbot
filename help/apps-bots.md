@@ -83,7 +83,7 @@ The Builder can give an app a button that asks a bot to do something, such as **
 
 1. Any other steps of the button run first, such as saving the form.
 2. If they succeed, the named bot gets a task, with the record attached.
-3. The task appears in that bot's chat with you, the person who pressed, headed **Task from** and the app's name, followed by the bot's work. If the bot is shared, it appears in its shared conversation.
+3. The task appears in that bot's chat with you, the person who pressed, headed **Task from** and the app's name, followed by the bot's work. If the bot is shared, it appears in the tab you last had open with it: one of its shared tabs, or your own, **You only**.
 
 In a draft preview, the button's other steps work on the draft's practice data, but the task isn't sent: a note says which bot the live app would ask.
 

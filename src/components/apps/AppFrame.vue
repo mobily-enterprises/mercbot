@@ -358,7 +358,7 @@ async function publish() {
     <v-dialog :model-value="Boolean(roomsQuestion)" max-width="460" persistent>
       <v-card v-if="roomsQuestion && builder" rounded="lg" class="pa-4">
         <div class="text-subtitle-1 mb-2">A conversation for each app?</div>
-        <div class="text-body-2 mb-4">{{ builder.name }} can keep a separate conversation for each app, which everyone in the home can follow. That makes {{ builder.name }} shared: in those conversations it doesn't use anyone's own accounts or memories.</div>
+        <div class="text-body-2 mb-4">{{ builder.name }} can keep a separate conversation for each app, which everyone in the home can follow. That makes {{ builder.name }} Shared: in those conversations it doesn't use anyone's own accounts or memories. Each person's own chat with {{ builder.name }} stays theirs, as its last tab, You only.</div>
         <div class="d-flex justify-end ga-2">
           <v-btn variant="text" @click="roomsQuestion.resolve(false)">No, use my own chat</v-btn>
           <v-btn color="primary" variant="flat" @click="roomsQuestion.resolve(true)">Yes, one per app</v-btn>

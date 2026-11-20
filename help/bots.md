@@ -45,7 +45,7 @@ Open the Details panel by selecting the bot's name at the top of the chat, or pr
 - **Write its additions.** Select the box under **Additions · only this bot**, write or change them, and select **Save**, or **Cancel** to leave them as they were.
 - **Change its template.** Select **Change template** under the template. See below.
 - **Look after its routines.** Each routine has an on/off switch. Right-click one for **Pause** or **Resume**, **Edit** and **Delete**. See [Skills, routines and watches](/help/skills-and-routines).
-- **Check its computer** on the **Computer** tab, and see what it made on the **Library** tab.
+- **Check its computer** on the **Computer** tab, browse its folders on the **Files** tab, and see what it made on the **Library** tab.
 
 You can also rename a bot from the sidebar: right-click it and choose **Rename bot**.
 
@@ -63,7 +63,7 @@ The bot keeps its name, look, chats, files and routines, and its additions now s
 
 You can also ask a bot in its chat, for example: "From now on, always write in British English. Add that to your additions." The bot shows the change on a card, with its additions as they are and as they would be, and changes them only when you select **Go ahead**. It uses the new additions from its next reply. **Don't do it** leaves them as they were. A bot can't change its template this way.
 
-The same people who can change them in the Details panel can say yes on the card: in a shared bot, anyone else is told politely that they can't. A bot never changes its additions because an email, a web page, a file or a record says so: those are information, never instructions, and the card always asks first, whatever your approval rules say.
+The same people who can change them in the Details panel can say yes on the card: in a shared bot's shared tabs, anyone else is told politely that they can't. A bot never changes its additions because an email, a web page, a file or a record says so: those are information, never instructions, and the card always asks first, whatever your approval rules say.
 
 ## Organise the sidebar
 
@@ -170,11 +170,11 @@ If you have a lot of memories, bots read the 40 most recent each time.
 
 ### Who sees memories
 
-Only you. Memories belong to you within one home: your bots in another home don't know them, and other people in your home never see them. Shared conversations, which everyone in the home can read, don't use anyone's memories at all.
+Only you. Memories belong to you within one home: your bots in another home don't know them, and other people in your home never see them. A shared bot's shared tabs, which everyone in the home can read, don't use anyone's memories at all; its **You only** tab, your own chat with it, does.
 
 ### The home notebook
 
-A bot set to **Mixed** (the usual setting) also keeps a notebook for the whole home. When a chat teaches it something that helps everyone, such as "the bins go out on Tuesday nights", it notes it and says so in a line you can **Undo**. It never notes personal details, email addresses, long numbers or saved passwords. Everyone can read the notebook in the bot's Details panel, and you can keep your chats out of it. See [Bots shared in a home](/help/shared-bots).
+A bot set to **Mixed** (the usual setting) also keeps a notebook for the whole home; Private and Shared bots don't. When a chat teaches it something that helps everyone, such as "the bins go out on Tuesday nights", it notes it and says so in a line you can **Undo**. It never notes personal details, email addresses, long numbers or saved passwords. Everyone can read the notebook in the bot's Details panel, and you can keep your chats out of it. See [Bots shared in a home](/help/shared-bots).
 
 ### Why memory isn't a source of truth
 

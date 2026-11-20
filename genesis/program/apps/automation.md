@@ -31,7 +31,10 @@ become queued tasks that exactly one server runs, in the right chat (D-35, D-15)
 - A button's `askBot` step queues a task for that bot after all its other steps succeed; a draft
   preview only reports it (`wouldSend`).
 - Tasks (`app_jobs`) are claimed with SKIP LOCKED and run once: a watch's in its
-  conversation, a hand-off in the bot's chat with the person who pressed (or its room if shared).
+  conversation, a hand-off in the bot's chat with the person who pressed (for a shared bot, the
+  tab they last had open: a room, or their own conversation as "You only", D-99). A bot that stops
+  being shared pauses its rooms' running watches (`watches.pauseIn({ botId, conversationIds })`,
+  which answers each paused watch's conversation and name), and its rooms say so.
   A claimed task gets a run id and a 90-second lease its runner renews (D-59); a task whose server
   stopped (lease lapsed) is taken over by one server with a new run id and carried on from its
   saved `steps`, and only the run holding it writes its result and its end, in one transaction.

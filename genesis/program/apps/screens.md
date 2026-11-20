@@ -48,9 +48,10 @@ definition contains, so an app can't do anything it wasn't saved to do (D-35).
   Publish, which clear the practice copy they read. Each new screen runtime starts the screen's parts again (after
   Reset, a view copy reads the new practice copy), and Publish that fails reads the draft again.
 - Ask Builder opens the Builder's chat with a first line naming the app, screen and part. A shared
-  Builder opens the app's own conversation (made the first time); when the Builder isn't shared,
-  an owner or admin is asked once whether to make it so ("a conversation for each app"); after a
-  no, or for others, the person's own chat opens.
+  Builder opens the app's own conversation (made the first time), whichever of its tabs is open;
+  when the Builder isn't shared, an owner or admin is asked once whether to make it so ("a
+  conversation for each app", which says each person's own chat with the Builder stays theirs, as
+  its last tab, You only, D-99); after a no, or for others, the person's own chat opens.
 - Named formulas (D-78): the definition's `formulas` (`{ name: { params, formula } }`, at most 30,
   8 parameters each) are added to the app's script functions (`withNamedFormulas`) wherever its
   formulas run: screens on the server and in the browser, a draft tried with `app_try`, public

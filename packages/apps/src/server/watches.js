@@ -135,6 +135,21 @@ export function createWatches({ resources, repository, systemContext, registry, 
     return { id: String(row.id), name: row.name, enabled };
   }
 
+  /**
+   * Pauses a bot's running watches in the conversations given and answers them `{ conversationId, name }`: a bot
+   * leaving Shared hides its rooms, and nothing runs where nobody sees it (D-99). Resuming one is setEnabled's.
+   * @param {{ botId: string, conversationIds: string[] }} where
+   */
+  async function pauseIn({ botId, conversationIds }, options) {
+    if (!conversationIds.length) return [];
+    const paused = await appWatches.patchWhere(
+      { botId: String(botId), conversationIds: conversationIds.map(String), enabled: true },
+      { enabled: false },
+      { ...passedOn(options), returning: "records" }
+    );
+    return paused.map((row) => ({ conversationId: String(row.conversationId), name: row.name }));
+  }
+
   async function remove(where, options) {
     const row = await find(where, options);
     await appWatches.delete(row.id, passedOn(options));
@@ -333,6 +348,7 @@ export function createWatches({ resources, repository, systemContext, registry, 
     list,
     // readable-check: allow setter-seam - not a slot: pauses or resumes a watch
     setEnabled,
+    pauseIn,
     remove,
     evaluateOnce,
     matchChanges,

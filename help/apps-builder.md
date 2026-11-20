@@ -80,9 +80,9 @@ The **ⓘ** button opens the app's details panel. It has six tabs: **Overview**,
 
 ## One conversation per app
 
-If several apps are being built at once, talking about all of them in one chat gets confusing. A shared Builder keeps a separate conversation for each app: **Ask Builder** in an app opens that app's own conversation, made the first time you ask.
+If several apps are being built at once, talking about all of them in one chat gets confusing. A shared Builder keeps a separate conversation for each app: **Ask Builder** in an app opens that app's own conversation, made the first time you ask, whichever of the Builder's tabs you had open. Your own chat with the Builder stays yours, as its last tab, **You only**.
 
-If your Builder isn't a shared bot, the first time a home owner or admin presses **Ask Builder**, Mercbot asks **A conversation for each app?** Choosing **Yes, one per app** makes the Builder shared, so everyone in the home can follow those conversations; in them the Builder doesn't use anyone's own accounts or memories. **No, use my own chat** keeps things as they are, and you won't be asked again. See [Bots shared in a home](/help/shared-bots).
+If your Builder isn't a shared bot, the first time a home owner or admin presses **Ask Builder**, Mercbot asks **A conversation for each app?** The question also says that each person's own chat with the Builder stays theirs, as its last tab, You only. Choosing **Yes, one per app** makes the Builder shared, so everyone in the home can follow those conversations; in them the Builder doesn't use anyone's own accounts or memories. **No, use my own chat** keeps things as they are, and you won't be asked again. See [Bots shared in a home](/help/shared-bots).
 
 ## What you can change yourself
 

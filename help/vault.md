@@ -14,7 +14,7 @@ Open **Settings** > **Vault**. Items come in three kinds, each with its own tab:
 
 "Sealed" means encrypted before it's stored, with a key kept by the server. Only what you need to recognise an item stays readable: a login's website and username, or a card's type, last four digits and expiry.
 
-Your vault is yours alone. Other people in your home can't see it, and their bots can't use it. Even your own bots don't use it in a shared bot's conversation tabs, where everyone can see what happens.
+Your vault is yours alone. Other people in your home can't see it, and their bots can't use it. Even your own bots don't use it in a Shared bot's shared tabs, where everyone can see what happens. Your own chats use it, a Shared bot's **You only** tab included.
 
 ## Add an item
 
@@ -130,7 +130,7 @@ No. Mercbot types a saved password into the website itself. The bot only learns 
 
 ### Can other people in my home use my vault?
 
-No. Each person's vault is private, and bots never use anyone's vault in a shared bot's conversation tabs.
+No. Each person's vault is private, and bots never use anyone's vault in a Shared bot's shared tabs.
 
 ### Do updates or a computer reset remove my vault items?
 

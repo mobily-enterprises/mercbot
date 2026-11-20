@@ -213,12 +213,17 @@ test("Details shows the bot's tabs, reads each, and renames the bot in place", a
   await openHome(page);
   await sidebarBot(page, "Otto").click();
   calls.length = 0;
+  // Whether anyone else is in the home, read as Details opens.
+  const people = page.waitForResponse((response) => new URL(response.url()).pathname === `/api${HOME}/members`);
   await chat(page).getByRole("button", { name: "Otto details" }).click();
   const details = page.getByRole("complementary", { name: "Details" });
   await expect(details.getByRole("tab")).toHaveText(["Details", "Files", "Library", "Computer"]);
   await expect(details.getByRole("tab", { name: "Details" })).toHaveAttribute("aria-selected", "true");
-  await expect(details.getByRole("radiogroup", { name: "Who sees what" }).getByRole("radio")).toHaveCount(3);
+  // The fixtures' home has one person: Who sees what shows only for a bot off the default, Mixed (D-99), as
+  // you-only.spec.ts shows for a Shared one.
   await expect(details.getByText("Routines are jobs Otto repeats on a schedule.", { exact: false })).toBeVisible();
+  expect((await people).ok()).toBe(true);
+  await expect(details.getByRole("radiogroup", { name: "Who sees what" })).toHaveCount(0);
   await expect.poll(() => calls.filter((call) => /\/(notebook|routines)$/u.test(call)).sort()).toEqual(["GET /bots/:id/notebook", "GET /bots/:id/routines"]);
   calls.length = 0;
   for (const [tab, call] of [["Files", "GET /bots/:id/files"], ["Library", "GET /bots/:id/library"], ["Computer", "GET /bots/:id/computer/stream"]]) {
