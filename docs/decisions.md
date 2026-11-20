@@ -2556,16 +2556,18 @@ their limits, the tags already taken, and Mercbot's blog-article-desk template a
 
 **Cost per call.** Mercbot's 48 library templates as JSON are 5,659 characters at the median (about 1,450 tokens at
 4 characters a token) and 7,243 at most. `tests/server/templateDraftPrompts.test.js` assembles the three prompts from
-fixtures and reports their sizes: SIZES. At the Premium AI provider's list prices
-(`packages/account/src/server/providers`: $0.30 per million tokens in, $1.20 per million out) and a charge of twice
-that:
+fixtures and reports their sizes: the system prompt 7,371 characters (about 1,840 tokens), a new template's message
+134, a bot's 6,799 with Pantry as its template and a 1,500-character summary, or 26,842 with 20,000 characters of
+additions folded in, and a change's 5,251 with Pantry as the draft. With an answer of about
+1,600 tokens (a whole template), at the Premium AI provider's list prices (`packages/account/src/server/providers`:
+$0.30 per million tokens in, $0.006 cached, $1.20 out) and a charge of twice that:
 
 | Call | Tokens in | Tokens out | Charged at 2× |
 | --- | --- | --- | --- |
-| new (a sentence) | ~2,200 | ~1,600 | ~$0.005 |
-| change (the draft and the request; the system prompt cached) | ~2,100 cached + ~1,900 | ~1,600 | ~$0.005 |
-| from a bot (its template and summary) | ~4,500 | ~1,600 | ~$0.007 |
-| from a bot, 20,000 characters of additions folded in | ~9,500 | ~1,800 | ~$0.010 |
+| new (a sentence) | ~1,880 | ~1,600 | ~$0.005 |
+| change (the draft and the request; the system prompt cached) | ~1,840 cached + ~1,310 | ~1,600 | ~$0.005 |
+| from a bot (its template, summary and routines) | ~3,540 | ~1,600 | ~$0.006 |
+| from a bot, 20,000 characters of additions folded in | ~8,550 | ~1,800 | ~$0.009 |
 
 So a draft costs about half a cent to a cent a call, before tax, and a retried answer the same again. These are
 list-price estimates from sizes: test hosts answer with the stand-in model, so a home's first real draft, in
