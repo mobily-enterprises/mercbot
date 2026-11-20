@@ -34,13 +34,6 @@ export function nanoMoney(nano) {
   return money((Number(nano) || 0) / 1e9);
 }
 
-/** A bot's price tag: whole cents, and "<$0.01" for less than a cent but more than nothing. */
-export function priceTag(nano) {
-  const dollars = (Number(nano) || 0) / 1e9;
-  if (dollars > 0 && dollars < 0.005) return `<${money(0.01)}`;
-  return new Intl.NumberFormat(undefined, { style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(dollars);
-}
-
 /** A report's range as its query: its first and last day, "YYYY-MM-DD", UTC's (D-73). */
 const ranged = (path, range) => `${homePath(path)}?${new URLSearchParams({ from: range.from, to: range.to })}`;
 
@@ -49,7 +42,6 @@ export const accountApi = {
   spending: (range) => client.request(ranged("/spending", range)),
   /** The address of a report's CSV, which the browser downloads itself. */
   spendingExportUrl: (range) => ranged("/spending/export", range),
-  priceTags: () => client.request(homePath("/spending/bots")),
   settings: () => client.request("/api/settings"),
   vault: () => client.request("/api/vault"),
   addVaultItem: (item) => client.request("/api/vault", { method: "POST", body: item }),

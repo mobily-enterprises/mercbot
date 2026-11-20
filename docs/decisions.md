@@ -840,7 +840,8 @@ details for people (which bot, when, doing what). The design is in
 [docs/usage-tracking-design.md](usage-tracking-design.md); D-73 and D-76 built it.
 
 Every bot shows what it costs (a figure next to each bot, however tiny), and one screen shows every
-routine and what it has cost over time, with a screen as good as the rest of the app.
+routine and what it has cost over time, with a screen as good as the rest of the app. Changed on
+2026-11-20 (D-73): no bot shows a price; what each bot cost is in Settings → Spending's totals by bot.
 
 ## D-57 — The state note goes last, and a routine reads only its own runs (2026-11-06)
 
@@ -1195,7 +1196,7 @@ a picture says pictures aren't set up on this copy.
   kinds and every other key, each with what is off without it. Startup logs one line per missing key, and a copy built
   on Mercbot can read the same list.
 
-## D-73 — What work uses is recorded with what it cost; no plans (2026-11-11, 2026-11-12)
+## D-73 — What work uses is recorded with what it cost; no plans (2026-11-11, 2026-11-12, 2026-11-20)
 
 There are no plans. What work uses is recorded with what it cost at its providers: every AI call, a bot's computer for
 a day and the computation its commands use. D-56's design (docs/usage-tracking-design.md) is built, reworked on
@@ -1214,10 +1215,13 @@ a day and the computation its commands use. D-56's design (docs/usage-tracking-d
   routines, Apps tasks, goal rounds, group replies, template drafts, teaching, computer wakes and commands all stop at
   their first step, steps already running finish, and the bot says why (`pausedMessage`). Nothing is deleted. A
   routine's run stopped this way isn't a failed run, so it never pauses the routine (D-77).
-- **What people see.** Everyone sees what was spent: owners and admins the whole home, members their own use. A bot's
-  price tag is this month, with all time on hover, and shows only while the pointer is over its bot in the sidebar or the
-  bot has keyboard focus; a touch screen shows none (the owner, 2026-11-19: "only display the money amount when hovering
-  over them"). Days and months are UTC's.
+- **What people see.** Everyone sees what was spent: owners and admins the whole home, members their own use. No bot
+  shows a price (2026-11-20): what a bot cost is read in Settings → Spending's totals by bot, a report people open on
+  purpose, never beside the bot. Each bot had a price tag in the sidebar, this month with all time on hover, shown from
+  2026-11-19 only while the pointer was over the bot or it had keyboard focus; people complained, and the owner had it
+  taken out with its route (`GET …/spending/bots`): "Users complained about having the cost of each bot on each bot.
+  Please get the cost out of each bot. It's unnecessary and inappropriate to see." This changes D-56. Days and months
+  are UTC's.
 - **Built for scale (2026-11-12).** Money is whole nanodollars in bigint: micro-units can't hold a per-token price
   such as $0.006 a million tokens, which is 6 nanodollars a token. Everything people see is read from totals that each
   finished piece of work adds to, keyed by home, bot, person, kind and day (`usage_daily`) or month (`usage_monthly`),
@@ -1273,8 +1277,8 @@ The answers to `docs/pages-design.md`, all as recommended. They amend D-40 and D
 
 ## D-76 — See what is spent (2026-11-12)
 
-People see what they are spending, how, and when, with reports. Built on D-73. Reports, charts, the CSV and price tags
-read what the work cost at its providers.
+People see what they are spending, how, and when, with reports. Built on D-73. Reports, charts and the CSV read what
+the work cost at its providers.
 - **Reports:** a day, a Monday-to-Sunday week, a month or any range up to a year and a day, in UTC like D-73's
   totals: a chart by day, and totals by kind, by bot and, for owners and admins, by person; members see their own
   use. They read D-73's daily totals, kept 13 months; a whole month older than that reads its monthly totals, kept

@@ -1,22 +1,18 @@
 import { describe, expect, it } from "vitest";
-import { nanoMoney, priceTag, refusedWork, workRefusals } from "../../src/components/mercbot/accountApi.js";
+import { nanoMoney, refusedWork, workRefusals } from "../../src/components/mercbot/accountApi.js";
 import {
   barWidths, daysKeptFrom, duration, kindAmount, periodRange, rangeProblem, stepPeriod
 } from "../../src/components/mercbot/spendingView.js";
 
-// Settings → Spending, its reports and the bots' price tags (D-73, D-76). Dollars are written the way the machine's own
+// Settings → Spending and its reports (D-73, D-76). Dollars are written the way the machine's own
 // locale writes them ("$21.09" in English, "USD 21.09" in some others).
 const usd = (amount, digits = 2) => new Intl.NumberFormat(undefined, {
   style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: digits
 }).format(amount);
 
 describe("spending in dollars", () => {
-  it("shows nanodollars as dollars, and a price tag in whole cents with <$0.01 for less", () => {
+  it("shows nanodollars as dollars", () => {
     expect(nanoMoney(21_090_000_000)).toBe(usd(21.09));
-    expect(priceTag(0)).toBe(usd(0));
-    expect(priceTag(4_000_000)).toBe(`<${usd(0.01)}`);
-    expect(priceTag(5_000_000)).toBe(usd(0.01));
-    expect(priceTag(4_123_000_000)).toBe(usd(4.12));
   });
 });
 

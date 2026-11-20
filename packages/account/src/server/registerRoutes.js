@@ -58,10 +58,6 @@ export function registerRoutes(http, { account, spending, uploads, track, media 
     }
   }
 
-  async function priceTags(request) {
-    return spending.priceTags(homeId(request), readerOf(request));
-  }
-
   async function vault(request) {
     return account.vault(await request.callOptions());
   }
@@ -100,7 +96,6 @@ export function registerRoutes(http, { account, spending, uploads, track, media 
   http.router.register("GET", "/api/w/:workspaceSlug/usage", IN_HOME, answering(usage));
   http.router.register("GET", "/api/w/:workspaceSlug/spending", IN_HOME, answering(report));
   http.router.register("GET", "/api/w/:workspaceSlug/spending/export", IN_HOME, exportReport);
-  http.router.register("GET", "/api/w/:workspaceSlug/spending/bots", IN_HOME, answering(priceTags));
   http.router.register("GET", "/api/vault", SIGNED_IN, answering(vault));
   http.router.register("POST", "/api/vault", SIGNED_IN, answering(addVaultItem));
   http.router.register("POST", "/api/vault/import", SIGNED_IN, answering(importVaultItems));

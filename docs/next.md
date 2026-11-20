@@ -147,7 +147,8 @@ What these waited for has happened, so nothing stops them now.
 ## 4. Ideas, to approve or drop
 
 - [x] **What each home spends** (D-56, D-73): every AI call recorded with what it cost at its provider, a
-  computer's days and its commands' time counted as use, each bot's figure in the sidebar and Settings → Spending.
+  computer's days and its commands' time counted as use, and Settings → Spending (each bot's figure in the sidebar was
+  taken out on 2026-11-20, D-73).
 - [x] **Spending reports** (D-76): any day, week, month or range of days, with a chart by day, totals by kind and
   bot, and a CSV (docs/usage-tracking-design.md).
 - [ ] **The rest of D-56's design** (`docs/usage-tracking-design.md`, "Still to come"): the Routines screen

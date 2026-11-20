@@ -3,12 +3,13 @@ import knexLib from "knex";
 import { expect, test, testDatabaseName, type Page } from "./harness";
 
 // Spending (D-73, D-76) on the Test Preview target: what the home's work cost at its AI providers, by kind, bot and
-// person, for any period and as a CSV, with each bot's cost tag (shown on hover or keyboard focus). Nothing is held and no work is ever refused: a bot's
-// reply is recorded with its provider's cost. The home is this file's own, a new home of the copy's one person, so no
-// other spec's use reaches its figures. The first two tests add their use straight to its daily and monthly totals,
-// today (UTC), as recording does (the stand-in model's calls cost a small fraction of a cent), the person's and some for
-// nobody in particular, and take it away again when they end. A member's own use is for a copy built on Mercbot that
-// has members to test. Run with: vibe64-helper playwright --target test-app test tests/e2e/spending.spec.ts
+// person, for any period and as a CSV; no bot shows a price beside it. Nothing is held and no work is ever refused: a
+// bot's reply is recorded with its provider's cost. The home is this file's own, a new home of the copy's one person,
+// so no other spec's use reaches its figures. The first two tests add their use straight to its daily and monthly
+// totals, today (UTC), as recording does (the stand-in model's calls cost a small fraction of a cent), the person's and
+// some for nobody in particular, and take it away again when they end. A member's own use is for a copy built on
+// Mercbot that has members to test.
+// Run with: vibe64-helper playwright --target test-app test tests/e2e/spending.spec.ts
 // The test target's AI is the stand-in model (tools/standInModel.mjs): a reply says so in the chat.
 const STAND_IN_REPLY = /runs on a stand-in model, which only plays the bot templates/u;
 test.describe.configure({ mode: "serial" });
@@ -112,39 +113,51 @@ async function openSpending(page: Page) {
 
 const botButton = (page: Page, name: string) => page.getByRole("navigation", { name: "Bots" })
   .getByRole("button", { name, exact: true }).first();
-const costTag = (page: Page, name: string) => botButton(page, name).locator('[title$=" all time"]');
+// A figure of money as the page writes one: "$1.88", "<$0.01".
+const MONEY = /\$\d/u;
 const fitsTheWidth = (page: Page) => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1);
 
-test("the person sees what the home's work cost by kind, bot and person, and each bot's cost tag", async ({ page }, testInfo) => {
+test("the person sees what the home's work cost by kind, bot and person, and no bot shows a price", async ({ page }, testInfo) => {
   const home = await ownHome(page);
   const use = await writeUse(home, "Otto", OTTO_USE);
+  // Each call the page makes for every bot's spending, which it never asks for.
+  const perBot: string[] = [];
+  page.on("request", (request) => {
+    if (new URL(request.url()).pathname.endsWith("/spending/bots")) perBot.push(request.url());
+  });
   try {
     // The chart drawn at once, so the screenshots show its bars at their height rather than growing.
     await page.emulateMedia({ reducedMotion: "reduce" });
     await openHome(page, use.home);
-    // Otto's cost tag shows only while the pointer is over Otto or Otto has keyboard focus, in a place it keeps while
-    // hidden, so nothing moves when it shows; all time is its tooltip.
+    // No bot shows what it cost (the owner, 2026-11-20: "unnecessary and inappropriate to see"): nothing beside Otto's
+    // name in the sidebar with the pointer over it or the keyboard on it, in its chat or Details panel, or in search.
+    // What Otto cost is in Settings → Spending's totals by bot, below.
+    const bots = page.getByRole("navigation", { name: "Bots" });
     const otto = botButton(page, "Otto");
-    const tag = costTag(page, "Otto");
-    const place = () => tag.evaluate((element) => JSON.stringify(element.getBoundingClientRect()));
-    await expect(tag).toHaveText("$1.88");
-    await expect(tag).toBeHidden();
-    const hiddenPlace = await place();
-    await page.screenshot({ path: testInfo.outputPath("sidebar.png") });
     await otto.hover();
-    await expect(tag).toBeVisible();
-    await expect(tag).toHaveAttribute("title", "$1.88 this month · $1.88 all time");
-    expect(await place()).toBe(hiddenPlace);
     await page.screenshot({ path: testInfo.outputPath("sidebar-hover.png") });
-    await page.mouse.move(page.viewportSize()!.width - 20, page.viewportSize()!.height / 2);
-    await expect(tag).toBeHidden();
     // Onto Otto with the keyboard, from whatever comes before it.
     await otto.focus();
     await page.keyboard.press("Shift+Tab");
-    await expect(tag).toBeHidden();
     await page.keyboard.press("Tab");
     await expect(otto).toBeFocused();
-    await expect(tag).toBeVisible();
+    await expect(bots).not.toContainText(MONEY);
+    await expect(bots.locator('[title*="this month"], [title*="all time"]')).toHaveCount(0);
+    await otto.click();
+    const chat = page.getByRole("main", { name: "Chat" });
+    await chat.getByRole("button", { name: "Otto details" }).click();
+    const details = page.getByRole("complementary", { name: "Details" });
+    await expect(details).toBeVisible();
+    await expect(chat).not.toContainText(MONEY);
+    await expect(details).not.toContainText(MONEY);
+    await page.keyboard.press("Control+k");
+    const palette = page.getByRole("dialog", { name: "Search" });
+    await palette.getByRole("textbox", { name: "Search" }).fill("Otto");
+    await expect(palette.getByRole("option").filter({ hasText: "Otto" }).first()).toBeVisible();
+    await expect(palette).not.toContainText(MONEY);
+    await page.keyboard.press("Escape");
+    await expect(palette).toBeHidden();
+    expect(perBot, "the page never asks for each bot's spending").toEqual([]);
 
     // The account menu's first row is this month's spending, whose it is, and the way to Settings → Spending.
     await page.locator(".mb-account").click();

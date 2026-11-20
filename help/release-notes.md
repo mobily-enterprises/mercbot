@@ -4,6 +4,7 @@ What's new in Mercbot, newest first. To see which version you're using, open the
 
 ## 20 November 2026
 
+- **No prices on bots:** a bot no longer shows what it cost beside its name in the sidebar, even when you point at it. What each bot cost is in **Settings** → **Spending**, in the report's totals by bot, as before.
 - **Mercbot's name in your browser:** the browser tab, a bookmark and a shortcut added to a phone's home screen now say **Mercbot**, instead of **Account App**.
 - **Connecting apps is tied to your browser:** a sign-in in **Connect apps** now finishes only in the browser that started it. If the app's page sends another browser back, such as someone you sent the sign-in page to, the tab says **This sign-in was started in another browser, so nothing was connected**, and nothing is, so nobody can get your account connected to theirs with a link. On a copy linked to a Mercbot hub, the sign-in tab opens on the hub first and asks you to sign in there with the linked account if you aren't already.
 

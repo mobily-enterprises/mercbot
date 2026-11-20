@@ -62,27 +62,7 @@ export function createSpending({ resources, systemContext, spend = "costNano", n
     return { scope: reader.manages ? "home" : "own", month, monthNano: Number(row?.spent) || 0, note: null, attention: false, action: null };
   }
 
-  /**
-   * Each bot's price tag: this month, and all time a hover away.
-   * @param {string} homeId
-   * @param {{ userId: string, manages: boolean }} reader
-   */
-  async function priceTags(homeId, reader) {
-    const from = `${monthOf(now())}-01`;
-    const rows = await everyGroup(usageMonthly, {
-      groupBy: ["botId"],
-      measures: { monthNano: { sum: spend, where: { month: { gte: from } } }, allNano: { sum: spend } },
-      filters: seen(homeId, reader)
-    }, { context: systemContext("add up each bot's spending a home's member may see") });
-    return {
-      bots: rows
-        .filter((row) => Number(row.botId) > 0)
-        .map((row) => ({ botId: String(row.botId), monthNano: Number(row.monthNano) || 0, allNano: Number(row.allNano) || 0 }))
-    };
-  }
-
   return Object.freeze({
-    summary,
-    priceTags
+    summary
   });
 }

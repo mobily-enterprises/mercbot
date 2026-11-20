@@ -47,7 +47,6 @@ D-76, docs/architecture.md §3.8).
 - `tests/server/computerDays.test.js`
 - `tests/client/spending.vitest.js`
 - `src/components/mercbot/spendingView.js`
-- `src/components/mercbot/usePriceTags.js`
 - `src/components/mercbot/MercbotSpendingReport.vue`
 - `src/components/mercbot/MercbotSpendingChart.vue`
 - `src/components/mercbot/useShellDialogs.js`
@@ -132,7 +131,7 @@ in `types.js`). The meter then calls its `open`, `finish`, `release`, `startComp
 `spentSince` and `pausedMessage` are its. Its `open`, `startComputerDay` and `startComputation` may refuse work before
 it starts by throwing `refuseWork(message, { code, notice })` (`@local/account/meter`: a 402 carrying `params.notice`,
 what a bot says in place of the work), and its `renewComputation` by answering false. Its `spending` (`summary`,
-`priceTags`, `report`, `exportCsv`) answers the spending routes in the same shapes, which it may add to, and its
+`report`, `exportCsv`) answers the spending routes in the same shapes, which it may add to, and its
 `archivedColumns` are the whole-number columns it adds to `usage_daily`, archived after Mercbot's own and summed in the
 archive's check. `createSpending` and `createReports` take `spend`, the totals' measure that is what was spent
 (`costNano` unless a copy names another). Without such a copy, the account uses its own recorder, `spending.js` and
@@ -161,8 +160,8 @@ kind, bot and, for owners and admins, person: from `usage_daily` within its 13 m
 `usage_monthly`, without days; any other range older than 13 months is 400 `report_range_too_old`.
 `GET …/spending/export?from=&to=` is the same as a CSV, one line per day, or per month for an older month, bot, person
 and kind, with the columns Bot, Person, Kind, Uses, Pictures, Seconds and Spent (USD), streamed a page of totals at a
-time, formula-like names prefixed with an apostrophe. `GET …/spending/bots` is each bot's price tag,
-`{ bots: [{ botId, monthNano, allNano }] }`: this month and all time.
+time, formula-like names prefixed with an apostrophe. No route answers a bot's spending on its own, and no bot shows a
+price (D-73, the owner, 2026-11-20): what each bot cost is the report's `byBot`.
 
 Retention (`retention.js`), every server each hour: `mercbot_charge_partitions()` (the migration's) makes the
 partitions ahead and drops per-call days older than 14 whole. Each month of daily totals older than 13 months is
@@ -244,10 +243,8 @@ items open Settings → Spending (D-73). Above the composer the shell shows the 
 Mercbot adds there (`extensions.js` `shellParts` whose `place` is `notice`): each gets `pulse`, the open conversation's
 message count, and may emit `open-settings` with a section's `value` to open it. Mercbot adds none. The shell opens a
 Settings section for `?settings=<section>` (a link in an email, or back from another site), takes `settings` out of the
-address and leaves the rest for the section to read (`useShellDialogs.js`). Each bot in the sidebar has its price tag
-(`usePriceTags.js`), read again when a bot finishes working, when the home changes and when the page is shown again,
-and shown only while the pointer is over the bot or the bot has keyboard focus, never on a touch screen
-(`MercbotBotList.css`; the owner, 2026-11-19).
+address and leaves the rest for the section to read (`useShellDialogs.js`). The sidebar shows no bot's price, with
+the pointer over it or not (D-73, the owner, 2026-11-20).
 Settings → Permissions holds the auto-review switch and the Always ask and Allow without asking rule lists.
 
 The account menu also has Help and support and Settings. Help and support opens a Help centre

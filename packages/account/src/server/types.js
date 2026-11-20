@@ -23,7 +23,6 @@
  *   summary: (homeId: string, reader: SpendingReader) => Promise<{
  *     scope: "home" | "own", month: string, monthNano: number, note: string | null, attention: boolean, action: string | null
  *   }>,
- *   priceTags: (homeId: string, reader: SpendingReader) => Promise<{ bots: Array<{ botId: string, monthNano: number, allNano: number }> }>,
  *   report: (homeId: string, reader: SpendingReader) => Promise<object>,
  *   exportCsv: (homeId: string, reader: SpendingReader) => SpendingCsv | Promise<SpendingCsv>
  * }} Spending

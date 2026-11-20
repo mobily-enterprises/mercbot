@@ -60,7 +60,7 @@ Mercbot has no plans or subscriptions. What your bots' work costs is what the AI
 
 ## What does Spending show?
 
-Open **Settings** → **Spending**, or choose **See spending** from the **Spending** row of the account menu. It shows this month's spending and a report of any day, week, month or range of days (in UTC): a chart by day, and the totals by kind, by bot and, for owners and admins, by person, which **Download CSV** saves as a spreadsheet file. Day-by-day totals are kept 13 months; older months keep their totals. Owners and admins see the whole home; members see their own use. Pointing at a bot in the sidebar also shows its figure for this month beside its name.
+Open **Settings** → **Spending**, or choose **See spending** from the **Spending** row of the account menu. It shows this month's spending and a report of any day, week, month or range of days (in UTC): a chart by day, and the totals by kind, by bot and, for owners and admins, by person, which **Download CSV** saves as a spreadsheet file. Day-by-day totals are kept 13 months; older months keep their totals. Owners and admins see the whole home; members see their own use. What each bot cost is in the totals by bot; the bots themselves show no price.
 
 ## How is spending worked out?
 

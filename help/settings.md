@@ -93,7 +93,7 @@ Your saved logins, cards and contact info, with tabs, search, **New item** and a
 - **Spending:** a report of a **Day**, a **Week** (Monday to Sunday), a **Month** or a **Custom range** of up to a year, with arrows to step back and forward: the total, a chart by day, and the totals by kind, by bot and, for owners and admins, by person. The kinds are **Premium AI**, **Economy AI**, **Pictures**, **Computer days** and **Commands**. Days and months are UTC's, the same for everyone. Day-by-day totals are kept 13 months, so for an older month choose **Month**: it shows the month's totals, without the chart. **Download CSV** saves the same period as a spreadsheet file, one line per day (per month, for those older months), bot, person and kind. Members see and download their own use.
 - **How spending is counted:** what the figures are, as below.
 
-Point at a bot in the sidebar, or move to it with the keyboard, to see what it cost this month beside its name (your own use of it, for members); hover over the figure for its all-time total. The figure stays hidden otherwise, and on a phone or tablet, which has no pointer to hover, the sidebar shows none: each bot's figure is in the **Spending** report's totals by bot. The account menu's first row, **Spending**, shows this month's figure; hover over it for whose figure it is and **See spending**, which opens this section.
+The account menu's first row, **Spending**, shows this month's figure; hover over it for whose figure it is and **See spending**, which opens this section.
 
 ### How spending is worked out
 

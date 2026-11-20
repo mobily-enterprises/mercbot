@@ -132,7 +132,6 @@ test("owners and admins see the whole home's spending; a member sees their own u
   const month = new Date().toISOString().slice(0, 7);
   assert.deepEqual(await spending.summary(homeId, owner), { scope: "home", month, monthNano: 5e8 + 2.5e8 + pictures, note: null, attention: false, action: null });
   assert.deepEqual(await spending.summary(homeId, member), { scope: "own", month, monthNano: 2.5e8 + pictures, note: null, attention: false, action: null });
-  assert.deepEqual((await spending.priceTags(homeId, member)).bots, [{ botId, monthNano: 2.5e8 + pictures, allNano: 2.5e8 + pictures }]);
 
   const whole = await reports.report(homeId, owner);
   assert.equal(whole.totalNano, 7.5e8 + pictures);

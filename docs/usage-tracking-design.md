@@ -232,7 +232,8 @@ Every question was answered as recommended.
    totals 13 months and then archive files for 7 years, monthly totals for good (below).
 4. **A failing routine** pauses after 5 failures in a row and says so in its chat, built with routines
    (`bot_routines.failures`, D-77).
-5. **A bot's price tag shows this month,** with all time one hover away.
+5. **A bot's price tag shows this month,** with all time one hover away. Changed on 2026-11-20 (D-73): no bot shows a
+   price; people complained, and each bot's figure is in Settings → Spending's totals by bot.
 
 ## What's built (D-73)
 
@@ -256,10 +257,9 @@ Every question was answered as recommended.
   started (a computer that can't start counts nothing), and counted again when a new day finds it awake
   (`computer_days`; `packages/computer/src/server/computerDays.js`). **Computation** is a command's running time,
   counted in seconds when it ends (`packages/files/src/server/shell.js`). Both are use, with no cost of their own.
-- **Screens:** each bot's figure in the sidebar (this month, all time on hover), Settings → Spending (this month, then
-  a report of any day, week, month or range of days by day, kind, bot and person, in UTC, with **Download CSV**, whose
-  last column is "Spent (USD)"), and the account menu's Spending row. Owners and admins see the whole home; a member
-  sees their own use.
+- **Screens:** Settings → Spending (this month, then a report of any day, week, month or range of days by day, kind,
+  bot and person, in UTC, with **Download CSV**, whose last column is "Spent (USD)"), and the account menu's Spending
+  row. Owners and admins see the whole home; a member sees their own use.
 - **Retention** (`retention.js`): per-call rows live in daily partitions, made ahead and dropped whole after 14
   days. Daily totals live in monthly partitions; after 13 months each month is written to
   `<files>/usage-archive/daily/YYYY-MM/homes-<from>-<to>.csv.gz`, one file per 100,000 homes, read back and checked

@@ -77,8 +77,8 @@ export const usageDailyResource = defineTableResource({
 });
 
 /** usage_monthly
- * The same totals per home and month (UTC), kept for good (D-73): price tags, the account menu and a month's spending
- * by bot and kind read them.
+ * The same totals per home and month (UTC), kept for good (D-73): the account menu and a month's spending by bot and
+ * kind read them.
  */
 export const usageMonthlySchema = Object.freeze({ ...USED, month: { type: "date", search: true } });
 

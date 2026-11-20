@@ -5,7 +5,6 @@ import MercbotConfirmDialog from "./MercbotConfirmDialog.vue";
 import MercbotContextMenu from "./MercbotContextMenu.vue";
 import { botMenuItems, sectionMenuItems } from "./botMenus.js";
 import { useBotDrag } from "./useBotDrag.js";
-import { usePriceTags } from "./usePriceTags.js";
 
 // The expanded sidebar's bot list: pinned tiles, grouped rows, hidden bots, menus, drag and drop.
 // Every change is emitted as a command for the shell to carry out.
@@ -23,7 +22,6 @@ const props = defineProps({
 const emit = defineEmits(["select", "command"]);
 
 const command = (name, args = {}) => emit("command", { name, args });
-const { tagOf } = usePriceTags(() => props.moods);
 
 // Context menu at the pointer.
 const menu = ref({ open: false, target: [0, 0], items: [] });
@@ -178,7 +176,6 @@ function previewText(bot) {
               </span>
             </span>
             <span class="mb-tile__name">{{ bot.name }}</span>
-            <span v-if="tagOf(bot)" class="mb-tile__price" :title="tagOf(bot).hover">{{ tagOf(bot).text }}</span>
             <span v-if="bot.label" class="mb-tile__label">{{ bot.label }}</span>
             <kbd v-if="hints[bot.id]" class="mb-hint mb-hint--tile">{{ hints[bot.id] }}</kbd>
           </button>
@@ -279,7 +276,6 @@ function previewText(bot) {
                   <template v-if="previewText(bot).draft"><span class="mb-row__draft">Draft:</span> </template>{{ previewText(bot).text }}
                 </span>
               </span>
-              <span v-if="tagOf(bot)" class="mb-row__price" :title="tagOf(bot).hover">{{ tagOf(bot).text }}</span>
               <kbd v-if="hints[bot.id]" class="mb-hint">{{ hints[bot.id] }}</kbd>
               <span v-else-if="bot.waitingTask" class="mb-row__unread mb-row__unread--waiting" aria-label="Waiting for you" />
               <span v-else-if="bot.unread" class="mb-row__unread" aria-label="Unread" />
@@ -321,7 +317,6 @@ function previewText(bot) {
               <span v-else class="mb-row__name">{{ bot.name }}</span>
               <span class="mb-row__preview">{{ bot.preview }}</span>
             </span>
-            <span v-if="tagOf(bot)" class="mb-row__price" :title="tagOf(bot).hover">{{ tagOf(bot).text }}</span>
             <kbd v-if="hints[bot.id]" class="mb-hint">{{ hints[bot.id] }}</kbd>
             <span v-else-if="bot.unread" class="mb-row__unread" aria-label="Unread" />
           </button>

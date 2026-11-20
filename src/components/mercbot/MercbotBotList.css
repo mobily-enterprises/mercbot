@@ -74,35 +74,6 @@
   white-space: nowrap;
 }
 
-/* A bot's price tag (D-73): this month's figure, with all time on hover, shown only while the pointer is over its bot
-   or the bot has keyboard focus (the owner, 2026-11-19). Hidden, it keeps its place, so nothing moves when it shows. A
-   touch screen, which has no hover, shows none: Settings → Spending has each bot's figure. */
-.mb-tile__price,
-.mb-row__price {
-  visibility: hidden;
-  font-size: 11px;
-  line-height: 14px;
-  color: rgb(var(--v-theme-on-surface-variant));
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
-.mb-tile:focus-visible .mb-tile__price,
-.mb-row:focus-visible .mb-row__price {
-  visibility: visible;
-}
-
-@media (hover: hover) {
-  .mb-tile:hover .mb-tile__price,
-  .mb-row:hover .mb-row__price {
-    visibility: visible;
-  }
-}
-
-.mb-row__price {
-  flex: none;
-}
-
 .mb-tile__label {
   overflow: hidden;
   max-width: 100%;
