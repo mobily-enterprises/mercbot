@@ -23,6 +23,8 @@ onboarding and the bot's typed replies.
 - `packages/bots/src/server/botList.js`
 - `packages/bots/src/server/botPalette.js`
 - `packages/bots/src/server/botSettings.js`
+- `packages/bots/src/server/botArchive.js`
+- `packages/bots/src/server/workPause.js`
 - `packages/bots/src/server/botChat.js`
 - `packages/bots/src/server/botTeaching.js`
 - `packages/bots/src/server/botGroups.js`
@@ -172,7 +174,7 @@ Long chats are compacted in the background (D-41):
 - A room's first summary takes in the messages it inherited; group chats are summarised with each
   speaker's name. The page always shows the whole conversation.
 
-Sharing (D-36, D-99):
+Sharing (D-36, D-99, D-101):
 - Each bot has `sharing` (`private`, `mixed` by default, or `shared`), which owners and admins
   change with `PATCH …/bots/:botId {sharing}`. Others get 403, and a group chat can't be shared.
 - Every person has their own conversation with every bot (`user_id` theirs), whatever its mode,
@@ -227,6 +229,25 @@ Sharing (D-36, D-99):
   naming them, to resume there once shared again. `conversations.rowOf` answers null for a hidden
   room, so goals, requests and queued replies don't run there; search and the files and computer
   routes leave hidden rooms out. Each person's own conversation simply stops being a tab.
+- **Archiving (D-101):** `POST …/rooms/:roomId/archive` and `…/resume` (`botArchive.js`) archive and resume a shared
+  bot's room, but not its first (General) nor an app's (409 `bots_archive_first`, `bots_archive_app_conversation`),
+  for its starter (`created_by`) and the home's owners and admins (`mayChangeBot`, else 403 `bots_archive_forbidden`),
+  or with the person's own conversation's id their You only. Another person's You only, another bot's or another
+  home's conversation is 404; a bot that isn't shared is 409 `bots_archive_shared_only`. Archiving sets
+  `bot_conversations.archived_at`/`archived_by` and, in the same transaction, pauses its routines and watches with a
+  "Paused while archived" line (`workPause.js`, the pause leaving shared uses too); resuming clears them and opens it
+  for the person (their `room_id`), the work left paused. Each answers `{ bot }` as listed and tells everyone in the
+  home `changed` (You only: the person). `isHiddenRoom` answers true for an archived room and for an archived own
+  conversation while the bot is shared, so `rowOf`, `backgroundRow` and search leave it out as they do a hidden room,
+  and a waiting reply (`answerWaiting`) isn't run there. `seenBy` never opens one: an archived room or You only gives
+  way to General (an explicit `own` keeps the person's own conversation, so a request from a private chat never lands
+  in a room), and `writing` (`sendMessage`, `replyTo`) in one the `room` names is 409 `bots_conversation_archived`
+  "This conversation is archived. Resume it to continue.". The list leaves archived rooms and an archived You only out
+  of `rooms`, unread, the latest activity and the preview, counts them as `archived` from the rows it reads anyway, and
+  marks each tab `canArchive`; You only's own turn names only the rooms not archived. `GET …/archived` lists the bot's
+  archived conversations the person sees (rows the row policies show: rooms and their own) as `{ id, title, own,
+  archivedAt, archivedBy, canResume }`, `archivedBy` "you" for the person, in a fixed number of reads. Leaving shared
+  un-archives everyone's You only, written for the home (`unarchiveSeats`); archived rooms stay archived.
 - **Who sees what** in Details (`useSharingChoice.js`): an intro, "Everyone in <home> has their own
   chat with <bot>, which only they see.", then Private "Nothing more.", Mixed "And what helps
   everyone goes in <home>'s notebook, which everyone can read." and Shared "And conversations
@@ -256,7 +277,14 @@ Sharing (D-36, D-99):
   `chooseHere`, `readHere`).
 - The tab bar (`MercbotRoomTabs.vue`) shows the rooms, then You only with a lock ("Only you see
   this conversation"), which double-click doesn't rename; "+" says "New conversation for everyone,
-  starting empty" from You only, else "New conversation, starting from what “<tab>” knows". The
+  starting empty" from You only, else "New conversation, starting from what “<tab>” knows". A tab's menu
+  (right-click, or a half-second press on a touch screen) has Rename on a room and Archive where `canArchive`
+  (`archiveConversation.js` `tabMenuItems`), which asks first (`archiveQuestion`: "Archive <tab>?", hidden for
+  everyone in the home or, on You only, for you only). After "+", **Archived (N)** opens the archived list
+  (`MercbotArchivedList.vue`, read from `GET …/archived` when shown and again when `archived` changes, not at all at
+  0), each with "Archived by <who> · <when>" and Resume where `canResume`; Details → Conversations shows the same list
+  for a shared bot. `useRooms.js` `archiveRoom`/`resumeRoom` take the bot as answered and reload the open tab's
+  messages when it changed; a send refused as archived says so. The
   composer's placeholder in a shared bot says "Message <bot> · everyone in <home> sees this", or in
   You only "Message <bot> · only you see this" (`composerPlaceholder.js`).
 

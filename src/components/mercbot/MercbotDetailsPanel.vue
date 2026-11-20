@@ -8,6 +8,7 @@ import MercbotPageShare from "./MercbotPageShare.vue";
 import MercbotViewViewer from "@/components/apps/MercbotViewViewer.vue";
 import { fileUrl } from "./filesApi.js";
 import { ownTabOf } from "./openTabs.js";
+import MercbotArchivedList from "./MercbotArchivedList.vue";
 import MercbotAvatar from "./MercbotAvatar.vue";
 import MercbotConvoAvatar from "./MercbotConvoAvatar.vue";
 import MercbotConfirmDialog from "./MercbotConfirmDialog.vue";
@@ -42,7 +43,7 @@ const props = defineProps({
 });
 const emit = defineEmits([
   "close", "resize", "rename", "changed", "failure", "notify", "messages", "open-computer", "edit-routine", "add-member",
-  "remove-member", "add-person", "remove-person", "sharing", "keep-out", "open-page"
+  "remove-member", "add-person", "remove-person", "sharing", "keep-out", "open-page", "resume-room"
 ]);
 
 // Who sees what (D-36, D-99): owners and admins choose, after a question; everyone else sees the choice.
@@ -465,6 +466,12 @@ async function openInstructions() {
           @update:model-value="!$event && sharing.cancel()"
           @confirm="sharing.confirm()"
         />
+
+        <!-- A Shared bot's archived conversations the person sees, to resume (D-101), as the tab strip's Archived (N). -->
+        <template v-if="!isGroup && bot.rooms">
+          <p class="mb-details__section">Conversations</p>
+          <MercbotArchivedList :bot-id="bot.id" :count="bot.archived || 0" @resume="emit('resume-room', $event)" />
+        </template>
 
         <template v-if="bot.sharing === 'mixed'">
           <p class="mb-details__section">{{ home?.name || "Home" }} notebook</p>

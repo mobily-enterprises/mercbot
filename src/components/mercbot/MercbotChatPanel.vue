@@ -51,7 +51,7 @@ const emit = defineEmits([
   "open-details", "close-find", "voice-ended", "send", "choose", "connect",
   "react", "copy", "copy-image", "retry", "teach", "update:draft", "answer",
   "take-over", "use-computer", "secure-form", "settle-draft", "manage-rules", "settle-handover", "open-skill", "open-bot", "cancel-request", "picker-change", "picker-close", "picker-new-bot", "picker-start",
-  "failure", "room-select", "room-create", "room-rename", "undo-note", "open-page", "close-page"
+  "failure", "room-select", "room-create", "room-rename", "room-archive", "room-resume", "undo-note", "open-page", "close-page"
 ]);
 
 // A shared bot's open tab, and the one it continues from (D-36).
@@ -300,9 +300,13 @@ defineExpose({ focusComposer, addSelection, startReply, toggleDictation, dictati
       v-if="room && !picker && !page"
       :rooms="bot.rooms"
       :active-id="bot.roomId"
+      :bot-id="bot.id"
+      :archived="bot.archived || 0"
       @select="emit('room-select', $event)"
       @create="emit('room-create', $event)"
       @rename="emit('room-rename', $event)"
+      @archive="emit('room-archive', $event)"
+      @resume="emit('room-resume', $event)"
     />
 
     <MercbotCallBar

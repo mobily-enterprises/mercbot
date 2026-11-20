@@ -287,6 +287,14 @@ export function registerRoutes(http, { bots, approvals, notices, meter, records,
     bots.roomForApp(request.params.botId, request.body || {}, options)));
   router.register("PATCH", "/api/w/:workspaceSlug/bots/:botId/rooms/:roomId", auth, handle(async (request, _user, options) =>
     bots.renameRoom(request.params.botId, request.params.roomId, request.body || {}, options)));
+  // A conversation archived and resumed (D-101): a shared tab, or with the person's own conversation's id their You only.
+  // Each answers the bot as listed; the archived ones the person sees are read when their list opens.
+  router.register("POST", "/api/w/:workspaceSlug/bots/:botId/rooms/:roomId/archive", auth, handle(async (request, _user, options) =>
+    bots.archiveRoom(request.params.botId, request.params.roomId, options)));
+  router.register("POST", "/api/w/:workspaceSlug/bots/:botId/rooms/:roomId/resume", auth, handle(async (request, _user, options) =>
+    bots.resumeRoom(request.params.botId, request.params.roomId, options)));
+  router.register("GET", "/api/w/:workspaceSlug/bots/:botId/archived", auth, handle(async (request, _user, options) =>
+    bots.archivedConversations(request.params.botId, options)));
   router.register("DELETE", "/api/w/:workspaceSlug/bots/:botId", auth, handle(async (request, _user, options) =>
     bots.deleteBot(request.params.botId, options)));
   // A bot's template and additions (D-98), for its Details panel's Instructions; PATCH …/bots/:botId changes its

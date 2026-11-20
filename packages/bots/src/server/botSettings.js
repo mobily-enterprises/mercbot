@@ -2,6 +2,7 @@ import { retryLostInsertRace } from "@jskit-ai/database-runtime/shared";
 import { BotsError } from "./botsError.js";
 import { cleanName, cleanTitle, toBot, toRoom } from "./botRows.js";
 import { additionsChange, changeRefusal, mayChangeBot } from "./botAdditions.js";
+import { createWorkPause } from "./workPause.js";
 
 /**
  * A bot's settings and a shared bot's rooms (D-36): its name, additions (D-98) and sharing, the person's own
@@ -15,6 +16,7 @@ import { additionsChange, changeRefusal, mayChangeBot } from "./botAdditions.js"
 export function createBotSettings({ records, conversations, apps }) {
   const { conversations: store, messages } = records;
   const SHARING = new Set(["private", "shared", "mixed"]);
+  const pauseWorkIn = createWorkPause({ records, apps, conversations });
 
   async function updateBot(botId, patch = {}, options) {
     const { changed, sharingChanged } = await retryLostInsertRace(options, () => store.withTransaction(options, async (txOptions) => {
@@ -78,7 +80,11 @@ export function createBotSettings({ records, conversations, apps }) {
       }
       if (Object.keys(shared).length) await store.updateBot(row.id, shared, txOptions);
       if (Object.keys(own).length) await store.updateConversation(row.seat_id, own, txOptions);
-      if (row.sharing === "shared" && shared.sharing && shared.sharing !== "shared") await pauseHiddenWork(row, txOptions);
+      if (row.sharing === "shared" && shared.sharing && shared.sharing !== "shared") {
+        await pauseHiddenWork(row, txOptions);
+        // Each person's archived You only is their chat again, their only conversation with it (D-101).
+        await store.unarchiveSeats(row.id, txOptions);
+      }
       // Read again as this person sees it now, which gives a newly shared bot its first room.
       const bot = await store.botOf(row.id, txOptions);
       const changed = await conversations.seenBy(bot, txOptions, { room: sharingOn ? null : row.conversation_id });
@@ -98,25 +104,11 @@ export function createBotSettings({ records, conversations, apps }) {
    */
   async function pauseHiddenWork(row, txOptions) {
     const roomIds = (await conversations.roomsOf(row.id, txOptions)).map((room) => String(room.id));
-    if (!roomIds.length) return;
-    const routines = await records.work.pauseRoutinesIn(roomIds, txOptions);
-    const watches = await apps.watches.pauseIn({ botId: String(row.id), conversationIds: roomIds }, txOptions);
-    const paused = [
-      ...routines.map((routine) => ({ conversationId: String(routine.conversationId), name: `routine "${routine.name}"` })),
-      ...watches.map((watch) => ({ ...watch, name: `watch "${watch.name}"` }))
-    ];
-    for (const [roomId, list] of Map.groupBy(paused, (entry) => entry.conversationId)) {
-      await conversations.append({ id: row.id, conversation_id: roomId }, [{
-        kind: "event",
-        role: "system",
-        body: {
-          text: "Paused while hidden",
-          icon: "routine",
-          detail: `${row.name} stopped being Shared, which hid this conversation, so its ${list.map((entry) => entry.name).join(", ")} ` +
-            `paused. Resume them here once ${row.name} is Shared again.`
-        }
-      }], txOptions);
-    }
+    await pauseWorkIn(row, roomIds, {
+      text: "Paused while hidden",
+      detail: (paused) => `${row.name} stopped being Shared, which hid this conversation, so its ${paused} paused. ` +
+        `Resume them here once ${row.name} is Shared again.`
+    }, txOptions);
   }
 
   /**

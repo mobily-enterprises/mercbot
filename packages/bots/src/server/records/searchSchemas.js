@@ -22,6 +22,22 @@ export const CONVERSATION_SEARCH = Object.freeze({
       else query.whereNull(column("pinPosition"));
     }
   }),
+  // Archived conversations (D-101), or those that aren't.
+  archived: Object.freeze({
+    type: "boolean",
+    applyFilter(query, input, { column }) {
+      if (input) query.whereNotNull(column("archivedAt"));
+      else query.whereNull(column("archivedAt"));
+    }
+  }),
+  // A person's own conversation with a bot (user_id set), not a room: what leaving Shared un-archives (D-101).
+  seat: Object.freeze({
+    type: "boolean",
+    applyFilter(query, input, { column }) {
+      if (input) query.whereNotNull(column("userId"));
+      else query.whereNull(column("userId"));
+    }
+  }),
   // Rooms active since a moment: a turn's recent group chats (turnRepository.js recentGroupsOf).
   lastActivityAfter: Object.freeze({ type: "dateTime", actualField: "lastActivityAt", filterOperator: ">" })
 });

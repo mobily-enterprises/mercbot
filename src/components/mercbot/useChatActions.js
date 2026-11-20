@@ -35,7 +35,8 @@ export function useChatActions({ currentBot, picker, startGroup, store, work, re
       result = await botsApi.send(bot.id, { ...payload, clientId: pending.id, room: bot.roomId ?? null });
     } catch (error) {
       replaceMessage(bot.id, { ...pending, payload, pending: false, failed: true });
-      reportFailure("Your message didn't send.", error);
+      // A tab archived meanwhile (D-101) says so: resume it to write there.
+      reportFailure(error?.code === "bots_conversation_archived" ? error.message : "Your message didn't send.", error);
       return;
     }
     removeMessage(bot.id, pending.id);

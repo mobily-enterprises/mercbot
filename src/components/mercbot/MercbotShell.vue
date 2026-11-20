@@ -169,7 +169,8 @@ const loadThrough = (messageId) => store.loadThrough(currentBot.value.id, messag
   .catch((error) => reportFailure("Older messages didn't load.", error));
 
 const { themePreference, setTheme } = useShellTheme({ accentColor, reportFailure });
-const { selectRoom, createRoom, renameRoom, undoNote, keepOutOfNotebook, setSharing } = useRooms({ currentBot, store, reportFailure });
+const { selectRoom, createRoom, renameRoom, archiveRoom, resumeRoom, undoNote, keepOutOfNotebook, setSharing } =
+  useRooms({ currentBot, store, reportFailure });
 
 // Opening a bot with unread messages puts the "new" divider above the first of them. It stays
 // for this visit and is gone the next time the bot is opened.
@@ -386,6 +387,8 @@ watch(() => currentHomeEntry.value?.slug, () => loadBuilderBot(), { immediate: t
         @room-select="selectRoom"
         @room-create="createRoom"
         @room-rename="renameRoom"
+        @room-archive="archiveRoom"
+        @room-resume="resumeRoom"
         @undo-note="undoNote"
         @open-details="showDetails"
         @close-find="findOpen = false"
@@ -424,6 +427,7 @@ watch(() => currentHomeEntry.value?.slug, () => loadBuilderBot(), { immediate: t
         @close="closeDetails"
         @open-page="showPage"
         @sharing="setSharing"
+        @resume-room="resumeRoom"
         @keep-out="keepOutOfNotebook"
         @resize="resizeDetails"
         @rename="runCommand({ name: 'renameBot', args: { botId: currentBot.id, name: $event } })"

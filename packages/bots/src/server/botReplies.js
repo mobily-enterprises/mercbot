@@ -447,7 +447,8 @@ export function createBotReplies({
   }
 
   async function replyTo(botId, input, person, call) {
-    const row = await conversations.ownedBot(botId, call, { room: input.room });
+    // Nothing runs in an archived conversation (D-101): asking for a reply there is refused.
+    const row = await conversations.ownedBot(botId, call, { room: input.room, writing: true });
     // A page that lost its server mid-reply asks again (D-19). If the bot already answered after
     // the message the page had last seen, that answer is returned instead of a second one.
     const answered = await answeredAfter(row, Number(input.afterMessageId), call);
@@ -590,6 +591,8 @@ export function createBotReplies({
   async function answerWaiting(row, input, person, answered, call) {
     const latest = await latestUserText(row, call);
     if (!latest || Number(latest.id) <= answered || (await answeredAfter(row, Number(latest.id), call))) return;
+    // A conversation archived meanwhile (D-101), or hidden (D-99), leaves it unanswered: nothing runs where nobody sees it.
+    if (!(await conversations.rowOf(String(row.id), String(row.conversation_id), call))) return;
     if (!(await chatHistory.claimReply(row))) return;
     const fresh = await conversations.refresh(row, call);
     const waiting = String(latest.body.text || "").slice(0, 1500);

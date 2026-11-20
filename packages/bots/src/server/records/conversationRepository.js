@@ -62,10 +62,17 @@ function asSeen(bot, conversation, room = null) {
 const isShared = (bot) => bot.kind === "group" || bot.sharing === "shared";
 
 /**
- * A shared bot's tab while the bot isn't Shared any more (D-99): kept, but nobody sees it and no work runs
- * there until the bot is Shared again. A person's own conversation and a group's rows are never one.
+ * A conversation nobody sees and where no work runs: a shared bot's tab while the bot isn't Shared any more (D-99),
+ * until it is Shared again; an archived tab (D-101), until someone resumes it; and a person's archived "You only" while
+ * the bot is Shared. A group's rows are never one.
  */
-const isHiddenRoom = (bot, conversation) => !conversation.user_id && !conversation.group_id && !isShared(bot);
+const isHiddenRoom = (bot, conversation) =>
+  (Boolean(conversation.archived_at) && (!conversation.user_id || isShared(bot))) ||
+  (!conversation.user_id && !conversation.group_id && !isShared(bot));
+
+/** What writing in an archived conversation answers (D-101). */
+const archivedRefusal = () =>
+  new BotsError(409, "This conversation is archived. Resume it to continue.", { code: "bots_conversation_archived" });
 
 /**
  * Whether a bot is seen in the person's own conversation `seat` rather than a room: a Shared bot's "You only" tab (D-99)
@@ -162,22 +169,34 @@ export function createConversationRepository({ resources, systemContext, profile
 
   /**
    * The room a person is in: the one asked for, else the tab they last had open, else the first.
-   * A bot that has just become shared gets its first room, "General".
+   * A bot that has just become shared gets its first room, "General". An archived tab (D-101) is open for nobody:
+   * whoever had it open lands on the first, which is never archived; `writing` in it is refused.
    */
-  async function roomFor(bot, wanted, options) {
+  async function roomFor(bot, wanted, options, { writing = false } = {}) {
+    const asked = wanted ? await roomOf(bot.id, wanted, options) : null;
+    if (asked?.archived_at && writing) throw archivedRefusal();
     const room =
-      (wanted && (await roomOf(bot.id, wanted, options))) ||
+      (asked && !asked.archived_at ? asked : null) ||
       (await roomOf(bot.id, null, options)) ||
       asRow(await conversations.create({ botId: bot.id, title: bot.kind === "group" ? "Group" : "General", createdBy: personOf(options) }, passedOn(options)), options);
     const [read] = await reads.queryAll({ filters: { conversationId: room.id } }, personalOptions(options));
     return { ...room, read_up_to: read?.readUpTo ?? null };
   }
 
-  /** A bot as this person sees it, in a shared bot's room or their own conversation (isOwnTab); `lock` locks that first. */
-  async function seenBy(bot, options, { lock = false, room = null, own } = {}) {
+  /**
+   * A bot as this person sees it, in a shared bot's room or their own conversation (isOwnTab); `lock` locks that first.
+   * An archived conversation (D-101) is open for nobody: an archived "You only" opens General instead, unless the
+   * person's own conversation is what's asked for (`own`), and `writing` in an archived one the `room` names is refused.
+   */
+  async function seenBy(bot, options, { lock = false, room = null, own, writing = false } = {}) {
     let conversation = await conversationOf(bot, options);
     const wanted = room || conversation.room_id;
-    let open = isShared(bot) && !isOwnTab(bot, conversation, wanted, own) ? await roomFor(bot, wanted, options) : null;
+    let ownTab = isOwnTab(bot, conversation, wanted, own);
+    if (ownTab && isHiddenRoom(bot, conversation)) {
+      if (writing && room) throw archivedRefusal();
+      if (own === undefined) ownTab = false;
+    }
+    let open = isShared(bot) && !ownTab ? await roomFor(bot, wanted, options, { writing: writing && Boolean(room) }) : null;
     // FOR NO KEY UPDATE: a turn holds its conversation while everyone else's messages into it still go in.
     const holding = { ...passedOn(options), lockMode: "noKeyUpdate" };
     if (lock && open) open = { ...open, ...asRow(await conversations.lock(open.id, holding), options) };
@@ -196,7 +215,8 @@ export function createConversationRepository({ resources, systemContext, profile
    * row policy keeps a group chat to its people, for a request and for work done for someone.
    * @param {string} botId
    * @param {CallOptions} options
-   * @param {{ lock?: boolean, room?: string | null }} [read]
+   * @param {{ lock?: boolean, room?: string | null, writing?: boolean }} [read] `writing`: a message or a reply, refused in
+   *   an archived conversation (D-101)
    */
   async function ownedBot(botId, options, read = {}) {
     const bot = await botOf(botId, options);
@@ -281,6 +301,34 @@ export function createConversationRepository({ resources, systemContext, profile
   /** A room's new name. */
   async function renameRoom(roomId, title, options) {
     return asRow(await conversations.patch(roomId, { title }, passedOn(options)), options);
+  }
+
+  /** A conversation archived by the person (D-101), or with `archived` false resumed. */
+  async function setArchived(conversationId, archived, options) {
+    const columns = archived
+      ? { archivedAt: new Date().toISOString(), archivedBy: personOf(options) }
+      : { archivedAt: null, archivedBy: null };
+    await conversations.patch(conversationId, columns, { ...passedOn(options), returning: "none" });
+  }
+
+  /**
+   * The bot's archived conversations the person sees (D-101), in id order, in one read: its archived tabs, and their own
+   * archived "You only" (the row policies keep anyone else's out).
+   */
+  async function archivedOf(botId, options) {
+    const rows = await conversations.queryAll({ filters: { botId, archived: true }, sort: ["id"] }, passedOn(options));
+    return rows.map((row) => asRow(row, options));
+  }
+
+  /**
+   * Everyone's archived "You only" with a bot made their chat again as it stops being Shared (D-101): it is their only
+   * conversation then. Other people's rows, which the caller's row policy doesn't show, so written for the home.
+   */
+  async function unarchiveSeats(botId, options) {
+    const reason = "a bot that stops being Shared makes each person's archived You only their chat again";
+    const forHome = { ...passedOn(options), context: systemContext(reason).forWorkspace(homeOf(options)) };
+    const resumed = { archivedAt: null, archivedBy: null };
+    await conversations.patchWhere({ botId, seat: true, archived: true }, resumed, { ...forHome, returning: "none" });
   }
 
   /** Changes to one conversation (a seat or a room), given in its columns' names. */
@@ -633,6 +681,7 @@ export function createConversationRepository({ resources, systemContext, profile
     botOf,
     conversationOf,
     roomsOf,
+    roomOf,
     roomFor,
     seenBy,
     inGroup,
@@ -645,6 +694,9 @@ export function createConversationRepository({ resources, systemContext, profile
     appRoomFor,
     createRoom,
     renameRoom,
+    setArchived,
+    archivedOf,
+    unarchiveSeats,
     updateConversation,
     seatsOf,
     nextPinPosition,

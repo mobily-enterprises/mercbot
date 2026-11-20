@@ -2612,7 +2612,8 @@ instead of the conversation, so some leaked one way or the other.
   (kept, back when it's Shared again), and their routines and watches pause, each tab saying so in a line, to be
   resumed there once it's Shared again; a goal in a hidden tab stops at its next round. Nothing runs, or costs, where
   nobody can see or stop it: work queued there before ends unrun, and search doesn't find hidden tabs. Each person's
-  You only simply becomes their chat again.
+  You only simply becomes their chat again, an archived one un-archived (D-101). Archived tabs (D-101) are hidden by the
+  same rule.
 - **Search opens a result in its tab**: a message, a routine or a made thing of a Shared bot opens the tab it's in,
   shared or You only.
 - **A home of one person** sees Who sees what only for a bot that isn't on the home's default for new bots (D-100;
@@ -2667,3 +2668,43 @@ doesn't have.
   this release, and they keep Mixed until an owner or admin chooses.
 - **Routes:** `GET /api/w/:workspaceSlug/home-settings`, `PATCH …/home-settings { newBotSharing }` and
   `POST …/home-settings/team-question { answer: "shared" | "keep" }`.
+
+## D-101 — A conversation can be archived, and resumed as it was (2026-11-20)
+
+The owner's decision. A Shared bot gathers tabs that are done with, and a person's own You only can be in the way too,
+while deleting one would lose what was said there. So a conversation can be archived: hidden, with nothing running or
+costing there, until someone resumes it, as it was. Extends D-99, whose hidden tabs it reuses.
+- **What can be archived.** A Shared bot's shared tabs, except its first (General, where everyone lands) and an app's
+  Builder tab (D-41); archiving one hides it for everyone in the home. And the person's own **You only**, which hides
+  it for them alone. Private and Mixed bots' chats and group chats aren't archived: each is the bot's only conversation
+  with the person, and Hide bot already does that.
+- **Who.** A shared tab: the person who started it (`created_by`) and the home's owners and admins, to archive it and to
+  resume it, so a member can't undo an admin's archive. You only: its own person. The server decides from the call's
+  person, never from ids the page sends: anyone else gets 403; another home's bot or tab is 404, and so is another
+  person's You only, which the row policies don't show anyone else (D-99), owners and admins included. The list says per
+  tab whether the person may (`canArchive`), and the page offers Archive only there.
+- **While archived, nothing runs there and nobody sees it.** One rule covers it: `conversations.isHiddenRoom` also
+  answers true for an archived tab, and for an archived You only while the bot is Shared, so every place that skips a
+  tab hidden by D-99 skips an archived one too. Its routines and watches pause (D-99's pause, reused) and it gets a line,
+  "Paused while archived", naming them; after Resume they stay paused until someone resumes them there, as the line
+  says, so nothing starts again unexpectedly. A goal stops at its next round; queued work there (a request between bots,
+  a follow-up) ends unrun; a message or a reply there is refused, 409 "This conversation is archived. Resume it to
+  continue."; search doesn't find it; it doesn't count towards the bot's unread dot nor give its line in the list; You
+  only doesn't name it among the shared tabs. Anyone who had it open lands on General.
+- **Resume** brings it back in its old place (tabs are in id order, so nothing moves), with its messages, files,
+  computer and read points as they were, and opens it for whoever resumed it.
+- **When the bot stops being Shared**, an archived You only becomes the person's chat again, its only conversation with
+  the bot, so its archive is cleared. Archived shared tabs stay archived, and are still archived if it's Shared again.
+- **Where.** A tab's menu, by right-click or a long press on a phone, holds **Rename** (double-click still renames;
+  before, there was no menu) and **Archive**, which asks first: "Archive Plans? It's hidden for everyone in the home,
+  and its routines and watches pause. Anyone who started it, or an owner or admin, can resume it from Archived
+  conversations."; on You only it says it's hidden for you only, and only you can resume it. The tab strip ends with
+  "+" and, while the person sees archived conversations, **Archived (N)**: each one's title, who archived it and when,
+  and **Resume** for those the person may resume. The same list is in the bot's Details → **Conversations**. People see
+  the archived shared tabs and their own archived You only, never another person's.
+- **Data and reads.** `bot_conversations` gains `archived_at` and `archived_by` (→ users, ON DELETE SET NULL), expand
+  only, with a partial index on `bot_id` where `archived_at` is set. The list counts a bot's archived conversations from
+  the rows it reads anyway (`roomsWithNews` and the person's own rows), so it reads no more; the archived list is read
+  when it's shown, in the same few statements however many there are. `POST …/bots/:botId/rooms/:roomId/archive` and
+  `…/resume` (You only by the person's own conversation's id) answer the bot as listed; `GET …/bots/:botId/archived`
+  is the list.

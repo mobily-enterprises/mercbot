@@ -15,9 +15,10 @@ export const PREVIEW_KINDS = Object.freeze(["text", "choice", "connect", "handov
 export const MADE_KINDS = Object.freeze(["files", "page", "chart", "pictures", "view"]);
 // What search finds among them by name; views are the home's, found among its apps (D-55).
 const SEARCHED_MADE = Object.freeze(MADE_KINDS.filter((kind) => kind !== "view"));
-// What the list reads of a shared bot's room, as asSeen and toRoom take it.
+// What the list reads of a shared bot's room, as asSeen and toRoom take it, and whether it's archived (D-101).
 const ROOM_FIELDS = Object.freeze([
-  "id", "botId", "title", "parentId", "appId", "waitingTask", "lastActivityAt", "createdBy", "createdAt", "forkedAtMessageId", "userId", "groupId"
+  "id", "botId", "title", "parentId", "appId", "waitingTask", "lastActivityAt", "createdBy", "createdAt", "forkedAtMessageId", "userId",
+  "groupId", "archivedAt", "archivedBy"
 ]);
 
 /**
@@ -268,7 +269,8 @@ export function createMessageRepository({ resources, systemContext }) {
 
   /** @param {CallOptions} options */
   // Knex: subquery - the ids of the conversations a person searches: their own and the rooms they see, never a group
-  // computer's nor a shared tab hidden while its bot isn't Shared (D-99), for the search reports below to read inside
+  // computer's, a shared tab hidden while its bot isn't Shared (D-99) nor an archived one (D-101: an archived "You only"
+  // is always a Shared bot's, as leaving Shared un-archives it), for the search reports below to read inside
   async function searchedConversations(options) {
     const { query } = await conversations.scopedQuery({ alias: "c" }, passedOn(options));
     const { query: showing } = await bots.scopedQuery({ alias: "sb" }, passedOn(options));
@@ -279,6 +281,7 @@ export function createMessageRepository({ resources, systemContext }) {
     return {
       query: query
         .whereNull(conversations.column("groupId", "c"))
+        .whereNull(conversations.column("archivedAt", "c"))
         .where((seen) => seen.whereNotNull(conversations.column("userId", "c")).orWhereExists(showing))
         .select(conversations.column("id", "c"))
     };

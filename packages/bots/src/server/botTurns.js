@@ -153,9 +153,9 @@ export function createBotTurns({
     const roomApp = row.room?.app_id ? await apps.apps.findApp(String(row.room.app_id), call) : null;
     // What was said in the person's group chats is theirs: never in a room others read (D-99).
     const groups = row.room ? [] : await groupMemory(row, call);
-    // A Shared bot's "You only" knows its shared tabs by name, never what's said in them (D-99).
+    // A Shared bot's "You only" knows its shared tabs by name, never what's said in them (D-99), nor an archived one (D-101).
     const sharedTabs = !row.room && row.kind !== "group" && row.sharing === "shared"
-      ? (await conversations.roomsOf(row.id, call)).map((room) => `"${room.title}"`)
+      ? (await conversations.roomsOf(row.id, call)).filter((room) => !room.archived_at).map((room) => `"${room.title}"`)
       : null;
     const otherBots = (await records.directory.listHomeBots(call)).filter((bot) => String(bot.id) !== String(row.id));
     const approvals = history

@@ -1,6 +1,6 @@
 # Bots shared in a home
 
-Everything in Mercbot lives in a home: its bots, their files and computers, and the people who use them. Everyone in a home works with the same bots, and everyone has their own chat with each of them. This page answers the questions that come up when bots are shared: who can use them, what each sharing mode adds, what stays private, how approvals work, and what owners and admins can control. It ends with a table of common problems.
+Everything in Mercbot lives in a home: its bots, their files and computers, and the people who use them. Everyone in a home works with the same bots, and everyone has their own chat with each of them. This page answers the questions that come up when bots are shared: who can use them, what each sharing mode adds, what stays private, how to archive a conversation that's in the way, how approvals work, and what owners and admins can control. It ends with a table of common problems.
 
 ## Who can use the bots in a home?
 
@@ -54,7 +54,8 @@ A Shared bot shows its conversations as tabs under its name at the top of the ch
 - **You only is yours.** The message box says "Message *bot* · only you see this", and pointing at the tab says "Only you see this conversation". See [Your own tab: You only](#your-own-tab-you-only).
 - **Start a new conversation** with the **+** button beside the tabs. Give it a name and press Enter. Every tab must have a name, and every new tab is a shared one.
 - **A new conversation continues from a shared tab.** Started from one, it knows everything said there up to that moment; anything said there afterwards doesn't flow into it. This lets you branch off: "Holiday 2027" can grow from "General" without cluttering it. Started from You only, it starts empty, so nothing of yours goes where others read. The **+** button's tooltip says which.
-- **Rename a shared tab** by double-clicking it. You only can't be renamed.
+- **Rename a shared tab** by double-clicking it, or right-click it (press and hold it on a phone) and choose **Rename**. You only can't be renamed.
+- **Archive a tab** that's in the way from the same menu. See [Archive a conversation](#archive-a-conversation).
 - **Unread dots** on tabs show where there's something you haven't seen, You only included. Each tab is tracked on its own for each person, and the bot's dot in the sidebar shows while any of its tabs has news.
 - **The bot's line in the sidebar** shows its latest reply in the shared tabs, whichever tab you have open. Its replies in You only don't show there.
 - **Mercbot remembers your tab.** The bot opens on the tab you last had open.
@@ -69,6 +70,41 @@ You only is your own chat with the bot: the same one you had before the bot was 
 - **It knows the shared tabs by name only.** It never sees what's said in them, so if you need something from one, it suggests you look there.
 - **Nothing goes out of it.** The bot notes nothing in a notebook and posts nothing into a shared tab, and a tab you start from here starts empty.
 - **Asking another bot from here** lands in that bot's chat with you, never in one of its shared tabs. Asked from a shared tab, the other bot answers in one of its own shared tabs if it has them, else in its chat with you.
+
+## Archive a conversation
+
+When a Shared bot's tabs pile up, archive the ones you've finished with. An archived conversation isn't deleted: it's put away, with nothing running there, until someone resumes it, and it comes back as it was.
+
+### What you can archive
+
+- **A shared tab**, except **General**, where everyone lands, and an app's own tab with the Builder. Archiving it hides it for everyone in the home. The person who started it can archive it, and so can the home's owners and admins.
+- **Your You only tab.** Archiving it hides it for you alone; nobody else sees it anyway.
+
+A Private or Mixed bot's chat and a group chat can't be archived: each is your only conversation there. To get one out of the way, hide the bot in the sidebar instead.
+
+### Archive one
+
+1. Right-click the tab, or on a phone press and hold it.
+2. Choose **Archive**. The menu only offers it where you may.
+3. Mercbot asks first, for example **Archive Plans?**: "It's hidden for everyone in the home, and its routines and watches pause. Anyone who started it, or an owner or admin, can resume it from Archived conversations." On You only, it says it's hidden for you only and only you can resume it. Select **Archive** to go ahead, or **Cancel**.
+
+The tab goes, for everyone it's hidden from, straight away. Anyone who had it open lands on General.
+
+### While it's archived
+
+- **Nothing runs there.** Its routines and watches pause, and the conversation gets a line, **Paused while archived**, naming them. A long job there stops at its next step, and work waiting to run there, such as another bot's answer, is dropped.
+- **Nobody can write there.** A message sent from a page that still showed the tab gets "This conversation is archived. Resume it to continue."
+- **It's out of the way.** Search doesn't find what's in it, it doesn't make the bot's dot show in the sidebar, and its replies don't show as the bot's line there.
+
+### Find and resume one
+
+The tab strip ends with **Archived (2)**, or however many archived conversations you can see, beside the **+** button. Select it to see each one's name, who archived it and when. The same list is under **Conversations** in the bot's Details panel. You see the archived shared tabs, and your own archived You only, never anyone else's.
+
+Select **Resume** to bring one back. It returns to its old place among the tabs and opens, with its messages, files, computer and unread marks as they were. Resume follows the same rule as Archive: the person who started a shared tab or an owner or admin can resume it, so a member can't undo an owner's archive, and only you can resume your You only.
+
+Its routines and watches stay paused after you resume it, so nothing starts again unexpectedly. When you want them back, resume them in that conversation: ask the bot there, or switch a routine back on under **Routines** in the bot's Details panel.
+
+If a Shared bot stops being Shared, an archived You only becomes your chat with the bot again. Archived shared tabs stay archived, even if the bot is Shared again later.
 
 ## What's private and what's shared?
 
@@ -147,6 +183,7 @@ The home's, whoever's chat or conversation the work comes from. Owners and admin
 On top of everything members can do, owners and admins can:
 
 - choose each bot's mode under Who sees what;
+- archive and resume any of a Shared bot's shared tabs, not only the ones they started;
 - change any bot's template and additions, not only the ones they made;
 - remove any note from a bot's home notebook;
 - connect accounts for everyone in the home, and remove them;
@@ -164,6 +201,11 @@ Owners and admins can't read other people's own chats with any bot, You only tab
 | There's no Who sees what in the Details panel. | You're the only person in the home, and the bot is on the home's mode for new bots. | Nothing to do: with nobody else in the home, the modes make no difference to anyone. |
 | A bot's shared tabs have gone. | It isn't Shared any more, so they're hidden, not deleted. | Ask an owner or admin to make it Shared again. |
 | A tab says **Paused while hidden**. | The bot stopped being Shared, which paused that tab's routines and watches. | Once it's Shared again, resume them in that tab. |
+| One of a Shared bot's tabs has gone, and the others are still there. | Someone archived it. | Find it under **Archived** at the end of the tabs, or under Conversations in the bot's Details panel, and select **Resume**. |
+| There's no **Archive** in a tab's menu. | It's General, an app's tab with the Builder, or a tab someone else started. | Ask the person who started it, or an owner or admin. |
+| There's no **Resume** beside an archived tab. | Only the person who started it and the home's owners and admins can resume it. | Ask one of them. |
+| A message says "This conversation is archived. Resume it to continue." | Someone archived the tab while you had it open. | Resume it from **Archived**, or carry on in another tab. |
+| A resumed tab says **Paused while archived**, and its routines don't run. | Archiving paused them, and they stay paused after Resume. | Ask the bot in that tab to resume them, or switch a routine back on under Routines in its Details panel. |
 | A shared bot can't read my email or calendar. | Shared tabs use only the home's accounts. | Ask in your You only tab, or ask an owner or admin to connect a home account. |
 | A shared bot doesn't know my allergy or preferences. | Memories are never used in shared tabs. | Mention what matters in the conversation, or ask in You only. |
 | A shared bot won't use my saved password. | Vault logins are never used in shared tabs. | Ask in You only for sites that need your own login. |

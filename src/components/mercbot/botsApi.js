@@ -97,6 +97,11 @@ export const botsApi = {
   createRoom: (botId, room) => post(`/bots/${botId}/rooms`, room),
   roomForApp: (botId, app) => post(`/bots/${botId}/rooms/app`, app),
   renameRoom: (botId, roomId, title) => patch(`/bots/${botId}/rooms/${roomId}`, { title }),
+  // A conversation archived and resumed (D-101): a shared tab, or You only by its id. Each answers { bot } as listed.
+  archiveRoom: (botId, roomId) => post(`/bots/${botId}/rooms/${roomId}/archive`),
+  resumeRoom: (botId, roomId) => post(`/bots/${botId}/rooms/${roomId}/resume`),
+  // The bot's archived conversations the person sees, each with who archived it, when, and whether they may resume it.
+  archived: (botId) => request(`/bots/${botId}/archived`),
   remove: (botId) => remove(`/bots/${botId}`),
   // A bot's template and additions (D-98): its additions change with update(botId, { additions }), its template with
   // changeTemplate(botId, { library: slug }, { home: id } or { draft, foldAdditions }).

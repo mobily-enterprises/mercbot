@@ -141,7 +141,8 @@ export function createBotChat({ records, model, integrations, conversations, goa
   }
 
   async function sendMessage(botId, input = {}, options) {
-    const row = await conversations.ownedBot(botId, options, { room: input.room });
+    // Nobody writes in an archived conversation (D-101).
+    const row = await conversations.ownedBot(botId, options, { room: input.room, writing: true });
     const members = row.kind === "group" ? (await conversations.membersOf([row.id], options)).get(String(row.id)) || [] : [];
     const body = withMentions(messageBody(input), members);
     // In a shared bot's room, everyone sees who said what (D-36).

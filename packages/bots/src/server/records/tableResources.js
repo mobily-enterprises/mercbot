@@ -38,6 +38,9 @@ export const botConversationResource = defineTableResource({
   ownership: "workspace",
   schema: {
     appId: { type: "string", maxLength: 24, noTrim: true, nullable: true, search: true },
+    // Archived (D-101): since when, null while it isn't, and by whom.
+    archivedAt: { type: "dateTime", nullable: true },
+    archivedBy: { type: "id", nullable: true },
     botId: { type: "id", required: true, search: true },
     createdAt: { type: "dateTime" },
     createdBy: { type: "id", nullable: true, search: true },

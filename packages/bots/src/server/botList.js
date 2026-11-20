@@ -2,6 +2,7 @@ import { retryLostInsertRace } from "@jskit-ai/database-runtime/shared";
 import { DEFAULT_BOT_COLOR, DEFAULT_BOT_NAME } from "./onboarding.js";
 import { BOT_PALETTE, BRAND_COLOR } from "./botPalette.js";
 import { BotsError } from "./botsError.js";
+import { mayChangeBot } from "./botAdditions.js";
 import { cleanName, cloudShape, previewOf, toBot, toOwnTab, toRoom, toSection } from "./botRows.js";
 import { GENERAL } from "./templates.js";
 
@@ -38,7 +39,8 @@ export function createBotList({ records, conversations, homeDefaults, templates 
     // A shared bot's tabs, each unread while it has news from the bot or someone else (D-36).
     const rooms = await messages.roomsWithNews(bots.filter(conversations.isShared).map((bot) => bot.id), options);
     const roomsByBot = Map.groupBy(rooms, (room) => String(room.bot_id));
-    // Each row with its tabs: a Shared bot's rooms and, last, the person's own conversation as "You only" (D-99).
+    // Each row with its tabs: a Shared bot's rooms and, last, the person's own conversation as "You only" (D-99). An
+    // archived tab or You only (D-101) is no tab: it's counted, for the strip's Archived (N), and isn't new or recent.
     const entries = bots.map((bot) => {
       const seat = seats.get(String(bot.id)) || {
         id: null,
@@ -48,18 +50,25 @@ export function createBotList({ records, conversations, homeDefaults, templates 
         hidden: false,
         last_activity_at: bot.created_at
       };
-      const own = roomsByBot.get(String(bot.id)) || [];
+      const rooms = roomsByBot.get(String(bot.id)) || [];
+      const own = rooms.filter((room) => !room.archived_at);
       if (!own.length) return { row: conversations.asSeen(bot, seat), tabs: null };
       const group = bot.kind === "group";
-      const youOnly = !group && seat.id !== null && String(seat.room_id) === String(seat.id);
+      const seatTab = !group && seat.id !== null && !seat.archived_at;
+      const youOnly = seatTab && String(seat.room_id) === String(seat.id);
       const row = youOnly
         ? conversations.asSeen(bot, seat)
         : conversations.asSeen(bot, seat, own.find((room) => String(room.id) === String(seat.room_id)) || own[0]);
-      const tabs = own.map((room) => ({ ...toRoom(room), unread: room.unread }));
-      if (!group && seat.id !== null) tabs.push(toOwnTab(seat));
-      const all = group || seat.id === null ? own : [...own, seat];
+      // Archive is offered on a shared tab but its first (General, where everyone lands) and an app's, to whoever started
+      // it and the home's owners and admins, and on You only to its person (D-101).
+      const archivable = (room) =>
+        String(room.id) !== String(rooms[0].id) && !room.app_id && mayChangeBot(room.created_by, person, options);
+      const tabs = own.map((room) => ({ ...toRoom(room), unread: room.unread, canArchive: archivable(room) }));
+      if (seatTab) tabs.push({ ...toOwnTab(seat), canArchive: true });
+      const all = seatTab ? [...own, seat] : own;
       const latest = all.reduce((last, entry) => (entry.last_activity_at > last ? entry.last_activity_at : last), all[0].last_activity_at);
-      return { row: { ...row, unread: tabs.some((tab) => tab.unread), last_activity_at: latest }, tabs: group ? null : tabs };
+      const archived = rooms.length - own.length + (!group && seat.archived_at ? 1 : 0);
+      return { row: { ...row, unread: tabs.some((tab) => tab.unread), last_activity_at: latest }, tabs: group ? null : tabs, archived };
     });
     const rows = entries.map((entry) => entry.row);
     const sections = (await store.sectionsOf(options)).map(toSection);
@@ -75,12 +84,14 @@ export function createBotList({ records, conversations, homeDefaults, templates 
     const members = await conversations.membersOf(groupIds, options);
     const people = await conversations.peopleOf(groupIds, options);
     return {
-      bots: entries.map(({ row, tabs }) => ({
+      bots: entries.map(({ row, tabs, archived = 0 }) => ({
         ...toBot(row),
         ...(row.kind === "group" ? { members: members.get(String(row.id)) || [], people: people.get(String(row.id)) || [] } : {}),
         // A Shared bot nobody has opened since it became Shared has no tabs yet: its first look opens General.
         ...(row.kind !== "group" && !tabs ? { roomId: null } : {}),
         rooms: tabs,
+        // How many of its conversations the person sees archived (D-101).
+        ...(tabs ? { archived } : {}),
         preview: previewByBot.get(String(row.id)) || ""
       })),
       sections,

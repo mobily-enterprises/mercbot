@@ -20,9 +20,10 @@ export function useRooms({ currentBot, store, reportFailure }) {
     const bot = currentBot.value;
     try {
       const result = await botsApi.createRoom(bot.id, { title, from: bot.roomId });
-      // The new tab goes before "You only", which stays last (D-99).
+      // The new tab goes before "You only", which stays last (D-99). Its starter may archive it (D-101).
       const own = bot.rooms.filter((room) => room.own);
-      store.updateBot({ ...result.bot, rooms: [...bot.rooms.filter((room) => !room.own), { ...result.room, unread: false }, ...own] });
+      const made = { ...result.room, unread: false, canArchive: true };
+      store.updateBot({ ...result.bot, rooms: [...bot.rooms.filter((room) => !room.own), made, ...own] });
       await store.reloadMessages(bot.id);
     } catch (error) {
       reportFailure("That conversation couldn't be started. Try again.", error);
@@ -39,6 +40,21 @@ export function useRooms({ currentBot, store, reportFailure }) {
       store.mergeBots((await botsApi.list()).bots);
     }
   }
+
+  // A conversation archived or resumed (D-101): the bot as the server lists it now, and the open tab's messages when the
+  // open tab changed (archiving the open one lands on General; a resumed one opens). A refusal says why.
+  async function changeArchive(roomId, call, failure) {
+    const bot = currentBot.value;
+    try {
+      const { bot: listed } = await call(bot.id, roomId);
+      store.updateBot(listed);
+      if (listed.roomId !== bot.roomId) await store.reloadMessages(bot.id);
+    } catch (error) {
+      reportFailure([403, 404, 409].includes(error?.status) && error.message ? error.message : failure, error);
+    }
+  }
+  const archiveRoom = (roomId) => changeArchive(roomId, botsApi.archiveRoom, "That conversation couldn't be archived. Try again.");
+  const resumeRoom = (roomId) => changeArchive(roomId, botsApi.resumeRoom, "That conversation couldn't be resumed. Try again.");
 
   // Undo on a "Noted for…" line takes the note out of the home notebook (D-36).
   async function undoNote(message) {
@@ -73,5 +89,5 @@ export function useRooms({ currentBot, store, reportFailure }) {
     }
   }
 
-  return { selectRoom, createRoom, renameRoom, undoNote, keepOutOfNotebook, setSharing };
+  return { selectRoom, createRoom, renameRoom, archiveRoom, resumeRoom, undoNote, keepOutOfNotebook, setSharing };
 }
