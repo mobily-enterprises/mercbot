@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import MercbotConfirmDialog from "./MercbotConfirmDialog.vue";
+import MercbotHomeName from "./MercbotHomeName.vue";
 import MercbotSettingsSelect from "./MercbotSettingsSelect.vue";
 import MercbotSwitch from "./MercbotSwitch.vue";
 import { accountApi } from "./accountApi.js";
@@ -13,8 +14,8 @@ import { usePaths } from "@jskit-ai/shell-web/client/navigation/usePaths";
 import extensions from "./extensions.js";
 
 // Settings → General: the account, appearance, the microphone, the
-// bots' time zone with asking-first rules, and for the home's owners and admins how its new bots are shared (D-100).
-// Everything applies as soon as it's changed.
+// bots' time zone with asking-first rules, and the home: its name, which its owners and admins change (D-103), and for
+// them how its new bots are shared (D-100). Everything applies as soon as it's changed; a name, when it's saved.
 const paths = usePaths();
 const props = defineProps({
   theme: { type: String, default: "system" },
@@ -178,10 +179,11 @@ onMounted(async () => {
       </div>
     </div>
 
-    <template v-if="manages">
-      <p class="mb-set-group">{{ home?.name || "This home" }}</p>
+    <template v-if="home">
+      <p class="mb-set-group">Home</p>
       <div class="mb-set-card">
-        <div class="mb-set-row">
+        <MercbotHomeName :home="home" :manages="manages" @failure="emit('failure', $event)" @notify="emit('notify', $event)" />
+        <div v-if="manages" class="mb-set-row">
           <span class="mb-set-row__text">
             <span class="mb-set-row__label">New bots in this home</span>
             <span class="mb-set-row__description">Bots you already have keep their mode; change one in its Details → Who sees what.</span>

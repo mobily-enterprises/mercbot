@@ -2645,8 +2645,8 @@ doesn't have.
      this home with you?": **Just me** (Mixed) or **My team** (Shared). The conversation waits for the answer (its step
      is `home-default`) and then carries on, with no AI reply to the answer. Typing instead closes the card and carries
      on, the default still unchosen.
-  3. **Settings → General**, a part named after the home, for its owners and admins: the three modes, with "Bots you
-     already have keep their mode; change one in its Details → Who sees what."
+  3. **Settings → General**, the home's part (**Home**, which D-103 shows everyone for its name), for its owners and
+     admins: the three modes, with "Bots you already have keep their mode; change one in its Details → Who sees what."
 - **Asked again when a second person joins.** While new bots aren't Shared and nobody has answered it, the home's owners
   and admins see, at the top of the bot list, "<Name> joined. New bots here are Mixed: each person's own chat, plus
   the home's notebook. Make new bots Shared, for the whole home?" (for Private, "each person's own chat"), with
@@ -2708,3 +2708,22 @@ costing there, until someone resumes it, as it was. Extends D-99, whose hidden t
   when it's shown, in the same few statements however many there are. `POST …/bots/:botId/rooms/:roomId/archive` and
   `…/resume` (You only by the person's own conversation's id) answer the bot as listed; `GET …/bots/:botId/archived`
   is the list.
+
+## D-103 — A home's owners and admins rename it, in Settings → General (2026-11-20)
+
+The owner's decision: a home kept the name it was made with, its first home "<First name>'s home" included, and the
+help only said how to name a new one. Its owners and admins can now change it.
+- **Where.** Settings → General, the home's part, **Home**, which everyone in the home now sees: **Home name**, which its
+  owners and admins change and **Save** (Escape puts the kept name back), and which members see read-only, with "The
+  home's owners and admins can change it." D-100's New bots in this home stays in the same part, for owners and admins.
+- **How.** JSKIT's own route for a workspace's profile, `PATCH /api/w/:workspaceSlug` with `{ name }`
+  (`workspace.workspaces.update`), through `homesApi.js` `rename`; Mercbot adds no route or check of its own. JSKIT
+  allows it with `workspace.settings.update`, which only owners and admins have (`config/roles.js`): a member is
+  refused 403, and someone outside the home is told it isn't there (404). It trims the name and refuses an empty one
+  or one longer than 160 characters (400), JSKIT's limit for a workspace's name, which the page's field and its check
+  follow (`HOME_NAME_MAX`). The home's address (its slug), bots and people stay as they were.
+- **Shown at once.** The page that renamed it keeps the name the server answered in its list of homes, so the sidebar
+  and the home switcher show it without another read. Everyone else in the home hears of it on their bot events, as of
+  any change JSKIT reports to a home (`home-changed`), and reads their homes again. Signing in again doesn't name a
+  first home again: JSKIT names it only when it makes it. JSKIT gives an invitation's email the home as it is when the
+  invitation is sent, so a copy built on Mercbot that sends invitations names it by its new name from then on.

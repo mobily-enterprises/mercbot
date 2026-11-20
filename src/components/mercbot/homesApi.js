@@ -28,6 +28,23 @@ let loading = null;
 // readable-check: allow module-state - shared resource: the server's news arrives in the shell and refreshes lists in other components
 export const homeChanges = ref(0);
 
+// A route of a home's own, /api/w/<home><path>: the home itself when path is "".
+export const homeRoute = (slug, path) => `/api/w/${encodeURIComponent(slug)}${path}`;
+
+// The longest name a home may have: JSKIT's limit for a workspace's name, past which its server refuses one.
+export const HOME_NAME_MAX = 160;
+
+/**
+ * What stops a name being a home's, as the server would refuse it (D-103): "" when it may be saved. The name is
+ * trimmed first, as the server trims it.
+ * @param {string} name
+ */
+export function homeNameProblem(name) {
+  const wanted = String(name || "").trim();
+  if (!wanted) return "A home needs a name.";
+  return wanted.length > HOME_NAME_MAX ? `A home's name has at most ${HOME_NAME_MAX} characters.` : "";
+}
+
 export function useHomes() {
   async function load({ fresh = false } = {}) {
     if (homes.value && !fresh) return homes.value;
@@ -48,17 +65,35 @@ export function useHomes() {
     return home;
   }
 
+  /**
+   * Renames a home (D-103) on JSKIT's own route for a workspace's profile (workspace.workspaces.update), which only the
+   * home's owners and admins may call and which refuses an empty name or one longer than HOME_NAME_MAX. The list then
+   * holds the name the server kept, so the sidebar and the home switcher show it at once; everyone else in the home
+   * hears of it (home-changed) and reads theirs again.
+   * @param {string} slug
+   * @param {string} name
+   */
+  async function rename(slug, name) {
+    const result = await client.request(homeRoute(slug, ""), {
+      method: "PATCH",
+      headers: JSON_API,
+      body: { data: { type: "workspaces", attributes: { name: String(name || "").trim() } } }
+    });
+    const renamed = toHome(result.data);
+    homes.value = (homes.value || []).map((home) => (home.slug === slug ? { ...home, name: renamed.name } : home));
+    return renamed;
+  }
+
   // The home the page is in, and whether this person may manage its people and settings.
   const current = computed(() => (homes.value || []).find((home) => home.slug === currentHome()) || null);
   const manages = computed(() => ["owner", "admin"].includes(current.value?.role));
 
-  return { homes, current, manages, load, create };
+  return { homes, current, manages, load, create, rename };
 }
 
 // The people in a home (D-36), through JSKIT's workspace routes: everyone in a home can see who's in it. Inviting
 // people and changing who's in a home are for a copy that turns invitations on (config/extensions.js); its screens
 // build on these parts.
-export const homeRoute = (slug, path) => `/api/w/${encodeURIComponent(slug)}${path}`;
 export const attributesOf = (result) => result?.data?.attributes || {};
 /** A JSON:API request of `method` to `url`, with the attributes of a `type` document when it has a body. */
 export const sendJsonApi = (url, method, type, attributes) => client.request(url, {

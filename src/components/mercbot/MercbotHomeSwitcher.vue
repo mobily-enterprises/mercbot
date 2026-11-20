@@ -2,7 +2,7 @@
 import { nextTick, ref } from "vue";
 import { useRouter } from "vue-router";
 import { currentHome } from "./homeApi.js";
-import { roleLabel, useHomes } from "./homesApi.js";
+import { HOME_NAME_MAX, roleLabel, useHomes } from "./homesApi.js";
 import { HOME_FOR, makeHome } from "./homeDefault.js";
 import { usePaths } from "@jskit-ai/shell-web/client/navigation/usePaths";
 import { HOME_TILES, ON_IDENTITY } from "@/theme/palettes.js";
@@ -126,7 +126,7 @@ async function createHome() {
           ref="input"
           v-model="name"
           class="mb-home-menu__input"
-          maxlength="160"
+          :maxlength="HOME_NAME_MAX"
           placeholder="Name your home, e.g. The Smiths"
           aria-label="Name of the new home"
         >

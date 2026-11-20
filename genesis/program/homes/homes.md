@@ -19,11 +19,18 @@ routes (`config/public.js`), and a copy built on Mercbot that serves many people
 - `config/roles.js`
 - `config/server.js`
 - `src/components/mercbot/homesApi.js`
+- `src/components/mercbot/MercbotHomeName.vue`
 
 ## Public contract
 
 - **First home:** a new account gets "<First name>'s home", where they're the
   owner. Anyone can create more homes.
+- **Renaming (D-103):** a home's owners and admins rename it in Settings → General (`MercbotHomeName.vue`), on JSKIT's
+  own `PATCH /api/w/<home>` (`workspace.workspaces.update`, which needs `workspace.settings.update`): a member is
+  refused 403, someone outside the home 404, and an empty name or one over 160 characters 400 (`homesApi.js`
+  `HOME_NAME_MAX`, `homeNameProblem`). `rename` keeps the name the server answered in the list of homes, so the sidebar
+  and the switcher show it at once; JSKIT reports the change, so everyone else in the home gets `home-changed` (Live
+  changes). Signing in again never renames a first home.
 - **People's names:** where the others in a home see someone (who added a home's
   account, who wrote in a shared conversation, a notebook note's author, a
   template's maker), they're named by their display name, else their email's
@@ -43,7 +50,7 @@ routes (`config/public.js`), and a copy built on Mercbot that serves many people
 - **No mail:** Mercbot sends no email of its own (a person's own copy invites and registers nobody) and keeps no
   outbox. A copy built on Mercbot that sends email brings its own
   mail delivery.
-- **Live changes:** when a home's people change, everyone with a
+- **Live changes:** when a home's people or its name change, everyone with a
   membership row in it (including someone just removed) gets a `home-changed`
   notice on their bot events stream, from any server. A page open in that home
   starts again if the person's own role changed or they were removed (then it

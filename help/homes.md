@@ -4,7 +4,7 @@ Everything in Mercbot lives in a home: its bots, their files and computers, its 
 
 ## What a home holds
 
-Mercbot makes your first home, called "*your first name*'s home", with you as its owner, and you can create more. Each home is separate: its bots, files and data aren't visible from your other homes.
+Mercbot makes your first home, called "*your first name*'s home", with you as its owner, and you can rename it or create more. Each home is separate: its bots, files and data aren't visible from your other homes.
 
 | Belongs to the home | Stays personal to you |
 |---|---|
@@ -37,6 +37,16 @@ To create a home:
 
 You're the owner of every home you create. The sidebar, bots, Connect apps and Apps all change to the home you're in. Each home keeps its own pinned bots, sections and pinned apps for you.
 
+## Rename a home
+
+A home's owners and admins can change its name, the first home Mercbot made for you included:
+
+1. Open **Settings** → **General**.
+2. Under **Home**, type the new name in **Home name**.
+3. Select **Save**. **Escape** puts back the name it has.
+
+Everyone in the home sees the new name at once, at the top of the sidebar and in the list of homes. Its bots, people and address stay as they were. A name can't be empty, and has at most 160 characters. Members see the name in **Settings** → **General**, and that owners and admins change it.
+
 ## Bots in a home
 
 Every bot belongs to a home, and everyone in the home can use it. Anyone can add a bot with **New bot**. Deleting a bot removes it, with its conversations, for everyone, so agree on it first.
@@ -61,7 +71,7 @@ Owners and admins choose it:
 
 - when they create a home, under **Who's it for?**: **Just me** makes new bots Mixed, **A team** makes them Shared;
 - in the first bot's first conversation, right after naming it, when Mercbot asks "Will anyone else use this home with you?": **Just me** (Mixed) or **My team** (Shared);
-- any time in **Settings** → **General**, under the home's name: **New bots in this home**.
+- any time in **Settings** → **General**, under **Home**: **New bots in this home**.
 
 When a second person joins a home whose new bots aren't Shared, its owners and admins see a note at the top of the bot list, once: "*Name* joined. New bots here are Mixed…", with **Make them Shared** and **Keep Mixed**. Either answer is kept, and bots you already have keep their mode; change one in its **Details** → **Who sees what**.
 

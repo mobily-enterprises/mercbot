@@ -63,6 +63,7 @@ D-76, docs/architecture.md §3.8).
 - `tests/client/settingsSections.vitest.js`
 - `tests/e2e/settings-sections.spec.ts`
 - `src/components/mercbot/MercbotSettingsGeneral.vue`
+- `src/components/mercbot/MercbotHomeName.vue`
 - `src/components/mercbot/MercbotSettingsPermissions.vue`
 - `src/components/mercbot/MercbotSettingsComputer.vue`
 - `src/components/mercbot/MercbotSettingsVault.vue`
@@ -271,9 +272,12 @@ open General; the palette's section commands and See spending open their section
   has a `confirm`);
   Theme (saved to the account); Accent,
   Language (searchable, own name plus English name), Spell check (the message box)
-  and Microphone (the browser's inputs); for the home's owners and admins, a part named after the home with New
-  bots in this home (Private, Mixed or Shared, D-100: "Bots you already have keep their mode; change one in its
-  Details → Who sees what.", `homeDefault.js` `chooseHere`); Timezone (searchable, with the time now);
+  and Microphone (the browser's inputs); Home, for everyone in it: Home name (`MercbotHomeName.vue`, D-103: its
+  owners and admins rename the home with Save, on JSKIT's `PATCH /api/w/:workspaceSlug` through `homesApi.js`
+  `rename`, and the sidebar and the home switcher show the kept name at once; members see it read-only), and for
+  owners and admins New bots in this home (Private, Mixed or Shared, D-100: "Bots you already have keep their mode;
+  change one in its Details → Who sees what.", `homeDefault.js` `chooseHere`); Timezone (searchable, with the time
+  now);
   and the approval rules. Language, timezone, spell check and microphone are kept on the
   device. Replies send the language and time zone, and bots reply in that language.
 - **Computer:** Update (always up to date) and Reset, which asks first and then calls
