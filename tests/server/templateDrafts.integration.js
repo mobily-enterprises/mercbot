@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { connectTestDatabase } from "../support/testDatabase.mjs";
 import { createBotsService } from "../../packages/bots/src/server/botsService.js";
+import { registerRoutes } from "../../packages/bots/src/server/registerRoutes.js";
+import { requestContextOptions } from "../support/requestContextOptions.mjs";
 import { testBot, testHome } from "./testHome.js";
 import { serviceDoubles } from "../support/botDoubles.mjs";
 import { memberOptions, startBotParts } from "../support/botRecords.mjs";
@@ -86,7 +88,7 @@ async function setup(context, { answers = null } = {}) {
     return template;
   };
   const count = async (table, where) => Number((await knex(table).where(where).count("* as n").first()).n);
-  return { knex, bots, as, pat, homeId, made, someone, bot, homeTemplate, count, writes, tracked };
+  return { knex, parts, bots, as, pat, homeId, made, someone, bot, homeTemplate, count, writes, tracked };
 }
 
 test("a new template is drafted in one call, metered to the person and home like a reply, and nothing is kept", async (context) => {
@@ -357,4 +359,47 @@ test("Settings → Templates costs the same with 3 templates as with 40, and say
   assert.equal(many, few, `with 40 templates: ${many} queries, with 3: ${few}`);
   assert.equal((await bots.homeTemplates(as(pat))).canManage, false, "a member sees the list, without Edit and Delete");
   assert.equal((await bots.homeTemplates(as(pat, { manages: true }))).canManage, true);
+});
+
+test("a paused home's drafting is refused with its message, before the model is asked", async (context) => {
+  const { parts, bots, pat, homeId, writes } = await setup(context);
+  const paused = "This home's work is paused, so I can't start anything new.";
+  const asked = [];
+  const routes = new Map();
+  registerRoutes(
+    { router: { register: (method, path, _options, handler) => routes.set(`${method} ${path}`, handler) } },
+    {
+      bots,
+      approvals: {},
+      notices: {},
+      meter: { pausedMessage: async (home) => (asked.push(String(home)), paused), track: (_who, work) => work() },
+      records: parts.records,
+      streams: new Set()
+    }
+  );
+  const answer = {};
+  const reply = {
+    code(status) {
+      answer.status = status;
+      return reply;
+    },
+    send(sent) {
+      answer.body = sent;
+      return reply;
+    }
+  };
+  const request = {
+    params: { workspaceSlug: `home-${homeId}` },
+    body: { purpose: "new", describe: "keep our garden watered" },
+    user: { id: pat },
+    workspace: { id: homeId },
+    membership: { roleSid: "owner" },
+    permissions: ["workspace.settings.update"]
+  };
+  request.callOptions = async () => requestContextOptions(request);
+  await routes.get("POST /api/w/:workspaceSlug/bots/templates/draft")(request, reply);
+  assert.equal(answer.status, 402);
+  assert.deepEqual([answer.body.code, answer.body.error], ["work_paused", paused]);
+  assert.deepEqual(asked, [String(homeId)], "the home's pause is read");
+  assert.equal(writes.length, 0, "the model isn't asked");
 });
