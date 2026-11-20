@@ -14,7 +14,7 @@ import { createWorkPause } from "./workPause.js";
  * @param {import("@local/apps/server/types").Apps} dependencies.apps
  */
 export function createBotSettings({ records, conversations, apps }) {
-  const { conversations: store, messages } = records;
+  const { conversations: store, messages, archives } = records;
   const SHARING = new Set(["private", "shared", "mixed"]);
   const pauseWorkIn = createWorkPause({ records, apps, conversations });
 
@@ -83,7 +83,7 @@ export function createBotSettings({ records, conversations, apps }) {
       if (row.sharing === "shared" && shared.sharing && shared.sharing !== "shared") {
         await pauseHiddenWork(row, txOptions);
         // Each person's archived You only is their chat again, their only conversation with it (D-101).
-        await store.unarchiveSeats(row.id, txOptions);
+        await archives.unarchiveSeats(row.id, txOptions);
       }
       // Read again as this person sees it now, which gives a newly shared bot its first room.
       const bot = await store.botOf(row.id, txOptions);

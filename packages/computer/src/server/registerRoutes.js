@@ -30,7 +30,7 @@ export function registerRoutes(http, { computer, files, directory, streams, mete
    * The computer a request is about (D-36, D-99), as its conversation: the person's own with the bot in the
    * address, or for a shared bot the tab asked for (?room=: one of its shared tabs, or "You only", the person's own
    * conversation), else the tab the person has open, else the first. A tab asked for that isn't one of these, such
-   * as another person's conversation or a tab hidden while the bot isn't Shared, is refused.
+   * as another person's conversation, a tab hidden while the bot isn't Shared or an archived one (D-101), is refused.
    */
   async function conversationOf(request, reply) {
     const options = await request.callOptions();

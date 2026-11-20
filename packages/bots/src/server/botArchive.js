@@ -18,7 +18,7 @@ const isId = (value) => /^[1-9]\d{0,18}$/u.test(String(value ?? ""));
  *   the list shows it (botList.js), which every change answers, so the page updates
  */
 export function createBotArchive({ records, conversations, apps, listedBot }) {
-  const { conversations: store } = records;
+  const { conversations: store, archives, directory } = records;
   const pauseWorkIn = createWorkPause({ records, apps, conversations });
   const notThere = () => new BotsError(404, "That conversation isn't there.", { code: "bots_conversation_not_found" });
 
@@ -47,7 +47,7 @@ export function createBotArchive({ records, conversations, apps, listedBot }) {
         code: "bots_archive_app_conversation"
       });
     }
-    if (!resuming && String((await store.roomOf(bot.id, null, options))?.id) === String(conversation.id)) {
+    if (!resuming && String((await directory.roomOf(bot.id, null, options))?.id) === String(conversation.id)) {
       throw new BotsError(409, `“${conversation.title}” is where everyone lands, so it can't be archived.`, { code: "bots_archive_first" });
     }
     if (!mayChangeBot(conversation.created_by, person, options)) {
@@ -74,7 +74,7 @@ export function createBotArchive({ records, conversations, apps, listedBot }) {
     const found = await store.withTransaction(options, async (txOptions) => {
       const archived = await target(botId, roomId, txOptions);
       if (archived.conversation.archived_at) return archived;
-      await store.setArchived(archived.conversation.id, true, txOptions);
+      await archives.markArchived(archived.conversation.id, true, txOptions);
       await pauseWorkIn(archived.bot, [String(archived.conversation.id)], {
         text: "Paused while archived",
         detail: (paused) => `This conversation was archived, so its ${paused} paused. They stay paused when it's resumed: resume them here.`
@@ -94,7 +94,7 @@ export function createBotArchive({ records, conversations, apps, listedBot }) {
   async function resumeRoom(botId, roomId, options) {
     const found = await store.withTransaction(options, async (txOptions) => {
       const resumed = await target(botId, roomId, txOptions, { resuming: true });
-      if (resumed.conversation.archived_at) await store.setArchived(resumed.conversation.id, false, txOptions);
+      if (resumed.conversation.archived_at) await archives.markArchived(resumed.conversation.id, false, txOptions);
       const seat = await conversations.conversationOf(resumed.bot, txOptions);
       await store.updateConversation(seat.id, { room_id: resumed.conversation.id }, txOptions);
       return resumed;
@@ -113,7 +113,7 @@ export function createBotArchive({ records, conversations, apps, listedBot }) {
     if (!bot) throw new BotsError(404, "Bot not found.", { code: "bots_bot_not_found" });
     if (bot.kind === "group" || bot.sharing !== "shared") return { conversations: [] };
     const person = conversations.personOf(options);
-    const rows = (await store.archivedOf(bot.id, options)).filter((row) => !row.user_id || String(row.user_id) === person);
+    const rows = (await archives.archivedOf(bot.id, options)).filter((row) => !row.user_id || String(row.user_id) === person);
     const others = [...new Set(rows.map((row) => row.archived_by).filter((id) => id != null && String(id) !== person).map(String))];
     const names = others.length ? await store.namesOf(others, options) : new Map();
     const archivedBy = (id) => (id == null ? null : String(id) === person ? "you" : names.get(String(id)) || "Someone");
@@ -129,5 +129,9 @@ export function createBotArchive({ records, conversations, apps, listedBot }) {
     };
   }
 
-  return Object.freeze({ archiveRoom, resumeRoom, archivedConversations });
+  return Object.freeze({
+    archiveRoom,
+    resumeRoom,
+    archivedConversations
+  });
 }

@@ -1,6 +1,7 @@
 import { defineFeature } from "@jskit-ai/kernel/server/features";
 import { createRuns, createGoals, createSummaries } from "@jskit-ai/agent-runtime/server";
 import { AGENT_TABLE_RESOURCES } from "./agentTables.js";
+import { createArchiveRepository } from "./archiveRepository.js";
 import { createConversationRepository } from "./conversationRepository.js";
 import { createBotDirectory } from "./directory.js";
 import { FOLLOW_UP_SEARCH, createFollowUpRepository } from "./followUpRepository.js";
@@ -100,6 +101,8 @@ const BotRecordsFeature = defineFeature({
       // Bots, seats, rooms, read points, groups, sections, the notebook and memories; and messages.
       conversations: createConversationRepository({ resources, systemContext, profiles, memberships, workspaces, homeTemplates }),
       messages: createMessageRepository({ resources, systemContext }),
+      // Conversations archived and resumed (D-101).
+      archives: createArchiveRepository({ resources, systemContext }),
       // The bots a person made and their own conversations, with their homes, in every home a system context reaches.
       makers: createMakerRepository(resources),
       // Requests between bots, routines and their cards; a person's approval rules and auto-review.

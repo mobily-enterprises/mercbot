@@ -186,7 +186,13 @@ watch(() => props.activeId, async () => {
       @mousedown.prevent
       @click="startAdding"
     />
-    <v-menu v-if="archivedLabel(archived)" v-model="archivedOpen" location="bottom end" :close-on-content-click="false" content-class="mb-popover">
+    <v-menu
+      v-if="archivedLabel(archived)"
+      v-model="archivedOpen"
+      location="bottom end"
+      :close-on-content-click="false"
+      content-class="mb-popover"
+    >
       <template #activator="{ props: archivedProps }">
         <button v-bind="archivedProps" type="button" class="mb-tabs__archived">
           <v-icon icon="$archive" size="14" />

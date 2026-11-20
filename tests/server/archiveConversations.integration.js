@@ -48,6 +48,7 @@ async function setup(context, { pausedWatches = [] } = {}) {
   await knex("workspace_settings").insert({ workspace_id: homeId });
   context.after(async () => {
     await knex("bots").whereIn("workspace_id", [homeId, otherHome]).del();
+    await knex("apps").where({ workspace_id: homeId }).del();
     await knex("workspace_settings").where({ workspace_id: homeId }).del();
     await knex("workspace_memberships").where({ workspace_id: homeId }).del();
     await knex("workspaces").whereIn("id", [homeId, otherHome]).del();
@@ -173,8 +174,10 @@ test("each refusal: someone else's tab or You only, General, an app's tab, anoth
   await bots.archiveRoom(bot.id, patSeat, as(pat));
   await assert.rejects(bots.resumeRoom(bot.id, patSeat, as(kim)), refused(404, "bots_conversation_not_found"), "nor resume it");
   await assert.rejects(bots.archiveRoom(bot.id, general, as(pat)), refused(409, "bots_archive_first"), "General, even for an owner");
+  const appId = `a_archive${randomBytes(4).toString("hex")}`;
+  await knex("apps").insert({ id: appId, workspace_id: homeId, slug: `stock-${appId}`, name: "Stock", icon: "apps", color: "#1E5BD8" });
   const [appRoom] = await knex("bot_conversations")
-    .insert({ workspace_id: homeId, bot_id: bot.id, title: "Stock app", app_id: `app${randomBytes(3).toString("hex")}`, created_by: pat })
+    .insert({ workspace_id: homeId, bot_id: bot.id, title: "Stock app", app_id: appId, created_by: pat })
     .returning("id");
   await assert.rejects(bots.archiveRoom(bot.id, String(appRoom.id), as(pat)), refused(409, "bots_archive_app_conversation"), "an app's tab");
 
@@ -197,7 +200,7 @@ test("each refusal: someone else's tab or You only, General, an app's tab, anoth
 });
 
 test("nobody writes, replies or finds anything in an archived conversation, and it doesn't make the bot new", async (context) => {
-  const { bots, as, pat, kim, bot, general, seatOf, listed, say } = await setup(context);
+  const { parts, bots, as, pat, kim, bot, general, seatOf, listed, say } = await setup(context);
   const { room: plans } = await bots.createRoom(bot.id, { title: "Plans", from: general }, as(kim));
   const tag = `budget${randomBytes(3).toString("hex")}`;
   await say(`The ${tag} is 500`, plans.id, kim);
@@ -220,9 +223,13 @@ test("nobody writes, replies or finds anything in an archived conversation, and 
   }
   assert.equal((await bots.search(tag, as(pat))).messages.length, 0, "search doesn't find an archived tab");
   assert.equal((await bots.search(mine, as(pat))).messages.length, 0, "nor an archived You only");
+  // The files and computer routes find a tab through the directory, which never answers an archived one.
+  assert.equal(await parts.records.directory.roomOf(bot.id, plans.id, as(kim)), null, "no files or computer named by it");
+  assert.equal(String((await parts.records.directory.roomOf(bot.id, null, as(kim))).id), general, "the first is General");
 
   await bots.resumeRoom(bot.id, plans.id, as(pat));
   assert.equal((await bots.search(tag, as(pat))).messages.length, 1, "resumed, it's found again");
+  assert.ok(await parts.records.directory.roomOf(bot.id, plans.id, as(kim)), "and its files and computer are there again");
   await bots.sendMessage(bot.id, { text: "Back again", room: plans.id }, as(pat));
 });
 

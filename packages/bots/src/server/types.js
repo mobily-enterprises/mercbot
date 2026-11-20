@@ -49,11 +49,13 @@
  * The bots' tables (`mercbot.bots.records`, records/BotRecordsFeature.js): the directory other features read, the
  * conversations' and messages' repositories, the bots a person made across homes, the bots' work (requests, routines,
  * cards) and policies, the connect follow-ups, what a turn reads beside its conversation, a bot made from a template
- * opening its chat, the home's own templates (D-98), the home's settings for its bots (D-100), and agent-runtime's stores.
+ * opening its chat, the home's own templates (D-98), the home's settings for its bots (D-100), conversations archived and
+ * resumed (D-101), and agent-runtime's stores.
  * @typedef {{
  *   directory: BotDirectory,
  *   conversations: ReturnType<typeof import("./records/conversationRepository.js").createConversationRepository>,
  *   messages: ReturnType<typeof import("./records/messageRepository.js").createMessageRepository>,
+ *   archives: ReturnType<typeof import("./records/archiveRepository.js").createArchiveRepository>,
  *   makers: ReturnType<typeof import("./records/makerRepository.js").createMakerRepository>,
  *   work: WorkRepository,
  *   followUps: FollowUpRepository,

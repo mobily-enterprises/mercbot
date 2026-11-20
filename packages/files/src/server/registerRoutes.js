@@ -47,7 +47,8 @@ export function registerRoutes(http, { files, directory, uploads }) {
    * same place its turns there use, and only for the group's people (D-46). Otherwise they follow the
    * conversation (D-99): a Shared bot's tab (?room=, else the one the person has open) is its everyone
    * folder, the person's own conversation ("You only" in a Shared bot) their own. A tab asked for that isn't
-   * one of these, such as another person's conversation or a tab hidden while the bot isn't Shared, is refused.
+   * one of these, such as another person's conversation, a tab hidden while the bot isn't Shared or an archived one
+   * (D-101), is refused.
    */
   async function placeOf(request) {
     const options = await request.callOptions();

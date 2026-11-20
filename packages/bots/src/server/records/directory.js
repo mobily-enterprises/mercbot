@@ -84,11 +84,12 @@ export function createBotDirectory(resources, systemContext) {
   const seatOf = (botId, options) => first(conversations, { botId: String(botId), userId: personOf(options) }, options);
 
   /**
-   * One room of the bot (no person, no group): the one asked for, or with no id its first, else
-   * null (computer registerRoutes.js: a shared bot's computer).
+   * One room of the bot (no person, no group), never an archived one (D-101): the one asked for, or with no id its
+   * first, else null (computer registerRoutes.js: a shared bot's computer).
    */
   async function roomOf(botId, roomId, options) {
-    const filters = { botId: String(botId), userId: null, groupId: null, ...(roomId == null ? {} : { id: String(roomId) }) };
+    const asked = roomId == null ? {} : { id: String(roomId) };
+    const filters = { botId: String(botId), userId: null, groupId: null, archived: false, ...asked };
     const { records: [room] } = await conversations.query({ filters, sort: ["id"], fields: ["botId"], page: { size: 1 } }, passedOn(options));
     return room ?? null;
   }

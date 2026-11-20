@@ -25,6 +25,10 @@ onboarding and the bot's typed replies.
 - `packages/bots/src/server/botSettings.js`
 - `packages/bots/src/server/botArchive.js`
 - `packages/bots/src/server/workPause.js`
+- `packages/bots/src/server/records/archiveRepository.js`
+- `tests/server/archiveConversations.integration.js`
+- `tests/client/archiveConversations.vitest.js`
+- `tests/e2e/archive-conversations.spec.ts`
 - `packages/bots/src/server/botChat.js`
 - `packages/bots/src/server/botTeaching.js`
 - `packages/bots/src/server/botGroups.js`
@@ -238,7 +242,9 @@ Sharing (D-36, D-99, D-101):
   "Paused while archived" line (`workPause.js`, the pause leaving shared uses too); resuming clears them and opens it
   for the person (their `room_id`), the work left paused. Each answers `{ bot }` as listed and tells everyone in the
   home `changed` (You only: the person). `isHiddenRoom` answers true for an archived room and for an archived own
-  conversation while the bot is shared, so `rowOf`, `backgroundRow` and search leave it out as they do a hidden room,
+  conversation while the bot is shared, so `rowOf`, `backgroundRow` and search leave it out as they do a hidden room
+  (`archiveRepository.js` writes and reads the columns), the directory's `roomOf` never answers an archived room, so
+  the files and computer routes refuse `?room=` naming one and a person who had it open gets General's computer,
   and a waiting reply (`answerWaiting`) isn't run there. `seenBy` never opens one: an archived room or You only gives
   way to General (an explicit `own` keeps the person's own conversation, so a request from a private chat never lands
   in a room), and `writing` (`sendMessage`, `replyTo`) in one the `room` names is 409 `bots_conversation_archived`
