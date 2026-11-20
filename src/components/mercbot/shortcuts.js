@@ -27,7 +27,7 @@ export const SHORTCUT_GROUPS = [
     title: "Navigation",
     items: [
       { label: "Previous or next bot", keys: [["Alt", "↑"], ["Alt", "↓"]] },
-      { label: "Up", keys: [["Ctrl", "["]], note: "From Apps, an app, a table or Files, as the Up arrow" },
+      { label: "Up", keys: [["Ctrl", "["]], note: "From Apps, a table or Files, as the Up arrow; in an app, closes it, as its X" },
       { label: "Switch bots", keys: [["Ctrl", "Alt", "Tab"]], note: "Keep Ctrl+Alt held, press Tab to move, release to open" }
     ]
   },

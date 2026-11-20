@@ -936,7 +936,8 @@ earlier hand-matched colours and sizes where they differ.
   shows the shell's one Up arrow in its top bar, which goes back the way the person came or else to that parent. It
   replaces "← Chats", "← Apps", "← Data" and "← All templates". Steps inside a window name where they go instead of a
   back arrow: **Connect apps**, **Your apps and skills**, **All settings** (phones), **Overview**, and **Previous** in
-  the first-run slides. Links are built by JSKIT's paths, never by hand.
+  the first-run slides. Links are built by JSKIT's paths, never by hand. *D-106 changes it for an app: the button is
+  the app's close, named for where it goes, which leaves in one click.*
 - **Back and forward are the browser's own.** Mercbot binds no key for them; the shortcuts sheet lists the
   browser's Alt+← and Alt+→, as it lists the browser's zoom and full screen. Ctrl+[ is now the Up arrow's key: on the
   pages that show it, it does what the arrow does, through JSKIT's navigation rather than the history. Ctrl+] is free.
@@ -2828,3 +2829,66 @@ one situation; since each home has its own database, Apps and files, a team main
 - **Who.** Whoever may add a bot: anyone in the home. JSKIT refuses someone outside it (403 at this JSKIT; 404 from
   workspaces-core 0.2.58). An unknown team is 400 `bots_team_unknown`, an empty choice 400 `bots_team_empty`, a
   template the team hasn't got 400 `bots_team_template_unknown`.
+
+## D-106 — An app closes in one click, back to where it was opened from (2026-11-20)
+
+The owner's report: "Once you get into an app, the only way out is 'back', but I had to press it 17 times last time to
+get actually out of the app!" And, on the fix: "The app itself adds them via navigation, that's not the problem! The
+problem is when you want to get out of the app and back to mercbot.. and can't unless you go back as many times as you
+clicked!!!!"
+- **The cause.** An app's bar showed only the shell's Up arrow (D-64), labelled "Back". An app's screens are two route
+  records (`apps/[slug]/index` and `apps/[slug]/[...path]`) with no page above them, so JSKIT's navigation trail took
+  each screen opened in the app as an inner page of its own, and the arrow went back one screen per press. Each press
+  also added a history entry, as JSKIT's Up does. Reproduced on e1971909: after 16 places in the Contacts app (records
+  and its two tabs), opened from a bot's chat, the arrow took 17 presses and the history grew from 19 entries to 36;
+  one Back after that went straight back into the app; Back alone took 17 too.
+- **What stays.** The app's own navigation is unchanged: each place opened in it (a screen, a record, a tab of its
+  navigation) adds a history entry and a step of the trail, as before, and Back and Forward move through them.
+- **The close.** The shell's button first in the app's bar (JSKIT's `ShellUpButton`, in Mercbot's own bar, outside the
+  app's area, so the app's CSS can't reach it) is the app's close: an X whose tooltip and accessible name say where it
+  goes: "Back to <bot>" when the app was opened from a bot's chat ("Back to chat" until the bot's name is read), "Back
+  to Apps", "Back to Files", else "Back to Mercbot". The app registers it as the page's close with JSKIT's
+  `useShellPageClose`, as a form registers its Cancel (`useAppExit.js`). Ctrl+[ runs it too: the home's key handler
+  runs a page's close where there is one, as the shell's button does.
+- **Where it lands, in one click from any place in the app.** The nearest step of JSKIT's trail outside the app
+  (`appExit.js` `openerOf`): the bot's chat with its query (its tab included), Apps with its tab, or Files. Without one
+  (a link opened in a new tab, a pasted address) it's the home's chat. It leaves through JSKIT's `finish()`, which
+  replaces the entry the click was on and starts the trail again there. The trail rides in each history entry's
+  state, so a reload, Back or Forward inside the app keeps the way out.
+- **Not met yet.** Back from where the close landed goes to the app's place before the one closed, since the app's
+  entries are still in the history; and the destination's name shows on pointing (the tooltip) and to screen readers,
+  not as text in the bar. JSKIT's Material 3 navigation rules forbid both in app code (`nav/history`: `router.go()`,
+  `history.*`; `nav/back-control`: a "Back to X" button; `nav/allow`: nothing excuses a navigation rule), and `jskit
+  check` enforces them: a first build with a "Back to <name>" button and `router.go(-n)` past the app's entries failed
+  it (two `nav/history`, two `nav/missing-shell-layout` findings). Decided for the 20 November release: this close
+  now, the rest in JSKIT's next release (Later).
+- **Not an embedded frame.** An app is drawn by Mercbot's own page, never in a frame, so nothing an app navigates can
+  add entries Mercbot doesn't know of.
+- **Tests.** `tests/e2e/app-exit.spec.ts`: from Vera's chat, 16 places with a reload among them, then one click on the
+  close (named "Back to Vera") lands on Vera's chat with its query; a deep link to a record closes to the home's chat;
+  from Apps the close says "Back to Apps" and Ctrl+[ leaves; screenshots with the name showing, light, dark and at a
+  phone's width. `tests/client/appExit.vitest.js` covers the opener and the words.
+
+### Later: JSKIT's leave(), in its next release
+
+The exact JSKIT change, in `@jskit-ai/shell-web` (`src/client/navigation/shellNavigationRuntime.js`,
+`useShellNavigation.js`, `composables/useShellPageClose.js`, `components/ShellUpButton.vue`) and the Material 3 check:
+1. **Each trail step records its entry's history position.** `pushedTrail` adds `position: current.position` to the
+   step it pushes for `from` (the router's `history.state.position` of that entry), and `normalizeTrail` keeps a
+   finite integer `position`.
+2. **`leave(step)`.** A new runtime method, also returned by `useShellNavigation()`: it leaves a page that holds
+   places of its own (an app inside the app) for `step`, a step of the trail it was opened from. When `step.position`
+   is before the current entry's position, the shell goes back through the history to it (the router's
+   `go(step.position - current.position)`, called by JSKIT, never by the app), past every entry the page added, and the
+   entry it lands on keeps its own trail; should that entry not be `step.path` (it was replaced since), it replaces
+   it with `step.path`. Otherwise it does what `finish(step.path)` does. So Back from where it lands never reopens the
+   page.
+3. **A close that shows its name.** `useShellPageClose({ label, close, showLabel: true })`: `ShellUpButton` then
+   draws the close as its X followed by the label as text (`$close`, the label, one button), for a page whose close
+   goes to a named place; without `showLabel` it stays the icon alone.
+4. **The check and guide.** The Material 3 guide's navigation rules name the case (a page with its own navigation
+   inside the app closes with `leave()` and may show its close's name); `nav/history` stays as it is, since the
+   history call is JSKIT's.
+
+Mercbot then passes the opener's trail step to `leave()` in `useAppExit.js` instead of `finish(opener)`, sets
+`showLabel`, and the browser test adds that one Back after the close stays out of the app.

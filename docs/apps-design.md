@@ -47,7 +47,8 @@ deleted, only marked obsolete.
   - screens that take values (for example a contact's id), and app-wide values such as the
     signed-in person
 
-  Mercbot itself shows only the shell's Up arrow, back to Apps (D-64). A public app shows only its own frame, at
+  Mercbot itself shows only the app's close, the shell's button made an X named for where it goes, back to the place
+  the app was opened from in one click (D-106). A public app shows only its own frame, at
   an address like `https://example.com/a/<home>/<app>`.
 - **App details panel** has these tabs:
   - **Overview:** purpose, Internal or Public, the public address and QR code, the Builder bot

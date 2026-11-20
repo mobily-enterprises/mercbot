@@ -201,7 +201,7 @@ Press **Ctrl+/** to see this list in Mercbot. On a Mac, Cmd works in place of Ct
 | Find in chat | Ctrl+F |
 | Add selection to message | Ctrl+L |
 | Previous or next bot | Alt+↑ or Alt+↓ |
-| Up from Apps, an app, a table or Files | Ctrl+[ (the Up arrow's key) |
+| Up from Apps, a table or Files, or close an app | Ctrl+[ (the Up arrow's key, and an app's **X**) |
 | Switch bots | Ctrl+Alt+Tab (keep Ctrl+Alt held, press Tab to move, release to open) |
 | Details panel | Ctrl+Alt+B |
 | Skills | Ctrl+Alt+W |

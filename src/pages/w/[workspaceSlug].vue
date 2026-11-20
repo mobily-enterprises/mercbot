@@ -13,7 +13,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { RouterView, useRoute } from "vue-router";
 import { useShellAppBar } from "@jskit-ai/shell-web/client/composables/useShellAppBar";
 import { usePaths } from "@jskit-ai/shell-web/client/navigation/usePaths";
-import { useShellNavigation } from "@jskit-ai/shell-web/client/navigation/useShellNavigation";
+import { useShellNavigation, useShellNavigationRuntime } from "@jskit-ai/shell-web/client/navigation/useShellNavigation";
 import { isUpKey } from "@/components/mercbot/shortcuts.js";
 import { setCurrentHome } from "@/components/mercbot/homeApi.js";
 import { useHomes } from "@/components/mercbot/homesApi.js";
@@ -21,15 +21,17 @@ import { useHomes } from "@/components/mercbot/homesApi.js";
 // A home (D-36): everything inside talks to this home's API. Changing home remounts the whole
 // chat, so every screen reloads with the new home's bots and nothing from the old one lingers.
 // A home the person isn't in shows a short card instead of a broken chat.
-// Its pages draw their own top bars, with the shell's Up arrow on inner pages (Apps, an app, a table,
-// Files), so the home enters JSKIT's navigation trail here, once. Ctrl+[ does what that arrow does (D-64).
+// Its pages draw their own top bars, with the shell's Up arrow on inner pages (Apps, an app, a table, Files), so the
+// home enters JSKIT's navigation trail here, once. Ctrl+[ does what that arrow does (D-64), and on a page that makes
+// it its close, as an app does (D-106), what the close does.
 useShellAppBar();
 const { canGoUp, up } = useShellNavigation();
+const { pageClose } = useShellNavigationRuntime();
 
 function onUpKey(event) {
   if (!isUpKey(event) || !canGoUp.value || document.querySelector(".v-overlay--active")) return;
   event.preventDefault();
-  void up();
+  void (pageClose.value ? pageClose.value.close() : up());
 }
 
 onMounted(() => window.addEventListener("keydown", onUpKey));

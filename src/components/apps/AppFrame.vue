@@ -15,6 +15,7 @@ import { askInChat } from "@/components/apps/askInChat.js";
 import { useLiveData } from "@/components/apps/useLiveData.js";
 import ViewActions from "@/components/apps/ViewActions.vue";
 import { botsApi } from "@/components/mercbot/botsApi.js";
+import { useAppExit } from "@/components/apps/useAppExit.js";
 import { useAppStyle } from "@/components/apps/useAppStyle.js";
 import { closestElement } from "@/browser.js";
 import { APP_AREA_KEY, APP_SCREEN_KEY } from "@/components/apps/screenKeys.js";
@@ -23,7 +24,9 @@ import { useSnackbar } from "@/components/apps/useSnackbar.js";
 // An app in its own frame (D-35): /w/<home>/apps/<app>/<screen>/<record id>. Its navigation is
 // the app's own (rail, tabs, or a bottom bar on phones). ?version=draft previews the draft on its
 // practice data (D-71): a copy of the live records where its buttons save and change things as the
-// live app would, with Reset to start again from the live records and Publish for the person to decide.
+// live app would, with Reset to start again from the live records and Publish for the person to decide. The shell's
+// button first in its bar is the app's close, named for where it goes: one step out, back to where the person opened
+// it from, however many of its places they opened (D-106).
 const route = useRoute();
 const router = useRouter();
 const { smAndDown } = useDisplay();
@@ -37,6 +40,7 @@ const functions = shallowRef(null);
 const problem = ref("");
 const runtime = shallowRef(null);
 const { snackbar, notify } = useSnackbar();
+useAppExit(slug);
 const publishing = ref(false);
 const resetting = ref(false);
 const details = ref(false);

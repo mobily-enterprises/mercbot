@@ -56,8 +56,10 @@ it and signs its one person in (D-81). A copy built on Mercbot that has people s
 The shell itself is private. It shows one
 home at a time at `/w/<home>`; `/` opens the home used last (else the first),
 and a home the person doesn't belong to shows a not-yours card. The home layout joins JSKIT's navigation
-trail (D-64): its inner pages (Apps, an app, a table, Files) declare their parent in route meta and
-show shell-web's Up arrow first in their own top bar, and the chat, the home's top-level page, has none.
+trail (D-64): its inner pages (Apps, an app, a table, Files) declare their parent in route meta and show
+shell-web's Up arrow first in their own top bar, which an app makes its close (D-106,
+`genesis/program/apps/screens.md`), and the chat, the home's top-level page, has none. Ctrl+[ does what the arrow does,
+or a page's close (`useShellPageClose`) where it has one, as an app's.
 In-app links are resolved by `usePaths().page()`. The switcher at
 the top of the sidebar lists the person's homes with their role, and Create a home opens New home
 (`MercbotNewHomeDialog.vue`): what the home is for, as Mercbot's teams or Something else (D-105, Bot templates), its
