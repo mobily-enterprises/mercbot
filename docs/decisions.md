@@ -2362,3 +2362,137 @@ review's 3.2.2).
 - **Not cookies:** a pasted address (`connections/finish`, for a copy the provider can't send the browser back to) is
   tied to the signed-in person who owns the account, as before.
 - A sign-in started before this keeps no cookie's hash and can't be finished; it is started again.
+
+## D-98 — Every bot is a template plus its own additions; a template's tag replaces the label (2026-11-20, proposed)
+
+*Proposed, for the owner to confirm before the data model is built. It supersedes D-43's copy of a template into a
+bot (the gallery itself, its curation, its preview before adding and its Tested badge stay), D-95's single
+instructions text (its rules for who changes them and for the card stay, for the additions), and the free bot label
+(D-36).* The owner asked on 20 November for one simple model, "CRYSTAL CLEAR and NOT CONFUSING", not slapped on top:
+three words everywhere, **Bot**, **Template** (with a tag) and **Additions**.
+
+### The model
+
+- **Every bot points to exactly one template, plus its own additions.** The template is read-only from the bot's
+  side; the additions come after it, written for this bot only. The prompt says which wins: Mercbot's rules, then
+  the template, then the additions. Bots never change a template.
+- **A pointer, not a copy.** When the Mercbot team improves a library template, every bot using it gets the
+  improvement on its next reply; when a home edits its template, every bot using it changes on its next reply. A bot
+  can't leave its template for a private copy: its additions cover the tweaks.
+- **Two sources of templates, and no other:** **Mercbot's library**, today's gallery (files in `bot-templates/`, the
+  Mercbot team only, never published to by people), and **your home's templates**, made inside a home and seen only
+  there.
+- **The tag:** every template has one short lowercase word, its tag (`meals`, `capt`, `travel`), unique across
+  Mercbot's library and the home's templates: 2 to 10 letters or digits, starting with a letter. A bot shows its
+  template's tag as a chip wherever its name shows, with `+` when it has additions (`meals+`), and a small Mercbot
+  cloud on library tags only, so a home's tag is the plain one. Hovering the chip shows the template's one-line
+  description and the additions in one line; selecting it opens the bot's Instructions in Details. Until a bot has a
+  template, its chip says **setting up**.
+- **Changing a bot's template** keeps its additions: the confirm shows the new template's instructions and the kept
+  additions, saying they now sit under the new template, editable there. The bot then asks the new template's setup
+  questions in its chat.
+- **Routines stay the bot's own.** A template describes them; the setup interview creates them, paused, and they start
+  only on a yes. A template's change never starts, stops or changes a routine.
+- **Learning is unchanged** (memory, the home notebook, skills, the chat summary), with one addition: when a person
+  corrects a bot the same way a second time, the bot offers to add it to its additions, on the card.
+
+### Data
+
+- `home_templates` (`bot_templates` is Mercbot Online's published templates): `id`, `workspace_id`, `tag`,
+  `description` (one line, up to 120 characters), `instructions` (up to 20,000 characters, as D-95), `skills` (jsonb,
+  the library's shape: its setup interview among them), `greeting`, `created_by` (null once the account is gone),
+  `created_at`, `updated_at`. Unique `(workspace_id, tag)`.
+- `home_template_changes`: `home_template_id`, `changed_at`, `changed_by`, `summary` (one line Mercbot writes, such as
+  "Instructions changed by Ada"), so each bot using it shows a dated "what changed". A library template keeps its own
+  in its file, `changes: [{ date, text }]`, newest first, written by the team.
+- `bots`: `library_template` (a library slug) or `home_template_id` (a foreign key, `ON DELETE RESTRICT`, so a used
+  template can't be deleted even by mistake), at most one of them set (a check constraint), neither only while a
+  "Let the bot ask" bot is setting up; `additions` (text, empty when none, up to 20,000 characters); `template_since`.
+  `instructions`, `skills`, `origin` and `label` go, after the upgrade copies them into its backup.
+- **Library tags** are added to the 49 files, plus `general` (below); `checkTemplate` refuses a missing, malformed or
+  repeated tag. `templateFingerprint` leaves out `tag` and `changes`, so adding them resets no Tested badge (D-79).
+- **No query per bot:** the bot list reads the home's templates once (tag, description), library tags come from the
+  catalogue loaded at start, and only the additions' first line and whether there are any travel with each bot. Its
+  test compares query counts at 3 and 60 bots.
+
+### Who may do what (decided on the server, refused and tested with a caller who may not)
+
+- Library: read by anyone; no route writes it. Making or pointing a bot takes a slug that must be a library file or
+  the id of a template in the caller's own home (another home's: 404); a template body sent by a client is never
+  taken as a library template.
+- Home templates: read by the home's people. **Made** by anyone who can make a bot, while making one (owner to
+  confirm). **Edited and deleted** by owners and admins only (`workspace.settings.update`); delete only when no bot
+  uses it.
+- A bot's template and additions: changed by the person who made the bot and the home's owners and admins, as D-95's
+  instructions were; the bot proposes additions only on the **Go ahead** card (`change_additions`, D-95's
+  `change_instructions` renamed, always asking, from a person's own message only).
+
+### The prompt
+
+`You are <name>…`, then **Your template, `<tag>`**: its instructions, followed within Mercbot's rules below; then
+**Your additions, from the people you work for, for you alone**: followed where they don't conflict with your
+template, which wins; then the template's skills (read with `read_skill`). Template and additions change only when
+someone changes them, so the prompt's start stays cached between edits.
+
+### Screens
+
+1. **Sidebar, chat header, bot pickers, search palette:** the tag chip after the name; the palette finds bots by tag,
+   as it did by label.
+2. **Details → Instructions:** "This bot is a `<tag>`, plus its own additions." **Box 1, the template:** read-only,
+   with a lock, its source ("Mercbot's library · Tested <date>" or "your home's template"), the dated "what changed"
+   line after an update, and **Change template**. **Box 2, Additions · only this bot:** editable by those allowed;
+   empty, "Nothing added. Tweaks here apply only to this bot." The label line under the name goes.
+3. **Change template:** the template picker below, then the confirm described above.
+4. **New bot:** first **What will it do?**, the picker: a **Let the bot ask** card first, then your home's templates,
+   then Mercbot's library with search, chips for areas and Tested badges; a template opens its whole preview (today's
+   gallery and preview, D-43). Then the bot's name, cloud and colour as today, prefilled from a library template's
+   look, and **Create**. This replaces Blank and From a template.
+5. **First messages:** a template's bot greets with that template's greeting and asks its setup questions (as an added
+   template bot does today). A "Let the bot ask" bot asks one open question, "What will I be used for?", in place of
+   today's generated first-task card. If the answer fits one of the home's templates or the library's, the bot shows
+   it in full with **Use it** (and **Not this one**); if not, Mercbot writes a new template in the library's style,
+   to `checkTemplate`'s and the static checks' rules (tag, one-line description, instructions, a setup interview),
+   and shows it in full with **Save to my home's templates**. Either way the person reads the whole of it before the
+   bot follows it; then the bot points to it and asks its setup questions.
+6. **Settings → Templates** (the home's): each template's tag, description and "Used by N bots". **Edit** (owners and
+   admins) warns "Changes apply to N bots from their next reply" and records the change; **Delete** only when unused.
+7. **The public gallery, a template's page and its share page:** show the tag; **Add to Mercbot** opens New bot with
+   that template picked.
+
+### The upgrade (one release, one migration, backed up first, loud on failure)
+
+- Every bot's `id`, home, `label`, `instructions`, `skills` and `origin` are copied to `bots_before_templates` first.
+- A bot added from a library template whose instructions weren't changed points at that template (even if the team
+  has improved it since, which is the point of a pointer), with no additions.
+- A bot whose instructions were changed, one added from a shared link, and one made blank with instructions get a
+  home template made from their text (and skills), one per distinct text in a home, tagged from the bot's name
+  (de-duplicated, editable later), and point at it, with no additions.
+- A bot with no instructions, the main bot among them, points at the library's **`general`** template: an all-round
+  helper with no job beyond Mercbot's rules, the one library template exempt from "one job" (owner to confirm).
+- **Labels:** proposed, they go: the tag replaces them and two chips would confuse. A one-word label is the first
+  choice for the tag of a home template the upgrade makes from that bot; every label stays in the backup.
+- A bot the migration can't place stops it with an error naming the bot and why; nothing is half-moved.
+
+### Today's behaviours
+
+| Today | Then |
+| --- | --- |
+| New bot's Blank (name, cloud, colour) | Kept as New bot's second step; "Let the bot ask" replaces a blank bot |
+| The generated first-task card | One open question, "What will I be used for?" |
+| Add bot from a template: a copy of instructions and skills | A pointer; the template's skills are read from it |
+| The preview before adding, everything opened out (D-43) | Kept, in New bot and on the match and new-template cards |
+| **Came from** (`origin`) | The template box's source line |
+| D-95's Instructions box and `change_instructions` card | The Additions box and `change_additions` card, same rules |
+| "Changed from the template's" (`origin.instructionsChanged`) | Gone: the template can't be changed from the bot |
+| The free label, and finding bots by it | The tag, and finding bots by tag |
+| Tested badge and the end-to-end check (D-79) | Library templates only; home templates say "your home's template" |
+| Paired app as a draft for owners and admins | Kept for library templates |
+| Main bot's first conversation (name, about, Gmail) | Unchanged; it points at `general` |
+| Routines, memory, notebook, skills, chat summary | Unchanged (plus the corrected-twice offer) |
+| Group chats | Not bots: no template, no chip |
+| A copy built on Mercbot's template links (`mercbot.template-links`) | Owner to decide: adding from a link makes a home template in the adder's home, or the links go |
+
+### Built in three stages, each landable with its help and screenshots
+
+(a) the model, pointer, additions, tags and chips, Details → Instructions, Change template and the upgrade;
+(b) New bot, the first messages and the match or new-template cards; (c) Settings → Templates and its changes.
