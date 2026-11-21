@@ -11,7 +11,7 @@ Any bot in your home, not just the Builder, can:
 - **add a record**
 - **change fields** of a record
 - **mark a record obsolete**, which hides it but keeps it, so it can be restored
-- **set up watches** for itself (below)
+- **set up watches** in the chat where you ask (below)
 
 Bots can work with every table in the home, whatever the app and table settings say about people. Only the Builder changes the tables themselves or the apps.
 
@@ -48,7 +48,7 @@ It can also have a condition, so it only acts when it matters, such as "the stag
 
 ### Where watches run
 
-A watch belongs to the bot that made it and to the conversation where you set it up. When it fires, a message appears in that conversation, starting **Watch:** and the watch's name, followed by the bot's work and reply. Watches run in the background, like routine runs: you don't need to have Mercbot open.
+A watch belongs to the bot and the chat where you set it up, and it runs as the person who set it up. When it fires, a line appears in that chat, starting **Watch:** and the watch's name, followed by the bot's work and reply, for everyone who can open the chat. Watches run in the background, like routine runs: you don't need to have Mercbot open.
 
 Some details:
 
@@ -57,15 +57,16 @@ Some details:
 - Changes the watch's own run makes don't set it off again, so a bot can update the record it was told about.
 - If a watch fires more than 30 times in an hour, Mercbot pauses it, and the bot tells you and asks whether to resume it or change it.
 - If a watch's condition stops making sense, for example because a field it checks was removed, it does nothing rather than guessing.
+- If the person who set it up leaves the home, or the bot is archived, the watch pauses, with a line in the chat.
 
 ### See, pause and remove watches
 
-Open the bot's details. Its **Apps** section lists each watch with its name and what it watches, for example "Watches new records in Enquiries". Each watch has:
+Open the bot's card in **Team**. On its **Details** tab, the **Apps** section lists its watches in the chats you can open, each with its name and what it watches, for example "Watches new records in Enquiries". Each watch has:
 
 - a switch to **pause** or **resume** it. A resumed watch starts from that moment; changes made while it was paused don't set it off.
 - **Remove**, which deletes the watch. The records stay; only the watch goes.
 
-You can also ask the bot: "pause my enquiries watch", "what are you watching?"
+You can also ask the bot in the watch's chat: "pause my enquiries watch", "what are you watching here?" In a chat, a bot only sees and changes its watches in that chat.
 
 ### Watches, routines and jobs
 
@@ -83,7 +84,9 @@ The Builder can give an app a button that asks a bot to do something, such as **
 
 1. Any other steps of the button run first, such as saving the form.
 2. If they succeed, the named bot gets a task, with the record attached.
-3. The task appears in your chat with that bot, the person who pressed, headed **Task from** and the app's name, followed by the bot's work. The chat is made if you don't have one yet.
+3. The task appears in your chat with that bot, the one **Message** opens on its card, headed **Task from** and the app's name, followed by the bot's work. The chat is made if you don't have one yet. Like any chat started that way it's Public, so everyone in the home can read it. The bot works as you, the person who pressed.
+
+The app says **Sent to** and the bot's name. If the bot has been archived, the button says so and sends nothing until the bot is resumed.
 
 In a draft preview, the button's other steps work on the draft's practice data, but the task isn't sent: a note says which bot the live app would ask.
 

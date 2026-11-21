@@ -66,7 +66,7 @@ An installed template is an ordinary app. Change it the way you change any app:
 
 - Press **Ask Builder** on any screen, or use **Point and ask** to pick a part, and describe what you want: "add a city to contacts", "show only open deals", "add a button that asks the Sales bot to research this company".
 - Ask for a different look, such as your brand's colours and fonts.
-- Ask for a watch, such as "tell me when a new enquiry arrives".
+- Ask a bot for a watch, such as "tell me when a new enquiry arrives", in the chat where you want to hear about it. See [Bots working with app data](/help/apps-bots).
 
 Each change goes into a draft for you to preview and publish. See [Build an app with the Builder](/help/apps-builder).
 

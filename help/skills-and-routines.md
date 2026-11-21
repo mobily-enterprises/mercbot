@@ -19,7 +19,7 @@ Your own skills sit beside Mercbot's. A bot makes one in two ways:
 - **Saving one.** When a bot notices a job with several steps that will come back, it offers to save it as a skill. You can also ask: "Save what you just did as a skill called Weekly invoices." A bot only saves, changes or deletes a skill when you agree.
 - **Learning by watching.** You do the task once on the bot's computer, and the bot writes it up (see the next section).
 
-Skills never contain passwords or codes. Your skills are yours, in this home. A bot uses only what everyone who can open a chat can also open, so it uses your skills only in a Private chat where you're the only person.
+Skills never contain passwords or codes. Your skills are yours, in this home. A bot in a chat uses only what everyone who can open that chat can also open, so it uses your skills only in a Private chat where you're the only person. In any other chat it works from Mercbot's skills and its template's.
 
 A skill isn't a bot's **Instructions**. A bot's instructions, on its card in **Team**, are its template and its own additions, the rules it follows in every reply, so keep the additions short; a skill is read only when its kind of job comes up, so it can hold long steps and reference material. A template can bring skills of its own, listed under its instructions. You can ask a bot to change its additions too: like a skill, it changes them only when you agree, on a card that shows the change. See [Bots](/help/bots).
 
@@ -27,31 +27,32 @@ A bot never runs a new skill until you ask. After saving one, it offers a test r
 
 ### Pick a skill with /
 
-In a chat, type **/** at the start of the message box. Up to five skills appear, your own first, each with its name and a short description. Keep typing to narrow the list, then use the arrow keys and **Enter** or **Tab** to choose. The skill becomes a coloured token in your message (**Backspace** removes it in one go). Add what you want and send, and the bot uses that skill for the job.
+In a chat with one bot, type **/** at the start of the message box. Up to five skills appear, your own first, then Mercbot's, each with its name and a short description. Keep typing to narrow the list, then use the arrow keys and **Enter** or **Tab** to choose. The skill becomes a token in the bot's colour (**Backspace** removes it in one go). Add what you want and send, and the bot uses that skill for the job. Remember that a bot can use your own skills only in a Private chat where you're the only person.
 
-Typing **@** also offers your own skills.
+In a chat with more than one bot, **/** doesn't open a list. There, **@** names a bot, and you can ask for a skill in your own words, such as "use my Weekly invoices skill".
 
 ## Teach a task by showing it
 
 Some jobs are easier to show than to explain. Do the task once on a bot's computer, and the bot turns the recording into a skill.
 
-1. In a Private chat with just you and the bot, select **+** next to the message box, then **Teach a task**.
-2. The bot's computer opens with you in control. A banner says the recording is only used to learn the steps, then deleted.
-3. Select **Start recording**. It's available once the screen is showing.
+1. In a chat with one bot, select **+** next to the message box, then **Teach** and the bot's name, such as **Teach Chef a task**.
+2. The bot's computer in that chat opens. A banner says the recording is only used to learn the steps, then deleted.
+3. Select **Start recording**. It's available once the screen is showing. You take over the computer, and the chat shows a line saying so.
 4. Do the whole task in the browser, the way you normally would. A red outline and a counting timer show it's recording.
-5. Select the timer to stop and hand the recording to the bot.
+5. Select the timer to stop and hand the recording, and the computer, back to the bot.
 
-The bot posts a short summary of the sites it saw, then writes up the skill. Its message links to the new skill, lists the steps, names the input (the part that changes each time, such as a search term or a date) and offers to try it. Steps that order, pay or send are marked "ask first".
+The bot posts a short summary of the sites it saw, then writes up the skill. Its message links to the new skill, lists the steps, names the input (the part that changes each time, such as a search term or a date) and offers to try it.
 
 A few things to know:
 
+- The computer belongs to the chat, so everyone who can open the chat can watch while you record. Teach a task in a Private chat if the task is only for you.
 - Recording stops by itself after 10 minutes.
 - Passwords and card numbers you type are never recorded.
-- Select **×** on the banner during a recording to throw it away. Nothing is posted.
+- Select **×** on the banner during a recording to throw it away. No skill is made.
 - The recording is deleted once the bot has learned from it.
 - If the recording has no steps, or the bot can't learn from it, it explains why and doesn't make a skill.
 
-The skill it makes is yours, like any skill you save.
+The skill it makes is yours, like any skill you save, so the bot uses it only in a Private chat where you're the only person.
 
 ## Manage your skills
 
@@ -71,7 +72,7 @@ A routine is a job a bot repeats on a schedule. Ask for one in plain words in a 
 
 The bot adds a **Created routine** line with the routine's name, then tells you in plain words when it runs, in which time zone, and when the next run is. At that time it does the job on its own, even when you're away, posts the result in the chat where you set it up and marks the chat unread.
 
-A routine belongs to its chat and runs as the person who asked for it, with their approvals. If that person leaves the home, the routine pauses, with a line in the chat.
+A routine belongs to its chat and runs as the person who asked for it, with their approvals. If that person leaves the home, or can no longer open the chat, the routine pauses, with a line in the chat.
 
 If the instructions say to report only changes, and nothing has changed, the bot posts nothing at all for that run.
 
@@ -83,7 +84,7 @@ A run looks at 10 new messages at most. If more came in, it says so and the next
 
 ### When a run fails
 
-A run that couldn't finish posts a short message saying so, and the routine tries again at its next scheduled time. If a routine fails five runs in a row, it pauses itself: the bot says so in the chat, with a **Paused routine** line, and the routine shows **Paused** in the chat's details. Resume it with its switch, or ask the bot to resume it, once whatever was wrong is fixed. A run that works, or resuming it, starts the count again.
+A run that couldn't finish posts a short message saying so, and the routine tries again at its next scheduled time. If a routine fails five runs in a row, it pauses itself: the bot says so in the chat, with a **Paused routine** line, and the routine shows **Paused** under **Routines** (see [Manage routines](/help/skills-and-routines#manage-routines)). Once whatever was wrong is fixed, the person who set it up can switch it back on, or ask the bot to resume it. A run that works, or resuming it, starts the count again.
 
 If Mercbot restarts while a routine or a watch is running, another of its servers picks the run up where it got to and finishes it, once: you get one result, not two.
 
@@ -101,17 +102,19 @@ To watch a price, stock or a page for changes, ask for a routine that checks it.
 
 ## Manage routines
 
-A chat's routines are listed in its details, each with its bot, its schedule and an on/off switch. You can also find a routine by name in the search palette (**Ctrl+K**), which opens the chat it runs in.
+A chat's routines are listed in **Chat details**, the **ⓘ** button in the chat's header (**Ctrl+Alt+B**), under **Routines**. Each shows its name, its schedule (or **Paused**) and its bot, with a switch, an edit button and a delete button. In your chat with a bot, the one you open with **Message**, the **ⓘ** button opens that bot's card instead, and its **Details** tab lists the bot's routines in that chat.
 
-- **Pause or resume:** use the switch, or right-click the routine and choose **Pause** or **Resume**. A paused routine shows **Paused**. When you resume it, the next run is counted from now; it doesn't catch up on runs it missed while paused.
-- **Edit:** right-click and choose **Edit**. The message box fills with `Edit your routine "<name>": `. Type the change in plain words and send it. The bot confirms the new schedule.
-- **Delete:** right-click and choose **Delete**, then confirm.
+A bot's card in **Team** lists its routines in every chat you can open, each naming its chat. Right-click one there for **Pause**, **Resume**, **Edit** and **Delete**. You can also find a routine by name in the search palette (**Ctrl+K**), which opens its chat and the chat's details.
 
-You can also just say it: "Pause the Monday summary".
+- **Pause or resume:** use the switch. Anyone who can open the chat can pause a routine; only the person who set it up can resume it, because it runs as them. A paused routine shows **Paused**. When it's resumed, the next run is counted from now; it doesn't catch up on runs it missed while paused.
+- **Edit:** the message box of the routine's chat fills with **Edit your routine "<name>":**. Type the change in plain words and send it. The bot confirms the new schedule.
+- **Delete:** confirm **Delete** on the question that follows. The routine stops for good.
+
+You can also just say it in the chat: "Pause the Monday summary".
 
 ### Routines that wait for your yes
 
-A bot can set up a routine paused, so it doesn't run until you're ready. Bots made from templates do this: their setup interview creates the routines they need, paused, and they start only when you say yes. Ask for the same yourself: "Set it up, but don't start it yet." To start a paused routine, tell the bot to start it, or switch it on in the chat's details.
+A bot can set up a routine paused, so it doesn't run until you're ready. Bots made from templates do this: their setup interview creates the routines they need, paused, and they start only when you say yes. Ask for the same yourself: "Set it up, but don't start it yet." To start a paused routine, tell the bot to start it, or switch it on under **Routines**.
 
 ## Watches on app data
 
@@ -122,12 +125,12 @@ A watch tells a bot to act by itself when records in one of your home's tables c
 
 A watch can look for **new records**, **changes**, or both, and can have a condition, such as a total over 500 or a status of Won. Each time it fires, the chat where you set it up shows **Watch:** with its name, followed by the bot's reply. One run covers up to 20 records and counts the rest.
 
-Watches are listed in the chat's details, such as "Watches new records in Orders". Use the switch to pause or resume one, or **Remove** to delete it.
+Watches are listed on the bot's card in **Team**: open its **Details** tab, and the **Apps** section lists each of its watches in the chats you can open, such as "Watches new records in Orders". Use the switch to pause or resume one, or **Remove** to delete it. In a chat, you can also ask the bot "What are you watching here?": it knows its watches in that chat.
 
 - A new or resumed watch only sees changes from that moment on.
 - Changes the watch's own run makes never set it off again.
 - A watch that runs more than 30 times in an hour pauses itself, and its bot tells you.
-- A watch belongs to its chat and runs as the person who set it up. If they leave the home, it pauses.
+- A watch belongs to its chat and runs as the person who set it up. If they leave the home, or the bot is archived, it pauses, with a line in the chat.
 - What's in the records reaches the bot as information, never as instructions. Anything typed by visitors to a public app is marked as untrusted.
 
 For buttons in an app that hand a bot a task, see [Logic: formulas, scripts and automations](/help/apps-logic).
@@ -135,7 +138,7 @@ For buttons in an app that hand a bot a task, see [Logic: formulas, scripts and 
 ## Test before you rely on it
 
 - **Run it once by hand.** Before scheduling a job, ask the bot to do it now in the chat. Fix the instructions until the result is what you want, then ask for the routine.
-- **Set it up paused.** Ask for the routine "but don't start it yet", check its schedule in the chat's details, then switch it on.
+- **Set it up paused.** Ask for the routine "but don't start it yet", check its schedule under **Routines**, then switch it on.
 - **Try a one-off first.** "Do this once in five minutes" shows you exactly what a run will post.
 - **Start watches narrow.** Give a watch a clear condition, add a test record, and check what the bot does.
 
@@ -156,11 +159,11 @@ Routine runs, watch runs and skills are ordinary bot work, counted like any repl
 
 Check these in order:
 
-1. **Is it paused?** In the chat's details, a paused routine shows **Paused** and a watch's switch is off. A routine pauses itself after 5 failed runs in a row, and a watch after too many runs; its bot will have said so. Routines and watches also pause when the bot is archived, or when the person who set them up leaves the home.
+1. **Is it paused?** Under **Routines**, a paused routine shows **Paused**; on the bot's card, a paused watch's switch is off. A routine pauses itself after 5 failed runs in a row, and a watch after too many runs; its bot will have said so. Routines and watches also pause when the bot is archived, or when the person who set them up leaves the home. A routine pauses, too, when the person who set it up can no longer open its chat.
 2. **Was it a one-off?** One-off routines remove themselves after running. Look for **Routine finished and removed** in the chat.
 3. **Was there nothing new?** If the instructions say "only tell me if something changed", a run with no changes posts nothing.
 4. **Check the time zone.** The bot confirmed the zone when it set up the routine. If it's wrong, check **Settings** > **General** > **Timezone** and ask the bot to change the routine.
-5. **Did it fail?** A run that couldn't finish posts a short message saying so, and tries again at the next scheduled time. After 5 failures in a row the routine pauses until you resume it.
+5. **Did it fail?** A run that couldn't finish posts a short message saying so, and tries again at the next scheduled time. After 5 failures in a row the routine pauses until the person who set it up resumes it.
 6. **Is it waiting for you?** A run that needs a sign-in, a payment or your approval stops and tells you, or leaves a card in the chat.
 7. **Was Mercbot unavailable?** Runs missed while Mercbot was down are caught up with a single run once it's back.
 8. **For a watch:** it only sees changes made after it was set up or resumed, and the record must match its condition.
@@ -171,7 +174,7 @@ Check these in order:
 - **Say what done looks like.** "A list of no more than five items, with links" beats "a summary".
 - **Report only what matters.** Add "only tell me if something changed" to checks that usually find nothing.
 - **Keep the stops.** Bots ask before paying, sending, booking or posting. Rather than allowing everything, let the bot draft and you approve.
-- **Use your rules and switches.** Add an **Always ask** rule in **Settings** > **Permissions** for anything you always want to see first. Switch off actions you never want in **Connect apps** > **Tools**.
+- **Use your rules and switches.** Add an **Always ask** rule in **Settings** > **Permissions** for anything you always want to see first. Your home's owners and admins can switch off actions nobody's bots should use, in **Connect apps**, under an app's **Tools**.
 - **Check the first week.** Read the first few runs, and adjust the instructions in plain words.
 
 ## Questions
