@@ -5,6 +5,7 @@ import { createOnboarding } from "./onboarding.js";
 import { createChatTurns } from "./chatTurns.js";
 import { createChatRoutines } from "./chatRoutines.js";
 import { createBotKnowledge } from "./botKnowledge.js";
+import { createBotMemory } from "./botMemory.js";
 import { createBotList } from "./botList.js";
 import { createBotTemplates } from "./botTemplates.js";
 import { createBotSettings } from "./botSettings.js";
@@ -50,6 +51,8 @@ import { createBotTeaching } from "./botTeaching.js";
  *   the model's answer to one call drafting a template
  * @param {(system: string, messages: Array<{ role: string, content: string }>) => Promise<string>} [dependencies.writePlan]
  *   the model's answer to one call suggesting bots (D-109)
+ * @param {(system: string, content: string) => Promise<string>} [dependencies.writeMemory] replaces a digest's model call (D-113)
+ * @param {Partial<typeof import("./botMemory.js").MEMORY_LIMITS>} [dependencies.memoryLimits] limits over the memory's own
  * @param {(input: { previous: string, text: string }) => Promise<string>} [dependencies.summarize] replaces the summary's model call
  * @param {import("./types.js").SummaryLimits} [dependencies.compactionLimits] replaces the summary limits
  * @param {Partial<typeof import("./botRequests.js").REQUEST_LIMITS>} [dependencies.requestLimits] limits over the requests' own
@@ -77,6 +80,8 @@ export function createBotsService({
   writeSkill = (lines) => writeSkillFromDemo(model, lines),
   writeTemplate = writeWith(model),
   writePlan = writeWith(model),
+  writeMemory,
+  memoryLimits,
   summarize,
   compactionLimits,
   requestLimits,
@@ -84,9 +89,29 @@ export function createBotsService({
 }) {
   // One queue of work left running after a request answers (summaries, teaching, indexing): drain waits for all of it.
   const background = createBackgroundWork();
+  // What each bot remembers of the home's public chats, and the home's notes (D-113): in every turn's state note, and
+  // refreshed in the background on every server.
+  const memory = createBotMemory({
+    records,
+    systemContext,
+    workspaces,
+    model,
+    meter,
+    background,
+    write: writeMemory,
+    limits: memoryLimits
+  });
   // Chats and their members (D-112, R2): the chat routes' service, and every chat a turn answers with.
   // Archiving a chat pauses its work with the turns' pauseWork; the turns are made after, as they answer with these chats.
-  const chats = createChatMembers({ records, notices, computer, systemContext, pauseWork: (...args) => turns.pauseWork(...args) });
+  // A deleted public chat's bots forget it (O23).
+  const chats = createChatMembers({
+    records,
+    notices,
+    computer,
+    systemContext,
+    pauseWork: (...args) => turns.pauseWork(...args),
+    forget: (botIds, options) => memory.forget({ botIds }, options)
+  });
   // The welcome chat's steps and a new bot's greeting (B): the turns tell it of messages and answers in such a chat.
   const onboarding = createOnboarding({ records, chats, model, meter, notices, workspaces });
   // What each bot knows (D-107): its Details section, and what its turns keep in mind and search.
@@ -106,6 +131,7 @@ export function createBotsService({
     files,
     apps,
     knowledge,
+    memory,
     chats,
     background,
     onboarding,
@@ -200,6 +226,16 @@ export function createBotsService({
       retry: knowledge.retry,
       runDue: knowledge.indexer.runDue,
       start: knowledge.indexer.start
+    }),
+    // What a bot remembers, on its card, and the home's notes, on Team (D-113); the refreshes' loop (botLoops.js); and
+    // forgetting, for a removal another feature makes (a chat's or a bot's), which names the bots or the chats.
+    memory: Object.freeze({
+      memoryOf: memory.memoryOf,
+      listNotes: memory.listNotes,
+      removeNote: memory.removeNote,
+      forget: memory.forget,
+      runDue: memory.runner.runDue,
+      start: memory.runner.start
     }),
     listBots: botList.listBots,
     listedBot: botList.listedBot,

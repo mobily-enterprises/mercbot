@@ -97,7 +97,7 @@ const blocked = computed(() => {
 // The first-time notice above a public chat's composer (plan 8): once per device, until dismissed.
 const notice = computed(() => (
   props.chat && !props.newChat && !blocked.value && props.chat.kind !== "private" && !shellPreferences.publicNoticeSeen
-    ? publicNotice(props.homeName)
+    ? publicNotice(props.homeName, props.chat)
     : null
 ));
 

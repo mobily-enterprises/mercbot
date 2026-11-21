@@ -1,8 +1,13 @@
-# What a bot knows
+# What a bot knows and remembers
 
 Each bot's Knowledge (D-107): text and files its maker and the home's owners and admins give it, for everyone it
 talks with. Short knowledge is always in the bot's mind; long knowledge (a manual, a book) is split once into parts
 that every turn searches first, so a turn's prompt stays bounded whatever the bot knows.
+
+What each bot remembers (D-113), like a person in the home: a digest of the home's public chats it's in, made in the
+background; what was said since in its other chats the turn's chat may read; recall and read_chat over those chats;
+and the home's notes, which people ask a bot to tell everyone. Every read goes through the model's reader of the
+turn's chat (`readable_from`, D12), so a private chat never reaches a chat with anyone else in it.
 
 ## Sources
 
@@ -30,6 +35,20 @@ that every turn searches first, so a turn's prompt stays bounded whatever the bo
 - `src/components/mercbot/MercbotMemberCard.vue`
 - `src/components/mercbot/botsApi.js`
 - `tools/standInModel.mjs`
+- Memory: `packages/bots/src/server/botMemory.js`
+- `packages/bots/src/server/memoryTools.js`
+- `packages/bots/src/server/records/memoryRepository.js`
+- `packages/bots/src/server/records/homeNoteRepository.js`
+- `packages/bots/src/server/records/rowPolicies.js`
+- `packages/bots/src/server/botActions.js`
+- `packages/bots/src/server/botCards.js`
+- `packages/bots/src/server/chatMembers.js`
+- `packages/bots/src/server/botChat.js`
+- `migrations/20261122140000_bot_memory.cjs`
+- `src/components/mercbot/MercbotMemorySection.vue`
+- `src/components/mercbot/MercbotMemorySection.css`
+- `src/components/mercbot/useBotMemory.js`
+- `src/components/mercbot/chatView.js`
 
 ## Public contract
 
@@ -82,8 +101,55 @@ that every turn searches first, so a turn's prompt stays bounded whatever the bo
   of its in-mind knowledge or the state's found parts naming the topic, and where it's from, or that its knowledge
   doesn't say.
 
+- **Memory routes** (signed in, in the bot's home): `GET /api/w/:workspaceSlug/bots/:botId/memory` answers
+  `{ memory: { text, madeAt, tokens } | null }` to anyone in the home (another home's bot is 404
+  `bots_bot_not_found`): a digest holds only public chats, which everyone in the home may open. `GET …/home-notes`
+  (`?after=` the page before's `next`) answers `{ notes, next }`, 50 a page, newest first, each `{ id, text, by: { id,
+  name } | null, viaBot: { id, name } | null, createdAt, canRemove }`; the chat a note was asked in isn't named.
+  `DELETE …/home-notes/:noteId` answers `{ removed }` for the note's author or the home's owners and admins
+  (`workspace.settings.update`); anyone else gets 403 `bots_note_remove_forbidden`, a note not there (or another
+  home's) 404 `bots_note_not_found`. A removed note is kept with `removed_at` and `removed_by`. No route writes a note.
+- **The prompt** (D-113): the instructions (`instructionsFor`) are the same in every chat (R5) and carry the memory's
+  manners (`MEMORY_RULES`: recall and read_chat, say which chat something came from, bring another chat up only when
+  it helps, never quote a private chat outside it, offer tell_everyone, never contact details or passwords). The
+  memory is the last part of the Current state note (`botMemory.stateLines`, after `knowledge.stateLines`), so
+  everything before it stays a cached prefix: every turn has the home's newest 30 notes; a turn of a person's chat
+  (not a routine's or a request's run) also has the bot's digest between `<<memory>>` and `<<end of memory>>`, and
+  "since then": its other chats the turn's chat may read with lines past where the digest read them, newest activity
+  first, 12 chats, 8 lines each (300 characters a line, 3,000 tokens in all), then counts of the rest (to 1,000+).
+- **Tools** (`memoryTools.js`, a person's turn): `recall` (`words`, `chat`, `everywhere`; full-text search, any of the
+  words, through `ix_messages_recall`; the bot's chats, one chat, or every chat the turn's chat may read; 10 lines,
+  each `[chat · speaker · time · line N]`), `read_chat` (`chat` by name or number, `around` a line, `lines` up to 40),
+  and, in the person's own turn, `tell_everyone` (`text`): refused with an email address, nine or more digits (a date
+  isn't), or a password (`blankPasswords` and the vault's passwords), else an always-ask card (`ACTIONS.tell_everyone`)
+  that writes the note from the card's own words once its person says Go ahead (`homeNotes.addFromCard`: the card must
+  be a tell_everyone approval for the caller, said yes to; one note a card).
+- **Digests** (`bot_memories`, one a bot): written by the background model (`work: "background"`, metered to the home
+  and bot, no person, R8) from the bot's public chats only (the memory's reader, `readers.forHome`: public chats), the
+  earlier digest and each chat's new lines (200 a chat, 48,000 tokens shared), within 20,000 tokens (12,000 asked
+  for), with `covers` (where it read each chat), `version` and `follows`. A save is refused unless the stored version
+  is still the one it read.
+- **Refreshes** (`bot_memory_queue`, one a bot): asked after a person's message and a bot's reply in a public chat
+  (`noticedLater`), due when the bot's new words pass 4,000 tokens or 400 lines (but 30 minutes after the last at the
+  soonest), else 24 hours after the last. Every serving server runs the loop (`botLoops.js`, every minute); a run
+  claims one due refresh (SKIP LOCKED) under a 180 s lease renewed every 30 s while it writes; one asked meanwhile
+  stays (`asks`); a refused save is due again at once; a failure waits 1, 2, 4… up to 60 minutes (`attempts`,
+  `last_error`).
+- **Forgetting** (O23): deleting a public chat empties its bots' digests at once (no turn reads them) and asks for a
+  rebuild from the chats themselves (`rebuild`), without it. Leaving or archiving a chat, or archiving a bot, keeps
+  what it remembers; an archived bot's refreshes write nothing until it's back, and the composer doesn't name it.
+- **The card** (Details, under Knowledge, `MercbotMemorySection.vue`): Memory (made when, Show all) and Notes for
+  everyone (who asked, through which bot, Remove for those who may, Show older notes). The composer of a public chat
+  says "Everyone in <home> can read this · <bots> remember it" (`readersLine`), and so does its first-time notice.
+
 ## Proved by
 
+- `tests/server/memoryWall.integration.js`
+- `tests/server/memoryReach.integration.js`
+- `tests/server/memoryRefresh.integration.js`
+- `tests/server/homeNotes.integration.js`
+- `tests/server/promptPrefix.test.js`
+- `tests/client/botMemory.vitest.js`
 - `tests/server/knowledgePrompt.test.js`
 - `tests/server/botKnowledge.integration.js`
 - `tests/client/knowledge.vitest.js`

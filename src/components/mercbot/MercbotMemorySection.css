@@ -1,0 +1,100 @@
+/* What a bot remembers on its Details tab (MercbotMemorySection.vue, D-113), in the Knowledge section's own label,
+   sentence and box (MercbotKnowledgeSection.css). The memory shows a few lines until Show all. */
+.mb-memory {
+  margin-bottom: 22px;
+}
+
+.mb-memory__label {
+  margin: 0 0 8px;
+  font-size: 13px;
+  color: rgb(var(--v-theme-on-surface-variant));
+}
+
+.mb-memory__label--notes {
+  margin-top: 18px;
+}
+
+.mb-memory__sentence {
+  margin: 0 0 10px;
+  font-size: 14px;
+  line-height: 22px;
+}
+
+.mb-memory__skeleton {
+  height: 58px;
+  border-radius: 12px;
+  background: rgb(var(--v-theme-surface-container-high));
+}
+
+.mb-memory__link {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  color: rgb(var(--v-theme-primary));
+  cursor: pointer;
+}
+
+.mb-memory__link:disabled {
+  color: rgb(var(--v-theme-on-surface-variant));
+  cursor: default;
+}
+
+.mb-memory__box {
+  max-height: 132px;
+  margin-bottom: 6px;
+  padding: 10px 12px;
+  overflow: hidden;
+  border: 1px solid rgb(var(--v-theme-outline-variant));
+  border-radius: 12px;
+  background: rgb(var(--v-theme-surface));
+}
+
+.mb-memory__box--open {
+  max-height: none;
+}
+
+.mb-memory__text {
+  margin: 0;
+  font-size: 13px;
+  line-height: 20px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.mb-memory__notes {
+  margin: 0 0 6px;
+  padding: 4px;
+  border: 1px solid rgb(var(--v-theme-outline-variant));
+  border-radius: 12px;
+  background: rgb(var(--v-theme-surface));
+  list-style: none;
+}
+
+.mb-memory__note {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px;
+}
+
+.mb-memory__note + .mb-memory__note {
+  border-top: 1px solid rgb(var(--v-theme-outline-variant));
+}
+
+.mb-memory__note-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  font-size: 14px;
+  line-height: 20px;
+  overflow-wrap: anywhere;
+}
+
+.mb-memory__note-line {
+  font-size: 12px;
+  color: rgb(var(--v-theme-on-surface-variant));
+}

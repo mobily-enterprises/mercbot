@@ -353,6 +353,16 @@ export function registerRoutes(http, { bots, approvals, notices, meter, records,
   router.register("POST", `${knowledgeAt}/:knowledgeId/retry`, auth, handle(async (request, _user, options) =>
     bots.knowledge.retry(request.params.botId, request.params.knowledgeId, options)));
 
+  // What a bot remembers (D-113), on its card, for everyone in the home: its digest of the public chats it's in. The
+  // home's notes, on every bot's card, a page at a time (?after= the page before's next), each removed by the person
+  // who asked for it or the home's owners and admins.
+  router.register("GET", `${home}/bots/:botId/memory`, auth, handle(async (request, _user, options) =>
+    bots.memory.memoryOf(request.params.botId, options)));
+  router.register("GET", `${home}/home-notes`, auth, handle(async (request, _user, options) =>
+    bots.memory.listNotes({ after: typeof request.query?.after === "string" ? request.query.after : null }, options)));
+  router.register("DELETE", `${home}/home-notes/:noteId`, auth, handle(async (request, _user, options) =>
+    bots.memory.removeNote(request.params.noteId, options)));
+
   // A person's approval rules and auto-review are their own in each home (bot_policies, approval_rules).
   router.register("GET", `${home}/bot-policy`, auth, handle((_request, _user, options) => approvals.policy(options)));
   router.register("PATCH", `${home}/bot-policy`, auth, handle((request, _user, options) =>

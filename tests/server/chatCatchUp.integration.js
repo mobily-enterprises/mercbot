@@ -241,6 +241,9 @@ test("a reply in a chat of two bots costs the same after 10 earlier messages as 
   const measured = async (total) => {
     await fill(knex, { botId: scout.id, chatId, personId: owner }, total);
     const sent = await service.chat.sendMessage(chatId, { text: `Plans at ${total}?`, clientId: `plans-${total}-${Date.now()}` }, as(owner));
+    // The message's own background work (its bots' memory refreshes asked for, D-113) is the message's, not the reply's:
+    // left running, it overlaps the reply's statements by however long it takes.
+    await service.drain(10000);
     const statements = await statementsDuring(knex, async () => {
       await service.chat.reply(chatId, { afterMessageId: sent.messages[0].id }, undefined, as(owner));
       await service.drain(10000);

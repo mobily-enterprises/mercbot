@@ -6,9 +6,11 @@ import { createBotRepository } from "./botRepository.js";
 import { createChatRepository } from "./chatRepository.js";
 import { createBotDirectory } from "./directory.js";
 import { FOLLOW_UP_SEARCH, createFollowUpRepository } from "./followUpRepository.js";
+import { HOME_NOTE_SEARCH, createHomeNoteRepository } from "./homeNoteRepository.js";
 import { createHomeTemplateRepository } from "./homeTemplateRepository.js";
 import { KNOWLEDGE_PART_SEARCH, KNOWLEDGE_SEARCH, createKnowledgeRepository } from "./knowledgeRepository.js";
 import { createMakerRepository } from "./makerRepository.js";
+import { MEMORY_QUEUE_SEARCH, MEMORY_SEARCH, createMemoryRepository } from "./memoryRepository.js";
 import { createMessageRepository } from "./messageRepository.js";
 import { createNewBotRepository } from "./newBotRepository.js";
 import { createPolicyRepository } from "./policyRepository.js";
@@ -19,6 +21,7 @@ import {
   inReadableChat,
   ofReadableChatBot,
   chatReaderFor,
+  homeReaderFor,
   readerFor,
   readerOf
 } from "./rowPolicies.js";
@@ -27,6 +30,8 @@ import {
   TABLE_RESOURCES,
   botKnowledgePartResource,
   botKnowledgeResource,
+  botMemoryQueueResource,
+  botMemoryResource,
   botRequestResource,
   botResource,
   botRoutineResource,
@@ -34,6 +39,7 @@ import {
   chatPersonResource,
   connectFollowUpResource,
   conversationResource,
+  homeNoteResource,
   messageResource
 } from "./tableResources.js";
 import { TURN_MESSAGE_SEARCH, createTurnRepository } from "./turnRepository.js";
@@ -50,11 +56,16 @@ const ROW_POLICIES = new Map([
   [messageResource, inReadableChat],
   [botRequestResource, inReadableChat],
   [botRoutineResource, ofReadableChatBot],
-  [connectFollowUpResource, ofReadableChatBot]
+  [connectFollowUpResource, ofReadableChatBot],
+  // A bot's digest is made from public chats only, and a home note is for everyone in the home (D-113): the home's,
+  // as its bots are.
+  [botMemoryResource, botVisibility],
+  [homeNoteResource, botVisibility]
 ]);
 // The filters the repositories read by beyond each table's search fields (searchSchemas.js), with the queued work's
 // (workRepository.js: what is due, by the database's clock), a turn's (turnRepository.js), the connect follow-ups'
-// (followUpRepository.js) and what the bots know (knowledgeRepository.js).
+// (followUpRepository.js), what the bots know (knowledgeRepository.js) and remember (memoryRepository.js,
+// homeNoteRepository.js).
 const SEARCH = new Map([
   [botResource, BOT_SEARCH],
   [conversationResource, CHAT_SEARCH],
@@ -65,7 +76,10 @@ const SEARCH = new Map([
   [botKnowledgePartResource, KNOWLEDGE_PART_SEARCH],
   [botRequestResource, REQUEST_SEARCH],
   [botRoutineResource, ROUTINE_SEARCH],
-  [connectFollowUpResource, FOLLOW_UP_SEARCH]
+  [connectFollowUpResource, FOLLOW_UP_SEARCH],
+  [botMemoryResource, MEMORY_SEARCH],
+  [botMemoryQueueResource, MEMORY_QUEUE_SEARCH],
+  [homeNoteResource, HOME_NOTE_SEARCH]
 ]);
 
 /** A table's owns entry: with its row policy and filters, when it has them. */
@@ -135,10 +149,15 @@ const BotRecordsFeature = defineFeature({
       homeTemplates,
       // What each bot knows, and the parts of it its turns search (D-107).
       knowledge: createKnowledgeRepository(resources),
+      // What each bot remembers of the home's public chats and its refreshes waiting, and the memory's reads (D-113).
+      memory: createMemoryRepository(resources),
+      // What everyone in the home is told, from the cards people said yes to (D-113).
+      homeNotes: createHomeNoteRepository(resources),
       // The model's reader (R1, D-112): the one context a turn's model-facing reads pass, which reads what its chat may.
       readers: Object.freeze({
         forBot: (reader) => readerFor(systemContext, reader),
         forChat: (chat) => chatReaderFor(systemContext, chat),
+        forHome: (memory) => homeReaderFor(systemContext, memory),
         of: readerOf
       }),
       // The chat rules other features' row policies apply to their rows of a bot in a chat and a person's own rows.

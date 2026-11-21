@@ -75,7 +75,7 @@ export const kindIcon = (chat) => (chat?.kind === "private" ? "$lock" : "$langua
 
 /** What each kind means, as New chat offers it (D15) and Chat details says it. */
 export const KIND_MEANS = Object.freeze({
-  public: (homeName) => `Everyone in ${homeName} can open it, and its bots can use what's said here in other chats.`,
+  public: (homeName) => `Everyone in ${homeName} can open it, and its bots remember what's said here in their other chats.`,
   private: () => "Only its members can open it, and nothing in it reaches other chats."
 });
 
@@ -100,8 +100,21 @@ export function chatSubtitle(chat, me = "") {
 }
 
 /**
- * The composer's line (plan 4.4, 8): who can read what's written here. Public: the whole home, and its bots use it in
- * other chats. Private: only its members, by name.
+ * Which of a public chat's bots remember what's said in it (D-113): "Chef remembers it", "Chef and Ada remember it",
+ * "Chef, Ada and 2 more remember it"; "" when it has none. An archived bot remembers nothing new, so isn't named.
+ * @param {import("../../types.js").Chat} chat
+ */
+export function remembersLine(chat) {
+  const names = (chat?.bots || []).filter((bot) => !bot.archived).map((bot) => bot.name);
+  if (!names.length) return "";
+  const shown = names.length > 3 ? [...names.slice(0, 2), `${names.length - 2} more`] : names;
+  return `${joinNames(shown)} remember${names.length === 1 ? "s" : ""} it`;
+}
+
+/**
+ * The composer's line (plan 4.4, 8): who can read what's written here. Public: the whole home, and the chat's bots,
+ * which remember it (D-113): "Everyone in Rossi family can read this · Chef remembers it". Private: only its members,
+ * by name.
  * @param {import("../../types.js").Chat} chat
  * @param {{ me?: string, homeName: string, short?: boolean }} where `short` for a phone's composer
  */
@@ -112,13 +125,14 @@ export function readersLine(chat, { me = "", homeName, short = false }) {
     return names.length > 4 ? "Only this chat's members can read this" : `Only ${joinNames(names)} can read this`;
   }
   if (short) return "Everyone can read this";
-  return `Everyone in ${homeName} can read this, and bots can use it in other chats`;
+  const remembers = remembersLine(chat);
+  return `Everyone in ${homeName} can read this${remembers ? ` · ${remembers}` : ""}`;
 }
 
 /** The first-time notice above a public chat's composer (plan 8): what public means, once per person. */
-export const publicNotice = (homeName) => ({
+export const publicNotice = (homeName, chat) => ({
   title: "This chat is public",
-  text: `Everyone in ${homeName} can read it, and its bots can use what's said here in other chats. ` +
+  text: `${readersLine(chat, { homeName })}. Its bots remember what's said here in every chat they're in. ` +
     "For something only some of you should see, start a private chat."
 });
 

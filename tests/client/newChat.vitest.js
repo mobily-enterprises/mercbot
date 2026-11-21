@@ -65,7 +65,7 @@ describe("New chat", () => {
     const html = await rendered({ choice: choice() });
     expect([...html.matchAll(/mb-new-chat__kind-name">([^<]*)<\/span><span class="mb-new-chat__kind-line">([^<]*)</gu)]
       .map(([, name, means]) => [name, means])).toEqual([
-      ["Public", "Everyone in Rossi family can open it, and its bots can use what's said here in other chats."],
+      ["Public", "Everyone in Rossi family can open it, and its bots remember what's said here in their other chats."],
       ["Private", "Only its members can open it, and nothing in it reaches other chats."]
     ]);
     expect(checked(html, "public")).toBe(true);

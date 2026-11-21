@@ -164,10 +164,15 @@ export function createBotReplies({
             .map((message) => String(message.body.text || "").slice(0, 2000));
         }
         : null;
+    // A person's chat remembers the bot's other chats; a routine's or a request's run reads less (R5, D-113). Only the
+    // person's own turn may ask to tell everyone in the home.
+    const remembers = !routineRun && !briefOnly;
     const { run, isBuilder, toolSwitches, template, knowledge: known } = await turns.turnTools(seat, {
       timeZone,
       language,
       turn,
+      remembers,
+      tells: remembers && !turn.viaBot && !appsVia,
       routineRun,
       routine,
       appsVia,
@@ -253,7 +258,7 @@ export function createBotReplies({
       : undefined;
     try {
       const turnedOff = toolSwitches?.turnedOff || [];
-      const state = await turns.currentState(seat, history, { timeZone, language, turnedOff, known, present }, call);
+      const state = await turns.currentState(seat, history, { timeZone, language, turnedOff, known, present, remembers }, call);
       const seen = await turns.withPictures(seat, history);
       const sofar = { kind: "text", role: "bot", authorBotId: seat.id, body: { text: "", transcript: resumed, ...(prompt ? { trigger: prompt } : {}) } };
       let unfinished = "";
@@ -387,6 +392,8 @@ export function createBotReplies({
         .catch((error) => console.warn("Holding the bot's computer awake for a hand-over failed.", error));
     }
     chatHistory.compactLater(seat.chat_id);
+    // What it said in a public chat is for its memory, and its chat's other bots' (D-113).
+    turns.remembered(seat);
     return appended;
   }
 

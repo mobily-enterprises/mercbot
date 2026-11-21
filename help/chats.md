@@ -27,19 +27,19 @@ Below, **Or join a public chat** lists the home's Public chats you aren't in, ea
 
 Every new chat is **Public** unless you choose **Private** when you start it. New chat says what each means:
 
-- **Public:** "Everyone in *your home* can open it, and its bots can use what's said here in other chats."
+- **Public:** "Everyone in *your home* can open it, and its bots remember what's said here in their other chats."
 - **Private:** "Only its members can open it, and nothing in it reaches other chats."
 
 | | Public | Private |
 |---|---|---|
 | Who can open it | Everyone in the home, including people who join later | Only its members |
 | What its bots can use | Every Public chat in the home | Every Public chat, this chat, and other Private chats that all of this chat's members are in |
-| Does it reach other chats? | Yes: bots can use it in any chat of the home | No: nothing in it reaches a chat someone else can open |
+| Does it reach other chats? | Yes: its bots remember it, and use it in any chat of the home | No: nothing in it reaches a chat someone else can open |
 | Putting it away | Archived, for everyone in it | Hidden, by each member for themselves |
 
 The rule behind this is simple: **a bot in a chat uses only what everyone who can open that chat can also open.** It doesn't matter who has actually looked.
 
-The chat's header shows a globe and **Public**, or a lock and **Private**. The message box says who can read what you write: "Everyone in Rossi family can read this, and bots can use it in other chats" in a Public chat, or "Only you and Chef can read this" in a Private one. The first time you write in a Public chat, a note above the message box explains what Public means; select **Got it** to dismiss it.
+The chat's header shows a globe and **Public**, or a lock and **Private**. The message box says who can read what you write: "Everyone in Rossi family can read this · Chef remembers it" in a Public chat, naming the bots in it, or "Only you and Chef can read this" in a Private one. What the bots remember, and the notes everyone in the home is told, are in [What bots remember](/help/memory). The first time you write in a Public chat, a note above the message box explains what Public means; select **Got it** to dismiss it.
 
 Chats you don't make with New chat are Public too: your chat with a bot, a new bot's greeting, Mercbot's welcome chat, an app's chat with the Builder and the home's everyone chat. Everyone in the home can open them. For something only you should see, start a Private chat with just you and the bot.
 
@@ -134,6 +134,7 @@ Yes. When you open a Public chat you aren't in, you can read it, and in place of
 
 ## Related pages
 
+- [What bots remember](/help/memory)
 - [Messaging and working together](/help/messaging)
 - [Bots: add, shape and archive](/help/bots)
 - [Homes: Mercbot for families and businesses](/help/homes)
