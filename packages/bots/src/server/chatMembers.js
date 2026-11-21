@@ -19,9 +19,10 @@ const ARCHIVED_LINE = Object.freeze({
  *
  * Who may: anyone in the home makes a chat and joins a public one; anyone in a chat adds people of the home and bots
  * of the home; the chat's maker and the home's owners and admins remove members, rename, archive and delete; anyone
- * leaves. The everyone chat is never archived. Archiving a chat pauses its bots' routines and watches there, with a line
- * naming them, and they stay paused when it's unarchived (D-101). What a caller may read is the records'
- * (rowPolicies.js): a chat they can't open is a 404 everywhere.
+ * leaves. A Public chat is archived for everyone (plan 5.1), never the everyone chat: its bots' routines and watches there
+ * pause, with a line naming them, and stay paused when it's unarchived (D-101). A Private chat isn't archived: each of
+ * its people hides it for themselves (their place's `hidden`). What a caller may read is the records' (rowPolicies.js):
+ * a chat they can't open is a 404 everywhere.
  * Everyone in a chat is told of each change, on any server, as a `chat` event naming the chat and what changed. A
  * deleted chat's computers and files go with it (computer.chatRemoved). The home's everyone chat counts as pinned for
  * everyone in it (O9), and has every active member of the home: a change of the home's people (homeChanged) seats
@@ -263,12 +264,17 @@ export function createChatMembers({ records, notices, computer, systemContext, p
   }
 
   /**
-   * A chat archived (read-only for everyone in it) or back in use, by its maker or an owner or admin; never the everyone
-   * chat. Archiving pauses its bots' routines and watches there with a line, before it's read-only; unarchiving leaves
-   * them paused, to be resumed there. A chat already as asked is left as it is.
+   * A Public chat archived (read-only for everyone in it) or back in use, by its maker or an owner or admin; never the
+   * everyone chat, nor a Private chat, which each of its people hides for themselves instead (changePlace's `hidden`):
+   * its view is each member's own, so no one puts it away for the others (plan 5.1). Archiving pauses its bots' routines
+   * and watches there with a line, before it's read-only; unarchiving leaves them paused, to be resumed there. A chat
+   * already as asked is left as it is.
    */
   async function archiving(chatId, archived, options) {
     const chat = await openChat(chatId, options);
+    if (archived && chat.kind === "private") {
+      throw new BotsError(409, "A private chat is hidden for yourself, not archived for everyone.", { code: "bots_chat_private_archive" });
+    }
     requireManager(chat, options, archived ? "archive" : "unarchive");
     if (archived) requireNotEveryone(chat);
     if (Boolean(chat.archived_at) === archived) return get(chat.id, options);
@@ -282,7 +288,7 @@ export function createChatMembers({ records, notices, computer, systemContext, p
     return get(chat.id, options);
   }
 
-  /** A chat archived: read-only for everyone in it. */
+  /** A Public chat archived: read-only for everyone in it. */
   const archive = (chatId, options) => archiving(chatId, true, options);
 
   /** An archived chat back in use. */
