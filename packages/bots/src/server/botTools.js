@@ -387,8 +387,20 @@ export function buildTools({
   const theirOwnTurn = !viaBot && !routineRun && !appsVia;
   const signIns = theirOwnTurn
     ? buildSignInCodeTools({
-      appFor, computer, computerId, chatId, userId, turns: records.turns, call, inTime,
-      before, after, askFirst, screenshots, untrusted, signedIn
+      appFor,
+      computer,
+      computerId,
+      chatId,
+      userId,
+      turns: records.turns,
+      call,
+      inTime,
+      before,
+      after,
+      askFirst,
+      screenshots,
+      untrusted,
+      signedIn
     })
     : null;
   if (signIns) Object.assign(tools, signIns.tools);

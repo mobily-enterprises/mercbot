@@ -177,7 +177,7 @@ export function createBotReplies({
       (human || goalTurn) && !routineRun && !requestTurn
         ? async () => {
           if (!Number.isFinite(heard.upTo)) return [];
-          const fresh = await records.turns.messages(seat.chat_id, { role: "user", kind: "text", afterId: String(heard.upTo) }, {}, call);
+          const fresh = await records.turns.messages(seat.chat_id, { role: "user", kind: "text", ...newerThan(heard.upTo) }, {}, call);
           if (!fresh.length) return [];
           heard.upTo = Number(fresh.at(-1).id);
           const people = present?.people ?? await records.chats.people(seat.chat_id, call);
@@ -425,7 +425,7 @@ export function createBotReplies({
   async function answeredBy(chatId, asked, botIds, call) {
     if (!asked) return new Set();
     const found = await Promise.all(botIds.map(async (botId) =>
-      (await records.turns.latestMessage(chatId, { role: "bot", kind: "text", authorBotId: String(botId), afterId: String(asked - 1), answersFrom: asked }, call))
+      (await records.turns.latestMessage(chatId, { role: "bot", kind: "text", authorBotId: String(botId), ...newerThan(asked - 1), answersFrom: asked }, call))
         ? String(botId)
         : null));
     return new Set(found.filter(Boolean));
@@ -635,7 +635,7 @@ export function createBotReplies({
   /** The latest person's message for this bot that it hasn't answered, answered now (R3: only messages for it count). */
   async function answerWaiting(seat, input, answered, call) {
     if (input.followUp) return;
-    const latest = await records.turns.latestMessage(seat.chat_id, { role: "user", kind: "text", afterId: String(answered) }, call);
+    const latest = await records.turns.latestMessage(seat.chat_id, { role: "user", kind: "text", ...newerThan(answered) }, call);
     if (!latest) return;
     const present = { people: await records.chats.people(seat.chat_id, call), bots: await records.chats.bots(seat.chat_id, call) };
     if (!addressedBots(latest, present).some((bot) => String(bot.bot_id) === seat.id)) return;
@@ -662,6 +662,9 @@ export function createBotReplies({
 }
 
 /** R3's follow-up round: another bot mentioned this one. */
+/** The messages after a message id; every one when there is none yet (0: nothing read or answered). */
+const newerThan = (id) => (Number(id) > 0 ? { afterId: String(id) } : {});
+
 /** Who pays for a seat's turn (R8): the person it works for, in its home. */
 const meteredAs = (seat) => ({ userId: seat.user_id, botId: seat.id, workspaceId: seat.workspace_id });
 

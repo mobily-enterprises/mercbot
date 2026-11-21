@@ -71,14 +71,17 @@ export function createBotHistory({ records, systemContext, model, meter, notices
    */
   async function summarised(chatId) {
     const across = { context: systemContext(SUMMARY_REASON) };
-    const [seat] = await directory.botsInChat(String(chatId), across);
-    const place = seat ? await directory.computerOf(seat.id, across) : null;
+    const seats = await directory.botsInChat(String(chatId), across);
+    const place = seats.length ? await directory.computerOf(seats[0].id, across) : null;
     if (!place) return null;
-    return { place, options: { context: systemContext(SUMMARY_REASON).forWorkspace(place.workspaceId) } };
+    // A chat's only bot reads the summary alone, so it keeps what that bot did with its tools; with several, each reads
+    // the others' words and records only (R5), so the summary holds no bot's tool calls.
+    const reader = seats.length === 1 ? place.botId : null;
+    return { place, reader, options: { context: systemContext(SUMMARY_REASON).forWorkspace(place.workspaceId) } };
   }
 
-  // Summaries between turns (@jskit-ai/agent-runtime), one per chat: every message under its author's name, every bot's
-  // as another's, so each of the chat's bots reads the same summary.
+  // Summaries between turns (@jskit-ai/agent-runtime), one per chat: every message under its author's name, as the
+  // chat's bots read it (summarised's reader).
   const compaction = records.agent.createSummaries({
     notices,
     model,
@@ -88,7 +91,7 @@ export function createBotHistory({ records, systemContext, model, meter, notices
     async history(chatId, { after }) {
       const found = await summarised(chatId);
       const list = found ? await named(await messages.messagesAfter(String(chatId), after, found.options), found.options) : [];
-      return { messages: list, inherited: [], named: true, toModel: async (given) => toModelHistory(given, { botId: null }) };
+      return { messages: list, inherited: [], named: true, toModel: async (given) => toModelHistory(given, { botId: found?.reader ?? null }) };
     },
     // Metered to the chat's home and one of its bots, with no person: nobody asked for it and nobody waits on it (R8, D-59).
     async track(chatId, work) {

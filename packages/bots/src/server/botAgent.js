@@ -230,11 +230,16 @@ export function withoutPaths(text) {
 // cards are its own business with the person it worked for, so they're left out.
 const OTHER_BOT_KINDS = new Set(["text", "event", "files", "page", "chart", "view", "voice"]);
 
-/** Whose message it is, as the reading bot sees it: "own", "person", "bot" (another bot) or "mercbot" (a line). */
+/**
+ * Whose message it is, as the reading bot sees it: "own", "person", "bot" (another bot) or "mercbot" (a line). With no
+ * reader (a summary several bots read), every bot's message that has its bot is another's.
+ */
 function authorOf(message, botId) {
   if (message.role === "user") return "person";
-  if (message.role === "bot" && botId != null && String(message.authorBotId) !== String(botId)) return "bot";
-  return message.role === "bot" ? "own" : "mercbot";
+  if (message.role !== "bot") return "mercbot";
+  const author = message.authorBotId == null ? null : String(message.authorBotId);
+  if (botId != null) return author === String(botId) ? "own" : "bot";
+  return author ? "bot" : "own";
 }
 
 /**

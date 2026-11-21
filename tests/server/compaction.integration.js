@@ -1,43 +1,35 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { connectTestDatabase } from "../support/testDatabase.mjs";
-import { createBotsService } from "../../packages/bots/src/server/botsService.js";
 import { SUMMARY_LIMITS as LIMITS } from "@jskit-ai/agent/server";
-import { testBot } from "./testHome.js";
-import { serviceDoubles } from "../support/botDoubles.mjs";
-import { memberOptions, startBotRecords } from "../support/botRecords.mjs";
+import { seedChat, seedMessage } from "../support/chatFixtures.mjs";
+import { botsOf, homeOfPeople, startChatTurns } from "./turnKit.mjs";
 
-// Compacting bots' chats in the background (owner, 2026-10-30): past a size, a conversation is
-// queued; one server summarises all but its latest turns, folding in the previous summary; replies
-// read the summary plus every message after it word for word, transcripts included; messages that
-// arrive while it runs stay as they are; failures wait and try again; a room's first summary takes
-// in what it inherited.
+// Compacting chats in the background (owner, 2026-10-30; one summary per chat, D-112): past a size, a chat is queued;
+// one server summarises all but its latest turns, folding in the previous summary; replies read the summary plus every
+// message after it word for word, transcripts included; messages that arrive while it runs stay as they are; failures
+// wait and try again. A chat's only bot reads it alone, so its tool calls are kept; with several bots, each one's words
+// are under its name and no bot's tool calls are in it (R5).
 assert.ok(process.env.TEST_DB_NAME?.trim(), "TEST_DB_NAME must identify a disposable test database.");
 assert.equal(process.env.DB_NAME, process.env.TEST_DB_NAME, "DB_NAME must match the dedicated TEST_DB_NAME.");
 
 const limits = { ...LIMITS, compactAt: 500, keepTurns: 2, keepTokens: 400, minTokens: 50 };
 
-test("long chats are summarised in the background and replies read the summary", async (context) => {
-  const knex = await connectTestDatabase();
-  const userId = (await knex("users").first())?.id;
-  const bot = await testBot(knex, userId, { name: "Memo" });
-  context.after(async () => {
-    await knex("bots").where({ id: bot.id }).del();
-    await knex.destroy();
-  });
+/** Pat's home, with Pat's bots of `names` and a chat of Pat and them. */
+async function chatOf(kit, names) {
+  const { homeId, people: [pat] } = await homeOfPeople(kit, ["Pat"]);
+  const bots = await botsOf(kit, homeId, pat, names);
+  const { id: chat } = await seedChat(kit.knex, { homeId, people: [pat], bots });
+  return { homeId, pat, bots, chat };
+}
 
+test("long chats are summarised in the background and replies read the summary", async (context) => {
   const seen = [];
   const summaries = [];
   let summarizer = async ({ previous, text }) => {
     summaries.push({ previous, text });
     return `SUMMARY ${summaries.length}`;
   };
-  const records = await startBotRecords(knex, context);
-  const as = (person) => memberOptions({ userId: person, homeId: bot.workspace_id });
-  const bots = createBotsService(serviceDoubles({
-    knex,
-    records,
-    approvals: { decide: async () => "allow" },
+  const kit = await startChatTurns(context, {
     compactionLimits: limits,
     summarize: (input) => summarizer(input),
     reply: async (_bot, timeline, _tools, _state, _prompt, options = {}) => {
@@ -52,14 +44,17 @@ test("long chats are summarised in the background and replies read the summary",
         ]
       };
     }
-  }));
+  });
+  const { knex } = kit;
+  const bots = kit.turns;
+  const { homeId, pat, chat } = await chatOf(kit, ["Memo"]);
   // A reply, and the check it starts in the background for whether the chat now needs a summary.
   const say = async (text) => {
-    const sent = await bots.sendMessage(bot.id, { text }, as(userId));
-    await bots.replyTo(bot.id, { afterMessageId: sent.messages[0].id }, undefined, as(userId));
-    await bots.drain(5000);
+    const sent = await bots.chat.sendMessage(chat, { text }, kit.as(pat, homeId));
+    await bots.chat.reply(chat, { afterMessageId: sent.messages[0].id }, undefined, kit.as(pat, homeId));
+    await kit.drain(5000);
   };
-  const queued = () => knex("agent_summary_queue").where({ conversation_id: bot.conversation_id }).first();
+  const queued = () => knex("agent_summary_queue").where({ conversation_id: chat }).first();
 
   // Below the size nothing is queued; past it, the conversation is.
   await say("My name is Ada and my budget is 4,200 euros. " + "Some detail. ".repeat(20));
@@ -87,10 +82,10 @@ test("long chats are summarised in the background and replies read the summary",
   await say("Arrived during the summary.");
   release();
   await first;
-  const [summary] = await knex("agent_summaries").where({ conversation_id: bot.conversation_id });
+  const [summary] = await knex("agent_summaries").where({ conversation_id: chat });
   assert.equal(summaries.length, 1);
-  assert.match(summaries[0].text, /^Person: My name is Ada and my budget is 4,200 euros\./mu);
-  assert.match(summaries[0].text, /Bot used lookUp\(\{"q":"question 1"\}\)/u, "the summariser reads what the bot did");
+  assert.match(summaries[0].text, /^Pat: My name is Ada and my budget is 4,200 euros\./mu, "each person under their name");
+  assert.match(summaries[0].text, /Bot used lookUp\(\{"q":"question 1"\}\)/u, "the chat's only bot reads it alone: the summariser reads what it did");
   assert.ok(!summaries[0].text.includes("Arrived during the summary."));
   assert.equal(await queued(), undefined, "done, and nothing more queued while the rest is small");
 
@@ -117,7 +112,7 @@ test("long chats are summarised in the background and replies read the summary",
   assert.equal(await bots.compaction.runOne(), false, "not before its time");
 
   // The next summary folds in the previous one.
-  await knex("agent_summary_queue").where({ conversation_id: bot.conversation_id }).update({ run_after: knex.fn.now() });
+  await knex("agent_summary_queue").where({ conversation_id: chat }).update({ run_after: knex.fn.now() });
   summarizer = async ({ previous, text }) => {
     summaries.push({ previous, text });
     return `SUMMARY ${summaries.length}`;
@@ -128,106 +123,42 @@ test("long chats are summarised in the background and replies read the summary",
   await say("And now?");
   assert.equal(seen.at(-1).summary, "SUMMARY 2");
   // The page still shows the whole conversation.
-  const { messages: all } = await bots.messages(bot.id, null, {}, as(userId));
+  const { messages: all } = await bots.chat.messages(chat, {}, kit.as(pat, homeId));
   assert.ok(all.some((message) => /My name is Ada/u.test(message.body?.text || "")));
 });
 
-test("a room's first summary takes in what it inherited", async (context) => {
-  const knex = await connectTestDatabase();
-  const userId = (await knex("users").first())?.id;
-  const bot = await testBot(knex, userId, { name: "Roomy" });
-  context.after(async () => {
-    await knex("bots").where({ id: bot.id }).del();
-    await knex.destroy();
-  });
+test("a chat with several bots is summarised with who said what, and none of their tool calls", async (context) => {
   const captured = [];
-  const records = await startBotRecords(knex, context);
-  const bots = createBotsService(serviceDoubles({
-    knex,
-    records,
-    approvals: { decide: async () => "allow" },
-    compactionLimits: { ...limits, minTokens: 1 },
-    summarize: async ({ text }) => {
-      captured.push(text);
-      return "ROOM SUMMARY";
-    },
-    reply: async () => ({ text: "ok", transcript: [] })
-  }));
-  const [general] = await knex("bot_conversations").insert({ workspace_id: bot.workspace_id, bot_id: bot.id, user_id: null, title: "General" }).returning("*");
-  const [fork] = await knex("bot_messages").insert({ workspace_id: bot.workspace_id, bot_id: bot.id, conversation_id: general.id, kind: "text", role: "user", body: { text: "Inherited: the launch is on 3 March.", from: { id: String(userId), name: "Ada" } } }).returning("*");
-  const [room] = await knex("bot_conversations").insert({ workspace_id: bot.workspace_id, bot_id: bot.id, user_id: null, title: "Launch", parent_id: general.id, forked_at_message_id: fork.id }).returning("*");
-  for (let index = 0; index < 4; index += 1) {
-    await knex("bot_messages").insert({ workspace_id: bot.workspace_id, bot_id: bot.id, conversation_id: room.id, kind: "text", role: "user", body: { text: `Room message ${index}`, from: { id: String(userId), name: "Ada" } } });
-    await knex("bot_messages").insert({ workspace_id: bot.workspace_id, bot_id: bot.id, conversation_id: room.id, kind: "text", role: "bot", body: { text: `Room answer ${index}` } });
-  }
-  await bots.compaction.compact(room.id);
-  assert.match(captured[0], /^Ada: Inherited: the launch is on 3 March\./mu, "inherited, with the person's name");
-  assert.match(captured[0], /^Ada: Room message 0$/mu);
-  assert.match(captured[0], /^Bot: Room answer 0$/mu);
-  assert.equal((await knex("agent_summaries").where({ conversation_id: room.id }).first()).summary, "ROOM SUMMARY");
-});
-
-test("a group chat is summarised with who said what", async (context) => {
-  const knex = await connectTestDatabase();
-  const userId = (await knex("users").first())?.id;
-  const ana = await testBot(knex, userId, { name: "Ana" });
-  const ben = await testBot(knex, userId, { name: "Ben" });
-  const captured = [];
-  const records = await startBotRecords(knex, context);
-  const as = (person) => memberOptions({ userId: person, homeId: ana.workspace_id });
-  const bots = createBotsService(serviceDoubles({
-    knex,
-    records,
-    approvals: { decide: async () => "allow" },
+  const kit = await startChatTurns(context, {
     compactionLimits: { ...limits, minTokens: 1 },
     summarize: async ({ text }) => {
       captured.push(text);
       return "GROUP SUMMARY";
     },
     reply: async () => ({ text: "ok", transcript: [] })
-  }));
-  const { bot: group } = await bots.createGroup({ botIds: [String(ana.id), String(ben.id)] }, "Pat", as(userId));
-  context.after(async () => {
-    await knex("bots").whereIn("id", [ana.id, ben.id, group.id]).del();
-    await knex.destroy();
   });
-  const conversation = await knex("bot_conversations").where({ bot_id: group.id, user_id: userId }).first();
+  const { homeId, pat, bots: [ana, ben], chat } = await chatOf(kit, ["Ana", "Ben"]);
+  const looked = [
+    { role: "assistant", content: [{ type: "tool-call", toolCallId: "c1", toolName: "searchMail", input: { q: "venues" } }] },
+    { role: "tool", content: [{ type: "tool-result", toolCallId: "c1", toolName: "searchMail", output: { type: "text", value: "Kim's mail" } }] }
+  ];
   for (let index = 0; index < 3; index += 1) {
-    await knex("bot_messages").insert({ workspace_id: conversation.workspace_id, bot_id: group.id, conversation_id: conversation.id, kind: "text", role: "user", body: { text: `Plan step ${index}?` } });
-    await knex("bot_messages").insert({ workspace_id: conversation.workspace_id, bot_id: group.id, conversation_id: conversation.id, kind: "text", role: "bot", body: { text: `Ana's idea ${index}`, speaker: { id: String(ana.id), name: "Ana" } } });
-    await knex("bot_messages").insert({ workspace_id: conversation.workspace_id, bot_id: group.id, conversation_id: conversation.id, kind: "text", role: "bot", body: { text: `Ben's idea ${index}`, speaker: { id: String(ben.id), name: "Ben" } } });
+    await seedMessage(kit.knex, { homeId, chatId: chat, userId: pat, body: { text: `Plan step ${index}?` } });
+    await seedMessage(kit.knex, { homeId, chatId: chat, botId: ana, body: { text: `Ana's idea ${index}`, transcript: [...looked, { role: "assistant", content: [{ type: "text", text: `Ana's idea ${index}` }] }] } });
+    await seedMessage(kit.knex, { homeId, chatId: chat, botId: ben, body: { text: `Ben's idea ${index}` } });
   }
-  await bots.compaction.compact(conversation.id);
+  await kit.turns.compaction.compact(chat);
   assert.match(captured[0], /^Ana \(bot\): Ana's idea 0$/mu, "each bot by name");
   assert.match(captured[0], /^Ben \(bot\): Ben's idea 0$/mu);
-  assert.match(captured[0], /^[^:]+: Plan step 0\?$/mu);
+  assert.match(captured[0], /^Pat: Plan step 0\?$/mu, "and each person");
+  assert.doesNotMatch(captured[0], /searchMail|Kim's mail/u, "Ben reads this summary too: Ana's tool calls and results aren't in it");
+  assert.equal((await kit.knex("agent_summaries").where({ conversation_id: chat }).first()).summary, "GROUP SUMMARY");
 });
 
 test("a reply summarises first, rather than dropping messages unseen, when summarising fell behind", async (context) => {
-  const knex = await connectTestDatabase();
-  const userId = (await knex("users").first())?.id;
-  const bot = await testBot(knex, userId, { name: "Catchup" });
-  context.after(async () => {
-    await knex("bots").where({ id: bot.id }).del();
-    await knex.destroy();
-  });
-  const conversationId = (await knex("bot_conversations").where({ bot_id: bot.id }).first()).id;
-  // A long chat no background summary has caught up with (none queued, none run).
-  const filler = "We talked about the garden, the weather and the week ahead. ".repeat(14);
-  for (let n = 0; n < 12; n += 1) {
-    await knex("bot_messages").insert([
-      { workspace_id: bot.workspace_id, bot_id: bot.id, conversation_id: conversationId, kind: "text", role: "user", body: { text: `${n === 0 ? "My sister Lucia's birthday is 14 March. " : ""}${filler}` } },
-      { workspace_id: bot.workspace_id, bot_id: bot.id, conversation_id: conversationId, kind: "text", role: "bot", body: { text: `Noted. ${filler}` } }
-    ]);
-  }
   const summaries = [];
   const seen = [];
-  const records = await startBotRecords(knex, context);
-  const as = (person) => memberOptions({ userId: person, homeId: bot.workspace_id });
-  const bots = createBotsService(serviceDoubles({
-    knex,
-    records,
-    approvals: { decide: async () => "allow" },
+  const kit = await startChatTurns(context, {
     compactionLimits: { ...LIMITS, compactAt: 1000000, summariseNowAt: 1500, keepTurns: 2, keepTokens: 400, minTokens: 50 },
     summarize: async ({ text }) => {
       summaries.push(text);
@@ -237,10 +168,17 @@ test("a reply summarises first, rather than dropping messages unseen, when summa
       seen.push({ timeline, summary: options.summary });
       return { text: "14 March.", transcript: [] };
     }
-  }));
-  const sent = await bots.sendMessage(bot.id, { text: "When is Lucia's birthday?", clientId: `c-${Date.now()}` }, as(userId));
-  await bots.replyTo(bot.id, { afterMessageId: sent.messages[0].id }, undefined, as(userId));
-  await bots.drain(10000);
+  });
+  const { homeId, pat, bots: [catchup], chat } = await chatOf(kit, ["Catchup"]);
+  // A long chat no background summary has caught up with (none queued, none run).
+  const filler = "We talked about the garden, the weather and the week ahead. ".repeat(14);
+  for (let n = 0; n < 12; n += 1) {
+    await seedMessage(kit.knex, { homeId, chatId: chat, userId: pat, body: { text: `${n === 0 ? "My sister Lucia's birthday is 14 March. " : ""}${filler}` } });
+    await seedMessage(kit.knex, { homeId, chatId: chat, botId: catchup, body: { text: `Noted. ${filler}` } });
+  }
+  const sent = await kit.turns.chat.sendMessage(chat, { text: "When is Lucia's birthday?", clientId: `c-${Date.now()}` }, kit.as(pat, homeId));
+  await kit.turns.chat.reply(chat, { afterMessageId: sent.messages[0].id }, undefined, kit.as(pat, homeId));
+  await kit.drain(10000);
   assert.ok(summaries.length >= 1, "it summarised before the reply");
   assert.match(seen[0].summary, /Lucia's birthday is 14 March/u, "and the reply read the summary, so the oldest fact isn't lost");
   assert.ok(seen[0].timeline.length < 25, "while reading fewer messages word for word");

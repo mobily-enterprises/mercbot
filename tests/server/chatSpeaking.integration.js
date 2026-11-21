@@ -87,7 +87,8 @@ test("with several people a bot speaks only when named, mentioned, replied to or
 test("a bot another bot mentions gets one follow-up turn, and PASS posts nothing", async (context) => {
   let boAnswer = { text: "PASS", passed: true };
   const { pat, ada, bo, chatWith, say, calls } = await setup(context, (bot, _timeline, _prompt, options) => {
-    if (bot.name === "Ada") return { text: "I'll leave the forecast to @Bo." };
+    // Not "I'll…": a reply that stops at what it will do is sent back once (D-47), a model call of its own.
+    if (bot.name === "Ada") return { text: "The forecast is for @Bo." };
     assert.equal(options.followUp, true, "Bo speaks only in the follow-up round here");
     return boAnswer;
   });
@@ -97,7 +98,7 @@ test("a bot another bot mentions gets one follow-up turn, and PASS posts nothing
   assert.deepEqual(calls.map((call) => [call.bot, call.followUp]), [["Ada", false], ["Bo", true]]);
   assert.match(calls[1].prompt, /Another bot just mentioned you/u);
   assert.deepEqual(quiet.map((message) => message.authorBotId), [ada], "Bo passed: nothing of his");
-  assert.equal(quiet[0].body.text, `I'll leave the forecast to <@bot:${bo}>.`, "Ada's @Bo is stored as his mention");
+  assert.equal(quiet[0].body.text, `The forecast is for <@bot:${bo}>.`, "Ada's @Bo is stored as his mention");
 
   boAnswer = { text: "Sunny all afternoon." };
   const spoken = await say(chat, pat, `<@bot:${ada}> and the drinks?`);
