@@ -58,7 +58,6 @@ const SEVERAL_ACCOUNTS =
  * @param {object} shared
  * @param {{ findById: (userId: string, options: object) => Promise<{ email?: string } | null> }} shared.profiles users.profiles
  * @param {import("@local/integrations/server/types").Integrations} shared.integrations
- * @param {import("./types.js").Reach} shared.reach
  * @param {string} shared.userId
  * @param {string} shared.conversationId
  * @param {import("@local/files/server/types").Files} shared.files
@@ -85,7 +84,6 @@ export function buildAccountTools({
   profiles,
   turns,
   integrations,
-  reach,
   userId,
   conversationId,
   files,
@@ -154,8 +152,8 @@ export function buildAccountTools({
       turns,
       call,
       integrations,
-      reach,
       conversationId,
+      userId,
       removed,
       appFor,
       attempt,
@@ -332,7 +330,7 @@ export function buildAccountTools({
         made = await inTime(google.createDocument(entry.key, { name: title.trim(), html: documentHtml(content) }), "Making the document");
       } else {
         // OneDrive takes a Word file, made with the word app like any of the bot's documents.
-        const draft = `/files/mine/Drive/${title.trim().replace(/[\\/]/gu, "-")}.docx`;
+        const draft = `/files/chat/Drive/${title.trim().replace(/[\\/]/gu, "-")}.docx`;
         await office.call("word", "new_document", {});
         await office.call("word", "type_text", { text: content });
         await office.call("word", "save_document", { path: draft });
@@ -414,7 +412,7 @@ export function buildAccountTools({
     Object.freeze({
       id: "save_to_drive",
       description:
-        "Put a copy of one of your files (/files/mine/… or /files/shared/…) in the person's connected Google Drive or OneDrive, in a Mercbot folder, and get its link.",
+        "Put a copy of one of your files (/files/chat/…, /files/bot/… or /files/shared/…) in the person's connected Google Drive or OneDrive, in a Mercbot folder, and get its link.",
       inputSchema: z.object({
         path: z.string().min(8).max(500),
         account: account("Which connected drive, by its address or label; needed when several are connected")
@@ -538,9 +536,8 @@ export function buildAccountTools({
     })
   );
   Object.assign(tools, buildGithubTools({ appFor, attempt, attempted, removed, failed, statusLine, personAsked, inTime, untrusted }));
-  // The home's Sedna, used as the asking person (D-93, D-94): only in their own chat, where nobody else reads the answer
-  // and nothing is done as anyone else, and only once the home connected it.
-  if (reach.personal && connectedApps.includes("sedna")) {
+  // The home's Sedna, used as the asking person (D-93, D-94), in any chat (D15, R4), once the home connected it.
+  if (connectedApps.includes("sedna")) {
     const guide = integrations.app("sedna")?.guide || "";
     Object.assign(tools, buildSednaTools({
       appFor,

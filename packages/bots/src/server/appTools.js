@@ -52,7 +52,8 @@ export const APP_ACTIONS = [
  * @param {import("./types.js").BotDirectory} turn.directory records.directory
  * @param {import("./types.js").CallOptions} turn.call the turn's call options, which every gate ctx carries (ctx.options)
  * @param {string} turn.botId
- * @param {string | null} turn.conversationId
+ * @param {string | null} turn.chatBotId the bot's seat in its chat, whose watches these are (D-112); null for a request's
+ *   bot not seated in the asking chat, which has none
  * @param {string | null} turn.userId
  * @param {boolean} turn.isBuilder
  * @param {object[]} turn.after the messages the reply adds after its text (draft and removal cards)
@@ -67,7 +68,7 @@ export function buildAppTools({
   directory,
   call,
   botId,
-  conversationId,
+  chatBotId,
   userId,
   isBuilder,
   after,
@@ -84,6 +85,7 @@ export function buildAppTools({
   }
   const ctx = async () => ({ options: call, actor: await actor(), via: via || { kind: "chat", botId: String(botId) } });
   const failed = (error) => ({ error: error?.message || String(error) });
+  const NO_SEAT = { error: "Watches belong to a bot in a chat, and you're working on a request from a chat you aren't in: say so in your answer." };
 
 
   /** Records by field name, as the bot reads and writes them. */
@@ -103,8 +105,9 @@ export function buildAppTools({
    * @param {boolean} enabled
    */
   async function switchWatch(name, enabled) {
+    if (!chatBotId) return NO_SEAT;
     try {
-      return { status: enabled ? "resumed" : "paused", watch: await watches.setEnabled({ botId: String(botId), name }, enabled, call) };
+      return { status: enabled ? "resumed" : "paused", watch: await watches.setEnabled({ chatBotId: String(chatBotId), name }, enabled, call) };
     } catch (error) {
       return failed(error);
     }
@@ -210,9 +213,11 @@ export function buildAppTools({
     }
   }
   async function watchCreate({ name, table, on, condition, instructions }) {
+    if (!chatBotId) return NO_SEAT;
     try {
+      // A watch runs as the person who set it up (R4), in this chat.
       const watch = await watches.create(
-        { botId, conversationId, createdBy: userId },
+        { chatBotId: String(chatBotId), createdBy: userId },
         { name, table, on, condition: condition ? `=${condition.replace(/^=/u, "")}` : null, instructions },
         call
       );
@@ -221,12 +226,14 @@ export function buildAppTools({
       return failed(error);
     }
   }
+  // Only this chat's watches of this bot: another chat's are that chat's business (R11).
   async function watchList() {
-    return { watches: await watches.list({ botId }, call) };
+    return { watches: chatBotId ? await watches.list({ chatBotId: String(chatBotId) }, call) : [] };
   }
   async function watchRemove({ name }) {
+    if (!chatBotId) return NO_SEAT;
     try {
-      return { status: "removed", watch: await watches.remove({ botId: String(botId), name }, call) };
+      return { status: "removed", watch: await watches.remove({ chatBotId: String(chatBotId), name }, call) };
     } catch (error) {
       return failed(error);
     }

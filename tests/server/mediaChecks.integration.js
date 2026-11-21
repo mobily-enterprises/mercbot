@@ -44,15 +44,17 @@ test("screenshots and the pictures and videos bots save are checked afterwards, 
   // The homes whose files were settled, newest last.
   const settled = [];
   const store = createFileStore({ root: volume, ownStorage: async () => null, settle: async (homeId) => settled.push(String(homeId)), explain: async () => {} });
-  const place = { homeId: home, botId: "41", userId };
+  // Bot 41 in a private chat, 5, where it's seat 52 (chat_bots): what it saves is the chat's (D13). media_checks keeps
+  // the seat loosely, so no chat row is needed.
+  const place = store.placeFor({ homeId: home, chatId: "5", chatKind: "private", botId: "41" });
   await store.prepare(place);
   const save = async (name, data) => {
-    const real = await store.resolve(place, `/files/mine/${name}`);
+    const real = await store.resolve(place, `/files/chat/${name}`);
     await fs.mkdir(path.dirname(real), { recursive: true });
     await fs.writeFile(real, data);
     return real;
   };
-  const turn = (paths) => ({ place, paths: paths.map((name) => `/files/mine/${name}`), workspaceId: home, userId, botId: "41", conversationId: "5" });
+  const turn = (paths) => ({ place, paths: paths.map((name) => `/files/chat/${name}`), workspaceId: home, userId, chatBotId: "52" });
   const rows = () => knex("media_checks").where({ workspace_id: home }).orderBy("id")
     .select("*", knex.raw("round(extract(epoch from check_after - now()))::int as wait"));
   const due = () => knex("media_checks").where({ workspace_id: home }).update({ check_after: knex.raw("now() - interval '1 second'") });
@@ -81,7 +83,7 @@ test("screenshots and the pictures and videos bots save are checked afterwards, 
     const none = createMediaChecks({ guard: createMediaGuard(null), mediaChecks: resources.mediaChecks, systemContext, store });
     const statements = await statementsDuring(knex, async () => {
       await none.filesLater(turn(["cat.png", "dog.mp4"]));
-      await none.screenshotLater({ computerId: "77", name: `77-${"a".repeat(16)}.jpg`, workspaceId: home });
+      await none.screenshotLater({ computerId: "77", name: `77-${"a".repeat(16)}.jpg`, workspaceId: home, chatId: "5" });
       assert.equal(await none.sweep(), 0);
       none.startSweeping();
       none.stop();
@@ -94,9 +96,9 @@ test("screenshots and the pictures and videos bots save are checked afterwards, 
     const statements = await statementsDuring(knex, () => checks.filesLater(turn(["cat.png", "notes.txt", "dog.mp4", "gone.png", "cat.png"])), /media_checks/u);
     assert.equal(statements.length, 1);
     const queued = await rows();
-    assert.deepEqual(queued.map((row) => [row.origin, row.path, String(row.bot_id), String(row.user_id), String(row.conversation_id), row.attempts]), [
-      ["saved_file", "/files/mine/cat.png", "41", userId, "5", 0],
-      ["saved_file", "/files/mine/dog.mp4", "41", userId, "5", 0]
+    assert.deepEqual(queued.map((row) => [row.origin, row.path, String(row.chat_bot_id), String(row.user_id), String(row.conversation_id), row.attempts]), [
+      ["saved_file", "/files/chat/cat.png", "52", userId, "5", 0],
+      ["saved_file", "/files/chat/dog.mp4", "52", userId, "5", 0]
     ]);
     assert.deepEqual(queued[0].place, place);
     assert.ok(queued.every((row) => row.wait <= 0), "each may be taken at once");
@@ -104,7 +106,7 @@ test("screenshots and the pictures and videos bots save are checked afterwards, 
 
   let twoRowSweep = null;
   await context.test("a sweep checks what's due: a blocked file is removed, an allowed one kept, and both rows go", async (t) => {
-    verdicts = { "/files/mine/cat.png": { verdict: "block", ref: "check-1" } };
+    verdicts = { "/files/chat/cat.png": { verdict: "block", ref: "check-1" } };
     const said = t.mock.method(console, "info", () => {});
     twoRowSweep = await statementsDuring(knex, async () => assert.equal(await checks.sweep(), 2), /media_checks/u);
     assert.equal(existsSync(cat), false, "the blocked picture is gone");
@@ -113,12 +115,27 @@ test("screenshots and the pictures and videos bots save are checked afterwards, 
     // A batch's files are checked at once, so the checker is asked in whichever order they are read: compared by path.
     const byPath = (a, b) => a.path.localeCompare(b.path);
     assert.deepEqual([...asked].sort(byPath).map((item) => [item.origin, item.path, item.mime, item.workspaceId, item.userId, item.botId, item.conversationId, item.ip]), [
-      ["saved_file", "/files/mine/cat.png", "image/png", home, userId, "41", "5", null],
-      ["saved_file", "/files/mine/dog.mp4", "video/mp4", home, userId, "41", "5", null]
+      ["saved_file", "/files/chat/cat.png", "image/png", home, userId, "41", "5", null],
+      ["saved_file", "/files/chat/dog.mp4", "video/mp4", home, userId, "41", "5", null]
     ]);
     for (const item of asked) assert.deepEqual(item.place, place, "each with the place its row kept");
-    assert.deepEqual(asked.find((item) => item.path === "/files/mine/cat.png").bytes, PICTURE);
-    assert.match(said.mock.calls[0].arguments[0], /^A file \/files\/mine\/cat\.png \(home \d+\) was removed: its check blocked it \(check-1\)\.$/u);
+    assert.deepEqual(asked.find((item) => item.path === "/files/chat/cat.png").bytes, PICTURE);
+    assert.match(said.mock.calls[0].arguments[0], /^A file \/files\/chat\/cat\.png \(home \d+\) was removed: its check blocked it \(check-1\)\.$/u);
+  });
+
+  await context.test("a blocked file in a private chat's wider folders goes too, though its bot only reads there", async (t) => {
+    t.mock.method(console, "info", () => {});
+    // Another chat's run wrote it in the bot's folder while this chat's ran, so this run's changes name it. Its real
+    // path is read as a reading does, which this place may.
+    const real = await store.resolve(place, "/files/bot/Clips/wide.png", { reading: true });
+    await fs.mkdir(path.dirname(real), { recursive: true });
+    await fs.writeFile(real, PICTURE);
+    await assert.rejects(store.existingFile(place, "/files/bot/Clips/wide.png", { writing: true }), { code: "files_wider_needs_card" });
+    await checks.filesLater({ place, paths: ["/files/bot/Clips/wide.png"], workspaceId: home, userId, chatBotId: "52" });
+    verdicts = { "/files/bot/Clips/wide.png": { verdict: "block" } };
+    assert.equal(await checks.sweep(), 1);
+    assert.equal(existsSync(real), false);
+    assert.deepEqual(await rows(), []);
   });
 
   await context.test("a sweep's statements follow its batch, not its rows", async () => {
@@ -134,13 +151,13 @@ test("screenshots and the pictures and videos bots save are checked afterwards, 
     t.mock.method(console, "warn", () => {});
     const fox = await save("fox.png", PICTURE);
     await checks.filesLater(turn(["fox.png"]));
-    verdicts = { "/files/mine/fox.png": { verdict: "unavailable" } };
+    verdicts = { "/files/chat/fox.png": { verdict: "unavailable" } };
     assert.equal(await checks.sweep(), 1);
     let [waiting] = await rows();
     assert.deepEqual([waiting.attempts, waiting.wait], [1, 60]);
     assert.equal(await checks.sweep(), 0, "not before its time");
     await due();
-    verdicts = { "/files/mine/fox.png": new Error("the checker is down") };
+    verdicts = { "/files/chat/fox.png": new Error("the checker is down") };
     assert.equal(await checks.sweep(), 1);
     [waiting] = await rows();
     assert.deepEqual([waiting.attempts, waiting.wait], [2, 120]);
@@ -157,9 +174,10 @@ test("screenshots and the pictures and videos bots save are checked afterwards, 
     const shot = path.join(volume, "computers", "77", "screenshots", name);
     await fs.mkdir(path.dirname(shot), { recursive: true });
     await fs.writeFile(shot, JPEG);
-    await checks.screenshotLater({ computerId: "77", name, workspaceId: home, userId, botId: "41" });
+    // The computer of bot 41 in chat 5 is its seat there, 77 (D14).
+    await checks.screenshotLater({ computerId: "77", name, workspaceId: home, userId, chatId: "5" });
     const [queued] = await rows();
-    assert.deepEqual([queued.origin, queued.path, String(queued.conversation_id), queued.place, queued.wait], ["screenshot", name, "77", null, 30]);
+    assert.deepEqual([queued.origin, queued.path, String(queued.chat_bot_id), String(queued.conversation_id), queued.place, queued.wait], ["screenshot", name, "77", "5", null, 30]);
     assert.equal(await checks.sweep(), 0, "not before its 30 seconds");
     await due();
     verdicts = { [name]: { verdict: "block" } };
@@ -189,16 +207,23 @@ test("screenshots and the pictures and videos bots save are checked afterwards, 
     // What a checker keeps of an item and gives back: JSON, without the file.
     const kept = ({ origin, place: where = null, path: virtualPath, conversationId = null, workspaceId }) =>
       JSON.parse(JSON.stringify({ origin, place: where, path: virtualPath, conversationId, workspaceId }));
+    // The file is put there as its upload did; its real path is read as a reading does, which every place may.
     const write = async (where, virtualPath) => {
-      const real = await store.resolve(where, virtualPath);
+      const real = await store.resolve(where, virtualPath, { reading: true });
       await fs.mkdir(path.dirname(real), { recursive: true });
       await fs.writeFile(real, PICTURE);
       return real;
     };
 
-    // An upload, from each place an upload route writes to: the bot's for the person, a group's everyone place, the home's.
-    const everyone = { homeId: home, botId: "41", everyone: true };
-    for (const [where, virtualPath] of [[place, "/files/mine/Uploads/late.png"], [everyone, "/files/bot/Uploads/group.png"], [store.homePlace(home), "/files/shared/Uploads/team.png"]]) {
+    // An upload, from each place an upload route writes to: a chat's (its own folder, or, as a person may, its bot's),
+    // the bot's own (its Knowledge files) and the home's. The route's place is widened (D13), which a checker's copy of
+    // it isn't: removing widens it again, so a blocked upload goes from a private chat's wider folders too.
+    for (const [where, virtualPath] of [
+      [place, "/files/chat/Uploads/late.png"],
+      [place, "/files/bot/Uploads/wide.png"],
+      [store.botPlace({ homeId: home, botId: "41" }), "/files/bot/Uploads/group.png"],
+      [store.homePlace(home), "/files/shared/Uploads/team.png"]
+    ]) {
       await store.prepare(where);
       const real = await write(where, virtualPath);
       const item = kept({ origin: "upload", place: where, path: virtualPath, workspaceId: home });
@@ -215,13 +240,13 @@ test("screenshots and the pictures and videos bots save are checked afterwards, 
     verdicts = {};
     assert.equal(await checks.sweep(), 1);
     assert.ok(existsSync(late), "allowed, it's kept");
-    const checked = kept(asked.findLast((item) => item.path === "/files/mine/late.png"));
-    assert.deepEqual(checked, { origin: "saved_file", place, path: "/files/mine/late.png", conversationId: "5", workspaceId: home });
+    const checked = kept(asked.findLast((item) => item.path === "/files/chat/late.png"));
+    assert.deepEqual(checked, { origin: "saved_file", place: { ...place }, path: "/files/chat/late.png", conversationId: "5", workspaceId: home });
     assert.equal(await later.remove(checked), "removed");
     assert.equal(existsSync(late), false);
     assert.equal(await later.remove(checked), "gone");
 
-    // A screenshot: its name and its computer.
+    // A screenshot: its name and its computer (its seat's chat_bots id).
     const name = `77-${"c".repeat(16)}.jpg`;
     const shot = path.join(volume, "computers", "77", "screenshots", name);
     await fs.mkdir(path.dirname(shot), { recursive: true });
@@ -235,7 +260,7 @@ test("screenshots and the pictures and videos bots save are checked afterwards, 
     // Every other origin's file isn't kept where Mercbot removes it: nothing is done.
     const stays = await save("stays.png", PICTURE);
     for (const origin of ["vault_photo", "profile_picture", "picture"]) {
-      assert.equal(await later.remove(kept({ origin, place, path: "/files/mine/stays.png", workspaceId: home })), "not_kept_here", origin);
+      assert.equal(await later.remove(kept({ origin, place, path: "/files/chat/stays.png", workspaceId: home })), "not_kept_here", origin);
     }
     assert.ok(existsSync(stays));
 
@@ -243,20 +268,20 @@ test("screenshots and the pictures and videos bots save are checked afterwards, 
     // screenshot's are refused, and nothing is removed. A link itself is no file kept there.
     const outside = path.join(volume, "outside.png");
     await fs.writeFile(outside, PICTURE);
-    await fs.symlink(outside, await store.resolve(place, "/files/mine/link.png"));
-    await fs.symlink(volume, await store.resolve(place, "/files/mine/linked"));
+    await fs.symlink(outside, await store.resolve(place, "/files/chat/link.png"));
+    await fs.symlink(volume, await store.resolve(place, "/files/chat/linked"));
     const refusal = (item) => later.remove(item).then((answer) => answer, (error) => [error.statusCode, error.code]);
-    assert.equal(await refusal(kept({ origin: "upload", place, path: "/files/mine/link.png", workspaceId: home })), "gone");
-    for (const virtualPath of ["/files/mine/../../../outside.png", "/outside.png", "/files/mine/linked/outside.png", "../outside.png"]) {
+    assert.equal(await refusal(kept({ origin: "upload", place, path: "/files/chat/link.png", workspaceId: home })), "gone");
+    for (const virtualPath of ["/files/chat/../../../outside.png", "/outside.png", "/files/chat/linked/outside.png", "../outside.png"]) {
       assert.deepEqual(await refusal(kept({ origin: "upload", place, path: virtualPath, workspaceId: home })), [400, "files_path_outside"], virtualPath);
     }
-    assert.deepEqual(await refusal(kept({ origin: "saved_file", place: null, path: "/files/mine/stays.png", workspaceId: home })), [400, "media_place_invalid"]);
-    assert.deepEqual(await refusal(kept({ origin: "upload", place, path: "/files/mine/stays.png", workspaceId: `${home}0` })), [400, "media_place_invalid"]);
+    assert.deepEqual(await refusal(kept({ origin: "saved_file", place: null, path: "/files/chat/stays.png", workspaceId: home })), [400, "media_place_invalid"]);
+    assert.deepEqual(await refusal(kept({ origin: "upload", place, path: "/files/chat/stays.png", workspaceId: `${home}0` })), [400, "media_place_invalid"]);
     for (const [badName, computer] of [["../outside.png", "77"], [`77-${"c".repeat(15)}.jpg`, "77"], [name, "../77"], [name, null]]) {
       assert.deepEqual(await refusal(kept({ origin: "screenshot", path: badName, conversationId: computer, workspaceId: home })), [400, "media_screenshot_invalid"], `${badName} on ${computer}`);
     }
     assert.ok(existsSync(outside) && existsSync(stays));
-    for (const link of ["/files/mine/link.png", "/files/mine/linked"]) await fs.unlink(await store.resolve(place, link));
+    for (const link of ["/files/chat/link.png", "/files/chat/linked"]) await fs.unlink(await store.resolve(place, link));
   });
 
   await context.test("a picture or video too big to check isn't kept", async (t) => {
@@ -312,7 +337,7 @@ test("screenshots and the pictures and videos bots save are checked afterwards, 
     assert.deepEqual(await first, [2, 2]);
     assert.equal(await third, 1);
     pause = null;
-    assert.deepEqual([...started].sort(), names.map((name) => `/files/mine/${name}`).sort(), "each row was checked once");
+    assert.deepEqual([...started].sort(), names.map((name) => `/files/chat/${name}`).sort(), "each row was checked once");
     assert.ok(leases.every((wait) => wait > 290 && wait <= 300), `each taken row is held for its lease: ${leases}`);
     assert.deepEqual(await rows(), []);
   });

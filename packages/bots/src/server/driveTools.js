@@ -213,7 +213,7 @@ export function buildDriveTools({ attempt, attempted, removed, failed, account, 
         if (action === "export" && !format) return { error: "Say which format in format, e.g. pdf." };
         const file = await inTime(app.downloadFile(entry.key, id, action === "export" ? format.toLowerCase() : ""), "Downloading the file");
         if (file.data.length > 50 * 1024 * 1024) return { error: "That file is over 50 MB, too big to keep a copy." };
-        const kept = await keep(`/files/mine/Drive/${file.name.replace(/[\\/]/gu, "-")}`, file.data);
+        const kept = await keep(`/files/chat/Drive/${file.name.replace(/[\\/]/gu, "-")}`, file.data);
         return {
           account: entry.account,
           kept,

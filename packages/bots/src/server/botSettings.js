@@ -1,186 +1,104 @@
 import { retryLostInsertRace } from "@jskit-ai/database-runtime/shared";
 import { BotsError, archivedBotRefusal } from "./botsError.js";
-import { cleanName, cleanTitle, toBot, toRoom } from "./botRows.js";
+import { cleanName } from "./botRows.js";
 import { additionsChange, changeRefusal, mayChangeBot } from "./botAdditions.js";
-import { createWorkPause } from "./workPause.js";
+import { createCallerReaders } from "./records/recordRows.js";
 
 /**
- * A bot's settings and a shared bot's rooms (D-36): its name, additions (D-98) and sharing, the person's own
- * pins, section and reading state, rooms opened, made and renamed, and a bot deleted. Every method takes the call's
- * options last.
+ * A bot's settings, the home's for everyone in it (D-112): its name, its additions (D-98) and whether it's the home's
+ * main bot; and a bot deleted. Every method takes the call's options last.
  * @param {object} dependencies
  * @param {import("./types.js").BotRecords} dependencies.records mercbot.bots.records
- * @param {import("./types.js").BotConversations} dependencies.conversations
- * @param {import("@local/apps/server/types").Apps} dependencies.apps
+ * @param {import("@local/computer/server/types").Computer} dependencies.computer a deleted bot's computers go with it
+ * @param {import("@local/notices/server/types").Notices} dependencies.notices
+ * @param {(botIds: string[], change: string, options: object) => Promise<void>} dependencies.tellHome everyone in the home
+ *   hears a bot changed (botList.js)
+ * @param {(botId: string, options: object) => Promise<object>} dependencies.listedBot the bot as Team lists it
  */
-export function createBotSettings({ records, conversations, apps }) {
-  const { conversations: store, messages, archives } = records;
-  const SHARING = new Set(["private", "shared", "mixed"]);
-  // What an archived bot's chats still take (D-108): reading them, and opening another of its tabs.
-  const READING = new Set(["unread", "roomId"]);
-  const pauseWorkIn = createWorkPause({ records, apps, conversations });
+export function createBotSettings({ records, computer, notices, tellHome, listedBot }) {
+  const { bots, chats, archives } = records;
+  const { personOf } = createCallerReaders();
 
+  /**
+   * Changes a bot: its name (anyone in the home), its additions (its maker and the home's owners and admins: 403 for
+   * anyone else) and, with `main`, makes it the home's main bot, the one that's never deleted or archived (the route lets
+   * only owners and admins). An archived bot is refused (409): unarchive it first. Answers the bot as Team lists it.
+   * @param {{ name?: unknown, additions?: unknown, main?: unknown }} patch
+   */
   async function updateBot(botId, patch = {}, options) {
-    const { changed, sharingChanged } = await retryLostInsertRace(options, () => store.withTransaction(options, async (txOptions) => {
-      const row = await conversations.ownedBot(botId, txOptions, { lock: true, room: patch.roomId });
-      if (row.archived_at && Object.keys(patch).some((key) => !READING.has(key))) throw archivedBotRefusal(row);
-      const shared = {};
-      const own = {};
-      if (patch.name !== undefined) {
-        shared.name = cleanName(patch.name);
-        own.last_activity_at = new Date().toISOString();
-      }
-      // Its additions to its template (D-98): only its maker and the home's owners and admins change them.
+    const changed = await retryLostInsertRace(options, () => chats.withTransaction(options, async (txOptions) => {
+      const bot = await bots.get(botId, txOptions);
+      if (bot.archived_at) throw archivedBotRefusal(bot);
+      const columns = {};
+      if (patch.name !== undefined) columns.name = cleanName(patch.name);
       if (patch.additions !== undefined) {
-        if (row.kind === "group") throw new BotsError(400, "A group chat has no additions of its own.", { code: "bots_group_additions" });
-        if (!mayChangeBot(row.created_by, conversations.personOf(txOptions), txOptions)) {
-          throw new BotsError(403, changeRefusal(row.name), { code: "bots_additions_forbidden" });
+        if (!mayChangeBot(bot.made_by, personOf(txOptions), txOptions)) {
+          throw new BotsError(403, changeRefusal(bot.name), { code: "bots_additions_forbidden" });
         }
-        Object.assign(shared, additionsChange(patch.additions));
+        Object.assign(columns, additionsChange(patch.additions));
       }
-      // Replace the main bot: this bot becomes the home's main bot, the one that can't
-      // be deleted; the route lets only owners and admins do it.
-      if (patch.main === true && !row.is_main) {
-        if (row.kind === "group") throw new BotsError(400, "A group chat can't be the main bot.", { code: "bots_main_bot_group" });
-        await store.clearMainBot(txOptions);
-        shared.is_main = true;
+      if (patch.main === true && !bot.is_main) {
+        await bots.clearMain(txOptions);
+        columns.is_main = true;
       }
-      // Who sees what (D-36); the route lets only owners and admins change it.
-      if (patch.sharing !== undefined) {
-        if (!SHARING.has(patch.sharing)) throw new BotsError(400, "Choose private, shared or mixed.", { code: "bots_visibility_unknown" });
-        if (row.kind === "group") throw new BotsError(400, "A group chat is always your own.", { code: "bots_group_visibility_fixed" });
-        shared.sharing = patch.sharing;
-      }
-      // The tab the person has open in a shared bot, so it opens there next time: "You only" is their own
-      // conversation (D-99). Making a bot Shared opens General for whoever made it so.
-      const sharingOn = shared.sharing === "shared" && row.sharing !== "shared";
-      if (patch.roomId !== undefined && conversations.isShared(row)) own.room_id = row.conversation_id;
-      if (sharingOn) own.room_id = null;
-      if (patch.pinned === true && row.pin_position === null) {
-        own.pin_position = await store.nextPinPosition(txOptions);
-        own.section_id = null;
-      }
-      if (patch.pinned === false) own.pin_position = null;
-      if (patch.hidden !== undefined) own.hidden = Boolean(patch.hidden);
-      if (patch.keepOutOfNotebook !== undefined) own.keep_out_of_notebook = Boolean(patch.keepOutOfNotebook);
-      // Unread is each tab's own (D-99): the person's own conversation keeps it on their row, a room in their read
-      // point there, so reading General leaves "You only" new and the other way round.
-      if (patch.unread !== undefined && !row.room) own.unread = Boolean(patch.unread);
-      // Reading the bot moves the "new" divider's starting point past everything so far;
-      // in a shared bot, for this person in this room. The conversation is locked, so nothing is
-      // written there between reading its latest message and recording it. Marking a room unread puts
-      // the person's read point just before its latest message.
-      if (patch.unread === false && !row.room) {
-        const latest = await messages.latestId(row.conversation_id, txOptions);
-        own.read_up_to = latest === null ? null : Number(latest);
-      } else if (patch.unread !== undefined && row.room) {
-        const latest = await messages.latestId(row.conversation_id, txOptions);
-        if (latest !== null) await store.markRead(row.conversation_id, patch.unread ? Number(latest) - 1 : latest, txOptions);
-      }
-      if (patch.sectionId !== undefined) {
-        own.section_id = patch.sectionId ? (await store.ownedSection(patch.sectionId, txOptions)).id : null;
-        own.pin_position = null;
-      }
-      if (Object.keys(shared).length) await store.updateBot(row.id, shared, txOptions);
-      if (Object.keys(own).length) await store.updateConversation(row.seat_id, own, txOptions);
-      if (row.sharing === "shared" && shared.sharing && shared.sharing !== "shared") {
-        await pauseHiddenWork(row, txOptions);
-        // Each person's archived You only is their chat again, their only conversation with it (D-101).
-        await archives.unarchiveSeats(row.id, txOptions);
-      }
-      // Read again as this person sees it now, which gives a newly shared bot its first room.
-      const bot = await store.botOf(row.id, txOptions);
-      const changed = await conversations.seenBy(bot, txOptions, { room: sharingOn ? null : row.conversation_id });
-      return { changed, sharingChanged: Boolean(shared.sharing) && shared.sharing !== row.sharing };
+      if (!Object.keys(columns).length) return null;
+      await bots.update(bot.id, columns, txOptions);
+      return bot;
     }));
-    // Everyone in the home sees the bot change mode, on any server.
-    if (sharingChanged) {
-      await conversations.publish(await conversations.everyoneIn(options), { botId: String(changed.id), type: "changed" });
-    }
-    return toBot(changed);
+    if (changed) await tellHome([changed.id], "changed", options);
+    return listedBot(String(botId), options);
   }
 
   /**
-   * A bot leaving Shared hides its rooms (D-99): their routines and watches pause, as a person pausing each would,
-   * and each room with something paused says so in a line, read when the bot is Shared again. Nothing then runs
-   * where nobody sees it or can stop it; a goal there stops at its next round (conversations.rowOf answers null).
+   * Deletes a bot for everyone in the home, by whoever made it and the home's owners and admins (403 for anyone else),
+   * never the main bot (409). Its seats in every chat go with it, and so does each person's direct chat with it
+   * (ON DELETE CASCADE): those chats' computers and folders are removed, its other computers put to sleep, and what it
+   * wrote elsewhere stays, its author gone. Everyone in the home hears it, and each person who had a direct chat with
+   * it that the chat is gone.
    */
-  async function pauseHiddenWork(row, txOptions) {
-    const roomIds = (await conversations.roomsOf(row.id, txOptions)).map((room) => String(room.id));
-    await pauseWorkIn(row, roomIds, {
-      text: "Paused while hidden",
-      detail: (paused) => `${row.name} stopped being Shared, which hid this conversation, so its ${paused} paused. ` +
-        `Resume them here once ${row.name} is Shared again.`
-    }, txOptions);
-  }
-
-  /**
-   * A shared Builder keeps one conversation per app (owner, 2026-10-30): Ask Builder in an app opens
-   * that app's room, made fresh the first time (it doesn't continue another), named after the app.
-   */
-  async function roomForApp(botId, { appId, title } = {}, options) {
-    const row = await conversations.ownedBot(botId, options);
-    if (row.kind === "group" || row.sharing !== "shared") {
-      throw new BotsError(409, "Only a shared bot has a conversation for each app.", { code: "bots_app_conversations_shared_only" });
-    }
-    const app = await apps.apps.findApp(String(appId || ""), options, { kind: "app" });
-    if (!app) throw new BotsError(404, "That app isn't in this home.", { code: "bots_app_not_in_home" });
-    const room = await store.appRoomFor(row, app, cleanTitle(title || app.name), options);
-    await store.updateConversation(row.seat_id, { room_id: room.id }, options);
-    const opened = await conversations.refresh({ ...row, conversation_id: room.id }, options);
-    await conversations.tell(opened, { type: "changed" }, options);
-    return { bot: toBot(opened), room: toRoom(room) };
-  }
-
-  /**
-   * A new tab in a shared bot (D-36): it continues from the open one, knowing everything said
-   * there so far but nothing said there afterwards. One made from "You only" starts empty: nothing
-   * said there goes where others read (D-99). Every tab has a name.
-   */
-  async function createRoom(botId, input = {}, options) {
-    const title = cleanTitle(input.title);
-    const row = await conversations.ownedBot(botId, options, { room: input.from });
-    if (row.kind === "group" || row.sharing !== "shared") {
-      throw new BotsError(400, "Only a shared bot has conversations for everyone.", { code: "bots_everyone_conversations_shared_only" });
-    }
-    const from = row.room
-      ? { parentId: row.conversation_id, forkedAtMessageId: await messages.latestId(row.conversation_id, options) }
-      : {};
-    const room = await store.createRoom(row, { title, ...from }, options);
-    await store.updateConversation(row.seat_id, { room_id: room.id }, options);
-    const opened = await conversations.refresh({ ...row, conversation_id: room.id }, options);
-    await conversations.tell(opened, { type: "changed" }, options);
-    return { bot: toBot(opened), room: toRoom(room) };
-  }
-
-  async function renameRoom(botId, roomId, input = {}, options) {
-    const title = cleanTitle(input.title);
-    const row = await conversations.ownedBot(botId, options, { room: roomId });
-    if (String(row.room?.id) !== String(roomId)) {
-      throw new BotsError(404, "That conversation isn't there.", { code: "bots_conversation_not_found" });
-    }
-    const room = await store.renameRoom(roomId, title, options);
-    await conversations.tell(row, { type: "changed" }, options);
-    return { room: toRoom(room) };
-  }
-
   async function deleteBot(botId, options) {
-    const row = await conversations.ownedBot(botId, options);
-    if (row.is_main) throw new BotsError(409, "Your main bot can't be deleted.", { code: "bots_main_bot_delete" });
-    if (row.kind === "group" && String(row.created_by) !== conversations.personOf(options)) {
-      throw new BotsError(403, "Only the person who made this group can delete it. You can leave it instead.", {
-        code: "bots_group_delete_forbidden"
-      });
+    const person = personOf(options);
+    const { bot, seats, direct, people } = await chats.withTransaction(options, async (txOptions) => {
+      const bot = await bots.get(botId, txOptions);
+      if (!mayChangeBot(bot.made_by, person, txOptions)) {
+        throw new BotsError(403, `Only the person who made ${bot.name} and the home's owners and admins can delete it.`, {
+          code: "bots_delete_forbidden"
+        });
+      }
+      if (bot.is_main) throw new BotsError(409, "Your main bot can't be deleted.", { code: "bots_main_bot_delete" });
+      // Every chat it's in, the private ones the person can't open too, read before they go.
+      const everyone = archives.forEveryone(txOptions);
+      const seats = await archives.seatsOf(bot.id, txOptions);
+      const direct = (await chats.byIds(seats.map((seat) => seat.chatId), everyone))
+        .filter((chat) => String(chat.direct_bot_id) === String(bot.id))
+        .map((chat) => String(chat.id));
+      const people = await chats.peopleOf(direct, everyone);
+      await bots.remove(bot.id, txOptions);
+      return { bot, seats, direct, people };
+    });
+    const homeId = String(bot.workspace_id);
+    const gone = new Set(direct);
+    for (const chatId of direct) {
+      const chatBotIds = seats.filter((seat) => seat.chatId === chatId).map((seat) => seat.id);
+      await computer.chatRemoved({ homeId, chatId, chatBotIds })
+        .catch((error) => console.warn("Removing a deleted bot's chat computers failed; the hourly sweep removes them.", error?.message));
     }
-    await store.deleteBot(row.id, options);
-    return { deleted: String(row.id) };
+    const kept = seats.filter((seat) => !gone.has(seat.chatId)).map((seat) => seat.id);
+    if (kept.length) {
+      await computer.sleepHome(homeId, kept)
+        .catch((error) => console.warn("Putting a deleted bot's computers to sleep failed; they sleep when idle.", error?.message));
+    }
+    for (const chatId of direct) {
+      const chatPeople = (people.get(chatId) ?? []).map((entry) => String(entry.user_id));
+      await notices.publishEach("bots", chatPeople, { type: "chat", chatId, change: "deleted" })
+        .catch((error) => console.warn("Telling people a chat went failed; they see it on their next read.", error));
+    }
+    await tellHome([bot.id], "deleted", options);
+    return { deleted: String(bot.id) };
   }
 
   return Object.freeze({
     updateBot,
-    roomForApp,
-    createRoom,
-    renameRoom,
     deleteBot
   });
 }

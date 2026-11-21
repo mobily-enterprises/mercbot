@@ -70,6 +70,10 @@ Object.assign(process.env, {
 });
 process.once("exit", () => rmSync(path.dirname(fakeDrive.caFile), { recursive: true, force: true }));
 
+// A chat's computers only pretend (packages/computer/src/server/standInDesktops.js): waking one, taking it over and
+// teaching on it start no desktop, browser or sandbox on the test host.
+process.env.MERCBOT_TEST_DESKTOPS = "stand-in";
+
 // Sedna connected with a home's API credentials (D-93) goes to a local stand-in (fakeSedna.mjs) for every tenant.
 const fakeSedna = await startFakeSedna();
 process.env.MERCBOT_TEST_SEDNA_URL = fakeSedna.url;

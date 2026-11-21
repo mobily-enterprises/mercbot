@@ -93,6 +93,8 @@ export function registerRoutes(http, { appsRuntime, notices, streams }) {
     home,
     handle(async (_request, ctx) => ({ builder: await apps.builder(ctx.options), canManage: ctx.canManage }))
   );
+  // Ask Builder: the app's chat with the Builder, made the first time (D-41). Any member, as every app is everyone's.
+  router.register("POST", `${base}/:slug/chat`, home, handle(async (request, ctx) => ({ chat: await apps.appChat(request.params.slug, ctx.options) })));
   // Which bot changes everyone's apps is the owners' and admins' choice (owner, 2026-10-31).
   router.register("PUT", `${base}/builder`, home, handle(async (request, ctx) => {
     if (!ctx.canManage) throw forbidden("Only the home's owners and admins can choose the Builder.", "apps_builder_manage_forbidden");

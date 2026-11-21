@@ -4,6 +4,7 @@ import { BOT_PALETTE } from "./botPalette.js";
 import { CLOUD_SHAPES } from "./botRows.js";
 import { CATEGORIES, GALLERY, GENERAL, LIBRARY, LIBRARY_TAGS, TAG, freeTag, oneLine } from "./templates.js";
 import { TEAMS } from "./teams.js";
+import { createCallerReaders } from "./records/recordRows.js";
 
 // Suggested bots (D-109): Add bots' "Describe what you need". One billed call to the chat model reads what the person
 // wants, the home's bots and its own templates, and answers a plan: Mercbot's library bots first, the home's own
@@ -86,7 +87,7 @@ export function planSystem() {
       ],
       covered: [{ bot: "Kindly", why: "It already answers your reviews." }]
     }),
-    `"name" names the section of the sidebar the bots go in: one to three words, at most ${PLAN_LIMITS.name} characters. ` +
+    `"name" says what the bots are for, as a short title: one to three words, at most ${PLAN_LIMITS.name} characters. ` +
       `"summary" is one line of at most ${PLAN_LIMITS.summary} characters; each "why" one short line, said to the person.`
   ].join("\n");
 }
@@ -264,13 +265,14 @@ function pickFresh(list, taken) {
  *   the model's answer to one call
  */
 export function createBotPlans({ records, workspaces, meter, write }) {
-  const { conversations, newBots, homeTemplates } = records;
+  const { chats, newBots, homeTemplates } = records;
+  const { homeOf: homeIdOf } = createCallerReaders();
 
   /** The home as the planner is told it, and what its plan is checked against: a few reads, whatever its size. */
   async function homeOf(options) {
     const [home, people, listed, own] = await Promise.all([
-      workspaces.findById(conversations.homeOf(options), passedOn(options)),
-      conversations.everyoneIn(options),
+      workspaces.findById(homeIdOf(options), passedOn(options)),
+      chats.everyoneIn(options),
       newBots.homeBots(PLAN_LIMITS.homeBots, options),
       homeTemplates.list(options)
     ]);

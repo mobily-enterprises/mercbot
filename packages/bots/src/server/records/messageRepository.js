@@ -195,16 +195,28 @@ export function createMessageRepository({ resources, systemContext }) {
     return rowsOf((await messages.query({ filters: { conversationId, kind: "text" }, sort: ["-id"], page: { size: limit } }, passedOn(options))).records, options);
   }
 
-  /** What the bots made in a chat (the Library), newest first, up to `limit`: one page; with `botId`, one bot's. */
+  /** Which made messages a Library read: in one chat, or with no chat every chat the caller reads; one bot's with `botId`. */
+  const madeFilters = (conversationId, botId) => ({
+    ...(conversationId == null ? {} : { conversationId: String(conversationId) }),
+    kinds: [...MADE_KINDS],
+    ...(botId ? { madeBy: String(botId) } : {})
+  });
+
+  /**
+   * What the bots made (the Library), newest first, up to `limit`: one page. In one chat, or with `conversationId` null
+   * in every chat the caller may read (a bot's card on Team, D-112); with `botId`, one bot's.
+   */
   async function madeIn(conversationId, limit, options, { botId = null } = {}) {
-    const filters = { conversationId: String(conversationId), kinds: [...MADE_KINDS], ...(botId ? { madeBy: String(botId) } : {}) };
-    const { records } = await messages.query({ filters, sort: ["-id"], page: { size: limit } }, passedOn(options));
+    const { records } = await messages.query({ filters: madeFilters(conversationId, botId), sort: ["-id"], page: { size: limit } }, passedOn(options));
     return rowsOf(records, options);
   }
 
-  /** What the bot made in a conversation before a message that holds a pin (the Library's Pinned), newest first. */
-  async function pinnedBefore(conversationId, before, options) {
-    const filters = { conversationId, kinds: [...MADE_KINDS], pinned: true, beforeId: before };
+  /**
+   * What was made before a message, holding a pin (the Library's Pinned), newest first: in one chat, or with
+   * `conversationId` null in every chat the caller may read; with `botId`, one bot's.
+   */
+  async function pinnedBefore(conversationId, before, options, { botId = null } = {}) {
+    const filters = { ...madeFilters(conversationId, botId), pinned: true, beforeId: before };
     return rowsOf(await messages.queryAll({ filters, sort: ["-id"] }, passedOn(options)), options);
   }
 
@@ -332,10 +344,14 @@ export function createMessageRepository({ resources, systemContext }) {
   async function searchRoutines(options) {
     const searched = await searchedConversations(options);
     const seats = await chatBots.joinSource({ alias: "s" }, passedOn(options));
+    // The bots' seats in those chats, shaped and named as a derived table: a join source is joined through .as().
+    const seated = seats.query
+      .whereIn(seats.column("conversationId"), searched.query)
+      .select({ id: seats.column("id"), bot_id: seats.column("botId"), conversation_id: seats.column("conversationId") })
+      .as("seat");
     const { query } = await routines.scopedQuery({ alias: "r" }, passedOn(options));
     return query
-      .join(seats.query, seats.column("id"), routines.column("chatBotId", "r"))
-      .whereIn(seats.column("conversationId"), searched.query)
+      .join(seated, "seat.id", routines.column("chatBotId", "r"))
       .orderBy(routines.column("id", "r"))
       .select({
         id: routines.column("id", "r"),
@@ -343,8 +359,8 @@ export function createMessageRepository({ resources, systemContext }) {
         schedule: routines.column("schedule", "r"),
         enabled: routines.column("enabled", "r"),
         chat_bot_id: routines.column("chatBotId", "r"),
-        bot_id: seats.column("botId"),
-        conversation_id: seats.column("conversationId")
+        bot_id: "seat.bot_id",
+        conversation_id: "seat.conversation_id"
       });
   }
 

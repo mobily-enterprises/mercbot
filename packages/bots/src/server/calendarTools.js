@@ -22,8 +22,8 @@ const NOT_OWN =
  * @param {import("./types.js").TurnRepository} shared.turns records.turns
  * @param {import("./types.js").CallOptions} shared.call the turn's call options
  * @param {import("@local/integrations/server/types").Integrations} shared.integrations
- * @param {import("./types.js").Reach} shared.reach
- * @param {string} shared.conversationId
+ * @param {string} shared.conversationId the chat
+ * @param {string} shared.userId the person the turn works for
  * @param {string[]} shared.removed
  * @param {import("./types.js").AppFor} shared.appFor
  * @param {import("./types.js").AttemptAction} shared.attempt
@@ -39,8 +39,8 @@ export function buildCalendarTools({
   turns,
   call,
   integrations,
-  reach,
   conversationId,
+  userId,
   removed,
   appFor,
   attempt,
@@ -60,7 +60,7 @@ export function buildCalendarTools({
   // Calendar (D-96) is the answer for the turn's calendar reads, which it would be busy for too.
   let calendarHome;
   const zoneFor = async (given) => {
-    calendarHome ??= connectedKeys({ integrations, reach, call }, ["google-calendar"], "calendar")
+    calendarHome ??= connectedKeys({ integrations, call }, ["google-calendar"], "calendar")
       .then((keys) => Promise.all(keys.map((entry) => google.listCalendars(entry.key).catch(unlessBusy([])))))
       .then(
         (lists) =>
@@ -231,10 +231,11 @@ export function buildCalendarTools({
   /**
    * A calendar the person described ("my work calendar", "Kim's calendar") must be one whose name
    * or address says so; otherwise the bot asks first and adds nothing. A pick on a question
-   * card after their message is their answer, so the calendar they picked is used.
+   * card after their message is their answer, so the calendar they picked is used. Only what the person the turn works
+   * for wrote counts, in a chat with others (R4).
    */
   const describedCalendar = async () => {
-    const latest = await turns.latestMessage(conversationId, { role: "user", kind: "text" }, call);
+    const latest = await turns.latestMessage(conversationId, { role: "user", kind: "text", authorUserId: String(userId) }, call);
     const picked = await turns.latestMessage(conversationId, { kind: "choice", answeredQuestion: true, ...(latest ? { afterId: String(latest.id) } : {}) }, call);
     if (picked) return "";
     const said = String(latest?.body?.text || "");

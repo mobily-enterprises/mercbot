@@ -4,59 +4,60 @@ import { checkRouteVisibility } from "@jskit-ai/kernel/shared/support/visibility
 const ID = /^\d+$/u;
 
 /**
- * Routes for the bot's computer. Every route checks that the bot belongs to the person.
+ * Routes for the bots' computers, one per bot in each chat (D14): /bots/:botId/computer…?chat=<chatId> is that bot's
+ * computer in that chat, for anyone who can open the chat; a chat they can't open, or a bot not in it, is a 404.
  * Any server can answer them; computers.js finds the server running the computer (D-15).
  * @param {import("@jskit-ai/kernel/server/types").RuntimeHttp} http
  * @param {object} capabilities
  * @param {import("./types.js").Computer} capabilities.computer
  * @param {import("@local/files/server/types").Files} capabilities.files
- * @param {object} capabilities.directory records.directory: the bots and conversations the request's home holds
+ * @param {{ directory: object, chats: object }} capabilities.records mercbot.bots.records: the bots and chats the caller
+ *   may read
  * @param {Set<import("node:http").ServerResponse>} capabilities.streams The live streams open, which
  *   close first when this server shuts down.
  * @param {import("@local/account/server/types").Meter} capabilities.meter for whether the home is paused (D-73)
  */
-export function registerRoutes(http, { computer, files, directory, streams, meter }) {
+export function registerRoutes(http, { computer, files, records, streams, meter }) {
   const router = http.router;
+  const { directory, chats } = records;
   // Routes for things a home owns (D-36) live under /api/w/:workspaceSlug/…; JSKIT checks the
   // person belongs to that home and fills request.workspace before the handler runs.
   const home = Object.freeze({ auth: "required", contextPolicy: "required", visibility: checkRouteVisibility("workspace_user") });
+  const base = "/api/w/:workspaceSlug/bots/:botId";
 
-  /** The bot in the address, of the request's home and a bot (not a group chat), or null. */
+  /** The bot in the address, of the request's home, or null. */
   function botOf(request, options) {
-    return ID.test(String(request.params.botId)) ? directory.findBot(String(request.params.botId), options, { kind: "bot" }) : null;
+    return ID.test(String(request.params.botId)) ? directory.findBot(String(request.params.botId), options) : null;
   }
 
   /**
-   * The computer a request is about (D-36, D-99), as its conversation: the person's own with the bot in the
-   * address, or for a shared bot the tab asked for (?room=: one of its shared tabs, or "You only", the person's own
-   * conversation), else the tab the person has open, else the first. A tab asked for that isn't one of these, such
-   * as another person's conversation, a tab hidden while the bot isn't Shared or an archived one (D-101), is refused.
+   * The computer a request is about: the bot in the address, in the chat the query names (?chat=), as the caller may
+   * read it (records.directory.computerOf's ComputerPlace), or a 404 sent and null.
    */
-  async function conversationOf(request, reply) {
+  async function placeOf(request, reply) {
     const options = await request.callOptions();
-    const bot = await botOf(request, options);
-    const refuse = () => {
-      reply.code(404).send({ error: "Bot not found." });
-      return null;
-    };
-    // A member bot's own computer for a group (?group=), for the group's people only (D-46).
-    if (bot && request.query?.group) {
-      const seat = ID.test(String(request.query.group)) ? await directory.groupSeat(bot.id, String(request.query.group), options) : null;
-      return seat || refuse();
-    }
-    if (!bot) return refuse();
-    const seat = await directory.seatOf(bot.id, options);
-    const shared = bot.sharing === "shared";
-    const room = (id) => (shared && id != null && ID.test(String(id)) ? directory.roomOf(bot.id, String(id), options) : null);
-    const asked = request.query?.room;
-    if (asked !== undefined && asked !== "") return (seat && String(asked) === String(seat.id) ? seat : await room(asked)) || refuse();
-    if (!shared || (seat && String(seat.roomId) === String(seat.id))) return seat || refuse();
-    return (await room(seat?.roomId)) || (await directory.roomOf(bot.id, null, options)) || refuse();
+    const chatId = String(request.query?.chat ?? "");
+    const seat = ID.test(String(request.params.botId)) && ID.test(chatId)
+      ? await directory.chatBotOf(String(request.params.botId), chatId, options)
+      : null;
+    const found = seat && await directory.computerOf(seat.id, options);
+    if (found) return found;
+    reply.code(404).send({ error: "That computer isn't here.", code: "computer_not_found" });
+    return null;
   }
 
   async function computerOf(request, reply) {
-    const found = await conversationOf(request, reply);
-    return found ? String(found.id) : null;
+    return (await placeOf(request, reply))?.chatBotId ?? null;
+  }
+
+  /** A refusal the computer answered (AppError) as the route's answer; anything else goes on. */
+  async function answered(reply, work) {
+    try {
+      reply.send(await work());
+    } catch (error) {
+      if (!error?.statusCode || error.statusCode >= 500) throw error;
+      reply.code(error.statusCode).send({ error: error.message, code: error.code, params: error.params });
+    }
   }
 
   /**
@@ -75,12 +76,12 @@ export function registerRoutes(http, { computer, files, directory, streams, mete
     return true;
   }
 
-  router.register("GET", "/api/w/:workspaceSlug/bots/:botId/computer", home, async function computerStatus(request, reply) {
+  router.register("GET", `${base}/computer`, home, async function computerStatus(request, reply) {
     const computerId = await computerOf(request, reply);
     if (computerId) reply.send(await computer.status(computerId));
   });
 
-  router.register("POST", "/api/w/:workspaceSlug/bots/:botId/computer/wake", home, async function wakeComputer(request, reply) {
+  router.register("POST", `${base}/computer/wake`, home, async function wakeComputer(request, reply) {
     const computerId = await computerOf(request, reply);
     if (!computerId || (await refusedWhilePaused(request, reply, computerId))) return;
     computer.wake(computerId).catch((error) => console.warn("Waking a computer failed; its screen shows it asleep.", error));
@@ -88,7 +89,7 @@ export function registerRoutes(http, { computer, files, directory, streams, mete
   });
 
   // A one-time ticket for the VNC socket (D-13); the computer must be awake.
-  router.register("POST", "/api/w/:workspaceSlug/bots/:botId/computer/ticket", home, async function screenTicket(request, reply) {
+  router.register("POST", `${base}/computer/ticket`, home, async function screenTicket(request, reply) {
     const computerId = await computerOf(request, reply);
     if (!computerId) return;
     if ((await computer.status(computerId)).state !== "awake") {
@@ -98,18 +99,16 @@ export function registerRoutes(http, { computer, files, directory, streams, mete
     reply.send({ ticket: await computer.issueTicket(computerId) });
   });
 
-  // One of the bot's files opened in its app on the bot's desktop (D-23), for the person to
+  // One of the computer's files opened in its app on the bot's desktop (D-23), for the person to
   // work on in the live view.
-  router.register("POST", "/api/w/:workspaceSlug/bots/:botId/computer/open", home, async function openFile(request, reply) {
-    const found = await conversationOf(request, reply);
-    const computerId = found && String(found.id);
+  router.register("POST", `${base}/computer/open`, home, async function openFile(request, reply) {
+    const found = await placeOf(request, reply);
+    const computerId = found?.chatBotId;
     if (!computerId || (await refusedWhilePaused(request, reply, computerId))) return;
     const virtualPath = String(request.body?.path || "");
     try {
-      // The file is the computer's conversation's: a shared tab's or a group's in the bot's everyone folder, the
-      // person's own conversation's in theirs (D-99).
-      const conversation = { id: String(request.params.botId), workspace_id: request.workspace.id, room: !found.userId };
-      const place = files.store.placeFor(conversation, request.user.id);
+      // The file is one of the computer's chat's folders (R6).
+      const place = files.store.placeFor({ homeId: found.workspaceId, chatId: found.chatId, chatKind: found.chatKind, botId: found.botId });
       await files.store.existingFile(place, virtualPath);
     } catch (error) {
       reply.code(error.statusCode || 400).send({ error: error.message, code: error.code, params: error.params });
@@ -126,10 +125,34 @@ export function registerRoutes(http, { computer, files, directory, streams, mete
     }
   });
 
-  // Settings → Reset: the person's own computers with every bot in the home start
-  // fresh; shared conversations' computers are everyone's and stay.
+  // Taking over the computer and handing it back (D16): anyone who can open the chat. Each posts its line in the chat
+  // and answers it with who has control now: { messages, control }.
+  router.register("POST", `${base}/computer/take-over`, home, async function takeOver(request, reply) {
+    const computerId = await computerOf(request, reply);
+    if (!computerId || (await refusedWhilePaused(request, reply, computerId))) return;
+    await answered(reply, async () => computer.takeOver(computerId, await request.callOptions()));
+  });
+  router.register("POST", `${base}/computer/hand-back`, home, async function handBack(request, reply) {
+    const computerId = await computerOf(request, reply);
+    if (computerId) await answered(reply, async () => computer.handBack(computerId, await request.callOptions()));
+  });
+
+  // One computer starts afresh, its saved browser and sign-ins gone: anyone who can open its chat, as they all use them.
+  router.register("POST", `${base}/computer/reset`, home, async function resetComputer(request, reply) {
+    const computerId = await computerOf(request, reply);
+    if (!computerId) return;
+    await computer.reset(computerId);
+    reply.send(await computer.status(computerId));
+  });
+
+  // Settings → Reset: the computers of the chats the person is alone in start fresh; a chat with other people keeps
+  // its computers, which are theirs too (D14). Three reads, however many chats.
   router.register("POST", "/api/w/:workspaceSlug/computers/reset", home, async function resetComputers(request, reply) {
-    const own = await directory.ownSingleBotSeatIds(await request.callOptions());
+    const options = await request.callOptions();
+    const ids = (await chats.ofPerson(options, { hidden: true })).map((chat) => String(chat.id));
+    const people = await chats.peopleOf(ids, options);
+    const alone = ids.filter((id) => (people.get(id) ?? []).every((person) => String(person.user_id) === String(request.user.id)));
+    const own = [...(await chats.botsOf(alone, options)).values()].flat().map((seat) => String(seat.chat_bot_id));
     const results = await Promise.allSettled(own.map((id) => computer.reset(String(id))));
     const failed = results.filter((result) => result.status === "rejected").length;
     if (failed) {
@@ -140,7 +163,7 @@ export function registerRoutes(http, { computer, files, directory, streams, mete
   });
 
   // The computer's state and address as server-sent events; the screen itself is VNC.
-  router.register("GET", "/api/w/:workspaceSlug/bots/:botId/computer/stream", home, async function streamComputer(request, reply) {
+  router.register("GET", `${base}/computer/stream`, home, async function streamComputer(request, reply) {
     const computerId = await computerOf(request, reply);
     if (!computerId) return;
     reply.hijack();
@@ -164,7 +187,7 @@ export function registerRoutes(http, { computer, files, directory, streams, mete
     else request.raw.on("close", stop);
   });
 
-  router.register("GET", "/api/w/:workspaceSlug/bots/:botId/screenshots/:name", home, async function screenshotFile(request, reply) {
+  router.register("GET", `${base}/screenshots/:name`, home, async function screenshotFile(request, reply) {
     const computerId = await computerOf(request, reply);
     if (!computerId) return;
     const data = await computer.screenshotData(computerId, request.params.name);

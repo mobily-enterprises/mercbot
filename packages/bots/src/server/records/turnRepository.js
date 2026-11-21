@@ -9,9 +9,6 @@ import { passedOn } from "@jskit-ai/resource-core/shared/callOptions";
 /** @typedef {import("@jskit-ai/resource-runtime/server/types").ResourceCallOptions} CallOptions */
 /** @typedef {import("@jskit-ai/resource-runtime/server/types").ResourceHandle} ResourceHandle */
 
-// Replies made before body.answers existed are taken as answering everything before them.
-const ANSWERS_SINCE = "2026-10-25T07:40:00Z";
-
 /** A message filter on a value kept in its body (a JSON object), compared in SQL. */
 const onBody = (type, compare) => Object.freeze({
   type,
@@ -25,15 +22,8 @@ const onBody = (type, compare) => Object.freeze({
 export const TURN_MESSAGE_SEARCH = Object.freeze({
   // Anything but this kind: the last turn in a group is its last message that isn't an event line.
   notKind: Object.freeze({ type: "string", actualField: "kind", filterOperator: "!=" }),
-  // A bot's reply that saw the person's message `input` (its body.answers), or one from before
-  // body.answers existed.
-  answersFrom: onBody("integer", (query, body, input, column) => query.where((inner) => inner
-    .whereRaw("(?? ->> 'answers')::bigint >= ?", [body, Number(input)])
-    .orWhereRaw("?? ->> 'answers' is null and ?? < ?", [body, column("createdAt"), ANSWERS_SINCE]))),
-  // A person's message a judgement left to the people in a shared tab (D-102): the message `input` or a later one.
-  quietFrom: onBody("integer", (query, body, input, column) => query
-    .whereRaw("?? ->> 'judged' = 'quiet'", [body])
-    .where(column("id"), ">=", Number(input))),
+  // A bot's reply that saw the person's message `input` (its body.answers).
+  answersFrom: onBody("integer", (query, body, input) => query.whereRaw("(?? ->> 'answers')::bigint >= ?", [body, Number(input)])),
   // A question card the person answered.
   answeredQuestion: onBody("boolean", (query, body) => query.whereRaw("?? ->> 'purpose' = 'question' and ?? ->> 'chosen' is not null", [body, body])),
   // The to-do card of one bot in a chat (agent-runtime planning: body.list is its chat_bots id).

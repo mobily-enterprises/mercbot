@@ -50,9 +50,10 @@ export const dayOf = (at) => at.toISOString().slice(0, 10);
 export const monthOf = (at) => at.toISOString().slice(0, 7);
 
 /**
- * Who a piece of work is for, by its bot: the bot's home, maker and name, unless the work names its person and home.
- * Each bot is read once every few minutes.
- * @param {{ botOwner: (botId: string, options: object) => Promise<{ userId: string, workspaceId: string, name: string } | null> }} directory
+ * Who a piece of work is for (R8): the person the work names (whose message started a turn, or who set background work
+ * up), or none (a chat's summary, which nobody asked for), never the bot's maker; and the bot's home and name, by its bot,
+ * unless the work names its home. Each bot is read once every few minutes.
+ * @param {{ botMaker: (botId: string, options: object) => Promise<{ madeBy: string | null, workspaceId: string, name: string } | null> }} directory
  * @param {object} options the call options to read bots with
  * @param {() => Date} now
  */
@@ -64,7 +65,7 @@ export function createWhoFor(directory, options, now) {
     if (!id) return null;
     const kept = bots.get(id);
     if (kept && now().getTime() - kept.at < BOT_FOR_MS) return kept.bot;
-    const bot = await directory.botOwner(id, options);
+    const bot = await directory.botMaker(id, options);
     bots.delete(id);
     if (bots.size >= BOTS_KEPT) bots.delete(bots.keys().next().value);
     bots.set(id, { at: now().getTime(), bot });
@@ -76,7 +77,7 @@ export function createWhoFor(directory, options, now) {
     const bot = await botOf(botId);
     return {
       workspaceId: homeOf(bot?.workspaceId ?? workspaceId),
-      userId: idOf(userId) ?? bot?.userId ?? null,
+      userId: idOf(userId),
       botId: bot ? idOf(botId) : null,
       botName: bot?.name || null
     };
@@ -170,7 +171,7 @@ export const totalsKey = (event) => ({
  * @param {object} dependencies
  * @param {Record<string, any>} dependencies.resources the account feature's handles
  * @param {(reason: string) => object} dependencies.systemContext the feature's system scope
- * @param {{ botOwner: (botId: string, options: object) => Promise<{ userId: string, workspaceId: string, name: string } | null> }} dependencies.directory
+ * @param {{ botMaker: (botId: string, options: object) => Promise<{ madeBy: string | null, workspaceId: string, name: string } | null> }} dependencies.directory
  * @param {() => Date} [dependencies.now]
  */
 export function createUsageRecorder({ resources, systemContext, directory, now = () => new Date() }) {

@@ -23,7 +23,7 @@ export function registerPageRoutes(http, { pages, directory }) {
   async function pageOf(request, given) {
     const options = await request.callOptions();
     const botId = String(request.params.botId);
-    const bot = /^\d+$/u.test(botId) ? await directory.findBot(botId, options, { kind: "bot" }) : null;
+    const bot = /^\d+$/u.test(botId) ? await directory.findBot(botId, options) : null;
     if (!bot) throw new FilesError(404, "Bot not found.", { code: "files_bot_not_found" });
     const pagePath = String(given || "");
     if (!pages.isPagePath(pagePath)) throw new FilesError(404, "This page isn't here.", { code: "files_page_not_found" });

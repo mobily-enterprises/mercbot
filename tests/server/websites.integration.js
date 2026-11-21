@@ -29,7 +29,7 @@ const KEY_ID = `AKIA${randomBytes(6).toString("hex").toUpperCase()}`;
 async function homeWithBot(knex, userId, name) {
   const [home] = await knex("workspaces").insert({ slug: `${name}-${Date.now().toString(36)}`, name, owner_user_id: userId, is_personal: false }).returning("id");
   const homeId = String(home.id ?? home);
-  const [bot] = await knex("bots").insert({ user_id: userId, workspace_id: homeId, name: "Paige", color: "#1E86FC" }).returning("id");
+  const [bot] = await knex("bots").insert({ made_by: userId, workspace_id: homeId, name: "Paige", color: "#1E86FC" }).returning("id");
   return { homeId, botId: String(bot.id ?? bot) };
 }
 
@@ -61,7 +61,8 @@ async function started(context, name) {
   const inHome = (id) => ({ context: systemContext("the websites test, as a person in the home").forWorkspace(String(id)) });
   /** Writes a page and the files of its folder, as a bot's save leaves them. */
   async function writePage(pagePath, html, files = {}) {
-    const real = await store.resolve({ ...home, everyone: true }, pagePath);
+    // The bot's own folder (a bot's place, { homeId, botId }), where its pages are.
+    const real = await store.resolve(home, pagePath);
     await fs.mkdir(path.join(path.dirname(real), path.basename(pagePath, ".html") + ".files"), { recursive: true });
     await fs.writeFile(real, html);
     for (const [file, content] of Object.entries(files)) await fs.writeFile(path.join(path.dirname(real), file), content);

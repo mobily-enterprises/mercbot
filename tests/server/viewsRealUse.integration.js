@@ -8,6 +8,7 @@ import { checkView } from "../../packages/apps/src/shared/check.js";
 import { scopeStyle } from "../../packages/apps/src/server/appStyle.js";
 import { createBotLibrary } from "../../packages/bots/src/server/botLibrary.js";
 import { startBotRecords } from "../support/botRecords.mjs";
+import { seedChat, seedMessage } from "../support/chatFixtures.mjs";
 import { previewOf } from "../../packages/bots/src/server/botRows.js";
 import { toModelHistory } from "../../packages/bots/src/server/botAgent.js";
 
@@ -361,7 +362,7 @@ test("other homes see nothing, whichever way they ask; everyone in the home sees
   assert.deepEqual(await f.views.list(there), []);
 
   // Another member's bot and the Library's search find every view of the home, whoever's chat made it (D-66).
-  const library = createBotLibrary({ records: await startBotRecords(f.knex, context), conversations: {}, apps: { apps: f.apps } });
+  const library = createBotLibrary({ records: await startBotRecords(f.knex, context), apps: { apps: f.apps }, files: null });
   const names = async (userId) => (await library.search("one", f.optionsIn(f.workspaceId, userId))).files.map((file) => file.name).sort();
   assert.deepEqual(await names(f.maker), ["Chat one", "Home one"]);
   assert.deepEqual(await names(f.other), ["Chat one", "Home one"]);
@@ -371,7 +372,7 @@ test("other homes see nothing, whichever way they ask; everyone in the home sees
 test("the people and bots behind a view can leave", async (context) => {
   const f = await viewsFixture(context);
   await makeDeals(f);
-  const [bot] = await f.knex("bots").insert({ user_id: f.maker, workspace_id: f.workspaceId, name: "Leaving", color: "#123456" }).returning("id");
+  const [bot] = await f.knex("bots").insert({ made_by: f.maker, workspace_id: f.workspaceId, name: "Leaving", color: "#123456" }).returning("id");
   const saved = await f.views.save(f.ctx, { title: "Left behind", definition: list() }, { userId: f.maker, botId: bot.id });
   const app = () => f.apps.get(saved.view.key, {}, f.options).then(({ app: row }) => row);
   assert.deepEqual(await f.views.details(await app(), f.options), { bot: { id: String(bot.id), name: "Leaving" } }, "who to ask; nothing about who may keep it");
@@ -384,16 +385,14 @@ test("the chat and the Library know a view", async (context) => {
   const f = await viewsFixture(context);
   await makeDeals(f);
   const view = await save(f, list());
-  const [bot] = await f.knex("bots").insert({ user_id: f.maker, workspace_id: f.workspaceId, name: "Librarian", color: "#123456" }).returning("id");
-  const [conversation] = await f.knex("bot_conversations").insert({ workspace_id: f.workspaceId, bot_id: bot.id, user_id: f.maker }).returning("id");
-  const row = { id: bot.id, conversation_id: conversation.id };
-  const conversations = { ownedSingleBot: async () => row };
-  const library = createBotLibrary({ records: await startBotRecords(f.knex, context), conversations, apps: { apps: f.apps } });
+  const [bot] = await f.knex("bots").insert({ made_by: f.maker, workspace_id: f.workspaceId, name: "Librarian", color: "#123456" }).returning("id");
+  const chat = await seedChat(f.knex, { homeId: f.workspaceId, direct: { userId: f.maker, botId: bot.id } });
+  const library = createBotLibrary({ records: await startBotRecords(f.knex, context), apps: { apps: f.apps }, files: null });
   const mine = f.optionsIn(f.workspaceId, f.maker);
   const body = { path: view.key, title: view.title, summary: "All deals" };
   // Saved twice in two replies: two cards, one entry.
   for (const title of ["Deals", "Deals, newer"]) {
-    await f.knex("bot_messages").insert({ workspace_id: f.workspaceId, bot_id: bot.id, conversation_id: conversation.id, kind: "view", role: "bot", body: JSON.stringify({ ...body, title }) });
+    await seedMessage(f.knex, { homeId: f.workspaceId, chatId: chat.id, kind: "view", botId: bot.id, body: { ...body, title } });
   }
   const { items } = await library.library(bot.id, mine);
   assert.deepEqual(items.map((item) => [item.kind, item.path, item.name]), [["view", view.key, "Deals, newer"]]);

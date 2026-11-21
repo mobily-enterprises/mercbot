@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { hasPermission } from "@jskit-ai/kernel/shared/support";
 import { checkRouteVisibility } from "@jskit-ai/kernel/shared/support/visibility";
-import { BOT, FilesError, MINE, SHARED } from "./fileStore.js";
+import { BOT, CHAT, FilesError, SHARED } from "./fileStore.js";
 import { UPLOAD_LIMIT, tooBig, writeUpload } from "./uploadedFile.js";
 
 // Types a page may show inline. Anything else (HTML and SVG included) is only ever downloaded.
@@ -23,59 +23,56 @@ const INLINE = Object.freeze({
 const TEXT_LIMIT = 200000;
 
 /**
- * A bot's files for the chat's file cards, the viewer and the file browsers (D-20, D-21, D-36,
- * D-47). Every bot route checks the bot is in the request's home and works on the person's own
- * files with it (/files/mine/…), the bot's (/files/bot/…) and the home's (/files/shared/…); the
- * home's routes (/api/w/:home/files/…) work on the home's folder alone. The bots' command line
- * (shell.js) runs on the same folders.
+ * The files of a chat, a bot and the home, for the chat's file cards, the viewer and the file browsers (D-20, D-21,
+ * D-36, D-47, R6). Every route is under /api/w/:home/files and names its place in the query: `?chat=` the chat's folder
+ * (/files/chat/…), `?bot=` the bot's (/files/bot/…), both a bot in that chat, with the home's (/files/shared/…) every
+ * time; without either, the home's folder alone. A chat the caller can't open, a bot not in the home or not in that
+ * chat is a 404. What a person does here is their own doing, so a private chat's wider folders take it (D13). The bots'
+ * command line (shell.js) runs on the same folders.
  * @param {import("@jskit-ai/kernel/server/types").RuntimeHttp} http
  * @param {object} capabilities
  * @param {import("./types.js").Files} capabilities.files
- * @param {object} capabilities.directory records.directory: the bots the request's home holds
+ * @param {{ directory: object, chats: object }} capabilities.records mercbot.bots.records: the chats and bots the caller
+ *   may read
  * @param {import("@jskit-ai/uploads-runtime/server/types").RuntimeUploads} capabilities.uploads
  */
-export function registerRoutes(http, { files, directory, uploads }) {
+export function registerRoutes(http, { files, records, uploads }) {
   const { store, apps, storage, pages } = files;
   const router = http.router;
   // Routes for things a home owns (D-36) live under /api/w/:workspaceSlug/…; JSKIT checks the
   // person belongs to that home and fills request.workspace before the handler runs.
   const home = Object.freeze({ auth: "required", contextPolicy: "required", visibility: checkRouteVisibility("workspace_user") });
+  const base = "/api/w/:workspaceSlug/files";
 
-  /**
-   * The bot named in the route, in the request's home, and where its files are for this person.
-   * In a group with several people (?group=), a member bot's files are its everyone folder, the
-   * same place its turns there use, and only for the group's people (D-46). Otherwise they follow the
-   * conversation (D-99): a Shared bot's tab (?room=, else the one the person has open) is its everyone
-   * folder, the person's own conversation ("You only" in a Shared bot) their own. A tab asked for that isn't
-   * one of these, such as another person's conversation, a tab hidden while the bot isn't Shared or an archived one
-   * (D-101), is refused.
-   */
+  /** The place the query names (see above), read as the caller: what they can't open is a 404. */
   async function placeOf(request) {
     const options = await request.callOptions();
-    const bot = /^\d+$/u.test(String(request.params.botId)) ? await directory.findBot(String(request.params.botId), options, { kind: "bot" }) : null;
-    const notFound = () => new FilesError(404, "Bot not found.", { code: "files_bot_not_found" });
-    if (!bot) throw notFound();
-    const homeId = request.workspace.id;
-    if (request.query?.group) {
-      const member = /^\d+$/u.test(String(request.query.group)) && await directory.isGroupMember(String(request.query.group), bot.id, options);
-      if (!member) throw notFound();
-      return { homeId, botId: bot.id, everyone: true };
+    const homeId = String(request.workspace.id);
+    const given = (name) => (request.query?.[name] == null || request.query[name] === "" ? null : String(request.query[name]));
+    const chatId = given("chat");
+    const botId = given("bot");
+    const notFound = () => new FilesError(404, "That chat or bot isn't here.", { code: "files_place_not_found" });
+    if ([chatId, botId].some((id) => id !== null && !/^\d+$/u.test(id))) throw notFound();
+    if (chatId && botId) {
+      const seat = await records.directory.chatBotOf(botId, chatId, options);
+      const found = seat && await records.directory.computerOf(seat.id, options);
+      if (!found) throw notFound();
+      return store.widened(store.placeFor({ homeId, chatId, chatKind: found.chatKind, botId }));
     }
-    const shared = bot.sharing === "shared";
-    const asked = request.query?.room ? String(request.query.room) : null;
-    const seat = shared || asked ? await directory.seatOf(bot.id, options) : null;
-    // The tab: the one asked for, else in a Shared bot the one the person has open.
-    const tab = asked ?? (shared && seat?.roomId != null ? String(seat.roomId) : null);
-    const place = (room) => store.placeFor({ id: bot.id, workspace_id: homeId, room }, request.user.id);
-    if (seat && tab === String(seat.id)) return place(false);
-    if (asked && !(shared && /^\d+$/u.test(asked) && await directory.roomOf(bot.id, asked, options))) throw notFound();
-    return place(shared);
+    if (chatId) {
+      const chat = await records.chats.find(chatId, options);
+      if (!chat) throw notFound();
+      return store.widened(store.placeFor({ homeId, chatId, chatKind: chat.kind }));
+    }
+    if (botId) {
+      if (!(await records.directory.findBot(botId, options))) throw notFound();
+      return store.botPlace({ homeId, botId });
+    }
+    return store.homePlace(homeId);
   }
 
-  const homePlaceOf = async (request) => store.homePlace(request.workspace.id);
-
-  async function find(request, where = placeOf) {
-    const place = await where(request);
+  async function find(request) {
+    const place = await placeOf(request);
     const virtualPath = String(request.query?.path || "");
     const file = await store.existingFile(place, virtualPath);
     return { place, virtualPath, ...file, ext: path.extname(virtualPath).slice(1).toLowerCase(), name: path.basename(virtualPath) };
@@ -101,132 +98,128 @@ export function registerRoutes(http, { files, directory, uploads }) {
       .header("cache-control", "private, no-cache");
   }
 
-  // The same file routes for a bot's folders and for the home's own: the file itself, its
-  // preview, uploads, the listing for the file browser, moving or renaming, new folders and
-  // deleting.
-  for (const [base, where] of [["/api/w/:workspaceSlug/bots/:botId/files", placeOf], ["/api/w/:workspaceSlug/files", homePlaceOf]]) {
-    // The file itself; downloaded unless it's a kind a page can safely show.
-    router.register("GET", `${base}/content`, home, served(async function fileContent(request, reply) {
-      const file = await find(request, where);
-      const inline = !request.query?.download && Boolean(INLINE[file.ext]);
-      headers(reply, { name: file.name, type: inline ? INLINE[file.ext] : "application/octet-stream", inline });
-      reply.send(await fs.promises.readFile(file.real));
-    }));
+  // The file itself, its preview, uploads, the listing for the file browser, moving or renaming, new folders and
+  // deleting, all in the place the query names. The file itself is downloaded unless it's a kind a page can safely show.
+  router.register("GET", `${base}/content`, home, served(async function fileContent(request, reply) {
+    const file = await find(request);
+    const inline = !request.query?.download && Boolean(INLINE[file.ext]);
+    headers(reply, { name: file.name, type: inline ? INLINE[file.ext] : "application/octet-stream", inline });
+    reply.send(await fs.promises.readFile(file.real));
+  }));
 
-    // What the viewer shows: a picture as it is, text as text, and other files as pictures of
-    // their pages, which every browser can show (phones don't show PDFs inside a page).
-    router.register("GET", `${base}/preview`, home, served(async function filePreview(request, reply) {
-      const file = await find(request, where);
-      if (INLINE[file.ext]?.startsWith("image/") || INLINE[file.ext]?.startsWith("audio/")) {
-        reply.send({ kind: "image" });
-        return;
-      }
-      if (INLINE[file.ext]?.startsWith("text/")) {
-        const text = await fs.promises.readFile(file.real, "utf8");
-        reply.send({ kind: "text", text: text.slice(0, TEXT_LIMIT), more: text.length > TEXT_LIMIT });
-        return;
-      }
-      const preview = await apps.pagesOf(file.place, file.virtualPath).catch(() => null);
-      if (!preview?.pages.length) {
-        throw new FilesError(415, "There's no preview for this kind of file.", { code: "files_preview_unsupported" });
-      }
-      reply.send({
-        kind: "pages",
-        pages: preview.pages.map((page) => `data:image/png;base64,${page.toString("base64")}`),
-        more: preview.more
-      });
-    }));
+  // What the viewer shows: a picture as it is, text as text, and other files as pictures of
+  // their pages, which every browser can show (phones don't show PDFs inside a page).
+  router.register("GET", `${base}/preview`, home, served(async function filePreview(request, reply) {
+    const file = await find(request);
+    if (INLINE[file.ext]?.startsWith("image/") || INLINE[file.ext]?.startsWith("audio/")) {
+      reply.send({ kind: "image" });
+      return;
+    }
+    if (INLINE[file.ext]?.startsWith("text/")) {
+      const text = await fs.promises.readFile(file.real, "utf8");
+      reply.send({ kind: "text", text: text.slice(0, TEXT_LIMIT), more: text.length > TEXT_LIMIT });
+      return;
+    }
+    const preview = await apps.pagesOf(file.place, file.virtualPath).catch(() => null);
+    if (!preview?.pages.length) {
+      throw new FilesError(415, "There's no preview for this kind of file.", { code: "files_preview_unsupported" });
+    }
+    reply.send({
+      kind: "pages",
+      pages: preview.pages.map((page) => `data:image/png;base64,${page.toString("base64")}`),
+      more: preview.more
+    });
+  }));
 
-    // An upload: a file the person attaches in the chat goes in Uploads in the bot's
-    // folder for them; the file browser names the folder (?folder=/files/bot/Invoices). A name
-    // already taken gets a number. A copy that checks pictures and videos checks one before it's kept (D-90).
-    router.register("POST", `${base}/upload`, home, served(async function uploadFile(request, reply) {
-      const place = await where(request);
-      const dirs = await store.prepare(place);
-      const uploadsFolder = `${place.home ? SHARED : dirs.personal ? MINE : BOT}/Uploads`;
-      const virtualFolder = String(request.query?.folder || uploadsFolder).replace(/\/+$/u, "");
-      const roots = { [MINE]: dirs.personal ? dirs.mine : null, [BOT]: dirs.bot, [SHARED]: dirs.shared };
-      const folder = roots[virtualFolder] || await store.resolve(place, virtualFolder);
-      if (!folder) {
-        throw new FilesError(400, "Files can only go in /files/mine, /files/bot or /files/shared.", {
-          code: "files_file_destination_invalid"
-        });
-      }
-      const part = await uploads.readSingleMultipartFile(request, {
-        fieldName: "file",
-        label: "File",
-        maxBytes: UPLOAD_LIMIT,
-        required: true
+  // An upload: a file the person attaches in the chat goes in Uploads in the chat's folder (a bot's page, the bot's; the
+  // home's Files page, the home's); the file browser names the folder (?folder=/files/bot/Invoices). A name already
+  // taken gets a number. A copy that checks pictures and videos checks one before it's kept (D-90).
+  router.register("POST", `${base}/upload`, home, served(async function uploadFile(request, reply) {
+    const place = await placeOf(request);
+    const dirs = await store.prepare(place);
+    const uploadsFolder = `${dirs.chat ? CHAT : dirs.bot ? BOT : SHARED}/Uploads`;
+    const virtualFolder = String(request.query?.folder || uploadsFolder).replace(/\/+$/u, "");
+    const roots = { [CHAT]: dirs.chat, [BOT]: dirs.bot, [SHARED]: dirs.shared };
+    const folder = roots[virtualFolder] || await store.resolve(place, virtualFolder);
+    if (!folder) {
+      throw new FilesError(400, "Files can only go in the folders this page shows.", {
+        code: "files_file_destination_invalid"
       });
-      const clean = [...path.basename(part.fileName || "file")]
-        .filter((char) => char >= " " && char !== "/" && char !== "\\")
-        .join("")
-        .trim()
-        .slice(-120) || "file";
-      const { name: stem, ext } = path.parse(clean);
-      let name = clean;
-      for (let count = 2; fs.existsSync(path.join(folder, name)); count += 1) name = `${stem} (${count})${ext}`;
-      const target = path.join(folder, name);
-      await writeUpload(part.stream, {
-        target,
-        media: files.media,
-        item: {
-          origin: "upload",
-          workspaceId: place.homeId,
-          userId: request.user.id,
-          botId: place.botId ?? null,
-          conversationId: null,
-          // Where it's kept, so a copy's later review can remove it (files.media.remove).
-          place,
-          path: `${virtualFolder}/${name}`,
-          ip: request.ip ?? null
-        }
-      });
-      if (part.stream.truncated) {
-        await fs.promises.rm(target, { force: true });
-        throw tooBig();
+    }
+    const part = await uploads.readSingleMultipartFile(request, {
+      fieldName: "file",
+      label: "File",
+      maxBytes: UPLOAD_LIMIT,
+      required: true
+    });
+    const clean = [...path.basename(part.fileName || "file")]
+      .filter((char) => char >= " " && char !== "/" && char !== "\\")
+      .join("")
+      .trim()
+      .slice(-120) || "file";
+    const { name: stem, ext } = path.parse(clean);
+    let name = clean;
+    for (let count = 2; fs.existsSync(path.join(folder, name)); count += 1) name = `${stem} (${count})${ext}`;
+    const target = path.join(folder, name);
+    await writeUpload(part.stream, {
+      target,
+      media: files.media,
+      item: {
+        origin: "upload",
+        workspaceId: place.homeId,
+        userId: request.user.id,
+        botId: place.botId ?? null,
+        conversationId: place.chatId ?? null,
+        // Where it's kept, so a copy's later review can remove it (files.media.remove).
+        place,
+        path: `${virtualFolder}/${name}`,
+        ip: request.ip ?? null
       }
-      await store.settle(place.homeId);
-      const { size } = await fs.promises.stat(target);
-      reply.send({ path: `${virtualFolder}/${name}`, name, size, type: part.mimeType });
-    }));
+    });
+    if (part.stream.truncated) {
+      await fs.promises.rm(target, { force: true });
+      throw tooBig();
+    }
+    await store.settle(place.homeId);
+    const { size } = await fs.promises.stat(target);
+    reply.send({ path: `${virtualFolder}/${name}`, name, size, type: part.mimeType });
+  }));
 
-    // The file browser's listing, one folder at a time (?folder=/files/bot/Invoices): its
-    // sub-folders and its newest files; and every folder there is, for Move to….
-    router.register("GET", base, home, served(async function listFiles(request, reply) {
-      reply.send(await store.listFolder(await where(request), String(request.query?.folder || "")));
-    }));
-    router.register("GET", `${base}/folders`, home, served(async function listFolders(request, reply) {
-      reply.send(await store.folderTree(await where(request)));
-    }));
-    router.register("POST", `${base}/move`, home, served(async function moveFile(request, reply) {
-      const place = await where(request);
-      const from = String(request.body?.from || "");
-      await store.move(place, from, String(request.body?.to || ""));
-      await store.settle(place.homeId);
-      // A page's versions and link follow it (D-74).
-      await pages.pathChanged({ homeId: place.homeId, botId: place.botId, from, to: String(request.body?.to) });
-      reply.send({ path: String(request.body?.to) });
-    }));
-    router.register("POST", `${base}/folder`, home, served(async function makeFolder(request, reply) {
-      const place = await where(request);
-      await store.makeFolder(place, String(request.body?.path || ""));
-      await store.settle(place.homeId);
-      reply.send({ path: String(request.body?.path) });
-    }));
-    router.register("DELETE", base, home, served(async function removeFile(request, reply) {
-      const place = await where(request);
-      const removed = String(request.query?.path || "");
-      await store.remove(place, removed);
-      await store.settle(place.homeId);
-      // A page that goes takes its link with it, so a later page there is never opened by it (D-74).
-      await pages.pathChanged({ homeId: place.homeId, botId: place.botId, from: removed, to: null });
-      reply.send({ removed });
-    }));
-  }
+  // The file browser's listing, one folder at a time (?folder=/files/bot/Invoices): its
+  // sub-folders and its newest files; and every folder there is, for Move to….
+  router.register("GET", base, home, served(async function listFiles(request, reply) {
+    reply.send(await store.listFolder(await placeOf(request), String(request.query?.folder || "")));
+  }));
+  router.register("GET", `${base}/folders`, home, served(async function listFolders(request, reply) {
+    reply.send(await store.folderTree(await placeOf(request)));
+  }));
+  router.register("POST", `${base}/move`, home, served(async function moveFile(request, reply) {
+    const place = await placeOf(request);
+    const from = String(request.body?.from || "");
+    await store.move(place, from, String(request.body?.to || ""));
+    await store.settle(place.homeId);
+    // A page's versions and link follow it (D-74).
+    await pages.pathChanged({ homeId: place.homeId, botId: place.botId, from, to: String(request.body?.to) });
+    reply.send({ path: String(request.body?.to) });
+  }));
+  router.register("POST", `${base}/folder`, home, served(async function makeFolder(request, reply) {
+    const place = await placeOf(request);
+    await store.makeFolder(place, String(request.body?.path || ""));
+    await store.settle(place.homeId);
+    reply.send({ path: String(request.body?.path) });
+  }));
+  router.register("DELETE", base, home, served(async function removeFile(request, reply) {
+    const place = await placeOf(request);
+    const removed = String(request.query?.path || "");
+    await store.remove(place, removed);
+    await store.settle(place.homeId);
+    // A page that goes takes its link with it, so a later page there is never opened by it (D-74).
+    await pages.pathChanged({ homeId: place.homeId, botId: place.botId, from: removed, to: null });
+    reply.send({ removed });
+  }));
 
   // Ticking a checklist item on a page: the page's Markdown line changes.
-  router.register("POST", "/api/w/:workspaceSlug/bots/:botId/files/check", home, served(async function checkItem(request, reply) {
+  router.register("POST", `${base}/check`, home, served(async function checkItem(request, reply) {
     const place = await placeOf(request);
     const virtualPath = String(request.body?.path || "");
     if (!virtualPath.endsWith(".md")) throw new FilesError(400, "Only pages have checklists.", { code: "files_checklist_not_page" });
@@ -241,14 +234,14 @@ export function registerRoutes(http, { files, directory, uploads }) {
     reply.send({ line: index, checked: Boolean(request.body?.checked) });
   }));
 
-  // The home's bots (not group chats) for the home's Files page, each leading to its files.
-  router.register("GET", "/api/w/:workspaceSlug/files/bots", home, async function homeBots(request, reply) {
-    reply.send({ bots: await directory.homeBotFaces(await request.callOptions()) });
+  // The home's bots for the home's Files page, each leading to its files.
+  router.register("GET", `${base}/bots`, home, async function homeBots(request, reply) {
+    reply.send({ bots: await records.directory.homeBotFaces(await request.callOptions()) });
   });
 
   // Where the home's files are kept (D-26, D-36). Owners and admins choose it. Settings → Files asks with ?fresh=1, and
   // Mercbot then looks at a Google Drive's folder and space now (D-80); the Files page tells what was last seen.
-  router.register("GET", "/api/w/:workspaceSlug/files/storage", home, served(async function describeStorage(request, reply) {
+  router.register("GET", `${base}/storage`, home, served(async function describeStorage(request, reply) {
     reply.send(await storage.describe(await request.callOptions(), { fresh: request.query?.fresh === "1" }));
   }));
   // Choosing other storage moves the home's files there first (D-80); `withoutFiles` switches without them, only when
@@ -260,11 +253,11 @@ export function registerRoutes(http, { files, directory, uploads }) {
       });
     }
   };
-  router.register("PUT", "/api/w/:workspaceSlug/files/storage", home, served(async function chooseStorage(request, reply) {
+  router.register("PUT", `${base}/storage`, home, served(async function chooseStorage(request, reply) {
     managing(request);
     reply.send(await storage.choose(request.workspace.id, request.body || {}, await request.callOptions()));
   }));
-  router.register("DELETE", "/api/w/:workspaceSlug/files/storage/move", home, served(async function cancelMove(request, reply) {
+  router.register("DELETE", `${base}/storage/move`, home, served(async function cancelMove(request, reply) {
     managing(request);
     reply.send(await storage.cancelMove(request.workspace.id, await request.callOptions()));
   }));

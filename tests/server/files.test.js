@@ -10,10 +10,13 @@ import { createFilesRuntime } from "../../packages/files/src/server/filesRuntime
 import { createOfficeApps } from "../../packages/files/src/server/officeApps.js";
 import { runsc, toolsDir } from "../../packages/files/src/server/gvisor.js";
 
-// Bots' files (D-20, D-21, D-36, D-47): a bot reaches the person's own folder with it, its own
-// folder for everyone who uses it, and the home's shared one, nothing else. A place is
-// { homeId, botId, userId }, { homeId, botId, everyone: true } or { homeId, home: true }.
-const at = (homeId, botId, userId) => ({ homeId, botId, userId });
+// Bots' files (D-20, D-21, D-36, D-47, R6, D13): in a chat, a bot reaches the chat's folder, its own folder for
+// everyone in the home, and the home's shared one, nothing else; in a private chat it only reads the last two. A place
+// is a chat's (placeFor), a bot's own (botPlace) or the home's (homePlace); placeFor needs no store's folders, so one
+// store that never reads or writes makes the places here.
+const places = createFileStore({ root: "", fallback: os.tmpdir(), ownStorage: async () => null, settle: async () => {}, explain: async () => {} });
+/** Chat `chatId` in home `homeId`, with bot `botId` at work there: Public unless `chatKind` says "private". */
+const at = (homeId, chatId, botId, chatKind = "public") => places.placeFor({ homeId, chatId, chatKind, botId });
 
 async function tempStore() {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), "mercbot-files-test-"));
@@ -51,11 +54,11 @@ test("in a person's own copy, a coding run works on its project in the copy's da
   const resources = { fileStorage: { queryAll: async () => [] } };
   const files = createFilesRuntime({ resources, systemContext: () => ({ forWorkspace: () => ({}) }), env, integrations: {}, mediaCheck: null });
   try {
-    const { mine } = await files.store.prepare(at(3, 7, 1));
-    await fs.mkdir(path.join(mine, "site"));
-    assert.deepEqual(await files.store.existingFolder(at(3, 7, 1), "/files/mine/site"), {
-      real: path.join(dir, "files", "homes", "3", "bots", "7", "people", "1", "site"),
-      virtualPath: "/files/mine/site"
+    const { chat } = await files.store.prepare(at(3, 12, 7));
+    await fs.mkdir(path.join(chat, "site"));
+    assert.deepEqual(await files.store.existingFolder(at(3, 12, 7), "/files/chat/site"), {
+      real: path.join(dir, "files", "homes", "3", "chats", "12", "site"),
+      virtualPath: "/files/chat/site"
     });
     assert.deepEqual(runsc(env, ["--version"]), ["/usr/local/lib/mercbot/runsc", ["--version"]]);
   } finally {
@@ -87,28 +90,30 @@ test("a coding run's folder is in the home's own storage, and is refused while t
     explain: async () => {}
   });
   try {
-    const { mine } = await store.prepare(at(3, 7, 1));
-    await fs.mkdir(path.join(mine, "site"));
-    assert.equal((await store.existingFolder(at(3, 7, 1), "/files/mine/site")).real, path.join(mount, "bots", "7", "people", "1", "site"));
+    const { chat } = await store.prepare(at(3, 12, 7));
+    await fs.mkdir(path.join(chat, "site"));
+    assert.equal((await store.existingFolder(at(3, 12, 7), "/files/chat/site")).real, path.join(mount, "chats", "12", "site"));
     assert.equal(existsSync(path.join(dir, "mercbot")), false, "nothing of it is on Mercbot's own storage");
 
     moving = true;
-    for (const folder of ["/files/mine/site", "/files/mine", "/files/shared"]) {
-      await assert.rejects(store.existingFolder(at(3, 7, 1), folder), { code: "files_storage_moving" }, folder);
+    for (const folder of ["/files/chat/site", "/files/chat", "/files/shared"]) {
+      await assert.rejects(store.existingFolder(at(3, 12, 7), folder), { code: "files_storage_moving" }, folder);
     }
-    assert.deepEqual((await store.list(at(3, 7, 1))).mine, [], "the files can still be read");
+    assert.deepEqual((await store.list(at(3, 12, 7))).chat, [], "the files can still be read");
   } finally {
     await fs.rm(dir, { recursive: true, force: true });
   }
 });
 
-test("paths stay inside the bot's own and the shared folder", async () => {
+test("paths stay inside the chat's, the bot's and the shared folder", async () => {
   const { dir, store } = await tempStore();
   try {
-    assert.ok((await store.resolve(at(3, 7, 1), "/files/mine/a/report.docx")).endsWith(path.join("homes", "3", "bots", "7", "people", "1", "a", "report.docx")));
-    assert.ok((await store.resolve(at(3, 7, 1), "/files/shared/x.xlsx")).endsWith(path.join("homes", "3", "shared", "x.xlsx")));
-    for (const outside of ["/files/mine/../2/x", "/files/shared/../../4/shared/x", "/files/mine", "/etc/passwd", "report.docx", "/files/other/x"]) {
-      assert.equal(await store.resolve(at(3, 7, 1), outside), null, outside);
+    assert.ok((await store.resolve(at(3, 12, 7), "/files/chat/a/report.docx")).endsWith(path.join("homes", "3", "chats", "12", "a", "report.docx")));
+    assert.ok((await store.resolve(at(3, 12, 7), "/files/bot/b.txt")).endsWith(path.join("homes", "3", "bots", "7", "everyone", "b.txt")));
+    assert.ok((await store.resolve(at(3, 12, 7), "/files/shared/x.xlsx")).endsWith(path.join("homes", "3", "shared", "x.xlsx")));
+    // Another chat's folder, another home's, the folders themselves, and the old model's /files/mine are none of them.
+    for (const outside of ["/files/chat/../13/x", "/files/shared/../../4/shared/x", "/files/chat", "/etc/passwd", "report.docx", "/files/other/x", "/files/mine/x"]) {
+      assert.equal(await store.resolve(at(3, 12, 7), outside), null, outside);
     }
   } finally {
     await fs.rm(dir, { recursive: true, force: true });
@@ -118,12 +123,12 @@ test("paths stay inside the bot's own and the shared folder", async () => {
 test("a link made inside a folder can't lead a download elsewhere", async () => {
   const { dir, store } = await tempStore();
   try {
-    const { mine } = await store.prepare(at(3, 7, 1));
+    const { chat } = await store.prepare(at(3, 12, 7));
     await fs.writeFile(path.join(dir, "secret.txt"), "secret");
-    await fs.symlink(path.join(dir, "secret.txt"), path.join(mine, "link.txt"));
-    await assert.rejects(store.existingFile(at(3, 7, 1), "/files/mine/link.txt"), /isn't there/);
-    await fs.writeFile(path.join(mine, "ok.txt"), "fine");
-    assert.equal((await store.existingFile(at(3, 7, 1), "/files/mine/ok.txt")).stat.size, 4);
+    await fs.symlink(path.join(dir, "secret.txt"), path.join(chat, "link.txt"));
+    await assert.rejects(store.existingFile(at(3, 12, 7), "/files/chat/link.txt"), /isn't there/);
+    await fs.writeFile(path.join(chat, "ok.txt"), "fine");
+    assert.equal((await store.existingFile(at(3, 12, 7), "/files/chat/ok.txt")).stat.size, 4);
   } finally {
     await fs.rm(dir, { recursive: true, force: true });
   }
@@ -132,61 +137,63 @@ test("a link made inside a folder can't lead a download elsewhere", async () => 
 test("a coding run's folder is a real folder of the bot's, never a link or a path out of its folders", async () => {
   const { dir, store } = await tempStore();
   try {
-    const { mine } = await store.prepare(at(3, 7, 1));
-    await fs.mkdir(path.join(mine, "site"));
+    const { chat } = await store.prepare(at(3, 12, 7));
+    await fs.mkdir(path.join(chat, "site"));
     await fs.mkdir(path.join(dir, "elsewhere"));
-    await fs.symlink(path.join(dir, "elsewhere"), path.join(mine, "linked"));
-    assert.deepEqual(await store.existingFolder(at(3, 7, 1), "/files/mine/site/"), { real: await fs.realpath(path.join(mine, "site")), virtualPath: "/files/mine/site" });
-    assert.deepEqual(await store.existingFolder(at(3, 7, 1), "/files/mine"), { real: await fs.realpath(mine), virtualPath: "/files/mine" });
-    await assert.rejects(store.existingFolder(at(3, 7, 1), "/files/mine/linked"), /isn't there/);
-    await assert.rejects(store.existingFolder(at(3, 7, 1), "/files/mine/missing"), /isn't there/);
-    for (const outside of ["/files/mine/../../../..", "/files", "/etc", "/files/mine/../2"]) {
-      await assert.rejects(store.existingFolder(at(3, 7, 1), outside), /not one of the bot's files/, outside);
+    await fs.symlink(path.join(dir, "elsewhere"), path.join(chat, "linked"));
+    assert.deepEqual(await store.existingFolder(at(3, 12, 7), "/files/chat/site/"), { real: await fs.realpath(path.join(chat, "site")), virtualPath: "/files/chat/site" });
+    assert.deepEqual(await store.existingFolder(at(3, 12, 7), "/files/chat"), { real: await fs.realpath(chat), virtualPath: "/files/chat" });
+    await assert.rejects(store.existingFolder(at(3, 12, 7), "/files/chat/linked"), /isn't there/);
+    await assert.rejects(store.existingFolder(at(3, 12, 7), "/files/chat/missing"), /isn't there/);
+    for (const outside of ["/files/chat/../../../..", "/files", "/etc", "/files/chat/../13"]) {
+      await assert.rejects(store.existingFolder(at(3, 12, 7), outside), /not one of the bot's files/, outside);
     }
   } finally {
     await fs.rm(dir, { recursive: true, force: true });
   }
 });
 
-test("a person's files with a bot are theirs alone; shared files reach the whole home only", async () => {
+test("a chat's files are its own; shared files reach the whole home only", async () => {
   const { dir, store } = await tempStore();
   try {
-    const { mine } = await store.prepare(at(3, 7, 1));
-    await fs.writeFile(path.join(mine, "sales.xlsx"), "x");
-    // Someone else in the home, with the same bot, doesn't see it.
-    assert.deepEqual((await store.list(at(3, 7, 2))).mine, []);
-    await assert.rejects(store.existingFile(at(3, 7, 2), "/files/mine/sales.xlsx"), /isn't there/);
-    assert.deepEqual((await store.list(at(3, 8, 2))).shared, []);
-    await store.move(at(3, 7, 1), "/files/mine/sales.xlsx", "/files/shared/sales.xlsx");
-    // Shared: every person and bot in the home, and nobody in another home.
-    assert.deepEqual((await store.list(at(3, 8, 2))).shared.map((file) => file.path), ["/files/shared/sales.xlsx"]);
-    assert.deepEqual((await store.list(at(3, 7, 1))).mine, []);
-    assert.deepEqual((await store.list(at(4, 9, 1))).shared, []);
-    await assert.rejects(store.move(at(3, 8, 1), "/files/mine/nothing.xlsx", "/files/shared/n.xlsx"), /isn't there/);
+    const { chat } = await store.prepare(at(3, 12, 7));
+    await fs.writeFile(path.join(chat, "sales.xlsx"), "x");
+    // Another chat in the home, with the same bot, doesn't see it.
+    assert.deepEqual((await store.list(at(3, 13, 7))).chat, []);
+    await assert.rejects(store.existingFile(at(3, 13, 7), "/files/chat/sales.xlsx"), /isn't there/);
+    assert.deepEqual((await store.list(at(3, 13, 8))).shared, []);
+    await store.move(at(3, 12, 7), "/files/chat/sales.xlsx", "/files/shared/sales.xlsx");
+    // Shared: every chat and bot in the home, and nobody in another home.
+    assert.deepEqual((await store.list(at(3, 13, 8))).shared.map((file) => file.path), ["/files/shared/sales.xlsx"]);
+    assert.deepEqual((await store.list(at(3, 12, 7))).chat, []);
+    assert.deepEqual((await store.list(at(4, 12, 9))).shared, []);
+    await assert.rejects(store.move(at(3, 13, 8), "/files/chat/nothing.xlsx", "/files/shared/n.xlsx"), /isn't there/);
   } finally {
     await fs.rm(dir, { recursive: true, force: true });
   }
 });
 
-test("three folders: the person's, the bot's for everyone using it, and the home's", async () => {
+test("three folders: the chat's, the bot's for everyone in the home, and the home's", async () => {
   const { dir, store } = await tempStore();
   try {
-    const { mine, bot } = await store.prepare(at(3, 7, 1));
-    await fs.writeFile(path.join(mine, "notes.txt"), "mine");
-    await store.move(at(3, 7, 1), "/files/mine/notes.txt", "/files/bot/notes.txt");
-    // Everyone using the bot sees its folder; a conversation everyone shares has no private one,
-    // and its old /files/mine paths lead to the bot's folder.
-    assert.deepEqual((await store.list(at(3, 7, 2))).bot.map((file) => file.path), ["/files/bot/notes.txt"]);
-    const everyone = { homeId: 3, botId: 7, everyone: true };
-    const listed = await store.list(everyone);
-    assert.equal(listed.mine, undefined);
+    const { chat, bot } = await store.prepare(at(3, 12, 7));
+    await fs.writeFile(path.join(chat, "notes.txt"), "the chat's");
+    await store.move(at(3, 12, 7), "/files/chat/notes.txt", "/files/bot/notes.txt");
+    // The bot's folder is the same in every chat it's in, and its own place (its Knowledge files and pages) has no
+    // chat's folder.
+    assert.deepEqual((await store.list(at(3, 13, 7))).bot.map((file) => file.path), ["/files/bot/notes.txt"]);
+    const botOnly = store.botPlace({ homeId: 3, botId: 7 });
+    const listed = await store.list(botOnly);
+    assert.equal(listed.chat, undefined);
     assert.deepEqual(listed.bot.map((file) => file.path), ["/files/bot/notes.txt"]);
-    assert.equal((await store.existingFile(everyone, "/files/mine/notes.txt")).real, await fs.realpath(path.join(bot, "notes.txt")));
+    assert.equal((await store.existingFile(botOnly, "/files/bot/notes.txt")).real, await fs.realpath(path.join(bot, "notes.txt")));
+    assert.equal(await store.resolve(botOnly, "/files/chat/notes.txt"), null);
     // Another bot's folder is out of reach; the home's own place sees only the shared folder.
-    assert.deepEqual((await store.list(at(3, 8, 1))).bot, []);
+    assert.deepEqual((await store.list(at(3, 12, 8))).bot, []);
     const homePlace = store.homePlace(3);
     assert.equal(await store.resolve(homePlace, "/files/bot/notes.txt"), null);
-    await store.move(at(3, 7, 2), "/files/bot/notes.txt", "/files/shared/Team/notes.txt");
+    assert.equal(await store.resolve(homePlace, "/files/chat/notes.txt"), null);
+    await store.move(at(3, 13, 7), "/files/bot/notes.txt", "/files/shared/Team/notes.txt");
     assert.deepEqual((await store.list(homePlace)).shared.map((file) => file.path), ["/files/shared/Team/notes.txt"]);
     assert.deepEqual((await store.listFolder(homePlace, "/files/shared")).entries.map((entry) => [entry.path, Boolean(entry.folder)]), [["/files/shared/Team", true]]);
     assert.deepEqual((await store.listFolder(homePlace, "/files/shared/Team")).entries.map((entry) => [entry.path, Boolean(entry.folder)]), [["/files/shared/Team/notes.txt", false]]);
@@ -206,10 +213,127 @@ test("three folders: the person's, the bot's for everyone using it, and the home
   }
 });
 
+// What a bot makes in a chat stays in it (D13): a private chat's place reads the bot's and the home's folders and writes
+// only the chat's own; widened (a person's own action, or a card a person tapped) or in a Public chat, it writes in all
+// three. The mark is the store's own: a place sent or stored as JSON isn't widened any more.
+test("a private chat's bot only reads /files/bot and /files/shared; widened, or in a public chat, it writes there", async () => {
+  const { dir, store } = await tempStore();
+  try {
+    const narrow = at(3, 12, 7, "private");
+    const { chat, bot, shared } = await store.prepare(narrow);
+    await fs.writeFile(path.join(chat, "draft.txt"), "the chat's");
+    await fs.writeFile(path.join(bot, "kb.txt"), "the bot's");
+    await fs.mkdir(path.join(shared, "Team"));
+    await fs.writeFile(path.join(shared, "Team", "menu.txt"), "the home's");
+
+    // It reads all three.
+    const listed = await store.list(narrow);
+    assert.deepEqual([listed.chat, listed.bot, listed.shared].map((files) => files.map((file) => file.path)), [
+      ["/files/chat/draft.txt"], ["/files/bot/kb.txt"], ["/files/shared/Team/menu.txt"]
+    ]);
+    assert.equal(await fs.readFile((await store.existingFile(narrow, "/files/bot/kb.txt")).real, "utf8"), "the bot's");
+    assert.equal(await fs.readFile((await store.existingFile(narrow, "/files/shared/Team/menu.txt")).real, "utf8"), "the home's");
+    assert.deepEqual((await store.listFolder(narrow, "/files/shared/Team")).entries.map((entry) => entry.path), ["/files/shared/Team/menu.txt"]);
+
+    // Every way of writing in the wider two is refused, 403 files_wider_needs_card naming the folder.
+    const refused = (work, folder) => assert.rejects(work, (error) => {
+      assert.deepEqual([error.statusCode, error.code], [403, "files_wider_needs_card"]);
+      assert.ok(error.message.includes(`only read ${folder}: what they make stays in /files/chat`), error.message);
+      return true;
+    });
+    for (const folder of ["/files/bot", "/files/shared"]) {
+      await refused(store.resolve(narrow, `${folder}/new.txt`), folder);
+      await refused(store.move(narrow, "/files/chat/draft.txt", `${folder}/draft.txt`), folder);
+      await refused(store.makeFolder(narrow, `${folder}/New`), folder);
+      await refused(store.existingFolder(narrow, folder), folder);
+    }
+    await refused(store.move(narrow, "/files/bot/kb.txt", "/files/chat/kb.txt"), "/files/bot");
+    await refused(store.remove(narrow, "/files/shared/Team/menu.txt"), "/files/shared");
+    await refused(store.existingFile(narrow, "/files/bot/kb.txt", { writing: true }), "/files/bot");
+    await refused(store.existingFolder(narrow, "/files/shared/Team"), "/files/shared");
+    // A chat whose kind isn't given counts as private, and so does a widened place once it's been sent or stored.
+    await refused(store.resolve(store.placeFor({ homeId: 3, chatId: 12, botId: 7 }), "/files/bot/new.txt"), "/files/bot");
+    await refused(store.resolve(JSON.parse(JSON.stringify(store.widened(narrow))), "/files/bot/new.txt"), "/files/bot");
+    // Nothing in them changed; the chat's own folder it writes as ever.
+    await store.makeFolder(narrow, "/files/chat/Drafts");
+    await store.move(narrow, "/files/chat/draft.txt", "/files/chat/Drafts/draft.txt");
+    assert.deepEqual([await fs.readdir(bot), await fs.readdir(shared), await fs.readdir(path.join(shared, "Team"))], [["kb.txt"], ["Team"], ["menu.txt"]]);
+
+    // Widened, the same chat's place writes in all three.
+    const wide = store.widened(narrow);
+    await store.move(wide, "/files/chat/Drafts/draft.txt", "/files/bot/draft.txt");
+    await store.move(wide, "/files/bot/draft.txt", "/files/shared/Team/draft.txt");
+    await store.makeFolder(wide, "/files/bot/Pages");
+    assert.equal((await store.existingFolder(wide, "/files/shared")).virtualPath, "/files/shared");
+    await store.remove(wide, "/files/shared/Team/menu.txt");
+    assert.deepEqual((await store.list(narrow)).shared.map((file) => file.path), ["/files/shared/Team/draft.txt"]);
+
+    // In a Public chat, whose people are the home's, the bot writes there itself.
+    const open = at(3, 14, 7, "public");
+    await store.makeFolder(open, "/files/bot/Invoices");
+    await store.move(open, "/files/shared/Team/draft.txt", "/files/bot/Invoices/draft.txt");
+    assert.ok(await store.resolve(open, "/files/shared/new.txt"));
+    assert.equal((await store.existingFolder(open, "/files/bot")).virtualPath, "/files/bot");
+    assert.deepEqual((await store.list(narrow)).bot.map((file) => file.path).sort(), ["/files/bot/Invoices/draft.txt", "/files/bot/kb.txt"]);
+  } finally {
+    await fs.rm(dir, { recursive: true, force: true });
+  }
+});
+
+// A deleted chat's files go with it: its folder, wherever the home keeps its files, and each of its bots' command
+// outputs (by their chat_bots ids); another chat's folder, the bots' and the home's stay.
+test("a deleted chat's folder and its bots' command outputs are removed, and nothing else", async () => {
+  const { dir, store } = await tempStore();
+  try {
+    const gone = await store.prepare(at(3, 12, 7));
+    const kept = await store.prepare(at(3, 13, 7));
+    for (const folder of [gone.chat, kept.chat, gone.bot, gone.shared]) await fs.writeFile(path.join(folder, "file.txt"), "x");
+    await fs.mkdir(path.join(gone.chat, "Deep", "er"), { recursive: true });
+    await fs.writeFile(path.join(gone.chat, "Deep", "er", "x.txt"), "x");
+    await store.removeChatFolder(3, 12);
+    assert.equal(existsSync(gone.chat), false);
+    for (const folder of [kept.chat, gone.bot, gone.shared]) assert.ok(existsSync(path.join(folder, "file.txt")), folder);
+    await store.removeChatFolder("3", "12");
+    for (const [homeId, chatId] of [[3, "12/.."], ["../3", 12], [3, null], [null, 12], [3, "x"]]) {
+      await assert.rejects(store.removeChatFolder(homeId, chatId), /needs its home and chat/u, `${homeId} ${chatId}`);
+    }
+    assert.ok(existsSync(path.join(kept.chat, "file.txt")));
+
+    await fs.writeFile(path.join(await store.runsFolder(41), "17.log"), "whole output");
+    await fs.writeFile(path.join(await store.runsFolder(42), "18.log"), "another chat's");
+    await store.removeRunsFolder(41);
+    assert.deepEqual((await store.runOutputs()).map(({ chatBotId, name }) => [chatBotId, name]), [["42", "18.log"]]);
+    await store.removeRunsFolder("41");
+    for (const bad of ["..", "42/..", null, "x"]) await assert.rejects(store.removeRunsFolder(bad), /needs its chat_bots id/u, String(bad));
+    assert.deepEqual((await store.runOutputs()).map(({ chatBotId, name }) => [chatBotId, name]), [["42", "18.log"]]);
+    // A computer's folder likewise: only a chat_bots id names one.
+    await fs.writeFile(path.join(await store.computerFolder(41), "profile.txt"), "x");
+    await fs.writeFile(path.join(await store.computerFolder(42), "profile.txt"), "x");
+    await store.removeComputerFolder(41);
+    for (const bad of ["..", "42/..", null, "x"]) await assert.rejects(store.removeComputerFolder(bad), /needs its chat_bots id/u, String(bad));
+    const computers = await store.computerIds();
+    assert.deepEqual([computers.includes("41"), computers.includes("42")], [false, true]);
+
+    // A home that keeps its files in its own storage (D-26): the chat's folder goes from there, and the removal is
+    // sent on.
+    const mount = path.join(dir, "mount");
+    const settled = [];
+    const own = createFileStore({ root: "", fallback: path.join(dir, "mercbot"), ownStorage: async () => mount, settle: async (homeId) => settled.push(String(homeId)), explain: async () => {} });
+    const theirs = await own.prepare(at(5, 21, 7));
+    await fs.writeFile(path.join(theirs.chat, "a.txt"), "x");
+    await own.removeChatFolder(5, 21);
+    assert.equal(existsSync(theirs.chat), false);
+    assert.ok(existsSync(theirs.bot) && existsSync(theirs.shared));
+    assert.deepEqual(settled, ["5"]);
+  } finally {
+    await fs.rm(dir, { recursive: true, force: true });
+  }
+});
+
 test("the file browser reads one folder at a time, so a folder's old files show however many newer ones the rest has", async () => {
   const { dir, store } = await tempStore();
   try {
-    const place = at(3, 7, 1);
+    const place = at(3, 12, 7);
     const { bot, shared } = await store.prepare(place);
     const stamp = async (file, minutesAgo) => {
       await fs.writeFile(file, "x");
@@ -246,10 +370,10 @@ test("the file browser reads one folder at a time, so a folder's old files show 
     assert.deepEqual((await store.listFolder(place, "/files/shared/Elsewhere")).entries, []);
     assert.ok(!(await store.listFolder(place, "/files/shared")).entries.some((entry) => entry.path === "/files/shared/Elsewhere"));
 
-    // Every folder, for Move to…: the person's own only when the place is theirs.
+    // Every folder, for Move to…: the chat's only when the place is a chat's.
     await fs.mkdir(path.join(bot, "Invoices"));
-    assert.deepEqual(await store.folderTree(place), { mine: [], bot: ["/files/bot/Invoices"], shared: ["/files/shared/Old", "/files/shared/Old/Deeper"] });
-    assert.deepEqual(await store.folderTree({ homeId: 3, botId: 7, everyone: true }), { bot: ["/files/bot/Invoices"], shared: ["/files/shared/Old", "/files/shared/Old/Deeper"] });
+    assert.deepEqual(await store.folderTree(place), { chat: [], bot: ["/files/bot/Invoices"], shared: ["/files/shared/Old", "/files/shared/Old/Deeper"] });
+    assert.deepEqual(await store.folderTree(store.botPlace({ homeId: 3, botId: 7 })), { bot: ["/files/bot/Invoices"], shared: ["/files/shared/Old", "/files/shared/Old/Deeper"] });
   } finally {
     await fs.rm(dir, { recursive: true, force: true });
   }
@@ -258,7 +382,7 @@ test("the file browser reads one folder at a time, so a folder's old files show 
 test("a folder with more than 300 files lists its newest 300 and says how many are left out", async () => {
   const { dir, store } = await tempStore();
   try {
-    const { shared } = await store.prepare(at(3, 7, 1));
+    const { shared } = await store.prepare(at(3, 12, 7));
     // file-320 is the newest and file-001 the oldest. A folder is read in no particular order, so
     // only sorting before cutting keeps the newest 300.
     for (let index = 1; index <= 320; index += 1) {
@@ -267,13 +391,13 @@ test("a folder with more than 300 files lists its newest 300 and says how many a
       const time = new Date(Date.UTC(2026, 0, 1) - index * 60000);
       await fs.utimes(file, time, time);
     }
-    const listed = await store.list(at(3, 7, 1));
+    const listed = await store.list(at(3, 12, 7));
     assert.equal(listed.shared.length, 300);
     assert.equal(listed.shared[0].path, "/files/shared/file-320.txt");
     assert.equal(listed.shared.at(-1).path, "/files/shared/file-021.txt");
     assert.deepEqual(listed.left, { shared: 20 });
     assert.deepEqual(listed.partial, []);
-    assert.deepEqual((await store.list(at(4, 7, 1))).left, {}, "folders within the limit are whole");
+    assert.deepEqual((await store.list(at(4, 12, 7))).left, {}, "folders within the limit are whole");
   } finally {
     await fs.rm(dir, { recursive: true, force: true });
   }
@@ -282,11 +406,11 @@ test("a folder with more than 300 files lists its newest 300 and says how many a
 test("a listing stops walking a folder at 5,000 entries and names it as partial", async () => {
   const { dir, store } = await tempStore();
   try {
-    const { shared } = await store.prepare(at(3, 7, 1));
+    const { shared } = await store.prepare(at(3, 12, 7));
     const deep = path.join(shared, "unpacked");
     await fs.mkdir(deep);
     for (let index = 0; index < 5100; index += 1) await fs.writeFile(path.join(deep, `f${index}.txt`), "");
-    const listed = await store.list(at(3, 7, 1));
+    const listed = await store.list(at(3, 12, 7));
     assert.equal(listed.shared.length, 300);
     assert.deepEqual(listed.left, { shared: 4700 }, "the walk read 5,000 entries and no more");
     assert.deepEqual(listed.partial, ["shared"]);
@@ -298,7 +422,7 @@ test("a listing stops walking a folder at 5,000 entries and names it as partial"
 test("a listing looks at a folder's files several at a time, never more than 32 at once per folder", async (context) => {
   const { dir, store } = await tempStore();
   try {
-    const place = at(3, 7, 1);
+    const place = at(3, 12, 7);
     const { bot, shared } = await store.prepare(place);
     await fs.mkdir(path.join(shared, "Team"));
     for (let index = 0; index < 80; index += 1) await fs.writeFile(path.join(shared, "Team", `f${index}.txt`), "x");
@@ -334,7 +458,7 @@ test("a configured folder without its marker is unavailable, so nothing lands on
   try {
     const store = createFileStore({ root: dir, ownStorage: async () => null, settle: async () => {}, explain: async () => {} });
     assert.equal(await store.available(), false);
-    await assert.rejects(store.prepare(at(3, 7, 1)), /aren't available/);
+    await assert.rejects(store.prepare(at(3, 12, 7)), /aren't available/);
     await fs.writeFile(path.join(dir, ".mercbot-files"), "");
     assert.equal(await store.available(), true);
   } finally {
@@ -351,21 +475,21 @@ test("the office apps, in gVisor, save only into the bot's folders", async (t) =
     t.skip("office apps or gVisor not installed");
     return;
   }
-  const session = apps.session(at(3, 7, 1));
+  const session = apps.session(at(3, 12, 7));
   try {
     await session.call("word", "new_document", {});
     await session.call("word", "type_text", { text: "Hello" });
-    assert.equal((await session.call("word", "save_document", { path: "/files/mine/hello.docx" })).ok, true);
+    assert.equal((await session.call("word", "save_document", { path: "/files/chat/hello.docx" })).ok, true);
     assert.equal((await session.call("word", "save_document", { path: "/etc/hello.docx" })).ok, false);
-    assert.deepEqual((await store.list(at(3, 7, 1))).mine.map((file) => file.path), ["/files/mine/hello.docx"]);
-    const preview = await apps.pagesOf(at(3, 7, 1), "/files/mine/hello.docx");
+    assert.deepEqual((await store.list(at(3, 12, 7))).chat.map((file) => file.path), ["/files/chat/hello.docx"]);
+    const preview = await apps.pagesOf(at(3, 12, 7), "/files/chat/hello.docx");
     assert.equal(preview.pages.length, 1);
     assert.equal(preview.pages[0].subarray(1, 4).toString(), "PNG");
-    assert.match(await apps.textOf(at(3, 7, 1), "/files/mine/hello.docx"), /Hello/u);
-    await apps.chartImage(at(3, 7, 1), { title: "Sales", categories: ["A", "B"], series: [{ name: "Sales", values: [3, 5] }] }, "/files/mine/chart.png");
-    assert.equal((await fs.readFile(path.join(dir, "homes/3/bots/7/people/1/chart.png"))).subarray(1, 4).toString(), "PNG");
+    assert.match(await apps.textOf(at(3, 12, 7), "/files/chat/hello.docx"), /Hello/u);
+    await apps.chartImage(at(3, 12, 7), { title: "Sales", categories: ["A", "B"], series: [{ name: "Sales", values: [3, 5] }] }, "/files/chat/chart.png");
+    assert.equal((await fs.readFile(path.join(dir, "homes/3/chats/12/chart.png"))).subarray(1, 4).toString(), "PNG");
     if (existsSync(path.join(toolsDir(process.env), "piper", "piper"))) {
-      const memo = await apps.voiceMemo(at(3, 7, 1), "Hello from the sandbox.", "/files/mine/Voice/memo.wav");
+      const memo = await apps.voiceMemo(at(3, 12, 7), "Hello from the sandbox.", "/files/chat/Voice/memo.wav");
       assert.ok(memo.seconds > 0.5, JSON.stringify(memo));
     }
   } finally {

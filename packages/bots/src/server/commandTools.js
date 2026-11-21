@@ -14,17 +14,16 @@ function withWholeOutput(result, run) {
 }
 
 /**
- * The command line (D-47): a bash script in the gVisor toolbox, on this conversation's folders,
- * without network. A reply's commands leave one line in the chat, opening to each script and
- * its output.
+ * The command line (D-47): a bash script in the gVisor toolbox, on the folders of the bot's seat in this chat (R6),
+ * without network. A reply's commands leave one line in the chat, opening to each script and its output.
  * @param {object} shared
  * @param {import("@local/files/server/types").Files} shared.files
  * @param {import("./types.js").Place} shared.place
  * @param {string} shared.homeId
  * @param {string} shared.botId
- * @param {string} shared.conversationId
- * @param {string} shared.userId
- * @param {boolean} shared.personal
+ * @param {string} shared.chatBotId the bot's seat in this chat, whose runs these are
+ * @param {string} shared.userId who the turn works for
+ * @param {boolean} shared.privateChat whether /files/bot and /files/shared are read-only here (D13)
  * @param {boolean} shared.viaBot
  * @param {object[]} shared.before
  * @param {string[]} shared.attempted
@@ -36,9 +35,9 @@ export function buildCommandTools({
   place,
   homeId,
   botId,
-  conversationId,
+  chatBotId,
   userId,
-  personal,
+  privateChat,
   viaBot,
   before,
   attempted,
@@ -71,17 +70,17 @@ export function buildCommandTools({
   async function runCommand({ why, script, seconds }) {
     attempted.push("run_command");
     try {
-      // Asked by another bot, not the person (D-46): the person's own files and the home's
-      // can only be read, so nothing a bot was talked into can change them.
+      // Asked by another bot, not the person (D-46): the chat's files and the home's can only be read, so nothing a
+      // bot was talked into can change them.
       const run = await files.shell.start({
         place,
         workspaceId: homeId,
         botId,
-        conversationId,
-        userId: personal ? userId : null,
+        chatBotId,
+        userId,
         why,
         script,
-        readOnly: viaBot ? ["mine", "shared"] : [],
+        readOnly: viaBot ? ["chat", "shared"] : [],
         ...(seconds ? { maxSeconds: seconds } : {})
       });
       if (run.status === "unavailable" || run.status === "busy") return { error: run.error };
@@ -96,9 +95,9 @@ export function buildCommandTools({
     Object.freeze({
       id: "run_command",
       description:
-        "Run a bash script on your own Linux computer's command line, for work on files: video and audio (ffmpeg), pictures (ImageMagick), reading scanned pages (tesseract), PDFs (qpdf, pdftotext, gs), data (Python with pandas, numpy, matplotlib, openpyxl; sqlite3, jq), documents (pandoc, python-docx, python-pptx), archives, and ordinary Unix tools with pipes and loops. It sees only your folders (" +
-        (personal ? "/files/mine, " : "") +
-        "/files/bot, /files/shared) and a scratch /tmp emptied after each run, and has no internet and nothing to install. Check what you made (ls, ffprobe, head) and fix errors by running again. A command still running after 2 minutes carries on in the background and you're woken here when it ends.",
+        "Run a bash script on your own Linux computer's command line, for work on files: video and audio (ffmpeg), pictures (ImageMagick), reading scanned pages (tesseract), PDFs (qpdf, pdftotext, gs), data (Python with pandas, numpy, matplotlib, openpyxl; sqlite3, jq), documents (pandoc, python-docx, python-pptx), archives, and ordinary Unix tools with pipes and loops. It sees only your folders (/files/chat, /files/bot, /files/shared" +
+        (privateChat ? "; in this private chat /files/bot and /files/shared can only be read" : "") +
+        ") and a scratch /tmp emptied after each run, and has no internet and nothing to install. Check what you made (ls, ffprobe, head) and fix errors by running again. A command still running after 2 minutes carries on in the background and you're woken here when it ends.",
       inputSchema: z.object({
         why: z
           .string()
@@ -122,13 +121,13 @@ export function buildCommandTools({
       execute: (input, options) => checkCommand(input, options)
     })
   );
-  /** The whole of a command's output when its result was cut (D-48), from this conversation only. */
+  /** The whole of a command's output when its result was cut (D-48), from this chat's runs only. */
   async function readCommandOutput({ run, from_line: fromLine = 1 }) {
     if (!/^\d+$/u.test(run)) return { error: "Give the run number from run_command or check_command." };
-    const found = await files.commandOutput(run, conversationId, call);
-    if (!found) return { error: "There's no such command in this conversation." };
+    const found = await files.commandOutput(run, chatBotId, call);
+    if (!found) return { error: "There's no such command in this chat." };
     if (found.status === "running") return { error: "It's still running; check_command shows its output so far." };
-    const whole = await files.shell.wholeOutputOf({ id: found.id, conversation_id: found.conversationId });
+    const whole = await files.shell.wholeOutputOf({ id: found.id, chatBotId: found.chatBotId });
     if (whole === null) {
       return {
         note: "Its output wasn't cut, so the result already showed all of it (or a week has passed and it's gone).",

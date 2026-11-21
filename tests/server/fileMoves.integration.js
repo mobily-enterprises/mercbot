@@ -6,6 +6,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { seedChat } from "../support/chatFixtures.mjs";
 import { startFakeDrive } from "../support/fakeDrive.mjs";
 import { filesEnv, filesHandles, startFilesServer } from "../support/filesServer.mjs";
 import { requestContextOptions } from "../support/requestContextOptions.mjs";
@@ -158,7 +159,7 @@ test("every switch copies all the home's files and makes the new place an exact 
     "shared/Invoices/march.pdf": "%PDF-1.7 march",
     "shared/Empty/": null,
     "bots/7/everyone/report.md": "# Report",
-    "bots/7/people/9/diary.txt": "Dear diary"
+    "chats/9/diary.txt": "Dear diary"
   };
   await writeTree(own, files);
   await fs.utimes(path.join(own, "shared/notes.txt"), when, when);
@@ -330,8 +331,10 @@ test("a command started before the move is waited for, and a copy that differs i
   const server = await serve();
   const files = spread(20);
   await writeTree(own, files);
-  const [bot] = await knex("bots").insert({ user_id: pat, workspace_id: homeId, name: "Tess", color: "#1E86FC" }).returning("id");
-  const command = await server.runs.begin(homeId, { botId: bot.id ?? bot, conversationId: null, userId: pat, why: "Making a report", script: "make-report", server: "elsewhere" });
+  const [bot] = await knex("bots").insert({ made_by: pat, workspace_id: homeId, name: "Tess", color: "#1E86FC" }).returning("id");
+  const botId = String(bot.id ?? bot);
+  const chat = await seedChat(knex, { homeId, kind: "public", people: [pat], bots: [botId] });
+  const command = await server.runs.begin(homeId, { chatBotId: chat.chatBotIds.get(botId), userId: pat, why: "Making a report", script: "make-report", server: "elsewhere" });
 
   await server.storage.choose(homeId, { kind: "drive", accountId: patDrive.id }, as(pat));
   await until(async () => (await row()).move?.stage === "commands", "the move waits for the command", 30000);

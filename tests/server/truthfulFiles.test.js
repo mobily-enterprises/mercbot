@@ -14,8 +14,13 @@ const { closestFiles } = __testables;
 
 // Files are handed over as real cards, never claimed, never as internal paths (D-48).
 test("internal paths are taken out of replies, keeping what's after the folder", () => {
-  assert.equal(withoutPaths("Saved as /files/mine/Reports/plan.pdf and `/files/shared/menu.docx`."), "Saved as Reports/plan.pdf and `menu.docx`.");
+  assert.equal(withoutPaths("Saved as /files/bot/Reports/plan.pdf and `/files/shared/menu.docx`."), "Saved as Reports/plan.pdf and `menu.docx`.");
   assert.equal(withoutPaths("Nothing to change here."), "Nothing to change here.");
+});
+
+// A chat's own folder (R6) is the one a bot saves in most.
+test("a chat's own paths are taken out of replies too", () => {
+  assert.equal(withoutPaths("Saved as /files/chat/Reports/plan.pdf."), "Saved as Reports/plan.pdf.");
 });
 
 test("a reply that says files are attached is spotted, one that says they aren't isn't", () => {
@@ -28,25 +33,27 @@ test("a reply that says files are attached is spotted, one that says they aren't
 });
 
 test("the closest names to a missing file", () => {
-  const paths = ["/files/mine/week-plan-page-2.pdf", "/files/mine/week-plan-page-3.pdf", "/files/mine/invoice.xlsx"];
-  assert.deepEqual(closestFiles("/files/mine/week-plan-2.pdf", paths).slice(0, 2), ["/files/mine/week-plan-page-2.pdf", "/files/mine/week-plan-page-3.pdf"]);
-  assert.deepEqual(closestFiles("/files/mine/zzz.pdf", paths), []);
+  const paths = ["/files/chat/week-plan-page-2.pdf", "/files/chat/week-plan-page-3.pdf", "/files/chat/invoice.xlsx"];
+  assert.deepEqual(closestFiles("/files/chat/week-plan-2.pdf", paths).slice(0, 2), ["/files/chat/week-plan-page-2.pdf", "/files/chat/week-plan-page-3.pdf"]);
+  assert.deepEqual(closestFiles("/files/chat/zzz.pdf", paths), []);
 });
 
 test("send_files attaches existing files as cards, however old, and reports missing ones", async () => {
   const dir = await mkdtemp(path.join(os.tmpdir(), "mb-send-"));
   const store = createFileStore({ root: "", fallback: dir, ownStorage: async () => null, settle: async () => {}, explain: async () => {} });
-  const place = { homeId: "1", botId: "2", userId: "3" };
+  // Read in a private chat, which reads every folder it has.
+  const place = store.placeFor({ homeId: "1", chatId: "4", chatKind: "private", botId: "2" });
   await store.list(place);
-  const old = await store.resolve(place, "/files/mine/week-plan-page-2.pdf");
+  const old = await store.resolve(place, "/files/chat/week-plan-page-2.pdf");
   await writeFile(old, "%PDF-1.4 page two");
   await utimes(old, new Date(Date.now() - 86400000), new Date(Date.now() - 86400000));
   const files = { store, apps: { session: () => ({ close() {} }) } };
-  const run = buildTools(turnDoubles({ approvals: { decide: async () => "allow" }, computer: null, files, place, homeId: "1", userId: "3", botId: "2", conversationId: "4" }));
+  const run = buildTools(turnDoubles({ approvals: { decide: async () => "allow" }, computer: null, files, place,
+    seat: { id: "2", workspace_id: "1", user_id: "3", chat_id: "4", chat_bot_id: "9", chat: { id: "4", kind: "private" } } }));
   assert.deepEqual(await run.fileCards(), [], "an old file has no card by itself");
-  const result = await run.tools.sendFiles.execute({ paths: ["/files/mine/week-plan-page-2.pdf", "/files/mine/week-plan-2-weekend.pdf"] });
+  const result = await run.tools.sendFiles.execute({ paths: ["/files/chat/week-plan-page-2.pdf", "/files/chat/week-plan-2-weekend.pdf"] });
   assert.deepEqual(result.attached, ["week-plan-page-2.pdf"]);
-  assert.equal(result.notFound[0].path, "/files/mine/week-plan-2-weekend.pdf");
-  assert.deepEqual(result.notFound[0].closest, ["/files/mine/week-plan-page-2.pdf"]);
+  assert.equal(result.notFound[0].path, "/files/chat/week-plan-2-weekend.pdf");
+  assert.deepEqual(result.notFound[0].closest, ["/files/chat/week-plan-page-2.pdf"]);
   assert.deepEqual((await run.fileCards()).map((card) => card.name), ["week-plan-page-2.pdf"], "but gets one once sent");
 });
