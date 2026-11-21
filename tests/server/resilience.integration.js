@@ -335,21 +335,23 @@ test("asking again after a card was answered returns the same reply instead of s
   const bots = startBotsService(cleanup, { knex, ...parts, approvals: { decide: async () => "allow" }, reply: async () => ({ text: `Reply ${++replies}`, transcript: [] }) });
   const sent = await bots.chat.sendMessage(bot.conversation_id, { text: "Sign me in", clientId: "pending-card" }, as(userId));
   await bots.chat.reply(bot.conversation_id, { afterMessageId: sent.messages[0].id }, undefined, as(userId));
-  const [event] = await knex("messages").insert({ workspace_id: bot.workspace_id, conversation_id: bot.conversation_id, kind: "event", role: "system", body: { text: "Done on the web page" } }).returning("*");
-  const afterCard = await bots.chat.reply(bot.conversation_id, { afterMessageId: event.id }, undefined, as(userId));
-  const again = await bots.chat.reply(bot.conversation_id, { afterMessageId: event.id }, undefined, as(userId));
-  const third = await bots.chat.reply(bot.conversation_id, { afterMessageId: event.id }, undefined, as(userId));
+  // The bot's hand-over card, done on the web page: the page asks for the reply after it (afterCard), then asks again.
+  const [card] = await knex("messages").insert({
+    workspace_id: bot.workspace_id, conversation_id: bot.conversation_id, author_bot_id: bot.id, kind: "handover", role: "bot", body: { task: "Sign in", status: "done" }
+  }).returning("*");
+  const afterCard = await bots.chat.reply(bot.conversation_id, { afterMessageId: card.id, afterCard: true }, undefined, as(userId));
+  const again = await bots.chat.reply(bot.conversation_id, { afterMessageId: card.id, afterCard: true }, undefined, as(userId));
+  const third = await bots.chat.reply(bot.conversation_id, { afterMessageId: card.id, afterCard: true }, undefined, as(userId));
   assert.equal(replies, 2, "one reply for the message, one after the card, then none");
   assert.deepEqual(again.messages.map((message) => message.id), afterCard.messages.map((message) => message.id));
   assert.deepEqual(third.messages.map((message) => message.id), afterCard.messages.map((message) => message.id));
 });
 
 test("a vault password never shows in a bot's reply", async (context) => {
-  const { knex, as, userId, bot, cleanup } = await setup(context);
-  const { records, account } = await startBotRecordsWithAccount(knex, cleanup);
+  const { knex, parts, as, userId, bot, cleanup } = await setup(context);
   const { saveLogin } = await import("../../packages/bots/src/server/vaultLogins.js");
-  const saved = await saveLogin(account, process.env, "secret-test.example", "tester", "Zebra-Quartz-77", as(userId));
-  const bots = startBotsService(cleanup, { knex, records, account, approvals: { decide: async () => "allow" }, reply: async () => ({ text: "Signed in as tester with Zebra-Quartz-77.", transcript: [] }) });
+  const saved = await saveLogin(parts.account, process.env, "secret-test.example", "tester", "Zebra-Quartz-77", as(userId));
+  const bots = startBotsService(cleanup, { knex, ...parts, approvals: { decide: async () => "allow" }, reply: async () => ({ text: "Signed in as tester with Zebra-Quartz-77.", transcript: [] }) });
   const sent = await bots.chat.sendMessage(bot.conversation_id, { text: "Sign me in", clientId: "pending-secret" }, as(userId));
   const result = await bots.chat.reply(bot.conversation_id, { afterMessageId: sent.messages[0].id }, undefined, as(userId));
   assert.equal(result.messages.find((message) => message.kind === "text").body.text, "Signed in as tester with •••.");
@@ -444,7 +446,7 @@ test("a calendar event with guests waits for approval, then goes on the connecte
     });
     const sent = await bots.chat.sendMessage(bot.conversation_id, { text: "Lunch with Ana next Tuesday at 1, invite her" }, as(userId));
     await bots.chat.reply(bot.conversation_id, { afterMessageId: sent.messages[0].id }, undefined, as(userId));
-    assert.match(state, /Connected accounts: Google Calendar: pat@example\.com \(connected by them\)\.\n/u);
+    assert.match(state, /connected accounts, which you use for the person you're working for: Google Calendar: pat@example\.com \(connected by them\)\.\n/u);
     assert.equal(posted.length, 0, "nothing is added before approval");
     const card = await knex("messages").where({ conversation_id: bot.conversation_id, kind: "choice" }).first();
     assert.match(card.body.question, /invite ana@example\.com/u);
@@ -561,7 +563,7 @@ test("a reply draft answers from the receiving mailbox to the reply-to address, 
     assert.equal(card.body.inReplyTo.from, "Ms Reed <reed@school.example>");
     const second = await bots.chat.sendMessage(bot.conversation_id, { text: "Looks good, send it" }, as(userId));
     await bots.chat.reply(bot.conversation_id, { afterMessageId: second.messages[0].id }, undefined, as(userId));
-    assert.equal(results[1].status, "sent");
+    assert.equal(results[1].status, "sent", JSON.stringify(results[1]));
     const send = calls.find((call) => call.url.includes("/messages/send"));
     assert.equal(send.body.threadId, "t9");
     const raw = Buffer.from(send.body.raw, "base64url").toString("utf8");
@@ -905,7 +907,7 @@ test("a calendar claim without the tool is sent back, and an event goes in one c
     }).returning("*");
     await bots.chat.answerChoice(bot.conversation_id, card.id, ["Google Calendar: pat@example.com"], as(userId));
     results.length = 0;
-    await bots.chat.reply(bot.conversation_id, { afterMessageId: Number(card.id) }, undefined, as(userId));
+    await bots.chat.reply(bot.conversation_id, { afterMessageId: Number(card.id), afterCard: true }, undefined, as(userId));
     assert.equal(results[1].status, "done", "the picked calendar is used");
     assert.equal(posted.length, 2);
 
