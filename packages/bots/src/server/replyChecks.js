@@ -1,7 +1,11 @@
 // What a reply may claim (D-48): the words that say something happened, the notes, signed by Mercbot, that
-// send a reply back once when its tools didn't do it, and passwords blanked from what a bot writes.
+// send a reply back once when its tools didn't do it (CLAIM_CHECKS, in order), and passwords blanked from what a bot
+// writes.
 import { DRIVE_TOOLS } from "./driveTools.js";
 import { GITHUB_CHANGES } from "./githubTools.js";
+import { APP_ACTIONS } from "./appTools.js";
+import { MAIL_CHANGES } from "./mailTools.js";
+import { SEDNA_CHANGES } from "./sednaActions.js";
 import { checkTexts } from "@jskit-ai/agent/server";
 
 /** One plain line for the sidebar preview: markdown symbols and link targets removed. */
@@ -134,3 +138,53 @@ export function blankPasswords(text) {
       .replace(/([\w.@+-]{3,}[*_`]*\s*\/\s*)[*_`"“']*[^\s*_`"”',;)]{6,}?[*_`"”']*(?=[\s,;).]|$)/gu, "$1•••");
   }).join("");
 }
+
+/**
+ * What a turn was about, for the picture check: the person's message, the bot's own last message when it was about a
+ * picture (its "Shall I draw that?" answered with "Yes please", but not "Want me to make it an hour?"), and whether
+ * pictures were made in this chat lately; from the chat's last few messages (`recent`).
+ */
+export function turnAbout(recent, botId) {
+  const botSaid = [...recent].reverse().find((message) => message.kind === "text" && String(message.authorBotId) === botId)?.body.text || "";
+  return [
+    [...recent].reverse().find((message) => message.kind === "text" && message.role === "user")?.body.text,
+    PICTURE_WORDS.test(botSaid) || /\bdraw/iu.test(botSaid) ? botSaid : "",
+    recent.some((message) => message.kind === "pictures") ? "picture" : ""
+  ].join("\n");
+}
+
+/** Whether the run called any tool of these lists. */
+const wrote = (run, ...lists) => run.attempted.some((id) => lists.some((list) => list.includes(id)));
+
+/**
+ * The checks of what a reply claims, in order, each read after the one before sent it back: the check to send it back
+ * with, or "". A run's pictures, cards and attempted tools are asked of the run itself, as they join the reply only
+ * when it finishes.
+ * @type {((run: object, text: string, about: string) => string)[]}
+ */
+export const CLAIM_CHECKS = [
+  // A bot only says it handed its screen over once the card exists; any other card below is a card too, so a reply
+  // that made one is not sent back over its own words.
+  (run, text) => (run.tools.askForHelp && !run.showsCard() && CLAIMS_HANDOVER.test(text) ? HANDOVER_CHECK : ""),
+  // A picture only exists once make_picture made it. A copy that can't make pictures (D-72) has nothing to send back.
+  (run, text, about) => {
+    if (!run.picturesOn || run.madePicture()) return "";
+    return REFUSES_PICTURE.test(text) ? REFUSAL_CHECK : claimsPicture(about, text) ? PICTURE_CHECK : "";
+  },
+  // A calendar change only happened if its tool ran.
+  (run, text) =>
+    (run.tools.addCalendarEvent && !run.attempted.some((id) => CALENDAR_ACTIONS.includes(id)) && CLAIMS_CALENDAR.test(text) ? CALENDAR_CHECK : ""),
+  // Drive or OneDrive files are only shown once list_drive_files read them.
+  (run, text) => (run.tools.listDriveFiles && !run.attempted.some((id) => DRIVE_ACTIONS.includes(id)) && CLAIMS_DRIVE.test(text) ? DRIVE_CHECK : ""),
+  // Mail or GitHub only changed if one of their tools ran (D-42). Mail, GitHub and apps all have labels, so a change in
+  // one answers for those words in the others.
+  (run, text) => (run.tools.forwardEmail && !wrote(run, MAIL_CHANGES, GITHUB_WRITES, SEDNA_CHANGES) && CLAIMS_MAIL.test(text) ? MAIL_CHECK : ""),
+  (run, text) => (run.tools.githubChange && !wrote(run, GITHUB_WRITES, MAIL_CHANGES, SEDNA_CHANGES) && CLAIMS_GITHUB.test(text) ? GITHUB_CHECK : ""),
+  // An app, table, field or record only changed if an Apps tool ran (D-35). A reply that ends by asking the person
+  // something hasn't claimed it did anything.
+  (run, text) => {
+    const asking = run.after.some((message) => message.kind === "choice");
+    const wroteAny = wrote(run, APP_ACTIONS, MAIL_CHANGES, GITHUB_WRITES, SEDNA_CHANGES);
+    return !asking && run.tools.dataCreate && !wroteAny && CLAIMS_APPS.test(text) ? APPS_CHECK : "";
+  }
+];

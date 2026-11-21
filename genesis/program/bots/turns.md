@@ -96,7 +96,10 @@ in this chat, claimed in `agent_runs` under its seat (`chat_bots.id`) with a hea
 another page never starts a second one and a reply whose server stopped beating for a minute is taken over (D-15,
 D-19). The request waits up to 20 seconds, then answers `{ pending: true }`; the reply finishes as background work and
 tells pages through bot events; it also answers `{ pending: true }` when the bots it would ask were all still busy
-with an earlier reply in the chat, as each answers once it's free (`answerWaiting`). Bots that already answered the
+with an earlier reply in the chat, as each answers once it's free (`answerWaiting`). Only those four fields come from
+the page: a turn's prompt is the server's own. A message that arrived while its bot was busy is named in the turn's
+prompt ("The message … arrived while you were busy") whichever request answers it, answerWaiting or the page's own
+once that reply has posted, since the bot's later words then end the chat. Bots that already answered the
 person's message (`body.answers`) aren't asked twice, except the card's bot after a card while that card is still the
 chat's latest (`afterCard`; asking again once it has answered gets the latest message's reply, D-19); with none left,
 what was said since the page's last message is the answer. Every reply ends with a message: one that

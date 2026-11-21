@@ -1,7 +1,4 @@
 import { languageName } from "./botWriting.js";
-import { APP_ACTIONS } from "./appTools.js";
-import { MAIL_CHANGES } from "./mailTools.js";
-import { SEDNA_CHANGES } from "./sednaActions.js";
 import { validTimeZone } from "./routineSchedule.js";
 import { withoutPaths } from "./botAgent.js";
 import { LEAKED_MARKUP, reportsActions, stoppedShort, toolRecord, withoutClosingWords, withoutMarkup } from "@jskit-ai/agent/server";
@@ -11,33 +8,7 @@ import { settledWithin } from "./backgroundWork.js";
 import { isModelFailure, modelFailure } from "./modelFailures.js";
 import { RUN_LEASE, RunTakenOver } from "./runLease.js";
 import { escape, mentionMarkers, mentionsIn, withMentions } from "./mentions.js";
-import {
-  APPS_CHECK,
-  CALENDAR_ACTIONS,
-  CALENDAR_CHECK,
-  CHECKS,
-  CLAIMS_APPS,
-  CLAIMS_CALENDAR,
-  CLAIMS_DRIVE,
-  CLAIMS_GITHUB,
-  CLAIMS_HANDOVER,
-  CLAIMS_MAIL,
-  claimsFiles,
-  claimsPicture,
-  DRIVE_ACTIONS,
-  DRIVE_CHECK,
-  FILES_CHECK,
-  ONLY_WHAT_WAS_ASKED,
-  GITHUB_CHECK,
-  GITHUB_WRITES,
-  HANDOVER_CHECK,
-  MAIL_CHECK,
-  PICTURE_CHECK,
-  PICTURE_WORDS,
-  REFUSAL_CHECK,
-  REFUSES_PICTURE,
-  withoutRepeat
-} from "./replyChecks.js";
+import { CHECKS, CLAIM_CHECKS, claimsFiles, FILES_CHECK, ONLY_WHAT_WAS_ASKED, turnAbout, withoutRepeat } from "./replyChecks.js";
 
 // Cards a person answers: only the one the bot worked for may (R4), and right after one is answered its bot speaks.
 export const CARD_KINDS = new Set(["choice", "handover", "draft", "secure_form", "connect"]);
@@ -463,25 +434,25 @@ export function createBotReplies({
    * server mid-reply asks again (D-19): bots that already answered aren't asked twice (after a card, since the card and
    * the page's last message), and with none left to answer, what was said since the page's last message is the answer.
    * A bot still busy with an earlier reply in the chat answers once it's free (runReply's answerWaiting), so a request
-   * that only found bots busy is told it's pending.
+   * that only found bots busy is told it's pending. The page sets only these four: a turn's prompt is the server's own.
    * @param {string} chatId
    * @param {{ timeZone?: string, language?: string, afterMessageId?: string | number, afterCard?: boolean }} input
    * @param {import("./types.js").CallOptions} options the person's request
    * @returns {Promise<{ messages: object[] } | { pending: true }>}
    */
-  async function replyIn(chatId, input, options) {
+  async function replyIn(chatId, { timeZone, language, afterMessageId, afterCard = false }, options) {
     const chat = await records.chats.get(String(chatId), options);
     const present = { people: await records.chats.people(chat.id, options), bots: await records.chats.bots(chat.id, options) };
-    const after = Number(input.afterMessageId) || 0;
+    const after = Number(afterMessageId) || 0;
     const since = async () => ({ messages: after > 0 ? await records.messages.messagesAfter(chat.id, after, options) : [] });
     if (!present.bots.some((bot) => !bot.archived_at)) return since();
-    const { bots, asked, askerId, cardId } = await whoSpeaks(chat.id, input, present, options);
+    const { bots, asked, askerId, cardId } = await whoSpeaks(chat.id, { afterCard }, present, options);
     if (!bots.length || !askerId) return since();
     const done = await answeredBy(chat.id, asked, bots.map((bot) => bot.bot_id), options, cardId ? Math.max(cardId, after) : asked - 1);
     const speaking = bots.filter((bot) => !done.has(String(bot.bot_id)));
     if (!speaking.length) return since();
     const busy = new Set();
-    const job = speakInTurn(chat, speaking, { ...input, afterCard: Boolean(cardId), asked }, askerId, present, { busy });
+    const job = speakInTurn(chat, speaking, { timeZone, language, afterCard: Boolean(cardId), asked }, askerId, present, { busy });
     background.add(job);
     const settled = await settledWithin(job, REPLY_WAIT_MS);
     return settled && (settled.length || !busy.size) ? { messages: settled } : { pending: true };
@@ -492,7 +463,8 @@ export function createBotReplies({
 
   /**
    * The bots speak one after another, then the follow-up round. A paused home's line stops them all (D-73). Answers
-   * everything they posted; a bot whose run in the chat was still going is added to `busy`.
+   * everything they posted; a bot whose run in the chat was still going is added to `busy`. A message that arrived while
+   * the bot was busy is named, as answerWaiting names it: once that reply has posted, the bot's own words come after it.
    */
   async function speakInTurn(chat, speaking, input, askerId, present, { followUp = false, busy = new Set() } = {}) {
     const posted = [];
@@ -504,8 +476,9 @@ export function createBotReplies({
         continue;
       }
       const call = seats.readerOf(seat);
+      const waiting = input.afterCard || followUp ? "" : await arrivedWhileBusy(records.turns, seat, input.asked, call);
       const out = await meter.track(meteredAs(seat), () =>
-        runReply(seat, { ...input, followUp }, call, null, present));
+        runReply(seat, { ...input, followUp, ...(waiting ? { waiting } : {}) }, call, null, present));
       posted.push(...out.messages);
       if (out.paused) return posted;
     }
@@ -660,9 +633,8 @@ export function createBotReplies({
     const fresh = await seats.seatIn(seat.chat_id, seat.id, String(latest.authorUserId), call);
     if (!fresh?.chat_bot_id || fresh.chat.archived_at || fresh.archived_at) return;
     if (!(await chatHistory.claimReply(fresh))) return;
-    const waiting = String(latest.body.text || "").slice(0, 1500);
     // The waiting message is what it answers, not the connected app it followed up (connectFollowUps.js) nor a card.
-    const next = { ...input, connected: null, afterCard: false, waiting, asked: Number(latest.id) };
+    const next = { ...input, connected: null, afterCard: false, waiting: waitingWords(latest), asked: Number(latest.id) };
     const reader = seats.readerOf(fresh);
     await meter.track(meteredAs(fresh), () => runReply(fresh, next, reader, null, present));
   }
@@ -683,58 +655,23 @@ const PAUSED_LINES_READ = 10;
 /** The messages after a message id; every one when there is none yet (0: nothing read or answered). */
 const newerThan = (id) => (Number(id) > 0 ? { afterId: String(id) } : {});
 
-/** Who pays for a seat's turn (R8): the person it works for, in its home. */
-const meteredAs = (seat) => ({ userId: seat.user_id, botId: seat.id, workspaceId: seat.workspace_id });
+/** A waiting message's words, as the prompt that names it quotes them. */
+const waitingWords = (message) => String(message.body.text || "").slice(0, 1500);
 
 /**
- * What a turn was about, for the picture check: the person's message, the bot's own last message when it was about a
- * picture (its "Shall I draw that?" answered with "Yes please", but not "Want me to make it an hour?"), and whether
- * pictures were made in this chat lately; from the chat's last few messages (`recent`).
+ * The words of the person's message `asked` when this bot posted a reply after it that didn't answer it (the reply
+ * read the chat before it arrived; answeredBy left it to answer), for the prompt that names it; "" otherwise.
  */
-function turnAbout(recent, botId) {
-  const botSaid = [...recent].reverse().find((message) => message.kind === "text" && String(message.authorBotId) === botId)?.body.text || "";
-  return [
-    [...recent].reverse().find((message) => message.kind === "text" && message.role === "user")?.body.text,
-    PICTURE_WORDS.test(botSaid) || /\bdraw/iu.test(botSaid) ? botSaid : "",
-    recent.some((message) => message.kind === "pictures") ? "picture" : ""
-  ].join("\n");
+async function arrivedWhileBusy(turns, seat, asked, call) {
+  if (!asked) return "";
+  const since = await turns.latestMessage(seat.chat_id, { role: "bot", kind: "text", authorBotId: seat.id, ...newerThan(asked) }, call);
+  if (!since || Number(since.body.answers) >= asked) return "";
+  const [message] = await turns.messages(seat.chat_id, { role: "user", kind: "text", ...newerThan(asked - 1) }, { limit: 1 }, call);
+  return message ? waitingWords(message) : "";
 }
 
-/** Whether the run called any tool of these lists. */
-const wrote = (run, ...lists) => run.attempted.some((id) => lists.some((list) => list.includes(id)));
-
-/**
- * The checks of what a reply claims, in order, each read after the one before sent it back: the check to send it back
- * with, or "". A run's pictures, cards and attempted tools are asked of the run itself, as they join the reply only
- * when it finishes.
- * @type {((run: object, text: string, about: string) => string)[]}
- */
-const CLAIM_CHECKS = [
-  // A bot only says it handed its screen over once the card exists; any other card below is a card too, so a reply
-  // that made one is not sent back over its own words.
-  (run, text) => (run.tools.askForHelp && !run.showsCard() && CLAIMS_HANDOVER.test(text) ? HANDOVER_CHECK : ""),
-  // A picture only exists once make_picture made it. A copy that can't make pictures (D-72) has nothing to send back.
-  (run, text, about) => {
-    if (!run.picturesOn || run.madePicture()) return "";
-    return REFUSES_PICTURE.test(text) ? REFUSAL_CHECK : claimsPicture(about, text) ? PICTURE_CHECK : "";
-  },
-  // A calendar change only happened if its tool ran.
-  (run, text) =>
-    (run.tools.addCalendarEvent && !run.attempted.some((id) => CALENDAR_ACTIONS.includes(id)) && CLAIMS_CALENDAR.test(text) ? CALENDAR_CHECK : ""),
-  // Drive or OneDrive files are only shown once list_drive_files read them.
-  (run, text) => (run.tools.listDriveFiles && !run.attempted.some((id) => DRIVE_ACTIONS.includes(id)) && CLAIMS_DRIVE.test(text) ? DRIVE_CHECK : ""),
-  // Mail or GitHub only changed if one of their tools ran (D-42). Mail, GitHub and apps all have labels, so a change in
-  // one answers for those words in the others.
-  (run, text) => (run.tools.forwardEmail && !wrote(run, MAIL_CHANGES, GITHUB_WRITES, SEDNA_CHANGES) && CLAIMS_MAIL.test(text) ? MAIL_CHECK : ""),
-  (run, text) => (run.tools.githubChange && !wrote(run, GITHUB_WRITES, MAIL_CHANGES, SEDNA_CHANGES) && CLAIMS_GITHUB.test(text) ? GITHUB_CHECK : ""),
-  // An app, table, field or record only changed if an Apps tool ran (D-35). A reply that ends by asking the person
-  // something hasn't claimed it did anything.
-  (run, text) => {
-    const asking = run.after.some((message) => message.kind === "choice");
-    const wroteAny = wrote(run, APP_ACTIONS, MAIL_CHANGES, GITHUB_WRITES, SEDNA_CHANGES);
-    return !asking && run.tools.dataCreate && !wroteAny && CLAIMS_APPS.test(text) ? APPS_CHECK : "";
-  }
-];
+/** Who pays for a seat's turn (R8): the person it works for, in its home. */
+const meteredAs = (seat) => ({ userId: seat.user_id, botId: seat.id, workspaceId: seat.workspace_id });
 
 /** R3's follow-up round: another bot mentioned this one. */
 const FOLLOW_UP_PROMPT = "(Another bot just mentioned you. Reply only if you have something useful to add; otherwise reply with exactly PASS.)";
