@@ -397,7 +397,8 @@ export function createMessageRepository({ resources, systemContext }) {
    * The cards of one kind that name one slug (`body.slug`), that a bot wrote in any chat of a home (`homeId`, else the
    * call's), given `merge`'s fields and without `drop`'s: a change one person makes that every chat with the bot must
    * show, though nobody reads all of them, as a deleted page's mark does. The caller has already checked the change is
-   * theirs to make. Answers the cards the caller reads; the others catch up by themselves.
+   * theirs to make. Answers the cards the caller reads, each with its chat (`chatId`), so a caller tells each chat's
+   * people without reading the cards again; the others catch up by themselves.
    * @param {{ botId: string, kind: string, slug: string, homeId?: string | null }} where
    * @param {{ merge?: object, drop?: string[] }} change
    * @param {CallOptions} options
@@ -414,7 +415,7 @@ export function createMessageRepository({ resources, systemContext }) {
     const changed = await messages.patchWhere(filters, { body }, { ...everywhere, returning: "records" });
     if (!changed.length) return [];
     const seen = await messages.queryAll({ filters: { id: changed.map((line) => String(line.id)) }, sort: ["id"] }, passedOn(options));
-    return rowsOf(seen, options).map(toMessage);
+    return rowsOf(seen, options).map((row) => ({ ...toMessage(row), chatId: String(row.conversation_id) }));
   }
 
   return Object.freeze({
