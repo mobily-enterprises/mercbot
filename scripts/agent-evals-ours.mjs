@@ -20,17 +20,9 @@ import { createChatModel } from "../packages/bots/src/server/model.js";
 import { createBotsService } from "../packages/bots/src/server/botsService.js";
 import { createFileStore } from "../packages/files/src/server/fileStore.js";
 import { createOfficeApps } from "../packages/files/src/server/officeApps.js";
-import { createAnyapi } from "../packages/apps/src/server/anyapi.js";
-import { createApps } from "../packages/apps/src/server/apps.js";
-import { createRuntime } from "../packages/apps/src/server/runtime.js";
-import { createViews } from "../packages/apps/src/server/views.js";
-import { createDataGate } from "../packages/apps/src/server/dataGate.js";
-import { createRegistry } from "../packages/apps/src/server/registry.js";
-import { createScripts } from "../packages/apps/src/server/scripts.js";
-import { installTemplate, templateSummaries } from "../packages/apps/src/server/templates.js";
-import { createWatches } from "../packages/apps/src/server/watches.js";
+import { startApps } from "../tests/support/appsFeatures.mjs";
 import { serviceDoubles } from "../tests/support/botDoubles.mjs";
-import { memberOptions } from "../tests/support/botRecords.mjs";
+import { memberOptions, startBotParts } from "../tests/support/botRecords.mjs";
 import { seedChat } from "../tests/support/chatFixtures.mjs";
 import { startShell } from "../tests/support/ownedHandles.mjs";
 
@@ -127,8 +119,11 @@ const knex = knexLib({ client: "pg", connection: { host: process.env.DB_HOST, po
 const root = await fs.mkdtemp(path.join(os.tmpdir(), "mercbot-evals-"));
 // As filesRuntime assembles it: no home has connected its own storage here, and nothing is mounted to settle.
 const store = createFileStore({ root: "", fallback: root, ownStorage: async () => null, settle: async () => {} });
-// The command line on the files feature's own handles, as filesRuntime builds it; the process exits when it is done.
-const { shell, commandOutput } = await startShell(knex, { after: () => {} }, { store });
+// The features started here (the command line's handles, the bots' records, the Apps feature), stopped as the run ends.
+const stops = [];
+const features = { after: (stop) => stops.unshift(stop) };
+// The command line on the files feature's own handles, as filesRuntime builds it.
+const { shell, commandOutput } = await startShell(knex, features, { store });
 if (!shell.available()) throw new Error("The command line isn't available here: run npm run tools:install first.");
 const files = { store, shell, commandOutput, apps: createOfficeApps({ store, env: process.env }) };
 // The meter's recorder, kept in memory: each AI call's figures and what it cost at its provider (D-73).
@@ -140,29 +135,21 @@ const recorder = {
   }
 };
 const meter = createMeter({ recorder });
-// The Apps services, assembled as the Apps feature does (packages/apps/src/server/AppsFeature.js).
 // News between servers isn't needed here: one process, no open pages.
 const notices = { publish: async () => {}, subscribe: () => () => {} };
-let registry = null;
-const anyapi = createAnyapi({ knex, notices });
-registry = createRegistry({ knex, anyapi, notices });
-let scripts = null;
-const gate = createDataGate({
-  knex,
-  anyapi,
-  registry,
-  beforeSave: (...input) => scripts.beforeSave(...input),
-  beforeSaveEach: (...input) => scripts.beforeSaveEach(...input)
-});
-const appStore = createApps({ knex, registry, anyapi, notices });
-scripts = createScripts({ knex, registry, gate, apps: appStore, env: process.env });
-const views = createViews({ knex, registry, apps: appStore, runtime: createRuntime({ apps: appStore, gate, scripts }) });
-const apps = { anyapi, registry, gate, apps: appStore, views, runtime: createRuntime({ apps: appStore, gate, scripts }), scripts, watches: createWatches({ knex, registry, gate, apps: appStore }), templateSummaries, installTemplate: (ctx, key, options) => installTemplate({ registry, apps: appStore, gate }, ctx, key, options) };
+// What BotsFeature gives the bots service on the bots' own records (D-112: chats, their people and bots), and the Apps
+// feature as the server starts it on those records (mercbot.apps: registry, gate, apps, views, runtime, watches,
+// scripts, templates), on the test database, as the integration tests start them (tests/support).
+const parts = await startBotParts(knex, features);
+const started = await startApps({ knex, env: process.env, records: parts.records });
+features.after(started.stop);
+const { apps } = started;
 // The final-reply check is on, as for real replies (D-48).
 const chatModel = createChatModel(process.env);
 // No computer and no connected accounts here: those come neutral from the test doubles.
-const service = createBotsService({
-  ...serviceDoubles({}),
+// The run's own meter (its recorder above) in place of the account's.
+const service = createBotsService(serviceDoubles({
+  ...parts,
   model: chatModel,
   knex,
   approvals: { decide: async () => "allow" },
@@ -172,7 +159,7 @@ const service = createBotsService({
   apps,
   reply: variantReply,
   checkClaims: (reply, record) => unsupportedClaims({ model: chatModel, reply, record })
-});
+}));
 const userId = String((await knex("users").orderBy("id").first("id")).id);
 const homeId = (await knex("workspace_memberships").where({ user_id: userId, status: "active" }).orderBy("workspace_id").first()).workspace_id;
 
@@ -251,14 +238,16 @@ async function runAppCase(name, attempt) {
   await knex("workspace_settings").insert({ workspace_id: home.id }).catch(() => {});
   const [bot] = await knex("bots").insert({ made_by: userId, workspace_id: home.id, name: "Builder", color: "#1C1C1C", is_main: true }).returning("*");
   const actor = { type: "person", id: userId, name: "Eval" };
+  // The person's call options in the home, as its owner: what a case's setup and judge pass the apps.
+  const options = memberOptions({ userId, homeId: String(home.id), role: "owner", permissions: ["workspace.settings.update"] });
   try {
     // A group case asks in a chat of the person and the bot (not their direct chat), mentioning it (R3); the rest in
     // their direct chat (D15). A case's setup may seed that chat (chatId).
     const chat = await seedChat(knex, kase.group ? { homeId: home.id, people: [userId], bots: [bot.id] } : { homeId: home.id, direct: { userId, botId: bot.id } });
     const chatBotId = chat.chatBotIds.get(String(bot.id));
-    const ctx = { knex, apps, workspaceId: home.id, userId, actor, bot, chatId: String(chat.id) };
-    // App cases make the bot the home's Builder; chat cases use an ordinary bot.
-    if (kase.builder !== false) await apps.apps.setBuilder(home.id, actor, bot.id);
+    const ctx = { knex, apps, workspaceId: home.id, userId, actor, options, bot, chatId: String(chat.id) };
+    // App cases make the bot the home's Builder, as an owner does; chat cases use an ordinary bot.
+    if (kase.builder !== false) await apps.apps.setBuilder(actor, String(bot.id), options);
     if (kase.setup) await kase.setup(ctx);
     usage = [];
     const started = Date.now();
@@ -316,6 +305,7 @@ try {
 } finally {
   await service.drain(10000);
   await shell.drain?.(10000);
+  for (const stop of stops) await stop();
   await knex.destroy();
   await fs.rm(root, { recursive: true, force: true });
   // Timers in the services would keep the process alive.

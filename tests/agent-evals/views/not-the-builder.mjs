@@ -5,7 +5,7 @@ export async function setup(ctx) {
   await dealsTable(ctx);
   const made = await haveView(ctx, "Pipeline", PIPELINE);
   const theBuilder = await anotherBot(ctx, "Bea");
-  await ctx.apps.apps.setBuilder(ctx.workspaceId, ctx.actor, theBuilder.id);
+  await ctx.apps.apps.setBuilder(ctx.actor, String(theBuilder.id), ctx.options);
   const app = await ctx.apps.apps.createApp(ctx.workspaceId, ctx.actor, { name: "Sales" });
   const saved = await ctx.apps.apps.saveDraft(ctx.workspaceId, ctx.actor, app.slug, { home: "home", screens: { home: { content: [{ type: "view", view: made.view.key }] } } });
   if (saved.errors.length) throw new Error(JSON.stringify(saved.errors));

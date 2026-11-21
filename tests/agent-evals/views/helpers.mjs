@@ -1,5 +1,6 @@
 import { checkView, viewBody } from "../../../packages/apps/src/shared/check.js";
 import { toNames } from "../../../packages/apps/src/shared/definitions.js";
+import { seedChat } from "../../support/chatFixtures.mjs";
 
 // What the judges of the views cases look at (D-55): the home's views as they're really stored,
 // what their queries answer, and the cards the bot posted. Each case is a person's own words, so a
@@ -33,10 +34,10 @@ export async function dealsTable(ctx) {
   return { context, id };
 }
 
-/** Another bot in the home, with its own chat. */
+/** Another bot in the home, made by the person, with their direct chat with it (D15, D-112). */
 export async function anotherBot(ctx, name) {
-  const [bot] = await ctx.knex("bots").insert({ user_id: ctx.userId, workspace_id: ctx.workspaceId, name, color: "#1E86FC" }).returning("*");
-  await ctx.knex("bot_conversations").insert({ workspace_id: ctx.workspaceId, bot_id: bot.id, user_id: ctx.userId });
+  const [bot] = await ctx.knex("bots").insert({ made_by: ctx.userId, workspace_id: ctx.workspaceId, name, color: "#1E86FC" }).returning("*");
+  await seedChat(ctx.knex, { homeId: ctx.workspaceId, direct: { userId: ctx.userId, botId: bot.id } });
   return bot;
 }
 
@@ -74,14 +75,14 @@ export async function viewsOf(ctx) {
   return views;
 }
 
-/** Every message the bot posted in a chat since the start, by kind. */
+/** Every message the bot posted in the home's chats since the start, by kind (its author, D-112). */
 export async function cards(ctx, kind, bot = ctx.bot) {
-  return ctx.knex("bot_messages").where({ bot_id: bot.id, kind }).orderBy("id");
+  return ctx.knex("messages").where({ workspace_id: ctx.workspaceId, author_bot_id: bot.id, kind }).orderBy("id");
 }
 
-/** The tools a bot called in a chat. */
+/** The tools a bot called in the home's chats. */
 export async function toolsCalled(ctx, bot = ctx.bot) {
-  const messages = await ctx.knex("bot_messages").where({ bot_id: bot.id, kind: "text", role: "bot" });
+  const messages = await ctx.knex("messages").where({ workspace_id: ctx.workspaceId, author_bot_id: bot.id, kind: "text", role: "bot" });
   return messages.flatMap((message) => message.body?.transcript || [])
     .flatMap((message) => (Array.isArray(message.content) ? message.content.filter((part) => part.type === "tool-call").map((part) => part.toolName) : []));
 }
