@@ -4,7 +4,7 @@ import test from "node:test";
 import { APICallError } from "ai";
 import { claimedWork } from "../support/botRecords.mjs";
 import { seedChat } from "../support/chatFixtures.mjs";
-import { botsOf, homeOfPeople, startChatTurns } from "./turnKit.mjs";
+import { botsOf, homeOfPeople, startChatTurns } from "../support/botDoubles.mjs";
 import { RunTakenOver } from "../../packages/bots/src/server/runLease.js";
 import { refuseWork } from "../../packages/account/src/server/meter.js";
 

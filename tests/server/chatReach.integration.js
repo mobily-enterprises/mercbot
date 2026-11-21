@@ -4,7 +4,7 @@ import { resolveAuditActorId } from "@jskit-ai/kernel/server/actions/actionContr
 import { seedChat } from "../support/chatFixtures.mjs";
 import { memberOptions, startBotRecordsWithAccount } from "../support/botRecords.mjs";
 import { SIGN_IN_LINE } from "../../packages/bots/src/server/signInCodes.js";
-import { botsOf, homeOfPeople, startChatTurns } from "./turnKit.mjs";
+import { botsOf, homeOfPeople, startChatTurns } from "../support/botDoubles.mjs";
 
 // What a bot may use in a chat (D-112, R4): everything connected to the home, and the home's Vault, in any chat, as the
 // person who asked; the cards it makes are theirs alone to answer. Against the disposable test database, a scripted

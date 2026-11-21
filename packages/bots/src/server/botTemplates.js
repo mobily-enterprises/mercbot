@@ -28,7 +28,7 @@ export const NO_TEMPLATE_LINKS = Object.freeze({ find: async () => null });
  * @param {import("@jskit-ai/kernel/server/types").RuntimeEnv} dependencies.env where its end-to-end results are
  * @param {import("./types.js").TemplateLinks} dependencies.templateLinks the templates links open, beside Mercbot's own
  *   (`mercbot.template-links`; NO_TEMPLATE_LINKS when the copy adds none)
- * @param {import("./botList.js").BotList} dependencies.botList new bots made and opened, the
+ * @param {import("./types.js").BotList} dependencies.botList new bots made and opened, the
  *   bot as Team lists it, and the home told
  */
 export function createBotTemplates({ records, profiles, integrations, env, templateLinks, botList }) {

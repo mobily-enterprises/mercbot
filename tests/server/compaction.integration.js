@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { SUMMARY_LIMITS as LIMITS } from "@jskit-ai/agent/server";
 import { seedChat, seedMessage } from "../support/chatFixtures.mjs";
-import { botsOf, homeOfPeople, startChatTurns } from "./turnKit.mjs";
+import { botsOf, homeOfPeople, startChatTurns } from "../support/botDoubles.mjs";
 
 // Compacting chats in the background (owner, 2026-10-30; one summary per chat, D-112): past a size, a chat is queued;
 // one server summarises all but its latest turns, folding in the previous summary; replies read the summary plus every

@@ -35,7 +35,6 @@ import {
   conversationResource,
   messageResource
 } from "./tableResources.js";
-import { createTemplateRepository } from "./templateRepository.js";
 import { TURN_MESSAGE_SEARCH, createTurnRepository } from "./turnRepository.js";
 import { REQUEST_SEARCH, ROUTINE_SEARCH, createWorkRepository } from "./workRepository.js";
 
@@ -130,7 +129,6 @@ const BotRecordsFeature = defineFeature({
       // What a turn reads and keeps beside its chat: its messages, the to-do card and job notes.
       turns: createTurnRepository({ resources, work }),
       // A bot made from a template opening a chat.
-      templates: createTemplateRepository(resources),
       // New bots made together, New bot's one and a team's several, in the same statements (D-105).
       newBots: createNewBotRepository({ resources, homeTemplates }),
       // The home's own bot templates and what changed in them (D-98).

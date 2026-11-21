@@ -1,15 +1,21 @@
-// Collaborators for tests that build the bots service or one reply's tools without the features
-// around them. Each neutral double stands for a home with nothing set up: no computer, nothing
-// connected, no files, no apps, no other bot to ask. A test passes the parts it exercises (a real
-// file store, a computer that answers) and the rest are filled in, member by member.
+// Collaborators for tests that build the bots service, its turns in chats (chatTurns.js) or one reply's tools without
+// the features around them. Each neutral double stands for a home with nothing set up: no computer, nothing connected,
+// no files, no apps, no other bot to ask. A test passes the parts it exercises (a real file store, a computer that
+// answers) and the rest are filled in, member by member.
 import { estimateAtProvider } from "../../packages/account/src/server/cost.js";
 import { createMediaGuard } from "../../packages/account/src/server/mediaCheck.js";
 import { createMeter } from "../../packages/account/src/server/meter.js";
+import { createBackgroundWork } from "../../packages/bots/src/server/backgroundWork.js";
 import { createBotsService } from "../../packages/bots/src/server/botsService.js";
+import { createChatMembers } from "../../packages/bots/src/server/chatMembers.js";
+import { createChatTurns } from "../../packages/bots/src/server/chatTurns.js";
 import { NO_TEMPLATE_LINKS } from "../../packages/bots/src/server/botTemplates.js";
 import { createChatModel } from "../../packages/bots/src/server/model.js";
 import { createMediaChecks } from "../../packages/files/src/server/mediaChecks.js";
 import { isPagePath } from "../../packages/files/src/server/pageDocument.js";
+import { memberOptions, startBotParts } from "./botRecords.mjs";
+import { cleanupStack } from "./cleanupStack.mjs";
+import { connectTestDatabase } from "./testDatabase.mjs";
 
 /** A recorder that records nothing and refuses nothing. */
 export const FREE_RECORDER = Object.freeze({
@@ -37,15 +43,21 @@ const neutral = {
     estimateNano: estimateAtProvider
   }),
   notices: () => ({ publish: async () => {}, publishEach: async () => {}, subscribe: () => () => {} }),
+  // The chats' computers, keyed by the bot's seat in a chat (chat_bots.id, D-112).
   computer: () => ({
     hold: async () => {},
-    // No computer is awake, so none is put to sleep.
+    // No computer is awake, so none is put to sleep, none is left behind by a deleted chat, and no sign-in is noted.
     sleepHome: async () => {},
+    chatRemoved: async () => {},
+    noteSignIn: async () => {},
     status: async () => null,
     screenshot: async () => null,
     act: missing("computer"),
     browse: missing("computer"),
     fill: missing("computer"),
+    code: missing("computer"),
+    takeOver: missing("computer"),
+    handBack: missing("computer"),
     startRecording: missing("computer"),
     stopRecording: missing("computer")
   }),
@@ -75,6 +87,7 @@ const neutral = {
       list: async () => ({}),
       existingFile: missing("file"),
       resolve: missing("file store"),
+      widened: missing("file store"),
       settle: async () => {},
       move: missing("file store")
     },
@@ -109,7 +122,8 @@ const neutral = {
     apps: { builder: async () => null, findApp: async () => null, searchViews: async () => [], queueTask: missing("apps") },
     registry: {},
     gate: {},
-    watches: {},
+    // No watches, so none pauses (an archived bot's, or those of a person who left the home).
+    watches: { pauseIn: async () => [] },
     scripts: {}
   })
 };
@@ -175,6 +189,7 @@ function complete(name, given) {
     if (name === "files" && given[part]) merged[part] = { ...base[part], ...given[part] };
   }
   if (name === "apps" && given.apps) merged.apps = { ...base.apps, ...given.apps };
+  if (name === "apps" && given.watches) merged.watches = { ...base.watches, ...given.watches };
   if (name === "integrations" && given.connections) merged.connections = { ...base.connections, ...given.connections };
   return merged;
 }
@@ -217,4 +232,81 @@ export function turnDoubles(options) {
   for (const name of ["computer", "integrations", "files", "apps"]) filled[name] = complete(name, options[name]);
   for (const [name, make] of Object.entries({ ...turnNeutral, ...TURN })) if (options[name] === undefined || options[name] === null) filled[name] = make();
   return filled;
+}
+
+// What the turns are given beside the service's collaborators, with nothing in them: every action allowed, knowledge
+// that knows nothing, and no welcome chat's steps (a test's chats have none).
+const turnsNeutral = {
+  approvals: () => ({ decide: async () => "allow" }),
+  knowledge: () => ({ forTurn: async () => null, stateLines: async () => [], toolsFor: () => ({}) }),
+  onboarding: () => ({ afterMessage: async () => ({}), choiceAnswered: async () => ({}) })
+};
+
+/**
+ * The bots' turns in chats (chatTurns.js) on the test database, for the turn tests: the bots' records and what
+ * BotsFeature gives beside them (startBotParts), the chat routes' chats (chatMembers.js), and the neutral doubles for
+ * the rest. Also a test's own database connection and its cleanups (newest first): add the rows a test makes to
+ * `cleanup` after this, so they go before the connection closes. Drain the background work before reading what the
+ * bots said: a reply that outlives its request goes on in it.
+ * @param {import("node:test").TestContext} context
+ * @param {object} [options] createChatTurns's collaborators over the neutral ones; `reply` stands in for the model
+ */
+export async function startChatTurns(context, options = {}) {
+  const cleanup = cleanupStack(context);
+  const knex = await connectTestDatabase();
+  cleanup.after(() => knex.destroy());
+  const parts = await startBotParts(knex, cleanup);
+  const filled = { env: process.env, model: createChatModel(process.env), ...parts, ...options };
+  for (const name of ["notices", "computer", "integrations", "files", "apps"]) filled[name] = complete(name, options[name]);
+  for (const [name, make] of Object.entries(turnsNeutral)) filled[name] = options[name] ? { ...make(), ...options[name] } : make();
+  const background = createBackgroundWork();
+  cleanup.after(() => background.drain(10000));
+  const { records, notices, computer, systemContext } = filled;
+  const chats = createChatMembers({ records, notices, computer, systemContext });
+  const turns = createChatTurns({ ...filled, chats, background });
+  return {
+    knex,
+    cleanup,
+    turns,
+    records: filled.records,
+    meter: filled.meter,
+    systemContext: filled.systemContext,
+    drain: (ms = 10000) => background.drain(ms),
+    /** A member's request in a home, as the chat routes make it. */
+    as: (userId, homeId) => memberOptions({ userId, homeId })
+  };
+}
+
+/**
+ * People of a test's own, with names, and a home of its own they are members of (owner first), removed with it.
+ * @param {{ knex: import("knex").Knex, cleanup: { after: (work: () => unknown) => void } }} kit
+ * @param {string[]} names
+ * @returns {Promise<{ homeId: string, people: string[] }>}
+ */
+export async function homeOfPeople({ knex, cleanup }, names) {
+  const stamp = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+  const rows = await knex("users").insert(names.map((name) => ({
+    auth_provider: "test",
+    auth_provider_user_sid: `${name}-${stamp}`,
+    email: `${name.toLowerCase()}-${stamp}@example.com`,
+    username: `${name.toLowerCase()}${stamp}`,
+    display_name: name
+  }))).returning("id");
+  const people = rows.map((row) => String(row.id));
+  const [home] = await knex("workspaces").insert({ slug: `turns-${stamp}`, name: "Turns test", owner_user_id: people[0], is_personal: false }).returning("id");
+  await knex("workspace_memberships").insert(people.map((userId, index) => ({
+    workspace_id: home.id, user_id: userId, role_sid: index ? "member" : "owner", status: "active"
+  })));
+  await knex("workspace_settings").insert({ workspace_id: home.id });
+  cleanup.after(async () => {
+    await knex("workspaces").where({ id: home.id }).del();
+    await knex("users").whereIn("id", people).del();
+  });
+  return { homeId: String(home.id), people };
+}
+
+/** Bots of a home, made by `madeBy`, in the order named; their ids. */
+export async function botsOf({ knex }, homeId, madeBy, names) {
+  const rows = await knex("bots").insert(names.map((name) => ({ made_by: madeBy, workspace_id: homeId, name, color: "#1E86FC" }))).returning("id");
+  return rows.map((row) => String(row.id));
 }

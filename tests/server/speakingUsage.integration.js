@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { seedChat } from "../support/chatFixtures.mjs";
 import { claimedWork } from "../support/botRecords.mjs";
-import { botsOf, homeOfPeople, startChatTurns } from "./turnKit.mjs";
+import { botsOf, homeOfPeople, startChatTurns } from "../support/botDoubles.mjs";
 
 // Who pays for a bot's work in a chat (D-112, R8): a reply is the person's who asked, whoever made the bot; a routine's
 // run is the person's who made the routine. What the meter carries while the model runs is what usage records.

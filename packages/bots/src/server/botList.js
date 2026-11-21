@@ -13,11 +13,6 @@ const BRAND_SHAPE = "mercbot";
  */
 
 /**
- * The Team list and new bots, as createBotList makes them: what botTemplates.js and botTeams.js make bots with.
- * @typedef {ReturnType<typeof createBotList>} BotList
- */
-
-/**
  * A new bot's name, cloud and colour as New bot gives them, checked: Mercbot's own cloud always in its orange, any other
  * in one of the palette's colours (400 otherwise).
  * @param {{ name?: unknown, shape?: unknown, color?: unknown }} input

@@ -17,7 +17,7 @@ import { createCallerReaders } from "./records/recordRows.js";
  * @param {object} dependencies
  * @param {import("./types.js").BotRecords} dependencies.records mercbot.bots.records: the home's lock and the templates
  *   its bots follow
- * @param {import("./botList.js").BotList} dependencies.botList makeBots, New bot's own way of
+ * @param {import("./types.js").BotList} dependencies.botList makeBots, New bot's own way of
  *   making bots, the Team list, and the home told
  * @param {{ startOn: Function }} dependencies.templates what a bot made on a template starts with (botTemplates.js)
  * @param {{ introduce: (bots: object[], txOptions: object) => Promise<string | null> }} dependencies.onboarding the main

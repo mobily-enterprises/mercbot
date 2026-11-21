@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { claimedWork } from "../support/botRecords.mjs";
 import { seedChat } from "../support/chatFixtures.mjs";
-import { botsOf, homeOfPeople, startChatTurns } from "./turnKit.mjs";
+import { botsOf, homeOfPeople, startChatTurns } from "../support/botDoubles.mjs";
 
 // A routine run reads its instructions and its own last few runs, never the whole chat (D-57): a
 // headline check every ten minutes must cost the same in week three as on day one. In Pat's direct chat with the bot.

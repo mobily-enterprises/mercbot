@@ -75,6 +75,7 @@ export function createChatTurns({
   goalLimits
 }) {
   const seats = createChatSeats({ records, systemContext, notices });
+  const workPause = createWorkPause({ records, apps, seats });
   const chatHistory = createBotHistory({
     records,
     systemContext,
@@ -210,8 +211,9 @@ export function createChatTurns({
     runRoutine: runs.runRoutine,
     runAppTask: runs.runAppTask,
     summaryOf,
-    // The routines and watches of some bots in chats paused, with a line in each chat (B's archive, the integrator's
-    // removals).
-    pauseWork: createWorkPause({ records, apps, seats })
+    // The routines and watches of some bots in chats paused, with a line in each chat (B's archive), and those of a
+    // person who left the home (the bots service's homeChanged).
+    pauseWork: workPause.pauseWork,
+    pauseMadeBy: workPause.pauseMadeBy
   });
 }

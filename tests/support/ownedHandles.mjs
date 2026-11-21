@@ -2,6 +2,7 @@ import { startTestFeatures } from "@jskit-ai/resource-runtime/test";
 import { UsersExtensionsProvider } from "@jskit-ai/users-core/server/UsersExtensionsProvider";
 import { UsersIdentityProvider } from "@jskit-ai/users-core/server/UsersIdentityProvider";
 import { WorkspaceRecordsFeature } from "@jskit-ai/workspaces-core/test/WorkspaceRecordsFeature";
+import { BotRecordsFeature } from "../../packages/bots/src/server/records/BotRecordsFeature.js";
 import { FILES_OWNS } from "../../packages/files/src/server/FilesFeature.js";
 import { createShell } from "../../packages/files/src/server/shell.js";
 import { createShellRuns } from "../../packages/files/src/server/shellRuns.js";
@@ -11,8 +12,9 @@ import { createIntegrationsService } from "../../packages/integrations/src/serve
 
 // For a test that builds a feature's modules itself, without starting the feature and its routes: the feature's
 // handles and system context on the test's own Knex, as the resource runtime gives them to the feature's setup, beside
-// JSKIT's own owners of the users and workspaces tables (users.profiles, workspaces.memberships). The test database is
-// the migrated one.
+// JSKIT's own owners of the users and workspaces tables (users.profiles, workspaces.memberships) and the bots' records
+// (mercbot.bots.records), which the files', computers' and integrations' row policies read a chat's people through
+// (D-112), as their features require them. The test database is the migrated one.
 
 /**
  * Owns each feature's tables, stopped when the test ends.
@@ -28,14 +30,15 @@ import { createIntegrationsService } from "../../packages/integrations/src/serve
 export async function ownedHandles(knex, context, ownsByFeature) {
   const { capabilities, resources: runtime, stop } = await startTestFeatures({
     knex,
-    features: [UsersIdentityProvider, UsersExtensionsProvider, WorkspaceRecordsFeature],
-    requires: { profiles: "users.profiles", memberships: "workspaces.memberships" }
+    features: [UsersIdentityProvider, UsersExtensionsProvider, WorkspaceRecordsFeature, BotRecordsFeature],
+    requires: { profiles: "users.profiles", memberships: "workspaces.memberships", records: "mercbot.bots.records" }
   });
   context.after(stop);
+  const requires = { records: capabilities.records };
   const features = {};
   for (const [featureId, owns] of Object.entries(ownsByFeature)) {
     features[featureId] = {
-      resources: await runtime.own(featureId, owns),
+      resources: await runtime.own(featureId, owns, { requires }),
       systemContext: runtime.declareSystemScope(featureId, `the ${featureId} tests' own modules, built without starting the feature`)
     };
   }

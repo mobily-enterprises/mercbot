@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { seedChat } from "../support/chatFixtures.mjs";
-import { botsOf, homeOfPeople, startChatTurns } from "./turnKit.mjs";
+import { botsOf, homeOfPeople, startChatTurns } from "../support/botDoubles.mjs";
 
 // Who speaks in a chat (D-112, R3): with one person every bot answers in order, or only those @-mentioned; with
 // several people a bot speaks only when it's named, @-mentioned, replied to or everyone is; a bot another bot mentions

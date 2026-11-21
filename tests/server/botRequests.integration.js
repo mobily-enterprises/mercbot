@@ -1,10 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { buildTools } from "../../packages/bots/src/server/botTools.js";
-import { turnDoubles } from "../support/botDoubles.mjs";
+import { botsOf, homeOfPeople, startChatTurns, turnDoubles } from "../support/botDoubles.mjs";
 import { memberOptions } from "../support/botRecords.mjs";
 import { seedChat } from "../support/chatFixtures.mjs";
-import { botsOf, homeOfPeople, startChatTurns } from "./turnKit.mjs";
 
 // Bots asking bots (D-46, O22), against the disposable test database, with scripted replies in place of the model: a
 // request goes to the other bot, which works on the brief alone, its answer comes back, questions go back and forth,

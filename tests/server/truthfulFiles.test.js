@@ -19,9 +19,7 @@ test("internal paths are taken out of replies, keeping what's after the folder",
 });
 
 // A chat's own folder (R6) is the one a bot saves in most.
-test("a chat's own paths are taken out of replies too", {
-  todo: "withoutPaths (packages/bots/src/server/botAgent.js) still names /files/mine, not /files/chat: the bots' owner's change"
-}, () => {
+test("a chat's own paths are taken out of replies too", () => {
   assert.equal(withoutPaths("Saved as /files/chat/Reports/plan.pdf."), "Saved as Reports/plan.pdf.");
 });
 

@@ -107,7 +107,6 @@
  *   followUps: FollowUpRepository,
  *   policies: PolicyRepository,
  *   turns: TurnRepository,
- *   templates: ReturnType<typeof import("./records/templateRepository.js").createTemplateRepository>,
  *   newBots: ReturnType<typeof import("./records/newBotRepository.js").createNewBotRepository>,
  *   homeTemplates: HomeTemplateRepository,
  *   knowledge: ReturnType<typeof import("./records/knowledgeRepository.js").createKnowledgeRepository>,
@@ -129,9 +128,10 @@
  * of them): `file`, a Markdown file in the form of packages/bots/skills (skills.js), listed with them by its file name.
  * @typedef {{ file: string }} AddedSkill
  */
-/** @typedef {ReturnType<typeof import("./botConversations.js").createBotConversations>} BotConversations */
-/** @typedef {ReturnType<typeof import("./homeDefaults.js").createHomeDefaults>} HomeDefaults */
-/** @typedef {ReturnType<typeof import("./botList.js").createBotList>} BotList */
+/**
+ * The Team list and new bots, as botList.js makes them: what botTemplates.js and botTeams.js make bots with.
+ * @typedef {ReturnType<typeof import("./botList.js").createBotList>} BotList
+ */
 /** @typedef {ReturnType<typeof import("./botTemplates.js").createBotTemplates>} BotTemplates */
 /** @typedef {ReturnType<typeof import("./botHistory.js").createBotHistory>} BotHistory */
 /** @typedef {ReturnType<typeof import("./backgroundWork.js").createBackgroundWork>} BackgroundWork */

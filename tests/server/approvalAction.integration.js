@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { connectTestDatabase } from "../support/testDatabase.mjs";
-import { startChatTurns } from "./turnKit.mjs";
+import { startChatTurns } from "../support/botDoubles.mjs";
 import { testBot } from "./testHome.js";
 import { memberOptions } from "../support/botRecords.mjs";
 
