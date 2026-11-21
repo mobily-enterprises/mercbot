@@ -72,7 +72,10 @@ test("a bot's reply records what each AI call cost at its provider, and however 
   const added = await person.request("POST", `${base}/bots/from-template`, { json: { slug: "brand-voice-editor" } });
   assert.equal(added.status, 200, JSON.stringify(added.body));
   const { bot } = added.body;
-  const chat = `${base}/bots/${bot.id}`;
+  // The bot's direct chat with the person, which the page opens next (D-112).
+  const direct = await person.request("POST", `${base}/bots/${bot.id}/direct`);
+  assert.equal(direct.status, 200, JSON.stringify(direct.body));
+  const chat = `${base}/chats/${direct.body.chat.id}`;
   const calls = () => knex("usage_events").where({ bot_id: bot.id }).orderBy("id");
 
   const first = await talk(chat, "Hello! Our brand is calm, plain and friendly.");
