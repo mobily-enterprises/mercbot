@@ -129,6 +129,29 @@ describe("a chat's computers", () => {
   });
 });
 
+describe("resetting a chat's computers", () => {
+  const computers = (props) => rendered(MercbotChatComputers, { me: "2", homeName: "Rossi family", ...props }, { afterReads: MercbotChatComputers });
+  const resets = (html) => [...html.split("<li class=\"mb-chat-computer\"").slice(1)].map((part) => button(part, "Reset")?.disabled ?? "none");
+
+  it("is for the chat's maker and the home's owners and admins, and in a direct chat for its person", async () => {
+    computer.answers.set("7", status());
+    computer.answers.set("8", status());
+    expect(resets(await computers({ chat: KITCHEN })), "neither its maker nor a manager").toEqual(["none", "none"]);
+    expect(resets(await computers({ chat: { ...KITCHEN, madeBy: "2" } })), "its maker").toEqual([false, false]);
+    expect(resets(await computers({ chat: KITCHEN, manages: true })), "an owner or admin").toEqual([false, false]);
+    const bens = { ...KITCHEN, title: null, directBotId: "7", madeBy: "2", people: [BEN], bots: [CHEF] };
+    expect(resets(await computers({ chat: bens })), "Ben's own chat with one bot").toEqual([false]);
+    expect(resets(await computers({ chat: bens, me: "1" })), "Anna opening Ben's chat with Chef (it's public)").toEqual(["none"]);
+    expect(resets(await computers({ chat: bens, me: "1", manages: true })), "an owner or admin").toEqual([false]);
+  });
+
+  it("is held while someone else has the computer", async () => {
+    computer.answers.set("7", status({ control: { userId: "1", name: "Anna Rossi", since: "2026-11-22T10:00:00Z" } }));
+    computer.answers.set("8", status());
+    expect(resets(await computers({ chat: KITCHEN, manages: true }))).toEqual([true, false]);
+  });
+});
+
 describe("one bot's computer in a chat", () => {
   const chef = (props) => rendered(MercbotChatComputer, { chat: KITCHEN, member: CHEF, me: "2", homeName: "Rossi family", ...props });
   const lineIn = (html) => /mb-chat-computer__line">([^<]*)</u.exec(html)?.[1];

@@ -87,3 +87,19 @@ export function sideOf(author) {
  * @param {boolean} several the chat's hasSeveral
  */
 export const isLabelled = (author, several) => Boolean(author) && !author.mine && (several || !author.member);
+
+/**
+ * A message's reactions as the server keeps them, one per person ("user:<id>") and per bot ("bot:<id>"): the person
+ * looking's own, or null.
+ * @param {{ body?: { reactions?: Record<string, string> } }} message
+ * @param {string} me
+ */
+export const myReaction = (message, me) => (me && message.body?.reactions?.[`user:${me}`]) || null;
+
+/**
+ * The bots' reactions on a message, each emoji once, in the order they came.
+ * @param {{ body?: { reactions?: Record<string, string> } }} message
+ */
+export const botReactions = (message) => [...new Set(Object.entries(message.body?.reactions || {})
+  .filter(([who, emoji]) => who.startsWith("bot:") && emoji)
+  .map(([, emoji]) => emoji))];

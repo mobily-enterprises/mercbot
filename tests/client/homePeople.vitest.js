@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { peopleApi } from "../../src/components/mercbot/homesApi.js";
 
-// The people in a home, as the group chats' Add person reads them (D-36). JSKIT answers the list a page at a time (20
+// The people in a home, as Team, New chat and a chat's + Add read them (D-36). JSKIT answers the list a page at a time (20
 // unless asked for more, at most 100), each page with the cursor of the next; the page shows every one. The routes are
 // a stand-in that answers pages of the list and records each call.
 const calls = vi.hoisted(() => []);
