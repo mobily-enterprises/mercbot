@@ -1,75 +1,67 @@
-import knexLib, { type Knex } from "knex";
-import { MADE_UP, expect, test, testDatabaseName, type Page } from "./harness";
+import { type Knex } from "knex";
+import { HOME, MADE_UP, connectTestDb, directChat, expect, homeApi, openShell, seedMessage, shell, test, type Page } from "./harness";
 
 // The final sweep's finishing touches, on the Test Preview target: the "new messages" pill while scrolled up,
 // the right-click menus on messages and pictures, how the person's own messages lay out on a phone and on a
-// computer, and the Library's ages, hover cards and page actions. Each test makes its own bot, writes what it
-// needs straight to the database or through the API, and deletes the bot after. Run with: vibe64-helper playwright --target test-app test
-// tests/e2e/final-sweep.spec.ts
-const HOME = "/w/you";
+// computer, and the Library's ages, hover cards and page actions. Each test makes its own bot, works in the person's
+// direct chat with it (D-112), writes what it needs straight to the database or through the API, and deletes the bot
+// after. Run with: vibe64-helper playwright --target test-app test tests/e2e/final-sweep.spec.ts
 // The test target's AI is the stand-in model (tools/standInModel.mjs): a reply says so in the chat.
 const STAND_IN_REPLY = /runs on a stand-in model, which only plays the bot templates/u;
 // Any refused API call from the page, or JSKIT's error dialog, fails the test (harness.ts). Copy reads the clipboard.
 test.use({ apiGuard: true, permissions: ["clipboard-read", "clipboard-write"] });
 
-async function openHome(page: Page) {
-  await page.goto(HOME);
-  const next = page.getByRole("button", { name: "Next" });
-  const shell = page.locator(".mb-shell");
-  await expect(shell.or(next).first()).toBeVisible();
-  if (await next.isVisible()) {
-    for (let slide = 0; slide < 3; slide += 1) await next.click();
-  }
-  await expect(shell).toBeVisible();
-}
-
-const chat = (page: Page) => page.getByRole("main", { name: "Chat" });
-const sidebarBot = (page: Page, name: string) => page.getByRole("navigation", { name: "Bots" }).getByRole("button", { name, exact: true });
-const menuItems = (page: Page) => page.locator(".v-overlay--active .mb-menu .mb-menu__text");
+const chat = (page: Page) => shell.chat(page);
+const menuItems = (page: Page) => shell.menuItems(page);
 const clipboardText = (page: Page) => page.evaluate(() => navigator.clipboard.readText());
 
-type Made = { bot: { id: string }; name: string; headers: { "csrf-token": string }; knex: Knex };
+type Made = {
+  bot: { id: string };
+  name: string;
+  chat: { id: string; homeId: string; personId: string };
+  headers: { "csrf-token": string };
+  knex: Knex;
+};
 
-// A new bot for one test, past its first-run interview, deleted afterwards.
+// A new bot for one test and the person's direct chat with it, past its first greeting, deleted afterwards (its chat
+// goes with it).
 async function withBot(page: Page, label: string, run: (made: Made) => Promise<void>) {
-  await openHome(page);
-  const { csrfToken } = await (await page.request.get("/api/session")).json();
-  const headers = { "csrf-token": csrfToken };
+  await openShell(page);
+  const api = await homeApi(page);
   const name = `${label} ${Date.now().toString(36)}`;
-  const created = await page.request.post(`/api${HOME}/bots`, { headers, data: { name, color: "#1E86FC" } });
-  expect(created.ok()).toBe(true);
-  const { bot } = await created.json();
-  const knex = knexLib({ client: "pg", connection: { host: process.env.DB_HOST, port: Number(process.env.DB_PORT) || 5432, user: process.env.DB_USER, password: process.env.DB_PASSWORD, database: testDatabaseName() } });
+  const { bot } = await api.post("/bots", { name, color: "#1E86FC" });
+  const direct = await directChat(page, String(bot.id));
+  const knex = connectTestDb();
   try {
-    await knex("bot_conversations").where({ bot_id: bot.id }).whereNotNull("user_id").update({ onboarding_step: null });
-    await run({ bot, name, headers, knex });
+    const row = await knex("conversations").where({ id: direct.id }).first();
+    await knex("conversations").where({ id: direct.id }).update({ onboarding_step: null });
+    const chatOf = { id: String(direct.id), homeId: String(row.workspace_id), personId: String(row.direct_user_id) };
+    await run({ bot: { id: String(bot.id) }, name, chat: chatOf, headers: api.headers, knex });
   } finally {
     await knex.destroy();
     // Left first, so the page doesn't go on reading the bot once it's gone (the API guard would see that).
     await page.goto("about:blank");
-    await page.request.delete(`/api${HOME}/bots/${bot.id}`, { headers });
+    await page.request.delete(`/api${HOME}/bots/${bot.id}`, { headers: api.headers });
   }
 }
 
-// Messages written into the person's chat with the bot, oldest first: [kind, role, body, and when, if not now]. Their ids.
-async function seed({ bot, knex }: Made, rows: Array<[string, string, object, Date?]>) {
-  const conversation = await knex("bot_conversations").where({ bot_id: bot.id }).whereNotNull("user_id").first();
-  const written = await knex("bot_messages").insert(rows.map(([kind, role, body, createdAt]) => ({
-    bot_id: bot.id,
-    conversation_id: conversation.id,
-    workspace_id: conversation.workspace_id,
-    kind,
-    role,
-    body,
-    ...(createdAt ? { created_at: createdAt } : {})
-  }))).returning("id");
-  return written.map((row: { id: number }) => String(row.id));
+// Messages written into the person's chat with the bot, oldest first: [kind, role, body, and when, if not now]. A
+// person's ("user") is the person's own; a bot's is the bot's. Their ids.
+async function seed({ bot, chat: { id, homeId, personId }, knex }: Made, rows: Array<[string, string, object, Date?]>) {
+  const ids: string[] = [];
+  for (const [kind, role, body, createdAt] of rows) {
+    const author = role === "user" ? { userId: personId } : role === "bot" ? { botId: bot.id } : {};
+    const messageId = await seedMessage(knex, { homeId, chatId: id, kind, body, ...author });
+    if (createdAt) await knex("messages").where({ id: messageId }).update({ created_at: createdAt });
+    ids.push(messageId);
+  }
+  return ids;
 }
 
-// A file put in the bot's folder, as the chat's attach does; its path.
-async function upload(page: Page, { bot, headers }: Made, name: string, mimeType: string, buffer: Buffer) {
-  const response = await page.request.post(`/api${HOME}/bots/${bot.id}/files/upload`, { headers, multipart: { file: { name, mimeType, buffer } } });
-  expect(response.ok()).toBe(true);
+// A file put in the chat's folder, as the chat's attach does (?chat=&bot=: into /files/chat/Uploads); its path.
+async function upload(page: Page, { bot, chat: { id }, headers }: Made, name: string, mimeType: string, buffer: Buffer) {
+  const response = await page.request.post(`/api${HOME}/files/upload?chat=${id}&bot=${bot.id}`, { headers, multipart: { file: { name, mimeType, buffer } } });
+  expect(response.ok(), await response.text()).toBe(true);
   return String((await response.json()).path);
 }
 
@@ -87,9 +79,11 @@ async function pictureBytes(page: Page, width = 160, height = 120) {
   return Buffer.from(data.split(",")[1], "base64");
 }
 
+// The home, then the person's direct chat with the bot from the chat list, where it's named for its bot.
 async function openChat(page: Page, name: string) {
-  await openHome(page);
-  await sidebarBot(page, name).click();
+  await openShell(page);
+  await shell.chatRow(page, name).click();
+  await expect(chat(page).getByRole("textbox", { name: `Message ${name}` })).toBeVisible();
 }
 
 test("a reply that arrives while scrolled up shows in a new messages pill, which goes down to it or is dismissed", async ({ page }) => {
@@ -103,11 +97,12 @@ test("a reply that arrives while scrolled up shows in a new messages pill, which
     const toLatest = chat(page).getByRole("button", { name: "Scroll to the latest message" });
     // A question and its answer, from elsewhere (the API): the page hears of them from the server.
     const askElsewhere = async (text: string) => {
-      const sent = await page.request.post(`/api${HOME}/bots/${made.bot.id}/messages`, { headers: made.headers, data: { text } });
-      expect(sent.ok()).toBe(true);
-      const [question] = (await sent.json()).messages;
-      const replied = await page.request.post(`/api${HOME}/bots/${made.bot.id}/reply`, { headers: made.headers, data: { afterMessageId: question.id, timeZone: "UTC", language: "en" } });
-      expect(replied.ok()).toBe(true);
+      const sent = await page.request.post(`/api${HOME}/chats/${made.chat.id}/messages`, { headers: made.headers, data: { text, clientId: `e2e-${Date.now()}` } });
+      expect(sent.ok(), await sent.text()).toBe(true);
+      // The person's message comes last in the answer, after any earlier ones it changed (A's sendMessage).
+      const question = (await sent.json()).messages.at(-1);
+      const replied = await page.request.post(`/api${HOME}/chats/${made.chat.id}/reply`, { headers: made.headers, data: { afterMessageId: question.id, timeZone: "UTC", language: "en" } });
+      expect(replied.ok(), await replied.text()).toBe(true);
     };
 
     // Up to the top, once the chat's own glide down has ended: a scroll during it (900 ms, useChatScroll) counts as the chat's.
@@ -244,7 +239,7 @@ test("a person's messages have nothing under them on a phone, and short ones, lo
     const [short, wideId, link, withPicture, withBigPicture, reply, report] = ids;
     for (const width of [320, 390, 1280]) {
       await page.setViewportSize({ width, height: 844 });
-      await page.goto(`${HOME}?bot=${made.bot.id}`);
+      await page.goto(`${HOME}?chat=${made.chat.id}`);
       for (const id of ids) await expect(chat(page).locator(`[data-message-id="${id}"] .mb-bubble`)).toBeVisible();
       await expect.poll(() => chat(page).locator(".mb-bubble__picture").evaluateAll((images: HTMLImageElement[]) => images.map((image) => image.naturalWidth))).toEqual([160, 480]);
       const { timeline, parts, sideways } = await layout(page, [...ids, `stamp-${wideId}`]);
@@ -276,7 +271,7 @@ test("a person's messages have nothing under them on a phone, and short ones, lo
 
     // "Not sent." takes a line of its own under the bubble, at its right, with nothing under it.
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.route(`**/api${HOME}/bots/${made.bot.id}/messages`, (route) => (route.request().method() === "POST"
+    await page.route(`**/api${HOME}/chats/${made.chat.id}/messages`, (route) => (route.request().method() === "POST"
       ? route.fulfill({ status: 400, contentType: "application/json", headers: { [MADE_UP]: "1" }, body: JSON.stringify({ error: "Pinned failure" }) })
       : route.fallback()));
     const composer = chat(page).getByRole("textbox", { name: `Message ${made.name}` });
@@ -303,17 +298,18 @@ test("the Library shows ages and hover cards, and a page opens, shares and is de
     ]);
     await openChat(page, made.name);
     await chat(page).getByRole("button", { name: `${made.name} details` }).click();
-    const details = page.getByRole("complementary", { name: "Details" });
+    const details = shell.details(page, `${made.name}'s card`);
     await details.getByRole("tab", { name: "Library" }).click();
     const row = (title: string) => details.locator(".mb-library__row").filter({ hasText: title });
     await expect(row("Weekly plan").locator(".mb-library__age")).toHaveText(/^(now|\dm)$/u);
     await expect(row("Cake").locator(".mb-library__age")).toHaveText(/^(now|\dm)$/u);
 
-    // Hovering a row shows its card: what it is, its bot, when, and for a page who can open it.
+    // Hovering a row shows its card: what it is, its bot, when, and for a page who can open it: one in the chat's
+    // folder is for everyone who can open that chat (R6), here the direct chat named for its bot.
     await row("Weekly plan").hover();
     const hoverCard = page.locator(".mb-hover-card").filter({ hasText: "Weekly plan" });
     await expect(hoverCard).toBeVisible();
-    for (const text of ["Page", "Weekly plan", made.name, "Only you"]) await expect(hoverCard).toContainText(text);
+    for (const text of ["Page", "Weekly plan", made.name, `Everyone who can open “${made.name}”`]) await expect(hoverCard).toContainText(text);
     await page.mouse.move(0, 0);
     await expect(hoverCard).toBeHidden();
 
@@ -345,8 +341,8 @@ test("the Library shows ages and hover cards, and a page opens, shares and is de
 
     await menuItems(page).filter({ hasText: "Share…" }).click();
     const share = page.getByRole("region", { name: "Share Weekly plan" });
-    await expect(share.getByRole("radio")).toContainText("Only you");
-    await expect(share).toContainText("(you)");
+    await expect(share.getByText("Everyone who can open this chat", { exact: true })).toBeVisible();
+    await expect(share.getByRole("radio"), "no choice of who: where it's kept says it").toHaveCount(0);
     await share.getByRole("button", { name: "Copy text" }).click();
     await expect.poll(() => clipboardText(page)).toBe(pageText);
     await expect(page.getByText("Page copied")).toBeVisible();
@@ -366,13 +362,13 @@ test("the Library shows ages and hover cards, and a page opens, shares and is de
 
     await row("Weekly plan").getByRole("button", { name: "More for Weekly plan" }).click();
     await menuItems(page).filter({ hasText: "Delete" }).click();
-    const confirm = page.locator(".mb-confirm");
+    const confirm = shell.question(page);
     await expect(confirm).toContainText("Delete “Weekly plan”?");
     await confirm.getByRole("button", { name: "Delete" }).click();
     await expect(row("Weekly plan")).toHaveCount(0);
     await expect(row("Cake")).toBeVisible();
     await expect(chat(page).getByRole("button", { name: "Page Weekly plan, deleted" }), "its card stays, marked deleted").toBeDisabled();
-    const gone = await page.request.get(`/api${HOME}/bots/${made.bot.id}/files/content?path=${encodeURIComponent(pagePath)}`);
+    const gone = await page.request.get(`/api${HOME}/files/content?path=${encodeURIComponent(pagePath)}&chat=${made.chat.id}&bot=${made.bot.id}`);
     expect(gone.status(), "its file is deleted").toBe(404);
   });
 });

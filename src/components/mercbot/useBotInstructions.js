@@ -2,19 +2,19 @@ import { computed, nextTick, ref, watch } from "vue";
 import { botsApi } from "./botsApi.js";
 
 /**
- * Details tab: the bot's Instructions (D-98), its template and its additions. Read on the Details tab, and read again
- * there as the bot's activity changes (an approved card may have changed its additions), unless they're being edited.
+ * A bot card's Instructions (D-98), its template and its additions. Read on the Details tab, and read again there as the
+ * open chat's activity changes (an approved card may have changed its additions), unless they're being edited.
  * Its maker and the home's owners and admins edit the additions in place: Save writes them, Cancel puts them back, and a
  * refusal (too long, not allowed) shows under the box in the server's words. The template is read-only here.
  * @param {{
  *   bot: () => import("../../types.js").Bot,
- *   isGroup: import("vue").ComputedRef<boolean>,
  *   tab: import("vue").ComputedRef<string>,
+ *   activity: () => string | null,
  *   onSaved: (bot: import("../../types.js").Bot) => void,
  *   onFailure: (error: unknown) => void
- * }} options
+ * }} options `activity` is the open chat's last activity, or nothing on Team
  */
-export function useBotInstructions({ bot, isGroup, tab, onSaved, onFailure }) {
+export function useBotInstructions({ bot, tab, activity, onSaved, onFailure }) {
   const instructions = ref(null);
   const editingAdditions = ref(false);
   const additionsDraft = ref("");
@@ -24,7 +24,7 @@ export function useBotInstructions({ bot, isGroup, tab, onSaved, onFailure }) {
   const additionsChanged = computed(() => instructions.value && additionsDraft.value.trim() !== instructions.value.additions);
 
   async function loadInstructions() {
-    if (isGroup.value || editingAdditions.value) return;
+    if (editingAdditions.value) return;
     const botId = bot().id;
     try {
       const read = await botsApi.instructions(botId);
@@ -64,7 +64,7 @@ export function useBotInstructions({ bot, isGroup, tab, onSaved, onFailure }) {
   }
 
   let instructionsFor = null;
-  watch([() => bot().id, () => bot().lastActivityAt, tab], () => {
+  watch([() => bot().id, activity, tab], () => {
     if (bot().id !== instructionsFor) {
       instructions.value = null;
       editingAdditions.value = false;

@@ -5,7 +5,7 @@ import { computerApi } from "./computerApi.js";
 // A bot's whole desktop over VNC (D-13), scaled to fit. View-only unless `control` is on;
 // in control, the person's mouse and keys go through the same connection.
 const props = defineProps({
-  // A bot's id, or { id, group } for its own computer in a group (D-46).
+  // A bot and the chat whose computer it is ({ id, chat }), or a bot id for its computer in the open chat (D14).
   botId: { type: [String, Object], required: true },
   awake: { type: Boolean, default: false },
   control: { type: Boolean, default: false }

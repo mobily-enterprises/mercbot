@@ -1,35 +1,20 @@
-import { expect, expectRefusal, holdDraftReads, test, type Page } from "./harness";
+import { HOME, botNamed, expect, expectRefusal, holdDraftReads, openShell, shell, test, type Page } from "./harness";
 
-// Views (D-55), on the Test Preview target. Its fixtures give Vera's chat a card for "Contacts by
-// stage", an "Everyone's stages" in two versions and a "One contact" with a parameter, all seen by
-// everyone in the home (D-66); a Reports app shares the second and keeps a copy of it; a Second report
-// shares it too.
-// The tests run in order and change that data, so each run needs a fresh start of the target.
-const HOME = "/w/you";
+// Views (D-55), on the Test Preview target. Its fixtures give Vera's direct chat with the person (D-112) a card for
+// "Contacts by stage", an "Everyone's stages" in two versions and a "One contact" with a parameter, all seen by everyone
+// in the home (D-66); a Reports app shares the second and keeps a copy of it; a Second report shares it too. Vera's card
+// keeps the view in her Library, and search finds it.
+// The tests run in order and change that data, so each run needs a fresh start of the target. Run with:
+// vibe64-helper playwright --target test-app test tests/e2e/views.spec.ts
 test.describe.configure({ mode: "serial" });
 // Any refused API call from the page, one with no answer, or JSKIT's error dialog, fails the test (harness.ts).
 test.use({ apiGuard: true });
 
-async function openHome(page: Page) {
-  await page.goto(HOME);
-  const next = page.getByRole("button", { name: "Next" });
-  const shell = page.locator(".mb-shell");
-  await expect(shell.or(next).first()).toBeVisible();
-  if (await next.isVisible()) {
-    for (let slide = 0; slide < 3; slide += 1) await next.click();
-  }
-  await expect(shell).toBeVisible();
-}
-
-async function veraId(page: Page) {
-  const response = await page.request.get(`/api${HOME}/bots`);
-  const { bots } = await response.json();
-  return bots.find((bot: { name: string }) => bot.name === "Vera").id;
-}
-
+/** Vera's direct chat, opened from its row in the sidebar's chat list. */
 async function vera(page: Page) {
-  await openHome(page);
-  await page.getByRole("button", { name: /^Vera/u }).or(page.getByRole("link", { name: /^Vera/u })).first().click();
+  await openShell(page);
+  await shell.chatRow(page, "Vera").click();
+  await expect(shell.chat(page).getByRole("button", { name: "Vera details" })).toBeVisible();
 }
 
 async function contacts(page: Page) {
@@ -76,8 +61,9 @@ test("a view's card opens it, and it shows a change made elsewhere without a rel
 
 test("the Library keeps the view and search finds it", async ({ page }) => {
   await vera(page);
-  await page.getByRole("button", { name: "Vera details" }).click();
-  const details = page.getByRole("complementary", { name: "Details" });
+  // In a direct chat Details is the bot's card.
+  await shell.chat(page).getByRole("button", { name: "Vera details" }).click();
+  const details = shell.details(page, "Vera's card");
   await details.getByRole("tab", { name: "Library" }).click();
   await details.getByText("Contacts by stage").click();
   const viewer = page.getByRole("dialog", { name: "Contacts by stage" });
@@ -167,7 +153,8 @@ test("on a phone the card, the viewer and its actions all fit", async ({ page },
   const overflow = () => page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   expect(await overflow()).toBeLessThanOrEqual(1);
   await page.screenshot({ path: testInfo.outputPath("phone-page.png") });
-  await page.goto(`${HOME}?bot=${await veraId(page)}`);
+  // A link naming a bot (?bot=) opens the person's direct chat with it.
+  await page.goto(`${HOME}?bot=${(await botNamed(page, "Vera")).id}`);
   const card = page.getByRole("button", { name: "Open view Contacts by stage" });
   await card.scrollIntoViewIfNeeded();
   await expect(card.getByText("Total").first()).toBeVisible();

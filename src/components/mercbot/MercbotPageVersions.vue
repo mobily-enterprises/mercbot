@@ -9,6 +9,8 @@ import { pagesApi } from "./filesApi.js";
 const open = defineModel({ type: Boolean, default: false });
 const props = defineProps({
   botId: { type: String, required: true },
+  // The chat whose folder holds it, or null (MercbotPageFrame).
+  chatId: { type: String, default: null },
   path: { type: String, required: true },
   title: { type: String, required: true },
   botName: { type: String, default: "The bot" },
@@ -27,7 +29,7 @@ function label(version) {
 async function load() {
   problem.value = "";
   try {
-    versions.value = (await pagesApi.versions(props.botId, props.path)).versions;
+    versions.value = (await pagesApi.versions(props.botId, props.path, props.chatId)).versions;
   } catch (error) {
     versions.value = [];
     problem.value = errorText(error, "The versions couldn't load.");
@@ -40,7 +42,7 @@ watch(open, (now) => {
 async function restore(version) {
   problem.value = "";
   try {
-    versions.value = (await pagesApi.restore(props.botId, props.path, version.id)).versions;
+    versions.value = (await pagesApi.restore(props.botId, props.path, version.id, props.chatId)).versions;
     emit("restored");
   } catch (error) {
     problem.value = errorText(error, "That version couldn't be restored.");

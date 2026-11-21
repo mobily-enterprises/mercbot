@@ -1,14 +1,13 @@
-import knexLib from "knex";
-import { expect, expectRefusal, test, testDatabaseName, type Page } from "./harness";
+import { HOME, connectTestDb, directChat, expect, expectRefusal, homeApi, openShell, seedMessage, shell, test, type Page } from "./harness";
 
 // Rich HTML pages (D-74), on the Test Preview target, under the API guard. Each test makes its own bot,
-// puts a page in its Pages folder (uploaded as it is) and a card of it in its chat (written to the
-// database), then uses it as a person would: the card, the viewer in place of the chat, ticks, Share,
-// Versions and Restore, links and the doorway to apps. The sealed frame
-// is probed from inside, as the page's own script would: it can't read cookies, call Mercbot, load
-// anything from outside, submit forms, open popups or frames, or move the window around it, and it
-// opens a link or an app only from the person's own click in it.
-const HOME = "/w/you";
+// puts a page in its own folder's Pages (uploaded as it is, /files/bot: everyone in the home can open it, D-112 R6)
+// and a card of it in the person's direct chat with the bot (written to the database), then uses it as a person
+// would: the card, the viewer in place of the chat, ticks, Share, Versions and Restore, links and the doorway to
+// apps. The sealed frame is probed from inside, as the page's own script would: it can't read cookies, call
+// Mercbot, load anything from outside, submit forms, open popups or frames, or move the window around it, and it
+// opens a link or an app only from the person's own click in it. Run with:
+// vibe64-helper playwright --target test-app test tests/e2e/pages.spec.ts
 const PAGE = "/files/bot/Pages/probe.html";
 const PROBE = `<!DOCTYPE html><html><head><title>Probe page</title></head><body>
 <h1>Probe page</h1><p>Everything a page shouldn't be able to do.</p>
@@ -25,52 +24,42 @@ parent.postMessage({ mercbotPage: 1, kind: "open-app", app: "contacts", screen: 
 test.use({ apiGuard: true });
 test.describe.configure({ mode: "serial" });
 
-const database = () => knexLib({
-  client: "pg",
-  connection: { host: process.env.DB_HOST, port: Number(process.env.DB_PORT) || 5432, user: process.env.DB_USER, password: process.env.DB_PASSWORD, database: testDatabaseName() }
-});
+type PageBot = { id: string; name: string; chatId: string };
 
-async function openHome(page: Page, query = "") {
-  await page.goto(`${HOME}${query}`);
-  const next = page.getByRole("button", { name: "Next" });
-  const shell = page.locator(".mb-shell");
-  await expect(shell.or(next).first()).toBeVisible();
-  if (await next.isVisible()) {
-    for (let slide = 0; slide < 3; slide += 1) await next.click();
-  }
-  await expect(shell).toBeVisible();
-}
-
-/** A new bot of the signed-in person, with the probe page in its Pages folder and its card (and a link to it) in the chat. */
-async function botWithPage(page: Page, versions: string[] = []) {
-  const { csrfToken } = await (await page.request.get("/api/session")).json();
-  const created = await page.request.post(`/api${HOME}/bots`, { headers: { "csrf-token": csrfToken }, data: { name: `Paige ${Date.now().toString(36)}`, color: "#1E86FC" } });
-  expect(created.ok()).toBe(true);
-  const { bot } = await created.json();
-  const upload = await page.request.post(`/api${HOME}/bots/${bot.id}/files/upload?folder=${encodeURIComponent("/files/bot/Pages")}`, {
-    headers: { "csrf-token": csrfToken },
+/**
+ * A new bot of the home, with the probe page in its folder's Pages and its card (and a link to it) in the person's
+ * direct chat with it, past the chat's first greeting; `versions` are the page's saves, oldest first.
+ */
+async function botWithPage(page: Page, versions: string[] = []): Promise<PageBot> {
+  const api = await homeApi(page);
+  const { bot } = await api.post("/bots", { name: `Paige ${Date.now().toString(36)}`, color: "#1E86FC" });
+  const chat = await directChat(page, String(bot.id));
+  // Into the bot's own folder (?bot= alone: its folder and the home's), as the file browser's upload puts it there.
+  const upload = await page.request.post(`/api${HOME}/files/upload?folder=${encodeURIComponent("/files/bot/Pages")}&bot=${bot.id}`, {
+    headers: api.headers,
     multipart: { file: { name: "probe.html", mimeType: "text/html", buffer: Buffer.from(PROBE) } }
   });
-  expect(upload.ok()).toBe(true);
+  expect(upload.ok(), await upload.text()).toBe(true);
   expect((await upload.json()).path).toBe(PAGE);
-  const knex = database();
+  const knex = connectTestDb();
   try {
-    const conversation = await knex("bot_conversations").where({ bot_id: bot.id }).whereNotNull("user_id").first();
-    await knex("bot_conversations").where({ id: conversation.id }).update({ onboarding_step: null });
-    const at = { bot_id: bot.id, conversation_id: conversation.id, workspace_id: conversation.workspace_id };
-    await knex("bot_messages").insert([
-      { ...at, kind: "text", role: "user", body: { text: "Make me a probe page" } },
-      { ...at, kind: "text", role: "bot", body: { text: `Here it is: [Probe page](${PAGE}).` } },
-      { ...at, kind: "page", role: "bot", body: { path: PAGE, title: "Probe page", summary: "Everything a page shouldn't be able to do." } }
-    ]);
+    const row = await knex("conversations").where({ id: chat.id }).first();
+    await knex("conversations").where({ id: chat.id }).update({ onboarding_step: null });
+    const at = { homeId: row.workspace_id, chatId: chat.id };
+    await seedMessage(knex, { ...at, userId: row.direct_user_id, body: { text: "Make me a probe page" } });
+    await seedMessage(knex, { ...at, botId: bot.id, body: { text: `Here it is: [Probe page](${PAGE}).` } });
+    await seedMessage(knex, { ...at, botId: bot.id, kind: "page", body: { path: PAGE, title: "Probe page", summary: "Everything a page shouldn't be able to do." } });
     for (const [index, content] of versions.entries()) {
-      await knex("page_versions").insert({ workspace_id: at.workspace_id, bot_id: bot.id, path: PAGE, page_key: "e2e-key", kind: index ? "edit" : "save", content });
+      await knex("page_versions").insert({ workspace_id: row.workspace_id, bot_id: bot.id, path: PAGE, page_key: "e2e-key", kind: index ? "edit" : "save", content });
     }
   } finally {
     await knex.destroy();
   }
-  return { id: String(bot.id), name: bot.name as string, csrfToken };
+  return { id: String(bot.id), name: String(bot.name), chatId: String(chat.id) };
 }
+
+/** The bot's direct chat with the probe page open over it, as its card opens it. */
+const pageOpen = (bot: PageBot) => `?chat=${bot.chatId}&page=${encodeURIComponent(PAGE)}&pageBot=${bot.id}&pageChat=${bot.chatId}`;
 
 const view = (page: Page) => page.locator(".mb-page-view");
 const sealed = (page: Page) => view(page).frameLocator("iframe");
@@ -82,9 +71,8 @@ async function sealedFrame(page: Page) {
 }
 
 test("a page's card opens the page in place of the chat; ticks are saved in it; Close goes back", async ({ page, context }, info) => {
-  await openHome(page);
   const bot = await botWithPage(page);
-  await openHome(page, `?bot=${bot.id}`);
+  await openShell(page, `?chat=${bot.chatId}`);
   const card = page.locator(".mb-page-card");
   await expect(card).toBeVisible();
   await expect(card.frameLocator("iframe").getByRole("heading", { name: "Probe page" })).toBeVisible();
@@ -92,6 +80,7 @@ test("a page's card opens the page in place of the chat; ticks are saved in it; 
 
   await card.getByRole("button", { name: "Open page Probe page" }).click();
   await expect.poll(() => new URL(page.url()).searchParams.get("page"), "the open page is in the address").toBe(PAGE);
+  expect(new URL(page.url()).searchParams.get("pageBot"), "with the bot whose folder holds it").toBe(bot.id);
   await expect(view(page).getByText("Probe page", { exact: true })).toBeVisible();
   await expect(page.locator(".mb-chat__dock textarea:not([aria-hidden])").first(), "the composer stays, sending to the bot").toBeVisible();
   await sealedFrame(page);
@@ -101,11 +90,11 @@ test("a page's card opens the page in place of the chat; ticks are saved in it; 
   expect(context.pages(), "no tab opened").toHaveLength(1);
   expect(new URL(page.url()).pathname, "no app opened").toBe(HOME);
 
-  const ticked = page.waitForResponse((response) => response.url().endsWith(`/bots/${bot.id}/pages/ticks`));
+  const ticked = page.waitForResponse((response) => new URL(response.url()).pathname.endsWith(`/bots/${bot.id}/pages/ticks`));
   await sealed(page).getByRole("switch", { name: "Second thing" }).check();
   expect((await ticked).ok()).toBe(true);
   await expect(sealed(page).getByText("1 of 2 done")).toBeVisible();
-  const file = await (await page.request.get(`/api${HOME}/bots/${bot.id}/files/content?path=${encodeURIComponent(PAGE)}`)).text();
+  const file = await (await page.request.get(`/api${HOME}/files/content?path=${encodeURIComponent(PAGE)}&bot=${bot.id}`)).text();
   expect(file).toMatch(/<li>First thing<\/li><li data-done="">Second thing<\/li>/u);
   await page.screenshot({ path: info.outputPath("viewer.png") });
 
@@ -115,7 +104,7 @@ test("a page's card opens the page in place of the chat; ticks are saved in it; 
   await view(page).getByRole("button", { name: "Close page" }).click();
   await expect(view(page)).toHaveCount(0);
   await expect(page).not.toHaveURL(/[?&]page=/u);
-  await expect(page.locator(".mb-chat").getByText("Make me a probe page")).toBeVisible();
+  await expect(shell.chat(page).getByText("Make me a probe page")).toBeVisible();
 
   // The reply's inline link opens it too.
   await page.locator(".mb-rich").getByRole("link", { name: "Probe page" }).click();
@@ -125,9 +114,8 @@ test("a page's card opens the page in place of the chat; ticks are saved in it; 
 test("a sealed page can't read cookies, call Mercbot, load from outside, submit forms, open popups or frames, or move the window", async ({ page, context }) => {
   // The probe's own calls to Mercbot, which the page's policy and the browser stop on purpose.
   expectRefusal("no answer (csp): GET /api/session", "no answer (net::ERR_BLOCKED_BY_ORB): GET /api/session?probe=cookie");
-  await openHome(page);
   const bot = await botWithPage(page);
-  await openHome(page, `?bot=${bot.id}&page=${encodeURIComponent(PAGE)}&pageBot=${bot.id}`);
+  await openShell(page, pageOpen(bot));
   const frame = await sealedFrame(page);
   const shellUrl = page.url();
   // Every request the page started, and those that reached a server and were answered: the browser
@@ -261,9 +249,8 @@ test("a sealed page can't read cookies, call Mercbot, load from outside, submit 
 });
 
 test("a link the person clicks opens outside; the doorway opens only the home's apps, in their own view", async ({ page, context }) => {
-  await openHome(page);
   const bot = await botWithPage(page);
-  await openHome(page, `?bot=${bot.id}&page=${encodeURIComponent(PAGE)}&pageBot=${bot.id}`);
+  await openShell(page, pageOpen(bot));
   await sealedFrame(page);
   // The outside site, answered here so the new tab has a page to look from.
   await context.route("https://example.invalid/**", (route) => route.fulfill({ contentType: "text/html", body: "<p>Away</p>" }));
@@ -286,10 +273,9 @@ test("a link the person clicks opens outside; the doorway opens only the home's 
 });
 
 test("Versions lists the page's saves and Restore brings an earlier one back", async ({ page }) => {
-  await openHome(page);
   const old = PROBE.replace("Everything a page shouldn't be able to do.", "The first version.");
   const bot = await botWithPage(page, [old, PROBE]);
-  await openHome(page, `?bot=${bot.id}&page=${encodeURIComponent(PAGE)}&pageBot=${bot.id}`);
+  await openShell(page, pageOpen(bot));
   await sealedFrame(page);
   await view(page).getByRole("button", { name: "More" }).click();
   await page.getByRole("menuitem", { name: "Versions" }).or(page.locator(".v-overlay--active .v-list-item").filter({ hasText: "Versions" })).first().click();
@@ -301,34 +287,37 @@ test("Versions lists the page's saves and Restore brings an earlier one back", a
   await expect(page.locator(".mb-toast")).toContainText("Version restored");
 });
 
+// The Library is on the bot's card (D3), beside its direct chat: what it made in the chats the person can open.
 test("the Library's Share… is the page's Share, and Delete ends its versions and marks its card", async ({ page }) => {
-  await openHome(page);
   const bot = await botWithPage(page, [PROBE]);
-  await openHome(page, `?bot=${bot.id}`);
-  const chat = page.getByRole("main", { name: "Chat" });
+  await openShell(page, `?chat=${bot.chatId}`);
+  const chat = shell.chat(page);
   await chat.getByRole("button", { name: `${bot.name} details` }).click();
-  const details = page.getByRole("complementary", { name: "Details" });
+  const details = shell.details(page, `${bot.name}'s card`);
   await details.getByRole("tab", { name: "Library" }).click();
   const row = details.locator(".mb-library__row").filter({ hasText: "Probe page" });
-  const menu = page.locator(".v-overlay--active .mb-menu .mb-menu__text");
+  const menu = shell.menuItems(page);
 
+  // A page in the bot's own folder is for everyone in the home (R6): its hover card and its Share say so alike.
   await row.hover();
-  await expect(page.locator(".mb-hover-card").filter({ hasText: "Probe page" }), "a web page is the home's").toContainText("Everyone in");
+  const readersLine = page.locator(".mb-hover-card").filter({ hasText: "Probe page" }).locator(".mb-hover-card__line").filter({ hasText: /^\s*Everyone in / });
+  await expect(readersLine, "a web page in the bot's folder is the home's").toBeVisible();
+  const readers = String(await readersLine.textContent()).trim();
   await row.getByRole("button", { name: "More for Probe page" }).click();
   await menu.filter({ hasText: "Share…" }).click();
   const share = page.getByRole("region", { name: "Share Probe page" });
-  await expect(share.getByText("Everyone in this home")).toBeVisible();
-  await expect(share.getByRole("radio"), "no Only you").toHaveCount(0);
+  await expect(share.getByText(readers, { exact: true }), "Share names the same people as the hover card").toBeVisible();
+  await expect(share.getByRole("radio"), "no choice of who: where it's kept says it").toHaveCount(0);
   await share.getByRole("button", { name: "Close" }).click();
   await expect(share).toBeHidden();
 
   await row.getByRole("button", { name: "More for Probe page" }).click();
   await menu.filter({ hasText: "Delete" }).click();
-  await page.locator(".mb-confirm").getByRole("button", { name: "Delete" }).click();
+  await shell.question(page).getByRole("button", { name: "Delete" }).click();
   await expect(row).toHaveCount(0);
   await expect(chat.getByRole("button", { name: "Page Probe page, deleted" }), "its card stays, marked deleted").toBeDisabled();
 
-  const knex = database();
+  const knex = connectTestDb();
   try {
     expect(await knex("page_versions").where({ bot_id: bot.id, path: PAGE }).count("* as n").first(), "its versions").toEqual({ n: "0" });
   } finally {

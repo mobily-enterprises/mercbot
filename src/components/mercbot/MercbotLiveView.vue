@@ -2,23 +2,27 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import MercbotVncScreen from "./MercbotVncScreen.vue";
 import { refusedWork } from "./accountApi.js";
-import { botsApi } from "./botsApi.js";
+import { chatsApi } from "./chatsApi.js";
 import { computerApi, useComputerStream } from "./computerApi.js";
 
-// Live view of a bot's whole desktop, with taking control (D-13).
+// Live view of a bot's whole desktop in a chat (D-13, D14, D16): the computer belongs to the chat, and anyone who can
+// open the chat can watch it, take it over and hand it back. Taking over and handing back are the shell's (they post
+// the chat's lines); `inControl` says whether this person has it now.
 const props = defineProps({
   bot: { type: Object, required: true },
-  startInControl: { type: Boolean, default: false },
+  chatId: { type: String, required: true },
+  // What this computer is and who may use it (chatView.js computerLine).
+  whose: { type: String, default: "" },
+  inControl: { type: Boolean, default: false },
   handover: { type: Boolean, default: false },
   teach: { type: Boolean, default: false }
 });
-const emit = defineEmits(["close", "done", "taught", "failure"]);
+const emit = defineEmits(["close", "done", "taught", "take-over", "hand-back", "failure"]);
 
 const active = ref(true);
-// Its computer, or in a group its own one for that group (D-46: bot.group).
-const target = computed(() => (props.bot.group ? { id: props.bot.id, group: props.bot.group } : props.bot.id));
+const target = computed(() => ({ id: String(props.bot.id), chat: props.chatId }));
 const { state } = useComputerStream(target, active);
-const inControl = ref(props.startInControl);
+const inControl = computed(() => props.inControl);
 
 // If the computer stops while the view is open (it slept, or its server went), wake it again. A wake the copy refused is
 // counted (accountApi.js refusedWork).
@@ -39,7 +43,7 @@ let ticker = null;
 async function startRecording() {
   teachState.value = "starting";
   try {
-    await botsApi.teachStart(props.bot.id);
+    await chatsApi.teachStart(props.chatId, props.bot.id);
   } catch (error) {
     teachState.value = "ready";
     emit("failure", error);
@@ -63,7 +67,7 @@ function stopRecording() {
 function dismissTeach() {
   if (teachState.value === "recording") {
     clearInterval(ticker);
-    botsApi.teachStop(props.bot.id, true).catch(() => {});
+    chatsApi.teachStop(props.chatId, props.bot.id, true).catch(() => {});
   }
   teachState.value = "off";
 }
@@ -76,7 +80,7 @@ function onKey(event) {
   event.preventDefault();
   event.stopPropagation();
   // While the screen isn't showing, there's nothing to hand back: Escape closes the view.
-  if (inControl.value && !props.handover && connected.value) inControl.value = false;
+  if (inControl.value && !props.handover && !props.teach && connected.value) emit("hand-back");
   else emit("close");
 }
 
@@ -94,6 +98,10 @@ onBeforeUnmount(() => {
 
 <template>
   <v-theme-provider theme="dark" with-background class="mb-live" role="dialog" :aria-label="`${bot.name}'s computer`">
+    <p class="mb-live__title">
+      <span class="mb-live__name">{{ bot.name }}'s computer</span>
+      <span v-if="whose" class="mb-live__whose">{{ whose }}</span>
+    </p>
     <button type="button" class="mb-live__collapse" aria-label="Close the live view" @click="emit('close')">
       <v-icon icon="$collapseContent" size="18" />
     </button>
@@ -149,14 +157,14 @@ onBeforeUnmount(() => {
     <v-theme-provider theme="light" with-background class="mb-live__control">
       <template v-if="inControl">
         <v-icon icon="$arrowSelectorTool" size="16" />
-        <span class="mb-live__label">You're driving</span>
+        <span class="mb-live__label">You have control. {{ bot.name }} waits until you hand it back.</span>
         <button v-if="handover" type="button" class="mb-live__button mb-live__button--dark" @click="emit('done')">I'm done</button>
-        <button v-else type="button" class="mb-live__button" @click="inControl = false">Stop</button>
+        <button v-else-if="!teach" type="button" class="mb-live__button" @click="emit('hand-back')">Hand back</button>
       </template>
       <template v-else>
         <v-icon icon="$visibility" size="16" />
         <span class="mb-live__label">Watching</span>
-        <button type="button" class="mb-live__button mb-live__button--dark" :disabled="!connected" @click="inControl = true">Take control</button>
+        <button type="button" class="mb-live__button mb-live__button--dark" :disabled="!connected" @click="emit('take-over')">Take over</button>
       </template>
     </v-theme-provider>
   </v-theme-provider>
@@ -168,6 +176,33 @@ onBeforeUnmount(() => {
   inset: 0;
   z-index: 2400;
   background: rgb(var(--v-theme-surface));
+}
+
+.mb-live__title {
+  position: absolute;
+  top: 12px;
+  right: 64px;
+  left: 102px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.mb-live__name {
+  font-size: 14px;
+  font-weight: 600;
+  color: rgb(var(--v-theme-on-surface));
+}
+
+.mb-live__whose {
+  overflow: hidden;
+  font-size: 12px;
+  color: rgb(var(--v-theme-on-surface-variant));
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .mb-live__collapse {

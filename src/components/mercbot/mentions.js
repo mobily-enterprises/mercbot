@@ -1,5 +1,5 @@
-// Mentions in group chats: a message stores <@bot:ID>, <@everyone> or <@app:ID>, and
-// keeps the mentioned bots in body.mentions so they read right later.
+// Mentions in a chat: a message stores <@bot:ID>, <@everyone> or <@app:ID>, and keeps the mentioned bots in
+// body.mentions so they read right later.
 // A skill picked with "/" is stored as <@skill:ID> with its name in body.skills.
 const MARKER = /<@bot:(\d+)>|<@everyone>|<@app:([\w-]+)>|<@skill:([\w-]+)>/gu;
 

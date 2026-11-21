@@ -1,56 +1,70 @@
 import { createHttpClient } from "@jskit-ai/http-runtime/client";
 import { homePath } from "./homeApi.js";
-import { placeQuery } from "./openTabs.js";
+import { placeQuery } from "./chatPlace.js";
 import { AUTH_PATHS } from "@jskit-ai/auth-core/shared/authPaths";
 
-// A bot's files (D-20, D-21, D-47): the file itself, and what the viewer shows for it. Without a
-// bot (null), the home's own folder.
+// The files a person sees (D-20, D-21, D-47, D-112 R6): the file itself, and what the viewer shows for it. Every route is
+// /files…, naming where: a chat and a bot in it (the chat's folder, the bot's and the home's shared one: listed as
+// chat, bot and shared), a chat alone, a bot alone (its own folder and the shared one), or neither (the home's folder).
+// A chat not given is the one open here (chatPlace.js); null names none.
 const client = createHttpClient({ credentials: "include", csrf: { sessionPath: AUTH_PATHS.SESSION } });
 const query = (path) => `path=${encodeURIComponent(path)}`;
-const filesBase = (botId) => homePath(botId ? `/bots/${botId}/files` : "/files");
-// What a bot made in a group with several people is in its folder for everyone (D-46); a Shared bot's files are its
-// open tab's, or the tab given (`room`, D-99): openTabs.js.
-const and = (botId, where) => {
-  const part = placeQuery(botId, where);
+const filesBase = () => homePath("/files");
+const placeParts = (botId, chat) => [placeQuery({ chat }), botId ? `bot=${encodeURIComponent(botId)}` : ""].filter(Boolean).join("&");
+const and = (botId, chat) => {
+  const part = placeParts(botId, chat);
   return part ? `&${part}` : "";
 };
-const first = (botId, where) => {
-  const part = placeQuery(botId, where);
+const first = (botId, chat) => {
+  const part = placeParts(botId, chat);
   return part ? `?${part}` : "";
 };
-export const fileUrl = (botId, path, { download = true, group = null, room } = {}) =>
-  `${filesBase(botId)}/content?${query(path)}${download ? "&download=1" : ""}${and(botId, { group, room })}`;
-export const previewUrl = (botId, path, group = null, room = undefined) => `${filesBase(botId)}/preview?${query(path)}${and(botId, { group, room })}`;
+export const fileUrl = (botId, path, { download = true, chat } = {}) =>
+  `${filesBase()}/content?${query(path)}${download ? "&download=1" : ""}${and(botId, chat)}`;
+export const previewUrl = (botId, path, chat = undefined) => `${filesBase()}/preview?${query(path)}${and(botId, chat)}`;
 
-// The file browsers (D-47): the folders a person sees with a bot, or the home's, and changing them. `room` names a
-// Shared bot's tab, else the open one is used.
+// The file browsers (D-47): the folders a person sees with a bot in a chat, or the home's, and changing them.
 export const filesApi = {
-  list: (botId, folder, room) => client.request(`${filesBase(botId)}?folder=${encodeURIComponent(folder)}${and(botId, { room })}`),
-  folders: (botId, room) => client.request(`${filesBase(botId)}/folders${first(botId, { room })}`),
-  move: (botId, from, to, room) => client.request(`${filesBase(botId)}/move${first(botId, { room })}`, { method: "POST", body: { from, to } }),
-  makeFolder: (botId, path, room) => client.request(`${filesBase(botId)}/folder${first(botId, { room })}`, { method: "POST", body: { path } }),
-  remove: (botId, path, room) => client.request(`${filesBase(botId)}?${query(path)}${and(botId, { room })}`, { method: "DELETE" }),
-  // The home's bots, not group chats, as the home's Files page shows them: { id, name, color, shape }.
+  list: (botId, folder, chat) => client.request(`${filesBase()}?folder=${encodeURIComponent(folder)}${and(botId, chat)}`),
+  folders: (botId, chat) => client.request(`${filesBase()}/folders${first(botId, chat)}`),
+  move: (botId, from, to, chat) => client.request(`${filesBase()}/move${first(botId, chat)}`, { method: "POST", body: { from, to } }),
+  makeFolder: (botId, path, chat) => client.request(`${filesBase()}/folder${first(botId, chat)}`, { method: "POST", body: { path } }),
+  remove: (botId, path, chat) => client.request(`${filesBase()}?${query(path)}${and(botId, chat)}`, { method: "DELETE" }),
+  // The home's bots, as the home's Files page shows them: { id, name, color, shape }.
   homeBots: () => client.request(homePath("/files/bots"))
 };
 
-// A bot's HTML pages (D-74): the address its frame loads, ticks, versions with Restore, and a
-// standalone copy. Old Markdown pages (.md) tick by line.
+// A bot's HTML pages (D-74): the address its frame loads, ticks, versions with Restore, and a standalone copy. A page in
+// a chat's folder (/files/chat/…) names the chat (`chat`, else the open one); one in the bot's own folder needs none.
+// Old Markdown pages (.md) tick by line.
 const pagesBase = (botId) => homePath(`/bots/${botId}/pages`);
+const pageQuery = (path, chat) => `${query(path)}${(() => {
+  const part = placeQuery({ chat });
+  return part ? `&${part}` : "";
+})()}`;
 export const isHtmlPage = (path) => /\.html$/u.test(String(path));
-export const pageCopyUrl = (botId, path) => `${pagesBase(botId)}/copy?${query(path)}`;
+export const pageCopyUrl = (botId, path, chat = undefined) => `${pagesBase(botId)}/copy?${pageQuery(path, chat)}`;
 export const pagesApi = {
-  frame: (botId, path) => client.request(`${pagesBase(botId)}/frame?${query(path)}`),
-  tick: (botId, path, items) => client.request(`${pagesBase(botId)}/ticks`, { method: "POST", body: { path, items } }),
-  versions: (botId, path) => client.request(`${pagesBase(botId)}/versions?${query(path)}`),
-  restore: (botId, path, versionId) => client.request(`${pagesBase(botId)}/restore`, { method: "POST", body: { path, versionId } })
+  frame: (botId, path, chat = undefined) => client.request(`${pagesBase(botId)}/frame?${pageQuery(path, chat)}`),
+  tick: (botId, path, items, chat = undefined) => {
+    const where = placeQuery({ chat });
+    return client.request(`${pagesBase(botId)}/ticks${where ? `?${where}` : ""}`, { method: "POST", body: { path, items } });
+  },
+  versions: (botId, path, chat = undefined) => client.request(`${pagesBase(botId)}/versions?${pageQuery(path, chat)}`),
+  restore: (botId, path, versionId, chat = undefined) => {
+    const where = placeQuery({ chat });
+    return client.request(`${pagesBase(botId)}/restore${where ? `?${where}` : ""}`, { method: "POST", body: { path, versionId } });
+  }
 };
 
 // Ticks or unticks an old Markdown page's checklist item.
-export const checkPageItem = (botId, path, line, checked, group = null) => client.request(homePath(`/bots/${botId}/files/check${first(botId, { group })}`), { method: "POST", body: { path, line, checked } });
+export const checkPageItem = (botId, path, line, checked, chat = undefined) => client.request(`${filesBase()}/check${first(botId, chat)}`, { method: "POST", body: { path, line, checked } });
 
-// Opens the file in its app on the bot's desktop (D-23): the computer of the conversation the file is in (D-99).
-export const openOnComputer = (botId, path) => client.request(homePath(`/bots/${botId}/computer/open${first(botId)}`), { method: "POST", body: { path } });
+// Opens the file in its app on the bot's desktop (D-23): its computer in the chat the file is in (D14).
+export const openOnComputer = (botId, path, chat = undefined) => {
+  const where = placeQuery({ chat });
+  return client.request(homePath(`/bots/${botId}/computer/open${where ? `?${where}` : ""}`), { method: "POST", body: { path } });
+};
 
 // Kinds the desktop's apps open.
 export const EDITABLE = new Set(["docx", "doc", "odt", "rtf", "xlsx", "xls", "xlsm", "ods", "pptx", "pdf"]);
@@ -83,17 +97,17 @@ export const storageApi = {
   cancelMove: () => client.request(homePath("/files/storage/move"), { method: "DELETE" })
 };
 
-// A file attached in the chat goes into the bot's own folder, with the session's CSRF
-// token as JSKIT's own uploads send it.
+// A file attached in the chat goes into the chat's folder (its Uploads, unless `folder` says), with the session's CSRF token
+// as JSKIT's own uploads send it.
 async function csrfToken() {
   const response = await fetch(AUTH_PATHS.SESSION, { credentials: "include" });
   return String((await response.json().catch(() => ({}))).csrfToken || "");
 }
 
-export async function uploadFile(botId, file, folder = "", room = undefined) {
+export async function uploadFile(botId, file, folder = "", chat = undefined) {
   const form = new FormData();
   form.append("file", file, file.name);
-  const response = await fetch(`${filesBase(botId)}/upload?folder=${encodeURIComponent(folder)}${and(botId, { room })}`, {
+  const response = await fetch(`${filesBase()}/upload?folder=${encodeURIComponent(folder)}${and(botId, chat)}`, {
     method: "POST",
     credentials: "include",
     headers: { "csrf-token": await csrfToken() },

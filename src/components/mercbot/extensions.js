@@ -15,11 +15,11 @@
 // - generalActions: buttons beside Account details in Settings → General, each { title, confirm, run }: pressing it
 //   calls `run()`, once the person has confirmed when `confirm` ({ title, label }) says what to ask.
 // - shellParts: components the app's shell shows, each { component, place }. Without a `place`, beside its own dialogs:
-//   each gets the open `bot` (or null) and the shell's `notify` (a short confirmation) and `failure` (a message, then its
+//   each gets the open `chat` (or null) and the shell's `notify` (a short confirmation) and `failure` (a message, then its
 //   cause) listeners, and may use the chat (shellChat.js), whose holdKeys keeps the shell's shortcuts waiting while
-//   the part's dialog is open. With `place` "notice", above the open conversation's composer: each gets `pulse`, the
-//   open conversation's message count, which changes as its messages come, and may emit `open-settings` with a
-//   Settings section's `value` to open it.
+//   the part's dialog is open. With `place` "notice", above the open chat's composer: each gets `pulse`, the open
+//   chat's message count, which changes as its messages come, and may emit `open-settings` with a Settings section's
+//   `value` to open it.
 // - helpPageTools: tools after a help page's own (Copy for AI, Plain text), each { component }; it gets the `page`,
 //   { slug, title, group }.
 // - aboutUpdates: what Settings → About says about keeping this copy up to date, in place of Mercbot's own line, or null
@@ -28,12 +28,14 @@
 //   `visible` once when it opens; the component gets the app as `loaded` and the home's slug as `home`, and may emit
 //   "failed" (a message for the snackbar) and "narrowed" (a new live version), which the panel passes on.
 // - pageShareParts: parts shown in a web page's Share, under who in the home can open it, each { component, visible }.
-//   The Share asks `visible` each time it opens; the component gets the page's `botId` and `path` and may emit `copied`
-//   with a short confirmation to show.
-// - botActions: actions at the top of a bot's Details panel, before its Close button, each { component }; not shown for
-//   a group. The component gets the `bot` as the list shows it, and may use the chat (shellChat.js).
+//   The Share asks `visible` each time it opens; the component gets the page's `botId`, `chatId` (the chat whose page it
+//   is, or null) and `path` and may emit `copied` with a short confirmation to show.
+// - botActions: actions at the top of a bot's card (on Team, and in a direct chat's details), each { component }. The
+//   component gets the `bot` as the team has it, and may use the chat (shellChat.js).
 // - messageCards: cards for kinds of message Mercbot doesn't show itself, each { kind, component }. The component gets
-//   the `message` and the `bot` whose chat shows it, and may use the chat (shellChat.js).
+//   the `message` and the `chat` that shows it, and may use the chat (shellChat.js).
+// - teamActions: buttons at the top of the Team page beside Add bots, each { component, visible }. The page asks
+//   `visible` once when it opens; the component gets `homeName`.
 export default {
   settingsSections: [],
   templateParts: [],
@@ -45,5 +47,6 @@ export default {
   appParts: [],
   pageShareParts: [],
   botActions: [],
-  messageCards: []
+  messageCards: [],
+  teamActions: []
 };

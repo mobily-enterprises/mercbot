@@ -1,100 +1,100 @@
 import { botsApi } from "./botsApi.js";
+import { chatsApi } from "./chatsApi.js";
 import { shellPreferences } from "./shellPreferences.js";
 
 /**
- * Sidebar commands. Each one changes the server, then the local state from its answer.
- * `editingSectionId` is the section being renamed and `store` the shell's messages (useBotMessages).
- * `currentBotId` names the open bot; after deleting it, `reopen(botId)` opens another: the main bot
- * for a group (`mainBotId`), otherwise the first in the list (`firstBotId`). `dropBot` takes a
- * conversation off the list, `open` holds the account menu's dialogs, `copy` copies text to the
- * clipboard and `reportFailure` explains a command that failed.
+ * The shell's commands, from the sidebar's menus, Team, a member's card and Chat details. Each one changes the server,
+ * then the local state from its answer. `store` holds the chats (useChatMessages), `team` the home's members (useTeam);
+ * `editingSectionId` is the section being renamed. `dropChat` takes a chat off the list (and opens another if it was
+ * open), `open` holds the account menu's dialogs, `copy` copies text to the clipboard and `reportFailure` explains a
+ * command that failed: the server's own words where it refused (who may, D-112). `homeName` names the home, for the
+ * everyone chat's refusals.
  * @param {object} options
- * @param {import("vue").Ref<Array<Record<string, any>>>} options.bots The sidebar's bots.
- * @param {import("vue").Ref<Array<Record<string, any>>>} options.sections The sidebar's sections.
+ * @param {import("vue").Ref<Array<import("../../types.js").ChatSection>>} options.sections The sidebar's sections.
  */
-export function useSidebarCommands({
-  bots,
-  sections,
-  editingSectionId,
-  store,
-  currentBotId,
-  mainBotId,
-  firstBotId,
-  reopen,
-  dropBot,
-  open,
-  copy,
-  reportFailure
-}) {
-  const setBot = (botId, changes) => botsApi.update(botId, changes).then(({ bot }) => store.updateBot(bot));
-  const takeSections = (result) => {
-    store.mergeBots(result.bots);
+export function useSidebarCommands({ sections, editingSectionId, store, team, dropChat, open, copy, reportFailure, homeName }) {
+  const place = (chatId, changes) => chatsApi.changePlace(chatId, changes).then(({ chat }) => store.updateChat(chat));
+  const takeList = (result) => {
+    store.mergeChats(result.chats);
     sections.value = result.sections;
   };
+  /** A chat change the server answers with the chat, or with it gone for this person. */
+  const changed = (result, chatId) => {
+    if (result?.chat) store.updateChat(result.chat);
+    else dropChat(chatId);
+  };
 
-  // A bot archived or unarchived for everyone (D-108): the bot as the server lists it now, or the server's reason it
-  // can't be (it's the main bot or the Builder, or the person didn't make it), which the command throws as said.
-  async function changeArchive(botId, call) {
-    try {
-      store.updateBot((await call(botId)).bot);
-    } catch (error) {
-      if ([403, 404, 409].includes(error?.status) && error.message) throw Object.assign(new Error(error.message), { said: true });
-      throw error;
-    }
-  }
+  // The everyone chat has everyone in the home (O9): no one leaves it, or is taken out of it, but by leaving the home.
+  const EVERYONE_REFUSED = {
+    leaveChat: () => `Everyone in ${homeName()} is in this chat. You leave it only by leaving the home.`,
+    removePerson: () => `Everyone in ${homeName()} is in this chat, so no one can be taken out of it.`
+  };
+  // A refusal the server words (who may, a chat archived meanwhile, a direct chat taking no one else) is said as is.
+  const said = (name, error) => {
+    if (error?.code === "bots_chat_everyone") return (EVERYONE_REFUSED[name] || EVERYONE_REFUSED.removePerson)();
+    return [403, 404, 409].includes(error?.status) && error.message;
+  };
 
   const COMMANDS = {
-    pin: ({ botId }) => setBot(botId, { pinned: true }),
-    unpin: ({ botId }) => setBot(botId, { pinned: false }),
-    markUnread: ({ botId }) => botsApi.update(botId, { unread: true }).then(({ bot }) => store.updateBot({ ...bot, unread: true })),
-    markRead: ({ botId }) => setBot(botId, { unread: false }),
-    hide: ({ botId }) => setBot(botId, { hidden: true }),
-    show: ({ botId }) => setBot(botId, { hidden: false }),
-    renameBot: ({ botId, name }) => setBot(botId, { name }),
-    moveBot: ({ botId, sectionId }) => setBot(botId, { sectionId }),
-    copyId: ({ botId }) => copy(`mbc-${botId}`, "Conversation ID copied"),
-    // The old main bot changes too, so read the whole list again.
-    makeMain: ({ botId }) => botsApi.update(botId, { main: true }).then(async () => store.mergeBots((await botsApi.list()).bots)),
-    deleteBot: async ({ botId }) => {
-      const wasOpen = botId === currentBotId();
-      const group = bots.value.find((bot) => bot.id === botId)?.kind === "group";
-      await botsApi.remove(botId);
-      bots.value = bots.value.filter((bot) => bot.id !== botId);
-      // A deleted group opens the main bot; a deleted bot leaves its groups.
-      if (wasOpen) reopen((group && mainBotId()) || firstBotId());
-      if (!group) store.mergeBots((await botsApi.list()).bots);
-    },
-    addMember: ({ groupId, botId }) => botsApi.addMember(groupId, botId).then(({ bot }) => store.updateBot(bot)),
-    removeMember: ({ groupId, botId }) => botsApi.removeMember(groupId, botId).then(({ bot }) => store.updateBot(bot)),
-    addPerson: ({ groupId, userId }) => botsApi.addPerson(groupId, userId).then(({ bot }) => store.updateBot(bot)),
-    // Leaving, or the last one out ending the group, takes it off the list (D-46).
-    removePerson: ({ groupId, userId }) =>
-      botsApi.removePerson(groupId, userId).then((result) => (result.bot ? store.updateBot(result.bot) : dropBot(groupId))),
-    reorderPins: ({ botIds }) => botsApi.reorderPins(botIds).then((result) => store.mergeBots(result.bots)),
-    createSection: async ({ botId }) => {
-      const result = await botsApi.createSection("New section", botId);
+    pin: ({ chatId }) => place(chatId, { pinned: true }),
+    unpin: ({ chatId }) => place(chatId, { pinned: false }),
+    markUnread: ({ chatId }) => place(chatId, { unread: true }),
+    markRead: ({ chatId }) => place(chatId, { unread: false }),
+    hide: ({ chatId }) => place(chatId, { hidden: true }),
+    show: ({ chatId }) => place(chatId, { hidden: false }),
+    mute: ({ chatId }) => place(chatId, { muted: true }),
+    unmute: ({ chatId }) => place(chatId, { muted: false }),
+    moveChat: ({ chatId, sectionId }) => place(chatId, { sectionId }),
+    copyId: ({ chatId }) => copy(`mbc-${chatId}`, "Chat ID copied"),
+    renameChat: ({ chatId, title }) => chatsApi.rename(chatId, title).then(({ chat }) => store.updateChat(chat)),
+    archiveChat: ({ chatId }) => chatsApi.archive(chatId).then(({ chat }) => store.updateChat(chat)),
+    unarchiveChat: ({ chatId }) => chatsApi.unarchive(chatId).then(({ chat }) => store.updateChat(chat)),
+    joinChat: ({ chatId }) => chatsApi.join(chatId).then(({ chat }) => store.updateChat(chat)),
+    // Leaving a private chat, or the last person leaving it (which deletes it), takes it off the list.
+    leaveChat: ({ chatId }) => chatsApi.leave(chatId).then((result) => changed(result, chatId)),
+    deleteChat: ({ chatId }) => chatsApi.remove(chatId).then(() => dropChat(chatId)),
+    addPerson: ({ chatId, userId }) => chatsApi.addPerson(chatId, userId).then(({ chat }) => store.updateChat(chat)),
+    removePerson: ({ chatId, userId }) => chatsApi.removePerson(chatId, userId).then((result) => changed(result, chatId)),
+    addBot: ({ chatId, botId }) => chatsApi.addBot(chatId, botId).then(({ chat }) => store.updateChat(chat)),
+    removeBot: ({ chatId, botId }) => chatsApi.removeBot(chatId, botId).then(({ chat }) => store.updateChat(chat)),
+    reorderPins: ({ chatIds }) => chatsApi.reorderPins(chatIds).then(takeList),
+    createSection: async ({ chatId }) => {
+      const result = await chatsApi.createSection("New section", chatId);
       const known = new Set(sections.value.map((section) => section.id));
-      takeSections(result);
+      takeList(result);
       editingSectionId.value = result.sections.find((section) => !known.has(section.id))?.id || "";
     },
     renameSection: ({ sectionId, name }) =>
-      botsApi.updateSection(sectionId, { name }).then(({ section }) => {
+      chatsApi.updateSection(sectionId, { name }).then(({ section }) => {
         editingSectionId.value = "";
         sections.value = sections.value.map((entry) => (entry.id === section.id ? section : entry));
       }),
     toggleSection: ({ section }) => {
       sections.value = sections.value.map((entry) => (entry.id === section.id ? { ...entry, collapsed: !entry.collapsed } : entry));
-      return botsApi.updateSection(section.id, { collapsed: !section.collapsed });
+      return chatsApi.updateSection(section.id, { collapsed: !section.collapsed });
     },
-    moveSection: ({ sectionId, direction }) => botsApi.moveSection(sectionId, direction).then(takeSections),
-    deleteSection: ({ sectionId }) => botsApi.removeSection(sectionId).then(takeSections),
+    moveSection: ({ sectionId, direction }) => chatsApi.moveSection(sectionId, direction).then(takeList),
+    deleteSection: ({ sectionId }) => chatsApi.removeSection(sectionId).then(takeList),
     toggleHidden: () => {
       shellPreferences.hiddenExpanded = !shellPreferences.hiddenExpanded;
     },
-    archiveBot: ({ botId }) => changeArchive(botId, botsApi.archiveBot),
-    unarchiveBot: ({ botId }) => changeArchive(botId, botsApi.unarchiveBot),
     toggleArchived: () => {
       shellPreferences.archivedExpanded = !shellPreferences.archivedExpanded;
+    },
+    // The home's bots (Team and a bot's card): a bot renamed, made the main bot (the old main changes too, so the whole
+    // list is read again), archived or unarchived for everyone (D-108), deleted.
+    renameBot: ({ botId, name }) => botsApi.update(botId, { name }).then(({ bot }) => team.updateBot(bot)),
+    makeMain: ({ botId }) => botsApi.update(botId, { main: true }).then(() => team.loadBots()),
+    archiveBot: ({ botId }) => botsApi.archiveBot(botId).then(({ bot }) => team.updateBot(bot)),
+    unarchiveBot: ({ botId }) => botsApi.unarchiveBot(botId).then(({ bot }) => team.updateBot(bot)),
+    deleteBot: async ({ botId }) => {
+      await botsApi.remove(botId);
+      team.dropBot(botId);
+      // Its direct chats went with it, and it left every other chat.
+      const { chats, startedAt } = await chatsApi.list({ hidden: true, archived: true });
+      const listed = new Set(chats.map((chat) => String(chat.id)));
+      for (const chat of store.chatsNow()) if (!listed.has(chat.id) && !chat.visiting) dropChat(chat.id);
+      store.mergeChats(chats, startedAt);
     },
     // The account menu's support items.
     openShortcuts: () => {
@@ -111,7 +111,7 @@ export function useSidebarCommands({
     try {
       await COMMANDS[name](args);
     } catch (error) {
-      reportFailure(error?.said ? error.message : "That didn't work. Try again.", error);
+      reportFailure(said(name, error) || "That didn't work. Try again.", error);
     }
   }
 

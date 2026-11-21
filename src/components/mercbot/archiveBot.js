@@ -1,17 +1,16 @@
 import { currentLanguage } from "./shellPreferences.js";
 
-// Archiving a whole bot (D-108): put away for everyone in the home in the sidebar's Archived bots, its chats kept and
-// read-only, its routines and watches paused, until someone unarchives it. Who may, the question asked first, and the
-// line an archived bot shows.
+// Archiving a whole bot (D-108, plan 5.1): a member of the home that has left, for everyone in it. It's listed under
+// Archived on Team, stays in its chats without answering, its routines and watches paused, until someone resumes it.
+// Who may, the question asked first, and the lines an archived bot shows.
 
 /**
  * Why the person can't archive the bot, or "" when they can: the server's rule (packages/bots botArchive.js), said
- * before asking, so a menu offers Archive only where it works and Details says why not.
- * @param {{ id: string, name: string, kind?: string, isMain?: boolean, canArchive?: boolean }} bot
+ * before asking, so the card offers Archive only where it works and says why not.
+ * @param {{ id: string, name: string, isMain?: boolean, canArchive?: boolean }} bot
  * @param {string | null} builderId the home's Builder (builderBot.js)
  */
 export function archiveRefusal(bot, builderId) {
-  if (bot.kind === "group") return "A group chat can't be archived. Leave it or delete it instead.";
   if (!bot.canArchive) return `Only the person who made ${bot.name} and the home's owners and admins can archive it.`;
   if (bot.isMain) return `${bot.name} is this home's main bot, so it can't be archived. Make another bot the main bot first.`;
   if (builderId != null && String(builderId) === String(bot.id)) {
@@ -21,15 +20,15 @@ export function archiveRefusal(bot, builderId) {
 }
 
 /**
- * The question before archiving: who it's put away for, what stops, and that it comes back.
+ * The question before archiving: who it leaves, what stops, and that it comes back.
  * @param {{ name: string }} bot
  */
 export function archiveBotQuestion(bot) {
   return {
     title: `Archive ${bot.name}?`,
     text:
-      "It moves to Archived bots for everyone in this home: its chats become read-only, and its routines and watches pause. " +
-      "Nothing is deleted. Whoever made it, or an owner or admin, can unarchive it.",
+      "It leaves the team for everyone in this home. It stays in its chats but no longer answers there, and its routines " +
+      "and watches pause. Nothing is deleted. Whoever made it, or an owner or admin, can resume it.",
     confirmLabel: "Archive"
   };
 }
@@ -43,4 +42,16 @@ export function archiveBotQuestion(bot) {
 export function archivedBotLine(bot, language = currentLanguage()) {
   const day = new Intl.DateTimeFormat(language, { day: "numeric", month: "short", year: "numeric" }).format(new Date(bot.archivedAt));
   return bot.archivedBy ? `Archived by ${bot.archivedBy} on ${day}` : `Archived on ${day}`;
+}
+
+/**
+ * An archived bot's line on Team (plan 4.2): "Bot · left 20 Nov", with the year when it isn't this year's.
+ * @param {{ archivedAt: string }} bot
+ * @param {string} [language] the person's (shellPreferences)
+ * @param {Date} [now]
+ */
+export function leftLine(bot, language = currentLanguage(), now = new Date()) {
+  const at = new Date(bot.archivedAt);
+  const year = at.getFullYear() === now.getFullYear() ? {} : { year: "numeric" };
+  return `Bot · left ${new Intl.DateTimeFormat(language, { day: "numeric", month: "short", ...year }).format(at)}`;
 }
