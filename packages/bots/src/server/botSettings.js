@@ -20,7 +20,7 @@ export function createBotSettings({ records, computer, notices, tellHome, listed
   const { personOf } = createCallerReaders();
 
   /**
-   * Changes a bot: its name (anyone in the home), its additions (its maker and the home's owners and admins: 403 for
+   * Changes a bot: its name and its additions (its maker and the home's owners and admins, as Team offers them: 403 for
    * anyone else) and, with `main`, makes it the home's main bot, the one that's never deleted or archived (the route lets
    * only owners and admins). An archived bot is refused (409): unarchive it first. Answers the bot as Team lists it.
    * @param {{ name?: unknown, additions?: unknown, main?: unknown }} patch
@@ -30,11 +30,17 @@ export function createBotSettings({ records, computer, notices, tellHome, listed
       const bot = await bots.get(botId, txOptions);
       if (bot.archived_at) throw archivedBotRefusal(bot);
       const columns = {};
-      if (patch.name !== undefined) columns.name = cleanName(patch.name);
-      if (patch.additions !== undefined) {
-        if (!mayChangeBot(bot.made_by, personOf(txOptions), txOptions)) {
-          throw new BotsError(403, changeRefusal(bot.name), { code: "bots_additions_forbidden" });
+      const mayChange = mayChangeBot(bot.made_by, personOf(txOptions), txOptions);
+      if (patch.name !== undefined) {
+        if (!mayChange) {
+          throw new BotsError(403, `Only the person who made ${bot.name} and the home's owners and admins can rename it.`, {
+            code: "bots_rename_forbidden"
+          });
         }
+        columns.name = cleanName(patch.name);
+      }
+      if (patch.additions !== undefined) {
+        if (!mayChange) throw new BotsError(403, changeRefusal(bot.name), { code: "bots_additions_forbidden" });
         Object.assign(columns, additionsChange(patch.additions));
       }
       if (patch.main === true && !bot.is_main) {
