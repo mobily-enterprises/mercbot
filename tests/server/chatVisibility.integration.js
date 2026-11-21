@@ -156,3 +156,13 @@ test("the model's reader reads readable_from its chat, whoever asked, and nothin
   assert.deepEqual(await computer.botComputers.queryAll({}, lost), []);
   assert.deepEqual(await integrations.userSkills.queryAll({}, lost), []);
 });
+
+test("a person's chats add archived ones beside the others when asked, and leave them out otherwise", async (context) => {
+  const { records } = await startChatRecords(knex, context);
+  const { homeId, ben, chats } = await rossiHome(knex, context);
+  const as = (userId) => memberOptions({ userId, homeId });
+  await knex("conversations").where({ id: chats.Family.id }).update({ archived_at: new Date() });
+  assert.deepEqual(ids(await records.chats.ofPerson(as(ben))), [chats.Plans.id].map(String), "the list, without the archived chat");
+  // The page always asks for both, and groups the archived ones itself.
+  assert.deepEqual(ids(await records.chats.ofPerson(as(ben), { archived: true })), sorted(chats.Family.id, chats.Plans.id));
+});
