@@ -97,9 +97,10 @@ export const ROUTINE_SEARCH = Object.freeze({
 
 /**
  * The bots' work: requests, routines and request cards.
- * @param {{ botRequests: ResourceHandle, botRoutines: ResourceHandle, botMessages: ResourceHandle }} handles
+ * @param {{ botRequests: ResourceHandle, botRoutines: ResourceHandle, messages: ResourceHandle }} handles the messages
+ *   handle is BotRecordsFeature's `messages`
  */
-export function createWorkRepository({ botRequests, botRoutines, botMessages }) {
+export function createWorkRepository({ botRequests, botRoutines, messages: botMessages }) {
   /** The database's now(), as a write's value. */
   const now = () => botRequests.raw("now()");
 
@@ -194,7 +195,7 @@ export function createWorkRepository({ botRequests, botRoutines, botMessages }) 
   }
 
   /**
-   * Merges `patch` into the body of each request card (bot_messages of kind bot_request): the
+   * Merges `patch` into the body of each card (messages of kind bot_request, or a to-do list): the
    * cards in the asking and the asked bot's chats show the same state. The `changed` trigger moves
    * each card's cursor, so open pages read it again.
    * @param {string[]} messageIds
