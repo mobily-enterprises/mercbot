@@ -199,7 +199,7 @@ async function runCase(name, attempt) {
     for (const file of readdirSync(dirs.mine, { recursive: true }).filter((entry) => entry.endsWith(".fixture"))) renameSync(path.join(dirs.mine, file), path.join(dirs.mine, file.slice(0, -".fixture".length)));
     if (existsSync(path.join(dir, "hidden"))) cpSync(path.join(dir, "hidden"), judgeDir, { recursive: true });
     if (existsSync(path.join(dir, "setup.py"))) spawnSync("python3", [path.join(dir, "setup.py"), dirs.mine, judgeDir], { stdio: "inherit" });
-    const prompt = `The project folder is /files/mine.\n\n${readFileSync(path.join(dir, "prompt.md"), "utf8")}`;
+    const prompt = `The project folder is /files/chat.\n\n${readFileSync(path.join(dir, "prompt.md"), "utf8")}`;
     usage = [];
     const started = Date.now();
     await meter.track({ userId, botId: String(bot.id) }, async () => {
@@ -217,7 +217,7 @@ async function runCase(name, attempt) {
     cpSync(judgeDir, dirs.mine, { recursive: true });
     const judgeFile = readdirSync(dir).find((entry) => entry.startsWith("judge"));
     const command = judgeFile.endsWith(".py") ? `python3 ${judgeFile}` : `node --test ${judgeFile}`;
-    const judged = await shell.start({ place, workspaceId: homeId, botId: bot.id, userId, why: "judge", script: `cd /files/mine && ${command}` });
+    const judged = await shell.start({ place, workspaceId: homeId, botId: bot.id, userId, why: "judge", script: `cd /files/chat && ${command}` });
     const pass = judged.status === "done" && Number(judged.exitCode ?? 0) === 0;
     const tokens = usage.reduce((sum, event) => sum + (event.cacheHit || 0) + (event.cacheMiss || 0) + (event.output || 0), 0);
     const cost = usage.reduce((sum, event) => sum + event.costNano, 0) / 1e9;
