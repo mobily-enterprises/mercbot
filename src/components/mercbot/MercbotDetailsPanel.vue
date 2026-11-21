@@ -9,6 +9,7 @@ import MercbotViewViewer from "@/components/apps/MercbotViewViewer.vue";
 import { fileUrl } from "./filesApi.js";
 import { ownTabOf } from "./openTabs.js";
 import MercbotArchivedList from "./MercbotArchivedList.vue";
+import MercbotBotArchive from "./MercbotBotArchive.vue";
 import MercbotAvatar from "./MercbotAvatar.vue";
 import MercbotConvoAvatar from "./MercbotConvoAvatar.vue";
 import MercbotConfirmDialog from "./MercbotConfirmDialog.vue";
@@ -44,7 +45,7 @@ const props = defineProps({
 });
 const emit = defineEmits([
   "close", "resize", "rename", "changed", "failure", "notify", "messages", "open-computer", "edit-routine", "add-member",
-  "remove-member", "add-person", "remove-person", "sharing", "keep-out", "open-page", "resume-room"
+  "remove-member", "add-person", "remove-person", "sharing", "keep-out", "open-page", "resume-room", "archive-bot", "unarchive-bot"
 ]);
 
 // Who sees what (D-36, D-99): owners and admins choose, after a question; everyone else sees the choice.
@@ -305,7 +306,7 @@ async function openInstructions() {
         <ul class="mb-members">
           <li v-for="member in members" :key="member.id" class="mb-member">
             <MercbotAvatar :bot="member" :size="24" still />
-            <span class="mb-member__name">{{ member.name }}</span>
+            <span class="mb-member__name">{{ member.name }}<span v-if="member.archived" class="mb-member__archived"> · Archived</span></span>
             <!-- The last bot can't be removed: its Remove shows faded and does nothing. -->
             <button
               type="button"
@@ -549,6 +550,8 @@ async function openInstructions() {
         <p v-else class="mb-details__empty">
           Routines are jobs {{ bot.name }} repeats on a schedule. Ask in the chat to set one up, for example a weekly summary.
         </p>
+        <!-- Put away for everyone in the home, and brought back (D-108). -->
+        <MercbotBotArchive v-if="!isGroup" :bot="bot" @archive="emit('archive-bot')" @unarchive="emit('unarchive-bot')" />
       </template>
 
       <template v-else-if="tab === 'library'">

@@ -1,6 +1,6 @@
 import { retryLostInsertRace } from "@jskit-ai/database-runtime/shared";
 import { plainMentions, withMentions } from "./mentions.js";
-import { BotsError } from "./botsError.js";
+import { BotsError, archivedBotRefusal } from "./botsError.js";
 import { cloudShape, messageBody, previewOf, toBot } from "./botRows.js";
 
 /**
@@ -48,6 +48,9 @@ export function createBotGroups({ records, conversations }) {
     return retryLostInsertRace(options, () => store.withTransaction(options, async (txOptions) => {
       const rows = await store.homeBotsOf(ids, txOptions);
       if (rows.length !== ids.length) throw new BotsError(400, "Pick from your own bots.", { code: "bots_group_bot_not_own" });
+      // An archived bot (D-108) joins no group until it's unarchived.
+      const archived = rows.find((row) => row.archived_at);
+      if (archived) throw archivedBotRefusal(archived);
       const picked = ids.map((id) => rows.find((row) => String(row.id) === id));
       const empty = !String(input.text || "").trim() && !input.quotes?.length && !input.attachments?.length;
       const body = empty
@@ -80,6 +83,7 @@ export function createBotGroups({ records, conversations }) {
       // Only a bot of the group's own home, which everyone in the group can use (D-46).
       const [bot] = botId ? await store.homeBotsOf([String(botId)], txOptions) : [];
       if (!bot) throw new BotsError(404, "Bot not found.", { code: "bots_bot_not_found" });
+      if (bot.archived_at) throw archivedBotRefusal(bot);
       const current = await store.groupMembersOf(group.id, txOptions);
       if (!current.some((member) => String(member.botId) === String(bot.id))) {
         if (current.length >= MAX_MEMBERS) {

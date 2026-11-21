@@ -10,6 +10,7 @@ const DEFAULTS = Object.freeze({
   detailsWidth: 320,
   accent: "bot",
   hiddenExpanded: false,
+  archivedExpanded: false,
   detailsTab: "details",
   // Settings: kept on this device and sent with each request that needs them.
   spellcheck: true,
@@ -40,6 +41,7 @@ export const shellPreferences = reactive({
   detailsWidth: Number(stored.detailsWidth) || DEFAULTS.detailsWidth,
   accent: stored.accent === "black" ? "black" : DEFAULTS.accent,
   hiddenExpanded: stored.hiddenExpanded === true,
+  archivedExpanded: stored.archivedExpanded === true,
   detailsTab: ["details", "files", "library", "computer"].includes(stored.detailsTab) ? stored.detailsTab : DEFAULTS.detailsTab,
   spellcheck: stored.spellcheck !== false,
   microphoneId: typeof stored.microphoneId === "string" ? stored.microphoneId : DEFAULTS.microphoneId,

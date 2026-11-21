@@ -270,7 +270,8 @@ export function createMessageRepository({ resources, systemContext }) {
   /** @param {CallOptions} options */
   // Knex: subquery - the ids of the conversations a person searches: their own and the rooms they see, never a group
   // computer's, a shared tab hidden while its bot isn't Shared (D-99) nor an archived one (D-101: an archived "You only"
-  // is always a Shared bot's, as leaving Shared un-archives it), for the search reports below to read inside
+  // is always a Shared bot's, as leaving Shared un-archives it), nor any of an archived bot's (D-108), for the search
+  // reports below to read inside
   async function searchedConversations(options) {
     const { query } = await conversations.scopedQuery({ alias: "c" }, passedOn(options));
     const { query: showing } = await bots.scopedQuery({ alias: "sb" }, passedOn(options));
@@ -278,11 +279,17 @@ export function createMessageRepository({ resources, systemContext }) {
       .select(1)
       .whereColumn(bots.column("id", "sb"), conversations.column("botId", "c"))
       .where((tabs) => tabs.where(bots.column("sharing", "sb"), "shared").orWhere(bots.column("kind", "sb"), "group"));
+    const { query: archivedBot } = await bots.scopedQuery({ alias: "ab" }, passedOn(options));
+    archivedBot
+      .select(1)
+      .whereColumn(bots.column("id", "ab"), conversations.column("botId", "c"))
+      .whereNotNull(bots.column("archivedAt", "ab"));
     return {
       query: query
         .whereNull(conversations.column("groupId", "c"))
         .whereNull(conversations.column("archivedAt", "c"))
         .where((seen) => seen.whereNotNull(conversations.column("userId", "c")).orWhereExists(showing))
+        .whereNotExists(archivedBot)
         .select(conversations.column("id", "c"))
     };
   }

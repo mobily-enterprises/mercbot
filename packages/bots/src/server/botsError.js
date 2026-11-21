@@ -15,4 +15,11 @@ class BotsError extends AppError {
   }
 }
 
-export { BotsError };
+/**
+ * What writing to an archived bot answers (D-108): its chats are read-only until it's unarchived.
+ * @param {{ name: string }} bot
+ */
+const archivedBotRefusal = (bot) =>
+  new BotsError(409, `${bot.name} is archived. Unarchive it to continue.`, { code: "bots_bot_archived", params: { name: bot.name } });
+
+export { BotsError, archivedBotRefusal };

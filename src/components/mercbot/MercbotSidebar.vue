@@ -24,6 +24,7 @@ const props = defineProps({
   drafts: { type: Object, default: () => ({}) },
   moods: { type: Object, default: () => ({}) },
   hiddenExpanded: { type: Boolean, default: false },
+  archivedExpanded: { type: Boolean, default: false },
   editingSectionId: { type: String, default: "" },
   displayName: { type: String, required: true },
   initials: { type: String, required: true },
@@ -68,6 +69,7 @@ const appIcons = ["$calendarToday", "$mail", "$description"];
         :drafts="drafts"
         :moods="moods"
         :hidden-expanded="hiddenExpanded"
+        :archived-expanded="archivedExpanded"
         :editing-section-id="editingSectionId"
         @select="emit('select', $event)"
         @command="emit('command', $event)"

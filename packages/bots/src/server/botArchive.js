@@ -6,18 +6,22 @@ import { createWorkPause } from "./workPause.js";
 const isId = (value) => /^[1-9]\d{0,18}$/u.test(String(value ?? ""));
 
 /**
- * Archiving a conversation that is in the way, and resuming it (D-101): a Shared bot's shared tab, hidden for everyone
- * in the home, or the person's own "You only", hidden for them. While archived nobody sees it, writes there or finds it,
- * its routines and watches pause, and no work runs there (conversations.isHiddenRoom). Resumed, it's back in its place,
- * as it was, and opens. Every method takes the call's options last: the person is its context, never an id it's given.
+ * Archiving what is in the way, and bringing it back. A conversation (D-101): a Shared bot's shared tab, hidden for
+ * everyone in the home, or the person's own "You only", hidden for them; while archived nobody sees it, writes there or
+ * finds it, and resumed it's back in its place, as it was, and opens. A whole bot (D-108): put away for everyone in the
+ * Archived bots section, its chats read-only and found by no search; unarchived, it's back in everyone's sidebar where
+ * they had it. Either way its routines and watches pause, a line where they were naming them, they stay paused when it's
+ * back, no work runs there (conversations.runsNoWork), and the same people may undo it as do it. Every method takes the
+ * call's options last: the person is its context, never an id it's given.
  * @param {object} dependencies
  * @param {import("./types.js").BotRecords} dependencies.records mercbot.bots.records
  * @param {import("./types.js").BotConversations} dependencies.conversations
  * @param {import("@local/apps/server/types").Apps} dependencies.apps
+ * @param {import("@local/computer/server/types").Computer} dependencies.computer an archived bot's computers sleep
  * @param {(botId: string, options: import("./types.js").CallOptions) => Promise<object>} dependencies.listedBot the bot as
  *   the list shows it (botList.js), which every change answers, so the page updates
  */
-export function createBotArchive({ records, conversations, apps, listedBot }) {
+export function createBotArchive({ records, conversations, apps, computer, listedBot }) {
   const { conversations: store, archives, directory } = records;
   const pauseWorkIn = createWorkPause({ records, apps, conversations });
   const notThere = () => new BotsError(404, "That conversation isn't there.", { code: "bots_conversation_not_found" });
@@ -129,9 +133,95 @@ export function createBotArchive({ records, conversations, apps, listedBot }) {
     };
   }
 
+  /**
+   * The bot the person may archive, or with `unarchiving` unarchive (D-108): one of the home's, for whoever made it and
+   * the home's owners and admins (403 for anyone else, decided before anything about the bot is said). A group chat
+   * isn't archived (it's its people's, not the whole home's), nor the home's main bot or its Builder, which others
+   * reach for: another must take their place first.
+   */
+  async function botTarget(botId, options, { unarchiving = false } = {}) {
+    const bot = await store.botOf(botId, options);
+    if (!bot) throw new BotsError(404, "Bot not found.", { code: "bots_bot_not_found" });
+    if (!mayChangeBot(bot.user_id, conversations.personOf(options), options)) {
+      const verb = unarchiving ? "unarchive" : "archive";
+      throw new BotsError(403, `Only the person who made ${bot.name} and the home's owners and admins can ${verb} it.`, {
+        code: "bots_archive_forbidden"
+      });
+    }
+    if (unarchiving) return bot;
+    if (bot.kind === "group") {
+      throw new BotsError(409, "A group chat can't be archived. Leave it or delete it instead.", { code: "bots_archive_group" });
+    }
+    if (bot.is_main) {
+      throw new BotsError(409, `${bot.name} is this home's main bot, so it can't be archived. Make another bot the main bot first.`, {
+        code: "bots_archive_main"
+      });
+    }
+    if (String((await apps.apps.builder(options))?.id) === String(bot.id)) {
+      throw new BotsError(409, `${bot.name} builds this home's apps, so it can't be archived. Choose another Builder in Apps first.`, {
+        code: "bots_archive_builder"
+      });
+    }
+    return bot;
+  }
+
+  /**
+   * Everyone in the home sees the bot go or come back, on any server, and the people of each group it's in see it there.
+   * Archiving posts its "Paused while archived" lines, so it's `messages` news: a page reads the bot and catches up the
+   * chat it has open; unarchiving posts nothing, so it's `changed`.
+   */
+  async function tellBotChanged(bot, options, type = "changed") {
+    await conversations.publish(await conversations.everyoneIn(options), { botId: String(bot.id), type });
+    for (const [groupId, people] of await archives.groupsWith(bot.id, options)) {
+      await conversations.publish(people, { botId: groupId, type: "changed" });
+    }
+  }
+
+  /**
+   * Archives a bot for everyone in the home (D-108): it leaves every sidebar and pin for Archived bots, its routines and
+   * watches in every conversation with it pause, a line there naming them, and its computers go to sleep, so it costs
+   * nothing while it's put away. Its chats, files and each person's pins and section are kept. Archiving one already
+   * archived changes nothing. Answers the bot as listed.
+   */
+  async function archiveBot(botId, options) {
+    const { bot, conversationIds } = await store.withTransaction(options, async (txOptions) => {
+      const found = await botTarget(botId, txOptions);
+      if (!(await archives.markBotArchived(found.id, true, txOptions))) return { bot: found, conversationIds: [] };
+      const ids = await archives.conversationIdsOf(found.id, txOptions);
+      await pauseWorkIn(found, ids, {
+        text: "Paused while archived",
+        detail: (paused) => `${found.name} was archived, so its ${paused} paused. They stay paused when it's unarchived: resume them here.`
+      }, archives.forEveryone(txOptions));
+      return { bot: found, conversationIds: ids };
+    });
+    if (conversationIds.length) {
+      await computer.sleepHome(String(bot.workspace_id), conversationIds)
+        .catch((error) => console.warn("Putting an archived bot's computers to sleep failed; they sleep when idle.", error?.message));
+    }
+    await tellBotChanged(bot, options, "messages");
+    return { bot: await listedBot(String(bot.id), options) };
+  }
+
+  /**
+   * Unarchives a bot (D-108), by the same rule as archiving it: it's back in everyone's sidebar, in the section and pin
+   * each person had it in, with its chats as they were. Its paused routines and watches wait for someone to resume
+   * them, as the line where they paused says. Answers the bot as listed.
+   */
+  async function unarchiveBot(botId, options) {
+    const bot = await store.withTransaction(options, async (txOptions) => {
+      const found = await botTarget(botId, txOptions, { unarchiving: true });
+      await archives.markBotArchived(found.id, false, txOptions);
+      return found;
+    });
+    await tellBotChanged(bot, options);
+    return { bot: await listedBot(String(bot.id), options) };
+  }
+
   return Object.freeze({
     archiveRoom,
     resumeRoom,
-    archivedConversations
+    archivedConversations,
+    archiveBot,
+    unarchiveBot
   });
 }

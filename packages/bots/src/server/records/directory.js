@@ -8,10 +8,13 @@ import { createCallerReaders } from "./recordRows.js";
 // caller sees. Records are { id, ...fields } with string ids. The signatures are frozen.
 
 /** @typedef {import("@jskit-ai/resource-runtime/server/types").ResourceCallOptions} CallOptions */
-/** @typedef {{ id: string, name: string, color: string, shape: string, kind: "bot" | "group", sharing: string, userId: string }} DirectoryBot */
+/**
+ * A bot as the directory answers it; `archivedAt` is when it was archived (D-108), null while it isn't.
+ * @typedef {{ id: string, name: string, color: string, shape: string, kind: "bot" | "group", sharing: string, userId: string, archivedAt: string | null }} DirectoryBot
+ */
 /** @typedef {{ conversationId: string, botId: string, botName: string, botKind: string, botSharing: string, userId: string | null, groupId: string | null, workspaceId: string }} ComputerPlace */
 
-const BOT_FIELDS = Object.freeze(["name", "color", "shape", "kind", "sharing", "userId"]);
+const BOT_FIELDS = Object.freeze(["name", "color", "shape", "kind", "sharing", "userId", "archivedAt"]);
 
 /**
  * @param {Record<string, import("@jskit-ai/resource-runtime/server/types").ResourceHandle>} resources
@@ -27,10 +30,13 @@ export function createBotDirectory(resources, systemContext) {
     (record ? { id: String(record.id), ...Object.fromEntries(BOT_FIELDS.map((field) => [field, record[field]])) } : null);
   const idOrNull = (value) => (value == null ? null : String(value));
 
-  /** The home's bots, not group chats, in id order (apps.js:108-109). */
+  /**
+   * The home's bots, not group chats, in id order (apps.js:108-109), each saying whether it's archived (D-108): an app
+   * still names an archived bot, which its turns never offer to ask.
+   */
   async function listHomeBots(options) {
-    const records = await bots.queryAll({ filters: { kind: "bot" }, sort: ["id"], fields: ["name"] }, passedOn(options));
-    return records.map((record) => ({ id: String(record.id), name: record.name }));
+    const records = await bots.queryAll({ filters: { kind: "bot" }, sort: ["id"], fields: ["name", "archivedAt"] }, passedOn(options));
+    return records.map((record) => ({ id: String(record.id), name: record.name, archived: Boolean(record.archivedAt) }));
   }
 
   /** The home's bots, not group chats, in id order, with how they look: the home's Files page (files registerRoutes.js). */

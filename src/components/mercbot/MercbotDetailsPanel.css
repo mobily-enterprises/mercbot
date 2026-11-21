@@ -300,6 +300,11 @@
   white-space: nowrap;
 }
 
+/* An archived member (D-108) stays in the group and doesn't answer there. */
+.mb-member__archived {
+  color: rgb(var(--v-theme-on-surface-variant));
+}
+
 .mb-member__remove {
   display: none;
   height: 24px;

@@ -13,6 +13,9 @@ export const botResource = defineTableResource({
   schema: {
     // Its own additions to its template, for it alone (D-98): "" when none.
     additions: { type: "string", noTrim: true },
+    // Archived (D-108): since when, null while it isn't, and by whom.
+    archivedAt: { type: "dateTime", nullable: true },
+    archivedBy: { type: "id", nullable: true },
     color: { type: "string", maxLength: 16, noTrim: true, required: true },
     createdAt: { type: "dateTime" },
     // The template it points at (D-98): one of its home's, or one of Mercbot's library by slug; never both.

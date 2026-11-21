@@ -95,6 +95,14 @@ export const BOT_SEARCH = Object.freeze({
   libraryTemplates: Object.freeze({ type: "array", actualField: "libraryTemplate", filterOperator: "in", items: { type: "string" } }),
   // The home's main bot: the one that is replaced when another becomes it.
   isMain: Object.freeze({ type: "boolean", actualField: "isMain" }),
+  // Archived bots (D-108), or those that aren't: an archive or unarchive writes only a bot that isn't one yet.
+  archived: Object.freeze({
+    type: "boolean",
+    applyFilter(query, input, { column }) {
+      if (input) query.whereNotNull(column("archivedAt"));
+      else query.whereNull(column("archivedAt"));
+    }
+  }),
   // A bot named in any case: a bot asks another by name (directory.js botNamed).
   nameInAnyCase: Object.freeze({
     type: "string",

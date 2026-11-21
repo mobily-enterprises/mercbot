@@ -74,8 +74,8 @@ const noticeParts = extensions.shellParts.filter((part) => part.place === "notic
 const dialogParts = extensions.shellParts.filter((part) => part.place !== "notice");
 
 function reportFailure(message, cause) {
-  // Work the copy refused says why (accountApi.js refusedWork).
-  const said = refusedWork(cause) ? cause.message || message : message;
+  // Work the copy refused says why (accountApi.js refusedWork), as does anything written to an archived bot (D-108).
+  const said = refusedWork(cause) || cause?.code === "bots_bot_archived" ? cause.message || message : message;
   errorRuntime.report({ source: "mercbot.chat", message: said, cause, intent: "action-feedback", severity: "error" });
 }
 
@@ -87,7 +87,8 @@ const { geometry, detailsShown, showDetails, closeDetails, drawerOpen, toggleCom
 const sidebarModel = computed(() => buildSidebarModel({
   bots: bots.value,
   sections: sections.value,
-  hiddenExpanded: shellPreferences.hiddenExpanded
+  hiddenExpanded: shellPreferences.hiddenExpanded,
+  archivedExpanded: shellPreferences.archivedExpanded
 }));
 const visualOrder = computed(() => (geometry.value.compact ? railOrder(sidebarModel.value) : sidebarModel.value.visualOrder));
 // A bot still being created (useNewBot) is only its row: it never opens, so nothing asks the server
@@ -276,8 +277,10 @@ function selectBot(id) {
   else router.push({ query });
 }
 
-// On a phone, a dot on the drawer's button says another bot has news (D-36 UX bar).
-const otherNews = computed(() => bots.value.some((bot) => bot.unread && bot.id !== currentBot.value.id));
+// On a phone, a dot on the drawer's button says another bot has news (D-36 UX bar), never an archived one (D-108).
+const otherNews = computed(() => bots.value.some((bot) => bot.unread && !bot.archivedAt && bot.id !== currentBot.value.id));
+// What's offered to pick or go to: never a bot being made, nor an archived one (D-108).
+const pickable = computed(() => bots.value.filter((bot) => !bot.creating && !bot.archivedAt));
 
 function selectIndex(index) {
   const id = visualOrder.value[index];
@@ -354,6 +357,7 @@ watch(() => currentHomeEntry.value?.slug, () => loadBuilderBot(), { immediate: t
         :drafts="drafts"
         :moods="moodByBot"
         :hidden-expanded="shellPreferences.hiddenExpanded"
+        :archived-expanded="shellPreferences.archivedExpanded"
         :editing-section-id="editingSectionId"
         :display-name="displayName"
         :initials="initials"
@@ -385,7 +389,7 @@ watch(() => currentHomeEntry.value?.slug, () => loadBuilderBot(), { immediate: t
         :status="status"
         :status-mood="statusMood"
         :status-bots="statusBots"
-        :picker="picker ? { chosen: pickerBots, candidates: bots.filter((bot) => bot.kind !== 'group' && !bot.creating) } : null"
+        :picker="picker ? { chosen: pickerBots, candidates: pickable.filter((bot) => bot.kind !== 'group') } : null"
         @picker-change="picker = { botIds: $event }"
         @picker-close="picker = null"
         @picker-new-bot="openNewBot($event)"
@@ -400,6 +404,7 @@ watch(() => currentHomeEntry.value?.slug, () => loadBuilderBot(), { immediate: t
         @room-rename="renameRoom"
         @room-archive="archiveRoom"
         @room-resume="resumeRoom"
+        @unarchive="runCommand({ name: 'unarchiveBot', args: { botId: currentBot.id } })"
         @undo-note="undoNote"
         @open-details="showDetails"
         @close-find="findOpen = false"
@@ -439,6 +444,8 @@ watch(() => currentHomeEntry.value?.slug, () => loadBuilderBot(), { immediate: t
         @open-page="showPage"
         @sharing="setSharing"
         @resume-room="resumeRoom"
+        @archive-bot="runCommand({ name: 'archiveBot', args: { botId: currentBot.id } })"
+        @unarchive-bot="runCommand({ name: 'unarchiveBot', args: { botId: currentBot.id } })"
         @keep-out="keepOutOfNotebook"
         @resize="resizeDetails"
         @rename="runCommand({ name: 'renameBot', args: { botId: currentBot.id, name: $event } })"
@@ -483,7 +490,7 @@ watch(() => currentHomeEntry.value?.slug, () => loadBuilderBot(), { immediate: t
     <MercbotAboutDialog v-model="aboutOpen" @failure="reportFailure('Couldn\'t copy to the clipboard.', $event)" />
     <MercbotSearchPalette
       v-model="paletteOpen"
-      :bots="bots.filter((bot) => !bot.creating)"
+      :bots="pickable"
       :current-bot="currentBot"
       :settings-sections="EVERYONE_SECTIONS"
       :theme="themePreference"

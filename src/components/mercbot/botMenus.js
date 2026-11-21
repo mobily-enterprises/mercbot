@@ -1,3 +1,5 @@
+import { archiveRefusal } from "./archiveBot.js";
+
 
 /** "Move to": each section, Unassigned, then Create section. */
 function moveToItems(bot, sections, command) {
@@ -22,19 +24,24 @@ function replaceItems(bot, model, command) {
 }
 
 /**
- * A bot's context menu in the bot list: on a pinned tile, a hidden row or a sidebar row.
- * Each item's `run` emits a command for the shell, or starts a rename or the delete question here.
+ * A bot's context menu in the bot list: on a pinned tile, a hidden row, a sidebar row or an archived row (D-108).
+ * Each item's `run` emits a command for the shell, or starts a rename or the delete or archive question here. Archive
+ * is offered where it would work (archiveRefusal: not a group chat, the main bot or the Builder, and only to its maker
+ * and the home's owners and admins); an archived bot's menu has Unarchive for them instead, and no pin, section or
+ * rename until it's back.
  * @param {{
  *   bot: import("../../types.js").Bot,
- *   place: "tile" | "hidden" | "row",
+ *   place: "tile" | "hidden" | "row" | "archived",
  *   sections: Array<import("../../types.js").BotSection>,
  *   model: import("../../types.js").SidebarModel,
  *   command: (name: string, args?: Record<string, any>) => void,
  *   startRename: (bot: import("../../types.js").Bot) => void,
- *   askDelete: () => void
+ *   askDelete: () => void,
+ *   askArchive?: () => void,
+ *   builderId?: string | null
  * }} menu
  */
-export function botMenuItems({ bot, place, sections, model, command, startRename, askDelete }) {
+export function botMenuItems({ bot, place, sections, model, command, startRename, askDelete, askArchive = () => {}, builderId = null }) {
   const unread = bot.unread
     ? { title: "Mark as read", icon: "$drafts", run: () => command("markRead", { botId: bot.id }) }
     : { title: "Mark as unread", icon: "$markEmailUnread", run: () => command("markUnread", { botId: bot.id }) };
@@ -45,6 +52,15 @@ export function botMenuItems({ bot, place, sections, model, command, startRename
     ? { title: "Replace with a different bot", icon: "$swapHoriz", submenu: replaceItems(bot, model, command) }
     : { title: "Delete", icon: "$delete", danger: true, run: askDelete };
   const hide = { title: "Hide from sidebar", icon: "$visibilityOff", run: () => command("hide", { botId: bot.id }) };
+  const archive = archiveRefusal(bot, builderId) ? [] : [{ title: "Archive", icon: "$archive", run: askArchive }];
+  if (place === "archived") {
+    return [
+      ...(bot.canArchive ? [{ title: "Unarchive", icon: "$unarchive", run: () => command("unarchiveBot", { botId: bot.id }) }, { divider: true }] : []),
+      copy,
+      { divider: true },
+      remove
+    ];
+  }
   if (place === "tile") {
     return [
       { title: "Unpin", icon: "$keepOff", run: () => command("unpin", { botId: bot.id }) },
@@ -53,6 +69,7 @@ export function botMenuItems({ bot, place, sections, model, command, startRename
       copy,
       { divider: true },
       hide,
+      ...archive,
       remove
     ];
   }
@@ -64,6 +81,7 @@ export function botMenuItems({ bot, place, sections, model, command, startRename
       copy,
       { divider: true },
       { title: "Show in sidebar", icon: "$visibility", run: () => command("show", { botId: bot.id }) },
+      ...archive,
       remove
     ];
   }
@@ -78,6 +96,7 @@ export function botMenuItems({ bot, place, sections, model, command, startRename
     copy,
     { divider: true },
     hide,
+    ...archive,
     remove
   ];
 }

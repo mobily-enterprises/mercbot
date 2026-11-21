@@ -10,12 +10,14 @@ import { ONBOARDING_TIMING, botsApi } from "./botsApi.js";
  */
 export function useOnboarding({ currentBot, store, focusComposer, reportFailure }) {
   let onboardingTimer = null;
-  const onboardingTiming = computed(() => ONBOARDING_TIMING[currentBot.value.onboardingStep] || null);
+  // An archived bot's onboarding waits until it's unarchived (D-108): its chat is read-only.
+  const stepOf = (bot) => (bot.archivedAt ? null : bot.onboardingStep);
+  const onboardingTiming = computed(() => ONBOARDING_TIMING[stepOf(currentBot.value)] || null);
 
   function scheduleOnboarding() {
     clearTimeout(onboardingTimer);
     const bot = currentBot.value;
-    const timing = ONBOARDING_TIMING[bot.onboardingStep];
+    const timing = ONBOARDING_TIMING[stepOf(bot)];
     if (!timing) return;
     const step = bot.onboardingStep;
     onboardingTimer = setTimeout(async () => {
@@ -31,7 +33,7 @@ export function useOnboarding({ currentBot, store, focusComposer, reportFailure 
 
   // A chat that doesn't load says so like any other failure. Left to Vue, it would be a modal that
   // takes every click on the page until it's closed.
-  watch(() => [currentBot.value.id, currentBot.value.onboardingStep], async () => {
+  watch(() => [currentBot.value.id, stepOf(currentBot.value)], async () => {
     try {
       await store.loadMessages(currentBot.value.id);
     } catch (error) {
@@ -39,7 +41,7 @@ export function useOnboarding({ currentBot, store, focusComposer, reportFailure 
       return;
     }
     scheduleOnboarding();
-    if (currentBot.value.onboardingStep === "ask-name") focusComposer();
+    if (stepOf(currentBot.value) === "ask-name") focusComposer();
   }, { immediate: true });
   onBeforeUnmount(() => clearTimeout(onboardingTimer));
 

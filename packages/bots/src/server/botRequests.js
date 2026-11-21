@@ -116,6 +116,10 @@ export function createBotRequests({
     // Another bot of the home (not a group chat) with this name, in any case.
     const target = await directory.botNamed(name, options, { except: fromRow.id });
     if (!target) return { error: `There's no other bot called "${name}" in this home.` };
+    // An archived bot takes no requests (D-108) until someone unarchives it.
+    if (target.archivedAt) {
+      return { error: `${target.name} is archived, so it can't be asked. Someone can unarchive it from Archived bots in the sidebar.` };
+    }
     const depth = parent ? parent.depth + 1 : 0;
     if (depth > limits.depth) {
       return { error: "This job has already been passed on as far as it can go. Do it yourself, or tell the person what's needed." };

@@ -168,7 +168,7 @@ defineExpose({ back, add });
                 type="checkbox"
                 :checked="!bot.inHome && !unticked.has(bot.slug)"
                 :disabled="bot.inHome || busy"
-                :aria-label="bot.inHome ? `${bot.name}, already in this home` : `Add ${bot.name}`"
+                :aria-label="bot.inHome ? `${bot.name}, ${bot.archivedInHome ? 'archived' : 'already'} in this home` : `Add ${bot.name}`"
                 @change="tick(bot.slug)"
               >
               <MercbotAvatar :bot="{ id: `team-${bot.slug}`, name: bot.name, color: bot.color, shape: bot.shape }" :size="40" still />
@@ -176,7 +176,8 @@ defineExpose({ back, add });
                 <span class="mb-team__head">
                   <strong>{{ bot.name }}</strong>
                   <MercbotTemplateTag :bot="tagOf(bot)" :tooltip="false" />
-                  <span v-if="bot.inHome" class="mb-team__in">Already in this home</span>
+                  <!-- One that's archived (D-108) is still in the home: unarchiving it brings it back. -->
+                  <span v-if="bot.inHome" class="mb-team__in">{{ bot.archivedInHome ? "Archived in this home" : "Already in this home" }}</span>
                 </span>
                 <span class="mb-team__line">{{ bot.description }}</span>
               </span>

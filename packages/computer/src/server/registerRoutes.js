@@ -60,10 +60,15 @@ export function registerRoutes(http, { computer, files, directory, streams, mete
   }
 
   /**
-   * A paused home wakes no computer (D-73): the answer says why. One already awake stays
-   * as it is, for the work running on it.
+   * A paused home wakes no computer (D-73), nor does an archived bot (D-108), whose computers were put to sleep: the
+   * answer says why. One already awake in a paused home stays as it is, for the work running on it.
    */
   async function refusedWhilePaused(request, reply, computerId) {
+    const bot = await botOf(request, await request.callOptions());
+    if (bot?.archivedAt) {
+      reply.code(409).send({ error: `${bot.name} is archived. Unarchive it to use its computer.`, code: "bots_bot_archived", params: { name: bot.name } });
+      return true;
+    }
     const paused = await meter.pausedMessage(request.workspace.id);
     if (!paused || (await computer.status(computerId))?.state === "awake") return false;
     reply.code(402).send({ error: paused, code: "work_paused" });

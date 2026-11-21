@@ -2965,3 +2965,45 @@ specific about an industry."
   `tests/e2e/knowledge.spec.ts` (the empty sentence, text in mind and a long guide searched, each answered by the
   stand-in model with its source, a file uploaded and a failed one, screenshots at desktop and phone width, light and
   dark).
+
+## D-108 — A whole bot can be archived, and unarchived as it was (2026-11-21)
+
+Amends D-101 (archiving a conversation), whose pause, line and rule for who may it reuses. The owner's decision: a home
+gathers bots it has finished with, and deleting one loses its chats, so a whole bot can be archived: put away for
+everyone in the home, its chats kept, with nothing running or costing, until someone unarchives it, as it was. It is
+home-wide throughout and depends on no bot's mode, so the rebuild where chats are the core can take it over as a
+member leaving the home.
+- **Who.** The person who made the bot and the home's owners and admins (`mayChangeBot`, as D-101), to archive and to
+  unarchive, so a member can't undo an admin's archive; anyone else gets 403, another home's bot 404, decided from the
+  call's person before anything about the bot is said. Not archived: a group chat (its people's, not the home's: leave
+  or delete it), the home's main bot and its Builder, which others reach for; each says so and how to change it ("Make
+  another bot the main bot first.", "Choose another Builder in Apps first."). A bot an app button hands tasks to isn't
+  refused: the button says it's archived when pressed, and an archived bot can't be made the Builder.
+- **Where.** A bot's sidebar menu (Archive, where it would work) and Details → **Archive**, after the question
+  "Archive <bot>? It moves to Archived bots for everyone in this home: its chats become read-only, and its routines and
+  watches pause. Nothing is deleted. Whoever made it, or an owner or admin, can unarchive it."; Unarchive in its menu in
+  Archived bots, on its chat's banner and in Details.
+- **While archived.** It leaves every person's pins and sections for **Archived bots**, collapsed, at the bottom of the
+  sidebar (desktop and phone's drawer), each saying "Archived by <who> on <day>". Its chats are read-only: a banner
+  stands where the composer was, and every write to it but archive, unarchive, delete, removing it from a group and the
+  reads opening it sends is refused, 409 `bots_bot_archived`. No work runs in any conversation with it (one rule,
+  `runsNoWork`, beside D-101's `isHiddenRoom`); its routines and watches pause with D-101's "Paused while archived"
+  line. It costs nothing: its awake computers go to sleep and don't wake (no other per-bot daily charge exists). It
+  isn't offered in To:, @-mentions, group pickers, other bots' requests, joining in or Ctrl+K, and search leaves its
+  chats out, as D-101's "nobody finds it". In a group chat it stays, shown as archived, and never answers, even named. A
+  team counts it as already in the home ("Archived in this home") and doesn't add another: unarchive it instead.
+- **Unarchive** brings it back for everyone where each person had it (pins and sections live on each person's own row
+  and are never touched), with its chats as they were. Its routines and watches stay paused until someone switches
+  them on, as the line says, so nothing starts again unexpectedly.
+- **Every open screen** hears it through the `bots` topic, to everyone in the home: archiving is `messages` news (its
+  lines were posted, so a page reads the bot and catches up the chat it has open), unarchiving `changed`; each group
+  it's in tells its people `changed`.
+- **Data and reads.** `bots` gains `archived_at` and `archived_by` (→ users, ON DELETE SET NULL), expand only, null on
+  every existing row. `POST …/bots/:botId/archive` and `…/unarchive` answer the bot as listed; the list's
+  `archivedAt`, `archivedBy` and `canArchive` come in the same statements however many bots are archived.
+- **Proved by** `tests/server/archiveBots.integration.js` (who may and what's refused, read-only, every person's work
+  paused and staying paused, computers put to sleep, groups, other bots, search and teams, the news, the list's
+  statements at 2 and 12 archived bots), `tests/server/botsRouteGuard.test.js` (the routes and the computer's),
+  `tests/server/appsHandoff.integration.js` (an app button and the Builder), `tests/client/archiveBots.vitest.js` (the
+  sidebar's Archived bots, menus, question, line, commands, banner and pickers) and `tests/e2e/archive-bots.spec.ts`
+  (archived from its menu, another open page following at once, unarchived back in its section, light, dark and phone).

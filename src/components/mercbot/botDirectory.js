@@ -2,10 +2,14 @@
 const byActivity = (a, b) => (b.lastActivityAt || "").localeCompare(a.lastActivityAt || "") || Number(b.id) - Number(a.id);
 
 /**
- * The sidebar's layout: pinned tiles, rows grouped by section, hidden bots, and their visual order.
- * @param {{ bots: Array<import("../../types.js").Bot>, sections: Array<import("../../types.js").BotSection>, hiddenExpanded?: boolean }} options
+ * The sidebar's layout: pinned tiles, rows grouped by section, hidden bots, archived bots, and their visual order. An
+ * archived bot (D-108) is in Archived bots alone, newest archived first, whatever its pin, section or hidden state,
+ * which come back when it's unarchived.
+ * @param {{ bots: Array<import("../../types.js").Bot>, sections: Array<import("../../types.js").BotSection>, hiddenExpanded?: boolean, archivedExpanded?: boolean }} options
  */
-export function buildSidebarModel({ bots, sections, hiddenExpanded = false }) {
+export function buildSidebarModel({ bots: all, sections, hiddenExpanded = false, archivedExpanded = false }) {
+  const bots = all.filter((bot) => !bot.archivedAt);
+  const archived = all.filter((bot) => bot.archivedAt).sort((a, b) => b.archivedAt.localeCompare(a.archivedAt) || Number(b.id) - Number(a.id));
   const visible = bots.filter((bot) => !bot.hidden);
   const tiles = visible.filter((bot) => bot.pinPosition !== null).sort((a, b) => a.pinPosition - b.pinPosition);
   const unpinned = visible.filter((bot) => bot.pinPosition === null).sort(byActivity);
@@ -25,9 +29,10 @@ export function buildSidebarModel({ bots, sections, hiddenExpanded = false }) {
   const visualOrder = [
     ...tiles,
     ...groups.flatMap((group) => (group.section?.collapsed ? [] : group.bots)),
-    ...(hiddenExpanded ? hidden : [])
+    ...(hiddenExpanded ? hidden : []),
+    ...(archivedExpanded ? archived : [])
   ].map((bot) => bot.id);
-  return { tiles, groups, hidden, visualOrder };
+  return { tiles, groups, hidden, archived, visualOrder };
 }
 
 // The compact rail: pinned avatars, then each group's avatars, with a divider between

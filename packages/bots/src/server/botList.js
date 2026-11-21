@@ -102,9 +102,18 @@ export function createBotList({ records, conversations, homeDefaults, templates 
     const groupIds = rows.filter((row) => row.kind === "group").map((row) => row.id);
     const members = await conversations.membersOf(groupIds, options);
     const people = await conversations.peopleOf(groupIds, options);
+    // Who archived each archived bot (D-108), "you" for the person: one read of the others' names, however many.
+    const archivers = [...new Set(rows.filter((row) => row.archived_at && row.archived_by != null).map((row) => String(row.archived_by)))]
+      .filter((id) => id !== person);
+    const archiverNames = archivers.length ? await conversations.namesOf(archivers, options) : new Map();
+    const archivedBy = (id) => (id == null ? null : String(id) === person ? "you" : archiverNames.get(String(id)) || "Someone");
     return {
       bots: entries.map(({ row, tabs, archived = 0 }) => ({
         ...toBot(row),
+        // Whether the person may archive it and unarchive it (D-108): its maker and the home's owners and admins. The
+        // main bot and the Builder aren't archived either way; the page says why.
+        canArchive: row.kind !== "group" && mayChangeBot(row.created_by, person, options),
+        ...(row.archived_at ? { archivedBy: archivedBy(row.archived_by) } : {}),
         ...(row.kind === "group" ? { members: members.get(String(row.id)) || [], people: people.get(String(row.id)) || [] } : {}),
         // A Shared bot nobody has opened since it became Shared has no tabs yet: its first look opens General.
         ...(row.kind !== "group" && !tabs ? { roomId: null } : {}),

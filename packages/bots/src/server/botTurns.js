@@ -167,7 +167,8 @@ export function createBotTurns({
     const sharedTabs = !row.room && row.kind !== "group" && row.sharing === "shared"
       ? (await conversations.roomsOf(row.id, call)).filter((room) => !room.archived_at).map((room) => `"${room.title}"`)
       : null;
-    const otherBots = (await records.directory.listHomeBots(call)).filter((bot) => String(bot.id) !== String(row.id));
+    // An archived bot (D-108) isn't offered: it takes no requests.
+    const otherBots = (await records.directory.listHomeBots(call)).filter((bot) => String(bot.id) !== String(row.id) && !bot.archived);
     const approvals = history
       .filter(
         (message) => message.kind === "choice" && message.body.purpose === "approval" && !message.body.chosen && !message.body.inactive

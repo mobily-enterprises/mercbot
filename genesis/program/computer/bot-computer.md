@@ -144,7 +144,10 @@ window closed at once. `tests/server/xtermWindow.test.js` starts one there with 
 `POST /api/bots/:botId/computer/open` (`{path}`, a bot path) wakes the computer
 where it runs (the `open` operation is forwarded like the others) and opens that
 file in its app; the viewer's "Edit on computer" calls it, then opens the live
-view in control.
+view in control. An archived bot's computer (D-108) neither wakes nor opens a file: both answer 409
+`bots_bot_archived` ("<bot> is archived. Unarchive it to use its computer."), and archiving puts its awake computers to
+sleep through the capability's `sleepHome(home, among)`, which with `among` sleeps only those computers (without it,
+every computer of the home, as a move of its files does, D-80).
 
 **Coding tools (`codingRuns.js`, `codingSandbox.js`, D-77).** Claude Code and
 Codex CLI, pinned in `scripts/coding-tools` (npm lock with integrity) and installed by

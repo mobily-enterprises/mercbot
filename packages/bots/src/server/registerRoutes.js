@@ -2,7 +2,7 @@ import { hasPermission } from "@jskit-ai/kernel/shared/support";
 import { checkRouteVisibility } from "@jskit-ai/kernel/shared/support/visibility";
 import { refusalOf } from "@local/account/meter";
 import { KNOWLEDGE_LIMITS } from "./botKnowledge.js";
-import { BotsError } from "./botsError.js";
+import { BotsError, archivedBotRefusal } from "./botsError.js";
 import { isModelFailure, modelFailure } from "./modelFailures.js";
 
 /**
@@ -55,24 +55,30 @@ export function registerRoutes(http, { bots, approvals, notices, meter, records,
   /**
    * A bot or group in the address must be one the person sees in that same home, whatever its id:
    * one check for every route, so a member of one home can't reach another home's bots by their
-   * numbers, nor a group chat they aren't in.
+   * numbers, nor a group chat they aren't in. An archived bot (D-108) is read-only: only a route that says it
+   * takes one (`archived`) changes anything about it.
    */
-  async function guard(request, options) {
+  async function guard(request, options, { archived = false } = {}) {
     const { botId, groupId } = request.params || {};
     const id = String(botId || groupId || "");
     if (!id) return;
-    if (/^[1-9]\d{0,18}$/u.test(id) && (await records.directory.findBot(id, options))) return;
+    const bot = /^[1-9]\d{0,18}$/u.test(id) ? await records.directory.findBot(id, options) : null;
+    if (bot?.archivedAt && request.method !== "GET" && !archived) throw archivedBotRefusal(bot);
+    if (bot) return;
     if (botId) throw new BotsError(404, "Bot not found.", { code: "bots_bot_not_found" });
     throw new BotsError(404, "Group not found.", { code: "bots_group_not_found" });
   }
 
-  /** A route's work, given the request, its person and home, and the call options its reads and writes use. */
-  function handle(work) {
+  /**
+   * A route's work, given the request, its person and home, and the call options its reads and writes use. `archived`
+   * lets it change an archived bot (guard).
+   */
+  function handle(work, { archived = false } = {}) {
     return async function (request, reply) {
       try {
         const user = userOf(request);
         const options = await request.callOptions();
-        await guard(request, options);
+        await guard(request, options, { archived });
         // AI calls made for this request are recorded for its person, bot and home (D-73).
         const who = { userId: user.id, botId: request.params?.botId, workspaceId: request.workspace?.id };
         reply.code(200).send(await meter.track(who, () => work(request, user, options)));
@@ -231,7 +237,7 @@ export function registerRoutes(http, { bots, approvals, notices, meter, records,
   router.register("POST", "/api/w/:workspaceSlug/groups/:groupId/members", auth, handle(async (request, _user, options) =>
     bots.addMember(request.params.groupId, request.body?.botId, options)));
   router.register("DELETE", "/api/w/:workspaceSlug/groups/:groupId/members/:botId", auth, handle(async (request, _user, options) =>
-    bots.removeMember(request.params.groupId, request.params.botId, options)));
+    bots.removeMember(request.params.groupId, request.params.botId, options), { archived: true }));
   // People in a group (D-46): anyone in it adds; its maker, owners and admins remove; anyone leaves.
   router.register("POST", "/api/w/:workspaceSlug/groups/:groupId/people", auth, handle(async (request, _user, options) =>
     bots.addPerson(request.params.groupId, String(request.body?.userId || ""), options)));
@@ -282,7 +288,7 @@ export function registerRoutes(http, { bots, approvals, notices, meter, records,
       throw new BotsError(403, "Only the home's owners and admins can replace the main bot.", { code: "bots_main_bot_manage_forbidden" });
     }
     return { bot: await bots.updateBot(request.params.botId, request.body || {}, options) };
-  }));
+  }, { archived: true }));
   // A mixed bot's home notebook (D-36): everyone reads it, a page at a time (?after= the page before's
   // next); a note's author, owners and admins remove notes.
   router.register("GET", "/api/w/:workspaceSlug/bots/:botId/notebook", auth, handle(async (request, _user, options) =>
@@ -304,8 +310,14 @@ export function registerRoutes(http, { bots, approvals, notices, meter, records,
     bots.resumeRoom(request.params.botId, request.params.roomId, options)));
   router.register("GET", "/api/w/:workspaceSlug/bots/:botId/archived", auth, handle(async (request, _user, options) =>
     bots.archivedConversations(request.params.botId, options)));
+  // A whole bot archived and unarchived for everyone in the home (D-108), by whoever made it and the home's owners and
+  // admins. Each answers the bot as listed.
+  router.register("POST", "/api/w/:workspaceSlug/bots/:botId/archive", auth, handle(async (request, _user, options) =>
+    bots.archiveBot(request.params.botId, options), { archived: true }));
+  router.register("POST", "/api/w/:workspaceSlug/bots/:botId/unarchive", auth, handle(async (request, _user, options) =>
+    bots.unarchiveBot(request.params.botId, options), { archived: true }));
   router.register("DELETE", "/api/w/:workspaceSlug/bots/:botId", auth, handle(async (request, _user, options) =>
-    bots.deleteBot(request.params.botId, options)));
+    bots.deleteBot(request.params.botId, options), { archived: true }));
   // A bot's template and additions (D-98), for its Details panel's Instructions; PATCH …/bots/:botId changes its
   // additions, and PUT …/template points it at another template ({ library: slug } or { home: id }), or at a new one of
   // the home's made from a draft ({ draft, foldAdditions }).

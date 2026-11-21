@@ -116,6 +116,8 @@ const ComputerFeature = defineFeature({
       sweepFiles: computers.sweepFiles,
       wake: computers.wake,
       sleep: computers.sleep,
+      // An archived bot's computers go to sleep (D-108).
+      sleepHome: computers.sleepHome,
       reset: computers.reset,
       browse: computers.browse,
       act: computers.act,

@@ -18,6 +18,7 @@ import { shellPreferences } from "./shellPreferences.js";
 import MercbotIconButton from "./MercbotIconButton.vue";
 import MercbotTimeline from "./MercbotTimeline.vue";
 import MercbotRoomTabs from "./MercbotRoomTabs.vue";
+import MercbotArchivedBotBanner from "./MercbotArchivedBotBanner.vue";
 import MercbotPageView from "./MercbotPageView.vue";
 
 // Chat panel: timeline, composer, find in chat, add selection, mic errors.
@@ -51,7 +52,8 @@ const emit = defineEmits([
   "open-details", "close-find", "voice-ended", "send", "choose", "connect",
   "react", "copy", "copy-image", "retry", "teach", "update:draft", "answer",
   "take-over", "use-computer", "secure-form", "settle-draft", "manage-rules", "settle-handover", "open-skill", "open-bot", "cancel-request", "picker-change", "picker-close", "picker-new-bot", "picker-start",
-  "failure", "room-select", "room-create", "room-rename", "room-archive", "room-resume", "undo-note", "open-page", "close-page"
+  "failure", "room-select", "room-create", "room-rename", "room-archive", "room-resume", "undo-note", "open-page", "close-page",
+  "unarchive"
 ]);
 
 // A shared bot's open tab, and the one it continues from (D-36).
@@ -141,7 +143,8 @@ watch(() => props.bot.id, () => {
 const group = computed(() => props.bot.kind === "group" || Boolean(props.picker));
 // In a group, and while picking with bots chosen, the mic is the round accent button.
 const filledMic = computed(() => (props.picker ? props.picker.chosen.length > 0 : props.bot.kind === "group") && !hasContent.value);
-const groupBots = computed(() => (props.picker ? props.picker.chosen : props.bot.members || []));
+// An archived member (D-108) isn't offered to @-mention: it doesn't answer.
+const groupBots = computed(() => (props.picker ? props.picker.chosen : (props.bot.members || []).filter((member) => !member.archived)));
 const composerTokens = useComposerTokens({ draft, input, group, groupBots, botId: () => props.bot.id });
 const { tokens, mention, slash, skillRows, mentionRows, updateMention, insertSkill, insertMention, snapCaret, mirrorParts, withMarkers } = composerTokens;
 
@@ -390,7 +393,9 @@ defineExpose({ focusComposer, addSelection, startReply, toggleDictation, dictati
       </div>
 
       <slot name="notice" />
-      <div class="mb-composer" :class="{ 'mb-composer--focused': composerFocused, 'mb-composer--stacked': stacked }">
+      <!-- An archived bot's chats are read-only (D-108): its banner stands where the composer was. -->
+      <MercbotArchivedBotBanner v-if="bot.archivedAt && !picker" :bot="bot" @unarchive="emit('unarchive')" />
+      <div v-else class="mb-composer" :class="{ 'mb-composer--focused': composerFocused, 'mb-composer--stacked': stacked }">
         <div v-if="replyTarget" class="mb-composer__reply">
           <span class="mb-composer__reply-text">{{ replyTarget.text }}</span>
           <button type="button" class="mb-composer__remove" aria-label="Stop replying" @click="replyTarget = null">

@@ -74,15 +74,20 @@ export function createNewBotRepository({ resources, systemContext, homeTemplates
 
   /**
    * Which of Mercbot's templates the home's bots already follow, among the slugs given (D-105): what a team doesn't
-   * add again. One read, whatever the number of bots.
+   * add again. Each says whether every bot following it is archived (D-108): an archived bot is still in the home, and
+   * the team says so rather than adding another. One read, whatever the number of bots.
    * @param {string[]} slugs
    * @param {CallOptions} options
-   * @returns {Promise<Set<string>>}
+   * @returns {Promise<Map<string, boolean>>} slug → whether all its bots are archived
    */
   async function followedOf(slugs, options) {
-    if (!slugs.length) return new Set();
-    const records = await bots.queryAll({ filters: { libraryTemplates: slugs }, fields: ["libraryTemplate"] }, passedOn(options));
-    return new Set(records.map((record) => record.libraryTemplate));
+    if (!slugs.length) return new Map();
+    const records = await bots.queryAll({ filters: { libraryTemplates: slugs }, fields: ["libraryTemplate", "archivedAt"] }, passedOn(options));
+    const followed = new Map();
+    for (const record of records) {
+      followed.set(record.libraryTemplate, (followed.get(record.libraryTemplate) ?? true) && Boolean(record.archivedAt));
+    }
+    return followed;
   }
 
   /**

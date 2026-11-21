@@ -418,6 +418,13 @@ export function createRuntime({ apps, gate, scripts, practices }) {
       } else if (kind === "askBot") {
         const bot = await apps.botOf(step.askBot.bot, ctx.options);
         if (!bot) throw new GateError(409, "That bot no longer exists.", { code: "apps_bot_gone" });
+        // An archived bot takes no tasks (D-108) until someone unarchives it.
+        if (bot.archivedAt) {
+          throw new GateError(409, `${bot.name} is archived, so it can't take this task. Someone can unarchive it from Archived bots in the sidebar.`, {
+            code: "apps_bot_archived",
+            params: { name: bot.name }
+          });
+        }
         handoffs.push({ bot, task: String(evaluate(step.askBot.task) ?? "").slice(0, 2000) });
         if (!dryRun && !practice) effects.push({ notify: `Sent to ${bot.name}` });
       }

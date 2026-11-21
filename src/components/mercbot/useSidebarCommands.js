@@ -32,6 +32,17 @@ export function useSidebarCommands({
     sections.value = result.sections;
   };
 
+  // A bot archived or unarchived for everyone (D-108): the bot as the server lists it now, or the server's reason it
+  // can't be (it's the main bot or the Builder, or the person didn't make it), which the command throws as said.
+  async function changeArchive(botId, call) {
+    try {
+      store.updateBot((await call(botId)).bot);
+    } catch (error) {
+      if ([403, 404, 409].includes(error?.status) && error.message) throw Object.assign(new Error(error.message), { said: true });
+      throw error;
+    }
+  }
+
   const COMMANDS = {
     pin: ({ botId }) => setBot(botId, { pinned: true }),
     unpin: ({ botId }) => setBot(botId, { pinned: false }),
@@ -80,6 +91,11 @@ export function useSidebarCommands({
     toggleHidden: () => {
       shellPreferences.hiddenExpanded = !shellPreferences.hiddenExpanded;
     },
+    archiveBot: ({ botId }) => changeArchive(botId, botsApi.archiveBot),
+    unarchiveBot: ({ botId }) => changeArchive(botId, botsApi.unarchiveBot),
+    toggleArchived: () => {
+      shellPreferences.archivedExpanded = !shellPreferences.archivedExpanded;
+    },
     // The account menu's support items.
     openShortcuts: () => {
       open.shortcuts.value = true;
@@ -95,7 +111,7 @@ export function useSidebarCommands({
     try {
       await COMMANDS[name](args);
     } catch (error) {
-      reportFailure("That didn't work. Try again.", error);
+      reportFailure(error?.said ? error.message : "That didn't work. Try again.", error);
     }
   }
 

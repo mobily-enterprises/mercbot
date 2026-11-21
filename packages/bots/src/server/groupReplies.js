@@ -24,14 +24,16 @@ export function createGroupReplies({ records, computer, conversations, chatHisto
 
   async function replyInGroup(row, person, timeZone, call) {
     const groupId = String(row.id);
-    const members = (await conversations.membersOf([row.id], call)).get(groupId) || [];
+    const everyMember = (await conversations.membersOf([row.id], call)).get(groupId) || [];
+    // An archived member (D-108) stays in the group, shown as archived, but doesn't answer there, even when named.
+    const members = everyMember.filter((member) => !member.archived);
     // Only the last person's message and the last turn decide who speaks: two rows, not the whole chat.
     const latest = async (filters) => {
       const found = await records.turns.latestMessage(row.conversation_id, filters, call);
       return found ? { ...found, body: found.body || {} } : undefined;
     };
     const asked = await latest({ role: "user", kind: "text" });
-    const named = mentionsIn(asked?.body.text).filter((id) => members.some((member) => member.id === id));
+    const named = mentionsIn(asked?.body.text).filter((id) => everyMember.some((member) => member.id === id));
     const everyone = Boolean(asked?.body.text?.includes("<@everyone>"));
     // With several people, bots answer only when someone names them (or everyone), so people can
     // talk among themselves (D-46); alone with its bots, a person hears from all of them.

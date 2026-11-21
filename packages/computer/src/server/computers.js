@@ -578,12 +578,18 @@ export function createComputers({
   const sleep = (computerId) => run("sleep", computerId);
 
   /**
-   * Puts the home's awake computers to sleep, wherever they run, when a move of its files starts (D-80): their
-   * folders were opened for writing, and the files are read-only until the move is done.
+   * Puts the home's awake computers to sleep, wherever they run: all of them when a move of its files starts (D-80),
+   * as their folders were opened for writing and the files are read-only until the move is done; with `among`, only
+   * those of its computers, such as an archived bot's (D-108), so none of them counts a computer day while it's put away.
+   * One read of the home's awake computers, however many are asked for.
+   * @param {string} homeId
+   * @param {string[] | null} [among] computer ids (conversation ids)
    */
-  async function sleepHome(homeId) {
+  async function sleepHome(homeId, among = null) {
+    const only = among && new Set(among.map(String));
     for (const computerId of await records.awakeInHome(homeId)) {
-      await sleep(computerId).catch((error) => console.warn(`Putting computer ${computerId} to sleep for a move of its home's files failed.`, error?.message));
+      if (only && !only.has(computerId)) continue;
+      await sleep(computerId).catch((error) => console.warn(`Putting computer ${computerId} to sleep failed.`, error?.message));
     }
   }
 

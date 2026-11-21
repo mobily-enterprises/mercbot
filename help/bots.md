@@ -150,7 +150,7 @@ Each **Draft it**, **Start from this bot**, ticking **Fold in** and **Ask for ch
 
 ## Organise the sidebar
 
-The sidebar lists your bots in three parts: pinned tiles at the top, then rows (grouped into your own sections if you have any), then **Hidden bots** at the bottom. Rows are sorted by latest activity, so the bot that last did something is at the top. A dot marks a bot with something you haven't read, and an unsent draft stays with each bot on your device.
+The sidebar lists your bots in four parts: pinned tiles at the top, then rows (grouped into your own sections if you have any), then **Hidden bots**, then **Archived bots** at the bottom when the home has any. Rows are sorted by latest activity, so the bot that last did something is at the top. A dot marks a bot with something you haven't read, and an unsent draft stays with each bot on your device.
 
 Right-click a bot to:
 
@@ -161,13 +161,14 @@ Right-click a bot to:
 | **Move to new section** / **Create section** | Makes a new section with this bot in it. |
 | **Mark as unread** / **Mark as read** | Flags a bot to come back to, or clears the flag. |
 | **Hide from sidebar** | Moves the bot to Hidden bots. **Show in sidebar** brings it back. |
+| **Archive** | Puts the bot away for everyone in the home, after you confirm. See [Archive a bot](#archive-a-bot). |
 | **Delete** | Removes the bot, after you confirm. |
 
 You can also drag a bot between sections. Right-click a section's name to **Rename** it, **Move up**, **Move down** or **Delete** it. Deleting a section doesn't delete its bots; they go back to Unassigned. Select a section's name to fold it away.
 
 Pins, sections, hidden bots and unread marks are yours alone. Other people in your home organise their own sidebars.
 
-To jump between bots, press **Ctrl+Alt+1** to **9** for the bots in sidebar order, **Alt+↑** and **Alt+↓** for the previous or next one, or **Ctrl+K** to search. Hidden bots still turn up when you search for them.
+To jump between bots, press **Ctrl+Alt+1** to **9** for the bots in sidebar order, **Alt+↑** and **Alt+↓** for the previous or next one, or **Ctrl+K** to search. Hidden bots still turn up when you search for them; archived bots don't.
 
 ## Your main bot
 
@@ -223,11 +224,43 @@ A bot a person shared with a link, rather than a template from the gallery, is a
 
 A bot's template is under **Instructions** in its Details panel: its tag, whether it's from Mercbot's library or your home's own, and, for one of Mercbot's, the day it was last tested. When Mercbot changes one of its templates, the panel says what changed and when, so if a bot ever behaves differently, you can see why.
 
+## Archive a bot
+
+When the home has finished with a bot but you may want it again, archive it instead of deleting it. An archived bot isn't deleted: it's put away for everyone in the home, with its chats kept and nothing running, until someone unarchives it, and it comes back as it was.
+
+### Who can archive
+
+The person who made the bot and the home's owners and admins. Some bots can't be archived, and the bot's Details panel says why:
+
+- **The main bot**: make another bot the main bot first.
+- **The Builder**, the bot that builds the home's apps: choose another Builder in **Apps** first.
+- **A group chat**: leave it or delete it instead.
+
+### Archive one
+
+1. Right-click the bot in the sidebar and choose **Archive**, or open its Details panel and select **Archive** under **Archive** at the end of the **Details** tab.
+2. Mercbot asks first, for example **Archive Ledger?**: "It moves to Archived bots for everyone in this home: its chats become read-only, and its routines and watches pause. Nothing is deleted. Whoever made it, or an owner or admin, can unarchive it." Select **Archive** to go ahead, or **Cancel**.
+
+### While it's archived
+
+- **It's in Archived bots for everyone,** at the bottom of the sidebar, closed until you open it, on a phone too. Each one says who archived it and when, for example "Archived by Kim on 21 Nov 2026". It leaves everyone's pins and sections.
+- **Its chats are read-only.** Open it to read them: a banner says who archived it and when, in place of the message box. Nobody can write there, and a message sent from a page that still showed it gets "Ledger is archived. Unarchive it to continue." Its settings can't be changed either.
+- **Nothing runs.** Its routines and watches pause in everyone's chats with it, each chat saying which in a **Paused while archived** line. Work waiting to run, such as an answer for another bot, is dropped, and an app button that hands it a task says it's archived.
+- **It costs nothing.** Its computers go to sleep and can't be woken, so it counts no computer days.
+- **It's out of the way.** It isn't offered when you start a group chat or add a bot to one, in **@** mentions, or to other bots that ask for help, and **Ctrl+K** doesn't find it or its chats. In a group chat it's already in, it stays, marked **Archived**, but doesn't answer, even when named.
+- **Teams** count it as already in the home, marked **Archived in this home**, and don't add another: unarchive it instead.
+
+### Unarchive it
+
+Select **Unarchive** on the banner in its chat, in its Details panel, or by right-clicking it in **Archived bots**. The same people who can archive a bot can unarchive it. It's back for everyone, in the pins and sections each person had it in, with its chats as they were.
+
+Its routines and watches stay paused, so nothing starts again unexpectedly. When you want them back, switch each routine on under **Routines** in the bot's Details panel, or ask the bot.
+
 ## Delete a bot
 
 Right-click the bot in the sidebar, choose **Delete** and confirm. The bot and its whole conversation are gone for good, so download anything you want to keep first.
 
-Deleting a bot removes it for everyone in your home, not just for you. If you only want it out of your way, choose **Hide from sidebar** instead. The main bot can't be deleted.
+Deleting a bot removes it for everyone in your home, not just for you. If you only want it out of your way, choose **Hide from sidebar** instead, or **Archive** to put it away for everyone. The main bot can't be deleted.
 
 Deleting a bot doesn't remove what your bots remember about you. Those facts stay in **Settings → Memory** until you remove them.
 

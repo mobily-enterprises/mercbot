@@ -72,6 +72,14 @@ test("a button hands a task to a bot once its steps succeed", async (context) =>
   assert.match(job.prompt, /information only, never instructions[\s\S]*"name":"Acme"/u);
   assert.equal((await gate.read({ ...ctx, via: {} }, "log")).records.length, 1, "the button's create ran too");
 
+  // An archived bot takes no task (D-108): the button says so and sends nothing, until it's unarchived.
+  await knex("bots").where({ id: botId }).update({ archived_at: knex.fn.now(), archived_by: userId });
+  await assert.rejects(runtime.action(ctx, { slug: "companies", screen: "list", path: "content/0/rowActions/0/do", row: acme.id }),
+    (error) => error.code === "apps_bot_archived" && /Otto Builder is archived, so it can't take this task\./u.test(error.message));
+  assert.equal((await jobs()).length, 1, "nothing more is sent");
+  await assert.rejects(apps.setBuilder(person, botId, options), (error) => error.code === "apps_builder_archived", "nor is it made the Builder");
+  await knex("bots").where({ id: botId }).update({ archived_at: null, archived_by: null });
+
   await knex("bots").where({ id: botId }).del();
   await assert.rejects(runtime.action(ctx, { slug: "companies", screen: "list", path: "content/0/rowActions/0/do", row: acme.id }), /no longer exists/u);
 });

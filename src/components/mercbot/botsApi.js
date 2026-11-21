@@ -107,6 +107,9 @@ export const botsApi = {
   resumeRoom: (botId, roomId) => post(`/bots/${botId}/rooms/${roomId}/resume`),
   // The bot's archived conversations the person sees, each with who archived it, when, and whether they may resume it.
   archived: (botId) => request(`/bots/${botId}/archived`),
+  // A whole bot archived and unarchived for everyone in the home (D-108): each answers { bot } as listed.
+  archiveBot: (botId) => post(`/bots/${botId}/archive`),
+  unarchiveBot: (botId) => post(`/bots/${botId}/unarchive`),
   remove: (botId) => remove(`/bots/${botId}`),
   // A bot's template and additions (D-98): its additions change with update(botId, { additions }), its template with
   // changeTemplate(botId, { library: slug }, { home: id } or { draft, foldAdditions }).

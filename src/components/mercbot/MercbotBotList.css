@@ -222,6 +222,11 @@
   cursor: default;
 }
 
+/* An archived bot's row (D-108): its name quieter, its line who archived it and when. */
+.mb-row--archived .mb-row__name {
+  color: rgb(var(--v-theme-on-surface-variant));
+}
+
 .mb-row__text {
   display: flex;
   flex: 1;

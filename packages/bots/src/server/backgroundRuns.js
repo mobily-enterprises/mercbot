@@ -1,4 +1,4 @@
-import { BotsError } from "./botsError.js";
+import { BotsError, archivedBotRefusal } from "./botsError.js";
 import { isModelFailure, modelFailure } from "./modelFailures.js";
 import { RUN_LEASE, RunTakenOver, jobCheckpoint, routineCheckpoint } from "./runLease.js";
 
@@ -145,6 +145,8 @@ export function createBackgroundRuns({ records, systemContext, meter, conversati
       // A button's hand-off, to the bot's chat with the person who pressed it, in the job's home.
       call = { context: systemContext("app job runner").forWorkspaceUser(String(job.workspaceId), String(job.userId), { actorId: String(job.userId) }) };
       row = await conversations.ownedBot(String(job.botId), call).catch(() => null);
+      // An archived bot takes no task (D-108): the button that asked says so.
+      if (row?.archived_at) throw archivedBotRefusal(row);
     }
     if (!row) throw new BotsError(404, "The bot or chat for this task no longer exists.", { code: "bots_task_target_gone" });
     const held = jobs ? jobCheckpoint(jobs, job, { context: systemContext("app job runner").forWorkspace(String(job.workspaceId)) }, signal) : null;

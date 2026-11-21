@@ -214,7 +214,7 @@ export function createBotsService({
   const botList = createBotList({ records, conversations, homeDefaults, templates });
   const teams = createBotTeams({ records, botList, templates });
   const settings = createBotSettings({ records, conversations, apps });
-  const archive = createBotArchive({ records, conversations, apps, listedBot: botList.listedBot });
+  const archive = createBotArchive({ records, conversations, apps, computer, listedBot: botList.listedBot });
   const chat = createBotChat({
     records,
     model,
@@ -302,6 +302,8 @@ export function createBotsService({
     archiveRoom: archive.archiveRoom,
     resumeRoom: archive.resumeRoom,
     archivedConversations: archive.archivedConversations,
+    archiveBot: archive.archiveBot,
+    unarchiveBot: archive.unarchiveBot,
     deleteBot: settings.deleteBot,
     runRoutine: replies.runRoutine,
     runAppTask: replies.runAppTask,

@@ -5,9 +5,11 @@ import MercbotTemplateTag from "./MercbotTemplateTag.vue";
 import MercbotConfirmDialog from "./MercbotConfirmDialog.vue";
 import MercbotContextMenu from "./MercbotContextMenu.vue";
 import { botMenuItems, sectionMenuItems } from "./botMenus.js";
+import { archiveBotQuestion, archivedBotLine } from "./archiveBot.js";
+import { builderBotId } from "./builderBot.js";
 import { useBotDrag } from "./useBotDrag.js";
 
-// The expanded sidebar's bot list: pinned tiles, grouped rows, hidden bots, menus, drag and drop.
+// The expanded sidebar's bot list: pinned tiles, grouped rows, hidden bots, archived bots (D-108), menus, drag and drop.
 // Every change is emitted as a command for the shell to carry out.
 const props = defineProps({
   model: { type: Object, required: true },
@@ -18,6 +20,7 @@ const props = defineProps({
   drafts: { type: Object, default: () => ({}) },
   moods: { type: Object, default: () => ({}) },
   hiddenExpanded: { type: Boolean, default: false },
+  archivedExpanded: { type: Boolean, default: false },
   editingSectionId: { type: String, default: "" }
 });
 const emit = defineEmits(["select", "command"]);
@@ -35,6 +38,9 @@ function moodOf(bot) {
   return mood === "idle" && hoveredBotId.value === bot.id ? "hover" : mood;
 }
 const pendingDelete = ref(null);
+// The bot Archive asks about first (D-108).
+const pendingArchive = ref(null);
+const archiveQuestion = () => (pendingArchive.value ? archiveBotQuestion(pendingArchive.value) : null);
 
 function openMenu(event, items) {
   previewBotId.value = "";
@@ -49,8 +55,15 @@ function botMenu(event, bot, place) {
     model: props.model,
     command,
     startRename,
-    askDelete: () => { pendingDelete.value = bot; }
+    askDelete: () => { pendingDelete.value = bot; },
+    askArchive: () => { pendingArchive.value = bot; },
+    builderId: builderBotId.value
   }));
+}
+
+function confirmArchive() {
+  command("archiveBot", { botId: pendingArchive.value.id });
+  pendingArchive.value = null;
 }
 
 function sectionMenu(event, section, index) {
@@ -332,7 +345,47 @@ function previewText(bot) {
       </ul>
     </section>
 
+    <!-- Archived bots (D-108): put away for everyone in the home, collapsed until opened, last in the list. -->
+    <section v-if="model.archived.length" class="mb-group" aria-label="Archived bots">
+      <div class="mb-header-wrap">
+        <button type="button" class="mb-header mb-header--toggle" :aria-expanded="archivedExpanded" @click="command('toggleArchived')">
+          <span class="mb-header__label">Archived bots</span>
+          <span v-if="!archivedExpanded" class="mb-header__count">{{ model.archived.length }}</span>
+          <v-icon class="mb-header__chevron" :icon="archivedExpanded ? '$expand' : '$chevronRight'" size="14" />
+        </button>
+      </div>
+      <ul v-if="archivedExpanded" class="mb-rows">
+        <li v-for="bot in model.archived" :key="bot.id">
+          <button
+            type="button"
+            class="mb-row mb-row--archived"
+            :class="{ 'mb-row--selected': bot.id === currentBotId, 'mb-switching': bot.id === switchHighlightId }"
+            :aria-current="bot.id === currentBotId ? 'page' : undefined"
+            :aria-label="`${bot.name}, archived`"
+            @click="emit('select', bot.id)"
+            @contextmenu.prevent="botMenu($event, bot, 'archived')"
+          >
+            <MercbotConvoAvatar :bot="bot" :size="36" still />
+            <span class="mb-row__text">
+              <span class="mb-row__name">{{ bot.name }}</span>
+              <span class="mb-row__preview">{{ archivedBotLine(bot) }}</span>
+            </span>
+            <kbd v-if="hints[bot.id]" class="mb-hint">{{ hints[bot.id] }}</kbd>
+          </button>
+        </li>
+      </ul>
+    </section>
+
     <MercbotContextMenu v-model="menu.open" :target="menu.target" :items="menu.items" />
+    <MercbotConfirmDialog
+      :model-value="Boolean(pendingArchive)"
+      :title="archiveQuestion()?.title || ''"
+      :text="archiveQuestion()?.text || ''"
+      :confirm-label="archiveQuestion()?.confirmLabel"
+      :danger="false"
+      @update:model-value="!$event && (pendingArchive = null)"
+      @confirm="confirmArchive"
+    />
 
     <MercbotConfirmDialog
       :model-value="Boolean(pendingDelete)"

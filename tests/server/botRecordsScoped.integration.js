@@ -114,7 +114,7 @@ test("the list, a chat, search and the directory read only the request's home", 
       seats: await records.directory.ownSingleBotSeatIds(home.options)
     })
   });
-  assert.deepEqual(directory, { bots: [{ id: seeded.get(g).botId, name: "Scoped" }], seats: [seeded.get(g).conversationId] });
+  assert.deepEqual(directory, { bots: [{ id: seeded.get(g).botId, name: "Scoped", archived: false }], seats: [seeded.get(g).conversationId] });
 
   // By id: another home's bot and conversation are not found from this one, and a route's guard says so.
   const [mine, theirs] = [seeded.get(g), seeded.get(h)];

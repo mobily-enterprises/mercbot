@@ -27,7 +27,8 @@ export function createBotTeams({ records, botList, templates }) {
 
   /**
    * The team screen: the team, and each of its bots in order with its name, look, tag, line and paired app, and whether
-   * the home already has a bot on its template (`inHome`), which Add leaves out. One read, whatever the home's bots.
+   * the home already has a bot on its template (`inHome`), which Add leaves out, and whether that bot is archived
+   * (`archivedInHome`, D-108: unarchiving it brings it back). One read, whatever the home's bots.
    * @param {string} teamId
    * @param {import("./types.js").CallOptions} options
    */
@@ -40,7 +41,9 @@ export function createBotTeams({ records, botList, templates }) {
       description: team.description,
       bots: team.templates.map((slug) => {
         const { name, color, shape, tag, description, appTemplate } = LIBRARY.get(slug);
-        return { slug, name, color, shape, tag, description, ...(appTemplate ? { appTemplate } : {}), inHome: followed.has(slug) };
+        const inHome = followed.has(slug);
+        const archivedInHome = followed.get(slug) ? { archivedInHome: true } : {};
+        return { slug, name, color, shape, tag, description, ...(appTemplate ? { appTemplate } : {}), inHome, ...archivedInHome };
       })
     };
   }

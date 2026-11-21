@@ -1,4 +1,5 @@
 import { BotsError } from "./botsError.js";
+import { runsNoWork } from "./records/conversationRepository.js";
 
 /**
  * A person's bots and conversations as they see them (D-36, D-46): their own conversation with a bot, a shared bot's rooms,
@@ -70,6 +71,7 @@ export function createBotConversations({ records, notices }) {
     asSeen: conversations.asSeen,
     isShared: conversations.isShared,
     isHiddenRoom: conversations.isHiddenRoom,
+    runsNoWork,
     personOf: conversations.personOf,
     roomsOf: conversations.roomsOf,
     groupPeople: conversations.groupPeople,

@@ -1,6 +1,6 @@
 import { passedOn } from "@jskit-ai/resource-core/shared/callOptions";
 import { personName } from "@local/homes/server/personName";
-import { BotsError } from "../botsError.js";
+import { BotsError, archivedBotRefusal } from "../botsError.js";
 import { cloudShape } from "../botRows.js";
 import { createCallerReaders, fieldsOf } from "./recordRows.js";
 
@@ -73,6 +73,17 @@ const isHiddenRoom = (bot, conversation) =>
 /** What writing in an archived conversation answers (D-101). */
 const archivedRefusal = () =>
   new BotsError(409, "This conversation is archived. Resume it to continue.", { code: "bots_conversation_archived" });
+
+/**
+ * A conversation where no work runs: one hidden or archived (isHiddenRoom), or any of an archived bot's (D-108), whose
+ * chats are still read, read-only, until it's unarchived. Routines, watches, goals, requests between bots, queued
+ * replies and app tasks find no row there, as for a hidden tab.
+ */
+export const runsNoWork = (bot, conversation) => Boolean(bot.archived_at) || isHiddenRoom(bot, conversation);
+
+/** A group's member bot as the page shows it (D-46), an archived one marked: it stays in the group and doesn't answer (D-108). */
+const memberOf = (bot) =>
+  ({ id: String(bot.id), name: bot.name, color: bot.color, shape: cloudShape(bot.shape), ...(bot.archivedAt ? { archived: true } : {}) });
 
 /**
  * Whether a bot is seen in the person's own conversation `seat` rather than a room: a Shared bot's "You only" tab (D-99)
@@ -199,6 +210,7 @@ export function createConversationRepository({ resources, systemContext, profile
 
   /** A bot as this person sees it, in a shared bot's room or their own conversation (opensOwnTab); `lock` locks that first. */
   async function seenBy(bot, options, { lock = false, room = null, own, writing = false } = {}) {
+    if (writing && bot.archived_at) throw archivedBotRefusal(bot); // An archived bot is read-only (D-108).
     let conversation = await conversationOf(bot, options);
     const [wanted, writes] = [room || conversation.room_id, writing && Boolean(room)];
     let open = isShared(bot) && !opensOwnTab(bot, conversation, wanted, own, writes) ? await roomFor(bot, wanted, options, writes) : null;
@@ -246,14 +258,14 @@ export function createConversationRepository({ resources, systemContext, profile
 
   /**
    * A bot as seen in one conversation: the person's own, a room (with their seat), or without one the one they have open
-   * (`own` as seenBy takes it). Null for a room hidden while its bot isn't Shared (D-99): nothing runs there.
+   * (`own` as seenBy takes it). Null where no work runs (runsNoWork), such as a hidden room (D-99) or an archived bot (D-108).
    */
   async function rowOfConversation(botId, conversationId, options, { own } = {}) {
     const bot = await botOf(botId, options);
-    if (!bot) return null;
+    if (!bot || bot.archived_at) return null;
     if (!conversationId) return seenBy(bot, options, { own });
     const conversation = asRow(await conversations.get(conversationId, {}, { ...passedOn(options), missing: "skip" }), options);
-    if (!conversation || isHiddenRoom(bot, conversation)) return null;
+    if (!conversation || runsNoWork(bot, conversation)) return null;
     return conversation.user_id ? asSeen(bot, conversation) : asSeen(bot, await conversationOf(bot, options), conversation);
   }
 
@@ -399,9 +411,9 @@ export function createConversationRepository({ resources, systemContext, profile
   }
 
   /**
-   * The bots in each group (D-46), in their order, as the page shows them: one read of the
-   * memberships and one of their bots, whatever the number of groups.
-   * @returns {Promise<Map<string, Array<{ id: string, name: string, color: string, shape: string }>>>}
+   * The bots in each group (D-46), in their order, as the page shows them, an archived one marked (D-108): one read of
+   * the memberships and one of their bots, whatever the number of groups.
+   * @returns {Promise<Map<string, Array<{ id: string, name: string, color: string, shape: string, archived?: true }>>>}
    */
   async function membersOf(groupIds, options) {
     const byGroup = new Map();
@@ -416,7 +428,7 @@ export function createConversationRepository({ resources, systemContext, profile
       if (!bot) continue;
       const key = String(row.groupId);
       if (!byGroup.has(key)) byGroup.set(key, []);
-      byGroup.get(key).push({ id: String(bot.id), name: bot.name, color: bot.color, shape: cloudShape(bot.shape) });
+      byGroup.get(key).push(memberOf(bot));
     }
     return byGroup;
   }
@@ -716,4 +728,4 @@ export function createConversationRepository({ resources, systemContext, profile
 }
 
 /** Pure parts the tests reach directly. */
-export const __testables = Object.freeze({ asSeen, isShared, isHiddenRoom });
+export const __testables = Object.freeze({ asSeen, isShared, isHiddenRoom, runsNoWork });

@@ -1,5 +1,5 @@
 import { retryLostInsertRace } from "@jskit-ai/database-runtime/shared";
-import { BotsError } from "./botsError.js";
+import { BotsError, archivedBotRefusal } from "./botsError.js";
 import { cleanName, cleanTitle, toBot, toRoom } from "./botRows.js";
 import { additionsChange, changeRefusal, mayChangeBot } from "./botAdditions.js";
 import { createWorkPause } from "./workPause.js";
@@ -16,11 +16,14 @@ import { createWorkPause } from "./workPause.js";
 export function createBotSettings({ records, conversations, apps }) {
   const { conversations: store, messages, archives } = records;
   const SHARING = new Set(["private", "shared", "mixed"]);
+  // What an archived bot's chats still take (D-108): reading them, and opening another of its tabs.
+  const READING = new Set(["unread", "roomId"]);
   const pauseWorkIn = createWorkPause({ records, apps, conversations });
 
   async function updateBot(botId, patch = {}, options) {
     const { changed, sharingChanged } = await retryLostInsertRace(options, () => store.withTransaction(options, async (txOptions) => {
       const row = await conversations.ownedBot(botId, txOptions, { lock: true, room: patch.roomId });
+      if (row.archived_at && Object.keys(patch).some((key) => !READING.has(key))) throw archivedBotRefusal(row);
       const shared = {};
       const own = {};
       if (patch.name !== undefined) {

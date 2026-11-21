@@ -25,7 +25,8 @@ export function useGroupMembers({ bot, allBots, me, home, manages, onAddMember, 
   const addable = computed(() => {
     const inGroup = new Set(members.value.map((member) => member.id));
     const text = memberSearch.value.trim().toLowerCase();
-    return allBots().filter((entry) => entry.kind !== "group" && !entry.creating && !inGroup.has(entry.id) && (!text || entry.name.toLowerCase().includes(text) || Boolean(entry.template?.tag.includes(text))));
+    // An archived bot (D-108) joins no group until it's unarchived.
+    return allBots().filter((entry) => entry.kind !== "group" && !entry.creating && !entry.archivedAt && !inGroup.has(entry.id) && (!text || entry.name.toLowerCase().includes(text) || Boolean(entry.template?.tag.includes(text))));
   });
   watch(addOpen, (open) => {
     if (open) memberSearch.value = "";

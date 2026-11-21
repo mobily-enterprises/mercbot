@@ -617,8 +617,8 @@ export function createBotReplies({
   /**
    * A conversation as background work sees it, with the call the work runs with: for its person, or
    * in a shared bot's room for whoever set the room up (D-36), as a job in `home`. Null when the
-   * conversation or its bot is gone, or the room is hidden while its bot isn't Shared (D-99): nothing runs where
-   * nobody sees it.
+   * conversation or its bot is gone, the room is hidden while its bot isn't Shared (D-99) or archived (D-101), or the bot
+   * is archived (D-108): nothing runs where nobody sees it or nobody may write.
    * @param {string} conversationId
    * @param {string} home
    * @param {object} system the work's system context, which the job context derives from
@@ -630,7 +630,7 @@ export function createBotReplies({
     if (!person) return null;
     const call = { context: system.forWorkspaceUser(String(home), person, { actorId: person }) };
     const bot = await records.conversations.botOf(String(conversation.bot_id), call);
-    if (!bot || conversations.isHiddenRoom(bot, conversation)) return null;
+    if (!bot || conversations.runsNoWork(bot, conversation)) return null;
     const row = conversation.user_id
       ? conversations.asSeen(bot, conversation)
       : conversations.asSeen(bot, { ...conversation, user_id: conversation.created_by }, conversation);

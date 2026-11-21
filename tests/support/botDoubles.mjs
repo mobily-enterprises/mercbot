@@ -39,6 +39,8 @@ const neutral = {
   notices: () => ({ publish: async () => {}, publishEach: async () => {}, subscribe: () => () => {} }),
   computer: () => ({
     hold: async () => {},
+    // No computer is awake, so none is put to sleep.
+    sleepHome: async () => {},
     status: async () => null,
     screenshot: async () => null,
     act: missing("computer"),

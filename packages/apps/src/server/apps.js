@@ -385,6 +385,9 @@ export function createApps({ resources, records, registry, anyapi, practices }) 
   async function setBuilder(actor, botId, options) {
     const bot = botId == null ? null : await records.directory.findBot(String(botId), passedOn(options), { kind: "bot" });
     if (!bot) throw new RegistryError(404, "That bot isn't in this home.", { code: "apps_bot_not_in_home" });
+    if (bot.archivedAt) {
+      throw new RegistryError(409, `${bot.name} is archived. Unarchive it to make it the Builder.`, { code: "apps_builder_archived", params: { name: bot.name } });
+    }
     await appSettings.withTransaction(options, async (txOptions) => {
       await appSettings.createMany([{ builderBotId: String(bot.id) }], {
         ...txOptions,

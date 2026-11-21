@@ -24,6 +24,8 @@ export function toBot(row) {
     lastActivityAt: new Date(row.last_activity_at).toISOString(),
     sharing: row.sharing || "mixed",
     keepOutOfNotebook: Boolean(row.keep_out_of_notebook),
+    // Archived for everyone in the home (D-108): since when, null while it isn't.
+    archivedAt: row.archived_at ? new Date(row.archived_at).toISOString() : null,
     // A shared bot's open tab (D-36), the person's own conversation when it's "You only" (D-99); its tabs come
     // with the list of bots.
     roomId: row.room ? String(row.room.id) : row.sharing === "shared" && row.kind !== "group" && row.seat_id ? String(row.seat_id) : null

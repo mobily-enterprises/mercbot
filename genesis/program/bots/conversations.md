@@ -29,6 +29,13 @@ onboarding and the bot's typed replies.
 - `tests/server/archiveConversations.integration.js`
 - `tests/client/archiveConversations.vitest.js`
 - `tests/e2e/archive-conversations.spec.ts`
+- `migrations/20261121220000_archived_bots.cjs`
+- `src/components/mercbot/archiveBot.js`
+- `src/components/mercbot/MercbotArchivedBotBanner.vue`
+- `src/components/mercbot/MercbotBotArchive.vue`
+- `tests/server/archiveBots.integration.js`
+- `tests/client/archiveBots.vitest.js`
+- `tests/e2e/archive-bots.spec.ts`
 - `packages/bots/src/server/botChat.js`
 - `packages/bots/src/server/botTeaching.js`
 - `packages/bots/src/server/botGroups.js`
@@ -260,6 +267,28 @@ Sharing (D-36, D-99, D-101):
   archived conversations the person sees (rows the row policies show: rooms and their own) as `{ id, title, own,
   archivedAt, archivedBy, canResume }`, `archivedBy` "you" for the person, in a fixed number of reads. Leaving shared
   un-archives everyone's You only, written for the home (`unarchiveSeats`); archived rooms stay archived.
+- **Archiving a bot (D-108):** `POST …/bots/:botId/archive` and `…/unarchive` (`botArchive.js` `archiveBot`,
+  `unarchiveBot`) put a whole bot away for everyone in the home and bring it back, for its maker and the home's owners
+  and admins (`mayChangeBot`, else 403 `bots_archive_forbidden`, decided before anything else is said); another home's
+  bot is 404. Archiving refuses a group chat (409 `bots_archive_group`), the main bot (`bots_archive_main`) and the
+  Builder (`bots_archive_builder`, `apps.apps.builder`). It sets `bots.archived_at`/`archived_by` with a conditional
+  write (`archiveRepository.js` `markBotArchived`, so archiving again changes nothing) and, in the same transaction,
+  pauses the routines and watches of every conversation with the bot (`conversationIdsOf`, read for the whole home) with
+  a "Paused while archived" line (`workPause.js`, as D-101); then puts those conversations' computers to sleep
+  (`computer.sleepHome(home, among)`, so none counts a computer day) and tells everyone in the home `messages` (a page
+  reads the bot and catches up the chat it has open, showing the line), and each group the bot is in `changed`.
+  Unarchive clears the columns and tells them `changed`; each person's pins and section were never touched, and the
+  work stays paused. Each answers `{ bot }` as listed. While archived: `runsNoWork` (an archived bot, or `isHiddenRoom`)
+  makes `rowOf` and `backgroundRow` answer null, so routines, goals, requests and queued replies don't run, and an app
+  task to it is refused (`backgroundRuns.js`); `seenBy` writing, `updateBot` (but for `unread` and `roomId`, which
+  opening it sends) and every non-GET bots route but archive, unarchive, PATCH, delete and removing it from a group
+  answer 409 `bots_bot_archived` "<bot> is archived. Unarchive it to continue."; the computer's wake and open answer
+  409 `bots_bot_archived`. Search (`searchedConversations`) leaves its conversations out; `otherBots` and `ask` leave
+  it out (asking it says it's archived); `membersOf` marks it `archived`, so a group shows it and `groupReplies` never
+  has it answer, even named; `createGroup` and `addMember` refuse it; an app button's `askBot` step refuses it
+  (`apps_bot_archived`) and `setBuilder` refuses it (`apps_builder_archived`); a team counts it as in the home,
+  `archivedInHome` (`followedOf`). The list answers `archivedAt`, `archivedBy` ("you", a name or "Someone", the names
+  read once) and `canArchive`, in the same statements however many are archived.
 - **Who sees what** in Details (`useSharingChoice.js`): an intro, "Everyone in <home> has their own
   chat with <bot>, which only they see.", then Private "Nothing more.", Mixed "And what helps
   everyone goes in <home>'s notebook, which everyone can read." and Shared "And conversations
@@ -303,7 +332,17 @@ Sharing (D-36, D-99, D-101):
   (`MercbotArchivedList.vue`, read from `GET …/archived` when shown and again when `archived` changes, not at all at
   0), each with "Archived by <who> · <when>" and Resume where `canResume`; Details → Conversations shows the same list
   for a shared bot. `useRooms.js` `archiveRoom`/`resumeRoom` take the bot as answered and reload the open tab's
-  messages when it changed; a send refused as archived says so. The
+  messages when it changed; a send refused as archived says so.
+- An archived bot (D-108) is in the sidebar's **Archived bots** alone, newest archived first and collapsed until opened
+  (`botDirectory.js` `buildSidebarModel`'s `archived`, `shellPreferences.archivedExpanded`), out of the rail, the
+  keyboard order while closed, pickers, @-mentions, Ctrl+K and the phone's news dot (`MercbotShell.vue` `pickable`,
+  `otherNews`). Its menu there is Unarchive (where `canArchive`), Copy conversation ID and Delete; elsewhere a bot's
+  menu offers Archive where `archiveRefusal` (`archiveBot.js`: group, not `canArchive`, main, Builder) allows, asking
+  first (`archiveBotQuestion`). Its chat shows `MercbotArchivedBotBanner.vue` ("Archived by <who> on <d MMM yyyy>",
+  `archivedBotLine`) in place of the composer, with Unarchive for whoever may; Details → **Archive**
+  (`MercbotBotArchive.vue`) archives with the same question, says why not, or unarchives. A group's members show
+  " · Archived" and Add a bot leaves it out (`useGroupMembers.js`); onboarding doesn't step while it's archived
+  (`useOnboarding.js`). The
   composer's placeholder in a shared bot says "Message <bot> · everyone in <home> sees this", or in
   You only "Message <bot> · only you see this" (`composerPlaceholder.js`).
 

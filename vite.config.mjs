@@ -107,7 +107,9 @@ export default defineConfig({
   test: {
     include: ["tests/client/**/*.vitest.js"],
     // As many test files at once as the machine's test budget allows.
-    maxWorkers: testConcurrency()
+    maxWorkers: testConcurrency(),
+    // Vuetify's components import their CSS, so a test that renders a component takes Vuetify through Vite.
+    server: { deps: { inline: ["vuetify"] } }
   },
   // Pre-bundled at startup, including what screens load lazily (charts, spreadsheets, the formula
   // functions' sandbox), so a first visit never stops to bundle a dependency and reload the page.
