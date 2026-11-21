@@ -133,13 +133,18 @@ test("changing a bot's template keeps its name, look and additions, and the bot 
   assert.deepEqual([changed.name, changed.color, changed.template.tag, changed.template.source, changed.hasAdditions], ["Kitchen helper", "#1E86FC", "meals", "library", true]);
   const row = await knex("bots").where({ id: helper }).first();
   assert.deepEqual([row.library_template, row.home_template_id, row.additions], ["weekly-meal-planner", null, "We're vegetarian."], "its additions stay");
-  const { messages } = await directOf(ben, helper);
+  const { chat: direct, messages } = await directOf(ben, helper);
   const [event, greeting] = messages.slice(-2);
   assert.deepEqual([event.kind, event.body.text], ["event", "Now a meals bot"]);
   assert.equal(event.body.detail, "Kitchen helper now follows Mercbot's meals template, with its own additions on top.");
   assert.match(greeting.body.text, /^Hi(?: [^,]+)?, I'm Kitchen helper\. I plan your family's dinners/u, "the new template's greeting, as the bot it is");
   assert.equal((await knex("messages").where({ conversation_id: kitchen.id })).length, 0, "the home's other chats are left alone");
   assert.ok(kit.calls.told.some((notice) => notice.event.type === "bot" && notice.event.botId === helper && notice.event.change === "changed"));
+  // The chat's people hear of its new messages, so the chat open on Ben's page shows the line and the greeting.
+  assert.deepEqual(
+    kit.calls.told.filter((notice) => notice.event.type === "messages" && notice.event.chatId === String(direct.id)).map((notice) => notice.keys),
+    [[String(ben)]]
+  );
   const read = await kit.templates.instructionsOf(helper, as("ben"));
   assert.deepEqual([read.template.tag, read.template.slug, read.additions, read.canChange], ["meals", "weekly-meal-planner", "We're vegetarian.", true]);
 
