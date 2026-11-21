@@ -75,7 +75,8 @@ export async function liveAndDraftVersions({ apps, appVersions }, filters, optio
  * @param {object} dependencies
  * @param {Record<string, import("@jskit-ai/resource-runtime/server/types").ResourceHandle>} dependencies.resources the apps
  *   feature's handles
- * @param {{ directory: { listHomeBots: Function, findBot: Function } }} dependencies.records mercbot.bots.records
+ * @param {{ directory: { listHomeBots: Function, findBot: Function }, chats: { appChat: Function } }} dependencies.records
+ *   mercbot.bots.records
  * @param {import("./types.js").Registry} dependencies.registry
  * @param {import("./types.js").Anyapi} dependencies.anyapi
  * @param {import("./types.js").Practices} dependencies.practices drafts' practice copies (D-71), cleared on publishing
@@ -382,6 +383,18 @@ export function createApps({ resources, records, registry, anyapi, practices }) 
     return bot ? { id: String(bot.id), name: bot.name, color: bot.color } : null;
   }
 
+  /**
+   * The app's chat with the Builder (D-41), which Ask Builder opens: made the first time anyone asks, Public, named
+   * after the app, with the Builder and the person who asked in it, and found again after that, also when two pages
+   * ask at once (records.chats.appChat). An app of another home is a 404; a home without a Builder can't have one.
+   */
+  async function appChat(slug, options) {
+    const app = await find(slug, options);
+    const bot = await builder(options);
+    if (!bot) throw new RegistryError(409, "This home has no Builder yet: an owner or admin chooses one first.", { code: "apps_builder_missing" });
+    return records.chats.appChat({ appId: String(app.id), botId: bot.id, title: app.name }, passedOn(options));
+  }
+
   async function setBuilder(actor, botId, options) {
     const bot = botId == null ? null : await records.directory.findBot(String(botId), passedOn(options));
     if (!bot) throw new RegistryError(404, "That bot isn't in this home.", { code: "apps_bot_not_in_home" });
@@ -593,6 +606,7 @@ export function createApps({ resources, records, registry, anyapi, practices }) 
     find,
     findPublic,
     builder,
+    appChat,
     // readable-check: allow setter-seam - not a slot: saves which bot is the home's Builder
     setBuilder,
     tablesUsed,
