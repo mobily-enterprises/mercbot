@@ -42,7 +42,7 @@ test("calculated fields are worked out on every read, and named formulas run eve
   const home = await appsHome(cleanup, { slug: "apps-calc", knex, records });
   const { apps, userId, workspaceId, options: call } = home;
   const { registry, gate, runtime } = apps;
-  const [bot] = await knex("bots").insert({ user_id: userId, workspace_id: workspaceId, name: "Builder", color: "#1E86FC" }).returning("id");
+  const [bot] = await knex("bots").insert({ made_by: userId, workspace_id: workspaceId, name: "Builder", color: "#1E86FC" }).returning("id");
   const botId = bot.id ?? bot;
   cleanup.after(() => knex("bots").where({ id: botId }).del());
   const builder = buildAppTools({ apps, directory: records.directory, call, botId, conversationId: null, userId: null, isBuilder: true, after: [], attempted: [], via: null });

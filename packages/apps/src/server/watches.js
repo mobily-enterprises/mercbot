@@ -89,6 +89,9 @@ export function createWatches({ resources, repository, systemContext, registry, 
    */
   async function create({ chatBotId, createdBy = null }, input = {}, options) {
     if (!/^\d+$/u.test(String(chatBotId ?? ""))) throw new TypeError("A watch is a bot's in a chat: chatBotId is needed.");
+    // Creates aren't narrowed by the row policy: the bot's seat must be in a chat the caller can open, in their home.
+    const [seat] = await records.directory.seats([String(chatBotId)], options);
+    if (!seat) throw new GateError(404, "That bot isn't in a chat you can open.", { code: "apps_watch_chat_not_found" });
     const { table } = await gate.tableFor(input.table, options, { forWrite: true });
     const on = ON[input.on] ? input.on : "any";
     const name = String(input.name || "").trim().slice(0, 120);
