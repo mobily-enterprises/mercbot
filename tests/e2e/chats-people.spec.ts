@@ -381,11 +381,24 @@ test("Team lists the home's people and bots alike, each with a card; a bot's Mes
     await expect(shell.chatRow(page, "Chef")).toBeVisible();
     await expect(shell.chat(page).getByRole("button", { name: "Add people or bots" }), "a direct chat takes no one else").toHaveCount(0);
 
-    // Ben's Message: New chat with him on its To: line.
+    // Ben's Message (plan 4.2): the private chat of just the two of them, made the first time, opened again after.
+    const making = (request: { method: () => string, url: () => string }) => request.method() === "POST" && new URL(request.url()).pathname === `/api${home!.path}/chats`;
+    const made = page.waitForResponse((response) => making(response.request()));
     await page.goto(`${home.path}?team=1`);
     await shell.team(page).getByRole("button", { name: "Message Ben Rossi" }).click();
-    const newChat = page.getByRole("region", { name: "New chat" });
-    await expect(newChat.getByRole("button", { name: "Remove Ben Rossi" })).toBeVisible();
+    const { chat: withBen } = await (await made).json();
+    expect([withBen.kind, withBen.directBotId ?? null, withBen.people.map((person: { userId: string }) => String(person.userId)).sort(), withBen.bots])
+      .toEqual(["private", null, [String(home.owner), String(home.ben)].sort(), []]);
+    await expect(page).toHaveURL(new RegExp(`[?&]chat=${withBen.id}\\b`, "u"));
+    await expect(chip(page, "Ben")).toContainText("Private");
+    let madeAgain = 0;
+    page.on("request", (request) => {
+      if (making(request)) madeAgain += 1;
+    });
+    await page.goto(`${home.path}?team=1`);
+    await shell.team(page).getByRole("button", { name: "Message Ben Rossi" }).click();
+    await expect(page).toHaveURL(new RegExp(`[?&]chat=${withBen.id}\\b`, "u"));
+    expect(madeAgain, "the same chat, none made").toBe(0);
   } finally {
     await home?.remove();
     await knex.destroy();
