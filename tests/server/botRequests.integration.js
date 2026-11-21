@@ -144,8 +144,6 @@ test("the asked bot puts a question back, the asking bot answers, and the work g
 });
 
 test("work another bot asked for never counts as the person's own request", async () => {
-  // Loaded here, so the file's other tests don't wait on the bots service the doubles start.
-  const { turnDoubles } = await import("../support/botDoubles.mjs");
   const seen = [];
   const approvals = {
     decide: async (_what, { reversible } = {}) => {
