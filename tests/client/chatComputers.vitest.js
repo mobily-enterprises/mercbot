@@ -180,12 +180,12 @@ describe("one bot's computer in a chat", () => {
     expect(html).not.toContain("Wait until");
   });
 
-  it("while someone else has control, holds Take over and says whom to wait for", async () => {
+  it("while someone else has control, says who and offers Take over from them and Hand back to the bot, as the server allows", async () => {
     const html = await chef({ status: status({ control: { userId: "1", name: "Anna Rossi", since: "2026-11-22T10:00:00Z" } }) });
-    expect(text(html)).toContain("Anna has control of Chef's computer. Wait until they hand it back.");
-    expect(button(html, "Take over")).toEqual({ text: "Take over", disabled: true });
+    expect(text(html)).toContain("Anna has control of Chef's computer. You can still take it over, or hand it back to Chef.");
+    expect(button(html, "Take over")).toEqual({ text: "Take over", disabled: false });
+    expect(button(html, "Hand back")).toEqual({ text: "Hand back", disabled: false });
     expect(button(html, "Watch")).toEqual({ text: "Watch", disabled: false });
-    expect(button(html, "Hand back")).toBeUndefined();
   });
 });
 

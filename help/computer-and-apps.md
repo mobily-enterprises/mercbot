@@ -67,7 +67,7 @@ If the live view shows **Couldn't reach the screen**, select **Try again**. Whil
 
 Select **Take over**, on the bot's computer in the chat's details or at the bottom of the live view. The bottom bar says "You have control. Chef waits until you hand it back.", and your mouse and keyboard now work on the bot's computer. Anyone who can open the chat can take over. While you have control, the bot doesn't act on that computer: if it tries, it's told who has control and waits. When you've finished, select **Hand back** or press **Escape**.
 
-The chat shows a line when someone takes over ("Anna took over Chef's computer.") and when they hand back ("Anna handed Chef's computer back."). While someone else has control, the chat's details say so, for example "Anna has control of Chef's computer. Wait until they hand it back.", and its **Take over** is greyed out; you can still watch.
+The chat shows a line when someone takes over ("Anna took over Chef's computer.") and when they hand back ("Anna handed Chef's computer back."). While someone else has control, the chat's details say so, for example "Anna has control of Chef's computer. You can still take it over, or hand it back to Chef." You can take it over from them ("Ben took over Chef's computer from Anna."), hand it back to the bot, or just watch.
 
 ### When a bot hands you the screen
 
