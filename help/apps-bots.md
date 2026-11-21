@@ -71,8 +71,8 @@ You can also ask the bot: "pause my enquiries watch", "what are you watching?"
 
 | Use | When it runs | Who does the work |
 |---|---|---|
-| A watch | When records change | A bot, in its chat |
-| A routine | On a timetable | A bot, in its chat |
+| A watch | When records change | A bot, in the chat it was set up in |
+| A routine | On a timetable | A bot, in the chat it was set up in |
 | A job (a kind of script) | On a timetable, or when records change | A script, without waking a bot |
 
 Use a watch when you want a bot's judgement, such as reading an enquiry and replying. Use a job, which the Builder writes, for fixed, repeatable work, such as recalculating totals each night. Routines are on [Skills, routines and watches](/help/skills-and-routines); jobs are on [Logic: formulas, scripts and automations](/help/apps-logic).
@@ -83,7 +83,7 @@ The Builder can give an app a button that asks a bot to do something, such as **
 
 1. Any other steps of the button run first, such as saving the form.
 2. If they succeed, the named bot gets a task, with the record attached.
-3. The task appears in that bot's chat with you, the person who pressed, headed **Task from** and the app's name, followed by the bot's work. If the bot is shared, it appears in the tab you last had open with it: one of its shared tabs, or your own, **You only**.
+3. The task appears in your chat with that bot, the person who pressed, headed **Task from** and the app's name, followed by the bot's work. The chat is made if you don't have one yet.
 
 In a draft preview, the button's other steps work on the draft's practice data, but the task isn't sent: a note says which bot the live app would ask.
 
@@ -100,7 +100,7 @@ Bots add and edit records freely, because every change is recorded, nothing is d
 | Retiring a view, or bringing one back | Anyone in the home |
 | Removing a script | The Builder, only when you agree |
 
-When the Builder thinks a field should go, it posts a card in its chat that lists everything that uses the field. Nothing changes until you confirm on that card.
+When the Builder thinks a field should go, it posts a card in the chat that lists everything that uses the field. Nothing changes until you confirm on that card.
 
 ## Public submissions are untrusted
 
@@ -124,4 +124,4 @@ A watch's run follows the bot's usual rules, so it stops for you before anything
 - [Logic: formulas, scripts and automations](/help/apps-logic)
 - [Skills, routines and watches](/help/skills-and-routines)
 - [Approvals, safety and privacy](/help/approvals-and-privacy)
-- [Bots: create, shape, organise and remember](/help/bots)
+- [Bots: add, shape and archive](/help/bots)

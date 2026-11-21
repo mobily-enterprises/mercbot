@@ -4,21 +4,15 @@ Bots do much of their work in two places. The first is their computer: a small d
 
 ## The computer your bots use
 
-Every bot has a computer. It's a small desktop that runs on Mercbot's servers, not on your device:
+In each chat, every bot has its own computer, labelled with its name, such as "Chef's computer". It's a small desktop that runs on Mercbot's servers, not on your device:
 
 - a top bar with "Mercbot", the open windows and a clock;
 - a dock in the middle with **Browser** and the office apps for documents, spreadsheets, slides and PDFs (right-click the desktop for the same list);
 - windows that open full size, with red, yellow and green buttons on the left.
 
-Which computer a bot uses depends on the conversation it's working in:
+A bot's computer belongs to the chat it's in. Everyone who can open the chat can watch it, take it over and use what's signed in on it, and the computer says so. In a chat with several bots, each one's computer is listed separately; a bot's computers in other chats are separate machines, with sign-ins of their own.
 
-| Conversation | Computer |
-| --- | --- |
-| Your own chat with a bot, a Shared bot's **You only** tab included | Your own computer with the bot. Your browser sign-ins never show up for anyone else in the home. |
-| A Shared bot's shared tab | Each shared tab has one computer, used by everyone in that conversation. |
-| Group chat | Groups have no computer of their own. Each bot uses its own. |
-
-The computer can see the bot's folders: yours with the bot, the bot's for everyone using it, and your home's (see [Files, documents and pictures](/help/files)). Anything downloaded in its browser goes into your folder with the bot; on a shared tab's computer, into the bot's folder for everyone using it. A Shared bot's **Computer** tab shows the computer of the tab you have open. When a bot makes a document, you can open it from the file viewer with **Edit on computer**. The file opens in its app on the bot's desktop, and you're put in control.
+The computer can see the chat's folder, the bot's own folder and your home's (see [Files, documents and pictures](/help/files)). Anything downloaded in its browser goes into the chat's folder. When a bot makes a document, you can open it from the file viewer with **Edit on computer**. The file opens in its app on the bot's desktop, and you're put in control.
 
 ### What the computer is and isn't
 
@@ -38,13 +32,13 @@ Every bot also has its own Linux command line, for work on files. Bots use it by
 - **Limits:** each command has limits on time, memory and file size. A command that takes more than two minutes carries on in the background, for up to 30 minutes, and the bot tells you when it's done.
 - **You can see what it ran:** a line in the chat, such as "Ran 3 commands: Making the GIF", opens to show each command and its output.
 - **The Terminal:** while the bot's computer is awake, the Terminal on its dock shows the bot's commands live in its top half. In the bottom half you can type your own commands, on the same folders, with the same tools and limits, and also without internet. Select **Take control** in the live view to type. A command the bot started keeps running if the computer goes to sleep.
-- **Asked by another bot:** when one bot works for another, its commands can read but not change your own files or the home's.
+- **Asked by another bot:** when one bot works for another, its commands can read but not change the chat's files or the home's.
 
 ## Coding with your own coding account
 
-For coding work on a project in the bot's files, such as a website or an app in a folder, a bot can hand the job to a coding tool on its own computer: **Claude Code** or **Codex**. The tool works with your own account, never one Mercbot shares or sells, so what it uses is billed to that account by its maker, not by Mercbot. A bot hands work to it only when you ask in your own chat with it, never in a routine, a task from an app or a shared chat, so nobody else can spend your account.
+For coding work on a project in the bot's files, such as a website or an app in a folder, a bot can hand the job to a coding tool on its own computer: **Claude Code** or **Codex**. The tool works with your own account, never one Mercbot shares or sells, so what it uses is billed to that account by its maker, not by Mercbot. A bot hands work to it only when you ask, in any chat, never in a routine, a task from an app or work another bot asked for. The tool is signed in on the bot's computer in that chat, so everyone who can open the chat can use it: sign in from a Private chat with just you and the bot to keep it yours alone.
 
-1. **Connect your own coding account, once.** Ask the bot, or it offers when a coding job comes up. It opens the tool's sign-in in a window on its computer and posts a **Your turn** card. Select **Take over** and sign in with your own Claude (or ChatGPT) account. Codex also shows a code you can enter on your own phone or computer instead. Select **I'm done** when you've finished. The sign-in stays on that bot's computer, kept with its browser's sign-ins, where only the coding tool reads it; **Reset** in **Settings** removes it.
+1. **Connect your own coding account, once.** Ask the bot, or it offers when a coding job comes up. It opens the tool's sign-in in a window on its computer and posts a **Your turn** card. Select **Take over** and sign in with your own Claude (or ChatGPT) account. Codex also shows a code you can enter on your own phone or computer instead. Select **I'm done** when you've finished. The sign-in stays on that bot's computer in this chat, kept with its browser's sign-ins, where only the coding tool reads it; **Reset** in **Settings** removes it.
 2. **Ask for the work.** The bot writes a brief (the problem, the outcome you want and anything not to change) and starts the tool in the project's folder. A **Claude Code started working** (or **Codex started working**) line opens to show the brief.
 3. **Watch it if you like.** The tool works in a window on the bot's computer, so you can follow it in the live view.
 4. **The bot reports.** When the tool finishes, the bot checks what changed in the folder and tells you what was done and what's left. The changes stay in the folder for you to review. The bot tells the tool not to push, merge, publish or delete anything, but it can reach the internet, so check what changed before you use it.
@@ -57,10 +51,9 @@ One coding job runs at a time on each bot's computer, for up to two hours, and i
 
 You can see a bot's screen at any time, even while it's working.
 
-1. Open the bot and open the **Details** panel (select the bot's name in the chat header).
-2. Choose the **Computer** tab.
-3. If the computer is asleep, select **The computer is sleeping. Click to wake it**. It shows **Starting up**, then a live picture of the screen.
-4. Select the live picture (**Open**) for the full live view.
+1. In the chat, open the bot's computer, labelled with its name.
+2. If the computer is asleep, select **The computer is sleeping. Click to wake it**. It shows **Starting up**, then a live picture of the screen.
+3. Select the live picture (**Open**) for the full live view.
 
 The live view shows the bot's whole desktop: its tabs, address bar and windows. At the bottom it says **Watching**, so you can follow along without getting in the way. Press **Escape** or select the collapse button at the top to close it. Closing the view doesn't stop the bot.
 
@@ -72,7 +65,7 @@ If the live view shows **Couldn't reach the screen**, select **Try again**. Whil
 
 ### Take control yourself
 
-In the live view, select **Take control**. The bottom bar changes to **You're driving**, and your mouse and keyboard now work on the bot's computer. When you've finished, select **Stop** or press **Escape** to go back to watching.
+In the live view, select **Take control**. The bottom bar changes to **You're driving**, and your mouse and keyboard now work on the bot's computer. Anyone who can open the chat can take control. While you're driving, the bot leaves the computer alone. When you've finished, select **Stop** or press **Escape** to hand it back. The chat shows a line when someone takes over and when they hand back.
 
 ### When a bot hands you the screen
 
@@ -84,7 +77,7 @@ Some steps only you can do: signing in with a passkey, approving on your phone, 
 
 If you'd rather not do it, select **Skip**. The bot hears that and works out what to do next. Either way, the card folds away to a one-line note, such as "Done · Sign in to example.com".
 
-While a hand-over is waiting, the bot's row in the sidebar turns amber and reads **Waiting for you:** followed by the task, so you can see it from any chat. The computer stays awake until you answer.
+While a hand-over is waiting, the chat's row in the sidebar turns amber and reads **Waiting for you:** followed by the task, so you can see it from any chat. The computer stays awake until you answer.
 
 ### Signing in to websites
 
@@ -95,7 +88,9 @@ Bots never ask for passwords, card numbers or codes in the chat. When a website 
 3. A secure form card in the chat, where you type the login (or a one-time code) yourself. Mercbot fills it into the page, and you can tick a box to save it to your vault.
 4. Only then, a **Your turn** card so you can sign in on the screen yourself.
 
-When a site emails you a sign-in or verification code, a bot signing in for you in your own chat can fetch it itself, as long as you've connected that mailbox (Gmail or Outlook). Mercbot looks only at mail that came in the last few minutes from the site the bot is signing in to: the bot never sees the code, and it never appears in the chat. A **Typed in the sign-in code from your email** line shows it happened. Only mailboxes you connected are used for this, never one someone else in the home connected. If no code turns up, for example because the site sent it by text message, the bot posts a secure form for you to type it in. It does the same in a routine or a task from an app, which run while you're away.
+Once it's signed in, the bot says so in one line: "Everyone who can open this chat can use this sign-in." The sign-in stays on that computer, in this chat.
+
+When a site emails you a sign-in or verification code, a bot signing in for you can fetch it itself, in any chat you ask in, as long as you've connected that mailbox (Gmail or Outlook). Mercbot looks only at mail that came in the last few minutes from the site the bot is signing in to: the bot never sees the code, and it never appears in the chat. A **Typed in the sign-in code from your email** line shows it happened. Only mailboxes you connected are used for this, never one someone else in the home connected. If no code turns up, for example because the site sent it by text message, the bot posts a secure form for you to type it in. It does the same in a routine or a task from an app, which run while you're away.
 
 The code goes in by itself only on the pages the sign-in you asked for leads to. The bot starts that sign-in from the site's front page, or from an address you give it, and follows the site's own redirects, forms and buttons from there, including windows it opens, such as **Sign in with Google**. That lasts until the sign-in is done, or 10 minutes, or until the bot opens another address itself. On any other page, even one on the same site, such as a form someone published on docs.google.com, and for a code from another site the sign-in passes through, such as Google's own, the bot asks first: a card asks *Shall I type the sign-in code from no-reply@example.com into this page?* with the page's full address under it. Check the address is the site you meant to sign in to before you press **Go ahead**. If the page has moved on by then, nothing is typed.
 
@@ -107,7 +102,7 @@ Bots stop before paying, ordering, booking, sending, cancelling, posting or invi
 
 ## Sleeping, waking and resetting
 
-A computer wakes when a bot needs it, or when you wake it from the Computer tab. It goes to sleep after five minutes with nothing happening, unless someone is watching it or a hand-over is waiting. If it falls asleep while you have the live view open, it wakes again.
+A computer wakes when a bot needs it, or when you wake it from the chat. It goes to sleep after five minutes with nothing happening, unless someone is watching it or a hand-over is waiting. If it falls asleep while you have the live view open, it wakes again.
 
 Sleeping doesn't lose anything. When a computer sleeps, its browser is saved, sign-ins included. When it wakes, the browser comes back as it was and reopens the last page. This works even if it wakes up on a different server.
 
@@ -120,7 +115,7 @@ A computer counts one day when it first starts each day (UTC), however often it 
 Open **Settings** > **Computer**:
 
 - **Update** always shows **Up to date**. Your bots' browsers are kept up to date for you, and updating keeps their saved sign-ins.
-- **Reset** starts every one of your bots' computers in this home afresh. Open pages close, and saved sign-ins and website data are cleared. Mercbot asks first. Your chats, routines and skills stay, and so does your vault. Computers of Shared bots' shared tabs aren't reset; your You only tabs' computers are.
+- **Reset** starts the bots' computers in your chats in this home afresh. Open pages close, and saved sign-ins and website data are cleared. Mercbot asks first. Your chats, routines and skills stay, and so does the vault.
 
 Reset is useful when a website is stuck in a strange state, or when you want a bot to forget every website it's signed in to.
 
@@ -178,16 +173,16 @@ Mercbot checks the credentials with Sedna before keeping them: a wrong ID or sec
 
 ### Everyone in the home uses its accounts
 
-Every account connected in a home is the home's. Everyone in the home, and every bot there, can use it, in any chat: your own chats, a Shared bot's shared tabs and group chats. Each account's line says so in plain words, such as **Everyone in Smith family, and their bots, can read and send from pat@example.com.** for a mailbox, then who added it (**Added by Pat.**, or **Added by you.**).
+Every account connected in a home is the home's. Everyone in the home, and every bot there, can use it, in any chat, Public or Private. Each account's line says so in plain words, such as **Everyone in Smith family, and their bots, can read and send from pat@example.com.** for a mailbox, then who added it (**Added by Pat.**, or **Added by you.**).
 
-- **Sending stays clear.** A draft card shows which mailbox the email goes from, and it's answered like any other card: in your own chats only you can, and in a group chat only the person who asked (see [Approval cards](/help/approvals-and-privacy#approval-cards)).
-- **Sign-in codes stay with whoever connected the mailbox.** When a bot reads a mailbox someone else connected, Mercbot hides the sign-in codes and sign-in links in it, so only the bots of the person who connected it see them. This is worked out from the wording of each email, so now and then it hides a code that isn't a sign-in code, such as a discount code.
+- **Sending stays clear.** A draft card shows which mailbox the email goes from, and it's answered like any other card: only by the person whose message started the work (see [Approval cards](/help/approvals-and-privacy#approval-cards)).
+- **Sign-in codes stay with whoever connected the mailbox.** When a bot reads a mailbox someone else connected, Mercbot hides the sign-in codes and sign-in links in it, so a bot sees them only when the person who connected it is the one asking. This is worked out from the wording of each email, so now and then it hides a code that isn't a sign-in code, such as a discount code.
 - **Who can change an account.** The person who added it and the home's owners and admins can rename it, sign it in again, choose its pace and remove it. Everyone else sees its status.
 - **Your accounts go with you.** If you're no longer in a home, for example because an owner or admin removed you, the accounts you connected there are signed out and removed, and the **Activity** tab in **Apps** says so. Your accounts in your other homes stay.
 
 To keep an account to yourself, connect it in a home only you are in, such as the one Mercbot made for you.
 
-Sedna is the one app used only in each person's own chats with their bots, never in a shared conversation: its API credentials could read the whole organisation, so a bot reads only your own Sedna teams.
+Sedna works in any chat, always as the asking person's own Sedna user: its API credentials could read the whole organisation, so a bot reads only your own Sedna teams.
 
 ### More than one account
 
@@ -308,7 +303,7 @@ Bots work in your own Sedna teams' shared email, as you: the Sedna user with you
 - **Attachments:** save one or all of a message's attachments into the bot's files.
 - **Contacts:** add a contact or change one, only when you ask.
 
-Everything happens only in your own chats with your bots, never in a shared conversation, and only on your own teams' messages. Sending and assigning reach other people, so they ask first unless you asked for exactly that; see [What always asks first](/help/approvals-and-privacy#what-always-asks-first). A copy of Mercbot that isn't live (Development, Test or Staging) changes nothing in Sedna: it logs what it would have done. Sedna has no search across message text: bots find messages by tag, by job reference or among the newest. Mercbot keeps to Sedna's [Request pace](#request-pace-how-fast-mercbot-uses-an-app), and if Sedna asks it to wait, the bot says when to try again.
+Everything happens as your own Sedna user, only on your own teams' messages, in whatever chat you ask in; everyone who can open that chat sees what the bot reads and drafts there. Sending and assigning reach other people, so they ask first unless you asked for exactly that; see [What always asks first](/help/approvals-and-privacy#what-always-asks-first). A copy of Mercbot that isn't live (Development, Test or Staging) changes nothing in Sedna: it logs what it would have done. Sedna has no search across message text: bots find messages by tag, by job reference or among the newest. Mercbot keeps to Sedna's [Request pace](#request-pace-how-fast-mercbot-uses-an-app), and if Sedna asks it to wait, the bot says when to try again.
 
 If Sedna doesn't answer a send or a change, the bot never tries again by itself: it may have gone through. The card or the bot says so: look in Sedna first, then try again if it isn't there. Message comments are read only, because Sedna's API can't add them.
 
@@ -350,7 +345,7 @@ Yes, through its website. Ask the bot to do the job and it'll use its browser, s
 
 ### Will closing the live view stop my bot?
 
-No. The live view only shows the screen. The bot carries on, and you can open the view again from the Computer tab.
+No. The live view only shows the screen. The bot carries on, and you can open the view again from the chat.
 
 ### Why did my bot's computer forget its sign-ins?
 
@@ -362,6 +357,6 @@ Someone selected **Reset** in **Settings** > **Computer**, which clears saved si
 - [Approvals, safety and privacy](/help/approvals-and-privacy)
 - [Files, documents and pictures](/help/files)
 - [Skills, routines and watches](/help/skills-and-routines)
-- [Bots shared in a home](/help/shared-bots)
+- [Chats and your team](/help/chats)
 - [Settings and notifications](/help/settings)
 - [Fixing common problems](/help/troubleshooting)

@@ -116,7 +116,7 @@ Apps refer to each field by a permanent identity, not by its name, so fields can
 
 **Removing.** A field is never removed without a person checking first, whoever started it.
 
-1. Press **Fields**, then **Remove…** next to the field. If the Builder suggests removing one, the same check appears as a card in its chat.
+1. Press **Fields**, then **Remove…** next to the field. If the Builder suggests removing one, the same check appears as a card in the chat.
 2. Mercbot lists every app that uses the field and how: as a column, a form field, a filter, a total and so on. Drafts are listed too.
 3. If a list filters on the field, you're warned that without that condition the list will show more records. If calculated fields are worked out from it, you're warned that they'll show "—" until the Builder changes how they're worked out.
 4. Press **Remove everywhere**, or **Keep it** to change your mind.

@@ -18,9 +18,7 @@ Every other bot, and every person, works with the records inside the tables. Onl
 There are two ways:
 
 1. In **Apps**, press **New app**. If your home has no Builder yet, Mercbot asks you to **Choose a Builder**. Pick a bot and press **Make Builder**.
-2. Open any bot's details. In its **Apps** section, press **Make this the Builder**.
-
-A group chat can't be the Builder.
+2. Open a bot's card in **Team**. In its **Apps** section, press **Make this the Builder**.
 
 ### Move the role
 
@@ -78,11 +76,9 @@ Press the pointer button next to **Ask Builder**. A note says **Click the part o
 
 The **ⓘ** button opens the app's details panel. It has six tabs: **Overview**, **Screens**, **Data**, **Logic**, **Versions** and **Activity**. Some of the details are covered below; versions and activity are on [Versions, activity and undoing changes](/help/apps-versions).
 
-## One conversation per app
+## One chat per app
 
-If several apps are being built at once, talking about all of them in one chat gets confusing. A shared Builder keeps a separate conversation for each app: **Ask Builder** in an app opens that app's own conversation, made the first time you ask, whichever of the Builder's tabs you had open. Your own chat with the Builder stays yours, as its last tab, **You only**.
-
-If your Builder isn't a shared bot, the first time a home owner or admin presses **Ask Builder**, Mercbot asks **A conversation for each app?** The question also says that each person's own chat with the Builder stays theirs, as its last tab, You only. Choosing **Yes, one per app** makes the Builder shared, so everyone in the home can follow those conversations; in them the Builder doesn't use anyone's own accounts or memories. **No, use my own chat** keeps things as they are, and you won't be asked again. See [Bots shared in a home](/help/shared-bots).
+If several apps are being built at once, talking about all of them in one chat gets confusing. So each app has its own chat with the Builder: **Ask Builder** in an app opens it, made the first time someone asks. It's a Public chat, so everyone in the home can follow it and join in. If the home picks another Builder, the new one joins every app's chat. See [Chats and your team](/help/chats).
 
 ## What you can change yourself
 
@@ -161,5 +157,5 @@ Yes, but every change goes into the app's one draft, so check the preview before
 - [Your data: tables, fields and records](/help/apps-data)
 - [Versions, activity and undoing changes](/help/apps-versions)
 - [App templates](/help/apps-templates)
-- [Bots: create, shape, organise and remember](/help/bots)
-- [Bots shared in a home](/help/shared-bots)
+- [Bots: add, shape and archive](/help/bots)
+- [Chats and your team](/help/chats)

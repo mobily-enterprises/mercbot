@@ -4,14 +4,14 @@ Mercbot gives you bots that take on real work for you. You tell a bot what you n
 
 ## What Mercbot does
 
-Each bot is a helper with its own name, face and job. You talk to it in a chat, the same way you'd message a colleague. Behind the chat, the bot can:
+Each bot is a helper with its own name, face and job, and a member of your home like its people. You talk to it in a chat, the same way you'd message a colleague, on your own with it or together with other people and bots. Behind the chat, the bot can:
 
 - browse the web in its own browser, on its own small computer;
 - use the apps you connect in **Connect apps**, such as your email, calendar, files or GitHub;
 - make real files: documents, spreadsheets, slide decks, PDFs, charts and pictures;
-- remember lasting facts you tell it, such as an allergy or how you like things done;
+- keep notes for its job in the chat's folder, such as your opening hours or how you like things done;
 - do things on a schedule, through routines you set up by asking;
-- pass a task to another of your bots.
+- pass a task to another bot in the home.
 
 You can have several bots, each with a clear job. One might plan the family's meals, another might keep an eye on supplier contracts, a third might prepare for sales calls.
 
@@ -19,13 +19,13 @@ You can have several bots, each with a clear job. One might plan the family's me
 
 ### Bots with their own computer
 
-Every bot works on a computer of its own in the cloud: a small desktop with a web browser and office apps. Open the bot's **Details** panel and choose the **Computer** tab to watch it work. When a step needs you, such as signing in to a website, the bot hands you the screen. You do that step yourself, then hand it back. Your password goes straight to the website and the bot never sees it.
+In each chat, every bot works on a computer of its own in the cloud: a small desktop with a web browser and office apps, labelled with the bot's name. Open it from the chat to watch the bot work. Everyone who can open the chat can watch it and use what's signed in there. When a step needs you, such as signing in to a website, the bot hands you the screen. You do that step yourself, then hand it back. Your password goes straight to the website and the bot never sees it.
 
 Because the computer lives in the cloud, the bot keeps going when you close the tab. A long errand carries on in the background, and a routine runs at its time whether you're there or not.
 
 ### Homes
 
-Everything in Mercbot lives in a **home**: its bots, their files and computers, and the people who use them. You get your own home to start with, and can create more homes for different parts of your life, such as one for the family and one for a small business. Each person's chats with a bot stay their own, and a home's owners decide how much each bot shares. See [Homes](/help/homes).
+Everything in Mercbot lives in a **home**: its people and bots, their chats, files and computers. You get your own home to start with, and can create more homes for different parts of your life, such as one for the family and one for a small business. A new chat is **Public**, so everyone in the home can open it; choose **Private** to keep a chat to its members. See [Chats and your team](/help/chats) and [Homes](/help/homes).
 
 ### Apps
 
@@ -52,11 +52,11 @@ When the bot replies, read what it did. If something isn't right, say so in the 
 
 ### Does my bot keep working when I'm offline?
 
-Yes. A bot's work runs on Mercbot's servers, not in your browser. You can close the tab or switch off your computer. Routines run at their set time, and the bot posts the result in its chat and marks itself unread, so you'll see it next time you look.
+Yes. A bot's work runs on Mercbot's servers, not in your browser. You can close the tab or switch off your computer. Routines run at their set time, and the bot posts the result in the chat and marks it unread, so you'll see it next time you look.
 
 ### Does it remember things?
 
-Yes, in two ways. Within a chat, the bot keeps track of the whole conversation, however long it gets. Across chats, it remembers lasting facts you tell it, such as preferences or allergies. All your bots share these facts, and you can see and remove them in **Settings** → **Memory**.
+Within a chat, the bot keeps track of the whole conversation, however long it gets. Bots made from a template keep what they learn about your job in a notes document in the chat's folder, which everyone in the chat can read and correct. For something a bot should always do, ask it to add it to its additions.
 
 ### Can it use websites that need a login?
 
@@ -70,7 +70,8 @@ There are no plans. What your bots' work costs is what the AI providers bill for
 
 - [Quick start: your first finished job](/help/quick-start) walks you through your first session.
 - [Example jobs for a bot](/help/example-jobs) has ideas for families, small businesses and companies.
-- [Bots: create, shape, organise and remember](/help/bots) covers everything about your bots.
+- [Bots: add, shape and archive](/help/bots) covers everything about your bots.
+- [Chats and your team](/help/chats) explains chats, Public and Private, and your team.
 - [The bots' computer and connected apps](/help/computer-and-apps) explains the computer and Connect apps.
 - [Skills, routines and watches](/help/skills-and-routines) shows how to make work repeat.
 - [Fixing common problems](/help/troubleshooting) helps when something doesn't work.

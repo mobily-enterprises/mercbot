@@ -1,6 +1,6 @@
 # The vault: saved logins and secrets
 
-The vault is your private store for website logins, payment cards and contact details. Its main job is to let bots sign in to websites for you without ever seeing your password: you save a login once, and when a bot reaches that site's sign-in page, Mercbot types it in for the bot. This page covers what the vault keeps, how to add items (one at a time, from a photo or from a CSV file) and change them, how bots use them, the secure form bots use when nothing is saved, and how payments work.
+The vault is your home's store for website logins, payment cards and contact details. Its main job is to let bots sign in to websites for you without ever seeing your password: you save a login once, and when a bot reaches that site's sign-in page, Mercbot types it in for the bot. This page covers what the vault keeps, how to add items (one at a time, from a photo or from a CSV file) and change them, how bots use them, the secure form bots use when nothing is saved, and how payments work.
 
 ## What the vault keeps
 
@@ -14,7 +14,7 @@ Open **Settings** > **Vault**. Items come in three kinds, each with its own tab:
 
 "Sealed" means encrypted before it's stored, with a key kept by the server. Only what you need to recognise an item stays readable: a login's website and username, or a card's type, last four digits and expiry.
 
-Your vault is yours alone. Other people in your home can't see it, and their bots can't use it. Even your own bots don't use it in a Shared bot's shared tabs, where everyone can see what happens. Your own chats use it, a Shared bot's **You only** tab included.
+The vault belongs to the home, like its connected accounts. Everyone in the home can see what's in it, and the home's bots can use its logins in any chat, for whoever asked. Nobody outside the home can see it. To keep a login to yourself, save it in a home only you are in.
 
 ## Add an item
 
@@ -72,7 +72,7 @@ Good to know:
 
 Items can't be edited. To change one, for example after you change a password, add the new item and delete the old one.
 
-To delete an item, select the bin button on its row and confirm. It's removed from your vault, and your bots can't use it any more.
+To delete an item, select the bin button on its row and confirm. It's removed from the vault, and the home's bots can't use it any more.
 
 ## How bots sign in with a saved login
 
@@ -85,7 +85,7 @@ When a website needs a login, a bot tries these in order:
 
 Bots never ask you to type a password, card number or code in the chat. If a bot ever reads one of your saved passwords on a page, Mercbot blanks it out of the bot's reply, so it never appears in the chat.
 
-Once a bot has signed in, its browser usually stays signed in to that site, even after its computer sleeps. Resetting the computers in **Settings** > **Computer** signs every bot out of every website, but leaves your vault untouched.
+Once a bot has signed in, its browser usually stays signed in to that site, even after its computer sleeps. Resetting the computers in **Settings** > **Computer** signs every bot out of every website, but leaves the vault untouched.
 
 ## The secure form
 
@@ -95,7 +95,7 @@ When a bot needs a login it doesn't have, it opens the sign-in page on its compu
 2. Leave **Save securely to your vault** ticked to keep the login for next time, or untick it to use it just this once.
 3. Select **Submit**.
 
-The form says it plainly: your bot never sees what you type, and it's only filled in on that site. Mercbot types the values straight into the sign-in page on the bot's computer. If the bot's browser has moved on in the meantime, Mercbot reopens the sign-in page first. A saved login appears in your vault under the site's name, and the bot mentions in a line that it's saved.
+The form says it plainly: your bot never sees what you type, and it's only filled in on that site. Mercbot types the values straight into the sign-in page on the bot's computer. If the bot's browser has moved on in the meantime, Mercbot reopens the sign-in page first. A saved login appears in the vault under the site's name, and the bot mentions in a line that it's saved.
 
 Select **Close** if you'd rather not sign in. The bot takes that as a no.
 
@@ -128,13 +128,13 @@ The same care applies to ordering, booking, sending, cancelling, posting and inv
 
 No. Mercbot types a saved password into the website itself. The bot only learns that a login was filled in, and with which username.
 
-### Can other people in my home use my vault?
+### Can other people in my home use the vault?
 
-No. Each person's vault is private, and bots never use anyone's vault in a Shared bot's shared tabs.
+Yes. The vault is the home's: everyone in the home can see its items, and the home's bots can use them in any chat. Keep logins only you should use in a home of your own.
 
-### Do updates or a computer reset remove my vault items?
+### Do updates or a computer reset remove vault items?
 
-No. Updates and **Reset** only affect the bots' browsers. Your vault items stay until you delete them.
+No. Updates and **Reset** only affect the bots' browsers. The vault's items stay until someone deletes them.
 
 ### I changed a password. What do I do?
 
@@ -146,7 +146,7 @@ Bitwarden is listed in Connect apps, but it can't be connected yet. For now, exp
 
 ### Why can't I scan a card?
 
-Reading a card from a photo would send its number to an AI, and the vault never lets a card's number reach one. Type the card in; only you and the shop's checkout ever see its number.
+Reading a card from a photo would send its number to an AI, and the vault never lets a card's number reach one. Type the card in; only the person typing it and the shop's checkout ever see its number.
 
 ### Is the photo of my business card kept?
 

@@ -10,7 +10,7 @@ The Okafors have three children, two calendars and a fridge door covered in scho
 
 ## The meal planner
 
-A bot plans five dinners a week around everyone's tastes, the nights with football practice, and one child's nut allergy, which it remembers for good. It writes a single shopping list grouped by aisle. When asked, it searches a supermarket's website for the items and builds the basket, then stops before checkout so a person can check it and pay.
+A bot plans five dinners a week around everyone's tastes, the nights with football practice, and one child's nut allergy, which it keeps in its notes. It writes a single shopping list grouped by aisle. When asked, it searches a supermarket's website for the items and builds the basket, then stops before checkout so a person can check it and pay.
 
 **What it needs:** to be told once about diets and allergies, and a login for the shop if it should fill the basket.
 
@@ -47,10 +47,10 @@ An operations manager asks a bot to put together the same report every Friday: f
 A good scenario becomes a reliable bot when its job is clear and stays clear. To set one up:
 
 1. **Give it one job.** Create a separate bot for each role with **Add bots**, and give it a name that says what it does. A bot that does one thing well is easier to trust than one that does everything.
-2. **Tell it the specifics once.** Explain who's involved, which accounts to use, what to avoid and how you like results presented. Lasting facts are remembered across chats.
+2. **Tell it the specifics once.** Explain who's involved, which accounts to use, what to avoid and how you like results presented. Bots made from a template keep these in a notes document in the chat's folder, so you can check and correct them.
 3. **Run the job by hand first.** Ask for it a few times in the chat and correct anything that's off, until the result is what you want.
 4. **Save the method.** Ask the bot to save what it did as a skill, or teach it by recording yourself doing the task on its computer.
-5. **Then make it repeat.** Ask for a routine, such as "every Friday at 4". The bot tells you when it will run, with your time zone, and you can pause or edit it in the bot's **Details** panel.
+5. **Then make it repeat.** Ask for a routine, such as "every Friday at 4". The bot tells you when it will run, with your time zone, and you can pause or edit it in the chat's details.
 6. **Set your limits.** In **Settings**, add rules for what the bot may do on its own and what it should always ask about first.
 
 You don't have to start from scratch. The **Bot templates** gallery at [/templates](/templates) has ready-made bots, each with one clear job, made by the Mercbot team for families, small businesses and companies. Each template starts by asking about you, shows you its full instructions, skills and routines before you add it, creates its routines paused until you say yes, and asks before it sends anything.
@@ -58,7 +58,7 @@ You don't have to start from scratch. The **Bot templates** gallery at [/templat
 ## Related pages
 
 - [Quick start: your first finished job](/help/quick-start)
-- [Bots: create, shape, organise and remember](/help/bots)
+- [Bots: add, shape and archive](/help/bots)
 - [Skills, routines and watches](/help/skills-and-routines)
 - [Apps: what they are and when to use them](/help/apps)
 - [Homes: Mercbot for families and businesses](/help/homes)

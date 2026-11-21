@@ -54,7 +54,7 @@ The **New app** button opens a chat with your Builder.
 
 ### Leaving an app
 
-The **X** at the top left of an app closes it in one click, however many screens and records you've opened in it. Point at it to see where it goes: **Back to** and the bot's name when you opened the app from a bot's chat, **Back to Apps** or **Back to Files**, or **Back to Mercbot** when you opened the app from a link. You land where you were, in the same conversation. **Ctrl+[** does the same. Your browser's Back button still steps through the screens and records you opened, one at a time.
+The **X** at the top left of an app closes it in one click, however many screens and records you've opened in it. Point at it to see where it goes: **Back to** and the chat's name when you opened the app from a chat, **Back to Apps** or **Back to Files**, or **Back to Mercbot** when you opened the app from a link. You land where you were, in the same chat. **Ctrl+[** does the same. Your browser's Back button still steps through the screens and records you opened, one at a time.
 
 ## Apps and Connect apps
 

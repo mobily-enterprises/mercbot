@@ -19,23 +19,23 @@ Your own skills sit beside Mercbot's. A bot makes one in two ways:
 - **Saving one.** When a bot notices a job with several steps that will come back, it offers to save it as a skill. You can also ask: "Save what you just did as a skill called Weekly invoices." A bot only saves, changes or deletes a skill when you agree.
 - **Learning by watching.** You do the task once on the bot's computer, and the bot writes it up (see the next section).
 
-Skills never contain passwords or codes. Your skills are yours: all your bots can use them in your own chats, a Shared bot's **You only** tab included, but they're never used in its shared tabs.
+Skills never contain passwords or codes. Your skills are yours, in this home. A bot uses only what everyone who can open a chat can also open, so it uses your skills only in a Private chat where you're the only person.
 
-A skill isn't a bot's **Instructions**. A bot's instructions, in its Details panel, are its template and its own additions, the rules it follows in every reply, so keep the additions short; a skill is read only when its kind of job comes up, so it can hold long steps and reference material. A template can bring skills of its own, listed under its instructions. You can ask a bot to change its additions too: like a skill, it changes them only when you agree, on a card that shows the change. See [Bots](/help/bots).
+A skill isn't a bot's **Instructions**. A bot's instructions, on its card in **Team**, are its template and its own additions, the rules it follows in every reply, so keep the additions short; a skill is read only when its kind of job comes up, so it can hold long steps and reference material. A template can bring skills of its own, listed under its instructions. You can ask a bot to change its additions too: like a skill, it changes them only when you agree, on a card that shows the change. See [Bots](/help/bots).
 
 A bot never runs a new skill until you ask. After saving one, it offers a test run.
 
 ### Pick a skill with /
 
-In a bot's own chat, type **/** at the start of the message box. Up to five skills appear, your own first, each with its name and a short description. Keep typing to narrow the list, then use the arrow keys and **Enter** or **Tab** to choose. The skill becomes a coloured token in your message (**Backspace** removes it in one go). Add what you want and send, and the bot uses that skill for the job.
+In a chat, type **/** at the start of the message box. Up to five skills appear, your own first, each with its name and a short description. Keep typing to narrow the list, then use the arrow keys and **Enter** or **Tab** to choose. The skill becomes a coloured token in your message (**Backspace** removes it in one go). Add what you want and send, and the bot uses that skill for the job.
 
-In a group chat, typing **@** also offers your own skills.
+Typing **@** also offers your own skills.
 
 ## Teach a task by showing it
 
 Some jobs are easier to show than to explain. Do the task once on a bot's computer, and the bot turns the recording into a skill.
 
-1. In the bot's own chat, select **+** next to the message box, then **Teach a task**.
+1. In a Private chat with just you and the bot, select **+** next to the message box, then **Teach a task**.
 2. The bot's computer opens with you in control. A banner says the recording is only used to learn the steps, then deleted.
 3. Select **Start recording**. It's available once the screen is showing.
 4. Do the whole task in the browser, the way you normally would. A red outline and a counting timer show it's recording.
@@ -51,7 +51,7 @@ A few things to know:
 - The recording is deleted once the bot has learned from it.
 - If the recording has no steps, or the bot can't learn from it, it explains why and doesn't make a skill.
 
-Teaching isn't available in group chats, which have no computer.
+The skill it makes is yours, like any skill you save.
 
 ## Manage your skills
 
@@ -64,12 +64,14 @@ Skills can't be shared on their own yet: the **Publish** menu says sharing skill
 
 ## Routines
 
-A routine is a job a bot repeats on a schedule. Ask for one in plain words in a bot's own chat:
+A routine is a job a bot repeats on a schedule. Ask for one in plain words in a chat:
 
 - "Every weekday at 8am, summarise my unread email."
 - "Every Friday afternoon, check the school website for new letters and only tell me if there's something new."
 
-The bot adds a **Created routine** line with the routine's name, then tells you in plain words when it runs, in which time zone, and when the next run is. At that time it does the job on its own, even when you're away, posts the result in its chat and is marked unread.
+The bot adds a **Created routine** line with the routine's name, then tells you in plain words when it runs, in which time zone, and when the next run is. At that time it does the job on its own, even when you're away, posts the result in the chat where you set it up and marks the chat unread.
+
+A routine belongs to its chat and runs as the person who asked for it, with their approvals. If that person leaves the home, the routine pauses, with a line in the chat.
 
 If the instructions say to report only changes, and nothing has changed, the bot posts nothing at all for that run.
 
@@ -77,11 +79,11 @@ If the instructions say to report only changes, and nothing has changed, the bot
 
 A routine can work on the mail that comes into your Sedna teams, such as "every 15 minutes, tag new fixture recaps Fixtures, link them to their voyage and draft a reply for me to check." Each run reads only the mail that came in since its last run, in your own teams, oldest first. It can tag messages, link them to job references, write replies as draft cards for you to send, and post a summary. It never sends or assigns by itself unless one of your rules allows it.
 
-A run looks at 10 new messages at most. If more came in, it says so and the next run carries on from there: nothing is skipped. A run that fails reads the same mail again next time, so it may tag a message or write a draft for it twice. Its first run starts from when the routine was made: older mail isn't new to it. Routines on Sedna run only in your own chats with your bots.
+A run looks at 10 new messages at most. If more came in, it says so and the next run carries on from there: nothing is skipped. A run that fails reads the same mail again next time, so it may tag a message or write a draft for it twice. Its first run starts from when the routine was made: older mail isn't new to it. What it reads and drafts shows in the chat it was set up in, for everyone who can open that chat.
 
 ### When a run fails
 
-A run that couldn't finish posts a short message saying so, and the routine tries again at its next scheduled time. If a routine fails five runs in a row, it pauses itself: the bot says so in its chat, with a **Paused routine** line, and the routine shows **Paused** in the Details panel. Resume it with its switch, or ask the bot to resume it, once whatever was wrong is fixed. A run that works, or resuming it, starts the count again.
+A run that couldn't finish posts a short message saying so, and the routine tries again at its next scheduled time. If a routine fails five runs in a row, it pauses itself: the bot says so in the chat, with a **Paused routine** line, and the routine shows **Paused** in the chat's details. Resume it with its switch, or ask the bot to resume it, once whatever was wrong is fixed. A run that works, or resuming it, starts the count again.
 
 If Mercbot restarts while a routine or a watch is running, another of its servers picks the run up where it got to and finishes it, once: you get one result, not two.
 
@@ -99,7 +101,7 @@ To watch a price, stock or a page for changes, ask for a routine that checks it.
 
 ## Manage routines
 
-A bot's routines are listed in its **Details** panel, on the **Details** tab, each with its schedule and an on/off switch. You can also find a routine by name in the search palette (**Ctrl+K**); a Shared bot's opens in the tab it runs in.
+A chat's routines are listed in its details, each with its bot, its schedule and an on/off switch. You can also find a routine by name in the search palette (**Ctrl+K**), which opens the chat it runs in.
 
 - **Pause or resume:** use the switch, or right-click the routine and choose **Pause** or **Resume**. A paused routine shows **Paused**. When you resume it, the next run is counted from now; it doesn't catch up on runs it missed while paused.
 - **Edit:** right-click and choose **Edit**. The message box fills with `Edit your routine "<name>": `. Type the change in plain words and send it. The bot confirms the new schedule.
@@ -109,11 +111,7 @@ You can also just say it: "Pause the Monday summary".
 
 ### Routines that wait for your yes
 
-A bot can set up a routine paused, so it doesn't run until you're ready. Bots made from templates do this: their setup interview creates the routines they need, paused, and they start only when you say yes. Ask for the same yourself: "Set it up, but don't start it yet." To start a paused routine, tell the bot to start it, or switch it on in the Details panel.
-
-### Routines in shared bots and groups
-
-A routine set up in a Shared bot's shared tab runs in that tab, and one set up in your **You only** tab runs there, for you alone. If the bot stops being Shared, its shared tabs are hidden and their routines pause, with a **Paused while hidden** line in each tab; resume them there once the bot is Shared again. Routines in your own chat, You only included, carry on. In a group chat, a bot can set up its own routines; their **Created routine** lines and any approval cards go to that bot's own chat.
+A bot can set up a routine paused, so it doesn't run until you're ready. Bots made from templates do this: their setup interview creates the routines they need, paused, and they start only when you say yes. Ask for the same yourself: "Set it up, but don't start it yet." To start a paused routine, tell the bot to start it, or switch it on in the chat's details.
 
 ## Watches on app data
 
@@ -124,12 +122,12 @@ A watch tells a bot to act by itself when records in one of your home's tables c
 
 A watch can look for **new records**, **changes**, or both, and can have a condition, such as a total over 500 or a status of Won. Each time it fires, the chat where you set it up shows **Watch:** with its name, followed by the bot's reply. One run covers up to 20 records and counts the rest.
 
-Watches are listed in the bot's **Details** panel, under **Apps**, such as "Watches new records in Orders". Use the switch to pause or resume one, or **Remove** to delete it.
+Watches are listed in the chat's details, such as "Watches new records in Orders". Use the switch to pause or resume one, or **Remove** to delete it.
 
 - A new or resumed watch only sees changes from that moment on.
 - Changes the watch's own run makes never set it off again.
 - A watch that runs more than 30 times in an hour pauses itself, and its bot tells you.
-- A watch set up in a Shared bot's shared tab pauses if the bot stops being Shared, and that tab says so in a **Paused while hidden** line.
+- A watch belongs to its chat and runs as the person who set it up. If they leave the home, it pauses.
 - What's in the records reaches the bot as information, never as instructions. Anything typed by visitors to a public app is marked as untrusted.
 
 For buttons in an app that hand a bot a task, see [Logic: formulas, scripts and automations](/help/apps-logic).
@@ -137,7 +135,7 @@ For buttons in an app that hand a bot a task, see [Logic: formulas, scripts and 
 ## Test before you rely on it
 
 - **Run it once by hand.** Before scheduling a job, ask the bot to do it now in the chat. Fix the instructions until the result is what you want, then ask for the routine.
-- **Set it up paused.** Ask for the routine "but don't start it yet", check its schedule in the Details panel, then switch it on.
+- **Set it up paused.** Ask for the routine "but don't start it yet", check its schedule in the chat's details, then switch it on.
 - **Try a one-off first.** "Do this once in five minutes" shows you exactly what a run will post.
 - **Start watches narrow.** Give a watch a clear condition, add a test record, and check what the bot does.
 
@@ -158,7 +156,7 @@ Routine runs, watch runs and skills are ordinary bot work, counted like any repl
 
 Check these in order:
 
-1. **Is it paused?** In the Details panel, a paused routine shows **Paused** and a watch's switch is off. A routine pauses itself after 5 failed runs in a row, and a watch after too many runs; its bot will have said so. Routines and watches in a Shared bot's shared tabs also pause when it stops being Shared.
+1. **Is it paused?** In the chat's details, a paused routine shows **Paused** and a watch's switch is off. A routine pauses itself after 5 failed runs in a row, and a watch after too many runs; its bot will have said so. Routines and watches also pause when the bot is archived, or when the person who set them up leaves the home.
 2. **Was it a one-off?** One-off routines remove themselves after running. Look for **Routine finished and removed** in the chat.
 3. **Was there nothing new?** If the instructions say "only tell me if something changed", a run with no changes posts nothing.
 4. **Check the time zone.** The bot confirmed the zone when it set up the routine. If it's wrong, check **Settings** > **General** > **Timezone** and ask the bot to change the routine.
@@ -180,7 +178,7 @@ Check these in order:
 
 ### Can my routine run while I'm signed out?
 
-Yes. Routines and watches run on Mercbot's servers. Results wait in the bot's chat, marked unread.
+Yes. Routines and watches run on Mercbot's servers. Results wait in the chat, marked unread.
 
 ### Can a routine send email without asking me?
 
@@ -188,7 +186,7 @@ Only if your instructions asked for exactly that, and none of your rules says to
 
 ## Related pages
 
-- [Bots: create, shape, organise and remember](/help/bots)
+- [Bots: add, shape and archive](/help/bots)
 - [The bots' computer and connected apps](/help/computer-and-apps)
 - [Bots working with app data](/help/apps-bots)
 - [Logic: formulas, scripts and automations](/help/apps-logic)

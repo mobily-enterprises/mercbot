@@ -2,6 +2,18 @@
 
 What's new in Mercbot, newest first. To see which version you're using, open the account menu, choose **Help and support**, then **About Mercbot**. You can also ask any bot "What's new in Mercbot?"
 
+## 22 November 2026
+
+Version 0: chats are at the heart of Mercbot.
+
+- **Bots are members of your home,** like its people. **Team**, beside **Files** and **Apps**, lists everyone in the home, people and bots, each with **Message**. A bot's card there holds what its Details panel held: instructions, Knowledge, files, computer, routines and Library.
+- **The chat list is your chats,** and it starts empty: a chat appears when you start one or a bot writes to you. **New chat** (**Ctrl+Alt+G**) brings together any people and bots of the home, and lists the Public chats you can join.
+- **Public by default, Private when you choose:** every new chat is Public, so everyone in the home can open it. Choose **Private** when you start a chat to keep it to its members; nothing in it reaches other chats. A chat stays the kind it started as.
+- **One rule for what bots use:** a bot in a chat uses only what everyone who can open that chat can also open. What a bot makes in a chat (files, pages, routines, notes) belongs to that chat, in its own folder.
+- **Each bot's computer in a chat** is labelled with its name, says that everyone who can open the chat can watch it and use what's signed in there, and can still be taken over and handed back.
+- **Archiving a bot** now means it has left the home: it stays in its chats, greyed out, and never answers, and whoever made it, or an owner or admin, can resume it from **Team**.
+- **Gone:** a bot's mode (Private, Mixed, Shared), Shared tabs and **You only**, the home notebook, group chats as a separate thing, and the memories in **Settings → Memory**. Templates now keep what they learn about your job in a notes document in the chat's folder, which anyone in the chat can read and correct. Everything made before version 0 was cleared.
+
 ## 21 November 2026
 
 - **Add bots:** **New bot** is now **Add bots**, in the sidebar and on **Ctrl+Alt+N**, and it opens on **Describe what you need**. Say what you need help with, such as "I run a dog-grooming salon with two staff", select **Suggest bots**, and **Suggested bots** shows what Mercbot would add before anything is: bots from its library and your home's templates, each with why, and new bots written for your home where nothing fits, each with its job, the first questions it will ask and **Read it all** and **Edit** for its template. All are ticked but those your home already has. Name the section they go in, ask for a change under **Not quite right?**, and **Add N bots** adds them together, new templates with them, in **Settings** → **Templates**. In a home with bots, the box asks what's missing. Each suggestion and each new bot's template is one request to the AI, counted in **Spending** like a reply. See [Describe what you need](/help/bots#describe-what-you-need).

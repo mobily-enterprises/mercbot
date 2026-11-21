@@ -8,7 +8,7 @@ Mercbot gives you bots that do real work for you. You ask in plain words, and a 
 
 ## How is a bot different from a chat assistant?
 
-A bot doesn't just answer. It has its own computer in the cloud with a web browser and office apps, it can use your connected email, calendar and files, and it can do things on a schedule. It remembers lasting facts about you, asks before anything risky, and can hand work to your other bots.
+A bot doesn't just answer. It has its own computer in the cloud with a web browser and office apps, it can use your connected email, calendar and files, and it can do things on a schedule. It works with you and your family or team in shared chats, asks before anything risky, and can hand work to other bots in the home.
 
 ## Who is Mercbot for?
 
@@ -16,7 +16,7 @@ Families, small businesses and companies. Everyone gets their own home, and can 
 
 ## Where do my bots run?
 
-On Mercbot's servers, not on your device. Each bot works on a small cloud computer: a desktop with a browser and office apps. You can watch it from the **Computer** tab in the bot's **Details** panel. See [The bots' computer and connected apps](/help/computer-and-apps).
+On Mercbot's servers, not on your device. Each bot works on a small cloud computer: a desktop with a browser and office apps. In a chat, each bot's computer is labelled with its name, and you can watch it from the chat. See [The bots' computer and connected apps](/help/computer-and-apps).
 
 ## Do bots keep working when I close Mercbot?
 
@@ -24,11 +24,7 @@ Yes. A job you've started carries on in the background, and routines run at thei
 
 ## What do bots remember?
 
-Within a chat, a bot keeps the thread however long it gets: it summarises the older part in the background and reads the recent part word for word. Across chats, it remembers lasting facts you tell it, such as preferences or an allergy. All your bots share those facts, but your chats with each bot stay private. What a bot should always do goes in its **Instructions**, in its Details panel. See [Bots](/help/bots).
-
-## Can I see or correct what a bot remembers?
-
-Yes. Open **Settings** → **Memory** to see what your bots know about you. Removing a fact there makes every bot forget it. To correct one, remove it and tell a bot the right version. A bot's memory is helpful, not a record to rely on, so keep important information in your own files or apps.
+Within a chat, a bot keeps the thread however long it gets: it summarises the older part in the background and reads the recent part word for word. Bots made from a template keep what they learn about your job in a notes document in the chat's folder, which anyone in the chat can open and correct. What a bot should always do goes in its additions, on its card in **Team**. See [Bots](/help/bots).
 
 ## How do bots use websites?
 
@@ -36,7 +32,7 @@ Each bot browses in its own browser, on its own computer. It can read pages, fil
 
 ## Can bots work together?
 
-Yes. You can start a group chat with up to six bots, where each answers in turn, or only the ones you mention with @. A bot can also ask another bot for something and wait for its answer, or pass a task on for the other bot to answer you itself; both show as cards in the two chats. See [Messaging and working together](/help/messaging).
+Yes. A chat can have several bots in it, and people too: each bot answers in turn, or only the ones you mention with @. A bot can also ask another bot for something and wait for its answer, or pass a task on; the answer comes back to the chat you asked in, with a card. See [Messaging and working together](/help/messaging).
 
 ## Will a bot do anything without asking me?
 
@@ -48,7 +44,7 @@ Mercbot's own. You don't need to choose a model or enter any keys. There are two
 
 ## Who can see my chats?
 
-Your own chat with a bot is yours, even when other people in your home use the same bot. A **Shared** bot also has conversations open to everyone in the home, as tabs, as the bot tells you; your own chat with it is its last tab, **You only**, which only you see. A **Mixed** bot may note things that help everyone in a home notebook, never anything personal, and tells you in a line you can undo. See [Bots shared in a home](/help/shared-bots).
+Everyone in the home can open a **Public** chat, and every new chat is Public unless you choose **Private** when you start it. Only the members of a Private chat can open it, and nothing in it reaches other chats. A bot in a chat uses only what everyone who can open that chat can also open. See [Chats and your team](/help/chats).
 
 ## Do bots see my passwords?
 
@@ -108,11 +104,11 @@ A skill is *how* to do a task: saved steps a bot follows when asked. A routine i
 
 ## How do I make a skill or a routine?
 
-For a skill, ask the bot to save what it just did as a skill, or teach it by recording yourself doing the task on its computer (**+** → **Teach a task**). Type "/" in the message box to pick a skill. For a routine, just ask: "Every weekday at 8, check my calendar and list my meetings." You can pause, edit or delete routines in the bot's Details panel.
+For a skill, ask the bot to save what it just did as a skill, or teach it by recording yourself doing the task on its computer (**+** → **Teach a task**). Type "/" in the message box to pick a skill. For a routine, just ask: "Every weekday at 8, check my calendar and list my meetings." You can pause, edit or delete routines in the chat's details.
 
 ## Can I share a bot with someone?
 
-Inside a home, everyone already uses the same bots, each with their own chat. Owners and admins choose whether each bot is **Private**, **Mixed** or **Shared** under **Who sees what** in its Details panel, and a Shared bot adds conversations everyone in the home sees; see [Bots shared in a home](/help/shared-bots).
+Inside a home, every bot is already everyone's: it's a member of the home, on the **Team** page, and anyone can start a chat with it or add it to one. See [Chats and your team](/help/chats).
 
 Outside your home, you can share one of the ready-made bots in the [template gallery](/templates). A template's **Add to Mercbot** opens its share page: send someone that link, and its **Add to Mercbot** shows them everything the bot would be given before they add it to their own home. The gallery is curated by the Mercbot team, who alone add templates to it, so a bot you've made yourself can't go there, and Mercbot has no way to send your own bot to someone outside your home.
 

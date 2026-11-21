@@ -39,14 +39,13 @@ When a bot writes a message for you, it often shows it as a draft card instead o
 
 ### When nobody answers
 
-A card waits. Nothing happens until someone presses a button, and the bot knows the action is still waiting for your OK. If a routine runs while you're away and needs approval, the card appears in that bot's chat and the bot is marked unread, so you'll see it when you come back.
+A card waits. Nothing happens until someone presses a button, and the bot knows the action is still waiting for your OK. If a routine runs while you're away and needs approval, the card appears in the routine's chat and the chat is marked unread, so you'll see it when you come back.
 
 If you send a new message instead of answering, the waiting card closes and its action isn't done. Ask again if you still want it.
 
-### In shared conversations and group chats
+### In chats with other people
 
-- **A Shared bot's shared tab** is seen by everyone in it, cards included. Anyone in that conversation can answer a card. Its **You only** tab is your own chat, where only you see and answer cards.
-- **In a group chat**, a bot that needs approval (for example, for a routine it wants to set up) posts the card in its own chat with you, not in the group.
+Everyone who can open a chat sees its cards, but only the person whose message started the work can answer one. For a routine or a watch, that's the person who set it up. A bot never counts as anyone's approval.
 
 ## What always asks first
 
@@ -125,7 +124,7 @@ A few more protections:
 - Bots never see a saved card's number or security code.
 - When you teach a bot a task by recording it, what you type into password and card fields isn't recorded.
 
-Bots work on their own computer in the cloud, never on your device, and you can watch or take control at any time. In your own chat with a bot, a Shared bot's **You only** tab included, your website sign-ins on its computer are yours alone. Each shared tab of a Shared bot has one browser for everyone in it, so sign-ins made there are shared too.
+Bots work on their own computer in the cloud, never on your device, and you can watch or take control at any time. In a chat, each bot's computer belongs to the chat: everyone who can open the chat can watch it and use what's signed in there, and the bot says so in one line when it signs in. For a sign-in only you should use, sign in from a Private chat with just you and the bot.
 
 ## What bots treat as untrusted
 
@@ -137,11 +136,11 @@ Approvals are the safety net behind this. Text on a page can't press Go ahead fo
 
 | What you share | Who sees it | What stays private |
 |---|---|---|
-| A file in the shared folder | Everyone in the home and all its bots | Files a bot keeps for you in its own folder |
-| A mixed bot's notebook | Everyone in the home can read it | Your chats. The bot notes only reusable learning, refuses email addresses, long numbers and your vault passwords, and tells you in a line you can undo |
-| A Shared bot's shared tabs | Everyone in the home who opens them | Your **You only** tab with the bot, and your memories, your vault and your own skills: shared tabs never use them |
-| An account you connect in **Connect apps** | Everyone in the home and their bots, in any chat: they can read it and, for a mailbox, send from it | Its sign-in codes and sign-in links, which reach only your own bots; your accounts in your other homes |
-| Something your bots remember | All your bots in that home | Your chats with each bot |
+| A Public chat, and what its bots make there | Everyone in the home, now and later, and the bots in every chat of the home | Private chats: a bot in a Public chat never uses one |
+| A Private chat, and what its bots make there | Its members, and bots in Private chats whose people are all its members | Everything else: nothing in it reaches a chat someone else can open |
+| A sign-in on a bot's computer in a chat | Everyone who can open that chat | Other chats' computers |
+| A file in the shared folder | Everyone in the home and all its bots | Files in a Private chat's folder |
+| An account you connect in **Connect apps** | Everyone in the home and their bots, in any chat: they can read it and, for a mailbox, send from it | Its sign-in codes and sign-in links, which a bot sees only when you are the one asking; your accounts in your other homes |
 
 ## Removing access and data
 
@@ -153,12 +152,11 @@ Approvals are the safety net behind this. Text on a page can't press Go ahead fo
 | Sedna's API credentials | **Connect apps**, the bin on Sedna's line (owners and admins) | Mercbot deletes them, with who each person is in Sedna; no bot reads Sedna until they're entered again. To stop them working everywhere, delete the credential on Sedna's API Credential Management page |
 | Who you are in Sedna | **Connect apps**, Sedna, **That's not me** (or **Undo** under **People**, for owners and admins) | Your bots read nothing in Sedna until you pick yourself again and it's confirmed |
 | One action of an app | **Connect apps**, the app's **Tools** | Bots can't do it any more |
-| Something a bot remembers | **Settings**, **Memory** | The fact is forgotten by all your bots |
 | A login, card or contact | **Settings**, **Vault** | It's deleted |
-| Website sign-ins on bots' computers | **Settings**, **Computer**, **Reset** | Your bots' computers start afresh; open pages close and saved sign-ins and website data are cleared |
-| A routine | The bot's **Details** panel | Pause it, or delete it |
-| A note in the home notebook | The bot's **Details** panel | It's taken out (by its author, owners and admins) |
-| A bot | Right-click it in the sidebar, **Delete** | The bot and its whole conversation are gone for good |
+| Website sign-ins on bots' computers | **Settings**, **Computer**, **Reset** | The computers start afresh; open pages close and saved sign-ins and website data are cleared |
+| A routine | The chat's details | Pause it, or delete it |
+| A chat | The chat's details, **Delete** (its maker, owners and admins) | The chat, its files and its bots' computers are gone for good |
+| A bot | Its card in **Team**, **Delete** | The bot is gone for good |
 
 Records in Apps are never deleted: they're marked obsolete and can come back.
 
@@ -170,15 +168,15 @@ Records in Apps are never deleted: they're marked obsolete and can come back.
 - For Sedna, make API credentials that may only read, if Sedna lets you choose, and confirm only people's own Sedna users under **People**.
 - In each app's **Tools**, switch off actions you never want bots to take, such as sending or deleting.
 - Use the vault and secure forms for logins. Never paste a password into the chat.
-- Choose who sees what for each bot in a home: private for personal matters, mixed or shared only where that's the point.
+- Use a Private chat for personal matters. Everyone in the home can open a Public chat.
 - Keep personal files out of the shared folder.
 - Read a template's instructions and skills before you add it.
-- Review routines from time to time in the bot's Details panel, and pause the ones you don't need.
+- Review routines from time to time in each chat's details, and pause the ones you don't need.
 - Reset your bots' computers when you no longer want them signed in to websites.
 
 ## Sedna: a home's credentials, each person's own teams
 
-Sedna's API credentials belong to the whole home: an owner or admin enters them, and Mercbot keeps them encrypted. They could read every team's inbox in your Sedna organisation, so Mercbot never lets a bot do that. A bot reads only the teams of the Sedna user who is you: the one with your email address, or the one you picked and an owner or admin confirmed. Nobody can be confirmed as someone else in the home, and one Sedna user is only ever one person. A message from another team is refused without anything of it being shown, and Sedna is used only in your own chats with your bots, never in a shared conversation.
+Sedna's API credentials belong to the whole home: an owner or admin enters them, and Mercbot keeps them encrypted. They could read every team's inbox in your Sedna organisation, so Mercbot never lets a bot do that. A bot reads only the teams of the Sedna user who is you: the one with your email address, or the one you picked and an owner or admin confirmed. Nobody can be confirmed as someone else in the home, and one Sedna user is only ever one person. A message from another team is refused without anything of it being shown. In a chat with other people, everyone who can open the chat can read what the bot reads and drafts from Sedna there.
 
 Everything a bot does in Sedna is done as that same user, from one of your teams: it never sends or changes anything as a colleague, and it changes only your own teams' messages and your own drafts. A message it writes for you is a draft card first; it goes out when you press **Send**, or when you asked for exactly that send. A routine never sends or assigns by itself: it leaves a card or a draft for you, unless one of your rules allows it. Sedna is the whole organisation's shared mailbox, where your teammates see every change at once, so a copy of Mercbot that isn't live (Development, Test or Staging) changes nothing in it, not even a tag: it logs what it would have done. Text in Sedna messages is something to read, never instructions for the bot.
 
@@ -194,13 +192,13 @@ Most likely your own message asked for exactly that, which counts as your OK. Ad
 
 ### Can someone in my home approve things on my behalf?
 
-Not in your own chats, a Shared bot's You only tab included: only you see those cards. In a Shared bot's shared tab, anyone in it can answer.
+No. A card is answered only by the person whose message started the work, in any chat. Others in the chat can see the card, but not answer it.
 
 ## Related pages
 
 - [The vault: saved logins and secrets](/help/vault)
 - [The bots' computer and connected apps](/help/computer-and-apps)
-- [Bots shared in a home](/help/shared-bots)
+- [Chats and your team](/help/chats)
 - [Homes: Mercbot for families and businesses](/help/homes)
 - [Settings and notifications](/help/settings)
 - [Security overview](/help/security)

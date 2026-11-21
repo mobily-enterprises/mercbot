@@ -23,7 +23,9 @@ The first time you open Mercbot, three short slides introduce it. Then your firs
 2. It asks you to pick a name for it. Choose one of its suggestions. The new name shows everywhere at once, and you can rename it later.
 3. It explains how it works and offers to connect your email. You can do that now with the card in the chat, or skip it and just tell the bot what you need.
 
-This first bot is your main bot. You can add more later with **Add bots** in the sidebar: describe what you need, or choose a bot or a ready-made team yourself.
+This first bot is your main bot, and a member of your home: you'll find it on **Team**. You can add more later with **Add bots** there: describe what you need, or choose a bot or a ready-made team yourself.
+
+Your chat with a bot is **Public**, like every new chat, so everyone you invite to the home can open it. For something only you should see, start a **Private** chat with **New chat**. See [Chats and your team](/help/chats).
 
 ## 3. Give it a first job
 
@@ -65,8 +67,8 @@ When the reply arrives:
 
 - **Read it through.** If the bot used websites, its reply ends with a screenshot of each page it used.
 - **Open files.** Documents, spreadsheets, slides and PDFs arrive as file cards. Select one to open a viewer with a download.
-- **Watch the computer.** Open the bot's Details panel (select its name above the chat) and choose the **Computer** tab.
-- **Find it later.** The Details panel's **Library** tab lists everything the bot made, by day.
+- **Watch the computer.** In the chat, open the bot's computer, labelled with its name.
+- **Find it later.** The **Library** tab on the bot's card, in **Team**, lists everything the bot made, by day.
 
 If something isn't right, reply in the chat: "The second campsite is closed in April, find another." The bot picks up from where it left off.
 
@@ -92,6 +94,7 @@ Mercbot also works in your phone's browser, with a layout made for small screens
 
 - [Welcome to Mercbot](/help/welcome)
 - [Example jobs for a bot](/help/example-jobs)
-- [Bots: create, shape, organise and remember](/help/bots)
+- [Bots: add, shape and archive](/help/bots)
 - [Messaging and working together](/help/messaging)
+- [Chats and your team](/help/chats)
 - [The vault: saved logins and secrets](/help/vault)

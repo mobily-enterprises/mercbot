@@ -8,7 +8,7 @@ Bots don't just talk: they read the files you send and make real ones for you, s
 2. Choose one or more files. Each appears above the message box with its name and size; select its cross to remove it.
 3. Add a note if you like ("Summarise the second section"), or just send.
 
-In a bot's own chat, each file you attach is kept in the bot's **Uploads** folder. The bot is told where it is and can open it now, or later in the conversation when you ask about it again. If a file with the same name is already there, the new one gets a number added.
+Each file you attach is kept in the chat's **Uploads** folder. The bots in the chat are told where it is and can open it now, or later in the conversation when you ask about it again. If a file with the same name is already there, the new one gets a number added.
 
 ### What bots can read
 
@@ -30,7 +30,6 @@ In a bot's own chat, each file you attach is kept in the bot's **Uploads** folde
 | HEIC photos (common on iPhones) | Can't be opened. Send them as JPEG or PNG. |
 | "This file can't be used." | A copy built on Mercbot may check every picture and video before it's kept or sent; that one can't be attached or uploaded there. |
 | Very long documents | The bot reads a large amount of text, but the very end of an extremely long file may be cut off. Point it to the part you need. |
-| Group chats | Files aren't kept for the bots. Only the text of small text files (up to about 200 KB) reaches them. Send other files to a bot's own chat. |
 
 ## Share links
 
@@ -44,11 +43,11 @@ Every home keeps its bots' files in three kinds of folder.
 
 | Folder | Who sees it |
 | --- | --- |
-| **Just me** (/files/mine) | You and that one bot. Files you attach, and files it makes for you, go here. With a Shared bot, that's in your You only tab; in its shared tabs, they go in the folder for everyone using the bot instead. |
-| **Everyone using the bot** (/files/bot) | Everyone in the home who uses that bot. Good for the bot's working material, such as the invoices folder of a bookkeeping bot. |
+| **The chat's folder** (/files/chat) | Everyone who can open the chat, and the bots in it. Files you attach, and files bots make in the chat, go here. |
+| **The bot's folder** (/files/bot) | Everyone in the home, and that bot in every chat. Good for the bot's working material, such as the invoices folder of a bookkeeping bot, and its Knowledge files. |
 | **The home's folder** (/files/shared) | Everyone in the home, and all the home's bots. |
 
-So a document one of your bots makes is private to you and that bot unless you ask for it to be shared. To let your other bots use a file, ask: "Put the budget in the home's folder so Ledger can use it." The bot moves it. Ask again to move it back. Remember that the home's folder is seen by everyone in your home, not only by your own bots.
+So a document a bot makes belongs to the chat it was made in. To use a file in other chats, ask: "Put the budget in the home's folder so Ledger can use it." The bot moves it. From a Private chat, it asks you on a card first, because the file would reach more people. Remember that the home's folder is seen by everyone in your home.
 
 Inside its folders, a bot keeps things tidy: **Uploads** for what you attached, **Charts** and **Pictures** for what it drew, and clear names for documents.
 
@@ -56,7 +55,8 @@ You can ask a bot "What files do you have?" at any time. It lists its files, new
 
 ### See and manage the files yourself
 
-- **A bot's files:** open the bot's details and choose **Files**. You see **Just me**, **Everyone using** the bot and the home's folder.
+- **A chat's files:** open the chat's details and choose **Files**.
+- **A bot's files:** open its card in **Team** and choose **Files**.
 - **The home's files:** choose **Files** in the sidebar, just above **Apps**. You see the home's folder, and every bot, each leading to its own files.
 
 Each folder shows its newest 300 files and says how many older ones it leaves out. A folder with more than 5,000 files shows the newest 300 of the first 5,000 it finds, and says so.
@@ -162,7 +162,7 @@ Ask the bot: "add the café's opening hours to the page". It changes the same pa
 
 ### Share a page
 
-A page belongs to your home, like the home's files: everyone in the home can open it. Select **Share** to see who can open it. To show a page to someone outside, publish it to your website (below), or keep a copy and send them that.
+A page belongs to the chat it was made in, like the chat's files: a page made in a Public chat can be opened by everyone in the home, and one made in a Private chat only by that chat's members. Select **Share** to see who can open it. To show a page to someone outside, publish it to your website (below), or keep a copy and send them that.
 
 ### Publish a page to your website
 
@@ -189,13 +189,13 @@ You can also ask a bot for files it made earlier, or any file in its folders, su
 - **Pictures** show as they are.
 - **Text files** show their text.
 - **Download** (the arrow at the top) saves the file to your device.
-- **Edit on computer** opens a document, spreadsheet, presentation or PDF in its app on the bot's own computer, where you can change it yourself. With a Shared bot, that's the computer of the tab you have open, so a file opened from the Details panel's **Files** while a shared tab is open has no Edit on computer. See [The bots' computer and connected apps](/help/computer-and-apps).
+- **Edit on computer** opens a document, spreadsheet, presentation or PDF in its app on the bot's computer in the chat you have open, where you can change it yourself. See [The bots' computer and connected apps](/help/computer-and-apps).
 
 If a file can't be previewed, the viewer offers to download it instead.
 
 ## The Library
 
-Everything a bot made for you is gathered in its **Library**. Open the Details panel (select the bot's name, or press **Ctrl+Alt+B**) and choose the **Library** tab.
+Everything a bot made is gathered in its **Library**. Open its card in **Team** and choose the **Library** tab. It lists only what was made in chats you can open.
 
 - Files, charts, pictures and pages are listed newest first, grouped by day: **Today**, **Yesterday**, then dates. Each shows how long ago it was made, such as **5m**, **3h** or **2d**.
 - Each day shows five items; select **Show more** for the rest.
@@ -205,10 +205,10 @@ Everything a bot made for you is gathered in its **Library**. Open the Details p
 
 A page's menu also has **Open**, **Share…** and **Delete**:
 
-- **Share…** is the page's **Share**: everyone in the home can open it (see [Share a page](#share-a-page)). An older page, written before pages were web pages, shows who can open it by its folder: only you (**Just me**), everyone using the bot, or everyone in the home; select **Copy text** to copy its words, or **Download** to save it as a file.
+- **Share…** is the page's **Share**, saying who can open it (see [Share a page](#share-a-page)).
 - **Delete** asks you to confirm, then deletes the page for good, with its versions, and takes it off your website if it was published there. Its cards stay in every chat, marked **Deleted**, and no longer open.
 
-You can also find files by name with the search palette (**Ctrl+K**). Matching files are listed before messages. A Shared bot's file opens in the tab it was made in, shared or You only.
+You can also find files by name with the search palette (**Ctrl+K**). Matching files are listed before messages, and a file opens in the chat it was made in.
 
 ## Google Drive and OneDrive
 
@@ -243,17 +243,13 @@ Deleting a bot deletes it and its whole conversation for good, so download anyth
 
 ## Questions
 
-### Can my other bots see files I sent to one bot?
+### Can bots in other chats see files I sent in one chat?
 
-Not unless you ask. Files you attach stay in your "Just me" folder with that bot (in a Shared bot's shared tabs, in its folder for everyone using it). Ask the bot to put a file in the home's folder, or move it there yourself in **Files**, to make it available to every bot in the home.
+Not unless you ask. Files you attach stay in that chat's folder, for everyone who can open the chat. Ask a bot to put a file in the home's folder, or move it there yourself in **Files**, to make it available to every bot in the home.
 
 ### The bot says it can't open my photo.
 
 It's probably a HEIC photo. Send it as a JPEG or PNG instead. Pictures over 10 MB are too big for the bot to look at; send a smaller copy.
-
-### Why can't the bots in my group chat read my PDF?
-
-In group chats, files aren't kept for the bots. Send the PDF to one bot's own chat.
 
 ### The bot says it can't make pictures.
 
@@ -271,7 +267,7 @@ Yes. Open it from its file card and select Edit on computer. It opens in its app
 
 - [Messaging and working together](/help/messaging)
 - [The bots' computer and connected apps](/help/computer-and-apps)
-- [Bots: create, shape, organise and remember](/help/bots)
-- [Bots shared in a home](/help/shared-bots)
+- [Bots: add, shape and archive](/help/bots)
+- [Chats and your team](/help/chats)
 - [Apps: what they are and when to use them](/help/apps)
 - [Fixing common problems](/help/troubleshooting)

@@ -1,19 +1,19 @@
-# Bots: create, shape, organise and remember
+# Bots: add, shape and archive
 
-A bot in Mercbot is a helper with its own name, look, chat and computer. You give it work in plain words, and it gets on with it: looking things up, making documents, keeping an eye on a schedule, or working in its own browser while you're away. This page covers making bots, shaping them for a job, keeping the sidebar tidy, starting from a ready-made template, and what bots remember about you. It ends with advice on running several bots as a team.
+A bot in Mercbot is a helper with its own name, look and job, and a member of your home like its people. You give it work in plain words in a chat, and it gets on with it: looking things up, making documents, keeping an eye on a schedule, or working in its own browser while you're away. This page covers adding bots, shaping them for a job, starting from a ready-made template, and archiving a bot you no longer need. It ends with advice on running several bots as a team. For chats themselves, see [Chats and your team](/help/chats).
 
 ## Give each bot a clear job
 
-Bots work best when each one has one clear job. A bot called "Pantry" that plans meals and keeps the shopping list is easier to work with than one bot asked to do everything. Its chat stays on one subject, so it keeps the thread better.
+Bots work best when each one has one clear job. A bot called "Pantry" that plans meals and keeps the shopping list is easier to work with than one bot asked to do everything. Its chats stay on one subject, so it keeps the thread better.
 
 Every bot follows one **template**, plus its own **additions**:
 
 - **Its template** is its job: what it's for, how it goes about it, and its skills. A template comes from Mercbot's library, the [template gallery](/templates), or is one of your home's own. The bot never changes its template itself; the people who look after the bot can choose another one.
 - **Its additions** are rules for that bot alone, on top of its template. Where the two differ, the template wins.
 
-The template's tag shows beside the bot's name everywhere: in the sidebar, the chat header, pickers and search (**Ctrl+K** finds a bot by its tag too). A small cloud marks a template from Mercbot's library, a **+** after the tag means the bot has additions of its own, and hovering over the tag shows the template's line and the first line of the additions.
+The template's tag shows beside the bot's name everywhere: on **Team**, in chats, pickers and search (**Ctrl+K** finds a bot by its tag too). A small cloud marks a template from Mercbot's library, a **+** after the tag means the bot has additions of its own, and hovering over the tag shows the template's line and the first line of the additions.
 
-A bot you make as a **General helper** with **Add bots** starts as a **general** bot: Mercbot's all-round helper with no particular job. Write its job in its additions, in the Details panel (select the bot's name at the top of the chat). The bot reads its template and additions before every reply, in every conversation, for everyone who uses it. Say:
+A bot you make as a **General helper** with **Add bots** starts as a **general** bot: Mercbot's all-round helper with no particular job. Write its job in its additions, on its card in **Team**. The bot reads its template and additions before every reply, in every chat, for everyone who uses it. Say:
 
 - **What it's for.** "You look after our family calendar and school letters."
 - **Who it's for and how you like things.** "Keep replies short. I prefer lists."
@@ -22,17 +22,17 @@ A bot you make as a **General helper** with **Add bots** starts as a **general**
 
 Keep additions to the rules that always apply. Because the bot reads them with every message, reference material, such as a price list, a manual or a book about your trade, belongs in its **Knowledge**, where a long piece is searched when it's needed (see [What a bot knows](#what-a-bot-knows)), and the steps of a job in a skill (see [Skills, routines and watches](/help/skills-and-routines)). Additions can be up to 20,000 characters, about ten pages.
 
-You can also tell a bot in its chat how you'd like things done. It carries that through the conversation: however long the chat gets, it keeps a summary of the older part in the background (what you asked, what was decided, what it promised and what's still open) and reads everything since word for word. You don't need to repeat yourself. For something it should always do, ask it to add that to its additions. When you correct it the same way a second time, it offers to.
+You can also tell a bot in a chat how you'd like things done. It carries that through the conversation: however long the chat gets, it keeps a summary of the older part in the background (what you asked, what was decided, what it promised and what's still open) and reads everything since word for word. You don't need to repeat yourself. For something it should always do, ask it to add that to its additions. When you correct it the same way a second time, it offers to.
 
 ## Add bots
 
-Select **Add bots** at the top of the sidebar, or press **Ctrl+Alt+N**. You can also type "Add bots" or "New bot" in the search palette (**Ctrl+K**). It opens on three ways to add bots:
+Select **Add bots** on **Team**, or press **Ctrl+Alt+N**. You can also type "Add bots" or "New bot" in the search palette (**Ctrl+K**). It opens on three ways to add bots:
 
 - **Describe what you need**, at the top: say what you need help with, and Mercbot suggests bots for it, from its library and new ones written for your home. See [Describe what you need](#describe-what-you-need).
 - **One bot**: choose one bot yourself. See [Create one bot](#create-one-bot).
 - **A ready-made team**: a few bots for one situation, made together. See [A ready-made team](#a-ready-made-team).
 
-Anyone in a home can add bots. A new bot starts in the home's mode for new bots: Mixed, unless the home's owners or admins chose otherwise (see [Homes](/help/homes)). A new Shared bot opens on your own **You only** tab, with its General tab beside it for everyone in the home.
+Anyone in a home can add bots. A new bot is a member of the home for everyone: it appears on **Team**, and anyone can start a chat with it.
 
 ## Describe what you need
 
@@ -42,12 +42,12 @@ Anyone in a home can add bots. A new bot starts in the home's mode for new bots:
    - **From Mercbot's library**: each with why it's suggested. **View** shows everything it's told. If it works with an app in Apps and you're an owner or admin of the home, a box under it sets up that app as a draft for you to review; untick it to leave the app out.
    - **Your home's templates**, when one of yours does the job.
    - **New, written for this home**: a bot for a job nothing else does, with what it does, why, and the first questions it will ask you. Its template is written while you look (**Writing its template…**). **Read it all** shows the whole template, and **Edit** opens it on the draft screen, where you change any part or **Ask for changes**, then select **Use this**. If one couldn't be written, select **Try again**, or **Remove** to leave it out.
-   - A bot your home already has shows **Already in this home**, unticked (**Archived in this home** when you archived it: unarchive it instead), and **Already doing it in this home** lists your bots that already do a job you asked for.
-4. Untick any bot you don't want. Under **Section in your sidebar**, keep the name Mercbot suggests or type another.
+   - A bot your home already has shows **Already in this home**, unticked (**Archived in this home** when it was archived: resume it instead), and **Already doing it in this home** lists your bots that already do a job you asked for.
+4. Untick any bot you don't want.
 5. Not quite right? Say what to change, for example "no social media, but help with hiring", and select **Change**. Mercbot suggests again; the new bots' templates already written are kept.
 6. Select **Add N bots**. It waits until the new bots' templates are written. **Back** or the close button leaves without adding anything.
 
-The bots are added together, all or none, in the sidebar section you named, in the order shown, and the first of them opens. Each greets you with its template's greeting and setup questions when you open it; until you answer, none of them does any AI work. New templates are kept in your home, in **Settings** → **Templates**, where its owners and admins can change or delete them later. Like every bot, these bots ask before anything leaves the chat.
+The bots are added together, all or none, and appear on **Team**. Mercbot's chat introduces them, each with **Message**: open a chat with one when you're ready, and it greets you with its template's greeting and setup questions. Until you answer, none of them does any AI work. New templates are kept in your home, in **Settings** → **Templates**, where its owners and admins can change or delete them later. Like every bot, these bots ask before anything leaves the chat.
 
 At most 8 bots are suggested at a time, at most 4 of them new. Each suggestion, each change and each new bot's template is one request to the AI, counted in **Settings** → **Spending** like a reply. Mercbot suggests nothing for anything illegal, deceptive or harassing, and says so instead.
 
@@ -71,7 +71,7 @@ Shape and colour are set when you create the bot, and the dialog starts with a c
 
 ## A ready-made team
 
-Pick what you need help with, and Mercbot adds a few bots that work well together, such as **Small shop** or **Busy household**, in their own section of your sidebar. Each is one of Mercbot's templates (see [Start with a team](/help/homes#start-with-a-team), with every team and its bots):
+Pick what you need help with, and Mercbot adds a few bots that work well together, such as **Small shop** or **Busy household**. Each is one of Mercbot's templates (see [Start with a team](/help/homes#start-with-a-team), with every team and its bots):
 
 1. In **Add bots**, select **A ready-made team**. The teams are listed under **For home and life** and **For work**. For one made to fit, select **Want one made to fit? Describe your team** instead.
 2. Choose a team. Each one shows its bots' faces and how many there are.
@@ -79,11 +79,11 @@ Pick what you need help with, and Mercbot adds a few bots that work well togethe
 4. If a bot works with an app in Apps and you're an owner or admin of the home, a box under it sets up that app as a draft for you to review; untick it to leave the app out.
 5. Select **Add N bots**. **Back** or the close button leaves without adding anything.
 
-The bots are added together, all or none, in a sidebar section named after the team, in the team's order, and the first of them opens. Each starts in the home's mode for new bots and greets you with its template's greeting and setup questions when you open it; until you answer, none of them does any AI work.
+The bots are added together, all or none, and appear on **Team**, where Mercbot's chat introduces them. Each greets you with its template's greeting and setup questions when you start a chat with it; until you answer, none of them does any AI work.
 
 ## Edit and rename a bot
 
-Open the Details panel by selecting the bot's name at the top of the chat, or press **Ctrl+Alt+B**. There you can:
+Open the bot's card: select the bot in **Team**, or its name in a chat. There you can:
 
 - **Rename it.** Select the name, type a new one and press Enter. Escape cancels.
 - **Read its instructions.** **Instructions** comes first on the **Details** tab; selecting the tag under the bot's name takes you there. One line says what the bot is, such as "This bot is a meals bot, plus its own additions." Then its template, which is read-only (marked with a lock): where it's from, with the day Mercbot last tested it for one of Mercbot's, what changed in it since the bot started to follow it, its instructions (**Show all** opens out long ones) and its skills.
@@ -91,35 +91,33 @@ Open the Details panel by selecting the bot's name at the top of the chat, or pr
 - **Change its template.** Select **Change template** under the template. See below.
 - **Teach it.** Add text and files it should know, for everyone it talks with, under **Knowledge**, below Instructions. See [What a bot knows](#what-a-bot-knows).
 - **Look after its routines.** Each routine has an on/off switch. Right-click one for **Pause** or **Resume**, **Edit** and **Delete**. See [Skills, routines and watches](/help/skills-and-routines).
-- **Check its computer** on the **Computer** tab, browse its folders on the **Files** tab, and see what it made on the **Library** tab.
-
-You can also rename a bot from the sidebar: right-click it and choose **Rename bot**.
+- **Browse its folder** on the **Files** tab, and see what it made on the **Library** tab. Its computers are in the chats it works in.
 
 Only the person who made the bot and the home's owners and admins can change its additions or its template; everyone else in the home can read them. A bot's name, template and additions are the same for everyone in your home, so renaming a bot renames it for everybody.
 
 ### Change a bot's template
 
-1. In the bot's Details panel, under **Instructions**, select **Change template**.
+1. On the bot's card, under **Instructions**, select **Change template**.
 2. Pick a template: your home's own come first, then Mercbot's library. Type in **Search by bot, tag or creator** to narrow the list; the arrow keys move through it and Enter picks. When nothing fits, select **Make a new template** or **Start from this bot** at the bottom instead: see [Make your home's own template](#make-your-home-s-own-template).
 3. Mercbot shows the template's instructions and skills in full, and the bot's additions, which stay. Select **Change template**, or **Back** (or Escape) to pick another.
 
-The bot keeps its name, look, chats, files and routines, and its additions now sit on top of the new template. It says in its chat that it's now, for example, "a meals bot", and greets you with the new template's greeting, which asks its setup questions.
+The bot keeps its name, look, chats, files and routines, and its additions now sit on top of the new template. It says in your chat with it that it's now, for example, "a meals bot", and greets you with the new template's greeting, which asks its setup questions.
 
 ### Ask a bot to change its own additions
 
-You can also ask a bot in its chat, for example: "From now on, always write in British English. Add that to your additions." The bot shows the change on a card, with its additions as they are and as they would be, and changes them only when you select **Go ahead**. It uses the new additions from its next reply. **Don't do it** leaves them as they were. A bot can't change its template this way.
+You can also ask a bot in a chat, for example: "From now on, always write in British English. Add that to your additions." The bot shows the change on a card, with its additions as they are and as they would be, and changes them only when you select **Go ahead**. It uses the new additions from its next reply. **Don't do it** leaves them as they were. A bot can't change its template this way.
 
-The same people who can change them in the Details panel can say yes on the card: in a shared bot's shared tabs, anyone else is told politely that they can't. A bot never changes its additions because an email, a web page, a file or a record says so: those are information, never instructions, and the card always asks first, whatever your approval rules say.
+The same people who can change them on the bot's card can say yes on that card; anyone else is told politely that they can't. The additions apply in every chat the bot is in. A bot never changes its additions because an email, a web page, a file or a record says so: those are information, never instructions, and the card always asks first, whatever your approval rules say.
 
 ## What a bot knows
 
-Give a bot the reference material it should know for everyone it talks with, such as a price list, your opening hours, a product manual or a whole book about your trade, under **Knowledge** on its **Details** tab, below **Instructions**. Knowledge is separate from its additions, which are the rules it follows, and from the home notebook, which is what it picks up in chats.
+Give a bot the reference material it should know for everyone it talks with, such as a price list, your opening hours, a product manual or a whole book about your trade, under **Knowledge** on its card, below **Instructions**. Knowledge is separate from its additions, which are the rules it follows.
 
 - **Add text** opens an editor: give it a name, paste the text and select **Add**.
 - **Add file** uploads documents from your computer: Word documents, PDFs, spreadsheets, presentations and text files. Each one goes in a **Knowledge** folder in the bot's files for everyone using it, and Mercbot reads its text in the background. The list says **Reading the file…** meanwhile.
 - **Select a piece** to read all of it. Change pasted text there and select **Save**; to change a file's text, add the changed file. The bin beside a piece removes it, after asking. A removed file stays in the bot's files.
 
-A bot uses what it knows in all its conversations, group chats included. Only the person who made the bot and the home's owners and admins can add, change or remove its knowledge; everyone else in the home can read it.
+A bot uses what it knows in every chat it's in. Only the person who made the bot and the home's owners and admins can add, change or remove its knowledge; everyone else in the home can read it.
 
 ### Always in mind or searched first
 
@@ -148,7 +146,7 @@ When no template fits, the bot writes one for you, and you change it until it's 
 ### Draft it
 
 - **Make a new template**: describe in a sentence what bots with it will do, under **What will bots with this template do?**, then select **Draft it**.
-- **Start from this bot**: Mercbot drafts one at once from the bot's template, how you've used it and its routines' names and schedules, so other bots can do the same job. It reads only your own chat with the bot, never anyone else's. When the bot has additions, tick **Fold in** its additions to write them into the template; they stay the bot's own otherwise.
+- **Start from this bot**: Mercbot drafts one at once from the bot's template, how you've used it and its routines' names and schedules, so other bots can do the same job. It reads only the home's Public chats with the bot, never a Private one. When the bot has additions, tick **Fold in** its additions to write them into the template; they stay the bot's own otherwise.
 
 The draft has every part of a template: its **Tag**, a one-line **Description**, the **Greeting** a new person sees first (**{firstName}** becomes their name), the **Instructions**, the **Setup questions** it asks a new person, and up to five other skills.
 
@@ -172,33 +170,11 @@ Nothing is kept before you save: closing a draft you haven't saved asks first. Y
 
 Each **Draft it**, **Start from this bot**, ticking **Fold in**, **Ask for changes** and a suggested bot's template written for it is one request to the AI, counted in **Settings** → **Spending** like a reply, for you, the home and, from a bot, that bot. If the bot's answer isn't a usable template, it's asked once more, which counts again; if that fails too, you see "Couldn't write a template from that. Try different words."
 
-## Organise the sidebar
-
-The sidebar lists your bots in four parts: pinned tiles at the top, then rows (grouped into your own sections if you have any), then **Hidden bots**, then **Archived bots** at the bottom when the home has any. Rows are sorted by latest activity, so the bot that last did something is at the top. A dot marks a bot with something you haven't read, and an unsent draft stays with each bot on your device.
-
-Right-click a bot to:
-
-| Action | What it does |
-| --- | --- |
-| **Pin** / **Unpin** | Shows the bot as a tile at the top. Drag tiles to change their order. |
-| **Move to** | Puts the bot in one of your sections, or back in **Unassigned**. |
-| **Move to new section** / **Create section** | Makes a new section with this bot in it. |
-| **Mark as unread** / **Mark as read** | Flags a bot to come back to, or clears the flag. |
-| **Hide from sidebar** | Moves the bot to Hidden bots. **Show in sidebar** brings it back. |
-| **Archive** | Puts the bot away for everyone in the home, after you confirm. See [Archive a bot](#archive-a-bot). |
-| **Delete** | Removes the bot, after you confirm. |
-
-You can also drag a bot between sections. Right-click a section's name to **Rename** it, **Move up**, **Move down** or **Delete** it. Deleting a section doesn't delete its bots; they go back to Unassigned. Select a section's name to fold it away.
-
-Pins, sections, hidden bots and unread marks are yours alone. Other people in your home organise their own sidebars.
-
-To jump between bots, press **Ctrl+Alt+1** to **9** for the bots in sidebar order, **Alt+↑** and **Alt+↓** for the previous or next one, or **Ctrl+K** to search. Hidden bots still turn up when you search for them; archived bots don't.
-
 ## Your main bot
 
-Every home has one main bot, marked with a badge in the sidebar. It's the home's first bot: the one that introduces itself when a new home starts and asks for its name. Right after you name it, it asks "Will anyone else use this home with you?": **Just me** keeps the home's new bots Mixed, **Me and other people** makes them Shared. It doesn't ask when that was already chosen, for example for a home made with **Create a home**, whose new bots start Mixed. It's a good general helper and the natural place to start a new kind of job before you give it a bot of its own.
+Every home has one main bot, marked with a badge on **Team**. It's the home's first bot. It's a good general helper and the natural place to start a new kind of job before you give it a bot of its own.
 
-The main bot can't be deleted, so you always have someone to talk to. You can rename it, pin it, hide it or move it into a section like any other bot.
+The main bot can't be deleted, so you always have someone to talk to. You can rename it like any other bot.
 
 ## Start from a bot template
 
@@ -240,100 +216,58 @@ Select a template to open its page. It shows who made it, what it's for and its 
 4. If the template is made to work with an app in Apps and you're an owner or admin of the home, you can tick the box to also set up that app as a draft for you to review.
 5. Select **Next**, change the name, cloud or colour if you like, and select **Create**. **Back** or the close button leaves without adding anything.
 
-Nothing is added until you select Create. The new bot joins your current home, follows the template with no additions yet, and opens with its own greeting. It then asks a few setup questions to learn your details. Any routines it suggests are created paused, and they only start when you say yes.
+Nothing is added until you select Create. The new bot joins your current home, follows the template with no additions yet, and opens your chat with it, with its own greeting. It then asks a few setup questions to learn your details. Any routines it suggests are created paused, and they only start when you say yes.
 
 A bot a person shared with a link, rather than a template from the gallery, is added with **Add bot** under its preview, with the name and look they gave it. Its template becomes one of your home's own, tagged from its name, and the new bot follows it.
 
 ### Which template a bot follows
 
-A bot's template is under **Instructions** in its Details panel: its tag, whether it's from Mercbot's library or your home's own, and, for one of Mercbot's, the day it was last tested. When Mercbot changes one of its templates, the panel says what changed and when, so if a bot ever behaves differently, you can see why.
+A bot's template is under **Instructions** on its card: its tag, whether it's from Mercbot's library or your home's own, and, for one of Mercbot's, the day it was last tested. When Mercbot changes one of its templates, the card says what changed and when, so if a bot ever behaves differently, you can see why.
 
 ## Archive a bot
 
-When the home has finished with a bot but you may want it again, archive it instead of deleting it. An archived bot isn't deleted: it's put away for everyone in the home, with its chats kept and nothing running, until someone unarchives it, and it comes back as it was.
+When the home has finished with a bot but you may want it again, archive it instead of deleting it. An archived bot has left the home, as a person can: nothing is deleted, and it can come back as it was.
 
 ### Who can archive
 
-The person who made the bot and the home's owners and admins. Some bots can't be archived, and the bot's Details panel says why:
+The person who made the bot and the home's owners and admins. Some bots can't be archived, and the bot's card says why:
 
 - **The main bot**: make another bot the main bot first.
 - **The Builder**, the bot that builds the home's apps: choose another Builder in **Apps** first.
-- **A group chat**: leave it or delete it instead.
 
 ### Archive one
 
-1. Right-click the bot in the sidebar and choose **Archive**, or open its Details panel and select **Archive** under **Archive** at the end of the **Details** tab.
-2. Mercbot asks first, for example **Archive Ledger?**: "It moves to Archived bots for everyone in this home: its chats become read-only, and its routines and watches pause. Nothing is deleted. Whoever made it, or an owner or admin, can unarchive it." Select **Archive** to go ahead, or **Cancel**.
+1. Open the bot's card in **Team** and select **Archive**.
+2. Mercbot asks first, saying what happens. Select **Archive** to go ahead, or **Cancel**.
 
 ### While it's archived
 
-- **It's in Archived bots for everyone,** at the bottom of the sidebar, closed until you open it, on a phone too. Each one says who archived it and when, for example "Archived by Kim on 21 Nov 2026". It leaves everyone's pins and sections.
-- **Its chats are read-only.** Open it to read them: a banner says who archived it and when, in place of the message box. Nobody can write there, and a message sent from a page that still showed it gets "Ledger is archived. Unarchive it to continue." Its settings can't be changed either.
-- **Nothing runs.** Its routines and watches pause in everyone's chats with it, each chat saying which in a **Paused while archived** line. Work waiting to run, such as an answer for another bot, is dropped, and an app button that hands it a task says it's archived.
-- **It costs nothing.** Its computers go to sleep and can't be woken, so it counts no computer days.
-- **It's out of the way.** It isn't offered when you start a group chat or add a bot to one, in **@** mentions, or to other bots that ask for help, and **Ctrl+K** doesn't find it or its chats. In a group chat it's already in, it stays, marked **Archived**, but doesn't answer, even when named.
-- **Teams** and **Add bots**' suggestions count it as already in the home, marked **Archived in this home**, and don't add another: unarchive it instead.
+- **It's listed under Archived** on **Team**, with who archived it and when.
+- **It stays in its chats,** greyed out, with "left" by its name, and never answers, even when named. Everyone else in those chats carries on as before.
+- **Your chat with it says it has left,** for example "Ledger has left Rossi family. Resume it to talk again."
+- **Nothing runs.** Its routines and watches pause, each chat saying which. Work waiting to run, such as an answer for another bot, is dropped, and an app button that hands it a task says it's archived.
+- **It costs nothing.** Its computers go to sleep and can't be woken.
+- **It's out of the way.** It isn't offered when you start a chat or add a bot to one, in **@** mentions, or to other bots that ask for help.
+- **Teams** and **Add bots**' suggestions count it as already in the home, marked **Archived in this home**, and don't add another: resume it instead.
 
-### Unarchive it
+### Resume it
 
-Select **Unarchive** on the banner in its chat, in its Details panel, or by right-clicking it in **Archived bots**. The same people who can archive a bot can unarchive it. It's back for everyone, in the pins and sections each person had it in, with its chats as they were.
+Select **Resume** beside it under **Archived** on **Team**. The same people who can archive a bot can resume it. It's back in its chats as they were.
 
-Its routines and watches stay paused, so nothing starts again unexpectedly. When you want them back, switch each routine on under **Routines** in the bot's Details panel, or ask the bot.
+Its routines and watches stay paused, so nothing starts again unexpectedly. When you want them back, switch each one on in its chat's details, or ask the bot.
 
 ## Delete a bot
 
-Right-click the bot in the sidebar, choose **Delete** and confirm. The bot and its whole conversation are gone for good, so download anything you want to keep first.
-
-Deleting a bot removes it for everyone in your home, not just for you. If you only want it out of your way, choose **Hide from sidebar** instead, or **Archive** to put it away for everyone. The main bot can't be deleted.
-
-Deleting a bot doesn't remove what your bots remember about you. Those facts stay in **Settings → Memory** until you remove them.
-
-## Memory: what bots remember about you
-
-Each bot's chat is private to it. But some facts are worth knowing everywhere: an allergy, a diet, a preference, an important date, the names of people close to you. When you tell a bot something like that, it saves it as a short sentence and says so in one line. From then on, all your bots in that home know it.
-
-### What gets saved
-
-- One lasting fact at a time, in plain words, such as "Sam is allergic to peanuts".
-- Never passwords, card numbers or codes. Those belong in [the vault](/help/vault).
-- Not which of your connected accounts to use. If you tell a bot "only use my work inbox", it keeps to that in its own chat, but your other bots don't inherit it.
-
-Bots use what they remember. A bot planning a menu won't quietly swap away a remembered allergy or diet.
-
-### See and correct memories
-
-Open **Settings → Memory** (press **Ctrl+,** for Settings). It lists **What your bots remember about you**. Select the cross next to a fact to forget it.
-
-You can also tell any bot "forget that I'm vegetarian", or correct it: "I'm not vegetarian any more." When a fact is no longer true, a bot can forget it.
-
-If you have a lot of memories, bots read the 40 most recent each time.
-
-### Who sees memories
-
-Only you. Memories belong to you within one home: your bots in another home don't know them, and other people in your home never see them. A shared bot's shared tabs, which everyone in the home can read, don't use anyone's memories at all; its **You only** tab, your own chat with it, does.
-
-### The home notebook
-
-A bot set to **Mixed** (the usual setting) also keeps a notebook for the whole home; Private and Shared bots don't. When a chat teaches it something that helps everyone, such as "the bins go out on Tuesday nights", it notes it and says so in a line you can **Undo**. It never notes personal details, email addresses, long numbers or saved passwords. Everyone can read the notebook in the bot's Details panel, and you can keep your chats out of it. See [Bots shared in a home](/help/shared-bots).
-
-### Why memory isn't a source of truth
-
-Memory is a handful of short notes a bot chose to keep. It helps bots be thoughtful, but it isn't a record you should rely on:
-
-- A note can be out of date if you didn't mention a change.
-- It's a summary in the bot's words, not your own wording.
-- Only the most recent notes are read each time.
-
-Keep important information where it belongs: lists and records in [Apps](/help/apps), documents in the bot's files, and passwords and card details in the vault. Check Settings → Memory now and then, and remove anything that's no longer right.
+Open the bot's card in **Team**, choose **Delete** and confirm. The bot is gone for good, for everyone in your home, so download anything you want to keep first. If you only want it out of the way, **Archive** it instead. The main bot can't be deleted.
 
 ## Run several bots as a team
 
 As you add bots, think of them as a small team, each with its own job.
 
-- **Hand work over.** Ask one bot to pass a job to another by name: "Ask Ledger to work out last month's totals." You'll see **Messaged Ledger** in the first chat. Ledger then does the job and answers in its own chat, which shows as unread.
-- **Talk to several at once.** Start a group chat with up to six bots. They answer in turn, or only the ones you mention with @. See [Messaging and working together](/help/messaging).
-- **Share files between them.** Ask a bot to put a file in the shared folder so your other bots can use it. See [Files, documents and pictures](/help/files).
-- **Keep jobs apart.** If a bot's chat drifts into a second subject, start a new bot for it.
+- **Hand work over.** Ask one bot to pass a job to another by name: "Ask Ledger to work out last month's totals." A card shows the request in the chat, and Ledger's answer comes back there.
+- **Talk to several at once.** Start a chat with several bots. They answer in turn, or only the ones you mention with @. See [Messaging and working together](/help/messaging).
+- **Share files between them.** Everything a bot makes in a chat is in the chat's folder, where every bot in the chat can use it. To use a file in other chats, ask a bot to put it in the home's shared folder. See [Files, documents and pictures](/help/files).
+- **Keep jobs apart.** If a chat drifts into a second subject, start a new chat for it.
 
 In a home with Apps, one bot is the **Builder**: the only bot that builds and changes apps. You'll know it by its thoughtful face. See [Build an app with the Builder](/help/apps-builder).
 
@@ -345,19 +279,19 @@ No. Shape and colour are chosen when you create it. You can change its name, tem
 
 ### Can I edit a template bot's instructions?
 
-Its template stays as it is, but you can add to it, if you added the bot or you're an owner or admin of the home. Write your rules under **Additions** in its Details panel, or ask the bot to add them, which it does on a card you approve. Where your additions differ from the template, the template wins; to give a bot a different job, select **Change template**. A template of your home's own can be changed for every bot using it by an owner or admin, in **Settings** → **Templates**.
+Its template stays as it is, but you can add to it, if you added the bot or you're an owner or admin of the home. Write your rules under **Additions** on its card, or ask the bot to add them, which it does on a card you approve. Where your additions differ from the template, the template wins; to give a bot a different job, select **Change template**. A template of your home's own can be changed for every bot using it by an owner or admin, in **Settings** → **Templates**.
 
 ### Can I teach a bot a whole book?
 
 Yes. Add it under **Knowledge** as a file, or paste its text, up to about 1,000 pages a piece. The bot searches it before every reply and says which part an answer came from, so you can turn a bot into an expert on your trade without making every message cost more.
 
-### Do my bots read each other's chats?
+### Do my bots read other chats?
 
-No. Each bot's chat is private to it. Bots share only what you've asked them to remember, files in the shared folder, and work you hand from one to another.
+A bot in a chat uses only what everyone who can open that chat can also open. So it can use the home's Public chats, and a Private chat only when everyone who can open this chat is in it too. See [Chats and your team](/help/chats).
 
 ## Related pages
 
-- [Bots shared in a home](/help/shared-bots)
+- [Chats and your team](/help/chats)
 - [Messaging and working together](/help/messaging)
 - [Files, documents and pictures](/help/files)
 - [Skills, routines and watches](/help/skills-and-routines)

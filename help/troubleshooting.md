@@ -26,17 +26,17 @@ Every job ends with a message. If a job fails, runs out of steps or takes too lo
 
 You can send another message while a bot is working. It gets its own reply once the bot has finished the current one.
 
-### A bot is shown in amber in the sidebar
+### A chat is shown in amber in the sidebar
 
-Amber means the bot is waiting for you. Open its chat and look for a **Your turn** card, where it needs you to do a step on its computer, such as signing in. Select **Take over**, do the step, then **I'm done**, or select **Skip**.
+Amber means a bot in that chat is waiting for you. Open the chat and look for a **Your turn** card, where it needs you to do a step on its computer, such as signing in. Select **Take over**, do the step, then **I'm done**, or select **Skip**.
 
 ### A bot is waiting for an answer
 
 Some bots ask a question and wait, sometimes with suggested answers to tap. Answer in the chat and it carries on.
 
-### A bot didn't answer in a group chat
+### A bot didn't answer
 
-In a group, if you mention bots with @, only those bots answer. With no mention, every bot answers in turn. Check you mentioned the bot you meant, or send the message again without a mention.
+If you mention bots with @, only those bots answer. When other people are in the chat, a bot answers only when it's called: by its name, with @, when you reply to one of its messages, or with @everyone. An archived bot never answers. See [Chats and your team](/help/chats#who-answers).
 
 ### Replies come in the wrong language or time zone
 
@@ -44,7 +44,7 @@ Choose your language and time zone in **Settings** → **General**. These are ke
 
 ### A bot has forgotten something
 
-Bots keep the thread of a long chat, but they keep lasting facts across chats only when they've been told to remember them. Open **Settings** → **Memory** to see what your bots know about you. If something is missing, tell a bot and ask it to remember it. If a fact is wrong, remove it there and tell the bot the right one.
+Bots keep the thread of a long chat, but a new chat starts fresh. Bots made from a template keep what they learn about your job in a notes document in the chat's folder: open the chat's files to check it, and tell the bot what's missing or wrong. For something a bot should do in every chat, ask it to add it to its additions.
 
 ## The bot's computer
 
@@ -119,10 +119,6 @@ When a bot reads a mailbox someone else in the home connected, Mercbot hides the
 
 Someone who is no longer in the home takes the accounts they connected there with them: Mercbot signs them out and removes them, and the **Activity** tab in **Apps** lists each one. Connect the account again, or ask someone who uses it to. If it was the Google Drive the home's files were kept in, an owner or admin chooses where the files go again in **Settings → Files**.
 
-### Sedna isn't used in a shared tab
-
-Sedna works only in your own chats with your bots, never in a Shared bot's shared tabs or a group chat, because its credentials could read the whole organisation. Ask in the bot's **You only** tab.
-
 ### The app you want says "Coming soon"
 
 Mercbot's connection to some apps is still being prepared. Select **Add** on the app to say you want it; it then shows **Requested**. Meanwhile, a bot can still use the app's website in its browser: just ask it.
@@ -139,7 +135,7 @@ On a test copy of Mercbot, such as one being tried out before it goes live, noth
 
 ### An approval is waiting
 
-An approval card with **Go ahead** and **Don't do it** sits in the bot's chat until you answer. Nothing happens until then. In a group chat, a bot's approval cards go to that bot's own chat, so open the bot itself to find them.
+An approval card with **Go ahead** and **Don't do it** sits in the chat until you answer. Nothing happens until then. Only the person whose message started the work can answer it; for a routine, the person who set it up.
 
 ### Bots ask too often, or not often enough
 
@@ -147,15 +143,14 @@ Open **Settings** → **Permissions**. **Auto-review** makes your bots look over
 
 ## A routine didn't run
 
-Open the bot's **Details** panel and look at its routines. Then check:
+Open the chat's details and look at its routines. Then check:
 
 - **Is it paused?** Its switch is off. Turn it on, or right-click and choose **Resume**. The next run is counted from now.
 - **Is the time right?** When a bot sets up a routine, it tells you the schedule with its time zone. If the zone is wrong, ask the bot to change it.
 - **Was there anything to report?** A routine told to report only news posts nothing when there's nothing new.
 - **Was it a one-off?** A one-off reminder runs once, then is removed, with a line in the chat saying so.
 - **Did it come from a template?** Routines from a bot template start paused until you say yes.
-- **Was it made in a group chat?** Its messages and any approvals go to that bot's own chat.
-- **Was it in a shared bot's shared tab?** If the bot stopped being shared, that tab is hidden and its routines are paused; the tab says **Paused while hidden**. Resume them there once the bot is shared again.
+- **Was its bot archived, or did the person who set it up leave the home?** Its routines pause, with a line in the chat. Resume the bot from **Team**, then switch the routine on again.
 
 Routines run at most every 10 minutes. If Mercbot was briefly unavailable, runs missed in that time happen once when it's back. If a run couldn't finish, the bot posts a short message saying so.
 
@@ -173,9 +168,9 @@ The viewer shows pictures of up to the first 20 pages of a document, spreadsheet
 
 ### You can't find a file
 
-- Open the bot's **Details** panel and choose **Library**. It lists everything that bot made, by day.
+- Open the bot's card in **Team** and choose **Library**. It lists everything that bot made, by day, in chats you can open.
 - Press Ctrl+K and type part of the file's name. Search finds files bots made.
-- A bot's files can be private to it or shared with all your bots. If another bot can't see a file, ask the bot that made it to share it.
+- What a bot makes in a chat is in that chat's folder. If a bot in another chat can't see a file, ask a bot to put it in the home's folder.
 - If your home keeps its files in its own storage, files made before the change stay where they were.
 
 ### Files say the home's storage isn't answering
@@ -203,8 +198,8 @@ Gather these first, so the problem can be found quickly:
 1. **What you were doing**, step by step, and what you expected to happen.
 2. **What happened instead**, with the exact words of any error message.
 3. **When it happened**, with the date, time and your time zone.
-4. **Which home and bot** were involved.
-5. **The conversation's ID.** Right-click the bot in the sidebar and choose **Copy conversation ID**.
+4. **Which home, chat and bot** were involved.
+5. **The chat's ID.** Right-click the chat in the sidebar and choose **Copy conversation ID**.
 6. **Mercbot's version.** Open the account menu, choose **Help and support**, then **About Mercbot**, and select **Copy version info**.
 7. **Your device and browser**, such as "Android phone, Chrome".
 8. **What you've already tried**, such as reloading, signing in again or resetting the computer.
