@@ -142,14 +142,16 @@ function chatService({ records, systemContext }) {
   const heard = [];
   const removed = [];
   const paused = [];
+  const forgot = [];
   const chats = createChatMembers({
     records,
     systemContext,
     notices: { publishEach: async (_topic, keys, event) => heard.push({ keys: [...keys].sort((a, b) => a - b), ...event }) },
     computer: { chatRemoved: async (chat) => removed.push(chat) },
-    pauseWork: async (seats, line) => { paused.push({ seats: seats.map((seat) => ({ ...seat })), text: line.text }); }
+    pauseWork: async (seats, line) => { paused.push({ seats: seats.map((seat) => ({ ...seat })), text: line.text }); },
+    forget: async (botIds) => { forgot.push([...botIds]); }
   });
-  return { chats, heard, removed, paused };
+  return { chats, heard, removed, paused, forgot };
 }
 
 test("the chat routes' service: anyone in a chat adds, its maker and the home's owners and admins manage, everyone in it hears", async (context) => {
@@ -157,7 +159,7 @@ test("the chat routes' service: anyone in a chat adds, its maker and the home's 
   const { records } = parts;
   const { homeId, anna, ben, carla, chef } = await home(knex, context);
   await knex("workspace_memberships").insert({ workspace_id: homeId, user_id: carla, role_sid: "member", status: "active" });
-  const { chats, heard, removed, paused } = chatService(parts);
+  const { chats, heard, removed, paused, forgot } = chatService(parts);
   const asAnna = memberOptions({ userId: anna, homeId, role: "owner", permissions: ["workspace.settings.update"] });
   const asBen = memberOptions({ userId: ben, homeId });
   const asCarla = memberOptions({ userId: carla, homeId });
@@ -216,6 +218,14 @@ test("the chat routes' service: anyone in a chat adds, its maker and the home's 
   const { chat: alone } = await chats.create({ kind: "private", title: "Notes", bots: [chef] }, asCarla);
   assert.deepEqual(await chats.leave(alone.id, asCarla), { deleted: true });
   assert.deepEqual(removed.pop(), { homeId, chatId: alone.id, chatBotIds: [alone.bots[0].chatBotId] });
+  // A private chat was never in a bot's memory; a deleted public chat's bots forget it (D-113, O23).
+  assert.deepEqual(forgot, [], "deleting a private chat forgets nothing");
+  const [heardBefore, removedBefore] = [heard.length, removed.length];
+  const { chat: garden } = await chats.create({ title: "Garden", bots: [chef] }, asBen);
+  assert.deepEqual(await chats.remove(garden.id, asAnna), { deleted: true });
+  assert.deepEqual(forgot, [[chef]], "its bots forget a deleted public chat");
+  heard.length = heardBefore;
+  removed.length = removedBefore;
 
   // The list: the chats Ben is in, each with its people, bots, latest message and his place; and a direct chat.
   await records.messages.append(kitchen.id, [{ role: "user", kind: "text", body: { text: "oak it is" } }], asAnna);

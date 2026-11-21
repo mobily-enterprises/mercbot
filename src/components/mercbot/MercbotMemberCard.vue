@@ -13,6 +13,7 @@ import MercbotConfirmDialog from "./MercbotConfirmDialog.vue";
 import MercbotContextMenu from "./MercbotContextMenu.vue";
 import MercbotFileViewer from "./MercbotFileViewer.vue";
 import MercbotKnowledgeSection from "./MercbotKnowledgeSection.vue";
+import MercbotMemorySection from "./MercbotMemorySection.vue";
 import MercbotPageShare from "./MercbotPageShare.vue";
 import MercbotTemplateTag from "./MercbotTemplateTag.vue";
 import { leftLine } from "./archiveBot.js";
@@ -26,7 +27,7 @@ import { canSwitchRoutine, useBotRoutines } from "./useBotRoutines.js";
 
 // A member's card (D3, plan 4.2), in the shell's Details: a person or a bot of the home, alike. A person: their face,
 // name and role, [Message], and the chats you share. A bot: the same, with its editable name, its template and who made
-// it, then its sections as tabs: Details (its Instructions, Knowledge, apps, Routines and Archive), Files (its own folder
+// it, then its sections as tabs: Details (its Instructions, Knowledge, Memory, apps, Routines and Archive), Files (its own folder
 // and the home's, and this chat's when the card is opened from one), Library (what it made in the chats you can open)
 // and Computer (its computer in this chat, D14 and D16; on Team, where to find one).
 const props = defineProps({
@@ -398,6 +399,8 @@ async function openInstructions() {
           />
           <!-- What it knows (D-107), next to what it's told: text and files, always in mind or searched first. -->
           <MercbotKnowledgeSection :bot="bot" :tab="tab" @failure="emit('failure', $event)" />
+          <!-- What it remembers of the home's public chats, and the home's notes, which every bot reads (D-113). -->
+          <MercbotMemorySection :bot="bot" :tab="tab" @failure="emit('failure', $event)" />
           <MercbotAppsSection :bot="bot" />
 
           <template v-if="routinesLoaded && routines.length">

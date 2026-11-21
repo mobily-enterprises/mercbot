@@ -84,12 +84,21 @@
  * The model's reader (R1, D-112): the context every model-facing read of one bot's turn in one chat passes. It reads
  * `readable_from(chatId)`, the chats everyone who can open its chat can open too, and everything keyed to them, never
  * more because of who asked. `forBot` makes one for a bot's turn, acting for the asker; `forChat` one for the chat
- * itself, acting for no one (its summary); `of` answers the reader a context is, or null.
+ * itself, acting for no one (its summary); `forHome` one for a bot's memory of the home (D-113), acting for no one and
+ * reading the home's public chats only; `of` answers the reader a context is, or null.
  * @typedef {{
  *   forBot: (reader: { homeId: string, botId: string, chatId: string, askerId: string }) => object,
  *   forChat: (chat: { homeId: string, chatId: string }) => object,
- *   of: (context: unknown) => Readonly<{ homeId: string, botId: string | null, chatId: string, askerId: string | null }> | null
+ *   forHome: (memory: { homeId: string, botId: string }) => object,
+ *   of: (context: unknown) => Readonly<{
+ *     homeId: string, botId: string | null, chatId: string | null, askerId: string | null, publicOnly?: boolean
+ *   }> | null
  * }} ModelReaders
+ */
+/**
+ * What each bot remembers of the home's public chats, and the home's notes (botMemory.js, D-113): a turn's state lines,
+ * its tools' reads, the refreshes' runner, forgetting, and the card's and Team's reads.
+ * @typedef {ReturnType<typeof import("./botMemory.js").createBotMemory>} BotMemory
  */
 /**
  * The bots' tables (`mercbot.bots.records`, records/BotRecordsFeature.js), D-112's records contract: the directory
@@ -97,7 +106,8 @@
  * home's joins and leaves (`chats.personJoined`, `chats.personLeft`); a chat's messages; bots archived (D-108); the
  * bots a person made and the chats they're in across homes; the bots' work (requests, routines, cards) and policies;
  * the connect follow-ups; what a turn reads beside its chat; a bot made from a template opening a chat; new bots made
- * together (D-105); the home's own templates (D-98); what each bot knows (D-107); the model's reader; the chat rules
+ * together (D-105); the home's own templates (D-98); what each bot knows (D-107) and remembers, and the home's notes
+ * (D-113); the model's reader; the chat rules
  * other features' row policies apply; and agent-runtime's stores, keyed by the bot's seat in a chat (chat_bots.id)
  * for runs, goals and commands, and by the chat for summaries.
  * @typedef {{
@@ -114,6 +124,8 @@
  *   newBots: ReturnType<typeof import("./records/newBotRepository.js").createNewBotRepository>,
  *   homeTemplates: HomeTemplateRepository,
  *   knowledge: ReturnType<typeof import("./records/knowledgeRepository.js").createKnowledgeRepository>,
+ *   memory: ReturnType<typeof import("./records/memoryRepository.js").createMemoryRepository>,
+ *   homeNotes: ReturnType<typeof import("./records/homeNoteRepository.js").createHomeNoteRepository>,
  *   readers: ModelReaders,
  *   rules: ChatRules,
  *   agent: { createRuns: Function, createSummaries: Function, createGoals: Function }

@@ -3,8 +3,8 @@ import { AUTH_PATHS } from "@jskit-ai/auth-core/shared/authPaths";
 import { homeRoutes } from "./homeApi.js";
 
 // Client for the home's bots (D-112: members of the home, like people, in any number of chats): the Team page's list,
-// one bot, Add bots, templates and teams, and a bot's own Details (instructions, knowledge, template, library). What is
-// said in chats, and a chat's members, are chatsApi.js's.
+// one bot, Add bots, templates and teams, and a bot's own Details (instructions, knowledge, memory, template, library),
+// and the home's notes. What is said in chats, and a chat's members, are chatsApi.js's.
 const client = createHttpClient({ credentials: "include", csrf: { sessionPath: AUTH_PATHS.SESSION } });
 
 // Every bots route belongs to the current home (D-36).
@@ -46,6 +46,12 @@ export const botsApi = {
   instructions: (botId) => request(`/bots/${botId}/instructions`),
   // What a bot knows (D-107): the list, each piece's text, and its changes, each of which answers the list.
   knowledge: (botId) => request(`/bots/${botId}/knowledge`),
+  // What a bot remembers of the home's public chats (D-113), for everyone in the home: { memory: { text, madeAt, tokens } | null }.
+  memory: (botId) => request(`/bots/${botId}/memory`),
+  // The home's notes, which people asked a bot to tell everyone (D-113), newest first a page at a time: { notes, next }.
+  homeNotes: (after = null) => request(after ? `/home-notes?${new URLSearchParams({ after: String(after) })}` : "/home-notes"),
+  // A note removed by its author or the home's owners and admins: { removed }.
+  removeHomeNote: (noteId) => remove(`/home-notes/${noteId}`),
   knowledgePiece: (botId, id) => request(`/bots/${botId}/knowledge/${id}`),
   addKnowledge: (botId, piece) => post(`/bots/${botId}/knowledge`, piece),
   changeKnowledge: (botId, id, changes) => patch(`/bots/${botId}/knowledge/${id}`, changes),

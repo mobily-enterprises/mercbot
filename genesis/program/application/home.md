@@ -87,8 +87,9 @@ the newest, its × dismisses it, and sending always goes down. While a bot works
 avatar changes expression (attention, thinking, working, concentrating, happy). In a chat with several people, where
 a bot answers only when called (R3), the sender's page shows a bot working only once the server says it started
 (`useChatWork.js` `requestReply` `untilStarted`, `workStarted`). Under the composer a line says who can read the chat
-(`chatView.js` `readersLine`): "Everyone in <home> can read this, and bots can use it in other chats" in a Public
-chat ("Everyone can read this" on a phone), "Only <names> can read this" in a Private one ("Only this chat's members
+(`chatView.js` `readersLine`): "Everyone in <home> can read this · Chef remembers it" in a Public chat, naming its
+bots, which remember it (D-113; "Chef, Ada and 2 more remember it" past three, no second part with no bots; "Everyone
+can read this" on a phone), "Only <names> can read this" in a Private one ("Only this chat's members
 can read this" past four). The first time a person is in a Public chat a notice says "This chat is public. …" with
 Got it. While a question card waits for the person looking, the composer's placeholder invites an answer.
 Avatars (D-44) are clouds, never balls, each shape with its own kind of manga

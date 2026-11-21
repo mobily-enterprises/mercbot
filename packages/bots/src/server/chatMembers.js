@@ -32,8 +32,10 @@ const ARCHIVED_LINE = Object.freeze({
  * @param {(seats: Array<{ id: string, chatId: string }>, line: { text: string, detail: (paused: string) => string }, txOptions: object) => Promise<void>}
  *   dependencies.pauseWork the routines and watches of some bots in chats paused, with a line in each chat naming them
  *   (workPause.js)
+ * @param {(botIds: string[], options: object) => Promise<void>} dependencies.forget a deleted public chat's bots forget
+ *   it (botMemory.js forget, D-113, O23): their digests are made again from the chats left
  */
-export function createChatMembers({ records, notices, computer, systemContext, pauseWork }) {
+export function createChatMembers({ records, notices, computer, systemContext, pauseWork, forget }) {
   const { chats, messages } = records;
   const { homeOf, personOf } = createCallerReaders();
 
@@ -306,9 +308,11 @@ export function createChatMembers({ records, notices, computer, systemContext, p
     const chat = await openChat(chatId, options);
     requireManager(chat, options, "delete");
     requireNotEveryone(chat);
-    const [people, seats] = await Promise.all([chats.people(chat.id, options), seatsIn(chat.id, options)]);
+    const [people, bots] = await Promise.all([chats.people(chat.id, options), chats.bots(chat.id, options)]);
     await chats.remove(chat.id, options);
-    await chatRemoved(homeOf(options), chat.id, seats);
+    // What was said in a public chat is in its bots' memories: they forget it at once (D-113, O23).
+    if (chat.kind === "public") await forget(bots.map((bot) => String(bot.bot_id)), options);
+    await chatRemoved(homeOf(options), chat.id, bots.map((bot) => String(bot.chat_bot_id)));
     await tell(people.map((person) => person.user_id), chat.id, "deleted");
     return { deleted: true };
   }

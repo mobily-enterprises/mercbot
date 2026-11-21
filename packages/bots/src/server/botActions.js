@@ -15,6 +15,23 @@ import { SEDNA_ACTIONS } from "./sednaActions.js";
 import { additionsChange, changeRefusal, mayChangeBot } from "./botAdditions.js";
 
 export const EMAIL_ADDRESS = /[^\s<>,;"]+@[^\s<>,;"]+\.[a-z]{2,}/iu;
+
+/** Nine or more digits in a run (a phone or card number), not counting a date written as 2026-05-03. */
+const hasLongNumber = (text) => [...String(text).matchAll(/\+?\d[\d\s().-]{7,}\d/gu)]
+  .some(([found]) => !/^\d{4}-\d{2}-\d{2}/u.test(found) && found.replace(/\D/gu, "").length >= 9);
+
+/**
+ * What a home note may never hold (D-113, the notebook's refusals before it): an email address or nine or more digits,
+ * which everyone in the home and every bot would read; null when it holds neither. Vault passwords are refused where
+ * a turn can read the vault (memoryTools.js).
+ * @param {string} text
+ */
+export function noteRefusal(text) {
+  if (EMAIL_ADDRESS.test(text) || hasLongNumber(text)) {
+    return "That has contact or card details, which never go in a note for everyone. Leave them out.";
+  }
+  return null;
+}
 // Which code speaks to each calendar app (D-31).
 export const CALENDARS = { "google-calendar": google, outlook: microsoft };
 
@@ -288,6 +305,27 @@ export const ACTIONS = {
         body: {
           text: `Changed ${bot.name}'s additions`,
           detail: `Changed ${bot.name}'s additions as the card showed; they apply from the next reply.`
+        }
+      };
+    }
+  },
+  // A note for everyone in the home (D-113), only when the person said yes on its card, whatever their rules: written
+  // from the card itself (homeNoteRepository.js addFromCard), as the person who said yes.
+  tell_everyone: {
+    alwaysAsks: true,
+    reversible: () => true,
+    describe: () => "tell everyone in the home",
+    question: ({ text, home }) => `Shall I tell everyone in ${home || "the home"} that? "${text}"`,
+    async run({ notes, cardId, call }, { home }) {
+      const added = await notes.addFromCard(cardId, noteRefusal, call);
+      if (added.refused) return { kind: "event", role: "system", body: { text: "Nothing was told", detail: `${added.refused} Nothing was told.` } };
+      return {
+        kind: "event",
+        role: "system",
+        body: {
+          text: `Told everyone in ${home || "the home"}`,
+          detail: `Every bot in ${home || "the home"} knows it from its next reply: "${added.note.text}". ` +
+            "It's under Notes for everyone on every bot's card, where you and the home's owners and admins can remove it."
         }
       };
     }

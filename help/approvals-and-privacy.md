@@ -136,7 +136,8 @@ Approvals are the safety net behind this. Text on a page can't press Go ahead fo
 
 | What you share | Who sees it | What stays private |
 |---|---|---|
-| A Public chat, and what its bots make there | Everyone in the home, now and later, and the bots in every chat of the home | Private chats: a bot in a Public chat never uses one |
+| A Public chat, and what its bots make there | Everyone in the home, now and later, and the bots in every chat of the home, which remember it | Private chats: a bot in a Public chat never uses one, and no bot's memory holds one |
+| A note you ask a bot to tell everyone | Everyone in the home and every bot, in every chat, once you say **Go ahead** on its card | Email addresses, phone and card numbers and passwords: a note never holds them |
 | A Private chat, and what its bots make there | Its members, and bots in Private chats whose people are all its members | Everything else: nothing in it reaches a chat someone else can open |
 | A sign-in on a bot's computer in a chat | Everyone who can open that chat | Other chats' computers |
 | A file in the shared folder | Everyone in the home and all its bots | Files in a Private chat's folder |
@@ -155,7 +156,8 @@ Approvals are the safety net behind this. Text on a page can't press Go ahead fo
 | A login, card or contact | **Settings**, **Vault** | It's deleted |
 | Website sign-ins on bots' computers | **Settings**, **Computer**, **Reset** | The computers in the chats where you're the only person start afresh; open pages close and saved sign-ins and website data are cleared |
 | A routine | The chat's details | Pause it, or delete it |
-| A chat | The chat's details, **Delete chat** (its maker, owners and admins) | The chat, its files and its bots' computers are gone for good |
+| A chat | The chat's details, **Delete chat** (its maker, owners and admins) | The chat, its files and its bots' computers are gone for good, and its bots forget a Public chat at once |
+| A note for everyone | A bot's card, **Details**, **Notes for everyone**, its bin (the person who asked for it, owners and admins) | Every bot stops reading it from its next reply |
 | A bot | Its card on **Team**, **Archive** (its maker, owners and admins) | It leaves the home: it stays in its chats without answering, and nothing it has runs |
 
 Records in Apps are never deleted: they're marked obsolete and can come back.

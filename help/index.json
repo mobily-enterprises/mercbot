@@ -17,6 +17,7 @@
       "name": "Everyday use",
       "pages": [
         { "slug": "chats", "title": "Chats and your team", "words": 1300 },
+        { "slug": "memory", "title": "What bots remember", "words": 900 },
         { "slug": "bots", "title": "Bots: add, shape and archive", "words": 2200 },
         { "slug": "messaging", "title": "Messaging and working together", "words": 2700 },
         { "slug": "files", "title": "Files, documents and pictures", "words": 2400 },

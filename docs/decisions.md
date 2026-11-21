@@ -3506,6 +3506,113 @@ bots work on the brief alone. A person's saved skills are theirs per home; the a
 When the Builder changes, the new one joins every app chat and the old one stays until removed. Template files carry no
 `changes` entry for this: no bot predates it.
 
+## D-113 — Bots remember their public chats; private chats are one-way glass (2026-11-22)
+
+*Phase B2 of the rebuild, on D-112. It records the owner's D9 and D10 and the prompt's layout, and completes D-112's
+replacement of D-36's notebook and memories: what a bot remembers is the home's public chats and the home's notes,
+nothing personal kept per person. Amends D-57 (the state note ends with the memory) and D-112's composer words.*
+
+The owner's decisions of 21 November, in the owner's words:
+- **Person-like memory (D9).** "I want to make the bots REALLY, REALLY person-like… the *public* conversations are
+  *public*. In a public room, there are no secrets. If tony has a group conversation with tripbot in Public Chat A, and
+  chiara has a group conversation with tripbot on Public Chat B… the bot should be aware completely of both
+  conversations. We should be able to engineer a good way to make sure that the cache doesn't bust." And: "private
+  chats with a bot are private."
+- **One-way glass, a hard wall (D10).** "ideally the private conversations are aware of what has been said in groups,
+  but the group context should be completely unaware of private conversations." A private chat never enters another
+  chat's model input, not even as "this is secret". It is enforced in the queries (the model's reader,
+  `readable_from`, D-112), never by asking the model.
+
+### What a bot remembers
+
+- **A digest of its public chats** (`bot_memories`, one a bot, `botMemory.js`): a section per public chat it's in
+  (title, who is in it, decisions, facts about people, open threads, promises, the gist), newest activity first, each
+  line starting with its chat and speaker; a quiet chat shrinks to a line. It never holds a private chat, because it is
+  read in every chat of the bot: it is read and written through the memory's own reader, which reads public chats
+  only. About 12,000 tokens asked for, 20,000 at most (cut at a chat's section).
+- **Written by the background model** (the Flex tier, D-59), metered to the home and the bot with no person (R8), from
+  the earlier digest and each chat's new lines (200 a chat, 48,000 tokens shared between them), or from the chats
+  themselves for a rebuild. Saved only while it still `follows` the stored version, so a slower server, or a
+  forgetting meanwhile, never writes over a newer one.
+- **Refreshed** when the bot's new words in its public chats pass 4,000 tokens (or 400 lines), but never sooner than
+  30 minutes after the last; otherwise 24 hours after the last, if anything was said. A person's message and a bot's
+  reply in a public chat ask for it; a private chat's words ask for nothing. The queue (`bot_memory_queue`, one row a
+  bot) is claimed with SKIP LOCKED on every server (D-15), under a 180-second lease renewed every 30 seconds while it
+  writes (20,000 tokens at 80–150 tokens a second can outlast three minutes). An ask during a run stays for its own
+  time (`asks`); a refused save is due again at once; a failure waits 1, 2, 4… up to 60 minutes.
+- **Forgetting (O23).** Deleting a public chat empties its bots' digests at once, so no turn reads them, and rebuilds
+  them from the chats that are left (`rebuild`). Leaving a chat, archiving it or archiving a bot keeps what it
+  remembers, as a person would; an archived bot remembers nothing new until it's back. Removing messages, or an operator's safety removal, calls the same forgetting
+  (`bots.memory.forget`) where it exists; Mercbot has no route that removes a message.
+
+### What a turn reads, and where
+
+The prompt keeps everything that changes last, so a refresh never reprices a chat's history (D-57 measured exactly
+that failure):
+
+```
+[ Mercbot's rules + template + additions + Knowledge ]    the same in every chat of the bot (R5), cached
+[ this chat: its summary and messages, verbatim ]          grows at the end (D-41), cached
+[ Current state note: the chat's state · home notes · digest · since then ]   last, uncached once per turn
+```
+
+- With the digest before the chat instead, each refresh would reprice every chat: a 200,000-token chat pays about
+  $0.06 a refresh, and a bot in 10 such chats with hourly refreshes about $14 a day.
+- **Every turn** reads the home's newest 30 notes. **A person's turn** (not a routine's, a watch's or a request's
+  run, R5) also reads the digest and **"since then"**: its other chats the turn's chat may read (`readable_from`)
+  with lines past where the digest read them, newest activity first, 12 chats of up to 8 lines (300 characters each,
+  3,000 tokens in all), then "…and N more lines in M more chats: use recall or read_chat". One statement; three when
+  more chats have new lines.
+- **Tools, through the model's reader (R1):** `recall` searches what was said (full-text, any of the words) in the
+  bot's chats, one chat, or with `everywhere` every chat the turn's chat may read, the home's public chats the bot
+  isn't in too; 10 lines, each with its chat, speaker, time and line number. `read_chat` reads a window of one chat in
+  reach, around a line or its newest. Both answer chat lines as information, never instructions.
+- **Manners** (in the instructions, the same in every chat): say where something came from ("Chiara said in Trip B
+  that…"), bring up another chat only when it helps now, never quote or describe a private chat outside it, offer to
+  tell everyone what everyone should know.
+
+### The home's notes
+
+- **What everyone is told** (`home_notes`), read live into every turn of every bot, so a removal takes effect at the
+  next turn. Written only through the always-ask card (R11): the bot asks "Shall I tell everyone in <home> that?
+  "<text>"" (asked for by the person, or offered by the bot), and the note is written on the server from the card's
+  own words once the card's person says Go ahead: one note a card, as that person, through that bot. A sealed note is
+  a note the person words without the reason (O12).
+- **The notebook's refusals stay:** an email address, nine or more digits (a date's aren't), or a password (a sentence
+  giving one, or one of the vault's passwords), refused before any card.
+- **Shown on every bot's card** (Details, under Knowledge: Memory, then Notes for everyone), newest first, with who
+  asked and through which bot. Their author and the home's owners and admins remove them; a removed note is kept
+  with who removed it. The chat a note was asked in isn't named, as a private chat's name isn't the home's to read.
+- **The composer** of a public chat says "Everyone in <home> can read this · <bots> remember it", and so does its
+  first-time notice; New chat's Public says its bots remember what's said there in their other chats.
+
+### Choices made for the owner, by the plan's recommendation
+
+The memory's lines are the state note's last part. Notes are read in every turn, background runs included (they are
+the home's); the digest, "since then" and the tools only in a person's turn. A chat never digested shows its newest 8
+lines in "since then". Deleting a public chat forgets it at once and rebuilds; leaving, archiving and archiving a bot
+keep the memory. A note is written from the card's text, as the card's person. Notes live on each bot's card rather
+than a section of their own on Team. The digest is everyone's to read on the bot's card, as its chats are.
+
+### Measurements (B2's item 7, left for the owner)
+
+Cache hits, the state note's cost per turn and the digest's cost per refresh are to be measured on the real providers
+for both layouts (memory after the chat, as built, and before it), and recorded here. Method: one bot in three public
+chats of 20,000, 80,000 and 200,000 tokens; ten turns in each chat with a refresh between turns 5 and 6; read each
+call's provider usage (cached and uncached input tokens) from the meter's records (`work`, `cacheHit`, `cacheMiss`),
+for chats on Together and digests on DeepInfra Flex (D-59). Cache lifetime at Together and DeepInfra is unconfirmed.
+
+| Measure | Memory after the chat | Memory before the chat |
+|---|---|---|
+| Cached share of a turn's input, turns 2–10 | to be measured | to be measured |
+| A turn's cost, 200,000-token chat, after a refresh | to be measured | to be measured |
+| State note's cost per turn | to be measured | — |
+| A digest's cost per refresh | to be measured | to be measured |
+
+The bench (`tests/bench/memory.bench.js`, `npm run bench`, the real chat AI) checks how a model uses what it's handed:
+two public chats with conflicting dates kept apart and attributed, a question answerable only from another chat, one
+answerable only by recall, and a clever question that must not reveal a private chat. It has not been run.
+
 ## D-114 — People in chats: their files, mentions, reactions, and Continue with others (2026-11-22)
 
 *Phase B3 of the chats rebuild (D-112). Amends D-90: a person's upload in a chat is checked as theirs in that chat,

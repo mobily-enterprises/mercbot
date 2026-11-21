@@ -88,7 +88,8 @@ archived, unarchived or deleted):
   only; a Private one is 404), `…/leave`; `POST …/people {userId}` and `DELETE …/people/:userId`; `POST …/bots {botId}`
   and `DELETE …/bots/:botId` (an archived bot can be taken out). A bot taken out of a chat takes its runs, computer,
   routines and watches there with it. Each answers `{ chat }`, except leaving a Private chat (`{ left: true }`, it's
-  no longer theirs to read) and a deletion (`{ deleted: true }`).
+  no longer theirs to read) and a deletion (`{ deleted: true }`). Deleting a public chat makes its bots forget it at
+  once (`genesis/program/bots/knowledge.md`, D-113); leaving or archiving a chat keeps what they remember.
 - Archiving (plan 5.1): a Private chat answers 409 `bots_chat_private_archive` ("A private chat is hidden for
   yourself, not archived for everyone."), the everyone chat 409 `bots_chat_everyone`, and a chat already as asked is
   answered unchanged. In one transaction, its bots' routines and watches there are paused, with a "Paused while
@@ -155,7 +156,7 @@ whatever it finds.
 
 **New chat** (`MercbotNewChat.vue`, `useNewChat.js`; Ctrl+Alt+G, the sidebar's "New chat or bots" menu, the
 palette). Title "New chat". Two choices, Public chosen by default: "Public", "Everyone in <home> can open it, and its
-bots can use what's said here in other chats.", and "Private", "Only its members can open it, and nothing in it
+bots remember what's said here in their other chats.", and "Private", "Only its members can open it, and nothing in it
 reaches other chats.", with "You can't change this once the chat has started." under them (`chatView.js`
 `KIND_MEANS`). "To:" takes people and bots of the home as chips ("People", "Bots"; "No one in <home> by that name."),
 "Title (optional)" (placeholder "Its members' names"), then "Write the first message below, or press Enter there to

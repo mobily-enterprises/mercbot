@@ -24,7 +24,7 @@ Yes. A job you've started carries on in the background, and routines run at thei
 
 ## What do bots remember?
 
-Within a chat, a bot keeps the thread however long it gets: it summarises the older part in the background and reads the recent part word for word. Bots made from a template keep what they learn about your job in a notes document in the chat's folder, which anyone who can open the chat can open and correct. What a bot should always do goes in its additions, on its card in **Team**. See [Bots](/help/bots).
+Within a chat, a bot keeps the thread however long it gets: it summarises the older part in the background and reads the recent part word for word. Across chats, each bot remembers the Public chats it's in, and reads the notes everyone in the home was told; a Private chat reaches only chats whose people are all in it. See [What bots remember](/help/memory). Bots made from a template keep what they learn about your job in a notes document in the chat's folder, which anyone who can open the chat can open and correct. What a bot should always do goes in its additions, on its card in **Team**. See [Bots](/help/bots).
 
 ## How do bots use websites?
 

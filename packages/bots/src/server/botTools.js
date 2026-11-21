@@ -93,6 +93,8 @@ function inTime(work, what) {
  * @param {Parameters<typeof hearWhileWorking>[1] | null} options.inbox
  * @param {Record<string, object>} [options.knowledgeTools] search_knowledge and read_knowledge, for a bot whose knowledge is
  *   searched (botKnowledge.js toolsFor, D-107)
+ * @param {(attempt: Function) => Record<string, object>} options.memoryTools recall, read_chat and tell_everyone
+ *   (memoryTools.js, D-113), given this turn's attempt
  * @param {{ kind: string } | null} options.appsVia where the bot is working when not in chat (a watch run, a button's task)
  * @param {string | null} options.workingRequestId
  * @param {boolean} [options.viaBot] work another bot asked for (D-46)
@@ -132,7 +134,8 @@ export function buildTools({
   routine = null,
   place,
   toolSwitches = { skip: {}, removed: [], connected: [] },
-  knowledgeTools = {}
+  knowledgeTools = {},
+  memoryTools
 }) {
   const homeId = String(seat.workspace_id);
   const userId = String(seat.user_id);
@@ -299,6 +302,8 @@ export function buildTools({
   Object.assign(tools, buildCardTools({ integrations, after, call }));
   // Searching what the bot knows that's too long to keep in mind (D-107).
   Object.assign(tools, knowledgeTools);
+  // What it remembers of its other chats, and telling everyone in the home, on a card (D-113).
+  Object.assign(tools, memoryTools(attempt));
   // Notes for the job in hand and a to-do list the person sees as a card (D-48, @jskit-ai/agent-runtime
   // planning), both in front of the bot at every turn.
   if (!routineRun && seated) Object.assign(tools, planningTools({ planning: records.turns.planning(call), conversationId: seated, post }));

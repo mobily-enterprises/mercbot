@@ -80,6 +80,11 @@ test("Knowledge: short text is always in mind, a long guide is searched first, a
     const known = section(page, bot);
     await expect(known.locator(".mb-knowledge__sentence"))
       .toHaveText(`${bot.name} knows nothing extra yet. Add text or a file, such as a price list, a manual or a book.`);
+    // Under it, what the bot remembers (D-113): nothing yet for a new bot, then the home's notes for everyone.
+    const memory = card(page, bot).getByRole("region", { name: "Memory" });
+    await expect(memory.locator(".mb-memory__sentence").first())
+      .toHaveText(`${bot.name} doesn't remember anything yet. It remembers what's said in the public chats it's in, never a private chat.`);
+    await expect(memory).toContainText("Notes for everyone");
 
     await addText(page, bot, "Opening hours", "We open at 9am on Saturdays.\nWe close at noon on Sundays.");
     await expect(known.locator(".mb-knowledge__sentence")).toHaveText(`What ${bot.name} knows, in every chat it's in.`);

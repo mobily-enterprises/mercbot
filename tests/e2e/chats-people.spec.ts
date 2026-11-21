@@ -78,7 +78,7 @@ async function shots(page: Page, testInfo: TestInfo, name: string, atPhone?: () 
 }
 
 const kindLine = {
-  public: (home: Home) => `Everyone in ${home.name} can open it, and its bots can use what's said here in other chats.`,
+  public: (home: Home) => `Everyone in ${home.name} can open it, and its bots remember what's said here in their other chats.`,
   private: "Only its members can open it, and nothing in it reaches other chats."
 };
 const addMenu = (page: Page) => shell.chat(page).getByRole("button", { name: "Add people or bots" });
@@ -296,10 +296,10 @@ test("+ Add puts a person and a bot of the home into a public chat", async ({ pa
 
     // A public chat says so once above its composer, and the composer says who reads it.
     const notice = shell.chat(page).getByRole("note");
-    await expect(notice).toContainText(`This chat is public. Everyone in ${home.name} can read it, and its bots can use what's said here in other chats.`);
+    await expect(notice).toContainText(`This chat is public. Everyone in ${home.name} can read this · Chef remembers it. Its bots remember what's said here in every chat they're in.`);
     await notice.getByRole("button", { name: "Got it" }).click();
     await expect(notice).toHaveCount(0);
-    await expect(shell.composer(page)).toHaveAttribute("placeholder", `Everyone in ${home.name} can read this, and bots can use it in other chats`);
+    await expect(shell.composer(page)).toHaveAttribute("placeholder", `Everyone in ${home.name} can read this · Chef remembers it`);
     await expect(chip(page, title)).toContainText("Public · You and Chef");
 
     // + Add offers the home's people and bots not in it yet: Ben, then Shopper.

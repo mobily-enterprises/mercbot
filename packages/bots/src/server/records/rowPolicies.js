@@ -8,6 +8,8 @@
 // - the model's reader (a job context `readerFor` made for one bot in one chat) reads `readable_from(chat)`: the chats
 //   everyone who can open its chat can open too (the migration's SQL function), whoever the asker is, and the rows
 //   keyed to those chats. It never reads another chat because the asker could;
+// - a bot's memory's reader (`homeReaderFor`, D-113) reads what everyone in the home can open: its public chats only,
+//   since the digest it makes is read in every chat of the bot;
 // - background work for no one (a system context, a home's job without a person) is scoped by ownership alone;
 // - an anonymous caller (a public app's visitor) reads none of them.
 // Bots are the home's, so every caller in the home but an anonymous one reads every bot.
@@ -63,9 +65,29 @@ export function chatReaderFor(systemContext, { homeId, chatId }) {
 }
 
 /**
- * The reader a call's context is, or null: a bot's (forBot), or a chat's own (forChat, with no bot and no asker).
+ * The model's reader for a bot's memory of the home, for no one (D-113): what a digest is made from, which every chat
+ * of the bot reads, so it reads only what everyone in the home can open, now and later: the home's public chats, as a
+ * public chat's reader does, and never a private one, nor anyone's own rows.
+ * @param {(reason: string) => { forWorkspace: Function }} systemContext
+ * @param {{ homeId: string, botId: string }} memory
+ */
+export function homeReaderFor(systemContext, { homeId, botId }) {
+  for (const [name, id] of Object.entries({ homeId, botId })) {
+    if (!/^\d+$/u.test(String(id ?? ""))) throw new TypeError(`The memory's reader needs ${name}: got ${id}.`);
+  }
+  const context = systemContext(READER_REASON).forWorkspace(String(homeId));
+  const reader = Object.freeze({ homeId: String(homeId), botId: String(botId), chatId: null, askerId: null, publicOnly: true });
+  return Object.freeze({
+    ...context,
+    [READER]: reader
+  });
+}
+
+/**
+ * The reader a call's context is, or null: a bot's (forBot), a chat's own (forChat, with no bot and no asker), or a
+ * bot's memory's (forHome: public chats only, `publicOnly`).
  * @param {unknown} context
- * @returns {Readonly<{ homeId: string, botId: string | null, chatId: string, askerId: string | null }> | null}
+ * @returns {Readonly<{ homeId: string, botId: string | null, chatId: string | null, askerId: string | null, publicOnly?: boolean }> | null}
  */
 export function readerOf(context) {
   return (context && typeof context === "object" && context[READER]) || null;
@@ -97,6 +119,10 @@ function narrowToChats({ query, caller, options, ownTable, value }, chatColumn) 
   if (caller.kind === "anonymous") return false;
   const reader = readerIn(caller, options?.context);
   if (reader === false) return false;
+  if (reader?.publicOnly) {
+    query.whereIn(chatColumn, ownTable("conversations").select("conversations.id").where("conversations.kind", "public"));
+    return true;
+  }
   if (reader) {
     query.whereIn(chatColumn, ownTable("conversations")
       .select("conversations.id")
@@ -170,7 +196,7 @@ export function createChatRules(resources) {
   async function personalRule({ query, caller, column, options }, field = "userId") {
     if (caller.kind === "anonymous") return false;
     const reader = readerIn(caller, options?.context);
-    if (reader === false) return false;
+    if (reader === false || reader?.publicOnly) return false;
     if (!reader) return true;
     const chat = await resources.conversations.joinSource({ alias: "reader_chat", filters: { id: reader.chatId } }, options);
     const theirs = await resources.chatPeople.joinSource({ alias: "reader_chat_person", filters: { conversationId: reader.chatId } }, options);

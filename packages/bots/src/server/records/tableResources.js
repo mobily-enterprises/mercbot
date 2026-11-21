@@ -341,6 +341,69 @@ export const homeTemplateChangeResource = defineTableResource({
   }
 });
 
+/** home_notes
+ * what a person asked a bot to tell everyone in the home (D-113), written only on the card they said yes to (cardId,
+ * one note per card); a removed note keeps its row, with who removed it and when
+ */
+export const homeNoteResource = defineTableResource({
+  name: "homeNotes",
+  tableName: "home_notes",
+  ownership: "workspace",
+  schema: {
+    byUserId: { type: "id", nullable: true, search: true },
+    cardId: { type: "id", nullable: true, search: true },
+    createdAt: { type: "dateTime" },
+    fromConversationId: { type: "id", nullable: true },
+    removedAt: { type: "dateTime", nullable: true },
+    removedBy: { type: "id", nullable: true },
+    text: { type: "string", maxLength: 500, noTrim: true, required: true },
+    viaBotId: { type: "id", nullable: true },
+    workspaceId: { type: "id", hidden: true, search: true }
+  }
+});
+
+/** bot_memories
+ * one digest per bot of the home's public chats it's in (D-113): where it read each chat up to (covers), the home's
+ * newest message then (upTo), and the version it replaced (follows): a refresh writes only over the one it read
+ */
+export const botMemoryResource = defineTableResource({
+  name: "botMemories",
+  tableName: "bot_memories",
+  ownership: "workspace",
+  schema: {
+    botId: { type: "id", required: true, search: true },
+    covers: { type: "object", additionalProperties: true },
+    follows: { type: "integer", nullable: true },
+    madeAt: { type: "dateTime" },
+    text: { type: "string", noTrim: true },
+    tokens: { type: "integer" },
+    upTo: { type: "integer", nullable: true },
+    version: { type: "integer", search: true },
+    workspaceId: { type: "id", hidden: true, search: true }
+  }
+});
+
+/** bot_memory_queue
+ * a bot's digest refresh waiting (D-113), claimed by one server at a time under a lease (claimedBy, claimedUntil) that
+ * its server renews while it writes; asks counts its requests; rebuild asks for one made from the chats
+ */
+export const botMemoryQueueResource = defineTableResource({
+  name: "botMemoryQueue",
+  tableName: "bot_memory_queue",
+  ownership: "workspace",
+  schema: {
+    botId: { type: "id", required: true, search: true },
+    asks: { type: "integer", search: true },
+    attempts: { type: "integer" },
+    claimedBy: { type: "string", maxLength: 40, noTrim: true, nullable: true, search: true },
+    claimedUntil: { type: "dateTime", nullable: true },
+    dueAt: { type: "dateTime" },
+    lastError: { type: "string", noTrim: true, nullable: true },
+    rebuild: { type: "boolean" },
+    workspaceId: { type: "id", hidden: true, search: true }
+  }
+});
+
 /** Every table resource this feature owns, in table order. */
 export const TABLE_RESOURCES = Object.freeze([
   botResource,
@@ -357,5 +420,8 @@ export const TABLE_RESOURCES = Object.freeze([
   botPolicyResource,
   approvalRuleResource,
   homeTemplateResource,
-  homeTemplateChangeResource
+  homeTemplateChangeResource,
+  homeNoteResource,
+  botMemoryResource,
+  botMemoryQueueResource
 ]);

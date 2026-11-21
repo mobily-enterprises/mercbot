@@ -19,7 +19,8 @@
 // additions as its system prompt has them, and one told "Change your additions to: …" changes them through
 // change_additions, which leaves the person a card (D-98, D-95). Any bot asked "What do you know about …?" answers with
 // the first line of its knowledge naming it and where that's from, its system prompt's or the current state's search
-// (D-107). It drafts a home's templates
+// (D-107). It writes a bot's memory of its public chats (botMemory.js, D-113) as the chats' headings and lines it was
+// handed, with the earlier memory's first. It drafts a home's templates
 // (packages/bots/src/server/templateDrafts.js) as fixed drafts: a new one from its sentence, one from a bot from that
 // bot's template (its additions on the end when they're folded in), and a change by putting the request at the end of
 // the instructions, or, for "Description: …", in place of the description; a suggested bot's (D-109) on the name, tag
@@ -65,6 +66,7 @@ const TEMPLATE_WRITER = "You write bot templates for Mercbot.";
 const PLANNER = "You plan which bots a Mercbot home should have.";
 // packages/bots/src/server/handOverNotes.js's NOTE_WRITER: Continue with others' hand-over note (D-114).
 const NOTE_WRITER = "You write a short hand-over note that carries a chat on into a new chat with more people.";
+const DIGEST_WRITER = "You keep a bot's memory of the public chats it is in";
 const JOIN_IN = /^You decide whether .+, a bot in a shared conversation, should answer the latest message\./u;
 
 /** A message's words, whether its content is a string or a list of parts. */
@@ -332,6 +334,11 @@ function answerFor(request, misbehave) {
   if (system.includes(RULE_MATCHER)) return say(JSON.stringify({ matches: [] }));
   if (system.startsWith(TEMPLATE_WRITER)) return say(JSON.stringify(templateDraft(system, textOf(request.messages.at(-1)?.content))));
   if (system.startsWith(NOTE_WRITER)) return say(handOverNote(system, textOf(request.messages.at(-1)?.content)));
+  // A bot's memory: the earlier memory's lines and each chat's heading and new lines, as they were handed.
+  if (system.startsWith(DIGEST_WRITER)) {
+    const handed = textOf(request.messages.at(-1)?.content).split("\n").filter((line) => /^(## |\[|- )/u.test(line));
+    return say(handed.join("\n") || "Nothing yet.");
+  }
   // The planner's first user message holds the request (a retry's later ones only list problems).
   if (system.startsWith(PLANNER)) {
     return say(JSON.stringify(botPlan(textOf(request.messages.find((message) => message.role === "user")?.content))));
