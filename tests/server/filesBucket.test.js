@@ -17,7 +17,10 @@ import { startS3Bucket } from "../support/s3Bucket.mjs";
 // pulled from the bucket before it's read and pushed once it's settled, every file sealed with a key only the
 // passphrase opens. The bucket is a stand-in (tests/support/s3Bucket.mjs) reached path-style at its own endpoint, as
 // Garage and MinIO are, and checking every request's signature.
-const at = (homeId, botId, userId) => ({ homeId, botId, userId });
+// Chat `chatId` in home `homeId`, a Public one, with bot `botId` at work there, as a store's placeFor makes it; that
+// needs none of a store's folders.
+const places = createFileStore({ root: "", fallback: os.tmpdir(), ownStorage: async () => null, settle: async () => {}, explain: async () => {} });
+const at = (homeId, chatId, botId) => places.placeFor({ homeId, chatId, chatKind: "public", botId });
 // Another server sees a change at its next pull, which comes once its last is a second old (syncedTree.js).
 const nextPull = () => new Promise((resolve) => setTimeout(resolve, 1100));
 
@@ -154,74 +157,86 @@ test("two servers on one bucket see each other's files once they're settled, and
   const text = "Quarterly report: confidential figures.";
 
   // Written on one server, settled (a reply's end, D-19): the other finds it, whole.
-  const { mine } = await one.store.prepare(at(3, 7, 1));
-  await writeFile(path.join(mine, "report.txt"), text);
-  await mkdir(path.join(mine, "Drafts"));
+  const { chat } = await one.store.prepare(at(3, 12, 7));
+  await writeFile(path.join(chat, "report.txt"), text);
+  await mkdir(path.join(chat, "Drafts"));
   await one.store.settle(3);
-  assert.deepEqual((await two.store.list(at(3, 7, 1))).mine.map((file) => file.path), ["/files/mine/report.txt"]);
-  assert.equal(await readFile((await two.store.existingFile(at(3, 7, 1), "/files/mine/report.txt")).real, "utf8"), text);
-  assert.deepEqual((await two.store.listFolder(at(3, 7, 1), "/files/mine")).entries.map((entry) => entry.path), ["/files/mine/Drafts", "/files/mine/report.txt"]);
+  assert.deepEqual((await two.store.list(at(3, 12, 7))).chat.map((file) => file.path), ["/files/chat/report.txt"]);
+  assert.equal(await readFile((await two.store.existingFile(at(3, 12, 7), "/files/chat/report.txt")).real, "utf8"), text);
+  assert.deepEqual((await two.store.listFolder(at(3, 12, 7), "/files/chat")).entries.map((entry) => entry.path), ["/files/chat/Drafts", "/files/chat/report.txt"]);
   const sealed = [...s3.objects].filter(([key]) => !key.endsWith("/") && key !== ".mercbot-files");
-  assert.deepEqual(sealed.map(([key]) => key), ["homes/3/bots/7/people/1/report.txt"]);
+  assert.deepEqual(sealed.map(([key]) => key), ["homes/3/chats/12/report.txt"]);
   assert.ok(sealed.every(([, object]) => object.body.subarray(0, 4).toString() === "MBF1" && !object.body.includes(text)));
 
-  // A person's files stay theirs, and another home's stay its own.
-  assert.deepEqual((await two.store.list(at(3, 7, 2))).mine, []);
-  await assert.rejects(two.store.existingFile(at(3, 7, 2), "/files/mine/report.txt"), /isn't there/);
-  assert.deepEqual((await two.store.list(at(4, 7, 1))).mine, []);
+  // A chat's files stay its own, and another home's stay its own.
+  assert.deepEqual((await two.store.list(at(3, 13, 7))).chat, []);
+  await assert.rejects(two.store.existingFile(at(3, 13, 7), "/files/chat/report.txt"), /isn't there/);
+  assert.deepEqual((await two.store.list(at(4, 12, 7))).chat, []);
 
   // Moved, made and removed on the second: the first sees it at its next pull.
-  await two.store.move(at(3, 7, 1), "/files/mine/report.txt", "/files/shared/Team/report.txt");
+  await two.store.move(at(3, 12, 7), "/files/chat/report.txt", "/files/shared/Team/report.txt");
   await two.store.makeFolder(two.store.homePlace(3), "/files/shared/Archive");
-  await two.store.remove(at(3, 7, 1), "/files/mine/Drafts");
+  await two.store.remove(at(3, 12, 7), "/files/chat/Drafts");
   await two.store.settle(3);
   await nextPull();
-  assert.deepEqual((await one.store.list(at(3, 8, 2))).shared.map((file) => file.path), ["/files/shared/Team/report.txt"]);
-  assert.deepEqual((await one.store.list(at(3, 7, 1))).mine, []);
+  assert.deepEqual((await one.store.list(at(3, 13, 8))).shared.map((file) => file.path), ["/files/shared/Team/report.txt"]);
+  assert.deepEqual((await one.store.list(at(3, 12, 7))).chat, []);
   assert.deepEqual((await one.store.listFolder(one.store.homePlace(3), "/files/shared")).entries.map((entry) => entry.path), ["/files/shared/Archive", "/files/shared/Team"]);
-  assert.deepEqual((await one.store.listFolder(at(3, 7, 1), "/files/mine")).entries, []);
+  assert.deepEqual((await one.store.listFolder(at(3, 12, 7), "/files/chat")).entries, []);
   await one.store.remove(one.store.homePlace(3), "/files/shared/Team/report.txt");
   await one.store.settle(3);
   await nextPull();
-  await assert.rejects(two.store.existingFile(at(3, 7, 1), "/files/shared/Team/report.txt"), /isn't there/);
+  await assert.rejects(two.store.existingFile(at(3, 12, 7), "/files/shared/Team/report.txt"), /isn't there/);
   assert.ok(![...s3.objects.keys()].some((key) => key.endsWith("report.txt")));
+
+  // A deleted chat's folder goes from the bucket, and the other server finds none of its files at its next pull;
+  // another chat's stay.
+  const { chat: other } = await one.store.prepare(at(3, 13, 7));
+  await writeFile(path.join(other, "minutes.txt"), "kept");
+  await writeFile(path.join(chat, "plan.txt"), "goes");
+  await one.store.settle(3);
+  await two.store.removeChatFolder(3, 12);
+  assert.ok(![...s3.objects.keys()].some((key) => key.startsWith("homes/3/chats/12/")));
+  await nextPull();
+  assert.deepEqual((await one.store.list(at(3, 12, 7))).chat, []);
+  assert.deepEqual((await one.store.list(at(3, 13, 7))).chat.map((file) => file.path), ["/files/chat/minutes.txt"]);
 });
 
 test("a file another server settled a moment ago is found at once, without waiting for the next pull", async (context) => {
   const s3 = await startS3Bucket(context);
   const [one, two] = [await server(context, s3), await server(context, s3)];
-  assert.deepEqual((await two.store.list(at(3, 7, 1))).shared, []);
-  const { shared } = await one.store.prepare(at(3, 7, 1));
+  assert.deepEqual((await two.store.list(at(3, 12, 7))).shared, []);
+  const { shared } = await one.store.prepare(at(3, 12, 7));
   await writeFile(path.join(shared, "new.txt"), "just made");
   await one.store.settle(3);
-  assert.equal(await readFile((await two.store.existingFile(at(3, 7, 1), "/files/shared/new.txt")).real, "utf8"), "just made");
+  assert.equal(await readFile((await two.store.existingFile(at(3, 12, 7), "/files/shared/new.txt")).real, "utf8"), "just made");
 });
 
 test("a change made here and not yet sent wins over the bucket's, and goes when it's sent; a stopping server sends what's left", async (context) => {
   const s3 = await startS3Bucket(context);
   const [one, two] = [await server(context, s3), await server(context, s3)];
-  const { shared } = await one.store.prepare(at(3, 7, 1));
+  const { shared } = await one.store.prepare(at(3, 12, 7));
   await writeFile(path.join(shared, "plan.txt"), "first");
   await one.store.settle(3);
-  const theirs = path.join((await two.store.prepare(at(3, 7, 1))).shared, "plan.txt");
+  const theirs = path.join((await two.store.prepare(at(3, 12, 7))).shared, "plan.txt");
   assert.equal(await readFile(theirs, "utf8"), "first");
 
   await writeFile(theirs, "changed on two");
   await writeFile(path.join(shared, "plan.txt"), "changed on one, sent first");
   await one.store.settle(3);
   await nextPull();
-  await two.store.list(at(3, 7, 1));
+  await two.store.list(at(3, 12, 7));
   assert.equal(await readFile(theirs, "utf8"), "changed on two", "kept until it's sent");
   await two.store.settle(3);
   await nextPull();
-  await one.store.list(at(3, 7, 1));
+  await one.store.list(at(3, 12, 7));
   assert.equal(await readFile(path.join(shared, "plan.txt"), "utf8"), "changed on two", "then everyone's");
 
   // Written and never settled: the server sends it as it stops (D-19).
   await writeFile(theirs, "written as the server stopped");
   await two.volume.stop();
   await nextPull();
-  await one.store.list(at(3, 7, 1));
+  await one.store.list(at(3, 12, 7));
   assert.equal(await readFile(path.join(shared, "plan.txt"), "utf8"), "written as the server stopped");
 });
 
@@ -240,11 +255,11 @@ test("servers that start together on a new bucket use one files key, the databas
     assert.equal(s3.objects.get(".mercbot-files").body.toString("utf8"), keptKeys.get(id), store);
     assert.equal(s3.requests.filter((one) => one.headers["if-none-match"] || one.headers["if-match"]).length, 0, `${store}: no conditional write`);
     assert.equal(s3.requests.filter((one) => one.status >= 500).length, 0, store);
-    const { shared } = await servers[0].store.prepare(at(3, 7, 1));
+    const { shared } = await servers[0].store.prepare(at(3, 12, 7));
     await writeFile(path.join(shared, "made-first.txt"), "one key for all");
     await servers[0].store.settle(3);
     for (const other of servers.slice(1)) {
-      const found = await other.store.existingFile(at(3, 7, 1), "/files/shared/made-first.txt");
+      const found = await other.store.existingFile(at(3, 12, 7), "/files/shared/made-first.txt");
       assert.equal(await readFile(found.real, "utf8"), "one key for all", store);
     }
     // A server starting later reads the bucket's record and asks the database nothing.
@@ -263,7 +278,7 @@ test("a wrong passphrase, or a files folder holding anything else, keeps the buc
   const wrong = await server(context, s3, { env: { MERCBOT_FILES_PASSPHRASE: "not the one" } });
   assert.equal(await wrong.volume.available(), false);
   assert.deepEqual(wrong.logs, ["The files bucket isn't available, so files can't be read or saved: MERCBOT_FILES_PASSPHRASE doesn't open the files bucket's key."]);
-  await assert.rejects(wrong.store.list(at(3, 7, 1)), { code: "files_unavailable", message: "Files aren't available on this server right now." });
+  await assert.rejects(wrong.store.list(at(3, 12, 7)), { code: "files_unavailable", message: "Files aren't available on this server right now." });
 
   const folder = await mkdtemp(path.join(os.tmpdir(), "mercbot-bucket-"));
   context.after(() => rm(folder, { recursive: true, force: true }));
@@ -276,16 +291,16 @@ test("a wrong passphrase, or a files folder holding anything else, keeps the buc
   // A server's own copy from before it restarted is emptied: the bucket holds what it sent.
   await rm(path.join(folder, "kept.txt"));
   const before = await server(context, s3, { folder });
-  const { shared } = await before.store.prepare(at(3, 7, 1));
+  const { shared } = await before.store.prepare(at(3, 12, 7));
   await writeFile(path.join(shared, "sent.txt"), "in the bucket");
   await before.volume.stop();
   const after = await server(context, s3, { folder });
   assert.equal(await after.volume.available(), true);
   assert.deepEqual((await readdir(folder)).sort(), [".mercbot-files", ".mercbot-files-working"]);
-  assert.equal(await readFile((await after.store.existingFile(at(3, 7, 1), "/files/shared/sent.txt")).real, "utf8"), "in the bucket");
+  assert.equal(await readFile((await after.store.existingFile(at(3, 12, 7), "/files/shared/sent.txt")).real, "utf8"), "in the bucket");
 });
 
-test("a computer's screenshot, a conversation's command outputs, a profile picture and a private folder reach every server", async (context) => {
+test("a computer's screenshot, a bot's command outputs in a chat, a profile picture and a private folder reach every server", async (context) => {
   const s3 = await startS3Bucket(context);
   const [one, two] = [await server(context, s3), await server(context, s3)];
 
@@ -304,10 +319,18 @@ test("a computer's screenshot, a conversation's command outputs, a profile pictu
 
   await writeFile(path.join(await one.store.runsFolder(9), "17.log"), "whole output");
   await one.store.settleRuns(9);
-  assert.deepEqual((await two.store.runOutputs()).map(({ conversation, name }) => [conversation, name]), [["9", "17.log"]]);
+  assert.deepEqual((await two.store.runOutputs()).map(({ chatBotId, name }) => [chatBotId, name]), [["9", "17.log"]]);
   assert.equal(await readFile(path.join(await two.store.runsFolder(9), "17.log"), "utf8"), "whole output");
   await two.store.removeRunOutput("9", "17.log");
   assert.deepEqual(await one.store.runOutputs(), []);
+  // A deleted chat's: each of its bots' outputs goes from the bucket at once, and every server sees them gone.
+  await writeFile(path.join(await one.store.runsFolder(10), "18.log"), "a deleted chat's output");
+  await writeFile(path.join(await one.store.runsFolder(11), "19.log"), "another chat's");
+  await one.store.settleRuns(10);
+  await one.store.settleRuns(11);
+  await two.store.removeRunsFolder(10);
+  assert.deepEqual((await one.store.runOutputs()).map(({ chatBotId, name }) => [chatBotId, name]), [["11", "19.log"]]);
+  assert.ok(![...s3.objects.keys()].some((key) => key.startsWith("runs/10/")));
 
   const pictures = await one.store.profilePicturesFolder(4);
   await mkdir(path.join(pictures, "4"), { recursive: true });

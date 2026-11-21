@@ -258,6 +258,7 @@ export function createFileStore({ root, fallback, volume = null, ownStorage, set
 
   /** Removes a bot's command outputs in a chat, wherever they're kept: the chat was deleted. */
   async function removeRunsFolder(chatBotId) {
+    if (!/^\d+$/u.test(String(chatBotId))) throw new Error("Removing a bot's command outputs in a chat needs its chat_bots id.");
     if (bucket?.tree) return bucket.tree.removeTree(`runs/${chatBotId}`);
     await fs.rm(path.join(runsRoot, String(chatBotId)), { recursive: true, force: true });
   }
