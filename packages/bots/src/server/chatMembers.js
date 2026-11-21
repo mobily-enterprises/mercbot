@@ -14,14 +14,19 @@ const LIST_LIMIT = 500;
  * Who may: anyone in the home makes a chat and joins a public one; anyone in a chat adds people of the home and bots
  * of the home; the chat's maker and the home's owners and admins remove members, rename, archive and delete; anyone
  * leaves. What a caller may read is the records' (rowPolicies.js): a chat they can't open is a 404 everywhere.
- * Everyone in a chat is told of each change, on any server, as a `chat` event naming the chat and what changed.
+ * Everyone in a chat is told of each change, on any server, as a `chat` event naming the chat and what changed. A
+ * deleted chat's computers and files go with it (computer.chatRemoved). The home's everyone chat counts as pinned for
+ * everyone in it (O9), and has every active member of the home: a change of the home's people (homeChanged) seats
+ * whoever joined and takes whoever left out of every chat.
  * @param {object} dependencies
  * @param {import("./types.js").BotRecords} dependencies.records
  * @param {import("@local/notices/server/types").Notices} dependencies.notices
+ * @param {Pick<import("@local/computer/server/types").Computer, "chatRemoved">} dependencies.computer
+ * @param {(reason: string) => object} dependencies.systemContext the bots' system context, for a change of the home's people
  */
-export function createChatMembers({ records, notices }) {
+export function createChatMembers({ records, notices, computer, systemContext }) {
   const { chats, messages } = records;
-  const { personOf } = createCallerReaders();
+  const { homeOf, personOf } = createCallerReaders();
 
   /** Everyone named hears that a chat changed (`change`), on any server; a failure leaves it to their next read. */
   const tell = (people, chatId, change) => notices.publishEach("bots", people, { type: "chat", chatId: String(chatId), change })
@@ -31,6 +36,21 @@ export function createChatMembers({ records, notices }) {
   async function told(chatId, change, options, besides = []) {
     const people = (await chats.people(chatId, options)).map((person) => person.user_id);
     await tell([...new Set([...people, ...besides.map(String)])], chatId, change);
+  }
+
+  /**
+   * A deleted chat's computers put to sleep and its files and its computers' files removed from the bucket, after the
+   * chat itself is gone; a failure leaves them to the computers' hourly sweep.
+   */
+  const chatRemoved = (homeId, chatId, chatBotIds) => computer.chatRemoved({ homeId: String(homeId), chatId: String(chatId), chatBotIds })
+    .catch((error) => console.warn("Removing a deleted chat's computers and files failed; the hourly sweep removes them.", error));
+
+  /** The seats of a chat's bots, read before the chat goes. */
+  const seatsIn = async (chatId, options) => (await chats.bots(chatId, options)).map((bot) => String(bot.chat_bot_id));
+
+  /** Refused for the everyone chat, which has every active member of the home. */
+  function requireNotEveryone(chat) {
+    if (chat.everyone) throw new BotsError(409, "Everyone in the home is in this chat.", { code: "bots_chat_everyone" });
   }
 
   /** The chat, which the caller may open, or a 404. */
@@ -129,6 +149,8 @@ export function createChatMembers({ records, notices }) {
   async function list({ hidden = false, archived = false } = {}, options) {
     const rows = (await chats.ofPerson(options, { hidden, archived })).slice(0, LIST_LIMIT);
     const [views, sections] = await Promise.all([viewsOf(rows, options), chats.sections.list(options)]);
+    // The everyone chat first, pinned for everyone (O9); the rest newest activity first.
+    views.sort((a, b) => Number(b.everyone) - Number(a.everyone));
     return { chats: views, sections: sections.map(toSection) };
   }
 
@@ -176,13 +198,17 @@ export function createChatMembers({ records, notices }) {
 
   /**
    * A person out of a chat: the person themselves (leaving), or anyone by its maker or the home's owners and admins.
-   * A private chat whose last person goes is deleted (D-112). Answers the chat, or `{ deleted: true }`.
+   * A private chat whose last person goes is deleted (D-112), with its computers and files. No one leaves the
+   * everyone chat but by leaving the home. Answers the chat, or `{ deleted: true }`.
    */
   async function removePerson(chatId, userId, options) {
     const chat = await openChat(chatId, options);
+    requireNotEveryone(chat);
     const leaving = String(userId) === personOf(options);
     if (!leaving) requireManager(chat, options, "remove people from");
+    const seats = chat.kind === "private" ? await seatsIn(chat.id, options) : [];
     if (await chats.removePerson(chat.id, String(userId), options)) {
+      await chatRemoved(homeOf(options), chat.id, seats);
       await tell([String(userId)], chat.id, "deleted");
       return { deleted: true };
     }
@@ -237,24 +263,25 @@ export function createChatMembers({ records, notices }) {
   /** An archived chat back in use. */
   const unarchive = (chatId, options) => archiving(chatId, false, options);
 
-  /** A chat deleted with everything in it, by its maker or an owner or admin. */
+  /** A chat deleted with everything in it, its computers and files too, by its maker or an owner or admin. */
   async function remove(chatId, options) {
     const chat = await openChat(chatId, options);
     requireManager(chat, options, "delete");
-    const people = (await chats.people(chat.id, options)).map((person) => person.user_id);
+    const [people, seats] = await Promise.all([chats.people(chat.id, options), seatsIn(chat.id, options)]);
     await chats.remove(chat.id, options);
-    await tell(people, chat.id, "deleted");
+    await chatRemoved(homeOf(options), chat.id, seats);
+    await tell(people.map((person) => person.user_id), chat.id, "deleted");
     return { deleted: true };
   }
 
   /**
    * Changes to the person's own place in a chat: `pinned` (true pins it last, false unpins), `sectionId`, `hidden`,
-   * `muted`, `unread`. Only for a chat they're in.
+   * `muted`, `unread`. Only for a chat they're in. The everyone chat is pinned already: `pinned` doesn't move it.
    */
   async function changePlace(chatId, changes = {}, options) {
     const chat = await openChat(chatId, options);
     const fields = {};
-    if (changes.pinned !== undefined) fields.pinPosition = changes.pinned ? await chats.nextPinPosition(options) : null;
+    if (changes.pinned !== undefined && !chat.everyone) fields.pinPosition = changes.pinned ? await chats.nextPinPosition(options) : null;
     if (changes.sectionId !== undefined) fields.sectionId = await sectionOrNull(changes.sectionId, options);
     for (const field of ["hidden", "muted", "unread"]) if (changes[field] !== undefined) fields[field] = Boolean(changes[field]);
     if (!(await chats.updatePlace(chat.id, fields, options))) {
@@ -324,7 +351,30 @@ export function createChatMembers({ records, notices }) {
     return list({}, options);
   }
 
+  /**
+   * The home's people changed (someone joined, left or was removed): whoever joined is seated in the everyone chat, and
+   * whoever left is taken out of every chat, their private chats with no one else deleted with their computers and
+   * files and the routines they made paused (records.chats.personLeft). Everyone in a chat that changed hears, the
+   * person who left too. In the bots' system context for the home; the members' list bounds it.
+   * @param {string} homeId
+   */
+  async function homeChanged(homeId) {
+    const home = { context: systemContext("the home's people join and leave its chats").forWorkspace(String(homeId)) };
+    const { departed, joined, everyoneChatId } = await chats.syncMembers(home);
+    if (joined.length) await told(everyoneChatId, "members", home);
+    for (const userId of departed) {
+      const { left, deleted } = await chats.personLeft(userId, home);
+      for (const { chatId, chatBotIds } of deleted) {
+        await chatRemoved(homeId, chatId, chatBotIds);
+        await tell([userId], chatId, "deleted");
+      }
+      for (const chatId of left) await told(chatId, "members", home, [userId]);
+    }
+    return { joined, departed };
+  }
+
   return Object.freeze({
+    homeChanged,
     list,
     publicChats,
     get,

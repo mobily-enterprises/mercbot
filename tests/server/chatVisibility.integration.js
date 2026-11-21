@@ -87,6 +87,10 @@ test("a job for a person reads what they may; an anonymous caller reads no chat"
   assert.ok(await records.chats.find(chats.Plans.id, forBen));
   const homeJob = { context: systemContext("the home's own work").forWorkspace(homeId) };
   assert.ok(await records.chats.find(chats.Diary.id, homeJob), "work for no one is scoped by its home alone");
+  // A sign-in follow-up runs as its person (R4): its start reads who that is.
+  const said = await knex("messages").where({ conversation_id: chats.Plans.id }).first("id");
+  const [followUp] = await knex("connect_follow_ups").insert({ workspace_id: homeId, message_id: said.id, chat_bot_id: chats.Plans.seat, user_id: ben, plugin_id: "google", status: "ready" }).returning("id");
+  assert.equal(String((await records.followUps.startable(String(followUp.id), homeJob)).userId), ben);
 
   const anonymous = { context: { workspace: { id: homeId }, visibilityContext: { visibility: "workspace", scopeKind: "workspace", scopeOwnerId: homeId } } };
   const seen = await records.chats.find(chats.Family.id, anonymous).catch((error) => ({ refused: error.message }));

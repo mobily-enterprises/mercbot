@@ -18,6 +18,7 @@ const BotsFeature = defineFeature({
     workspaces: "workspaces",
     http: "runtime.http",
     fastify: "runtime.fastify",
+    events: "runtime.events",
     computer: "mercbot.computer",
     notices: "mercbot.notices",
     integrations: "mercbot.integrations",
@@ -35,7 +36,7 @@ const BotsFeature = defineFeature({
   },
   // Requests between bots, goal rounds, routines, Apps tasks and replies left part-way are claimed
   // across every home, then each runs as a job for its person in its own home.
-  systemScope: "run the bots' queued work and resume their replies in every home",
+  systemScope: "run the bots' queued work and resume their replies in every home; seat a home's people in its chats as they join and leave",
   provides: {
     bots: "mercbot.bots",
     // Provided so the shutdown hook can drain the loops.
@@ -50,6 +51,7 @@ const BotsFeature = defineFeature({
    * @param {import("@local/account/server/types").Account} capabilities.account
    * @param {import("@jskit-ai/kernel/server/types").RuntimeHttp} capabilities.http
    * @param {import("@jskit-ai/kernel/server/types").RuntimeFastify} capabilities.fastify
+   * @param {import("@jskit-ai/kernel/server/types").RuntimeEvents} capabilities.events
    * @param {import("@local/computer/server/types").Computer} capabilities.computer
    * @param {import("@local/notices/server/types").Notices} capabilities.notices
    * @param {import("@local/integrations/server/types").Integrations} capabilities.integrations
@@ -68,6 +70,7 @@ const BotsFeature = defineFeature({
     account,
     http,
     fastify,
+    events,
     computer,
     notices,
     integrations,
@@ -109,6 +112,15 @@ const BotsFeature = defineFeature({
     const streams = new Set();
     fastify.addHook("preClose", async () => {
       for (const stream of streams) stream.end();
+    });
+    // A home's people changing (JSKIT tells with the home's id alone) seats whoever joined in its everyone chat and takes
+    // whoever left out of its chats (R2), on the server that made the change; a failure is caught up at the next change.
+    events.register({
+      id: "mercbot.bots.chat-members",
+      matches: (event) => event.type === "entity.changed" && event.source === "workspace" && event.entity === "member",
+      handle: (event) =>
+        bots.chats.homeChanged(String(event.entityId)).catch((error) =>
+          console.warn("Seating a home's people in its chats failed; it catches up at the home's next change of people.", error))
     });
     registerRoutes(http, { bots, approvals, notices, meter: botMeter, records, streams });
     return { bots, botLoops };

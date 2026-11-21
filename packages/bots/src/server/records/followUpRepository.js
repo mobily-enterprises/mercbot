@@ -65,13 +65,13 @@ export const FOLLOW_UP_SEARCH = Object.freeze({
 });
 
 /** What a follow-up's start and run read of its row. */
-const FIELDS = Object.freeze(["messageId", "chatBotId", "workspaceId", "pluginId", "runId", "attempts", "steps"]);
+const FIELDS = Object.freeze(["messageId", "chatBotId", "workspaceId", "userId", "pluginId", "runId", "attempts", "steps"]);
 
 /** @typedef {import("@jskit-ai/resource-runtime/server/types").ResourceCallOptions} CallOptions */
 /**
- * A follow-up's row as its start reads it: the card, its bot in its chat (chat_bot_id) and home, the app it waits for,
- * and its run so far.
- * @typedef {{ id: string, messageId: string, chatBotId: string, workspaceId: string, pluginId: string,
+ * A follow-up's row as its start reads it: the card, its bot in its chat (chat_bot_id), its home and person (it runs
+ * as them, R4), the app it waits for, and its run so far.
+ * @typedef {{ id: string, messageId: string, chatBotId: string, workspaceId: string, userId: string, pluginId: string,
  *   runId: string | null, attempts: number, steps: object[] | null }} FollowUp
  */
 /** A follow-up this server holds: its run id, and whether this is its first run (its card isn't claimed yet). @typedef {FollowUp & { runId: string, first: boolean }} HeldFollowUp */
