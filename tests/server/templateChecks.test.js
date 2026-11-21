@@ -101,7 +101,12 @@ test("every template's apps exist and can be connected, and its paired app is a 
 });
 
 test("every skill a template names is one of its own, and every tool its steps rely on exists", () => {
-  const { tools } = buildTools(turnDoubles({ approvals: {}, computer: null, homeId: "1", userId: "7", botId: "3", conversationId: "5" }));
+  const { tools } = buildTools(turnDoubles({
+    approvals: {},
+    computer: null,
+    // Bot 3's turn for person 7 in its private chat 5 of home 1, its seat there 11.
+    seat: { id: "3", workspace_id: "1", user_id: "7", chat_id: "5", chat_bot_id: "11", chat: { id: "5", kind: "private" } }
+  }));
   const offered = new Map(Object.values(tools).map((tool) => [tool.id, tool]));
   // What the templates ask for in plain words, and the tool that does it.
   const needs = [
