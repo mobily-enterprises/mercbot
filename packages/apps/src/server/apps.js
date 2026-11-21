@@ -399,9 +399,9 @@ export function createApps({ resources, records, registry, anyapi, practices, no
   }
 
   /**
-   * A bot of the home made its Builder (D-35), by an owner or admin (the route's). The new Builder is seated in every
-   * app's chat (D-41) and the old one taken out, each such chat with Mercbot's line (O26), in the same transaction;
-   * their people hear of it after. Answers the Builder.
+   * A bot of the home made its Builder (D-35), by an owner or admin (the route's). The new Builder joins every app's
+   * chat (D-41), where the old one stays a member until someone removes it, and each gets Mercbot's line (O26), in the
+   * same transaction; their people hear of it after. Answers the Builder.
    */
   async function setBuilder(actor, botId, options) {
     const bot = botId == null ? null : await records.directory.findBot(String(botId), passedOn(options));
@@ -418,8 +418,8 @@ export function createApps({ resources, records, registry, anyapi, practices, no
       });
       await audit({ actor, via: { kind: "app" }, action: "app", changes: { builder: { id: String(bot.id), name: bot.name } } }, txOptions);
       if (before?.id === String(bot.id)) return [];
-      const chatIds = await records.chats.changeAppBuilder({ fromBotId: before?.id ?? null, toBotId: String(bot.id) }, passedOn(txOptions));
-      const text = before ? `${bot.name} is the Builder now, in place of ${before.name}.` : `${bot.name} is the Builder now.`;
+      const chatIds = await records.chats.changeAppBuilder({ toBotId: String(bot.id) }, passedOn(txOptions));
+      const text = `${bot.name} is the Builder now.`;
       for (const chatId of chatIds) await records.messages.append(chatId, [{ kind: "event", role: "system", body: { text } }], passedOn(txOptions));
       return chatIds;
     });
