@@ -104,7 +104,7 @@ export function createBotChat({ records, model, integrations, goals, replies, se
     body.authorName = names.get(me) || "Someone";
     const picked = [...String(body.text || "").matchAll(/<@skill:([\w-]+)>/gu)].map((match) => match[1]);
     if (picked.length) {
-      const own = await integrations.skillNames(options);
+      const own = await ownSkillsIn(chat, me, options);
       body.skills = picked.map((id) => findSkill(id, own)).filter(Boolean).map((skill) => ({ id: skill.id, name: skill.name }));
     }
     const clientId = typeof input.clientId === "string" ? input.clientId.slice(0, 64) : "";
@@ -152,9 +152,25 @@ export function createBotChat({ records, model, integrations, goals, replies, se
     return answer.pending ? answer : { ...answer, chat: await chatOf(String(chatId), options) };
   }
 
-  /** The "/" picker's skills: Mercbot's pickable ones and all of the person's own. */
-  async function skillsFor(options) {
-    return { skills: pickable(await integrations.skillNames(options)) };
+  /**
+   * The person's own skills where a bot of the chat may use them, as `{ id, name, description }`: only in a Private chat
+   * whose one person is them (O24, D12: their own things are opened by them alone; the bot's reads,
+   * rowPolicies.js personalRule, say the same), and none anywhere else.
+   */
+  async function ownSkillsIn(chat, person, options) {
+    if (chat.kind !== "private") return [];
+    const people = await records.chats.people(chat.id, options);
+    return people.length === 1 && String(people[0].user_id) === String(person) ? integrations.skillNames(options) : [];
+  }
+
+  /**
+   * The "/" picker's skills in a chat (`chatId`, a 404 for one the caller can't open): Mercbot's pickable ones, with
+   * the person's own first only where its bot may use them (ownSkillsIn). Without a chat, Mercbot's alone.
+   */
+  async function skillsFor(chatId, options) {
+    const me = String(resolveActorId(options.context) ?? "");
+    const chat = chatId == null || chatId === "" ? null : await records.chats.get(String(chatId), options);
+    return { skills: pickable(chat && me ? await ownSkillsIn(chat, me, options) : []) };
   }
 
   /** A bot of this chat, or a 404. */
