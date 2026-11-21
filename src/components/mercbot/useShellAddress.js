@@ -58,7 +58,7 @@ export function useShellAddress({ route, router, openDirect, showDetails, shownC
   watch(() => [route.query.bot, route.query.files], ([botId, files]) => {
     if (!botId) return;
     if (files) {
-      shellPreferences.detailsOpen = true;
+      // Its card opens in Details as the address names it (above), at its Files.
       shellPreferences.detailsTab = "files";
       router.replace({ query: { team: "1", member: `bot:${botId}` } });
       return;

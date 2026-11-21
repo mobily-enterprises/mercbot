@@ -96,10 +96,11 @@ export function useChatEvents({ store, work, team, onDropped, onComputer }) {
     });
     // Someone took over a bot's computer in a chat, or handed it back (D16): its panel reads it again.
     events.addEventListener("computer", (event) => {
+      // `control` is who has it now, `{ userId, since, name }`, or null (computerControl.js tell): passed on as their id.
       const { chatId, botId, control = null } = JSON.parse(event.data);
       const key = `${chatId} ${botId}`;
       computerNews.value = { ...computerNews.value, [key]: (computerNews.value[key] || 0) + 1 };
-      onComputer({ chatId: String(chatId), botId: String(botId), control: control == null ? null : String(control) });
+      onComputer({ chatId: String(chatId), botId: String(botId), control: control?.userId == null ? null : String(control.userId) });
     });
     // The home's bots changed (made, changed, archived, unarchived, deleted): told to everyone in the home. A listed
     // chat holding the bot shows its name and face too (its row, a direct chat's title), so then the list is read again.

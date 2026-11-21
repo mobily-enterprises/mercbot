@@ -1,5 +1,6 @@
-import { effectScope, reactive } from "vue";
+import { effectScope, nextTick, reactive } from "vue";
 import { describe, expect, it, vi } from "vitest";
+import { shellPreferences } from "../../src/components/mercbot/shellPreferences.js";
 import { useShellAddress } from "../../src/components/mercbot/useShellAddress.js";
 
 // What the shell shows, named in the address (D-112): a member's card the address names opens in Details, from a reload
@@ -8,7 +9,10 @@ import { useShellAddress } from "../../src/components/mercbot/useShellAddress.js
 
 function shellAt(query, shown = "") {
   const route = reactive({ query });
-  const router = { push: vi.fn(), replace: vi.fn() };
+  const go = (to) => {
+    route.query = to.query;
+  };
+  const router = { push: vi.fn(go), replace: vi.fn(go) };
   const showDetails = vi.fn();
   const scope = effectScope();
   const address = scope.run(() => useShellAddress({ route, router, openDirect: vi.fn(), showDetails, shownChatId: () => shown }));
@@ -23,6 +27,15 @@ describe("the shell's address", () => {
     const team = shellAt({ team: "1" });
     expect(team.showDetails).not.toHaveBeenCalled();
     team.stop();
+  });
+
+  it("opens a bot's card at its Files from the home's Files page link (?bot=<id>&files=1)", async () => {
+    const link = shellAt({ bot: "7", files: "1" });
+    await nextTick();
+    expect(link.router.replace.mock.calls).toEqual([[{ query: { team: "1", member: "bot:7" } }]]);
+    expect([shellPreferences.detailsTab, link.showDetails.mock.calls.length]).toEqual(["files", 1]);
+    shellPreferences.detailsTab = "details";
+    link.stop();
   });
 
   it("names the chat shown in place, even when the address showed the list's first, and adds an entry for another", () => {
