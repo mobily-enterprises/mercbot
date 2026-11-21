@@ -16,7 +16,8 @@ them. Every requirement here is Mercbot's own product decision. Build from this 
 Mercbot is **personal AI agents ("bots") that do real work for a person**, on that person's own copy: errands
 across their email, calendar, files and business apps, and tasks on the web.
 
-- A user can have **several bots**. Each has its own name, job description, rules and memory.
+- A home has **several bots**, its members as its people are (D-112). Each has its own name, job description, rules
+  and knowledge, and people talk to them in **chats**, Public (everyone in the home can open them) or Private.
 - The person's bots get a **persistent computer** in a sandbox (a real browser, a terminal and files) that
   keeps working while the person is away. Each bot that is working has its own screen on that computer.
 - The user can **watch a bot's screen live and take control of it**, for example to sign in to a website
@@ -26,7 +27,7 @@ across their email, calendar, files and business apps, and tasks on the web.
 - Bots can run **on a schedule** or **when something happens** (an event), not only when spoken to.
 - Bots can **learn reusable procedures** (skills), including by recording a demonstration in the browser and
   replaying it.
-- **Several bots can work together**, passing work to each other in one conversation.
+- **Several bots can work together** in one chat, with people too, and pass work to each other.
 - Usage is **metered per use**, with what each AI call cost at its provider (D-73); there are no plans.
 - Mercbot is **free software (AGPL-3.0)**. Each copy is one person's (D-81): it runs on their own computer,
   reached only from that computer and opened with its key, with **their own AI keys**.
@@ -240,9 +241,9 @@ almost daily.
   can run up a home's spending.
 
 ### 3.9 Memory
-- Each bot has Mastra **working memory** (preferences, rules), **message history** per thread, and
-  **observational memory** for long threads.
-- **Users can view, edit and delete** memory items.
+- A bot knows its chat word for word, with the chat's summary (D-41), and its Knowledge (D-107). Since D-112 nothing
+  is kept per person: a template keeps its job's facts in a notes document in the chat's folder, and B2 (D-113)
+  adds the bots' memory of the home's Public chats.
 - **Export and import** of bots, skills, schedules and memory, so a person can move them to another copy.
 
 ---
@@ -338,8 +339,8 @@ good seed for the benchmark (§7).
   of M3.**
 - **M4, skills and automation:** skills, schedules and event triggers on Mastra, and recorded procedures (the
   takeover stream → replay format).
-- **M5, collaboration:** several bots in one conversation, mentions and handoffs between bots, and team
-  (shared) bots.
+- **M5, collaboration:** several bots in one conversation, mentions and handoffs between bots, and chats with
+  several people (D-112).
 - **M6, polish:** mobile web, the spending UI, memory view/edit, the optional model-based reviewer.
 - **M7, later:**
   - Firecracker microVMs with snapshot/restore;

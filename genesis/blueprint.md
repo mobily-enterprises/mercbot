@@ -27,32 +27,34 @@ and its messages stay as ordinary history.
 
 ## Homes
 
-Everything in Mercbot lives in a home: its bots, their files and computers. The
-person gets a first home the first time they open Mercbot, can create more, and
-switches between them from the top of the sidebar. A home has one person, its
+Everything in Mercbot lives in a home: its people and bots, their chats, files and
+computers. The person gets a first home the first time they open Mercbot, can create
+more, and switches between them from the top of the sidebar. A home has one person, its
 owner; nobody is invited in. A copy built on Mercbot that serves many people can
 add invitations, roles and removals, and the rest of Mercbot already works for a
-home with several people: each person's own chat with a bot stays theirs, whatever
-the bot's mode, and the mode adds to it. A bot is private (nothing more), mixed (the
-default) or shared. A mixed bot keeps a notebook for the home: when a chat teaches it
-something that helps everyone (never anything personal), it notes it and says so in
-a line the person can undo. The notebook shows in the bot's details; its notes can
-be removed and chats kept out of it. A shared bot also talks with the whole home in
-named conversations shown as tabs under the bot, which anyone can start (one
-started from a shared tab continues from what it knew at that moment) and rename;
-each person's own chat is its last tab, "You only", which only they see and from
-which nothing goes into the shared tabs. In shared tabs the bot never uses
-anyone's personal memories, accounts or saved passwords, and a bot's files and
-computer follow the conversation: a shared tab's are everyone's, a person's own
-chat's theirs. Changing a bot's mode asks first; a bot that stops being shared
-hides its shared tabs and pauses their routines and watches until it's shared
-again. With one person in the home, as on a person's own copy, the choice shows
-only for a bot off the default.
+home with several people. A home's bots are its members exactly as its people are,
+listed side by side on its Team page; a bot differs in what it knows, and it is not a
+sign-in account and holds no permission: approvals, settings and membership stay with
+people, and a card is answered only by the person whose message started the work.
+Everything happens in chats, which hold any of the home's people and bots. A person's
+chat list starts empty; a chat appears when they start one or a bot writes to them.
+Every new chat is Public, opened by everyone in the home now and later; whoever starts
+a chat can choose Private instead, which only its members open, and a chat never
+changes kind. One rule decides what a bot may use: in a chat, only what everyone who
+can open that chat can also open, whether or not they have looked. What a bot makes in
+a chat (files, pages, notes, routines, watches) belongs to that chat; putting it where
+more people can open it takes a person's yes. Each bot has its own computer in each
+chat it works in, labelled with its name; everyone who can open the chat can watch it,
+take it over and hand it back, and use what is signed in on it, which the bot says in
+one line when it signs in. When a home has several people, one chat holds everyone in
+it, pinned first for each of them, and nobody leaves it. An archived bot is a member
+who has left: it stays in its chats, greyed, never answers, its routines and watches
+pause, and its maker or an owner or admin can resume it.
 Connected accounts belong to the home they are connected in (a family
 calendar, a team inbox, a person's Gmail): everyone in it, and their bots, use
 them in any chat, and the person who added one and the home's owners and admins
-change it. A bot sees sign-in codes and links only in mailboxes its person
-connected, and someone who leaves a home takes the accounts they added there.
+change it. A bot sees sign-in codes and links only in mailboxes the person
+asking connected, and someone who leaves a home takes the accounts they added there.
 The AI behind the bots runs on the copy's own provider keys, one for each of
 Mercbot's three kinds of AI (D-72). There are no plans: what the bots use (their
 AI, pictures, a computer's days and commands) is counted for its home, person
@@ -63,11 +65,12 @@ only reported: nothing is ever paused or refused because of it.
 ## Bots and chat
 
 An open home is the Mercbot shell: a resizable sidebar (or compact rail)
-listing the person's bots — pinned tiles, rows grouped into the person's own
-sections and sorted by latest activity, and hidden bots — with live previews,
-unread markers, drafts, right-click menus and drag and drop, the chat with a header chip and
-composer, and a dockable Details panel. Bots and conversations persist. Anything
-the person types gets a reply from the bot: a status line
+listing the person's chats — pinned ones, rows grouped into the person's own
+sections and sorted by latest activity, and hidden chats — with live previews,
+unread markers, drafts, right-click menus and drag and drop; the Team page; and the
+chat with a header showing its members and whether it is Public or Private, a
+composer that says who can read it, and its details. Chats persist. Anything
+the person types gets a reply from the chat's bots: a status line
 describes the work, then the whole reply arrives as rich text. People can react,
 reply to and copy messages, attach files, quote selected text, and find text in
 a chat. Bots make and edit documents, spreadsheets, presentations and PDFs with
@@ -75,29 +78,33 @@ office apps that run out of sight; each file they save arrives as a card in the
 chat that opens a viewer with a download. Bots also write pages (an invitation,
 a plan, a guide) that open in place of the chat; the person can publish a
 page to their own website, a folder a web server already serves or
-S3-compatible storage, set up once in Settings → Website, which shows the page without its scripts. A bot's files are its own unless it
-shares them with all the person's bots. Each bot has its own expressive avatar. People add more bots with Add bots: they describe what they need and check the bots Mercbot suggests, or choose one bot, with a name, shape and colour, or a ready-made team; each
-new bot greets them and asks what to help with first. Connect apps lists the integrations Mercbot offers by category, with search;
+S3-compatible storage, set up once in Settings → Website, which shows the page without its scripts. What a bot saves in a chat is in that
+chat's folder; the bot's own folder and the home's folder hold what is meant to reach further. Each bot has its own expressive avatar. People add more bots with Add bots: they describe what they need and check the bots Mercbot suggests, or choose one bot, with a name, shape and colour, or a ready-made team; new
+bots appear on Team, and each greets the person in their chat with it and asks what to help with first. Connect apps lists the integrations Mercbot offers by category, with search;
 people can add or remove them and see which still need signing in, and manage
-the private skills their bots have made. The Details panel
+their own skills. A bot's card on Team
 lets people rename a
 bot, read the template it follows (from Mercbot's library or the home's own, shown as a tag beside its
 name everywhere) and change it, write its additions, the rules for that bot alone on top of its template
 (its maker and the home's owners and admins; a bot also changes its additions when asked, on a card the
-person approves), pause, resume, edit or delete its routines, and check on its computer.
+person approves), and give it Knowledge. A chat's details list its members, its files
+and its routines, which people pause, resume, edit or delete there.
 People ask a bot in plain words to do something on a schedule; it sets up a
 routine, says when it will run with the time zone, and then runs it on its own
-while they are away, posting the result in the chat and marking itself unread.
-Opening a bot shows a "new" divider above what arrived since the last visit.
+while they are away, posting the result in the chat and marking it unread. A routine runs as the person
+who asked for it. Opening a chat shows a "new" divider above what arrived since the last visit.
 People can teach a bot a task by recording themselves doing it on the bot's
-computer; the bot saves the steps as a private skill and uses it when asked.
-People can start group chats with up to six bots: every bot answers in turn (or
-only the ones mentioned with @), bots can answer each other, and each bot
-remembers its groups in its own chat.
+computer; the bot saves the steps as the person's own skill, which a bot uses only in a Private
+chat whose only person is them.
+A chat can hold several bots and people: with one person in it, every bot answers in
+turn (or only the ones mentioned with @); with several people, a bot answers when it is
+named, mentioned, replied to or asked with @everyone; and bots can answer each other
+once. Bots ask each other for work on a brief, and the answer comes back to the chat
+that asked.
 However long a chat gets, a bot keeps its thread: in the background it keeps a
 summary of the older part (what was asked and decided, facts, what it did and
 promised, what's still open) and reads everything since word for word.
-A search palette (Ctrl+K) finds bots, groups, apps, settings, routines and
+A search palette (Ctrl+K) finds chats, bots, apps, settings, routines and
 messages. The account menu shows this month's spending and offers help and an
 About box.
 People can dictate into the message box and hold voice conversations with a bot,

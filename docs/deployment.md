@@ -160,7 +160,7 @@ doesn't accept, a public address that isn't https) still stops the start, saying
   Vault's photo buttons say reading photos isn't (503 `account_vault_photo_unavailable`). Mercbot doesn't
   start while a provider setting names a provider its kind doesn't accept, and says which to fix. What
   each kind of work runs on is one table, `WORK` in `packages/account/src/server/providers/index.js`.
-  - Premium AI, for people's chats and group chats, requests between bots, tasks app buttons hand to a
+  - Premium AI, for chats, requests between bots, tasks app buttons hand to a
     bot, and the bots' browser steps: `AI_PREMIUM_PROVIDER=together` and `AI_PREMIUM_API_KEY`, a
     Together AI key.
   - Slower, cheaper AI, for the Builder's replies (DeepInfra Standard), and routines, watch runs,

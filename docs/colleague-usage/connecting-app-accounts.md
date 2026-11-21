@@ -37,10 +37,10 @@ step. Once signed in, the bot finishes the job it was waiting to do.
 ## Who uses an account, and who changes it
 
 - **Everyone in the home uses it.** Each line says so, such as "Everyone in *home*, and their bots, can read and send
-  from pat@example.com.", then "Added by *name*." (or "Added by you."). Bots use it in every chat of the home: people's
-  own chats, a Shared bot's shared tabs and group chats. Sedna is the exception: only in each person's own chats.
-- **Sending.** A draft card shows which mailbox an email goes from, and is answered like any card (in a person's own
-  chat by them, in a group chat by the person who asked).
+  from pat@example.com.", then "Added by *name*." (or "Added by you."). Bots use it in every chat of the home, Public or
+  Private, for whoever asked. Sedna works in any chat too, as the asking person's own Sedna user.
+- **Sending.** A draft card shows which mailbox an email goes from, and is answered like any card: only by the person
+  whose message started the work, in whatever chat it is.
 - **Sign-in codes and links stay with whoever connected the mailbox.** Reading a mailbox someone else connected, a
   bot sees "[sign-in code hidden]" and "[sign-in link hidden]" in their place, and is told why. It's worked out from
   each email's wording, so a code that isn't for signing in (a discount code next to the word "code") may be hidden

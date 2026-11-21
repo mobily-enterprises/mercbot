@@ -44,7 +44,7 @@ A migration adds `apps.kind` (`app` or `view`), `made_by_user_id` and `made_by_b
 
 **What needs `kind`, twelve places, most of them one line:**
 - **Server, eight:** `list` returns `kind`; `apps_overview` leaves views out; `saveDraft`, `publish`,
-  `setPublic`, saving a script and app rooms (`botSettings.js`) refuse a view; `runtime.action`
+  `setPublic`, saving a script and app chats refuse a view; `runtime.action`
   refuses every call.
 - **Client, four:** the `AppsHome` grid (View badge and filter, no draft actions), `AppFrame` (no draft
   banner or Point and ask; Ask Builder becomes Ask <bot>), `AppDetailsPanel` (no Public or Scripts),
@@ -66,7 +66,7 @@ original design.*
 - Queries run through the data gate on the existing route, `POST …/apps/:slug/query`. Members can
   already read every table, so a view never shows more than the Data tab.
 - **Who sees it:** `access = members` with only the maker, until shared, then `home`. Owners and
-  admins always can. A view made in a shared room, a group, or a job with no person starts home-wide.
+  admins always can. A view made in a chat several people share, or a job with no person, starts home-wide.
   Everyone else gets 404 from every route, as with apps.
 - **Sharing needs a new route.** `PUT …/apps/:slug/access` is owners and admins only, so a member
   couldn't share their own view. `PUT …/apps/:slug/share {home}` works on views only: anyone who can

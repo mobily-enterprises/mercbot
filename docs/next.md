@@ -138,8 +138,8 @@ What these waited for has happened, so nothing stops them now.
   copy can use; neither has been measured on a person's own computer yet.
 - [x] **Switch the default AI provider to DeepInfra** (D-48, D-58): settled by D-72, each kind of AI's provider
   is a setting; chats stay on Together, the rest on DeepInfra.
-- [ ] **Bot-only threads and a company chart** (D-46 step 3, `LATER.md`): to decide after using steps 1 and 2,
-  which are built.
+- [ ] **Bot-only threads and a company chart** (D-46 step 3, `LATER.md`): bots together in a chat, joining in and
+  Discuss, are B4 of the rebuild (D-115), after D-112's chats.
 - [ ] **Mid-turn summaries in the agent loop** (`docs/agent-loop.md`): when a long build shows the need.
 - [ ] **CONTRIBUTING and a CLA** (`docs/architecture.md` §9.1): they wait for a lawyer's advice. With them:
   whether the README's trademark line and a copyright line are right.
@@ -334,7 +334,7 @@ What these waited for has happened, so nothing stops them now.
     again, and after a chat reloads a published card offers Publish again: a card learns its draft is gone
     only when pressed, and its Publish publishes the app's draft as it is now (`MercbotAppDraftCard.vue`).
 - [ ] **The person's picture** (D-82, the sidebar's account button since 2026-11-12): Settings → General's account row
-  and group chats' cluster avatars still show the person's initials when they have a picture
+  and the stacked faces of a chat with several people still show the person's initials when they have a picture
   (`MercbotSettingsGeneral.vue`, `shellInitials.js`). Show it there too?
   - [ ] JSKIT's account page doesn't follow a new picture until a reload (found 2026-11-12, tried in a test copy
     at 1280 then 390 px): after uploading one, going Up to the home and opening Account details again, Profile
@@ -383,9 +383,9 @@ What these waited for has happened, so nothing stops them now.
   `npm test` ends with a warning while team templates are Not tested yet for it.
 - [ ] **Check the coding hand-off with a real account**, on a copy that has run `scripts/install-tools.sh` (it
   installs `.tools/coding`):
-  1. In a bot's own chat, put a small git project in its files (e.g. upload a folder, or ask it to
-     make `/files/mine/demo` with `git init` and one file).
-  2. Ask "Use Claude Code to add a README to /files/mine/demo". The bot opens the sign-in on its
+  1. In a chat with a bot, put a small git project in its files (e.g. upload a folder, or ask it to
+     make `/files/chat/demo` with `git init` and one file).
+  2. Ask "Use Claude Code to add a README to /files/chat/demo". The bot opens the sign-in on its
      screen and posts **Your turn**: take over, sign in with your own Claude account in the
      terminal window (first start, then `/login` if it doesn't ask), and select **I'm done**.
      Check that `/profile/.coding/.claude/.credentials.json` exists in the computer (a later
@@ -403,7 +403,8 @@ What these waited for has happened, so nothing stops them now.
   every server checking every card every 5 seconds (`packages/bots/src/server/connectFollowUps.js`); and codes on
   sites where others publish, which go in by themselves only where the person's sign-in led
   (`packages/computer/src/server/signInChain.js`).
-- [ ] **Drop `ix_bot_messages_connecting`** in a new migration: nothing reads it since connect follow-ups (D-77).
+- [x] **Drop `ix_bot_messages_connecting`** in a new migration: nothing reads it since connect follow-ups (D-77).
+  Gone with `bot_messages` in D-112's migration, and `messages` has no such index.
 - [ ] **Check with real AI** what could only be proven without it (D-77): a sign-in code typed into a real site's
   page from a connected Gmail, and a bot that finishes its task with a real reply after the person connects an app
   from its card. Also that the model starts a sign-in the person asks for with `start_sign_in` (not

@@ -34,7 +34,7 @@ have cost over time", with a UI "as good as the rest of the app".
 | Calls outside tracked work record nothing | Tested: 0 rows | Unattributed spend is invisible |
 | Pictures aren't metered | `pictureMaker.js` uses plain `fetch` to Gemini | Probably our most expensive call per use, unrecorded |
 | Computer time is written only when a computer sleeps | `computerManager.js` teardown | A machine that dies loses all of that stretch |
-| Computer time can go to the wrong person | Sleeping from the idle timer has no tracked person, so it falls back to the bot's maker | Wrong in a mixed bot; the home is still right |
+| Computer time can go to the wrong person | Sleeping from the idle timer has no tracked person, so it falls back to the bot's maker | Wrong when someone else used the bot; the home is still right |
 | Commands aren't metered | `shell_runs` holds them, `usage_events` doesn't | Up to 30 minutes of server time per command, uncounted |
 | Deleting a person or home deletes their spend; deleting a bot forgets which bot | Foreign keys `CASCADE`, `SET NULL`; 22 development rows have lost their bot | Spending can't be traced |
 | Rows don't say what the bot was doing | No conversation, reply, routine, goal, job, tool or model | Can't answer "doing what?" |

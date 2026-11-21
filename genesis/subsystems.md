@@ -21,8 +21,10 @@ Owns the private home and adaptive navigation around authenticated features.
 
 - Table `database` `default` `users`
 - Table `database` `default` `bots`
-- Table `database` `default` `bot_messages`
-- Table `database` `default` `bot_sections`
+- Table `database` `default` `conversations`
+- Table `database` `default` `chat_people`
+- Table `database` `default` `messages`
+- Table `database` `default` `conversation_sections`
 - Table `database` `default` `bot_routines`
 - Table `database` `default` `home_plugins`
 - Table `database` `default` `plugin_accounts`
@@ -57,8 +59,8 @@ Owns local authentication and self-service profiles through installed JSKIT pack
 
 ## `bots` Bots and conversations
 
-Owns each person's bots, their conversation timeline, scripted onboarding and
-DeepSeek replies, run on the agent loop of the installed JSKIT agent packages, whose tables it
+Owns a home's bots, members of the home as its people are, and its chats (D-112): Public and Private
+chats of people and bots, their members and timeline, scripted onboarding and DeepSeek replies, run on the agent loop of the installed JSKIT agent packages, whose tables it
 owns through them.
 
 ### Source
@@ -76,17 +78,15 @@ owns through them.
 ### Data owned
 
 - Table `database` `default` `bots`
-- Table `database` `default` `bot_messages`
-- Table `database` `default` `bot_sections`
+- Table `database` `default` `conversations`
+- Table `database` `default` `chat_people`
+- Table `database` `default` `chat_bots`
+- Table `database` `default` `messages`
+- Table `database` `default` `conversation_sections`
 - Table `database` `default` `bot_routines`
-- Table `database` `default` `bot_group_members`
 - Table `database` `default` `bot_requests`
-- Table `database` `default` `person_memories`
 - Table `database` `default` `bot_policies`
 - Table `database` `default` `approval_rules`
-- Table `database` `default` `bot_conversations`
-- Table `database` `default` `conversation_reads`
-- Table `database` `default` `bot_notebook`
 - Table `database` `default` `bot_knowledge`
 - Table `database` `default` `bot_knowledge_parts`
 - Table `database` `default` `connect_follow_ups`
@@ -95,7 +95,6 @@ owns through them.
 - Table `database` `default` `agent_summaries`
 - Table `database` `default` `agent_summary_queue`
 - Table `database` `default` `agent_commands`
-- Table `database` `default` `home_settings`
 
 ### Data used
 
@@ -204,7 +203,8 @@ files folder.
 
 - Table `database` `default` `bots`
 - Table `database` `default` `workspaces`
-- Table `database` `default` `bot_conversations`
+- Table `database` `default` `conversations`
+- Table `database` `default` `chat_bots`
 - Table `database` `default` `plugin_accounts`
 
 ## `websites` A home's own website
@@ -417,5 +417,5 @@ home; nothing is ever deleted.
 - Table `database` `default` `workspaces`
 - Table `database` `default` `users`
 - Table `database` `default` `bots`
-- Table `database` `default` `bot_conversations`
+- Table `database` `default` `conversations`
 - Table `database` `default` `workspace_memberships`

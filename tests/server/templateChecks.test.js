@@ -106,10 +106,9 @@ test("every skill a template names is one of its own, and every tool its steps r
   // What the templates ask for in plain words, and the tool that does it.
   const needs = [
     [/question card/iu, "ask_with_options"],
-    [/\bmemor(?:y|ies)\b/iu, "remember"],
     [/\bas a draft\b/iu, "show_draft"],
     [/\bskill\b/iu, "read_skill"],
-    [/\/files\/mine/iu, "list_files"]
+    [/\/files\/chat/iu, "list_files"]
   ];
   for (const [, id] of needs) assert.ok(offered.has(id), `the bots have ${id}`);
   // Routines are created paused and started only on a yes.
@@ -186,7 +185,7 @@ test("every template starts with a setup interview of its own", () => {
     const steps = stepsOf(setup);
     assert.ok(steps.length >= 4, `${file}: the interview is written as numbered steps`);
     assert.ok(steps.filter((step) => /^Ask\b/u.test(step)).length >= 2, `${file}: it asks at least two questions`);
-    assert.ok(steps.some((step) => /\bmemor(?:y|ies)\b/iu.test(step)), `${file}: it saves the answers as memories`);
+    // Where it keeps the answers is botWords.test.js's (D-112).
     assert.match(template.greeting, /\?/u, `${file}: its greeting offers to start the interview`);
   }
 });

@@ -21,8 +21,9 @@ changes scoped to the user request and verify runtime behavior directly.
 
 ## What Mercbot is
 
-Mercbot is a person's own copy of a set of AI helpers ("bots") that do real work for them: each bot has its own
-chat, computer and command line, and the person reaches the copy with its key (D-81). `genesis/blueprint.md` and
+Mercbot is a person's own copy of a set of AI helpers ("bots") that do real work for them. A home's bots are its
+members, as its people are, and people talk to them in chats, Public or Private, where each bot has its own computer
+and command line (D-112); the person reaches the copy with its key (D-81). `genesis/blueprint.md` and
 the Program describe what it does; `help/` is what people read.
 
 ## Decisions
@@ -58,5 +59,7 @@ answer. Numbers never change; a later decision that changes an earlier one says 
   (D-6). Don't assume a design beyond it; ask when a change needs one.
 - **Migrations:** `migrations/` starts from one baseline that creates the whole
   schema. Add each later change as a new forward migration; never edit one that
-  has run. A database made before the baseline can't be migrated: recreate it
+  has run. A migration after the baseline only adds, unless it says why it may
+  take away (`exports.contracts`), as version 0's `20261122120000_chats_core.cjs`
+  does (D-112: nothing in any database was kept). A database made before the baseline can't be migrated: recreate it
   (`npm run db:prepare` on an empty database).
