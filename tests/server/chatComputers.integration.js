@@ -4,9 +4,11 @@ import { mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test, { after } from "node:test";
+import { resolveAuditActorId } from "@jskit-ai/kernel/server/actions/actionContributorHelpers";
 import { createMeter } from "../../packages/account/src/server/meter.js";
 import { createComputers, PLACE_HERE } from "../../packages/computer/src/server/computers.js";
 import { registerRoutes } from "../../packages/computer/src/server/registerRoutes.js";
+import { createBotTeaching } from "../../packages/bots/src/server/botTeaching.js";
 import { createFileStore } from "../../packages/files/src/server/fileStore.js";
 import { memberOptions, startChatRecords } from "../support/botRecords.mjs";
 import { seedChat } from "../support/chatFixtures.mjs";
@@ -15,7 +17,8 @@ import { connectTestDatabase } from "../support/testDatabase.mjs";
 // A chat's computers (D14, D16), through the computer routes as a person's request reaches them: each bot in a chat
 // has its own computer there, anyone who can open the chat takes it over and hands it back, each with a line in the
 // chat that its people hear of, the bot doesn't act on it meanwhile, and a home member who can't open the chat (a
-// private chat they're not in) gets a 404 for all of it. A stand-in replaces the desktop, so this needs no Xvfb or Chrome.
+// private chat they're not in) gets a 404 for all of it. Teaching a bot a task records a take-over of its computer in the
+// chat. A stand-in replaces the desktop, so this needs no Xvfb or Chrome.
 assert.ok(process.env.TEST_DB_NAME?.trim(), "TEST_DB_NAME must identify a disposable test database.");
 assert.equal(process.env.DB_NAME, process.env.TEST_DB_NAME, "DB_NAME must match the dedicated TEST_DB_NAME.");
 
@@ -35,10 +38,19 @@ const FREE_RECORDER = Object.freeze({
   finishComputation: async () => true
 });
 
-/** Computers that wake, sleep and browse in memory, logging what the bot did on each. */
+// A demonstration as the computer's recorder gives it: a search on example.com.
+const DEMO = Object.freeze([
+  { at: 0, type: "page", url: "https://www.example.com/", title: "Example" },
+  { at: 4, type: "input", tag: "input", label: "Search", value: "kittens", url: "https://www.example.com/" },
+  { at: 5, type: "enter", tag: "input", label: "Search", value: "kittens", url: "https://www.example.com/" },
+  { at: 7, type: "page", url: "https://www.example.com/s?q=kittens", title: "Results for kittens" }
+]);
+
+/** Computers that wake, sleep, browse and record in memory, logging what the bot did on each. */
 function fakeDesktops(log) {
   return ({ changed, store }) => {
     const states = new Map();
+    const recording = new Set();
     const status = (computerId) => ({ state: states.get(String(computerId)) || "asleep", url: "", error: "" });
     const did = (what) => async (computerId) => {
       log.push(`${what} ${computerId}`);
@@ -54,6 +66,10 @@ function fakeDesktops(log) {
         await changed(computerId, status(computerId));
       },
       browse: did("browsed"),
+      startRecording: async (computerId) => {
+        recording.add(String(computerId));
+      },
+      stopRecording: async (computerId) => (recording.delete(String(computerId)) ? { events: DEMO } : null),
       act: did("acted"),
       startSignIn: did("started a sign-in"),
       screenshot: (computerId) => store(computerId, Buffer.from("jpeg")),
@@ -124,7 +140,7 @@ async function startComputers(context) {
   const routes = new Map();
   const http = { router: { register: (method, route, _options, handler) => routes.set(`${method} ${route}`, handler) } };
   registerRoutes(http, { computer: computers, files, records, streams: new Set(), meter: { pausedMessage: async () => null } });
-  return { records, computers, routes, log, told };
+  return { records, computers, routes, log, told, notices };
 }
 
 /** A person's request to a computer route, answered: { status, body }. */
@@ -238,4 +254,75 @@ test("a home member who can't open a private chat gets a 404 for its computers, 
   assert.equal(annaTakes.body.control.userId, anna);
   assert.notEqual(family.chatBotIds.get(bots.Tripbot), seat, "the same bot has another computer in another chat (D14)");
   assert.equal((await computers.status(family.chatBotIds.get(bots.Tripbot))).control, null);
+});
+
+test("teaching a bot in a chat takes over its computer there to record, and stopping hands it back and teaches it", async (context) => {
+  const { records, computers, told, notices } = await startComputers(context);
+  const { homeId, anna, ben, carla, bots, family, plans } = await rossiHome(context);
+  const as = (userId) => memberOptions({ userId, homeId });
+  const names = await records.chats.names([anna, ben], as(anna));
+  const pending = [];
+  const wrote = [];
+  const saved = [];
+  const teaching = createBotTeaching({
+    records,
+    computer: computers,
+    integrations: {
+      createSkill: async (skill, options) => {
+        saved.push({ name: skill.name, by: String(resolveAuditActorId(options.context)) });
+        return { id: "77", name: skill.name };
+      }
+    },
+    notices,
+    background: { add: (work) => pending.push(work) },
+    writeSkill: async (lines) => {
+      wrote.push(lines);
+      return { name: "Search for kittens", steps: ["Open example.com", "Search for kittens"], input: null };
+    }
+  });
+  const seat = family.chatBotIds.get(bots.Tripbot);
+
+  // Teaching is a person's in a chat they can open, for a bot in it.
+  await assert.rejects(teaching.startTeaching(plans.id, bots.Tripbot, as(carla)), { statusCode: 404, code: "bots_bot_not_in_chat" });
+  await assert.rejects(teaching.startTeaching(plans.id, bots.Chef, as(anna)), { statusCode: 404, code: "bots_bot_not_in_chat" });
+  assert.equal((await computers.status(plans.chatBotIds.get(bots.Tripbot))).control, null, "nothing was taken over");
+
+  // Ben teaches Tripbot in Family: he takes over its computer there, and Tripbot waits while he records.
+  const started = await teaching.startTeaching(family.id, bots.Tripbot, as(ben));
+  assert.deepEqual({ recording: started.recording, userId: started.control.userId }, { recording: true, userId: ben });
+  await assert.rejects(computers.browse(seat, "https://example.com"), { statusCode: 409, code: "computer_person_in_control" });
+  const stopped = await teaching.stopTeaching(family.id, bots.Tripbot, {}, as(ben));
+  assert.equal(stopped.control, null);
+  assert.deepEqual(stopped.messages.map((message) => [message.role, message.body.text]), [
+    ["system", `${names.get(ben)} handed Tripbot's computer back.`],
+    ["user", "I've finished recording. Please learn from it."]
+  ]);
+  const finished = stopped.messages[1];
+  assert.equal(finished.authorUserId, ben, "the finished message is Ben's");
+  assert.equal(finished.body.recording, undefined, "the page never gets the recording (toMessage)");
+  assert.equal((await computers.status(seat)).control, null, "the computer is Tripbot's again");
+
+  // Tripbot learns in the background, in Family, as Ben: the skill is his (personal skills), and the recording goes.
+  await Promise.all(pending);
+  assert.equal(wrote.length, 1);
+  assert.ok(wrote[0].includes('4s: typed "kittens" into "Search" on example.com'));
+  assert.deepEqual(saved, [{ name: "Search for kittens", by: ben }]);
+  const { messages } = await records.messages.timeline(family.id, {}, as(anna));
+  const fromTripbot = messages.filter((message) => message.role === "bot");
+  assert.ok(fromTripbot.every((message) => message.authorBotId === bots.Tripbot));
+  assert.equal(fromTripbot[0].body.text, "Got your demo, thanks. Pulling up the recording now.");
+  assert.match(fromTripbot.at(-1).body.text, /^I've saved your demo as a skill: \[Search for kittens\]\(skill:77\)/u);
+  const stored = await knex("messages").where({ id: finished.id }).first("body");
+  assert.deepEqual({ chip: stored.body.chip, recording: stored.body.recording }, { chip: "Learn from demonstration", recording: undefined },
+    "the recording is deleted once learned, the chip stays");
+  assert.ok(messages.some((message) => message.id === finished.id));
+  const working = told.filter((notice) => notice.topic === "bots" && notice.event.type === "working");
+  assert.deepEqual([working[0].event.working, working.at(-1).event.working], [true, false]);
+  assert.deepEqual(working[0].keys.sort(), [anna, ben].sort(), "Family's people and Ben hear Tripbot working");
+
+  // Discarding keeps no recording: the hand-back's line, and no message to learn from.
+  await teaching.startTeaching(family.id, bots.Tripbot, as(anna));
+  const discarded = await teaching.stopTeaching(family.id, bots.Tripbot, { discard: true }, as(anna));
+  assert.deepEqual(discarded.messages.map((message) => message.body.text), [`${names.get(anna)} handed Tripbot's computer back.`]);
+  assert.equal(pending.length, 1, "nothing more to learn");
 });
