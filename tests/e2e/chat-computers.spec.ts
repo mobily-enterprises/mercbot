@@ -7,7 +7,7 @@ import { connectTestDb, expect, HOME, homeApi, openShell, seedChat, shell, test,
 // signed in on it, its state, and what's signed in on it (Gmail and a coding tool on Otto's, as its saved browser
 // lists them; nothing yet on Vera's). Take over gives the person control: the live view says so, the server keeps it
 // and the chat has a line for it; Hand back gives it back, with its own line. Screenshots light, dark and phone of the
-// Computers tab are the output. The test deletes the chat it makes, and the computers with it.
+// Computers tab, asleep and with the person in control, are the output. The test deletes the chat it makes, and the computers with it.
 // Run with: vibe64-helper playwright --target test-app test tests/e2e/chat-computers.spec.ts
 // Any refused API call from the page, one with no answer, or JSKIT's error dialog, fails the test (harness.ts).
 test.use({ apiGuard: true });
@@ -16,7 +16,7 @@ test.use({ apiGuard: true });
 async function shots(page: Page, testInfo: TestInfo, name: string, atPhone?: () => Promise<unknown>) {
   for (const scheme of ["light", "dark"] as const) {
     await page.emulateMedia({ colorScheme: scheme, reducedMotion: "reduce" });
-    await expect(page.locator(".v-application")).toHaveClass(new RegExp(`\\bv-theme--${scheme}\\b`, "u"));
+    await expect(page.locator(".v-application")).toHaveClass(new RegExp(`\\bv-theme--(workspace-)?${scheme}\\b`, "u"));
     await page.screenshot({ path: testInfo.outputPath(`${name}-${scheme}.png`), animations: "disabled" });
   }
   await page.emulateMedia({ colorScheme: "light", reducedMotion: "reduce" });
@@ -98,12 +98,30 @@ test("Chat details → Computers lists each bot's computer in the chat, and Take
     await expect(ottos.getByRole("button", { name: "Take over", exact: true })).toBeEnabled();
     await expect(ottos.getByRole("button", { name: "Hand back", exact: true })).toHaveCount(0);
 
+    // Taken over again (through the server, so no live view covers the panel): Otto's computer says who has control and
+    // offers Hand back in place of Take over, and Vera's is its own; Hand back there gives it back.
+    const api = await homeApi(page);
+    expect(String((await api.post(`/bots/${otto}/computer/take-over?chat=${chatId}`)).control.userId)).toBe(me);
+    await expect(ottos.locator(".mb-chat-computer__state")).toHaveText("Awake · You have control");
+    await expect(ottos.getByRole("button", { name: "Hand back", exact: true })).toBeVisible();
+    await expect(ottos.getByRole("button", { name: "Take over", exact: true })).toHaveCount(0);
+    await expect(veras.locator(".mb-chat-computer__state")).toHaveText("Asleep");
+    await shots(page, testInfo, "computers-in-control", async () => {
+      if (!(await computers.isVisible())) await shell.chat(page).getByRole("button", { name: "Chat details" }).click();
+      await expect(ottos.locator(".mb-chat-computer__state")).toHaveText("Awake · You have control");
+    });
+    const rowHandBack = page.waitForResponse((response) => response.request().method() === "POST" &&
+      new URL(response.url()).pathname === `/api${HOME}/bots/${otto}/computer/hand-back`);
+    await ottos.getByRole("button", { name: "Hand back", exact: true }).click();
+    expect((await (await rowHandBack).json()).control).toBeNull();
+    await expect(ottos.locator(".mb-chat-computer__state")).toHaveText("Awake");
+    await expect(ottos.getByRole("button", { name: "Take over", exact: true })).toBeEnabled();
+
     // The chat has a line for each, as Mercbot's own.
     const lines = await knex("messages").where({ conversation_id: chatId, kind: "event" }).orderBy("id").select("role", "body");
-    expect(lines.map((row) => [row.role, String(row.body.text)])).toEqual([
-      ["system", expect.stringMatching(/^.+ took over Otto's computer\.$/u)],
-      ["system", expect.stringMatching(/^.+ handed Otto's computer back\.$/u)]
-    ]);
+    const took = expect.stringMatching(/^.+ took over Otto's computer\.$/u);
+    const gave = expect.stringMatching(/^.+ handed Otto's computer back\.$/u);
+    expect(lines.map((row) => [row.role, String(row.body.text)])).toEqual([["system", took], ["system", gave], ["system", took], ["system", gave]]);
   } finally {
     if (page.url() !== "about:blank") await page.goto("about:blank");
     // Through the server first, so the computers it woke go to sleep with the chat (C); the rows go either way.

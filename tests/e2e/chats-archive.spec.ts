@@ -1,3 +1,4 @@
+import type { TestInfo } from "@playwright/test";
 import { connectTestDb, expect, HOME, homeApi, openShell, seedChat, shell, test, type Page } from "./harness";
 
 // Archiving a chat (D-112), on the Test Preview target, with a chat of the test's own in the fixture home, made by the
@@ -5,7 +6,8 @@ import { connectTestDb, expect, HOME, homeApi, openShell, seedChat, shell, test,
 // banner where the composer was ("This chat is archived, so it's read-only.", with Unarchive), no + Add, and the server
 // refuses anything written to it. It moves to the list's Archived chats, collapsed with its count until opened, and
 // Chat details says Public · Archived. Another page of the person's sees it at once. Unarchive, from the banner or the
-// archived row's menu, makes it a chat to write in again. The test deletes the chat it makes.
+// archived row's menu, makes it a chat to write in again. Screenshots light, dark and phone of the archived chat are the
+// output. The test deletes the chat it makes.
 // Run with: vibe64-helper playwright --target test-app test tests/e2e/chats-archive.spec.ts
 // Any refused API call from the page, one with no answer, or JSKIT's error dialog, fails the test (harness.ts).
 test.use({ apiGuard: true });
@@ -16,7 +18,22 @@ const archivedChats = (page: Page) => shell.sidebar(page).getByRole("region", { 
 const answered = (page: Page, method: string, path: string) =>
   page.waitForResponse((response) => response.request().method() === method && new URL(response.url()).pathname === path);
 
-test("an archived chat is read-only for everyone in it, sits in Archived chats, and Unarchive opens it again", async ({ page, context }) => {
+/** Light and dark, then light at a phone's width (390 by 844) once `atPhone` has shown the screen there. */
+async function shots(page: Page, testInfo: TestInfo, name: string, atPhone?: () => Promise<unknown>) {
+  for (const scheme of ["light", "dark"] as const) {
+    await page.emulateMedia({ colorScheme: scheme, reducedMotion: "reduce" });
+    await expect(page.locator(".v-application")).toHaveClass(new RegExp(`\\bv-theme--(workspace-)?${scheme}\\b`, "u"));
+    await page.screenshot({ path: testInfo.outputPath(`${name}-${scheme}.png`), animations: "disabled" });
+  }
+  await page.emulateMedia({ colorScheme: "light", reducedMotion: "reduce" });
+  const size = page.viewportSize();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await atPhone?.();
+  await page.screenshot({ path: testInfo.outputPath(`${name}-phone.png`), animations: "disabled" });
+  if (size) await page.setViewportSize(size);
+}
+
+test("an archived chat is read-only for everyone in it, sits in Archived chats, and Unarchive opens it again", async ({ page, context }, testInfo) => {
   const knex = connectTestDb();
   let chatId = "";
   try {
@@ -55,6 +72,7 @@ test("an archived chat is read-only for everyone in it, sits in Archived chats, 
       await expect(shell.composer(shown)).toHaveCount(0);
       await expect(shell.chat(shown).getByRole("button", { name: "Add people or bots" })).toHaveCount(0);
     }
+    await shots(page, testInfo, "archived-banner", () => expect(banner(page)).toBeVisible());
 
     // The server refuses anything written to it: a message, a person, a new title.
     const api = await homeApi(page);
