@@ -18,22 +18,24 @@ Every other bot, and every person, works with the records inside the tables. Onl
 There are two ways:
 
 1. In **Apps**, press **New app**. If your home has no Builder yet, Mercbot asks you to **Choose a Builder**. Pick a bot and press **Make Builder**.
-2. Open a bot's card in **Team**. In its **Apps** section, press **Make this the Builder**.
+2. Open a bot's card in **Team**. On its **Details** tab, in the **Apps** section, press **Make this the Builder**.
+
+Choosing the Builder is for the home's owners and admins. Anyone else who presses **New app** before there's a Builder is asked to get an owner or admin to choose one. An archived bot can't be the Builder.
 
 ### Move the role
 
-To give the role to another bot, open that bot's details and press **Make this the Builder**. Every app, table and record stays exactly where it is. Only the bot that makes changes is different. The Builder's own details say that it builds the home's apps, with an **Open Apps** button.
+To give the role to another bot, open that bot's card in **Team** and press **Make this the Builder**. Every app, table and record stays exactly where it is. Only the bot that makes changes is different. The Builder's own card says that it's the home's Builder, with an **Open Apps** button, and every other bot's card names the bot that builds the home's apps. The Builder can't be archived until another bot takes the role.
 
 ## Ask for a new app
 
-1. Open **Apps** and press **New app**. This opens your chat with the Builder.
+1. Open **Apps** and press **New app**. This opens your chat with the Builder, the one **Message** opens on its card.
 2. Describe what you want, in your own words. For example: "I'd like a simple customer list with each customer's name, email, phone and whether they're a lead or a customer, and a screen of deals with a chart by stage."
 3. The Builder looks at the tables your home already has and reuses them where it can. If you already have a customers table, a new app uses it rather than making a second one.
 4. It makes any new tables and fields, then saves the app as a draft.
 5. The Builder tries the draft itself: it opens each screen and uses every button and form that saves, with realistic example values, and checks the record turns up where it should. It fixes anything that fails before telling you.
 6. A card appears in the chat, headed **App draft** with the app's name and a one-line summary of the change. It has two buttons: **Preview** and **Publish**. The Builder tells you in a line or two what it tried, and reminds you to press **Publish** to start using the app.
 
-You can also ask any other bot for an app: "Get the Builder to make a plant watering tracker." That bot asks the Builder and waits; the Builder makes the draft in your chat with it, where the **App draft** card waits for you, and the first bot tells you when it's ready. See [Hand work from one bot to another](/help/messaging#hand-work-from-one-bot-to-another).
+You can also ask any other bot for an app: "Get the Builder to make a plant watering tracker." That bot asks the Builder and waits. The Builder works from that request alone, its **App draft** card waits for you in the chat where you asked, and the first bot tells you when it's ready. See [Hand work from one bot to another](/help/messaging#hand-work-from-one-bot-to-another).
 
 You don't need to know which parts an app is made of. Say what you want to see and do, and let the Builder decide. If something you want needs more than screens and formulas, such as a rule checked on every save or a nightly job, the Builder writes a script for it by itself.
 
@@ -66,11 +68,11 @@ Inside any app, the bar at the top has three tools.
 
 ### Ask Builder
 
-Press **Ask Builder** on any screen. The Builder's chat opens with a first line already written, naming the app and the screen you were on. Finish the sentence, for example "…add a column for the customer's city", and send it.
+Press **Ask Builder** on any screen. The app's own chat with the Builder opens (see [One chat per app](/help/apps-builder#one-chat-per-app)) with a first line already written, naming the app and the screen you were on. Finish the sentence, for example "…add a column for the customer's city", and send it.
 
 ### Point and ask
 
-Press the pointer button next to **Ask Builder**. A note says **Click the part of the screen you want to ask the Builder about.** As you move the mouse, the part under it is outlined. Click a table, a form, a chart or a button, and the Builder's chat opens with that exact part named in the first line. This is the quickest way to say "change this".
+Press the pointer button next to **Ask Builder**. A note says **Click the part of the screen you want to ask the Builder about.** As you move the mouse, the part under it is outlined. Click a table, a form, a chart or a button, and the app's chat opens with that exact part named in the first line. This is the quickest way to say "change this".
 
 ### The app's details
 
@@ -78,7 +80,9 @@ The **ⓘ** button opens the app's details panel. It has six tabs: **Overview**,
 
 ## One chat per app
 
-If several apps are being built at once, talking about all of them in one chat gets confusing. So each app has its own chat with the Builder: **Ask Builder** in an app opens it, made the first time someone asks. It's a Public chat, so everyone in the home can follow it and join in. If the home picks another Builder, the new one joins every app's chat. See [Chats and your team](/help/chats).
+If several apps are being built at once, talking about all of them in one chat gets confusing. So each app has its own chat with the Builder: **Ask Builder** in an app opens it. It's made the first time anyone asks, named after the app, with the Builder and the person who asked in it. It's a Public chat, so everyone in the home can read it. If someone else started it, select **Join** to write in it.
+
+The chat keeps the bots it was made with. If the home picks another Builder later, the new one isn't added to the app's chats by itself: add it with **Add people or bots** in the chat's header, as only the Builder changes apps. See [Chats and your team](/help/chats).
 
 ## What you can change yourself
 
@@ -88,9 +92,9 @@ You never edit an app's screens, formulas or scripts by hand. You can:
 - publish a draft, and restore an earlier version
 - remove a field, after seeing what uses it (see [Your data](/help/apps-data))
 - pin apps to your sidebar
-- pause or remove a bot's watches, in that bot's details
+- pause or remove a bot's watches, on that bot's card in **Team**
 
-Everyone in the home can do all of this in every app and table: nothing inside a home is kept to some people. The home's owners and admins also choose its settings:
+Everyone in the home can do all of this in every app and table: apps and their data belong to the whole home. The home's owners and admins also choose its settings:
 
 - choose the Builder
 - set an app's own colour and spacing in **Overview**, then **Save look**
@@ -129,7 +133,7 @@ The Builder checks every draft before saving it. If something is wrong, such as 
 
 ## If it doesn't work
 
-- **"Choose a Builder first"** when you press **Ask Builder**: your home has no Builder. Press **New app** in Apps, or **Make this the Builder** in a bot's details.
+- **"Choose a Builder first"** when you press **Ask Builder**: your home has no Builder. An owner or admin presses **New app** in Apps, or **Make this the Builder** on a bot's card in **Team**.
 - **"This app hasn't been published yet."**: the app only has a draft. Open it with **Preview the draft** and publish it.
 - **"This app has no draft."**: the draft was already published, or there wasn't one. You're looking at the live app.
 - **"This practice data was just reset or cleared. Reload the preview to start again."**: someone pressed **Reset**, or the practice data was cleared after a week unused. Reload the page.
@@ -152,7 +156,7 @@ Yes, but every change goes into the app's one draft, so check the preview before
 
 ## Related pages
 
-- [Views: live figures from your home's data](views.md)
+- [Views: live figures from your home's data](/help/views)
 - [Apps: what they are and when to use them](/help/apps)
 - [Your data: tables, fields and records](/help/apps-data)
 - [Versions, activity and undoing changes](/help/apps-versions)

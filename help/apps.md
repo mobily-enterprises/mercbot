@@ -39,7 +39,7 @@ See [Your data: tables, fields and records](/help/apps-data) and [Versions, acti
 
 ## Where to find Apps
 
-**Apps** sits near the top of the sidebar, just above your bots. Under it you'll see any apps you've pinned, each with its icon, so you can open them in one click. You can pin up to eight.
+**Apps** sits near the top of the sidebar, under **Team** and **Files** and above your chats. Under it you'll see any apps you've pinned, each with its icon, so you can open them in one click. You can pin up to eight; your pins are your own.
 
 Opening Apps shows these tabs:
 
@@ -50,11 +50,11 @@ Opening Apps shows these tabs:
 - **Scripts**: every script in the home, and the web addresses scripts may call.
 - **Look**: the colours, font and logo your apps use.
 
-The **New app** button opens a chat with your Builder.
+The **New app** button opens your chat with the Builder, the one **Message** opens on its card.
 
 ### Leaving an app
 
-The **X** at the top left of an app closes it in one click, however many screens and records you've opened in it. Point at it to see where it goes: **Back to** and the chat's name when you opened the app from a chat, **Back to Apps** or **Back to Files**, or **Back to Mercbot** when you opened the app from a link. You land where you were, in the same chat. **Ctrl+[** does the same. Your browser's Back button still steps through the screens and records you opened, one at a time.
+The **X** at the top left of an app closes it in one click, however many screens and records you've opened in it. Point at it to see where it goes: **Back to** and the chat's title when you opened the app from a chat (**Back to chat** when the chat has no title), **Back to Apps** or **Back to Files**, or **Back to Mercbot** when you opened the app from a link. You land where you were, in the same chat. **Ctrl+[** does the same. Your browser's Back button still steps through the screens and records you opened, one at a time.
 
 ## Apps and Connect apps
 
@@ -112,7 +112,7 @@ No. Each home has its own apps and its own data. See [Homes: Mercbot for familie
 
 ## Related pages
 
-- [Views: live figures from your home's data](views.md)
+- [Views: live figures from your home's data](/help/views)
 - [Build an app with the Builder](/help/apps-builder)
 - [Your data: tables, fields and records](/help/apps-data)
 - [App templates](/help/apps-templates)
