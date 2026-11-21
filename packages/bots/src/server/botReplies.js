@@ -440,7 +440,9 @@ export function createBotReplies({
 
   /**
    * Who speaks now (R3), for the chat's latest person's message or, after a card was answered, for that card's bot.
-   * Answers the bots in order, the message they answer (its id, 0 for none) and the person they work for.
+   * Answers the bots in order, the message they answer (its id, 0 for none), the person they work for and whether it's
+   * after a card: only then do bots that already answered that message speak again. A page asking again once the card's
+   * bot has answered finds the card no longer the latest, so it's the latest message's reply it's given (D-19).
    */
   async function whoSpeaks(chatId, { afterCard = false }, present, call) {
     const latestText = await records.turns.latestMessage(chatId, { role: "user", kind: "text" }, call);
@@ -448,17 +450,21 @@ export function createBotReplies({
       const card = await records.turns.latestMessage(chatId, { notKind: "event", role: "bot" }, call);
       const settled = card && CARD_KINDS.has(card.kind) && (card.body?.chosen || SETTLED.has(card.body?.status));
       const bot = settled ? present.bots.find((entry) => String(entry.bot_id) === String(card.authorBotId) && !entry.archived_at) : null;
-      if (bot) return { bots: [bot], asked: Number(latestText?.id) || 0, askerId: String(card.body?.for?.id || latestText?.authorUserId || "") };
+      if (bot) {
+        return { bots: [bot], asked: Number(latestText?.id) || 0, askerId: String(card.body?.for?.id || latestText?.authorUserId || ""), afterCard: true };
+      }
     }
-    if (!latestText) return { bots: [], asked: 0, askerId: null };
-    return { bots: addressedBots(latestText, present), asked: Number(latestText.id), askerId: String(latestText.authorUserId) };
+    if (!latestText) return { bots: [], asked: 0, askerId: null, afterCard: false };
+    const askerId = String(latestText.authorUserId);
+    return { bots: addressedBots(latestText, present), asked: Number(latestText.id), askerId, afterCard: false };
   }
 
   /**
    * The chat's bots answer (R3): those the latest message is for, each its own run in order, then one follow-up round
    * for the bots another bot mentioned (PASS stays quiet). A people-only chat makes no model call. A page that lost its
    * server mid-reply asks again (D-19): bots that already answered aren't asked twice, and with none left to answer,
-   * what was said since the page's last message is the answer.
+   * what was said since the page's last message is the answer. A bot still busy with an earlier reply in the chat
+   * answers once it's free (runReply's answerWaiting), so a request that only found bots busy is told it's pending.
    * @param {string} chatId
    * @param {{ timeZone?: string, language?: string, afterMessageId?: string | number, afterCard?: boolean }} input
    * @param {import("./types.js").CallOptions} options the person's request
@@ -470,15 +476,16 @@ export function createBotReplies({
     const after = Number(input.afterMessageId) || 0;
     const since = async () => ({ messages: after > 0 ? await records.messages.messagesAfter(chat.id, after, options) : [] });
     if (!present.bots.some((bot) => !bot.archived_at)) return since();
-    const { bots, asked, askerId } = await whoSpeaks(chat.id, input, present, options);
+    const { bots, asked, askerId, afterCard } = await whoSpeaks(chat.id, input, present, options);
     if (!bots.length || !askerId) return since();
-    const done = input.afterCard ? new Set() : await answeredBy(chat.id, asked, bots.map((bot) => bot.bot_id), options);
+    const done = afterCard ? new Set() : await answeredBy(chat.id, asked, bots.map((bot) => bot.bot_id), options);
     const speaking = bots.filter((bot) => !done.has(String(bot.bot_id)));
     if (!speaking.length) return since();
-    const job = speakInTurn(chat, speaking, { ...input, asked }, askerId, present);
+    const busy = new Set();
+    const job = speakInTurn(chat, speaking, { ...input, afterCard, asked }, askerId, present, { busy });
     background.add(job);
     const settled = await settledWithin(job, REPLY_WAIT_MS);
-    return settled ? { messages: settled } : { pending: true };
+    return settled && (settled.length || !busy.size) ? { messages: settled } : { pending: true };
   }
 
   /** The bots' system context in a chat's home, to find a seat before its reader exists. */
@@ -486,14 +493,17 @@ export function createBotReplies({
 
   /**
    * The bots speak one after another, then the follow-up round. A paused home's line stops them all (D-73). Answers
-   * everything they posted.
+   * everything they posted; a bot whose run in the chat was still going is added to `busy`.
    */
-  async function speakInTurn(chat, speaking, input, askerId, present, { followUp = false } = {}) {
+  async function speakInTurn(chat, speaking, input, askerId, present, { followUp = false, busy = new Set() } = {}) {
     const posted = [];
     for (const entry of speaking) {
       const seat = await seats.seatIn(chat.id, entry.bot_id, askerId, inHome(chat));
       if (!seat?.chat_bot_id) continue;
-      if (!(await chatHistory.claimReply(seat))) continue;
+      if (!(await chatHistory.claimReply(seat))) {
+        busy.add(String(entry.bot_id));
+        continue;
+      }
       const call = seats.readerOf(seat);
       const out = await meter.track(meteredAs(seat), () =>
         runReply(seat, { ...input, followUp }, call, null, present));
