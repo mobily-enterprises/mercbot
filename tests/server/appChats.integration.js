@@ -8,7 +8,7 @@ import { connectTestDatabase } from "../support/testDatabase.mjs";
 
 // Ask Builder (D-41): an app has one chat with the home's Builder, made the first time anyone asks, Public, named after
 // the app, with the Builder and the person who asked in it, and found again after that, also when two pages ask at
-// once; when the home's Builder changes, the new one takes the old one's place there, with a line (O26). It replaces the
+// once; when the home's Builder changes, the new one joins it beside the old one, with a line (O26). It replaces the
 // shared Builder's rooms (builderRooms.integration.js). Through the apps' route as a member's request reaches it, on the
 // bots' real records.
 assert.ok(process.env.TEST_DB_NAME?.trim(), "TEST_DB_NAME must identify a disposable test database.");
@@ -74,15 +74,17 @@ test("Ask Builder opens the app's one chat with the Builder, made the first time
   assert.deepEqual([again.body.chat.id, twice.body.chat.id], [chat.id, chat.id]);
   assert.equal((await knex("conversations").where({ workspace_id: workspaceId, app_id: app.id })).length, 1);
 
-  // A new Builder (O26): seated in every app's chat in place of the old one, each chat with a line; an app without a
-  // chat yet gets none, and choosing the same Builder again changes nothing.
+  // A new Builder (O26): seated in every app's chat after the bots there, each chat with a line; the old one stays a
+  // member until someone removes it. An app without a chat yet gets none, and choosing the same Builder again changes
+  // nothing.
   const [next] = await knex("bots").insert({ workspace_id: workspaceId, made_by: userId, name: "Cleo", color: "#1E86FC" }).returning("id");
   const nextId = String(next.id ?? next);
   const other = await apps.createApp(person, { name: "Orders" }, options);
   const lines = () => knex("messages").where({ conversation_id: chat.id, role: "system" }).orderBy("id").pluck("body");
   await apps.setBuilder(person, nextId, options);
-  assert.deepEqual((await knex("chat_bots").where({ conversation_id: chat.id }).pluck("bot_id")).map(String), [nextId], "Cleo in place of Bea");
-  assert.deepEqual((await lines()).map((body) => body.text), ["Cleo is the Builder now, in place of Bea."]);
+  const seated = await knex("chat_bots").where({ conversation_id: chat.id }).orderBy("position").pluck("bot_id");
+  assert.deepEqual(seated.map(String), [builderId, nextId], "Cleo joins after Bea, who stays");
+  assert.deepEqual((await lines()).map((body) => body.text), ["Cleo is the Builder now."]);
   assert.equal((await knex("conversations").where({ workspace_id: workspaceId, app_id: other.id })).length, 0, "no chat is made for an app");
   await apps.setBuilder(person, nextId, options);
   assert.equal((await lines()).length, 1, "the same Builder again: no line");

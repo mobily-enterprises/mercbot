@@ -58,9 +58,9 @@ definition contains, so an app can't do anything it wasn't saved to do (D-35).
   (two asks at once make one), Public (D15), named after the app, with the Builder and the person who asked; anyone in
   the home opens it after that. A home without a Builder is refused (409 `apps_builder_missing`), a view has none (409
   `apps_view_refused`), and an app of another home is 404. When an owner or admin chooses another Builder
-  (`apps.setBuilder`, O26), the new one takes the old one's seat in every app's chat, archived ones too
-  (`records.chats.changeAppBuilder`), each with the line "<New> is the Builder now, in place of <Old>.", and their
-  people hear of it; an app without a chat yet gets none.
+  (`apps.setBuilder`, O26), the new one joins every app's chat, archived ones too (`records.chats.changeAppBuilder`),
+  where the old one stays a member until someone removes it; each chat gets the line "<New> is the Builder now.", and
+  their people hear of it. An app without a chat yet gets none.
 - Named formulas (D-78): the definition's `formulas` (`{ name: { params, formula } }`, at most 30,
   8 parameters each) are added to the app's script functions (`withNamedFormulas`) wherever its
   formulas run: screens on the server and in the browser, a draft tried with `app_try`, public
