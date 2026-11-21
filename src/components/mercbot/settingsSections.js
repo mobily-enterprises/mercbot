@@ -9,7 +9,6 @@ export const SETTINGS_SECTIONS = [
   { value: "permissions", title: "Permissions", icon: "$verifiedUser" },
   { value: "files", title: "Files", icon: "$folder" },
   ...WEBSITE_PARTS.settingsSections,
-  { value: "memory", title: "Memory", icon: "$psychology" },
   // The home's own templates (D-98): everyone sees them; owners and admins edit and delete them.
   { value: "templates", title: "Templates", icon: "$article" },
   { value: "vault", title: "Vault", icon: "$encrypted" },

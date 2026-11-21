@@ -1,75 +1,40 @@
 import type { TestInfo } from "@playwright/test";
-import knexLib from "knex";
-import { expect, test, testDatabaseName, type Page } from "./harness";
+import { connectTestDb, expect, HOME, homeApi, openShell, shell, test, type Page } from "./harness";
 
 // A home's templates made and changed by drafting (D-98, amended 20 November; D-109): Add bots' new bot suggested for
-// what One bot's search found nothing for, its template changed on Edit, Change template's Start from this bot, and
-// Settings → Templates' Edit and Delete. The target's AI is the stand-in model (tools/standInModel.mjs), which answers a
-// drafting call with a fixed draft: a suggested bot's from its name, tag and job, one from a bot's own template (its
-// additions folded in when asked), and a change as the request appended to the instructions; it suggests one new bot
-// named after a request's last word.
+// what One bot's search found nothing for, its template changed on Edit, and added to Team; Change template's Start
+// from this bot, on the bot's card beside its direct chat; and Settings → Templates' Edit and Delete. The target's AI is
+// the stand-in model (tools/standInModel.mjs), which answers a drafting call with a fixed draft: a suggested bot's from
+// its name, tag and job, one from a bot's own template (its additions folded in when asked), and a change as the
+// request appended to the instructions; it suggests one new bot named after a request's last word.
 // Each test makes its own bots and templates in the owner's fixture home and deletes them. Run with:
 // vibe64-helper playwright --target test-app test tests/e2e/template-drafts.spec.ts
-const HOME = "/w/you";
 // Any refused API call from the page, one with no answer, or JSKIT's error dialog, fails the test (harness.ts).
 test.use({ apiGuard: true });
 
 type Draft = { tag: string; description: string; greeting: string; instructions: string; skills: Array<{ name: string; description: string; instructions: string }> };
-const chat = (page: Page) => page.getByRole("main", { name: "Chat" });
-const details = (page: Page) => page.getByRole("complementary", { name: "Details" });
+const card = (page: Page, name: string) => shell.details(page, `${name}'s card`);
 const drafted = (page: Page) => page.waitForResponse((response) => response.request().method() === "POST" && new URL(response.url()).pathname === `/api${HOME}/bots/templates/draft`);
 const stamp = () => Date.now().toString(36).slice(-5);
 
-/** Mercbot's home, past the first-run introduction a new account sees once; `query` opens something with it. */
-async function openHome(page: Page, query = "") {
-  await page.goto(`${HOME}${query}`);
-  const next = page.locator(".mb-intro").getByRole("button", { name: "Next" });
-  const shell = page.locator(".mb-shell");
-  await expect(shell.or(next).first()).toBeVisible();
-  if (await next.isVisible()) {
-    for (let slide = 0; slide < 3; slide += 1) await next.click();
-  }
-  await expect(shell).toBeVisible();
-}
-
-/** The API, as the page's own person: its CSRF token read once. */
-async function api(page: Page) {
-  const { csrfToken } = await (await page.request.get("/api/session")).json();
-  const headers = { "csrf-token": csrfToken as string };
-  return {
-    post: (path: string, data: unknown) => page.request.post(`/api${HOME}${path}`, { data, headers }),
-    patch: (path: string, data: unknown) => page.request.patch(`/api${HOME}${path}`, { data, headers }),
-    remove: (path: string) => page.request.delete(`/api${HOME}${path}`, { headers }),
-    get: async (path: string) => (await page.request.get(`/api${HOME}${path}`)).json()
-  };
-}
-
-/** After a test: its bots, then its home's templates with these tags and its sections with these names (another test's stay). */
-async function cleanUp(page: Page, botIds: string[], tags: string[], sections: string[] = []) {
+/** After a test: its bots, then its home's templates with these tags (another test's stay). */
+async function cleanUp(page: Page, botIds: string[], tags: string[]) {
   if (page.url() !== "about:blank") await page.goto("about:blank");
-  const call = await api(page);
-  for (const id of botIds) expect((await call.remove(`/bots/${id}`)).ok()).toBe(true);
-  const { templates } = await call.get("/home-templates");
-  for (const template of templates.filter((entry: { tag: string }) => tags.includes(entry.tag))) {
-    expect((await call.remove(`/home-templates/${template.id}`)).ok()).toBe(true);
-  }
-  if (!sections.length) return;
-  const knex = knexLib({ client: "pg", connection: { host: process.env.DB_HOST, port: Number(process.env.DB_PORT) || 5432, user: process.env.DB_USER, password: process.env.DB_PASSWORD, database: testDatabaseName() } });
-  try {
-    await knex("bot_sections").whereIn("name", sections).del();
-  } finally {
-    await knex.destroy();
-  }
+  const api = await homeApi(page);
+  for (const id of botIds) await api.del(`/bots/${id}`);
+  const { templates } = await api.get("/home-templates");
+  for (const template of templates.filter((entry: { tag: string }) => tags.includes(entry.tag))) await api.del(`/home-templates/${template.id}`);
 }
 
-/** A bot made through the API, past its introduction: on `template` when given, else Mercbot's General helper. */
+/**
+ * A bot made through the API, on `template` when given, else Mercbot's General helper; its direct chat with the
+ * person, where it starts, past its introduction.
+ */
 async function makeBot(page: Page, name: string, template?: unknown) {
-  const answer = await (await api(page)).post("/bots", { name, color: "#1E86FC", ...(template ? { template } : {}) });
-  expect(answer.ok()).toBe(true);
-  const { bot } = await answer.json();
-  const knex = knexLib({ client: "pg", connection: { host: process.env.DB_HOST, port: Number(process.env.DB_PORT) || 5432, user: process.env.DB_USER, password: process.env.DB_PASSWORD, database: testDatabaseName() } });
+  const { bot } = await (await homeApi(page)).post("/bots", { name, color: "#1E86FC", ...(template ? { template } : {}) });
+  const knex = connectTestDb();
   try {
-    await knex("bot_conversations").where({ bot_id: bot.id }).update({ onboarding_step: null });
+    await knex("conversations").where({ direct_bot_id: bot.id }).update({ onboarding_step: null });
   } finally {
     await knex.destroy();
   }
@@ -81,10 +46,10 @@ const shot = (page: Page, info: TestInfo, name: string) => page.screenshot({ pat
 test("Add bots: Describe the bot you need, then Edit its template: Ask for changes, Undo, Use this; Add makes the template and the bot", async ({ page }, info) => {
   const botIds: string[] = [];
   let first: Draft | null = null;
-  const sectionName = `Pond ${stamp()}`;
   try {
-    await openHome(page);
-    await page.getByRole("navigation", { name: "Bots" }).getByRole("button", { name: "Add bots", exact: true }).click();
+    await openShell(page);
+    await shell.sidebar(page).getByRole("button", { name: "Team", exact: true }).click();
+    await shell.team(page).getByRole("button", { name: "Add bots" }).click();
     const dialog = page.getByRole("dialog", { name: "Add bots" });
     await dialog.getByRole("button", { name: /^One bot/u }).click();
     await expect(dialog.getByText("What will it do?")).toBeVisible();
@@ -129,18 +94,22 @@ test("Add bots: Describe the bot you need, then Edit its template: Ask for chang
 
     await dialog.getByRole("button", { name: "Use this" }).click();
     await expect(dialog.getByRole("checkbox", { name: "Add Pond" })).toBeChecked();
-    await dialog.getByRole("textbox", { name: "Section in your sidebar" }).fill(sectionName);
     const created = page.waitForResponse((response) => response.request().method() === "POST" && new URL(response.url()).pathname === `/api${HOME}/bots/batch`);
     await dialog.getByRole("button", { name: "Add 1 bot" }).click();
-    expect((await created).request().postDataJSON().bots.map((bot: { draft: Draft }) => bot.draft)).toEqual([first]);
+    const sent = (await created).request().postDataJSON();
+    expect(sent, "no section").not.toHaveProperty("section");
+    expect(sent.bots.map((bot: { draft: Draft }) => bot.draft)).toEqual([first]);
     const result = await (await created).json();
     botIds.push(...result.added.map(String));
-    const bot = result.bots.find((entry: { id: string }) => entry.id === result.added[0]);
+    const bot = result.bots.find((entry: { id: string }) => String(entry.id) === String(result.added[0]));
     expect(bot.template).toEqual({ tag: first.tag, source: "home", description: first.description });
     await expect(dialog).toBeHidden();
-    await expect(chat(page)).toContainText("I'm Pond. First, a few questions to set me up.");
+    // It joins Team, on its new template, with no chat of its own (D-112).
+    const row = shell.team(page).getByRole("list", { name: "Members" }).getByRole("button", { name: "Pond, Bot · made by you" });
+    await expect(row).toBeVisible();
+    await expect(row, "what its template says it does").toContainText(first.description);
   } finally {
-    await cleanUp(page, botIds, first ? [first.tag] : [], [sectionName]);
+    await cleanUp(page, botIds, first ? [first.tag] : []);
   }
 });
 
@@ -148,10 +117,11 @@ test("Change template: Start from this bot drafts from it, folds its additions i
   const bot = await makeBot(page, `Quill ${stamp()}`);
   const tags: string[] = [];
   try {
-    expect((await (await api(page)).patch(`/bots/${bot.id}`, { additions: "We're vegetarian." })).ok()).toBe(true);
-    await openHome(page, `?bot=${bot.id}`);
-    await chat(page).getByRole("button", { name: `${bot.name} details` }).click();
-    await details(page).getByRole("button", { name: "Change template" }).click();
+    await (await homeApi(page)).patch(`/bots/${bot.id}`, { additions: "We're vegetarian." });
+    await openShell(page, `?bot=${bot.id}`);
+    await shell.chat(page).getByRole("button", { name: `${bot.name} details` }).click();
+    await card(page, bot.name).getByRole("tab", { name: "Details" }).click();
+    await card(page, bot.name).getByRole("button", { name: "Change template" }).click();
     const dialog = page.getByRole("dialog", { name: `Change ${bot.name}'s template` });
     const answer = drafted(page);
     await dialog.getByRole("button", { name: "Start from this bot" }).click();
@@ -177,7 +147,8 @@ test("Change template: Start from this bot drafts from it, folds its additions i
     const changed = (await (await saved).json()).bot;
     expect([changed.template.tag, changed.template.source, changed.hasAdditions]).toEqual([draft.tag, "home", false]);
     await expect(dialog).toBeHidden();
-    await expect(chat(page).getByText(`Now a ${draft.tag} bot`)).toBeVisible();
+    // It says so in the person's direct chat with it, the chat open here.
+    await expect(shell.chat(page).getByText(`Now a ${draft.tag} bot`)).toBeVisible();
   } finally {
     await cleanUp(page, [bot.id], tags);
   }
@@ -195,7 +166,7 @@ test("Settings → Templates: Edit saves after its warning and records the chang
   const bot = await makeBot(page, `Pond ${stamp()}`, { draft: body });
   const botIds = [bot.id];
   try {
-    await openHome(page, "?settings=templates");
+    await openShell(page, "?settings=templates");
     const settings = page.getByRole("dialog", { name: "Settings" });
     const row = settings.getByRole("listitem").filter({ hasText: tag });
     await expect(row).toContainText("Used by 1 bot");
@@ -214,15 +185,15 @@ test("Settings → Templates: Edit saves after its warning and records the chang
     expect((await saved).request().postDataJSON().draft.instructions).toBe("You keep the pond clean and the fish fed.");
     expect((await (await saved).json()).changed).toEqual(["instructions"]);
     await expect(editor).toBeHidden();
-    const read = await (await api(page)).get(`/bots/${bot.id}/instructions`);
+    const read = await (await homeApi(page)).get(`/bots/${bot.id}/instructions`);
     expect(read.template.instructions).toBe("You keep the pond clean and the fish fed.");
     expect(read.template.changed.text).toMatch(/^Instructions changed by /u);
 
     // Once no bot uses it, Delete asks, then it's gone.
     await page.goto("about:blank");
-    expect((await (await api(page)).remove(`/bots/${bot.id}`)).ok()).toBe(true);
+    await (await homeApi(page)).del(`/bots/${bot.id}`);
     botIds.length = 0;
-    await openHome(page, "?settings=templates");
+    await openShell(page, "?settings=templates");
     const unused = page.getByRole("dialog", { name: "Settings" }).getByRole("listitem").filter({ hasText: tag });
     await expect(unused).toContainText("Used by 0 bots");
     await unused.getByRole("button", { name: `Delete ${tag}` }).click();

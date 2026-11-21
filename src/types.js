@@ -10,14 +10,14 @@
  * @property {(steps: string) => Promise<void>} submit
  */
 
-/** @typedef {ReturnType<typeof import("./components/mercbot/useBotMessages.js").useBotMessages>} BotMessages */
+/** @typedef {ReturnType<typeof import("./components/mercbot/useChatMessages.js").useChatMessages>} ChatMessages */
 
 /**
- * The bot list's layout (botDirectory.js): pinned tiles, rows grouped by section, hidden bots.
- * @typedef {ReturnType<typeof import("./components/mercbot/botDirectory.js").buildSidebarModel>} SidebarModel
+ * The chat list's layout (chatDirectory.js): pinned tiles, rows grouped by section, hidden and archived chats.
+ * @typedef {ReturnType<typeof import("./components/mercbot/chatDirectory.js").buildSidebarModel>} SidebarModel
  */
 
-/** @typedef {ReturnType<typeof import("./components/mercbot/useBotWork.js").useBotWork>} BotWork */
+/** @typedef {ReturnType<typeof import("./components/mercbot/useChatWork.js").useChatWork>} ChatWork */
 
 /**
  * Explains a step that failed, in the shell's error feedback.
@@ -25,18 +25,23 @@
  */
 
 /**
- * A bot or group chat as the shell lists it: its id, name, colour, kind and the rest
- * the bots routes send.
+ * A chat as the shell lists it (chatDirectory.js toChatRow): the server's ChatView (its kind, title, people, bots,
+ * place and latest message) with the person's place in it spread onto it.
+ * @typedef {Record<string, any>} Chat
+ */
+
+/**
+ * A section of the person's chat list.
+ * @typedef {Record<string, any>} ChatSection
+ */
+
+/**
+ * A bot on the home's team, as the bots routes send it: its id, name, colour, shape, template and the rest.
  * @typedef {Record<string, any>} Bot
  */
 
 /**
- * A sidebar section.
- * @typedef {Record<string, any>} BotSection
- */
-
-/**
- * A message in a chat: its id, kind, role and body.
+ * A message in a chat: its id, kind, role, author (a person or a bot) and body.
  * @typedef {Record<string, any>} ChatMessage
  */
 

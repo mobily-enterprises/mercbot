@@ -7,7 +7,7 @@ import { computed, ref } from "vue";
 // attachments, and, for a reply, that it goes out as a new message that may show outside Sedna's thread.
 const props = defineProps({
   message: { type: Object, required: true },
-  // In a group, whom the draft is waiting for when it isn't the person looking (D-46).
+  // Whom the draft is waiting for, when it isn't the person looking (D-46).
   waitingFor: { type: String, default: "" }
 });
 const emit = defineEmits(["settle", "manage-rules"]);

@@ -1,165 +1,126 @@
-import knexLib from "knex";
-import { expect, test, testDatabaseName, type Page } from "./harness";
+import type { TestInfo } from "@playwright/test";
+import { connectTestDb, directChat, expect, HOME, homeApi, openShell, seedMessage, shell, test, type Page } from "./harness";
 
-// Archiving a whole bot (D-108), on the Test Preview target: a bot filed in a section is archived from its sidebar menu,
-// after the question; it leaves the section for Archived bots at the bottom of the sidebar, on this page and at once on
-// another page that had it open, whose chat turns read-only with a banner saying who archived it and when, its routine
-// paused with a line. Unarchive on the other page brings it back to its section on both, the composer back, the routine
-// still paused. Light and dark, with screenshots of the menu, the question, the archived chat and its Details; at a
-// phone's width Archived bots is in the drawer and Unarchive is on the banner. A person's own copy has one person
-// (D-81), so "another person" here is another page of theirs; the server's tests (archiveBots.integration.js) show it
-// for another person. Each test makes its own bot and section and deletes them. Run with:
-// vibe64-helper playwright --target test-app test tests/e2e/archive-bots.spec.ts
-const HOME = "/w/you";
+// Archiving a whole bot (D-108 under D-112: a member of the home who has left), on the Test Preview target: a bot on
+// Team is archived from its card's Archive section, after the question; it leaves Team's Members for Archived, with
+// Resume, on this page, and at once on another page that had its direct chat open, which turns read-only with a banner
+// saying it has left and who archived it when, its routine paused with a line in that chat. Resume on the other page's
+// banner brings it back to Members on both, the composer back, the routine still paused. Light and dark, with
+// screenshots of its card's Archive section, the question, the archived chat and its card; at a phone's width the
+// archived bot's chat is in the drawer, Archived is on Team there, and Resume is on the banner. A person's own copy has
+// one person (D-81), so "another person" here is another page of theirs; the server's tests (archiveBots.integration.js)
+// show it for another person. Each test makes its own bot, its direct chat and a routine there, and deletes them. Run
+// with: vibe64-helper playwright --target test-app test tests/e2e/archive-bots.spec.ts
 test.describe.configure({ mode: "serial" });
 // Any refused API call from the page, one with no answer, or JSKIT's error dialog, fails the test (harness.ts).
 test.use({ apiGuard: true });
 
-async function openHome(page: Page, query = "") {
-  await page.goto(`${HOME}${query}`);
-  const next = page.getByRole("button", { name: "Next" });
-  const shell = page.locator(".mb-shell");
-  await expect(shell.or(next).first()).toBeVisible();
-  if (await next.isVisible()) {
-    for (let slide = 0; slide < 3; slide += 1) await next.click();
-  }
-  await expect(shell).toBeVisible();
-}
-
-const chat = (page: Page) => page.getByRole("main", { name: "Chat" });
-const sidebar = (page: Page) => page.getByRole("navigation", { name: "Bots" });
-const composer = (page: Page) => chat(page).locator("textarea.mb-composer__input");
-const banner = (page: Page) => chat(page).getByRole("status", { name: "Archived" });
-const details = (page: Page) => page.getByRole("complementary", { name: "Details" });
-const menuItems = (page: Page) => page.locator(".v-overlay--active .mb-menu .mb-menu__text");
-const question = (page: Page) => page.locator(".v-overlay--active .mb-confirm");
-const archivedBots = (page: Page) => sidebar(page).getByRole("region", { name: "Archived bots" });
-/** The sidebar group under a section's name. */
-const filed = (page: Page, sectionName: string) => sidebar(page).locator(".mb-group").filter({ has: page.locator(".mb-header__label", { hasText: sectionName }) });
-
-const connect = () => knexLib({
-  client: "pg",
-  connection: { host: process.env.DB_HOST, port: Number(process.env.DB_PORT) || 5432, user: process.env.DB_USER, password: process.env.DB_PASSWORD, database: testDatabaseName() }
-});
+const banner = (page: Page) => shell.chat(page).getByRole("status", { name: "Left the home" });
+const members = (page: Page) => shell.team(page).getByRole("list", { name: "Members" });
+const archivedList = (page: Page) => shell.team(page).getByRole("list", { name: "Archived bots" });
+const card = (page: Page, name: string) => shell.details(page, `${name}'s card`);
+const shot = (page: Page, info: TestInfo, name: string) => page.screenshot({ path: info.outputPath(name), animations: "disabled" });
 
 /**
- * A bot of the fixtures' home made for one test, past its introduction, with a chat and a routine, filed in a section of
- * its own; `remove` deletes both.
+ * A bot of the fixtures' home made for one test: its direct chat with the person, past its introduction, with two
+ * messages, and a routine in that chat. `remove` deletes the bot, and with it (ON DELETE CASCADE) its chat and routine.
  */
-async function filedBot(page: Page) {
-  const knex = connect();
-  const { csrfToken } = await (await page.request.get("/api/session")).json();
-  const headers = { "csrf-token": csrfToken };
-  const stamp = Date.now().toString(36);
-  const name = `Ledger ${stamp}`;
-  const made = await page.request.post(`/api${HOME}/bots`, { headers, data: { name, color: "#1E86FC" } });
-  expect(made.ok()).toBe(true);
-  const { bot } = await made.json();
+async function botWithRoutine(page: Page) {
+  const knex = connectTestDb();
+  const api = await homeApi(page);
+  const name = `Ledger ${Date.now().toString(36)}`;
+  const { bot } = await api.post("/bots", { name, color: "#1E86FC" });
+  const chat = await directChat(page, String(bot.id));
   const home = await knex("workspaces").where({ slug: HOME.slice(3) }).first();
-  const where = { workspace_id: home.id, bot_id: bot.id, user_id: home.owner_user_id };
-  const seat = (await knex("bot_conversations").where(where).first()) ?? (await knex("bot_conversations").insert(where).returning("*"))[0];
-  await knex("bot_conversations").where({ id: seat.id }).update({ onboarding_step: null, unread: false });
-  await knex("bot_messages").insert([
-    { workspace_id: home.id, bot_id: bot.id, conversation_id: seat.id, kind: "text", role: "user", body: { text: "The budget is 500" } },
-    { workspace_id: home.id, bot_id: bot.id, conversation_id: seat.id, kind: "text", role: "bot", body: { text: "Noted: 500 for the month." } }
-  ]);
+  await knex("conversations").where({ id: chat.id }).update({ onboarding_step: null });
+  await knex("chat_people").where({ conversation_id: chat.id }).update({ unread: false });
+  await seedMessage(knex, { homeId: home.id, chatId: chat.id, body: { text: "The budget is 500" }, userId: home.owner_user_id });
+  await seedMessage(knex, { homeId: home.id, chatId: chat.id, body: { text: "Noted: 500 for the month." }, botId: bot.id });
+  const seat = chat.bots.find((entry: { botId: string }) => String(entry.botId) === String(bot.id));
   const [routine] = await knex("bot_routines").insert({
-    workspace_id: home.id, bot_id: bot.id, conversation_id: seat.id, name: "Money brief", schedule: "Every morning", cron: "0 8 * * *",
-    timezone: "UTC", instructions: "Say what's left", enabled: true, next_run_at: knex.raw("now() + interval '1 day'")
+    workspace_id: home.id, chat_bot_id: seat.chatBotId, made_by: home.owner_user_id, name: "Money brief", schedule: "Every morning",
+    cron: "0 8 * * *", timezone: "UTC", instructions: "Say what's left", enabled: true, next_run_at: knex.raw("now() + interval '1 day'")
   }).returning("*");
-  const sectionName = `Money ${stamp}`;
-  const filing = await page.request.post(`/api${HOME}/bot-sections`, { headers, data: { name: sectionName, botId: bot.id } });
-  expect(filing.ok()).toBe(true);
-  const section = (await filing.json()).sections.find((entry: { name: string }) => entry.name === sectionName);
   const routineEnabled = async () => (await knex("bot_routines").where({ id: routine.id }).first()).enabled;
   const resumeRoutine = () => knex("bot_routines").where({ id: routine.id }).update({ enabled: true, next_run_at: knex.raw("now() + interval '1 day'") });
   const remove = async () => {
     for (const open of page.context().pages()) if (open.url() !== "about:blank") await open.goto("about:blank");
-    expect((await page.request.delete(`/api${HOME}/bots/${bot.id}`, { headers })).ok()).toBe(true);
-    expect((await page.request.delete(`/api${HOME}/bot-sections/${section.id}`, { headers })).ok()).toBe(true);
-    await knex.destroy();
+    try {
+      await knex("bots").where({ id: bot.id }).del();
+    } finally {
+      await knex.destroy();
+    }
   };
-  return { id: String(bot.id), name, sectionName, headers, routineEnabled, resumeRoutine, remove };
+  return { id: String(bot.id), name, chatId: String(chat.id), api, routineEnabled, resumeRoutine, remove };
 }
 
-test("a bot archived from its menu goes to Archived bots on another page too, and Unarchive brings it back to its section, light and dark", async ({ page }, testInfo) => {
-  const bot = await filedBot(page);
+test("a bot archived from its card leaves Team for Archived on another page too, and Resume brings it back, light and dark", async ({ page }, testInfo) => {
+  const bot = await botWithRoutine(page);
+  const onTeam = `${bot.name}, Bot · made by you`;
+  const left = new RegExp(`^${bot.name}, Bot · left `, "u");
   try {
     await page.setViewportSize({ width: 1280, height: 800 });
     for (const colorScheme of ["light", "dark"] as const) {
       await page.emulateMedia({ colorScheme, reducedMotion: "reduce" });
       await bot.resumeRoutine();
-      await openHome(page, `?bot=${bot.id}`);
+      await openShell(page, `?team=1&member=bot:${bot.id}`);
       await expect(page.locator(".v-application")).toHaveClass(new RegExp(`\\bv-theme--(workspace-)?${colorScheme}\\b`, "u"));
-      const row = filed(page, bot.sectionName).getByRole("button", { name: bot.name, exact: true });
-      await expect(row).toBeVisible();
-      await expect(archivedBots(page)).toHaveCount(0);
-      await expect(composer(page)).toBeVisible();
+      await expect(members(page).getByRole("button", { name: onTeam })).toBeVisible();
+      await expect(archivedList(page)).toHaveCount(0);
 
-      // Another page has it open.
+      // Another page has its direct chat open.
       const other = await page.context().newPage();
       await other.emulateMedia({ colorScheme, reducedMotion: "reduce" });
       await other.setViewportSize({ width: 1280, height: 800 });
-      await openHome(other, `?bot=${bot.id}`);
-      await expect(chat(other).getByText("Noted: 500 for the month.")).toBeVisible();
-      await expect(composer(other)).toBeVisible();
+      await openShell(other, `?chat=${bot.chatId}`);
+      await expect(shell.chat(other).getByText("Noted: 500 for the month.")).toBeVisible();
+      await expect(shell.composer(other)).toBeVisible();
 
-      // Its menu has Archive; the question first.
-      await row.click({ button: "right" });
-      await expect(menuItems(page).filter({ hasText: /^Archive$/u })).toHaveCount(1);
-      await page.screenshot({ path: testInfo.outputPath(`menu-${colorScheme}.png`), animations: "disabled" });
-      await menuItems(page).filter({ hasText: /^Archive$/u }).click();
-      await expect(question(page).locator(".mb-confirm__title")).toHaveText(`Archive ${bot.name}?`);
-      await expect(question(page).locator(".mb-confirm__text")).toHaveText(
-        "It moves to Archived bots for everyone in this home: its chats become read-only, and its routines and watches pause. " +
-          "Nothing is deleted. Whoever made it, or an owner or admin, can unarchive it."
+      // Its card's Archive section has Archive; the question first.
+      await card(page, bot.name).getByRole("tab", { name: "Details" }).click();
+      const section = card(page, bot.name).getByRole("region", { name: "Archive" });
+      await expect(section).toContainText(`Archiving ${bot.name} takes it off the team for everyone in this home.`);
+      await section.scrollIntoViewIfNeeded();
+      await shot(page, testInfo, `archive-section-${colorScheme}.png`);
+      await section.getByRole("button", { name: `Archive ${bot.name}` }).click();
+      await expect(shell.question(page).locator(".mb-confirm__title")).toHaveText(`Archive ${bot.name}?`);
+      await expect(shell.question(page).locator(".mb-confirm__text")).toHaveText(
+        "It leaves the team for everyone in this home. It stays in its chats but no longer answers there, and its routines and " +
+          "watches pause. Nothing is deleted. Whoever made it, or an owner or admin, can resume it."
       );
-      await page.screenshot({ path: testInfo.outputPath(`question-${colorScheme}.png`), animations: "disabled" });
+      await shot(page, testInfo, `question-${colorScheme}.png`);
       const archived = page.waitForResponse((response) => new URL(response.url()).pathname === `/api${HOME}/bots/${bot.id}/archive`);
-      await question(page).getByRole("button", { name: "Archive" }).click();
+      await shell.question(page).getByRole("button", { name: "Archive" }).click();
       expect((await archived).ok()).toBe(true);
 
-      // Here and on the other page: out of its section, in Archived bots (closed, with its count), its chat read-only.
-      for (const seen of [page, other]) {
-        await expect(filed(seen, bot.sectionName).getByRole("button", { name: bot.name, exact: true })).toHaveCount(0);
-        await expect(archivedBots(seen).locator(".mb-header__count")).toHaveText("1");
-        await expect(banner(seen)).toContainText("Archived by you on");
-        await expect(banner(seen)).toContainText("Its chats are read-only, and its routines and watches are paused.");
-        await expect(composer(seen)).toHaveCount(0);
-        await expect(chat(seen).getByText("Noted: 500 for the month."), "its chat is kept").toBeVisible();
-        await expect(chat(seen).getByText("Paused while archived", { exact: true }).last()).toBeVisible();
-      }
+      // Here: off Members, under Archived with Resume; its card says who archived it and when.
+      await expect(members(page).getByRole("button", { name: onTeam })).toHaveCount(0);
+      await expect(archivedList(page).getByRole("button", { name: left })).toBeVisible();
+      await expect(archivedList(page).getByRole("button", { name: `Resume ${bot.name}` })).toBeVisible();
+      await expect(section).toContainText("Archived by you on");
+      await expect(section).toContainText("Its routines and watches stay paused when it's resumed");
+      await expect(section.getByRole("button", { name: `Resume ${bot.name}` })).toBeVisible();
+      await shot(page, testInfo, `archived-${colorScheme}.png`);
+
+      // On the other page, at once: its direct chat read-only and kept, with the line where its routine paused.
+      await expect(banner(other)).toContainText(`${bot.name} has left`);
+      await expect(banner(other)).toContainText("Archived by you on");
+      await expect(banner(other)).toContainText("Resume it to talk again.");
+      await expect(shell.composer(other)).toHaveCount(0);
+      await expect(shell.chat(other).getByText("Noted: 500 for the month."), "its chat is kept").toBeVisible();
+      await expect(shell.chat(other).getByText("Paused while archived", { exact: true }).last()).toBeVisible();
       expect(await bot.routineEnabled(), "its routine paused").toBe(false);
-      await other.screenshot({ path: testInfo.outputPath(`archived-elsewhere-${colorScheme}.png`), animations: "disabled" });
+      await shot(other, testInfo, `archived-elsewhere-${colorScheme}.png`);
 
-      // Opened, Archived bots lists it with who archived it; its Details say so too.
-      await archivedBots(page).getByRole("button", { name: /^Archived bots/u }).click();
-      const archivedRow = archivedBots(page).getByRole("button", { name: `${bot.name}, archived` });
-      await expect(archivedRow).toContainText("Archived by you on");
-      if (!(await details(page).isVisible())) await chat(page).getByRole("button", { name: `${bot.name} details` }).click();
-      await details(page).getByRole("tab", { name: "Details" }).click();
-      const section = details(page).getByRole("region", { name: "Archive" });
-      await expect(section).toContainText("Its routines and watches stay paused when it's unarchived");
-      await expect(section.getByRole("button", { name: "Unarchive" })).toBeVisible();
-      await page.screenshot({ path: testInfo.outputPath(`archived-${colorScheme}.png`), animations: "disabled" });
-      await archivedRow.click({ button: "right" });
-      await expect(menuItems(page)).toHaveText(["Unarchive", "Copy conversation ID", "Delete"]);
-      await page.keyboard.press("Escape");
-      await expect(menuItems(page)).toHaveCount(0);
-      await archivedBots(page).getByRole("button", { name: /^Archived bots/u }).click();
-      await expect(archivedBots(page).locator(".mb-header__count"), "closed again").toHaveText("1");
-
-      // Unarchive on the other page: back in its section on both, the composer back, the routine still paused.
+      // Resume on the other page: the composer back there, back on Members here, the routine still paused.
       const unarchived = other.waitForResponse((response) => new URL(response.url()).pathname === `/api${HOME}/bots/${bot.id}/unarchive`);
-      await banner(other).getByRole("button", { name: "Unarchive" }).click();
+      await banner(other).getByRole("button", { name: `Resume ${bot.name}` }).click();
       expect((await unarchived).ok()).toBe(true);
-      for (const seen of [page, other]) {
-        await expect(filed(seen, bot.sectionName).getByRole("button", { name: bot.name, exact: true })).toBeVisible();
-        await expect(archivedBots(seen)).toHaveCount(0);
-        await expect(banner(seen)).toHaveCount(0);
-        await expect(composer(seen)).toBeVisible();
-      }
-      await expect(details(page).getByRole("region", { name: "Archive" }).getByRole("button", { name: `Archive ${bot.name}` })).toBeVisible();
+      await expect(banner(other)).toHaveCount(0);
+      await expect(shell.composer(other)).toBeVisible();
+      await expect(members(page).getByRole("button", { name: onTeam })).toBeVisible();
+      await expect(archivedList(page)).toHaveCount(0);
+      await expect(section.getByRole("button", { name: `Archive ${bot.name}` })).toBeVisible();
       expect(await bot.routineEnabled(), "its routine stays paused until someone resumes it").toBe(false);
       await other.close();
     }
@@ -168,28 +129,34 @@ test("a bot archived from its menu goes to Archived bots on another page too, an
   }
 });
 
-test("on a phone Archived bots is at the bottom of the drawer, and an archived bot's banner unarchives it", async ({ page }, testInfo) => {
-  const bot = await filedBot(page);
+test("on a phone an archived bot is under Archived on Team, and its chat's banner resumes it", async ({ page }, testInfo) => {
+  const bot = await botWithRoutine(page);
+  const openTeam = async () => {
+    await page.getByRole("button", { name: "Your chats" }).click();
+    await shell.sidebar(page).getByRole("button", { name: "Team", exact: true }).click();
+  };
   try {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.emulateMedia({ colorScheme: "light", reducedMotion: "reduce" });
-    expect((await page.request.post(`/api${HOME}/bots/${bot.id}/archive`, { headers: bot.headers })).ok()).toBe(true);
-    await openHome(page);
-    await page.getByRole("button", { name: "Your bots" }).click();
-    await expect(archivedBots(page)).toBeVisible();
-    await archivedBots(page).getByRole("button", { name: /^Archived bots/u }).click();
-    await archivedBots(page).getByRole("button", { name: `${bot.name}, archived` }).click();
+    await bot.api.post(`/bots/${bot.id}/archive`);
+    await openShell(page);
+    await openTeam();
+    await expect(archivedList(page).getByRole("button", { name: new RegExp(`^${bot.name}, Bot · left `, "u") })).toBeVisible();
+
+    // Its direct chat, from the drawer: read-only, the banner within the phone's width.
+    await page.getByRole("button", { name: "Your chats" }).click();
+    await shell.chatRow(page, bot.name).click();
     await expect(banner(page)).toContainText("Archived by you on");
-    await expect(composer(page)).toHaveCount(0);
+    await expect(shell.composer(page)).toHaveCount(0);
     const box = (await banner(page).boundingBox())!;
     expect(box.x + box.width, "the banner fits the phone's width").toBeLessThanOrEqual(390);
-    await page.screenshot({ path: testInfo.outputPath("archived-phone.png"), animations: "disabled" });
-    await banner(page).getByRole("button", { name: "Unarchive" }).click();
+    await shot(page, testInfo, "archived-phone.png");
+    await banner(page).getByRole("button", { name: `Resume ${bot.name}` }).click();
     await expect(banner(page)).toHaveCount(0);
-    await expect(composer(page)).toBeVisible();
-    await page.getByRole("button", { name: "Your bots" }).click();
-    await expect(filed(page, bot.sectionName).getByRole("button", { name: bot.name, exact: true })).toBeVisible();
-    await expect(archivedBots(page)).toHaveCount(0);
+    await expect(shell.composer(page)).toBeVisible();
+    await openTeam();
+    await expect(members(page).getByRole("button", { name: `${bot.name}, Bot · made by you` })).toBeVisible();
+    await expect(archivedList(page)).toHaveCount(0);
   } finally {
     await bot.remove();
   }

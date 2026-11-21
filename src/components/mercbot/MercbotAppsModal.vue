@@ -9,7 +9,7 @@ import MercbotCredentialsForm from "./MercbotCredentialsForm.vue";
 import MercbotPluginLogo from "./MercbotPluginLogo.vue";
 import MercbotRequestPace from "./MercbotRequestPace.vue";
 import { openSignIn, pluginsApi } from "./pluginsApi.js";
-import { sleep } from "./botsApi.js";
+import { sleep } from "./chatsApi.js";
 import { useHomes } from "./homesApi.js";
 import { useAppAccounts } from "./useAppAccounts.js";
 import { usePrivateSkill } from "./usePrivateSkill.js";
@@ -350,8 +350,9 @@ function openTemplates() {
         </div>
 
         <div class="mb-apps-modal__scroll">
+          <!-- Until the list answers, its loading state; an empty section says so only once the answer is in. -->
           <div v-if="!loaded" class="mb-apps-modal__skeleton" aria-hidden="true" />
-          <section v-for="section in sections" :key="section.title" class="mb-apps-modal__section">
+          <section v-for="section in loaded ? sections : []" :key="section.title" class="mb-apps-modal__section">
             <div class="mb-apps-modal__section-head">
               <h3>{{ section.title }}</h3>
               <button v-if="section.viewAll" type="button" class="mb-apps-modal__view-all" @click="category = section.title">View all</button>
@@ -597,7 +598,9 @@ function openTemplates() {
       <div v-else-if="page === 'manage'" class="mb-apps-modal__page mb-apps-modal__page--scroll">
         <button type="button" class="mb-apps-modal__step" @click="page = 'catalogue'">Connect apps</button>
         <h2 class="mb-apps-modal__title mb-apps-modal__title--manage">Your apps and skills</h2>
-        <section class="mb-detail__group">
+        <!-- Until the list answers, its loading state, not the sentences of an empty list. -->
+        <div v-if="!loaded" class="mb-apps-modal__skeleton" aria-hidden="true" />
+        <section v-if="loaded" class="mb-detail__group">
           <h3>Installed</h3>
           <p v-if="!installed.length" class="mb-apps-modal__empty">No apps added yet.</p>
           <div class="mb-apps-modal__grid">
@@ -618,7 +621,7 @@ function openTemplates() {
             Show all {{ installed.length }} plugins
           </button>
         </section>
-        <section class="mb-detail__group">
+        <section v-if="loaded" class="mb-detail__group">
           <h3 ref="skillsHeading">Private skills</h3>
           <p v-if="!skills.length" class="mb-apps-modal__empty">Skills your bots learn will show up here.</p>
           <p v-else class="mb-apps-modal__hint">Open a skill to change its name, description or instructions.</p>

@@ -6,9 +6,9 @@ export const SHORTCUT_GROUPS = [
     items: [
       { label: "Search", keys: [["Ctrl", "K"], ["Ctrl", "Shift", "F"]] },
       { label: "Add bots", keys: [["Ctrl", "Alt", "N"]] },
-      { label: "New group chat", keys: [["Ctrl", "Alt", "G"]] },
+      { label: "New chat", keys: [["Ctrl", "Alt", "G"]] },
       { label: "Send message", keys: [["Enter"]], note: "Shift+Enter adds a new line" },
-      { label: "Go to bot", keys: [["Ctrl", "Alt", "1…9"]] },
+      { label: "Go to chat", keys: [["Ctrl", "Alt", "1…9"]] },
       { label: "Compact sidebar", keys: [["Ctrl", "B"]] },
       { label: "Settings", keys: [["Ctrl", ","]] },
       { label: "Keyboard shortcuts", keys: [["Ctrl", "/"]] }
@@ -26,9 +26,9 @@ export const SHORTCUT_GROUPS = [
   {
     title: "Navigation",
     items: [
-      { label: "Previous or next bot", keys: [["Alt", "↑"], ["Alt", "↓"]] },
+      { label: "Previous or next chat", keys: [["Alt", "↑"], ["Alt", "↓"]] },
       { label: "Up", keys: [["Ctrl", "["]], note: "From Apps, a table or Files, as the Up arrow; in an app, closes it, as its X" },
-      { label: "Switch bots", keys: [["Ctrl", "Alt", "Tab"]], note: "Keep Ctrl+Alt held, press Tab to move, release to open" }
+      { label: "Switch chats", keys: [["Ctrl", "Alt", "Tab"]], note: "Keep Ctrl+Alt held, press Tab to move, release to open" }
     ]
   },
   {
@@ -53,7 +53,7 @@ const BINDINGS = [
   { action: "search", ctrl: true, code: "KeyK" },
   { action: "search", ctrl: true, shift: true, code: "KeyF" },
   { action: "newBot", ctrl: true, alt: true, code: "KeyN" },
-  { action: "newGroup", ctrl: true, alt: true, code: "KeyG" },
+  { action: "newChat", ctrl: true, alt: true, code: "KeyG" },
   { action: "toggleCompact", ctrl: true, code: "KeyB" },
   { action: "settings", ctrl: true, code: "Comma" },
   { action: "shortcuts", ctrl: true, code: "Slash" },
@@ -61,8 +61,8 @@ const BINDINGS = [
   { action: "find", ctrl: true, code: "KeyF" },
   { action: "dictate", ctrl: true, code: "KeyD" },
   { action: "addSelection", ctrl: true, code: "KeyL" },
-  { action: "previousBot", alt: true, code: "ArrowUp" },
-  { action: "nextBot", alt: true, code: "ArrowDown" },
+  { action: "previousChat", alt: true, code: "ArrowUp" },
+  { action: "nextChat", alt: true, code: "ArrowDown" },
   { action: "toggleDetails", ctrl: true, alt: true, code: "KeyB" },
   { action: "skills", ctrl: true, alt: true, code: "KeyW" },
   { action: "connectApps", ctrl: true, shift: true, code: "KeyM" }
@@ -74,11 +74,11 @@ export function matchShortcut(event) {
   const alt = Boolean(event.altKey);
   const shift = Boolean(event.shiftKey);
   if (event.code === "Tab" && ctrl && alt) {
-    return { action: "switchBots", backwards: shift };
+    return { action: "switchChats", backwards: shift };
   }
   const digit = /^Digit([1-9])$/u.exec(event.code || "");
   if (digit && ctrl && alt && !shift) {
-    return { action: "goToBot", index: Number(digit[1]) - 1 };
+    return { action: "goToChat", index: Number(digit[1]) - 1 };
   }
   const binding = BINDINGS.find((entry) =>
     entry.code === event.code &&

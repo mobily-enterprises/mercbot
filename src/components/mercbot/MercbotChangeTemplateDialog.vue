@@ -13,7 +13,7 @@ import { botsApi } from "./botsApi.js";
 // Change template (D-98): the picker (the home's own templates first, then Mercbot's library, as New bot shows them),
 // then a confirm showing the chosen template's instructions and skills in full and the bot's additions, which it keeps
 // under the new template. Change template points the bot at it; the bot then says so and asks the new template's setup
-// questions in its chat. Escape on the confirm goes back to the picker. At the picker's foot, Make a new template
+// questions in the person's chat with it. Escape on the confirm goes back to the picker. At the picker's foot, Make a new template
 // drafts one from a sentence, and Start from this bot drafts one from the bot itself (amended 20 November), on the draft
 // screen: Save and use makes it a template of the home's and points the bot at it, in one go. On a phone it fills the
 // screen, with its close, title and action in a bar at the top.
@@ -247,7 +247,7 @@ function onKeydown(event) {
                 <div class="mb-ctemp__text" :class="{ 'mb-ctemp__text--none': !additions }">{{ additions || "Nothing added." }}</div>
                 <p class="mb-ctemp__note">
                   {{ additions ? `They now sit under ${detail.tag}, still for ${bot.name} alone, and you can change them in its Instructions.` : "" }}
-                  {{ bot.name }} keeps its name, look, chats and routines, and asks the new template's setup questions in its chat.
+                  {{ bot.name }} keeps its name, look, chats and routines, and asks the new template's setup questions in your chat with it.
                 </p>
               </template>
             </div>
