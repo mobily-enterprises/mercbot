@@ -11,11 +11,7 @@ table. Owners and admins only choose the home's settings. Public apps are the on
 - `packages/apps/src/server/dataGate.js`
 - `src/components/apps/AppDetailsPanel.vue`
 - `src/components/apps/ViewActions.vue`
-- `tests/server/appsPermissions.integration.js`
-- `tests/server/appsMemberRoutes.test.js`
-- `tests/server/oldPermissionColumns.integration.js`
 - `migrations/20261113120000_baseline.cjs`
-- `tests/e2e/apps-member.spec.ts`
 
 ## Public contract
 
@@ -33,3 +29,9 @@ table. Owners and admins only choose the home's settings. Public apps are the on
   routes are gone, and there are no `app_members` or `app_table_editors` tables (D-78); the `apps.access` and
   `app_tables.writers` columns stay, named by no table resource and read by no server, until the
   next release drops them.
+
+## Proved by
+
+- `tests/server/appsPermissions.integration.js`
+- `tests/server/appsMemberRoutes.test.js`
+- `tests/server/oldPermissionColumns.integration.js`

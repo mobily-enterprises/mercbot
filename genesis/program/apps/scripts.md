@@ -21,8 +21,6 @@ everything they read or write goes through the data gate, audited as the script.
 - `src/components/apps/AppsScripts.vue`
 - `src/components/apps/scriptFunctions.js`
 - `migrations/20261113120000_baseline.cjs`
-- `tests/server/appsSandbox.test.js`
-- `tests/server/appsScripts.integration.js`
 
 ## Public contract
 
@@ -62,3 +60,8 @@ everything they read or write goes through the data gate, audited as the script.
   per run; a save records its rules' runs at once, an import (`beforeSaveEach`'s `flush`) records
   all of its rows' rule runs together once the rows are checked, a dry or failed import's too;
   `GET /api/w/:slug/apps/:app/scripts` returns an app's scripts, runs and coding-loop rounds.
+
+## Proved by
+
+- `tests/server/appsSandbox.test.js`
+- `tests/server/appsScripts.integration.js`

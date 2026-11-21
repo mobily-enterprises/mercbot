@@ -10,7 +10,6 @@ templates a link opens, when a copy built on Mercbot keeps them (D-43).
 - `packages/bots/src/server/registerRoutes.js`
 - `packages/bots/src/server/botTemplates.js`
 - `packages/bots/src/server/botTemplate.js`
-- `packages/bots/src/server/templates.js`
 - `packages/bots/src/server/records/homeTemplateRepository.js`
 - `packages/bots/src/server/templateDrafts.js`
 - `packages/bots/src/shared/templateBody.js`
@@ -20,7 +19,7 @@ templates a link opens, when a copy built on Mercbot keeps them (D-43).
 - `scripts/check-templates.mjs`
 - `packages/bots/src/server/botAgent.js`
 - `packages/bots/src/server/botTools.js`
-- `packages/bots/src/server/memoryTools.js`
+- `packages/bots/src/server/skillTools.js`
 - `packages/bots/src/server/routineTools.js`
 - `migrations/20261113120000_baseline.cjs`
 - `src/components/templates/TemplateGallery.vue`
@@ -41,19 +40,7 @@ templates a link opens, when a copy built on Mercbot keeps them (D-43).
 - `src/pages/templates/index.vue`
 - `src/pages/templates/[slug]/index.vue`
 - `src/pages/t/[slug].vue`
-- `tests/server/botTemplates.integration.js`
-- `tests/server/templateUpgrade.integration.js`
-- `tests/server/templateChecks.test.js`
-- `tests/server/templateCheck.integration.js`
-- `tests/support/templateCheck.mjs`
 - `tools/standInModel.mjs`
-- `tests/client/templateBadge.vitest.js`
-- `tests/support/unitRun.mjs`
-- `tests/e2e/templates.spec.ts`
-- `tests/server/templateDrafts.integration.js`
-- `tests/server/templateDraftPrompts.test.js`
-- `tests/client/templateDraft.vitest.js`
-- `tests/e2e/template-drafts.spec.ts`
 - `bot-templates/teams.json`
 - `packages/bots/src/server/teams.js`
 - `packages/bots/src/server/botTeams.js`
@@ -64,20 +51,10 @@ templates a link opens, when a copy built on Mercbot keeps them (D-43).
 - `src/components/mercbot/useNewBot.js`
 - `src/components/mercbot/MercbotHomeSwitcher.vue`
 - `src/components/mercbot/MercbotNewHomeDialog.vue`
-- `tests/e2e/new-home.spec.ts`
-- `tests/e2e/team-add.spec.ts`
-- `tests/server/teams.test.js`
-- `tests/server/teams.integration.js`
-- `tests/client/teams.vitest.js`
 - `packages/bots/src/server/botPlans.js`
-- `packages/bots/src/server/templateDrafts.js`
 - `src/components/mercbot/MercbotDescribeBox.vue`
 - `src/components/mercbot/MercbotPlanReview.vue`
 - `src/components/mercbot/useBotPlan.js`
-- `tests/server/botPlans.test.js`
-- `tests/server/botPlans.integration.js`
-- `tests/client/botPlan.vitest.js`
-- `tests/e2e/add-bots-describe.spec.ts`
 
 ## Public contract
 
@@ -137,13 +114,13 @@ templates a link opens, when a copy built on Mercbot keeps them (D-43).
   install the paired app as a draft. `POST …/bots/from-template {slug}` makes the
   bot with the template's name and look, pointing at it (`library_template`; for a template a link
   opens, a new home template made from it, `home_template_id`, its tag from its own or its name made
-  free with `freeTag`), with no additions, skips the generic first conversation and posts the
-  template's greeting with the person's real first name (none rather than an account handle).
+  free with `freeTag`), with no additions, and greets the person in their direct chat with it with the
+  template's greeting and the person's real first name (none rather than an account handle).
   Routines aren't copied: the setup interview creates them paused, and they start only on a yes.
 - **Where:** the gallery, details, the checks' results and adding are `templateGallery`,
   `templateDetails`, `templateChecks` and `addFromTemplate` in `botTemplates.js`; the bot's own job and
   skills reach the model through `instructionsFor` (`botAgent.js`), and `read_skill`,
-  `create_routine` (`paused`) and `update_routine` (`running`) in `memoryTools.js` and `routineTools.js`.
+  `create_routine` (`paused`) and `update_routine` (`running`) in `skillTools.js` and `routineTools.js`.
 - **Template plus additions (D-98):** every bot points at one template, one of Mercbot's library
   (`library_template`: a file's slug, or `general`, the all-round helper defined in `templates.js`,
   which isn't in the gallery and is every bot made without one) or one of its home's
@@ -161,8 +138,7 @@ templates a link opens, when a copy built on Mercbot keeps them (D-43).
   template's fingerprint, so neither resets Tested.
 - **Change template:** `PUT …/bots/:botId/template {library: slug} | {home: id}` points a bot at
   another template (`changeTemplate`): the bot's maker and the home's owners and admins only (403),
-  a library slug or one of the home's templates (404 otherwise, a choice is required: 400; a group
-  has none: 400), the same template changes nothing; it keeps its additions, posts an event "Now a
+  a library slug or one of the home's templates (404 otherwise, a choice is required: 400), the same template changes nothing; it keeps its additions, posts an event "Now a
   <tag> bot" and the template's greeting under the bot's own name, which asks its setup questions.
   `GET …/home-templates` lists the home's templates with how many bots use each (one aggregate read)
   and `canManage`, and `GET …/home-templates/:id` gives one in full with its `updatedAt`, for everyone
@@ -174,8 +150,9 @@ templates a link opens, when a copy built on Mercbot keeps them (D-43).
   `generateOnce` on the chat kind, metered as chat work to the home, the person and the bot, refused
   while the home is paused; an answer that isn't a whole valid template is asked for once more with
   its problems (a second call), then refused 422 `bots_template_draft_failed`. From a bot it needs
-  `mayChangeBot` (403) and reads only the bot's template, its additions when folded, the newest
-  summary of the requesting person's own chat and its routines' names and schedules; another home's
+  `mayChangeBot` (403) and reads only the bot's template, its additions when folded, and, from the requesting
+  person's direct chat with the bot (never a chat with others, whose words would go into a template the whole home
+  sees), that chat's newest summary and the bot's routines there; another home's
   bot or template is 404. Every body is checked whole by `templateProblems`
   (`packages/bots/src/shared/templateBody.js`, the draft screen's rules too; 422
   `bots_template_draft_invalid` with `problems`), and only its five parts are kept. `PUT
@@ -195,19 +172,20 @@ templates a link opens, when a copy built on Mercbot keeps them (D-43).
   (D-109), every slug a library template, once per team; ids and names distinct). `GET /api/templates` lists them as `teams`. `GET
   /api/w/:workspaceSlug/teams/:teamId` (`botTeams.js` `teamFor`) answers the team and each bot's slug, name, look, tag,
   line, `appTemplate` and `inHome`: whether a bot of the home follows that template (one read, `followedOf`). `POST
-  …/teams/:teamId {templates}` (`addTeam`, through `make`, which `addBots` shares) makes the chosen bots, last to first so the sidebar (newest first) shows them
-  in the team's order, in one transaction, under the home's lock, through
-  `botList.makeBots`, the function New bot's `createBot` makes its bot with: one statement each for the bots, their
-  seats, their first messages and Shared bots' General tabs (`records/newBotRepository.js`), whatever their number;
-  each takes its template's name and look and greeting, the home's default sharing, and the person's section named
-  after the team (made or reused). Templates already followed are `skipped`; only those is 409
+  …/teams/:teamId {templates}` (`addTeam`, through `make`, which `addBots` shares) makes the chosen bots in the
+  team's order, in one transaction, under the home's lock, through `botList.makeBots`, the function New bot's
+  `createBot` makes its bot with (`records/newBotRepository.js`), in the same statements whatever their number; each
+  takes its template's name and look, joins the team and opens no chat of its own: none starts any AI work, and each
+  greets with its template's greeting when someone first opens a chat with it. The main bot introduces them in the
+  person's welcome chat with a Message for each (`genesis/program/bots/onboarding.md`). Templates already followed
+  are `skipped` (an archived bot on one says so, `archivedInHome`); only those is 409
   `bots_team_all_in_home`; an unknown team, an empty choice or another team's template is 400; anyone in the home may
-  (JSKIT refuses outsiders: 403 at this pin, 404 from workspaces-core 0.2.58). It answers the list as listed, with
-  `added` (in the team's order) and `sectionId`. The page shows teams with one component, `MercbotTeamScreen.vue`:
+  (JSKIT refuses outsiders: 403 at this pin, 404 from workspaces-core 0.2.58). It answers the Team list, with
+  `added` (in the team's order), `skipped` and the welcome chat that introduces them (`chatId`). The page shows teams with one component, `MercbotTeamScreen.vue`:
   the cards under For home and life and For work (`teamChoice.js` `teamGroups`: name, line, faces, how many bots),
   with "Want one made to fit?" to Describe, then a team's bots, all ticked, each with its paired app's box for
-  someone who may set it up, and an action that counts the ticks. Add bots' A ready-made team and the first
-  conversation's card (**Show me ready-made teams**, `addBots: "teams"`) open it (`useNewBot.js` `openTeams`,
+  someone who may set it up, and an action that counts the ticks. Add bots' A ready-made team and the welcome
+  chat's card (**Show me ready-made teams**, `addBots: "teams"`) open it (`useNewBot.js` `openTeams`,
   `addTeam`), which sets up a ticked bot's paired app afterwards as One bot does, each app once. New home asks only
   the name (D-109).
 - **Suggested bots (D-109):** `POST /api/w/:workspaceSlug/bots/plan {describe, plan?, change?}` (`botPlans.js`
@@ -220,23 +198,41 @@ templates a link opens, when a copy built on Mercbot keeps them (D-43).
   bot named as a library bot becomes it, a bad or taken tag a free one from its name, a bot named twice once; the rest
   is asked for once more, then 422 `bots_plan_failed`. The answer adds each bot's key and look (library bots their own,
   the rest picked fresh) and `inHome`; nothing is kept; the reads are the same for any number of bots
-  (`newBots.homeBots`, `homeTemplates.list`, `followedOf`). `POST …/bots/batch {section, bots}` (`botTeams.js`
+  (`newBots.homeBots`, `homeTemplates.list`, `followedOf`). `POST …/bots/batch {bots}` (`botTeams.js`
   `addBots`; each `{library}`, `{home, name, shape, color}` or `{draft, name, shape, color}`, at most 8 and 4 drafts,
-  400 `bots_add_*`) makes them through `make` as a team's are, each draft checked whole (422), in the section named.
+  400 `bots_add_*`) makes them through `make` as a team's are, each draft checked whole (422).
   The page: `MercbotDescribeBox.vue` on Add bots' start, `useBotPlan.js` (the plan, each new bot's `plan-bot` draft
   written at once, ticks, a change keeping drafts, the batch) and `MercbotPlanReview.vue` (the groups, View, Asks first,
-  Read it all, Edit on the draft screen, Try again and Remove, the section, Not quite right?, Add N bots). The stand-in
+  Read it all, Edit on the draft screen, Try again and Remove, Not quite right?, Add N bots). The stand-in
   model plans library bots named by tag or name and one new bot for a request's last word, and a question for under
   three words.
-- **The upgrade (D-98):** the migration copies every bot's label, instructions, skills and origin to
-  `bots_before_templates`, then points an unchanged gallery bot at its library template, a bot with
-  no instructions at `general`, and a bot with its own at a home template made from them (one per
-  distinct text and skills in a home, tagged from a one-word label or else its name); a bot it
-  can't place stops it with an error naming the bot. The old columns stay, unread, until a later
-  release drops them.
+- **The upgrade (D-98)** ran once: it pointed an unchanged gallery bot at its library template, a bot with no
+  instructions at `general`, and a bot with its own at a home template made from them. The chats migration (D-112,
+  `migrations/20261122120000_chats_core.cjs`) then dropped its copy `bots_before_templates` and the old columns
+  (`label`, `instructions`, `skills`, `origin`).
 
 ## Owned data
 
 - `bots.library_template`, `bots.home_template_id`, `bots.additions`, `bots.template_since`;
-  `home_templates`, `home_template_changes`, and the upgrade's copy `bots_before_templates`.
-  `bots.instructions`, `bots.skills`, `bots.origin` and `bots.label` are no longer read.
+  `home_templates` and `home_template_changes`.
+
+## Proved by
+
+- `tests/server/botTemplates.integration.js`
+- `tests/server/templateChecks.test.js`
+- `tests/server/templateCheck.integration.js`
+- `tests/server/templateDraftPrompts.test.js`
+- `tests/server/teams.test.js`
+- `tests/server/teams.integration.js`
+- `tests/server/botPlans.test.js`
+- `tests/server/botPlans.integration.js`
+- `tests/client/templateBadge.vitest.js`
+- `tests/client/templateDraft.vitest.js`
+- `tests/client/teams.vitest.js`
+- `tests/client/botPlan.vitest.js`
+- `tests/e2e/templates.spec.ts`
+- `tests/e2e/template-drafts.spec.ts`
+- `tests/e2e/new-home.spec.ts`
+- `tests/e2e/team-add.spec.ts`
+- `tests/e2e/add-bots-describe.spec.ts`
+- `tests/server/templateDrafts.integration.js`

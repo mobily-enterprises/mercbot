@@ -22,12 +22,8 @@ definition contains, so an app can't do anything it wasn't saved to do (D-35).
 - `src/pages/w/[workspaceSlug]/apps/[slug]/index.vue`
 - `src/pages/w/[workspaceSlug]/apps/[slug]/[...path].vue`
 - `src/pages/w/[workspaceSlug]/apps/data/[table].vue`
-- `tests/server/appsRuntime.integration.js`
 - `packages/apps/src/shared/namedFormulas.js`
-- `tests/client/apps.vitest.js`
-- `tests/client/appExit.vitest.js`
-- `tests/e2e/apps.spec.ts`
-- `tests/e2e/app-exit.spec.ts`
+- `src/components/apps/askInChat.js`
 
 ## Public contract
 
@@ -57,11 +53,11 @@ definition contains, so an app can't do anything it wasn't saved to do (D-35).
   goes to the nearest trail step outside the app (`openerOf`), with its query, else the home's chat, through JSKIT's
   `finish()`, which replaces the open entry. Going back past the app's entries, and the name as text in the bar, wait
   for JSKIT's `leave()` (D-106, Later).
-- Ask Builder opens the Builder's chat with a first line naming the app, screen and part. A shared
-  Builder opens the app's own conversation (made the first time), whichever of its tabs is open;
-  when the Builder isn't shared, an owner or admin is asked once whether to make it so ("a
-  conversation for each app", which says each person's own chat with the Builder stays theirs, as
-  its last tab, You only, D-99); after a no, or for others, the person's own chat opens.
+- Ask Builder opens the app's chat with the Builder with a first line naming the app, screen and part
+  (`askInChat.js`, `POST /api/w/:slug/apps/:slug/chat`, `apps.appChat`): one per app, made the first time anyone asks
+  (two asks at once make one), Public (D15), named after the app, with the Builder and the person who asked; anyone in
+  the home opens it after that. A home without a Builder is refused (409 `apps_builder_missing`), and an app of
+  another home is 404.
 - Named formulas (D-78): the definition's `formulas` (`{ name: { params, formula } }`, at most 30,
   8 parameters each) are added to the app's script functions (`withNamedFormulas`) wherever its
   formulas run: screens on the server and in the browser, a draft tried with `app_try`, public
@@ -77,3 +73,11 @@ definition contains, so an app can't do anything it wasn't saved to do (D-35).
 - Queries also take `limit` (a list's 1 to 100 rows) and `grandTotal` (a totals query's one figure across
   every group, shown as a Total line by totals and chart parts). The `view` part shows one of the home's
   views (views.md).
+
+## Proved by
+
+- `tests/server/appsRuntime.integration.js`
+- `tests/client/apps.vitest.js`
+- `tests/client/appExit.vitest.js`
+- `tests/e2e/apps.spec.ts`
+- `tests/e2e/app-exit.spec.ts`

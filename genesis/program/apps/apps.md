@@ -20,10 +20,6 @@ publishes and can restore, and fields removed from every app in one save (D-35).
 - `src/components/apps/FieldRemoval.vue`
 - `src/components/apps/MercbotAppsEntry.vue`
 - `src/components/apps/MercbotAppsSection.vue`
-- `tests/server/appsCheck.test.js`
-- `tests/server/appsVersions.integration.js`
-- `tests/server/appsRemoval.test.js`
-- `tests/server/appsRemoval.integration.js`
 
 ## Public contract
 
@@ -51,3 +47,10 @@ publishes and can restore, and fields removed from every app in one save (D-35).
   definitions: `{ versions, more }`, and `before=<version id>` asks for the next page ("Older versions").
 - `kind` is `app`, or `view` for the read-only ones any bot saves at once (views.md); `saveDraft`, `publish`
   and `setPublic` refuse a view. `saveDraft` turns a view part's `copy` into the app's own screen.
+
+## Proved by
+
+- `tests/server/appsCheck.test.js`
+- `tests/server/appsVersions.integration.js`
+- `tests/server/appsRemoval.test.js`
+- `tests/server/appsRemoval.integration.js`

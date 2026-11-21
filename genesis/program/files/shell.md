@@ -1,7 +1,7 @@
 # Bots' command line
 
-Every bot can run bash scripts on its own Linux command line, in gVisor, on its conversation's
-folders and without network (D-47).
+Every bot in a chat can run bash scripts on its own Linux command line there, in gVisor, on that chat's folders and
+without network (D-47, D-112).
 
 ## Sources
 
@@ -20,10 +20,6 @@ folders and without network (D-47).
 - `packages/bots/src/server/commandTools.js`
 - `packages/bots/src/server/botLoops.js`
 - `packages/bots/skills/command-line.md`
-- `tests/server/shell.integration.js`
-- `tests/server/storeToolbox.test.js`
-- `tests/server/toolboxRun.test.js`
-- `tests/server/toolsStore.test.js`
 
 ## Public contract
 
@@ -118,21 +114,21 @@ folders and without network (D-47).
   are then 002, and scratch folders the sandbox writes (`sharedScratch`) are group-writable.
 - **`shell.available()`:** `runsc` and a stamped toolbox exist. Without them bots aren't offered
   `run_command`.
-- **`shell.start({place, workspaceId, botId, conversationId, userId, why, script, readOnly,
-  foregroundSeconds, maxSeconds})`** runs `bash -c script`:
+- **`shell.start({place, workspaceId, botId, chatBotId, userId, why, script, readOnly,
+  foregroundSeconds, maxSeconds})`** runs `bash -c script` for a bot in a chat (`chatBotId`, its seat):
   - **How it runs:** `runsc --rootless --network=none --ignore-cgroups --overlay2=root:memory`, so
     changes to the toolbox vanish. It sees a 1 GB scratch `/tmp`, the place's folders at
-    `/files/mine` (the bot folder for a place without a person), `/files/bot` and `/files/shared`
-    (`readOnly` names folders mounted read-only), all mounted `noexec,nosuid,nodev` so nothing in
+    `/files/chat`, `/files/bot` and `/files/shared` (read-only where the place only reads them, a Private chat's bot
+    and home folders, D13; `readOnly` names more, of "chat", "bot" and "shared"), all mounted `noexec,nosuid,nodev` so nothing in
     them starts as a program, and the Craft apps at `/opt/apps` on PATH. Its
     environment is only the listed variables, never the server's.
   - **Limits:** each process gets `RLIMIT_AS` 2 GB, 128 processes, 1024 open files and 4 GB per
     file. A watchdog kills the sandbox above 3 GB in all. Output keeps the first and last 8 KB;
     when that cuts it, the whole output (up to 16 MB) is written once at the end as
-    `/runs/<run>.log` (D-48): the conversation's runs folder (`store.runsFolder`, with the bots'
-    files, outside every person's folders; pulled from the files bucket first and sent to it once
+    `/runs/<run>.log` (D-48): the seat's runs folder (`store.runsFolder(chatBotId)`, with the bots'
+    files, outside every chat's and bot's folders; pulled from the files bucket first and sent to it once
     written, `store.settleRuns`, D-91), mounted read-only at `/runs` in its sandboxes.
-  - **Concurrency:** at most `MERCBOT_SHELL_RUNS` (2) at once per server; one per conversation,
+  - **Concurrency:** at most `MERCBOT_SHELL_RUNS` (2) at once per server; one per bot in a chat,
     else `{status: "busy"}`.
   - **Answer:** `{status: done|failed|stopped, run, exitCode, output, truncated, seconds, stopped?,
     changed}` (files changed in the folders), the status its record has (`stopped` when the server's
@@ -145,10 +141,10 @@ folders and without network (D-47).
   `shell.check(home, run)` reads a run of that home.
   `shell.onEnd(handler)` hears the end of background runs (finished, failed or stopped).
   `shell.drain()` on shutdown kills running commands, which end as `stopped`.
-- **The computer's session:** `shell.attach({key, place, label})` (key: the conversation's id)
+- **The computer's session:** `shell.attach({key, place, label})` (key: the computer's, the seat's chat_bots id)
   starts a detached gVisor sandbox with the same mounts as a run, `/runs` included, running tmux:
   the top pane follows `/tmp/bot.log` under `label`, the bottom pane is a bash loop for the person.
-  While it exists, that conversation's runs (except those with `readOnly`) execute in it with
+  While it exists, that seat's runs (except those with `readOnly`) execute in it with
   `runsc exec` (`IN_SESSION`): each is shown in the log with its heading and `(exit N)`, keeps
   its own time limit, and shares the session's `/tmp`. The log starts again once past 1 MB and
   takes at most 1 MB of one command; the run's own output is unaffected.
@@ -159,16 +155,22 @@ folders and without network (D-47).
     ends after it.
   - **Memory:** a session above the sandbox memory limit is ended at once.
 - **Bots:** every bot with files gets `run_command {why, script, seconds?}` and `check_command
-  {run}`. In turns another bot started (D-46), `/files/mine` and `/files/shared` are read-only. A
+  {run}`. In turns another bot started (D-46), `/files/chat` and `/files/shared` are read-only. A
   reply's commands become one `event` with `icon: "command"` and `commands: [{why, script,
   output, exitCode, run, running}]`, shown in the chat as one line that opens to each script and
   its output.
-- **Background ends:** `botLoops.js` queues an `app_jobs` task of kind `shell` in the run's
-  conversation. The task posts "Command finished" (or "Command stopped") and a turn in which the
+- **Background ends:** `botLoops.js` queues an `app_jobs` task of kind `shell` for the run's seat in its chat. The task posts "Command finished" (or "Command stopped") and a turn in which the
   bot reports. Replies with the shell may take 40 steps. The standing rules (`FILES_RULES`)
   explain the folders and the command line, and the skill "Working on the command line" has
   recipes.
 
 ## Owned data
 
-- `shell_runs`: one row per command a bot ran.
+- `shell_runs`: one row per command a bot ran, keyed by its seat (`chat_bot_id`).
+
+## Proved by
+
+- `tests/server/shell.integration.js`
+- `tests/server/storeToolbox.test.js`
+- `tests/server/toolboxRun.test.js`
+- `tests/server/toolsStore.test.js`

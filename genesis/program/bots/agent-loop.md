@@ -5,7 +5,7 @@ call, reasoning, tools, context for a 1-million-token window and the checks on e
 `@jskit-ai/agent-runtime` (`/server`: saved runs, goals, summaries, planning, the default tools, the
 executors and their tables). Its source and its own tests live in JSKIT; this is the contract
 Mercbot relies on. Mercbot's bots plug their instructions, tools and cards into it
-(`genesis/program/bots/conversations.md`); the full account of the design, its decisions and the
+(`genesis/program/bots/turns.md`, `genesis/program/bots/bot-tools.md`); the full account of the design, its decisions and the
 evaluations is `docs/agent-loop.md`.
 
 ## Sources
@@ -16,11 +16,7 @@ evaluations is `docs/agent-loop.md`.
 - `packages/bots/package.json`
 - `package.json`
 - `migrations/20261113120000_baseline.cjs`
-- `tests/server/leakedMarkup.test.js`
-- `tests/server/turnContext.test.js`
-- `tests/server/stoppedShort.test.js`
-- `tests/server/compaction.test.js`
-- `tests/server/repeatReminder.test.js`
+- `migrations/20261122120000_chats_core.cjs`
 
 ## Public contract
 
@@ -66,8 +62,9 @@ evaluations is `docs/agent-loop.md`.
 - Tables (`@jskit-ai/agent-runtime`'s `migrations/agent_initial.cjs`, found through its
   `package.json#jskit.migrations`): `agent_runs`, `agent_goals`, `agent_summaries`,
   `agent_summary_queue`, `agent_commands`, each keyed by `conversation_id` without a foreign key;
-  the app adds that key, and columns of its own, in its own migration
-  (`migrations/20261113120000_baseline.cjs`).
+  the app adds that key, and columns of its own, in its own migrations: Mercbot's runtime conversation is a bot's
+  seat in a chat (`chat_bots.id`) for runs, goals and commands, and the chat itself (`conversations.id`) for
+  summaries and their queue, each with a foreign key that cascades (`migrations/20261122120000_chats_core.cjs`).
 - Default tools: `defaultTools({ root, commands, knex, conversationId, post, goals, tables })` gives
   `list_files`, `find_files`, `search`, `read_file`, `write_file`, `edit_file` (`fileTools`, confined
   to the workspace `root`, links followed), `run_command`, `check_command`, `read_command_output`
@@ -76,3 +73,11 @@ evaluations is `docs/agent-loop.md`.
 - Executors: `gvisorExecutor()` (the default: gVisor's own kernel, no network, the machine's
   programs read-only, people's and services' folders hidden, only the workspace writable) and
   `localExecutor()` (opt in, no sandbox). Neither passes the server's environment to a command.
+
+## Proved by
+
+- `tests/server/leakedMarkup.test.js`
+- `tests/server/turnContext.test.js`
+- `tests/server/stoppedShort.test.js`
+- `tests/server/compaction.test.js`
+- `tests/server/repeatReminder.test.js`

@@ -10,7 +10,8 @@ routes (`config/public.js`), and a copy built on Mercbot that serves many people
 - Main: `packages/homes/src/server/HomesFeature.js`
 - `packages/homes/src/server/HomeChangesFeature.js`
 - `src/components/mercbot/MercbotShell.vue`
-- `src/components/mercbot/useRooms.js`
+- `src/components/mercbot/useTeam.js`
+- `src/components/mercbot/MercbotNewHomeDialog.vue`
 - `packages/homes/src/server/firstHomeName.js`
 - `packages/homes/src/server/personName.js`
 - `packages/homes/src/server/homeOf.js`
@@ -24,9 +25,9 @@ routes (`config/public.js`), and a copy built on Mercbot that serves many people
 ## Public contract
 
 - **First home:** a new account gets "<First name>'s home", where they're the
-  owner. Anyone can create more homes. New home (the home switcher) asks what the home is for: one of Mercbot's teams,
-  whose name it suggests and whose bots come with the home, or Something else (D-105: Bot templates' Teams), and who
-  it's for (D-100).
+  owner. Anyone can create more homes. New home (the home switcher, `MercbotNewHomeDialog.vue`) asks only the home's
+  name (D-109); Create home makes it and opens it on the person's welcome chat, where the main bot asks what the home is
+  for and whether anyone else will use it (`genesis/program/bots/onboarding.md`).
 - **Renaming (D-103):** a home's owners and admins rename it in Settings → General (`MercbotHomeName.vue`), on JSKIT's
   own `PATCH /api/w/<home>` (`workspace.workspaces.update`, which needs `workspace.settings.update`): a member is
   refused 403, someone outside the home 404, as JSKIT answers any workspace they aren't in (as one that isn't there),
@@ -34,9 +35,8 @@ routes (`config/public.js`), and a copy built on Mercbot that serves many people
   and the switcher show it at once; JSKIT reports the change, so everyone else in the home gets `home-changed` (Live
   changes). Signing in again never renames a first home.
 - **People's names:** where the others in a home see someone (who added a home's
-  account, who wrote in a shared conversation, a notebook note's author, a
-  template's maker), they're named by their display name, else their email's
-  first part.
+  account, who wrote in a chat, who made a bot, a template's maker), they're named by their display name, else their
+  email's first part; a chat keeps the name someone wrote under once they've left (R2).
 - **Roles:** owner (one per home, can't be changed or removed), admin and member, as `config/roles.js` names them;
   the home switcher shows each home's role.
 - **Invitations off:** `workspaceInvitations` is off, so JSKIT serves none of `/api/w/<home>/invites` or
@@ -45,10 +45,11 @@ routes (`config/public.js`), and a copy built on Mercbot that serves many people
 - **Configuration extension:** `config/extensions.js`, empty here, is merged last into `config/public.js`,
   objects key by key, anything else replaced. A copy built on Mercbot replaces it whole.
 - **People in a home:** `homesApi.js` reads a home's whole list of people (JSKIT answers a page at a time; the page
-  reads every page) for the group chats' Add person, and offers the parts a copy's own people screen builds on
-  (`homeRoute`, `homeList`, `sendJsonApi`, `readJsonApi`, `attributesOf`). `hasOthers(slug)` answers whether anyone
-  but this person is in the home, from one short read per home, read again when its people change (`homeChanges`);
-  a failed read answers yes. A bot's Who sees what shows only then, or for a bot that isn't mixed (D-99).
+  reads every page, 100 at a time, `peopleApi.members`) for Team, New chat's To: and a chat's Add people
+  (`useTeam.js`), read again when its people change (`homeChanges`), and offers the parts a copy's own people screen
+  builds on (`homeRoute`, `homeList`, `sendJsonApi`, `readJsonApi`, `attributesOf`). When a home's people change, the
+  bots seat whoever joined in the home's everyone chat and take whoever left out of every chat
+  (`genesis/program/bots/chats.md`).
 - **No mail:** Mercbot sends no email of its own (a person's own copy invites and registers nobody) and keeps no
   outbox. A copy built on Mercbot that sends email brings its own
   mail delivery.
@@ -59,3 +60,12 @@ routes (`config/public.js`), and a copy built on Mercbot that serves many people
   shows the not-yours card); otherwise the home list refreshes.
 - **Isolation:** every bot, file and computer route is under `/api/w/<home>/`,
   and a request for something in another home answers not found.
+
+## Proved by
+
+- `tests/server/homeRename.integration.js`
+- `tests/client/homeName.vitest.js`
+- `tests/client/homePeople.vitest.js`
+- `tests/e2e/home-rename.spec.ts`
+- `tests/e2e/new-home.spec.ts`
+- `tests/server/homes.integration.js`

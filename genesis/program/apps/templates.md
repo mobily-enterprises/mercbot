@@ -12,8 +12,6 @@ Ready-made apps a home installs and adapts (D-35, stage 3).
 - `packages/apps/templates/leave.json`
 - `packages/apps/templates/stock.json`
 - `src/components/apps/AppsTemplates.vue`
-- `tests/server/appsTemplates.test.js`
-- `tests/server/appsTemplates.integration.js`
 
 ## Public contract
 
@@ -24,3 +22,8 @@ Ready-made apps a home installs and adapts (D-35, stage 3).
   creates them; creates the app with the template as a draft; optionally adds sample records
   through the gate (audited `via template`), skipping and counting ones that don't fit. Nothing
   is removed or renamed.
+
+## Proved by
+
+- `tests/server/appsTemplates.test.js`
+- `tests/server/appsTemplates.integration.js`
