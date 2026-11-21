@@ -1,4 +1,5 @@
 import { appFor } from "@local/files/office-apps";
+import { hasPermission } from "@jskit-ai/kernel/shared/support";
 import { checkRouteVisibility } from "@jskit-ai/kernel/shared/support/visibility";
 
 const ID = /^\d+$/u;
@@ -137,10 +138,21 @@ export function registerRoutes(http, { computer, files, records, streams, meter 
     if (computerId) await answered(reply, async () => computer.handBack(computerId, await request.callOptions()));
   });
 
-  // One computer starts afresh, its saved browser and sign-ins gone: anyone who can open its chat, as they all use them.
+  // One computer starts afresh, its saved browser and sign-ins gone, which everyone who can open its chat uses: so only
+  // by the person who started the chat (a direct chat's person) or the home's owners and admins, as they manage it.
   router.register("POST", `${base}/computer/reset`, home, async function resetComputer(request, reply) {
-    const computerId = await computerOf(request, reply);
+    const found = await placeOf(request, reply);
+    const computerId = found?.chatBotId;
     if (!computerId) return;
+    const chat = await chats.get(found.chatId, await request.callOptions());
+    const starter = chat.direct_user_id ?? chat.made_by;
+    if (!(starter != null && String(starter) === String(request.user.id)) && !hasPermission(request.permissions, "workspace.settings.update")) {
+      reply.code(403).send({
+        error: "Only the person who started this chat and the home's owners and admins can reset its computers.",
+        code: "computer_reset_forbidden"
+      });
+      return;
+    }
     await computer.reset(computerId);
     reply.send(await computer.status(computerId));
   });

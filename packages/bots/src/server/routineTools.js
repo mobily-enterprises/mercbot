@@ -1,5 +1,6 @@
 import { createTool } from "@jskit-ai/agent/server";
 import { z } from "zod";
+import { routineChangeRefusal } from "./botActions.js";
 import { describeRun, nextRunAt, scheduleProblem } from "./routineSchedule.js";
 
 function cleanRoutine(input) {
@@ -22,10 +23,11 @@ function whenItRuns(routine) {
  * @param {import("./types.js").WorkRepository} shared.work records.work
  * @param {import("./types.js").CallOptions} shared.call the turn's call options
  * @param {string} shared.chatBotId
+ * @param {string} shared.userId the person the turn works for: only a routine's maker resumes or changes it (R4)
  * @param {import("./types.js").AttemptAction} shared.attempt
  * @param {(text: string) => void} shared.acknowledge
  */
-export function buildRoutineTools({ work, call, chatBotId, attempt, acknowledge }) {
+export function buildRoutineTools({ work, call, chatBotId, userId, attempt, acknowledge }) {
   async function createRoutine({ acknowledgement, once, paused, ...input }) {
     const args = { ...cleanRoutine(input), ...(once ? { once: "true" } : {}), ...(paused ? { paused: "true" } : {}) };
     const problem = scheduleProblem(args.cron, args.timezone);
@@ -40,6 +42,9 @@ export function buildRoutineTools({ work, call, chatBotId, attempt, acknowledge 
     const args = cleanRoutine(input);
     const routine = await work.routineNamed(chatBotId, args.routine, call);
     if (!routine) return { error: `There's no routine called "${args.routine}".` };
+    // Refused before any card: a yes to it would be refused the same way (update_routine's run).
+    const refusal = routineChangeRefusal(routine, args, userId);
+    if (refusal) return { error: refusal };
     const merged = { ...routine, ...Object.fromEntries(Object.entries(args).filter(([, value]) => value)) };
     if (args.cron || args.timezone) {
       const problem = scheduleProblem(merged.cron, merged.timezone);
