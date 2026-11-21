@@ -101,6 +101,7 @@ export async function startChatTurns(context, options = {}) {
     turns,
     records: filled.records,
     meter: filled.meter,
+    systemContext: filled.systemContext,
     drain: (ms = 10000) => background.drain(ms),
     /** A member's request in a home, as the chat routes make it. */
     as: (userId, homeId) => memberOptions({ userId, homeId })

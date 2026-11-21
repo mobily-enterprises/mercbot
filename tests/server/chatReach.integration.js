@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { resolveActorId } from "@jskit-ai/kernel/server/actions/actionContributorHelpers";
+import { resolveAuditActorId } from "@jskit-ai/kernel/server/actions/actionContributorHelpers";
 import { seedChat } from "../support/chatFixtures.mjs";
 import { memberOptions, startBotRecordsWithAccount } from "../support/botRecords.mjs";
 import { SIGN_IN_LINE } from "../../packages/bots/src/server/signInCodes.js";
@@ -14,7 +14,7 @@ assert.equal(process.env.DB_NAME, process.env.TEST_DB_NAME, "DB_NAME must match 
 
 /**
  * The home's connected accounts as integrations answers them: Pat's Gmail and Kim's Outlook, for `people` ([Pat, Kim],
- * filled in once they exist). Who each call is for is kept.
+ * filled in once they exist). Who each call is for is kept: the person a turn's reader acts for.
  */
 function homeAccounts(people) {
   const askedFor = [];
@@ -26,11 +26,11 @@ function homeAccounts(people) {
     askedFor,
     integrations: {
       reachableAccounts: async (call, filters = {}) => {
-        askedFor.push(String(resolveActorId(call.context) ?? ""));
+        askedFor.push(String(resolveAuditActorId(call.context) ?? ""));
         return accountsOf(people).filter((entry) => !filters.pluginIds || filters.pluginIds.includes(entry.pluginId));
       },
       toolSwitches: async (call) => {
-        askedFor.push(String(resolveActorId(call.context) ?? ""));
+        askedFor.push(String(resolveAuditActorId(call.context) ?? ""));
         return { skip: {}, removed: [], turnedOff: [], connected: ["gmail", "outlook"] };
       },
       namesOf: async (userIds) => new Map(userIds.map((id) => [id, id === people[0] ? "Pat" : "Kim"])),
