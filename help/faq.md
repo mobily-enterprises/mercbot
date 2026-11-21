@@ -8,7 +8,7 @@ Mercbot gives you bots that do real work for you. You ask in plain words, and a 
 
 ## How is a bot different from a chat assistant?
 
-A bot doesn't just answer. It has its own computer in the cloud with a web browser and office apps, it can use your connected email, calendar and files, and it can do things on a schedule. It works with you and your family or team in shared chats, asks before anything risky, and can hand work to other bots in the home.
+A bot doesn't just answer. It has its own computer in the cloud with a web browser and office apps, it can use your connected email, calendar and files, and it can do things on a schedule. It works with you and your family or team in chats, asks before anything risky, and can hand work to other bots in the home.
 
 ## Who is Mercbot for?
 
@@ -16,7 +16,7 @@ Families, small businesses and companies. Everyone gets their own home, and can 
 
 ## Where do my bots run?
 
-On Mercbot's servers, not on your device. Each bot works on a small cloud computer: a desktop with a browser and office apps. In a chat, each bot's computer is labelled with its name, and you can watch it from the chat. See [The bots' computer and connected apps](/help/computer-and-apps).
+On Mercbot's servers, not on your device. A bot works on a small cloud computer: a desktop with a browser and office apps. It has one in each chat it's in, which belongs to that chat: it's labelled with the bot's name, such as "Ledger's computer", and everyone who can open the chat can watch it and take over. See [The bots' computer and connected apps](/help/computer-and-apps).
 
 ## Do bots keep working when I close Mercbot?
 
@@ -24,11 +24,11 @@ Yes. A job you've started carries on in the background, and routines run at thei
 
 ## What do bots remember?
 
-Within a chat, a bot keeps the thread however long it gets: it summarises the older part in the background and reads the recent part word for word. Bots made from a template keep what they learn about your job in a notes document in the chat's folder, which anyone in the chat can open and correct. What a bot should always do goes in its additions, on its card in **Team**. See [Bots](/help/bots).
+Within a chat, a bot keeps the thread however long it gets: it summarises the older part in the background and reads the recent part word for word. Bots made from a template keep what they learn about your job in a notes document in the chat's folder, which anyone who can open the chat can open and correct. What a bot should always do goes in its additions, on its card in **Team**. See [Bots](/help/bots).
 
 ## How do bots use websites?
 
-Each bot browses in its own browser, on its own computer. It can read pages, fill in forms and click through sites. When it needs you, for example to sign in, it hands you the screen with a **Your turn** card. Its browser keeps you signed in for next time.
+Each bot browses in its own browser, on its own computer. It can read pages, fill in forms and click through sites. When it needs you, for example to sign in, it hands you the screen with a **Your turn** card. Its browser in that chat stays signed in for next time, for everyone who can open the chat.
 
 ## Can bots work together?
 
@@ -48,7 +48,7 @@ Everyone in the home can open a **Public** chat, and every new chat is Public un
 
 ## Do bots see my passwords?
 
-No. Logins saved in your vault, and anything you type into a secure sign-in form, are filled in on the website by Mercbot itself and never reach the bot. When you sign in on the bot's computer yourself, your password goes straight to the website. Never paste passwords or card numbers into the chat. See [The vault](/help/vault).
+No. Logins saved in the vault, and anything you type into a secure sign-in form, are filled in on the website by Mercbot itself and never reach the bot. When you sign in on the bot's computer yourself, your password goes straight to the website. Never paste passwords or card numbers into the chat. See [The vault](/help/vault).
 
 ## How much does Mercbot cost?
 
@@ -68,7 +68,7 @@ No. Your bots run on Mercbot's own AI service, so there's nothing to set up.
 
 ## Can I have more than one home?
 
-Yes. Switch between your homes with the switcher at the top of the sidebar, where you can also create a new one. Each home has its own bots, routines, apps and files.
+Yes. Switch between your homes with the switcher at the top of the sidebar, where you can also create a new one. Each home has its own people, chats, bots, routines, apps and files.
 
 ## What are Apps?
 
@@ -88,7 +88,7 @@ In **Settings** → **General**, choose a theme (follow your system, light or da
 
 ## Are there keyboard shortcuts?
 
-Yes. Press Ctrl+/ for the full list. Ctrl+K opens search, which finds bots, routines, apps, settings, files and messages.
+Yes. Press Ctrl+/ for the full list. Ctrl+K opens search, which finds chats, people, bots, routines, apps, settings, files and messages.
 
 ## How do I change my name or picture?
 
@@ -104,7 +104,7 @@ A skill is *how* to do a task: saved steps a bot follows when asked. A routine i
 
 ## How do I make a skill or a routine?
 
-For a skill, ask the bot to save what it just did as a skill, or teach it by recording yourself doing the task on its computer (**+** → **Teach a task**). Type "/" in the message box to pick a skill. For a routine, just ask: "Every weekday at 8, check my calendar and list my meetings." You can pause, edit or delete routines in the chat's details.
+For a skill, ask the bot to save what it just did as a skill, or teach it by recording yourself doing the task on its computer: in a chat with one bot, select **+**, then **Teach** and the bot's name, such as **Teach Ledger a task**. Type "/" in the message box of a chat with one bot to pick a skill. For a routine, just ask in the chat it should run in: "Every weekday at 8, check my calendar and list my meetings." The chat's **Chat details** lists its routines under **Routines**, where you can pause, edit or delete them; only the person who set a routine up can turn it back on.
 
 ## Can I share a bot with someone?
 
@@ -112,9 +112,13 @@ Inside a home, every bot is already everyone's: it's a member of the home, on th
 
 Outside your home, you can share one of the ready-made bots in the [template gallery](/templates). A template's **Add to Mercbot** opens its share page: send someone that link, and its **Add to Mercbot** shows them everything the bot would be given before they add it to their own home. The gallery is curated by the Mercbot team, who alone add templates to it, so a bot you've made yourself can't go there, and Mercbot has no way to send your own bot to someone outside your home.
 
-## How do I delete a bot?
+## Can I take a bot off my team?
 
-Right-click the bot in the sidebar, choose **Delete** and confirm. Your first bot is your main bot and can't be deleted. If you'd only like it out of the way, choose **Hide from sidebar** instead.
+Yes: archive it. Open its card in **Team** and, on its **Details** tab, select **Archive** and its name, such as **Archive Ledger**. It leaves the team for everyone in the home and stays in its chats without answering, and its routines and watches pause. Nothing is deleted, and its maker or the home's owners and admins can resume it. Only they can archive it, and the home's main bot and the bot that builds the home's apps can't be archived. See [Archive a bot](/help/bots#archive-a-bot).
+
+## How do I delete a chat?
+
+Right-click the chat in the sidebar, or open its **Chat details**, and choose **Delete** (in Chat details, **Delete chat**). It goes for everyone in it, with its whole history, its files and its bots' computers; its bots stay on your team. This can't be undone. The chat's maker and the home's owners and admins can delete it. To keep it readable instead, choose **Archive**. To take a chat out of your own list, choose **Hide from sidebar**.
 
 ## How do I delete my account?
 

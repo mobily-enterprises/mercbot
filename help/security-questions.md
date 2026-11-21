@@ -6,7 +6,7 @@ Short answers to the questions security reviewers ask most, in three groups: iso
 
 ### Can people in one home see another home's bots or data?
 
-No. Bots, files, computers, Apps and usage all belong to a home, and a request for something in a home the person doesn't belong to answers "not found".
+No. Chats, bots, files, computers, Apps and usage all belong to a home, and a request for something in a home the person doesn't belong to answers "not found".
 
 ### Can owners and admins read members' chats?
 
@@ -14,11 +14,11 @@ They can read Public chats, as everyone in the home can: every new chat is Publi
 
 ### Does a bot ever work on my own computer?
 
-No. Bots work on their own computer in the cloud, a small desktop on one of Mercbot's servers. You can watch its screen and take control, but nothing runs on your device.
+No. Bots work on their own computer in the cloud, a small desktop on one of Mercbot's servers. You can watch its screen and take over, but nothing runs on your device.
 
 ### What can a bot's browser reach?
 
-The web, its own profile and the chat's and the bot's file folders. It runs in a sandbox that sees none of Mercbot's own folders and only the parts of the system a browser needs. Each bot has a separate computer and browser in each chat, so a sign-in stays in the chat it happened in. Everyone who can open that chat can use it, and the bot says so in one line when it signs in. Its only way out is Mercbot's gateway, which connects only to public internet addresses, never to the server itself, its private network or cloud metadata addresses, and never to the ports used to send email.
+The web, its own profile and the chat's file folders: the chat's own, the bot's and the home's, the last two only to read in a Private chat. It runs in a sandbox that sees none of Mercbot's own folders and only the parts of the system a browser needs. Each bot has a separate computer and browser in each chat, so a sign-in stays in the chat it happened in. Everyone who can open that chat can use it, and the bot says so in one line when it signs in. Its only way out is Mercbot's gateway, which connects only to public internet addresses, never to the server itself, its private network or cloud metadata addresses, and never to the ports used to send email.
 
 ## Network and outside services
 
@@ -85,7 +85,7 @@ Only when a provider stops accepting Mercbot's key, or a sign-in is cancelled or
 
 ### What happens to a bot's computer when it shuts down?
 
-When it sleeps or its server stops, the browser profile is sealed with the vault key and saved with the bots' files, so sign-ins survive on any server. **Settings**, **Computer**, **Reset** clears it.
+When it sleeps or its server stops, the browser profile is sealed with the vault key and saved with the bots' files, so sign-ins survive on any server. **Settings**, **Computer**, **Reset** clears it for the computers of the chats only you are in.
 
 ### Does Mercbot hold security certifications?
 
