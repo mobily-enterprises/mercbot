@@ -151,12 +151,12 @@ Approvals are the safety net behind this. Text on a page can't press Go ahead fo
 | Your accounts in a home you're leaving | They go by themselves when you're no longer in the home | Mercbot signs them out and removes them; the **Activity** tab in **Apps** lists each one |
 | Sedna's API credentials | **Connect apps**, the bin on Sedna's line (owners and admins) | Mercbot deletes them, with who each person is in Sedna; no bot reads Sedna until they're entered again. To stop them working everywhere, delete the credential on Sedna's API Credential Management page |
 | Who you are in Sedna | **Connect apps**, Sedna, **That's not me** (or **Undo** under **People**, for owners and admins) | Your bots read nothing in Sedna until you pick yourself again and it's confirmed |
-| One action of an app | **Connect apps**, the app's **Tools** | Bots can't do it any more |
+| One action of an app | **Connect apps**, the app's **Tools** (owners and admins) | No bot in the home can do it any more |
 | A login, card or contact | **Settings**, **Vault** | It's deleted |
-| Website sign-ins on bots' computers | **Settings**, **Computer**, **Reset** | The computers start afresh; open pages close and saved sign-ins and website data are cleared |
+| Website sign-ins on bots' computers | **Settings**, **Computer**, **Reset** | The computers in the chats where you're the only person start afresh; open pages close and saved sign-ins and website data are cleared |
 | A routine | The chat's details | Pause it, or delete it |
-| A chat | The chat's details, **Delete** (its maker, owners and admins) | The chat, its files and its bots' computers are gone for good |
-| A bot | Its card in **Team**, **Delete** | The bot is gone for good |
+| A chat | The chat's details, **Delete chat** (its maker, owners and admins) | The chat, its files and its bots' computers are gone for good |
+| A bot | Its card on **Team**, **Archive** (its maker, owners and admins) | It leaves the home: it stays in its chats without answering, and nothing it has runs |
 
 Records in Apps are never deleted: they're marked obsolete and can come back.
 
