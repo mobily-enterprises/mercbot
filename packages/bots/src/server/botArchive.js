@@ -44,7 +44,7 @@ export function createBotArchive({ records, apps, computer, pauseWork, tellHome,
       });
     }
     if (String((await apps.apps.builder(options))?.id) === String(bot.id)) {
-      throw new BotsError(409, `${bot.name} builds this home's apps, so it can't be archived. Choose another Builder in Apps first.`, {
+      throw new BotsError(409, `${bot.name} builds this home's apps, so it can't be archived. Make another bot the Builder from its card in Team first.`, {
         code: "bots_archive_builder"
       });
     }
@@ -64,7 +64,7 @@ export function createBotArchive({ records, apps, computer, pauseWork, tellHome,
       const seats = await archives.seatsOf(found.id, txOptions);
       await pauseWork(seats, {
         text: "Paused while archived",
-        detail: (paused) => `${found.name} was archived, so its ${paused} paused. They stay paused when it's unarchived: resume them here.`
+        detail: (paused) => `${found.name} was archived, so its ${paused} paused. They stay paused when it's resumed: resume them here.`
       }, archives.forEveryone(txOptions));
       return { bot: found, seats };
     });

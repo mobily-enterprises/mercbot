@@ -1,7 +1,7 @@
 import { seal, unseal, vaultKey } from "@local/account/vault-crypto";
 
 /**
- * Logins in the person's vault (D-17), for filling into a bot's browser without the bot ever
+ * Logins in the home's vault (D-17, D8), for filling into a bot's browser without the bot ever
  * seeing the password.
  */
 const siteOf = (value) => String(value || "").trim().toLowerCase()
@@ -26,7 +26,7 @@ export async function savedLogin(account, env, site, options) {
 }
 
 /**
- * A login given through the secure form, saved in the person's vault for next time when they ticked the box.
+ * A login given through the secure form, saved in the home's vault for next time when they ticked the box.
  * @param {{ saveLogin: (login: { label: string, data: object }, options: object) => Promise<{ id: string, label: string }> }} account
  * @param {import("@jskit-ai/kernel/server/types").RuntimeEnv} env
  * @param {string} site

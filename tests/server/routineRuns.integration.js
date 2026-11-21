@@ -89,7 +89,7 @@ test("a routine pauses after five failed runs in a row, says how to resume it, a
   const texts = await botTexts(knex, bot);
   assert.equal(texts.filter((text) => text.startsWith("I couldn't finish my routine")).length, 4, "the fifth says it paused instead");
   assert.match(texts.at(-1), /^I've paused my routine "Morning news", because its last 5 runs failed in a row\./u);
-  assert.match(texts.at(-1), /switch it back on under Routines in my Details panel, or ask me to resume it/u);
+  assert.match(texts.at(-1), /switch it back on under Routines in this chat's details \(only the person who set it up can\), or ask me to resume it/u);
   const event = await knex("messages").where({ conversation_id: bot.conversation_id, kind: "event" }).orderBy("id", "desc").first();
   assert.deepEqual([event.body.text, event.body.name], ["Paused routine", "Morning news"]);
 
