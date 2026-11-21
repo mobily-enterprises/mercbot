@@ -24,7 +24,7 @@ export function appsFor(adding, apps, withoutApp) {
 }
 
 /** The list of teams' first words, in Add bots' ready-made teams. */
-export const TEAM_INTRO = "Pick what you need help with. Mercbot adds a few bots that work well together, in their own section of your sidebar.";
+export const TEAM_INTRO = "Pick what you need help with. Mercbot adds a few bots that work well together to your team.";
 
 /** The headings Add bots lists the teams under (D-109), by what each team is for. */
 const TEAM_GROUPS = Object.freeze([

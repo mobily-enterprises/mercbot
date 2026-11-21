@@ -17,11 +17,6 @@ any bot saves at once, which apps can share or copy (D-55, `docs/views-design.md
 - `src/components/apps/MercbotViewViewer.vue`
 - `src/components/apps/askInChat.js`
 - `src/components/apps/useLiveData.js`
-- `tests/server/views.test.js`
-- `tests/server/views.integration.js`
-- `tests/server/viewsRealUse.integration.js`
-- `tests/support/viewsFixture.mjs`
-- `tests/e2e/views.spec.ts`
 
 ## Public contract
 
@@ -35,7 +30,8 @@ any bot saves at once, which apps can share or copy (D-55, `docs/views-design.md
   retired ones `GET /apps/retired` and `POST /apps/retired/:slug/bring-back` (anyone in the home; a name another
   app or view now has becomes the next free "Name (2)"). While an
   app shares a view, only the Builder changes it, it can't be retired and its params can't change.
-  `POST action` always refuses; a draft, Publish, Make public, scripts and app rooms refuse a view.
+  `POST action` always refuses; a draft, Publish, Make public, visitor access and scripts refuse a view (409
+  `apps_view_refused`, `apps.js` `notAView`).
 - In an app's screen, `{ type: "view", view, params }` shows the view's current version (stored by id, shown
   by key), read through `GET /apps/:slug/part`: the view's screen, tables and style only. With `copy: true`, saving turns it into `{ type: "view", screen, params }` and a read-only screen
   `view-<key>` with `copiedFrom { view, version }`. `GET /apps/:slug` lists `copyUpdates` when an original has
@@ -47,3 +43,10 @@ any bot saves at once, which apps can share or copy (D-55, `docs/views-design.md
   server-sent `data` events, ends with its page (even one gone before the stream started) and closes on shutdown. `useLiveData` keeps one stream per page, re-reads the
   queries on changed tables and their link targets after a second, only while seen, and everything on
   window focus and after a reconnect.
+
+## Proved by
+
+- `tests/server/views.test.js`
+- `tests/server/views.integration.js`
+- `tests/server/viewsRealUse.integration.js`
+- `tests/e2e/views.spec.ts`

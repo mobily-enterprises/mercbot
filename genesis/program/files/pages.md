@@ -25,10 +25,6 @@ copied as one standalone file. Older Markdown pages
 - `src/components/mercbot/MercbotPageShare.vue`
 - `src/components/mercbot/MercbotPageVersions.vue`
 - `src/components/mercbot/MercbotMarkdownPage.vue`
-- `tests/server/pages.test.js`
-- `tests/server/pages.integration.js`
-- `tests/client/pages.vitest.js`
-- `tests/e2e/pages.spec.ts`
 
 ## Public contract
 
@@ -83,7 +79,9 @@ and the files routes call it.
   and helper and every file of its folder inlined as data, under a meta policy that loads nothing.
 
 Routes, for people in the home, under the bot whose folder holds the page
-(`/api/w/:home/bots/:botId/pages`): `GET frame?path=`, `POST ticks {path, items}` (up to 500),
+(`/api/w/:workspaceSlug/bots/:botId/pages`; a page is an `.html` file in a `Pages` folder of `/files/bot` or
+`/files/shared`, `isPagePath`, else 404 `files_page_not_found`; a Private chat's page waits in `/files/chat/Pages`
+until a person makes it one, `genesis/program/bots/bot-tools.md`): `GET frame?path=`, `POST ticks {path, items}` (up to 500),
 `GET versions?path=`, `POST restore {path, versionId}` and `GET copy?path=` (an attachment). The
 page-only address carries no session.
 
@@ -91,13 +89,13 @@ page-only address carries no session.
 
 - `MercbotPageCard.vue`: the chat's card, a live look at the page's top (`MercbotPageFrame` in preview,
   loaded once in sight and never answered) with a footer; the whole card opens the page.
-- `useOpenPage.js`: the open page is in the address, `?page=<path>&pageBot=<bot>` (and `pageGroup` for an
-  old Markdown page from a group), so it survives a reload; opening a chat or another bot closes it. The
+- `useOpenPage.js`: the open page is in the address, `?page=<path>&pageBot=<bot>` (and `pageChat` for an older
+  Markdown page in a chat's folder), so it survives a reload; opening another chat closes it. The
   card, a reply's inline link to the page's path (`richText.js`, `data-page`), the Library and search
   open it.
 - `MercbotPageView.vue` replaces the chat (the chat stays where it was, hidden, under it; the composer
   stays): Close, the title, Share and a ⋯ menu with Versions and Download a copy. A new card of the same
-  page reloads it. On a phone the shell's bots menu button gives way to its Close (`MercbotShell.vue`).
+  page reloads it. On a phone the shell's chats menu button gives way to its Close (`MercbotShell.vue`).
 - `MercbotPageFrame.vue` frames the page with `sandbox="allow-scripts"`, `credentialless`, no referrer and
   no devices, and takes a message only from its own frame, from origin `"null"`, of a shape
   `pageMessages.readPageMessage` accepts; a link or an app only right after the person's own click or key in the
@@ -113,3 +111,10 @@ page-only address carries no session.
 
 - `page_versions`: every version of every page, by home, bot and path, with its key, kind and whole
   document.
+
+## Proved by
+
+- `tests/server/pages.test.js`
+- `tests/server/pages.integration.js`
+- `tests/client/pages.vitest.js`
+- `tests/e2e/pages.spec.ts`

@@ -6,7 +6,6 @@ import MercbotSettingsAbout from "./MercbotSettingsAbout.vue";
 import MercbotSettingsComputer from "./MercbotSettingsComputer.vue";
 import MercbotSettingsFiles from "./MercbotSettingsFiles.vue";
 import MercbotSettingsLink from "./MercbotSettingsLink.vue";
-import MercbotSettingsMemory from "./MercbotSettingsMemory.vue";
 import MercbotSettingsTemplates from "./MercbotSettingsTemplates.vue";
 import MercbotSettingsPermissions from "./MercbotSettingsPermissions.vue";
 import MercbotSettingsGeneral from "./MercbotSettingsGeneral.vue";
@@ -116,7 +115,6 @@ const current = computed(() => sections.value.find((entry) => entry.value === se
           <MercbotSettingsComputer v-else-if="section === 'computer'" @failure="emit('failure', $event)" @notify="emit('notify', $event)" />
           <MercbotSettingsPermissions v-else-if="section === 'permissions'" @failure="emit('failure', $event)" />
           <MercbotSettingsFiles v-else-if="section === 'files'" @failure="emit('failure', $event)" @notify="emit('notify', $event)" @connect="emit('connect', $event)" />
-          <MercbotSettingsMemory v-else-if="section === 'memory'" @failure="emit('failure', $event)" />
           <MercbotSettingsTemplates v-else-if="section === 'templates'" @failure="emit('failure', $event)" @notify="emit('notify', $event)" />
           <MercbotSettingsVault v-else-if="section === 'vault'" v-model:create="vaultCreate" @failure="emit('failure', $event)" />
           <MercbotSettingsUsage v-else-if="section === 'usage'" @failure="emit('failure', $event)" @notify="emit('notify', $event)" />

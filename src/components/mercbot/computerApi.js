@@ -2,36 +2,44 @@ import { createHttpClient } from "@jskit-ai/http-runtime/client";
 import { AUTH_PATHS } from "@jskit-ai/auth-core/shared/authPaths";
 import { onBeforeUnmount, ref, watch } from "vue";
 import { homePath } from "./homeApi.js";
-import { placeQuery } from "./openTabs.js";
+import { placeQuery } from "./chatPlace.js";
 
-// The bot's computer: wake it, stream its screen, and send the person's input.
+// A bot's computer in a chat (D14, D16): wake it, stream its screen, send the person's input, and a person taking it
+// over and handing it back. Each bot in a chat has its own computer, which belongs to that chat.
 const client = createHttpClient({ credentials: "include", csrf: { sessionPath: AUTH_PATHS.SESSION } });
 
-// A computer is a bot's (its id), or in a group the bot's own one for that group ({ id, group },
-// D-46); a Shared bot's is its open tab's, or the tab given ({ id, room }, D-99, openTabs.js).
+// A computer is a bot's in a chat ({ id, chat }); a bare bot id means its computer in the open chat (chatPlace.js).
 const at = (target, path) => {
-  const { id, group = null, room } = typeof target === "object" && target ? target : { id: target };
-  const where = placeQuery(id, { group, room });
+  const { id, chat } = typeof target === "object" && target ? target : { id: target };
+  const where = placeQuery({ chat });
   return homePath(`/bots/${id}${path}${where ? `?${where}` : ""}`);
 };
+const post = (target, path) => client.request(at(target, path), { method: "POST", body: {} });
 
 export const computerApi = {
-  wake: (target) => client.request(at(target, "/computer/wake"), { method: "POST", body: {} }),
-  ticket: (target) => client.request(at(target, "/computer/ticket"), { method: "POST", body: {} }),
-  settleHandover: (botId, messageId, outcome) =>
-    client.request(homePath(`/bots/${botId}/handover/${messageId}`), { method: "POST", body: { outcome } })
+  // { state, url, error, signIns: [{ label, kind: "site" | "coding" | "sedna", since }], control: { userId, name, since }
+  // | null }: what's signed in on it, and the person who has taken it over, if anyone.
+  status: (target) => client.request(at(target, "/computer")),
+  wake: (target) => post(target, "/computer/wake"),
+  ticket: (target) => post(target, "/computer/ticket"),
+  // A fresh start for this computer alone, for anyone who can open its chat: its status.
+  reset: (target) => post(target, "/computer/reset"),
+  // A person takes the computer over from its bot (or from another person), and the bot doesn't act on it until it's
+  // handed back (D16); each posts a line in the chat and answers { messages, control }. Handing back twice is no harm.
+  takeOver: (target) => post(target, "/computer/take-over"),
+  handBack: (target) => post(target, "/computer/hand-back")
 };
 
-// In a group, a bot's screenshots are from its own computer for that group (D-46).
-export const screenshotUrl = (botId, name, group = null) => {
-  const where = placeQuery(botId, { group });
+// A bot's screenshots are from its computer in the chat they were taken in.
+export const screenshotUrl = (botId, name, chat = undefined) => {
+  const where = placeQuery({ chat });
   return homePath(`/bots/${botId}/screenshots/${encodeURIComponent(name)}${where ? `?${where}` : ""}`);
 };
 
 /**
  * Live state and address of a bot's computer while `active` is true. The screen is VNC.
- * @param {import("vue").Ref<string | { id: string, group: string }>} botIdRef The bot, or in a group
- *   the bot and the group whose computer it is (D-46).
+ * @param {import("vue").Ref<string | { id: string, chat: string }>} botIdRef The bot and the chat whose computer it
+ *   is, or a bot id for its computer in the open chat.
  * @param {import("vue").Ref<boolean>} activeRef Whether the screen is shown.
  */
 export function useComputerStream(botIdRef, activeRef) {

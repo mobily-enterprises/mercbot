@@ -14,7 +14,7 @@ import { ICON_PATHS } from "./appRuntime.js";
 import { useSnackbar } from "./useSnackbar.js";
 
 // The Apps area of a home (D-35): its apps, its tables and everything that changed.
-// New app opens the Builder's chat; if there's no Builder yet, the person picks one.
+// New app opens the person's direct chat with the Builder; if there's no Builder yet, an owner or admin picks one.
 const route = useRoute();
 const router = useRouter();
 const paths = usePaths();
@@ -87,7 +87,7 @@ async function newApp() {
   picker.loading = true;
   try {
     const { bots } = await botsApi.list();
-    picker.bots = bots.filter((bot) => bot.kind !== "group");
+    picker.bots = bots.filter((bot) => !bot.archivedAt);
     picker.botId = picker.bots[0]?.id ?? null;
   } finally {
     picker.loading = false;

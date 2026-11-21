@@ -102,7 +102,7 @@ To fix it, press **Ask Builder** and ask it to tidy the app. The Builder removes
 | A record was marked obsolete | Data tab, **Show obsolete**, then **Restore** from the record's menu |
 | A record was changed by mistake | Open its **History**, see the old values, and edit them back |
 | A spreadsheet import added the wrong rows | Find them in **Activity**, listed as an import of your file, and mark them obsolete |
-| A bot keeps reacting to changes it shouldn't | Pause or remove the watch in the bot's details |
+| A bot keeps reacting to changes it shouldn't | Pause or remove the watch on the bot's card in **Team** |
 | A field was removed | It can't be brought back as it was; its data is kept. Ask the Builder for a new field |
 
 ## Questions

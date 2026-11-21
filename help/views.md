@@ -28,15 +28,15 @@ To go back, open the view and choose **Versions**, then **Restore** on the one y
 
 ## Who can see a view
 
-Everyone in your home can see every view from the moment it's saved, whichever chat it was asked for in, and every bot in the home can find it. Nothing inside a home is private, so there's nothing to share: an app can use a new view straight away.
+Everyone in your home can see every view from the moment it's saved, whichever chat it was asked for in, Public or Private, and every bot in the home can find it. Views, like apps, belong to the whole home, so there's nothing to share: an app can use a new view straight away.
 
 A view only shows figures that everyone in the home can already see in the Data tab.
 
 ## Find a view again
 
-- the bot's **Library**, in its Details panel, where you can also pin it
+- the **Library** tab on the bot's card in **Team**, where you can also pin it
 - the **Apps** area, marked **View**, with a filter for apps or views
-- search, by its title
+- the search palette (**Ctrl+K**), by its title
 - the sidebar, once you pin it from the Apps area; views and apps share the same 8 pins
 
 ## Views inside apps
@@ -60,18 +60,24 @@ Anyone in the home can bring one back: open **Apps**, choose **Retired**, then *
 
 - A **view** for figures that should stay current.
 - A **page** for writing to keep: a guide, a plan, a checklist.
-- An **app** when people need to enter or change things. See [Apps: what they are and when to use them](apps.md).
+- An **app** when people need to enter or change things. See [Apps: what they are and when to use them](/help/apps).
 
 ## Questions
 
-**Why does my view say it can't be changed?** An app shares it. Ask your Builder to change it, or ask your bot for a new view.
+### Why does my view say it can't be changed?
 
-**Can I make a view public?** Not yet. Views are only for people in your home.
+An app shares it. Ask your Builder to change it, or ask your bot for a new view.
 
-**Can a view show data from a connected app?** Only once that data is in one of your home's tables.
+### Can I make a view public?
+
+Not yet. Views are only for people in your home.
+
+### Can a view show data from a connected app?
+
+Only once that data is in one of your home's tables.
 
 ## Related pages
 
-- [Apps: what they are and when to use them](apps.md)
-- [Build an app with the Builder](apps-builder.md)
-- [Your data: tables, fields and records](apps-data.md)
+- [Apps: what they are and when to use them](/help/apps)
+- [Build an app with the Builder](/help/apps-builder)
+- [Your data: tables, fields and records](/help/apps-data)

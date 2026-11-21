@@ -12,7 +12,7 @@ import { TEAM_INTRO, addLabel, appsFor, botsToAdd, teamGroups } from "./teamChoi
 // goes to Describe what you need; then the team chosen, its bots each
 // with its name, look, tag and line, all ticked. A bot the home already has on the same template says "Already in this
 // home" and isn't added. Someone who may set up apps also gets the app a bot works with, as One bot offers it. Add N
-// bots asks the dialog to make the ones ticked (useNewBot.js addTeam).
+// bots asks the dialog to add the ones ticked to the team (useNewBot.js addTeam).
 const props = defineProps({
   busy: { type: Boolean, default: false },
   error: { type: String, default: "" }
@@ -95,7 +95,6 @@ function add() {
   if (!adding.value.length || props.busy) return;
   emit("add", {
     teamId: team.value.id,
-    name: team.value.name,
     templates: adding.value.map((bot) => bot.slug),
     apps: appsFor(adding.value, apps.value, withoutApp.value)
   });
@@ -177,8 +176,7 @@ defineExpose({ back, add });
           </li>
         </ul>
         <p class="mb-ctemp__note">
-          They go in their own section, {{ team.name }}, and each says hello when you open it. None does any work until you
-          answer.
+          They join your team, on Team. None does any work until you message it.
         </p>
       </template>
     </template>

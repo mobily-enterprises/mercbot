@@ -4,7 +4,7 @@ import { usePaths } from "@jskit-ai/shell-web/client/navigation/usePaths";
 import { appsApi, errorText } from "./appsApi.js";
 
 // The Builder saved an app draft (D-35): the person previews it on practice data (D-71) and
-// decides. Publish acts as the person who clicks it, also in a shared room (D-36).
+// decides. Publish acts as the person who clicks it, in any chat.
 const props = defineProps({ message: { type: Object, required: true } });
 const paths = usePaths();
 const body = computed(() => props.message.body || {});

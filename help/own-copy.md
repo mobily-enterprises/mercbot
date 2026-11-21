@@ -4,7 +4,7 @@ Mercbot runs on your own Linux computer (Ubuntu 24.04 or Debian 12 on x86_64), f
 
 ## What your copy is
 
-- **Just for you.** It has no sign-in, accounts, members or invitations. It makes one person, you, the first time it starts. You can still have several homes, each with its own bots.
+- **Just for you.** It has no sign-in, accounts, members or invitations. It makes one person, you, the first time it starts. You can still have several homes, each with its own chats and bots. Chats are still Public or Private, as in any home: with only you in it, both are yours alone, and the difference is in what the bots may use and save across chats (see [Chats and your team](/help/chats)).
 - **Opened with its key.** `mercbot open` opens it in your browser. The key is in `mercbot.key` in its data folder, readable only by you. Anything that doesn't carry it, including other people's accounts on the same computer and other websites, gets a page saying to open Mercbot with `mercbot open`. `mercbot new-key` makes a new key and signs every browser out.
 - **Reached only from this computer,** at `localhost`, `127.0.0.1` or `[::1]`. It won't start with any other `HOST`, so shared pages are yours alone.
 - **Run by you.** You may choose a folder on this computer for a home's website (see **Website** in [Settings and notifications](/help/settings)).
@@ -15,7 +15,7 @@ Mercbot runs on your own Linux computer (Ubuntu 24.04 or Debian 12 on x86_64), f
 |---|---|
 | The application | A standard Node application (Node 26), run as your own service, `mercbot.service` |
 | PostgreSQL | One database holds everything: your homes, bots, chats, routines, approvals, the vault and Apps data |
-| Bots' computers | Each awake bot computer is a small desktop on your computer: a virtual display (Xvfb), a window manager (openbox), Chrome and a screen-sharing server (x11vnc), all bound to the computer itself |
+| Bots' computers | A bot has its own computer in each chat it's in. Each awake one is a small desktop on your computer: a virtual display (Xvfb), a window manager (openbox), Chrome and a screen-sharing server (x11vnc), all bound to the computer itself |
 | Bots' files | A folder in your copy's data folder, or an S3 bucket if you set one up. It also holds bots' saved browsers and screenshots |
 | Tools | The office apps bots use to make documents, spreadsheets, slides and PDFs, rclone for a home's own storage, and a sandbox, installed by Mercbot's own script without root |
 

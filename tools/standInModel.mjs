@@ -13,7 +13,7 @@
 // new bot's greeting and its first question card, a message's status line, which rules apply, and whether a Shared bot
 // joins in a shared tab (D-102): yes only when the message decided on asks something, ending with a "?". It plays a
 // template's bot by its setup interview: on the person's first answer it reads the skill, then asks each "Ask" step in
-// turn (on a question card when the step says so), then saves a memory, creates the template's routines paused and asks
+// turn (on a question card when the step says so), then creates the template's routines paused and asks
 // whether to start them, and starts them only on a yes. It plays the template check's person and judge
 // (tests/support/templateCheck.mjs) and Mercbot's own checks too. Any bot asked "What are your additions?" says its own
 // additions as its system prompt has them, and one told "Change your additions to: …" changes them through
@@ -108,14 +108,13 @@ function botStep(template, request, misbehave) {
     ];
   } else if (answers === questions.length + 1) {
     plan = [
-      call("remember", { fact: `${template.name}'s setup is done: ${questions.length} questions answered.` }),
       ...routines.map((name) => call("create_routine", {
         acknowledgement: `Setting up "${name}".`,
         name,
         schedule: "Every Monday around 9:00 (Europe/London)",
         cron: "0 9 * * 1",
         timezone: "Europe/London",
-        instructions: `Do ${template.name}'s regular job from the saved facts, save it and say it's ready.`,
+        instructions: `Do ${template.name}'s regular job from what the person said, save it and say it's ready.`,
         ...(misbehave === "routine-running" ? {} : { paused: true })
       })),
       {

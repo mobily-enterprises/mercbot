@@ -8,7 +8,6 @@ instead of the live ones, so Save works in a preview without touching the live a
 - Main: `packages/apps/src/server/practice.js`
 - `packages/apps/src/server/trial.js`
 - `migrations/20261113120000_baseline.cjs`
-- `tests/server/appsPractice.integration.js`
 
 ## Public contract
 
@@ -38,3 +37,7 @@ instead of the live ones, so Save works in a preview without touching the live a
   table with their buttons, forms, totals, hidden parts and formula errors), optionally pressing a
   button, by its path or label, with a row and form values first: what was saved, record by record,
   a refusal's message, effects and what was only reported. It follows a `go` to the screen it ends on.
+
+## Proved by
+
+- `tests/server/appsPractice.integration.js`

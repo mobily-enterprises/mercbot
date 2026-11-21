@@ -6,15 +6,18 @@ import { currentLanguage, shellPreferences } from "./shellPreferences.js";
 import { UNSUPPORTED, checkMicrophone, listen, microphoneProblem, speak, voiceSupported, voicesFor } from "./voice.js";
 import { pageSpeechSynthesis } from "@/browser.js";
 
-// A voice conversation: a call bar under the
+// A voice conversation with the bot of a direct chat (useDictation's canCall): a call bar under the
 // header chip. It connects (checking the microphone), then takes turns: listening until you
 // stop speaking, sending what you said as an ordinary message, thinking while the bot replies,
 // then reading the reply aloud and listening again. Tap the avatar while it speaks to interrupt.
 // Captions show the words; mute pauses listening; the gear picks the voice and its speed.
 const props = defineProps({
+  // The bot the call is with, as the avatars draw it: { id, name, color, shape }.
   bot: { type: Object, required: true },
   messages: { type: Array, required: true }
 });
+// What that bot said, which it reads aloud.
+const saidByBot = (message) => message.kind === "text" && String(message.authorBotId) === String(props.bot.id);
 const emit = defineEmits(["say", "failed", "ended"]);
 
 const phase = ref("connecting");
@@ -85,14 +88,14 @@ function startListening() {
 }
 
 function lastBotId() {
-  const last = [...props.messages].reverse().find((message) => message.role === "bot" && message.kind === "text");
+  const last = [...props.messages].reverse().find(saidByBot);
   return last ? Number(last.id) || 0 : 0;
 }
 
 // The bot's reply arrives as ordinary messages; its text is read aloud.
 watch(() => props.messages.length, () => {
   if (phase.value !== "thinking" || awaitingAfter === null) return;
-  const reply = props.messages.filter((message) => message.role === "bot" && message.kind === "text" && (Number(message.id) || 0) > awaitingAfter);
+  const reply = props.messages.filter((message) => saidByBot(message) && (Number(message.id) || 0) > awaitingAfter);
   if (!reply.length) return;
   awaitingAfter = null;
   const text = reply.map((message) => message.body.text).join("\n\n");

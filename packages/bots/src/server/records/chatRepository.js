@@ -135,8 +135,11 @@ export function createChatRepository({ resources, systemContext, profiles, membe
   /** The first record of `handle` matching `filters` the caller may read, or null. */
   const firstOf = async (handle, filters, options) =>
     (await handle.query({ filters, page: { size: 1 } }, passedOn(options))).records[0] ?? null;
-  /** The home's own context: the writes a chat's change makes to rows the caller may not read (other people's places). */
-  const homeWide = (options, why) => ({ ...passedOn(options), context: systemContext(why).forWorkspace(homeOf(options)) });
+  /**
+   * The home's own context, from a system context given its reason at the call: the writes a chat's change makes to
+   * rows the caller may not read (other people's places).
+   */
+  const homeWide = (options, system) => ({ ...passedOn(options), context: system.forWorkspace(homeOf(options)) });
 
   /** Work on the chats in one transaction: the caller's, or one of its own. */
   const withTransaction = (options, work) => conversations.withTransaction(passedOn(options), work);
@@ -291,7 +294,7 @@ export function createChatRepository({ resources, systemContext, profiles, membe
     const rows = [...new Set(userIds.map(String))].map((userId) => ({ conversationId: String(chatId), userId, addedBy }));
     for (let start = 0; start < rows.length; start += ADD_LIMIT) {
       await chatPeople.createMany(rows.slice(start, start + ADD_LIMIT), {
-        ...homeWide(txOptions, "a chat's people are added by whoever may add them"),
+        ...homeWide(txOptions, systemContext("a chat's people are added by whoever may add them")),
         onConflict: { keys: ["conversationId", "workspaceId", "userId"], action: "ignore" },
         returning: "none"
       });
@@ -355,7 +358,7 @@ export function createChatRepository({ resources, systemContext, profiles, membe
         onboardingStep: chat.onboardingStep ?? null,
         madeBy: maker,
         ...(chat.directBotId ? { directBotId: String(chat.directBotId), directUserId: maker } : {})
-      }, { ...homeWide(txOptions, "a new chat is made before its people are in it"), returning: "id" });
+      }, { ...homeWide(txOptions, systemContext("a new chat is made before its people are in it")), returning: "id" });
       await seatPeople(id, peopleIds, maker, txOptions);
       await seatBots(id, chat.bots ?? [], maker, txOptions);
       return get(id, txOptions);
@@ -433,7 +436,7 @@ export function createChatRepository({ resources, systemContext, profiles, membe
     return conversations.withTransaction(passedOn(options), async (txOptions) => {
       await openForMembers(chatId, txOptions);
       if (!(await isHomeMember(userId, txOptions))) throw new BotsError(404, "Person not found.", { code: "bots_person_not_found" });
-      const before = await isPerson(chatId, userId, homeWide(txOptions, "whether someone is already in a chat"));
+      const before = await isPerson(chatId, userId, homeWide(txOptions, systemContext("whether someone is already in a chat")));
       await seatPeople(chatId, [String(userId)], personOrNull(txOptions), txOptions);
       return !before;
     });
@@ -455,7 +458,7 @@ export function createChatRepository({ resources, systemContext, profiles, membe
   async function removePerson(chatId, userId, options) {
     return conversations.withTransaction(passedOn(options), async (txOptions) => {
       const chat = await lock(chatId, txOptions);
-      const home = homeWide(txOptions, "a person leaves a chat");
+      const home = homeWide(txOptions, systemContext("a person leaves a chat"));
       await chatPeople.deleteWhere({ conversationId: String(chat.id), userId: String(userId) }, { ...home, returning: "none" });
       if (chat.kind !== "private") return false;
       const { records: left } = await chatPeople.query({ filters: { conversationId: String(chat.id) }, fields: ["userId"], page: { size: 1 } }, home);
@@ -520,7 +523,7 @@ export function createChatRepository({ resources, systemContext, profiles, membe
     await chatPeople.patchWhere(
       { conversationId: String(chatId), unread: false, ...(authorUserId ? { notUserId: String(authorUserId) } : {}) },
       { unread: true },
-      { ...homeWide(options, "a new message is unread for the chat's other people"), returning: "none" }
+      { ...homeWide(options, systemContext("a new message is unread for the chat's other people")), returning: "none" }
     );
   }
 
@@ -575,7 +578,7 @@ export function createChatRepository({ resources, systemContext, profiles, membe
 
   /** Someone joined the home: they're in its everyone chat (Public's own joins and Online's invitations call it). */
   async function personJoined(userId, options) {
-    const chat = await everyoneChat(homeWide(options, "a person joins the home's everyone chat"));
+    const chat = await everyoneChat(homeWide(options, systemContext("a person joins the home's everyone chat")));
     if (chat) await seatPeople(chat.id, [String(userId)], null, options);
     return Boolean(chat);
   }
@@ -591,7 +594,7 @@ export function createChatRepository({ resources, systemContext, profiles, membe
    * @returns {Promise<{ left: string[], deleted: Array<{ chatId: string, chatBotIds: string[] }> }>}
    */
   async function personLeft(userId, options) {
-    const home = homeWide(options, "a person leaves the home's chats");
+    const home = homeWide(options, systemContext("a person leaves the home's chats"));
     return conversations.withTransaction(home, async (txOptions) => {
       const places = await chatPeople.queryAll({ filters: { userId: String(userId) }, fields: ["conversationId"] }, txOptions);
       const chatIds = [...new Set(places.map((row) => String(row.conversationId)))];
@@ -626,7 +629,7 @@ export function createChatRepository({ resources, systemContext, profiles, membe
    * @returns {Promise<{ departed: string[], joined: string[], everyoneChatId: string | null }>}
    */
   async function syncMembers(options) {
-    const home = homeWide(options, "the home's people join and leave its chats");
+    const home = homeWide(options, systemContext("the home's people join and leave its chats"));
     const active = (await everyoneIn(home)).map(String);
     const stale = await chatPeople.queryAll({ filters: { notUserIds: active }, fields: ["userId"] }, home);
     const departed = [...new Set(stale.map((row) => String(row.userId)))];

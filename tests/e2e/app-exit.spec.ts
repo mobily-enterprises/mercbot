@@ -1,29 +1,16 @@
-import { expect, test, type Page } from "./harness";
+import { HOME, botNamed, directChat, expect, openShell, shell, test, type Page } from "./harness";
 
-// Leaving an app (D-106), on the Test Preview target: its fixtures give the owner's home a bot called Vera and a
-// published Contacts app pinned in the sidebar, whose list (Ana Ruiz, Ben Okafor, Carla Mendes) opens each person's
-// record and whose tabs are People and Stages. Every place opened in the app adds a history entry, as before; the
-// shell's button first in the app's bar is the app's close, named for where it goes, and one click leaves for the
-// Mercbot place the app was opened from, however many places were opened in it. The tests only move around: they
-// change no records. Screenshots of the close, its name showing, light, dark and at a phone's width, are the output.
+// Leaving an app (D-106), on the Test Preview target: its fixtures give the owner's home the bots Otto and Vera, the
+// person's direct chat with Vera, and a published Contacts app pinned in the sidebar, whose list (Ana Ruiz, Ben Okafor,
+// Carla Mendes) opens each person's record and whose tabs are People and Stages. Every place opened in the app adds a
+// history entry, as before; the shell's button first in the app's bar is the app's close, named for where it goes (a
+// chat by its name: a direct chat's is its bot's), and one click leaves for the Mercbot place the app was opened from,
+// however many places were opened in it. The tests only move around: they change no records. Screenshots of the
+// close, its name showing, light, dark and at a phone's width, are the output.
 // Run with: vibe64-helper playwright --target test-app test tests/e2e/app-exit.spec.ts
-const HOME = "/w/you";
 // Any refused API call from the page, one with no answer, or JSKIT's error dialog, fails the test (harness.ts).
 test.use({ apiGuard: true });
 
-// The home page, past the first-run introduction a new account sees there once.
-async function openHome(page: Page) {
-  await page.goto(HOME);
-  const next = page.getByRole("button", { name: "Next" });
-  const shell = page.locator(".mb-shell");
-  await expect(shell.or(next).first()).toBeVisible();
-  if (await next.isVisible()) {
-    for (let slide = 0; slide < 3; slide += 1) await next.click();
-  }
-  await expect(shell).toBeVisible();
-}
-
-const sidebarBot = (page: Page, name: string) => page.getByRole("navigation", { name: "Bots" }).getByRole("button", { name, exact: true });
 // The app's close: the shell's button in the app's bar, a close named for where it goes.
 const close = (page: Page) => page.getByTestId("jskit-shell-back");
 const position = (page: Page) => page.evaluate(() => Number(window.history.state?.position));
@@ -57,14 +44,16 @@ async function useTheApp(page: Page, count: number, from = 0) {
   }
 }
 
-test("opened from a bot's chat, an app is left for that chat in one click after 16 places, a reload among them", async ({ page }, testInfo) => {
-  await openHome(page);
-  await sidebarBot(page, "Otto").click();
-  await expect(page).toHaveURL(/[?&]bot=/u);
-  await sidebarBot(page, "Vera").click();
-  await expect(page.getByRole("main", { name: "Chat" }).getByRole("textbox", { name: "Message Vera" })).toBeVisible();
+test("opened from a chat, an app is left for that chat in one click after 16 places, a reload among them", async ({ page }, testInfo) => {
+  // Otto's direct chat as well as Vera's, so the chat the app was opened from is the second one opened.
+  await directChat(page, String((await botNamed(page, "Otto")).id));
+  await openShell(page);
+  await shell.chatRow(page, "Otto").click();
+  await expect(page).toHaveURL(/[?&]chat=/u);
+  await shell.chatRow(page, "Vera").click();
+  await expect(shell.chat(page).getByRole("textbox", { name: "Message Vera" })).toBeVisible();
   const chatUrl = page.url();
-  expect(new URL(chatUrl).searchParams.get("bot")).toBeTruthy();
+  expect(new URL(chatUrl).searchParams.get("chat")).toBeTruthy();
   const atChat = await position(page);
 
   await page.locator(".mb-apps-entry__app").filter({ hasText: "Contacts" }).click();
@@ -85,12 +74,12 @@ test("opened from a bot's chat, an app is left for that chat in one click after 
   // Vera's chat, its query and all, in one click.
   await expect(page).toHaveURL(chatUrl);
   await expect(page.locator(".mb-shell")).toBeVisible();
-  await expect(page.getByRole("main", { name: "Chat" }).getByRole("textbox", { name: "Message Vera" })).toBeVisible();
+  await expect(shell.chat(page).getByRole("textbox", { name: "Message Vera" })).toBeVisible();
   // One step: the chat took the place of the entry the click was on.
   expect(await position(page)).toBe(atChat + 17);
 });
 
-test("a deep link to a record is left for the home's chat in one click", async ({ page }) => {
+test("a deep link to a record is left for the home's chats in one click", async ({ page }) => {
   const response = await page.request.get(`/api${HOME}/app-data/tables/contacts/records?size=50`);
   expect(response.ok()).toBe(true);
   const { table, records } = await response.json();
@@ -122,7 +111,7 @@ test("opened from Apps, the close says Back to Apps, Ctrl+[ leaves the same way,
   const kept = { color: "#1C1C1C", mode: "light", font: "system", corners: "soft", density: "comfortable", logo: null, ...(before || {}) };
   await look({ ...kept, color: "#1E86FC", mode: "system" });
   try {
-    await openHome(page);
+    await openShell(page);
     await page.locator(".mb-apps-entry__link").click();
     await expect(page).toHaveURL(new RegExp(`${HOME}/apps$`, "u"));
     await page.locator(".apps-home__tile").filter({ has: page.getByText("Contacts", { exact: true }) }).click();

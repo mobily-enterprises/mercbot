@@ -1,33 +1,27 @@
-import knexLib from "knex";
-import { expect, test, testDatabaseName, type Locator, type Page, type TestInfo } from "./harness";
+import type { Locator, TestInfo } from "@playwright/test";
+import { connectTestDb, expect, homeApi, openShell, shell, test, type Page } from "./harness";
 
-// New home (D-36, D-109) as a person meets it, on the Test Preview target. Create a home opens New home, which asks only
-// the home's name: no choice of who it's for or of how bots are shared, no teams, no cards, nothing that says "A team"
-// (a team is only ever a set of bots, D-105). Create home makes it, with the default for new bots it always started
-// with (Mixed), and goes there, and it starts with just Mercbot, with no section. Screenshots light, dark and phone. The
-// test deletes the home it makes.
+// New home (D-36, D-109, D-112) as a person meets it, on the Test Preview target. Create a home opens New home, which
+// asks only the home's name: no choice of who it's for or of how bots are shared, no teams, no cards, nothing that says
+// "A team" (a team is only ever a set of bots, D-105). Create home makes it and goes there, and it starts with just
+// Mercbot and one chat, the person's welcome chat with it (D4): no other bot, and no chat with everyone until the person
+// says other people will use it. Screenshots light, dark and phone. The test deletes the home it makes.
 // Run with: vibe64-helper playwright --target test-app test tests/e2e/new-home.spec.ts
-const HOME = "/w/you";
 // Any refused API call from the page, one with no answer, or JSKIT's error dialog, fails the test (harness.ts).
 test.use({ apiGuard: true });
 
-// The shell, past the introduction a person sees in a home where they have no bots yet.
+// The shell, past the introduction a person sees in their first home (a second home skips it, D-36).
 async function pastIntro(page: Page) {
   const next = page.getByRole("button", { name: "Next" });
-  const shell = page.locator(".mb-shell");
-  await expect(shell.or(next).first()).toBeVisible();
+  const shown = page.locator(".mb-shell");
+  await expect(shown.or(next).first()).toBeVisible({ timeout: 15_000 });
   if (await next.isVisible()) {
     for (let slide = 0; slide < 3; slide += 1) await next.click();
   }
-  await expect(shell).toBeVisible();
+  await expect(shown).toBeVisible();
 }
 
-const sidebar = (page: Page) => page.getByRole("navigation", { name: "Bots" });
 const newHomeDialog = (page: Page) => page.getByRole("dialog", { name: "New home" });
-const connect = () => knexLib({
-  client: "pg",
-  connection: { host: process.env.DB_HOST, port: Number(process.env.DB_PORT) || 5432, user: process.env.DB_USER, password: process.env.DB_PASSWORD, database: testDatabaseName() }
-});
 
 /**
  * Light, dark (transitions off), then light at phone width, 390 by 844, with `ready` waited for there; `atPhone` then
@@ -49,17 +43,16 @@ async function shots(page: Page, testInfo: TestInfo, name: string, ready?: Locat
 
 /** Create a home, from the home menu: New home. */
 async function openNewHome(page: Page) {
-  await page.goto(HOME);
-  await pastIntro(page);
-  await sidebar(page).getByRole("button", { name: /^Home: .+\. Switch home$/u }).click();
+  await openShell(page);
+  await shell.sidebar(page).getByRole("button", { name: /^Home: .+\. Switch home$/u }).click();
   await page.getByText("Create a home").click();
   const dialog = newHomeDialog(page);
   await expect(dialog.getByRole("heading", { name: "New home" })).toBeVisible();
   return dialog;
 }
 
-/** Deletes the home called by `slug`, if it was made. */
-async function removeHome(knex: ReturnType<typeof connect>, slug: string) {
+/** Deletes the home called by `slug`, if it was made; its chats go with it (ON DELETE CASCADE). */
+async function removeHome(knex: ReturnType<typeof connectTestDb>, slug: string) {
   const home = slug ? await knex("workspaces").where({ slug }).first() : null;
   if (!home) return;
   await knex("bots").where({ workspace_id: home.id }).del();
@@ -68,8 +61,8 @@ async function removeHome(knex: ReturnType<typeof connect>, slug: string) {
   await knex("workspaces").where({ id: home.id }).del();
 }
 
-test("New home asks only the name, and the home starts with just Mercbot", async ({ page }, testInfo) => {
-  const knex = connect();
+test("New home asks only the name, and the home starts with just Mercbot and the welcome chat with it", async ({ page }, testInfo) => {
+  const knex = connectTestDb();
   const homeName = `Plain ${Date.now().toString(36)}`;
   let slug = "";
   try {
@@ -89,18 +82,26 @@ test("New home asks only the name, and the home starts with just Mercbot", async
     await expect(create).toBeEnabled();
     await shots(page, testInfo, "new-home", page.locator(".mb-ctemp--phone"));
 
-    const chosen = page.waitForResponse((response) => response.request().method() === "PATCH" && new URL(response.url()).pathname.endsWith("/home-settings"));
+    const made = page.waitForResponse((response) => response.request().method() === "POST" && new URL(response.url()).pathname === "/api/workspaces");
     await create.click();
-    const answer = await chosen;
-    slug = decodeURIComponent(new URL(answer.url()).pathname.split("/")[3]);
-    expect((await answer.json()).newBotSharing, "the default new homes always started with").toBe("mixed");
+    const answer = await made;
+    expect(answer.ok(), await answer.text()).toBe(true);
+    slug = String((await answer.json()).data.attributes.slug);
     await expect(page).toHaveURL(new RegExp(`/w/${slug}(?:[?#]|$)`, "u"), { timeout: 15_000 });
     await pastIntro(page);
-    await expect(sidebar(page).getByRole("button", { name: `Home: ${homeName}. Switch home` })).toBeVisible();
+    await expect(shell.sidebar(page).getByRole("button", { name: `Home: ${homeName}. Switch home` })).toBeVisible();
     await expect(newHomeDialog(page)).toHaveCount(0);
+
+    // Just Mercbot, the home's main bot, and one chat: the person's welcome chat with it, open, its welcome under way.
     const home = await knex("workspaces").where({ slug }).first();
-    await expect.poll(async () => (await knex("bots").where({ workspace_id: home.id })).map((row) => row.is_main)).toEqual([true]);
-    expect(await knex("bot_sections").where({ workspace_id: home.id }), "no team, no section").toEqual([]);
+    await expect.poll(async () => (await knex("bots").where({ workspace_id: home.id })).map((row) => [row.name, row.is_main])).toEqual([["Mercbot", true]]);
+    const [main] = await knex("bots").where({ workspace_id: home.id });
+    const { chats } = await (await homeApi(page, `/w/${slug}`)).get("/chats?hidden=1&archived=1");
+    expect(chats.map((chat: { directBotId: string | null, everyone: boolean }) => [String(chat.directBotId), chat.everyone]), "no chat with everyone yet")
+      .toEqual([[String(main.id), false]]);
+    expect(chats[0].onboardingStep, "its welcome is under way").toBeTruthy();
+    await expect(shell.chatRow(page, "Mercbot")).toBeVisible();
+    await expect(shell.chat(page)).toHaveAttribute("aria-label", "Mercbot");
   } finally {
     if (page.url() !== "about:blank") await page.goto("about:blank");
     await removeHome(knex, slug);
