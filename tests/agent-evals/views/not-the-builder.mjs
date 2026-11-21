@@ -6,10 +6,10 @@ export async function setup(ctx) {
   const made = await haveView(ctx, "Pipeline", PIPELINE);
   const theBuilder = await anotherBot(ctx, "Bea");
   await ctx.apps.apps.setBuilder(ctx.actor, String(theBuilder.id), ctx.options);
-  const app = await ctx.apps.apps.createApp(ctx.workspaceId, ctx.actor, { name: "Sales" });
-  const saved = await ctx.apps.apps.saveDraft(ctx.workspaceId, ctx.actor, app.slug, { home: "home", screens: { home: { content: [{ type: "view", view: made.view.key }] } } });
+  const app = await ctx.apps.apps.createApp(ctx.actor, { name: "Sales" }, ctx.options);
+  const saved = await ctx.apps.apps.saveDraft(ctx.actor, app.slug, { home: "home", screens: { home: { content: [{ type: "view", view: made.view.key }] } } }, "", ctx.options);
   if (saved.errors.length) throw new Error(JSON.stringify(saved.errors));
-  await ctx.apps.apps.publish(ctx.workspaceId, ctx.actor, app.slug);
+  await ctx.apps.apps.publish(ctx.actor, app.slug, { canManage: true }, ctx.options);
 }
 export const prompt = "Change my Pipeline view's chart to a pie.";
 export async function judge(ctx) {

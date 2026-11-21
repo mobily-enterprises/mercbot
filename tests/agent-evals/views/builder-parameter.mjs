@@ -1,12 +1,12 @@
 import { fail, pass, viewsOf, viewParts } from "./helpers.mjs";
 // The hard one: a view that takes a parameter, on each record's own screen.
 export async function setup(ctx) {
-  const context = { workspaceId: ctx.workspaceId, actor: ctx.actor, via: { kind: "data" } };
-  const customers = await ctx.apps.registry.createTable(ctx.workspaceId, ctx.actor, { key: "customers", fields: [{ key: "name", type: "text", required: true }] });
-  const orders = await ctx.apps.registry.createTable(ctx.workspaceId, ctx.actor, {
+  const context = { options: ctx.options, actor: ctx.actor, via: { kind: "data" } };
+  const customers = await ctx.apps.registry.createTable(ctx.actor, { key: "customers", fields: [{ key: "name", type: "text", required: true }] }, ctx.options);
+  const orders = await ctx.apps.registry.createTable(ctx.actor, {
     key: "orders",
     fields: [{ key: "item", type: "text", required: true }, { key: "customer", type: "link", target: "customers" }, { key: "total", type: "money" }]
-  });
+  }, ctx.options);
   const id = (table, key) => table.fields.find((field) => field.key === key).id;
   ctx.ana = await ctx.apps.gate.create(context, "customers", { [id(customers, "name")]: "Ana" });
   const ben = await ctx.apps.gate.create(context, "customers", { [id(customers, "name")]: "Ben" });
@@ -32,7 +32,7 @@ export async function judge(ctx) {
   const queries = Object.entries(view.body.data).filter(([, entry]) => entry.from === "orders");
   if (!queries.length) return fail("the view doesn't read orders");
   // A totals query often comes first, so check whichever query answers with the list of orders.
-  const context = { workspaceId: ctx.workspaceId, actor: ctx.actor, via: { kind: "data" } };
+  const context = { options: ctx.options, actor: ctx.actor, via: { kind: "data" } };
   let items = null;
   for (const [query] of queries) {
     const answer = await ctx.apps.runtime.query(context, { slug: view.row.slug, screen: "main", query, params: { [param]: String(ctx.ana.id) } });
