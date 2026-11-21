@@ -28,7 +28,10 @@ async function setup(context) {
   await knex("workspace_memberships").insert({ workspace_id: elsewhere.id, user_id: sam.id, role_sid: "owner", status: "active" });
   const bot = await testBot(knex, pat, { name: `Pantry ${stamp}`, library_template: "weekly-meal-planner", additions: "Plan the week's meals." });
   const scratch = await testBot(knex, pat, { name: `Scratch ${stamp}`, library_template: "general" });
+  // The chats a test seeds besides the bots' direct ones, deleted before the connection closes.
+  const chats = [];
   context.after(async () => {
+    await knex("conversations").whereIn("id", chats).del();
     await knex("bots").whereIn("id", [bot.id, scratch.id]).del();
     await knex("workspace_memberships").whereIn("user_id", [kim.id, ada.id, sam.id]).del();
     await knex("workspaces").where({ id: elsewhere.id }).del();
@@ -40,7 +43,7 @@ async function setup(context) {
   const as = (userId, { home = homeId, manages = false } = {}) =>
     memberOptions({ userId, homeId: home, role: manages ? "admin" : "member", permissions: manages ? ["workspace.settings.update"] : [] });
   const stored = async (botId) => knex("bots").where({ id: botId }).first("additions", "library_template", "home_template_id");
-  return { knex, records, bots, as, stored, homeId, elsewhere: elsewhere.id, pat, kim: kim.id, ada: ada.id, sam: sam.id, bot, scratch };
+  return { knex, records, bots, as, stored, homeId, elsewhere: elsewhere.id, pat, kim: kim.id, ada: ada.id, sam: sam.id, bot, scratch, chats };
 }
 
 test("Details: its maker and the home's admins change a bot's additions; another member and another home can't", async (context) => {
@@ -136,10 +139,10 @@ test("asked in its chat, a bot changes its additions only once the card is appro
 });
 
 test("in a chat of several people, a member who may not change its additions gets a polite no, on the card and in the chat", async (context) => {
-  const { knex, records, bots, as, stored, homeId, pat, kim, ada, bot } = await setup(context);
+  const { knex, records, bots, as, stored, homeId, pat, kim, ada, bot, chats } = await setup(context);
   const { id: chatId, chatBotIds } = await seedChat(knex, { homeId, title: "Kitchen", people: [pat, kim, ada], bots: [bot.id] });
   const chatBotId = chatBotIds.get(String(bot.id));
-  context.after(() => knex("conversations").where({ id: chatId }).del());
+  chats.push(chatId);
 
   // Kim asks in the chat: the bot is told to say no, and leaves no card.
   const { tools, after } = buildTools(turnDoubles({

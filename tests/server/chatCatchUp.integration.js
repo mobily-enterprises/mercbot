@@ -5,7 +5,7 @@ import { plansDuring, queriesDuring, statementsDuring } from "../support/queryCo
 import { createBotsService } from "../../packages/bots/src/server/botsService.js";
 import { testBot, testHome } from "./testHome.js";
 import { serviceDoubles } from "../support/botDoubles.mjs";
-import { memberOptions, startBotRecords } from "../support/botRecords.mjs";
+import { memberOptions, startBotParts } from "../support/botRecords.mjs";
 import { seedChat, seedMessage, seedMessages } from "../support/chatFixtures.mjs";
 
 // Open pages catch up on a chat instead of reading it again (D-15, D-112), against the disposable test
@@ -27,9 +27,11 @@ async function setup(context) {
   const homeId = await testHome(knex, owner);
   const tag = Date.now().toString(36);
   const made = [];
+  // The chats a test seeds besides the bots' direct ones, deleted before the connection closes.
+  const chats = [];
   const service = createBotsService(serviceDoubles({
     knex,
-    records: await startBotRecords(knex, context),
+    ...await startBotParts(knex, context),
     approvals: { decide: async () => "allow" },
     reply: async (bot) => ({ text: `${bot.name} here.`, transcript: [] })
   }));
@@ -39,12 +41,13 @@ async function setup(context) {
     return row;
   };
   context.after(async () => {
+    await knex("conversations").whereIn("id", chats).del();
     await knex("bots").whereIn("id", made).del();
     await knex.destroy();
   });
   /** The person's request in the home, as the bots routes make its options. */
   const as = (userId) => memberOptions({ userId, homeId });
-  return { knex, homeId, owner: String(owner), as, service, bot, made, tag };
+  return { knex, homeId, owner: String(owner), as, service, bot, chats, tag };
 }
 
 // Earlier messages, written straight to the chat, until it holds `total`: the bot's and the person's in turn.
@@ -230,11 +233,11 @@ test("one chat's row and the chat list cost the same at 10 messages as at 200", 
 });
 
 test("a reply in a chat of two bots costs the same after 10 earlier messages as after 200", async (context) => {
-  const { knex, homeId, as, owner, service, bot } = await setup(context);
+  const { knex, homeId, as, owner, service, bot, chats } = await setup(context);
   const scout = await bot("Scout");
   const otto = await bot("Otto");
   const { id: chatId } = await seedChat(knex, { homeId, title: "Let's plan", people: [owner], bots: [scout.id, otto.id] });
-  context.after(() => knex("conversations").where({ id: chatId }).del());
+  chats.push(chatId);
   const measured = async (total) => {
     await fill(knex, { botId: scout.id, chatId, personId: owner }, total);
     const sent = await service.chat.sendMessage(chatId, { text: `Plans at ${total}?`, clientId: `plans-${total}-${Date.now()}` }, as(owner));
