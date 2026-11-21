@@ -1,6 +1,7 @@
 import { computed, ref, watch } from "vue";
 
-const DRAFTS_KEY = "mercbot.drafts";
+// Keyed by chat (D-112).
+const DRAFTS_KEY = "mercbot.chatDrafts";
 
 function readDrafts() {
   try {
@@ -10,12 +11,21 @@ function readDrafts() {
   }
 }
 
+/** Leaves a draft in a chat from outside the shell (Ask Builder, a view's Ask), for when the shell opens on it. */
+export function saveDraft(chatId, line) {
+  try {
+    window.localStorage.setItem(DRAFTS_KEY, JSON.stringify({ ...readDrafts(), [chatId]: line }));
+  } catch {
+    // Without storage the chat opens empty.
+  }
+}
+
 /**
- * Unsent messages, one per bot, kept on this device. `currentBotId` names the open bot, whose
- * draft `currentDraft` reads and writes.
- * @param {{ currentBotId: () => string }} options
+ * Unsent messages, one per chat, kept on this device. `currentChatId` names the open chat, whose draft `currentDraft`
+ * reads and writes.
+ * @param {{ currentChatId: () => string }} options
  */
-export function useDrafts({ currentBotId }) {
+export function useDrafts({ currentChatId }) {
   const drafts = ref(readDrafts());
 
   watch(drafts, (value) => {
@@ -27,11 +37,11 @@ export function useDrafts({ currentBotId }) {
   }, { deep: true });
 
   const currentDraft = computed({
-    get: () => drafts.value[currentBotId()] || "",
+    get: () => drafts.value[currentChatId()] || "",
     set: (value) => {
       const next = { ...drafts.value };
-      if (value) next[currentBotId()] = value;
-      else delete next[currentBotId()];
+      if (value) next[currentChatId()] = value;
+      else delete next[currentChatId()];
       drafts.value = next;
     }
   });

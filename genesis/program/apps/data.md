@@ -21,13 +21,6 @@ home, with every change audited and nothing ever deleted (D-35).
 - `src/components/apps/linkPickers.js`
 - `src/components/apps/AppsActivity.vue`
 - `src/components/apps/sheets.js`
-- `tests/server/appsRegistry.integration.js`
-- `tests/server/appsDataGate.integration.js`
-- `tests/server/appsImport.integration.js`
-- `tests/server/appsWhere.test.js`
-- `tests/server/appsCalculated.test.js`
-- `tests/server/appsCalculated.integration.js`
-- `tests/client/appsLinkPickers.vitest.js`
 
 ## Public contract
 
@@ -91,3 +84,13 @@ home, with every change audited and nothing ever deleted (D-35).
   reads `ix_audit_events_actor` (home, actor id, id desc): its list jumps from one actor id to the
   next (a recursive loose index scan), each with their latest entry's type and name, and one
   actor's page reads only their entries, so neither grows with the home's history.
+
+## Proved by
+
+- `tests/server/appsRegistry.integration.js`
+- `tests/server/appsDataGate.integration.js`
+- `tests/server/appsImport.integration.js`
+- `tests/server/appsWhere.test.js`
+- `tests/server/appsCalculated.test.js`
+- `tests/server/appsCalculated.integration.js`
+- `tests/client/appsLinkPickers.vitest.js`

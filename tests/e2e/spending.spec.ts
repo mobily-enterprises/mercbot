@@ -1,25 +1,19 @@
 import { readFile } from "node:fs/promises";
-import knexLib from "knex";
-import { expect, test, testDatabaseName, type Page } from "./harness";
+import { connectTestDb, directChat, expect, homeApi, openShell, seedChat, shell, test, type Page } from "./harness";
 
 // Spending (D-73, D-76) on the Test Preview target: what the home's work cost at its AI providers, by kind, bot and
 // person, for any period and as a CSV; no bot shows a price beside it. Nothing is held and no work is ever refused: a
 // bot's reply is recorded with its provider's cost. The home is this file's own, a new home of the copy's one person,
 // so no other spec's use reaches its figures. The first two tests add their use straight to its daily and monthly
 // totals, today (UTC), as recording does (the stand-in model's calls cost a small fraction of a cent), the person's and
-// some for nobody in particular, and take it away again when they end. A member's own use is for a copy built on
-// Mercbot that has members to test.
+// some for nobody in particular, and take it away again when they end; their bot has its direct chat with the person
+// (D-112), as a bot a person made has. A member's own use is for a copy built on Mercbot that has members to test.
 // Run with: vibe64-helper playwright --target test-app test tests/e2e/spending.spec.ts
 // The test target's AI is the stand-in model (tools/standInModel.mjs): a reply says so in the chat.
 const STAND_IN_REPLY = /runs on a stand-in model, which only plays the bot templates/u;
 test.describe.configure({ mode: "serial" });
 // Any refused API call from the page, or JSKIT's error dialog, fails the test (harness.ts).
 test.use({ apiGuard: true });
-
-const database = () => knexLib({
-  client: "pg",
-  connection: { host: process.env.DB_HOST, port: Number(process.env.DB_PORT) || 5432, user: process.env.DB_USER, password: process.env.DB_PASSWORD, database: testDatabaseName() }
-});
 
 // The file's home's address, once a test has made it.
 let ownHomeAddress = "";
@@ -45,12 +39,13 @@ type Use = [who: "person" | "nobody", kind: string, amounts: Record<string, numb
  * `monthsBack` more months back (monthly totals only). Answers the bot and how to take it all away again.
  */
 async function writeUse(address: string, botName: string, uses: Use[], { monthsBack = [] as Array<{ months: number, uses: Use[] }> } = {}) {
-  const knex = database();
+  const knex = connectTestDb();
   const home = await knex("workspaces").where({ slug: address.slice("/w/".length) }).first();
-  const [bot] = await knex("bots").insert({ user_id: home.owner_user_id, workspace_id: home.id, name: botName, color: "#5C6BC0", library_template: "general" }).returning("*");
-  // The person's own chat with it, past the short introduction a bot starts on its first look: that is an AI call, made
-  // a moment after the chat opens, which would add to the figures these tests read exactly.
-  await knex("bot_conversations").insert({ workspace_id: home.id, bot_id: bot.id, user_id: home.owner_user_id, onboarding_step: null });
+  const [bot] = await knex("bots").insert({ made_by: home.owner_user_id, workspace_id: home.id, name: botName, color: "#5C6BC0", library_template: "general" }).returning("*");
+  // The person's direct chat with it, past the short introduction a bot starts on its first look: that is an AI call,
+  // made a moment after the chat opens, which would add to the figures these tests read exactly. Deleting the bot
+  // deletes its chat.
+  await seedChat(knex, { homeId: home.id, direct: { userId: home.owner_user_id, botId: bot.id }, onboardingStep: null });
   const undo: Array<() => Promise<unknown>> = [() => knex("bots").where({ id: bot.id }).del()];
   async function add(table: string, key: Record<string, unknown>, amounts: Record<string, number>) {
     await knex(table).insert({ ...key, bot_name: bot.name, ...amounts });
@@ -87,17 +82,7 @@ const OTTO_USE: Use[] = [
 ];
 
 // A home page, past the first-run introduction a new account sees there once.
-async function openHome(page: Page, path: string) {
-  await page.goto(path);
-  const next = page.getByRole("button", { name: "Next" });
-  const shell = page.locator(".mb-shell");
-  await expect(shell.or(next).first()).toBeVisible();
-  if (await next.isVisible()) {
-    for (let slide = 0; slide < 3; slide += 1) await next.click();
-  }
-  await expect(shell).toBeVisible();
-}
-
+const openHome = (page: Page, home: string) => openShell(page, "", home);
 
 /** Settings → Spending, from the search palette. */
 async function openSpending(page: Page) {
@@ -111,8 +96,6 @@ async function openSpending(page: Page) {
   return settings;
 }
 
-const botButton = (page: Page, name: string) => page.getByRole("navigation", { name: "Bots" })
-  .getByRole("button", { name, exact: true }).first();
 // A figure of money as the page writes one: "$1.88", "<$0.01".
 const MONEY = /\$\d/u;
 const fitsTheWidth = (page: Page) => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1);
@@ -129,24 +112,29 @@ test("the person sees what the home's work cost by kind, bot and person, and no 
     // The chart drawn at once, so the screenshots show its bars at their height rather than growing.
     await page.emulateMedia({ reducedMotion: "reduce" });
     await openHome(page, use.home);
-    // No bot shows what it cost (the owner, 2026-11-20: "unnecessary and inappropriate to see"): nothing beside Otto's
-    // name in the sidebar with the pointer over it or the keyboard on it, in its chat or Details panel, or in search.
-    // What Otto cost is in Settings → Spending's totals by bot, below.
-    const bots = page.getByRole("navigation", { name: "Bots" });
-    const otto = botButton(page, "Otto");
+    // No bot shows what it cost (the owner, 2026-11-20: "unnecessary and inappropriate to see"): nothing beside its chat
+    // in the sidebar with the pointer over it or the keyboard on it, on Team where the bots are (D3), in its chat or on
+    // its card, or in search. What Otto cost is in Settings → Spending's totals by bot, below.
+    const sidebar = shell.sidebar(page);
+    const otto = shell.chatRow(page, "Otto");
     await otto.hover();
     await page.screenshot({ path: testInfo.outputPath("sidebar-hover.png") });
-    // Onto Otto with the keyboard, from whatever comes before it.
+    // Onto Otto's chat with the keyboard, from whatever comes before it.
     await otto.focus();
     await page.keyboard.press("Shift+Tab");
     await page.keyboard.press("Tab");
     await expect(otto).toBeFocused();
-    await expect(bots).not.toContainText(MONEY);
-    await expect(bots.locator('[title*="this month"], [title*="all time"]')).toHaveCount(0);
+    await expect(sidebar).not.toContainText(MONEY);
+    await expect(sidebar.locator('[title*="this month"], [title*="all time"]')).toHaveCount(0);
+    await sidebar.getByRole("button", { name: "Team", exact: true }).click();
+    const team = shell.team(page);
+    await expect(team.getByRole("button", { name: "Message Otto" })).toBeVisible();
+    await expect(team).not.toContainText(MONEY);
+    await expect(team.locator('[title*="this month"], [title*="all time"]')).toHaveCount(0);
     await otto.click();
-    const chat = page.getByRole("main", { name: "Chat" });
+    const chat = shell.chat(page);
     await chat.getByRole("button", { name: "Otto details" }).click();
-    const details = page.getByRole("complementary", { name: "Details" });
+    const details = shell.details(page, "Otto's card");
     await expect(details).toBeVisible();
     await expect(chat).not.toContainText(MONEY);
     await expect(details).not.toContainText(MONEY);
@@ -296,22 +284,21 @@ test("the person reads what was spent by day, week and range, and downloads it a
 test("a bot's reply is recorded with its provider's cost, and nothing is held or refused", async ({ page }) => {
   const home = await ownHome(page);
   await openHome(page, home);
-  const { csrfToken } = await (await page.request.get("/api/session")).json();
-  const headers = { "csrf-token": csrfToken };
+  const api = await homeApi(page, home);
   const name = `Counted ${Date.now().toString(36)}`;
-  const created = await page.request.post(`/api${home}/bots`, { headers, data: { name, color: "#1E86FC" } });
-  expect(created.ok()).toBe(true);
-  const { bot } = await created.json();
-  const knex = database();
+  const { bot } = await api.post("/bots", { name, color: "#1E86FC" });
+  const knex = connectTestDb();
   try {
-    await knex("bot_conversations").where({ bot_id: bot.id }).whereNotNull("user_id").update({ onboarding_step: null });
-    const sent = await page.request.post(`/api${home}/bots/${bot.id}/messages`, { headers, data: { text: "What can you do?" } });
-    expect(sent.ok()).toBe(true);
-    const [question] = (await sent.json()).messages;
-    const replied = await page.request.post(`/api${home}/bots/${bot.id}/reply`, { headers, data: { afterMessageId: question.id, timeZone: "UTC", language: "en" } });
-    expect(replied.ok(), await replied.text()).toBe(true);
-    const { messages } = await (await page.request.get(`/api${home}/bots/${bot.id}/messages`)).json();
-    expect(messages.some((message: { body?: { text?: string } }) => STAND_IN_REPLY.test(message.body?.text || "")), "the bot replied").toBe(true);
+    // The person's direct chat with it, past its first greeting, which is an AI call of its own.
+    const direct = await directChat(page, String(bot.id), home);
+    await knex("conversations").where({ id: direct.id }).update({ onboarding_step: null });
+    const sent = await api.post(`/chats/${direct.id}/messages`, { text: "What can you do?", clientId: `e2e-${Date.now()}` });
+    // The person's message comes last in the answer, after any earlier ones it changed (A's sendMessage).
+    const question = sent.messages.at(-1);
+    await api.post(`/chats/${direct.id}/reply`, { afterMessageId: question.id, timeZone: "UTC", language: "en" });
+    const { messages } = await api.get(`/chats/${direct.id}/messages`);
+    const replies = messages.filter((message: { authorBotId?: string | null }) => String(message.authorBotId) === String(bot.id));
+    expect(replies.some((message: { body?: { text?: string } }) => STAND_IN_REPLY.test(message.body?.text || "")), "the bot replied").toBe(true);
 
     // Its AI calls, each with what it cost at the provider's list rates, in the day's totals as the reply ends.
     const today = new Date().toISOString().slice(0, 10);
@@ -326,6 +313,6 @@ test("a bot's reply is recorded with its provider's cost, and nothing is held or
   } finally {
     await knex.destroy();
     await page.goto("about:blank");
-    await page.request.delete(`/api${home}/bots/${bot.id}`, { headers });
+    await api.answer("DELETE", `/bots/${bot.id}`);
   }
 });

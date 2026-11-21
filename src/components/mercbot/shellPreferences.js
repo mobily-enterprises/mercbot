@@ -1,7 +1,7 @@
 import { reactive, watch } from "vue";
 
 // Per-device shell choices that survive reloads: the sidebar, the details panel, the accent, the microphone, the
-// language, the time zone and the voice.
+// language, the time zone, the voice, and whether the first-time notice about public chats was dismissed here.
 const STORAGE_KEY = "mercbot.shell";
 const DEFAULTS = Object.freeze({
   compact: false,
@@ -19,7 +19,8 @@ const DEFAULTS = Object.freeze({
   timeZone: "auto",
   // Voice conversation choices from the call bar's settings.
   voiceName: "",
-  voiceRate: 1
+  voiceRate: 1,
+  publicNoticeSeen: false
 });
 
 function readStored() {
@@ -48,7 +49,8 @@ export const shellPreferences = reactive({
   language: typeof stored.language === "string" && stored.language ? stored.language : DEFAULTS.language,
   timeZone: typeof stored.timeZone === "string" && stored.timeZone ? stored.timeZone : DEFAULTS.timeZone,
   voiceName: typeof stored.voiceName === "string" ? stored.voiceName : DEFAULTS.voiceName,
-  voiceRate: [0.8, 1, 1.25, 1.5].includes(stored.voiceRate) ? stored.voiceRate : DEFAULTS.voiceRate
+  voiceRate: [0.8, 1, 1.25, 1.5].includes(stored.voiceRate) ? stored.voiceRate : DEFAULTS.voiceRate,
+  publicNoticeSeen: stored.publicNoticeSeen === true
 });
 
 // The language and time zone in use: the chosen ones, or the browser's.

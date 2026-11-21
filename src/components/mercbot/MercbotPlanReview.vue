@@ -14,8 +14,8 @@ import { firstQuestions } from "./useBotPlan.js";
 // with; then the home's own templates; then new bots, written for this home, each with its job, why and the first
 // questions it asks, Read it all and Edit (the draft screen, MercbotTemplateDraft.vue) once its template is written,
 // "Writing its template…" until then, and "Couldn't write this one" with Try again and Remove. A library bot already
-// in the home is shown unticked, and the home's bots that already do a job are listed with why. The section the bots
-// go in is named here; "Not quite right?" plans again with what to change; Add N bots makes the bots ticked.
+// in the home is shown unticked, and the home's bots that already do a job are listed with why. "Not quite right?"
+// plans again with what to change; Add N bots adds the bots ticked to the team.
 const props = defineProps({
   // The plan's state (useBotPlan.js), made by Add bots.
   planner: { type: Object, required: true },
@@ -24,7 +24,7 @@ const props = defineProps({
   homeTags: { type: Array, default: () => [] }
 });
 const emit = defineEmits(["add", "back"]);
-const { describe, plan, bots, drafts, unticked, section, adding, ready, batch, asking, failure, suggest, write, tick, useDraft } = props.planner;
+const { describe, plan, bots, drafts, unticked, adding, ready, batch, asking, failure, suggest, write, tick, useDraft } = props.planner;
 
 const GROUPS = [
   { id: "library", name: "From Mercbot's library", has: (bot) => Boolean(bot.library) },
@@ -200,11 +200,6 @@ function add() {
         Like every bot, these ask before anything leaves the chat.
       </p>
 
-      <label class="mb-plan__section">
-        <span>Section in your sidebar</span>
-        <input v-model="section" maxlength="40" :disabled="busy">
-      </label>
-
       <form class="mb-plan__change" @submit.prevent="change">
         <label for="mb-plan-change">Not quite right?</label>
         <input id="mb-plan-change" v-model="changeWords" maxlength="600" placeholder="Tell Mercbot what to change…" :disabled="asking || busy">
@@ -365,7 +360,6 @@ function add() {
   cursor: pointer;
 }
 
-.mb-plan__section,
 .mb-plan__change {
   display: flex;
   flex-wrap: wrap;
@@ -375,7 +369,6 @@ function add() {
   font-size: 13px;
 }
 
-.mb-plan__section input,
 .mb-plan__change input {
   flex: 1 1 200px;
   min-width: 0;

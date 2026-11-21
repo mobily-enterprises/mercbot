@@ -1589,7 +1589,9 @@ Decided the same day:
   `instructionsFor` (`botAgent.js`, with `skills.js` and `packages/bots/skills`, whose list the rules
   include); the agent loop (`@jskit-ai/agent` and `@jskit-ai/agent-runtime`, their `src` as
   installed); the setup tools (question cards, memories, skills, routines: `cardTools.js`,
-  `memoryTools.js`, `routineTools.js`, `routineSchedule.js`); approvals, drafts and sending
+  `memoryTools.js`, `routineTools.js`, `routineSchedule.js`; *since D-112, question cards, a template's notes document
+  in the chat's folder, skills and routines: `cardTools.js`, `skillTools.js`, `routineTools.js`, `routineSchedule.js`,
+  memories and `memoryTools.js` being gone*); approvals, drafts and sending
   (`approvals.js`, `botActions.js`, `botTools.js`, whose `attempt` every action passes, `draftTools.js`,
   `mailTools.js`); and the chat kind's provider and model settings (`providers/index.js`, Together's
   layer, `model.js`). `behaviourFingerprint()` hashes every file they name, by its path in the list
@@ -2393,6 +2395,10 @@ review's 3.2.2).
 
 ## D-98 — Every bot is a template plus its own additions; a template's tag replaces the label (2026-11-20)
 
+*Amended by D-112 (2026-11-22): what a bot learns that lasts is no longer a memory or a home notebook note, which are
+gone, but its skills, its chat's summary, the corrected-twice offer and, for a template, its "<job> notes" document in
+the chat's folder (/files/chat); a changed template's line and greeting go to the direct chat with the bot of the person who changed it.*
+
 *Accepted by the owner on 20 November ("yes to all"). It supersedes D-43's copy of a template into a
 bot (the gallery itself, its curation, its preview before adding and its Tested badge stay), D-95's single
 instructions text (its rules for who changes them and for the card stay, for the additions), and the free bot label
@@ -3100,8 +3106,9 @@ steps, a plan card in chat and a `propose_bots` tool on every bot.
   the plan's tag whatever the answer says, and its instructions must say "Ask before anything leaves this chat." or
   "Nothing leaves this chat without the person's yes", the library's own rule (`templateChecks.test.js`); otherwise it
   is asked once more, then refused. Every draft's system prompt now carries how Mercbot's own templates are written: one
-  job, numbered setup steps of one question each, a question card for a choice, answers saved as memories, routines made
-  paused and started on a yes, and that sentence.
+  job, numbered setup steps of one question each, a question card for a choice, answers saved as memories (*since
+  D-112, in a "<job> notes" document in the chat's folder, /files/chat, which the bot reads before every piece of
+  work*), routines made paused and started on a yes, and that sentence.
 - **Suggested bots** (`MercbotPlanReview.vue`, `useBotPlan.js`) shows "For: …" and the summary, then **From Mercbot's
   library** (each with why, **View** for everything it's told, and its app for an owner or admin, ticked), **Your home's
   templates** and **New, written for this home** (each with its job, why, **Asks first**: its Setup interview's first

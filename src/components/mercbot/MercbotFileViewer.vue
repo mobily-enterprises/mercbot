@@ -2,18 +2,17 @@
 import { onMounted, ref } from "vue";
 import { PAPER } from "@/theme/palettes.js";
 import { EDITABLE, fileKind, fileUrl, openOnComputer, previewUrl } from "./filesApi.js";
-import { openTabFor } from "./openTabs.js";
 import { useEscapeToClose } from "./useEscapeToClose.js";
 
 // A file the bot saved, shown large (D-20): documents, spreadsheets, slides and PDFs as pictures
-// of their pages, pictures and text as they are. Anything else offers the download instead.
+// of their pages, pictures and text as they are. Anything else offers the download instead. A file is in a chat's
+// folder, a bot's or the home's (D-112 R6): `chatId` and `botId` name where, and neither is the home's own folder (its
+// Files page).
 const props = defineProps({
-  // Without a bot, a file in the home's own folder (the home's Files page).
+  // The bot whose folder or computer it's reached through, or null.
   botId: { type: String, default: null },
-  // A file a bot made in a group with several people (D-46).
-  group: { type: String, default: null },
-  // A Shared bot's tab whose files these are (D-99); without one, the tab it has open.
-  room: { type: String, default: undefined },
+  // The chat whose folder it's in, or null.
+  chatId: { type: String, default: null },
   file: { type: Object, required: true }
 });
 const emit = defineEmits(["close", "opened"]);
@@ -21,18 +20,16 @@ const emit = defineEmits(["close", "opened"]);
 const preview = ref(null);
 const problem = ref("");
 const loading = ref(true);
-// It opens on the computer of the tab open in the chat, so a file read through another tab (Details' files of a Shared
-// bot are its "You only" tab's) isn't offered there.
-const onOpenTab = props.room === undefined || props.room === openTabFor(props.botId);
-const editable = Boolean(props.botId) && !props.group && onOpenTab && EDITABLE.has(props.file.name.split(".").pop().toLowerCase());
+// Edit on computer opens it on that bot's computer in that chat (D14), so a file seen outside a chat isn't offered it.
+const editable = Boolean(props.botId && props.chatId) && EDITABLE.has(props.file.name.split(".").pop().toLowerCase());
 const opening = ref(false);
 
-// Edit it in its app on the bot's computer; the live view takes over from here.
+// Edit it in its app on the bot's computer in the chat; the live view takes over from here, for that bot.
 async function edit() {
   opening.value = true;
   try {
-    await openOnComputer(props.botId, props.file.path);
-    emit("opened");
+    await openOnComputer(props.botId, props.file.path, props.chatId);
+    emit("opened", { botId: props.botId, chatId: props.chatId });
   } catch (error) {
     problem.value = error?.message || "The computer couldn't open it.";
   } finally {
@@ -42,7 +39,7 @@ async function edit() {
 
 async function load() {
   try {
-    const response = await fetch(previewUrl(props.botId, props.file.path, props.group, props.room), { credentials: "include" });
+    const response = await fetch(previewUrl(props.botId, props.file.path, props.chatId), { credentials: "include" });
     if (!response.ok) {
       const body = await response.json().catch(() => ({}));
       problem.value = body.error || "This file can't be shown.";
@@ -68,16 +65,16 @@ onMounted(() => load());
       <button v-if="editable" type="button" class="mb-viewer__edit" :disabled="opening" @click="edit">
         <v-icon icon="$screenshotMonitor" size="16" />{{ opening ? "Opening…" : "Edit on computer" }}
       </button>
-      <a class="mb-viewer__button" :href="fileUrl(botId, file.path, { group, room })" :download="file.name" aria-label="Download"><v-icon icon="$download" size="18" /></a>
+      <a class="mb-viewer__button" :href="fileUrl(botId, file.path, { chat: chatId })" :download="file.name" aria-label="Download"><v-icon icon="$download" size="18" /></a>
       <button type="button" class="mb-viewer__button" aria-label="Close" @click="emit('close')"><v-icon icon="$close" size="18" /></button>
     </div>
     <div class="mb-viewer__body" @click.self="emit('close')">
       <v-progress-circular v-if="loading" indeterminate color="white" size="32" width="3" />
       <div v-else-if="problem" class="mb-viewer__problem">
         <p>{{ problem }}</p>
-        <a class="mb-viewer__download" :href="fileUrl(botId, file.path, { group, room })" :download="file.name">Download {{ file.name }}</a>
+        <a class="mb-viewer__download" :href="fileUrl(botId, file.path, { chat: chatId })" :download="file.name">Download {{ file.name }}</a>
       </div>
-      <img v-else-if="preview.kind === 'image'" class="mb-viewer__picture" :src="fileUrl(botId, file.path, { download: false, group, room })" :alt="file.name">
+      <img v-else-if="preview.kind === 'image'" class="mb-viewer__picture" :src="fileUrl(botId, file.path, { download: false, chat: chatId })" :alt="file.name">
       <v-theme-provider v-else-if="preview.kind === 'text'" theme="light" with-background tag="pre" class="mb-viewer__text">{{ preview.text }}</v-theme-provider>
       <div v-else class="mb-viewer__pages">
         <img v-for="(page, index) in preview.pages" :key="index" class="mb-viewer__page" :style="{ background: PAPER }" :src="page" :alt="`Page ${index + 1}`">

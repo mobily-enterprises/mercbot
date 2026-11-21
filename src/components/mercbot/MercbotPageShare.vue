@@ -1,29 +1,29 @@
 <script setup>
-import { computed, inject, ref, watch } from "vue";
+import { computed, ref, watch } from "vue";
 import extensions from "./extensions.js";
 import { fileUrl, isHtmlPage, previewUrl } from "./filesApi.js";
-import { MERCBOT_INITIALS_KEY } from "./shellInitials.js";
 import WEBSITE_PARTS from "./websiteParts.js";
 
-// A page's Share (D-74), from the page's viewer or the Library. A web page is the
-// home's: everyone in it can open it, like every file there; what a copy built on Mercbot adds to the
-// Share (extensions.js, pageShareParts) shows under that. An older Markdown page shows who can open it
-// by where its file is kept (`access`, useBotLibrary's pageAccess), with its words to copy or its file
-// to download. A web page also shows its place on the home's own website (D-84), when that part is in.
+// A page's Share (D-74), from the page's viewer or the Library. Who can open it is where it's kept (D-112 R6, D13): a
+// page in a chat's folder, everyone who can open that chat; one in the bot's folder or the home's, everyone in the
+// home. What a copy built on Mercbot adds to a web page's Share (extensions.js, pageShareParts) shows under that, and so
+// does its place on the home's own website (D-84), when that part is in. An older Markdown page offers its words to
+// copy or its file to download.
 const open = defineModel({ type: Boolean, default: false });
 const props = defineProps({
   botId: { type: String, required: true },
+  // The chat whose folder holds it, or null (MercbotPageFrame).
+  chatId: { type: String, default: null },
   path: { type: String, required: true },
   title: { type: String, required: true },
-  // Who can open an older Markdown page: { icon, title, text, onlyYou }.
-  access: { type: Object, default: null },
-  displayName: { type: String, default: "" }
+  homeName: { type: String, default: "" }
 });
 const emit = defineEmits(["copied", "failure"]);
-/** @type {import("vue").Ref<string>} */
-const initials = inject(MERCBOT_INITIALS_KEY, ref(""));
 
 const html = computed(() => isHtmlPage(props.path));
+const access = computed(() => (props.path.startsWith("/files/chat/")
+  ? { icon: "$group", name: "Everyone who can open this chat", note: "Can open it, like every file in this chat" }
+  : { icon: "$home", name: `Everyone in ${props.homeName || "this home"}`, note: "Can open it, like every file in the home" }));
 // The added parts this person sees, asked each time the Share of a web page opens; a failed answer hides the part.
 const parts = ref([]);
 watch(open, async (now) => {
@@ -35,7 +35,7 @@ watch(open, async (now) => {
 
 /** A Markdown page's words, read while the clipboard waits, so the copy still counts as the person's click. */
 async function pageText() {
-  const response = await fetch(previewUrl(props.botId, props.path), { credentials: "include" });
+  const response = await fetch(previewUrl(props.botId, props.path, props.chatId), { credentials: "include" });
   const body = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(body.error || "The page didn't load.");
   return new Blob([String(body.text || "")], { type: "text/plain" });
@@ -61,46 +61,29 @@ async function copyText() {
         </button>
       </div>
 
+      <div class="mb-page-share__row">
+        <span class="mb-page-share__glyph"><v-icon :icon="access.icon" size="18" /></span>
+        <span class="mb-page-share__text">
+          <span class="mb-page-share__name">{{ access.name }}</span>
+          <span class="mb-page-share__note">{{ access.note }}</span>
+        </span>
+      </div>
+
       <template v-if="html">
-        <div class="mb-page-share__row">
-          <span class="mb-page-share__glyph"><v-icon icon="$home" size="18" /></span>
-          <span class="mb-page-share__text">
-            <span class="mb-page-share__name">Everyone in this home</span>
-            <span class="mb-page-share__note">Can open it, like every file in the home</span>
-          </span>
-        </div>
         <template v-if="open">
-          <component :is="part.component" v-for="(part, at) in parts" :key="at" :bot-id="botId" :path="path" @copied="emit('copied', $event)" />
+          <component :is="part.component" v-for="(part, at) in parts" :key="at" :bot-id="botId" :chat-id="chatId" :path="path" @copied="emit('copied', $event)" />
         </template>
-        <component :is="WEBSITE_PARTS.pageShare" v-if="WEBSITE_PARTS.pageShare && open" :bot-id="botId" :path="path" @copied="emit('copied', $event)" />
+        <component :is="WEBSITE_PARTS.pageShare" v-if="WEBSITE_PARTS.pageShare && open" :bot-id="botId" :chat-id="chatId" :path="path" @copied="emit('copied', $event)" />
       </template>
 
-      <template v-else-if="access">
-        <div v-if="access.onlyYou" class="mb-page-share__row">
-          <span class="mb-page-share__glyph" aria-hidden="true">{{ initials }}</span>
-          <span class="mb-page-share__text">{{ displayName || "You" }} (you)</span>
-          <span class="mb-page-share__note">Owner</span>
-        </div>
-        <p class="mb-page-share__label">Who can open it</p>
-        <div class="mb-page-share__access" role="radiogroup" aria-label="Who can open it">
-          <div class="mb-page-share__row" role="radio" aria-checked="true">
-            <span class="mb-page-share__glyph"><v-icon :icon="access.icon" size="18" /></span>
-            <span class="mb-page-share__text">
-              <span class="mb-page-share__name">{{ access.title }}</span>
-              <span class="mb-page-share__note">{{ access.text }}</span>
-            </span>
-            <v-icon icon="$check" size="18" class="mb-page-share__check" />
-          </div>
-        </div>
-        <div class="mb-page-share__actions mb-page-share__actions--even">
-          <button type="button" class="mb-page-share__button" @click="copyText">
-            <v-icon icon="$contentCopy" size="16" /> Copy text
-          </button>
-          <a class="mb-page-share__button" :href="fileUrl(botId, path)" :download="`${title}.md`">
-            <v-icon icon="$download" size="16" /> Download
-          </a>
-        </div>
-      </template>
+      <div v-else class="mb-page-share__actions mb-page-share__actions--even">
+        <button type="button" class="mb-page-share__button" @click="copyText">
+          <v-icon icon="$contentCopy" size="16" /> Copy text
+        </button>
+        <a class="mb-page-share__button" :href="fileUrl(botId, path, { chat: chatId })" :download="`${title}.md`">
+          <v-icon icon="$download" size="16" /> Download
+        </a>
+      </div>
     </section>
   </v-dialog>
 </template>
@@ -183,23 +166,6 @@ async function copyText() {
 .mb-page-share__note {
   color: rgb(var(--v-theme-on-surface-variant));
   font-size: 12px;
-}
-
-.mb-page-share__label {
-  margin: 4px 0 0;
-  color: rgb(var(--v-theme-on-surface-variant));
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.mb-page-share__access {
-  padding: 6px 12px;
-  border: 1px solid rgb(var(--v-theme-outline-variant));
-  border-radius: 12px;
-}
-
-.mb-page-share__check {
-  color: rgb(var(--v-theme-link));
 }
 
 .mb-page-share__actions {

@@ -1,22 +1,27 @@
 <script setup>
 import { computed, ref } from "vue";
 import MercbotAccountMenu from "./MercbotAccountMenu.vue";
-import MercbotConvoAvatar from "./MercbotConvoAvatar.vue";
-import MercbotBotList from "./MercbotBotList.vue";
-import { buildRailModel } from "./botDirectory.js";
+import MercbotChatAvatar from "./MercbotChatAvatar.vue";
+import MercbotChatList from "./MercbotChatList.vue";
+import MercbotContextMenu from "./MercbotContextMenu.vue";
+import { buildRailModel } from "./chatDirectory.js";
+import { chatTitle } from "./chatView.js";
 import MercbotHomeSwitcher from "./MercbotHomeSwitcher.vue";
-import MercbotTeamQuestion from "./MercbotTeamQuestion.vue";
 import MercbotAppsEntry from "../apps/MercbotAppsEntry.vue";
 import MercbotFilesEntry from "../files/MercbotFilesEntry.vue";
 import MercbotIconButton from "./MercbotIconButton.vue";
 import MercbotTooltip from "./MercbotTooltip.vue";
 import { emitResizeDrag } from "./pointerDrag.js";
 
-// Sidebar shell: expanded or the compact rail; the bot list itself is MercbotBotList.
+// Sidebar shell (plan 4.1): expanded or the compact rail, with Team, Files and Apps above the person's chats; the chat
+// list itself is MercbotChatList. (+) offers New chat and Add bots.
 const props = defineProps({
   model: { type: Object, required: true },
   sections: { type: Array, required: true },
-  currentBotId: { type: String, required: true },
+  currentChatId: { type: String, default: "" },
+  teamOpen: { type: Boolean, default: false },
+  me: { type: String, default: "" },
+  manages: { type: Boolean, default: false },
   compact: { type: Boolean, default: false },
   width: { type: Number, required: true },
   hints: { type: Object, default: () => ({}) },
@@ -31,8 +36,19 @@ const props = defineProps({
   // The person's own picture, shown on the account button in place of their initials ("" when they have none).
   picture: { type: String, default: "" }
 });
-const emit = defineEmits(["select", "command", "search", "new-bot", "connect-apps", "skills", "resize"]);
+const emit = defineEmits(["select", "command", "search", "new-chat", "new-bot", "team", "connect-apps", "skills", "resize"]);
 const rail = computed(() => buildRailModel(props.model));
+
+// (+): New chat, or Add bots, under the button.
+const addMenu = ref({ open: false, target: [0, 0] });
+const addItems = [
+  { title: "New chat", icon: "$chat", run: () => emit("new-chat") },
+  { title: "Add bots", icon: "$smartToy", run: () => emit("new-bot") }
+];
+function openAddMenu(event) {
+  const box = event.currentTarget.getBoundingClientRect();
+  addMenu.value = { open: true, target: [box.left, box.bottom + 4] };
+}
 
 // The footer: at rest the account's name and square Skills and Connect apps buttons; while
 // the footer is hovered, or Connect apps has focus, the avatar, Skills and a wide Connect apps pill with app icons.
@@ -44,26 +60,47 @@ const appIcons = ["$calendarToday", "$mail", "$description"];
 </script>
 
 <template>
-  <nav class="mb-sidebar" :class="{ 'mb-sidebar--rail': compact }" :style="{ width: `${width}px` }" aria-label="Bots">
+  <nav class="mb-sidebar" :class="{ 'mb-sidebar--rail': compact }" :style="{ width: `${width}px` }" aria-label="Chats">
     <div v-if="!compact" class="mb-sidebar__actions">
       <div class="mb-sidebar__home"><MercbotHomeSwitcher /></div>
       <MercbotIconButton icon="$search" label="Search" @click="emit('search')" />
-      <MercbotIconButton icon="$editSquare" label="Add bots" @click="emit('new-bot')" />
+      <MercbotIconButton icon="$editSquare" label="New chat or bots" @click="openAddMenu" />
     </div>
     <div v-else class="mb-sidebar__rail-top">
       <MercbotHomeSwitcher rail />
     </div>
 
+    <div class="mb-team-entry" :class="{ 'mb-team-entry--rail': compact }">
+      <v-btn
+        variant="text"
+        :prepend-icon="compact ? undefined : '$group'"
+        :icon="compact ? '$group' : undefined"
+        :block="!compact"
+        :active="teamOpen"
+        class="mb-team-entry__link"
+        aria-label="Team"
+        :aria-current="teamOpen ? 'page' : undefined"
+        @click="emit('team')"
+      >
+        <template v-if="!compact">Team</template>
+      </v-btn>
+    </div>
     <MercbotFilesEntry :rail="compact" />
     <MercbotAppsEntry :rail="compact" />
 
     <div class="mb-sidebar__bots">
-      <MercbotTeamQuestion v-if="!compact" />
-      <MercbotBotList
+      <!-- A person with no chats yet (D4): where to start. -->
+      <div v-if="!compact && !model.visualOrder.length && !model.hidden.length && !model.archived.length" class="mb-sidebar__empty">
+        <p>No chats yet.</p>
+        <button type="button" class="mb-sidebar__start" @click="emit('new-chat')">Start a chat</button>
+      </div>
+      <MercbotChatList
         v-if="!compact"
         :model="model"
         :sections="sections"
-        :current-bot-id="currentBotId"
+        :current-chat-id="currentChatId"
+        :me="me"
+        :manages="manages"
         :hints="hints"
         :switch-highlight-id="switchHighlightId"
         :drafts="drafts"
@@ -77,18 +114,18 @@ const appIcons = ["$calendarToday", "$mail", "$description"];
       <ul v-else class="mb-rail-list">
         <template v-for="(group, groupIndex) in rail" :key="groupIndex">
           <li v-if="groupIndex > 0" class="mb-rail-list__divider" aria-hidden="true" />
-          <li v-for="bot in group" :key="bot.id">
+          <li v-for="chat in group" :key="chat.id">
             <button
               type="button"
               class="mb-bot"
-              :class="{ 'mb-bot--selected': bot.id === currentBotId, 'mb-bot--switching': bot.id === switchHighlightId }"
-              :aria-current="bot.id === currentBotId ? 'page' : undefined"
-              :aria-label="bot.name"
-              @click="emit('select', bot.id)"
+              :class="{ 'mb-bot--selected': chat.id === currentChatId, 'mb-bot--switching': chat.id === switchHighlightId }"
+              :aria-current="chat.id === currentChatId ? 'page' : undefined"
+              :aria-label="chatTitle(chat, me)"
+              @click="emit('select', chat.id)"
             >
-              <MercbotConvoAvatar :bot="bot" :size="36" :state="moods[bot.id] || 'idle'" />
-              <span v-if="bot.unread" class="mb-bot__unread" aria-label="Unread" />
-              <kbd v-if="hints[bot.id]" class="mb-bot__hint">{{ hints[bot.id] }}</kbd>
+              <MercbotChatAvatar :chat="chat" :me="me" :size="36" :state="moods[chat.id] || 'idle'" />
+              <span v-if="chat.unread" class="mb-bot__unread" aria-label="Unread" />
+              <kbd v-if="hints[chat.id]" class="mb-bot__hint">{{ hints[chat.id] }}</kbd>
             </button>
           </li>
         </template>
@@ -140,11 +177,11 @@ const appIcons = ["$calendarToday", "$mail", "$description"];
     <div v-else class="mb-sidebar__rail-bottom">
       <MercbotIconButton
         icon="$add"
-        label="Add bots"
+        label="New chat or bots"
         tone="bare"
         size="small"
         :icon-size="14"
-        @click="emit('new-bot')"
+        @click="openAddMenu"
       />
       <MercbotIconButton
         icon="$dashboardCustomize"
@@ -181,10 +218,48 @@ const appIcons = ["$calendarToday", "$mail", "$description"];
       aria-label="Resize sidebar"
       @pointerdown.prevent="emitResizeDrag($event, emit)"
     />
+    <MercbotContextMenu v-model="addMenu.open" :target="addMenu.target" :items="addItems" />
   </nav>
 </template>
 
 <style scoped>
+.mb-team-entry {
+  display: flex;
+  flex-direction: column;
+  padding: 8px 8px 0;
+}
+
+.mb-team-entry--rail {
+  align-items: center;
+}
+
+.mb-team-entry__link {
+  justify-content: flex-start;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.mb-sidebar__empty {
+  padding: 24px 18px 0;
+  font-size: 13px;
+  line-height: 18px;
+  color: rgb(var(--v-theme-on-surface-variant));
+}
+
+.mb-sidebar__empty p {
+  margin: 0 0 6px;
+}
+
+.mb-sidebar__start {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-weight: 600;
+  color: rgb(var(--v-theme-link));
+  cursor: pointer;
+}
+
 .mb-sidebar {
   position: relative;
   display: flex;

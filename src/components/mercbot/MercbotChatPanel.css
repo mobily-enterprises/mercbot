@@ -21,8 +21,8 @@
   padding: 64px 0 136px;
 }
 
-/* The band behind the chip, and a Shared bot's tabs under it, is solid down to their lower edge and fades below it, so
-   messages scrolled under them never show through, in either theme; the column starts below it. */
+/* The band behind the chat's header is solid down to its lower edge and fades below it, so messages scrolled under it
+   never show through, in either theme; the column starts below it. */
 .mb-chat__fade {
   position: absolute;
   top: 0;
@@ -33,47 +33,197 @@
   pointer-events: none;
 }
 
-.mb-chat__column--tabs {
-  padding-top: 100px;
-}
-
-.mb-chat__fade--tabs {
-  height: 100px;
-  background: linear-gradient(rgb(var(--v-theme-background)) 90px, rgba(var(--v-theme-background), 0));
-}
-
-.mb-chat__continues {
-  margin: 0 16px 18px;
-  font-size: 12px;
-  line-height: 16px;
-  color: rgb(var(--v-theme-on-surface-variant));
-  text-align: center;
-}
-
-.mb-chat__continues .v-icon {
-  margin: -2px 2px 0 0;
-}
-
-.mb-chat__continues-link {
-  padding: 0;
-  border: 0;
-  background: none;
-  color: rgb(var(--v-theme-on-surface-variant));
-  font: inherit;
-  font-weight: 500;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-  cursor: pointer;
-}
-
-.mb-chip {
+/* The chat's header (plan 4.4): its chip, centred, with + Add beside it. */
+.mb-chat__head {
   position: absolute;
   top: 10px;
   left: 50%;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: calc(100% - 32px);
+  transform: translateX(-50%);
+}
+
+.mb-chip__info {
+  flex: none;
+  color: rgb(var(--v-theme-on-surface-variant));
+}
+
+/* A phone's header (plan 4.6): the drawer, the chat's name over who's in it, and its details. */
+.mb-chat__phone-head {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 56px;
+  padding: 0 6px;
+  border-bottom: 1px solid rgb(var(--v-theme-outline-variant));
+  background: rgb(var(--v-theme-background));
+}
+
+.mb-chat__scroller--headed {
+  top: 56px;
+}
+
+.mb-chat__menu {
+  position: relative;
+  flex: none;
+}
+
+.mb-chat__menu-dot {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 8px;
+  height: 8px;
+  border: 2px solid rgb(var(--v-theme-background));
+  border-radius: 50%;
+  background: rgb(var(--v-theme-link));
+  pointer-events: none;
+}
+
+.mb-chat__phone-title {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  padding: 0 4px;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: rgb(var(--v-theme-on-surface));
+  text-align: left;
+  cursor: pointer;
+}
+
+.mb-chat__phone-name,
+.mb-chat__phone-sub {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mb-chat__phone-name {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.mb-chat__phone-sub {
+  font-size: 12px;
+  color: rgb(var(--v-theme-on-surface-variant));
+}
+
+/* No chat open (D4): where to start. */
+.mb-chat__start {
+  max-width: calc(100% - 32px);
+  margin: 0 auto;
+  padding-top: 18vh;
+  text-align: center;
+}
+
+.mb-chat__start-title {
+  margin: 0 0 8px;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.mb-chat__start-text {
+  margin: 0 0 20px;
+  font-size: 14px;
+  line-height: 20px;
+  color: rgb(var(--v-theme-on-surface-variant));
+}
+
+.mb-chat__start-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+
+/* What public means, the first time (plan 8), above the composer. */
+.mb-public-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 8px;
+  padding: 10px 12px;
+  border: 1px solid rgb(var(--v-theme-outline-variant));
+  border-radius: 12px;
+  background: rgb(var(--v-theme-surface));
+}
+
+.mb-public-notice__icon {
+  flex: none;
+  margin-top: 1px;
+  color: rgb(var(--v-theme-on-surface-variant));
+}
+
+.mb-public-notice__text {
+  flex: 1;
+  margin: 0;
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.mb-public-notice__dismiss,
+.mb-chat-banner__action {
+  flex: none;
+  padding: 0 4px;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: rgb(var(--v-theme-link));
+  cursor: pointer;
+}
+
+/* Where the composer was, for a chat that can't be written in now. */
+.mb-chat-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 52px;
+  padding: 8px 14px;
+  border: 1px solid rgb(var(--v-theme-outline-variant));
+  border-radius: 16px;
+  background: rgb(var(--v-theme-surface));
+  color: rgb(var(--v-theme-on-surface-variant));
+}
+
+.mb-chat-banner__text {
+  flex: 1;
+  font-size: 13px;
+  line-height: 18px;
+}
+
+/* The composer's globe or lock (plan 8). */
+.mb-composer__kind {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  color: rgb(var(--v-theme-on-surface-variant));
+}
+
+.mb-composer__kind:focus-visible {
+  outline: 2px solid rgb(var(--v-theme-secondary));
+}
+
+.mb-chip {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  max-width: calc(100% - 32px);
+  min-width: 0;
   height: 40px;
   padding: 0 12px 0 10px;
   border: 1px solid rgb(var(--v-theme-outline-variant));
@@ -83,7 +233,6 @@
   color: rgb(var(--v-theme-on-surface));
   font: inherit;
   cursor: pointer;
-  transform: translateX(-50%);
 }
 
 .mb-chip:focus-visible {

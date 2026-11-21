@@ -1,23 +1,23 @@
 # Messaging and working together
 
-You work with Mercbot's bots by chatting with them. You write what you need in plain words, the bot tells you what it's doing, and it comes back with a reply, a file, a question or a card for you to check. This page covers sending messages, attaching files, picking skills, answering the bot's questions and drafts, changing course while a bot is busy, group chats with several bots, handing work between bots, and finding past work. It ends with every keyboard shortcut and some tips.
+You work with Mercbot's bots by chatting with them. You write what you need in plain words, the bot tells you what it's doing, and it comes back with a reply, a file, a question or a card for you to check. This page covers sending messages, attaching files, picking skills, answering the bot's questions and drafts, changing course while a bot is busy, chats with several bots or people, handing work between bots, and finding past work. It ends with every keyboard shortcut and some tips.
 
 ## Send a message
 
-Select a bot in the sidebar and type in the message box at the bottom of the chat.
+Open a chat in the sidebar, or start one with **New chat**, and type in the message box at the bottom of the chat.
 
 - Press **Enter** to send. **Shift+Enter** starts a new line.
 - The message box grows as you type, and **Ctrl+I** puts the cursor back in it from anywhere.
-- Anything you don't send stays as a draft for that bot on this device, so you can switch bots and come back to it.
+- Anything you don't send stays as a draft for that chat on this device, so you can switch chats and come back to it.
 - If a message can't be sent, it shows **Not sent** with **Try again**.
 
-You don't need to stay on the page. The bot keeps working on Mercbot's servers, and when it's done, its reply is waiting in the chat and the bot shows as unread in the sidebar. When you come back, a **new** divider marks where the messages you haven't seen begin.
+You don't need to stay on the page. The bot keeps working on Mercbot's servers, and when it's done, its reply is waiting in the chat and the chat shows as unread in the sidebar. When you come back, a **new** divider marks where the messages you haven't seen begin.
 
 ### Attach files
 
 Select **+** beside the message box, then **Attach files**. You can attach several files at once. Each file appears above the message box; remove one with its cross. You can send files on their own or add a note.
 
-In a bot's own chat, attached files are kept in the bot's folder, so it can read them now and later in the conversation. See [Files, documents and pictures](/help/files) for what bots can read and the size limits.
+Attached files are kept in the chat's folder, so its bots can read them now and later in the conversation. See [Files, documents and pictures](/help/files) for what bots can read and the size limits.
 
 ### Quote part of the chat
 
@@ -31,17 +31,17 @@ Hover over a message and select the **Reply** arrow. Your next message is linked
 
 Skills are written-down ways of doing a task, such as booking a restaurant or making slides. Bots pick the right skill on their own, but you can ask for one directly.
 
-1. In a bot's own chat, type **/** at the start of the message box.
+1. In a chat with one bot, type **/** at the start of the message box.
 2. A list shows up to five skills, with a short description of each: your own skills first, then Mercbot's. Keep typing to narrow it down.
 3. Use the arrow keys and **Enter** or **Tab**, or select a skill with the mouse.
 4. The skill appears as a token in the bot's colour. Backspace removes it in one go.
 5. Write the rest of your request and send.
 
-The sent message shows the skill with a book icon, and the bot uses it for that request. To manage skills or teach a bot a new one, see [Skills, routines and watches](/help/skills-and-routines).
+The sent message shows the skill with a book icon, and the bot uses it for that request. A bot uses your own skills only in a Private chat where you're the only person, because only you can open them. To manage skills or teach a bot a new one, see [Skills, routines and watches](/help/skills-and-routines).
 
 ## While the bot works
 
-When you send a message, the bot gets to work and a status line at the end of the chat describes what it's doing in a few words. Its face changes too: it looks attentive, then thinks, works and concentrates, and looks happy when it's done. In the sidebar, a bot waiting for you to do something (such as signing in on its computer) shows in amber.
+When you send a message, the bot gets to work and a status line at the end of the chat describes what it's doing in a few words. Its face changes too: it looks attentive, then thinks, works and concentrates, and looks happy when it's done. When a bot is waiting for you to do something, such as signing in on its computer, its chat shows **Waiting for you** in the sidebar, in amber.
 
 Some things show up in the chat as small centred lines rather than messages, for example when a bot creates a routine or passes a job to another bot. They're a record of what actually happened.
 
@@ -88,47 +88,26 @@ Once it's settled, the card folds away with its outcome; select it to see what w
 
 Bots also use cards to ask you to connect an app, to sign in to a site securely, or to hand you their screen for a step only you can do. See [The bots' computer and connected apps](/help/computer-and-apps) and [The vault: saved logins and secrets](/help/vault).
 
-## Group chats with several bots
+## Chats with several bots or people
 
-A group chat brings up to six bots, and any people from your home you add, into one conversation, so they can work on something together.
-
-### Start a group chat
-
-1. Press **Ctrl+Alt+G**, or type "New group chat" in the search palette.
-2. In **To:**, type a bot's name and press Enter to add it. Use the arrow keys to move through suggestions, and Backspace to remove the last bot. As you type, you're also offered a new bot with that name, which opens in its own chat.
-3. Type your first message and send it to start the group. Or press Enter with nothing typed to start an empty group.
-4. Press Escape twice to give up without starting one.
-
-A group is named after you and its bots. Right-click it in the sidebar and choose **Rename chat** to call it something else. It behaves like a bot in the sidebar: you can pin it, put it in a section, hide it or delete it.
+A chat can have several bots and several people in it, so they can work on something together. Start one with **New chat** (**Ctrl+Alt+G**) and add who you need in **To:**. [Chats and your team](/help/chats) explains Public and Private chats, members and archiving.
 
 ### Who answers
 
-- **With no mention,** every bot in the group answers in turn, each seeing what the others said.
+- **When you're the only person in the chat,** every bot in it answers in turn, each seeing what the others said.
+- **When several people are in the chat,** a bot answers only when it's called: by its name, with **@**, when you reply to one of its messages, or with **@everyone**.
 - **To address one bot,** type **@** and choose it from the list. Only the bots you mention answer.
-- **@everyone** asks all of them.
 - When a bot mentions another bot, that bot may answer once more, then the round ends. Bots stay quiet when they've nothing new to add, so they don't chatter among themselves.
 
-The @ list also offers your connected apps (showing whether each one still needs signing in) and your own skills.
+The @ list offers **everyone**, the chat's bots and your connected apps, showing whether each app still needs signing in.
 
-A status line shows which bots are working, and each bot's name appears above its messages.
+A status line shows which bots are working, and each bot's name appears above its messages. A chat with people only has no bot answering at all.
 
-### What bots do differently in a group
+### What bots do differently with others
 
 - They keep replies short and don't repeat each other.
-- They keep private matters out of the group, and offer to carry on in their own chat.
-- They never sign in to a site or hand you their screen from a group. Do that in the bot's own chat.
-- A routine set up in a group belongs to that bot. The line saying it was created, and any approval card, appear in the bot's own chat.
-- Each bot remembers its recent groups when you talk to it on its own, so you can follow up there.
-
-In a group, only the text of small text files you attach reaches the bots. Send documents, spreadsheets, PDFs and pictures to a bot's own chat.
-
-### Members
-
-Open the group's Details panel and select **Members**. Select **Add a bot** to add one (up to six; it then says **The group is full**). Hover over a bot and select **Remove** to take it out. A group always keeps at least one bot.
-
-Under **People**, anyone in the group can select **Add a person** to bring in someone from the home. The person who made the group, and the home's owners and admins, can remove people; anyone can **Leave**. When the last person leaves, the group is deleted.
-
-Deleting a group deletes its whole history for good. Its bots aren't deleted and stay available on their own.
+- They work for the person whose message they're answering: approval cards are that person's alone.
+- They remember that everyone who can open the chat reads what they say and can open what they make there.
 
 ## Hand work from one bot to another
 
@@ -136,22 +115,22 @@ A bot can get another bot in your home to do part of a job, in two ways.
 
 **Ask and wait.** When the bot needs the other bot's result to finish what you asked ("Get Otto to make an app for our plant watering, then tell me how to open it"):
 
-1. The bot sends the other bot a brief with the details it needs. It doesn't send your chat or what it remembers about you.
-2. A card appears in both chats: **Asked Otto** in yours, **From Scout, for you** in Otto's. It shows the brief and how the request stands: **Working**, **Has a question**, **Waiting for your OK**, **Done**, **Couldn't finish** or **Cancelled**.
-3. Otto works on it in your chat with Otto, where you can watch, and sends the result back. If Otto needs to know something, it asks the first bot, which answers or asks you.
+1. The bot sends the other bot a brief with the details it needs. Otto works from the brief alone: it doesn't read your chat or any other.
+2. A card **Asked Otto** appears in your chat. It shows the brief and how the request stands: **Working**, **Has a question**, **Waiting for your OK**, **Done**, **Couldn't finish** or **Cancelled**.
+3. Otto works on it and sends the result back. If Otto needs to know something, it asks the first bot, which answers or asks you. If Otto needs its computer, it joins your chat, with a line such as "Otto joined to work on a request", and uses its computer there. Your chat with one bot takes no other bot, so from there Otto does what it can without its computer.
 4. The first bot gets the answer, carries on with your request and tells you. The card shows the answer; **Show the whole answer** expands it.
 
-**Pass it on.** When you just want the other bot to deal with it ("Ask Ledger to check last month's invoices"), the bot passes it on and Ledger answers you in its own chat. Both chats show a card for it too.
+**Pass it on.** When you just want the other bot to deal with it ("Ask Ledger to check last month's invoices"), the bot passes it on with a **Passed to Ledger** card, and Ledger's answer comes back to the same chat.
 
-Asked from your own chat with a bot, a shared bot's **You only** tab included, the other bot works in its chat with you. Asked from a shared bot's shared tab, it works in one of its own shared tabs if it has them, else in its chat with you.
+Otto's answer, and any card Otto needs you to answer, come to the chat you asked in, so everyone who can open that chat sees them.
 
-Either card has **Open … chat** to jump to the other bot, and **Cancel** while the request is open. Cancelling tells the first bot, which says so; a step already running finishes, but its answer isn't used.
+The card has **Cancel** while the request is open. Cancelling tells the first bot, which says so; a step already running finishes, but its answer isn't used.
 
-A bot's request is never your own words. Anything that needs your approval, such as sending, paying, deleting or inviting people, still shows you an approval card in the chat where the work happens, and the first bot's card says it's **Waiting for your OK**. Only you can tell a bot to send a draft.
+A bot's request is never your own words. Anything that needs your approval, such as sending, paying, deleting or inviting people, still shows you an approval card in the chat you asked in, and the first bot's card says **Waiting for your OK below**. Only you can tell a bot to send a draft.
 
 To stop jobs bouncing around, a request can be passed on at most twice (Scout asks Otto, Otto asks Ledger, and no further), a bot can't be asked by a job it's already part of, the asked bot gets at most three questions and eight turns, and a request stops after 30 minutes.
 
-This is a good way to keep each bot to its own job: the bot you're talking to doesn't try to do work that belongs to another. See [Bots: create, shape, organise and remember](/help/bots).
+This is a good way to keep each bot to its own job: the bot you're talking to doesn't try to do work that belongs to another. See [Bots: add, shape and archive](/help/bots).
 
 ## Reactions, copying and replies
 
@@ -177,11 +156,11 @@ Press **Ctrl+F** to search the open chat. Matches are highlighted as you type.
 
 Press **Ctrl+K** (or **Ctrl+Shift+F**, or the search button at the top of the sidebar) to open the search palette.
 
-- With nothing typed, it lists your bots and groups (unread first, then pinned, then by latest activity), followed by commands such as **New Bot**, **New group chat**, **Keyboard shortcuts**, Settings sections, **Connect Apps** and the theme.
-- As you type, it finds bots and groups by name or label, apps, hidden bots, commands, routines, files your bots made, and up to five messages from your chats and groups.
-- Use the arrow keys and Enter to open a result. A message opens its chat with that message at the top, ringed so you can spot it. A shared bot's message, routine or file opens in the tab it's in, a shared one or **You only**.
+- With nothing typed, it lists your chats (unread first, then pinned, then by latest activity), followed by commands such as **New chat**, **Add bots**, **Team**, **Keyboard shortcuts**, Settings sections, **Connect Apps**, **Skills** and the theme.
+- As you type, it finds chats by their name or who's in them, bots (by name or tag) and people, apps, hidden and archived chats, commands, routines, files your bots made, and up to five messages from your chats. A bot opens your chat with it.
+- Use the arrow keys and Enter to open a result. A message opens its chat with that message at the top, ringed so you can spot it.
 
-Files a bot made are also listed in its **Library**, in the Details panel. See [Files, documents and pictures](/help/files).
+Files a bot made are also listed in its **Library**, on its card in **Team**. See [Files, documents and pictures](/help/files).
 
 ## Keyboard shortcuts
 
@@ -191,33 +170,34 @@ Press **Ctrl+/** to see this list in Mercbot. On a Mac, Cmd works in place of Ct
 | --- | --- |
 | Search | Ctrl+K or Ctrl+Shift+F |
 | Add bots | Ctrl+Alt+N |
-| New group chat | Ctrl+Alt+G |
+| New chat | Ctrl+Alt+G |
 | Send message | Enter (Shift+Enter adds a new line) |
-| Go to a bot by its place in the sidebar | Ctrl+Alt+1 to 9 |
+| Go to a chat by its place in the sidebar | Ctrl+Alt+1 to 9 |
 | Compact sidebar | Ctrl+B |
 | Settings | Ctrl+, |
 | Keyboard shortcuts | Ctrl+/ |
 | Focus the message box | Ctrl+I |
 | Find in chat | Ctrl+F |
+| Dictate (press to start and stop, or hold to talk) | Ctrl+D |
 | Add selection to message | Ctrl+L |
-| Previous or next bot | Alt+↑ or Alt+↓ |
+| Previous or next chat | Alt+↑ or Alt+↓ |
 | Up from Apps, a table or Files, or close an app | Ctrl+[ (the Up arrow's key, and an app's **X**) |
-| Switch bots | Ctrl+Alt+Tab (keep Ctrl+Alt held, press Tab to move, release to open) |
-| Details panel | Ctrl+Alt+B |
+| Switch chats | Ctrl+Alt+Tab (keep Ctrl+Alt held, press Tab to move, release to open) |
+| Details (Chat details, or a bot's card in your chat with it) | Ctrl+Alt+B |
 | Skills | Ctrl+Alt+W |
 | Connect apps | Ctrl+Shift+M |
 | Zoom in, out or reset | Ctrl+=, Ctrl+−, Ctrl+0 (your browser's own) |
 | Full screen | F11 (your browser's own) |
 | Back or forward | Alt+← or Alt+→ (your browser's own) |
 
-Escape closes the Details panel when nothing else is open.
+Escape closes the details beside the chat when nothing else is open.
 
 ## Tips for productive conversations
 
 - **Say what done looks like.** "A one-page summary with a table of costs" gets better results than "look into costs".
 - **Give the details up front.** Dates, budgets, names and where to stop save a round of questions.
 - **Set limits in the request.** "Find options but don't book anything" is respected, and approvals catch the rest.
-- **One job per bot.** Keep each bot's chat on its own subject, and hand work across with "ask … to …".
+- **One job per chat.** Keep each chat on its own subject, and hand work across with "ask … to …".
 - **Correct early.** Send a short message as soon as you see a bot heading the wrong way.
 - **Use quotes and replies.** Pointing at the exact message or sentence avoids misunderstandings.
 - **Check before it goes out.** Read draft cards carefully, edit them, and only then press Send.
@@ -227,24 +207,24 @@ Escape closes the Details panel when nothing else is open.
 
 ### Does the bot keep working if I close Mercbot?
 
-Yes. Replies run on Mercbot's servers. When you come back, the reply is in the chat and the bot shows as unread.
+Yes. Replies run on Mercbot's servers. When you come back, the reply is in the chat and the chat shows as unread.
 
 ### Can I stop a bot in the middle of a reply?
 
 There's no stop button. Send a message with what you want instead, such as "Stop, that's enough"; the bot sees it after the step it's on and changes course.
 
-### Why did only one bot answer in my group?
+### Why did only one bot answer?
 
-You mentioned it with @. Only mentioned bots answer. Send a message without a mention, or use @everyone, to hear from them all.
+You mentioned it with @, and only mentioned bots answer. Or other people are in the chat, and then a bot answers only when it's called. Use @everyone to hear from them all.
 
-### Can other people see my group chats?
+### Can other people see my chats?
 
-No. Group chats are always yours alone, even in a shared home.
+Everyone in the home can open a Public chat, your chat with a bot included. Only the members of a Private chat can open it. See [Chats and your team](/help/chats).
 
 ## Related pages
 
-- [Bots: create, shape, organise and remember](/help/bots)
-- [Bots shared in a home](/help/shared-bots)
+- [Chats and your team](/help/chats)
+- [Bots: add, shape and archive](/help/bots)
 - [Files, documents and pictures](/help/files)
 - [Skills, routines and watches](/help/skills-and-routines)
 - [Approvals, safety and privacy](/help/approvals-and-privacy)

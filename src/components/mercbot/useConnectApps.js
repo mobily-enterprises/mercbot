@@ -1,7 +1,7 @@
 import { onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { usePaths } from "@jskit-ai/shell-web/client/navigation/usePaths";
-import { botsApi } from "./botsApi.js";
+import { chatsApi } from "./chatsApi.js";
 import { openSignIn, pluginsApi } from "./pluginsApi.js";
 import { listenForSignIns, signInInThisTab } from "./signInReturn.js";
 
@@ -10,10 +10,10 @@ import { listenForSignIns, signInInThisTab } from "./signInReturn.js";
  * the person's apps and skills for Skills, and the explainer before signing in from a chat card, which ends in the same
  * Add account step as Connect apps (D-110). A sign-in started from a bot's connect card tells the bot, which finishes its
  * task once the app is connected. While the shell is open it answers the sign-in windows that finish (signInReturn.js).
- * `reportFailure` explains a step that failed; `currentBot` is the bot whose chat is open.
- * @param {{ reportFailure: import("../../types.js").ReportFailure, currentBot: import("vue").Ref<{ id: string } | null> }} options
+ * `reportFailure` explains a step that failed; `currentChat` is the open chat.
+ * @param {{ reportFailure: import("../../types.js").ReportFailure, currentChat: import("vue").Ref<{ id: string } | null> }} options
  */
-export function useConnectApps({ reportFailure, currentBot }) {
+export function useConnectApps({ reportFailure, currentChat }) {
   const route = useRoute();
   const router = useRouter();
   const paths = usePaths();
@@ -30,7 +30,7 @@ export function useConnectApps({ reportFailure, currentBot }) {
     stopListening = listenForSignIns();
   });
   onBeforeUnmount(() => stopListening());
-  /** The connect card the explainer was opened from, while it waits for its app: { botId, messageId }. */
+  /** The connect card the explainer was opened from, while it waits for its app: { chatId, messageId }. */
   let fromCard = null;
 
   watch(appsOpen, (open) => {
@@ -67,7 +67,7 @@ export function useConnectApps({ reportFailure, currentBot }) {
   /** @param {{ id: string, body: { app: string, status?: string } }} card the chat's connect card */
   async function explainConnect(card) {
     const appName = card.body.app;
-    fromCard = ["waiting", "connecting"].includes(card.body.status) && currentBot.value ? { botId: currentBot.value.id, messageId: card.id } : null;
+    fromCard = ["waiting", "connecting"].includes(card.body.status) && currentChat.value ? { chatId: currentChat.value.id, messageId: card.id } : null;
     try {
       const { plugins } = await pluginsApi.list();
       explainerPlugin.value = plugins.find((plugin) => plugin.name === appName) || null;
@@ -90,7 +90,7 @@ export function useConnectApps({ reportFailure, currentBot }) {
       const added = plugins.find((entry) => entry.id === plugin.id);
       const card = fromCard;
       fromCard = null;
-      const told = card && botsApi.connectFromCard(card.botId, card.messageId).catch((error) =>
+      const told = card && chatsApi.connectFromCard(card.chatId, card.messageId).catch((error) =>
         reportFailure("Your bot won't carry on by itself after you sign in. Ask it once you're connected.", error));
       // A sign-in that takes this tab (on a phone) waits until the bot is told, so leaving doesn't cut that off.
       if (signInInThisTab()) await told;

@@ -22,10 +22,10 @@ export function openerOf(trail, base) {
 }
 
 /**
- * Where leaving lands: a bot's chat (`botId`), Apps, Files, or Mercbot (the home's chat, or any other Mercbot place).
+ * Where leaving lands: a chat (`chatId`), Apps, Files, or Mercbot (the home's own address, or any other Mercbot place).
  * @param {string | null} from The place the app was opened from.
- * @param {string} homeBase The home's own address, its chat.
- * @returns {{ place: "bot" | "apps" | "files" | "mercbot", botId?: string }}
+ * @param {string} homeBase The home's own address.
+ * @returns {{ place: "chat" | "apps" | "files" | "mercbot", chatId?: string }}
  */
 export function exitPlace(from, homeBase) {
   if (!from) return { place: "mercbot" };
@@ -33,20 +33,20 @@ export function exitPlace(from, homeBase) {
   const bare = (path) => path.replace(/\/+$/u, "") || "/";
   const path = bare(address.pathname);
   const home = bare(homeBase);
-  const bot = address.searchParams.get("bot");
-  if (path === home && bot) return { place: "bot", botId: bot };
+  const chat = address.searchParams.get("chat");
+  if (path === home && chat) return { place: "chat", chatId: chat };
   if (path === `${home}/apps`) return { place: "apps" };
   if (path === `${home}/files`) return { place: "files" };
   return { place: "mercbot" };
 }
 
 /**
- * The words of the app's way out: where it goes. A bot's chat says the bot's name once it's known.
+ * The words of the app's way out: where it goes. A chat says its name once it's known.
  * @param {{ place: string }} place
- * @param {string} [botName]
+ * @param {string} [chatName]
  */
-export function exitLabel(place, botName = "") {
-  if (place.place === "bot") return botName ? `Back to ${botName}` : "Back to chat";
+export function exitLabel(place, chatName = "") {
+  if (place.place === "chat") return chatName ? `Back to ${chatName}` : "Back to chat";
   if (place.place === "apps") return "Back to Apps";
   if (place.place === "files") return "Back to Files";
   return "Back to Mercbot";

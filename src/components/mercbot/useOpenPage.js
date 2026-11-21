@@ -1,49 +1,42 @@
 import { computed } from "vue";
 
-const PAGE_KEYS = new Set(["page", "pageBot", "pageGroup"]);
-
 /**
- * The page open in place of the chat (D-74), named in the address so a reload or a shared
- * address keeps it: ?page=<path>&pageBot=<the bot whose folder holds it>, and &pageGroup= for an old
- * Markdown page a bot made in a group. Its title and the newest save (`stamp`) come from the chat's
- * newest card of it, when the chat has one.
+ * The page open in place of the chat (D-74), named in the address so a reload or a shared address keeps it:
+ * ?page=<path>&pageBot=<the bot that made it>&pageChat=<the chat whose folder holds it, for a /files/chat page>. Its
+ * title and the newest save (`stamp`) come from the open chat's newest card of it, when it has one.
  * @param {{
  *   route: import("vue-router").RouteLocationNormalizedLoaded,
  *   router: import("vue-router").Router,
  *   messages: import("vue").ComputedRef<any[]>,
- *   bots: import("vue").Ref<any[]>,
- *   currentBot: import("vue").ComputedRef<any>
+ *   botName: (botId: string) => string,
+ *   chatQuery: (extra?: Record<string, string>) => Record<string, any>,
+ *   currentChatId: () => string
  * }} options
  */
-export function useOpenPage({ route, router, messages, bots, currentBot }) {
-  /** The address's query without the open page, and with `extra`. */
-  const chatQuery = (extra = {}) => ({
-    ...Object.fromEntries(Object.entries(route.query).filter(([key]) => !PAGE_KEYS.has(key))),
-    ...extra
-  });
-
+export function useOpenPage({ route, router, messages, botName, chatQuery, currentChatId }) {
   const openPage = computed(() => {
     const path = typeof route.query.page === "string" ? route.query.page : "";
     if (!path) return null;
-    const botId = String(route.query.pageBot || currentBot.value?.id || "");
+    const botId = String(route.query.pageBot || "");
     const card = [...messages.value].reverse().find((message) => message.kind === "page" && message.body?.path === path);
     const name = path.split("/").pop().replace(/\.(html|md)$/u, "").replace(/-/gu, " ");
     return {
       path,
       botId,
-      group: route.query.pageGroup ? String(route.query.pageGroup) : null,
+      chatId: route.query.pageChat ? String(route.query.pageChat) : null,
       title: card?.body.title || name,
       stamp: card ? String(card.id) : "",
-      botName: bots.value.find((bot) => String(bot.id) === botId)?.name || "The bot"
+      botName: botName(botId) || "The bot"
     };
   });
 
-  /** Opens a page; `chatBot` also opens that bot's chat under it (from search or the Library). */
-  function showPage({ path, botId, group = null, chatBot = null }) {
-    router.push({ query: chatQuery({ ...(chatBot ? { bot: chatBot } : {}), page: path, pageBot: botId, ...(group ? { pageGroup: group } : {}) }) });
+  /** Opens a page over a chat: the one it's in (`chatId`), else the open one. */
+  function showPage({ path, botId, chatId = null }) {
+    const chat = chatId || currentChatId() || "";
+    router.push({ query: chatQuery({ ...(chat ? { chat } : {}), page: path, pageBot: botId, ...(chatId ? { pageChat: chatId } : {}) }) });
   }
 
   const closePage = () => router.replace({ query: chatQuery() });
 
-  return { openPage, showPage, closePage, chatQuery };
+  return { openPage, showPage, closePage };
 }

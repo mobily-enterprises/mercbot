@@ -42,7 +42,6 @@ Owns local authentication and self-service profiles through installed JSKIT pack
 
 ### Program
 
-- `genesis/program/authentication/accounts.md`
 - `genesis/program/accounts/settings.md`
 
 ### Data owned
@@ -57,11 +56,18 @@ Owns local authentication and self-service profiles through installed JSKIT pack
 
 - Nothing.
 
-## `bots` Bots and conversations
+## `bots` Bots and chats
 
-Owns a home's bots, members of the home as its people are, and its chats (D-112): Public and Private
-chats of people and bots, their members and timeline, scripted onboarding and DeepSeek replies, run on the agent loop of the installed JSKIT agent packages, whose tables it
-owns through them.
+Owns a home's bots, members of the home as its people are, and its chats (D-112): Public and Private chats of any of
+its people and bots, each person's own place in them (read point, pin, section, hidden, muted), the direct chat a
+bot's Message opens, the home's everyone chat and an app's chat with its Builder, and the one reading rule every
+route and every bot turn reads through (the row policies and `readable_from`). In each chat each bot has a seat
+(`chat_bots`) that its reply runs, goal, to-dos, routines, requests and follow-ups hang off, and that the computer,
+files, commands, watches and app jobs of other subsystems key to. It owns who speaks and the turns (DeepSeek replies,
+run on the agent loop of the installed JSKIT agent packages, whose tables it owns through them), the bots' tools,
+Team and each bot's card, Library and archive, bot templates and teams (D-98, D-105), what a bot knows (D-107),
+routines run as their maker, and the scripted welcome chat. Its records (`mercbot.bots.records`) are how the other
+subsystems read chats, seats and bots.
 
 ### Source
 
@@ -69,7 +75,12 @@ owns through them.
 
 ### Program
 
-- `genesis/program/bots/conversations.md`
+- `genesis/program/bots/chats.md`
+- `genesis/program/bots/turns.md`
+- `genesis/program/bots/bot-tools.md`
+- `genesis/program/bots/team.md`
+- `genesis/program/bots/onboarding.md`
+- `genesis/program/bots/routines.md`
 - `genesis/program/bots/app-tools.md`
 - `genesis/program/bots/templates.md`
 - `genesis/program/bots/agent-loop.md`
@@ -89,6 +100,8 @@ owns through them.
 - Table `database` `default` `approval_rules`
 - Table `database` `default` `bot_knowledge`
 - Table `database` `default` `bot_knowledge_parts`
+- Table `database` `default` `home_templates`
+- Table `database` `default` `home_template_changes`
 - Table `database` `default` `connect_follow_ups`
 - Table `database` `default` `agent_runs`
 - Table `database` `default` `agent_goals`
@@ -107,10 +120,10 @@ owns through them.
 
 ## `integrations` Connect apps and skills
 
-Owns the plugin catalogue (the app's `plugins/<id>/plugin.json` folders), which
-plugins each person has added and their accounts, private skills, connected
-accounts' tokens, a copy's side of the bridge between copies of Mercbot (D-31), and the general connector to apps
-that host their own connection point (D-34).
+Owns the plugin catalogue (the app's `plugins/<id>/plugin.json` folders), which apps each home has added and their
+accounts (the home's, used by everyone and every bot in it in any chat, D-111), the home's Tools switches, each
+person's private skills and the apps they asked for (Request), connected accounts' tokens, a copy's side of the bridge
+between copies of Mercbot (D-31), and the general connector to apps that host their own connection point (D-34).
 
 ### Source
 
@@ -128,6 +141,7 @@ that host their own connection point (D-34).
 - Table `database` `default` `plugin_account_people`
 - Table `database` `default` `plugin_account_turns`
 - Table `database` `default` `user_skills`
+- Table `database` `default` `app_interest`
 - Table `database` `default` `oauth_states`
 - Table `database` `default` `bridge_link`
 - Table `database` `default` `connector_apps`
@@ -140,7 +154,8 @@ that host their own connection point (D-34).
 
 ## `computer` Bot computers
 
-Owns each bot's computer: Chrome and the Craft apps in a gVisor desktop sandbox on its own
+Owns each bot's computer in each chat (D14: one per seat, `chat_bots`, labelled with its bot and chat, used by
+everyone who can open the chat, D16: taken over and handed back): Chrome and the Craft apps in a gVisor desktop sandbox on its own
 Xvfb display, with internet only through Mercbot's gateway (D-49), the live screen stream, the person's input during takeover, the
 screenshots the bot takes, its coding runs, each in a gVisor sandbox of its own (D-77), and which server runs each computer (D-15),
 or the one a copy built on Mercbot chooses (`mercbot.computer-placement`, D-85), and who hears when computers run out of room
@@ -165,11 +180,14 @@ or the one a copy built on Mercbot chooses (`mercbot.computer-placement`, D-85),
 ### Data used
 
 - Table `database` `default` `bots`
+- Table `database` `default` `conversations`
+- Table `database` `default` `chat_bots`
 
 ## `files` Bots' files and office apps
 
-Owns the folders bots keep files in (each home's shared folder, each bot's folder for
-everyone using it, and each person's own with each bot), the file browsers, the pages bots
+Owns the folders bots keep files in (each chat's folder, each bot's own folder in all its chats and the home's
+shared folder, D-112; in a Private chat a bot only reads the wider two unless a person widens the place, D13), the
+file browsers, the pages bots
 write and their sealed viewer (D-74), the sandboxed office apps bots make files with, the bots' command line in gVisor and its toolbox, and the
 routes that show, send and change those files (D-20, D-21, D-47), and where each home keeps them: on Mercbot, in its own
 WebDAV storage or in a connected Google Drive account, through `mercbot.integrations` (D-26, D-80), moving every file
@@ -314,7 +332,9 @@ its own or, for a Settings section, put one in the place of Mercbot's (extension
 
 ## `operations` Runtime operations
 
-Owns startup, health checks, and preparation of the application's database.
+Owns startup, health checks, and preparation of the application's database, and the configuration that keeps
+JSKIT's local accounts for a copy built on Mercbot while Mercbot's one person needs none
+(`config/public.js`, `server/lib/runtimeEnv.js`).
 
 ### Source
 
@@ -323,6 +343,7 @@ Owns startup, health checks, and preparation of the application's database.
 ### Program
 
 - `genesis/program/operations/runtime.md`
+- `genesis/program/authentication/accounts.md`
 
 ### Data owned
 
@@ -418,4 +439,5 @@ home; nothing is ever deleted.
 - Table `database` `default` `users`
 - Table `database` `default` `bots`
 - Table `database` `default` `conversations`
+- Table `database` `default` `chat_bots`
 - Table `database` `default` `workspace_memberships`

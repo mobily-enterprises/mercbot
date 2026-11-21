@@ -1,31 +1,34 @@
 # Bot computer
 
-Gives each bot its own small desktop with a web browser that the person can
-watch and take over (docs/architecture.md §3.5, decisions D-11 to D-14).
+Gives each bot in each chat its own small desktop with a web browser that the chat's people can
+watch and take over (docs/architecture.md §3.5, decisions D-11 to D-14; D-112's D14 and D16).
 
 ## Sources
 
 - `migrations/20261113120000_baseline.cjs`
+- `migrations/20261122120000_chats_core.cjs`
+- `migrations/20261122130000_computer_control.cjs`
 - Main: `packages/computer/src/server/ComputerFeature.js`
 - `packages/computer/src/server/registerRoutes.js`
 - `packages/computer/src/server/shellQuote.js`
 - `packages/computer/src/server/types.js`
+- `packages/computer/src/server/computerControl.js`
+- `packages/computer/src/server/computers.js`
+- `packages/computer/src/server/computerRecords.js`
+- `src/components/mercbot/MercbotChatComputers.vue`
+- `src/components/mercbot/MercbotChatComputer.vue`
+- `src/components/mercbot/MercbotLiveView.vue`
+- `src/components/mercbot/computerApi.js`
+- `src/components/mercbot/chatPlace.js`
 - `src/components/mercbot/useLiveView.js`
 - `packages/computer/src/server/computerManager.js`
 - `packages/computer/src/server/signInChain.js`
 - `packages/computer/src/server/webPage.js`
-- `tests/server/signInChain.test.js`
-- `tests/e2e/sign-in-chain.spec.ts`
-- `packages/computer/src/server/computers.js`
 - `packages/computer/src/server/recorder.js`
 - `packages/computer/src/server/browserState.js`
-- `tests/server/resilience.integration.js`
-- `tests/server/computers.integration.js`
 - `packages/computer/src/server/desktopSandbox.js`
 - `packages/computer/src/server/cdpBridge.js`
-- `tests/server/cdpBridge.test.js`
 - `packages/computer/src/server/gateway.js`
-- `tests/server/gateway.test.js`
 - `packages/computer/assets/terminal.svg`
 - `scripts/measure-browser-speed.mjs`
 - `packages/computer/src/server/stagehandModel.js`
@@ -35,40 +38,61 @@ watch and take over (docs/architecture.md §3.5, decisions D-11 to D-14).
 - `packages/computer/src/server/vncBridge.js`
 - `src/components/mercbot/MercbotVncScreen.vue`
 - `packages/computer/package.json`
-- `src/components/mercbot/computerApi.js`
-- `src/components/mercbot/MercbotLiveView.vue`
 - `src/components/mercbot/MercbotHandoverCard.vue`
 - `src/components/mercbot/MercbotLightbox.vue`
 - `packages/computer/src/server/codingRuns.js`
 - `packages/computer/src/server/codingSandbox.js`
-- `tests/server/codingSandbox.test.js`
 - `scripts/measure-coding-sandbox.mjs`
 - `scripts/coding-tools/package.json`
 - `scripts/coding-tools/package-lock.json`
-- `tests/server/codingHandoff.test.js`
 
 ## Public contract
 
-**One computer per conversation** (D-36, D-99). A bot's computer belongs to a conversation, whatever
-the bot's mode:
-- each person's own with the bot, a shared bot's "You only" tab included, so their browser sign-ins
-  never reach anyone else;
-- one per shared conversation (a shared bot's room), which everyone in it uses.
+**One computer per bot in each chat** (D14, D-112). A bot's computer belongs to its seat in a chat: everyone who can
+open the chat can watch it and use what is signed in on it (a Public chat's computer is the whole home's), and nothing
+on it reaches another chat. A bot in three chats has three computers.
 
-**Keying.** The computer service is keyed by `computerId`, the conversation's id.
-`bot_computers`, `computer_tickets` and `bot_browser_state` hold
-`conversation_id`. What a bot had before went with its maker's conversation.
+**Keying.** The computer service is keyed by `computerId`, the bot's seat (`chat_bots.id`). `bot_computers`,
+`bot_browser_state` (whose key it is) and `computer_tickets` hold `chat_bot_id`, and go with the seat (ON DELETE
+CASCADE): taking a bot out of a chat, or deleting the chat, the bot or the home, takes its computers there with it.
+`bot_computers.controlled_by` and `controlled_at` say which person has control now, and `bot_browser_state.sign_ins`
+lists what it is signed in to (`[{ label, kind, since }]`, kind `site`, `coding` or `sedna`;
+`migrations/20261122130000_computer_control.cjs`).
 
-**Routes.** `…/bots/:botId/computer…` and `…/screenshots/:name` use the person's own conversation
-with that bot. `?room=` names one of a shared bot's rooms or the person's own conversation (You
-only); anything else, such as another person's conversation or a room hidden while its bot isn't
-shared, is 404. Without it, a shared bot's use the tab the person has open (their own conversation
-while You only is), else the first room. The page names the open tab in each address
-(`computerApi.js` through `openTabs.js`), so the Details panel's Computer tab follows the tab. A
-computer's files are its conversation's: a room's the bot's everyone folder, a person's own
-conversation's their own (`files.store.placeFor`, `room`), and `POST …/computer/open` opens a file from there.
-Settings → Reset restarts the person's own computers in the home, You only's included; shared
-conversations' computers stay.
+**Routes** (`/api/w/:workspaceSlug/bots/:botId/computer…?chat=<chatId>` and `…/screenshots/:name`): that bot's computer
+in that chat, for anyone who can open the chat; a chat they can't open, or a bot not in it, is 404
+`computer_not_found` ("That computer isn't here."). The page names the chat in every address (`chatPlace.js`
+`placeQuery`, `computerApi.js`). `GET …/computer` answers `{ state, url, error, control, signIns }`; `POST …/wake`,
+`…/ticket`, `…/open`, `…/take-over`, `…/hand-back` and `…/reset`, and `GET …/stream`. A computer's files are its chat's
+(`/files/chat`, `files.store.placeFor`), and `POST …/computer/open` opens a file from there. `POST …/computer/reset`
+starts one computer afresh, its saved browser and sign-ins gone, for anyone who can open its chat, as they all use it.
+`POST /api/w/:workspaceSlug/computers/reset` (Settings → Computer → Reset) resets the computers of the chats whose only
+person is the caller; a chat with other people keeps its computers, which are theirs too (three reads, however many
+chats). A paused home's wake answers 402.
+
+**Taking over and handing back** (D16, `computerControl.js`): anyone who can open the chat takes a bot's computer over,
+from the bot or from another person, and anyone who can open it hands it back. Each posts a line in the chat ("<Name>
+took over <Bot>'s computer.", " from <Other>" when taken from someone; "<Name> handed <Bot>'s computer back.") and
+answers `{ messages, control }`; the chat's people hear a `messages` and a `computer` event on bot events, on any
+server. While a person has control the bot's own computer actions are refused (409 `computer_person_in_control`
+"<Name> has control of <Bot>'s computer. Wait until they hand it back."); a computer that goes to sleep is the bot's
+again. Each sign-in the bot makes there (a website's, a coding tool's, Sedna's) is noted in its sign-ins list, and the
+chat gets D14's line, "Everyone who can open this chat can use this sign-in."
+
+**In the chat's details** (`MercbotChatComputers.vue`, `MercbotChatComputer.vue`): its Computers tab has one entry per
+bot, "<Bot>'s computer", with "It belongs to this chat. The chat is public, so everyone in <home> can watch it and use
+what's signed in on it." (or, Private, "Only the chat's members can watch it and use what's signed in on it."), its
+state ("Asleep", "Awake", "Starting up", with " · You have control" or " · <Name> has control"), "Signed in on it" (each
+sign-in, coding ones as "<label> (coding)", or "Nothing yet."), Watch and Take over, or Hand back while the person has
+control; Take over is greyed out while someone else has it. A bot's card on Team says "<Bot> has its own computer in
+each chat it's in. Open one from that chat's details." The live view (`MercbotLiveView.vue`) shows "Watching" with
+Take over, or "You have control. <Bot> waits until you hand it back." with Hand back ("I'm done" when the bot asked the
+person to do something there); Escape hands back.
+
+**A chat deleted** (`chatRemoved({ homeId, chatId, chatBotIds })`): its computers go to sleep wherever they run (a
+notice every server hears) and its folder, its computers' folders and its command outputs go from where the home's
+files are kept; each step's failure is said and the rest go on. Every server sweeps at most hourly for computer
+folders whose seat is gone.
 
 Everything a computer runs is in gVisor (D-49), and nothing listens on a TCP port but the server's
 own (D-68), which is all a published server may bind. Waking a bot's computer starts, on a free
@@ -79,7 +103,7 @@ sandbox** (`desktopSandbox.js`). That sandbox is one gVisor sandbox (`runsc --ro
 --network=none`, on KVM only with `MERCBOT_GVISOR_PLATFORM=kvm`) holding Chrome and the Craft
 apps:
 - **What it sees:** the toolbox (Chrome for Testing in `/opt/chrome`), the display's socket,
-  the profile at `/profile`, Stagehand's extension, and the conversation's folders (`noexec`). On a host whose
+  the profile at `/profile`, Stagehand's extension, and the chat's folders (`noexec`). On a host whose
   programs come from a read-only Nix store (`MERCBOT_TOOLBOX_STORE`, D-86), the toolbox is links into the store made at
   start (`files/shell.md`), `/opt/chrome/chrome` is the store's Chromium, and the sandbox sees the store read-only at
   its own path; the desktop's own programs (`Xvfb`, `x11vnc`, `openbox`, `tint2`, `hsetroot`, `xterm`) are found on
@@ -135,19 +159,19 @@ by `hsetroot`, and two `tint2` bars: a translucent top bar ("Mercbot", the open
 windows, a clock) and a centred dock with Browser (a new window of the bot's
 Chrome) and the office apps, and a Terminal. Right-clicking the desktop shows the same apps. The
 office apps run in the desktop sandbox. The Terminal is an xterm attached to the
-conversation's command-line session (`files/shell.md`): the bot's commands live above, the
+seat's command-line session in the chat (`files/shell.md`): the bot's commands live above, the
 person's own shell below. Without `tint2` or `hsetroot` the desktop has no bars or wallpaper.
 Every xterm the server opens there (`xtermCommand`: the Terminal, a coding run's progress, a sign-in) runs, in
 Mercbot's own namespace (D-68), in a user namespace of its own as the host's own user (`asHostUser`): as that
 namespace's root, xterm gives its program root's groups before starting it, which a user namespace refuses, and the
 window closed at once. `tests/server/xtermWindow.test.js` starts one there with a real Xvfb and xterm.
-`POST /api/bots/:botId/computer/open` (`{path}`, a bot path) wakes the computer
+`POST …/computer/open?chat=` (`{path}`, a path in the chat's files) wakes the computer
 where it runs (the `open` operation is forwarded like the others) and opens that
 file in its app; the viewer's "Edit on computer" calls it, then opens the live
 view in control. An archived bot's computer (D-108) neither wakes nor opens a file: both answer 409
 `bots_bot_archived` ("<bot> is archived. Unarchive it to use its computer."), and archiving puts its awake computers to
 sleep through the capability's `sleepHome(home, among)`, which with `among` sleeps only those computers (without it,
-every computer of the home, as a move of its files does, D-80).
+every computer of the home, as a move of its files does, D-80). An archived bot's computers stay asleep in every chat.
 
 **Coding tools (`codingRuns.js`, `codingSandbox.js`, D-77).** Claude Code and
 Codex CLI, pinned in `scripts/coding-tools` (npm lock with integrity) and installed by
@@ -159,7 +183,8 @@ waking it).
   gVisor sandbox beside the computer's, never inside it (`runSandboxed`, `@local/files/gvisor`). It
   sees the toolbox read-only, the tools read-only at `/opt/coding`, a private 1 GB `/tmp`, the
   tool's sign-in folder at `/profile/.coding` (its `HOME`) and, for a run, the project's folder at
-  its place among the bot's files (`/files/mine/site`); nothing else of the browser profile, the
+  its place among the chat's files (such as `/files/chat/website`, or in a Public chat `/files/bot` or
+  `/files/shared`); nothing else of the browser profile, the
   computer's `/io` or the bot's folders, and nothing of the server. The computer's own sandbox has
   no `/opt/coding`.
 - **Its own gateway:** no network (`--network=none`); a gateway of its own (`gateway.js`) on a
@@ -195,10 +220,11 @@ waking it).
   doesn't sleep. Putting one to sleep, or a server draining, first stops its run and sign-in and
   waits until the run's ending has been passed on (`stop(computer, "asleep")`); every ending
   (finished, failed, stopped, time, memory, sleep, a start that failed) removes the sandbox and its
-  folder. When a run ends, `onCodingEnd` listeners hear it with the computer's conversation (the
-  bots queue the report, `bots/conversations.md`).
+  folder. When a run ends, `onCodingEnd` listeners hear it with the computer's seat in its chat (`{ computerId,
+  place, run }`; the bots queue the report in that chat, `genesis/program/bots/bot-tools.md`).
 
-Downloads land in the bot's files (`HOME` is `/files/mine`); Mercbot's folders are not visible.
+Downloads land in the chat's files (`HOME` is `/files/chat`, the apps' own settings in `/files/chat/.apps`); Mercbot's
+folders are not visible.
 `scripts/measure-browser-speed.mjs` times the gVisor browser on a development machine, on a display
 started with the computers' own Xvfb arguments (`xvfbArgs`). Up to `MERCBOT_MAX_COMPUTERS` (default 3) are awake at once;
 idle ones sleep after 5 minutes unless someone is watching or a hand-over is
@@ -206,17 +232,18 @@ pending. While awake, a browser profile lives under `MERCBOT_DATA_DIR` (default
 `.data`) on the server running the computer.
 
 **The computer's files (D-50)** are kept with the bots' files, in
-`<files>/computers/<conversation>/` (`store.computerFolder`), outside every person's folders, and
+`<files>/computers/<chat_bots id>/` (`store.computerFolder`), outside every chat's and bot's folders, and
 never in the database or only on a server's own disk: with the files bucket (D-91) the folder here is
 a working copy, its own files pulled before they're read, a screenshot fetched alone
 (`store.computerFile`), and what's written sent to the bucket at once (`store.settleComputer`).
 While the files aren't available there are no screenshots and nothing is saved.
-- **Screenshots:** `screenshots/<conversation>-<16 hex>.jpg`, served only for that conversation. With a copy
+- **Screenshots:** `screenshots/<chat_bots id>-<16 hex>.jpg`, served only for that computer, to whoever can open its
+  chat. With a copy
   built on Mercbot that checks pictures (D-90), only the ones a reply shows people are queued in `media_checks`, by
   that reply once its turn is over (bots' `botTools.js`), and checked within minutes; a blocked one is removed and
   then answers as missing. `storeScreenshot` queues none, so every other screenshot is kept unchecked.
-- **Lifetime:** a conversation's folder goes with it. Each server looks, at most hourly
-  (`sweepFiles`), for folders whose conversation is gone, whatever way it went.
+- **Lifetime:** a computer's folder goes with its seat. Each server looks, at most hourly
+  (`sweepFiles`), for folders whose seat is gone, whatever way it went.
 
 Disposable machines (D-19): each bot's browser is kept off the machine, as sealed files in that
 folder. `bot_browser_state` holds only which profile file is current, its sha256 and size, the
@@ -302,13 +329,11 @@ is drawn, which is when Start recording becomes available; Escape closes the liv
 view while the screen isn't showing.
 
 The person sees the whole desktop through noVNC. `POST
-/api/bots/:botId/computer/ticket` (bot owner only, computer awake) returns a
+…/computer/ticket?chat=` (anyone who can open the chat, computer awake) returns a
 one-time ticket valid for 30 seconds; the page opens
 `/api/computer-vnc?ticket=…` as a WebSocket, which the server relays to that
-bot's x11vnc socket. Watching is view-only; Take control sends mouse and keys through
-the same connection. Other routes: `GET /api/bots/:botId/computer`, `POST
-.../computer/wake`, `GET .../computer/stream` (server-sent state and address, ending with its page) and
-`GET /api/bots/:botId/screenshots/:name`. The bot's own browsing uses Stagehand
+bot's x11vnc socket. Watching is view-only; Take over sends mouse and keys through
+the same connection. `GET …/computer/stream` sends state and address as server-sent events, ending with its page. The bot's own browsing uses Stagehand
 (DeepSeek through our client-model adapter) and the page; a screenshot-and-click
 mode can be added beside it later.
 
@@ -332,3 +357,23 @@ typing into them) is in `webPage.js`.
 `{outsideChain: true}` and nothing typed), and with `onlyAt` only while the page in front is still
 at that address. The manager's `startBrowser`, `libraries` and `clock` let
 `tests/e2e/sign-in-chain.spec.ts` run it on a plain Chromium with a stand-in for Stagehand's AI.
+
+## Proved by
+
+- `tests/server/signInChain.test.js`
+- `tests/e2e/sign-in-chain.spec.ts`
+- `tests/server/computers.integration.js`
+- `tests/server/cdpBridge.test.js`
+- `tests/server/gateway.test.js`
+- `tests/server/codingSandbox.test.js`
+- `tests/server/codingHandoff.test.js`
+- `tests/server/chatComputers.integration.js`
+- `tests/client/chatComputers.vitest.js`
+- `tests/client/liveControl.vitest.js`
+- `tests/e2e/chat-computers.spec.ts`
+- `tests/e2e/live-screen.spec.ts`
+- `tests/server/computerManager.test.js`
+- `tests/server/computerDays.test.js`
+- `tests/server/xtermWindow.test.js`
+- `tests/server/standInDesktops.test.js`
+- `tests/server/resilience.integration.js`
