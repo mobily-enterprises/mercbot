@@ -55,7 +55,9 @@
  */
 /**
  * A chat as every chat route answers it (`{ chat }`, and each of `{ chats }`), the page's one shape for a chat. The
- * everyone chat (`everyone`) counts as pinned for everyone in it, first in the list, with no `pinPosition` (O9).
+ * everyone chat (`everyone`) counts as pinned for everyone in it, first in the list, with no `pinPosition` (O9). The
+ * place's `mentioned` is the chat list's "@": someone's message there mentions the person and they haven't read it since
+ * (D-114).
  * @typedef {{
  *   id: string, kind: "public" | "private", title: string | null, everyone: boolean, directBotId: string | null,
  *   appId: string | null, madeBy: string | null, onboardingStep: string | null, archivedAt: string | null,
@@ -65,8 +67,8 @@
  *     waitingTask: string | null
  *   }>,
  *   place: {
- *     readUpTo: string | null, unread: boolean, pinPosition: number | null, sectionId: string | null,
- *     hidden: boolean, muted: boolean
+ *     readUpTo: string | null, unread: boolean, mentioned: boolean, pinPosition: number | null,
+ *     sectionId: string | null, hidden: boolean, muted: boolean
  *   } | null,
  *   latest: {
  *     id: string, kind: string, role: string, authorUserId: string | null, authorBotId: string | null,

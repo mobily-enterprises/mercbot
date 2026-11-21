@@ -2029,7 +2029,9 @@ pictures it draws.
   written), a photo the Vault reads (before the images AI sees it) and a new profile picture (before it's written).
   Blocked, the route answers 422 `media_blocked`, "This file can't be used."; not checkable now, 503
   `media_check_unavailable`, "This file can't be checked right now. Try again in a few minutes."; and nothing is kept.
-  The chat's attachments and the file browser show that sentence.
+  The chat's attachments and the file browser show that sentence. *Since 2026-11-22 (D-114) a file a person attaches in a chat,
+  with other people in it or not, goes in the chat's folder and is checked as theirs in that chat
+  (`conversationId` the chat, `botId` its first bot or none).*
 - **Pictures a bot makes:** `make_picture` checks what's asked for before anything is drawn, and each picture before
   it's kept or shown. One not allowed is neither, and the bot says so in one line (the checker's sentence when it gave
   one); the others of the same request are still shown. Either way the reply isn't sent back to make a picture.
@@ -3503,3 +3505,46 @@ chat leaves what a bot learned; deleting a chat, removing messages or a safety r
 bots work on the brief alone. A person's saved skills are theirs per home; the app actions turned off are the home's.
 When the Builder changes, the new one joins every app chat and the old one stays until removed. Template files carry no
 `changes` entry for this: no bot predates it.
+
+## D-114 — People in chats: their files, mentions, reactions, and Continue with others (2026-11-22)
+
+*Phase B3 of the chats rebuild (D-112). Amends D-90: a person's upload in a chat is checked as theirs in that chat,
+whoever else is in it. Amends D-112's direct chat: it still takes no one else, and goes on with others in a new chat.*
+
+What people do in chats with other people, beside what the bots do there:
+- **Files in a chat with others.** A file a person attaches in a chat goes in Uploads in the chat's own folder
+  (`/files/chat/Uploads`), whoever else is in it: other people, bots, or no bot at all. Everyone who can open the chat
+  finds it there (a Public chat's anyone in the home, a Private chat's its people), and nobody else reaches it by any
+  route: listing, folders, the viewer's preview, the file, its download, uploading, moving, a new folder, ticking a
+  checklist, deleting, or opening it on a bot's computer, each the same 404 (`files_place_not_found`,
+  `computer_not_found`). A copy that checks pictures and videos (D-90) checks each one before it's kept, as the person's
+  upload in that chat (`origin: "upload"`, the person, the chat, its first bot when it has one, the chat's place):
+  blocked or not checkable now, it's refused and nothing is kept. A file attached in New chat waits until the chat is
+  made, then goes in its folder before the first message is sent; one refused is left out, saying why.
+- **@-mentioning people.** In a chat of several, @ offers everyone, the chat's other people (never the person writing),
+  its bots and the person's apps. A person chosen is sent as `<@person:ID>` and kept on the message by name
+  (`body.mentionedPeople`, apart from the bots in `body.mentions`); the model and previews read it as "@Name". Only the
+  chat's other people are mentioned: a marker naming anyone else (the author, someone not in the chat, another home's
+  person, no one) marks nobody and reads "@someone". Bots never write a person's marker. A mention of a person makes no
+  bot speak (R3 is unchanged).
+- **The "@" in the chat list.** A person mentioned has it waiting in their place in the chat (`chat_people.mentioned_at`,
+  migration `20261122150000_chat_mentions.cjs`): set by the message, in its transaction, for every person it names in
+  one UPDATE, and kept at the first mention's time while they haven't read the chat; reading the chat, or marking it
+  read, clears it, as it clears unread. The chat's place answers `mentioned`, and its row and tile show "@" where the
+  unread dot would be. A copy built on Mercbot can tell a person of a mention they leave unread, timing it from
+  `mentioned_at`.
+- **Reactions on people's messages.** Anyone in a chat reacts to another person's message as to a bot's, one quick
+  reaction each, which they change or take away; never to their own message or to Mercbot's lines. Reactions are
+  written by the database, so several people reacting at once each keep theirs. A message shows everyone's reactions,
+  people's and bots', each emoji once with how many chose it, the person's own ringed.
+- **Continue with others…** A direct chat (one person, one bot) takes no one else. Its header (and a phone's) offers
+  Continue with others…, which opens New chat as Continue with others: Public, the bot on the To: line, and the bot's
+  hand-over note as the first message, which the person reads, changes and sends as their own once they've added the
+  people or bots to continue with (Start waits until someone besides the bot is there). The direct chat stays as it is.
+  The note is one billed call as the bot's chat work, refused in a paused home (D-73) and for an archived bot (D-108),
+  and only the direct chat's own person asks for it (`POST …/chats/:chatId/hand-over-note`; 403 `bots_chat_not_yours`,
+  409 `bots_chat_not_direct` for any other chat). It's written from the direct chat's newest page as people see it
+  (each message's text, a card's one line, files by name, under its author's name), read through the model's reader
+  for the bot in that chat (R1), and never from a reply's transcript, a routine's prompt, the chat's summary or the
+  bot's state note there (an R12 row in `modelInputs.js`). Nothing is kept: the new chat is New chat's, with no link
+  back.

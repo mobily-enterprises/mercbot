@@ -72,11 +72,11 @@ taught-task message, skill links that open the skill in Connect apps, and in
 a chat of several people or bots (`messageAuthors.js`) the person's own messages on the right and everyone else's on
 the left, each run of one author's bubbles with their name above the first and their face (a bot's) or initials (a
 person's) beside the last, the name they wrote under once they've left (R2), mention tokens, a status line showing
-the working bots, and an @ menu (everyone, the chat's bots, apps) whose choices stay
+the working bots, and an @ menu (everyone, the chat's other people, its bots, apps; D-114) whose choices stay
 in the message box as one-piece tokens, reactions, hover actions (react,
 reply, more) beside the bubble at every width, so nothing but "Not sent." ever
 takes a line under a message, right-click menus (on a message Reply, Copy and Copy request ID,
-under a row of six reactions on a bot's; on a picture or chart Copy image, as PNG, and Save
+under a row of six reactions on a bot's or another person's; on a picture or chart Copy image, as PNG, and Save
 image; a link or selected text keeps the browser's own menu; each menu takes the keyboard as it
 opens, holding an arrow typed before it shows for its first or last row, and gives focus back as it closes), a growing composer with attachments and quote tokens, find in chat
 with highlights, an add-to-chat pill for selections, and a microphone error

@@ -75,6 +75,14 @@ export const MODEL_INPUTS = Object.freeze([
     reach: "public"
   },
   {
+    file: "packages/bots/src/server/handOverNotes.js",
+    calls: { generateOnce: 1 },
+    path: "Continue with others…: the hand-over note a direct chat's bot writes for a new chat (D-114)",
+    reads: "the direct chat's newest page as people see it (text, a card's one line, attachments by name), never a " +
+      "tool result, a routine's prompt or the chat's summary",
+    reach: "reader"
+  },
+  {
     file: "packages/computer/src/server/stagehandModel.js",
     calls: { "chat/completions": 1 },
     path: "Stagehand's model driving a chat's computer",

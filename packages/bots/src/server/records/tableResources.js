@@ -57,7 +57,8 @@ export const conversationResource = defineTableResource({
 });
 
 /** chat_people
- * a person in a chat, with their own place in it: where they read up to, unread, pin, section, hidden and muted
+ * a person in a chat, with their own place in it: where they read up to, unread, since when someone mentioned them
+ * there unread (D-114), pin, section, hidden and muted
  */
 export const chatPersonResource = defineTableResource({
   name: "chatPeople",
@@ -68,6 +69,7 @@ export const chatPersonResource = defineTableResource({
     conversationId: { type: "id", required: true, search: true },
     hidden: { type: "boolean", search: true },
     joinedAt: { type: "dateTime" },
+    mentionedAt: { type: "dateTime", nullable: true },
     muted: { type: "boolean" },
     pinPosition: { type: "integer", nullable: true },
     readUpTo: { type: "integer", nullable: true },

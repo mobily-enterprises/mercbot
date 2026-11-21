@@ -10,6 +10,15 @@ import { pluginsApi } from "./pluginsApi.js";
 export const mentionBotsOf = (chat) => (chat?.bots || []).filter((bot) => !bot.archived).map(botFace);
 
 /**
+ * The people a chat's @ offers (D-114): its people but the person writing, as { id, name }.
+ * @param {import("../../types.js").Chat | null} chat
+ * @param {string} me
+ */
+export const mentionPeopleOf = (chat, me) => (chat?.people || [])
+  .filter((person) => String(person.userId) !== String(me))
+  .map((person) => ({ id: String(person.userId), name: person.name }));
+
+/**
  * The chat's one bot that answers, if it has exactly one: an archived bot doesn't answer, so neither "/" nor @ offers it.
  * @param {import("../../types.js").Chat | null} chat
  */
@@ -20,15 +29,16 @@ export function soleBotOf(chat) {
 
 /**
  * Mentions: in a chat of several (more than one bot or more than one person), @ opens a menu of everyone, the chat's
- * bots and the person's apps. A chosen one stays in the text as "@Name" and acts as one unit: Backspace or Delete
- * takes the whole token, and the caret can't stop inside it. A layer behind the text draws tokens in the bot's colour
- * with its avatar over the "@". Sending turns them into markers. `draft` is the composer's text, `several` whether the
- * chat has several (messageAuthors.js hasSeveral), `mentionBots` the bots @ offers (mentionBotsOf), `chatId` the
- * open chat, whose change clears the tokens and the skills "/" offers there (the server's, by chat).
+ * other people (D-114), its bots and the person's apps. A chosen one stays in the text as "@Name" and acts as one unit:
+ * Backspace or Delete takes the whole token, and the caret can't stop inside it. A layer behind the text draws tokens
+ * in the bot's colour with its avatar over the "@", a person's with a person's glyph. Sending turns them into markers.
+ * `draft` is the composer's text, `several` whether the chat has several (messageAuthors.js hasSeveral), `mentionBots`
+ * the bots @ offers (mentionBotsOf), `mentionPeople` the people (mentionPeopleOf), `chatId` the open chat, whose change
+ * clears the tokens and the skills "/" offers there (the server's, by chat).
  * @param {object} options
  * @param {import("vue").Ref<HTMLTextAreaElement | null>} options.input The composer's field.
  */
-export function useComposerTokens({ draft, input, several, mentionBots, chatId }) {
+export function useComposerTokens({ draft, input, several, mentionBots, mentionPeople = ref([]), chatId }) {
   const tokens = ref([]);
   const apps = ref(null);
   const mention = ref(null);
@@ -94,6 +104,7 @@ export function useComposerTokens({ draft, input, several, mentionBots, chatId }
     const query = mention.value.query.toLowerCase();
     const rows = [
       { key: "everyone", kind: "everyone", label: "everyone", type: "everyone" },
+      ...mentionPeople.value.map((person) => ({ key: `person-${person.id}`, kind: "person", id: person.id, label: person.name, type: "person" })),
       ...mentionBots.value.map((bot) => ({ key: `bot-${bot.id}`, kind: "bot", id: bot.id, label: bot.name, bot, type: "bot" })),
       ...(apps.value || []).map((app) => ({
         key: `app-${app.id}`,
@@ -192,15 +203,9 @@ export function useComposerTokens({ draft, input, several, mentionBots, chatId }
 
   function withMarkers(text) {
     let result = text;
+    const MARKERS = { bot: "bot", person: "person", app: "app", skill: "skill" };
     for (const token of [...tokens.value].sort((a, b) => b.label.length - a.label.length)) {
-      const marker =
-        token.kind === "bot"
-          ? `<@bot:${token.id}>`
-          : token.kind === "app"
-            ? `<@app:${token.id}>`
-            : token.kind === "skill"
-              ? `<@skill:${token.id}>`
-              : "<@everyone>";
+      const marker = MARKERS[token.kind] ? `<@${MARKERS[token.kind]}:${token.id}>` : "<@everyone>";
       result = result.split(tokenText(token)).join(marker);
     }
     return result;

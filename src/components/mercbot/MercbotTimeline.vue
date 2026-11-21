@@ -21,7 +21,7 @@ import extensions from "./extensions.js";
 import { ONBOARDING_BLACK, ON_IDENTITY, PAPER } from "@/theme/palettes.js";
 import { choiceColor, isBlack, mixColor, onChoiceColor } from "./accent.js";
 import { botFace } from "./chatView.js";
-import { GONE_BOT, authorOf, botReactions, hasSeveral, isLabelled, myReaction, sideOf } from "./messageAuthors.js";
+import { GONE_BOT, authorOf, hasSeveral, isLabelled, mayReact, myReaction, reactionsOf, sideOf } from "./messageAuthors.js";
 import { mentionParts } from "./mentions.js";
 import { screenshotUrl } from "./computerApi.js";
 import { fileKind, fileUrl, formatSize } from "./filesApi.js";
@@ -104,9 +104,9 @@ function toggleCommand(id) {
 
 const emit = defineEmits(["take-over", "use-computer", "secure-form", "settle-draft", "manage-rules", "settle-handover", "choose", "answer", "focus-composer", "connect", "react", "reply", "copy", "copy-image", "retry", "open-skill", "cancel-request", "open-page", "open-direct"]);
 
-// Right-click menus: on a message, Reply, Copy and Copy request ID, with a bot's adding a
-// row of reactions; on a picture, copy or save it. Selected words and links keep the browser's own
-// menu, so a part of a message can still be copied. `message` is the bot message the reactions are for.
+// Right-click menus: on a message, Reply, Copy and Copy request ID, with a bot's or another person's adding a row of
+// reactions (D-114); on a picture, copy or save it. Selected words and links keep the browser's own menu, so a part of a
+// message can still be copied. `message` is the message the reactions are for.
 const contextMenu = ref({ open: false, target: [0, 0], items: [], reactions: [], message: null });
 function openMessageMenu(event, message) {
   if (message.pending || message.failed || closestElement(event.target, "a[href]")) return;
@@ -116,7 +116,7 @@ function openMessageMenu(event, message) {
     open: true,
     target: [event.clientX, event.clientY],
     items: messageMenuItems(message, { reply: (chosen) => emit("reply", chosen), copy: (copied) => emit("copy", copied) }),
-    reactions: message.role === "bot" ? MENU_REACTIONS : [],
+    reactions: mayReact(message, props.me) ? MENU_REACTIONS : [],
     message
   };
 }
@@ -341,7 +341,7 @@ const fileDate = (iso) => (iso ? fileDay.format(new Date(iso)) : "");
         v-else-if="message.kind === 'text'"
         class="mb-message"
         :class="[`mb-message--${sideFor(message)}`, {
-          'mb-message--reacted': message.role === 'bot' ? myReaction(message, me) : botReactions(message).length,
+          'mb-message--reacted': reactionsOf(message, me).length,
           'mb-message--speaker': speakerOf(message),
           'mb-message--labelled': runStart(index)
         }]"
@@ -380,10 +380,11 @@ const fileDate = (iso) => (iso ? fileDay.format(new Date(iso)) : "");
           <!-- eslint-disable-next-line vue/no-v-html -- markdown-it escapes raw HTML (html: false) -->
           <div v-else-if="message.role === 'bot'" class="mb-rich" @click="clickRich($event, message)" v-html="richWithMentions(message)" />
           <p v-else-if="message.body.text" class="mb-bubble__text">
-            <template v-for="(part, partIndex) in mentionParts(message.body.text, message.body.mentions, message.body.skills)" :key="partIndex">
+            <template v-for="(part, partIndex) in mentionParts(message.body.text, message.body.mentions, message.body.skills, message.body.mentionedPeople)" :key="partIndex">
               <span v-if="part.bot" class="mb-bubble__mention" :style="{ color: tokenTint(part.bot.color) }">
                 <MercbotAvatar :bot="part.bot" :size="14" still />{{ part.bot.name }}
               </span>
+              <span v-else-if="part.person" class="mb-bubble__mention mb-bubble__mention--person" :class="{ 'mb-bubble__mention--me': part.person.id === String(me) }">@{{ part.person.name }}</span>
               <span v-else-if="part.everyone" class="mb-bubble__mention"><v-icon icon="$groupFilled" size="14" />everyone</span>
               <span v-else-if="part.app" class="mb-bubble__mention">@{{ part.app }}</span>
               <span v-else-if="part.skill" class="mb-bubble__mention"><v-icon icon="$menuBook" size="14" />{{ part.skill }}</span>
@@ -409,16 +410,14 @@ const fileDate = (iso) => (iso ? fileDay.format(new Date(iso)) : "");
             <v-icon icon="$deployedCode" size="13" />{{ message.body.chip }}
           </span>
 
-          <span v-if="message.role === 'bot' && myReaction(message, me)" class="mb-reaction mb-reaction--right">
-            {{ myReaction(message, me) }}
-          </span>
-          <span v-if="message.role === 'user' && botReactions(message).length" class="mb-reaction" :class="sideFor(message) === 'other' ? 'mb-reaction--right' : 'mb-reaction--left'">
-            {{ botReactions(message).join(" ") }}
+          <!-- Everyone's reactions (D-114): each emoji once, with how many, the person's own ringed. -->
+          <span v-if="reactionsOf(message, me).length" class="mb-reaction" :class="sideFor(message) === 'user' ? 'mb-reaction--left' : 'mb-reaction--right'">
+            <span v-for="reaction in reactionsOf(message, me)" :key="reaction.emoji" class="mb-reaction__one" :class="{ 'mb-reaction__one--mine': reaction.mine }">{{ reaction.emoji }}<span v-if="reaction.count > 1" class="mb-reaction__count">{{ reaction.count }}</span></span>
           </span>
         </div>
 
         <div v-if="!message.pending && !message.failed" class="mb-actions">
-          <v-menu v-if="message.role === 'bot'" location="bottom" :offset="4" content-class="mb-popover mb-react-popover">
+          <v-menu v-if="mayReact(message, me)" location="bottom" :offset="4" content-class="mb-popover mb-react-popover">
             <template #activator="{ props: reactProps }">
               <v-btn v-bind="reactProps" icon="$mood" size="22" variant="text" density="comfortable" class="mb-action" aria-label="React" />
             </template>

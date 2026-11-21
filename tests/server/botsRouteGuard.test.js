@@ -9,7 +9,7 @@ import { requestContextOptions } from "../support/requestContextOptions.mjs";
 // :botId, bots_chat_not_found for :chatId. An id that is no id at all is refused the same way, without a read. An
 // archived bot (D-108) or chat is read-only: only the routes that say they take one change anything about it.
 
-function routesWith(findBot, service = {}, findChat = (chatId) => ({ id: chatId, archived_at: null })) {
+function routesWith(findBot, service = {}, findChat = (chatId) => ({ id: chatId, archived_at: null }), pausedMessage = async () => null) {
   const routes = new Map();
   const asked = [];
   const askedChats = [];
@@ -37,7 +37,7 @@ function routesWith(findBot, service = {}, findChat = (chatId) => ({ id: chatId,
     bots,
     approvals: {},
     notices: {},
-    meter: { track: (_meta, work) => work(), pausedMessage: async () => null },
+    meter: { track: (_meta, work) => work(), pausedMessage },
     records,
     streams: new Set()
   });
@@ -159,7 +159,7 @@ test("an archived bot is read-only: its reads answer, and only the routes that t
 
 test("an archived chat is read-only: it reads, and only leaving, its place, unarchiving and deleting it change anything", async () => {
   const ran = [];
-  const service = recording(ran, ["chat.sendMessage", "chat.reply", "chats.addPerson", "chats.rename", "chats.archive",
+  const service = recording(ran, ["chat.sendMessage", "chat.reply", "chats.addPerson", "chats.rename", "chats.archive", "handOverNote",
     "chat.messages", "chats.leave", "chats.changePlace", "chats.markRead", "chats.unarchive", "chats.remove"]);
   const params = { workspaceSlug: "home-3", chatId: "40", messageId: "5" };
   const writes = [
@@ -167,7 +167,8 @@ test("an archived chat is read-only: it reads, and only leaving, its place, unar
     "POST /api/w/:workspaceSlug/chats/:chatId/reply",
     "POST /api/w/:workspaceSlug/chats/:chatId/people",
     "PATCH /api/w/:workspaceSlug/chats/:chatId",
-    "POST /api/w/:workspaceSlug/chats/:chatId/archive"
+    "POST /api/w/:workspaceSlug/chats/:chatId/archive",
+    "POST /api/w/:workspaceSlug/chats/:chatId/hand-over-note"
   ];
   const taking = [
     "GET /api/w/:workspaceSlug/chats/:chatId/messages",
@@ -190,6 +191,20 @@ test("an archived chat is read-only: it reads, and only leaving, its place, unar
   const open = routesWith(() => null, service);
   for (const key of writes) assert.equal((await open.call(key, params, { text: "Hi", title: "Plans", userId: "8" })).status, 200, key);
   assert.equal(ran.length, writes.length);
+});
+
+test("Continue with others' note is one billed call: a paused home's is refused before it's written (D-73, D-114)", async () => {
+  const ran = [];
+  const service = recording(ran, ["handOverNote"]);
+  const key = "POST /api/w/:workspaceSlug/chats/:chatId/hand-over-note";
+  const params = { workspaceSlug: "home-3", chatId: "40" };
+  const paused = routesWith(() => null, service, undefined, async () => "This home's work is paused.");
+  const answer = await paused.call(key, params);
+  assert.deepEqual([answer.status, answer.body?.code], [402, "work_paused"]);
+  assert.deepEqual(ran, [], "no note was asked for");
+  assert.deepEqual((await routesWith(() => null, service, () => null).call(key, params)).body?.code, "bots_chat_not_found",
+    "a chat the person can't open is a 404 first");
+  assert.deepEqual((await routesWith(() => null, service).call(key, params)).body, { done: "handOverNote" });
 });
 
 test("an archived bot's computer doesn't wake or open a file (D-108), while another bot's does", async () => {

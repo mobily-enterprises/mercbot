@@ -97,9 +97,28 @@ export const isLabelled = (author, several) => Boolean(author) && !author.mine &
 export const myReaction = (message, me) => (me && message.body?.reactions?.[`user:${me}`]) || null;
 
 /**
- * The bots' reactions on a message, each emoji once, in the order they came.
+ * Everyone's reactions on a message (D-114), people's and bots', as the timeline shows them: each emoji once, in the
+ * order they came, with how many chose it and whether the person looking is one of them.
  * @param {{ body?: { reactions?: Record<string, string> } }} message
+ * @param {string} me
+ * @returns {Array<{ emoji: string, count: number, mine: boolean }>}
  */
-export const botReactions = (message) => [...new Set(Object.entries(message.body?.reactions || {})
-  .filter(([who, emoji]) => who.startsWith("bot:") && emoji)
-  .map(([, emoji]) => emoji))];
+export function reactionsOf(message, me) {
+  const shown = new Map();
+  for (const [who, emoji] of Object.entries(message.body?.reactions || {})) {
+    if (!emoji) continue;
+    const reaction = shown.get(emoji) || { emoji, count: 0, mine: false };
+    reaction.count += 1;
+    reaction.mine ||= Boolean(me) && who === `user:${me}`;
+    shown.set(emoji, reaction);
+  }
+  return [...shown.values()];
+}
+
+/**
+ * Whether the person looking may react to a message: a bot's, or another person's (D-114); never their own or
+ * Mercbot's lines.
+ * @param {{ role: string, authorUserId?: string | null }} message
+ * @param {string} me
+ */
+export const mayReact = (message, me) => message.role === "bot" || (message.role === "user" && String(message.authorUserId ?? "") !== String(me));

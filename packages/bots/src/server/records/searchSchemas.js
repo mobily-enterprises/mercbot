@@ -65,7 +65,9 @@ export const CHAT_PERSON_SEARCH = Object.freeze({
     }
   }),
   // A pinned chat: the person's pins, in their order.
-  pinned: isSet("pinPosition")
+  pinned: isSet("pinPosition"),
+  // Mentioned in the chat since they last read it (D-114): a later mention keeps the first one's time.
+  mentioned: isSet("mentionedAt")
 });
 
 export const CHAT_BOT_SEARCH = Object.freeze({

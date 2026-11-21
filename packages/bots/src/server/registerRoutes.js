@@ -164,6 +164,12 @@ export function registerRoutes(http, { bots, approvals, notices, meter, records,
     chats.moveSection(request.params.sectionId, request.body?.direction, options)));
   router.register("DELETE", `${home}/chat-sections/:sectionId`, auth, handle(async (request, _user, options) =>
     chats.deleteSection(request.params.sectionId, options)));
+  // Continue with others (D-114): the hand-over note the direct chat's bot writes for a new chat with more people and
+  // bots, one billed call refused in a paused home; nothing is kept, and New chat's own route makes the chat.
+  router.register("POST", `${chat}/hand-over-note`, auth, handle(async (request, _user, options) => {
+    await unlessPaused(request);
+    return bots.handOverNote(request.params.chatId, options);
+  }));
   // A bot's [Message] (Team, its card): the person's direct chat with it, made on first use.
   router.register("POST", `${home}/bots/:botId/direct`, auth, handle(async (request, _user, options) =>
     chats.direct(request.params.botId, options)));

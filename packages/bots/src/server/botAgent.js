@@ -165,11 +165,11 @@ export function contentOf(message) {
       parts.push(`(Attached file ${file.name}, ${file.size} bytes; it wasn't kept, so you can't open it.)`);
     }
   }
-  // A skill the person picked with "/" reads as an instruction to use it.
+  // A skill the person picked with "/" reads as an instruction to use it; a person mentioned as "@Name" (D-114).
   const text = String(body.text || "").replace(/<@skill:([\w-]+)>/gu, (marker, id) => {
     const skill = (body.skills || []).find((entry) => entry.id === id);
     return skill ? `(Use the skill "${skill.name}" for this.)` : "";
-  });
+  }).replace(/<@person:(\d+)>/gu, (marker, id) => `@${(body.mentionedPeople || []).find((entry) => entry.id === id)?.name || "someone"}`);
   parts.push(text || [body.heading, ...(body.bullets || [])].filter(Boolean).join("\n"));
   return parts.filter(Boolean).join("\n");
 }
