@@ -8,7 +8,7 @@ import { MERCBOT_CHAT_KEY } from "./shellChat.js";
 // A chat's computers (D14, D16), one per bot in it, each "<Bot>'s computer", for Chat details, or one bot's for its
 // card in a direct chat (`onlyBotId`). Each one's status is read when it's shown and again when `computerNews` (the
 // shell's count per computer, "<chatId> <botId>") says it changed; Hand back is sent here, and its line shown in the chat.
-// Reset is for the chat's maker and the home's owners and admins, and in a direct chat for its person.
+// Reset is for the home's owners and admins, the chat's maker, and in a direct chat its person (as the server allows).
 const props = defineProps({
   chat: { type: Object, required: true },
   me: { type: String, default: "" },
@@ -30,7 +30,10 @@ const target = (botId) => ({ id: String(botId), chat: String(props.chat.id) });
 const statuses = ref({});
 const handingBack = ref("");
 const resetting = ref("");
-const canReset = computed(() => Boolean(props.chat.directBotId) || chatRights(props.chat, { me: props.me, manages: props.manages }).removeMembers);
+// A direct chat's one person is its person.
+const canReset = computed(() => (props.chat.directBotId
+  ? props.manages || (props.chat.people || []).some((person) => Boolean(props.me) && String(person.userId) === String(props.me))
+  : chatRights(props.chat, { me: props.me, manages: props.manages }).removeMembers));
 async function read(botId) {
   try {
     const status = await computerApi.status(target(botId));
