@@ -69,8 +69,8 @@ Until a person is found or confirmed, their bots read nothing in Sedna, and say 
 
 ## What bots can do with it
 
-Only in a person's own chats with their bots, never in a shared conversation, only their own Sedna teams' messages,
-and always as their own Sedna user:
+In any chat the person asks in, only their own Sedna teams' messages, and always as their own Sedna user (everyone
+who can open the chat can read what the bot says there):
 
 - read the newest messages, messages by tag or job reference (a voyage, deal or order number), one message with who
   it's assigned to, its comments and attachments, and lists of tags, job references, teams, contacts and templates;

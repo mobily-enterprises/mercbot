@@ -207,8 +207,8 @@ JOBREFERENCE_WRITE and CONTACT_WRITE.
    Sedna; the draft card shows the template's text and the file; the contact is in the team's contacts only after you
    asked for it. Delete the contact in Sedna afterwards.
 4. Refusals: ask the bot to send as a colleague ("send it from Sam"): it sends only as you. Ask about a message of a
-   team you're not in: nothing of it is shown and nothing changes. In a shared bot's room, ask for a Sedna draft: the
-   bot says Sedna is used only in each person's own chat.
+   team you're not in: nothing of it is shown and nothing changes. In a chat with another person in it, ask for a Sedna
+   draft: the bot drafts as you, and the card is yours alone to send.
 5. Routine: "Every 15 minutes, tag new mail in my team Test and draft a reply for me to check." Send a message to the
    team from outside, wait for the run: it's tagged and a draft card waits, nothing sent. Send 12 at once: the run
    says it looked at 10 and the next one carries on; all 12 are tagged in the end. Pause the routine afterwards.

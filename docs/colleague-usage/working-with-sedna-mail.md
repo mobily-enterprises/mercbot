@@ -6,9 +6,9 @@ messages, keep drafts, tag messages and link job references, assign messages to 
 teams' templates and contacts, and run routines on new mail. This guide covers how a person does each, what asks
 first, and what each refusal means.
 
-Everything here happens only in the person's own chat with their bot, as their own Sedna user and from one of their
-teams. A bot never sends or changes anything as a colleague, and never touches another team's messages. In a shared
-bot's conversation or a group with others, the bot says Sedna is used only in each person's own chat.
+Everything here happens in any chat the person asks in, as their own Sedna user and from one of their teams: the
+cards are theirs alone to answer. A bot never sends or changes anything as a colleague, and never touches another
+team's messages. What it reads and drafts in a chat can be seen by everyone who can open that chat.
 
 ## Write a message or a reply
 
@@ -108,12 +108,10 @@ every check a live copy makes, then records what it would have done. Its cards f
   has no turn free just now: try after the wait it names. A list or a routine's run stops there rather than leave
   messages out, and the routine reads the same new mail on its next run. See
   [Choose how fast Mercbot uses an app](request-pace.md).
-- **"Sedna is used only in each person's own chat with their bot …"** The person asked in a shared conversation: ask
-  in their own chat.
 - **"A routine never sends a Sedna draft: the person presses Send on its card."** Sending is the person's.
 
 ## What Colleague can do
 
 Colleague can explain these steps, open the bot's chat, and suggest how to ask. Sends, assignments and changes in
-Sedna are the person's bot's, in the person's own chat, through its cards: Colleague doesn't press Send or approve for
+Sedna are the person's bot's, in the chat they asked in, through its cards: Colleague doesn't press Send or approve for
 them.
