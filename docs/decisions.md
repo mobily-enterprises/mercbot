@@ -3279,7 +3279,8 @@ Nothing else is a privacy rule.
   one bot's reply still reaches the bots it was addressed to. Archived bots never speak. A chat of people only makes no
   model call.
 - **What a bot may use:** everything connected to the home and the home's vault, in any chat, as the person who asked;
-  codes, coding and Sedna in any chat a person asks in (never a routine, an app's task or work another bot asked for);
+  codes and coding in any chat a person asks in (never a routine, an app's task or work another bot asked for), and
+  Sedna in any chat as the asking person's own Sedna user (a routine on Sedna mail as its maker, which never sends);
   approvals always the asker's. Background work runs as its own person: a routine as its maker, a watch as its creator,
   an app job and a follow-up as theirs, a request as its asker's.
 - **What a bot knows,** in prompt order: the cached prefix (Mercbot's rules, the template, additions and Knowledge),
