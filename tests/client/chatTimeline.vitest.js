@@ -5,7 +5,7 @@ import { createMaterialVuetifyOptions } from "@jskit-ai/material-web/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { theme } from "../../src/theme/index.js";
 import { setCurrentHome } from "../../src/components/mercbot/homeApi.js";
-import { authorOf, hasSeveral, initialsOf } from "../../src/components/mercbot/messageAuthors.js";
+import { authorOf, botReactions, hasSeveral, initialsOf, myReaction } from "../../src/components/mercbot/messageAuthors.js";
 
 // The app cards read the apps' routes as they show; none is in these chats.
 vi.mock("../../src/components/apps/MercbotViewCard.vue", () => ({ default: { render: () => null } }));
@@ -158,6 +158,23 @@ describe("an author who has left", () => {
     expect(authorOf(said(ANNA, "x"), { chat: KITCHEN, me: "1" })).toMatchObject({ key: "person-1", mine: true });
     expect(authorOf({ role: "system", authorUserId: null, authorBotId: null }, { chat: KITCHEN }), "Mercbot's own line").toBe(null);
     expect([initialsOf("Anna Rossi"), initialsOf("Ben"), initialsOf("")]).toEqual(["AR", "BE", "?"]);
+  });
+});
+
+describe("reactions, one per person and per bot (user:<id>, bot:<id>)", () => {
+  const reactionsIn = (part) => [...part.matchAll(/class="mb-reaction[^"]*"[^>]*>([^<]*)</gu)].map(([, emoji]) => emoji.trim());
+
+  it("show your own on a bot's message and the bots' on a person's, never someone else's as yours", async () => {
+    const answer = said({ botId: "7" }, "Booked for 8.", { body: { text: "Booked for 8.", reactions: { "user:1": "👍", "user:2": "🎉" } } });
+    const ask = said({ userId: "2" }, "Table for two?", { body: { text: "Table for two?", reactions: { "bot:7": "❤️", "bot:8": "❤️" } } });
+    const other = said({ botId: "8" }, "Done.", { body: { text: "Done.", reactions: { "user:2": "🙏" } } });
+    const html = await timeline({ chat: KITCHEN, messages: [answer, ask, other] });
+    expect(reactionsIn(item(html, answer))).toEqual(["👍"]);
+    expect(reactionsIn(item(html, ask))).toEqual(["❤️"]);
+    expect(reactionsIn(item(html, other)), "Ben's, not Anna's").toEqual([]);
+    // The React menu marks your own as chosen, and choosing it again takes it off.
+    expect([myReaction(answer, "1"), myReaction(answer, "2"), myReaction(answer, "")]).toEqual(["👍", "🎉", null]);
+    expect(botReactions(ask)).toEqual(["❤️"]);
   });
 });
 

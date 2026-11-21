@@ -21,7 +21,7 @@ import extensions from "./extensions.js";
 import { ONBOARDING_BLACK, ON_IDENTITY, PAPER } from "@/theme/palettes.js";
 import { choiceColor, isBlack, mixColor, onChoiceColor } from "./accent.js";
 import { botFace } from "./chatView.js";
-import { GONE_BOT, authorOf, hasSeveral, isLabelled, sideOf } from "./messageAuthors.js";
+import { GONE_BOT, authorOf, botReactions, hasSeveral, isLabelled, myReaction, sideOf } from "./messageAuthors.js";
 import { mentionParts } from "./mentions.js";
 import { screenshotUrl } from "./computerApi.js";
 import { fileKind, fileUrl, formatSize } from "./filesApi.js";
@@ -123,7 +123,7 @@ function openMessageMenu(event, message) {
 // Picking the reaction already chosen takes it off.
 function reactFromMenu(emoji) {
   const { message } = contextMenu.value;
-  emit("react", { message, emoji: message.body.reactions?.user === emoji ? null : emoji });
+  emit("react", { message, emoji: myReaction(message, props.me) === emoji ? null : emoji });
 }
 // The picture is the one right-clicked, as it shows; it's saved under `fileName`.
 function openPictureMenu(event, fileName) {
@@ -341,7 +341,7 @@ const fileDate = (iso) => (iso ? fileDay.format(new Date(iso)) : "");
         v-else-if="message.kind === 'text'"
         class="mb-message"
         :class="[`mb-message--${sideFor(message)}`, {
-          'mb-message--reacted': message.body.reactions?.[message.role === 'bot' ? 'user' : 'bot'],
+          'mb-message--reacted': message.role === 'bot' ? myReaction(message, me) : botReactions(message).length,
           'mb-message--speaker': speakerOf(message),
           'mb-message--labelled': runStart(index)
         }]"
@@ -409,11 +409,11 @@ const fileDate = (iso) => (iso ? fileDay.format(new Date(iso)) : "");
             <v-icon icon="$deployedCode" size="13" />{{ message.body.chip }}
           </span>
 
-          <span v-if="message.role === 'bot' && message.body.reactions?.user" class="mb-reaction mb-reaction--right">
-            {{ message.body.reactions.user }}
+          <span v-if="message.role === 'bot' && myReaction(message, me)" class="mb-reaction mb-reaction--right">
+            {{ myReaction(message, me) }}
           </span>
-          <span v-if="message.role === 'user' && message.body.reactions?.bot" class="mb-reaction" :class="sideFor(message) === 'other' ? 'mb-reaction--right' : 'mb-reaction--left'">
-            {{ message.body.reactions.bot }}
+          <span v-if="message.role === 'user' && botReactions(message).length" class="mb-reaction" :class="sideFor(message) === 'other' ? 'mb-reaction--right' : 'mb-reaction--left'">
+            {{ botReactions(message).join(" ") }}
           </span>
         </div>
 
@@ -428,9 +428,9 @@ const fileDate = (iso) => (iso ? fileDay.format(new Date(iso)) : "");
                 :key="emoji"
                 type="button"
                 class="mb-react__emoji"
-                :class="{ 'mb-react__emoji--chosen': message.body.reactions?.user === emoji }"
+                :class="{ 'mb-react__emoji--chosen': myReaction(message, me) === emoji }"
                 :aria-label="`React with ${emoji}`"
-                @click="emit('react', { message, emoji: message.body.reactions?.user === emoji ? null : emoji })"
+                @click="emit('react', { message, emoji: myReaction(message, me) === emoji ? null : emoji })"
               >
                 {{ emoji }}
               </button>
@@ -683,7 +683,7 @@ const fileDate = (iso) => (iso ? fileDay.format(new Date(iso)) : "");
       :target="contextMenu.target"
       :items="contextMenu.items"
       :reactions="contextMenu.reactions"
-      :chosen-reaction="contextMenu.message?.body.reactions?.user || null"
+      :chosen-reaction="contextMenu.message ? myReaction(contextMenu.message, me) : null"
       @react="reactFromMenu"
     />
     <MercbotLightbox
