@@ -47,7 +47,10 @@ async function setup(context, { pausedWatches = [] } = {}) {
     { workspace_id: homeId, user_id: kim, role_sid: "member", status: "active" },
     { workspace_id: otherHome, user_id: pat, role_sid: "owner", status: "active" }
   ]);
+  // The service's background work finishes first, then the test's rows go, then the connection closes.
+  let bots = null;
   context.after(async () => {
+    await bots?.drain(10000);
     await knex("conversations").whereIn("workspace_id", [homeId, otherHome]).del();
     await knex("bots").whereIn("workspace_id", [homeId, otherHome]).del();
     await knex("workspace_memberships").whereIn("workspace_id", [homeId, otherHome]).del();
@@ -58,7 +61,7 @@ async function setup(context, { pausedWatches = [] } = {}) {
   const parts = await startBotParts(knex, context);
   const turns = [];
   const watchCalls = [];
-  const bots = createBotsService(serviceDoubles({
+  bots = createBotsService(serviceDoubles({
     knex,
     ...parts,
     approvals: { decide: async () => "allow" },
@@ -75,7 +78,6 @@ async function setup(context, { pausedWatches = [] } = {}) {
       return { text: "Noted.", transcript: [] };
     }
   }));
-  context.after(() => bots.drain(10000));
   // Pat is the home's owner, so may change any chat (workspace.settings.update); Kim is a member.
   const as = (userId, workspaceId = homeId) => memberOptions(userId === pat
     ? { userId, homeId: workspaceId, role: "owner", permissions: ["workspace.settings.update"] }
@@ -164,8 +166,8 @@ test("a chat is archived and unarchived by its maker or an owner: read-only and 
   assert.equal(again.status, 200);
 });
 
-test("each refusal: a member's archive of a chat she didn't start, the everyone chat, another home's chat", async (context) => {
-  const { knex, bots, as, homeId, otherHome, pat, kim, bot, chatBy } = await setup(context);
+test("each refusal: a member's archive of a chat she didn't start, the everyone chat, a private chat, another home's chat", async (context) => {
+  const { knex, bots, as, homeId, otherHome, pat, kim, bot, chatBy, listed } = await setup(context);
   const budget = await chatBy(pat, "Budget", [kim]);
   await assert.rejects(bots.chats.archive(budget, as(kim)), refused(403, "bots_chat_manage_forbidden"), "a member, a chat she didn't start");
   await bots.chats.archive(budget, as(pat));
@@ -178,6 +180,16 @@ test("each refusal: a member's archive of a chat she didn't start, the everyone 
   // The home's everyone chat, which has every member, is never archived, even by an owner.
   const { id: family } = await seedChat(knex, { homeId, title: "Hilltop", everyone: true, people: [pat, kim], bots: [bot.id] });
   await assert.rejects(bots.chats.archive(String(family), as(pat)), refused(409, "bots_chat_everyone"));
+  // A Private chat isn't archived for everyone, even by its maker, an owner (plan 5.1): each of its people hides it for
+  // themselves, and it stays in the others' lists.
+  const diary = (await bots.chats.create({ kind: "private", title: "Diary", people: [kim], bots: [String(bot.id)] }, as(pat))).chat.id;
+  await assert.rejects(bots.chats.archive(diary, as(pat)), {
+    statusCode: 409, code: "bots_chat_private_archive", message: "A private chat is hidden for yourself, not archived for everyone."
+  });
+  await bots.chats.changePlace(diary, { hidden: true }, as(kim));
+  assert.ok(!(await listed(kim)).includes(diary), "hidden from Kim's list");
+  assert.ok((await listed(kim, { hidden: true })).includes(diary), "among the chats she hid");
+  assert.ok((await listed(pat)).includes(diary), "still in Pat's list");
   // Another home's chat is not found from this one, even for Pat, who is in both.
   const { id: theirs } = await seedChat(knex, { homeId: otherHome, title: "Secret", people: [pat] });
   await assert.rejects(bots.chats.archive(String(theirs), as(pat)), refused(404, "bots_chat_not_found"));
