@@ -2,9 +2,9 @@ import { nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 
 /**
  * How many of the messages after `lastId` are news for the reader: everything but
- * timestamps and their own messages. Null when `lastId` isn't among them: the chat shows another
- * conversation now (another bot, or another room of a shared bot).
- * @param {Array<{ id: string, kind: string, role: string, body?: { from?: { id: string } } }>} messages
+ * timestamps and their own messages (authored by them). Null when `lastId` isn't among them: another chat is
+ * shown now.
+ * @param {Array<{ id: string, kind: string, role: string, authorUserId?: string | null }>} messages
  * @param {string | null} lastId the message that was last before
  * @param {string} me the signed-in person's id
  * @returns {number | null}
@@ -12,7 +12,7 @@ import { nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 export function newMessagesAfter(messages, lastId, me) {
   const at = messages.findIndex((message) => message.id === lastId);
   if (at < 0) return null;
-  const own = (message) => message.role === "user" && (!message.body?.from || message.body.from.id === me);
+  const own = (message) => message.role === "user" && String(message.authorUserId) === String(me);
   return messages.slice(at + 1).filter((message) => message.kind !== "timestamp" && !own(message)).length;
 }
 
