@@ -80,8 +80,8 @@ describe("One bot", () => {
   it("joins the team and opens your direct chat with it, then sets up the app asked for", async () => {
     answers.byUrl.set("POST /api/w/casa/bots", { bot: { id: "12", name: "Chef" } });
     const { made, done } = newBot();
-    made.openNewBot("Chef");
-    expect([made.newBotOpen.value, made.newBotName.value, made.newBotScreen.value]).toEqual([true, "Chef", "start"]);
+    made.openNewBot();
+    expect([made.newBotOpen.value, made.newBotScreen.value]).toEqual([true, "start"]);
     await made.createBot({ name: "Chef", shape: "cloud", color: "#1E86FC", template: { library: "meal-planner" }, app: { key: "meals", name: "Meals" } });
     expect(calls).toEqual([
       ["POST", "/api/w/casa/bots", { name: "Chef", shape: "cloud", color: "#1E86FC", template: { library: "meal-planner" } }],
@@ -94,7 +94,7 @@ describe("One bot", () => {
   it("adds a bot a person shared from its link, and says when it couldn't be made, opening nothing", async () => {
     answers.byUrl.set("POST /api/w/casa/bots/from-template", { bot: { id: "13", name: "Otto" } });
     const { made, done } = newBot();
-    made.openNewBot("", "otto-abc");
+    made.openNewBot("otto-abc");
     await made.createBot({ name: "Otto", link: "otto-abc" });
     expect(calls).toEqual([["POST", "/api/w/casa/bots/from-template", { slug: "otto-abc" }]]);
     expect(done.opened).toEqual(["13"]);

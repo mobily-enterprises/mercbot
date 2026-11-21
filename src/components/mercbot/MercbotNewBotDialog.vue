@@ -31,8 +31,6 @@ import { useBotPlan } from "./useBotPlan.js";
 const props = defineProps({
   busy: { type: Boolean, default: false },
   error: { type: String, default: "" },
-  // A name to start with, as from New chat's offer to make a bot by the name typed.
-  initialName: { type: String, default: "" },
   // The home's bots, so a new one starts in a colour and cloud nobody has yet (D-44).
   bots: { type: Array, default: () => [] },
   // The template a link opened New bot with: one of Mercbot's library, or a bot a person shared.
@@ -99,7 +97,7 @@ const title = computed(() => ({
   team: "A ready-made team"
 })[step.value]);
 
-watch(open, async (value) => {
+watch(open, (value) => {
   if (!value) return;
   const bots = props.bots;
   step.value = "start";
@@ -108,14 +106,13 @@ watch(open, async (value) => {
   home.value = null;
   words.value = "";
   planner.reset();
-  name.value = props.initialName;
+  name.value = "";
   shape.value = pickFresh(SHAPES.map((entry) => entry.id), new Set(bots.map((bot) => bot.shape)));
   color.value = pickFresh(BOT_PALETTE.map((entry) => entry.color), new Set(bots.map((bot) => (isBlack(bot.color) ? BOT_COLOURS.Black : String(bot.color).toUpperCase()))));
   botsApi.homeTemplates().then((read) => { home.value = read.templates; }).catch(() => { home.value = []; });
   team.value = "";
   if (props.screen === "teams") return toTeams();
   if (props.templateSlug) return choose({ link: props.templateSlug });
-  if (props.initialName) await toPicker();
 }, { immediate: true });
 
 async function choose(choice) {

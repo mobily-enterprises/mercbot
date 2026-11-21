@@ -19,19 +19,17 @@ export function useNewBot({ team, openDirect, notify }) {
   const creating = ref(false);
   const createError = ref("");
 
-  // From New chat, a new bot starts with the name typed; from a link, with its template chosen.
-  const newBotName = ref("");
+  // From a link, a new bot starts with its template chosen.
   const newBotTemplate = ref("");
   // The screen Add bots opens on: "start", or "teams" from the welcome chat (D-109).
   const newBotScreen = ref("start");
-  function openNewBot(name = "", template = "", screen = "start") {
+  function openNewBot(template = "", screen = "start") {
     createError.value = "";
-    newBotName.value = typeof name === "string" ? name : "";
     newBotTemplate.value = template;
     newBotScreen.value = screen;
     newBotOpen.value = true;
   }
-  const openTeams = () => openNewBot("", "", "teams");
+  const openTeams = () => openNewBot("", "teams");
 
   /** The apps the dialog asked for set up after, as drafts, one at a time; what came of them, said once. */
   async function setUpApps(apps) {
@@ -107,7 +105,6 @@ export function useNewBot({ team, openDirect, notify }) {
     newBotOpen,
     creating,
     createError,
-    newBotName,
     newBotTemplate,
     newBotScreen,
     openNewBot,
