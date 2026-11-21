@@ -208,7 +208,7 @@ test("a sign-in finishing on another server marks the card's follow-up as it is 
   await a.drain(10000);
   assert.equal(a.prompts.length, 2, "server A carried on, without waiting for any sweep, then answered the new message");
   assert.match(a.prompts[0], CARRIED_ON);
-  assert.match(a.prompts[1], /^\(The person's message "Also add the March ones\." arrived while you were busy/u, "not the app's task again");
+  assert.match(a.prompts[1], /^\(The message "Also add the March ones\." arrived while you were busy/u, "not the app's task again");
   assert.equal(b.prompts.length, 0, "server B didn't");
   assert.equal(await cardStatus(), "connected");
   assert.equal(await followUp(), undefined, "its follow-up ended with its reply");
@@ -383,7 +383,7 @@ test("only the card's person can start its follow-up, from a connect card still 
 });
 
 test("a sweep's statements and a sign-in's marking don't grow with the cards waiting, and read through their indexes", async (context) => {
-  const { knex, a, bot, userId, homeId } = await setup(context);
+  const { knex, a, userId, homeId } = await setup(context);
   // `count` more cards waiting for a sign-in, each another person's, in a chat of another home, which a sign-in in the
   // bot's home doesn't reach.
   const { homeId: elsewhereHome, people: [sam] } = await homeOfPeople(a, ["Sam"]);

@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { buildTools } from "../../packages/bots/src/server/botTools.js";
-import { turnDoubles } from "../support/botDoubles.mjs";
 import { memberOptions } from "../support/botRecords.mjs";
 import { seedChat } from "../support/chatFixtures.mjs";
 import { botsOf, homeOfPeople, startChatTurns } from "./turnKit.mjs";
@@ -145,6 +144,8 @@ test("the asked bot puts a question back, the asking bot answers, and the work g
 });
 
 test("work another bot asked for never counts as the person's own request", async () => {
+  // Loaded here, so the file's other tests don't wait on the bots service the doubles start.
+  const { turnDoubles } = await import("../support/botDoubles.mjs");
   const seen = [];
   const approvals = {
     decide: async (_what, { reversible } = {}) => {
