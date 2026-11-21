@@ -31,12 +31,22 @@ async function retrying(work) {
 const where = () => ({ timeZone: currentTimeZone(), language: currentLanguage() });
 
 export const chatsApi = {
-  // The person's chat list ({ chats, sections }), with when its read began (`startedAt`, for the store's mergeChats).
-  // `hidden` and `archived` list those too.
-  list: ({ hidden = false, archived = false } = {}) => {
+  // The person's whole chat list ({ chats, sections }), with when its read began (`startedAt`, for the store's
+  // mergeChats). `hidden` and `archived` list those too. The server answers a page at a time; every page is read.
+  list: async ({ hidden = false, archived = false } = {}) => {
     const startedAt = performance.now();
-    const query = new URLSearchParams({ ...(hidden ? { hidden: "1" } : {}), ...(archived ? { archived: "1" } : {}) }).toString();
-    return request(`/chats${query ? `?${query}` : ""}`).then((listed) => ({ ...listed, startedAt }));
+    const chats = [];
+    let page = { next: null };
+    do {
+      const query = new URLSearchParams({
+        ...(hidden ? { hidden: "1" } : {}),
+        ...(archived ? { archived: "1" } : {}),
+        ...(page.next ? { after: page.next } : {})
+      }).toString();
+      page = await request(`/chats${query ? `?${query}` : ""}`);
+      chats.push(...page.chats);
+    } while (page.next);
+    return { chats, sections: page.sections, startedAt };
   },
   // One chat the person can open: { chat }.
   get: (chatId) => request(chat(chatId)),

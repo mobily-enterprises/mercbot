@@ -130,7 +130,15 @@ test("the Team list and the chat list cost as many statements for 10 bots in 10 
   await expectFlatQueries({ environment: process.env, knex, seed, run: ({ home }) => bots.chats.list({}, home.options) });
   const { home, chatIds } = homes.get(200);
   assert.equal((await bots.listBots(home.options)).bots.length, 200);
-  assert.deepEqual((await bots.chats.list({}, home.options)).chats.map((chat) => chat.id).sort(), [...chatIds].sort());
+  // The list is a page at a time (100): every page, as the page reads them, has all 200.
+  const listed = [];
+  let after = null;
+  do {
+    const page = await bots.chats.list({ after }, home.options);
+    listed.push(...page.chats.map((chat) => chat.id));
+    after = page.next;
+  } while (after);
+  assert.deepEqual(listed.sort(), [...chatIds].sort());
 });
 
 // read_up_to is a PostgreSQL bigint that the generated resource calls an integer, and the driver answers bigint

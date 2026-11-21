@@ -20,6 +20,8 @@ const PLACE = Object.freeze(["readUpTo", "unread", "pinPosition", "sectionId", "
 const PLACE_CHANGES = new Set(PLACE);
 // The most people or bots one call adds to a chat; a home's everyone chat adds its members in pages of this size.
 const ADD_LIMIT = 200;
+// A page of a person's chat list (their places, at most the resource's page limit): the page reads on while `next`.
+const LIST_PAGE = 100;
 
 const notFound = () => new BotsError(404, "Chat not found.", { code: "bots_chat_not_found" });
 const archivedRefusal = () =>
@@ -241,22 +243,30 @@ export function createChatRepository({ resources, systemContext, profiles, membe
   const botsIn = async (chatId, options) => (await botsOf([String(chatId)], options)).get(String(chatId)) ?? [];
 
   /**
-   * The person's chats in the home, newest activity first, each with their place in it (`place`): what the chat list
-   * shows. Hidden ones are added with `hidden`, archived ones with `archived`, beside the others (the page asks for
-   * both and puts them in their own groups). One read of their places and one of the chats.
+   * A page of the person's chats in the home, each with their place in it (`place`): what the chat list shows, read a
+   * page of their places at a time (`after`: the page before's `next`, null after the last), newest chat first, an
+   * order no chat moves in while a list is read page by page, as it would by activity. Hidden ones come with `hidden`,
+   * archived ones with `archived` (the page asks for both and arranges them itself); without `archived` a page leaves
+   * its archived chats out, so it can be short. One read of the page's places and one of their chats.
    * @param {CallOptions} options
-   * @param {{ hidden?: boolean, archived?: boolean }} [only]
+   * @param {{ hidden?: boolean, archived?: boolean, after?: string | null }} [only]
+   * @returns {Promise<{ chats: object[], next: string | null }>}
    */
-  async function ofPerson(options, { hidden = false, archived = false } = {}) {
-    const filters = { userId: personOf(options), ...(hidden ? {} : { hidden: false }) };
-    const places = await chatPeople.queryAll({ filters }, passedOn(options));
-    if (!places.length) return [];
+  async function ofPerson(options, { hidden = false, archived = false, after = null } = {}) {
+    const { records: places, page } = await chatPeople.query({
+      filters: { userId: personOf(options), ...(hidden ? {} : { hidden: false }) },
+      sort: ["-conversationId"],
+      page: { size: LIST_PAGE, ...(after ? { after: String(after) } : {}) }
+    }, passedOn(options));
+    if (!places.length) return { chats: [], next: null };
     const placeOf = new Map(places.map((place) => [String(place.conversationId), place]));
-    const chats = await conversations.queryAll({ filters: { id: [...placeOf.keys()], ...(archived ? {} : { archived: false }) }, sort: ["-lastActivityAt", "-id"] }, passedOn(options));
-    return chats.map((chat) => ({
+    const filters = { id: [...placeOf.keys()], ...(archived ? {} : { archived: false }) };
+    const found = await conversations.queryAll({ filters, sort: ["-id"] }, passedOn(options));
+    const chats = found.map((chat) => ({
       ...asRow(chat, options),
       place: Object.fromEntries(PLACE.map((field) => [field, placeOf.get(String(chat.id))?.[field] ?? null]))
     }));
+    return { chats, next: page.next };
   }
 
   /** Public chats of the home the person isn't in, newest activity first, up to `limit`: what they may join. */

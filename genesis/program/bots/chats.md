@@ -64,12 +64,16 @@ person's own place and read point answers 409 `bots_chat_archived` "This chat is
 **Routes** (all under `/api/w/:workspaceSlug`, for a member of the home; each change tells everyone in the chat, and
 anyone it took out, a `chat` event `{ chatId, change }` on bot events, `change` one of created, members, renamed,
 archived, unarchived or deleted):
-- `GET …/chats` (`?hidden=1` for hidden ones, `?archived=1` for archived ones): `{ chats, sections }`, the chats the
-  person is in, the everyone chat first, then newest activity first (at most 500), each as one `ChatView` (`types.js`):
+- `GET …/chats` (`?hidden=1` for hidden ones, `?archived=1` for archived ones, `?after=` the page before's `next`):
+  `{ chats, sections, next }`, a page of the chats the person is in: their places 100 at a time, newest chat first, an
+  order no chat moves in while the pages are read (activity would move them), with the everyone chat first in its
+  page (the whole list's first while it's one page); without `?archived=1` a page leaves its archived chats out, so it
+  can be short. `next` is null on the last page. The page (`chatsApi.list`) reads every page and arranges the chats
+  itself. Each chat is one `ChatView` (`types.js`):
   its kind, title, everyone, direct bot, app, maker, onboarding step, archived time, latest activity, people
   (`{ userId, name }`), bots (`{ chatBotId, botId, name, color, shape, archived, waitingTask }`), the person's place
   (`{ readUpTo, unread, pinPosition, sectionId, hidden, muted }`, null when they aren't in it) and its latest
-  previewable message with a plain-text `preview`; four reads for any number of chats. Sections are
+  previewable message with a plain-text `preview`; the same reads for every page, whatever its chats. Sections are
   `{ id, name, position, collapsed }`.
 - `GET …/chats/public`: the home's Public chats the person isn't in, newest activity first (at most 50), for New
   chat's "Or join a public chat".
