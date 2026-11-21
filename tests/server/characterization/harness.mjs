@@ -3,7 +3,7 @@
 // The characterization tests reach everything else over HTTP. What no route reaches is built here, from the app's own
 // modules, as the server builds it: the three queue loops' claims (routines, Apps' jobs and bot requests run in the
 // background on a listening server, never for a request), the Apps tables a home's records live in (only the Builder
-// bot's tools make them), the accounts a shared bot's room may use (only a bot's tools ask for that reach) and AnyAPI's
+// bot's tools make them), the accounts a bot's turn may use (only a bot's tools ask for that reach) and AnyAPI's
 // rows for a home's tables. When the port changes how these are constructed (handles and table resources in place of
 // Knex), only this file changes; the tests that call it stay as they are.
 import { setTimeout as pause } from "node:timers/promises";
@@ -16,7 +16,6 @@ import { botMessageResource, botRequestResource, botRoutineResource } from "../.
 import { REQUEST_SEARCH, ROUTINE_SEARCH, createWorkRepository } from "../../../packages/bots/src/server/records/workRepository.js";
 import { startRoutineRunner } from "../../../packages/bots/src/server/routineRunner.js";
 import { ACCOUNT_FILTERS, createAccounts } from "../../../packages/integrations/src/server/accounts.js";
-import { reachableAccounts } from "../../../packages/integrations/src/server/rowPolicies.js";
 import { pluginAccountResource } from "../../../packages/integrations/src/server/tableResources.js";
 
 const QUIET = Object.freeze({ publish: async () => {}, publishEach: async () => {}, subscribe: () => () => {} });
@@ -224,17 +223,17 @@ export async function dropTables(knex, workspaceId) {
 }
 
 /**
- * The ids of the connected accounts a reach may use (packages/integrations/src/server/accounts.js), in id order. A
- * shared bot's room asks with `personal: false` (botConversations.js reachOf); no route does.
+ * The ids of the connected accounts a bot's turn may use (packages/integrations/src/server/accounts.js), in id order:
+ * every account of its home (D-111), in a room as in a person's own chat; no route asks as a turn does.
  * @param {import("knex").Knex} knex
- * @param {{ userId: string, homeId?: string | null, personal?: boolean }} reach
+ * @param {{ userId: string, homeId: string }} turn
  */
-export async function reachableAccountIds(knex, { userId, homeId = null, personal }) {
+export async function reachableAccountIds(knex, { userId, homeId }) {
   const { accounts, systemContext } = await integrationsAccountsOn(knex);
-  // As a bot's turn asks: a job acting for the person, in the home, or for them alone outside any home.
-  const scope = systemContext("a bot's turn reaches the accounts of its room");
-  const context = homeId ? scope.forWorkspace(String(homeId), { actorId: String(userId) }) : scope.forUser(String(userId), { actorId: String(userId) });
-  return (await accounts.reachable(personal === undefined ? {} : { personal }, { context })).map((account) => account.id);
+  // As a bot's turn asks: a job acting for the person, in the home.
+  const scope = systemContext("a bot's turn reaches the accounts of its home");
+  const context = scope.forWorkspace(String(homeId), { actorId: String(userId) });
+  return (await accounts.reachable({ context })).map((account) => account.id);
 }
 
 const integrationsAccounts = new WeakMap();
@@ -245,7 +244,7 @@ function integrationsAccountsOn(knex) {
     integrationsAccounts.set(knex, (async () => {
       const runtime = await createTestResourceRuntime({ knex });
       const { pluginAccounts } = await runtime.own("mercbot.integrations", [
-        { resource: pluginAccountResource, rowPolicy: reachableAccounts, searchSchema: ACCOUNT_FILTERS }
+        { resource: pluginAccountResource, searchSchema: ACCOUNT_FILTERS }
       ]);
       const systemContext = runtime.declareSystemScope("mercbot.integrations", "characterization: the accounts a bot's turn reaches");
       return { accounts: createAccounts({ pluginAccounts, systemContext }), systemContext };

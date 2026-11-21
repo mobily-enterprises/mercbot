@@ -40,7 +40,7 @@ test("only the cookie a sign-in's browser was given proves the browser; the sign
   assert.notEqual(newBinding(state).cookie.value, cookie.value, "every sign-in gets its own");
 });
 
-test("the sign-in page runs no inline script: its Copy button's script is served from Mercbot's own address", () => {
+test("the sign-in page runs no inline script: its buttons' script is served from Mercbot's own address", () => {
   const page = signInPage("Your organisation needs to approve Mercbot", "Send them the link.", { approval: "https://approve.example/?a=1&b=<2>", back: "/" });
   assert.doesNotMatch(page, /\son[a-z]+\s*=/iu, "no inline event handler");
   assert.deepEqual([...page.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gu)].map(([, attributes, body]) => [attributes.trim(), body]), [
@@ -48,7 +48,12 @@ test("the sign-in page runs no inline script: its Copy button's script is served
   ]);
   assert.match(page, /<button type="button" data-copy>Copy the link<\/button>/u);
   assert.match(page, /https:\/\/approve\.example\/\?a=1&#38;b=&#60;2&#62;/u);
-  assert.doesNotMatch(signInPage("Connected to Google", "It's all set.", { back: "/" }), /<script/u, "only the approval page has one");
+  // Every page has Close or Try again (D-110), run by the same served script.
+  const plain = signInPage("Connected to Google", "It's all set.", { back: "/" });
+  assert.doesNotMatch(plain, /\son[a-z]+\s*=/iu, "no inline event handler");
+  assert.deepEqual([...plain.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gu)].map(([, attributes, body]) => [attributes.trim(), body]), [
+    ['src="/api/connections/sign-in-page.js" defer', ""]
+  ]);
   assert.match(SIGN_IN_PAGE_SCRIPT, /querySelector\("\[data-copy\]"\)/u);
   assert.doesNotThrow(() => new Script(SIGN_IN_PAGE_SCRIPT), "the script parses");
 });
@@ -79,7 +84,7 @@ test("Connect sets the browser's cookie and keeps it out of the answer; the call
   const cookie = { name: "mercbot_sign_in_0123456789abcdef", value: "proof" };
   const seen = [];
   const connections = {
-    connect: async (_reach, accountId) => ({ url: `https://consent.example/?account=${accountId}`, cookie }),
+    connect: async (accountId) => ({ url: `https://consent.example/?account=${accountId}`, cookie }),
     beginLentSignIn: async (state) => ({ url: `https://consent.example/?state=${state}`, app: "Gmail", cookie }),
     callback: async (query, cookies, options) => {
       seen.push([query, cookies, options.context]);

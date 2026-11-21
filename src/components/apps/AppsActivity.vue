@@ -99,6 +99,11 @@ function summary(event) {
   if (c.publishedVersion) return `published version ${c.publishedVersion.number}${c.publishedVersion.summary ? `: ${c.publishedVersion.summary}` : ""}`;
   if (c.builder) return `made ${c.builder.name} the Builder`;
   if (c.publicApp) return c.publicApp.on ? `made ${c.publicApp.name} public` : `made ${c.publicApp.name} internal again`;
+  // An account taken away with the person who connected it, when they're no longer in the home (D-111).
+  if (c.departedAccount) {
+    const account = c.departedAccount.account ? ` ${c.departedAccount.account}` : "";
+    return `removed ${c.departedAccount.app}${account}, which ${c.departedAccount.person} connected, as they're no longer in the home`;
+  }
   if (c.unlinkedCopy) return `unlinked this copy of Mercbot (“${c.unlinkedCopy.name}”) from ${c.unlinkedCopy.hub}`;
   return event.action;
 }

@@ -13,6 +13,7 @@ import { MAIL, buildMailTools } from "./mailTools.js";
 import { DRIVES, buildDriveTools } from "./driveTools.js";
 import { buildGithubTools } from "./githubTools.js";
 import { buildSednaTools } from "./sednaTools.js";
+import { SECRETS_HIDDEN, hiddenInEmail } from "./signInSecrets.js";
 
 // Which code speaks to each contacts app (D-31).
 const CONTACTS = { "google-contacts": google, outlook: microsoft };
@@ -175,10 +176,11 @@ export function buildAccountTools({
           accounts.map(async (entry) => ({
             account: entry.account,
             address: entry.address,
-            emails: (await MAIL[entry.pluginId].searchEmail(entry.key, query)).map((found) => ({
-              ...found,
-              snippet: untrustedMail(found.snippet)
-            }))
+            emails: (await MAIL[entry.pluginId].searchEmail(entry.key, query)).map((found) => {
+              // Sign-in codes and links only from mailboxes the person whose turn it is connected (D-111).
+              const shown = entry.mine ? found : hiddenInEmail(found);
+              return { ...shown, snippet: untrustedMail(shown.snippet) };
+            })
           }))
         ),
         "Searching email"
@@ -203,11 +205,24 @@ export function buildAccountTools({
   async function readEmail({ id, whole, account: wanted }) {
     try {
       const entry = await connectedKey(appFor("read_email"), Object.keys(MAIL), "email", wanted);
+      // Sign-in codes and links only from mailboxes the person whose turn it is connected (D-111).
+      const hide = (email) => (entry.mine ? email : hiddenInEmail(email));
       if (whole) {
         const thread = await inTime(MAIL[entry.pluginId].readThread(entry.key, id), "Reading the conversation");
-        return { ...thread, messages: thread.messages.map((message) => ({ ...message, text: untrustedMail(message.text) })) };
+        // Each message is read after the conversation's subject, as an email's text is after its own.
+        const messages = thread.messages.map((message) => {
+          const { subject: _subject, ...shown } = hide({ ...message, subject: thread.subject });
+          return shown;
+        });
+        const hidden = messages.some((message) => message.signInHidden);
+        return {
+          ...thread,
+          subject: hide({ subject: thread.subject }).subject,
+          messages: messages.map(({ signInHidden: _note, ...message }) => ({ ...message, text: untrustedMail(message.text) })),
+          ...(hidden ? { signInHidden: SECRETS_HIDDEN } : {})
+        };
       }
-      const email = await inTime(MAIL[entry.pluginId].readEmail(entry.key, id), "Reading the email");
+      const email = hide(await inTime(MAIL[entry.pluginId].readEmail(entry.key, id), "Reading the email"));
       return { ...email, text: untrustedMail(email.text) };
     } catch (error) {
       return failed(error);

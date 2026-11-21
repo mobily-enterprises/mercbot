@@ -115,7 +115,8 @@ export function buildTools({
   toolSwitches = { skip: {}, removed: [], connected: [] },
   knowledgeTools = {}
 }) {
-  // Whose connected accounts the tools reach: the person's own and the home's (D-37).
+  // Where the tools run: the person's own chat (`personal`) or a room. Every connected account is the home's (D-111);
+  // Sedna's tools act as the person's own user there, so they run only in the person's own chat (D-93).
   const reach = { userId, homeId, personal };
   /**
    * Actions the person switched off for an app in Connect apps: skipped for that app,
@@ -251,7 +252,7 @@ export function buildTools({
   Object.assign(tools, buildRoutineTools({ work: records.work, call, conversationId, attempt, acknowledge }));
   Object.assign(tools, buildBotRequestTools({ handOff, requestTools, goalOperations }));
   Object.assign(tools, buildDraftTools({ turns: records.turns, call, conversationId, viaBot, routineRun, settleDraft, appFor, after }));
-  Object.assign(tools, buildCardTools({ integrations, reach, notebook, after, call }));
+  Object.assign(tools, buildCardTools({ integrations, notebook, after, call }));
   // Searching what the bot knows that's too long to keep in mind (D-107).
   Object.assign(tools, knowledgeTools);
   // Notes for the job in hand and a to-do list the person sees as a card (D-48, @jskit-ai/agent-runtime
@@ -336,8 +337,8 @@ export function buildTools({
     })
   );
   // Apps that host their own connection point, through the general connector (D-34).
-  Object.assign(tools, buildConnectorTools({ integrations, reach, call, attempt, postLead }));
-  // Sign-in codes from the person's own inbox, and coding signed in with the person's own account,
+  Object.assign(tools, buildConnectorTools({ integrations, call, attempt, postLead }));
+  // Sign-in codes from an inbox the person connected, and coding signed in with the person's own account,
   // only on a turn of theirs in their own chat with their bot (D-77): never in a shared room,
   // for work another bot asked for, or in a routine or Apps task, which run without them and can be
   // set off by what others write (a watch reads the app's data). There the bot uses the secure form,

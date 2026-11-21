@@ -556,9 +556,10 @@ test("find in chat counts the whole chat and brings older pages down only to the
   }
 });
 
-// Signing in from a bot's connect card: its button opens the explainer, then the app's sign-in, and tells
-// the server, which marks the card so the bot finishes its task once the app is connected; a card whose app was
-// connected shows Connected instead of its button. The sign-in window is the app's own page, so it's only recorded here.
+// Signing in from a bot's connect card: its button opens the explainer, which ends in the same Add account step as
+// Connect apps (D-110), saying a Google window opens and who will use the account (D-111); its button makes the account,
+// the home's, opens the app's sign-in for it, and tells the server, which marks the card so the bot finishes its task
+// once the app is connected; a card whose app was connected shows Connected instead of its button. The sign-in window is the app's own page, so it's only recorded here.
 test("signing in from a connect card marks it for the bot to carry on, and a connected card says so", async ({ page }) => {
   await page.addInitScript(() => {
     const opened: string[] = [];
@@ -577,6 +578,7 @@ test("signing in from a connect card marks it for the bot to carry on, and a con
   expect(created.ok()).toBe(true);
   const { bot } = await created.json();
   const knex = knexLib({ client: "pg", connection: { host: process.env.DB_HOST, port: Number(process.env.DB_PORT) || 5432, user: process.env.DB_USER, password: process.env.DB_PASSWORD, database: testDatabaseName() } });
+  let added = "";
   try {
     const conversation = await knex("bot_conversations").where({ bot_id: bot.id }).whereNotNull("user_id").first();
     await knex("bot_conversations").where({ id: conversation.id }).update({ onboarding_step: null });
@@ -590,7 +592,7 @@ test("signing in from a connect card marks it for the bot to carry on, and a con
         app: "Google Drive",
         plugin: { id: "google-drive", logo: "googledrive", color: "#4285F4", icon: "folder" },
         subtitle: "Let your bot use Google Drive for you",
-        footnote: "Your bot always checks with you before changing anything, and you can disconnect at any time.",
+        footnote: "Your bot always checks with you before changing anything, and you can remove the account at any time.",
         button: "Authorize",
         status,
         task
@@ -605,11 +607,21 @@ test("signing in from a connect card marks it for the bot to carry on, and a con
     await expect(cards.nth(0).getByText("Connected")).toBeVisible();
     await expect(cards.nth(0).getByRole("button")).toHaveCount(0);
     await cards.nth(1).getByRole("button", { name: "Authorize" }).click();
-    await page.getByRole("button", { name: "Continue" }).click();
+    const step = page.locator(".mb-explainer .mb-add-account");
+    await expect(step).toContainText("A Google window opens so you can pick the account.");
+    await expect(step).toContainText(/Everyone in .+, and their bots, can use the account you connect\./u);
+    await expect(step.getByRole("radio")).toHaveCount(0);
+    await expect(step.getByRole("button", { name: "Sign in with Google" })).toBeEnabled();
+    await step.getByRole("textbox", { name: "Label for the new account (optional)" }).fill("Card");
+    await step.getByRole("button", { name: "Sign in with Google" }).click();
     await expect.poll(async () => (await knex("bot_messages").where({ id: waiting.id }).first()).body.status).toBe("connecting");
     const opened = await page.evaluate(() => (window as unknown as { openedSignIns: string[] }).openedSignIns);
     expect(opened).toEqual([expect.stringContaining("plugin=google-drive")]);
+    added = new URL(opened[0], "http://mercbot.test").searchParams.get("account") || "";
+    const account = await knex("plugin_accounts").where({ id: added }).first();
+    expect([account.plugin_id, account.name, String(account.workspace_id)]).toEqual(["google-drive", "Card", String(conversation.workspace_id)]);
   } finally {
+    if (added) await knex("plugin_accounts").where({ id: added }).del();
     await knex.destroy();
     await page.goto("about:blank");
     await page.request.delete(`/api${HOME}/bots/${bot.id}`, { headers: { "csrf-token": csrfToken } });

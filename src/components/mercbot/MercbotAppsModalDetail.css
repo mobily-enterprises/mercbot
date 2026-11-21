@@ -33,11 +33,14 @@
   align-items: center;
   justify-content: center;
   gap: 6px;
-  width: 132px;
+  /* One line, however long its words ("Remove from this home"). */
+  min-width: 132px;
   height: 36px;
+  padding: 0 18px;
   border: 0;
   border-radius: 18px;
   background: rgb(var(--v-theme-surface-container-high));
+  white-space: nowrap;
   font: inherit;
   font-size: 14px;
   color: inherit;
@@ -206,9 +209,64 @@
   text-decoration: underline;
 }
 
-.mb-detail__new-account {
+.mb-detail__new-account + .mb-detail__row,
+.mb-detail__row + .mb-detail__new-account {
+  border-top: 1px solid rgb(var(--v-theme-outline-variant));
+}
+
+/* An account's line (D-110): its name and who can use it, then how it stands and what can be done; they wrap on a phone. */
+.mb-detail__row--account {
   flex-wrap: wrap;
+  row-gap: 6px;
+}
+
+.mb-detail__account-main {
+  display: flex;
+  flex: 1 1 220px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 0;
+}
+
+.mb-detail__account-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
   gap: 8px;
+  margin-left: auto;
+}
+
+.mb-detail__bin {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 15px;
+  background: none;
+  color: rgb(var(--v-theme-on-surface-variant));
+  cursor: pointer;
+}
+
+.mb-detail__bin:hover,
+.mb-detail__bin:focus-visible {
+  background: rgb(var(--v-theme-surface-container-high));
+  color: rgb(var(--v-theme-error));
+}
+
+.mb-detail__confirm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 12px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: rgb(var(--v-theme-surface-container));
+  font-size: 13px;
 }
 
 .mb-detail__account-text {
@@ -221,42 +279,19 @@
   cursor: default;
 }
 
+/* Who uses the account, in words (D-111): it wraps under the account's name. */
 .mb-detail__home {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
   font-size: 12px;
+  line-height: 1.35;
   color: rgb(var(--v-theme-on-surface-variant));
 }
 
-.mb-detail__whose {
-  display: inline-flex;
-  padding: 2px;
-  border-radius: 14px;
-  background: rgb(var(--v-theme-surface-container-high));
-}
-
-.mb-detail__whose button {
-  height: 24px;
-  padding: 0 10px;
-  border: 0;
-  border-radius: 12px;
-  background: transparent;
-  font: inherit;
-  font-size: 12px;
-  color: rgb(var(--v-theme-on-surface-variant));
-  cursor: pointer;
-}
-
-.mb-detail__whose button[aria-checked="true"] {
-  background: rgb(var(--v-theme-surface));
-  color: rgb(var(--v-theme-on-surface));
-  box-shadow: var(--mb-shadow-soft);
-}
-
-.mb-detail__whose button:disabled {
-  opacity: 0.5;
-  cursor: default;
+.mb-detail__home .v-icon {
+  flex: none;
+  margin-top: 1px;
 }
 
 .mb-detail__account-input {

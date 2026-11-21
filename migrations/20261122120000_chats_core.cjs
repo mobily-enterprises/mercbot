@@ -259,7 +259,6 @@ CREATE INDEX ix_app_watches_chat_bot ON app_watches (chat_bot_id);
 
 ALTER TABLE connect_follow_ups
   DROP COLUMN conversation_id,
-  DROP COLUMN personal,
   ADD COLUMN chat_bot_id bigint NOT NULL REFERENCES chat_bots (id) ON DELETE CASCADE,
   ADD CONSTRAINT connect_follow_ups_message_foreign FOREIGN KEY (message_id) REFERENCES messages (id) ON DELETE CASCADE;
 CREATE INDEX ix_connect_follow_ups_chat ON connect_follow_ups (chat_bot_id) WHERE ((status)::text = 'ready'::text);

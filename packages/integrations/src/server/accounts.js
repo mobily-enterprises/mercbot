@@ -3,11 +3,11 @@ import { AppError } from "@jskit-ai/kernel/server/runtime/errors";
 import { hasPermission } from "@jskit-ai/kernel/shared/support";
 import { isSystemContext, passedOn, resolveWorkspaceScopeValue } from "@jskit-ai/resource-runtime/server";
 
-// Whose connected accounts a call may reach (D-37). The person and the home come from the call's
-// context: a request's signed-in person in the home its address names, or the person a job acts for
-// (`forWorkspace(home, { actorId })`). A reach is { personal }: whether the person's own accounts may
-// be used (not in a shared bot's room, which everyone sees). Changing a home's account takes the
-// home's owners or admins (`workspace.settings.update`).
+// The connected accounts a call reaches (D-111): every account of the call's home, for everyone in it and their bots,
+// in any chat. The person and the home come from the call's context: a request's signed-in person in the home its
+// address names, or the person a job acts for (`forWorkspace(home, { actorId })`). The person who added an account and
+// the home's owners and admins (`workspace.settings.update`) change it: rename it, sign it in again, choose its pace and
+// remove it.
 
 /** What a read answers; tokens only when this package's own sign-ins ask for them. */
 const ACCOUNT_FIELDS = Object.freeze(["pluginId", "name", "label", "status", "signInState", "bridgeRef", "pace", "userId", "workspaceId"]);
@@ -25,19 +25,19 @@ export class IntegrationsError extends AppError {
 }
 
 /**
- * The search entries plugin_accounts' owns entry adds (IntegrationsFeature.js). Whose own accounts a
- * call reaches is the row policy's (rowPolicies.js), for a request and for a job acting for someone.
- * - `homeOnly: true`: only the home's (a shared bot's room).
+ * The search entries plugin_accounts' owns entry adds (IntegrationsFeature.js).
  * - `hasBridgeRef`, `hasLabel`, `statusNot`: accounts signed in through the hub, those with an
  *   address, and those not in a status.
  * - `pluginIds`: the accounts of any of these apps (a bot tool's apps: Gmail and Outlook for mail).
+ * - `userIdNot`: the accounts someone other than this person added.
  */
 export const ACCOUNT_FILTERS = Object.freeze({
   pluginIds: { type: "array", actualField: "pluginId", filterOperator: "in", items: { type: "string" } },
-  homeOnly: {
-    type: "boolean",
-    applyFilter(query, _value, { column }) {
-      query.whereNotNull(column("workspaceId"));
+  userIdNot: {
+    type: "array",
+    items: { type: "id" },
+    applyFilter(query, value, { column }) {
+      query.whereNotIn(column("userId"), value);
     }
   },
   hasBridgeRef: {
@@ -56,7 +56,7 @@ export const ACCOUNT_FILTERS = Object.freeze({
 });
 
 /**
- * One plugin_accounts record as integrations' callers see it: `home` says it is a home's.
+ * One plugin_accounts record as integrations' callers see it; `userId` is who added it.
  * @param {Record<string, any>} record
  * @param {boolean} withTokens
  */
@@ -71,16 +71,15 @@ function toRecord(record, withTokens) {
     bridgeRef: record.bridgeRef ?? null,
     pace: record.pace ?? null,
     userId: String(record.userId),
-    home: record.workspaceId != null,
     ...(withTokens ? { tokens: record.tokens ?? null } : {})
   };
 }
 
 /**
- * People's and homes' connected accounts, on the pluginAccounts handle. Every read is scoped to the
- * call's reach. A change of one account the call reached goes through `patchAccount` or
- * `deleteAccount`, and a system write names the account's owner, except the unlink sign-out, which
- * is every account of the deployment that borrowed the hub's sign-in. An account turning connected
+ * Homes' connected accounts, on the pluginAccounts handle. Every read is scoped to the call's home. A
+ * change of one account the call reached goes through `patchAccount` or `deleteAccount`, and a system
+ * write names the account's home, except the unlink sign-out, which is every account of the deployment
+ * that borrowed the hub's sign-in. An account turning connected
  * (`signedIn`, `connectedHere`) is saved with what waits for it elsewhere (`whenConnected`).
  * @param {object} dependencies
  * @param {object} dependencies.pluginAccounts the plugin_accounts handle
@@ -100,23 +99,15 @@ export function createAccounts({ pluginAccounts, systemContext }) {
     return hasPermission(options?.context?.permissions || [], "workspace.settings.update");
   }
 
-  /** A read's reach filters. Never a system context, which would reach every home's accounts. */
-  function reachFilters({ personal = true } = {}, options) {
-    if (isSystemContext(options?.context)) throw new Error("integrations: a reach needs a request's or a job's context, not a system one.");
-    const person = personOf(options);
-    return personal && person ? {} : { homeOnly: true };
-  }
-
   /**
-   * The accounts the call reaches, in id order: the home's, and the person's own unless `personal`
-   * is false.
-   * @param {{ personal?: boolean }} reach
+   * The accounts the call's home holds, in id order. Never in a system context, which would reach every home's.
    * @param {object} options
    * @param {{ filters?: object, tokens?: boolean }} [params]
    */
-  async function reachable(reach, options, { filters = {}, tokens = false } = {}) {
+  async function reachable(options, { filters = {}, tokens = false } = {}) {
+    if (isSystemContext(options?.context)) throw new Error("integrations: accounts are read in a request's or a job's context in a home, not a system one.");
     const records = await pluginAccounts.queryAll({
-      filters: { ...filters, ...reachFilters(reach, options) },
+      filters,
       sort: ["id"],
       fields: tokens ? [...ACCOUNT_FIELDS, "tokens"] : ACCOUNT_FIELDS
     }, passedOn(options));
@@ -124,18 +115,23 @@ export function createAccounts({ pluginAccounts, systemContext }) {
   }
 
   /** One account the call may use, or 404 integrations_account_not_found. */
-  async function reachableAccount(reach, accountId, options, { tokens = false } = {}) {
+  async function reachableAccount(accountId, options, { tokens = false } = {}) {
     const id = String(accountId ?? "");
-    const [account] = /^\d+$/u.test(id) ? await reachable(reach, options, { filters: { id }, tokens }) : [];
+    const [account] = /^\d+$/u.test(id) ? await reachable(options, { filters: { id }, tokens }) : [];
     if (!account) throw new IntegrationsError(404, "Account not found.", { code: "integrations_account_not_found" });
     return account;
   }
 
-  /** One account the call may change: a home's takes the home's owners or admins. */
-  async function manageableAccount(reach, accountId, options, params = {}) {
-    const account = await reachableAccount(reach, accountId, options, params);
-    if (account.home && !managesHome(options)) {
-      throw new IntegrationsError(403, "Only the home's owners and admins can change its accounts.", {
+  /** Whether the call's person may change the account: the person who added it, or one of the home's owners or admins. */
+  function mayChange(account, options) {
+    return account.userId === String(personOf(options) ?? "") || managesHome(options);
+  }
+
+  /** One account the call may change (mayChange), or 403 integrations_account_manage_forbidden. */
+  async function manageableAccount(accountId, options, params = {}) {
+    const account = await reachableAccount(accountId, options, params);
+    if (!mayChange(account, options)) {
+      throw new IntegrationsError(403, "Only the person who added this account and the home's owners and admins can change it.", {
         code: "integrations_account_manage_forbidden"
       });
     }
@@ -143,29 +139,19 @@ export function createAccounts({ pluginAccounts, systemContext }) {
   }
 
   /**
-   * A write of an account a scoped read answered. A home's account is written in the call's own
-   * scope, by its id. A person's own account belongs to no home, and only a plain system context may
-   * change such a shared row, so it is written there, naming its shared owner (workspaceId: null),
-   * once the scoped read above found it the caller's. `options` may carry the call's transaction.
-   * The one place a person's own account is changed.
-   * @param {object} options
+   * A write of an account a scoped read answered, in the call's own scope, by its id. `options` may carry the call's
+   * transaction.
+   * @param {{ id: string }} account
    */
-  function personalWrite(options) {
-    return { ...passedOn(options), context: systemContext("change a person's own account, which belongs to no home, once a scoped read found it theirs") };
-  }
-
-  /** @param {{ id: string, home: boolean }} account a record a scoped read answered */
   function patchAccount(account, changes, options) {
-    if (account.home) return pluginAccounts.patch(account.id, changes, { ...passedOn(options), returning: "none" });
-    return pluginAccounts.patchWhere({ id: [String(account.id)], workspaceId: null }, changes, { ...personalWrite(options), returning: "none" });
+    return pluginAccounts.patch(account.id, changes, { ...passedOn(options), returning: "none" });
   }
 
   /**
    * Runs `work(locked, txOptions)` with the account's row locked until it ends, `locked` as the lock read it (with its
-   * tokens), or null once it's gone: two servers renewing one account's key wait for each other (D-15). A person's own
-   * account is locked where it is written (personalWrite). The work runs once, as it calls the app; patchAccount with
-   * `txOptions` writes inside it.
-   * @param {{ id: string, home: boolean }} account a record a scoped read answered
+   * tokens), or null once it's gone: two servers renewing one account's key wait for each other (D-15). The work runs
+   * once, as it calls the app; patchAccount with `txOptions` writes inside it.
+   * @param {{ id: string }} account a record a scoped read answered
    * @template T
    * @param {object} options
    * @param {(locked: ReturnType<typeof toRecord> | null, txOptions: object) => Promise<T>} work
@@ -173,45 +159,26 @@ export function createAccounts({ pluginAccounts, systemContext }) {
    */
   function withLockedAccount(account, options, work) {
     return pluginAccounts.withTransaction({ ...passedOn(options), retry: false }, async (txOptions) => {
-      const scope = account.home ? txOptions : personalWrite(txOptions);
-      const locked = await pluginAccounts.lock(account.id, { ...scope, missing: "skip", fields: [...ACCOUNT_FIELDS, "tokens"] });
+      const locked = await pluginAccounts.lock(account.id, { ...txOptions, missing: "skip", fields: [...ACCOUNT_FIELDS, "tokens"] });
       return work(locked ? toRecord(locked, true) : null, txOptions);
     });
   }
 
-  /** @param {{ id: string, home: boolean }} account a record a scoped read answered */
+  /** @param {{ id: string }} account a record a scoped read answered */
   function deleteAccount(account, options) {
-    if (account.home) return pluginAccounts.delete(account.id, passedOn(options));
-    return pluginAccounts.deleteWhere({ id: [String(account.id)], workspaceId: null }, { ...personalWrite(options), returning: "none" });
+    return pluginAccounts.delete(account.id, passedOn(options));
   }
 
-  /**
-   * The call's person's own account, of no home: created in a plain system context, which
-   * alone may leave the home empty, and only ever for the person the call is for.
-   * @param {{ pluginId: string, name: string, label?: string | null }} fields
-   * @param {object} options
-   * @returns {Promise<string>} its id
-   */
-  async function addPersonalAccount(fields, options) {
-    const person = personOf(options);
-    if (!person) throw new Error("integrations: a personal account is added for the call's own person, and this call has none.");
-    const id = await pluginAccounts.create(
-      { ...fields, userId: String(person), workspaceId: null },
-      { ...passedOn(options), context: systemContext("add a person's own account, which belongs to no home"), returning: "id" }
-    );
-    return String(id);
-  }
-
-  /** The home's account, added in the call's home by its person. */
-  async function addHomeAccount(fields, options) {
+  /** An account of the call's home, added by the call's person. */
+  async function addAccount(fields, options) {
     const id = await pluginAccounts.create({ ...fields, userId: String(personOf(options)) }, { ...passedOn(options), returning: "id" });
     return String(id);
   }
 
   /**
-   * The labels (addresses) of every account the call's person added, in every home, as today: a bot
+   * The labels (addresses) of every account the call's person added, in every home: a bot
    * never saves which mailbox to use to the memory all the person's bots share (memoryTools.js). Only
-   * the person's own rows are read.
+   * the rows they added are read.
    * @param {object} options
    * @returns {Promise<string[]>}
    */
@@ -220,13 +187,13 @@ export function createAccounts({ pluginAccounts, systemContext }) {
     if (!person) return [];
     const records = await pluginAccounts.queryAll(
       { filters: { userId: String(person), hasLabel: true }, sort: ["id"], fields: ["label"] },
-      { ...passedOn(options), context: systemContext("read the addresses of a person's own accounts in every home, to keep them out of shared memory") }
+      { ...passedOn(options), context: systemContext("read the addresses of the accounts a person added in every home, to keep them out of shared memory") }
     );
     return records.map((record) => record.label);
   }
 
   /**
-   * Every account a person added, their own and the homes', in every home, for whoever runs the copy: what each is,
+   * Every account a person added, in every home, for whoever runs the copy: what each is,
    * where it is and whether it is connected, never its keys. Read in this feature's own system context, which reaches
    * every home.
    * @param {string | number} userId
@@ -239,21 +206,17 @@ export function createAccounts({ pluginAccounts, systemContext }) {
     );
     return records.map((record) => {
       const { signInState: _state, bridgeRef: _bridge, ...shown } = toRecord(record, false);
-      return {
-        ...shown,
-        workspaceId: record.workspaceId == null ? null : String(record.workspaceId),
-        connectedAt: record.connectedAt ?? null
-      };
+      return { ...shown, workspaceId: String(record.workspaceId), connectedAt: record.connectedAt ?? null };
     });
   }
 
-  /** The options of a read or change of any account by its id, in any home or of none, for whoever runs the copy. */
+  /** The options of a read or change of any account by its id, in any home, for whoever runs the copy. */
   function anywhere(options = {}) {
     return { ...passedOn(options), context: systemContext("read and disconnect any account by its id, in any home, for whoever runs the copy") };
   }
 
   /**
-   * One account by its id, in any home or of none, with its keys, for whoever runs the copy: null when there is none.
+   * One account by its id, in any home, with its keys, for whoever runs the copy: null when there is none.
    * @param {string | number} accountId
    * @param {object} [options] the call's transaction, if any
    */
@@ -261,7 +224,7 @@ export function createAccounts({ pluginAccounts, systemContext }) {
     const id = String(accountId ?? "");
     if (!/^\d+$/u.test(id)) return null;
     const record = await pluginAccounts.get(id, { fields: [...ACCOUNT_FIELDS, "tokens"] }, { ...anywhere(options), missing: "skip" });
-    return record ? { ...toRecord(record, true), workspaceId: record.workspaceId == null ? null : String(record.workspaceId) } : null;
+    return record ? { ...toRecord(record, true), workspaceId: String(record.workspaceId) } : null;
   }
 
   /** Signs out every account that borrowed the hub's sign-in, in every home, as this copy unlinks. */
@@ -285,17 +248,18 @@ export function createAccounts({ pluginAccounts, systemContext }) {
     return { ...passedOn(options), context: systemContext("finish a sign-in a provider sent back, for the one account its unguessable state names") };
   }
 
-  /** The account a sign-in's state names, for the callback: `{ id, pluginId, status, userId, workspaceId }` or null. */
+  /** The account a sign-in's state names, for the callback: `{ id, pluginId, status, label, userId, workspaceId }` or null. */
   async function signingIn(accountId, options) {
-    const fields = ["pluginId", "status", "userId", "workspaceId"];
+    const fields = ["pluginId", "status", "label", "userId", "workspaceId"];
     const record = await pluginAccounts.get(String(accountId), { fields }, { ...signInOptions(options), missing: "skip" });
     if (!record) return null;
     return {
       id: String(record.id),
       pluginId: record.pluginId,
       status: record.status,
+      label: record.label ?? null,
       userId: String(record.userId),
-      workspaceId: record.workspaceId == null ? null : String(record.workspaceId)
+      workspaceId: String(record.workspaceId)
     };
   }
 
@@ -331,8 +295,7 @@ export function createAccounts({ pluginAccounts, systemContext }) {
   }
 
   /**
-   * The callback's write of the account its state names, connected with `changes`, naming the account's owner: its
-   * home, or none for a person's own.
+   * The callback's write of the account its state names, connected with `changes`, naming the account's home.
    */
   function signedIn(accountId, changes, options) {
     return savedConnected(options, async (txOptions) => {
@@ -346,14 +309,13 @@ export function createAccounts({ pluginAccounts, systemContext }) {
   /**
    * An account a scoped read answered, connected with `changes`: a sign-in through the hub found finished
    * (syncPending), or API credentials an owner or admin entered and the app took (D-93), sealed in `changes`. That read
-   * was in the call's home, so a home's account is that home's.
-   * @param {{ id: string, home: boolean, pluginId: string, userId: string }} account
+   * was in the call's home, so the account is that home's.
+   * @param {{ id: string, pluginId: string, userId: string }} account
    */
   function connectedHere(account, changes, options) {
     return savedConnected(options, async (txOptions) => {
       await patchAccount(account, changes, txOptions);
-      const homeId = account.home ? String(resolveWorkspaceScopeValue(options?.context)) : null;
-      return { pluginId: account.pluginId, userId: account.userId, homeId };
+      return { pluginId: account.pluginId, userId: account.userId, homeId: String(resolveWorkspaceScopeValue(options?.context)) };
     });
   }
 
@@ -376,14 +338,14 @@ export function createAccounts({ pluginAccounts, systemContext }) {
     signInFailed,
     personOf,
     managesHome,
+    mayChange,
     reachable,
     reachableAccount,
     manageableAccount,
     patchAccount,
     withLockedAccount,
     deleteAccount,
-    addPersonalAccount,
-    addHomeAccount,
+    addAccount,
     accountLabels,
     addedBy,
     anywhere,

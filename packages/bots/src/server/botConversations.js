@@ -53,8 +53,8 @@ export function createBotConversations({ records, notices }) {
   }
 
   /**
-   * Whose connected accounts a conversation may use (D-37): the person's own and the home's, or in
-   * a shared bot's room only the home's.
+   * Where a conversation runs: its person and home, and whether it is the person's own chat rather than a room. Every
+   * account is the home's in either (D-111); Sedna's tools run only in a person's own chat (D-93).
    */
   const reachOf = (row) => ({ userId: row.user_id, homeId: row.workspace_id, personal: !row.room });
 

@@ -44,12 +44,12 @@ export async function ownedHandles(knex, context, ownsByFeature) {
 
 /**
  * The integrations service as IntegrationsFeature builds it, on the test's Knex: `{ integrations }`. `connections`
- * stands in for the sign-ins (by default no account lacks access).
+ * stands in for the sign-ins (by default no account lacks access, and withdrawing one does nothing).
  * @param {import("knex").Knex} knex
  * @param {{ after: (work: () => unknown) => void }} context
  * @param {{ catalogue: ReadonlyArray<object>, connections?: object }} options
  */
-export async function startIntegrations(knex, context, { catalogue, connections = { lacksAccess: () => false } }) {
+export async function startIntegrations(knex, context, { catalogue, connections = { lacksAccess: () => false, withdraw: async () => {} } }) {
   const { profiles, features } = await ownedHandles(knex, context, { "mercbot.integrations": INTEGRATIONS_OWNS });
   const { resources, systemContext } = features["mercbot.integrations"];
   const accounts = createAccounts({ pluginAccounts: resources.pluginAccounts, systemContext });

@@ -12,8 +12,8 @@ asks it to. This guide covers choosing the pace, what each one means for each ap
    it applies at once, to every bot and routine using that account.
 
 Every account is **Gentle** until someone chooses another, including every account connected before the setting
-existed. Who may change the account chooses its pace: for an account the home shares (*Everyone in …*), its owners and
-admins; for a person's own account, that person. Everyone else sees the pace but can't change it.
+existed. Who may change the account chooses its pace: the person who added it, and the home's owners and admins (every
+account is the home's). Everyone else sees the pace but can't change it.
 
 - **Gentle** (the default) uses a tenth of what the app allows. Choose it when the app's account is also used by other
   programs, such as a Sedna organisation's other integrations, or when in doubt.

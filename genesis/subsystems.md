@@ -24,7 +24,7 @@ Owns the private home and adaptive navigation around authenticated features.
 - Table `database` `default` `bot_messages`
 - Table `database` `default` `bot_sections`
 - Table `database` `default` `bot_routines`
-- Table `database` `default` `user_plugins`
+- Table `database` `default` `home_plugins`
 - Table `database` `default` `plugin_accounts`
 - Table `database` `default` `user_skills`
 - Table `database` `default` `bot_policies`
@@ -124,7 +124,7 @@ that host their own connection point (D-34).
 ### Data owned
 
 - Table `database` `default` `plugin_actions_off`
-- Table `database` `default` `user_plugins`
+- Table `database` `default` `home_plugins`
 - Table `database` `default` `plugin_accounts`
 - Table `database` `default` `plugin_account_people`
 - Table `database` `default` `plugin_account_turns`

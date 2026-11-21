@@ -58,7 +58,7 @@ Select **Add rule** beside a list, describe one kind of action in plain words (f
 Where the home keeps its bots' files:
 
 - **On Mercbot:** Mercbot keeps the files for you.
-- **In Google Drive:** choose one of the Google Drive accounts connected in Connect apps, yours or the home's, and select **Save**. Mercbot makes one folder there, named after the home, and keeps the files in it. With no account connected yet, **Connect Google Drive** opens Connect apps. If the account needs signing in again, this section says so and, for whoever can, shows **Sign in again**. It also shows the Drive's free space and warns when less than 1 GB is free. If Mercbot's folder is in Drive's bin (or was deleted), it says so: what the bots save goes to the bin with it, and Google deletes the bin's files after 30 days. Take the folder out of the bin in Google Drive, or select **Choose again** to have Mercbot make a new folder in the same Drive and move the files into it.
+- **In Google Drive:** choose one of the Google Drive accounts connected in the home in Connect apps, and select **Save**. Mercbot makes one folder there, named after the home, and keeps the files in it. With no account connected yet, **Connect Google Drive** opens Connect apps. If the account needs signing in again, this section says so and, for whoever can (the person who connected it, and owners and admins), shows **Sign in again**. It also shows the Drive's free space and warns when less than 1 GB is free. If Mercbot's folder is in Drive's bin (or was deleted), it says so: what the bots save goes to the bin with it, and Google deletes the bin's files after 30 days. Take the folder out of the bin in Google Drive, or select **Choose again** to have Mercbot make a new folder in the same Drive and move the files into it.
 - **In the home's own storage:** Nextcloud or any storage with a WebDAV address. Fill in the **Address**, **Username** and **Password**, tick **It's Nextcloud** if it is, and select **Save**. Mercbot checks the storage before saving the choice, and the files live there in a Mercbot folder.
 
 Saving another place moves all the home's files there, every time, and the new place becomes an exact copy of them: whatever was there before is replaced. This section shows the move as it goes, with **Cancel** until it's done. Meanwhile the files can be read but not changed, and the bots' computers sleep; a command a bot started before the move is waited for (at most 30 minutes), as it may still save files. Once it's done, a Google Drive folder left behind goes to that Drive's bin, where Google keeps it for 30 days, and Mercbot's own copy is deleted; a copy in the home's own storage stays. A move that's cancelled or fails leaves the files where they were and says why. If the files can't be read where they are, for example in a Google Drive that needs signing in again, Mercbot says so and offers **Switch without the files**, which leaves them there.
@@ -177,7 +177,7 @@ Mercbot shows news inside the app:
 | A "new" divider | Chat | Where the messages you haven't seen start. |
 | A card with buttons | Chat | The bot is waiting for an answer: an approval, a draft to send, a sign-in form or a question. |
 | A dot on the menu button | Phone | Another bot has something new. |
-| **Needs auth** or **Needs more access** | Connect apps | An account needs signing in. |
+| **Needs sign-in** or **Needs more access** | Connect apps | An account needs signing in. |
 
 Right-click a bot and choose **Mark as unread** to keep it in view for later.
 

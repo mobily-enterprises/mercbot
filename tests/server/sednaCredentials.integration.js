@@ -22,7 +22,6 @@ import { createSednaCredentials } from "../../packages/integrations/src/server/s
 assert.ok(process.env.TEST_DB_NAME?.trim(), "TEST_DB_NAME must identify a disposable test database.");
 assert.equal(process.env.DB_NAME, process.env.TEST_DB_NAME, "DB_NAME must match the dedicated TEST_DB_NAME.");
 const VAULT = randomBytes(32).toString("base64");
-const REACH = Object.freeze({ personal: true });
 const MANAGE = ["workspace.settings.update"];
 
 async function setup(context) {
@@ -82,19 +81,19 @@ test("credentials are checked with Sedna before they're saved, sealed, and match
   const { knex, sedna, connections, account, people: { pat, lee, sam, kim, ari }, as, good } = await setup(context);
   const row = () => knex("plugin_accounts").where({ id: account.id }).first();
 
-  await assert.rejects(connections.saveCredentials(REACH, account.id, good, as(sam)), { statusCode: 403, code: "integrations_account_manage_forbidden" });
-  await assert.rejects(connections.saveCredentials(REACH, account.id, { ...good, clientSecret: "wrong" }, as(pat, true)), {
+  await assert.rejects(connections.saveCredentials(account.id, good, as(sam)), { statusCode: 403, code: "integrations_account_manage_forbidden" });
+  await assert.rejects(connections.saveCredentials(account.id, { ...good, clientSecret: "wrong" }, as(pat, true)), {
     statusCode: 400,
     code: "integrations_credentials_refused",
     message: "Sedna didn't accept that client ID and secret for acme.sednanetwork.com. Check them in Sedna's API credential management."
   });
-  await assert.rejects(connections.saveCredentials(REACH, account.id, { ...good, tenant: "acme.example.com" }, as(pat, true)), { code: "integrations_sedna_tenant_invalid" });
-  await assert.rejects(connections.saveCredentials(REACH, account.id, { ...good, tenant: "other" }, as(pat, true)), { code: "integrations_sedna_tenant_unknown" });
-  await assert.rejects(connections.saveCredentials(REACH, account.id, { ...good, clientId: " " }, as(pat, true)), { code: "integrations_credentials_field_missing", message: "Fill in Client ID." });
+  await assert.rejects(connections.saveCredentials(account.id, { ...good, tenant: "acme.example.com" }, as(pat, true)), { code: "integrations_sedna_tenant_invalid" });
+  await assert.rejects(connections.saveCredentials(account.id, { ...good, tenant: "other" }, as(pat, true)), { code: "integrations_sedna_tenant_unknown" });
+  await assert.rejects(connections.saveCredentials(account.id, { ...good, clientId: " " }, as(pat, true)), { code: "integrations_credentials_field_missing", message: "Fill in Client ID." });
   assert.deepEqual([(await row()).status, (await row()).tokens], ["needs-auth", null], "nothing is saved until Sedna takes them");
   assert.equal(sedna.requests.filter((entry) => entry.tenant !== "acme").length, 1, "a tenant typed as another host never leaves acme's label");
 
-  const saved = await connections.saveCredentials(REACH, account.id, good, as(pat, true));
+  const saved = await connections.saveCredentials(account.id, good, as(pat, true));
   assert.equal(saved.label, "Acme Shipping");
   assert.deepEqual(saved.matched.map((entry) => [entry.id, entry.sednaName]).sort(), [[lee, "Lee Roe"], [pat, "Pat Doe"]].sort());
   assert.deepEqual(saved.unmatched.map((entry) => entry.id).sort(), [sam, kim, ari].sort());
@@ -105,29 +104,29 @@ test("credentials are checked with Sedna before they're saved, sealed, and match
   assert.deepEqual(opened.values, { tenant: "acme", clientId: sedna.clientId, clientSecret: sedna.clientSecret });
   assert.ok(sedna.requests.some((entry) => entry.route === "/2019-01-01/company/me"));
   // The home's account is the home's: another home's admin can't reach it, and the hub never lends it.
-  await assert.rejects(connections.connect(REACH, account.id, as(pat, true)), { statusCode: 409, code: "integrations_credentials_only" });
+  await assert.rejects(connections.connect(account.id, as(pat, true)), { statusCode: 409, code: "integrations_credentials_only" });
   await assert.rejects(connections.startBridgedSignIn("sedna", { connectionFor: async () => "1", lentTo: "1" }, as(pat)), { statusCode: 409, code: "integrations_credentials_only" });
   await assert.rejects(connections.bridgedToken("sedna", stored.tokens, async () => {}, as(pat)), { code: "integrations_credentials_only" });
 });
 
-test("the hourly key is made again under the account's row lock, once for two calls; credentials Sedna drops sign it out; disconnect clears them", async (context) => {
-  const { knex, sedna, connections, account, people: { pat, sam }, as, good } = await setup(context);
+test("the hourly key is made again under the account's row lock, once for two calls; credentials Sedna drops sign it out; its bin forgets them", async (context) => {
+  const { knex, sedna, connections, integrations, account, homeId, people: { pat, sam }, as, good } = await setup(context);
   sedna.state.expiresIn = 30; // under a minute: not fresh, so the next call makes a new key
-  await connections.saveCredentials(REACH, account.id, good, as(pat, true));
+  await connections.saveCredentials(account.id, good, as(pat, true));
   sedna.state.expiresIn = 3600;
   sedna.state.tokenDelay = 300;
   const before = sedna.state.tokens;
-  const [one, two] = await Promise.all([connections.accessToken(REACH, account.id, as(sam)), connections.accessToken(REACH, account.id, as(pat))]);
+  const [one, two] = await Promise.all([connections.accessToken(account.id, as(sam)), connections.accessToken(account.id, as(pat))]);
   assert.equal(sedna.state.tokens - before, 1, "one key for both calls");
   assert.equal(one.accessToken, two.accessToken);
   assert.deepEqual([one.renewed || two.renewed, one.api], [true, `${sedna.url}/acme/platform/2019-01-01`]);
-  const again = await connections.accessToken(REACH, account.id, as(sam));
+  const again = await connections.accessToken(account.id, as(sam));
   assert.deepEqual([again.accessToken, again.renewed, sedna.state.tokens - before], [one.accessToken, false, 1], "a fresh key is used as it is");
 
   // Sedna refusing the key, and then the credentials themselves: the account is signed out, for an admin to fix.
   sedna.state.tokenDelay = 0;
   sedna.state.revoked = true;
-  await assert.rejects(connections.accessToken(REACH, account.id, as(sam), { refused: one.accessToken }), {
+  await assert.rejects(connections.accessToken(account.id, as(sam), { refused: one.accessToken }), {
     statusCode: 409,
     code: "integrations_credentials_missing",
     message: "Sedna isn't connected: an owner or admin of the home enters its API credentials in Connect apps."
@@ -136,53 +135,58 @@ test("the hourly key is made again under the account's row lock, once for two ca
   assert.deepEqual([signedOut.status, signedOut.tokens], ["needs-auth", null]);
 
   sedna.state.revoked = false;
-  await connections.saveCredentials(REACH, account.id, good, as(pat, true));
-  await assert.rejects(connections.disconnect(REACH, account.id, as(sam)), { statusCode: 403 });
-  await connections.disconnect(REACH, account.id, as(pat, true));
-  const cleared = await knex("plugin_accounts").where({ id: account.id }).first();
-  assert.deepEqual([cleared.status, cleared.tokens, cleared.label], ["needs-auth", null, null]);
-  await assert.rejects(connections.accessToken(REACH, account.id, as(sam)), { code: "integrations_credentials_missing" });
+  await connections.saveCredentials(account.id, good, as(pat, true));
+  // Its bin (D-110): only the home's owners and admins remove it, and its people matches go with it.
+  await knex("plugin_account_people").insert({
+    workspace_id: homeId, account_id: account.id, user_id: sam, org: "acme", app_user_id: "203", app_user_name: "Sam Poe", status: "asked"
+  });
+  await assert.rejects(integrations.removeAccount(account.id, as(sam)), { statusCode: 403 });
+  assert.equal(Number((await knex("plugin_account_people").where({ account_id: account.id }).count({ n: "*" }))[0].n), 1);
+  await integrations.removeAccount(account.id, as(pat, true));
+  assert.equal(await knex("plugin_accounts").where({ id: account.id }).first(), undefined);
+  assert.equal(Number((await knex("plugin_account_people").where({ account_id: account.id }).count({ n: "*" }))[0].n), 0);
+  await assert.rejects(connections.accessToken(account.id, as(sam)), { statusCode: 404 });
 });
 
 test("who each person is in Sedna: their address, or the user they pick once an owner or admin confirms it; never someone else", async (context) => {
   const { knex, connections, account, people: { pat, lee, sam, kim, ari }, as, good } = await setup(context);
-  await connections.saveCredentials(REACH, account.id, good, as(pat, true));
+  await connections.saveCredentials(account.id, good, as(pat, true));
 
-  const patInSedna = await connections.appPerson(REACH, account.id, as(pat));
+  const patInSedna = await connections.appPerson(account.id, as(pat));
   assert.deepEqual([patInSedna.person.id, patInSedna.via, patInSedna.person.teams], ["201", "email", [{ id: "11", name: "Chartering" }]]);
-  assert.deepEqual(await connections.appPerson(REACH, account.id, as(sam)), { app: "Sedna", person: null, asked: null });
-  assert.ok((await connections.appUsers(REACH, account.id, "sam", as(sam))).some((user) => user.id === "203"));
+  assert.deepEqual(await connections.appPerson(account.id, as(sam)), { app: "Sedna", person: null, asked: null });
+  assert.ok((await connections.appUsers(account.id, "sam", as(sam))).some((user) => user.id === "203"));
 
   // Nobody picks someone else: a user another person of the home has by address, an archived one, or a made-up id.
-  await assert.rejects(connections.pickAppUser(REACH, account.id, "201", as(sam)), { statusCode: 409, code: "integrations_app_user_taken" });
-  await assert.rejects(connections.pickAppUser(REACH, account.id, "204", as(sam)), { statusCode: 404, code: "integrations_app_user_unknown" });
-  await assert.rejects(connections.pickAppUser(REACH, account.id, "../company/me", as(sam)), { code: "integrations_app_user_unknown" });
+  await assert.rejects(connections.pickAppUser(account.id, "201", as(sam)), { statusCode: 409, code: "integrations_app_user_taken" });
+  await assert.rejects(connections.pickAppUser(account.id, "204", as(sam)), { statusCode: 404, code: "integrations_app_user_unknown" });
+  await assert.rejects(connections.pickAppUser(account.id, "../company/me", as(sam)), { code: "integrations_app_user_unknown" });
   // Someone Sedna knows by address picks no one else.
-  await assert.rejects(connections.pickAppUser(REACH, account.id, "203", as(pat, true)), { code: "integrations_app_person_matched" });
+  await assert.rejects(connections.pickAppUser(account.id, "203", as(pat, true)), { code: "integrations_app_person_matched" });
 
   // A member's pick waits for an owner or admin; until then they're no one in Sedna.
-  const asked = await connections.pickAppUser(REACH, account.id, "203", as(sam));
+  const asked = await connections.pickAppUser(account.id, "203", as(sam));
   assert.deepEqual([asked.person, asked.asked], [null, { id: "203", name: "Sam Poe" }]);
-  await assert.rejects(connections.confirmAppPerson(REACH, account.id, sam, as(kim)), { statusCode: 403, code: "integrations_account_manage_forbidden" });
-  await assert.rejects(connections.appPeople(REACH, account.id, as(kim)), { statusCode: 403 });
-  const listed = await connections.appPeople(REACH, account.id, as(lee, true));
+  await assert.rejects(connections.confirmAppPerson(account.id, sam, as(kim)), { statusCode: 403, code: "integrations_account_manage_forbidden" });
+  await assert.rejects(connections.appPeople(account.id, as(kim)), { statusCode: 403 });
+  const listed = await connections.appPeople(account.id, as(lee, true));
   const shown = Object.fromEntries(listed.people.map((entry) => [entry.id, entry]));
   assert.deepEqual([shown[pat].via, shown[pat].appUser.name, shown[sam].asked.name, shown[kim].asked, shown[lee].via], ["email", "Pat Doe", "Sam Poe", null, "email"]);
 
-  const confirmed = await connections.confirmAppPerson(REACH, account.id, sam, as(lee, true));
+  const confirmed = await connections.confirmAppPerson(account.id, sam, as(lee, true));
   assert.equal(confirmed.people.find((entry) => entry.id === sam).via, "picked");
-  const samInSedna = await connections.appPerson(REACH, account.id, as(sam));
+  const samInSedna = await connections.appPerson(account.id, as(sam));
   assert.deepEqual([samInSedna.person.id, samInSedna.via, samInSedna.person.teams.map((team) => team.name)], ["203", "picked", ["Chartering", "Operations"]]);
-  await assert.rejects(connections.confirmAppPerson(REACH, account.id, sam, as(lee, true)), { statusCode: 404, code: "integrations_app_person_not_asked" });
+  await assert.rejects(connections.confirmAppPerson(account.id, sam, as(lee, true)), { statusCode: 404, code: "integrations_app_person_not_asked" });
   // One Sedna user is one person: Kim can't be Sam too.
-  await assert.rejects(connections.pickAppUser(REACH, account.id, "203", as(kim)), { code: "integrations_app_user_taken" });
+  await assert.rejects(connections.pickAppUser(account.id, "203", as(kim)), { code: "integrations_app_user_taken" });
 
   // An admin's own pick is confirmed at once; a member can't undo someone else's.
-  const ariInSedna = await connections.pickAppUser(REACH, account.id, "205", as(ari, true));
+  const ariInSedna = await connections.pickAppUser(account.id, "205", as(ari, true));
   assert.deepEqual([ariInSedna.person.id, ariInSedna.via], ["205", "picked"]);
-  await assert.rejects(connections.forgetAppPerson(REACH, account.id, ari, as(kim)), { statusCode: 403 });
-  await connections.forgetAppPerson(REACH, account.id, "me", as(sam));
-  assert.equal((await connections.appPerson(REACH, account.id, as(sam))).person, null);
+  await assert.rejects(connections.forgetAppPerson(account.id, ari, as(kim)), { statusCode: 403 });
+  await connections.forgetAppPerson(account.id, "me", as(sam));
+  assert.equal((await connections.appPerson(account.id, as(sam))).person, null);
   assert.deepEqual(
     (await knex("plugin_account_people").where({ account_id: account.id }).select("user_id", "app_user_id", "status", "org")).map((entry) => [String(entry.user_id), entry.app_user_id, entry.status, entry.org]),
     [[ari, "205", "confirmed", "acme"]]
@@ -191,9 +195,9 @@ test("who each person is in Sedna: their address, or the user they pick once an 
 
 test("a bot reads only its person's Sedna teams, through the whole chain", async (context) => {
   const { sedna, connections, accounts, account, people: { pat, lee, kim }, as, good } = await setup(context);
-  await connections.saveCredentials(REACH, account.id, good, as(pat, true));
+  await connections.saveCredentials(account.id, good, as(pat, true));
   const integrations = {
-    reachableAccounts: async (reach, call) => (await accounts.reachable(reach, call)).filter((entry) => entry.pluginId === "sedna" && entry.status === "connected"),
+    reachableAccounts: async (call) => (await accounts.reachable(call)).filter((entry) => entry.pluginId === "sedna" && entry.status === "connected"),
     connections
   };
   const botOf = (userId) => buildSednaTools({
@@ -239,17 +243,17 @@ test("credentials Sedna takes only as a username and password (Basic auth) conne
   // and as Basic auth alike, rather than calling the credential wrong.
   sedna.state.forbidden = ["/company/me"];
   const noCompany = { code: "integrations_sedna_permission_missing", message: /give them COMPANY_READ/u };
-  await assert.rejects(connections.saveCredentials(REACH, account.id, good, as(pat, true)), noCompany);
+  await assert.rejects(connections.saveCredentials(account.id, good, as(pat, true)), noCompany);
   // Sedna's token endpoint turns this credential down, as for one an organisation uses only as Basic auth elsewhere.
   sedna.state.basicOnly = true;
   const basicFrom = sedna.requests.length;
-  await assert.rejects(connections.saveCredentials(REACH, account.id, good, as(pat, true)), noCompany);
+  await assert.rejects(connections.saveCredentials(account.id, good, as(pat, true)), noCompany);
   sedna.state.forbidden = [];
-  await assert.rejects(connections.saveCredentials(REACH, account.id, { ...good, clientSecret: "wrong" }, as(pat, true)), { code: "integrations_credentials_refused" });
-  const saved = await connections.saveCredentials(REACH, account.id, good, as(pat, true));
+  await assert.rejects(connections.saveCredentials(account.id, { ...good, clientSecret: "wrong" }, as(pat, true)), { code: "integrations_credentials_refused" });
+  const saved = await connections.saveCredentials(account.id, good, as(pat, true));
   assert.equal(saved.label, "Acme Shipping");
   const integrations = {
-    reachableAccounts: async (reach, call) => (await accounts.reachable(reach, call)).filter((entry) => entry.pluginId === "sedna" && entry.status === "connected"),
+    reachableAccounts: async (call) => (await accounts.reachable(call)).filter((entry) => entry.pluginId === "sedna" && entry.status === "connected"),
     connections
   };
   const bot = buildSednaTools({
@@ -278,38 +282,44 @@ test("credentials Sedna takes only as a username and password (Basic auth) conne
   assert.deepEqual([...new Set(reads.map((entry) => entry.scheme))], ["Basic"], "every call as Basic auth, none with a key");
 });
 
-test("only the home's owners and admins add Sedna, and only for everyone in the home", async (context) => {
+test("only the home's owners and admins add Sedna, whose unlabelled account is the home's one", async (context) => {
   const { knex, connections, integrations, account, homeId, people: { pat, lee, sam }, as, good } = await setup(context);
   await knex("plugin_accounts").where({ id: account.id }).del();
-  await assert.rejects(integrations.install(REACH, "sedna", as(sam)), { statusCode: 403, code: "integrations_home_app_forbidden" });
-  const listed = await integrations.install(REACH, "sedna", as(lee, true));
+  await assert.rejects(integrations.install("sedna", as(sam)), { statusCode: 403, code: "integrations_home_app_forbidden" });
+  const listed = await integrations.install("sedna", as(lee, true));
   const [home] = listed.plugins.find((entry) => entry.id === "sedna").accounts;
-  assert.deepEqual([home.home, home.status], [true, "needs-auth"]);
-  await integrations.install(REACH, "sedna", as(pat, true));
+  assert.deepEqual([home.status, home.addedByYou], ["needs-auth", true]);
+  await integrations.install("sedna", as(pat, true));
   assert.equal((await knex("plugin_accounts").where({ workspace_id: homeId, plugin_id: "sedna" })).length, 1, "one home account, however many add it");
-  await assert.rejects(integrations.addAccount(REACH, "sedna", "mine", { forHome: false }, as(lee, true)), { statusCode: 409, code: "integrations_home_account_only" });
-  await assert.rejects(integrations.addAccount(REACH, "sedna", "second", { forHome: true }, as(sam)), { statusCode: 403 });
+  await assert.rejects(integrations.addAccount("sedna", "", as(lee, true)), { statusCode: 400, code: "integrations_account_label_missing" });
+  await assert.rejects(integrations.addAccount("sedna", "second", as(sam)), { statusCode: 403, code: "integrations_home_app_forbidden" });
+  // A second, labelled one is the home's too; its adder removes it.
+  const { accountId: second } = await integrations.addAccount("sedna", "Second desk", as(lee, true));
+  await integrations.removeAccount(second, as(lee, true));
 
   // A member sees the home's account and, once connected, gets the Sedna tools on their own turns.
-  assert.deepEqual((await integrations.toolSwitches(REACH, as(sam))).connected, []);
-  await connections.saveCredentials(REACH, home.id, good, as(lee, true));
-  const seen = (await integrations.list(REACH, as(sam))).plugins.find((entry) => entry.id === "sedna");
-  assert.deepEqual([seen.installed, seen.accounts.map((entry) => [entry.status, entry.label])], [false, [["connected", "Acme Shipping"]]]);
-  assert.deepEqual((await integrations.toolSwitches(REACH, as(sam))).connected, ["sedna"]);
+  assert.deepEqual((await integrations.toolSwitches(as(sam))).connected, []);
+  await connections.saveCredentials(home.id, good, as(lee, true));
+  const seen = (await integrations.list(as(sam))).plugins.find((entry) => entry.id === "sedna");
+  assert.deepEqual([seen.installed, seen.accounts.map((entry) => [entry.status, entry.label])], [true, [["connected", "Acme Shipping"]]]);
+  assert.deepEqual((await integrations.toolSwitches(as(sam))).connected, ["sedna"]);
 });
 
 test("two owners adding Sedna at the same moment make one home account between them", async (context) => {
   const { knex, accounts, serviceWith, account, homeId, people: { pat, lee }, as } = await setup(context);
   await knex("plugin_accounts").where({ id: account.id }).del();
+  // Sedna stays on the home's list without its account, as removing an app's last account leaves it (D-110). Were it
+  // not on the list yet, the second would wait for the first's adding it there and then find its account.
+  await knex("home_plugins").insert({ workspace_id: homeId, plugin_id: "sedna", user_id: pat }).onConflict(["workspace_id", "plugin_id"]).ignore();
   // Each looks for the home's account and finds none before either makes one: the race, every time.
   const looked = [];
   let both;
   const met = new Promise((resolve) => { both = resolve; });
   const racing = serviceWith({
     ...accounts,
-    async reachable(reach, call, query) {
-      const found = await accounts.reachable(reach, call, query);
-      if (query?.filters?.homeOnly && looked.length < 2) {
+    async reachable(options, query) {
+      const found = await accounts.reachable(options, query);
+      if (query?.filters?.pluginId === "sedna" && looked.length < 2) {
         looked.push(found.length);
         if (looked.length === 2) both();
         await met;
@@ -317,7 +327,7 @@ test("two owners adding Sedna at the same moment make one home account between t
       return found;
     }
   });
-  await Promise.all([racing.install(REACH, "sedna", as(pat, true)), racing.install(REACH, "sedna", as(lee, true))]);
+  await Promise.all([racing.install("sedna", as(pat, true)), racing.install("sedna", as(lee, true))]);
   assert.deepEqual(looked, [0, 0]);
   const made = await knex("plugin_accounts").where({ workspace_id: homeId, plugin_id: "sedna" });
   assert.equal(made.length, 1, "the second found the first's");

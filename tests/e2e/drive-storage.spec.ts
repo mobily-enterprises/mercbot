@@ -39,13 +39,12 @@ async function openFilesSettings(page: Page) {
   return settings;
 }
 
-/** `click` opens the sign-in in a new tab, which signs in at the stand-in and comes back; the tab is closed after. */
+/** `click` opens the sign-in in its own window, which signs in at the stand-in and closes by itself (D-110). */
 async function signInAtStandIn(page: Page, click: () => Promise<void>) {
   const opened = page.context().waitForEvent("page");
   await click();
-  const tab = await opened;
-  await expect(tab.getByText("Connected to Google")).toBeVisible();
-  await tab.close();
+  const window = await opened;
+  await expect.poll(() => window.isClosed()).toBe(true);
 }
 
 test("a home's files go to Google Drive, and a Drive that needs signing in again says so until it's signed in", async ({ page }, info) => {
@@ -69,11 +68,12 @@ test("a home's files go to Google Drive, and a Drive that needs signing in again
     await settings.getByRole("button", { name: "Connect Google Drive" }).click();
     const modal = page.locator(".mb-apps-modal");
     await expect(modal.locator(".mb-detail__head").getByRole("heading", { level: 2 })).toContainText("Google Drive");
-    const connect = wasInstalled
-      ? modal.locator(".mb-detail__row").getByRole("button", { name: /^(Sign in|Reconnect|Retry)$/u }).first()
-      : modal.locator(".mb-detail__head").getByRole("button", { name: "Connect", exact: true });
-    await signInAtStandIn(page, () => connect.click());
-    await expect(modal.locator(".mb-detail__row").filter({ hasText: ACCOUNT })).toContainText("Connected");
+    // Add to this home, or + Add account once the app is added, opens the Add account step (D-110, D-111).
+    await (wasInstalled
+      ? modal.getByRole("button", { name: "+ Add account" })
+      : modal.locator(".mb-detail__head").getByRole("button", { name: "Add to this home", exact: true })).click();
+    await signInAtStandIn(page, () => modal.locator(".mb-add-account").getByRole("button", { name: "Sign in with Google" }).click());
+    await expect(modal.getByTestId("account-line").filter({ hasText: ACCOUNT })).toContainText("Connected");
     await page.keyboard.press("Escape");
     await expect(modal).toBeHidden();
 
@@ -115,8 +115,8 @@ test("a home's files go to Google Drive, and a Drive that needs signing in again
     await page.goto(`${HOME}/files`);
     await signInLink.click();
     await expect(modal.locator(".mb-detail__head").getByRole("heading", { level: 2 })).toContainText("Google Drive");
-    const row = modal.locator(".mb-detail__row").filter({ hasText: ACCOUNT });
-    await signInAtStandIn(page, () => row.getByRole("button", { name: "Sign in" }).click());
+    const row = modal.getByTestId("account-line").filter({ hasText: ACCOUNT });
+    await signInAtStandIn(page, () => row.getByRole("button", { name: "Sign in again" }).click());
     await expect(row).toContainText("Connected");
     await page.keyboard.press("Escape");
     settings = await openFilesSettings(page);

@@ -4,6 +4,7 @@ import { eventMessage } from "./eventMessage.js";
 import { connectedKey, connectedKeys, sendOrSimulate } from "./connectedApps.js";
 import * as google from "./googleApps.js";
 import * as microsoft from "./microsoftApps.js";
+import { hiddenInEmail } from "./signInSecrets.js";
 
 // The rest of the person's mailbox (D-42), beyond searching, reading and the draft card:
 // who the account is, its labels (Outlook's folders) and filters, drafts saved in the mailbox,
@@ -221,9 +222,11 @@ export function buildMailTools({ appFor, attempt, removed, failed, account, stat
       try {
         const entry = await connectedKey(appFor(`mail_drafts.${action}`), Object.keys(MAIL), "email", wanted);
         const app = MAIL[entry.pluginId];
-        if (action === "list") return { account: entry.account, drafts: await app.listDrafts(entry.key) };
+        // Sign-in codes and links only from mailboxes the person whose turn it is connected (D-111).
+        const hide = (draft) => (entry.mine ? draft : hiddenInEmail(draft));
+        if (action === "list") return { account: entry.account, drafts: (await app.listDrafts(entry.key)).map(hide) };
         if (action !== "create" && !input.id) return { error: "Give the draft's id; list shows them." };
-        if (action === "read") return { account: entry.account, draft: await app.readDraft(entry.key, input.id) };
+        if (action === "read") return { account: entry.account, draft: hide(await app.readDraft(entry.key, input.id)) };
         // A draft's own subject and recipients name it on the card and in the event line.
         const known = action === "create" ? {} : await app.readDraft(entry.key, input.id);
         const split = (value) => String(value || "").split(",").map((part) => part.trim()).filter(Boolean);

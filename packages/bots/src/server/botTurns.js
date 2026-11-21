@@ -5,7 +5,7 @@ import { vaultPasswords } from "./vaultLogins.js";
 import { describeRun, validTimeZone } from "./routineSchedule.js";
 import { PICTURE_LIMIT, pictureType } from "./botAgent.js";
 import { planningNotes } from "@jskit-ai/agent-runtime/server";
-import { accountTitle } from "./connectedApps.js";
+import { accountTitle, turnPerson } from "./connectedApps.js";
 import { plainMentions } from "./mentions.js";
 import { blankPasswords } from "./replyChecks.js";
 import { templateOf } from "./botTemplate.js";
@@ -81,22 +81,29 @@ export function createBotTurns({
     }
   }
 
-  /** The signed-in accounts from Connect apps (D-31), e.g. "Gmail (pat@example.com)". */
+  /**
+   * The home's signed-in accounts from Connect apps (D-31, D-111), each with who connected it, e.g. "Gmail
+   * (pat@example.com, connected by them)": a mailbox someone else connected shows its sign-in codes and links to no bot
+   * but theirs.
+   */
   async function connectedAccounts(row, call) {
     const reach = conversations.reachOf(row);
     // An app the home connected with its API credentials acts as each person's own user there (D-93, D-94), so a room
     // or a group others read never uses it.
-    const reachable = (await integrations.reachableAccounts(reach, call))
+    const reachable = (await integrations.reachableAccounts(call))
       .filter((entry) => reach.personal || !integrations.app(entry.pluginId)?.credentials);
     // Grouped per app, so "Gmail: 2 accounts" is never read as three mailboxes. The account
     // whose address is the person's own sign-in is theirs: "my calendar" means it.
     const own = String((await profiles.findById(row.user_id, passedOn(call)))?.email || "").toLowerCase();
+    const person = turnPerson(call);
+    const connectedOnes = reachable.filter((entry) => entry.status === "connected");
+    const names = await integrations.namesOf([...new Set(connectedOnes.map((entry) => entry.userId))], call);
     const byApp = new Map();
-    for (const connected of reachable.filter((entry) => entry.status === "connected")) {
+    for (const connected of connectedOnes) {
       const app = integrations.appName(connected.pluginId);
-      const title = `${accountTitle(connected) || "address unknown"}${
-        own && String(connected.label || "").toLowerCase() === own ? " (the person's own)" : ""
-      }`;
+      const by = connected.userId === person ? "them" : names.get(connected.userId) || "someone else in the home";
+      const ownAddress = own && String(connected.label || "").toLowerCase() === own ? "the person's own, " : "";
+      const title = `${accountTitle(connected) || "address unknown"} (${ownAddress}connected by ${by})`;
       byApp.set(app, [...(byApp.get(app) || []), title]);
     }
     const connected = [...byApp]
@@ -229,7 +236,8 @@ export function createBotTurns({
                 ]
               : []),
             `- What you remember about the person (shared by all their bots): ${await memoriesOf(call)}.`,
-            `- Connected accounts: ${await connectedAccounts(row, call)}.`,
+            // connectedAccounts ends each of its sentences with its own full stop.
+            `- Connected accounts: ${await connectedAccounts(row, call)}`,
             ...(turnedOff.length
               ? [
                   `- Switched off by the person in Connect apps, so never do these, not with the app's ` +
@@ -366,7 +374,7 @@ export function createBotTurns({
   ) {
     const homeNotebook = notebookFor(row, usesNotebook(row) ? await homeNameOf(row.workspace_id, call) : "", call);
     // Actions the person switched off for an app in Connect apps.
-    const toolSwitches = await integrations.toolSwitches(conversations.reachOf(row), call);
+    const toolSwitches = await integrations.toolSwitches(call);
     /** The home's Builder gets the Apps tools and, in its instructions, what scripts can do. */
     const isBuilder = (await apps.apps.builder(call))?.id === String(row.id);
     // The template it points at (D-98), whose skills it reads with read_skill.
@@ -394,8 +402,8 @@ export function createBotTurns({
       apps,
       appsVia,
       isBuilder,
-      // A room is seen by everyone, so only the home's accounts are used there, and nobody's own
-      // memories or saved logins (D-36, D-37).
+      // A room is seen by everyone, so nobody's own memories or saved logins are used there (D-36); the home's
+      // accounts are everyone's in any chat (D-111).
       integrations,
       personal,
       place: place || filePlace(row),
@@ -424,7 +432,7 @@ export function createBotTurns({
    * @param {import("./types.js").CallOptions} call
    */
   function hasConnected(row, pluginId, call) {
-    return integrations.hasConnected(conversations.reachOf(row), pluginId, call);
+    return integrations.hasConnected(pluginId, call);
   }
 
   return Object.freeze({

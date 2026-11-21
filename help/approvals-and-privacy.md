@@ -139,17 +139,18 @@ Approvals are the safety net behind this. Text on a page can't press Go ahead fo
 |---|---|---|
 | A file in the shared folder | Everyone in the home and all its bots | Files a bot keeps for you in its own folder |
 | A mixed bot's notebook | Everyone in the home can read it | Your chats. The bot notes only reusable learning, refuses email addresses, long numbers and your vault passwords, and tells you in a line you can undo |
-| A Shared bot's shared tabs | Everyone in the home who opens them | Your **You only** tab with the bot, and your memories, your own connected accounts, your vault and your own skills: shared tabs never use them |
-| An account added for **Everyone in** the home | Everyone sees it listed; bots use it in everyone's chats | Accounts you add as **Just me** |
+| A Shared bot's shared tabs | Everyone in the home who opens them | Your **You only** tab with the bot, and your memories, your vault and your own skills: shared tabs never use them |
+| An account you connect in **Connect apps** | Everyone in the home and their bots, in any chat: they can read it and, for a mailbox, send from it | Its sign-in codes and sign-in links, which reach only your own bots; your accounts in your other homes |
 | Something your bots remember | All your bots in that home | Your chats with each bot |
 
 ## Removing access and data
 
 | To remove | Where | What happens |
 |---|---|---|
-| A connected account | **Connect apps**, the account's **Disconnect** | Mercbot drops its keys; the account shows as needing sign-in. To withdraw the permission on the provider's side too, remove Mercbot in that account's own security settings |
-| An account added for the whole home | **Connect apps**, **Remove** (owners and admins) | It's removed for everyone |
-| Sedna's API credentials | **Connect apps**, Sedna's **Disconnect** (owners and admins) | Mercbot deletes them; no bot reads Sedna until they're entered again. To stop them working everywhere, delete the credential on Sedna's API Credential Management page |
+| A connected account | **Connect apps**, the bin on the account's line (the person who added it, owners and admins) | Mercbot deletes the account and its keys, for everyone in the home. To withdraw the permission on the provider's side too, remove Mercbot in that account's own security settings |
+| An app and all its accounts in the home | **Connect apps**, the app's **Remove from this home** (owners and admins, or the person who added the app while all its accounts are theirs) | The app and every account of it are removed for everyone |
+| Your accounts in a home you're leaving | They go by themselves when you're no longer in the home | Mercbot signs them out and removes them; the **Activity** tab in **Apps** lists each one |
+| Sedna's API credentials | **Connect apps**, the bin on Sedna's line (owners and admins) | Mercbot deletes them, with who each person is in Sedna; no bot reads Sedna until they're entered again. To stop them working everywhere, delete the credential on Sedna's API Credential Management page |
 | Who you are in Sedna | **Connect apps**, Sedna, **That's not me** (or **Undo** under **People**, for owners and admins) | Your bots read nothing in Sedna until you pick yourself again and it's confirmed |
 | One action of an app | **Connect apps**, the app's **Tools** | Bots can't do it any more |
 | Something a bot remembers | **Settings**, **Memory** | The fact is forgotten by all your bots |
@@ -165,7 +166,7 @@ Records in Apps are never deleted: they're marked obsolete and can come back.
 
 - Keep **Auto-review** on.
 - Add **Always ask** rules for anything you're nervous about, even if it's already covered.
-- Connect only the apps a bot needs, and add accounts as **Just me** unless the whole home should use them.
+- Connect only the apps a bot needs, and remember that everyone in the home, and their bots, can use an account you connect there. Keep a personal mailbox in a home only you are in.
 - For Sedna, make API credentials that may only read, if Sedna lets you choose, and confirm only people's own Sedna users under **People**.
 - In each app's **Tools**, switch off actions you never want bots to take, such as sending or deleting.
 - Use the vault and secure forms for logins. Never paste a password into the chat.

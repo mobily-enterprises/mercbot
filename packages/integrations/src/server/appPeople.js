@@ -30,20 +30,23 @@ export function createAppPeople({ accounts, links, kindOf, keyFor, homePeople, e
   /** A home's account connected with API credentials, its kind, a key, and the organisation it is for. */
   async function connected(account, options) {
     const kind = kindOf(account);
-    if (!account.home) {
-      throw new ConnectionError(409, `${kind.name}'s credentials are the whole home's: add its account for everyone in the home.`, {
-        code: "integrations_credentials_home_only",
-        params: { app: kind.name }
-      });
-    }
     const { access, values } = await keyFor(account, options);
     return { account, kind, access, values, org: kind.org(values) };
   }
 
-  const reached = async (reach, accountId, options) =>
-    connected(await accounts.reachableAccount(reach, accountId, options, { tokens: true }), options);
-  const managed = async (reach, accountId, options) =>
-    connected(await accounts.manageableAccount(reach, accountId, options, { tokens: true }), options);
+  /** The account, for the home's owners and admins only: the people its credentials reach are theirs to look after. */
+  async function forManagers(accountId, options, params = {}) {
+    const account = await accounts.reachableAccount(accountId, options, params);
+    if (!accounts.managesHome(options)) {
+      throw new ConnectionError(403, "Only the home's owners and admins can say who its people are at this app.", {
+        code: "integrations_account_manage_forbidden"
+      });
+    }
+    return account;
+  }
+
+  const reached = async (accountId, options) => connected(await accounts.reachableAccount(accountId, options, { tokens: true }), options);
+  const managed = async (accountId, options) => connected(await forManagers(accountId, options, { tokens: true }), options);
 
   /** The account's picks for its organisation, `filters` narrowing them. */
   const linksOf = ({ account, org }, options, filters = {}) =>
@@ -75,18 +78,17 @@ export function createAppPeople({ accounts, links, kindOf, keyFor, homePeople, e
   /**
    * The call's person at an app connected with the home's API credentials: whoIs. Their bots read only what this
    * person may (packages/bots/src/server/sednaApi.js).
-   * @param {{ personal?: boolean }} reach
    * @param {string} accountId
    * @param {object} options
    */
-  async function appPerson(reach, accountId, options) {
-    const app = await reached(reach, accountId, options);
+  async function appPerson(accountId, options) {
+    const app = await reached(accountId, options);
     return { app: app.kind.name, ...await whoIs(app, me(options), options) };
   }
 
   /** The app's users whose name or address holds `words`, for the call's person to pick their own. */
-  async function appUsers(reach, accountId, words, options) {
-    const { kind, values, access } = await reached(reach, accountId, options);
+  async function appUsers(accountId, words, options) {
+    const { kind, values, access } = await reached(accountId, options);
     return (await kind.users({ values, access, words })).map(({ id, name, email }) => ({ id, name, email }));
   }
 
@@ -106,13 +108,12 @@ export function createAppPeople({ accounts, links, kindOf, keyFor, homePeople, e
   /**
    * The call's person picks who they are at the app, when their address finds no one: asked until an owner or admin
    * confirms it, confirmed at once when they are one.
-   * @param {{ personal?: boolean }} reach
    * @param {string} accountId
    * @param {unknown} appUserId
    * @param {object} options
    */
-  async function pickAppUser(reach, accountId, appUserId, options) {
-    const app = await reached(reach, accountId, options);
+  async function pickAppUser(accountId, appUserId, options) {
+    const app = await reached(accountId, options);
     const { kind, values, access, account, org } = app;
     const userId = me(options);
     const byAddress = await kind.person({ values, access, address: await emailOf(userId, options) });
@@ -144,13 +145,12 @@ export function createAppPeople({ accounts, links, kindOf, keyFor, homePeople, e
 
   /**
    * An owner or admin confirms the user a person of the home picked as themselves.
-   * @param {{ personal?: boolean }} reach
    * @param {string} accountId
    * @param {unknown} userId the person's id
    * @param {object} options
    */
-  async function confirmAppPerson(reach, accountId, userId, options) {
-    const app = await managed(reach, accountId, options);
+  async function confirmAppPerson(accountId, userId, options) {
+    const app = await managed(accountId, options);
     const person = String(userId ?? "");
     const [link] = /^\d+$/u.test(person) ? await linksOf(app, options, { userId: person, status: "asked" }) : [];
     if (!link) throw new ConnectionError(404, "Nobody waits for that to be confirmed.", { code: "integrations_app_person_not_asked" });
@@ -164,21 +164,20 @@ export function createAppPeople({ accounts, links, kindOf, keyFor, homePeople, e
         { ...passedOn(txOptions), returning: "none" }
       );
     }));
-    return appPeople(reach, accountId, options);
+    return appPeople(accountId, options);
   }
 
   /**
    * Forgets who a person picked as themselves: a refused or mistaken pick. Their own, or anyone's for an owner or admin.
-   * @param {{ personal?: boolean }} reach
    * @param {string} accountId
    * @param {unknown} userId the person's id, or "me"
    * @param {object} options
    */
-  async function forgetAppPerson(reach, accountId, userId, options) {
+  async function forgetAppPerson(accountId, userId, options) {
     const own = userId === "me" || String(userId) === me(options);
     const account = own
-      ? await accounts.reachableAccount(reach, accountId, options)
-      : await accounts.manageableAccount(reach, accountId, options);
+      ? await accounts.reachableAccount(accountId, options)
+      : await forManagers(accountId, options);
     kindOf(account);
     const person = own ? me(options) : String(userId ?? "");
     if (!/^\d+$/u.test(person)) throw new ConnectionError(404, "No such person.", { code: "integrations_app_person_not_found" });
@@ -189,12 +188,11 @@ export function createAppPeople({ accounts, links, kindOf, keyFor, homePeople, e
   /**
    * The home's people and who each is at the app, for its owners and admins: by address, picked and confirmed, or
    * picked and waiting for them to confirm. People past the first fifty are listed unchecked.
-   * @param {{ personal?: boolean }} reach
    * @param {string} accountId
    * @param {object} options
    */
-  async function appPeople(reach, accountId, options) {
-    const app = await managed(reach, accountId, options);
+  async function appPeople(accountId, options) {
+    const app = await managed(accountId, options);
     const { kind, values, access } = app;
     const everyone = await homePeople(options);
     const picks = await linksOf(app, options);

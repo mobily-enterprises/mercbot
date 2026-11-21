@@ -25,6 +25,11 @@ function apiCall(request: PageRequest) {
   return pathname.startsWith("/api/") ? `${request.method()} ${pathname}${search}` : "";
 }
 
+// How each browser engine reports a request the page itself cut off (by leaving it, or aborting it). Firefox says
+// NS_ERROR_ABORT for an event stream still open when the page leaves for another site (a phone's sign-in, which
+// reaches its hand-off page through the router and leaves from there), NS_BINDING_ABORTED for other calls.
+const GAVE_UP = new Set(["net::ERR_ABORTED", "NS_BINDING_ABORTED", "NS_ERROR_ABORT", "Load request cancelled"]);
+
 type GuardWindow = { e2eAttentionRequired: (text: string) => void; e2ePending?: () => string[] };
 
 /** The API guard's watch over one browser context: it adds what it finds to `problems`. */
@@ -35,9 +40,10 @@ async function watchContext(context: BrowserContext, problems: string[]) {
   });
   context.on("requestfailed", (request) => {
     const call = apiCall(request);
-    // A call the page gave up itself (it left the page, or no longer needed the answer) is no fault.
+    // A call the page gave up itself (it left the page, or no longer needed the answer) is no fault: each engine says
+    // so in its own words (Chromium, Firefox, WebKit).
     const reason = request.failure()?.errorText || "failed";
-    if (call && reason !== "net::ERR_ABORTED") problems.push(`no answer (${reason}): ${call}`);
+    if (call && !GAVE_UP.has(reason)) problems.push(`no answer (${reason}): ${call}`);
   });
   await context.exposeBinding("e2eAttentionRequired", (_source, text: string) => problems.push(`"Attention required" dialog: ${text}`));
   await context.addInitScript(() => {

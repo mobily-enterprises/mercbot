@@ -6,6 +6,7 @@ import { passedOn } from "@jskit-ai/resource-runtime/server";
 import { ownedHandles } from "../support/ownedHandles.mjs";
 import { connectTestDatabase } from "../support/testDatabase.mjs";
 import { requestContextOptions } from "../support/requestContextOptions.mjs";
+import { separateHome } from "./testHome.js";
 import { seal, unseal } from "../../packages/account/src/server/vaultCrypto.js";
 import { auditEventResource } from "../../packages/apps/src/server/tableResources.js";
 import { createAccounts } from "../../packages/integrations/src/server/accounts.js";
@@ -20,8 +21,9 @@ assert.ok(process.env.TEST_DB_NAME?.trim(), "TEST_DB_NAME must identify a dispos
 assert.equal(process.env.DB_NAME, process.env.TEST_DB_NAME, "DB_NAME must match the dedicated TEST_DB_NAME.");
 const VAULT = randomBytes(32).toString("base64");
 
-// The stand-in provider: a token endpoint that hands out codes' and refreshes' tokens, and "who am I".
-async function standInProvider(context) {
+// The stand-in provider: a token endpoint that hands out codes' and refreshes' tokens, and "who am I", whoever `who`
+// says signed in (pat@example.com unless a test changes it; null when the provider says no one).
+async function standInProvider(context, who) {
   let refreshes = 0;
   const server = http.createServer((request, response) => {
     let body = "";
@@ -29,7 +31,7 @@ async function standInProvider(context) {
     request.on("end", () => {
       const form = new URLSearchParams(body);
       const send = (status, value) => response.writeHead(status, { "content-type": "application/json" }).end(JSON.stringify(value));
-      if (request.url === "/me") return send(200, { email: "pat@example.com" });
+      if (request.url === "/me") return who.email ? send(200, { email: who.email }) : send(401, { error: "invalid_token" });
       if (form.get("client_secret") !== "secret") return send(401, { error: "invalid_client" });
       if (form.get("grant_type") === "authorization_code" && form.get("code") === "partial" && form.get("code_verifier")) {
         return send(200, { access_token: "access-1", refresh_token: "refresh-1", expires_in: 3600, token_type: "Bearer", scope: "profile" });
@@ -57,14 +59,13 @@ async function standInProvider(context) {
       server: { issuer: base, authorization_endpoint: `${base}/authorize`, token_endpoint: `${base}/token` },
       scopes: ["profile"],
       params: {},
+      hint: "login_hint",
       whoami: { url: `${base}/me`, label: (body) => body.email }
     }
   };
 }
 
 const catalogue = [{ id: "testmail", name: "Testmail", oauth: { provider: "test", scopes: ["mail"] } }];
-// The person's own accounts, as the Connect apps routes reach them.
-const REACH = Object.freeze({ personal: true });
 // Calls no one is signed in to: the provider sending the browser back, a linked copy calling the hub.
 const NO_ONE = requestContextOptions({});
 // A sign-in's state, and the cookies of the browser it started in, which its callback brings back (D-97).
@@ -135,10 +136,12 @@ async function setup(context) {
   const knex = await connectTestDatabase();
   const userId = (await knex("users").first())?.id;
   assert.ok(userId, "the test database needs a user row");
-  const providers = await standInProvider(context);
-  const [account] = await knex("plugin_accounts").insert({ user_id: userId, plugin_id: "testmail", name: "default" }).returning("*");
+  const who = { email: "pat@example.com" };
+  const providers = await standInProvider(context, who);
+  const homeId = await separateHome(knex, userId);
+  const [account] = await knex("plugin_accounts").insert({ user_id: userId, workspace_id: homeId, plugin_id: "testmail", name: "default" }).returning("*");
   context.after(async () => {
-    await knex("plugin_accounts").where({ id: account.id }).del();
+    await knex("workspaces").where({ id: homeId }).del();
     await knex("bridge_link").del();
     await knex.destroy();
   });
@@ -155,21 +158,22 @@ async function setup(context) {
   const connections = (fields) => createConnections({ resources, accounts, systemContext, ...homeDependencies, ...fields });
   const service = (env, hubFor = null, bridgedSignIns = null) =>
     connections({ catalogue, env, providers, oauthClient: createOAuth({ env, insecure: true }), bridgedSignIns, ...(hubFor ? { hubFor } : {}) });
-  // The person signed in outside any home, as the Connect apps routes' options describe them.
-  const as = requestContextOptions({ user: { id: String(userId) } });
-  return { knex, userId, account, service, connections, accounts, as };
+  // The person signed in, in a home of the test's own where the account is, as the Connect apps routes' options
+  // describe them (every account is a home's, D-111).
+  const as = requestContextOptions({ user: { id: String(userId) }, workspace: { id: homeId } });
+  return { knex, userId, homeId, account, service, connections, accounts, as, who };
 }
 
 const HUB_ENV = Object.freeze({ APP_PUBLIC_URL: "https://hub.example", TESTMAIL_CLIENT_ID: "client", TESTMAIL_CLIENT_SECRET: "secret", MERCBOT_VAULT_KEY: VAULT });
 
 test("a copy without its own apps links to a hub and borrows its sign-in, which the hub lends", async (context) => {
-  const { knex, userId, account, service, as } = await setup(context);
+  const { knex, userId, homeId, account, service, accounts, as } = await setup(context);
   const standIn = standInHub(userId);
   const hub = service(HUB_ENV, null, standIn.lent);
   const local = service({ APP_PUBLIC_URL: "http://localhost:4000", MERCBOT_HUB_URL: "https://hub.example", MERCBOT_VAULT_KEY: VAULT }, (_url, installToken) => standIn.forCopy(hub, installToken));
 
   // Unlinked, it says how to fix it.
-  await assert.rejects(local.connect(REACH, account.id, as), /Link it to a Mercbot account/u);
+  await assert.rejects(local.connect(account.id, as), /Link it to a Mercbot account/u);
   // Without MERCBOT_HUB_URL, linking is off and says so (keys.js).
   await assert.rejects(service({ APP_PUBLIC_URL: "http://localhost:4000", MERCBOT_VAULT_KEY: VAULT }).startLink("Pat's laptop", as), {
     statusCode: 409,
@@ -187,7 +191,7 @@ test("a copy without its own apps links to a hub and borrows its sign-in, which 
   // Connecting goes through the hub's app. The person begins it on the hub, signed in to the account the copy is linked
   // to, which ties it to their browser there (D-97); the provider sends them back to the hub, which hands the sign-in to
   // the bridge connection it lent it for: its app, its label, and its tokens sealed.
-  const started = await local.connect(REACH, account.id, as);
+  const started = await local.connect(account.id, as);
   assert.deepEqual(Object.keys(started), ["url"], "the copy's browser keeps nothing: the sign-in is the hub's");
   const page = new URL(started.url);
   assert.equal(`${page.origin}${page.pathname}`, "https://hub.example/account/connect");
@@ -214,7 +218,7 @@ test("a copy without its own apps links to a hub and borrows its sign-in, which 
   assert.deepEqual([bridged.pluginId, bridged.label], ["testmail", "pat@example.com"]);
   assert.ok(bridged.tokens && !JSON.stringify(bridged.tokens).includes("refresh-1"), "tokens are sealed on the hub");
 
-  // What waits for a connection (the bots' connect follow-ups) hears of it once, the person's own, while it's saved (not
+  // What waits for a connection (the bots' connect follow-ups) hears of it once, in its home, while it's saved (not
   // yet seen connected outside its transaction), and what it answers runs once that has committed.
   const told = [];
   const statusNow = async () => (await knex("plugin_accounts").where({ id: account.id }).first()).status;
@@ -232,24 +236,25 @@ test("a copy without its own apps links to a hub and borrows its sign-in, which 
 
   // The copy sees it connected, and gets hourly keys; the long-lived permission stays on the hub.
   await local.syncPending(as);
-  assert.deepEqual(told, [{ pluginId: "testmail", userId: String(userId), homeId: null, seenOutside: "needs-auth" }, { committed: "connected" }]);
+  assert.deepEqual(told, [{ pluginId: "testmail", userId: String(userId), homeId, seenOutside: "needs-auth" }, { committed: "connected" }]);
   const row = await knex("plugin_accounts").where({ id: account.id }).first();
   assert.equal(row.status, "connected");
   assert.equal(row.label, "pat@example.com");
   assert.equal(row.tokens, null);
-  assert.equal((await local.accessToken(REACH, account.id, as)).accessToken, "access-1");
+  assert.equal((await local.accessToken(account.id, as)).accessToken, "access-1");
 
   // An expired key is renewed on the hub, which keeps the renewed tokens, sealed.
   const key = Buffer.from(VAULT, "base64");
   bridged.tokens = seal({ ...unseal(bridged.tokens, key), expiresAt: Date.now() - 1000 }, key);
-  assert.equal((await local.accessToken(REACH, account.id, as)).accessToken, "access-2");
+  assert.equal((await local.accessToken(account.id, as)).accessToken, "access-2");
   assert.equal(unseal(bridged.tokens, key).access, "access-2");
 
   // A sign-in link only works once.
   await assert.rejects(hub.callback({ code: "good", state }, browserOf(begun), NO_ONE), /expired/u);
 
-  // Disconnecting removes the hub's permission; unlinking tells the hub, so the copy's token stops working there.
-  await local.disconnect(REACH, account.id, as);
+  // Removing the account withdraws the hub's permission first (D-110); unlinking tells the hub, so the copy's token
+  // stops working there.
+  await local.withdraw(await accounts.reachableAccount(account.id, as, { tokens: true }), as);
   assert.equal(standIn.state.rows.size, 0);
   const installToken = (await knex("bridge_link").first()).token;
   assert.ok(installToken && !JSON.stringify(installToken).includes("install-token"), "the copy keeps its install token sealed");
@@ -295,7 +300,7 @@ test("a sign-in lent for a bridge connection is finished only through the featur
 test("a copy with its own app signs in directly", async (context) => {
   const { knex, account, service, as } = await setup(context);
   const local = service({ APP_PUBLIC_URL: "http://localhost:4000", TESTMAIL_TEST_CLIENT_ID: "client", TESTMAIL_TEST_CLIENT_SECRET: "secret", MERCBOT_VAULT_KEY: VAULT });
-  const started = await local.connect(REACH, account.id, as);
+  const started = await local.connect(account.id, as);
   const consent = new URL(started.url);
   assert.equal(consent.searchParams.get("redirect_uri"), "http://localhost:4000/api/connections/callback");
   // Started and not finished, then cancelled: Reconnect, then Retry.
@@ -303,13 +308,68 @@ test("a copy with its own app signs in directly", async (context) => {
   await assert.rejects(local.callback({ error: "access_denied", state: stateOf(started) }, browserOf(started), NO_ONE), /cancelled, so nothing was connected/u);
   assert.equal((await knex("plugin_accounts").where({ id: account.id }).first()).sign_in_state, "failed");
 
-  const again = await local.connect(REACH, account.id, as);
+  const again = await local.connect(account.id, as);
   await local.callback({ code: "good", state: stateOf(again) }, browserOf(again), NO_ONE);
   const row = await knex("plugin_accounts").where({ id: account.id }).first();
   assert.equal(row.status, "connected");
   assert.equal(row.sign_in_state, null);
   assert.ok(row.tokens && !JSON.stringify(row.tokens).includes("access-1"), "tokens are sealed");
-  assert.equal((await local.accessToken(REACH, account.id, as)).accessToken, "access-1");
+  assert.equal((await local.accessToken(account.id, as)).accessToken, "access-1");
+});
+
+// Signing an account in again keeps it the same mailbox (D-110): the provider is asked for the account chooser with the
+// address the account has, and a sign-in that comes back as anyone else is refused, the account left as it was.
+test("signing in again suggests the account's address and refuses another one, keeping the account as it was", async (context) => {
+  const { knex, account, service, as, who } = await setup(context);
+  const local = service({ APP_PUBLIC_URL: "http://localhost:4000", TESTMAIL_TEST_CLIENT_ID: "client", TESTMAIL_TEST_CLIENT_SECRET: "secret", MERCBOT_VAULT_KEY: VAULT });
+  const first = await local.connect(account.id, as);
+  assert.equal(new URL(first.url).searchParams.has("login_hint"), false, "an account with no address yet suggests none");
+  await local.callback({ code: "good", state: stateOf(first) }, browserOf(first), NO_ONE);
+  const signedIn = await knex("plugin_accounts").where({ id: account.id }).first();
+  assert.deepEqual([signedIn.status, signedIn.label], ["connected", "pat@example.com"]);
+
+  // Signed in again as someone else (the browser's other Google session): refused, and nothing changes.
+  const again = await local.connect(account.id, as);
+  assert.equal(new URL(again.url).searchParams.get("login_hint"), "pat@example.com");
+  who.email = "sam@example.com";
+  await assert.rejects(local.callback({ code: "good", state: stateOf(again) }, browserOf(again), NO_ONE), {
+    statusCode: 409,
+    code: "integrations_sign_in_different_account",
+    message: "This Testmail account is pat@example.com, but you signed in as sam@example.com, so nothing changed. To connect sam@example.com, use + Add account."
+  });
+  const kept = await knex("plugin_accounts").where({ id: account.id }).first();
+  assert.deepEqual([kept.status, kept.label, kept.tokens, kept.connected_at?.toISOString()], [signedIn.status, signedIn.label, signedIn.tokens, signedIn.connected_at?.toISOString()]);
+
+  // The same address, however it's written, signs it in again; a provider that says no one keeps the address it had.
+  for (const email of ["Pat@Example.com", null]) {
+    who.email = email;
+    const once = await local.connect(account.id, as);
+    await local.callback({ code: "good", state: stateOf(once) }, browserOf(once), NO_ONE);
+    assert.equal((await knex("plugin_accounts").where({ id: account.id }).first()).label, email || "Pat@Example.com");
+  }
+});
+
+// Through the hub too (D-110): a sign-in the hub finished as another address than the account's leaves it as it was,
+// and the hub's sign-in for it is withdrawn.
+test("an account signed in again through the hub as another address keeps its own", async (context) => {
+  const { knex, userId, account, service, as, who } = await setup(context);
+  const standIn = standInHub(userId);
+  const hub = service(HUB_ENV, null, standIn.lent);
+  const local = service({ APP_PUBLIC_URL: "http://localhost:4000", MERCBOT_HUB_URL: "https://hub.example", MERCBOT_VAULT_KEY: VAULT }, (_url, installToken) => standIn.forCopy(hub, installToken));
+  await local.startLink("Pat's laptop", as);
+  standIn.state.approved = true;
+  await local.checkLink(as);
+  await knex("plugin_accounts").where({ id: account.id }).update({ label: "pat@example.com" });
+
+  who.email = "sam@example.com";
+  const lent = new URL((await local.connect(account.id, as)).url).searchParams.get("lent");
+  const begun = await hub.beginLentSignIn(lent, as);
+  await hub.callback({ code: "good", state: stateOf(begun) }, browserOf(begun), NO_ONE);
+  assert.equal(standIn.state.rows.size, 1);
+  await local.syncPending(as);
+  const row = await knex("plugin_accounts").where({ id: account.id }).first();
+  assert.deepEqual([row.status, row.label, row.bridge_ref, row.sign_in_state], ["needs-auth", "pat@example.com", null, "failed"]);
+  assert.equal(standIn.state.rows.size, 0, "the hub's sign-in as another address is withdrawn");
 });
 
 // Account-linking CSRF (D-97): someone starts a sign-in to their own account and sends its consent link to someone else,
@@ -318,7 +378,7 @@ test("a copy with its own app signs in directly", async (context) => {
 test("a sign-in finishes only in the browser it started in: from another, nothing is saved", async (context) => {
   const { knex, account, service, as } = await setup(context);
   const local = service({ APP_PUBLIC_URL: "https://mercbot.example", TESTMAIL_CLIENT_ID: "client", TESTMAIL_CLIENT_SECRET: "secret", MERCBOT_VAULT_KEY: VAULT });
-  const started = await local.connect(REACH, account.id, as);
+  const started = await local.connect(account.id, as);
   const state = stateOf(started);
   assert.match(started.cookie.name, /^mercbot_sign_in_[\w-]{16}$/u);
   const kept = await knex("oauth_states").where({ state }).first();
@@ -340,30 +400,30 @@ test("a sign-in finishes only in the browser it started in: from another, nothin
 });
 
 test("a sign-in that couldn't come back is finished from the pasted address, only by its owner", async (context) => {
-  const { knex, account, service, as } = await setup(context);
+  const { knex, homeId, account, service, as } = await setup(context);
   const local = service({ APP_PUBLIC_URL: "http://127.0.0.1:4000", TESTMAIL_CLIENT_ID: "client", TESTMAIL_CLIENT_SECRET: "secret", MERCBOT_VAULT_KEY: VAULT });
-  const consent = new URL((await local.connect(REACH, account.id, as)).url);
+  const consent = new URL((await local.connect(account.id, as)).url);
   const state = consent.searchParams.get("state");
   await assert.rejects(local.finishPasted(`https://elsewhere.example/api/connections/callback?state=${state}&code=good`, as), /isn't the address/u);
   await assert.rejects(local.finishPasted("not an address", as), /isn't the address/u);
-  await assert.rejects(local.finishPasted(`http://127.0.0.1:4000/api/connections/callback?state=${state}&code=good`, requestContextOptions({ user: { id: "999999999" } })), /expired or was already finished/u);
+  await assert.rejects(local.finishPasted(`http://127.0.0.1:4000/api/connections/callback?state=${state}&code=good`, requestContextOptions({ user: { id: "999999999" }, workspace: { id: homeId } })), /expired or was already finished/u, "someone else in the home");
   const result = await local.finishPasted(`  http://127.0.0.1:4000/api/connections/callback?state=${state}&code=good&scope=mail  `, as);
   assert.equal(result.label, "pat@example.com");
   assert.equal((await knex("plugin_accounts").where({ id: account.id }).first()).status, "connected");
   await assert.rejects(local.finishPasted(`http://127.0.0.1:4000/api/connections/callback?state=${state}&code=good`, as), /expired or was already finished/u);
 
   // A code the provider no longer accepts gets a plain answer.
-  const late = new URL((await local.connect(REACH, account.id, as)).url).searchParams.get("state");
+  const late = new URL((await local.connect(account.id, as)).url).searchParams.get("state");
   await assert.rejects(local.finishPasted(`http://127.0.0.1:4000/api/connections/callback?state=${late}&code=stale`, as), /didn't accept the sign-in/u);
 });
 
 test("a sign-in where the person unticked part of the access isn't connected", async (context) => {
   const { knex, account, service, connections, as } = await setup(context);
   const local = service({ APP_PUBLIC_URL: "http://localhost:4000", TESTMAIL_CLIENT_ID: "client", TESTMAIL_CLIENT_SECRET: "secret", MERCBOT_VAULT_KEY: VAULT });
-  const first = await local.connect(REACH, account.id, as);
+  const first = await local.connect(account.id, as);
   await assert.rejects(local.callback({ code: "partial", state: stateOf(first) }, browserOf(first), NO_ONE), /didn't give Testmail access/u);
   assert.equal((await knex("plugin_accounts").where({ id: account.id }).first()).status, "needs-auth");
-  const again = await local.connect(REACH, account.id, as);
+  const again = await local.connect(account.id, as);
   await local.callback({ code: "full", state: stateOf(again) }, browserOf(again), NO_ONE);
   const row = await knex("plugin_accounts").where({ id: account.id }).first();
   assert.equal(row.status, "connected");
@@ -380,35 +440,35 @@ test("a sign-in where the person unticked part of the access isn't connected", a
   assert.equal(wider.lacksAccess({ ...record, status: "needs-auth" }), false, "only a connected account");
 });
 
-// Unlinking (D-31): every account that borrowed the hub's sign-in is signed out, a person's own (of no home) as well
-// as a home's, since a copy no longer linked must not keep using the hub's permission; an account signed in on its
+// Unlinking (D-31): every account that borrowed the hub's sign-in is signed out, in every home, the one unlinking from
+// and any other, since a copy no longer linked must not keep using the hub's permission; an account signed in on its
 // own stays connected.
-test("unlinking signs out every account that borrowed the hub's sign-in, a person's own and a home's", async (context) => {
-  const { knex, userId, account, service, as } = await setup(context);
+test("unlinking signs out every account that borrowed the hub's sign-in, in every home", async (context) => {
+  const { knex, userId, homeId: here, account, service, as } = await setup(context);
   const stamp = `${Date.now()}-${process.pid}`;
   const [home] = await knex("workspaces").insert({ slug: `unlink-${stamp}`, name: "Unlink test", owner_user_id: userId, is_personal: false }).returning("id");
   const homeId = home.id ?? home;
   const bridged = { user_id: userId, plugin_id: "testmail", status: "connected", label: "pat@example.com" };
   const seeded = await knex("plugin_accounts").insert([
-    { ...bridged, workspace_id: null, name: "own, bridged", bridge_ref: `personal-${stamp}` },
-    { ...bridged, workspace_id: homeId, name: "home, bridged", bridge_ref: `home-${stamp}` }
+    { ...bridged, workspace_id: here, name: "this home's, bridged", bridge_ref: `here-${stamp}` },
+    { ...bridged, workspace_id: homeId, name: "another home's, bridged", bridge_ref: `home-${stamp}` }
   ]).returning("id");
-  const [personal, ofHome] = seeded.map((row) => row.id ?? row);
+  const [ofHere, ofHome] = seeded.map((row) => row.id ?? row);
   await knex("plugin_accounts").where({ id: account.id }).update({ status: "connected", label: "own@example.com" });
   await knex("bridge_link").del();
   await knex("bridge_link").insert({ hub_url: "https://hub.example", name: "Pat's laptop", linked_by: userId });
   try {
     const local = service({ APP_PUBLIC_URL: "http://localhost:4000", MERCBOT_HUB_URL: "https://hub.example", MERCBOT_VAULT_KEY: VAULT });
     assert.equal((await local.unlink(as)).linked, false);
-    const rows = new Map((await knex("plugin_accounts").whereIn("id", [personal, ofHome, account.id])).map((row) => [String(row.id), row]));
-    for (const id of [personal, ofHome]) {
+    const rows = new Map((await knex("plugin_accounts").whereIn("id", [ofHere, ofHome, account.id])).map((row) => [String(row.id), row]));
+    for (const id of [ofHere, ofHome]) {
       const row = rows.get(String(id));
       assert.deepEqual([row.bridge_ref, row.status, row.label], [null, "needs-auth", null], `${row.name}: signed out`);
     }
     assert.deepEqual([rows.get(String(account.id)).status, rows.get(String(account.id)).label], ["connected", "own@example.com"], "an account signed in on its own stays connected");
     assert.equal((await knex("bridge_link")).length, 0, "the link is gone");
   } finally {
-    await knex("plugin_accounts").whereIn("id", [personal, ofHome]).del();
+    await knex("plugin_accounts").whereIn("id", [ofHere, ofHome]).del();
     await knex("workspaces").where({ id: homeId }).del();
   }
 });
@@ -484,9 +544,9 @@ test("the linker, and the owners and admins of a home the linker is in, may unli
 });
 
 test("whoever runs the copy lists the accounts a person added in every home, and disconnects any by its id", async (context) => {
-  const { knex, userId, account, service, accounts, as } = await setup(context);
+  const { knex, userId, homeId: here, account, service, accounts, as } = await setup(context);
   const local = service({ APP_PUBLIC_URL: "http://localhost:4000", TESTMAIL_TEST_CLIENT_ID: "client", TESTMAIL_TEST_CLIENT_SECRET: "secret", MERCBOT_VAULT_KEY: VAULT });
-  const started = await local.connect(REACH, account.id, as);
+  const started = await local.connect(account.id, as);
   await local.callback({ code: "good", state: stateOf(started) }, browserOf(started), NO_ONE);
   const [home] = await knex("workspaces").insert({ slug: `across-accounts-${randomBytes(4).toString("hex")}`, name: "Across", owner_user_id: userId, is_personal: false }).returning("id");
   const homeId = String(home.id ?? home);
@@ -495,16 +555,16 @@ test("whoever runs the copy lists the accounts a person added in every home, and
     .returning("*");
   // Removed before setup's own clean-up closes the database connection.
   try {
-    // The person's own account and the home's, with where each is and when it was connected, never a key.
+    // The person's accounts in two homes, with the home of each and when it was connected, never a key.
     const ours = [String(account.id), String(homeAccount.id)];
     const added = (await accounts.addedBy(userId)).filter((row) => ours.includes(row.id));
-    assert.deepEqual(added.map((row) => [row.id, row.home, row.workspaceId, row.status, Boolean(row.connectedAt)]), [
-      [String(account.id), false, null, "connected", true],
-      [String(homeAccount.id), true, homeId, "connected", true]
+    assert.deepEqual(added.map((row) => [row.id, row.workspaceId, row.status, Boolean(row.connectedAt)]), [
+      [String(account.id), here, "connected", true],
+      [String(homeAccount.id), homeId, "connected", true]
     ]);
-    assert.ok(added.every((row) => !("tokens" in row)), "no keys");
+    assert.ok(added.every((row) => !("tokens" in row) && !("home" in row)), "no keys, and no account is anyone's own");
 
-    // Disconnected in no home and in another's, as the owner's own disconnect does: keys, label and status cleared.
+    // Disconnected in either home, as the owner's own disconnect does: keys, label and status cleared.
     for (const row of [account, homeAccount]) {
       const gone = await local.disconnectAnywhere(row.id);
       assert.deepEqual([gone.id, gone.pluginId, "tokens" in gone], [String(row.id), "testmail", false]);

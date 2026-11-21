@@ -6,7 +6,7 @@ Not sure what to hand over first? The short scenarios below show the kind of wor
 
 The Okafors have three children, two calendars and a fridge door covered in school letters. Their bot reads the school emails in the shared family inbox, picks out dates, kit lists and payment deadlines, and adds events to the family calendar. It asks first before inviting anyone to an event. Every Sunday evening a routine posts a short summary of the week ahead: who needs to be where, and what to pack.
 
-**What it needs:** the family's mail and calendar, connected in **Connect apps** for **The whole home**, so both parents' chats can use them.
+**What it needs:** the family's mail and calendar, connected in the family's home in **Connect apps**, so both parents' chats can use them.
 
 ## The meal planner
 
