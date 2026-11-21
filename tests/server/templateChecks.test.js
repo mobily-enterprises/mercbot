@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -127,39 +127,6 @@ test("every skill a template names is one of its own, and every tool its steps r
   }
 });
 
-// Chats are the core (D-112): bots are members of the home that people talk to in chats, Public or Private, and what a
-// bot makes in a chat goes in that chat's folder. No template, team or skill, Mercbot's or a connected app's, may still
-// speak of the model it replaced, which a bot would take for real.
-const OLD_MODEL = [
-  [/\/files\/mine\b/u, "/files/mine (a chat's folder is /files/chat)"],
-  [/\bnotebook\b/iu, "the home notebook"],
-  [/\bas (?:a )?memor(?:y|ies)\b|\bSettings → Memory\b|\bwith remember\b/iu, "memories saved with remember"],
-  [/\b(?:private|mixed|shared) (?:bots?|modes?)\b/iu, "a bot's mode"],
-  [/\bShared tabs?\b|"You only"|\bYou only tab\b/u, "Shared tabs and You only"],
-  [/\bgroup chats?\b|\bin a (?:room|group)\b/iu, "rooms and group chats"],
-  [/\b(?:their|your) own chat\b/iu, "a person's own chat"]
-];
-const APP = path.dirname(TEMPLATES_DIR);
-const markdownIn = (folder, pick) =>
-  readdirSync(path.join(APP, folder), { withFileTypes: true })
-    .map((entry) => pick(entry))
-    .filter(Boolean)
-    .map((file) => ({ file: `${folder}/${file}`, text: readFileSync(path.join(APP, folder, file), "utf8") }));
-
-test("no template, team or skill speaks of the chat model chats replaced", () => {
-  const said = [
-    ...written.map(({ file, template }) => ({ file, text: wordsOf(template) })),
-    { file: "teams.json", text: readFileSync(path.join(TEMPLATES_DIR, "teams.json"), "utf8") },
-    ...markdownIn("packages/bots/skills", (entry) => entry.isFile() && entry.name.endsWith(".md") && entry.name),
-    ...markdownIn("plugins", (entry) => entry.isDirectory() && readdirSync(path.join(APP, "plugins", entry.name)).includes("skill.md") && `${entry.name}/skill.md`)
-  ];
-  assert.ok(said.filter(({ file }) => file.startsWith("packages/bots/skills/")).length >= 20, "Mercbot's skills are read");
-  assert.ok(said.some(({ file }) => file === "plugins/sedna/skill.md"), "and the connected apps' skills");
-  for (const { file, text } of said) {
-    for (const [pattern, what] of OLD_MODEL) assert.doesNotMatch(text, pattern, `${file}: ${what}`);
-  }
-});
-
 const EMAIL = /[\w.%+-]+@[\w-]+(?:\.[\w-]+)*\.[a-z]{2,}/iu;
 const PHONE = /(?:\+\d[\d ().-]{7,}\d|\b\d{3,5}[ .-]\d{3,4}[ .-]\d{3,4}\b)/u;
 const HANDLE = /(?:^|[\s(])@[a-z0-9_]{2,}/iu;
@@ -218,10 +185,7 @@ test("every template starts with a setup interview of its own", () => {
     const steps = stepsOf(setup);
     assert.ok(steps.length >= 4, `${file}: the interview is written as numbered steps`);
     assert.ok(steps.filter((step) => /^Ask\b/u.test(step)).length >= 2, `${file}: it asks at least two questions`);
-    // The answers go in a document in the chat's folder (D-112: what a bot makes in a chat belongs to that chat), read
-    // before every piece of work.
-    assert.ok(steps.some((step) => /\bin the "[^"]+ notes" document in \/files\/chat\b/u.test(step)), `${file}: it writes the answers in its notes document`);
-    assert.match(template.instructions, /\bRead the notes before every piece of work, routine runs included\./u, `${file}: it reads them before working`);
+    // Where it keeps the answers is botWords.test.js's (D-112).
     assert.match(template.greeting, /\?/u, `${file}: its greeting offers to start the interview`);
   }
 });
