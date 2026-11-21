@@ -14,8 +14,9 @@ function moveToItems(chat, sections, command) {
 
 /**
  * Who may change a chat (D-112): its maker and the home's owners and admins rename, archive and delete it (a direct
- * chat takes no title). The home's everyone chat has everyone in it, pinned for all (O9): no one leaves it, unpins,
- * archives or deletes it.
+ * chat takes no title). Only a public chat is archived, for everyone; a private one is hidden by each person for
+ * themselves (plan 5.1), though one archived before still unarchives. The home's everyone chat has everyone in it,
+ * pinned for all (O9): no one leaves it, unpins, archives or deletes it.
  * @param {import("../../types.js").Chat} chat
  * @param {{ me: string, manages: boolean }} who
  */
@@ -25,7 +26,8 @@ export function chatRights(chat, { me, manages }) {
     // Take people and bots out of it (no one leaves the everyone chat but by leaving the home).
     removeMembers: manager,
     rename: manager && !chat.directBotId,
-    archive: manager && !chat.everyone,
+    archive: manager && !chat.everyone && chat.kind !== "private",
+    unarchive: manager && !chat.everyone,
     remove: manager && !chat.everyone,
     leave: !chat.everyone && !chat.directBotId && !chat.visiting,
     unpin: !chat.everyone
@@ -62,7 +64,7 @@ export function chatMenuItems({ chat, place, sections, me, manages, command, sta
   const hide = { title: "Hide from sidebar", icon: "$visibilityOff", run: () => command("hide", { chatId: chat.id }) };
   if (place === "archived") {
     return [
-      ...(may.archive ? [{ title: "Unarchive", icon: "$unarchive", run: () => command("unarchiveChat", { chatId: chat.id }) }, { divider: true }] : []),
+      ...(may.unarchive ? [{ title: "Unarchive", icon: "$unarchive", run: () => command("unarchiveChat", { chatId: chat.id }) }, { divider: true }] : []),
       copy,
       ...(leave.length || remove.length ? [{ divider: true }, ...leave, ...remove] : [])
     ];

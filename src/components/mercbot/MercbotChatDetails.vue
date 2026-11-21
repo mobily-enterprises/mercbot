@@ -220,7 +220,10 @@ const folderBot = computed(() => (props.chat.bots[0] ? String(props.chat.bots[0]
         <button v-if="may.archive && !chat.archivedAt" type="button" class="mb-chat-details__action" @click="asking = 'archive'">
           <v-icon icon="$archive" size="16" /> Archive
         </button>
-        <button v-if="may.archive && chat.archivedAt" type="button" class="mb-chat-details__action" @click="command('unarchiveChat', { chatId: chat.id })">
+        <button v-if="chat.kind === 'private' && !chat.archivedAt && !chat.hidden && inIt" type="button" class="mb-chat-details__action" @click="command('hide', { chatId: chat.id })">
+          <v-icon icon="$visibilityOff" size="16" /> Hide from sidebar
+        </button>
+        <button v-if="may.unarchive && chat.archivedAt" type="button" class="mb-chat-details__action" @click="command('unarchiveChat', { chatId: chat.id })">
           <v-icon icon="$unarchive" size="16" /> Unarchive
         </button>
         <button v-if="may.remove" type="button" class="mb-chat-details__action mb-chat-details__action--danger" @click="asking = 'remove'">

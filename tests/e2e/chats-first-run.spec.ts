@@ -1,5 +1,5 @@
 import type { Knex } from "knex";
-import type { Locator } from "@playwright/test";
+import type { Locator, TestInfo } from "@playwright/test";
 import { connectTestDb, expect, homeApi, openShell, shell, test, type Page } from "./harness";
 
 // A person's first visit to a new home (plan 4.1, D4, D-109, D-112), on the Test Preview target, in a home of the test's
@@ -8,7 +8,8 @@ import { connectTestDb, expect, homeApi, openShell, shell, test, type Page } fro
 // ready-made teams opens Add bots on its teams, and Small shop's three bots ticked join the home, introduced in the
 // welcome chat, with no chats of their own; then whether anyone else will use the home: Just me makes no everyone chat.
 // Team lists the person and the four bots, and a bot's [Message] there opens the person's direct chat with it. The
-// test deletes the home it makes.
+// test deletes the home it makes. Screenshots light, dark and phone of the welcome, Mercbot asking to be named, are the
+// output.
 // Not covered here: the intro slides of a person's very first home, as the Test Preview's one person has a home already
 // (D-81: a copy of one's own has one person, so no new person signs in); this home skips them, as a second home does.
 // Run with: vibe64-helper playwright --target test-app test tests/e2e/chats-first-run.spec.ts
@@ -47,12 +48,27 @@ async function newHome(page: Page, knex: Knex) {
   return { slug, path: `/w/${slug}`, homeId, owner: String(home.owner_user_id), remove };
 }
 
+/** Light and dark, then light at a phone's width (390 by 844) once `atPhone` has shown the screen there. */
+async function shots(page: Page, testInfo: TestInfo, name: string, atPhone?: () => Promise<unknown>) {
+  for (const scheme of ["light", "dark"] as const) {
+    await page.emulateMedia({ colorScheme: scheme, reducedMotion: "reduce" });
+    await expect(page.locator(".v-application")).toHaveClass(new RegExp(`\\bv-theme--(workspace-)?${scheme}\\b`, "u"));
+    await page.screenshot({ path: testInfo.outputPath(`${name}-${scheme}.png`), animations: "disabled" });
+  }
+  await page.emulateMedia({ colorScheme: "light", reducedMotion: "reduce" });
+  const size = page.viewportSize();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await atPhone?.();
+  await page.screenshot({ path: testInfo.outputPath(`${name}-phone.png`), animations: "disabled" });
+  if (size) await page.setViewportSize(size);
+}
+
 /** Leaves every app a team screen offers to set up unticked, once the apps it works with are read. */
 async function noApps(dialog: Locator) {
   for (const box of await dialog.getByRole("checkbox", { name: /^Also set up its .+ app/u }).all()) await box.uncheck();
 }
 
-test("a new home's welcome chat names its main bot, picks a ready-made team for Team, and a bot's Message opens its direct chat", async ({ page }) => {
+test("a new home's welcome chat names its main bot, picks a ready-made team for Team, and a bot's Message opens its direct chat", async ({ page }, testInfo) => {
   // The welcome chat's steps come at the pace a person reads them (ONBOARDING_TIMING, about 20 seconds in all).
   test.setTimeout(150_000);
   const knex = connectTestDb();
@@ -83,6 +99,7 @@ test("a new home's welcome chat names its main bot, picks a ready-made team for 
     await expect(naming.options.last()).toHaveText(/Mercbot$/u);
     const name = String((await naming.options.first().locator("span").last().textContent()) || "").trim();
     expect(name).toMatch(/^[A-Z][a-z]+$/u);
+    await shots(page, testInfo, "first-run-welcome", () => expect(naming.options.last()).toBeVisible());
     await naming.options.first().click();
 
     // It takes the name, is renamed everywhere, and asks what the home is for.
