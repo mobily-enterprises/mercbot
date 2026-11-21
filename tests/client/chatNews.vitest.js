@@ -141,7 +141,7 @@ describe("news of the home's bots and of a bot's computer", () => {
     events.send("bot", { botId: 9, change: "deleted" });
     expect([team.loadBots.mock.calls.length, team.dropBot.mock.calls]).toEqual([1, [["9"]]]);
     expect([chatsApi.list.mock.calls.length, chatsApi.get.mock.calls.length]).toEqual([0, 0]);
-    events.send("computer", { chatId: 4, botId: 9, control: 2 });
+    events.send("computer", { chatId: 4, botId: 9, control: { userId: 2, since: "2026-11-22T10:00:00.000Z", name: "Ben Rossi" } });
     events.send("computer", { chatId: 4, botId: 9, control: null });
     events.send("computer", { chatId: 5, botId: 9 });
     expect(computerNews.value).toEqual({ "4 9": 2, "5 9": 1 });

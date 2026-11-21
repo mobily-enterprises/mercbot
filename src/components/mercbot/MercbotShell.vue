@@ -23,7 +23,7 @@ import MercbotSettingsDialog from "./MercbotSettingsDialog.vue";
 import { EVERYONE_SECTIONS } from "./settingsSections.js";
 import MercbotSidebar from "./MercbotSidebar.vue";
 import { buildSidebarModel, railOrder, toChatRow } from "./chatDirectory.js";
-import { botFace, computerLine, isDirect, readersLine } from "./chatView.js";
+import { botFace, computerLine, isDirect, privateChatWith, readersLine } from "./chatView.js";
 import { chatsApi } from "./chatsApi.js";
 import { followOpenChat } from "./chatPlace.js";
 import { composerPlaceholder } from "./composerPlaceholder.js";
@@ -383,10 +383,20 @@ async function beginNewChat(to = {}) {
   openNewChat(to);
 }
 
-// [Message]: a bot's opens the person's direct chat with it; a person's opens New chat with them on its To: line.
-function messageMember(member) {
-  if (member.kind === "person") beginNewChat({ people: [member.person.id] });
-  else openDirect(String(member.bot.id));
+// [Message] (plan 4.2): a bot's opens the person's direct chat with it; a person's, the private chat of just the two of
+// them, made the first time.
+async function messageMember(member) {
+  if (member.kind === "bot") return openDirect(String(member.bot.id));
+  const known = privateChatWith(chats.value, me.value, member.person.id);
+  try {
+    const chat = known || (await chatsApi.create({ kind: "private", title: null, people: [String(member.person.id)], bots: [] })).chat;
+    if (!known) store.addChat(chat);
+    drawerOpen.value = false;
+    closeNewChat();
+    await showChat(String(chat.id));
+  } catch (error) {
+    reportFailure("That chat didn't open. Try again.", error);
+  }
 }
 
 // The details beside what's shown: on Team, the open member's card; in a direct chat, its bot's card with this chat's

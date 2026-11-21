@@ -7,8 +7,9 @@ import { COMPUTER_GREY } from "@/theme/palettes.js";
 
 // One bot's computer in a chat (D14, D16), as MercbotChatComputers reads it: "<Bot>'s computer", that it belongs to the
 // chat and who can use it, what's signed in on it, and Watch, Take over and Hand back. While a person has it, its bot
-// leaves it alone; another person waits until it's handed back. `status` is computerApi.status's answer, null until it
-// comes. Reset, for whoever may (`canReset`), asks first and starts this computer afresh.
+// leaves it alone. As the server has it (computerControl.js), anyone in the chat can take it over, from the bot or from
+// the person who has it, and anyone in the chat can hand it back to the bot. `status` is computerApi.status's answer,
+// null until it comes. Reset, for whoever may (`canReset`), asks first and starts this computer afresh.
 const props = defineProps({
   chat: { type: Object, required: true },
   member: { type: Object, required: true },
@@ -55,16 +56,25 @@ const signInName = (signIn) => (signIn.kind === "coding" ? `${signIn.label} (cod
       </template>
       <div class="mb-chat-computer__actions">
         <v-btn size="small" variant="tonal" prepend-icon="$visibility" @click="emit('open-live', { ...where, control: false })">Watch</v-btn>
-        <v-btn v-if="mine" size="small" variant="flat" color="primary" :loading="handingBack" @click="emit('hand-back', where)">Hand back</v-btn>
         <v-btn
-          v-else
+          v-if="!mine"
           size="small"
           variant="flat"
           color="primary"
-          :disabled="someoneElse || !status"
+          :disabled="!status"
           @click="emit('open-live', { ...where, control: true })"
         >
           Take over
+        </v-btn>
+        <v-btn
+          v-if="control"
+          size="small"
+          :variant="mine ? 'flat' : 'tonal'"
+          :color="mine ? 'primary' : undefined"
+          :loading="handingBack"
+          @click="emit('hand-back', where)"
+        >
+          Hand back
         </v-btn>
         <v-btn
           v-if="canReset"
@@ -78,7 +88,7 @@ const signInName = (signIn) => (signIn.kind === "coding" ? `${signIn.label} (cod
         </v-btn>
       </div>
       <p v-if="someoneElse" class="mb-chat-computer__wait">
-        {{ controlLine(control, me) }} of {{ bot.name }}'s computer. Wait until they hand it back.
+        {{ controlLine(control, me) }} of {{ bot.name }}'s computer. You can still take it over, or hand it back to {{ bot.name }}.
       </p>
     </div>
     <MercbotConfirmDialog

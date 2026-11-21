@@ -16,7 +16,7 @@ Mercbot makes your first home, called "*your first name*'s home", with you as it
 | Apps, their tables and records | |
 | Where the home keeps its files, and its spending | |
 
-Every new chat is Public, so everyone in the home, owners and admins included, can open it. Choose **Private** when you start a chat to keep it to its members. See [Chats and your team](/help/chats).
+Every new chat is Public, so everyone in the home, owners and admins included, can open it. Choose **Private** when you start a chat to keep it to its members. **Message** beside a person on **Team** opens a private chat with just the two of you. See [Chats and your team](/help/chats).
 
 ## Create and switch homes
 
