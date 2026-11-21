@@ -21,6 +21,8 @@ const isSet = (field) => Object.freeze({
 });
 
 export const CHAT_SEARCH = Object.freeze({
+  // An app's chat with the Builder, or any other.
+  app: isSet("appId"),
   // Archived chats, or those that aren't.
   archived: isSet("archivedAt"),
   // A direct chat (one person's with one bot), or any other.
