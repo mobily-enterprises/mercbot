@@ -122,8 +122,10 @@ export function registerRoutes(http, { bots, approvals, notices, meter, records,
 
   // Chats (D-112, R2): the person's chat list, New chat, the public chats to join, one chat, and its members. Each
   // change answers the chat as the page shows it (or the list), and tells everyone in it (a `chat` event).
-  router.register("GET", `${home}/chats`, auth, handle(async (request, _user, options) =>
-    chats.list({ hidden: request.query?.hidden === "1", archived: request.query?.archived === "1" }, options)));
+  router.register("GET", `${home}/chats`, auth, handle(async (request, _user, options) => {
+    const { hidden, archived, after } = request.query || {};
+    return chats.list({ hidden: hidden === "1", archived: archived === "1", after: after || null }, options);
+  }));
   router.register("POST", `${home}/chats`, auth, handle(async (request, _user, options) => chats.create(body(request), options)));
   router.register("GET", `${home}/chats/public`, auth, handle(async (_request, _user, options) => chats.publicChats(options)));
   router.register("GET", chat, auth, handle(async (request, _user, options) => chats.get(request.params.chatId, options)));

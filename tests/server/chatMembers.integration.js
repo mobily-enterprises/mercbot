@@ -5,6 +5,7 @@ import { createChatMembers } from "../../packages/bots/src/server/chatMembers.js
 import { startBotsService } from "../support/botDoubles.mjs";
 import { memberOptions, startChatRecords } from "../support/botRecords.mjs";
 import { seedMessage } from "../support/chatFixtures.mjs";
+import { queriesDuring } from "../support/queryCount.mjs";
 import { connectTestDatabase } from "../support/testDatabase.mjs";
 
 // A chat's members (D-112, R2) through records.chats: who a chat starts with and its kind (Public unless Private was
@@ -315,4 +316,58 @@ test("leaving the home pauses the routines and watches the person made there, wi
     icon: "routine",
     detail: 'Ben left the home, so the routine "Ben\'s routine", watch "Prices" they made paused.'
   }]);
+});
+
+test("the chat list is read a page at a time in its queries: every chat once, each page read alike", async (context) => {
+  const parts = await startChatRecords(knex, context);
+  const { records } = parts;
+  const { homeId, anna, ben } = await home(knex, context);
+  const { chats } = chatService(parts);
+  const asAnna = memberOptions({ userId: anna, homeId, role: "owner", permissions: ["workspace.settings.update"] });
+  const family = await records.chats.makeEveryoneChat({ title: "Rossi", bots: [] }, asAnna);
+  /** `count` more chats Anna and Ben are in, written straight to the tables; one in ten hidden by Anna, one archived. */
+  const more = async (count) => {
+    const ids = (await knex("conversations")
+      .insert(Array.from({ length: count }, (_, index) => ({
+        workspace_id: homeId,
+        kind: "public",
+        title: `Chat ${index}`,
+        made_by: anna,
+        ...(index === 3 ? { archived_at: new Date() } : {})
+      })))
+      .returning("id")).map((row) => String(row.id));
+    await knex("chat_people").insert(ids.flatMap((id, index) => [
+      { workspace_id: homeId, conversation_id: id, user_id: anna, hidden: index % 10 === 0 },
+      { workspace_id: homeId, conversation_id: id, user_id: ben }
+    ]));
+  };
+  /** Every page of Anna's list as the page reads it (hidden and archived ones too), and the statements of each. */
+  const everyPage = async () => {
+    const ids = [];
+    const statements = [];
+    let after = null;
+    do {
+      let page;
+      statements.push(await queriesDuring(knex, async () => { page = await chats.list({ hidden: true, archived: true, after }, asAnna); }));
+      ids.push(...page.chats.map((chat) => chat.id));
+      after = page.next;
+    } while (after);
+    return { ids, statements };
+  };
+
+  await more(20);
+  const few = await everyPage();
+  assert.equal(few.ids.length, 21);
+  assert.equal(few.ids[0], family.id);
+  assert.equal(few.statements.length, 1, "one page");
+  const shown = (await chats.list({}, asAnna)).chats;
+  assert.equal(shown.length, 21 - 2 - 1, "without hidden (2) and archived (1) ones, in the query too");
+
+  // Past the 500 the list used to stop at: six pages of 100, each read like the one page above.
+  await more(520);
+  const many = await everyPage();
+  assert.equal(many.ids.length, 541, "no chat left out");
+  assert.equal(new Set(many.ids).size, 541, "none twice");
+  assert.equal(many.ids.at(-41), family.id, "the everyone chat, the oldest, first in its page (O9)");
+  assert.deepEqual(many.statements, Array(6).fill(few.statements[0]), "each page read alike");
 });

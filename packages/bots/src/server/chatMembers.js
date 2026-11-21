@@ -3,9 +3,6 @@ import { BotsError } from "./botsError.js";
 import { cleanName, cloudShape, isId, previewOf, toMessage, toSection } from "./botRows.js";
 import { createCallerReaders } from "./records/recordRows.js";
 
-// The most chats one person's list shows; a home's person rarely has more than a few dozen.
-const LIST_LIMIT = 500;
-
 // The line in an archived chat naming the routines and watches its archiving paused.
 const ARCHIVED_LINE = Object.freeze({
   text: "Paused while archived",
@@ -155,15 +152,16 @@ export function createChatMembers({ records, notices, computer, systemContext, p
   });
 
   /**
-   * The person's chat list: the chats they're in (hidden ones added with `hidden`, archived ones with `archived`),
-   * newest activity first, and their sections.
+   * A page of the person's chat list: the chats they're in (hidden ones added with `hidden`, archived ones with
+   * `archived`), newest made first, and their sections. `next` is the `after` of the page after it, null on the last:
+   * the page reads them all and arranges the chats itself.
    */
-  async function list({ hidden = false, archived = false } = {}, options) {
-    const rows = (await chats.ofPerson(options, { hidden, archived })).slice(0, LIST_LIMIT);
-    const [views, sections] = await Promise.all([viewsOf(rows, options), chats.sections.list(options)]);
-    // The everyone chat first, pinned for everyone (O9); the rest newest activity first.
+  async function list({ hidden = false, archived = false, after = null } = {}, options) {
+    const page = await chats.ofPerson(options, { hidden, archived, after });
+    const [views, sections] = await Promise.all([viewsOf(page.chats, options), chats.sections.list(options)]);
+    // The everyone chat first in its page, pinned for everyone (O9): the whole list when it's one page.
     views.sort((a, b) => Number(b.everyone) - Number(a.everyone));
-    return { chats: views, sections: sections.map(toSection) };
+    return { chats: views, sections: sections.map(toSection), next: page.next };
   }
 
   /** The public chats of the home the person isn't in, for New chat's "or join a public chat". */
