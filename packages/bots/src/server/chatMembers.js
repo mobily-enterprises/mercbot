@@ -356,8 +356,8 @@ export function createChatMembers({ records, notices, computer, systemContext })
 
   /**
    * The home's people changed (someone joined, left or was removed): whoever joined is seated in the everyone chat, and
-   * whoever left is taken out of every chat, their private chats with no one else deleted with their computers and
-   * files and the routines they made paused (records.chats.personLeft). Everyone in a chat that changed hears, the
+   * whoever left is taken out of every chat (records.chats.personLeft), their private chats with no one else deleted
+   * with their computers and files, after what they made is paused (`leaving`). Everyone in a chat that changed hears, the
    * person who left too. In the bots' system context for the home; the members' list bounds it.
    * @param {string} homeId
    * @param {{ leaving?: (userId: string, home: object) => Promise<unknown> }} [steps] `leaving` runs for each person who

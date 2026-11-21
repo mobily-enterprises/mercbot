@@ -119,19 +119,17 @@ test("the everyone chat has every member; joining and leaving the home follow it
   assert.equal(await records.chats.personJoined(carla, asAnna), true);
   assert.deepEqual(await peopleIn(records, family.id, asAnna), [anna, ben, carla].sort((a, b) => a - b));
 
-  // Ben's own private chat goes with him, a shared one stays; the routines he made pause; his words stay.
+  // Ben's own private chat goes with him, a shared one stays; his words stay. (What he made pauses before, with its
+  // line: the home-change test below.)
   const bensOwn = await records.chats.create({ kind: "private", title: "Ben's", bots: [chef] }, asBen);
   const bensSeat = await records.chats.chatBotOf(chef, bensOwn.id, asBen);
   const shared = await records.chats.create({ kind: "private", title: "Shared", people: [anna], bots: [chef] }, asBen);
-  const seat = await records.chats.chatBotOf(chef, shared.id, asBen);
-  await knex("bot_routines").insert({ workspace_id: homeId, chat_bot_id: seat.id, made_by: ben, name: "Ben's routine", schedule: "every day", instructions: "x", enabled: true });
   await records.messages.append(shared.id, [{ role: "user", kind: "text", body: { text: "from Ben" } }], asBen);
   const { left, deleted } = await records.chats.personLeft(ben, asAnna);
   assert.deepEqual(deleted, [{ chatId: bensOwn.id, chatBotIds: [bensSeat.id] }], "deleted with its bots' seats, for their computers");
   assert.deepEqual(left.sort((a, b) => a - b), [family.id, shared.id].sort((a, b) => a - b));
   assert.deepEqual(await peopleIn(records, shared.id, asAnna), [anna]);
   assert.deepEqual(await peopleIn(records, family.id, asAnna), [anna, carla].sort((a, b) => a - b));
-  assert.equal((await knex("bot_routines").where({ chat_bot_id: seat.id }).first("enabled")).enabled, false);
   assert.equal((await records.messages.timeline(shared.id, {}, asAnna)).messages[0].body.text, "from Ben");
 });
 

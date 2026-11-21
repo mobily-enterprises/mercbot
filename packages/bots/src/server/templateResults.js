@@ -33,7 +33,7 @@ export const BEHAVIOUR_SOURCES = Object.freeze({
   // learns that lasts in a "<job> notes" document in the chat's folder (/files/chat), with the file tools (D-112).
   "The setup tools (question cards, notes, skills, routines)": [
     "packages/bots/src/server/cardTools.js",
-    "packages/bots/src/server/memoryTools.js",
+    "packages/bots/src/server/skillTools.js",
     "packages/bots/src/server/routineTools.js",
     "packages/bots/src/server/routineSchedule.js"
   ],

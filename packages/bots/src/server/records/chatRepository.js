@@ -67,9 +67,8 @@ function onboardingMover(conversations) {
  * @param {(reason: string) => import("@jskit-ai/resource-runtime/server/types").SystemContext} dependencies.systemContext
  * @param {import("@jskit-ai/users-core/server/types").UserProfilesRepository} dependencies.profiles users.profiles
  * @param {import("@jskit-ai/workspaces-core/server/types").WorkspaceMembershipsRepository} dependencies.memberships workspaces.memberships
- * @param {import("../types.js").WorkRepository} dependencies.work routines, paused when the person who made them leaves
  */
-export function createChatRepository({ resources, systemContext, profiles, memberships, work }) {
+export function createChatRepository({ resources, systemContext, profiles, memberships }) {
   const { bots, conversations, chatPeople, chatBots, conversationSections: sections } = resources;
   const { homeOf, personOf, asRow } = createCallerReaders();
   const rowsOf = (records, options) => records.map((record) => asRow(record, options));
@@ -521,8 +520,9 @@ export function createChatRepository({ resources, systemContext, profiles, membe
   }
 
   /**
-   * Someone left the home: they're out of every chat, the private chats only they were in are deleted (nobody could
-   * open them any more), and the routines they made are paused. Their messages stay, under their name. Answers the
+   * Someone left the home: they're out of every chat, and the private chats only they were in are deleted (nobody could
+   * open them any more). What they made is paused before, with its line (chatMembers.homeChanged's `leaving`, the one
+   * path, workPause.js). Their messages stay, under their name. Answers the
    * chats they're no longer in (`left`) and those deleted, each with its bots' seats as they were (`deleted`), for the
    * computers and files that go with them. In the home's own context: what they leave is read as the home's.
    * @param {string} userId
@@ -539,7 +539,6 @@ export function createChatRepository({ resources, systemContext, profiles, membe
       const seatQuery = { filters: { conversationIds: gone }, fields: ["conversationId"] };
       const seats = gone.length ? await chatBots.queryAll(seatQuery, txOptions) : [];
       if (gone.length) await conversations.deleteWhere({ id: gone }, { ...txOptions, returning: "none" });
-      await work.pauseRoutinesMadeBy(String(userId), txOptions);
       const seatsOf = (chatId) => seats.filter((seat) => String(seat.conversationId) === chatId).map((seat) => String(seat.id));
       return {
         left: chatIds.filter((id) => !gone.includes(id)),

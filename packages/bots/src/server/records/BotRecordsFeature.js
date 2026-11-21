@@ -114,7 +114,7 @@ const BotRecordsFeature = defineFeature({
       // The home's bots.
       bots: createBotRepository({ resources, workspaces, homeTemplates }),
       // Chats, their people and bots, each person's place in them, sections, and the home's joins and leaves.
-      chats: createChatRepository({ resources, systemContext, profiles, memberships, work }),
+      chats: createChatRepository({ resources, systemContext, profiles, memberships }),
       // Everything said in a chat.
       messages: createMessageRepository({ resources, systemContext }),
       // Bots archived (D-108), and the chats archiving one reaches.

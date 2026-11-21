@@ -83,7 +83,7 @@ test("a coding run starts only once its tool is signed in, works in the folder o
 
   await signIn(computer, ".claude/.credentials.json");
   assert.equal(runs.status(computer).tools[0].signedIn, true);
-  const started = await runs.start(computer, { tool: "claude-code", folder: "/files/chat/site", brief: "Fix the menu on small screens." });
+  const started = await runs.handle(computer, { action: "start", tool: "claude-code", folder: "/files/chat/site", brief: "Fix the menu on small screens.", userId: 7 });
   assert.equal(started.run.status, "running");
   await assert.rejects(runs.start(computer, { tool: "claude-code", folder: "/files/chat/site", brief: "Again" }), /already working/u, "one run at a time");
   await done;
@@ -99,6 +99,7 @@ test("a coding run starts only once its tool is signed in, works in the folder o
   const [{ computerId, run }] = ended;
   assert.equal(computerId, "21");
   assert.deepEqual([run.tool, run.label, run.folder, run.status, run.exitCode], ["claude-code", "Claude Code", "/files/chat/site", "done", 0]);
+  assert.equal(run.userId, "7", "its ending names the person who started it, whose report it is");
   assert.match(run.output, /Changed index\.html and styles\.css\.\n2 files changed/u);
   assert.equal(runs.status(computer).run.status, "done");
 });

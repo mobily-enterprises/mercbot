@@ -172,9 +172,10 @@ export function createCodingRuns({ sandbox, window, shared, installed, ended, li
 
   /**
    * Starts the tool on the brief in `folder` (a folder of the bot's files, such as
-   * /files/chat/website), once it's signed in and nothing else runs there.
+   * /files/chat/website), once it's signed in and nothing else runs there, for `userId`, the person who
+   * started it: its report, when it ends, is for them (R4).
    */
-  async function start(computer, { tool: toolId, folder, brief }) {
+  async function start(computer, { tool: toolId, folder, brief, userId = null }) {
     const tool = CODING_TOOLS[toolId];
     if (!tool) throw new Error(`There's no coding tool called ${toolId}.`);
     const entry = status(computer).tools.find((found) => found.id === toolId);
@@ -191,6 +192,7 @@ export function createCodingRuns({ sandbox, window, shared, installed, ended, li
       tool: toolId,
       folder,
       status: "running",
+      userId,
       startedAt: new Date().toISOString(),
       output: "",
       job: null,
@@ -243,7 +245,7 @@ export function createCodingRuns({ sandbox, window, shared, installed, ended, li
       }
       shown?.end();
       try {
-        await ended(computer.computerId, describe(run));
+        await ended(computer.computerId, { ...describe(run), userId: run.userId });
       } catch (error) {
         console.warn(`A coding run's ending on computer ${computer.computerId} wasn't passed on: ${error.message}`);
       }
@@ -278,12 +280,13 @@ export function createCodingRuns({ sandbox, window, shared, installed, ended, li
    * (each tool, whether it's signed in, and the run), `signIn`, `start` a run on a brief in a folder,
    * or `stop` it.
    * @param {object} computer
-   * @param {{ action: "status" | "signIn" | "start" | "stop", tool?: string, folder?: string, brief?: string }} request
+   * @param {{ action: "status" | "signIn" | "start" | "stop", tool?: string, folder?: string, brief?: string, userId?: string | null }} request
    */
   function handle(computer, request) {
     if (request.action === "signIn") return signIn(computer, String(request.tool));
     if (request.action === "start") {
-      return start(computer, { tool: String(request.tool), folder: String(request.folder), brief: String(request.brief) });
+      const userId = request.userId == null ? null : String(request.userId);
+      return start(computer, { tool: String(request.tool), folder: String(request.folder), brief: String(request.brief), userId });
     }
     if (request.action === "stop") return stop(computer);
     return status(computer);
