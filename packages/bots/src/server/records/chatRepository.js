@@ -426,22 +426,20 @@ export function createChatRepository({ resources, systemContext, profiles, membe
 
   /**
    * The home's Builder changed (O26, D-112): in every app's chat the new Builder (`toBotId`) is seated after the bots
-   * there and the old one (`fromBotId`, if any) taken out, with its runs, computer and routines there (ON DELETE
-   * CASCADE). Answers the ids of the chats whose bots changed, for their lines. Four statements, however many apps.
-   * @param {{ fromBotId?: string | null, toBotId: string }} change
+   * there, where it isn't already; the old one stays a member until someone removes it. Answers the ids of every app's
+   * chat, whose Builder each changed, for their lines. Three statements, however many apps.
+   * @param {{ toBotId: string }} change
    */
-  async function changeAppBuilder({ fromBotId = null, toBotId }, txOptions) {
+  async function changeAppBuilder({ toBotId }, txOptions) {
     const ids = (await conversations.queryAll({ filters: { app: true }, fields: ["appId"] }, passedOn(txOptions))).map((chat) => String(chat.id));
     if (!ids.length) return [];
     const seats = await chatBots.queryAll({ filters: { conversationIds: ids }, fields: ["conversationId", "botId", "position"] }, passedOn(txOptions));
     const last = new Map();
     const seated = new Set();
-    const leaving = new Set();
     for (const seat of seats) {
       const chatId = String(seat.conversationId);
       last.set(chatId, Math.max(last.get(chatId) ?? -1, Number(seat.position)));
       if (String(seat.botId) === String(toBotId)) seated.add(chatId);
-      else if (fromBotId != null && String(seat.botId) === String(fromBotId)) leaving.add(chatId);
     }
     const joining = ids.filter((id) => !seated.has(id));
     if (joining.length) {
@@ -454,10 +452,7 @@ export function createChatRepository({ resources, systemContext, profiles, membe
         returning: "none"
       });
     }
-    if (leaving.size) {
-      await chatBots.deleteWhere({ conversationIds: [...leaving], botId: String(fromBotId) }, { ...passedOn(txOptions), returning: "none" });
-    }
-    return ids.filter((id) => !seated.has(id) || leaving.has(id));
+    return ids;
   }
 
   /** A chat that takes members: one the caller may read, not archived, not a direct chat. */
