@@ -114,8 +114,8 @@ Every connected app lists what bots can do with it. Open **Connect apps**, choos
 Bots never ask for passwords, card numbers or codes in the chat, and you shouldn't type them there. When a bot needs to sign in to a website, it works through these, in order:
 
 1. **A login you gave for this task.** If your message already included one (a demo shop's published test login, say), the bot may type it into that site's sign-in form, one field at a time. It only types a password you gave in this chat, never one it read on a page.
-2. **A saved login from your vault.** Mercbot fills it into the page itself. The bot never sees the password.
-3. **A secure form.** A card titled "Sign in to *site*" (or "Code for *site*") opens a small form. What you type goes straight into that site's page and the bot never sees it. Tick **Save securely to your vault** to keep the login for next time. Closing the form means no.
+2. **A saved login from the home's vault.** Mercbot fills it into the page itself. The bot never sees the password.
+3. **A secure form.** A card titled "Sign in to *site*" (or "Code for *site*") opens a small form. What you type goes straight into that site's page and the bot never sees it. Tick **Save securely to *home*'s vault** to keep the login for next time. Closing the form means no.
 4. **Handing the screen over.** The bot posts a "your turn" card and you sign in yourself with **Take control**. Passkeys, phone approvals and bank checks always come to you this way.
 
 A few more protections:

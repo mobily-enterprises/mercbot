@@ -10,16 +10,35 @@ import { pluginsApi } from "./pluginsApi.js";
 export const mentionBotsOf = (chat) => (chat?.bots || []).filter((bot) => !bot.archived).map(botFace);
 
 /**
+ * The chat's one bot that answers, if it has exactly one: an archived bot doesn't answer, so neither "/" nor @ offers it.
+ * @param {import("../../types.js").Chat | null} chat
+ */
+export function soleBotOf(chat) {
+  const answering = (chat?.bots || []).filter((bot) => !bot.archived);
+  return answering.length === 1 ? answering[0] : null;
+}
+
+/**
+ * Whether "/" offers the person's own skills in a chat: only in a private chat whose one person they are, the only chat
+ * where the server lets its bot read them (rowPolicies.js personalRule). Mercbot's skills are offered in any chat with
+ * one bot.
+ * @param {import("../../types.js").Chat | null} chat
+ * @param {string} me
+ */
+export const offersOwnSkills = (chat, me) =>
+  chat?.kind === "private" && (chat.people || []).length === 1 && Boolean(me) && String(chat.people[0].userId) === String(me);
+
+/**
  * Mentions: in a chat of several (more than one bot or more than one person), @ opens a menu of everyone, the chat's
  * bots and the person's apps. A chosen one stays in the text as "@Name" and acts as one unit: Backspace or Delete
  * takes the whole token, and the caret can't stop inside it. A layer behind the text draws tokens in the bot's colour
  * with its avatar over the "@". Sending turns them into markers. `draft` is the composer's text, `several` whether the
- * chat has several (messageAuthors.js hasSeveral), `mentionBots` the bots @ offers (mentionBotsOf), and `chatId` the
- * open chat, whose change clears the tokens.
+ * chat has several (messageAuthors.js hasSeveral), `mentionBots` the bots @ offers (mentionBotsOf), `chatId` the
+ * open chat, whose change clears the tokens, and `ownSkills` whether "/" offers the person's own skills there too.
  * @param {object} options
  * @param {import("vue").Ref<HTMLTextAreaElement | null>} options.input The composer's field.
  */
-export function useComposerTokens({ draft, input, several, mentionBots, chatId }) {
+export function useComposerTokens({ draft, input, several, mentionBots, chatId, ownSkills = () => false }) {
   const tokens = ref([]);
   const apps = ref(null);
   const mention = ref(null);
@@ -53,7 +72,7 @@ export function useComposerTokens({ draft, input, several, mentionBots, chatId }
     const matches = (skill) => !query || (query.length <= 2
       ? `${skill.name} ${skill.description}`.toLowerCase().includes(query)
       : skill.name.toLowerCase().startsWith(query));
-    return (skillList.value || []).filter(matches).slice(0, 5);
+    return (skillList.value || []).filter((skill) => !skill.own || ownSkills()).filter(matches).slice(0, 5);
   });
 
   function updateSlash() {

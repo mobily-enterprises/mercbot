@@ -1,13 +1,14 @@
 <script setup>
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import MercbotAvatar from "./MercbotAvatar.vue";
+import MercbotConfirmDialog from "./MercbotConfirmDialog.vue";
 import { botFace, computerLine, controlLine } from "./chatView.js";
 import { COMPUTER_GREY } from "@/theme/palettes.js";
 
 // One bot's computer in a chat (D14, D16), as MercbotChatComputers reads it: "<Bot>'s computer", that it belongs to the
 // chat and who can use it, what's signed in on it, and Watch, Take over and Hand back. While a person has it, its bot
 // leaves it alone; another person waits until it's handed back. `status` is computerApi.status's answer, null until it
-// comes.
+// comes. Reset, for whoever may (`canReset`), asks first and starts this computer afresh.
 const props = defineProps({
   chat: { type: Object, required: true },
   member: { type: Object, required: true },
@@ -15,9 +16,12 @@ const props = defineProps({
   homeName: { type: String, default: "this home" },
   status: { type: Object, default: null },
   failed: { type: Boolean, default: false },
-  handingBack: { type: Boolean, default: false }
+  handingBack: { type: Boolean, default: false },
+  canReset: { type: Boolean, default: false },
+  resetting: { type: Boolean, default: false }
 });
-const emit = defineEmits(["open-live", "hand-back"]);
+const emit = defineEmits(["open-live", "hand-back", "reset"]);
+const askingReset = ref(false);
 
 const bot = computed(() => botFace(props.member));
 const where = computed(() => ({ botId: String(props.member.botId), chatId: String(props.chat.id) }));
@@ -62,11 +66,28 @@ const signInName = (signIn) => (signIn.kind === "coding" ? `${signIn.label} (cod
         >
           Take over
         </v-btn>
+        <v-btn
+          v-if="canReset"
+          size="small"
+          variant="text"
+          :disabled="someoneElse || !status"
+          :loading="resetting"
+          @click="askingReset = true"
+        >
+          Reset
+        </v-btn>
       </div>
       <p v-if="someoneElse" class="mb-chat-computer__wait">
         {{ controlLine(control, me) }} of {{ bot.name }}'s computer. Wait until they hand it back.
       </p>
     </div>
+    <MercbotConfirmDialog
+      v-model="askingReset"
+      :title="`Reset ${bot.name}'s computer?`"
+      text="Its browser closes, and what's signed in on it and its website data are cleared. This chat and its files stay."
+      confirm-label="Reset"
+      @confirm="emit('reset', where)"
+    />
   </li>
 </template>
 
