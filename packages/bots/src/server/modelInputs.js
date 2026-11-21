@@ -56,7 +56,7 @@ export const MODEL_INPUTS = Object.freeze([
   {
     file: "packages/bots/src/server/botWriting.js",
     calls: { generateOnce: 3 },
-    path: "A new bot's greeting and first question, a step's activity line, answerAsBot (Online's template descriptions)",
+    path: "A new bot's greeting and first question, a step's activity line, answerAsBot (a copy's template descriptions)",
     reads: "the bot's instructions and the words its caller hands it",
     reach: "none"
   },

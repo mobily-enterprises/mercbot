@@ -291,7 +291,7 @@ CREATE INDEX ix_approval_rules_person ON approval_rules (workspace_id, user_id);
 exports.contracts =
   "Version 0 (D-112): no one uses Mercbot before day 0 and nothing in any database is kept, so this release deletes " +
   "every bot and chat-bearing row, drops the old chat tables and columns outright and re-keys the rest in one step, " +
-  "with no release before it left running: Online recreates its database at this release. It can't be rolled back.";
+  "with no release before it left running: a hosted copy recreates its database at this release. It can't be rolled back.";
 
 exports.down = async function down() {
   throw new Error("Chats are the core (D-112) can't be rolled back: the old chat tables and every bot are gone.");

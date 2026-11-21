@@ -8,8 +8,8 @@ import extensions from "./extensions.js";
 // Team (D3, plan 4.2): the home's members, people and bots alike, in the main area. Each person with their face, name
 // and role; then each bot with its face, name, template, who made it and what it does; then the bots that have left,
 // under Archived, with Resume for whoever may. [Message] opens the chat with a member; tapping a row opens their card in
-// Details. Add bots, and what a copy built on Mercbot adds beside it (extensions.js teamActions: Online's Invite a
-// person), sit at the top. Loading shows the rows' shapes; a failed read says so, with Try again.
+// Details. Add bots, and what a copy built on Mercbot adds beside it (extensions.js teamActions, such as a copy's
+// Invite a person), sit at the top. Loading shows the rows' shapes; a failed read says so, with Try again.
 const props = defineProps({
   // The team's bots and people, null while they load.
   bots: { type: Array, default: null },
