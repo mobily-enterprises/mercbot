@@ -3,32 +3,35 @@ import { retryLostInsertRace } from "@jskit-ai/database-runtime/shared";
 import { passedOn } from "@jskit-ai/resource-core/shared/callOptions";
 import { BotsError } from "./botsError.js";
 import { changeRefusal, mayChangeBot } from "./botAdditions.js";
-import { templateOf } from "./botTemplate.js";
+import { greetingWith, templateOf } from "./botTemplate.js";
 import { behaviourFingerprint, lastCheck, readResults, resultsFileFor, testedOn } from "./templateResults.js";
 import { CATEGORIES, GALLERY, GENERAL, LIBRARY, LIBRARY_TAGS, TAG, TEAM, details, freeTag, oneLine, setupNeeds, setupSkillOf, summary } from "./templates.js";
 import { checkedDraft, manageRefusal, managesTemplates, takenTags } from "./templateDrafts.js";
 import { templateBody } from "../shared/templateBody.js";
 import { TEAMS, teamSummary } from "./teams.js";
-import { cleanName, toBot } from "./botRows.js";
+import { cleanName } from "./botRows.js";
+import { lookOf } from "./botList.js";
+import { createCallerReaders } from "./records/recordRows.js";
 
 /** The templates links open when the copy adds none (`mercbot.template-links` absent): no code opens one. */
 export const NO_TEMPLATE_LINKS = Object.freeze({ find: async () => null });
 
 /**
- * Bot templates (D-43, D-98): the gallery, a bot added from a template or from one a link opens, the template a bot
- * points at and its change, and the home's own templates. Every method takes the call's options last: the person and
- * the home are the call's.
+ * Bot templates (D-43, D-98): the gallery, a bot made on a template (New bot) or added from one or from one a link
+ * opens, the template a bot points at and its change, and the home's own templates. A new bot is a member of the home
+ * (D-112) that greets its maker in their direct chat with it. Every method takes the call's options last: the person
+ * and the home are the call's.
  * @param {object} dependencies
  * @param {import("./types.js").BotRecords} dependencies.records mercbot.bots.records
  * @param {{ findById: (userId: string, options: object) => Promise<object | null> }} dependencies.profiles users.profiles
  * @param {import("@local/integrations/server/types").Integrations} dependencies.integrations
- * @param {import("./types.js").BotConversations} dependencies.conversations
  * @param {import("@jskit-ai/kernel/server/types").RuntimeEnv} dependencies.env where its end-to-end results are
  * @param {import("./types.js").TemplateLinks} dependencies.templateLinks the templates links open, beside Mercbot's own
  *   (`mercbot.template-links`; NO_TEMPLATE_LINKS when the copy adds none)
- * @param {import("./types.js").HomeDefaults} dependencies.homeDefaults the sharing the home's new bots get (D-100)
+ * @param {import("./botList.js").BotList} dependencies.botList new bots made and opened, the
+ *   bot as Team lists it, and the home told
  */
-export function createBotTemplates({ records, profiles, integrations, conversations, env, templateLinks, homeDefaults }) {
+export function createBotTemplates({ records, profiles, integrations, env, templateLinks, botList }) {
   // How bots behave, and the day each of Mercbot's templates last passed its end-to-end check for that and for the
   // template as it is now, worked out once at start (D-79).
   const behaviour = behaviourFingerprint();
@@ -37,7 +40,8 @@ export function createBotTemplates({ records, profiles, integrations, conversati
   /** One of Mercbot's templates with its honest tested day, or null; a template a link opens is never tested. */
   const withTested = (template) => (template.linked ? template : { ...template, tested: tested.get(template.slug) ?? null });
   const noTemplate = () => new BotsError(404, "There's no bot template at that link.", { code: "bots_template_not_found" });
-  const store = records.conversations;
+  const { bots, chats, messages } = records;
+  const { personOf } = createCallerReaders();
 
   /** The bot template gallery (D-43): curated, Mercbot's own templates only, and its teams of them (D-105). */
   function templateGallery() {
@@ -91,20 +95,10 @@ export function createBotTemplates({ records, profiles, integrations, conversati
    * @param {object} options the call's options
    */
   async function firstNameFor(displayName, options) {
-    const person = await profiles.findById(conversations.personOf(options), passedOn(options));
+    const person = await profiles.findById(personOf(options), passedOn(options));
     const first = firstNameOf(person?.displayName || displayName || "");
     const handle = String(person?.email || "").split("@")[0].replace(/[^a-z]/giu, "").toLowerCase();
     return first && first.toLowerCase().replace(/[^a-z]/giu, "") !== handle ? first : "";
-  }
-
-  /**
-   * A template's greeting for a person greeted as `first` (firstNameFor), from the bot it now runs as: the bot's own name
-   * where the template says its own. A template without one has none.
-   */
-  function greetingWith(template, botName, first) {
-    if (!template.greeting) return "";
-    const named = template.greeting.replaceAll(`I'm ${template.name}`, `I'm ${botName}`);
-    return first ? named.replaceAll("{firstName}", first) : named.replace(/\s*\{firstName\}/gu, "");
   }
 
   /** A template's greeting for the person (greetingWith), their name read (firstNameFor). */
@@ -125,43 +119,51 @@ export function createBotTemplates({ records, profiles, integrations, conversati
       instructions: String(linked.instructions || "").trim(),
       skills: Array.isArray(linked.skills) ? linked.skills : [],
       greeting: linked.greeting || null,
-      created_by: conversations.personOf(txOptions)
+      created_by: personOf(txOptions)
     }, txOptions);
   }
 
   /**
    * Adding a bot from a template or a shared link (D-98): it takes the template's name and look and points at it, one of
-   * Mercbot's library, or for a link a new template of the person's home made from it, and opens with the template's
-   * own greeting. Its routines aren't copied: its setup interview creates them, paused, once the person agrees. It is
-   * shared as the home's new bots are (D-100).
+   * Mercbot's library, or for a link a new template of the person's home made from it, and greets the person in their
+   * direct chat with it. Its routines aren't copied: its setup interview creates them, paused, once the person agrees.
+   * Answers the bot as Team lists it.
    */
   async function addFromTemplate(slug, displayName, options) {
     const template = await findTemplate(slug, options);
     const name = cleanName(template.name);
     const words = template.greeting || `Hi {firstName}, I'm ${template.name}. ${template.description}`;
     const greeting = await greetingFor({ ...template, greeting: words }, name, displayName, options);
-    // The person's seat is read, then made: a lost race (the seat, or a link's tag) runs the whole transaction again.
-    return retryLostInsertRace(passedOn(options), () => records.conversations.withTransaction(passedOn(options), async (txOptions) => {
+    // A lost race (the direct chat, or a link's tag) runs the whole transaction again.
+    const made = await retryLostInsertRace(passedOn(options), () => chats.withTransaction(passedOn(options), async (txOptions) => {
       const pointer = template.linked
         ? { home_template_id: (await homeTemplateFrom(template, txOptions)).id }
         : { library_template: template.slug };
-      const bot = await records.conversations.createBot({
-        user_id: conversations.personOf(txOptions),
-        sharing: await homeDefaults.sharingOf(txOptions),
-        name,
-        shape: template.shape,
-        color: template.color,
-        ...pointer,
-        template_since: new Date().toISOString()
-      }, txOptions);
-      const seat = await conversations.conversationOf(bot, txOptions, { onboarding_step: null });
-      const row = conversations.asSeen(bot, seat);
-      await records.templates.openWith(row, [
-        { kind: "timestamp", role: "system", body: { at: new Date().toISOString() } },
-        { kind: "text", role: "bot", body: { text: greeting } }
-      ], txOptions);
-      return { ...toBot(row), rooms: await homeDefaults.firstTabs(bot, seat, txOptions), preview: greeting };
+      const start = { columns: { ...pointer, template_since: new Date().toISOString() }, greeting };
+      const [bot] = await botList.makeBots([{ name, shape: template.shape, color: template.color, start }], txOptions);
+      await botList.openWith(bot, greeting, txOptions);
+      return bot;
     }));
+    await botList.tellHome([made.id], "created", options);
+    return botList.listedBot(String(made.id), options);
+  }
+
+  /**
+   * New bot: one bot on the template chosen in New bot (`template`: `{ library: slug }`, `{ home: id }` or `{ draft }`,
+   * a new one of the home's; D-98), or with none chosen on Mercbot's general one, greeting its maker in their direct
+   * chat with it, which the page opens next (POST …/bots/:botId/direct). Answers the bot as Team lists it.
+   */
+  async function createBot(input = {}, options) {
+    const look = lookOf(input);
+    // A new template's tag lost to a race runs the whole transaction again.
+    const made = await retryLostInsertRace(passedOn(options), () => chats.withTransaction(passedOn(options), async (txOptions) => {
+      const start = await startOn({ choice: input.template ?? { library: GENERAL.slug }, botName: look.name }, txOptions);
+      const [bot] = await botList.makeBots([{ ...look, start }], txOptions);
+      await botList.openWith(bot, start.greeting, txOptions);
+      return bot;
+    }));
+    await botList.tellHome([made.id], "created", options);
+    return botList.listedBot(String(made.id), options);
   }
 
   /**
@@ -170,7 +172,7 @@ export function createBotTemplates({ records, profiles, integrations, conversati
    */
   async function saveDraft(draft, options) {
     const body = checkedDraft(draft, await takenTags(records.homeTemplates, options));
-    return records.homeTemplates.create({ ...body, created_by: conversations.personOf(options) }, options);
+    return records.homeTemplates.create({ ...body, created_by: personOf(options) }, options);
   }
 
   /**
@@ -219,30 +221,31 @@ export function createBotTemplates({ records, profiles, integrations, conversati
   /**
    * Change template (D-98): the bot points at another template and keeps its additions, which now sit under it, or for
    * a new template drafted from it with them folded in (`foldAdditions`), has them emptied. Its maker and the home's
-   * owners and admins change it. The bot says so in its chat and greets with the new template's greeting, which asks
-   * its setup questions; its routines stay as they are.
+   * owners and admins change it. The bot says so in the changer's direct chat with it, and greets there with the new
+   * template's greeting, which asks its setup questions; its routines stay as they are. Everyone in the home hears the
+   * bot changed. Answers the bot as Team lists it.
    */
   async function changeTemplate(botId, choice, displayName, options) {
     // A new template's lost race for its tag runs it again, when the tag is then taken.
-    const run = (work) => retryLostInsertRace(passedOn(options), () => store.withTransaction(passedOn(options), work));
-    const { row, changed } = await run(async (txOptions) => {
-      const before = await conversations.ownedBot(botId, txOptions, { lock: true });
-      if (before.kind === "group") throw new BotsError(400, "A group chat has no template.", { code: "bots_group_template" });
-      if (!mayChangeBot(before.created_by, conversations.personOf(txOptions), txOptions)) {
+    const run = (work) => retryLostInsertRace(passedOn(options), () => chats.withTransaction(passedOn(options), work));
+    const changed = await run(async (txOptions) => {
+      const before = await bots.get(botId, txOptions);
+      if (!mayChangeBot(before.made_by, personOf(txOptions), txOptions)) {
         throw new BotsError(403, changeRefusal(before.name), { code: "bots_template_forbidden" });
       }
       const pointer = await pointerTo(choice, txOptions);
       const same = pointer.library_template
         ? pointer.library_template === before.library_template
         : String(pointer.home_template_id) === String(before.home_template_id || "");
-      if (same) return { row: before, changed: false };
+      if (same) return false;
       const folded = choice.draft !== undefined && choice.foldAdditions === true ? { additions: "" } : {};
-      await store.updateBot(before.id, { ...pointer, ...folded, template_since: new Date().toISOString() }, txOptions);
-      const after = await conversations.refresh(before, txOptions);
+      await bots.update(before.id, { ...pointer, ...folded, template_since: new Date().toISOString() }, txOptions);
+      const after = await bots.get(before.id, txOptions);
       const template = await templateOf(after, records.homeTemplates, txOptions);
       const where = template.source === "library" ? "Mercbot's" : "your home's";
       const greeting = await greetingFor(template, after.name, displayName, txOptions);
-      await conversations.append(after, [
+      const chat = await chats.direct(after.id, txOptions);
+      await messages.append(chat.id, [
         {
           kind: "event",
           role: "system",
@@ -251,12 +254,12 @@ export function createBotTemplates({ records, profiles, integrations, conversati
             detail: `${after.name} now follows ${where} ${template.tag} template${after.additions ? ", with its own additions on top" : ""}.`
           }
         },
-        ...(greeting ? [{ kind: "text", role: "bot", body: { text: greeting } }] : [])
+        ...(greeting ? [{ kind: "text", role: "bot", authorBotId: String(after.id), body: { text: greeting } }] : [])
       ], txOptions);
-      return { row: after, changed: true };
+      return true;
     });
-    if (changed) await conversations.tell(row, { type: "messages" }, options);
-    return toBot(row);
+    if (changed) await botList.tellHome([String(botId)], "changed", options);
+    return botList.listedBot(String(botId), options);
   }
 
   /**
@@ -265,7 +268,7 @@ export function createBotTemplates({ records, profiles, integrations, conversati
    * person may change either.
    */
   async function instructionsOf(botId, options) {
-    const row = await conversations.ownedSingleBot(botId, options);
+    const row = await bots.get(botId, options);
     const template = await templateOf(row, records.homeTemplates, options);
     return {
       template: template && {
@@ -279,7 +282,7 @@ export function createBotTemplates({ records, profiles, integrations, conversati
         changed: await changedSince(template, row.template_since, options)
       },
       additions: row.additions || "",
-      canChange: mayChangeBot(row.created_by, conversations.personOf(options), options)
+      canChange: mayChangeBot(row.made_by, personOf(options), options)
     };
   }
 
@@ -374,7 +377,7 @@ export function createBotTemplates({ records, profiles, integrations, conversati
   async function editHomeTemplate(templateId, { draft, updatedAt } = {}, options) {
     if (!managesTemplates(options)) throw manageRefusal();
     // A lost race for a tag (the home's unique tags) runs it again, when the tag is then taken.
-    return retryLostInsertRace(passedOn(options), () => store.withTransaction(passedOn(options), async (txOptions) => {
+    return retryLostInsertRace(passedOn(options), () => chats.withTransaction(passedOn(options), async (txOptions) => {
       const before = await ownTemplate(templateId, txOptions, { lock: true });
       if (new Date(before.updated_at).toISOString() !== String(updatedAt)) {
         throw new BotsError(409, `Someone saved ${before.tag} since you opened it. Open it again to see their changes.`, { code: "bots_template_stale" });
@@ -384,7 +387,7 @@ export function createBotTemplates({ records, profiles, integrations, conversati
       let after = before;
       if (parts.length) {
         const now = new Date().toISOString();
-        const person = conversations.personOf(txOptions);
+        const person = personOf(txOptions);
         const name = (await profiles.findById(person, passedOn(txOptions)))?.displayName || "someone";
         after = await records.homeTemplates.update(before.id, { ...body, updated_at: now }, txOptions);
         const change = { summary: changeLine(parts, name), changed_by: person, changed_at: now };
@@ -406,7 +409,7 @@ export function createBotTemplates({ records, profiles, integrations, conversati
         code: "bots_template_in_use",
         params: { usedBy: count }
       });
-    return store.withTransaction(passedOn(options), async (txOptions) => {
+    return chats.withTransaction(passedOn(options), async (txOptions) => {
       const template = await ownTemplate(templateId, txOptions, { lock: true });
       const count = (await records.homeTemplates.usedBy([template.id], txOptions)).get(String(template.id)) || 0;
       if (count) throw inUse(template.tag, count);
@@ -427,6 +430,7 @@ export function createBotTemplates({ records, profiles, integrations, conversati
     templateDetails,
     firstNameFor,
     addFromTemplate,
+    createBot,
     changeTemplate,
     instructionsOf,
     startOn,

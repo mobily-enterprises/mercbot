@@ -29,8 +29,9 @@ export const BEHAVIOUR_SOURCES = Object.freeze({
     "packages/bots/skills"
   ],
   "The agent loop": ["@jskit-ai/agent/src", "@jskit-ai/agent-runtime/src"],
-  // ask_with_options; remember and read_skill; create_routine (paused) and update_routine (running).
-  "The setup tools (question cards, memories, skills, routines)": [
+  // ask_with_options; read_skill; create_routine (paused) and update_routine (running). A template keeps what it
+  // learns that lasts in a "<job> notes" document in the chat's folder (/files/chat), with the file tools (D-112).
+  "The setup tools (question cards, notes, skills, routines)": [
     "packages/bots/src/server/cardTools.js",
     "packages/bots/src/server/memoryTools.js",
     "packages/bots/src/server/routineTools.js",
