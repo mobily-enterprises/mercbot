@@ -180,9 +180,13 @@ test("each refusal: a member's archive of a chat she didn't start, the everyone 
   // The home's everyone chat, which has every member, is never archived, even by an owner.
   const { id: family } = await seedChat(knex, { homeId, title: "Hilltop", everyone: true, people: [pat, kim], bots: [bot.id] });
   await assert.rejects(bots.chats.archive(String(family), as(pat)), refused(409, "bots_chat_everyone"));
+  // Nor deleted: it's the home's, for as long as the home has people.
+  await assert.rejects(bots.chats.remove(String(family), as(pat)), refused(409, "bots_chat_everyone"));
+  assert.ok(await knex("conversations").where({ id: family }).first("id"), "the everyone chat is still there");
   // A Private chat isn't archived for everyone, even by its maker, an owner (plan 5.1): each of its people hides it for
-  // themselves, and it stays in the others' lists.
+  // themselves, and it stays in the others' lists. Someone in it who may not manage it hears that first.
   const diary = (await bots.chats.create({ kind: "private", title: "Diary", people: [kim], bots: [String(bot.id)] }, as(pat))).chat.id;
+  await assert.rejects(bots.chats.archive(diary, as(kim)), refused(403, "bots_chat_manage_forbidden"), "Kim didn't start it");
   await assert.rejects(bots.chats.archive(diary, as(pat)), {
     statusCode: 409, code: "bots_chat_private_archive", message: "A private chat is hidden for yourself, not archived for everyone."
   });

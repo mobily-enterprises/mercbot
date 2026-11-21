@@ -65,6 +65,11 @@ function fakeDesktops(log) {
         states.set(String(computerId), "asleep");
         await changed(computerId, status(computerId));
       },
+      async reset(computerId) {
+        log.push(`reset ${computerId}`);
+        states.set(String(computerId), "asleep");
+        await changed(computerId, status(computerId));
+      },
       browse: did("browsed"),
       startRecording: async (computerId) => {
         recording.add(String(computerId));
@@ -143,8 +148,9 @@ async function startComputers(context) {
   return { records, computers, routes, log, told, notices };
 }
 
-/** A person's request to a computer route, answered: { status, body }. */
-async function ask(routes, method, route, { homeId, userId, botId, chatId, body = {} }) {
+/** A person's request to a computer route, answered: { status, body }. `manages`: they're one of the home's owners and admins. */
+async function ask(routes, method, route, { homeId, userId, botId, chatId, body = {}, manages = false }) {
+  const permissions = manages ? ["workspace.settings.update"] : [];
   const handler = routes.get(`${method} /api/w/:workspaceSlug/bots/:botId${route}`);
   assert.ok(handler, `the route ${method} ${route} is registered`);
   const reply = {
@@ -168,7 +174,8 @@ async function ask(routes, method, route, { homeId, userId, botId, chatId, body 
     body,
     workspace: { id: homeId },
     user: { id: userId },
-    callOptions: async () => memberOptions({ userId, homeId })
+    permissions,
+    callOptions: async () => memberOptions({ userId, homeId, role: manages ? "owner" : "member", permissions })
   };
   await handler(request, reply);
   return { status: reply.statusCode, body: reply.body };
@@ -254,6 +261,34 @@ test("a home member who can't open a private chat gets a 404 for its computers, 
   assert.equal(annaTakes.body.control.userId, anna);
   assert.notEqual(family.chatBotIds.get(bots.Tripbot), seat, "the same bot has another computer in another chat (D14)");
   assert.equal((await computers.status(family.chatBotIds.get(bots.Tripbot))).control, null);
+});
+
+test("a chat's computer is reset by whoever started the chat or the home's owners and admins; a direct chat's by its person", async (context) => {
+  const { routes, log } = await startComputers(context);
+  const { homeId, anna, ben, carla, bots, family } = await rossiHome(context);
+  // Kitchen, which Ben started with Carla, and Carla's direct chat with Chef; Family is Anna's.
+  const kitchen = await seedChat(knex, { homeId, title: "Kitchen", people: [ben, carla], bots: [bots.Chef], madeBy: ben });
+  const carlas = await seedChat(knex, { homeId, direct: { userId: carla, botId: bots.Chef } });
+  const reset = async (userId, chat, manages = false) => {
+    const answer = await ask(routes, "POST", "/computer/reset", { homeId, userId, botId: bots.Chef, chatId: chat.id, manages });
+    return answer.status === 200 ? answer.status : { status: answer.status, code: answer.body?.code, error: answer.body?.error };
+  };
+  const refused = {
+    status: 403, code: "computer_reset_forbidden",
+    error: "Only the person who started this chat and the home's owners and admins can reset its computers."
+  };
+
+  assert.deepEqual(await reset(carla, kitchen), refused, "Carla is in Kitchen, but didn't start it");
+  assert.deepEqual(await reset(ben, family), refused, "nor did Ben start Family");
+  assert.deepEqual(await reset(ben, carlas), refused, "Carla's direct chat is Public, but its computer is reset by her");
+  assert.deepEqual(log, [], "no computer was reset");
+
+  assert.equal(await reset(ben, kitchen), 200, "Ben started Kitchen");
+  assert.equal(await reset(anna, kitchen, true), 200, "Anna is the home's owner");
+  assert.equal(await reset(carla, carlas), 200, "Carla's own direct chat");
+  assert.equal(await reset(anna, carlas, true), 200, "and the home's owner");
+  const [kitchenChef, carlasChef] = [kitchen.chatBotIds.get(bots.Chef), carlas.chatBotIds.get(bots.Chef)];
+  assert.deepEqual(log, [`reset ${kitchenChef}`, `reset ${kitchenChef}`, `reset ${carlasChef}`, `reset ${carlasChef}`]);
 });
 
 test("teaching a bot in a chat takes over its computer there to record, and stopping hands it back and teaches it", async (context) => {

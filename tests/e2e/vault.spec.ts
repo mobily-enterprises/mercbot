@@ -6,6 +6,8 @@ import { MADE_UP, expect, test, type Page, type Route } from "./harness";
 // Chromium's own stand-in camera (a moving test picture) plays the camera. Run with:
 // vibe64-helper playwright --target test-app test tests/e2e/vault.spec.ts
 const HOME = "/w/you";
+// The home's Vault (D8), at the home's address.
+const VAULT = "/api/w/you/vault";
 // Any refused API call from the page, or JSKIT's error dialog, fails the test (harness.ts).
 test.use({
   apiGuard: true,
@@ -41,9 +43,9 @@ async function newItem(page: Page, item: string) {
 /** Deletes the Vault items whose label contains `text`, as the test leaves the data it found. */
 async function deleteItems(page: Page, text: string) {
   const { csrfToken } = await (await page.request.get("/api/session")).json();
-  const { items } = await (await page.request.get("/api/vault")).json();
+  const { items } = await (await page.request.get(VAULT)).json();
   for (const item of items.filter((entry: { label: string }) => entry.label.includes(text))) {
-    expect((await page.request.delete(`/api/vault/${item.id}`, { headers: { "csrf-token": csrfToken } })).ok()).toBe(true);
+    expect((await page.request.delete(`${VAULT}/${item.id}`, { headers: { "csrf-token": csrfToken } })).ok()).toBe(true);
   }
 }
 
@@ -74,7 +76,7 @@ test("a password manager's CSV file is previewed with its secrets hidden, then i
   await notes.selectOption({ label: "Not used" });
   await expect(preview.locator("thead th")).toHaveText(["Row", "Website", "Username or email", "Password"]);
 
-  const imported = page.waitForResponse((response) => response.url().endsWith("/api/vault/import"));
+  const imported = page.waitForResponse((response) => response.url().endsWith(`${VAULT}/import`));
   await dialog.getByRole("button", { name: "Import 2 items" }).click();
   expect((await imported).status()).toBe(200);
   await expect(dialog).toBeHidden();
@@ -88,7 +90,7 @@ test("an import that stops part way adds only the rest when it's run again", asy
   const file = ["Name,Email", ...Array.from({ length: 150 }, (_, index) => `Person ${index} ${stamp},p${index}@example.com`)].join("\n");
   // The second batch fails once, as when the server it reached goes away mid-import.
   let calls = 0;
-  await page.route("**/api/vault/import", (route: Route) => {
+  await page.route(`**${VAULT}/import`, (route: Route) => {
     calls += 1;
     if (calls !== 2) return route.continue();
     return route.fulfill({ status: 503, contentType: "application/json", headers: { [MADE_UP]: "1" }, body: JSON.stringify({ error: "Mercbot is busy.", code: "made_up" }) });
@@ -147,7 +149,7 @@ test("contact details read from a photo or the camera fill the form, to be check
   await expect(form.getByLabel("Full name")).toHaveValue(`Ada Lovelace ${stamp}`);
   expect(photos).toEqual(["multipart/form-data jpeg", "multipart/form-data jpeg"]);
 
-  const saved = page.waitForResponse((response) => response.url().endsWith("/api/vault") && response.request().method() === "POST");
+  const saved = page.waitForResponse((response) => response.url().endsWith(VAULT) && response.request().method() === "POST");
   await form.getByRole("button", { name: "Save" }).click();
   expect((await saved).status()).toBe(200);
   await expect(form).toBeHidden();

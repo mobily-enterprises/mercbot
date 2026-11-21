@@ -272,10 +272,11 @@ export function createChatMembers({ records, notices, computer, systemContext, p
    */
   async function archiving(chatId, archived, options) {
     const chat = await openChat(chatId, options);
+    // Someone who may not manage the chat hears that first, whatever its kind.
+    requireManager(chat, options, archived ? "archive" : "unarchive");
     if (archived && chat.kind === "private") {
       throw new BotsError(409, "A private chat is hidden for yourself, not archived for everyone.", { code: "bots_chat_private_archive" });
     }
-    requireManager(chat, options, archived ? "archive" : "unarchive");
     if (archived) requireNotEveryone(chat);
     if (Boolean(chat.archived_at) === archived) return get(chat.id, options);
     await chats.withTransaction(options, async (txOptions) => {
@@ -294,10 +295,14 @@ export function createChatMembers({ records, notices, computer, systemContext, p
   /** An archived chat back in use. */
   const unarchive = (chatId, options) => archiving(chatId, false, options);
 
-  /** A chat deleted with everything in it, its computers and files too, by its maker or an owner or admin. */
+  /**
+   * A chat deleted with everything in it, its computers and files too, by its maker or an owner or admin; never the
+   * everyone chat (409), the home's for as long as it has people.
+   */
   async function remove(chatId, options) {
     const chat = await openChat(chatId, options);
     requireManager(chat, options, "delete");
+    requireNotEveryone(chat);
     const [people, seats] = await Promise.all([chats.people(chat.id, options), seatsIn(chat.id, options)]);
     await chats.remove(chat.id, options);
     await chatRemoved(homeOf(options), chat.id, seats);

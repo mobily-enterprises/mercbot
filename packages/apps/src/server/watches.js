@@ -1,4 +1,5 @@
-import { passedOn } from "@jskit-ai/resource-runtime/server";
+import { resolveAuditActorId } from "@jskit-ai/kernel/server/actions/actionContributorHelpers";
+import { passedOn, resolveUserScopeValue } from "@jskit-ai/resource-runtime/server";
 import { celSchema, checkFormula, evaluateFormula, isFormula } from "../shared/formulas.js";
 import { dataOnly, isCalculated, withCalculated } from "../shared/index.js";
 import { formulaRecord } from "./runtime.js";
@@ -170,8 +171,17 @@ export function createWatches({ resources, repository, systemContext, registry, 
     return row;
   }
 
+  /**
+   * A watch paused or resumed. Pausing is anyone's who can open its chat; resuming only its maker's (403 for anyone
+   * else, the bot asked by them included): it runs as them (R4). The person is the caller, or the one a bot's turn
+   * works for.
+   */
   async function setEnabled(where, enabled, options) {
     const row = await find(where, options);
+    const person = resolveAuditActorId(options?.context) ?? resolveUserScopeValue(options?.context);
+    if (enabled && (row.createdBy == null || String(row.createdBy) !== String(person ?? ""))) {
+      throw new GateError(403, "Only the person who made this watch can resume it: it runs as them.", { code: "apps_watch_resume_forbidden" });
+    }
     // Resuming starts from now, at the snapshot horizon: changes made while it was paused don't fire it.
     await appWatches.withTransaction(options, async (txOptions) => {
       const resumed = enabled ? { cursor: await appWatches.changeHorizon(txOptions), runsInHour: 0 } : {};
