@@ -1,16 +1,20 @@
 <script setup>
 import { computed, inject, ref, watch } from "vue";
 import MercbotChatComputer from "./MercbotChatComputer.vue";
+import { chatRights } from "./chatMenus.js";
 import { computerApi } from "./computerApi.js";
 import { MERCBOT_CHAT_KEY } from "./shellChat.js";
 
 // A chat's computers (D14, D16), one per bot in it, each "<Bot>'s computer", for Chat details, or one bot's for its
 // card in a direct chat (`onlyBotId`). Each one's status is read when it's shown and again when `computerNews` (the
 // shell's count per computer, "<chatId> <botId>") says it changed; Hand back is sent here, and its line shown in the chat.
+// Reset is for the chat's maker and the home's owners and admins, and in a direct chat for its person.
 const props = defineProps({
   chat: { type: Object, required: true },
   me: { type: String, default: "" },
   homeName: { type: String, default: "this home" },
+  // Whether the person is one of the home's owners or admins.
+  manages: { type: Boolean, default: false },
   onlyBotId: { type: String, default: "" },
   computerNews: { type: Object, default: () => ({}) }
 });
@@ -25,6 +29,8 @@ const target = (botId) => ({ id: String(botId), chat: String(props.chat.id) });
 // Each computer's status by bot id, "failed" when it didn't load.
 const statuses = ref({});
 const handingBack = ref("");
+const resetting = ref("");
+const canReset = computed(() => Boolean(props.chat.directBotId) || chatRights(props.chat, { me: props.me, manages: props.manages }).removeMembers);
 async function read(botId) {
   try {
     const status = await computerApi.status(target(botId));
@@ -56,6 +62,16 @@ async function handBack({ botId, chatId }) {
     handingBack.value = "";
   }
 }
+async function reset({ botId }) {
+  resetting.value = botId;
+  try {
+    statuses.value = { ...statuses.value, [botId]: await computerApi.reset(target(botId)) };
+  } catch (error) {
+    shellChat.reportFailure("That computer didn't reset. Try again.", error);
+  } finally {
+    resetting.value = "";
+  }
+}
 </script>
 
 <template>
@@ -72,8 +88,11 @@ async function handBack({ botId, chatId }) {
         :status="statuses[String(member.botId)] === 'failed' ? null : statuses[String(member.botId)] || null"
         :failed="statuses[String(member.botId)] === 'failed'"
         :handing-back="handingBack === String(member.botId)"
+        :can-reset="canReset"
+        :resetting="resetting === String(member.botId)"
         @open-live="emit('open-live', $event)"
         @hand-back="handBack"
+        @reset="reset"
       />
     </ul>
   </section>

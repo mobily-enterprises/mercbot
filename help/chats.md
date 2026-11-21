@@ -68,6 +68,7 @@ In a chat, each bot has its own computer. Select the chat's name at the top of t
 - **Take over** gives you control. While you have it, the bot doesn't act on that computer, and the screen says "You have control. Chef waits until you hand it back." Select **Hand back** when you're done (or press **Escape**).
 - The chat shows a line when someone takes over ("Anna took over Chef's computer.") and when they hand it back ("Anna handed Chef's computer back.").
 - **When someone else has control,** the computer says so, for example "Anna has control of Chef's computer. Wait until they hand it back.", and **Take over** is greyed out there. You can still watch.
+- **Reset** starts that computer afresh, after asking: its browser closes, and what's signed in on it and its website data are cleared. The chat and its files stay. The chat's maker and the home's owners and admins can reset a chat's computers, and in your chat with one bot, you can.
 
 In your chat with one bot, the bot's card has the same on its **Computer** tab. On **Team**, a bot's card says it has its own computer in each chat it's in, and lists the chats you share with it. See [The bots' computer and connected apps](/help/computer-and-apps).
 
@@ -75,7 +76,7 @@ In your chat with one bot, the bot's card has the same on its **Computer** tab. 
 
 Open **Chat details** to see who's in a chat: **People** and **Bots**, each opening their card.
 
-- Anyone in a chat can add people and bots of the home with the **Add people or bots** button in its header.
+- Anyone in a chat can add people and bots of the home with the **Add people or bots** button in its header. Adding someone to a Private chat asks first, for example "Ben Rossi will see everything said here."
 - The person who started the chat, and the home's owners and admins, can take people and bots out of it, rename it and delete it, and archive it when it's Public.
 - Anyone can **Leave chat**. You can open a Public chat you left again from New chat and join it. A Private chat you leave is gone from your list unless someone adds you back, and a Private chat is deleted when its last person leaves.
 - Your chat with a bot takes no other members. To bring someone in, start a new chat.

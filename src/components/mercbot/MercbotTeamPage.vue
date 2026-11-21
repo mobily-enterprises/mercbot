@@ -126,7 +126,9 @@ onMounted(async () => {
           >
             <span class="mb-team-row__face"><MercbotAvatar :bot="bot" :size="36" still /></span>
             <span class="mb-team-row__text">
-              <span class="mb-team-row__name">{{ bot.name }} <MercbotTemplateTag :bot="bot" :tooltip="false" /></span>
+              <span class="mb-team-row__name">
+                {{ bot.name }} <MercbotTemplateTag :bot="bot" :tooltip="false" /><span v-if="bot.isMain" class="mb-team-row__main">Main bot</span>
+              </span>
               <span class="mb-team-row__line">
                 {{ madeLine(bot) }}<span v-if="bot.template?.description" class="mb-team-row__does"> · {{ bot.template.description }}</span>
               </span>
@@ -333,6 +335,17 @@ onMounted(async () => {
   font-size: 14px;
   font-weight: 500;
   line-height: 20px;
+}
+
+.mb-team-row__main {
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  vertical-align: 1px;
+  background: rgb(var(--v-theme-surface-variant));
+  color: rgb(var(--v-theme-on-surface-variant));
 }
 
 .mb-team-row__you {

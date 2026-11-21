@@ -4,6 +4,7 @@ import { createVuetify } from "vuetify";
 import { createMaterialVuetifyOptions } from "@jskit-ai/material-web/client";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import MercbotArchivedBotBanner from "../../src/components/mercbot/MercbotArchivedBotBanner.vue";
+import MercbotBotMain from "../../src/components/mercbot/MercbotBotMain.vue";
 import MercbotTeamPage from "../../src/components/mercbot/MercbotTeamPage.vue";
 import { archiveBotQuestion, archiveRefusal, archivedBotLine, leftLine } from "../../src/components/mercbot/archiveBot.js";
 import { shellPreferences } from "../../src/components/mercbot/shellPreferences.js";
@@ -59,6 +60,27 @@ describe("Team's Archived", () => {
     const html = await rendered(MercbotTeamPage, { me: "1", homeName: "Casa", people, bots: [bot("1")] });
     expect(html).not.toContain(">Archived<");
     expect(html).not.toContain("Resume");
+  });
+});
+
+describe("the home's main bot", () => {
+  const people = [{ id: "1", name: "Kim Lee", role: "owner", roleLabel: "Owner" }];
+  const buttons = (html) => [...html.matchAll(/<button[^>]*>([\s\S]*?)<\/button>/gu)].map(([, inside]) => inside.replace(/<[^>]*>/gu, " ").replace(/\s+/gu, " ").trim());
+
+  it("is marked Main bot on Team, and no other bot is", async () => {
+    const html = await rendered(MercbotTeamPage, { me: "1", homeName: "Casa", people, bots: [bot("1", { isMain: true }), bot("2")] });
+    expect([...html.matchAll(/class="mb-team-row__main"[^>]*>Main bot</gu)].length).toBe(1);
+    expect(html.indexOf("Main bot<")).toBeGreaterThan(html.indexOf("Bot 1"));
+    expect(html.indexOf("Main bot<")).toBeLessThan(html.indexOf("Bot 2"));
+  });
+
+  it("can be made of another bot by the home's owners and admins only, from that bot's card", async () => {
+    expect(buttons(await rendered(MercbotBotMain, { bot: bot("2"), manages: true }))).toEqual(["Make Bot 2 the main bot"]);
+    expect(await rendered(MercbotBotMain, { bot: bot("2"), manages: false }), "not theirs to choose").not.toContain("main bot");
+    expect(await rendered(MercbotBotMain, { bot: bot("2", { archivedAt: "2026-11-20T10:00:00.000Z" }), manages: true }), "it has left").not.toContain("Make");
+    const main = await rendered(MercbotBotMain, { bot: bot("1", { isMain: true }), manages: true });
+    expect(main).toContain("Bot 1 is this home's main bot.");
+    expect(buttons(main)).toEqual([]);
   });
 });
 

@@ -55,7 +55,11 @@ const section = defineModel("section", { type: String, default: "general" });
 defineProps({
   theme: { type: String, default: "system" },
   displayName: { type: String, default: "" },
-  initials: { type: String, default: "" }
+  initials: { type: String, default: "" },
+  // The person's id, whether they manage the home, and its name (the Vault's).
+  me: { type: String, default: "" },
+  manages: { type: Boolean, default: false },
+  homeName: { type: String, default: "" }
 });
 const emit = defineEmits(["theme", "failure", "notify", "connect"]);
 // The Vault's New item menu sits in the title row; it tells the Vault which dialog to open, or to
@@ -116,7 +120,14 @@ const current = computed(() => sections.value.find((entry) => entry.value === se
           <MercbotSettingsPermissions v-else-if="section === 'permissions'" @failure="emit('failure', $event)" />
           <MercbotSettingsFiles v-else-if="section === 'files'" @failure="emit('failure', $event)" @notify="emit('notify', $event)" @connect="emit('connect', $event)" />
           <MercbotSettingsTemplates v-else-if="section === 'templates'" @failure="emit('failure', $event)" @notify="emit('notify', $event)" />
-          <MercbotSettingsVault v-else-if="section === 'vault'" v-model:create="vaultCreate" @failure="emit('failure', $event)" />
+          <MercbotSettingsVault
+            v-else-if="section === 'vault'"
+            v-model:create="vaultCreate"
+            :me="me"
+            :manages="manages"
+            :home-name="homeName"
+            @failure="emit('failure', $event)"
+          />
           <MercbotSettingsUsage v-else-if="section === 'usage'" @failure="emit('failure', $event)" @notify="emit('notify', $event)" />
           <MercbotSettingsLink v-else-if="section === 'link'" @failure="emit('failure', $event)" @notify="emit('notify', $event)" />
           <MercbotSettingsAbout v-else @notify="emit('notify', $event)" />

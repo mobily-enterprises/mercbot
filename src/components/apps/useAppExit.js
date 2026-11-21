@@ -3,6 +3,7 @@ import { useShellPageClose } from "@jskit-ai/shell-web/client/composables/useShe
 import { usePaths } from "@jskit-ai/shell-web/client/navigation/usePaths";
 import { useShellNavigation, useShellNavigationRuntime } from "@jskit-ai/shell-web/client/navigation/useShellNavigation";
 import { chatsApi } from "@/components/mercbot/chatsApi.js";
+import { chatTitle } from "@/components/mercbot/chatView.js";
 import { exitLabel, exitPlace, openerOf } from "./appExit.js";
 
 /**
@@ -22,7 +23,7 @@ export function useAppExit(slug) {
   watch(() => place.value.chatId, async (chatId) => {
     chatName.value = "";
     if (!chatId) return;
-    const name = await chatsApi.get(chatId).then((answer) => String(answer?.chat?.title || ""), () => "");
+    const name = await chatsApi.get(chatId).then((answer) => (answer?.chat ? chatTitle(answer.chat) : ""), () => "");
     if (place.value.chatId === chatId) chatName.value = name;
   }, { immediate: true });
   const label = computed(() => exitLabel(place.value, chatName.value));

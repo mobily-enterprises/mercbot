@@ -34,6 +34,8 @@ const props = defineProps({
   // The open chat (its row): its people and bots name who wrote what, and every file, page, screenshot and voice
   // address names it.
   chat: { type: Object, required: true },
+  // The home's name: a secure form saves a login to its vault.
+  homeName: { type: String, default: "" },
   messages: { type: Array, required: true },
   status: { type: String, default: "" },
   statusMood: { type: String, default: "working" },
@@ -696,6 +698,7 @@ const fileDate = (iso) => (iso ? fileDay.format(new Date(iso)) : "");
       v-model="secureFormOpen"
       :site="secureForm.body.site"
       :form="secureForm.body.form"
+      :home-name="homeName"
       @submit="answerSecureForm({ action: 'submit', ...$event })"
       @close="answerSecureForm({ action: 'close' })"
     />

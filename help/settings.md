@@ -96,7 +96,7 @@ See [The bots' computer and connected apps](/help/computer-and-apps).
 
 ### Vault
 
-The home's saved logins, cards and contact info, with tabs, search, **New item** and a delete button on each row. Everyone in the home shares it. An item can be deleted by the person who added it and by the home's owners and admins. See [The vault: saved logins and secrets](/help/vault).
+The home's saved logins, cards and contact info, with tabs, search and **New item**. Everyone in the home shares it. An item can be deleted by the person who added it and by the home's owners and admins: its row has a delete button for them. See [The vault: saved logins and secrets](/help/vault).
 
 ## Spending
 

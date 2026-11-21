@@ -1,5 +1,22 @@
-import { describe, expect, it } from "vitest";
+import { effectScope, nextTick, ref } from "vue";
+import { describe, expect, it, vi } from "vitest";
 import { exitLabel, exitPlace, insideApp, openerOf } from "../../src/components/apps/appExit.js";
+import { useAppExit } from "../../src/components/apps/useAppExit.js";
+
+// The shell's navigation, as JSKIT gives it: the trail of places, the home's paths, and the bar's close (a stand-in that
+// keeps the label it's given). The chat a trail names is read through a stand-in of the chat routes.
+const shell = vi.hoisted(() => ({ trail: null, closed: null }));
+vi.mock("@jskit-ai/shell-web/client/navigation/usePaths", () => ({ usePaths: () => ({ page: (path) => `/w/you${path === "/" ? "" : path}` }) }));
+vi.mock("@jskit-ai/shell-web/client/navigation/useShellNavigation", () => ({
+  useShellNavigation: () => ({ finish: () => {} }),
+  useShellNavigationRuntime: () => ({ trail: shell.trail })
+}));
+vi.mock("@jskit-ai/shell-web/client/composables/useShellPageClose", () => ({ useShellPageClose: (close) => { shell.closed = close; } }));
+vi.mock("@/components/mercbot/chatsApi.js", () => ({
+  chatsApi: {
+    get: async () => ({ chat: { id: "7", kind: "public", title: null, directBotId: "3", people: [{ userId: "1", name: "Anna Rossi" }], bots: [{ chatBotId: "30", botId: "3", name: "Vera", color: "#1E86FC", shape: "cloud", archived: false }] } })
+  }
+}));
 
 // Leaving an app (D-106): the place the app was opened from is the nearest step of JSKIT's trail outside the app,
 // however many of the app's places the trail holds after it, and the app's close says where it goes.
@@ -36,5 +53,17 @@ describe("leaving an app", () => {
     expect(named("/w/you/apps/data/contacts", "")).toBe("Back to Mercbot");
     expect(named(null, "")).toBe("Back to Mercbot");
     expect(exitPlace("/w/you/?chat=7", "/w/you/")).toEqual({ place: "chat", chatId: "7" });
+  });
+});
+
+describe("an app's close", () => {
+  it("names the chat it goes back to as the chat list names it, a direct chat by its bot", async () => {
+    shell.trail = ref([{ path: "/w/you?chat=7" }, { path: "/w/you/apps/contacts" }]);
+    const scope = effectScope();
+    scope.run(() => useAppExit(ref("contacts")));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await nextTick();
+    expect(shell.closed.label.value).toBe("Back to Vera");
+    scope.stop();
   });
 });
