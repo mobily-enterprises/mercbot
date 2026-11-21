@@ -1,72 +1,67 @@
-import knexLib from "knex";
-import { expect, test, testDatabaseName, type Page } from "./harness";
+import { HOME, connectTestDb, expect, homeApi, openShell, shell, test, type Page } from "./harness";
 
-// Add bots (D-109, which was New bot) as a person first meets it: the home opened with no bot named in its address, so
-// the chat shows the first bot in the list, and the new bot's "creating" row is the newest one there. It opens on two
-// ways to choose, and One bot's templates are calm: an area menu, no featured cards, no byline, and no "Not tested yet".
-// The fixtures give the owner's home Otto and Vera; each test deletes the bot it makes. Run with:
-// vibe64-helper playwright --target test-app test tests/e2e/new-bot.spec.ts
-const HOME = "/w/you";
+// Add bots (D-109, which was New bot) as a person first meets it (D-112): from the sidebar's New chat or bots menu, it
+// opens on two ways to choose, and One bot's templates are calm: an area menu, no featured cards, no byline, and no
+// "Not tested yet". A bot made there joins the home's team, and the person's direct chat with it opens, where it greets
+// them. The fixtures give the owner's home Otto and Vera; each test deletes the bots it makes, and their chats with them.
+// Run with: vibe64-helper playwright --target test-app test tests/e2e/new-bot.spec.ts
 // Any refused API call from the page, one with no answer, or JSKIT's error dialog, fails the test (harness.ts).
 test.use({ apiGuard: true });
 
-// The home page, past the first-run introduction a new account sees there once.
-async function openHome(page: Page) {
-  await page.goto(HOME);
-  const next = page.getByRole("button", { name: "Next" });
-  const shell = page.locator(".mb-shell");
-  await expect(shell.or(next).first()).toBeVisible();
-  if (await next.isVisible()) {
-    for (let slide = 0; slide < 3; slide += 1) await next.click();
-  }
-  await expect(shell).toBeVisible();
-}
-
-const chat = (page: Page) => page.getByRole("main", { name: "Chat" });
-const bots = (page: Page) => page.getByRole("navigation", { name: "Bots" });
-
 const newBotDialog = (page: Page) => page.getByRole("dialog", { name: "Add bots" });
 const created = (page: Page) => page.waitForResponse((response) => response.request().method() === "POST" && new URL(response.url()).pathname === `/api${HOME}/bots`);
+// The person's direct chat with a bot, as the page opens it after making the bot.
+const directOpened = (page: Page) => page.waitForResponse((response) =>
+  response.request().method() === "POST" && new RegExp(`^/api${HOME}/bots/\\d+/direct$`, "u").test(new URL(response.url()).pathname));
+const teamRead = (page: Page) => page.waitForResponse((response) => response.request().method() === "GET" && new URL(response.url()).pathname === `/api${HOME}/bots`);
+const chatNamed = (chatId: string) => new RegExp(`[?&]chat=${chatId}(&|$)`, "u");
 
-// Add bots, from the sidebar: One bot, a General helper (20 November: it asks what the bot will do first), with `name`
-// typed, up to Create.
+// Add bots, from the sidebar's New chat or bots menu.
+async function openAddBots(page: Page) {
+  await shell.sidebar(page).getByRole("button", { name: "New chat or bots", exact: true }).click();
+  await shell.menuItems(page).filter({ hasText: /^Add bots$/u }).click();
+  await expect(newBotDialog(page)).toBeVisible();
+}
+
+// One bot, a General helper (20 November: it asks what the bot will do first), with `name` typed, up to Create.
 async function startNewBot(page: Page, name: string) {
-  await bots(page).getByRole("button", { name: "Add bots", exact: true }).click();
+  await openAddBots(page);
   await newBotDialog(page).getByRole("button", { name: /^One bot/u }).click();
   await newBotDialog(page).getByRole("button", { name: /^General helper/u }).click();
   await newBotDialog(page).getByRole("textbox", { name: "Bot name" }).fill(name);
 }
 
-// One bot, named `name`, from the sidebar; resolves with the bot the server made.
+// One bot, named `name`, from the sidebar; resolves with the bot the server made and the direct chat that opened.
 async function createBot(page: Page, name: string) {
   await startNewBot(page, name);
   const answer = created(page);
+  const opened = directOpened(page);
   await newBotDialog(page).getByRole("button", { name: "Create" }).click();
   const { bot } = await (await answer).json();
+  const { chat } = await (await opened).json();
   await expect(newBotDialog(page)).toBeHidden();
-  return bot as { id: string };
+  return { bot: bot as { id: string }, chat: chat as { id: string } };
 }
 
-// The page is left first: still open on the bot, it would go on reading it (and the API guard would
-// see those reads refused once it's gone).
+// The page is left first: still open on the bot's chat, it would go on reading it (and the API guard would
+// see those reads refused once it's gone). The bot's direct chats go with it.
 async function deleteBot(page: Page, botId: string) {
   if (page.url() !== "about:blank") await page.goto("about:blank");
-  const { csrfToken } = await (await page.request.get("/api/session")).json();
-  expect((await page.request.delete(`/api${HOME}/bots/${botId}`, { headers: { "csrf-token": csrfToken } })).ok()).toBe(true);
+  await (await homeApi(page)).del(`/bots/${botId}`);
 }
 
 // A new bot's first question is multi-select one time in two (packages/bots/src/server/onboarding.js).
 // This makes it multi-select, both as the page receives it and as it is saved, so the test always
 // meets that card. Resolves with the cleanup.
 async function serveMultiSelect(page: Page) {
-  const knex = knexLib({ client: "pg", connection: { host: process.env.DB_HOST, port: Number(process.env.DB_PORT) || 5432, user: process.env.DB_USER, password: process.env.DB_PASSWORD, database: testDatabaseName() } });
-  await page.route(`**/api${HOME}/bots/*/onboarding/advance`, async (route) => {
+  const knex = connectTestDb();
+  await page.route(`**/api${HOME}/chats/*/onboarding/advance`, async (route) => {
     const response = await route.fetch();
     const json = await response.json();
     for (const message of json.messages || []) {
       if (message.kind !== "choice" || message.body.multi) continue;
       message.body = { ...message.body, multi: true, subline: "Pick as many as you like" };
-      await knex("bot_messages").where({ id: message.id }).update({ body: JSON.stringify(message.body) });
+      await knex("messages").where({ id: message.id }).update({ body: JSON.stringify(message.body) });
     }
     await route.fulfill({ response, json });
   });
@@ -77,8 +72,8 @@ async function serveMultiSelect(page: Page) {
 // an area menu, General helper first, no featured cards, no "by the Mercbot team" and no "Not tested yet" (every
 // template is the team's, and the check results are empty); Back returns to the two ways.
 test("Add bots opens on two ways to choose, and One bot's templates are calm", async ({ page }) => {
-  await openHome(page);
-  await bots(page).getByRole("button", { name: "Add bots", exact: true }).click();
+  await openShell(page);
+  await openAddBots(page);
   const dialog = newBotDialog(page);
   await expect(dialog.getByRole("heading", { name: "Add bots" })).toBeVisible();
   await expect(dialog.getByRole("button", { name: /^One bot/u })).toBeVisible();
@@ -105,38 +100,40 @@ test("Add bots opens on two ways to choose, and One bot's templates are calm", a
   await expect(dialog).toBeHidden();
 });
 
-// 11-11 production: the chat opened the creating row, read its messages (404), and Vue's error dialog
-// ("Attention required: Bot not found.") then took every click on the page until it was closed. The
-// API guard fails the test on either; the creating row's calls are also listed, whatever their answer.
-test("a new bot opens in its own chat once it exists, and its creating row asks the server nothing", async ({ page }) => {
-  const creatingCalls: string[] = [];
+// 11-11 production: the chat opened a bot still being made, read its messages (404), and Vue's error dialog
+// ("Attention required: Bot not found.") then took every click on the page until it was closed. The API guard fails
+// the test on either; any call naming a bot or chat that doesn't exist yet is also listed, whatever its answer.
+test("a new bot's direct chat opens once the bot exists, and it greets the person there", async ({ page }) => {
+  const earlyCalls: string[] = [];
   page.on("request", (request) => {
-    if (request.url().includes("/bots/creating-")) creatingCalls.push(`${request.method()} ${new URL(request.url()).pathname}`);
+    const { pathname } = new URL(request.url());
+    if (/\/creating-|\/(bots|chats)\/(undefined|null)(\/|$)/u.test(pathname)) earlyCalls.push(`${request.method()} ${pathname}`);
   });
-  await openHome(page);
+  await openShell(page);
   const name = `Pip ${Date.now().toString(36)}`;
-  const bot = await createBot(page, name);
+  const { bot, chat } = await createBot(page, name);
   try {
-    await expect(page, "the new bot is named in the address").toHaveURL(new RegExp(`[?&]bot=${bot.id}(&|$)`, "u"));
-    await expect(bots(page).getByRole("button", { name, exact: true })).toHaveAttribute("aria-current", "page");
-    await expect(chat(page).getByRole("button", { name: `${name} details` })).toBeVisible();
+    await expect(page, "its chat is named in the address").toHaveURL(chatNamed(String(chat.id)));
+    await expect(shell.chatRow(page, name)).toHaveAttribute("aria-current", "page");
+    await expect(shell.chat(page).getByRole("button", { name: `${name} details` })).toBeVisible();
     // Its greeting, onboarding's first step, comes into its chat.
-    await expect(chat(page).getByText(`I'm ${name}.`)).toBeVisible();
-    expect(creatingCalls).toEqual([]);
+    await expect(shell.chat(page).getByText(`I'm ${name}.`)).toBeVisible();
+    expect(earlyCalls).toEqual([]);
   } finally {
     await deleteBot(page, bot.id);
   }
 });
 
-// On a phone, the sidebar is a drawer: Add bots is reached through "Your bots".
+// On a phone, the sidebar is a drawer: Add bots is reached through "Your chats", and the new bot's chat shows once
+// it's made.
 test("on a phone, a new bot's multi-select question takes picks, and Done answers with them", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   const cleanup = await serveMultiSelect(page);
-  await openHome(page);
-  await page.getByRole("button", { name: "Your bots" }).click();
-  const bot = await createBot(page, `Picky ${Date.now().toString(36)}`);
+  await openShell(page);
+  await page.getByRole("button", { name: "Your chats" }).click();
+  const { bot, chat } = await createBot(page, `Picky ${Date.now().toString(36)}`);
   try {
-    const card = chat(page).locator(".mb-choice").filter({ hasText: "Pick as many as you like" });
+    const card = shell.chat(page).locator(".mb-choice").filter({ hasText: "Pick as many as you like" });
     const options = card.locator(".mb-choice__option:not(.mb-choice__option--open)");
     const done = card.getByRole("button", { name: "Done" });
     await expect(options).toHaveCount(3);
@@ -149,8 +146,8 @@ test("on a phone, a new bot's multi-select question takes picks, and Done answer
     await expect(options.nth(0), "a second click takes the pick back").toHaveAttribute("aria-pressed", "false");
     await expect(done).toBeEnabled();
     const picked = await options.nth(2).locator("span").last().innerText();
-    const answer = page.waitForRequest((request) => request.method() === "POST" && /\/bots\/\d+\/choices\/\d+$/u.test(new URL(request.url()).pathname));
-    const reply = page.waitForResponse((response) => response.request().method() === "POST" && new URL(response.url()).pathname.endsWith(`/bots/${bot.id}/reply`));
+    const answer = page.waitForRequest((request) => request.method() === "POST" && /\/chats\/\d+\/choices\/\d+$/u.test(new URL(request.url()).pathname));
+    const reply = page.waitForResponse((response) => response.request().method() === "POST" && new URL(response.url()).pathname.endsWith(`/chats/${chat.id}/reply`));
     await done.click();
     expect((await answer).postDataJSON()).toEqual({ selected: [picked] });
     await expect(card).toHaveClass(/mb-choice--answered/u);
@@ -164,16 +161,12 @@ test("on a phone, a new bot's multi-select question takes picks, and Done answer
   }
 });
 
-// Another bot of the home, made through the API, which tells no page about it. Changing its sharing is
-// news about a bot the page doesn't know, so the page reads the whole list again (useBotEvents).
-async function unseenBot(page: Page) {
-  const { csrfToken } = await (await page.request.get("/api/session")).json();
-  const headers = { "csrf-token": csrfToken };
+// Another bot of the home, made through the API, which this page doesn't make: the home hears of it ("bot",
+// created), so the page reads its team again (useChatEvents).
+async function anotherBot(page: Page) {
   const name = `Elsewhere ${Date.now().toString(36)}`;
-  const { bot } = await (await page.request.post(`/api${HOME}/bots`, { headers, data: { name, color: "#1E86FC" } })).json();
-  const changeSharing = async () =>
-    expect((await page.request.patch(`/api${HOME}/bots/${bot.id}`, { headers, data: { sharing: "private" } })).ok()).toBe(true);
-  return { id: bot.id as string, name, changeSharing };
+  const { bot } = await (await homeApi(page)).post("/bots", { name, color: "#1E86FC" });
+  return { id: String(bot.id), name };
 }
 
 // A gate a held request waits at until the test opens it.
@@ -185,13 +178,11 @@ function gate() {
   return { opened, open };
 }
 
-// News can read the whole list again while a bot is being made (useBotEvents): here another bot of the
-// home, one this page hasn't seen, changes its sharing. The list as read leaves the placeholder out;
-// the new bot still joins the list, once, and opens.
-test("a new bot joins the list and opens when news reads the list again while it's being made", async ({ page }) => {
-  await openHome(page);
-  const other = await unseenBot(page);
-  // The page's own create waits until the list has been read again.
+// News can read the team again while a bot is being made: here another bot of the home, one this page hasn't seen,
+// is made meanwhile. The new bot still joins the team, its chat is listed once and opens, and its details are its card.
+test("a new bot joins the team and its chat opens when news reads the team again while it's being made", async ({ page }) => {
+  await openShell(page);
+  // The page's own create waits until the team has been read again.
   const create = gate();
   await page.route(`**/api${HOME}/bots`, async (route) => {
     if (route.request().method() !== "POST") return route.fallback();
@@ -200,73 +191,79 @@ test("a new bot joins the list and opens when news reads the list again while it
   });
   const name = `Pip ${Date.now().toString(36)}`;
   let made: { id: string } | null = null;
+  let other: { id: string } | null = null;
   try {
     await startNewBot(page, name);
     await newBotDialog(page).getByRole("button", { name: "Create" }).click();
-    await expect(bots(page).getByRole("button", { name, exact: true }), "the placeholder row").toBeVisible();
-    const reread = page.waitForResponse((response) => response.request().method() === "GET" && new URL(response.url()).pathname === `/api${HOME}/bots`);
-    await other.changeSharing();
+    const reread = teamRead(page);
+    other = await anotherBot(page);
     await reread;
-    await expect(bots(page).getByRole("button", { name: other.name, exact: true })).toBeVisible();
-    await expect(bots(page).getByRole("button", { name, exact: true }), "the list as read has no placeholder").toHaveCount(0);
     const answer = created(page);
+    const opened = directOpened(page);
     create.open();
     made = (await (await answer).json()).bot;
+    const { chat } = await (await opened).json();
     await expect(newBotDialog(page)).toBeHidden();
-    await expect(bots(page).getByRole("button", { name, exact: true })).toHaveAttribute("aria-current", "page");
-    await expect(page).toHaveURL(new RegExp(`[?&]bot=${made?.id}(&|$)`, "u"));
+    await expect(shell.chatRow(page, name)).toHaveCount(1);
+    await expect(shell.chatRow(page, name)).toHaveAttribute("aria-current", "page");
+    await expect(page).toHaveURL(chatNamed(String(chat.id)));
+    await shell.chat(page).getByRole("button", { name: `${name} details` }).click();
+    await expect(shell.details(page, `${name}'s card`), "the team as read has the new bot").toBeVisible();
   } finally {
     create.open();
     if (made) await deleteBot(page, made.id);
-    await deleteBot(page, other.id);
+    if (other) await deleteBot(page, other.id);
   }
 });
 
-// The other order: a list read that began before the new bot existed answers only after the bot has
-// joined the list. That list doesn't have it, and the bot stays in the list and open (useBotMessages'
-// mergeBots); before, it left the list while the address still named it.
-test("a new bot stays listed and open when a list read begun before it existed answers after it", async ({ page }) => {
-  await openHome(page);
-  const other = await unseenBot(page);
-  // The page's create waits until the list has been read; that read's answer waits until the bot has joined.
+// The other order: a team read that began before the new bot existed answers only after the bot has joined the team.
+// That read doesn't have it, and the bot stays on the team, its chat listed and open; before, it left the list while
+// the address still named it.
+test("a new bot stays on the team, its chat open, when a team read begun before it existed answers after it", async ({ page }) => {
+  await openShell(page);
+  // The page's create waits until the team has been read; that read's answer waits until the bot has joined.
   const create = gate();
-  const listRead = gate();
-  const listAnswer = gate();
-  let readHeld = false;
+  const teamReadStarted = gate();
+  const teamAnswer = gate();
+  const held: { read: import("@playwright/test").Request | null } = { read: null };
   await page.route((url) => url.pathname === `/api${HOME}/bots`, async (route) => {
     if (route.request().method() === "POST") {
       await create.opened;
       return route.continue();
     }
-    if (readHeld) return route.fallback();
-    readHeld = true;
+    if (held.read) return route.fallback();
+    held.read = route.request();
     const response = await route.fetch();
-    listRead.open();
-    await listAnswer.opened;
+    teamReadStarted.open();
+    await teamAnswer.opened;
     return route.fulfill({ response });
   });
   const name = `Pip ${Date.now().toString(36)}`;
   let made: { id: string } | null = null;
+  let other: { id: string } | null = null;
   try {
     await startNewBot(page, name);
     await newBotDialog(page).getByRole("button", { name: "Create" }).click();
-    await expect(bots(page).getByRole("button", { name, exact: true }), "the placeholder row").toBeVisible();
-    await other.changeSharing();
-    await listRead.opened;
+    other = await anotherBot(page);
+    await teamReadStarted.opened;
     const answer = created(page);
+    const opened = directOpened(page);
     create.open();
     made = (await (await answer).json()).bot;
+    const { chat } = await (await opened).json();
     await expect(newBotDialog(page)).toBeHidden();
-    await expect(bots(page).getByRole("button", { name, exact: true })).toHaveAttribute("aria-current", "page");
-    listAnswer.open();
-    await expect(bots(page).getByRole("button", { name: other.name, exact: true }), "the list as read, answered at last").toBeVisible();
-    await expect(bots(page).getByRole("button", { name, exact: true }), "the new bot stays listed and open").toHaveAttribute("aria-current", "page");
-    await expect(chat(page).getByRole("button", { name: `${name} details` })).toBeVisible();
-    await expect(page).toHaveURL(new RegExp(`[?&]bot=${made?.id}(&|$)`, "u"));
+    await expect(shell.chatRow(page, name)).toHaveAttribute("aria-current", "page");
+    teamAnswer.open();
+    // The held read's answer, as the page receives it.
+    await (await held.read?.response())?.finished();
+    await expect(shell.chatRow(page, name), "the new bot's chat stays listed and open").toHaveAttribute("aria-current", "page");
+    await expect(page).toHaveURL(chatNamed(String(chat.id)));
+    await shell.chat(page).getByRole("button", { name: `${name} details` }).click();
+    await expect(shell.details(page, `${name}'s card`), "the new bot stays on the team").toBeVisible();
   } finally {
     create.open();
-    listAnswer.open();
+    teamAnswer.open();
     if (made) await deleteBot(page, made.id);
-    await deleteBot(page, other.id);
+    if (other) await deleteBot(page, other.id);
   }
 });

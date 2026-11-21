@@ -1,37 +1,25 @@
-import knexLib from "knex";
-import { expect, expectRefusal, test, testDatabaseName, type Page } from "./harness";
+import { HOME, connectTestDb, directChat, expect, expectRefusal, homeApi, openShell, seedMessage, shell, test } from "./harness";
 
 // Sedna connected with the home's API credentials (D-93), on the Test Preview target, whose Sedna is a local stand-in
 // (tests/support/fakeSedna.mjs, the `acme` organisation): the owner enters the credentials in Connect apps, a wrong
 // secret is refused in the form, the right ones connect it, and the owner, whom no Sedna user knows by this copy's
 // address, picks their own Sedna user. Bots reading Sedna, and members' picks waiting for an owner or admin, are proven
-// in the server tests (sednaTools.test.js, sednaCredentials.integration.js). A Sedna draft card's Send, which a test copy
-// only logs (D-94), is the second test; Sedna's other writes are in sednaWrites.test.js and sednaWrites.integration.js.
-const HOME = "/w/you";
+// in the server tests (sednaTools.test.js, sednaCredentials.integration.js). A Sedna draft card's Send in a bot's direct
+// chat (D-112), which a test copy only logs (D-94), is the second test; Sedna's other writes are in sednaWrites.test.js
+// and sednaWrites.integration.js. Run with: vibe64-helper playwright --target test-app test tests/e2e/sedna.spec.ts
 test.describe.configure({ mode: "serial" });
 // Any refused API call from the page, or JSKIT's error dialog, fails the test (harness.ts).
 test.use({ apiGuard: true });
 
-async function openHome(page: Page) {
-  await page.goto(HOME);
-  const next = page.getByRole("button", { name: "Next" });
-  const shell = page.locator(".mb-shell");
-  await expect(shell.or(next).first()).toBeVisible();
-  if (await next.isVisible()) {
-    for (let slide = 0; slide < 3; slide += 1) await next.click();
-  }
-  await expect(shell).toBeVisible();
-}
-
 test("the owner enters Sedna's API credentials in Connect apps, then picks who they are in Sedna", async ({ page }) => {
-  const knex = knexLib({ client: "pg", connection: { host: process.env.DB_HOST, port: Number(process.env.DB_PORT) || 5432, user: process.env.DB_USER, password: process.env.DB_PASSWORD, database: testDatabaseName() } });
+  const knex = connectTestDb();
   const clear = async () => {
     await knex("plugin_accounts").where({ plugin_id: "sedna" }).del();
     await knex("home_plugins").where({ plugin_id: "sedna" }).del();
   };
   try {
     await clear();
-    await openHome(page);
+    await openShell(page);
     await page.keyboard.press("Control+Shift+m");
     const modal = page.locator(".mb-apps-modal");
     await modal.getByRole("textbox", { name: "Search apps and skills" }).fill("Sedna");
@@ -105,52 +93,52 @@ test("the owner enters Sedna's API credentials in Connect apps, then picks who t
 });
 
 test("a Sedna draft card says its team and that a reply may land outside the thread; Send in a test copy only logs it", async ({ page }) => {
-  const knex = knexLib({ client: "pg", connection: { host: process.env.DB_HOST, port: Number(process.env.DB_PORT) || 5432, user: process.env.DB_USER, password: process.env.DB_PASSWORD, database: testDatabaseName() } });
+  const knex = connectTestDb();
   const clear = async () => {
     await knex("plugin_accounts").where({ plugin_id: "sedna" }).del();
     await knex("home_plugins").where({ plugin_id: "sedna" }).del();
   };
+  const api = await homeApi(page);
   let botId = "";
-  let headers = {};
   try {
     await clear();
-    await openHome(page);
     // Sedna connected and the owner picked as Sam Poe, as the first test does on screen.
-    headers = { "csrf-token": (await (await page.request.get("/api/session")).json()).csrfToken };
-    expect((await page.request.post(`/api${HOME}/plugins/sedna/install`, { headers, data: {} })).ok()).toBe(true);
+    await api.post("/plugins/sedna/install", {});
     const accountId = String((await knex("plugin_accounts").where({ plugin_id: "sedna" }).first()).id);
-    const connected = await page.request.post(`/api${HOME}/plugin-accounts/${accountId}/credentials`, { headers, data: { tenant: "acme", clientId: "acme-client", clientSecret: "acme-secret" } });
-    expect(connected.ok()).toBe(true);
-    expect((await page.request.put(`/api${HOME}/plugin-accounts/${accountId}/people/me`, { headers, data: { appUserId: "203" } })).ok()).toBe(true);
+    await api.post(`/plugin-accounts/${accountId}/credentials`, { tenant: "acme", clientId: "acme-client", clientSecret: "acme-secret" });
+    await api.put(`/plugin-accounts/${accountId}/people/me`, { appUserId: "203" });
 
+    // The draft a bot leaves in the person's direct chat with it, past its greeting.
     const name = `Sedna card ${Date.now().toString(36)}`;
-    const { bot } = await (await page.request.post(`/api${HOME}/bots`, { headers, data: { name, color: "#1E86FC" } })).json();
+    const { bot } = await api.post("/bots", { name, color: "#1E86FC" });
     botId = String(bot.id);
-    const conversation = await knex("bot_conversations").where({ bot_id: bot.id }).whereNotNull("user_id").first();
-    await knex("bot_conversations").where({ id: conversation.id }).update({ onboarding_step: null });
-    await knex("bot_messages").insert({
-      bot_id: bot.id, conversation_id: conversation.id, workspace_id: conversation.workspace_id, kind: "draft", role: "bot",
+    const chat = await directChat(page, botId);
+    await knex("conversations").where({ id: chat.id }).update({ onboarding_step: null });
+    const { workspace_id: homeId } = await knex("conversations").where({ id: chat.id }).first();
+    await seedMessage(knex, {
+      homeId, chatId: chat.id, kind: "draft", botId,
       body: {
         from: "Sam Poe · Chartering (Sedna)", to: "Kim Broker <kim@brokers.example>", subject: "Re: Fixture recap VOY-101", text: "Kim, laycan works.", status: "pending",
         inReplyTo: { from: "Kim Broker", subject: "Fixture recap VOY-101" }, sedna: { team: { id: "11", name: "Chartering" }, replyTo: "1001" }
       }
     });
 
-    await openHome(page);
-    await page.getByRole("navigation", { name: "Bots" }).getByRole("button", { name, exact: true }).click();
-    const card = page.getByRole("region", { name: "Draft to Kim Broker <kim@brokers.example>" });
+    await openShell(page);
+    await shell.chatRow(page, name).click();
+    const card = shell.chat(page).getByRole("region", { name: "Draft to Kim Broker <kim@brokers.example>" });
     await expect(card.locator(".mb-draft__head")).toHaveText("Sedna");
     await expect(card).toContainText("Sam Poe · Chartering (Sedna)");
     await expect(card).toContainText("Goes out as a new message with theirs quoted below: Sedna may show it outside that conversation's thread.");
     await card.getByRole("textbox", { name: "Message" }).fill("Kim, laycan 3-5 Dec works for owners.");
     await card.getByRole("button", { name: "Send" }).click();
     await expect(card.locator(".mb-draft__fold")).toContainText("Logged, not sent (test copy) · Kim Broker <kim@brokers.example>");
-    await expect(page.getByRole("main", { name: "Chat" })).toContainText("Sent from Sedna: Re: Fixture recap VOY-101");
-    const saved = await knex("bot_messages").where({ conversation_id: conversation.id, kind: "draft" }).first();
+    await expect(shell.chat(page)).toContainText("Sent from Sedna: Re: Fixture recap VOY-101");
+    const saved = await knex("messages").where({ conversation_id: chat.id, kind: "draft" }).first();
     expect([saved.body.status, saved.body.simulated, saved.body.text]).toEqual(["sent", true, "Kim, laycan 3-5 Dec works for owners."]);
   } finally {
+    // Left first, so the page doesn't go on reading the bot once it's gone (the API guard would see that).
     await page.goto("about:blank");
-    if (botId) await page.request.delete(`/api${HOME}/bots/${botId}`, { headers });
+    if (botId) await api.answer("DELETE", `/bots/${botId}`);
     await clear();
     await knex.destroy();
   }

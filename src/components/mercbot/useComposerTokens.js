@@ -1,23 +1,30 @@
 import { computed, nextTick, ref, watch } from "vue";
 import { botsApi } from "./botsApi.js";
+import { botFace } from "./chatView.js";
 import { pluginsApi } from "./pluginsApi.js";
 
 /**
- * Mentions: in a group, @ opens a menu of everyone, the member bots and the person's
- * apps. A chosen one stays in the text as "@Name" and acts as one unit: Backspace or Delete takes
- * the whole token, and the caret can't stop inside it. A layer behind the text draws tokens in the
- * bot's colour with its avatar over the "@". Sending turns them into markers. `draft` is the
- * composer's text, `group` whether the chat is a group, `groupBots` the bots @ offers there, and
- * `botId` the open bot, whose change clears the tokens.
+ * The bots a chat's @ offers: its bots, as the avatars draw them, but never an archived one (D-108).
+ * @param {import("../../types.js").Chat | null} chat
+ */
+export const mentionBotsOf = (chat) => (chat?.bots || []).filter((bot) => !bot.archived).map(botFace);
+
+/**
+ * Mentions: in a chat of several (more than one bot or more than one person), @ opens a menu of everyone, the chat's
+ * bots and the person's apps. A chosen one stays in the text as "@Name" and acts as one unit: Backspace or Delete
+ * takes the whole token, and the caret can't stop inside it. A layer behind the text draws tokens in the bot's colour
+ * with its avatar over the "@". Sending turns them into markers. `draft` is the composer's text, `several` whether the
+ * chat has several (messageAuthors.js hasSeveral), `mentionBots` the bots @ offers (mentionBotsOf), and `chatId` the
+ * open chat, whose change clears the tokens.
  * @param {object} options
  * @param {import("vue").Ref<HTMLTextAreaElement | null>} options.input The composer's field.
  */
-export function useComposerTokens({ draft, input, group, groupBots, botId }) {
+export function useComposerTokens({ draft, input, several, mentionBots, chatId }) {
   const tokens = ref([]);
   const apps = ref(null);
   const mention = ref(null);
 
-  watch(botId, () => {
+  watch(chatId, () => {
     tokens.value = [];
     mention.value = null;
   });
@@ -26,10 +33,9 @@ export function useComposerTokens({ draft, input, group, groupBots, botId }) {
     tokens.value = tokens.value.filter((token) => text.includes(tokenText(token)));
   });
 
-  // Skills: "/" at the start of a bot's composer opens a picker of up to five of
-  // its skills (short queries match anywhere, longer ones the start of the name). The chosen one
-  // becomes a token in the bot's colour, sent as <@skill:ID>. The person's own skills are also
-  // offered under @ in a group.
+  // Skills: "/" at the start of the composer of a chat with exactly one bot opens a picker of up to five skills (short
+  // queries match anywhere, longer ones the start of the name), for that bot. The chosen one becomes a token in the
+  // bot's colour, sent as <@skill:ID>.
   const skillList = ref(null);
   const slash = ref(null);
   async function loadSkills() {
@@ -54,7 +60,7 @@ export function useComposerTokens({ draft, input, group, groupBots, botId }) {
     const field = input.value;
     const before = field ? draft.value.slice(0, field.selectionStart) : "";
     const found = /^\/([^\n/]{0,40})$/u.exec(before);
-    if (group.value || !found || tokens.value.some((token) => token.kind === "skill")) {
+    if (mentionBots.value.length !== 1 || !found || tokens.value.some((token) => token.kind === "skill")) {
       slash.value = null;
       return;
     }
@@ -79,7 +85,7 @@ export function useComposerTokens({ draft, input, group, groupBots, botId }) {
     const query = mention.value.query.toLowerCase();
     const rows = [
       { key: "everyone", kind: "everyone", label: "everyone", type: "everyone" },
-      ...groupBots.value.map((bot) => ({ key: `bot-${bot.id}`, kind: "bot", id: bot.id, label: bot.name, bot, type: "bot" })),
+      ...mentionBots.value.map((bot) => ({ key: `bot-${bot.id}`, kind: "bot", id: bot.id, label: bot.name, bot, type: "bot" })),
       ...(apps.value || []).map((app) => ({
         key: `app-${app.id}`,
         kind: "app",
@@ -87,10 +93,7 @@ export function useComposerTokens({ draft, input, group, groupBots, botId }) {
         label: app.name,
         status: app.status,
         type: "app"
-      })),
-      ...(skillList.value || [])
-        .filter((skill) => skill.own)
-        .map((skill) => ({ key: `skill-${skill.id}`, kind: "skill", id: skill.id, label: skill.name, type: "skill", prefix: "/" }))
+      }))
     ];
     return rows.filter((row) => row.label.toLowerCase().startsWith(query));
   });
@@ -113,7 +116,7 @@ export function useComposerTokens({ draft, input, group, groupBots, botId }) {
   function updateMention() {
     updateSlash();
     const field = input.value;
-    if (!group.value || !field) {
+    if (!several.value || !field) {
       mention.value = null;
       return;
     }
@@ -130,7 +133,6 @@ export function useComposerTokens({ draft, input, group, groupBots, botId }) {
       active: mention.value?.query === query ? mention.value.active : 0
     };
     loadApps();
-    loadSkills();
   }
 
   function insertMention(row) {

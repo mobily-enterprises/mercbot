@@ -1,7 +1,6 @@
 import { computed, ref, watch } from "vue";
 import { botsApi } from "./botsApi.js";
-import { fileKind, formatSize, isHtmlPage } from "./filesApi.js";
-import { ownTabOpen } from "./openTabs.js";
+import { fileKind, formatSize } from "./filesApi.js";
 
 /** "Today", "Yesterday", or the day as "Mon 3 Nov". */
 function dayLabel(iso) {
@@ -27,24 +26,18 @@ export function itemType(item) {
 }
 
 /**
- * Who can open a page, as its hover card and Share… say: a web page is the home's (D-74).
- * For an older Markdown page, where its file is kept decides (D-36): the person's own folder is theirs alone,
- * "You only" in a Shared bot among them (D-99); the bot's folder is everyone's who uses the bot; the home's
- * shared folder, and in a Shared bot's shared tab every folder, the home's.
- * @param {{ name: string, sharing?: string, roomId?: string | null, rooms?: Array<{ id: string, own?: boolean }> | null }} bot
- * @param {string} path the page's file, as /files/mine/…, /files/bot/… or /files/shared/…
- * @param {string} homeName
+ * Who can open a page, as its hover card and Share… say (D12, D13): one kept in a chat's folder is for everyone who can
+ * open that chat; one in the bot's own folder or the home's is for everyone in the home.
+ * @param {string} path the page's file, as /files/chat/…, /files/bot/… or /files/shared/…
+ * @param {{ chatName?: string, homeName?: string }} where the name of the chat it was made in, and the home's
  */
-export function pageAccess(bot, path, homeName) {
+export function pageAccess(path, { chatName = "", homeName = "" } = {}) {
+  if (String(path).startsWith("/files/chat/")) {
+    const readers = chatName ? `Everyone who can open “${chatName}”` : "Everyone who can open its chat";
+    return { icon: "$sms", title: readers, text: `${readers} can open it.`, onlyYou: false };
+  }
   const home = `Everyone in ${homeName || "the home"}`;
-  const sharedTab = bot.sharing === "shared" && !ownTabOpen(bot);
-  if (isHtmlPage(path) || sharedTab || path.startsWith("/files/shared/")) {
-    return { icon: "$group", title: home, text: `${home} can open it.`, onlyYou: false };
-  }
-  if (path.startsWith("/files/bot/")) {
-    return { icon: "$group", title: `Everyone using ${bot.name}`, text: `Everyone who uses ${bot.name} can open it.`, onlyYou: false };
-  }
-  return { icon: "$lock", title: "Only you", text: "Only you can open this page.", onlyYou: true };
+  return { icon: "$group", title: home, text: `${home} can open it.`, onlyYou: false };
 }
 
 /** How long ago a Library entry was made, as its row shows it: "now", "5m", "3h", "4d", "2w", "1y". */
@@ -87,18 +80,19 @@ export function itemMeta(item) {
 }
 
 /**
- * Library tab: what the bot made, pinned first, then by day with five per day
- * until "Show more". Each row opens its viewer; "…" pins or unpins it, and for a page opens, shares
- * or deletes it. It's read while the tab is open, again as the bot's activity changes.
+ * A bot card's Library: what the bot made in the chats the person can open (R11), pinned first, then by day with five
+ * per day until "Show more". Each row opens its viewer; "…" pins or unpins it, and for a page opens, shares or deletes
+ * it. It's read while the tab is open, and again as the open chat's activity changes.
  * @param {{
  *   bot: () => import("../../types.js").Bot,
- *   isGroup: import("vue").ComputedRef<boolean>,
  *   tab: import("vue").ComputedRef<string>,
+ *   activity: () => string | null,
  *   onFailure: (error: unknown) => void,
- *   onMessages: (changed: { botId: string, messages: object[] }) => void
- * }} options `onMessages` gets the chat's cards a change rewrote (a deleted page's), with their bot.
+ *   onMessages: (changed: { chatId: string | null, messages: object[] }) => void
+ * }} options `activity` is the open chat's last activity, or nothing on Team; `onMessages` gets the cards a change
+ *   rewrote (a deleted page's), with the chat they're in.
  */
-export function useBotLibrary({ bot, isGroup, tab, onFailure, onMessages }) {
+export function useBotLibrary({ bot, tab, activity, onFailure, onMessages }) {
   const libraryItems = ref([]);
   const libraryLoaded = ref(false);
   const expandedDays = ref(new Set());
@@ -109,14 +103,15 @@ export function useBotLibrary({ bot, isGroup, tab, onFailure, onMessages }) {
   const itemMenu = ref({ open: false, target: [0, 0], path: "", items: [] });
 
   async function loadLibrary() {
-    if (isGroup.value) return;
+    const botId = bot().id;
     try {
-      libraryItems.value = (await botsApi.library(bot().id)).items;
+      const { items } = await botsApi.library(botId);
+      if (bot().id === botId) libraryItems.value = items;
     } catch (error) {
-      libraryItems.value = [];
+      if (bot().id === botId) libraryItems.value = [];
       onFailure(error);
     }
-    libraryLoaded.value = true;
+    if (bot().id === botId) libraryLoaded.value = true;
   }
 
   const libraryGroups = computed(() => {
@@ -151,7 +146,7 @@ export function useBotLibrary({ bot, isGroup, tab, onFailure, onMessages }) {
     try {
       const answer = await botsApi.deletePage(botId, item);
       if (bot().id === botId) libraryItems.value = answer.items;
-      onMessages({ botId, messages: answer.messages });
+      onMessages({ chatId: item.chatId ?? null, messages: answer.messages });
     } catch (error) {
       onFailure(error);
     }
@@ -174,9 +169,6 @@ export function useBotLibrary({ bot, isGroup, tab, onFailure, onMessages }) {
     };
   }
 
-  watch([() => bot().id, tab, () => bot().lastActivityAt], () => {
-    if (tab.value === "library") loadLibrary();
-  }, { immediate: true });
   watch(() => bot().id, () => {
     libraryLoaded.value = false;
     libraryItems.value = [];
@@ -184,6 +176,9 @@ export function useBotLibrary({ bot, isGroup, tab, onFailure, onMessages }) {
     sharingItem.value = null;
     pendingDelete.value = null;
   });
+  watch([() => bot().id, tab, activity], () => {
+    if (tab.value === "library") loadLibrary();
+  }, { immediate: true });
 
   return { libraryItems, libraryLoaded, expandedDays, openItem, libraryGroups, sharingItem, pendingDelete, itemMenu, openItemMenu, deletePage };
 }

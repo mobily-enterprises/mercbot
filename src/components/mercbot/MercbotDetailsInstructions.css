@@ -109,7 +109,7 @@
   margin-bottom: 22px;
 }
 
-/* Its label sits as far below the section before it as every boxed section's label does (.mb-sharing's 22px), which
+/* Its label sits as far below the section before it as every boxed section's label does (.mb-card__box's 22px), which
    the Apps section's own smaller margin collapses into. */
 .mb-instructions__label:not(:first-child) {
   margin-top: 22px;
@@ -138,8 +138,8 @@
   outline-offset: 2px;
 }
 
-/* The hint a bot with none shows, spaced as the sharing options' descriptions are. */
-.mb-instructions__shown .mb-sharing__description {
+/* The hint a bot with none shows, spaced as the card's other descriptions are. */
+.mb-instructions__shown .mb-card__description {
   display: block;
 }
 

@@ -10,10 +10,8 @@ Mercbot's own look), and each app's own CSS on top, with complete freedom (owner
 - `src/components/apps/AppTheme.vue`
 - `src/components/apps/AppsLook.vue`
 - `src/components/apps/AppDetailsPanel.vue`
-- `tests/server/appsTheme.test.js`
 - `packages/apps/src/server/appStyle.js`
 - `src/components/apps/useAppStyle.js`
-- `tests/server/appStyle.test.js`
 
 ## Public contract
 
@@ -32,3 +30,7 @@ Mercbot's own look), and each app's own CSS on top, with complete freedom (owner
   whole page; it carries `data-screen`. Parts are `.app-node--<type>`, plus `.x-<name>` for each
   name in a part's `class`; dialogs open inside the area.
 
+## Proved by
+
+- `tests/server/appsTheme.test.js`
+- `tests/server/appStyle.test.js`

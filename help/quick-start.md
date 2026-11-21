@@ -21,9 +21,13 @@ The first time you open Mercbot, three short slides introduce it. Then your firs
 
 1. The bot greets you by your first name.
 2. It asks you to pick a name for it. Choose one of its suggestions. The new name shows everywhere at once, and you can rename it later.
-3. It explains how it works and offers to connect your email. You can do that now with the card in the chat, or skip it and just tell the bot what you need.
+3. It asks "What's this home for? I can suggest a few bots to help with it." **Describe what I need** or **Show me ready-made teams** opens **Add bots**, where nothing is added until you say so; **Not now**, or typing a message instead, skips it.
+4. It asks "Will anyone else use this home?" **Just me** changes nothing. **Me and other people** makes a chat for everyone in the home, with the bot in it.
+5. It explains how it works and offers to connect your email. You can do that now with the card in the chat, or skip it and just tell the bot what you need.
 
-This first bot is your main bot. You can add more later with **Add bots** in the sidebar: describe what you need, or choose a bot or a ready-made team yourself.
+This first bot is your main bot, and a member of your home: you'll find it on **Team**. You can add more later with **Add bots** there: describe what you need, or choose a bot or a ready-made team yourself.
+
+Your chat with a bot is **Public**, like every new chat, so everyone else in the home can open it. For something only you should see, start a **Private** chat with **New chat**. See [Chats and your team](/help/chats).
 
 ## 3. Give it a first job
 
@@ -44,7 +48,7 @@ To work with your email, calendar, files or code, a bot needs you to connect tho
 3. Select **Add**. The app's page opens on **Add account**: a label is optional, and it says who will use the account. Everyone in the home you're in, and their bots, can use an account you connect there, so connect a personal mailbox in a home only you are in.
 4. Select **Sign in with Google** (or the app's own). A window opens on the app's own sign-in and permission page. Sign in and allow access. The window closes by itself, and the account shows as **Connected**.
 
-You can switch off single actions for an app, such as sending email, in that app's **Tools** list. Bots always ask before sending, forwarding or deleting anything. See [The bots' computer and connected apps](/help/computer-and-apps).
+The home's owners and admins can switch off single actions for an app, such as sending email, in that app's **Tools** list. Bots always ask before sending, forwarding or deleting anything. See [The bots' computer and connected apps](/help/computer-and-apps).
 
 ## 5. Let it sign in to websites
 
@@ -65,8 +69,8 @@ When the reply arrives:
 
 - **Read it through.** If the bot used websites, its reply ends with a screenshot of each page it used.
 - **Open files.** Documents, spreadsheets, slides and PDFs arrive as file cards. Select one to open a viewer with a download.
-- **Watch the computer.** Open the bot's Details panel (select its name above the chat) and choose the **Computer** tab.
-- **Find it later.** The Details panel's **Library** tab lists everything the bot made, by day.
+- **Watch the computer.** Select the chat's name at the top of the chat (or press **Ctrl+Alt+B**) to open the bot's card, then its **Computer** tab: "Mercbot's computer" in this chat, with **Watch**.
+- **Find it later.** The **Library** tab on the bot's card lists everything the bot made in the chats you can open, by day.
 
 If something isn't right, reply in the chat: "The second campsite is closed in April, find another." The bot picks up from where it left off.
 
@@ -92,6 +96,7 @@ Mercbot also works in your phone's browser, with a layout made for small screens
 
 - [Welcome to Mercbot](/help/welcome)
 - [Example jobs for a bot](/help/example-jobs)
-- [Bots: create, shape, organise and remember](/help/bots)
+- [Bots: add, shape and archive](/help/bots)
 - [Messaging and working together](/help/messaging)
+- [Chats and your team](/help/chats)
 - [The vault: saved logins and secrets](/help/vault)

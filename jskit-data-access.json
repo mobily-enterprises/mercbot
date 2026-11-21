@@ -64,11 +64,11 @@
   "systemScopes": [
     {
       "feature": "mercbot.bots.records",
-      "systemScope": "keep the bots' agent runs, goals, summaries and commands for every conversation, and people's seats and read points when a group adds or removes them or work is done for them"
+      "systemScope": "keep the bots' agent runs, goals, summaries and commands for every bot in every chat, and people's places in chats when a message, a member or a departure changes them"
     },
     {
       "feature": "mercbot.bots",
-      "systemScope": "run the bots' queued work and resume their replies in every home"
+      "systemScope": "run the bots' queued work and resume their replies in every home; seat a home's people in its chats as they join and leave, pausing what someone who left made"
     },
     {
       "feature": "mercbot.apps",

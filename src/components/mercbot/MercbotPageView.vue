@@ -20,8 +20,10 @@ const props = defineProps({
   botId: { type: String, required: true },
   path: { type: String, required: true },
   title: { type: String, required: true },
-  // An old Markdown page a bot made in a group with several people is in its folder for the group (D-46).
-  group: { type: String, default: null },
+  // The chat whose folder holds it (D-112 R6), or null for one in the bot's or the home's folder seen outside a chat.
+  chatId: { type: String, default: null },
+  // The home's name, for who can open the page.
+  homeName: { type: String, default: "" },
   stamp: { type: String, default: "" },
   botName: { type: String, default: "The bot" },
   me: { type: String, default: "" },
@@ -36,7 +38,7 @@ const html = computed(() => isHtmlPage(props.path));
 const frame = ref(null);
 const shareOpen = ref(false);
 const versionsOpen = ref(false);
-const copyUrl = computed(() => (html.value ? pageCopyUrl(props.botId, props.path) : fileUrl(props.botId, props.path, { group: props.group })));
+const copyUrl = computed(() => (html.value ? pageCopyUrl(props.botId, props.path, props.chatId) : fileUrl(props.botId, props.path, { chat: props.chatId })));
 
 watch(() => props.stamp, () => frame.value?.reload());
 
@@ -85,13 +87,13 @@ function restored() {
     </header>
     <div class="mb-page-view__body" :style="{ paddingBottom: `${bottom + 24}px` }">
       <div class="mb-page-view__sheet" :style="{ background: PAPER }">
-        <MercbotPageFrame v-if="html" ref="frame" :bot-id="botId" :path="path" @open-app="openApp" @failure="emit('failure', $event)" />
-        <MercbotMarkdownPage v-else :key="stamp" :bot-id="botId" :path="path" :group="group" />
+        <MercbotPageFrame v-if="html" ref="frame" :bot-id="botId" :chat-id="chatId" :path="path" @open-app="openApp" @failure="emit('failure', $event)" />
+        <MercbotMarkdownPage v-else :key="stamp" :bot-id="botId" :chat-id="chatId" :path="path" />
       </div>
     </div>
     <template v-if="html">
-      <MercbotPageShare v-model="shareOpen" :bot-id="botId" :path="path" :title="title" @copied="emit('toast', $event)" />
-      <MercbotPageVersions v-model="versionsOpen" :bot-id="botId" :path="path" :title="title" :bot-name="botName" :me="me" @restored="restored" />
+      <MercbotPageShare v-model="shareOpen" :bot-id="botId" :chat-id="chatId" :path="path" :title="title" :home-name="homeName" @copied="emit('toast', $event)" />
+      <MercbotPageVersions v-model="versionsOpen" :bot-id="botId" :chat-id="chatId" :path="path" :title="title" :bot-name="botName" :me="me" @restored="restored" />
     </template>
   </section>
 </template>

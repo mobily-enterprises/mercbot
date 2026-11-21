@@ -44,22 +44,6 @@ card in the chat with a viewer and a download (D-20, D-21).
 - `src/components/files/HomeFiles.vue`
 - `src/components/files/MercbotFilesEntry.vue`
 - `src/pages/w/[workspaceSlug]/files/index.vue`
-- `tests/server/files.test.js`
-- `tests/server/filesBucket.test.js`
-- `tests/server/mediaChecks.integration.js`
-- `tests/server/mediaCheckRoutes.integration.js`
-- `tests/server/driveMount.test.js`
-- `tests/server/driveStorage.integration.js`
-- `tests/server/fileMoves.integration.js`
-- `tests/server/memberRemoval.integration.js`
-- `tests/support/fakeDrive.mjs`
-- `tests/support/s3Bucket.mjs`
-- `tests/support/filesServer.mjs`
-- `tests/support/moveServer.mjs`
-- `tests/client/storageNotices.vitest.js`
-- `tests/client/uploadRefusal.vitest.js`
-- `tests/e2e/files.spec.ts`
-- `tests/e2e/drive-storage.spec.ts`
 
 ## Public contract
 
@@ -89,16 +73,18 @@ files are kept.
   bucket is unavailable (503 `files_unavailable`) until its key opens; a failure is logged and tried again after
   30 seconds. With any setting missing, files are in the files folder itself: `MERCBOT_FILES_DIR`, a folder the host
   shares between servers, which must hold a `.mercbot-files` marker, or `.data/files` when it isn't set.
-  Files belong to a home (D-36, D-47), in three folders:
-  `homes/<home>/shared/` (`/files/shared`, everyone and every bot in the home),
-  `homes/<home>/bots/<bot>/everyone/` (`/files/bot`, everyone in the home using that bot) and
-  `homes/<home>/bots/<bot>/people/<user>/` (`/files/mine`, one person with that bot). A place is
-  `{homeId, botId, userId}`; `{homeId, botId, everyone: true}` where nothing personal may be
-  reached (a shared bot's room, a group with others), which has no private folder and whose
-  `/files/mine/…` paths lead to the bot folder; or `store.homePlace(homeId)`, the home's folder
-  alone. A place follows the conversation, not the bot's mode (D-99): `store.placeFor(row, userId)`
-  gives a row with `room` the everyone place, and the person's own conversation, a shared bot's
-  "You only" included, their own. A configured folder without the marker is unavailable, so files
+  Files belong to a home (D-36, D-47, D-112), in three kinds of folder:
+  `homes/<home>/chats/<chat>/` (`/files/chat`, one chat's, for whoever can open it, R6),
+  `homes/<home>/bots/<bot>/everyone/` (`/files/bot`, one bot's, in every chat it's in and for everyone in the home:
+  its Knowledge files and pages) and `homes/<home>/shared/` (`/files/shared`, the whole home's). A place is
+  `store.placeFor({homeId, chatId, chatKind, botId?})` (a chat's files, with its bot's when a bot works there),
+  `store.botPlace({homeId, botId})` (a bot's own folder and the home's) or `store.homePlace(homeId)` (the home's folder
+  alone). What a bot makes in a chat belongs to that chat (D13): in a Private chat, or one whose kind isn't given, the
+  place only reads `/files/bot` and `/files/shared`, in the store and in every sandbox (403
+  `files_wider_needs_card`: "This is a private chat, so its bots only read …"), unless it is widened
+  (`store.widened(place)`): what a person does themselves (the file routes) or a card a person tapped, never the bot
+  alone; only server code can mark a place so. `store.removeChatFolder(homeId, chatId)` removes a deleted chat's
+  folder. A configured folder without the marker is unavailable, so files
   never land on one server's own disk. What writes into the files folder outside the store (the
   usage archive, D-73) reaches the bucket through the working copy the files feature hands the account's sweeps (`files.volume.sync`, `useFilesSync`).
 - People's profile pictures (D-19) are kept with the bots' files, in `profile-pictures/<user>/avatar`
@@ -123,14 +109,15 @@ files are kept.
   `remove`, `sweep`, `startSweeping` and `stop`. Mercbot has none: everything is allowed and nothing is queued. With
   one, an upload (`uploadedFile.js` `writeUpload`) and a new profile picture are checked before they're written;
   refused, the upload route answers 422 `media_blocked` or 503 `media_check_unavailable` with `{error, code}`, and
-  JSKIT's avatar route the same `FilesError`. An upload's check gets the place the route writes to (the bot's for
-  the person, a group's everyone place or the home's) as the item's `place`, and a saved file's the place in its
+  JSKIT's avatar route the same `FilesError`. An upload's check gets the place the route writes to (a chat's, a bot's
+  or the home's) as the item's `place`, and a saved file's the place in its
   row; every other origin's is null. The screenshots a bot's reply shows (the last four under it and a hand-over
   card's) and the files a bot's turn saves are checked afterwards, every file a command changes included: a
   command's `changed` names its newest 50, so the shell queues the rest itself from `store.changedSince(place,
   since)` (every file, hidden ones too, without `list`'s limits, read only with a checker), and all of them once the
   command runs on after its turn. Each picture or video among them gets a `media_checks` row (`{workspaceId, origin,
-  place, path, botId, userId, conversationId, attempts, checkAfter}`), a shown screenshot's once its reply's turn is
+  place, path, chatBotId, userId, conversationId, attempts, checkAfter}`; a screenshot's computer is its
+  `chatBotId`, and the check is handed it as `conversationId`), a shown screenshot's once its reply's turn is
   over (botTools.js `close`, after it was written) and taken 30 seconds later, a turn's once its saves are settled;
   a screenshot nobody is shown is never queued. Every server sweeps every 20 seconds once it listens: one
   transaction claims up to 25 due rows (`SKIP LOCKED`) and holds them five minutes; they're checked three at a time,
@@ -145,8 +132,9 @@ files are kept.
   nothing. A path outside the place is refused (`files_path_outside`), as are a place missing or in another home
   than the item's (`media_place_invalid`) and a name or computer that isn't a screenshot's
   (`media_screenshot_invalid`), each a 400 `FilesError`.
-- `store.prepare(place)` answers `{mine, bot, shared, personal}`. `resolve`, `existingFile`,
-  `list(place)` (the files of each folder and its sub-folders, newest first, `{mine?, bot?,
+- `store.prepare(place)` answers the place's real folders, `{chat, bot, shared, readOnly}` (each null when the place
+  has none; `readOnly` the ones it may only read). `resolve`, `existingFile`,
+  `list(place)` (the files of each folder and its sub-folders, newest first, `{chat?, bot?,
   shared, left, partial}`: each folder's newest 300 files, and in `left` how many older ones each
   longer folder has; a folder's walk stops at 5,000 files, so listings stay cheap on every turn
   and command, and `partial` names the folders it stopped in; the three folders are walked at
@@ -154,7 +142,7 @@ files are kept.
   is directly in one folder, for the file browser: `{path, entries, left, partial}`, its
   sub-folders as `{path, folder: true}` by name, then its newest 300 files; `left` counts its
   older files, only its first 5,000 entries are read and `partial` says it has more; a folder
-  that isn't there is empty), `folderTree(place)` (`{mine?, bot?, shared}`: every sub-folder's
+  that isn't there is empty), `folderTree(place)` (`{chat?, bot?, shared}`: every sub-folder's
   path, in name order, at most 5,000 in each folder), `move`
   (files and folders, between any of the folders, never over a file or a folder into itself),
   `remove` (a file or an empty folder) and `makeFolder` only reach the place's folders;
@@ -269,26 +257,23 @@ files are kept.
   the home (D-111), so the files would go with them. Mercbot's own pages remove no one from a home;
   a copy built on Mercbot that lets people be removed refuses while this answers.
 
-Routes, under `/api/w/:workspaceSlug` for a bot in that home (404 otherwise), work
-on the signed-in person's place with the bot, with `path` a bot path. `?group=` names a group's
-place (D-46) and `?room=` a shared bot's tab: one of its rooms (the everyone place) or the person's
-own conversation (theirs); any other, such as another person's conversation or a room hidden while
-its bot isn't shared, is 404 `files_bot_not_found`. Without either, a shared bot's are those of
-the tab the person has open (D-99). The page names that tab in every address (`filesApi.js`
-through `openTabs.js`). The same `content`,
-`preview`, `upload`, listing, `move`, `folder` and `DELETE` routes exist for the home's own folder
-at `/api/w/:workspaceSlug/files…`:
+Routes, all under `/api/w/:workspaceSlug/files`, name their place in the query (`registerRoutes.js` `placeOf`):
+`?chat=` the chat's folder, `?bot=` the bot's, both a bot in that chat, always with the home's; without either, the
+home's folder alone. A chat the caller can't open, a bot not in the home or not in that chat is 404
+`files_place_not_found` ("That chat or bot isn't here."). What a person does here is their own doing, so a Private
+chat's wider folders take it (the place is widened, D13). The page names the chat in every address (`filesApi.js`
+through `chatPlace.js` `placeQuery`), and `path` is a bot path (`/files/chat/…`, `/files/bot/…`, `/files/shared/…`):
 
-- `GET …/bots/:botId/files?folder=` lists one of the place's folders (`listFolder`), and
+- `GET …/files?folder=` lists one of the place's folders (`listFolder`), and
   `GET …/files/folders` every folder there is (`folderTree`, for Move to…); `POST …/files/move
   {from, to}`, `POST …/files/folder {path}` and `DELETE …/files?path=` change them.
 
-- `GET …/bots/:botId/files/content?path=[&download=1]` sends the file (read whole;
+- `GET …/files/content?path=[&download=1]` sends the file (read whole;
   the router doesn't pass streams through). Only
   PDFs, pictures and plain text are shown inline; everything else downloads.
-- `POST …/bots/:botId/files/upload` (multipart, field `file`, up to 25 MB, through
-  JSKIT's `runtime.uploads`) keeps a file the person attached in the bot's own
-  `Uploads` folder, or the folder named by `?folder=` (a taken name gets a number) and answers `{path, name, size, type}`.
+- `POST …/files/upload` (multipart, field `file`, up to 25 MB, through
+  JSKIT's `runtime.uploads`) keeps a file the person attached in `Uploads` in the chat's folder (with only a bot, the
+  bot's; with neither, the home's), or the folder named by `?folder=` (a taken name gets a number) and answers `{path, name, size, type}`.
   A copy that checks pictures and videos (D-90) checks one before anything is written, read whole up to the limit:
   422 `media_blocked` ("This file can't be used.") or 503 `media_check_unavailable` ("This file can't be checked
   right now. Try again in a few minutes."), or the checker's own sentence; the chat's attachments and the file
@@ -321,23 +306,39 @@ at `/api/w/:workspaceSlug/files…`:
   first (400 with the reason when it can't be reached or refuses the sign-in); `withoutFiles: true` switches without
   the files. `DELETE …/files/storage/move` (owners and admins, else 403) cancels the running move (409
   `files_storage_move_none` when there's none).
-- `GET …/bots/:botId/files/preview?path=` answers `{kind: "pages", pages,
+- `GET …/files/preview?path=` answers `{kind: "pages", pages,
   more}`, `{kind: "image"}` or `{kind: "text", text, more}`, or 415 when there's no
   preview.
 
 The file browsers (D-47): `FileBrowser` shows a place's folders with breadcrumbs and open,
 download, upload, new folder, Move to…, rename and delete. It reads each folder as it is opened,
 so a folder's older files and folders that hold only old files are reached however many newer
-files the rest of the place has. Each bot's Details has a Files tab
-(Just me, Everyone using the bot, the home's; a shared bot's read as its "You only" tab has them,
-`ownTabOf`, so all three show whichever tab is open, and the viewer offers Edit on computer only
-for a file of the tab open in the chat); the sidebar's Files
-entry, above Apps, opens `/w/<home>/files`, with the home's folder and the home's bots (`GET
-/api/w/:workspaceSlug/files/bots`: `{bots: [{id, name, color, shape}]}`, group chats left out),
-each leading to `?bot=<id>&files=1` (that bot's Details on Files).
+files the rest of the place has. Chat details has a Files tab (the chat's folder, "This chat"), and a bot's card a
+Files tab ("This chat" when opened from a chat, "<Bot>'s files" and the home's); the viewer offers Edit on computer
+for a file of the chat open; the sidebar's Files entry, above Apps, opens `/w/<home>/files`, with the home's folder and
+the home's bots (`GET …/files/bots`: `{bots: [{id, name, color, shape}]}`), each leading to `?bot=<id>&files=1` (that
+bot's card on Files).
 
-The bots package gives each reply the tools `list_files`, `app_help`, `use_app`
-and `move_file`. Every file under `/files/` that an app call names and that was
+The bots package gives each reply the tools `list_files`, `app_help`, `use_app`,
+`move_file` and, in a Private chat, `share_file` (`genesis/program/bots/bot-tools.md`). Every file under `/files/` that an app call names and that was
 saved during the reply becomes a `files` message (`{files: [{path, name, size}]}`)
 after the reply's text. The timeline shows it as file cards, and the viewer shows
 page pictures.
+
+## Proved by
+
+- `tests/server/files.test.js`
+- `tests/server/filesBucket.test.js`
+- `tests/server/mediaChecks.integration.js`
+- `tests/server/mediaCheckRoutes.integration.js`
+- `tests/server/driveMount.test.js`
+- `tests/server/driveStorage.integration.js`
+- `tests/server/fileMoves.integration.js`
+- `tests/client/storageNotices.vitest.js`
+- `tests/client/uploadRefusal.vitest.js`
+- `tests/e2e/files.spec.ts`
+- `tests/e2e/drive-storage.spec.ts`
+- `tests/server/filesRoutes.integration.js`
+- `tests/server/filesKeys.integration.js`
+- `tests/server/profilePictures.integration.js`
+- `tests/server/profilePictures.test.js`

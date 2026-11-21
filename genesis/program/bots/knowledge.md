@@ -19,7 +19,7 @@ that every turn searches first, so a turn's prompt stays bounded whatever the bo
 - `packages/bots/src/server/botTools.js`
 - `packages/bots/src/server/botAgent.js`
 - `packages/bots/src/server/botReplies.js`
-- `packages/bots/src/server/groupReplies.js`
+- `packages/bots/src/server/chatTurns.js`
 - `packages/bots/src/server/fileTools.js`
 - `packages/account/src/server/cost.js`
 - `packages/account/src/server/usage.js`
@@ -27,13 +27,9 @@ that every turn searches first, so a turn's prompt stays bounded whatever the bo
 - `src/components/mercbot/MercbotKnowledgeSection.vue`
 - `src/components/mercbot/MercbotKnowledgeSection.css`
 - `src/components/mercbot/useBotKnowledge.js`
-- `src/components/mercbot/MercbotDetailsPanel.vue`
+- `src/components/mercbot/MercbotMemberCard.vue`
 - `src/components/mercbot/botsApi.js`
 - `tools/standInModel.mjs`
-- `tests/server/knowledgePrompt.test.js`
-- `tests/server/botKnowledge.integration.js`
-- `tests/client/knowledge.vitest.js`
-- `tests/e2e/knowledge.spec.ts`
 
 ## Public contract
 
@@ -64,7 +60,7 @@ that every turn searches first, so a turn's prompt stays bounded whatever the bo
   any of the words, English stemming, `ts_rank`), at most 10,000 characters, each headed with its source
   (`partSource`: `«Title», part N, page(s) X (heading)`), or that nothing matched. With something searched, the turn
   has `search_knowledge` (`words`) and `read_knowledge` (`knowledge`, `from_part`: 8 parts within 12,000
-  characters, with `next_part`). Group replies give each member bot its own.
+  characters, with `next_part`). In a chat with several bots each speaking bot's turn has its own (R3).
 - **Reading and splitting** (`indexer`): started on every serving server with the other loops (`botLoops.js`), every
   5 s and at once after a change on this server. A run claims one waiting piece (`reading`, or `indexing` with no
   live lease) under a 120 s lease, reads a file's text once with `fileText` and keeps it whole on the piece, splits it
@@ -76,7 +72,7 @@ that every turn searches first, so a turn's prompt stays bounded whatever the bo
   tokens of parts, priced by the meter's `estimateNano({ workspaceId, kind, provider, cacheHit, cacheMiss })` at the
   chat AI's (WORK.chat) prices: `nano` all uncached, `cachedNano` with the in-mind part cached. `mercbot.usage-recorder`
   implementations provide `estimateNano`; Mercbot's own answers at the provider's list prices (`estimateAtProvider`).
-- **The section** (Details tab, under Instructions, for a bot rather than a group): the empty sentence, the pieces with
+- **The section** (a bot's card, Details tab, under Instructions): the empty sentence, the pieces with
   their lines and bars, failures with **Try again**, the summary (in mind, searched, "Adds about $X to each message,
   or $Y while it's still cached from a recent one", the cached part left out when $Y reads as $X, or "less than
   $0.0001"), **Add text** (the editor dialog, full
@@ -85,3 +81,10 @@ that every turn searches first, so a turn's prompt stays bounded whatever the bo
 - **Stand-in model** (`tools/standInModel.mjs`): asked "What do you know about <topic>?", answers with the first line
   of its in-mind knowledge or the state's found parts naming the topic, and where it's from, or that its knowledge
   doesn't say.
+
+## Proved by
+
+- `tests/server/knowledgePrompt.test.js`
+- `tests/server/botKnowledge.integration.js`
+- `tests/client/knowledge.vitest.js`
+- `tests/e2e/knowledge.spec.ts`

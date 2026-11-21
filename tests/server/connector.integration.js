@@ -72,7 +72,8 @@ async function setup(context, { mcp = {} } = {}) {
     });
     return createIntegrationsService({ resources, accounts, catalogue, connections, account: accountService, profiles, systemContext });
   };
-  const as = requestContextOptions({ user: { id: userId }, workspace: { id: homeId } });
+  // The person owns the home, so they also switch its apps' actions on and off, as its owners and admins do (D-111).
+  const as = requestContextOptions({ user: { id: userId }, workspace: { id: homeId }, permissions: ["workspace.settings.update"] });
   const row = () => knex("plugin_accounts").where({ id: account.id }).first();
   const app = () => knex("connector_apps").where({ plugin_id: pluginId }).first();
   return { knex, fake, catalogue, pluginId, accountId: String(account.id), serve, as, row, app };

@@ -6,8 +6,8 @@ import { MENU_REACTIONS, messageMenuItems, pictureMenuItems } from "../../src/co
 import { itemAge, itemType, libraryMenuItems, pageAccess, useBotLibrary } from "../../src/components/mercbot/useBotLibrary.js";
 
 // The final sweep's finishing touches, on the page's side: the "new messages" count while scrolled up, the
-// right-click menus on messages and pictures, and the Library's ages, hover card types and "…" menus with a page's
-// delete. The bots routes are stand-ins.
+// right-click menus on messages and pictures, and a bot's Library: its ages, hover card types, who can open a page,
+// and "…" menus with a page's delete. The bots routes are stand-ins.
 
 // useChatScroll's own count, outside a component: its resize watching (onMounted) has nothing to watch here.
 vi.mock("vue", async (importOriginal) => ({ ...(await importOriginal()), onMounted: () => {}, onBeforeUnmount: () => {} }));
@@ -31,35 +31,36 @@ beforeEach(() => {
 });
 
 describe("new messages while scrolled up", () => {
-  const text = (id, role, from = null) => ({ id, kind: "text", role, body: { text: id, ...(from ? { from: { id: from } } : {}) } });
+  // A person's message in a chat names who wrote it (authorUserId), a bot's its bot; the reader is "me".
+  const text = (id, author = null) => ({ id, kind: "text", role: author ? "user" : "bot", authorUserId: author, authorBotId: author ? null : "b1", body: { text: id } });
 
-  it("counts what arrived after the last message the reader had, but not their own messages or timestamps", () => {
-    const list = [text("1", "user"), text("2", "bot"), { id: "3", kind: "timestamp", role: "system", body: {} }, text("4", "bot"), text("5", "user", "me"), text("6", "user", "ida"), { id: "7", kind: "page", role: "bot", body: {} }];
+  it("counts what arrived after the last message the reader had, other people's too, but not their own messages or timestamps", () => {
+    const list = [text("1", "me"), text("2"), { id: "3", kind: "timestamp", role: "system", authorUserId: null, authorBotId: null, body: {} }, text("4"), text("5", "me"), text("6", "ida"), { id: "7", kind: "page", role: "bot", authorUserId: null, authorBotId: "b1", body: {} }];
     expect(newMessagesAfter(list, "2", "me")).toBe(3);
     expect(newMessagesAfter(list, "7", "me")).toBe(0);
   });
 
-  it("counts nothing when the last message isn't there: another chat or room opened", () => {
-    expect(newMessagesAfter([text("8", "bot")], "2", "me")).toBe(null);
-    expect(newMessagesAfter([text("8", "bot")], null, "me")).toBe(null);
+  it("counts nothing when the last message isn't there: another chat opened", () => {
+    expect(newMessagesAfter([text("8")], "2", "me")).toBe(null);
+    expect(newMessagesAfter([text("8")], null, "me")).toBe(null);
   });
 
-  it("adds up what arrives while scrolled up, and starts again when the chat shows another room", async () => {
-    const list = ref([text("1", "bot"), text("2", "user")]);
+  it("adds up what arrives while scrolled up, and starts again when another chat is shown", async () => {
+    const list = ref([text("1"), text("2", "me")]);
     // Scrolled to the top of a long chat, by the reader.
     const element = { scrollHeight: 3000, scrollTop: 0, clientHeight: 600, scrollTo: () => {} };
     const scroll = useChatScroll({ scroller: ref(element), column: ref(null), dock: ref(null), messages: () => list.value, status: () => "", me: () => "me" });
     scroll.updateScrollState();
-    list.value = [...list.value, text("3", "bot")];
+    list.value = [...list.value, text("3")];
     await flush();
-    list.value = [...list.value, text("4", "user"), text("5", "bot")];
+    list.value = [...list.value, text("4", "me"), text("5")];
     await flush();
     expect(scroll.unseen.value, "the reader's own message isn't news").toBe(2);
-    // A room switch (useRooms) reads the other room's messages and leaves the reader where they were.
-    list.value = [text("40", "bot"), text("41", "bot")];
+    // Another chat shown: its messages aren't news, and counting starts again from them.
+    list.value = [text("40"), text("41")];
     await flush();
     expect(scroll.unseen.value).toBe(0);
-    list.value = [...list.value, text("42", "bot")];
+    list.value = [...list.value, text("42")];
     await flush();
     expect(scroll.unseen.value).toBe(1);
     scroll.scrollToBottom("auto");
@@ -102,18 +103,20 @@ describe("the Library's rows", () => {
     expect(["page", "view", "chart", "picture", "file"].map((kind) => itemType({ kind }))).toEqual(["Page", "View", "Chart", "Picture", "File"]);
   });
 
-  it("say who can open a page from where it's kept", () => {
-    const mixed = { name: "Otto", sharing: "mixed" };
-    const titleOf = (bot, path) => pageAccess(bot, path, "Rossi family").title;
-    expect(titleOf(mixed, "/files/mine/Pages/plan.md")).toBe("Only you");
-    expect(pageAccess(mixed, "/files/mine/Pages/plan.md", "Rossi family").onlyYou).toBe(true);
-    expect(titleOf(mixed, "/files/bot/Pages/plan.md")).toBe("Everyone using Otto");
-    expect(titleOf(mixed, "/files/shared/plan.md")).toBe("Everyone in Rossi family");
-    expect(titleOf({ name: "Otto", sharing: "shared" }, "/files/mine/Pages/plan.md"), "a shared bot's folders are everyone's").toBe("Everyone in Rossi family");
-    expect(pageAccess(mixed, "/files/shared/plan.md", "").text).toBe("Everyone in the home can open it.");
-    // A web page is the home's wherever it's kept (D-74).
-    expect(["/files/mine/Pages/plan.html", "/files/bot/Pages/plan.html"].map((path) => titleOf(mixed, path))).toEqual(["Everyone in Rossi family", "Everyone in Rossi family"]);
-    expect(pageAccess(mixed, "/files/mine/Pages/plan.html", "Rossi family").onlyYou).toBeFalsy();
+  it("say who can open a page from where it's kept (D12, D13)", () => {
+    const where = { chatName: "Kitchen", homeName: "Rossi family" };
+    // A chat's folder is for everyone who can open that chat.
+    expect(pageAccess("/files/chat/Pages/plan.md", where)).toEqual({
+      icon: "$sms", title: "Everyone who can open “Kitchen”", text: "Everyone who can open “Kitchen” can open it.", onlyYou: false
+    });
+    expect(pageAccess("/files/chat/Pages/plan.md", { homeName: "Rossi family" }).title, "a chat with no name to give").toBe("Everyone who can open its chat");
+    // The bot's own folder and the home's are everyone's in the home.
+    expect(["/files/bot/Pages/plan.md", "/files/shared/plan.md", "/files/bot/Pages/plan.html"].map((path) => pageAccess(path, where).title))
+      .toEqual(["Everyone in Rossi family", "Everyone in Rossi family", "Everyone in Rossi family"]);
+    expect(pageAccess("/files/shared/plan.md", { chatName: "Kitchen" }).text).toBe("Everyone in the home can open it.");
+    expect(pageAccess("/files/shared/plan.md").title, "nothing named").toBe("Everyone in the home");
+    // No page is the person's alone any more.
+    expect(["/files/chat/Pages/plan.md", "/files/bot/Pages/plan.md", "/files/shared/plan.md"].some((path) => pageAccess(path, where).onlyYou)).toBe(false);
   });
 
   it("offer Pin for a file, and Open, Share, Pin and Delete for a page", () => {
@@ -129,20 +132,25 @@ describe("the Library's rows", () => {
   });
 
   it("delete a page only once it's confirmed, then show the Library and the page's cards as the server answers", async () => {
-    const page = { kind: "page", path: "/files/mine/Pages/plan.md", name: "Plan", messageId: "12", createdAt: ago(5) };
-    const picture = { kind: "picture", path: "/files/mine/Pictures/cake.png", name: "Cake", messageId: "11", createdAt: ago(9) };
+    const page = { kind: "page", path: "/files/chat/Pages/plan.md", name: "Plan", chatId: "5", messageId: "12", createdAt: ago(5) };
+    const picture = { kind: "picture", path: "/files/chat/Pictures/cake.png", name: "Cake", chatId: "5", messageId: "11", createdAt: ago(9) };
     botsApi.library.mockResolvedValue({ items: [page, picture] });
     botsApi.deletePage.mockResolvedValue({ items: [picture], messages: [{ id: "12", kind: "page", body: { ...page, removed: true } }] });
     const changed = [];
+    // The open chat's last activity: the Library is read again as it changes.
+    const activity = ref("2026-11-11T11:00:00Z");
     const library = useBotLibrary({
-      bot: () => ({ id: "7", lastActivityAt: 1 }),
-      isGroup: computed(() => false),
+      bot: () => ({ id: "7" }),
       tab: computed(() => "library"),
+      activity: () => activity.value,
       onFailure: (error) => { throw error; },
       onMessages: (change) => changed.push(change)
     });
     await flush();
     expect(library.libraryItems.value).toEqual([page, picture]);
+    activity.value = "2026-11-11T11:30:00Z";
+    await flush();
+    expect(botsApi.library.mock.calls, "read again as the open chat's activity changed").toEqual([["7"], ["7"]]);
 
     const button = { getBoundingClientRect: () => ({ left: 300, bottom: 120 }) };
     library.openItemMenu({ type: "click", currentTarget: button }, page);
@@ -155,7 +163,7 @@ describe("the Library's rows", () => {
     expect(botsApi.deletePage).toHaveBeenCalledWith("7", page);
     expect(library.pendingDelete.value).toBe(null);
     expect(library.libraryItems.value).toEqual([picture]);
-    expect(changed).toEqual([{ botId: "7", messages: [{ id: "12", kind: "page", body: { ...page, removed: true } }] }]);
+    expect(changed, "the page's cards, with the chat they're in").toEqual([{ chatId: "5", messages: [{ id: "12", kind: "page", body: { ...page, removed: true } }] }]);
 
     library.openItemMenu({ type: "contextmenu", clientX: 40, clientY: 50, currentTarget: button }, picture);
     expect(library.itemMenu.value.target, "a right-click opens it at the pointer").toEqual([40, 50]);

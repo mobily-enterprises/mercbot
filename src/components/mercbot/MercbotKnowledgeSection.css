@@ -1,5 +1,5 @@
 /* A bot's Knowledge on its Details tab (MercbotKnowledgeSection.vue, D-107), in the panel's own label, sentence, box
-   and pills (MercbotDetailsPanel.css, MercbotDetailsInstructions.css), and its editor in the size and parts of the
+   and pills (MercbotMemberCard.css, MercbotDetailsInstructions.css), and its editor in the size and parts of the
    app's other dialogs (MercbotChangeTemplateDialog.css, MercbotTemplateDraft.css). On a phone the editor fills the
    screen. */
 .mb-knowledge {
