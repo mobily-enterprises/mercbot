@@ -88,7 +88,8 @@ test("work refused part-way says what a paused home says: a routine, a person's 
   });
   const parts = await startBotParts(knex, cleanup);
   const as = memberOptions({ userId, homeId: bot.workspace_id });
-  // In the chat of both bots, the first is refused after it has asked to set up a routine.
+  // In the chat of both bots, the bot that answers is refused after it has asked to set up a routine: its turn ends
+  // there, so the card it asked for isn't left, and nothing it asked for waits to run.
   let together = false;
   const bots = createBotsService(serviceDoubles({
     knex,
@@ -126,10 +127,7 @@ test("work refused part-way says what a paused home says: a routine, a person's 
   together = true;
   await ask(both, "Anyone?");
   const said = await knex("messages").where({ conversation_id: both }).whereIn("role", ["bot", "system"]).orderBy("id");
-  assert.deepEqual(
-    said.slice(-2).map((row) => [row.kind, row.body.paused ? row.body.text : ""]),
-    [["choice", ""], ["event", NOTICE]],
-    "the chat keeps the card its first bot made before it was refused, then gets the paused home's line, not a bot's apology"
-  );
+  assert.deepEqual(said.map((row) => [row.kind, row.body.paused ? row.body.text : ""]), [["event", NOTICE]],
+    "the chat gets the paused home's line once, not a bot's apology nor a card from the refused turn");
   assert.ok(!said.some((row) => /couldn't answer/u.test(row.body.text || "")));
 });

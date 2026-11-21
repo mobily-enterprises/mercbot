@@ -91,7 +91,9 @@ async function setup(context, { answers = null } = {}) {
   const count = async (table, where) => Number((await knex(table).where(where).count("* as n").first()).n);
   /** What Pat's direct chat with a bot shows, where a new bot greets its maker and a changed template says so (D-112). */
   const patsChatWith = async (botId) => (await bots.chat.messages((await bots.chats.direct(botId, as(pat))).chat.id, {}, as(pat))).messages;
-  return { knex, parts, bots, as, pat, homeId, made, someone, bot, homeTemplate, count, writes, tracked, patsChatWith };
+  /** The onboarding step of Pat's direct chat with a bot, where a new bot introduces itself or greets with its template's words. */
+  const onboardingWith = async (botId) => (await bots.chats.direct(botId, as(pat))).chat.onboardingStep;
+  return { knex, parts, bots, as, pat, homeId, made, someone, bot, homeTemplate, count, writes, tracked, patsChatWith, onboardingWith };
 }
 
 test("a new template is drafted in one call, metered to the person and home like a reply, and nothing is kept", async (context) => {
@@ -217,14 +219,14 @@ test("drafting from a bot needs mayChangeBot; another home's bot and template ar
 });
 
 test("Save and use: New bot makes the template and the bot on it, from the draft's five parts only", async (context) => {
-  const { knex, bots, as, pat, made, count, homeId, patsChatWith } = await setup(context);
+  const { knex, bots, as, pat, made, count, homeId, patsChatWith, onboardingWith } = await setup(context);
   const tag = freshTag();
   // A body a client claims is one of Mercbot's library: it's only ever a new home template.
   const claimed = { ...draftOf(tag), slug: "weekly-meal-planner", source: "library", creator: "the Mercbot team", tested: "2026-11-20", routines: [] };
   const made1 = await bots.createBot({ name: "Gardener", color: "#1E86FC", template: { draft: claimed } }, as(pat));
   made.push(made1.id);
   assert.deepEqual(made1.template, { tag, source: "home", description: "Keeps the garden watered." });
-  assert.equal(made1.onboardingStep, null, "it greets with its template's greeting instead of the general introduction");
+  assert.equal(await onboardingWith(made1.id), null, "it greets with its template's greeting instead of the general introduction");
   const row = await knex("bots").where({ id: made1.id }).first();
   const kept = await knex("home_templates").where({ id: row.home_template_id }).first();
   assert.equal(row.library_template, null);
@@ -246,7 +248,7 @@ test("Save and use: New bot makes the template and the bot on it, from the draft
   assert.match((await patsChatWith(pantry.id)).at(-1).body.text, /I'm Larder\./u, "the template's greeting, as the bot");
   const plain = await bots.createBot({ name: "Plain", color: "#1E86FC", template: { library: "general" } }, as(pat));
   made.push(plain.id);
-  assert.deepEqual([plain.template.tag, plain.onboardingStep], ["general", "intro-greet"]);
+  assert.deepEqual([plain.template.tag, await onboardingWith(plain.id)], ["general", "intro-greet"]);
 
   // A draft with problems makes nothing, and says what's wrong at each part.
   const templates = await count("home_templates", { workspace_id: homeId });

@@ -164,10 +164,13 @@ async function patsBot(context) {
     }
   }));
   const as = memberOptions({ userId: pat, homeId: bot.workspace_id });
-  /** One message from Pat in their direct chat with the bot and the bot's reply; the reply's statements that match `matching`. */
-  async function replyTo(text, matching = /^$/u) {
-    const sent = await bots.chat.sendMessage(bot.conversation_id, { text }, as);
-    return statementsDuring(knex, () => bots.chat.reply(bot.conversation_id, { afterMessageId: sent.messages[0].id }, undefined, as), matching);
+  /**
+   * One message from Pat in a chat with the bot (their direct chat, unless `chatId` names another) and the bot's reply;
+   * the reply's statements that match `matching`.
+   */
+  async function replyTo(text, matching = /^$/u, chatId = bot.conversation_id) {
+    const sent = await bots.chat.sendMessage(chatId, { text }, as);
+    return statementsDuring(knex, () => bots.chat.reply(chatId, { afterMessageId: sent.messages[0].id }, undefined, as), matching);
   }
   return { ...shared, bot, bots, as, turn, replyTo };
 }
@@ -183,7 +186,7 @@ test("a turn names the home's connected apps and who connected each, without rea
   await replyTo("What can you do?");
   assert.equal(turn.listed, 0, "a turn never reads the whole Connect apps list");
   // Pat's turn: Pat's mailbox is theirs, Lee's is the home's too, named by who connected it (D-111).
-  assert.match(turn.state, new RegExp(`Connected accounts: [^\\n]*Gmail: 2 accounts, reads-inbox@example\\.com \\(connected by them\\); lee@example\\.com \\(connected by ${leeName}\\)`, "u"));
+  assert.match(turn.state, new RegExp(`connected accounts, which you use for the person you're working for: Gmail: 2 accounts, reads-inbox@example\\.com \\(connected by them\\); lee@example\\.com \\(connected by ${leeName}\\)`, "u"));
   assert.match(turn.state, /waiting for sign-in in Connect apps: [^\n]*Google Calendar/u);
 });
 
@@ -200,7 +203,12 @@ test("a turn and the \"/\" picker list the person's skills without their instruc
   cleanup.push(() => knex("user_skills").whereIn("id", skills.map((row) => row.id)).del());
   const instructionsRead = (statements) => statements.filter((statement) => /"instructions"|user_skills"?\.\*|select \*/iu.test(statement.sql));
 
-  const turnReads = await replyTo("What can you do?", /user_skills/u);
+  // A person's own skills are used only in a Private chat whose only member is them (D15, O24), never in their direct
+  // chat, which is Public.
+  await replyTo("What can you do?");
+  assert.doesNotMatch(turn.state, /Skill 01/u, "not in a Public chat");
+  const { id: alone } = await seedChat(knex, { homeId, kind: "private", title: "Just me", people: [pat], bots: [bot.id] });
+  const turnReads = await replyTo("What can you do?", /user_skills/u, alone);
   assert.match(turn.state, /The person's own skills \(use read_skill\): Skill 01 \(Does job 1\); [^\n]*Skill 30 \(Does job 30\)\./u);
   assert.doesNotMatch(turn.state, /Skill 31/u, "the first 30, in the order they were made");
   assert.deepEqual(instructionsRead(turnReads), [], "a turn lists skills without their instructions");
@@ -213,7 +221,7 @@ test("a turn and the \"/\" picker list the person's skills without their instruc
   assert.ok(own.includes("Skill 01") && own.includes("Skill 35"), "the picker offers every skill of theirs");
   const picked = String(skills[2].id);
   let message = null;
-  const sendReads = await statementsDuring(knex, async () => { message = await bots.chat.sendMessage(bot.conversation_id, { text: `Please <@skill:u-${picked}>` }, as); }, /user_skills/u);
+  const sendReads = await statementsDuring(knex, async () => { message = await bots.chat.sendMessage(alone, { text: `Please <@skill:u-${picked}>` }, as); }, /user_skills/u);
   assert.deepEqual(message.messages.at(-1).body.skills, [{ id: `u-${picked}`, name: "Skill 03" }]);
   assert.deepEqual(instructionsRead([...pickerReads, ...sendReads]), [], "nor the picker, nor a picked skill's message");
 });
