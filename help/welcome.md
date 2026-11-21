@@ -19,7 +19,7 @@ You can have several bots, each with a clear job. One might plan the family's me
 
 ### Bots with their own computer
 
-In each chat, every bot works on a computer of its own in the cloud: a small desktop with a web browser and office apps, labelled with the bot's name. Open it from the chat to watch the bot work. Everyone who can open the chat can watch it and use what's signed in there. When a step needs you, such as signing in to a website, the bot hands you the screen. You do that step yourself, then hand it back. Your password goes straight to the website and the bot never sees it.
+In each chat, every bot works on a computer of its own in the cloud: a small desktop with a web browser and office apps, labelled with the bot's name, such as "Chef's computer". Open it from the chat's details to watch the bot work. It belongs to the chat: everyone who can open the chat can watch it, take it over and use what's signed in there. When a step needs you, such as signing in to a website, the bot hands you the screen. You do that step yourself, then hand it back. Your password goes straight to the website and the bot never sees it.
 
 Because the computer lives in the cloud, the bot keeps going when you close the tab. A long errand carries on in the background, and a routine runs at its time whether you're there or not.
 
@@ -56,11 +56,11 @@ Yes. A bot's work runs on Mercbot's servers, not in your browser. You can close 
 
 ### Does it remember things?
 
-Within a chat, the bot keeps track of the whole conversation, however long it gets. Bots made from a template keep what they learn about your job in a notes document in the chat's folder, which everyone in the chat can read and correct. For something a bot should always do, ask it to add it to its additions.
+Within a chat, the bot keeps track of the whole conversation, however long it gets. Bots made from a template keep what they learn about your job in a notes document in the chat's folder, which everyone who can open the chat can read and correct. For something a bot should always do, ask it to add it to its additions.
 
 ### Can it use websites that need a login?
 
-Yes. The bot can use a login you've saved in your vault, ask you to fill in a secure form, or hand you the screen to sign in yourself. Its browser keeps you signed in for next time. See [The vault](/help/vault).
+Yes. The bot can use a login you've saved in your vault, ask you to fill in a secure form, or hand you the screen to sign in yourself. Its browser in that chat stays signed in for next time, and everyone who can open the chat can use that sign-in, as the bot says when it signs in. See [The vault](/help/vault).
 
 ### What does it cost?
 

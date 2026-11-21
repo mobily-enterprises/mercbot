@@ -31,17 +31,17 @@ Hover over a message and select the **Reply** arrow. Your next message is linked
 
 Skills are written-down ways of doing a task, such as booking a restaurant or making slides. Bots pick the right skill on their own, but you can ask for one directly.
 
-1. In a chat, type **/** at the start of the message box.
+1. In a chat with one bot, type **/** at the start of the message box.
 2. A list shows up to five skills, with a short description of each: your own skills first, then Mercbot's. Keep typing to narrow it down.
 3. Use the arrow keys and **Enter** or **Tab**, or select a skill with the mouse.
 4. The skill appears as a token in the bot's colour. Backspace removes it in one go.
 5. Write the rest of your request and send.
 
-The sent message shows the skill with a book icon, and the bot uses it for that request. To manage skills or teach a bot a new one, see [Skills, routines and watches](/help/skills-and-routines).
+The sent message shows the skill with a book icon, and the bot uses it for that request. A bot uses your own skills only in a Private chat where you're the only person, because only you can open them. To manage skills or teach a bot a new one, see [Skills, routines and watches](/help/skills-and-routines).
 
 ## While the bot works
 
-When you send a message, the bot gets to work and a status line at the end of the chat describes what it's doing in a few words. Its face changes too: it looks attentive, then thinks, works and concentrates, and looks happy when it's done. In the sidebar, a bot waiting for you to do something (such as signing in on its computer) shows in amber.
+When you send a message, the bot gets to work and a status line at the end of the chat describes what it's doing in a few words. Its face changes too: it looks attentive, then thinks, works and concentrates, and looks happy when it's done. When a bot is waiting for you to do something, such as signing in on its computer, its chat shows **Waiting for you** in the sidebar, in amber.
 
 Some things show up in the chat as small centred lines rather than messages, for example when a bot creates a routine or passes a job to another bot. They're a record of what actually happened.
 
@@ -99,9 +99,9 @@ A chat can have several bots and several people in it, so they can work on somet
 - **To address one bot,** type **@** and choose it from the list. Only the bots you mention answer.
 - When a bot mentions another bot, that bot may answer once more, then the round ends. Bots stay quiet when they've nothing new to add, so they don't chatter among themselves.
 
-The @ list also offers your connected apps (showing whether each one still needs signing in) and your own skills.
+The @ list offers **everyone**, the chat's bots and your connected apps, showing whether each app still needs signing in.
 
-A status line shows which bots are working, and each bot's name appears above its messages.
+A status line shows which bots are working, and each bot's name appears above its messages. A chat with people only has no bot answering at all.
 
 ### What bots do differently with others
 
@@ -117,16 +117,16 @@ A bot can get another bot in your home to do part of a job, in two ways.
 
 1. The bot sends the other bot a brief with the details it needs. Otto works from the brief alone: it doesn't read your chat or any other.
 2. A card **Asked Otto** appears in your chat. It shows the brief and how the request stands: **Working**, **Has a question**, **Waiting for your OK**, **Done**, **Couldn't finish** or **Cancelled**.
-3. Otto works on it and sends the result back. If Otto needs to know something, it asks the first bot, which answers or asks you. If Otto needs its computer, it joins your chat, with a line saying so.
+3. Otto works on it and sends the result back. If Otto needs to know something, it asks the first bot, which answers or asks you. If Otto needs its computer, it joins your chat, with a line such as "Otto joined to work on a request", and uses its computer there. Your chat with one bot takes no other bot, so from there Otto does what it can without its computer.
 4. The first bot gets the answer, carries on with your request and tells you. The card shows the answer; **Show the whole answer** expands it.
 
-**Pass it on.** When you just want the other bot to deal with it ("Ask Ledger to check last month's invoices"), the bot passes it on, and Ledger's answer comes back to the same chat, with a card for it.
+**Pass it on.** When you just want the other bot to deal with it ("Ask Ledger to check last month's invoices"), the bot passes it on with a **Passed to Ledger** card, and Ledger's answer comes back to the same chat.
 
 Otto's answer, and any card Otto needs you to answer, come to the chat you asked in, so everyone who can open that chat sees them.
 
 The card has **Cancel** while the request is open. Cancelling tells the first bot, which says so; a step already running finishes, but its answer isn't used.
 
-A bot's request is never your own words. Anything that needs your approval, such as sending, paying, deleting or inviting people, still shows you an approval card in the chat where the work happens, and the first bot's card says it's **Waiting for your OK**. Only you can tell a bot to send a draft.
+A bot's request is never your own words. Anything that needs your approval, such as sending, paying, deleting or inviting people, still shows you an approval card in the chat you asked in, and the first bot's card says **Waiting for your OK below**. Only you can tell a bot to send a draft.
 
 To stop jobs bouncing around, a request can be passed on at most twice (Scout asks Otto, Otto asks Ledger, and no further), a bot can't be asked by a job it's already part of, the asked bot gets at most three questions and eight turns, and a request stops after 30 minutes.
 
@@ -156,8 +156,8 @@ Press **Ctrl+F** to search the open chat. Matches are highlighted as you type.
 
 Press **Ctrl+K** (or **Ctrl+Shift+F**, or the search button at the top of the sidebar) to open the search palette.
 
-- With nothing typed, it lists your chats (unread first, then pinned, then by latest activity), followed by commands such as **New chat**, **Add bots**, **Keyboard shortcuts**, Settings sections, **Connect Apps** and the theme.
-- As you type, it finds chats, bots and people by name, apps, hidden chats, commands, routines, files your bots made, and up to five messages from your chats.
+- With nothing typed, it lists your chats (unread first, then pinned, then by latest activity), followed by commands such as **New chat**, **Add bots**, **Team**, **Keyboard shortcuts**, Settings sections, **Connect Apps**, **Skills** and the theme.
+- As you type, it finds chats by their name or who's in them, bots (by name or tag) and people, apps, hidden and archived chats, commands, routines, files your bots made, and up to five messages from your chats. A bot opens your chat with it.
 - Use the arrow keys and Enter to open a result. A message opens its chat with that message at the top, ringed so you can spot it.
 
 Files a bot made are also listed in its **Library**, on its card in **Team**. See [Files, documents and pictures](/help/files).
@@ -178,18 +178,19 @@ Press **Ctrl+/** to see this list in Mercbot. On a Mac, Cmd works in place of Ct
 | Keyboard shortcuts | Ctrl+/ |
 | Focus the message box | Ctrl+I |
 | Find in chat | Ctrl+F |
+| Dictate (press to start and stop, or hold to talk) | Ctrl+D |
 | Add selection to message | Ctrl+L |
 | Previous or next chat | Alt+↑ or Alt+↓ |
 | Up from Apps, a table or Files, or close an app | Ctrl+[ (the Up arrow's key, and an app's **X**) |
 | Switch chats | Ctrl+Alt+Tab (keep Ctrl+Alt held, press Tab to move, release to open) |
-| Details panel | Ctrl+Alt+B |
+| Details (Chat details, or a bot's card in your chat with it) | Ctrl+Alt+B |
 | Skills | Ctrl+Alt+W |
 | Connect apps | Ctrl+Shift+M |
 | Zoom in, out or reset | Ctrl+=, Ctrl+−, Ctrl+0 (your browser's own) |
 | Full screen | F11 (your browser's own) |
 | Back or forward | Alt+← or Alt+→ (your browser's own) |
 
-Escape closes the Details panel when nothing else is open.
+Escape closes the details beside the chat when nothing else is open.
 
 ## Tips for productive conversations
 

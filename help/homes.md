@@ -42,7 +42,7 @@ You're the owner of every home you create. The chat list, Team, Connect apps and
 
 Pick what you need help with, and Mercbot adds a few bots that work well together: the six that help run a busy household, say, or the five a small shop needs. Since each home has its own bots, files and Apps, a team usually goes with a home of its own:
 
-- **A new home's welcome chat:** while the home has no bots yet, Mercbot asks **Want a few bots to start with?** **Show me ready-made teams** opens **Add bots** on its teams, where nothing is added until you say so; **Not now**, or typing a message instead, skips the question.
+- **A new home's welcome chat:** once you've named Mercbot, while the home has no bot but it, Mercbot asks "What's this home for? I can suggest a few bots to help with it." **Describe what I need** opens **Add bots** on **Describe what you need**, and **Show me ready-made teams** opens it on its teams; nothing is added until you say so there. **Not now**, or typing a message instead, skips the question.
 - **Add bots**, on **Team**, adds a team to the home you're in at any time with **A ready-made team**, for example when a company adds another part of its work. See [A ready-made team](/help/bots#a-ready-made-team).
 - When no team fits, **Describe what you need** in **Add bots**, and Mercbot suggests bots for it, including new ones written for your home. See [Describe what you need](/help/bots#describe-what-you-need).
 
@@ -75,13 +75,13 @@ Everyone in the home sees the new name at once, at the top of the sidebar and in
 
 ## Bots in a home
 
-Every bot is a member of its home, listed on **Team** beside the home's people, and anyone in the home can start a chat with it or add it to one. Anyone can add bots with **Add bots**. Deleting a bot removes it for everyone, so agree on it first, or archive it instead.
+Every bot is a member of its home, listed on **Team** beside the home's people, and anyone in the home can start a chat with it or add it to one. Anyone can add bots with **Add bots**. Archiving a bot takes it off the team for everyone, so agree on it first. See [Archive a bot](/help/bots#archive-a-bot).
 
-A bot in a chat uses only what everyone who can open that chat can also open: every Public chat of the home, and a Private chat only when everyone who can open this chat is in it too. What it makes in a chat belongs to that chat. See [Chats and your team](/help/chats).
+A bot in a chat uses only what everyone who can open that chat can also open: in any chat, every Public chat of the home; from a Private chat, also the Private chats that all of its members are in; and never a Private chat from a Public one. What it makes in a chat belongs to that chat. See [Chats and your team](/help/chats).
 
 ### The chat for everyone
 
-When Mercbot's welcome chat asks **Will anyone else use this home?**, **Me and other people** makes a chat for everyone in the home. Everyone who joins the home is in it, and it stays pinned at the top for each person. Nobody can leave it or be removed from it.
+Mercbot's welcome chat asks a home's owners and admins "Will anyone else use this home?" **Just me** makes nothing. **Me and other people** makes a chat for everyone in the home, named after the home, with the main bot in it. Everyone who joins the home is in it, and it's always first in each person's chat list. You leave it only by leaving the home, and nobody can take a person out of it; the person who started it and the home's owners and admins can take a bot out. See [The everyone chat](/help/chats#the-everyone-chat).
 
 ## The home's connected accounts
 
@@ -93,7 +93,7 @@ Every account connected in **Connect apps** belongs to the home it was connected
 - **Sign-in codes stay with their owner.** A bot that reads a mailbox someone else connected doesn't see the sign-in codes or sign-in links in it.
 - **Someone who leaves takes their accounts.** When a person is removed from the home, the accounts they connected there are removed too, and the **Activity** tab in **Apps** lists each one.
 
-When several accounts fit a request (two Gmail accounts), the bot asks which one and keeps to your answer in that chat. Switching actions on and off in an app's **Tools** applies to the whole home.
+When several accounts fit a request (two Gmail accounts), the bot asks which one and keeps to your answer in that chat. Switching actions on and off in an app's **Tools** applies to the whole home, and only its owners and admins can.
 
 ## Files, computers and the vault
 
@@ -101,7 +101,7 @@ When several accounts fit a request (two Gmail accounts), the bot asks which one
 
 **Where files are kept.** Owners and admins choose in **Settings**, under **Files**: **On Mercbot**, **In Google Drive** (a Google Drive account connected in Connect apps, where Mercbot makes one folder for the home), or **In the home's own storage** (Nextcloud or any storage with a WebDAV address, with a username and password). Mercbot checks the storage before saving the choice and never shows the password again. Changing it moves all the home's files to the new place, which becomes an exact copy of them; meanwhile they can be read but not changed.
 
-**Computers.** In each chat, each bot has its own computer, labelled with its name. It belongs to that chat: everyone who can open the chat can watch it, take it over and use what's signed in there.
+**Computers.** In each chat, each bot has its own computer, labelled with its name, such as "Chef's computer". It belongs to that chat: everyone who can open the chat can watch it, take it over and use what's signed in there. See [The bots' computers](/help/chats#the-bots-computers).
 
 **Vault.** The home's saved logins, cards and contacts are the home's, like its accounts. See [The vault](/help/vault).
 
@@ -110,7 +110,7 @@ When several accounts fit a request (two Gmail accounts), the bot asks which one
 Each home has its own Apps: small apps its bots build on the home's own data, such as a contacts list, a stock tracker or a sales pipeline.
 
 - **One Builder per home.** One bot holds the Builder role and makes and changes apps when people ask. A person previews a draft and publishes it.
-- **One chat per app.** Each app has its own Public chat with the Builder, which everyone can follow; **Ask Builder** inside an app opens it.
+- **One chat per app.** Each app has its own Public chat with the Builder, named after the app, which everyone can follow: **Ask Builder** inside an app opens it, and makes it the first time anyone asks.
 - **Everyone's bots read and add to the same data** from chat, and any bot can watch a table and act when records change.
 - **Pins are personal.** Each person pins up to 8 apps to their sidebar.
 
