@@ -42,6 +42,7 @@ test("in a private chat, the bot's additions change only on the card its asker a
 
   assert.equal((await kit.knex("bots").where({ id: chef }).first()).additions ?? "", "", "nothing changed without the card");
   const card = await kit.knex("messages").where({ conversation_id: chat, kind: "choice" }).orderBy("id", "desc").first();
+  assert.ok(card, "a card waits for the yes");
   assert.equal(card.body.for.id, kim, "Kim's card: Kim asked");
   await assert.rejects(kit.turns.chat.answerChoice(chat, String(card.id), [card.body.options[0]], as(pat)), { statusCode: 403, code: "bots_waiting_for_other" });
   assert.equal((await kit.knex("bots").where({ id: chef }).first()).additions ?? "", "", "nor on someone else's yes");
