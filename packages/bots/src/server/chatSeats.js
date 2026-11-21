@@ -49,13 +49,13 @@ export function createChatSeats({ records, systemContext, notices }) {
     return seatOf(bot, chat, await records.chats.chatBotOf(String(botId), String(chatId), options), askerId);
   }
 
-  /** What the bot says in its chat: its messages under its name, Mercbot's lines (role system) under none. */
+  /**
+   * What the bot says in its chat: its messages under its name, Mercbot's lines (role system) under none. Each keeps the
+   * bot's name as it was (`body.authorName`), so the chat still names it once the bot has left the chat or gone.
+   */
   function say(seat, messages, options) {
-    return records.messages.append(
-      seat.chat_id,
-      messages.map((message) => (message.role === "bot" ? { ...message, authorBotId: seat.id } : message)),
-      options
-    );
+    const asBot = (message) => ({ ...message, authorBotId: seat.id, body: { ...message.body, authorName: seat.name } });
+    return records.messages.append(seat.chat_id, messages.map((message) => (message.role === "bot" ? asBot(message) : message)), options);
   }
 
   /** The chat's people hear of it on bot-events (R9): "messages" { chatId } and "working" { chatId, botId, working, status }. */

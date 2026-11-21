@@ -18,6 +18,7 @@ import {
   createChatRules,
   inReadableChat,
   ofReadableChatBot,
+  chatReaderFor,
   readerFor,
   readerOf
 } from "./rowPolicies.js";
@@ -137,6 +138,7 @@ const BotRecordsFeature = defineFeature({
       // The model's reader (R1, D-112): the one context a turn's model-facing reads pass, which reads what its chat may.
       readers: Object.freeze({
         forBot: (reader) => readerFor(systemContext, reader),
+        forChat: (chat) => chatReaderFor(systemContext, chat),
         of: readerOf
       }),
       // The chat rules other features' row policies apply to their rows of a bot in a chat and a person's own rows.

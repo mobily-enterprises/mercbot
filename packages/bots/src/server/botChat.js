@@ -98,8 +98,10 @@ export function createBotChat({ records, model, integrations, goals, replies, se
   async function sendMessage(chatId, input = {}, options) {
     const chat = await records.chats.get(String(chatId), options);
     const me = await writer(chat.id, options);
-    const chatBots = await records.chats.bots(chat.id, options);
+    const [chatBots, names] = await Promise.all([records.chats.bots(chat.id, options), records.chats.names([me], options)]);
     const body = withMentions(messageBody(input), chatBots.map((bot) => ({ id: String(bot.bot_id), name: bot.name })));
+    // The person's name as they wrote it (R2): the chat still names them once they've left it, or the home.
+    body.authorName = names.get(me) || "Someone";
     const picked = [...String(body.text || "").matchAll(/<@skill:([\w-]+)>/gu)].map((match) => match[1]);
     if (picked.length) {
       const own = await integrations.skillNames(options);

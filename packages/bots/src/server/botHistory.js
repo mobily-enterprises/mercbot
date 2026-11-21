@@ -8,7 +8,8 @@ const RECENT_MESSAGES_READ = 6;
  * What a bot reads before replying in a chat (D-48, R5): the chat's messages after its latest summary, each under its
  * author's name, the summaries kept between turns, and the saved runs that keep one reply per bot in a chat at a time.
  * Every read a turn makes takes the model's reader (records.readers.forBot) as its options. A chat's summary is the
- * chat's, read by each of its bots: the summary worker names only the chat, so its hooks read that one chat in its home.
+ * chat's, read by each of its bots: the summary worker names only the chat, so its hooks read it through the chat's
+ * reader too (summarised).
  * @param {object} dependencies
  * @param {import("./types.js").BotRecords} dependencies.records mercbot.bots.records
  * @param {(reason: string) => object} dependencies.systemContext the bots' system context factory
@@ -66,8 +67,9 @@ export function createBotHistory({ records, systemContext, model, meter, notices
   const SUMMARY_REASON = "a chat's summary is made from that chat's own messages, in its home";
   /**
    * The chat a summary is for, in its home: found through one of its bots (a chat with no bot left makes no model call,
-   * so it has nothing to summarise). Read with the bots' system context in that home, for this one chat only: what
-   * every bot of the chat may read there (D12's readable_from always holds the chat itself).
+   * so it has nothing to summarise). Its messages are read through the chat's own reader (records.readers.forChat, R1,
+   * D12), which acts for no one: what the chat may read decides it, so no read can reach past the chat, and no person's
+   * reach is borrowed.
    */
   async function summarised(chatId) {
     const across = { context: systemContext(SUMMARY_REASON) };
@@ -77,7 +79,7 @@ export function createBotHistory({ records, systemContext, model, meter, notices
     // A chat's only bot reads the summary alone, so it keeps what that bot did with its tools; with several, each reads
     // the others' words and records only (R5), so the summary holds no bot's tool calls.
     const reader = seats.length === 1 ? place.botId : null;
-    return { place, reader, options: { context: systemContext(SUMMARY_REASON).forWorkspace(place.workspaceId) } };
+    return { place, reader, options: { context: records.readers.forChat({ homeId: place.workspaceId, chatId: String(chatId) }) } };
   }
 
   // Summaries between turns (@jskit-ai/agent-runtime), one per chat: every message under its author's name, as the

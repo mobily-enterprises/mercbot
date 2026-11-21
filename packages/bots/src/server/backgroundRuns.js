@@ -34,9 +34,10 @@ export function createBackgroundRuns({ records, systemContext, meter, seats, job
     );
     if (!found) {
       // Its seat, chat or bot is gone or archived, or its maker can no longer open the chat: the run ends, so no server
-      // takes it over again.
-      await routineCheckpoint(records.work, routine, null)
-        ?.end({ failed: true }, { context: systemContext("routine runner").forWorkspace(String(routine.workspaceId)) });
+      // takes it over again, and one still in its chat pauses there, with a line.
+      const system = { context: systemContext("routine runner").forWorkspace(String(routine.workspaceId)) };
+      await routineCheckpoint(records.work, routine, null)?.end({ failed: true }, system);
+      await pauseWithoutMaker(routine, system);
       return;
     }
     const { seat, call } = found;
@@ -44,6 +45,29 @@ export function createBackgroundRuns({ records, systemContext, meter, seats, job
       { userId: seat.user_id, botId: seat.id, workspaceId: seat.workspace_id, work: "background" },
       () => runRoutineFor(seat, routine, call, signal)
     );
+  }
+
+  /**
+   * A routine runs only as the person who made it (R4): one whose maker can no longer open its chat (they left it, or
+   * the home) or whose account is gone pauses, with a line in the chat saying why. Nothing is said where its chat or bot
+   * is gone or archived: archiving pauses the routines there with a line of its own.
+   * @param {object} routine the claimed routine
+   * @param {object} system the routine runner's context in its home
+   */
+  async function pauseWithoutMaker(routine, system) {
+    const chatBot = await records.chats.chatBot(String(routine.chatBotId), system);
+    const [chat, bot] = chatBot
+      ? await Promise.all([records.chats.find(String(chatBot.conversation_id), system), records.bots.find(String(chatBot.bot_id), system)])
+      : [];
+    if (!chat || !bot || chat.archived_at || bot.archived_at) return;
+    const maker = routine.madeBy == null ? "" : (await records.chats.names([String(routine.madeBy)], system)).get(String(routine.madeBy));
+    const why = maker ? `${maker}, who set it up, can no longer open this chat` : "the account that set it up is gone";
+    const detail = `The routine "${routine.name}" is paused: ${why}, and it runs only as the person who set it up.`;
+    await records.chats.withTransaction(system, async (txOptions) => {
+      await records.work.changeRoutine(String(routine.id), { enabled: false, nextRunAt: null }, txOptions);
+      await records.messages.append(String(chat.id), [{ kind: "event", role: "system", body: { text: "Routine paused", icon: "routine", detail } }], txOptions);
+    });
+    await seats.tell(String(chat.id), { type: "messages" }, system);
   }
 
   async function runRoutineFor(seat, routine, call, signal) {
