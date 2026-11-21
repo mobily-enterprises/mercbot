@@ -56,8 +56,8 @@ export function useChatScroll({ scroller, column, dock, messages, status, me }) 
     scroller.value.scrollTo({ top: scroller.value.scrollHeight, behavior });
   }
 
-  // The newest message changes as messages arrive (older pages go in above it), or as the chat shows
-  // another conversation, whose messages are no news: a room switch keeps the reader where they were.
+  // The newest message changes as messages arrive (older pages go in above it), or as another chat is
+  // shown, whose messages are no news: switching chats keeps the reader where they were.
   watch(() => messages().at(-1)?.id ?? null, (lastId, previousId) => {
     if (following.value || lastId === previousId) return;
     const news = newMessagesAfter(messages(), previousId, me());

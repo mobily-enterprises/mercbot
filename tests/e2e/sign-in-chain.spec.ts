@@ -203,7 +203,10 @@ function personTurn(said = "Please sign in to example.com for me") {
     appFor: () => ({ integrations, reach, skip: [], call }),
     computer: manager,
     computerId: COMPUTER,
-    conversationId: COMPUTER,
+    chatId: "4",
+    userId: "7",
+    // D14's line on the chat that its computer signed in: not what this spec checks.
+    signedIn: async () => {},
     turns: { messages: async () => [{ body: { text: said } }] },
     call,
     inTime: (work: Promise<unknown>) => work,
@@ -216,7 +219,7 @@ function personTurn(said = "Please sign in to example.com for me") {
   });
   /** The person says yes on the card: its action runs as botCards.answerChoice runs it. */
   const approve = (args: Record<string, string>) =>
-    SIGN_IN_CODE_ACTIONS.fill_sign_in_code.run({ integrations, reach, call, computer: manager, conversationId: COMPUTER }, args);
+    SIGN_IN_CODE_ACTIONS.fill_sign_in_code.run({ integrations, reach, call, computer: manager, computerId: COMPUTER }, args);
   return {
     start: (address: string) => signIns.tools.startSignIn.execute({ address }),
     fillCode: () => signIns.tools.fillSignInCode.execute({ site: "example.com" }),
