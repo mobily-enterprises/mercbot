@@ -14,6 +14,7 @@ import MercbotConvoAvatar from "./MercbotConvoAvatar.vue";
 import MercbotConfirmDialog from "./MercbotConfirmDialog.vue";
 import MercbotContextMenu from "./MercbotContextMenu.vue";
 import MercbotIconButton from "./MercbotIconButton.vue";
+import MercbotKnowledgeSection from "./MercbotKnowledgeSection.vue";
 import MercbotVncScreen from "./MercbotVncScreen.vue";
 import extensions from "./extensions.js";
 import { computerApi, useComputerStream } from "./computerApi.js";
@@ -429,6 +430,8 @@ async function openInstructions() {
           :additions="instructions?.additions || ''"
           @changed="templateChanged"
         />
+        <!-- What it knows (D-107), next to what it's told: text and files, always in mind or searched first. -->
+        <MercbotKnowledgeSection v-if="!isGroup" :bot="bot" :tab="tab" @failure="emit('failure', $event)" />
         <MercbotAppsSection v-if="!isGroup" :bot="bot" />
 
         <template v-if="sharingShown">

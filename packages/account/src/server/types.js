@@ -33,8 +33,10 @@
  * built on Mercbot may replace). The meter calls the recording methods around every AI call, a computer's day and a
  * command's computation: `open`, `startComputerDay` and `startComputation` may refuse the work before it starts by
  * throwing meter.js `refuseWork`, and `renewComputation` by answering false. `pausedMessage` is what a bot says instead
- * of starting new work in a home (null: it starts). A copy's own also answers what a home has spent (`spending`) and
- * names the columns it adds to the daily totals, archived with Mercbot's (`archivedColumns`).
+ * of starting new work in a home (null: it starts), and `estimateNano` what some tokens of an AI call would cost a home
+ * before any call is made, as the recorder would count them (a bot's Knowledge shows it, D-107). A copy's own also
+ * answers what a home has spent (`spending`) and names the columns it adds to the daily totals, archived with
+ * Mercbot's (`archivedColumns`).
  * @typedef {ReturnType<typeof import("./usage.js").createUsageRecorder> & {
  *   spending?: Spending,
  *   archivedColumns?: ReadonlyArray<string>
@@ -44,7 +46,8 @@
 /**
  * @typedef {ReturnType<typeof import("./meter.js").createMeter> & {
  *   spentSince: UsageRecorder["spentSince"],
- *   pausedMessage: UsageRecorder["pausedMessage"]
+ *   pausedMessage: UsageRecorder["pausedMessage"],
+ *   estimateNano: UsageRecorder["estimateNano"]
  * }} Meter
  */
 

@@ -16,6 +16,7 @@ import { templateOf } from "./botTemplate.js";
  * options (`call`) last: a person's own request's, or a background turn's job context in the home.
  * @param {object} dependencies
  * @param {import("./types.js").BotRecords} dependencies.records mercbot.bots.records
+ * @param {ReturnType<typeof import("./botKnowledge.js").createBotKnowledge>} dependencies.knowledge what each bot knows (D-107)
  * @param {{ findById: (userId: string, options: object) => Promise<{ email?: string } | null> }} dependencies.profiles users.profiles
  * @param {{ findById: (workspaceId: string, options: object) => Promise<{ name?: string } | null> }} dependencies.workspaces the workspaces' records
  * @param {import("@local/account/server/types").Account} dependencies.account the account capability (vault logins)
@@ -32,6 +33,7 @@ import { templateOf } from "./botTemplate.js";
  */
 export function createBotTurns({
   records,
+  knowledge,
   profiles,
   workspaces,
   account,
@@ -144,8 +146,16 @@ export function createBotTurns({
   // The person's own skills the state names (read_skill opens any of them by name).
   const SKILLS_SHOWN = 30;
 
-  /** What's true right now, written by the server for the model each turn (D-14). */
-  async function currentState(row, history, timeZone, language, turnedOff, call) {
+  /**
+   * What's true right now, written by the server for the model each turn (D-14), with the parts of the bot's searched
+   * knowledge that match the person's latest message (D-107; `known`, turnTools' knowledge).
+   * @param {object} row
+   * @param {Array<object>} history
+   * @param {{ timeZone: string, language?: string, turnedOff?: string[], known?: object | null }} turn
+   * @param {object} call
+   */
+  async function currentState(row, history, { timeZone, language = "", turnedOff = [], known = null }, call) {
+    const latest = [...history].reverse().find((message) => message.role === "user" && message.kind === "text")?.body?.text || "";
     const status = await computer.status(String(row.conversation_id));
     const routines = await records.work.routinesOf(row.conversation_id, call);
     const skills = !row.room ? await integrations.skillNames(call, { limit: SKILLS_SHOWN }) : [];
@@ -250,7 +260,9 @@ export function createBotTurns({
           : "none"
       }.`,
       // The job's open to-do list and the bot's notes (D-48), so they outlast summaries and restarts.
-      ...(await planningNotes(records.turns.planning(call), row.conversation_id))
+      ...(await planningNotes(records.turns.planning(call), row.conversation_id)),
+      // Last, as it changes with every message: what its searched knowledge says about the latest one (D-107).
+      ...(await knowledge.stateLines(row, known, latest, call))
     ].join("\n");
   }
 
@@ -358,6 +370,8 @@ export function createBotTurns({
     const isBuilder = (await apps.apps.builder(call))?.id === String(row.id);
     // The template it points at (D-98), whose skills it reads with read_skill.
     const template = await templateOf(row, records.homeTemplates, call);
+    // What it knows (D-107): in its instructions, and searched with its tools and in the current state.
+    const known = await knowledge.forTurn(row, call);
     const run = buildTools({
       call,
       records,
@@ -395,9 +409,10 @@ export function createBotTurns({
       workingRequestId: turn.working?.id ?? null,
       goalOperations,
       inbox,
-      post
+      post,
+      knowledgeTools: knowledge.toolsFor(row, known, call)
     });
-    return { run, isBuilder, toolSwitches, template };
+    return { run, isBuilder, toolSwitches, template, knowledge: known };
   }
 
   /**

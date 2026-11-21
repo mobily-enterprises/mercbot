@@ -1,0 +1,335 @@
+/* A bot's Knowledge on its Details tab (MercbotKnowledgeSection.vue, D-107), in the panel's own label, sentence, box
+   and pills (MercbotDetailsPanel.css, MercbotDetailsInstructions.css), and its editor in the size and parts of the
+   app's other dialogs (MercbotChangeTemplateDialog.css, MercbotTemplateDraft.css). On a phone the editor fills the
+   screen. */
+.mb-knowledge {
+  margin-bottom: 22px;
+}
+
+.mb-knowledge__label {
+  margin: 0 0 8px;
+  font-size: 13px;
+  color: rgb(var(--v-theme-on-surface-variant));
+}
+
+.mb-knowledge__sentence {
+  margin: 0 0 10px;
+  font-size: 14px;
+  line-height: 22px;
+}
+
+.mb-knowledge__skeleton {
+  height: 58px;
+  border-radius: 12px;
+  background: rgb(var(--v-theme-surface-container-high));
+}
+
+.mb-knowledge__link {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  color: rgb(var(--v-theme-primary));
+  cursor: pointer;
+}
+
+.mb-knowledge__list {
+  margin: 0;
+  padding: 4px;
+  border: 1px solid rgb(var(--v-theme-outline-variant));
+  border-radius: 12px;
+  background: rgb(var(--v-theme-surface));
+  list-style: none;
+}
+
+.mb-knowledge__piece {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+}
+
+.mb-knowledge__piece + .mb-knowledge__piece {
+  border-top: 1px solid rgb(var(--v-theme-outline-variant));
+}
+
+.mb-knowledge__open {
+  display: flex;
+  flex: 1;
+  align-items: flex-start;
+  gap: 8px;
+  min-width: 0;
+  padding: 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: rgb(var(--v-theme-on-surface));
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.mb-knowledge__open:hover:not(:disabled) {
+  background: rgb(var(--v-theme-surface-container-high));
+}
+
+.mb-knowledge__open:disabled {
+  cursor: default;
+}
+
+.mb-knowledge__open:focus-visible {
+  outline: 2px solid rgb(var(--v-theme-secondary));
+  outline-offset: -2px;
+}
+
+.mb-knowledge__icon {
+  flex: none;
+  margin-top: 1px;
+  color: rgb(var(--v-theme-on-surface-variant));
+}
+
+.mb-knowledge__text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.mb-knowledge__title {
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mb-knowledge__line {
+  font-size: 12px;
+  line-height: 16px;
+  color: rgb(var(--v-theme-on-surface-variant));
+}
+
+.mb-knowledge__problem {
+  color: rgb(var(--v-theme-error));
+}
+
+/* A file being read, or a long piece being got ready, under its line. */
+.mb-knowledge__progress {
+  flex: 1 0 100%;
+  margin: -2px 8px 8px 34px;
+  max-width: calc(100% - 42px);
+}
+
+.mb-knowledge__retry {
+  flex: 1 0 100%;
+  padding: 0 8px 8px 34px;
+}
+
+.mb-knowledge__summary {
+  margin: 10px 2px 0;
+  font-size: 12px;
+  line-height: 17px;
+  color: rgb(var(--v-theme-on-surface-variant));
+}
+
+.mb-knowledge__summary p {
+  margin: 0 0 2px;
+}
+
+.mb-knowledge__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.mb-knowledge__file {
+  display: none;
+}
+
+.mb-knowledge__note {
+  margin: 8px 0 0 4px;
+  font-size: 12px;
+  color: rgb(var(--v-theme-on-surface-variant));
+}
+
+/* The editor: a pasted text or a piece opened, with its name, its whole text and what it'll be. */
+.mb-kedit {
+  display: flex;
+  flex-direction: column;
+  width: min(760px, calc(100vw - 48px));
+  height: 655px;
+  max-height: calc(100vh - 48px);
+  overflow: hidden;
+  border-radius: 16px;
+  background: rgb(var(--v-theme-surface));
+  color: rgb(var(--v-theme-on-surface));
+}
+
+.mb-kedit--phone {
+  width: 100%;
+  height: 100%;
+  max-height: none;
+  border-radius: 0;
+}
+
+.mb-kedit__head {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+  height: 55px;
+  padding: 0 14px 0 17px;
+  border-bottom: 1px solid rgb(var(--v-theme-outline-variant));
+}
+
+.mb-kedit--phone .mb-kedit__head {
+  gap: 4px;
+  height: 64px;
+  padding: 0 12px 0 4px;
+}
+
+.mb-kedit__title {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  font-size: 15px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mb-kedit--phone .mb-kedit__title {
+  font-size: 17px;
+}
+
+.mb-kedit__close {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: rgb(var(--v-theme-on-surface-variant));
+  cursor: pointer;
+}
+
+.mb-kedit--phone .mb-kedit__close {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+}
+
+.mb-kedit__body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  padding: 16px 24px 12px;
+}
+
+.mb-kedit--phone .mb-kedit__body {
+  padding: 12px 16px;
+}
+
+.mb-kedit__label {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: rgb(var(--v-theme-on-surface-variant));
+}
+
+.mb-kedit__label--text {
+  margin-top: 14px;
+}
+
+.mb-kedit__input {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid rgb(var(--v-theme-outline-variant));
+  border-radius: 10px;
+  background: rgb(var(--v-theme-surface));
+  color: inherit;
+  font: inherit;
+  font-size: 13px;
+  line-height: 18px;
+  outline: none;
+}
+
+.mb-kedit__input:focus {
+  border-color: rgb(var(--v-theme-outline));
+}
+
+/* The text fills what's left of the editor, scrolling inside itself however long it is. */
+.mb-kedit__text {
+  flex: 1;
+  min-height: 120px;
+  resize: none;
+}
+
+.mb-kedit__loading {
+  flex: 1;
+}
+
+.mb-kedit__hint {
+  margin: 6px 2px 0;
+  font-size: 12px;
+  line-height: 16px;
+  color: rgb(var(--v-theme-on-surface-variant));
+}
+
+.mb-kedit__foot {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 13px;
+  border-top: 1px solid rgb(var(--v-theme-outline-variant));
+}
+
+.mb-kedit__problem {
+  margin: 0 auto 0 0;
+  font-size: 12px;
+  line-height: 16px;
+  color: rgb(var(--v-theme-error));
+}
+
+.mb-kedit__button {
+  height: 30px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 15px;
+  background: rgb(var(--v-theme-surface-container-high));
+  font: inherit;
+  font-size: 13px;
+  color: inherit;
+  cursor: pointer;
+}
+
+.mb-kedit__button--primary {
+  background: rgb(var(--v-theme-inverse-surface));
+  color: rgb(var(--v-theme-inverse-on-surface));
+}
+
+.mb-kedit__button:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.mb-kedit__button--primary:disabled {
+  background: rgba(var(--v-theme-on-surface), 0.12);
+  color: rgba(var(--v-theme-on-surface), 0.38);
+  opacity: 1;
+}

@@ -111,6 +111,13 @@ export const botsApi = {
   // A bot's template and additions (D-98): its additions change with update(botId, { additions }), its template with
   // changeTemplate(botId, { library: slug }, { home: id } or { draft, foldAdditions }).
   instructions: (botId) => request(`/bots/${botId}/instructions`),
+  // What a bot knows (D-107): the list, each piece's text, and its changes, each of which answers the list.
+  knowledge: (botId) => request(`/bots/${botId}/knowledge`),
+  knowledgePiece: (botId, id) => request(`/bots/${botId}/knowledge/${id}`),
+  addKnowledge: (botId, piece) => post(`/bots/${botId}/knowledge`, piece),
+  changeKnowledge: (botId, id, changes) => patch(`/bots/${botId}/knowledge/${id}`, changes),
+  removeKnowledge: (botId, id) => remove(`/bots/${botId}/knowledge/${id}`),
+  retryKnowledge: (botId, id) => post(`/bots/${botId}/knowledge/${id}/retry`),
   changeTemplate: (botId, choice) => request(`/bots/${botId}/template`, { method: "PUT", body: choice }),
   // A template drafted by the bot ({ purpose: "new" | "from-bot" | "change", … }): { draft, problems }, nothing kept.
   draftTemplate: (body) => post("/bots/templates/draft", body),

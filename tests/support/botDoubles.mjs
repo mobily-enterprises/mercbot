@@ -2,6 +2,7 @@
 // around them. Each neutral double stands for a home with nothing set up: no computer, nothing
 // connected, no files, no apps, no other bot to ask. A test passes the parts it exercises (a real
 // file store, a computer that answers) and the rest are filled in, member by member.
+import { estimateAtProvider } from "../../packages/account/src/server/cost.js";
 import { createMediaGuard } from "../../packages/account/src/server/mediaCheck.js";
 import { createMeter } from "../../packages/account/src/server/meter.js";
 import { createBotsService } from "../../packages/bots/src/server/botsService.js";
@@ -31,7 +32,9 @@ const neutral = {
   // What work uses is recorded nowhere and the home is never paused.
   meter: () => ({
     ...createMeter({ recorder: FREE_RECORDER }),
-    pausedMessage: async () => null
+    pausedMessage: async () => null,
+    // What some tokens would cost, at the provider's list prices, as Mercbot's own recorder answers (D-107).
+    estimateNano: estimateAtProvider
   }),
   notices: () => ({ publish: async () => {}, publishEach: async () => {}, subscribe: () => () => {} }),
   computer: () => ({

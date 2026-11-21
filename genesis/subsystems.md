@@ -71,6 +71,7 @@ owns through them.
 - `genesis/program/bots/app-tools.md`
 - `genesis/program/bots/templates.md`
 - `genesis/program/bots/agent-loop.md`
+- `genesis/program/bots/knowledge.md`
 
 ### Data owned
 
@@ -86,6 +87,8 @@ owns through them.
 - Table `database` `default` `bot_conversations`
 - Table `database` `default` `conversation_reads`
 - Table `database` `default` `bot_notebook`
+- Table `database` `default` `bot_knowledge`
+- Table `database` `default` `bot_knowledge_parts`
 - Table `database` `default` `connect_follow_ups`
 - Table `database` `default` `agent_runs`
 - Table `database` `default` `agent_goals`

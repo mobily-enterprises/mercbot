@@ -1,5 +1,5 @@
 import { retryLostInsertRace } from "@jskit-ai/database-runtime/shared";
-import { kindOf, providerCostNano } from "./cost.js";
+import { estimateAtProvider, kindOf, providerCostNano } from "./cost.js";
 
 // Mercbot's own recorder (D-56, D-73): every AI call, a computer's day and its commands' computation are counted for
 // their home, person and bot, with what the call cost at its provider. It never refuses work. Each finished piece of
@@ -326,6 +326,8 @@ export function createUsageRecorder({ resources, systemContext, directory, now =
   }
 
   return Object.freeze({
+    // What some tokens would cost a home, before a call: at the provider's list prices (D-107).
+    estimateNano: estimateAtProvider,
     open,
     finish,
     release,

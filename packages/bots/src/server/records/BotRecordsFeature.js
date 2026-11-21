@@ -7,6 +7,7 @@ import { createBotDirectory } from "./directory.js";
 import { FOLLOW_UP_SEARCH, createFollowUpRepository } from "./followUpRepository.js";
 import { createHomeSettingsRepository } from "./homeSettingsRepository.js";
 import { createHomeTemplateRepository } from "./homeTemplateRepository.js";
+import { KNOWLEDGE_PART_SEARCH, KNOWLEDGE_SEARCH, createKnowledgeRepository } from "./knowledgeRepository.js";
 import { createMakerRepository } from "./makerRepository.js";
 import { createMessageRepository } from "./messageRepository.js";
 import { createNewBotRepository } from "./newBotRepository.js";
@@ -18,6 +19,8 @@ import {
   botConversationResource,
   botGroupMemberResource,
   botGroupPeopleResource,
+  botKnowledgePartResource,
+  botKnowledgeResource,
   botMessageResource,
   botNotebookResource,
   botRequestResource,
@@ -42,7 +45,7 @@ const ROW_POLICIES = new Map([
 ]);
 // The filters the repositories read by beyond each table's search fields (searchSchemas.js), with
 // the queued work's (workRepository.js: what is due, by the database's clock), a turn's
-// (turnRepository.js) and the connect follow-ups' (followUpRepository.js).
+// (turnRepository.js), the connect follow-ups' (followUpRepository.js) and what the bots know (knowledgeRepository.js).
 const SEARCH = new Map([
   [botResource, BOT_SEARCH],
   [botConversationResource, CONVERSATION_SEARCH],
@@ -51,6 +54,8 @@ const SEARCH = new Map([
   [botGroupPeopleResource, GROUP_SEARCH],
   [conversationReadResource, READ_SEARCH],
   [botNotebookResource, NOTEBOOK_SEARCH],
+  [botKnowledgeResource, KNOWLEDGE_SEARCH],
+  [botKnowledgePartResource, KNOWLEDGE_PART_SEARCH],
   [botRequestResource, REQUEST_SEARCH],
   [botRoutineResource, ROUTINE_SEARCH],
   [connectFollowUpResource, FOLLOW_UP_SEARCH],
@@ -119,6 +124,8 @@ const BotRecordsFeature = defineFeature({
       newBots: createNewBotRepository({ resources, systemContext, homeTemplates }),
       // The home's own bot templates and what changed in them (D-98).
       homeTemplates,
+      // What each bot knows, and the parts of it its turns search (D-107).
+      knowledge: createKnowledgeRepository(resources),
       // The home's settings for its bots: the sharing its new bots get, and whether its team question was answered (D-100).
       homeSettings: createHomeSettingsRepository({ resources, systemContext, memberships }),
       agent: Object.freeze({

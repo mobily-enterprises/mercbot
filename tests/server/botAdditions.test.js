@@ -17,7 +17,7 @@ test("additions are capped at 20,000 characters, refused past that with the reas
     assert.equal(error.statusCode ?? error.status, 400);
     assert.equal(error.code, "bots_additions_too_long");
     assert.match(error.message, /^Additions can be up to 20,000 characters, and these are 20,001\. /u);
-    assert.match(error.message, /long reference material in a skill or a file/u);
+    assert.match(error.message, /long reference material in its Knowledge/u);
     return true;
   });
   assert.deepEqual(additionsChange("   \n"), { additions: "" }, "none is empty");

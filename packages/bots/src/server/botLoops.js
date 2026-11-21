@@ -84,7 +84,9 @@ export function createBotLoops({ records, systemContext, notices, files, apps, c
       bots.startResumer(),
       // A task waiting for an app the person connected from its card is finished: the sign-in starts it,
       // and this sweep, once a minute, those whose server stopped first.
-      bots.connectFollowUps.startSweeping()
+      bots.connectFollowUps.startSweeping(),
+      // What the bots know (D-107): each piece added is read and split once across servers.
+      bots.knowledge.start()
     ];
     // A command that went on in the background (D-47) wakes its bot in the same conversation
     // when it ends; runs whose server stopped are found by any server.

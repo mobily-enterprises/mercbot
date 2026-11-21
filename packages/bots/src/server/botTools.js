@@ -64,6 +64,8 @@ function inTime(work, what) {
  * @param {import("@jskit-ai/agent-runtime/server/types").AgentGoalOperations | null} options.goalOperations
  * @param {Parameters<typeof hearWhileWorking>[1] | null} options.inbox
  * @param {import("./types.js").Notebook | null} options.notebook
+ * @param {Record<string, object>} [options.knowledgeTools] search_knowledge and read_knowledge, for a bot whose knowledge is
+ *   searched (botKnowledge.js toolsFor, D-107)
  * @param {{ kind: string } | null} options.appsVia where the bot is working when not in chat (a watch run, a button's task)
  * @param {string | null} options.workingRequestId
  * @param {boolean} [options.viaBot] work another bot asked for (D-46)
@@ -110,7 +112,8 @@ export function buildTools({
   routine = null,
   personal = true,
   place = { homeId, botId, userId },
-  toolSwitches = { skip: {}, removed: [], connected: [] }
+  toolSwitches = { skip: {}, removed: [], connected: [] },
+  knowledgeTools = {}
 }) {
   // Whose connected accounts the tools reach: the person's own and the home's (D-37).
   const reach = { userId, homeId, personal };
@@ -249,6 +252,8 @@ export function buildTools({
   Object.assign(tools, buildBotRequestTools({ handOff, requestTools, goalOperations }));
   Object.assign(tools, buildDraftTools({ turns: records.turns, call, conversationId, viaBot, routineRun, settleDraft, appFor, after }));
   Object.assign(tools, buildCardTools({ integrations, reach, notebook, after, call }));
+  // Searching what the bot knows that's too long to keep in mind (D-107).
+  Object.assign(tools, knowledgeTools);
   // Notes for the job in hand and a to-do list the person sees as a card (D-48, @jskit-ai/agent-runtime
   // planning), both in front of the bot at every turn.
   if (!routineRun) Object.assign(tools, planningTools({ planning: records.turns.planning(call), conversationId, post }));

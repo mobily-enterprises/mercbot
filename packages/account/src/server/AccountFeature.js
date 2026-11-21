@@ -114,7 +114,8 @@ const AccountFeature = defineFeature({
         computerDay: meter.computerDay,
         startComputation: meter.startComputation,
         spentSince: recorder.spentSince,
-        pausedMessage: recorder.pausedMessage
+        pausedMessage: recorder.pausedMessage,
+        estimateNano: recorder.estimateNano
       }),
       sweeps: Object.freeze({
         stop() {

@@ -65,6 +65,7 @@
  *   newBots: ReturnType<typeof import("./records/newBotRepository.js").createNewBotRepository>,
  *   homeTemplates: HomeTemplateRepository,
  *   homeSettings: HomeSettingsRepository,
+ *   knowledge: ReturnType<typeof import("./records/knowledgeRepository.js").createKnowledgeRepository>,
  *   agent: { createRuns: Function, createSummaries: Function, createGoals: Function }
  * }} BotRecords
  */

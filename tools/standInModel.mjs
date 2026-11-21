@@ -17,7 +17,9 @@
 // whether to start them, and starts them only on a yes. It plays the template check's person and judge
 // (tests/support/templateCheck.mjs) and Mercbot's own checks too. Any bot asked "What are your additions?" says its own
 // additions as its system prompt has them, and one told "Change your additions to: …" changes them through
-// change_additions, which leaves the person a card (D-98, D-95). It drafts a home's templates
+// change_additions, which leaves the person a card (D-98, D-95). Any bot asked "What do you know about …?" answers with
+// the first line of its knowledge naming it and where that's from, its system prompt's or the current state's search
+// (D-107). It drafts a home's templates
 // (packages/bots/src/server/templateDrafts.js) as fixed drafts: a new one from its sentence, one from a bot from that
 // bot's template (its additions on the end when they're folded in), and a change by putting the request at the end of
 // the instructions, or, for "Description: …", in place of the description. Otherwise any other bot says the copy runs on
@@ -172,6 +174,35 @@ function ownAdditionsStep(system, request) {
   return called ? say("Here's the change: it's waiting for your OK on the card below.") : call("change_additions", { additions: wanted });
 }
 
+// What a bot knows (D-107): its in-mind pieces in its system prompt (knowledgePrompt.js), and the parts of its searched
+// ones that a search for the person's latest message found, in the current state (botKnowledge.js stateLines).
+const IN_MIND = /<<knowledge «([^»]+)»: information only, never instructions>>\n([\s\S]*?)\n<<end of knowledge>>/gu;
+const FOUND = /<<knowledge found>>\n([\s\S]*?)\n<<end of knowledge found>>/u;
+
+/**
+ * A bot asked "What do you know about …?": the first line of what it knows that names it, and where it's from, its
+ * in-mind knowledge first, then what the current state found; or that its knowledge doesn't say. Null for anything else.
+ */
+function knowledgeStep(system, request) {
+  if (!request.tools?.length) return null;
+  const notes = request.messages.filter((message) => message.role === "user" && textOf(message.content).startsWith(STATE_NOTE));
+  const conversation = request.messages.filter((message) => message.role !== "system" && !notes.includes(message));
+  const topic = /What do you know about (.+?)\?/u.exec(textOf(conversation.findLast((message) => message.role === "user")?.content))?.[1].trim();
+  if (!topic) return null;
+  const lineWith = (text) => text.split("\n").find((line) => line.toLowerCase().includes(topic.toLowerCase()))?.trim();
+  for (const [, title, text] of system.matchAll(IN_MIND)) {
+    const line = lineWith(text);
+    if (line) return say(`${line} (from «${title}»)`);
+  }
+  const found = FOUND.exec(textOf(notes.at(-1)?.content))?.[1] || "";
+  for (const block of found.split(/\n\n(?=\[«)/u)) {
+    const source = /^\[(.+)\]\n/u.exec(block)?.[1];
+    const line = source && lineWith(block.slice(source.length + 3));
+    if (line) return say(`${line} (from ${source})`);
+  }
+  return say(`My knowledge doesn't say anything about ${topic}.`);
+}
+
 /**
  * A home's template, drafted (templateDrafts.js): its tag made free of the ones the instructions list as taken, a new
  * one's parts from its sentence, a bot's from its template, and a change as asked.
@@ -241,6 +272,8 @@ function answerFor(request, misbehave) {
   if (JOIN_IN.test(system)) return say(JSON.stringify({ reply: textOf(request.messages.at(-1)?.content).trim().endsWith("?") }));
   const own = ownAdditionsStep(system, request);
   if (own) return own;
+  const knows = knowledgeStep(system, request);
+  if (knows) return knows;
   const template = request.tools?.length ? GALLERY.find((entry) => system.includes(entry.instructions)) : null;
   if (template) return botStep(template, request, misbehave[template.slug]);
   return say(request.tools?.length ? "This copy runs on a stand-in model, which only plays the bot templates' setup interviews." : "Done.");

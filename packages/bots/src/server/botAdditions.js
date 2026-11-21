@@ -7,8 +7,8 @@ import { BotsError } from "./botsError.js";
 
 /**
  * The most a bot's additions may hold: as much as one of the person's skills (memoryTools.js save_skill), about ten
- * pages or 5,000 tokens. They're read with every message, so reference material longer than that belongs in a skill
- * or a file the bot reads only when a job needs it.
+ * pages or 5,000 tokens. They're read with every message, so reference material longer than that belongs in the bot's
+ * Knowledge (D-107), which searches a long piece when a turn needs it.
  */
 export const ADDITIONS_LIMIT = 20000;
 
@@ -41,7 +41,7 @@ export function additionsChange(value) {
     throw new BotsError(
       400,
       `Additions can be up to ${limit} characters, and these are ${length}. Keep the rules it follows every time here, ` +
-        "and put long reference material in a skill or a file it reads when it needs it.",
+        "and put long reference material in its Knowledge, where a long piece is searched when it's needed.",
       { code: "bots_additions_too_long", params: { limit: ADDITIONS_LIMIT, length: text.length } }
     );
   }

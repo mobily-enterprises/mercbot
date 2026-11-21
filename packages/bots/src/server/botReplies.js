@@ -139,7 +139,7 @@ export function createBotReplies({
           return fresh.map((message) => String(message.body.text || "").slice(0, 2000));
         }
         : null;
-    const { run, isBuilder, toolSwitches, template } = await turns.turnTools(row, {
+    const { run, isBuilder, toolSwitches, template, knowledge: known } = await turns.turnTools(row, {
       timeZone,
       language,
       turn,
@@ -157,7 +157,7 @@ export function createBotReplies({
         await conversations.tell(row, { type: "messages" }, call);
       }
     }, call);
-    const bot = { ...toBot(row), isBuilder, template, additions: row.additions || "" };
+    const bot = { ...toBot(row), isBuilder, template, additions: row.additions || "", knowledge: known };
     const { summary, history } = routine
       ? await chatHistory.routineHistory(row, routine.id, call)
       : recentOnly ? await chatHistory.recentHistory(row, call) : await chatHistory.conversationHistory(row, call);
@@ -217,7 +217,7 @@ export function createBotReplies({
         }
       : undefined;
     try {
-      const state = await turns.currentState(row, history, timeZone, language, toolSwitches?.turnedOff || [], call);
+      const state = await turns.currentState(row, history, { timeZone, language, turnedOff: toolSwitches?.turnedOff || [], known }, call);
       const seen = await turns.withPictures(row, history);
       const sofar = { kind: "text", role: "bot", body: { text: "", transcript: resumed, ...(prompt ? { trigger: prompt } : {}) } };
       let unfinished = "";

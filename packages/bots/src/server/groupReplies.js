@@ -85,7 +85,7 @@ export function createGroupReplies({ records, computer, conversations, chatHisto
             ...(several ? { place: "group" } : {})
           }
         }));
-      const { run, isBuilder, template } = await turns.turnTools(actor, {
+      const { run, isBuilder, template, knowledge } = await turns.turnTools(actor, {
         timeZone,
         language: "",
         turn: { working: null, asking: null, viaBot: false },
@@ -103,7 +103,7 @@ export function createGroupReplies({ records, computer, conversations, chatHisto
       let refused = null;
       try {
         const context = await groupContext();
-        const out = await groupReply({ ...toBot(own), isBuilder, template, additions: own.additions || "" }, {
+        const out = await groupReply({ ...toBot(own), isBuilder, template, additions: own.additions || "", knowledge }, {
           groupName: row.name,
           members,
           person: asker.name,
@@ -111,7 +111,7 @@ export function createGroupReplies({ records, computer, conversations, chatHisto
           ...context,
           followUp,
           timeZone,
-          state: quiet ? "" : await turns.currentState(actor, context.timeline, timeZone, "", [], call),
+          state: quiet ? "" : await turns.currentState(actor, context.timeline, { timeZone, known: knowledge }, call),
           tools: quiet ? {} : run.tools
         });
         // A test's stand-in may answer with plain text.
@@ -123,7 +123,7 @@ export function createGroupReplies({ records, computer, conversations, chatHisto
         if (!quiet && Array.isArray(transcript) && (leaked || (!account && stoppedShort(text.trim())))) {
           const steps = withoutClosingWords(transcript);
           const sofar = { kind: "text", role: "bot", body: { text: "", speaker: member, transcript: steps } };
-          const more = await groupReply({ ...toBot(own), isBuilder, template, additions: own.additions || "" }, {
+          const more = await groupReply({ ...toBot(own), isBuilder, template, additions: own.additions || "", knowledge }, {
             groupName: row.name,
             members,
             person: asker.name,
@@ -131,7 +131,7 @@ export function createGroupReplies({ records, computer, conversations, chatHisto
             ...context,
             timeline: [...context.timeline, sofar],
             timeZone,
-            state: await turns.currentState(actor, context.timeline, timeZone, "", [], call),
+            state: await turns.currentState(actor, context.timeline, { timeZone, known: knowledge }, call),
             tools: run.tools,
             prompt: leaked ? CHECKS.markup : CHECKS.stoppedShort
           });

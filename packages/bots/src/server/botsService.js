@@ -9,6 +9,7 @@ import { createBotHistory } from "./botHistory.js";
 import { createBackgroundWork } from "./backgroundWork.js";
 import { createBotCards } from "./botCards.js";
 import { createBotTurns } from "./botTurns.js";
+import { createBotKnowledge } from "./botKnowledge.js";
 import { createGroupReplies } from "./groupReplies.js";
 import { createBotReplies } from "./botReplies.js";
 import { createBotList } from "./botList.js";
@@ -158,8 +159,11 @@ export function createBotsService({
   });
 
   const cards = createBotCards({ records, env, account, computer, integrations, conversations, requests, files, homeDefaults });
+  // What each bot knows (D-107): its Details section, and what its turns keep in mind and search.
+  const knowledge = createBotKnowledge({ records, conversations, files, meter, env, systemContext });
   const turns = createBotTurns({
     records,
+    knowledge,
     profiles,
     workspaces,
     account,
@@ -282,6 +286,16 @@ export function createBotsService({
     instructionsOf: templates.instructionsOf,
     notebook: memory.notebook,
     removeNote: memory.removeNote,
+    knowledge: Object.freeze({
+      list: knowledge.list,
+      read: knowledge.read,
+      add: knowledge.add,
+      change: knowledge.change,
+      remove: knowledge.remove,
+      retry: knowledge.retry,
+      runDue: knowledge.indexer.runDue,
+      start: knowledge.indexer.start
+    }),
     createRoom: settings.createRoom,
     roomForApp: settings.roomForApp,
     renameRoom: settings.renameRoom,

@@ -16,7 +16,7 @@
     {
       "name": "Everyday use",
       "pages": [
-        { "slug": "bots", "title": "Bots: create, shape, organise and remember", "words": 1900 },
+        { "slug": "bots", "title": "Bots: create, shape, organise and remember", "words": 2400 },
         { "slug": "shared-bots", "title": "Bots shared in a home", "words": 1700 },
         { "slug": "messaging", "title": "Messaging and working together", "words": 2700 },
         { "slug": "files", "title": "Files, documents and pictures", "words": 2400 },

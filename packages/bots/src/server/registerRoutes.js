@@ -1,6 +1,7 @@
 import { hasPermission } from "@jskit-ai/kernel/shared/support";
 import { checkRouteVisibility } from "@jskit-ai/kernel/shared/support/visibility";
 import { refusalOf } from "@local/account/meter";
+import { KNOWLEDGE_LIMITS } from "./botKnowledge.js";
 import { BotsError } from "./botsError.js";
 import { isModelFailure, modelFailure } from "./modelFailures.js";
 
@@ -21,6 +22,9 @@ function modelRefusal(request, error) {
  * part-way, the same answer.
  * @param {string} text
  */
+// A whole piece of a bot's knowledge as JSON (KNOWLEDGE_LIMITS.piece characters, at up to 4 bytes each, and the escapes of
+// its lines and quotes), which is past the server's usual body limit (D-107).
+const KNOWLEDGE_BODY_LIMIT = KNOWLEDGE_LIMITS.piece * 8;
 const pausedRefusal = (text) => new BotsError(402, text, { code: "work_paused" });
 
 /**
@@ -307,6 +311,24 @@ export function registerRoutes(http, { bots, approvals, notices, meter, records,
   // the home's made from a draft ({ draft, foldAdditions }).
   router.register("GET", "/api/w/:workspaceSlug/bots/:botId/instructions", auth, handle(async (request, _user, options) =>
     bots.instructionsOf(request.params.botId, options)));
+  // What a bot knows (D-107), in its Details panel: everyone in the home reads it; its maker and the home's owners and
+  // admins add pasted text ({ title, text }, up to a book: the body limit is a whole piece's) or a file they put in the
+  // bot's folder ({ title, file }), change a piece's title or text, remove it, or try a failed one again. Each change
+  // answers the whole list, as the list does.
+  const knowledgeAt = "/api/w/:workspaceSlug/bots/:botId/knowledge";
+  const bookSized = { ...auth, bodyLimit: KNOWLEDGE_BODY_LIMIT };
+  router.register("GET", knowledgeAt, auth, handle(async (request, _user, options) =>
+    bots.knowledge.list(request.params.botId, options)));
+  router.register("POST", knowledgeAt, bookSized, handle(async (request, _user, options) =>
+    bots.knowledge.add(request.params.botId, request.body || {}, options)));
+  router.register("GET", `${knowledgeAt}/:knowledgeId`, auth, handle(async (request, _user, options) =>
+    bots.knowledge.read(request.params.botId, request.params.knowledgeId, options)));
+  router.register("PATCH", `${knowledgeAt}/:knowledgeId`, bookSized, handle(async (request, _user, options) =>
+    bots.knowledge.change(request.params.botId, request.params.knowledgeId, request.body || {}, options)));
+  router.register("DELETE", `${knowledgeAt}/:knowledgeId`, auth, handle(async (request, _user, options) =>
+    bots.knowledge.remove(request.params.botId, request.params.knowledgeId, options)));
+  router.register("POST", `${knowledgeAt}/:knowledgeId/retry`, auth, handle(async (request, _user, options) =>
+    bots.knowledge.retry(request.params.botId, request.params.knowledgeId, options)));
   router.register("PUT", "/api/w/:workspaceSlug/bots/:botId/template", auth, handle(async (request, user, options) => ({
     bot: await bots.changeTemplate(request.params.botId, request.body || {}, user.displayName, options)
   })));

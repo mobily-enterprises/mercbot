@@ -161,6 +161,53 @@ export const botNotebookResource = defineTableResource({
   }
 });
 
+/** bot_knowledge
+ * what a bot knows (D-107): each piece of text or file its maker and the home's owners and admins gave it, whole, with
+ * how far reading and splitting it has got; goes with its bot
+ */
+export const botKnowledgeResource = defineTableResource({
+  name: "botKnowledge",
+  tableName: "bot_knowledge",
+  ownership: "workspace",
+  schema: {
+    botId: { type: "id", required: true, search: true },
+    chars: { type: "integer" },
+    createdAt: { type: "dateTime" },
+    createdBy: { type: "id", nullable: true },
+    filePath: { type: "string", maxLength: 1000, noTrim: true, nullable: true },
+    kind: { type: "string", maxLength: 8, noTrim: true, required: true },
+    leaseBy: { type: "string", maxLength: 40, noTrim: true, nullable: true, search: true },
+    leaseUntil: { type: "dateTime", nullable: true },
+    partsDone: { type: "integer" },
+    partsTotal: { type: "integer" },
+    problem: { type: "string", maxLength: 500, noTrim: true, nullable: true },
+    state: { type: "string", maxLength: 10, noTrim: true, required: true, search: true },
+    text: { type: "string", noTrim: true },
+    title: { type: "string", maxLength: 200, noTrim: true, required: true },
+    updatedAt: { type: "dateTime" },
+    workspaceId: { type: "id", hidden: true, search: true }
+  }
+});
+
+/** bot_knowledge_parts
+ * the parts a piece of a bot's knowledge is split into, in order, which its turns search (D-107); `search`, the
+ * full-text vector PostgreSQL makes from each part, is read only by the knowledge repository's search
+ */
+export const botKnowledgePartResource = defineTableResource({
+  name: "botKnowledgeParts",
+  tableName: "bot_knowledge_parts",
+  ownership: "workspace",
+  schema: {
+    botId: { type: "id", required: true, search: true },
+    heading: { type: "string", maxLength: 300, noTrim: true },
+    knowledgeId: { type: "id", required: true, search: true },
+    pages: { type: "string", maxLength: 40, noTrim: true },
+    position: { type: "integer", search: true },
+    text: { type: "string", noTrim: true, required: true },
+    workspaceId: { type: "id", hidden: true, search: true }
+  }
+});
+
 /** person_memories
  * a person's own memories in a home: a bot's turn reads only those of the person it answers, in a shared room too
  */
@@ -366,6 +413,8 @@ export const TABLE_RESOURCES = Object.freeze([
   botGroupMemberResource,
   botGroupPeopleResource,
   botNotebookResource,
+  botKnowledgeResource,
+  botKnowledgePartResource,
   personMemoryResource,
   botRequestResource,
   botRoutineResource,
