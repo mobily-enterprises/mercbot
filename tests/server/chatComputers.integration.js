@@ -291,6 +291,38 @@ test("a chat's computer is reset by whoever started the chat or the home's owner
   assert.deepEqual(log, [`reset ${kitchenChef}`, `reset ${kitchenChef}`, `reset ${carlasChef}`, `reset ${carlasChef}`]);
 });
 
+test("Settings → Reset starts fresh the computers of every chat the person is alone in, past a page of their chats", async (context) => {
+  const { routes, log } = await startComputers(context);
+  const { homeId, ben, carla, bots } = await rossiHome(context);
+  // Kitchen has Ben too, so its computer stays; Carla is alone with Chef in 120 chats, more than a page of her list.
+  const kitchen = await seedChat(knex, { homeId, title: "Kitchen", people: [ben, carla], bots: [bots.Chef], madeBy: ben });
+  const alone = (await knex("conversations")
+    .insert(Array.from({ length: 120 }, (_, index) => ({ workspace_id: homeId, kind: "public", title: `Notes ${index}`, made_by: carla })))
+    .returning("id")).map((row) => String(row.id));
+  await knex("chat_people").insert(alone.map((id) => ({ workspace_id: homeId, conversation_id: id, user_id: carla })));
+  const seats = (await knex("chat_bots")
+    .insert(alone.map((id) => ({ workspace_id: homeId, conversation_id: id, bot_id: bots.Chef, position: 0 })))
+    .returning("id")).map((row) => `reset ${row.id}`);
+  const handler = routes.get("POST /api/w/:workspaceSlug/computers/reset");
+  const reply = {
+    statusCode: 200,
+    body: undefined,
+    code(status) {
+      this.statusCode = status;
+      return this;
+    },
+    send(sent) {
+      this.body = sent;
+      return this;
+    }
+  };
+  const options = memberOptions({ userId: carla, homeId });
+  await handler({ params: { workspaceSlug: `home-${homeId}` }, body: {}, query: {}, workspace: { id: homeId }, user: { id: carla }, permissions: [], callOptions: async () => options }, reply);
+  assert.deepEqual({ status: reply.statusCode, body: reply.body }, { status: 200, body: { reset: 120 } });
+  assert.deepEqual([...log].sort(), [...seats].sort(), "every chat she's alone in, and not Kitchen");
+  assert.ok(!log.includes(`reset ${kitchen.chatBotIds.get(bots.Chef)}`));
+});
+
 test("teaching a bot in a chat takes over its computer there to record, and stopping hands it back and teaches it", async (context) => {
   const { records, computers, told, notices } = await startComputers(context);
   const { homeId, anna, ben, carla, bots, family, plans } = await rossiHome(context);

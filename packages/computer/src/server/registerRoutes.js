@@ -158,10 +158,15 @@ export function registerRoutes(http, { computer, files, records, streams, meter 
   });
 
   // Settings → Reset: the computers of the chats the person is alone in start fresh; a chat with other people keeps
-  // its computers, which are theirs too (D14). Three reads, however many chats.
+  // its computers, which are theirs too (D14). Their chat list a page at a time (ofPerson), then two reads.
   router.register("POST", "/api/w/:workspaceSlug/computers/reset", home, async function resetComputers(request, reply) {
     const options = await request.callOptions();
-    const ids = (await chats.ofPerson(options, { hidden: true })).map((chat) => String(chat.id));
+    const ids = [];
+    let page = { next: null };
+    do {
+      page = await chats.ofPerson(options, { hidden: true, after: page.next });
+      ids.push(...page.chats.map((chat) => String(chat.id)));
+    } while (page.next);
     const people = await chats.peopleOf(ids, options);
     const alone = ids.filter((id) => (people.get(id) ?? []).every((person) => String(person.user_id) === String(request.user.id)));
     const own = [...(await chats.botsOf(alone, options)).values()].flat().map((seat) => String(seat.chat_bot_id));
