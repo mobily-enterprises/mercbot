@@ -58,7 +58,8 @@ const people = computed(() => [...props.chat.people].sort((a, b) =>
 const mayRemovePerson = (person) => may.value.removeMembers && !props.chat.everyone && String(person.userId) !== String(props.me);
 const mayRemoveBot = computed(() => may.value.removeMembers);
 
-// Routines that run in this chat (B): each one's bot, schedule, a switch, Edit through the chat, and Delete by its maker.
+// Routines that run in this chat (B): each one's bot, schedule, a switch (anyone pauses one; only its maker resumes it,
+// canResume), Edit through the chat, and Delete, which is anyone's who can open the chat.
 const routines = ref(null);
 async function loadRoutines() {
   try {
@@ -72,8 +73,8 @@ watch(() => props.chat.id, loadRoutines, { immediate: true });
 const botName = (botId) => props.chat.bots.find((bot) => String(bot.botId) === String(botId))?.name || "A bot";
 async function switchRoutine(routine) {
   try {
-    await chatsApi.switchRoutine(routine.id, !routine.enabled);
-    await loadRoutines();
+    const { routine: changed } = await chatsApi.switchRoutine(routine.id, !routine.enabled);
+    routines.value = routines.value.map((entry) => (entry.id === changed.id ? changed : entry));
   } catch (error) {
     emit("failure", error);
   }
@@ -83,8 +84,8 @@ async function deleteRoutine() {
   const routine = deletingRoutine.value;
   deletingRoutine.value = null;
   try {
-    await chatsApi.removeRoutine(routine.id);
-    await loadRoutines();
+    const { deleted } = await chatsApi.removeRoutine(routine.id);
+    routines.value = routines.value.filter((entry) => entry.id !== deleted);
   } catch (error) {
     emit("failure", error);
   }
@@ -202,7 +203,6 @@ const folderBot = computed(() => (props.chat.bots[0] ? String(props.chat.bots[0]
             />
             <v-btn icon="$edit" size="28" variant="text" :aria-label="`Edit ${routine.name}`" @click="emit('edit-routine', routine)" />
             <v-btn
-              v-if="String(routine.madeBy) === String(me)"
               icon="$delete"
               size="28"
               variant="text"

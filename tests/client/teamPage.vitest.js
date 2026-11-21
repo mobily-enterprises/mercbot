@@ -265,21 +265,22 @@ describe("a bot's card", () => {
 describe("a bot's routines on its card", () => {
   const routine = (id, extra = {}) => ({ id, name: `Routine ${id}`, schedule: "Every Monday", enabled: true, botId: "7", chatId: "55", chatTitle: "Kitchen reno", madeBy: "1", canResume: false, ...extra });
 
-  it("can be paused by anyone, resumed only by its maker, and deleted only by its maker", () => {
+  it("can be paused and deleted by anyone in its chat, and resumed only by its maker", () => {
     expect(canSwitchRoutine(routine("1"))).toBe(true);
     expect(canSwitchRoutine(routine("1", { enabled: false }))).toBe(false);
     expect(canSwitchRoutine(routine("1", { enabled: false, canResume: true }))).toBe(true);
-    const titles = (entry, me) => routineMenuItems(entry, me, { toggle() {}, edit() {}, remove() {} }).filter((item) => item.title).map((item) => item.title);
-    expect(titles(routine("1"), "2")).toEqual(["Pause", "Edit"]);
-    expect(titles(routine("1", { enabled: false }), "2")).toEqual(["Edit"]);
-    expect(titles(routine("1", { enabled: false, canResume: true, madeBy: "2" }), "2")).toEqual(["Resume", "Edit", "Delete"]);
+    // Deleting is anyone's who can open the routine's chat (B's chatRoutines.js); resuming only its maker's.
+    const titles = (entry) => routineMenuItems(entry, { toggle() {}, edit() {}, remove() {} }).filter((item) => item.title).map((item) => item.title);
+    expect(titles(routine("1"))).toEqual(["Pause", "Edit", "Delete"]);
+    expect(titles(routine("1", { enabled: false }))).toEqual(["Edit", "Delete"]);
+    expect(titles(routine("1", { enabled: false, canResume: true, madeBy: "2" }))).toEqual(["Resume", "Edit", "Delete"]);
   });
 
   it("are the bot's in every chat on Team, and only this bot's in a chat", async () => {
     answers.byUrl.set("GET /api/w/casa/bots/7/routines", { routines: [routine("1"), routine("2", { chatId: "56", chatTitle: "Saturday party" })] });
     answers.byUrl.set("GET /api/w/casa/chats/55/routines", { routines: [routine("1"), routine("3", { botId: "8" })] });
     const failures = [];
-    const options = (chat) => ({ bot: () => chef, chat: () => chat, me: () => "2", tab: computed(() => "details"), onEdit: () => {}, onFailure: (error) => failures.push(error) });
+    const options = (chat) => ({ bot: () => chef, chat: () => chat, tab: computed(() => "details"), onEdit: () => {}, onFailure: (error) => failures.push(error) });
     const onTeam = useBotRoutines(options(null));
     const inChat = useBotRoutines(options(kitchen));
     await settled();

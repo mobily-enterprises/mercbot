@@ -156,8 +156,8 @@ const itemChatId = (item) => {
   const id = item.chatId ?? props.chat?.id ?? null;
   return id == null ? null : String(id);
 };
+// A Library entry names its chat by id (B's botLibrary.js); its name is the person's chat list's.
 function itemChatName(item) {
-  if (item.chatTitle) return item.chatTitle;
   const known = props.chats.find((entry) => String(entry.id) === String(itemChatId(item))) || (props.chat && !item.chatId ? props.chat : null);
   return known ? nameOfChat(known) : "";
 }
@@ -181,7 +181,6 @@ const { routines, routinesLoaded, toggleRoutine, highlightedRoutineId, routineMe
   useBotRoutines({
     bot: shown,
     chat: () => props.chat,
-    me: () => props.me,
     tab,
     onEdit: (routine) => emit("edit-routine", routine),
     onFailure: (error) => emit("failure", error)

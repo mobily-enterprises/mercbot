@@ -94,13 +94,9 @@ const entries = computed(() => paletteEntries({
 const loading = computed(() => searching.value && !entries.value.length);
 
 
-// A found message shows its author: a bot's face, or a person's initials (the person's own for theirs).
-function messageBot(message) {
-  return message.authorBotId ? props.bots.find((bot) => String(bot.id) === String(message.authorBotId)) || null : null;
-}
+// A found message shows its author's initials, as search names them (authorName: "you" for the person's own).
 function messageInitials(message) {
-  if (String(message.authorUserId) === String(props.me)) return initials.value;
-  return initialsOf(props.people.find((person) => String(person.id) === String(message.authorUserId))?.name);
+  return message.authorName === "you" ? initials.value : initialsOf(message.authorName);
 }
 
 // The contiguous match in a title, for bold.
@@ -176,10 +172,7 @@ function onKeydown(event) {
             <span v-else-if="entry.kind === 'person'" class="mb-palette__person">{{ initialsOf(entry.person.name) }}</span>
             <MercbotPluginLogo v-else-if="entry.kind === 'app'" :plugin="entry.plugin" :size="20" />
             <span v-else-if="entry.kind === 'routine'" class="mb-palette__clock"><v-icon icon="$schedule" size="12" /></span>
-            <template v-else-if="entry.kind === 'message'">
-              <MercbotAvatar v-if="messageBot(entry.message)" :bot="messageBot(entry.message)" :size="20" still />
-              <span v-else class="mb-palette__person">{{ messageInitials(entry.message) }}</span>
-            </template>
+            <span v-else-if="entry.kind === 'message'" class="mb-palette__person">{{ messageInitials(entry.message) }}</span>
             <span v-else class="mb-palette__icon"><v-icon :icon="entry.icon" size="13" /></span>
           </span>
           <span class="mb-palette__text">

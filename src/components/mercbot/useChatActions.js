@@ -25,11 +25,11 @@ const answering = (chat) => {
  *   work: import("../../types.js").ChatWork,
  *   reportFailure: import("../../types.js").ReportFailure,
  *   notify: (message: string) => void,
- *   openTeams: () => void,
+ *   openAddBots: (screen: "describe" | "teams") => void,
  *   me: () => string
- * }} options `openTeams` opens Add bots on its ready-made teams (D-105, D-109); `me` is the person
+ * }} options `openAddBots` opens Add bots on Describe what you need or its ready-made teams (D-105, D-109); `me` is the person
  */
-export function useChatActions({ currentChat, newChat, startNewChat, store, work, reportFailure, notify, openTeams, me }) {
+export function useChatActions({ currentChat, newChat, startNewChat, store, work, reportFailure, notify, openAddBots, me }) {
   const { messagesByChat, updateChat, appendMessages, replaceMessage, removeMessage } = store;
   const { playMood, requestReply, describeWork } = work;
 
@@ -99,10 +99,10 @@ export function useChatActions({ currentChat, newChat, startNewChat, store, work
       const result = await chatsApi.answer(chatId, message.id, selected);
       appendMessages(chatId, result.messages);
       if (result.chat) updateChat(result.chat);
-      // Bots to start with (D-105, D-109): the welcome chat carries on by itself, and Add bots opens on its ready-made
-      // teams, where nothing is added until Add.
+      // What the home is for (D-109): the welcome chat carries on by itself, and Add bots opens on Describe what you need
+      // ("describe") or its ready-made teams ("teams"), where nothing is added until Add; null is Not now.
       if ("addBots" in result) {
-        if (result.addBots === "teams") openTeams();
+        if (result.addBots) openAddBots(result.addBots);
         return;
       }
       if (currentChat.value?.onboardingStep) return;

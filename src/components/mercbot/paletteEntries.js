@@ -113,7 +113,7 @@ function ago(iso) {
 }
 
 // Where a found message is, and when: "In Kitchen · 2 h ago".
-const whereAndWhen = (message) => `In ${message.chatTitle || "a chat"} · ${ago(message.createdAt)}`;
+const whereAndWhen = (message) => `In ${message.chatName || "a chat"} · ${ago(message.createdAt)}`;
 
 /**
  * The palette's rows. Before typing: the person's chats, then commands. While typing: chats, the home's bots and people,
@@ -168,7 +168,7 @@ export function paletteEntries({ needle, me, chats: allChats, bots: allBots, peo
     kind: "routine",
     routine,
     title: routine.name,
-    secondary: [routine.schedule, routine.botName, routine.chatTitle].filter(Boolean).join(" · "),
+    secondary: [routine.schedule, routine.botName, routine.chatName].filter(Boolean).join(" · "),
     score: score(routine.name, needle)
   })));
   const fileRows = files.map((file) => ({

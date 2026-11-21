@@ -100,7 +100,7 @@ function toggleCommand(id) {
   openCommands.value = next;
 }
 
-const emit = defineEmits(["take-over", "use-computer", "secure-form", "settle-draft", "manage-rules", "settle-handover", "choose", "answer", "focus-composer", "connect", "react", "reply", "copy", "copy-image", "retry", "open-skill", "cancel-request", "open-page"]);
+const emit = defineEmits(["take-over", "use-computer", "secure-form", "settle-draft", "manage-rules", "settle-handover", "choose", "answer", "focus-composer", "connect", "react", "reply", "copy", "copy-image", "retry", "open-skill", "cancel-request", "open-page", "open-direct"]);
 
 // Right-click menus: on a message, Reply, Copy and Copy request ID, with a bot's adding a
 // row of reactions; on a picture, copy or save it. Selected words and links keep the browser's own
@@ -386,6 +386,21 @@ const fileDate = (iso) => (iso ? fileDay.format(new Date(iso)) : "");
               <template v-else>{{ part.text }}</template>
             </template>
           </p>
+          <!-- Bots just added together, introduced by the main bot (D-109): a [Message] for each opens its direct chat. -->
+          <div v-if="message.body.team?.length" class="mb-bubble__team">
+            <button
+              v-for="member in message.body.team"
+              :key="member.botId"
+              type="button"
+              class="mb-bubble__team-member"
+              :aria-label="`Message ${member.name}`"
+              @click="emit('open-direct', String(member.botId))"
+            >
+              <MercbotAvatar :bot="{ id: member.botId, name: member.name, color: member.color, shape: member.shape }" :size="20" still />
+              <span>{{ member.name }}</span>
+              <span class="mb-bubble__team-action">Message</span>
+            </button>
+          </div>
           <span v-if="message.body.chip" class="mb-bubble__chip">
             <v-icon icon="$deployedCode" size="13" />{{ message.body.chip }}
           </span>

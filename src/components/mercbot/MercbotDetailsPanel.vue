@@ -18,7 +18,6 @@ const props = defineProps({
   homeName: { type: String, default: "this home" },
   manages: { type: Boolean, default: false },
   teamBots: { type: Array, default: () => [] },
-  people: { type: Array, default: () => [] },
   computerNews: { type: Object, default: () => ({}) },
   mood: { type: String, default: "idle" }
 });

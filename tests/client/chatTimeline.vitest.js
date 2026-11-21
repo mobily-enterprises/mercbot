@@ -202,3 +202,21 @@ describe("every address in a chat", () => {
     expect(opened.streams).toEqual(["/api/w/rossi/bots/7/computer/stream?chat=9"]);
   });
 });
+
+describe("a team's introduction (D-109)", () => {
+  it("names each bot a team just added with a Message button for its direct chat", async () => {
+    const intro = said(CHEF, "Your team's here: Shopper and Planner. Start a chat with one of them whenever you like.", {
+      body: {
+        text: "Your team's here: Shopper and Planner. Start a chat with one of them whenever you like.",
+        team: [
+          { botId: "8", name: "Shopper", color: "#2E7D32", shape: "storm" },
+          { botId: "11", name: "Planner", color: "#1565C0", shape: "cloud" }
+        ]
+      }
+    });
+    const part = item(await timeline({ chat: DIRECT, messages: [intro] }), intro);
+    expect(part).toContain('aria-label="Message Shopper"');
+    expect(part).toContain('aria-label="Message Planner"');
+    expect(part.match(/class="mb-bubble__team-member"/gu)).toHaveLength(2);
+  });
+});

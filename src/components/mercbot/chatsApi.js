@@ -46,8 +46,8 @@ export const chatsApi = {
   publicChats: () => request("/chats/public"),
   // A bot's [Message]: the person's direct chat with it, made on first use: { chat }.
   direct: (botId) => post(`/bots/${encodeURIComponent(botId)}/direct`),
-  // Mercbot's welcome chat, made at a person's first visit with the main bot (onboarding): { chat }, or { chat: null }
-  // once it has been made before.
+  // The person's welcome chat, their direct chat with the home's main bot, made once at their first visit (a new home's
+  // main bot with it): { chat }.
   welcome: () => post("/chats/welcome"),
   rename: (chatId, title) => patch(chat(chatId), { title }),
   archive: (chatId) => post(chat(chatId, "/archive")),
@@ -104,7 +104,8 @@ export const chatsApi = {
   removeRoutine: (routineId) => remove(`/routines/${encodeURIComponent(routineId)}`)
 };
 
-// Delay before each step of the welcome chat runs, and the status line shown while waiting.
+// Delay before each step of the welcome chat (and of a bot's first chat with a person) runs, and the status line shown
+// while waiting; the steps waiting on the person's answer (ask-name, home-for, home-people) have none (onboarding.js).
 export const ONBOARDING_TIMING = {
   start: { delay: 6000, status: "Getting things started" },
   confirm: { delay: 3000, status: "Thinking it over" },
@@ -115,5 +116,5 @@ export const ONBOARDING_TIMING = {
   "await-nudge": { delay: 180000, status: "" },
   "intro-greet": { delay: 2500, status: "Typing" },
   "intro-ask": { delay: 1500, status: "Typing" },
-  "team-offer": { delay: 1500, status: "Typing" }
+  "people-offer": { delay: 1500, status: "Typing" }
 };

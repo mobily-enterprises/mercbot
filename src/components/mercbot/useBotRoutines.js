@@ -4,22 +4,17 @@ import { chatsApi } from "./chatsApi.js";
 /** Whether the person can switch a routine: anyone can pause one that's on; only its maker resumes it (`canResume`). */
 export const canSwitchRoutine = (routine) => Boolean(routine.enabled || routine.canResume);
 
-/** Whether the person made a routine, which is who deletes it. */
-export const madeRoutine = (routine, me) => Boolean(me) && String(routine.madeBy ?? "") === String(me);
-
 /**
- * A routine's menu: Pause, or Resume for its maker; Edit, through its chat; and Delete for its maker, after a
- * confirmation.
- * @param {{ enabled: boolean, canResume?: boolean, madeBy?: string | null }} routine
- * @param {string} me the person looking
+ * A routine's menu: Pause, or Resume for its maker (`canResume`: it runs as them); Edit, through its chat; and Delete,
+ * which is anyone's who can open its chat, after a confirmation.
+ * @param {{ enabled: boolean, canResume?: boolean }} routine
  * @param {{ toggle: () => void, edit: () => void, remove: () => void }} actions
  */
-export function routineMenuItems(routine, me, { toggle, edit, remove }) {
+export function routineMenuItems(routine, { toggle, edit, remove }) {
   const items = [];
   if (routine.enabled) items.push({ title: "Pause", icon: "$pause", run: toggle });
   else if (routine.canResume) items.push({ title: "Resume", icon: "$play", run: toggle });
-  items.push({ title: "Edit", icon: "$edit", run: edit });
-  if (madeRoutine(routine, me)) items.push({ divider: true }, { title: "Delete", icon: "$delete", danger: true, run: remove });
+  items.push({ title: "Edit", icon: "$edit", run: edit }, { divider: true }, { title: "Delete", icon: "$delete", danger: true, run: remove });
   return items;
 }
 
@@ -32,13 +27,12 @@ export function routineMenuItems(routine, me, { toggle, edit, remove }) {
  * @param {{
  *   bot: () => import("../../types.js").Bot,
  *   chat: () => import("../../types.js").Chat | null,
- *   me: () => string,
  *   tab: import("vue").ComputedRef<string>,
  *   onEdit: (routine: Record<string, any>) => void,
  *   onFailure: (error: unknown) => void
  * }} options
  */
-export function useBotRoutines({ bot, chat, me, tab, onEdit, onFailure }) {
+export function useBotRoutines({ bot, chat, tab, onEdit, onFailure }) {
   const routines = ref([]);
   const routinesLoaded = ref(false);
 
@@ -66,7 +60,8 @@ export function useBotRoutines({ bot, chat, me, tab, onEdit, onFailure }) {
     const enabled = !routine.enabled;
     routines.value = routines.value.map((entry) => (entry.id === routine.id ? { ...entry, enabled } : entry));
     try {
-      await chatsApi.switchRoutine(routine.id, enabled);
+      const { routine: changed } = await chatsApi.switchRoutine(routine.id, enabled);
+      routines.value = routines.value.map((entry) => (entry.id === changed.id ? changed : entry));
     } catch (error) {
       routines.value = routines.value.map((entry) => (entry.id === routine.id ? routine : entry));
       onFailure(error);
@@ -82,7 +77,7 @@ export function useBotRoutines({ bot, chat, me, tab, onEdit, onFailure }) {
     routineMenu.value = {
       open: true,
       target: [event.clientX, event.clientY],
-      items: routineMenuItems(routine, me(), {
+      items: routineMenuItems(routine, {
         toggle: () => toggleRoutine(routine),
         edit: () => onEdit(routine),
         remove: () => { pendingRoutineDelete.value = routine; }

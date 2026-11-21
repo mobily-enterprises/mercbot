@@ -7,9 +7,9 @@ import { ONBOARDING_BLACK } from "@/theme/palettes.js";
 import { chatsApi } from "@/components/mercbot/chatsApi.js";
 import { useHomes } from "@/components/mercbot/homesApi.js";
 
-// A person's first visit to a home (plan 4.1): Mercbot's welcome chat is made for them with the main bot, after the
-// intro slides when this is their first home, then a short pause on Mercbot's face. Anyone who has chats, or whose
-// welcome chat was made before, goes straight to the shell, whose chat list may be empty (D4).
+// A person's first visit to a home (plan 4.1): with no chats yet, their welcome chat is made, their direct chat with the
+// home's main bot (POST /chats/welcome, which makes the main bot too in a new home), then the intro slides when this is
+// their first home, and a short pause on Mercbot's face. Anyone who has chats goes straight to the shell.
 const phase = ref("loading");
 const chats = ref([]);
 const sections = ref([]);
@@ -31,10 +31,9 @@ async function load() {
       phase.value = "shell";
       return;
     }
-    const { chat } = await chatsApi.welcome();
-    if (!chat) phase.value = "shell";
+    await chatsApi.welcome();
     // A new home of someone who already has one skips the slides (D-36).
-    else if ((await loadHomes()).length > 1) await enter();
+    if ((await loadHomes()).length > 1) await enter();
     else phase.value = "intro";
   } catch {
     loadFailed.value = true;
