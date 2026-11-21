@@ -19,9 +19,9 @@ Mercbot is a web application. People use it in a browser on a computer or phone.
 
 **Opening Mercbot.** Your own copy of Mercbot opens only with its key, which `mercbot open` uses; anything without it, including other people's accounts on the same computer and other websites, gets a page saying to open Mercbot that way. See [Running your own copy of Mercbot](/help/own-copy).
 
-**Homes.** Everything belongs to a home: bots, files, computers, Apps and usage. Every request for a bot, file or computer names its home, and a request for something in a home the person doesn't belong to answers "not found".
+**Homes.** Everything belongs to a home: chats, bots, files, computers, Apps and usage. Every request for a bot, file or computer names its home, and a request for something in a home the person doesn't belong to answers "not found".
 
-**Roles.** A home has one owner, and admins and members. Owners and admins manage the home's people, any of its connected accounts and Apps settings, and can remove members, rename, archive and delete any chat. Members use the home's bots, Apps and connected accounts, and change the accounts they added.
+**Roles.** A home has one owner, and admins and members. Owners and admins manage the home's people, any of its connected accounts and Apps settings, and can take people and bots out of, rename, archive and delete any chat they can open; a chat's maker can too. A Private chat is opened only by its members, owners and admins included. Members use the home's bots, Apps and connected accounts, and change the accounts they added.
 
 **Public by default, Private by choice.** Every chat is Public, opened by everyone in the home now and later, unless its maker chooses Private when starting it; a Private chat is opened only by its members, and its kind never changes. One rule decides what a bot may use: in a chat, only what everyone who can open that chat can also open. The server checks it for every read the bots' side makes, tools and background work included. What a bot makes in a chat belongs to that chat; putting it where more people can open it takes a person's yes on a card, which the server checks. A person's own skills are used only in a Private chat whose only person is them. Connected accounts and the vault are the home's, used in any of its chats (below).
 
@@ -32,20 +32,20 @@ Mercbot is a web application. People use it in a browser on a computer or phone.
 ## The bots' computers
 
 - **One computer per bot in each chat.** Each bot in a chat has its own computer and browser there, which belongs to that chat: everyone who can open the chat can use what's signed in on it, and the bot says so in one line at a sign-in. Files follow the same line: what a bot makes in a chat is in the chat's folder.
-- **Browser and office apps in gVisor.** On the computer's desktop, Chrome and the office apps run together in gVisor, which puts its own kernel between them and the server's. They see a fixed set of tools, the computer's screen, the browser's profile and the chat's file folders, and nothing of Mercbot. A server without gVisor doesn't start bots' computers at all.
+- **Browser and office apps in gVisor.** On the computer's desktop, Chrome and the office apps run together in gVisor, which puts its own kernel between them and the server's. They see a fixed set of tools, the computer's screen, the browser's profile and the chat's file folders (the chat's, the bot's and the home's; in a Private chat the last two only to read), and nothing of Mercbot. A server without gVisor doesn't start bots' computers at all.
 - **Internet only through a gateway.** The browser and apps have no network of their own. Their only way out is Mercbot's gateway, which connects only to public internet addresses, never to the server itself, its private network or cloud metadata addresses, and never to the ports used to send email.
 - **Office apps and voice memos outside the computer.** When a bot makes or reads a document with its document tools, draws a chart or records a voice memo, and when Mercbot shows a file's preview, the program runs in gVisor too, like the bot's commands: no network, and only that chat's file folders.
 - **The command line.** Bots' commands run in gVisor, which puts its own kernel between the command and the server's, so a flaw in the server's kernel isn't enough to get out. Each command:
   - has no network at all;
-  - sees only a fixed set of tools (its changes vanish after the run), a scratch folder, and the folders of the chat it ran in;
+  - sees only a fixed set of tools (its changes vanish after the run), a scratch folder, and the folders of the chat it ran in, where a Private chat's bot and home folders are read-only;
   - gets none of the server's settings or secrets;
   - has limits on time, memory per process and in total, processes, open files, file size and output.
   
   When one bot works for another, the chat's folder and the home's are read-only to its commands. Every command is recorded with its output and shown in the chat. The command line runs on the same servers as Mercbot itself; moving it to separate machines that hold no secrets is planned as use grows.
 - **Local-only ports.** The browser's debugging port and the screen-sharing server listen only on the machine itself.
-- **Live view.** People watch a bot's screen through the Mercbot servers with a one-time ticket that's valid for 30 seconds. Watching is view-only until the person presses **Take control**. People can open the live view only for a computer in a chat they can open.
+- **Live view.** People watch a bot's screen through the Mercbot servers with a one-time ticket that's valid for 30 seconds. Watching is view-only until the person presses **Take over**; while they have control, the bot doesn't act on that computer, and the chat gets a line when someone takes over and hands back. People can open the live view only for a computer in a chat they can open.
 - **No model key on the computer.** All model calls happen on the servers. The computer only receives concrete actions, such as a click or typing into a field, so a web page can't reach the model key.
-- **Saved browsers.** When a computer sleeps or its server stops, its browser profile is archived without caches, sealed with the vault key and kept with the bots' files, outside everyone's folders; the database records only which file is current and its checksum. People can clear it with **Settings**, **Computer**, **Reset**.
+- **Saved browsers.** When a computer sleeps or its server stops, its browser profile is archived without caches, sealed with the vault key and kept with the bots' files, outside everyone's folders; the database records only which file is current and its checksum. **Settings**, **Computer**, **Reset** clears it for the computers of the chats whose only person is the one resetting.
 - **Screenshots** of the pages bots work on are files on the same volume, readable only by those who can open their chat, and deleted with it.
 
 The browser reaches the web only through the gateway described above.
@@ -76,10 +76,10 @@ See [Approvals, safety and privacy](/help/approvals-and-privacy).
 
 ## The vault and other secrets
 
-- **Vault.** A home keeps logins, cards and contact details in its vault, which everyone in the home shares. Passwords, notes, card numbers, security codes and billing addresses are encrypted with AES-256-GCM under the vault key. Secrets are never sent back to the page in full. A CSV import is read in the person's browser, and its items are checked and sealed on the server like items added by hand.
+- **Vault.** A home keeps logins, cards and contact details in its vault, which everyone in the home shares. An item is deleted only by the person who added it or the home's owners and admins, which the server checks. Passwords, notes, card numbers, security codes and billing addresses are encrypted with AES-256-GCM under the vault key. Secrets are never sent back to the page in full. A CSV import is read in the person's browser, and its items are checked and sealed on the server like items added by hand.
 - **No secret goes to an AI.** Contact details can be read from a photo the person chooses (Google's Gemini reads it; Mercbot doesn't keep the photo), but logins and cards are never read that way, so no password or card number reaches a model.
 - **Bots don't see secrets.** A saved login is filled into the website by Mercbot itself; the bot never sees the password. Bots never see a saved card's number or security code. A secure form lets people type a login or code that goes straight into the site.
-- **Kept out of chat.** Bots never ask for passwords, card numbers or codes in the chat. A password from the person's vault is blanked out of any reply. A bot types a password only if the person gave it in that chat, never one read from a page.
+- **Kept out of chat.** Bots never ask for passwords, card numbers or codes in the chat. A password from the home's vault is blanked out of any reply. A bot types a password only if the person gave it in that chat, never one read from a page.
 - **Other sealed secrets.** Connected-account tokens, saved browser profiles, a home's own storage password and the secret headers Apps scripts send to outside services are all sealed with the vault key. Script secrets are never shown again after they're saved.
 
 ## Data storage and the AI model
@@ -97,7 +97,7 @@ See [Approvals, safety and privacy](/help/approvals-and-privacy).
 - **Labelled as information.** Text from web pages, emails and GitHub reaches the model marked as content to read, never instructions, and every bot's standing instructions say the same for anything quoted from emails, web pages or files.
 - **Pictures.** The model that describes pictures for bots is told never to follow instructions written in them.
 - **Apps data.** Records reach bots as data. Values typed by public visitors are marked untrusted.
-- **A bot's template and additions.** Every bot follows one template, from Mercbot's library or its home's own, plus its own additions. Both run inside Mercbot's rules: where they differ, Mercbot's rules win, and the template wins over the additions. A bot never changes its template, and changes its additions only when someone asks in its chat, on a card that shows the change and that only the bot's maker or the home's owners and admins can approve.
+- **A bot's template and additions.** Every bot follows one template, from Mercbot's library or its home's own, plus its own additions. Both run inside Mercbot's rules: where they differ, Mercbot's rules win, and the template wins over the additions. A bot never changes its template, and changes its additions only when someone asks in a chat, on a card that shows the change and that only the bot's maker or the home's owners and admins can approve.
 - **Pages.** A page a bot writes runs sealed off in the browser: it has no access to the person's account, cookies or data, can't call Mercbot or any other address, submit forms or open windows, and loads only the files copied into it when it was saved, which Mercbot fetches from public internet addresses only. It can ask Mercbot for just two things, each checked and only right after the person clicks: to open a link in a new tab, or to open one of the home's own apps. Browsers can't stop a page's script from sending its own page to another address, so a page published to a website runs no scripts at all.
 - **Safety net.** Even if a page fools a bot, it can't approve its own card, turn a switched-off action back on or read a saved password.
 

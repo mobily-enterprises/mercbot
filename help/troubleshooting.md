@@ -4,7 +4,7 @@ This page goes through the problems people meet most often in Mercbot, one sympt
 
 ## You're in the wrong home
 
-If you have several homes, check which one is open with the switcher at the top of the sidebar. Each home has its own bots, files and apps.
+If you have several homes, check which one is open with the switcher at the top of the sidebar. Each home has its own chats, people, bots, files and apps.
 
 ## Mercbot won't load or seems out of date
 
@@ -26,9 +26,9 @@ Every job ends with a message. If a job fails, runs out of steps or takes too lo
 
 You can send another message while a bot is working. It gets its own reply once the bot has finished the current one.
 
-### A chat is shown in amber in the sidebar
+### A chat says "Waiting for you" in the sidebar
 
-Amber means a bot in that chat is waiting for you. Open the chat and look for a **Your turn** card, where it needs you to do a step on its computer, such as signing in. Select **Take over**, do the step, then **I'm done**, or select **Skip**.
+An amber dot and **Waiting for you:** with a task mean a bot in that chat is waiting for you. Open the chat and look for a **Your turn** card, where it needs you to do a step on its computer in that chat, such as signing in. Select **Take over**, do the step, then **I'm done**, or select **Skip**. A card for someone else says whose turn it is, and only they can finish or skip it.
 
 ### A bot is waiting for an answer
 
@@ -44,13 +44,13 @@ Choose your language and time zone in **Settings** → **General**. These are ke
 
 ### A bot has forgotten something
 
-Bots keep the thread of a long chat, but a new chat starts fresh. Bots made from a template keep what they learn about your job in a notes document in the chat's folder: open the chat's files to check it, and tell the bot what's missing or wrong. For something a bot should do in every chat, ask it to add it to its additions.
+Bots keep the thread of a long chat, but a new chat starts fresh. Bots made from a template keep what they learn about your job in a notes document in the chat's folder: open **Chat details** → **Files** to check it, and tell the bot what's missing or wrong. For something a bot should do in every chat, ask it to add it to its additions.
 
 ## The bot's computer
 
 ### The computer shows "Starting the desktop…"
 
-A bot's computer goes to sleep when it hasn't been used for a few minutes, and wakes when it's needed. Waking takes a little while. The bot's website sign-ins and last open page are kept while it sleeps, and come back when it wakes.
+Each bot has its own computer in each chat it's in. A computer goes to sleep when it hasn't been used for a few minutes, and wakes when it's needed. Waking takes a little while. Its website sign-ins and last open page are kept while it sleeps, and come back when it wakes.
 
 ### "Couldn't reach the screen"
 
@@ -58,13 +58,13 @@ The live view couldn't connect to the bot's computer. Select **Try again**. If i
 
 ### Websites behave strangely on the bot's computer
 
-If a bot's browser keeps failing on sites that used to work, you can start its computers afresh. Open **Settings** → **Computer** and select **Reset**. Every bot's browser closes, and its saved sign-ins and website data are cleared. Your chats, routines and skills stay. After a reset, the bots will need you to sign in to websites again.
+If a bot's browser keeps failing on sites that used to work, you can start the computers afresh. Open **Settings** → **Computer** and select **Reset**. It resets the bots' computers in the chats only you are in: their browsers close, and their saved sign-ins and website data are cleared. Chats with other people in them keep their computers. Your chats, routines and skills stay. After a reset, the bots will need to sign in to websites again.
 
 ## Websites and logins
 
 ### A bot can't sign in to a website
 
-When a bot reaches a sign-in, it tries a login you gave it for the task, then a login saved in your vault for that site, then a secure form in the chat, and finally hands you the screen. If it keeps failing:
+When a bot reaches a sign-in, it tries a login you gave it for the task, then the vault's login for that site, then a secure form in the chat, and finally hands you the screen. If it keeps failing:
 
 - Check the saved login in **Settings** → **Vault**: is the website address right, and is the password current? Saved passwords can't be shown, so if in doubt, replace it.
 - If the site sends a code by text message or email, the bot shows a secure form for the code. Type it there, not in the chat.
@@ -74,7 +74,7 @@ Never paste passwords or card numbers into the chat. Bots don't need them there 
 
 ### A bot keeps asking you to sign in to the same site
 
-Your sign-ins stay on the bot's computer between jobs, but some websites sign people out after a while, and **Reset** in Settings clears them. Saving the login in your vault lets the bot sign in again without you.
+A sign-in stays on the bot's computer in that chat between jobs, but some websites sign people out after a while, and **Reset** in Settings clears them. A bot in another chat has another computer, so it signs in there again. Saving the login in the vault lets the bot sign in again without you, in any chat.
 
 ### A bot stopped just before buying or booking
 
@@ -113,7 +113,7 @@ An account's name, sign-in, pace and bin are for the person who added it and the
 
 ### A bot says sign-in codes in a mailbox are hidden
 
-When a bot reads a mailbox someone else in the home connected, Mercbot hides the sign-in codes and sign-in links in it, so only that person's bots see them. Ask the person who connected the mailbox, or connect your own. Mercbot works this out from each email's wording, so it may also hide a code that isn't for signing in, such as a discount code; open the email yourself to see it.
+When a bot reads a mailbox someone else in the home connected, Mercbot hides the sign-in codes and sign-in links in it: a bot sees them only when the person who connected the mailbox is the one asking. Ask that person, or connect your own. Mercbot works this out from each email's wording, so it may also hide a code that isn't for signing in, such as a discount code; open the email yourself to see it.
 
 ### An account has gone from Connect apps
 
@@ -143,14 +143,15 @@ Open **Settings** → **Permissions**. **Auto-review** makes your bots look over
 
 ## A routine didn't run
 
-Open the chat's details and look at its routines. Then check:
+Open the chat's **Chat details** and look under **Routines**, or open the bot's card in **Team**. Then check:
 
-- **Is it paused?** Its switch is off. Turn it on, or right-click and choose **Resume**. The next run is counted from now.
+- **Is it paused?** It says **Paused** and its switch is off. Anyone who can open the chat can pause a routine, but only the person who set it up can turn it back on. The next run is counted from then.
 - **Is the time right?** When a bot sets up a routine, it tells you the schedule with its time zone. If the zone is wrong, ask the bot to change it.
 - **Was there anything to report?** A routine told to report only news posts nothing when there's nothing new.
 - **Was it a one-off?** A one-off reminder runs once, then is removed, with a line in the chat saying so.
 - **Did it come from a template?** Routines from a bot template start paused until you say yes.
-- **Was its bot archived, or did the person who set it up leave the home?** Its routines pause, with a line in the chat. Resume the bot from **Team**, then switch the routine on again.
+- **Was its bot archived?** Its routines pause, with a line in the chat. Resume the bot from **Team**, then whoever set the routine up switches it on again.
+- **Did the person who set it up leave the home?** Their routines pause, with a line in the chat, and no one else can resume them. Ask a bot to set up a new one.
 
 Routines run at most every 10 minutes. If Mercbot was briefly unavailable, runs missed in that time happen once when it's back. If a run couldn't finish, the bot posts a short message saying so.
 
@@ -170,7 +171,7 @@ The viewer shows pictures of up to the first 20 pages of a document, spreadsheet
 
 - Open the bot's card in **Team** and choose **Library**. It lists everything that bot made, by day, in chats you can open.
 - Press Ctrl+K and type part of the file's name. Search finds files bots made.
-- What a bot makes in a chat is in that chat's folder. If a bot in another chat can't see a file, ask a bot to put it in the home's folder.
+- What a bot makes in a chat is in that chat's folder: open **Chat details** → **Files**. If a bot in another chat can't see a file, ask a bot in the first chat to put it in the home's folder.
 - If your home keeps its files in its own storage, files made before the change stay where they were.
 
 ### Files say the home's storage isn't answering
@@ -199,7 +200,7 @@ Gather these first, so the problem can be found quickly:
 2. **What happened instead**, with the exact words of any error message.
 3. **When it happened**, with the date, time and your time zone.
 4. **Which home, chat and bot** were involved.
-5. **The chat's ID.** Right-click the chat in the sidebar and choose **Copy conversation ID**.
+5. **The chat's ID.** Right-click the chat in the sidebar and choose **Copy chat ID**.
 6. **Mercbot's version.** Open the account menu, choose **Help and support**, then **About Mercbot**, and select **Copy version info**.
 7. **Your device and browser**, such as "Android phone, Chrome".
 8. **What you've already tried**, such as reloading, signing in again or resetting the computer.
@@ -209,6 +210,7 @@ Then send them to whoever runs your copy of Mercbot. Never include passwords, ca
 ## Related pages
 
 - [General questions and answers](/help/faq)
+- [Chats and your team](/help/chats)
 - [The bots' computer and connected apps](/help/computer-and-apps)
 - [The vault: saved logins and secrets](/help/vault)
 - [Skills, routines and watches](/help/skills-and-routines)

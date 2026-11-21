@@ -1,6 +1,6 @@
 # Settings and notifications
 
-Settings is where you choose how Mercbot looks and behaves for you, manage your home's files, reset your bots' computers, and keep your vault. This page goes through Settings section by section, then your account details and each bot's own options. It ends with how Mercbot shows that a bot needs you, what it does about notifications, and how errors appear.
+Settings is where you choose how Mercbot looks and behaves for you, manage your home's files, reset the bots' computers in your chats, and keep the home's vault. This page goes through Settings section by section, then your account details and each bot's own options. It ends with how Mercbot shows that a bot needs you, what it does about notifications, and how errors appear.
 
 ## Open and close Settings
 
@@ -8,7 +8,7 @@ Settings is where you choose how Mercbot looks and behaves for you, manage your 
 - In the search palette (**Ctrl+K**), type "Settings" to jump straight to a section, such as **Settings: Vault**.
 - **See spending** in the account menu opens **Spending**.
 
-Settings opens over the app, with the sections listed on the left: **General**, **Computer**, **Permissions**, **Files**, **Templates**, **Vault**, **Spending**, **Mercbot account** and **About**. Close it with **×**, **Escape** or a click outside. On a phone, Settings fills the screen and shows one section at a time; **All settings** at the top returns to the list.
+Settings opens over the app, with the sections listed on the left: **General**, **Computer**, **Permissions**, **Files**, **Website**, **Templates**, **Vault**, **Spending**, **Mercbot account** and **About**. Close it with **×**, **Escape** or a click outside. On a phone, Settings fills the screen and shows one section at a time; **All settings** at the top returns to the list.
 
 Most controls apply as soon as you change them. The exceptions say so: forms in **Files** and the **Vault** have their own **Save** button.
 
@@ -72,14 +72,16 @@ Where the home's pages are published, if you have a website of your own:
 
 Then enter **Its address on the web**: where the web server serves that folder, such as `https://example.com/pages/`. Select **Save**: Mercbot checks the folder or the bucket before saving, and says what's wrong if it can't use it. The access key and secret are kept locked with the vault's key and never shown again; leave them empty to keep the saved ones.
 
-Each page you publish goes in a folder of its own there, at the address followed by the page's name. Mercbot only ever replaces or removes folders it put there itself. While pages are published, the folder or bucket can't be changed and **Remove website** is refused: unpublish them first. A new address or place asks for confirmation again at its next first publish. Only owners and admins set this up. See [Publish a page to your website](/help/files).
+Each page you publish goes in a folder of its own there, at the address followed by the page's name. Mercbot only ever replaces or removes folders it put there itself. While pages are published, the folder or bucket can't be changed and **Remove website** is refused: unpublish them first. A new address or place asks for confirmation again at its next first publish. Only owners and admins set this up. See [Publish a page to your website](/help/files#publish-a-page-to-your-website).
 
 ## Computer, Templates and Vault
 
 ### Computer
 
+Each bot has its own computer in each chat it's in, which belongs to that chat.
+
 - **Update** shows **Up to date**. Your bots' browsers are kept up to date for you, and updating keeps their saved sign-ins.
-- **Reset** starts the bots' computers in your chats afresh. Open pages close, and saved sign-ins and website data are cleared. Your chats, routines and skills stay. Mercbot asks first.
+- **Reset** starts afresh the bots' computers in the chats only you are in. Open pages close, and saved sign-ins and website data are cleared. A chat with other people in it keeps its computers, as they're theirs too. Your chats, routines and skills stay. Mercbot asks first, then says how many computers it reset.
 
 See [The bots' computer and connected apps](/help/computer-and-apps).
 
@@ -94,7 +96,7 @@ See [The bots' computer and connected apps](/help/computer-and-apps).
 
 ### Vault
 
-The home's saved logins, cards and contact info, with tabs, search, **New item** and a delete button on each row. Everyone in the home shares it. See [The vault: saved logins and secrets](/help/vault).
+The home's saved logins, cards and contact info, with tabs, search, **New item** and a delete button on each row. Everyone in the home shares it. An item can be deleted by the person who added it and by the home's owners and admins. See [The vault: saved logins and secrets](/help/vault).
 
 ## Spending
 
@@ -145,16 +147,18 @@ The bar at the top says **Account settings**. Its back arrow returns to where yo
 
 ## Each bot's own settings
 
-A bot's own options are on its card: select the bot in **Team**, or its name in a chat.
+A bot's own options are on its card: select the bot in **Team**, or under **Bots** in a chat's **Chat details**. In your direct chat with a bot, **Chat details** shows its card.
 
-- **Name:** edit it in place. The tag under it is the bot's template; select it to go to **Instructions**.
-- **Instructions:** the template the bot follows, read-only, with **Change template**, and its own **Additions**, which its maker and the home's owners and admins edit. See [Bots](/help/bots).
-- **Knowledge:** what the bot knows for everyone it talks with. See [What a bot knows](/help/bots#what-a-bot-knows).
-- **Apps:** whether the bot is the home's Builder.
-- The **Files** and **Library** tabs.
-- **Archive**, for the bot's maker and the home's owners and admins.
+- **Name:** its maker and the home's owners and admins edit it in place. The tag under it is the bot's template; select it to go to **Instructions**.
+- **Details** tab:
+  - **Instructions:** the template the bot follows, read-only, with **Change template**, and its own **Additions**, which its maker and the home's owners and admins edit. See [Bots](/help/bots).
+  - **Knowledge:** what the bot knows in every chat it's in. See [What a bot knows](/help/bots#what-a-bot-knows).
+  - **Apps:** whether the bot builds the home's apps.
+  - **Routines:** the bot's routines, each with its schedule, its chat and a switch.
+  - **Archive**, for the bot's maker and the home's owners and admins.
+- **Files**, **Library** and **Computer** tabs.
 
-A chat's own options are in its details: its members, whether it's Public or Private, its files and routines, archive or delete, and leave. See [Chats and your team](/help/chats).
+A chat's own options are in its **Chat details**: its people and bots, whether it's Public or Private, its files, its bots' computers and its routines, and leave, archive or delete. See [Chats and your team](/help/chats).
 
 Connected apps, their accounts and their tool switches are in **Connect apps**, in the sidebar.
 
@@ -167,7 +171,7 @@ Mercbot shows news inside the app:
 | A dot on the chat's row | Sidebar | Something new arrived since you last looked. |
 | An amber dot and **Waiting for you:** with a task | Sidebar | A bot in the chat has handed you its screen and is waiting. |
 | **Draft:** in the preview | Sidebar | You started a message in this chat and didn't send it. |
-| The bot's face changing | Sidebar and chat | The bot is working, for example on a routine. |
+| The bot's face changing | Sidebar (a chat of you and one bot) and chat | The bot is working, for example on a routine. |
 | A status line | Chat | What the bot is doing right now. |
 | A "new" divider | Chat | Where the messages you haven't seen start. |
 | A card with buttons | Chat | The bot is waiting for an answer: an approval, a draft to send, a sign-in form or a question. |
@@ -201,10 +205,11 @@ The home's owners and admins. Members see the current storage choice.
 
 ### Does Reset delete my files or vault?
 
-No. It clears the bots' browsers only: open pages, sign-ins and website data.
+No. It clears the bots' browsers only, in the chats only you are in: open pages, sign-ins and website data.
 
 ## Related pages
 
+- [Chats and your team](/help/chats)
 - [Approvals, safety and privacy](/help/approvals-and-privacy)
 - [The vault: saved logins and secrets](/help/vault)
 - [The bots' computer and connected apps](/help/computer-and-apps)
