@@ -31,6 +31,8 @@ follow-ups after a sign-in, summaries of long chats, and the news every open pag
 - `packages/bots/src/server/workPause.js`
 - `packages/bots/src/server/eventMessage.js`
 - `packages/bots/src/server/botWriting.js`
+- `packages/bots/src/server/joiningIn.js`
+- `packages/bots/src/server/discussions.js`
 - `packages/bots/src/server/registerRoutes.js`
 - `packages/bots/src/server/records/messageRepository.js`
 - `packages/bots/src/server/records/turnRepository.js`
@@ -51,6 +53,7 @@ follow-ups after a sign-in, summaries of long chats, and the news every open pag
 - `src/components/mercbot/MercbotRequestCard.vue`
 - `src/components/mercbot/MercbotSecureForm.vue`
 - `src/components/mercbot/MercbotHandoverCard.vue`
+- `src/components/mercbot/MercbotDiscussionCard.vue`
 
 ## Public contract
 
@@ -85,11 +88,39 @@ archived chats refuse every write, `genesis/program/bots/chats.md`):
 
 **Who speaks (R3, `addressedBots` in `botReplies.js`).** With one person in the chat, every live bot answers in
 order, or only those @-mentioned. With several people, a bot answers only when named as a word, @-mentioned, replied
-to (`replyTo` its message) or called with `<@everyone>`. After a card is answered, its bot speaks. Then one follow-up
+to (`replyTo` its message) or called with `<@everyone>`, or when the join-in judge named it (below). After a card is
+answered, its bot speaks. Then one follow-up
 round lets each bot another bot just mentioned answer once (`PASS` stays quiet: nothing is posted). Archived bots
 never speak; a chat with only people makes no model call. The page decides how to wait (`useChatActions.js`
 `answering`): no live bot, no reply asked; several people, it asks and shows a bot working only once the server says
 one started (`untilStarted`, the `working` event); otherwise it waits for the reply.
+
+**Bots join in when useful (D-115, `joiningIn.js`).** With the chat's `bots_join_in` on and several people, a
+person's message that calls no bot goes through one judging call, in the background job the reply request starts:
+one `generateOnce` on the chat kind of work, at most 40 tokens out, metered to the message's person and no bot, which
+reads the chat's last 12 text messages (each clipped to 400 characters) through the chat's own reader and answers
+`{"bot": "<name>"}` or `{"bot": null}`. Its answer is kept on the message, `body.judged` (the bot's id, or `"quiet"`),
+under the message's lock, the first kept standing, so at most one bot joins per message and nothing is judged twice;
+`addressedBots` counts the judged bot as called, so one busy at the time answers once it's free. Off, alone in the
+chat, for a call, or in a paused home, nothing is judged. A failure or an answer in another shape stays quiet.
+
+**Discuss (D-115, `discussions.js`, `MercbotDiscussionCard.vue`).** In a chat with two or more live bots, `POST
+…/chats/:chatId/discussions {question}` (one of its people; at most 500 characters) writes a `discussion` card by
+that person, whose body only the server changes, under the card's lock: the question, its bots, 1–3 rounds (2 first)
+with what each may cost from `meter.estimateNano` (every turn reading the chat, a 24,000-token prefix and all said
+before it, writing at most 1,200 tokens; the wrap-up 2,000), and later the cap, rounds run, spending (`spentNano`,
+`spentByBot`), who passed and how it ended. `POST …/discussions/:messageId/start {rounds}` (its starter, while
+proposed) fixes the cap; `/round` (while waiting with rounds left) and `/wrap` (while waiting) run the next round or
+the wrap-up, each only on a press; `/cancel` (its starter, while proposed) and `/stop` (its starter or the chat's
+managers, at any time) end it. A press claims each of its bots' reply runs (`claimReply`; 409 `bots_discussion_busy`
+while one is still answering) and holds them, on their heartbeat, until the round ends, so a message written meanwhile
+waits and is answered after (`replies.takeUpWaiting`, `answerWaiting`). A turn is `replyTurn` with its `discussion`
+option: the round's prompt, no tools, no reasoning, no checks that send it back, the turn's output limit and the
+round's abort signal; it may PASS, and its message carries `body.discussion` and `body.round` and answers nobody's
+message. Before each turn the spending so far (`meter.spentSince` per bot, as the starter, since it started) plus that
+turn's estimate must fit the cap, or it ends (`cap`). A round where every bot passes ends it (`passed`); Stop ends the
+card at once and the round sees it at its next heartbeat or turn. Each turn is metered to the starter and the bot
+that speaks (R8). The chat list shows the card as "Discussion: <question>".
 
 **A reply** (`POST …/reply {timeZone?, language?, afterMessageId?, afterCard?}`): each speaking bot runs its own reply
 in this chat, claimed in `agent_runs` under its seat (`chat_bots.id`) with a heartbeat, so a retried request or
@@ -233,6 +264,10 @@ chat (`chatId`).
 - `tests/server/glassWallPrompts.integration.js`
 - `tests/server/modelInputPaths.test.js`
 - `tests/server/speakingUsage.integration.js`
+- `tests/server/joinInChats.integration.js`
+- `tests/server/discuss.integration.js`
+- `tests/server/botsTogether.test.js`
+- `tests/e2e/chats-together.spec.ts`
 - `tests/server/findInChat.integration.js`
 - `tests/server/botRequests.integration.js`
 - `tests/server/botRequestsBrief.integration.js`

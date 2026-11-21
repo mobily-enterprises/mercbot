@@ -62,7 +62,10 @@ const ACTIVITY = "You label what an assistant is about to do";
 const RULE_MATCHER = "You decide which of a person's plain-language rules apply";
 const TEMPLATE_WRITER = "You write bot templates for Mercbot.";
 const PLANNER = "You plan which bots a Mercbot home should have.";
-const JOIN_IN = /^You decide whether .+, a bot in a shared conversation, should answer the latest message\./u;
+const JOIN_IN = "You decide whether one of the bots in a shared conversation should answer the latest message, and which one.";
+// A discussion's turns and its wrap-up (packages/bots/src/server/discussions.js), known by the words they're asked with.
+const DISCUSSION_ROUND = /^\(A discussion .+ This is round (\d+) of \d+,/su;
+const DISCUSSION_WRAP = "(Wrap up the discussion of ";
 
 /** A message's words, whether its content is a string or a list of parts. */
 const textOf = (content) => (typeof content === "string" ? content : (content || []).map((part) => part.text || "").join(""));
@@ -321,8 +324,19 @@ function answerFor(request, misbehave) {
   if (system.startsWith(PLANNER)) {
     return say(JSON.stringify(botPlan(textOf(request.messages.find((message) => message.role === "user")?.content))));
   }
-  // Whether a Shared bot joins in: the conversation's last line is the message decided on; people chatting don't ask.
-  if (JOIN_IN.test(system)) return say(JSON.stringify({ reply: textOf(request.messages.at(-1)?.content).trim().endsWith("?") }));
+  // Whether a bot joins in (D-115): the conversation's last line is the message decided on; people chatting don't ask, and
+  // a question goes to the first bot listed.
+  if (system.startsWith(JOIN_IN)) {
+    const asks = textOf(request.messages.at(-1)?.content).trim().endsWith("?");
+    return say(JSON.stringify({ bot: asks ? /^- (.+?): /mu.exec(system)?.[1] ?? null : null }));
+  }
+  // A discussion: each bot makes one placeholder point in round 1 and passes after; the wrap-up says so.
+  const asked = request.messages.filter((message) => message.role === "user" && !textOf(message.content).startsWith(STATE_NOTE)).at(-1);
+  const discussed = [textOf(asked?.content)].find((text) => DISCUSSION_ROUND.test(text) || text.startsWith(DISCUSSION_WRAP));
+  if (discussed?.startsWith(DISCUSSION_WRAP)) return say("To sum up: this copy runs on a stand-in model, so the bots agreed only on placeholders, and the question is still open.");
+  if (discussed) {
+    return say(Number(DISCUSSION_ROUND.exec(discussed)[1]) > 1 ? "PASS" : "One placeholder point: this copy runs on a stand-in model, so a real discussion needs a real one.");
+  }
   const own = ownAdditionsStep(system, request);
   if (own) return own;
   const knows = knowledgeStep(system, request);

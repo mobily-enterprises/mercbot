@@ -26,6 +26,13 @@ export const MODEL_INPUTS = Object.freeze([
     reach: "reader"
   },
   {
+    file: "packages/bots/src/server/joiningIn.js",
+    calls: { generateOnce: 1 },
+    path: "Bots joining in when useful (D-115): one judgement on a person's message that calls no bot, in a chat of several people with the setting on",
+    reads: "the chat's latest text messages, clipped, and its bots' names and jobs, through the chat's own reader",
+    reach: "reader"
+  },
+  {
     file: "packages/bots/src/server/botHistory.js",
     calls: { createSummaries: 1 },
     path: "Compaction: a chat's summary between turns, one per chat",

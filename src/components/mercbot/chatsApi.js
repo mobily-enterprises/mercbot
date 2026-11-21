@@ -63,6 +63,8 @@ export const chatsApi = {
   // main bot with it): { chat }.
   welcome: () => post("/chats/welcome"),
   rename: (chatId, title) => patch(chat(chatId), { title }),
+  // Whether the chat's bots join in when useful (D-115): its maker's and the home's owners' and admins'.
+  setJoinIn: (chatId, botsJoinIn) => patch(chat(chatId), { botsJoinIn }),
   archive: (chatId) => post(chat(chatId, "/archive")),
   unarchive: (chatId) => post(chat(chatId, "/unarchive")),
   remove: (chatId) => remove(chat(chatId)),
@@ -104,6 +106,11 @@ export const chatsApi = {
   // The person started signing in from a connect card: the bot finishes its task once the app is connected.
   connectFromCard: (chatId, messageId) => post(chat(chatId, `/connect-cards/${messageId}`), where()),
   settleDraft: (chatId, messageId, answer) => post(chat(chatId, `/drafts/${messageId}`), answer),
+  // Discuss (D-115): a card proposed with the question ({ messages }), then each press on it ({ message }). Start, One
+  // more round and Wrap up are given where the person is, as replies are.
+  discuss: (chatId, question) => post(chat(chatId, "/discussions"), { question }),
+  discussion: (chatId, messageId, press, input = {}) =>
+    post(chat(chatId, `/discussions/${messageId}/${press}`), ["start", "round", "wrap"].includes(press) ? { ...where(), ...input } : {}),
   advance: (chatId, step) => post(chat(chatId, "/onboarding/advance"), { step }),
   chooseName: (chatId, name) => post(chat(chatId, "/onboarding/name"), { name }),
   voiceCall: (chatId, botId, seconds) => post(chat(chatId, `/bots/${botId}/voice-call`), { seconds }),

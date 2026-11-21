@@ -14,8 +14,8 @@ const answering = (chat) => {
 };
 
 /**
- * What the person does in the open chat: send and retry, react, answer cards, settle drafts and secure forms, cancel a
- * request between bots, and copy a message or a picture. Each step that reaches the server then asks the chat's bots
+ * What the person does in the open chat: send and retry, react, answer cards, settle drafts and secure forms, start a
+ * discussion, cancel a request between bots, and copy a message or a picture. Each step that reaches the server then asks the chat's bots
  * for their reply where the chat goes on.
  * @param {{
  *   currentChat: import("vue").ComputedRef<import("../../types.js").Chat | null>,
@@ -158,6 +158,18 @@ export function useChatActions({ currentChat, newChat, startNewChat, store, work
     }
   }
 
+  // Discuss (D-115): the composer's words become a discussion card for the chat's bots, which says what it may cost and
+  // waits for the person's Start; the composer is cleared once it's there (`onDone`).
+  async function discuss({ question, onDone }) {
+    const chatId = currentChat.value.id;
+    try {
+      appendMessages(chatId, (await chatsApi.discuss(chatId, question)).messages);
+      onDone();
+    } catch (error) {
+      reportFailure(error?.message || "That discussion didn't start. Try again.", error);
+    }
+  }
+
   // The person stops a request between bots from its card (D-46); the cards update on their own.
   async function cancelRequest(requestId) {
     try {
@@ -188,5 +200,5 @@ export function useChatActions({ currentChat, newChat, startNewChat, store, work
     }
   }
 
-  return { send, retry, react, answerChoice, settleDraft, answerSecureForm, endVoiceConversation, cancelRequest, copyToClipboard, copyMessage, copyPicture };
+  return { send, retry, react, answerChoice, settleDraft, answerSecureForm, endVoiceConversation, discuss, cancelRequest, copyToClipboard, copyMessage, copyPicture };
 }

@@ -59,6 +59,21 @@ function onboardingMover(conversations) {
 }
 
 /**
+ * A change to a chat the caller may read (`get`), never a direct chat's: its title shows its bot's name, and it has one
+ * person, so its bot always answers. Answers the chat's row.
+ * @param {(chatId: string, options: object) => Promise<object>} get
+ * @param {ResourceHandle} conversations
+ * @param {(record: object, options: object) => object} asRow
+ */
+function chatChanger(get, conversations, asRow) {
+  return async function changeChat(chatId, changes, options) {
+    const chat = await get(chatId, options);
+    if (chat.direct_bot_id) throw directRefusal();
+    return asRow(await conversations.patch(String(chat.id), changes, passedOn(options)), options);
+  };
+}
+
+/**
  * A person's sections of their chat list in a home (records.chats.sections), each a row of theirs: listed and locked
  * in their order, one of them or a 404, inserted, renamed, swapped and deleted.
  * @param {ResourceHandle} sections the conversation_sections handle
@@ -518,13 +533,11 @@ export function createChatRepository({ resources, systemContext, profiles, membe
     });
   }
 
+  const changeChat = chatChanger(get, conversations, asRow);
   /** A chat's new title (not a direct chat's, which shows its bot's name). */
-  async function rename(chatId, title, options) {
-    const chat = await get(chatId, options);
-    if (chat.direct_bot_id) throw directRefusal();
-    const clean = String(title ?? "").trim().slice(0, 80) || null;
-    return asRow(await conversations.patch(String(chat.id), { title: clean }, passedOn(options)), options);
-  }
+  const rename = (chatId, title, options) => changeChat(chatId, { title: String(title ?? "").trim().slice(0, 80) || null }, options);
+  /** Whether a chat's bots join in when useful (D-115); never a direct chat's, which has one person. */
+  const switchJoinIn = (chatId, on, options) => changeChat(chatId, { botsJoinIn: Boolean(on) }, options);
 
   /** A chat archived (read-only for everyone in it) or unarchived. */
   async function setArchived(chatId, archived, options) {
@@ -711,6 +724,7 @@ export function createChatRepository({ resources, systemContext, profiles, membe
     removePerson,
     removeBot,
     rename,
+    switchJoinIn,
     archive,
     unarchive,
     remove,

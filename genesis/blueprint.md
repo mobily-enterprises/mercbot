@@ -98,9 +98,13 @@ computer; the bot saves the steps as the person's own skill, which a bot uses on
 chat whose only person is them.
 A chat can hold several bots and people: with one person in it, every bot answers in
 turn (or only the ones mentioned with @); with several people, a bot answers when it is
-named, mentioned, replied to or asked with @everyone; and bots can answer each other
-once. Bots ask each other for work on a brief, and the answer comes back to the chat
-that asked.
+named, mentioned, replied to or asked with @everyone, or, when the chat lets bots join
+in (off unless its maker or an admin switches it on), when one bot can help with a
+message nobody called it for; and bots can answer each other once. In a chat with two
+or more bots, a person can have them discuss a question, a round at a time on a card
+that says first what it may cost and never spends more, with each round, the wrap-up
+and Stop on the person's press. Bots ask each other for work on a brief, and the answer
+comes back to the chat that asked.
 However long a chat gets, a bot keeps its thread: in the background it keeps a
 summary of the older part (what was asked and decided, facts, what it did and
 promised, what's still open) and reads everything since word for word.

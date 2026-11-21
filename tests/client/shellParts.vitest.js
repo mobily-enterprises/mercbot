@@ -51,8 +51,12 @@ describe("chat list menus", () => {
     expect(titles(menu(kitchen, "archived", { me: "2" })), "nor unarchive it").toEqual(["Copy chat ID", "—", "Leave chat"]);
     expect(titles(menu(kitchen, "row", { me: "2", manages: true }))).toEqual(titles(menu(kitchen, "row")));
     expect(chatRights({ ...kitchen, madeBy: null }, { me: "1", manages: false }), "a chat no one made").toEqual({
-      removeMembers: false, rename: false, archive: false, unarchive: false, remove: false, leave: true, unpin: true
+      removeMembers: false, rename: false, joinIn: false, archive: false, unarchive: false, remove: false, leave: true, unpin: true
     });
+    expect(chatRights(kitchen, { me: "1", manages: false }).joinIn, "its maker switches whether its bots join in").toBe(true);
+    expect(chatRights(kitchen, { me: "2", manages: true }).joinIn, "and whoever manages the home").toBe(true);
+    expect(chatRights(kitchen, { me: "2", manages: false }).joinIn, "no one else").toBe(false);
+    expect(chatRights({ ...kitchen, directBotId: "b1" }, { me: "1", manages: true }).joinIn, "never in a direct chat").toBe(false);
   });
 
   it("archives only a public chat: a private one is hidden by each person for themselves, and one archived before unarchives (plan 5.1)", () => {
