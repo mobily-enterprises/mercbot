@@ -5,8 +5,8 @@ import { chatsApi } from "./chatsApi.js";
 export const canSwitchRoutine = (routine) => Boolean(routine.enabled || routine.canResume);
 
 /**
- * A routine's menu: Pause, or Resume for its maker (`canResume`: it runs as them); Edit, through its chat; and Delete,
- * which is anyone's who can open its chat, after a confirmation.
+ * A routine's menu: Pause; Resume and Edit (through its chat) for its maker, `canResume`, as it runs as them and only they
+ * change it (routineTools.js); and Delete, which is anyone's who can open its chat, after a confirmation.
  * @param {{ enabled: boolean, canResume?: boolean }} routine
  * @param {{ toggle: () => void, edit: () => void, remove: () => void }} actions
  */
@@ -14,7 +14,8 @@ export function routineMenuItems(routine, { toggle, edit, remove }) {
   const items = [];
   if (routine.enabled) items.push({ title: "Pause", icon: "$pause", run: toggle });
   else if (routine.canResume) items.push({ title: "Resume", icon: "$play", run: toggle });
-  items.push({ title: "Edit", icon: "$edit", run: edit }, { divider: true }, { title: "Delete", icon: "$delete", danger: true, run: remove });
+  if (routine.canResume) items.push({ title: "Edit", icon: "$edit", run: edit });
+  items.push({ divider: true }, { title: "Delete", icon: "$delete", danger: true, run: remove });
   return items;
 }
 

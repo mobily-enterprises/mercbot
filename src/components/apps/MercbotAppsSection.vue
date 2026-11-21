@@ -5,8 +5,8 @@ import { usePaths } from "@jskit-ai/shell-web/client/navigation/usePaths";
 import { appsApi } from "./appsApi.js";
 
 // The Apps section of a bot's Details (D-35): the Builder role (one bot of the home builds its
-// apps; moving the role leaves every app and table in place), and the bot's watches, which people
-// can pause, resume or remove.
+// apps; moving the role leaves every app and table in place), and the bot's watches, which anyone who can open their
+// chat can pause or remove, and only whoever set one up resumes (`canResume`: it runs as them).
 const props = defineProps({ bot: { type: Object, required: true } });
 const paths = usePaths();
 const builder = ref(undefined);
@@ -60,7 +60,16 @@ async function makeBuilder() {
         <div class="text-body-2">{{ watch.name }}</div>
         <div class="text-caption text-medium-emphasis">Watches {{ WHEN[watch.on] }} in {{ watch.table }}{{ watch.condition ? ` when ${watch.condition.slice(1)}` : "" }}</div>
       </div>
-      <v-switch :model-value="watch.enabled" color="primary" density="compact" inset hide-details :aria-label="`${watch.enabled ? 'Pause' : 'Resume'} ${watch.name}`" @update:model-value="toggle(watch)" />
+      <v-switch
+        :model-value="watch.enabled"
+        :disabled="!watch.enabled && !watch.canResume"
+        color="primary"
+        density="compact"
+        inset
+        hide-details
+        :aria-label="`${watch.enabled ? 'Pause' : 'Resume'} ${watch.name}`"
+        @update:model-value="toggle(watch)"
+      />
       <v-btn variant="text" size="small" color="error" @click="remove(watch)">Remove</v-btn>
     </div>
   </template>
