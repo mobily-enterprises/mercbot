@@ -1,14 +1,15 @@
 <script setup>
 import { computed, ref, watch } from "vue";
 import extensions from "./extensions.js";
-import { fileUrl, isHtmlPage, previewUrl } from "./filesApi.js";
+import { fileUrl, isHomePage, isHtmlPage, previewUrl } from "./filesApi.js";
 import WEBSITE_PARTS from "./websiteParts.js";
 
 // A page's Share (D-74), from the page's viewer or the Library. Who can open it is where it's kept (D-112 R6, D13): a
 // page in a chat's folder, everyone who can open that chat; one in the bot's folder or the home's, everyone in the
 // home. What a copy built on Mercbot adds to a web page's Share (extensions.js, pageShareParts) shows under that, and so
-// does its place on the home's own website (D-84), when that part is in. An older Markdown page offers its words to
-// copy or its file to download.
+// does its place on the home's own website (D-84), when that part is in: only for a page of the bot's folder or the
+// home's (isHomePage), as the server shares no other. An older Markdown page offers its words to copy or its file to
+// download.
 const open = defineModel({ type: Boolean, default: false });
 const props = defineProps({
   botId: { type: String, required: true },
@@ -21,6 +22,7 @@ const props = defineProps({
 const emit = defineEmits(["copied", "failure"]);
 
 const html = computed(() => isHtmlPage(props.path));
+const homePage = computed(() => isHomePage(props.path));
 const access = computed(() => (props.path.startsWith("/files/chat/")
   ? { icon: "$group", name: "Everyone who can open this chat", note: "Can open it, like every file in this chat" }
   : { icon: "$home", name: `Everyone in ${props.homeName || "this home"}`, note: "Can open it, like every file in the home" }));
@@ -28,7 +30,7 @@ const access = computed(() => (props.path.startsWith("/files/chat/")
 const parts = ref([]);
 watch(open, async (now) => {
   parts.value = [];
-  if (!now || !html.value) return;
+  if (!now || !homePage.value) return;
   const answers = await Promise.all(extensions.pageShareParts.map((part) => (part.visible ? part.visible().catch(() => false) : true)));
   if (open.value) parts.value = extensions.pageShareParts.filter((_part, at) => answers[at]);
 }, { immediate: true });
@@ -70,10 +72,10 @@ async function copyText() {
       </div>
 
       <template v-if="html">
-        <template v-if="open">
+        <template v-if="open && homePage">
           <component :is="part.component" v-for="(part, at) in parts" :key="at" :bot-id="botId" :chat-id="chatId" :path="path" @copied="emit('copied', $event)" />
+          <component :is="WEBSITE_PARTS.pageShare" v-if="WEBSITE_PARTS.pageShare" :bot-id="botId" :chat-id="chatId" :path="path" @copied="emit('copied', $event)" />
         </template>
-        <component :is="WEBSITE_PARTS.pageShare" v-if="WEBSITE_PARTS.pageShare && open" :bot-id="botId" :chat-id="chatId" :path="path" @copied="emit('copied', $event)" />
       </template>
 
       <div v-else class="mb-page-share__actions mb-page-share__actions--even">
