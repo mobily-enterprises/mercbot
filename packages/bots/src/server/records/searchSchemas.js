@@ -33,6 +33,8 @@ export const CHAT_SEARCH = Object.freeze({
       query.whereNotIn(column("id"), ids.map(String));
     }
   }),
+  // A chat at this step of its onboarding script: what moves it on writes only while it's still there.
+  onboardingStep: Object.freeze({ type: "string", actualField: "onboardingStep", filterOperator: "=" }),
   // The chats a bot in this chat may read (D-112): the migration's readable_from(chat).
   readableFrom: Object.freeze({
     type: "id",

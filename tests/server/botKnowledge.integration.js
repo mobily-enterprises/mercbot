@@ -6,7 +6,6 @@ import test from "node:test";
 import { aiKind } from "../../packages/account/src/server/providers/index.js";
 import { listPrices } from "../../packages/account/src/server/cost.js";
 import { instructionsFor } from "../../packages/bots/src/server/botAgent.js";
-import { createBotConversations } from "../../packages/bots/src/server/botConversations.js";
 import { KNOWLEDGE_LIMITS, createBotKnowledge, splitIntoParts } from "../../packages/bots/src/server/botKnowledge.js";
 import { memberOptions, startBotParts } from "../support/botRecords.mjs";
 import { queriesDuring } from "../support/queryCount.mjs";
@@ -37,6 +36,8 @@ function book(chars) {
 function filesIn(dir) {
   return {
     store: {
+      // The bot's own folder (/files/bot), which its knowledge files are read from.
+      botPlace: (place) => ({ ...place, kind: "bot" }),
       async existingFile(_place, virtualPath) {
         const real = path.join(dir, path.basename(virtualPath));
         const found = await stat(real).catch(() => null);
@@ -73,10 +74,8 @@ async function setup(context) {
     await knex.destroy();
   });
   const parts = await startBotParts(knex, context);
-  const notices = { publish: async () => {}, publishEach: async () => {}, subscribe: () => () => {} };
   const knowledge = createBotKnowledge({
     records: parts.records,
-    conversations: createBotConversations({ records: parts.records, notices }),
     files: filesIn(dir),
     meter: parts.meter,
     env: process.env,
