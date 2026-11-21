@@ -394,6 +394,19 @@ export function createMessageRepository({ resources, systemContext }) {
   }
 
   /**
+   * One reaction on a message (`body.reactions[who]`), set to `emoji` or taken away (null) by the database, so of
+   * several people reacting at once every reaction stays (D-114). Answers the message as the page shows it.
+   */
+  async function setReaction(messageId, who, emoji, options) {
+    const body = messages.column("body");
+    const changed = emoji
+      ? messages.raw("jsonb_set(??, '{reactions}', coalesce(?? -> 'reactions', '{}'::jsonb) || ?::jsonb)", [body, body, JSON.stringify({ [who]: emoji })])
+      : messages.raw("?? #- array['reactions', ?]::text[]", [body, String(who)]);
+    const [line] = await rewriteBodies({ id: String(messageId) }, changed, options);
+    return line || null;
+  }
+
+  /**
    * The cards of one kind that name one slug (`body.slug`), that a bot wrote in any chat of a home (`homeId`, else the
    * call's), given `merge`'s fields and without `drop`'s: a change one person makes that every chat with the bot must
    * show, though nobody reads all of them, as a deleted page's mark does. The caller has already checked the change is
@@ -429,6 +442,8 @@ export function createMessageRepository({ resources, systemContext }) {
     // readable-check: allow setter-seam - not a slot: saves a message's new body
     setBody,
     mergeBody,
+    // readable-check: allow setter-seam - not a slot: writes one reaction on a message
+    setReaction,
     claimBody,
     latestOfKind,
     hasUserText,

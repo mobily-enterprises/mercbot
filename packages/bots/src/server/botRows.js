@@ -114,12 +114,12 @@ export function previewOf(row) {
   if (row.kind === "bot_request") {
     return body.side === "asker" ? `Asked ${body.other?.name}: ${body.brief}` : `From ${body.other?.name}: ${body.brief}`;
   }
-  return plainText(body.text || body.heading, body.mentions).slice(0, 200);
+  return plainText(body.text || body.heading, body.mentions, body.mentionedPeople).slice(0, 200);
 }
 
-/** A message as one plain line: mentions as names, Markdown symbols and link targets removed. */
-export function plainText(text, mentions) {
-  return plainMentions(String(text || ""), mentions || [])
+/** A message as one plain line: mentions of bots and people as names, Markdown symbols and link targets removed. */
+export function plainText(text, mentions, mentionedPeople) {
+  return plainMentions(String(text || ""), mentions || [], mentionedPeople || [])
     .replace(/```[\s\S]*?```/gu, " ")
     .replace(/\[([^\]]+)\]\([^)]*\)/gu, "$1")
     .replace(/[*_`#>]+/gu, "")

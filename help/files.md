@@ -8,7 +8,9 @@ Bots don't just talk: they read the files you send and make real ones for you, s
 2. Choose one or more files. Each appears above the message box with its name and size; select its cross to remove it.
 3. Add a note if you like ("Summarise the second section"), or just send.
 
-Each file you attach is kept in the chat's **Uploads** folder. The bots in the chat are told where it is and can open it now, or later in the chat when you ask about it again. If a file with the same name is already there, the new one gets a number added.
+Each file you attach is kept in the chat's **Uploads** folder, whoever else is in the chat: other people, bots, or people only. Everyone who can open the chat can open it there, and nobody else. The bots in the chat are told where it is and can open it now, or later in the chat when you ask about it again. If a file with the same name is already there, the new one gets a number added.
+
+In **New chat**, the files you attach wait above the message box until the chat starts, then go in its **Uploads** folder with your first message. One that can't be kept is left out, and Mercbot says why.
 
 ### What bots can read
 

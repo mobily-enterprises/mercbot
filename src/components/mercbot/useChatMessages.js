@@ -52,12 +52,12 @@ export function useChatMessages({ chats, currentChatId }) {
     cursors.delete(chatId);
   }
 
-  // Opening a chat clears its unread marker and says how far the person has read; anything posted while it's open is
-  // seen straight away. A public chat the person isn't in has no place to mark.
+  // Opening a chat clears its unread marker and its "@" (D-114) and says how far the person has read; anything posted
+  // while it's open is seen straight away. A public chat the person isn't in has no place to mark.
   function markSeen(chatId) {
     const chat = chatOf(chatId);
     if (!chat?.place) return;
-    chats.value = chats.value.map((existing) => (existing.id === chatId ? { ...existing, unread: false } : existing));
+    chats.value = chats.value.map((existing) => (existing.id === chatId ? { ...existing, unread: false, mentioned: false } : existing));
     const latest = [...(messagesByChat.value[chatId] || [])].reverse().find((message) => /^\d+$/u.test(String(message.id)));
     chatsApi.markRead(chatId, latest?.id ?? null).catch(() => {});
   }

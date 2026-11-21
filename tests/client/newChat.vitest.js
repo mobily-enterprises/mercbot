@@ -7,18 +7,34 @@ import { theme } from "../../src/theme/index.js";
 
 // New chat (plan 4.3, D15): who it's with, Public (the default, whoever is on the To: line) or Private, each with what
 // it means and fixed once the chat has started, and an optional title; starting it makes the chat from those choices
-// and sends the first message there, and a chat with no one else isn't started. Below, the public chats to join
-// instead. The chat routes are a stand-in that notes each call and answers what the server would.
+// and sends the first message there, files attached before it was made going in its folder first, and a chat with no
+// one else isn't started. Below, the public chats to join instead. Continue with others (D-114) opens it from a direct
+// chat with its bot and the bot's note, and starts once someone else is on the To: line. The chat and upload routes are
+// stand-ins that note each call and answer what the server would.
 const log = vi.hoisted(() => []);
 // The public chats to join, and the chat a create makes.
-const answers = vi.hoisted(() => ({ publicChats: { chats: [] }, made: null }));
+const answers = vi.hoisted(() => ({ publicChats: { chats: [] }, made: null, note: null }));
 vi.mock("../../src/components/mercbot/chatsApi.js", () => ({
   chatsApi: {
     publicChats: async () => answers.publicChats,
     create: async (choice) => {
       log.push(["create", choice]);
       return { chat: answers.made };
+    },
+    handOverNote: async (chatId) => {
+      log.push(["handOverNote", chatId]);
+      if (answers.note instanceof Error) throw answers.note;
+      return { note: answers.note };
     }
+  }
+}));
+// An upload keeps the file in the chat's folder, but one named "refused" (as a copy's picture check would, D-90).
+vi.mock("../../src/components/mercbot/filesApi.js", async (importOriginal) => ({
+  ...(await importOriginal()),
+  uploadFile: async (botId, file, folder, chat) => {
+    log.push(["upload", file.name, folder, chat, botId]);
+    if (file.name.startsWith("refused")) throw Object.assign(new Error("This file can't be used."), { status: 422, code: "media_blocked" });
+    return { path: `${folder}/${file.name}` };
   }
 }));
 // New chat reads the public chats to join once it's on the page, which a page rendered on the server never is: here it
@@ -58,6 +74,7 @@ beforeEach(() => {
   log.length = 0;
   answers.publicChats = { chats: [] };
   answers.made = MADE;
+  answers.note = null;
 });
 
 describe("New chat", () => {
@@ -141,5 +158,94 @@ describe("starting a new chat", () => {
       ["send", { text: "Oak or walnut?" }]
     ]);
     expect(flow.newChat.value).toBeNull();
+  });
+
+  it("keeps files attached before the chat was made in its folder once it is, leaving out one refused, then sends", async () => {
+    const flow = newChatFlow();
+    flow.openNewChat({ people: ["2"], bots: ["7"] });
+    const picture = new File(["x"], "oak.png", { type: "image/png" });
+    const refused = new File(["x"], "refused.png", { type: "image/png" });
+    await flow.startNewChat({ text: "Like this?", attachments: [
+      { name: "oak.png", size: 1, type: "image/png", file: picture },
+      { name: "refused.png", size: 1, type: "image/png", file: refused },
+      { name: "notes.txt", size: 4, type: "text/plain", text: "oak", path: "/files/chat/Uploads/notes.txt" }
+    ] });
+    expect(log.filter(([what]) => what !== "addChat")).toEqual([
+      ["create", { kind: "public", title: null, people: ["2"], bots: ["7"] }],
+      ["showChat", "55"],
+      ["upload", "oak.png", "/files/chat/Uploads", "55", null],
+      ["upload", "refused.png", "/files/chat/Uploads", "55", null],
+      ["reportFailure", "This file can't be used.", expect.any(Error)],
+      ["send", { text: "Like this?", attachments: [
+        { name: "oak.png", size: 1, type: "image/png", path: "/files/chat/Uploads/oak.png" },
+        { name: "notes.txt", size: 4, type: "text/plain", text: "oak", path: "/files/chat/Uploads/notes.txt" }
+      ] }]
+    ]);
+  });
+});
+
+describe("Continue with others", () => {
+  const DIRECT = { id: "31", kind: "public", directBotId: "7", people: [{ userId: "1", name: "Anna Rossi" }], bots: [] };
+  function flowWith(note) {
+    answers.note = note;
+    const store = { addChat: (chat) => log.push(["addChat", chat.id]), messagesByChat: ref({}) };
+    return useNewChat({
+      currentChat: computed(() => DIRECT),
+      currentDraft: ref("my own draft in the direct chat"),
+      store,
+      showChat: async (chatId) => { log.push(["showChat", chatId]); },
+      send: async (payload) => { log.push(["send", payload]); },
+      botById: (botId) => BOTS.find((entry) => entry.id === botId) || null,
+      reportFailure: (words, cause) => log.push(["reportFailure", words, cause])
+    });
+  }
+
+  it("opens New chat with the direct chat's bot, Public, and its note as the first message to change and send", async () => {
+    const flow = flowWith("Continuing from my chat with Chef: dinner for six.");
+    const asked = flow.continueWithOthers(DIRECT);
+    expect(flow.newChat.value).toEqual({ kind: "public", people: [], bots: ["7"], title: "", continuing: { chatId: "31", botId: "7", writing: true } });
+    await asked;
+    expect(log).toEqual([["handOverNote", "31"]]);
+    expect(flow.chatDraft.value).toBe("Continuing from my chat with Chef: dinner for six.");
+    expect(flow.newChat.value.continuing.writing).toBe(false);
+  });
+
+  it("leaves what the person wrote meanwhile, and says so when the note doesn't come", async () => {
+    const flow = flowWith("A note");
+    const asked = flow.continueWithOthers(DIRECT);
+    flow.chatDraft.value = "I'll write it myself";
+    await asked;
+    expect(flow.chatDraft.value).toBe("I'll write it myself");
+    const failed = flowWith(Object.assign(new Error("Chef is archived. Unarchive it to continue."), { status: 409 }));
+    await failed.continueWithOthers(DIRECT);
+    expect(log.at(-1)).toEqual(["reportFailure", "Chef is archived. Unarchive it to continue.", expect.any(Error)]);
+    expect([failed.chatDraft.value, failed.newChat.value.continuing.writing]).toEqual(["", false]);
+  });
+
+  it("starts only once someone besides the bot is on the To: line, as a new chat; the direct chat isn't changed", async () => {
+    const flow = flowWith("Continuing from my chat with Chef.");
+    await flow.continueWithOthers(DIRECT);
+    await flow.startNewChat({ text: "Continuing from my chat with Chef." });
+    expect(log.at(-1)).toEqual(["reportFailure", "Add the people or bots to continue with first.", null]);
+    flow.changeNewChat({ people: ["2"] });
+    await flow.startNewChat({ text: "Continuing from my chat with Chef. Ben?" });
+    expect(log.slice(-4)).toEqual([
+      ["create", { kind: "public", title: null, people: ["2"], bots: ["7"] }],
+      ["addChat", "55"],
+      ["showChat", "55"],
+      ["send", { text: "Continuing from my chat with Chef. Ben?" }]
+    ]);
+  });
+
+  it("says in New chat what it carries on, and what Start waits for", async () => {
+    const writing = await rendered({ choice: choice({ bots: ["7"], continuing: { chatId: "31", botId: "7", writing: true } }) });
+    expect(text(writing)).toContain("Continue with others");
+    expect(text(writing)).toContain("Chef is writing a note of your chat for the others…");
+    const written = await rendered({ choice: choice({ bots: ["7"], continuing: { chatId: "31", botId: "7", writing: false } }) });
+    expect(text(written)).toContain("Your chat with Chef stays as it is.");
+    expect(text(written)).toContain("Add the people or bots to continue with.");
+    expect(buttons(written).find((entry) => entry.text === "Start").disabled).toBe(true);
+    const ready = await rendered({ choice: choice({ people: ["2"], bots: ["7"], continuing: { chatId: "31", botId: "7", writing: false } }) });
+    expect(buttons(ready).find((entry) => entry.text === "Start").disabled).toBe(false);
   });
 });

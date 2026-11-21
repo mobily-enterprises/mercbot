@@ -169,7 +169,7 @@ const { openPage, showPage, closePage } = useOpenPage({ route, router, messages:
 // New chat sends its first message through the chat's own send, once the chat is made (late-bound: useChatActions
 // takes New chat's state).
 const actions = {};
-const { newChat, starting, accentColor, chatDraft, openNewChat, closeNewChat, changeNewChat, startNewChat, joinPublic } =
+const { newChat, starting, accentColor, chatDraft, openNewChat, continueWithOthers, closeNewChat, changeNewChat, startNewChat, joinPublic } =
   useNewChat({ currentChat, currentDraft, store, showChat, send: (payload) => actions.send(payload), botById: team.botById, reportFailure });
 
 // The page shown in place of the chat; on a phone it has the screen, with its own Close.
@@ -574,6 +574,7 @@ watch(() => currentHomeEntry.value?.slug, () => loadBuilderBot(), { immediate: t
         @unarchive-chat="runCommand({ name: 'unarchiveChat', args: { chatId: currentChat.id } })"
         @join="runCommand({ name: 'joinChat', args: { chatId: currentChat.id } })"
         @add-member="addMember"
+        @continue-with-others="continueWithOthers(currentChat)"
         @open-direct="openDirect"
         @open-details="showDetails"
         @close-find="findOpen = false"

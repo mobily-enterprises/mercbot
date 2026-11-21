@@ -185,6 +185,7 @@ const rowLabel = (chat) => (chat.kind === "private" ? `${titleOf(chat)}, private
             <span class="mb-tile__avatar">
               <MercbotChatAvatar :chat="chat" :me="me" :size="58" :state="moodOf(chat)" />
               <span v-if="waitingTaskOf(chat)" class="mb-badge mb-badge--unread mb-badge--waiting" aria-label="Waiting for you" />
+              <span v-else-if="chat.mentioned" class="mb-badge mb-badge--mention" aria-label="Mentioned you">@</span>
               <span v-else-if="chat.unread" class="mb-badge mb-badge--unread" aria-label="Unread" />
             </span>
             <span class="mb-tile__name">
@@ -285,6 +286,7 @@ const rowLabel = (chat) => (chat.kind === "private" ? `${titleOf(chat)}, private
               </span>
               <kbd v-if="hints[chat.id]" class="mb-hint">{{ hints[chat.id] }}</kbd>
               <span v-else-if="waitingTaskOf(chat)" class="mb-row__unread mb-row__unread--waiting" aria-label="Waiting for you" />
+              <span v-else-if="chat.mentioned" class="mb-row__mention" aria-label="Mentioned you">@</span>
               <span v-else-if="chat.unread" class="mb-row__unread" aria-label="Unread" />
             </button>
           </li>
@@ -325,6 +327,7 @@ const rowLabel = (chat) => (chat.kind === "private" ? `${titleOf(chat)}, private
               <span class="mb-row__preview">{{ previewLine(chat, me) }}</span>
             </span>
             <kbd v-if="hints[chat.id]" class="mb-hint">{{ hints[chat.id] }}</kbd>
+            <span v-else-if="chat.mentioned" class="mb-row__mention" aria-label="Mentioned you">@</span>
             <span v-else-if="chat.unread" class="mb-row__unread" aria-label="Unread" />
           </button>
         </li>

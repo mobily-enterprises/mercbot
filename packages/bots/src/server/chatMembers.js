@@ -132,6 +132,7 @@ export function createChatMembers({ records, notices, computer, systemContext, p
     const place = row && {
       readUpTo: row.read_up_to,
       unread: row.unread,
+      mentionedAt: row.mentioned_at,
       pinPosition: row.pin_position,
       sectionId: row.section_id,
       hidden: row.hidden,
@@ -141,10 +142,14 @@ export function createChatMembers({ records, notices, computer, systemContext, p
     return view;
   }
 
-  /** The person's place in a chat (its chat_people fields), as the page reads it. */
+  /**
+   * The person's place in a chat (its chat_people fields), as the page reads it: `mentioned` while someone's message
+   * there mentions them and they haven't read it since (D-114), the chat list's "@".
+   */
   const placeOf = (place) => ({
     readUpTo: place.readUpTo == null ? null : String(place.readUpTo),
     unread: Boolean(place.unread),
+    mentioned: place.mentionedAt != null,
     pinPosition: place.pinPosition ?? null,
     sectionId: place.sectionId == null ? null : String(place.sectionId),
     hidden: Boolean(place.hidden),

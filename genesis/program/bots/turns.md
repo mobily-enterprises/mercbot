@@ -71,7 +71,10 @@ archived chats refuse every write, `genesis/program/bots/chats.md`):
 - `POST …/messages {clientId?, text, quotes?, attachments?, replyTo?}`: only one of the chat's people writes (403
   `bots_chat_join_first` "Join this chat to write in it."). The same `clientId` is stored once (D-19). The message
   keeps its writer (`author_user_id`) and their name as written (`body.authorName`, R2), mentions of the chat's bots
-  as `<@bot:ID>` (and `<@everyone>`, `<@app:ID>`; the model reads and writes plain `@Name`), a skill picked with "/"
+  as `<@bot:ID>` (and `<@everyone>`, `<@app:ID>`; the model reads and writes plain `@Name`), of the chat's other
+  people as `<@person:ID>`, kept by name in `body.mentionedPeople` (D-114: a marker naming the author, anyone not in
+  the chat or no one marks nobody and reads "@someone"; mentioning a person makes no bot speak; the model reads
+  "@Name", `botAgent.js` `contentOf`), a skill picked with "/"
   (`<@skill:ID>`, stored with its name in `body.skills`), and with `replyTo` the quoted message's id, first 200
   characters and bot. Typing closes the person's own open choice card (marked inactive); another person's card stays
   theirs. It moves the welcome chat's steps on (`genesis/program/bots/onboarding.md`), resumes a goal a bot paused to
@@ -79,7 +82,10 @@ archived chats refuse every write, `genesis/program/bots/chats.md`):
   Answers `{ messages, chat }`.
 - `POST …/messages/:messageId/activity`: a few words for the status line and the reaction of the first bot the message
   is for (neither when no bot is, or the model doesn't answer). `PUT …/messages/:messageId/reaction {emoji}`: one
-  reaction per person or bot on a message.
+  reaction per person or bot on a message (`body.reactions`, keyed `user:ID` or `bot:ID`), a person's on a bot's or
+  another person's message, never their own or Mercbot's lines (400 `bots_reaction_not_allowed`), one of the quick
+  reactions (400 `bots_reaction_unknown`), a null `emoji` taking it away; written by the database
+  (`messageRepository.js` `setReaction`), so reactions at once each stay (D-114).
 - `POST …/bots/:botId/voice-call {seconds}`: a "Voice conversation" event line with its length, by one of the chat's
   people for one of its bots (404 `bots_bot_not_in_chat`); the page offers a voice call only in a direct chat.
 
@@ -249,6 +255,7 @@ chat (`chatId`).
 - `tests/server/workKinds.integration.js`
 - `tests/server/botModelFailures.test.js`
 - `tests/server/mentions.test.js`
+- `tests/server/chatReactions.integration.js`
 - `tests/server/promptPrefix.test.js`
 - `tests/server/cachePrefix.test.js`
 - `tests/server/turnContext.test.js`

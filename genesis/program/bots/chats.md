@@ -25,6 +25,8 @@ person can open.
 - `packages/bots/src/server/records/messageRepository.js`
 - `packages/bots/src/server/records/searchSchemas.js`
 - `migrations/20261122120000_chats_core.cjs`
+- `migrations/20261122150000_chat_mentions.cjs`
+- `packages/bots/src/server/handOverNotes.js`
 - `src/components/mercbot/chatsApi.js`
 - `src/components/mercbot/chatMenus.js`
 - `src/components/mercbot/chatDirectory.js`
@@ -33,6 +35,7 @@ person can open.
 - `src/components/mercbot/MercbotNewChat.vue`
 - `src/components/mercbot/useNewChat.js`
 - `src/components/mercbot/MercbotChatDetails.vue`
+- `src/components/mercbot/MercbotChatList.vue`
 
 ## Public contract
 
@@ -72,7 +75,7 @@ archived, unarchived or deleted):
   itself. Each chat is one `ChatView` (`types.js`):
   its kind, title, everyone, direct bot, app, maker, onboarding step, archived time, latest activity, people
   (`{ userId, name }`), bots (`{ chatBotId, botId, name, color, shape, archived, waitingTask }`), the person's place
-  (`{ readUpTo, unread, pinPosition, sectionId, hidden, muted }`, null when they aren't in it) and its latest
+  (`{ readUpTo, unread, mentioned, pinPosition, sectionId, hidden, muted }`, null when they aren't in it) and its latest
   previewable message with a plain-text `preview`; the same reads for every page, whatever its chats. Sections are
   `{ id, name, position, collapsed }`.
 - `GET …/chats/public`: the home's Public chats the person isn't in, newest activity first (at most 50), for New
@@ -107,6 +110,25 @@ archived, unarchived or deleted):
   (`genesis/program/bots/onboarding.md`).
 - A message by someone marks the chat unread for its other people and counts as its activity
   (`records/messageRepository.js` `append`); Mercbot's own lines do neither.
+- **Mentions (D-114).** A message that mentions some of the chat's other people (`body.mentionedPeople`,
+  `genesis/program/bots/turns.md`) sets their place's `mentioned_at` in its transaction, in one UPDATE for all of
+  them, where it isn't set (`records.chats.markMentioned`); reading the chat or marking it read clears it, as it
+  clears `unread`, and nothing else sets it (`PATCH …/place` doesn't take it). The place answers `mentioned`, and the
+  chat list shows "@" (labelled "Mentioned you") on the chat's row and tile in place of the unread dot.
+- **Continue with others (D-114).** `POST …/chats/:chatId/hand-over-note` answers `{ note }`, the direct chat's bot's
+  note for the people it goes on with: only for a direct chat (409 `bots_chat_not_direct`) and its own person (403
+  `bots_chat_not_yours`), a write the guard refuses in an archived chat and a paused home (402 `work_paused`), and 409
+  `bots_bot_archived` for an archived bot. It reads the chat's newest page (100 messages) as people see it, each line
+  "Name: what they said" with a card's one line and files by name, through the model's reader for the bot in that
+  chat, never a transcript, trigger, summary or the bot's state there, in one billed call (`meter.track`, chat work);
+  a chat with nothing said answers `""` without one (`handOverNotes.js`, an R12 row). The direct chat's header offers
+  "Continue with others…" (a phone's too), which opens New chat as "Continue with others" (`useNewChat.js`
+  `continueWithOthers`): Public, the bot on To:, "<Bot> is writing a note of your chat for the others…" while the
+  note comes, then "Your chat with <Bot> stays as it is. The first message below is its note for the others: read it
+  and change anything before you send it.", the note in the message box unless the person has typed there, and
+  "Add the people or bots to continue with." with Start disabled until someone besides the bot is on To:. Nothing
+  links the new chat to the direct one; the direct chat's 409 `bots_chat_direct` now says "A direct chat is one
+  person's with one bot. Continue with others to bring others in."
 
 **The everyone chat** (O9). When a home's owner or admin answers the welcome chat's "Will anyone else use this home?"
 with "Me and other people", the home gets one Public chat with every active member in it and the main bot, titled with
@@ -137,7 +159,9 @@ bots can use what's said here in other chats.", and "Private", "Only its members
 reaches other chats.", with "You can't change this once the chat has started." under them (`chatView.js`
 `KIND_MEANS`). "To:" takes people and bots of the home as chips ("People", "Bots"; "No one in <home> by that name."),
 "Title (optional)" (placeholder "Its members' names"), then "Write the first message below, or press Enter there to
-start it empty." and Start. Under it, "Or join a public chat", each with its people count and Join. A person's
+start it empty." and Start. Under it, "Or join a public chat", each with its people count and Join. Files attached
+before Start wait on their attachments and are uploaded into the new chat's folder once it's made, before the first
+message (`useComposerFiles.js` `uploadAttached`); one refused is reported and left out. A person's
 Message on Team opens New chat with them on To:. Chats made without New chat (a bot's Message, a new bot's greeting,
 the welcome chat, an app's Builder chat, the everyone chat) are Public.
 
@@ -167,3 +191,7 @@ Hide from sidebar (a Private chat the person is in and hasn't hidden) and Delete
 - `tests/server/acrossHomesReads.integration.js`
 - `tests/server/botsNarrowReads.integration.js`
 - `tests/server/homes.integration.js`
+- `tests/server/personMentions.integration.js`
+- `tests/server/continueWithOthers.integration.js`
+- `tests/client/personMentions.vitest.js`
+- `tests/e2e/people-in-chats.spec.ts`

@@ -88,9 +88,10 @@ export function createBotChat({ records, model, integrations, goals, replies, se
   }
 
   /**
-   * A person's message (D-19: the same client id is stored once). Mentions of the chat's bots are kept on it, a skill
-   * picked with "/" by name, and a reply quotes the message it answers, with that message's bot (R3). Open pages hear
-   * of it; the bots answer when the page asks for their reply (`reply`).
+   * A person's message (D-19: the same client id is stored once). Mentions of the chat's bots and of its other people
+   * are kept on it (a person mentioned has it waiting as the chat list's "@", D-114), a skill picked with "/" by name,
+   * and a reply quotes the message it answers, with that message's bot (R3). Open pages hear of it; the bots answer when
+   * the page asks for their reply (`reply`).
    * @param {string} chatId
    * @param {{ clientId?: string, text?: string, quotes?: string[], attachments?: object[], replyTo?: { id?: string } }} input
    * @returns {Promise<{ messages: object[], chat: object }>}
@@ -98,10 +99,12 @@ export function createBotChat({ records, model, integrations, goals, replies, se
   async function sendMessage(chatId, input = {}, options) {
     const chat = await records.chats.get(String(chatId), options);
     const me = await writer(chat.id, options);
-    const [chatBots, names] = await Promise.all([records.chats.bots(chat.id, options), records.chats.names([me], options)]);
-    const body = withMentions(messageBody(input), chatBots.map((bot) => ({ id: String(bot.bot_id), name: bot.name })));
+    const [chatBots, people] = await Promise.all([records.chats.bots(chat.id, options), records.chats.people(chat.id, options)]);
+    const others = people.filter((person) => String(person.user_id) !== me)
+      .map((person) => ({ id: String(person.user_id), name: person.name }));
+    const body = withMentions(messageBody(input), chatBots.map((bot) => ({ id: String(bot.bot_id), name: bot.name })), others);
     // The person's name as they wrote it (R2): the chat still names them once they've left it, or the home.
-    body.authorName = names.get(me) || "Someone";
+    body.authorName = people.find((person) => String(person.user_id) === me)?.name || "Someone";
     const picked = [...String(body.text || "").matchAll(/<@skill:([\w-]+)>/gu)].map((match) => match[1]);
     if (picked.length) {
       const own = await ownSkillsIn(chat, me, options);
@@ -126,6 +129,7 @@ export function createBotChat({ records, model, integrations, goals, replies, se
     }
     const { sent, changed } = await records.chats.withTransaction(options, async (txOptions) => {
       const [userMessage] = await history.append(chat.id, [{ kind: "text", role: "user", body }], txOptions);
+      if (body.mentionedPeople) await records.chats.markMentioned(chat.id, body.mentionedPeople.map((person) => person.id), txOptions);
       // Typing while one's own choice card is open makes the card inactive; another person's card stays theirs (R4).
       const openChoice = await history.latestOfKind(chat.id, "choice", txOptions);
       const mine = openChoice && (!openChoice.body.for || String(openChoice.body.for.id) === me);
@@ -137,7 +141,7 @@ export function createBotChat({ records, model, integrations, goals, replies, se
       return { sent: userMessage, changed: inactive };
     });
     // The person writing again resumes a goal its bot paused to wait for them (D-48), for the bots it's for.
-    const present = { people: await records.chats.people(chat.id, options), bots: chatBots };
+    const present = { people, bots: chatBots };
     for (const bot of addressedBots(sent, present)) await goals.resume(bot.chat_bot_id);
     await seats.tell(chat.id, { type: "messages" }, options);
     return { messages: [...changed, sent], chat: await chatOf(chat.id, options) };
@@ -202,14 +206,6 @@ export function createBotChat({ records, model, integrations, goals, replies, se
     return { messages };
   }
 
-  /** One reaction per person or bot on a message: `who` is "user:<id>" or "bot:<id>". */
-  async function setReaction(message, who, emoji, options) {
-    const reactions = { ...(message.body.reactions || {}) };
-    if (emoji) reactions[who] = emoji;
-    else delete reactions[who];
-    return history.setBody(message.id, { ...message.body, reactions }, options);
-  }
-
   /**
    * A few words for the status line, and the reaction of the first bot the message is for (R3). A message no bot of the
    * chat is for has neither.
@@ -223,7 +219,7 @@ export function createBotChat({ records, model, integrations, goals, replies, se
     if (!first) return { status: "", messages: [] };
     const bot = await records.bots.get(String(first.bot_id), options);
     const result = await activity(bot, toMessage(message));
-    const messages = result.emoji ? [await setReaction(message, `bot:${bot.id}`, result.emoji, options)] : [];
+    const messages = result.emoji ? [await history.setReaction(message.id, `bot:${bot.id}`, result.emoji, options)] : [];
     if (messages.length) await seats.tell(String(chatId), { type: "messages" }, options);
     return { status: result.status, messages };
   }
@@ -251,7 +247,8 @@ export function createBotChat({ records, model, integrations, goals, replies, se
       throw new BotsError(400, "You can react to the bots' and other people's messages.", { code: "bots_reaction_not_allowed" });
     }
     if (emoji && !QUICK_REACTIONS.has(emoji)) throw new BotsError(400, "That reaction isn't available.", { code: "bots_reaction_unknown" });
-    const changed = await setReaction(message, `user:${me}`, emoji || null, options);
+    // One reaction per person or bot (`user:<id>`, `bot:<id>`), written by the database so none is lost (D-114).
+    const changed = await history.setReaction(message.id, `user:${me}`, emoji || null, options);
     await seats.tell(String(chatId), { type: "messages" }, options);
     return { messages: [changed] };
   }

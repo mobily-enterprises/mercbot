@@ -645,6 +645,13 @@
   color: rgb(var(--v-theme-on-surface-variant));
 }
 
+/* A person's initials, as New chat's To: line draws them (D-114). */
+.mb-mention-menu__initials {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
 .mb-mention-menu__name {
   overflow: hidden;
   text-overflow: ellipsis;
