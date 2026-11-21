@@ -86,8 +86,8 @@ While a hand-over is waiting, the chat's row in the sidebar turns amber and read
 Bots never ask for passwords, card numbers or codes in the chat. When a website needs a login, a bot tries these in order:
 
 1. A login you gave it in your message for this task, such as a published test login.
-2. A login saved in your vault for that site. Mercbot types it in; the bot never sees the password.
-3. A secure form card in the chat, where you type the login (or a one-time code) yourself. Mercbot fills it into the page, and you can tick a box to save it to your vault.
+2. A login saved in the home's vault for that site. Mercbot types it in; the bot never sees the password.
+3. A secure form card in the chat, where you type the login (or a one-time code) yourself. Mercbot fills it into the page, and you can tick a box to save it to the home's vault.
 4. Only then, a **Your turn** card so you can sign in on the screen yourself.
 
 Once it's signed in, the bot says so in one line: "Everyone who can open this chat can use this sign-in." The sign-in stays on that computer, in this chat.

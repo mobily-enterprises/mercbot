@@ -55,8 +55,8 @@ The home's owners and admins can switch off single actions for an app, such as s
 Some jobs need a website where you have an account. When the bot reaches a sign-in, it tries these in order:
 
 1. a login you gave it for this task in your message;
-2. a login saved in your vault for that site;
-3. a secure form in the chat, where you type the username and password. The bot never sees them, and you can tick **Save securely to your vault** for next time;
+2. a login saved in the home's vault for that site;
+3. a secure form in the chat, where you type the username and password. The bot never sees them, and you can tick **Save securely to *home*'s vault** for next time;
 4. handing you the screen.
 
 When the bot hands you the screen, a **Your turn** card appears. Select **Take over** to open the bot's computer, sign in yourself, then select **I'm done**. If you'd rather not, select **Skip**. The bot then checks the page and carries on.

@@ -82,20 +82,11 @@ export function useSidebarCommands({ sections, editingSectionId, store, team, dr
       shellPreferences.archivedExpanded = !shellPreferences.archivedExpanded;
     },
     // The home's bots (Team and a bot's card): a bot renamed, made the main bot (the old main changes too, so the whole
-    // list is read again), archived or unarchived for everyone (D-108), deleted.
+    // list is read again), archived or unarchived for everyone (D-108). Archiving replaced deleting (D11).
     renameBot: ({ botId, name }) => botsApi.update(botId, { name }).then(({ bot }) => team.updateBot(bot)),
     makeMain: ({ botId }) => botsApi.update(botId, { main: true }).then(() => team.loadBots()),
     archiveBot: ({ botId }) => botsApi.archiveBot(botId).then(({ bot }) => team.updateBot(bot)),
     unarchiveBot: ({ botId }) => botsApi.unarchiveBot(botId).then(({ bot }) => team.updateBot(bot)),
-    deleteBot: async ({ botId }) => {
-      await botsApi.remove(botId);
-      team.dropBot(botId);
-      // Its direct chats went with it, and it left every other chat.
-      const { chats, startedAt } = await chatsApi.list({ hidden: true, archived: true });
-      const listed = new Set(chats.map((chat) => String(chat.id)));
-      for (const chat of store.chatsNow()) if (!listed.has(chat.id) && !chat.visiting) dropChat(chat.id);
-      store.mergeChats(chats, startedAt);
-    },
     // The account menu's support items.
     openShortcuts: () => {
       open.shortcuts.value = true;

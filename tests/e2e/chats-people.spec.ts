@@ -364,9 +364,9 @@ test("Team lists the home's people and bots alike, each with a card; a bot's Mes
     await expect(chefCard.getByText("Bot · made by you")).toBeVisible();
     await expect(chefCard.getByRole("tablist", { name: "Chef's sections" }).getByRole("tab")).toHaveText(["Details", "Files", "Library", "Computer"]);
     await expect(chefCard.getByRole("button", { name: `${home.name}, Public` })).toBeVisible();
+    // At a phone's width the card isn't docked beside Team: it slides over it when a member is tapped.
     await shots(page, testInfo, "member-card", async () => {
-      await page.goto(`${home!.path}?team=1&member=bot:${home!.chef}`);
-      await expect(page.locator(".mb-shell")).toBeVisible();
+      await members.getByRole("button", { name: "Chef, Bot · made by you" }).click();
       await expect(shell.details(page, "Chef's card")).toBeVisible();
     });
 

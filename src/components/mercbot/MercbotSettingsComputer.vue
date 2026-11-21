@@ -37,7 +37,7 @@ async function reset() {
       <div class="mb-set-row">
         <span class="mb-set-row__text">
           <span class="mb-set-row__label">Reset</span>
-          <span class="mb-set-row__description">Starts every bot's computer afresh. Open pages close, and saved sign-ins and website data are cleared.</span>
+          <span class="mb-set-row__description">Starts afresh the bots' computers in the chats only you are in. Open pages close, and saved sign-ins and website data are cleared. A chat with other people in it keeps its computers, as they're theirs too.</span>
         </span>
         <button type="button" class="mb-set-pill mb-set-pill--danger" :disabled="resetting" @click="confirming = true">
           {{ resetting ? "Resetting…" : "Reset" }}
@@ -46,8 +46,8 @@ async function reset() {
     </div>
     <MercbotConfirmDialog
       v-model="confirming"
-      title="Reset your bots' computers?"
-      text="Every bot's browser closes and its saved sign-ins and website data are cleared. Your chats, routines and skills stay."
+      title="Reset the computers in your own chats?"
+      text="In each chat only you are in, the bots' browsers close and their saved sign-ins and website data are cleared. Your chats, routines and skills stay."
       confirm-label="Reset"
       dim
       @confirm="reset"

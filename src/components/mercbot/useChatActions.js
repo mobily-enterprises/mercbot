@@ -81,7 +81,11 @@ export function useChatActions({ currentChat, newChat, startNewChat, store, work
 
   async function react({ message, emoji }) {
     const chatId = currentChat.value.id;
-    replaceMessage(chatId, { ...message, body: { ...message.body, reactions: { ...message.body.reactions, user: emoji || undefined } } });
+    // Shown at once under the person's own key, as the server keeps it ("user:<id>"), till its answer replaces it.
+    const reactions = { ...message.body.reactions };
+    if (emoji) reactions[`user:${me()}`] = emoji;
+    else delete reactions[`user:${me()}`];
+    replaceMessage(chatId, { ...message, body: { ...message.body, reactions } });
     if (emoji) playMood(chatId, [["happy", 2000]]);
     try {
       const result = await chatsApi.react(chatId, message.id, emoji);
