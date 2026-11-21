@@ -47,6 +47,8 @@ export const REQUEST_SEARCH = Object.freeze({
  * - nameIs: the name, in any case (findRoutine).
  */
 export const ROUTINE_SEARCH = Object.freeze({
+  // The routines of the bots in chats given: a chat's, or a bot's in the chats someone may open.
+  chatBotIds: { type: "array", items: { type: "id" }, actualField: "chatBotId", filterOperator: "in" },
   // The routines still running of the bots in chats given: what an archived bot or chat pauses.
   enabledIn: {
     type: "array",
@@ -97,9 +99,10 @@ export const ROUTINE_SEARCH = Object.freeze({
 
 /**
  * The bots' work: requests, routines and request cards.
- * @param {{ botRequests: ResourceHandle, botRoutines: ResourceHandle, botMessages: ResourceHandle }} handles
+ * @param {{ botRequests: ResourceHandle, botRoutines: ResourceHandle, messages: ResourceHandle }} handles the messages
+ *   handle is BotRecordsFeature's `messages`
  */
-export function createWorkRepository({ botRequests, botRoutines, botMessages }) {
+export function createWorkRepository({ botRequests, botRoutines, messages: botMessages }) {
   /** The database's now(), as a write's value. */
   const now = () => botRequests.raw("now()");
 
@@ -194,7 +197,7 @@ export function createWorkRepository({ botRequests, botRoutines, botMessages }) 
   }
 
   /**
-   * Merges `patch` into the body of each request card (bot_messages of kind bot_request): the
+   * Merges `patch` into the body of each card (messages of kind bot_request, or a to-do list): the
    * cards in the asking and the asked bot's chats show the same state. The `changed` trigger moves
    * each card's cursor, so open pages read it again.
    * @param {string[]} messageIds
@@ -308,6 +311,27 @@ export function createWorkRepository({ botRequests, botRoutines, botMessages }) 
   }
 
   /**
+   * The routines of the bots in chats given (their chat_bots ids), in id order, as the caller may read them: one read.
+   * @param {string[]} chatBotIds
+   * @param {CallOptions} options
+   */
+  async function routinesIn(chatBotIds, options) {
+    if (!chatBotIds.length) return [];
+    return botRoutines.queryAll({ filters: { chatBotIds: chatBotIds.map(String) }, sort: ["id"] }, options);
+  }
+
+  /**
+   * One routine by id, as the caller may read it (its chat's rule), or null.
+   * @param {string} routineId
+   * @param {CallOptions} options
+   */
+  async function routine(routineId, options) {
+    if (!/^\d+$/u.test(String(routineId ?? ""))) return null;
+    const [found = null] = await botRoutines.queryAll({ filters: { id: String(routineId) } }, options);
+    return found;
+  }
+
+  /**
    * The routine of a bot in a chat with this name, in any case, or null (findRoutine).
    * @param {string} chatBotId
    * @param {string} name
@@ -400,6 +424,8 @@ export function createWorkRepository({ botRequests, botRoutines, botMessages }) 
     renewRoutineRun,
     endRoutineRun,
     routinesOf,
+    routinesIn,
+    routine,
     routineNamed,
     routineOf,
     createRoutine,

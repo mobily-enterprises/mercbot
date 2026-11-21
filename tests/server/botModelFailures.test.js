@@ -30,20 +30,21 @@ const limited = () => new RetryError({
 });
 const unavailable = () => failure(503, "Service Unavailable", true);
 
-// The bots routes with a Stop teaching that throws `thrown`, called as the page calls them.
+// The bots routes with a Stop teaching (a bot in a chat, on the chat's computer: D14) that throws `thrown`, called as the
+// page calls them.
 function stopThrowing(thrown) {
   const routes = new Map();
   const http = { router: { register: (method, path, _options, handler) => routes.set(`${method} ${path}`, handler) } };
   registerRoutes(http, {
-    bots: { stopTeaching: async () => { throw thrown; } },
+    bots: { chat: { stopTeaching: async () => { throw thrown; } } },
     approvals: {},
     notices: {},
     meter: { track: (_meta, work) => work(), pausedMessage: async () => null },
-    records: { directory: { findBot: async (botId) => ({ id: botId }) } },
+    records: { chats: { find: async (chatId) => ({ id: chatId }) }, directory: { findBot: async (botId) => ({ id: botId }) } },
     streams: new Set()
   });
   return async () => {
-    const path = "/api/w/:workspaceSlug/bots/:botId/teach/stop";
+    const path = "/api/w/:workspaceSlug/chats/:chatId/bots/:botId/teach/stop";
     const answer = {};
     const reply = {
       code(status) {
@@ -57,9 +58,9 @@ function stopThrowing(thrown) {
     };
     const request = {
       method: "POST",
-      url: "/api/w/home-3/bots/12/teach/stop",
+      url: "/api/w/home-3/chats/4/bots/12/teach/stop",
       routeOptions: { url: path },
-      params: { workspaceSlug: "home-3", botId: "12" },
+      params: { workspaceSlug: "home-3", chatId: "4", botId: "12" },
       body: {},
       user: { id: "7" },
       workspace: { id: "3", slug: "home-3" },
@@ -85,9 +86,9 @@ test("a bot route whose model call fails answers our own refusal, and logs the p
   }
   const lines = warn.mock.calls.map((call) => call.arguments);
   assert.deepEqual(lines, [
-    ["POST /api/w/:workspaceSlug/bots/:botId/teach/stop: its model call failed (status 401): Invalid API key"],
-    ["POST /api/w/:workspaceSlug/bots/:botId/teach/stop: its model call failed (status 429): Failed after 7 attempts. Last error: Too Many Requests"],
-    ["POST /api/w/:workspaceSlug/bots/:botId/teach/stop: its model call failed (status 503): Service Unavailable"]
+    ["POST /api/w/:workspaceSlug/chats/:chatId/bots/:botId/teach/stop: its model call failed (status 401): Invalid API key"],
+    ["POST /api/w/:workspaceSlug/chats/:chatId/bots/:botId/teach/stop: its model call failed (status 429): Failed after 7 attempts. Last error: Too Many Requests"],
+    ["POST /api/w/:workspaceSlug/chats/:chatId/bots/:botId/teach/stop: its model call failed (status 503): Service Unavailable"]
   ]);
   assert.ok(!JSON.stringify(lines).includes(PERSON), "the person's message stays out of the log");
 });

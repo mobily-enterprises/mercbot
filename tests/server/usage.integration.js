@@ -36,8 +36,8 @@ async function setup(context) {
     { workspace_id: home.id, user_id: member.id, role_sid: "member", status: "active" }
   ]);
   const [bot, formula] = await knex("bots").insert([
-    { user_id: owner.id, workspace_id: home.id, name: "Scout", color: "#1E86FC" },
-    { user_id: member.id, workspace_id: home.id, name: "=HYPERLINK(\"x\")", color: "#1E86FC" }
+    { made_by: owner.id, workspace_id: home.id, name: "Scout", color: "#1E86FC" },
+    { made_by: member.id, workspace_id: home.id, name: "=HYPERLINK(\"x\")", color: "#1E86FC" }
   ]).returning("*");
   const { features, profiles } = await ownedHandles(knex, context, { "mercbot.account": ACCOUNT_OWNS });
   const { resources, systemContext } = features["mercbot.account"];
@@ -48,9 +48,9 @@ async function setup(context) {
     await knex.destroy();
   });
   const directory = {
-    botOwner: async (botId) => {
+    botMaker: async (botId) => {
       const found = [bot, formula].find((entry) => String(entry.id) === String(botId));
-      return found ? { userId: String(found.user_id), workspaceId: String(home.id), name: found.name } : null;
+      return found ? { madeBy: String(found.made_by), workspaceId: String(home.id), name: found.name } : null;
     }
   };
   const recorder = (now) => createUsageRecorder({ resources, systemContext, directory, ...(now ? { now } : {}) });
@@ -82,6 +82,11 @@ test("every AI call, computer day and command is recorded with what it cost at i
     ],
     "each at its provider's cost, its own figure when it gives one"
   );
+
+  // Work that names nobody (a chat's summary) is recorded on its bot for no one, never for the bot's maker (R8).
+  await recorder.finish(await recorder.open({ botId, work: "background", provider: "together", requestChars: 100 }), { state: "done", reportedCost: 0.001 });
+  const summary = await knex("usage_events").where({ workspace_id: homeId }).orderBy("id", "desc").first("bot_id", "user_id");
+  assert.deepEqual([String(summary.bot_id), summary.user_id], [botId, null], "the bot's, for no one");
 
   // A computer's day is counted once a day, however often it wakes, at no cost of its own; one that couldn't start
   // counts nothing.

@@ -3,12 +3,11 @@ import test from "node:test";
 import { queriesDuring } from "../support/queryCount.mjs";
 import { connectTestDatabase } from "../support/testDatabase.mjs";
 import { createNotices } from "../../packages/notices/src/server/notices.js";
-import { createBotConversations } from "../../packages/bots/src/server/botConversations.js";
-import { startBotRecords } from "../support/botRecords.mjs";
 
 // News for open pages (D-15) travels as PostgreSQL notifications. News for many people at once (a
-// reply in a shared room reaches everyone in the home) goes out in one statement, however many
-// people there are, and still reaches each of them on every server.
+// reply in a chat reaches everyone in it, the everyone chat the whole home: chatMembers.js and
+// chatSeats.js tell them through publishEach) goes out in one statement, however many people there
+// are, and still reaches each of them on every server.
 assert.ok(process.env.TEST_DB_NAME?.trim(), "TEST_DB_NAME must identify a disposable test database.");
 assert.equal(process.env.DB_NAME, process.env.TEST_DB_NAME, "DB_NAME must match the dedicated TEST_DB_NAME.");
 
@@ -44,12 +43,11 @@ test("news for many people goes out in one statement and reaches each of them", 
     await new Promise((resolve) => setTimeout(resolve, 20));
   }
 
-  const conversations = createBotConversations({ records: await startBotRecords(knex, context), notices: sender });
   const tellEveryone = async (count) => {
     const people = Array.from({ length: count }, (_, index) => `${count}-${index}`);
     const heard = [];
     for (const person of people) elsewhere.subscribe(topic, person, (event) => heard.push({ person, ...event }));
-    const queries = await queriesDuring(knex, () => conversations.publish(people, { botId: "7", type: "messages" }));
+    const queries = await queriesDuring(knex, () => sender.publishEach(topic, people, { botId: "7", type: "messages" }));
     await hearing(heard, count);
     assert.deepEqual(heard.map((entry) => entry.person).sort(), [...people].sort(), "each person hears it once");
     assert.ok(heard.every((entry) => entry.botId === "7" && entry.type === "messages"));

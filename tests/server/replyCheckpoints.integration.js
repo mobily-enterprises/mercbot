@@ -1,10 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { connectTestDatabase } from "../support/testDatabase.mjs";
-import { createBotsService } from "../../packages/bots/src/server/botsService.js";
+import { startChatTurns } from "../support/botDoubles.mjs";
 import { testBot } from "./testHome.js";
-import { serviceDoubles } from "../support/botDoubles.mjs";
-import { memberOptions, startBotParts } from "../support/botRecords.mjs";
+import { memberOptions } from "../support/botRecords.mjs";
 
 // A reply saves its steps as each one finishes, and one a stopped server left part-way is carried
 // on from them by any server, with no page needed (D-48, D-19). Against the disposable test
@@ -24,28 +23,28 @@ async function setup(context, reply) {
     await knex("bots").where({ id: bot.id }).del();
     await knex.destroy();
   });
-  // A reply a stopped server left is carried on in the bots' system context, for the conversation's person.
-  const service = createBotsService(serviceDoubles({ knex, ...(await startBotParts(knex, context)), approvals: { decide: async () => "allow" }, reply }));
-  const conversationId = (await knex("bot_conversations").where({ bot_id: bot.id }).first()).id;
+  // A reply a stopped server left is carried on in the bots' system context, for the person it worked for. Its run is
+  // the bot's in its chat: the runtime's conversation is its seat (chat_bots.id).
+  const kit = await startChatTurns(context, { reply });
   /** The person's request in the bot's home, as the bots routes make its options. */
   const as = (person) => memberOptions({ userId: person, homeId: bot.workspace_id });
-  return { knex, userId, as, bot, service, conversationId };
+  return { knex, userId, as, bot, service: kit.turns, drain: kit.drain, seatId: bot.chat_bot_id };
 }
 
 test("steps are saved while a reply runs, then cleared when it ends", async (context) => {
   let seenWhileRunning = null;
-  const { knex, as, userId, bot, service, conversationId } = await setup(context, async (_bot, _history, _tools, _state, _prompt, { onSteps }) => {
+  const { knex, as, userId, bot, service, drain, seatId } = await setup(context, async (_bot, _history, _tools, _state, _prompt, { onSteps }) => {
     await onSteps(steps);
-    seenWhileRunning = await knex("agent_runs").where({ conversation_id: conversationId }).first();
+    seenWhileRunning = await knex("agent_runs").where({ conversation_id: seatId }).first();
     return { text: "You have notes.txt.", transcript: [...steps, { role: "assistant", content: [{ type: "text", text: "You have notes.txt." }] }] };
   });
-  const sent = await service.sendMessage(bot.id, { text: "What files do I have?", clientId: `c-${Date.now()}` }, as(userId));
-  await service.replyTo(bot.id, { afterMessageId: sent.messages[0].id }, undefined, as(userId));
-  await service.drain(10000);
+  const sent = await service.chat.sendMessage(bot.conversation_id, { text: "What files do I have?", clientId: `c-${Date.now()}` }, as(userId));
+  await service.chat.reply(bot.conversation_id, { afterMessageId: sent.messages[0].id }, undefined, as(userId));
+  await drain(10000);
   assert.deepEqual(seenWhileRunning.steps.map((message) => message.role), ["assistant", "tool"]);
   assert.equal(seenWhileRunning.input.human, true);
   assert.equal(seenWhileRunning.input.answers, Number(sent.messages[0].id));
-  assert.equal(await knex("agent_runs").where({ conversation_id: conversationId }).first(), undefined, "gone once the reply ends");
+  assert.equal(await knex("agent_runs").where({ conversation_id: seatId }).first(), undefined, "gone once the reply ends");
 });
 
 test("a reply a stopped server left part-way carries on from its saved steps", async (context) => {
@@ -53,30 +52,29 @@ test("a reply a stopped server left part-way carries on from its saved steps", a
   // Only this test's bot counts: resuming looks across the whole test database, so a reply some
   // other run left part-way may be carried on here too.
   let mine = null;
-  const { knex, userId, bot, service, conversationId } = await setup(context, async (current, history, _tools, _state, prompt) => {
+  const { knex, userId, bot, service, drain, seatId } = await setup(context, async (current, history, _tools, _state, prompt) => {
     if (String(current.id) !== String(mine)) return { text: "", transcript: [] };
     passes.push({ history, prompt });
     return { text: "You have notes.txt.", transcript: [{ role: "assistant", content: [{ type: "text", text: "You have notes.txt." }] }] };
   });
   mine = bot.id;
-  const [asked] = await knex("bot_messages").insert({ workspace_id: bot.workspace_id, bot_id: bot.id, conversation_id: conversationId, kind: "text", role: "user", body: { text: "What files do I have?" } }).returning("*");
+  const [asked] = await knex("messages").insert({ workspace_id: bot.workspace_id, author_user_id: userId, conversation_id: bot.conversation_id, kind: "text", role: "user", body: { text: "What files do I have?" } }).returning("*");
   // What a server that stopped mid-reply leaves behind: its steps, and a heartbeat gone quiet.
   await knex("agent_runs").insert({
-    conversation_id: conversationId, bot_id: bot.id, heartbeat_at: knex.raw("now() - interval '5 minutes'"),
+    conversation_id: seatId, bot_id: bot.id, user_id: userId, heartbeat_at: knex.raw("now() - interval '5 minutes'"),
     steps: JSON.stringify(steps), input: JSON.stringify({ prompt: "", human: true, goalTurn: false, timeZone: "UTC", language: "", answers: Number(asked.id) })
   });
   await service.resumeStalled();
-  await service.drain(10000);
+  await drain(10000);
   assert.equal(passes.length, 1);
   assert.match(passes[0].prompt, /interrupted part-way/u);
   assert.deepEqual(passes[0].history.at(-1).body.transcript.map((message) => message.role), ["assistant", "tool"], "it sees its saved steps");
-  const stored = await knex("bot_messages").where({ conversation_id: conversationId, kind: "text", role: "bot" }).orderBy("id", "desc").first();
+  const stored = await knex("messages").where({ conversation_id: bot.conversation_id, kind: "text", role: "bot" }).orderBy("id", "desc").first();
   assert.equal(stored.body.text, "You have notes.txt.");
   assert.deepEqual(stored.body.transcript.map((message) => message.role), ["assistant", "tool", "assistant"], "the saved steps stay in its transcript");
-  assert.equal(await knex("agent_runs").where({ conversation_id: conversationId }).first(), undefined);
+  assert.equal(await knex("agent_runs").where({ conversation_id: seatId }).first(), undefined);
   await service.resumeStalled();
   assert.equal(passes.length, 1, "nothing left to resume");
-  void userId;
 });
 
 test("saved steps for an older message aren't carried into a newer one", async (context) => {
@@ -84,20 +82,20 @@ test("saved steps for an older message aren't carried into a newer one", async (
   // Only this test's bot counts: resuming looks across the whole test database, so a reply some
   // other run left part-way may be carried on here too.
   let mine = null;
-  const { knex, as, userId, bot, service, conversationId } = await setup(context, async (current, history, _tools, _state, prompt) => {
+  const { knex, as, userId, bot, service, drain, seatId } = await setup(context, async (current, history, _tools, _state, prompt) => {
     if (String(current.id) !== String(mine)) return { text: "", transcript: [] };
     passes.push({ history, prompt });
     return { text: "Hello!", transcript: [] };
   });
   mine = bot.id;
-  const [older] = await knex("bot_messages").insert({ workspace_id: bot.workspace_id, bot_id: bot.id, conversation_id: conversationId, kind: "text", role: "user", body: { text: "List my files" } }).returning("*");
+  const [older] = await knex("messages").insert({ workspace_id: bot.workspace_id, author_user_id: userId, conversation_id: bot.conversation_id, kind: "text", role: "user", body: { text: "List my files" } }).returning("*");
   await knex("agent_runs").insert({
-    conversation_id: conversationId, bot_id: bot.id, heartbeat_at: knex.raw("now() - interval '5 minutes'"),
+    conversation_id: seatId, bot_id: bot.id, user_id: userId, heartbeat_at: knex.raw("now() - interval '5 minutes'"),
     steps: JSON.stringify(steps), input: JSON.stringify({ prompt: "", human: true, timeZone: "UTC", language: "", answers: Number(older.id) })
   });
-  const sent = await service.sendMessage(bot.id, { text: "Actually, just say hello", clientId: `n-${Date.now()}` }, as(userId));
-  await service.replyTo(bot.id, { afterMessageId: sent.messages[0].id }, undefined, as(userId));
-  await service.drain(10000);
+  const sent = await service.chat.sendMessage(bot.conversation_id, { text: "Actually, just say hello", clientId: `n-${Date.now()}` }, as(userId));
+  await service.chat.reply(bot.conversation_id, { afterMessageId: sent.messages[0].id }, undefined, as(userId));
+  await drain(10000);
   assert.equal(passes.length, 1);
   assert.equal(passes[0].prompt, "", "a fresh reply to the newer message");
   assert.notEqual(passes[0].history.at(-1).body?.transcript?.length, 2);

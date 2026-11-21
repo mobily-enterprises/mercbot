@@ -7,7 +7,7 @@ const JOB_FIELDS = Object.freeze([
   "workspaceId",
   "kind",
   "botId",
-  "conversationId",
+  "chatBotId",
   "userId",
   "watchId",
   "title",

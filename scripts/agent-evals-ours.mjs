@@ -30,6 +30,8 @@ import { createScripts } from "../packages/apps/src/server/scripts.js";
 import { installTemplate, templateSummaries } from "../packages/apps/src/server/templates.js";
 import { createWatches } from "../packages/apps/src/server/watches.js";
 import { serviceDoubles } from "../tests/support/botDoubles.mjs";
+import { memberOptions } from "../tests/support/botRecords.mjs";
+import { seedChat } from "../tests/support/chatFixtures.mjs";
 import { startShell } from "../tests/support/ownedHandles.mjs";
 
 if (!process.env.TEST_DB_NAME || process.env.DB_NAME !== process.env.TEST_DB_NAME) throw new Error("Run with DB_NAME=$TEST_DB_NAME: evaluations use the test database only.");
@@ -174,54 +176,63 @@ const service = createBotsService({
 const userId = String((await knex("users").orderBy("id").first("id")).id);
 const homeId = (await knex("workspace_memberships").where({ user_id: userId, status: "active" }).orderBy("workspace_id").first()).workspace_id;
 
-// The reply, then any goal rounds (D-48), as the server's runners would carry them on.
-async function settle(bot) {
+// The reply, then any goal rounds (D-48), as the server's runners would carry them on: a chat's bots' runs and goals
+// are keyed by their seats in it (chat_bots ids, D-112).
+async function settle(chatId) {
+  const seats = knex("chat_bots").select("id").where({ conversation_id: chatId });
   const deadline = Date.now() + 30 * 60 * 1000;
   while (Date.now() < deadline) {
     await service.drain(30 * 60 * 1000);
     await service.goals.runDue();
-    const due = await knex("agent_goals").where({ bot_id: bot.id, status: "active" }).whereNotNull("round_at").first();
-    if (!due && !await knex("agent_runs").where({ bot_id: bot.id }).first()) return;
+    const due = await knex("agent_goals").whereIn("conversation_id", seats).where({ status: "active" }).whereNotNull("round_at").first();
+    if (!due && !await knex("agent_runs").whereIn("conversation_id", seats).first()) return;
     await new Promise((resolve) => setTimeout(resolve, 500));
   }
 }
 
+/** The person's words in a chat, and the bots' replies, as the chat routes run them (D-112). */
+async function ask(chatId, text, workspaceId) {
+  const options = memberOptions({ userId, homeId: String(workspaceId) });
+  const sent = await service.chat.sendMessage(String(chatId), { text, clientId: `eval-${Date.now()}` }, options);
+  await service.chat.reply(String(chatId), { afterMessageId: sent.messages.at(-1).id }, undefined, options);
+  await settle(chatId);
+  return sent.messages.at(-1);
+}
+
 async function runCase(name, attempt) {
   const dir = path.join(CASES, name);
-  const [bot] = await knex("bots").insert({ user_id: userId, workspace_id: homeId, name: `Eval ${name} ${attempt}`, color: "#1E86FC", library_template: "general" }).returning("*");
-  await knex("bot_conversations").insert({ workspace_id: homeId, bot_id: bot.id, user_id: userId });
-  const place = store.placeFor(bot, userId);
+  const [bot] = await knex("bots").insert({ made_by: userId, workspace_id: homeId, name: `Eval ${name} ${attempt}`, color: "#1E86FC" }).returning("*");
+  // The person's direct chat with the bot (Public, D15), whose folder is the project's (/files/chat, R6).
+  const chat = await seedChat(knex, { homeId, direct: { userId, botId: bot.id } });
+  const chatBotId = chat.chatBotIds.get(String(bot.id));
+  const place = store.placeFor({ homeId, chatId: chat.id, chatKind: "public", botId: bot.id });
   const dirs = await store.prepare(place);
   const judgeDir = mkdtempSync(path.join(os.tmpdir(), `judge-${name}-`));
   try {
-    if (existsSync(path.join(dir, "files"))) cpSync(path.join(dir, "files"), dirs.mine, { recursive: true });
+    if (existsSync(path.join(dir, "files"))) cpSync(path.join(dir, "files"), dirs.chat, { recursive: true });
     // Fixture test files are stored as *.fixture so the app's own test run skips them.
-    for (const file of readdirSync(dirs.mine, { recursive: true }).filter((entry) => entry.endsWith(".fixture"))) renameSync(path.join(dirs.mine, file), path.join(dirs.mine, file.slice(0, -".fixture".length)));
+    for (const file of readdirSync(dirs.chat, { recursive: true }).filter((entry) => entry.endsWith(".fixture"))) renameSync(path.join(dirs.chat, file), path.join(dirs.chat, file.slice(0, -".fixture".length)));
     if (existsSync(path.join(dir, "hidden"))) cpSync(path.join(dir, "hidden"), judgeDir, { recursive: true });
-    if (existsSync(path.join(dir, "setup.py"))) spawnSync("python3", [path.join(dir, "setup.py"), dirs.mine, judgeDir], { stdio: "inherit" });
+    if (existsSync(path.join(dir, "setup.py"))) spawnSync("python3", [path.join(dir, "setup.py"), dirs.chat, judgeDir], { stdio: "inherit" });
     const prompt = `The project folder is /files/chat.\n\n${readFileSync(path.join(dir, "prompt.md"), "utf8")}`;
     usage = [];
     const started = Date.now();
-    await meter.track({ userId, botId: String(bot.id) }, async () => {
-      const sent = await service.sendMessage(userId, bot.id, { text: prompt, clientId: `eval-${Date.now()}` });
-      await service.replyTo(userId, bot.id, { afterMessageId: sent.messages.at(-1).id });
-      await settle(bot);
-    });
+    await meter.track({ userId, botId: String(bot.id) }, () => ask(chat.id, prompt, homeId));
     const seconds = Math.round((Date.now() - started) / 1000);
-    const messages = await knex("bot_messages").where({ bot_id: bot.id }).orderBy("id");
+    const messages = await knex("messages").where({ conversation_id: chat.id }).orderBy("id");
     const reply = messages.filter((message) => message.role === "bot" && message.kind === "text").map((message) => message.body.text).join("\n\n");
     const transcript = messages.flatMap((message) => message.body?.transcript || []);
     const toolCalls = transcript.flatMap((message) => (Array.isArray(message.content) ? message.content.filter((part) => part.type === "tool-call") : [])).length;
     // The judge's files join the folder only now, so the bot never saw them.
-    for (const file of readdirSync(dir).filter((entry) => entry.startsWith("judge"))) cpSync(path.join(dir, file), path.join(dirs.mine, file));
-    cpSync(judgeDir, dirs.mine, { recursive: true });
+    for (const file of readdirSync(dir).filter((entry) => entry.startsWith("judge"))) cpSync(path.join(dir, file), path.join(dirs.chat, file));
+    cpSync(judgeDir, dirs.chat, { recursive: true });
     const judgeFile = readdirSync(dir).find((entry) => entry.startsWith("judge"));
     const command = judgeFile.endsWith(".py") ? `python3 ${judgeFile}` : `node --test ${judgeFile}`;
-    const judged = await shell.start({ place, workspaceId: homeId, botId: bot.id, userId, why: "judge", script: `cd /files/chat && ${command}` });
+    const judged = await shell.start({ place, workspaceId: homeId, botId: bot.id, chatBotId, userId, why: "judge", script: `cd /files/chat && ${command}` });
     const pass = judged.status === "done" && Number(judged.exitCode ?? 0) === 0;
     const tokens = usage.reduce((sum, event) => sum + (event.cacheHit || 0) + (event.cacheMiss || 0) + (event.output || 0), 0);
     const cost = usage.reduce((sum, event) => sum + event.costNano, 0) / 1e9;
-    const goal = await knex("agent_goals").where({ bot_id: bot.id }).orderBy("id", "desc").first();
+    const goal = await knex("agent_goals").where({ conversation_id: chatBotId }).orderBy("id", "desc").first();
     const leaked = /｜DSML｜|<parameter|<｜|<invoke|<budget:/u.test(reply);
     const result = { name, attempt, pass, variant, leaked, goal: goal ? `${goal.status}/${goal.rounds}` : "-", seconds, steps: usage.filter((event) => event.kind === "model").length, toolCalls, tokens, cached: Math.round(100 * usage.reduce((sum, event) => sum + (event.cacheHit || 0), 0) / Math.max(1, usage.reduce((sum, event) => sum + (event.cacheHit || 0) + (event.cacheMiss || 0), 0))), cost: Number(cost.toFixed(4)), judge: String(judged.output || judged.error || "").slice(-600), reply: reply.slice(0, 1500) };
     writeFileSync(path.join(OUT, `${name}-${attempt}.json`), JSON.stringify({ ...result, messages }, null, 1));
@@ -238,8 +249,7 @@ async function runAppCase(name, attempt) {
   const [home] = await knex("workspaces").insert({ slug: `eval-${name}-${Date.now().toString(36)}`, name: `Eval ${name}`, owner_user_id: userId, is_personal: false }).returning("*");
   await knex("workspace_memberships").insert({ workspace_id: home.id, user_id: userId, role_sid: "owner", status: "active" });
   await knex("workspace_settings").insert({ workspace_id: home.id }).catch(() => {});
-  const [bot] = await knex("bots").insert({ user_id: userId, workspace_id: home.id, name: "Builder", color: "#1C1C1C", is_main: true, library_template: "general" }).returning("*");
-  await knex("bot_conversations").insert({ workspace_id: home.id, bot_id: bot.id, user_id: userId });
+  const [bot] = await knex("bots").insert({ made_by: userId, workspace_id: home.id, name: "Builder", color: "#1C1C1C", is_main: true }).returning("*");
   const actor = { type: "person", id: userId, name: "Eval" };
   const ctx = { knex, apps, workspaceId: home.id, userId, actor, bot };
   try {
@@ -249,30 +259,28 @@ async function runAppCase(name, attempt) {
     usage = [];
     const started = Date.now();
     let askedId = 0;
-    // A group case asks in a group chat with the bot, mentioning it (D-46).
-    const where = kase.group ? (await service.createGroup(userId, { botIds: [bot.id], text: "Hello" }, "Eval", home.id)).bot : bot;
-    // One message to a bot and all that follows from it; a case's `script` holds a whole conversation.
-    const say = async (text, to = where) => {
-      await meter.track({ userId, botId: String(to.id) }, async () => {
-        const sent = await service.sendMessage(userId, to.id, { text, clientId: `eval-${Date.now()}` });
-        askedId ||= Number(sent.messages.at(-1).id);
-        await service.replyTo(userId, to.id, { afterMessageId: sent.messages.at(-1).id });
-        await settle(to);
-      });
-      const last = await knex("bot_messages").where({ bot_id: to.id, role: "bot", kind: "text" }).orderBy("id", "desc").first();
+    // A group case asks in a chat of the person and the bot (not their direct chat), mentioning it (R3); the rest in
+    // their direct chat (D15).
+    const chat = await seedChat(knex, kase.group ? { homeId: home.id, people: [userId], bots: [bot.id] } : { homeId: home.id, direct: { userId, botId: bot.id } });
+    const chatBotId = chat.chatBotIds.get(String(bot.id));
+    // One message in the chat and all that follows from it; a case's `script` holds a whole conversation.
+    const say = async (text) => {
+      const sent = await meter.track({ userId, botId: String(bot.id) }, () => ask(chat.id, text, home.id));
+      askedId ||= Number(sent.id);
+      const last = await knex("messages").where({ conversation_id: chat.id, author_bot_id: bot.id, kind: "text" }).orderBy("id", "desc").first();
       return last?.body.text || "";
     };
     if (kase.script) await kase.script({ ...ctx, say, service, userId });
     else await say(kase.group ? `<@bot:${bot.id}> ${kase.prompt}` : kase.prompt);
     const seconds = Math.round((Date.now() - started) / 1000);
     // Only what came after the case's message: a case may seed a long history first.
-    const messages = await knex("bot_messages").where({ bot_id: where.id }).where("id", ">", askedId).orderBy("id");
+    const messages = await knex("messages").where({ conversation_id: chat.id }).where("id", ">", askedId).orderBy("id");
     const reply = messages.filter((message) => message.role === "bot" && message.kind === "text").map((message) => message.body.text).join("\n\n");
     const toolCalls = messages.flatMap((message) => message.body?.transcript || []).flatMap((message) => (Array.isArray(message.content) ? message.content.filter((part) => part.type === "tool-call") : [])).length;
     const verdict = await kase.judge({ ...ctx, reply }).catch((error) => ({ pass: false, notes: `judge error: ${error.message}` }));
     const tokens = usage.reduce((sum, event) => sum + (event.cacheHit || 0) + (event.cacheMiss || 0) + (event.output || 0), 0);
     const cost = usage.reduce((sum, event) => sum + event.costNano, 0) / 1e9;
-    const goal = await knex("agent_goals").where({ bot_id: bot.id }).orderBy("id", "desc").first();
+    const goal = await knex("agent_goals").where({ conversation_id: chatBotId }).orderBy("id", "desc").first();
     const leaked = /｜DSML｜|<parameter|<｜|<invoke|<budget:/u.test(reply);
     const result = { name, attempt, pass: verdict.pass, variant, leaked, goal: goal ? `${goal.status}/${goal.rounds}` : "-", seconds, steps: usage.filter((event) => event.kind === "model").length, toolCalls, tokens, cached: Math.round(100 * usage.reduce((sum, event) => sum + (event.cacheHit || 0), 0) / Math.max(1, usage.reduce((sum, event) => sum + (event.cacheHit || 0) + (event.cacheMiss || 0), 0))), cost: Number(cost.toFixed(4)), judge: verdict.notes, reply: reply.slice(0, 1500) };
     writeFileSync(path.join(OUT, `${name}-${attempt}.json`), JSON.stringify({ ...result, messages }, null, 1));

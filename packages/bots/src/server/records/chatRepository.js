@@ -29,6 +29,94 @@ const directRefusal = () =>
 const isId = (value) => /^\d+$/u.test(String(value ?? ""));
 
 /**
+ * The chats among `ids` the caller may read, in id order: what routines and search results name as their chat.
+ * @param {ResourceHandle} conversations
+ */
+function chatsByIds(conversations) {
+  const { asRow } = createCallerReaders();
+  return async function byIds(ids, options) {
+    const wanted = [...new Set(ids.map(String))].filter(isId);
+    if (!wanted.length) return [];
+    const records = await conversations.queryAll({ filters: { id: wanted }, sort: ["id"] }, passedOn(options));
+    return records.map((record) => asRow(record, options));
+  };
+}
+
+/**
+ * A chat's onboarding script moving on (onboarding.js): from step `from` to `to` (null when it's over), only while it
+ * is still `from`, so of two pages moving it at once one does. Answers whether this one did.
+ * @param {ResourceHandle} conversations
+ */
+function onboardingMover(conversations) {
+  return async function moveOnboarding(chatId, from, to, options) {
+    if (!isId(chatId) || !from) return false;
+    const filters = { id: String(chatId), onboardingStep: String(from) };
+    const moved = await conversations.patchWhere(filters, { onboardingStep: to ?? null }, { ...passedOn(options), returning: "ids" });
+    return moved.length > 0;
+  };
+}
+
+/**
+ * A person's sections of their chat list in a home (records.chats.sections), each a row of theirs: listed and locked
+ * in their order, one of them or a 404, inserted, renamed, swapped and deleted.
+ * @param {ResourceHandle} sections the conversation_sections handle
+ */
+function sectionRecords(sections) {
+  const { asRow } = createCallerReaders();
+  const rowsOf = (records, options) => records.map((record) => asRow(record, options));
+
+  /** The person's sections in the home, in their order. */
+  async function sectionsOf(options) {
+    return rowsOf(await sections.queryAll({ sort: ["position"] }, passedOn(options)), options);
+  }
+
+  /** The person's sections, locked, in their order: a change to their order holds them all. */
+  async function lockSections(txOptions) {
+    const locked = await sections.lockWhere({}, { ...passedOn(txOptions), all: true, lockMode: "noKeyUpdate" });
+    return rowsOf(locked, txOptions).sort((a, b) => a.position - b.position);
+  }
+
+  /** One of the person's sections, or a 404. */
+  async function ownedSection(sectionId, options) {
+    const section = isId(sectionId) ? asRow(await sections.get(String(sectionId), {}, { ...passedOn(options), missing: "skip" }), options) : null;
+    if (!section) throw new BotsError(404, "Section not found.", { code: "bots_section_not_found" });
+    return section;
+  }
+
+  /** A new section at `position`, the ones from there on moved down one, in one write each. */
+  async function insertSection(name, position, existing, txOptions) {
+    const below = existing.filter((section) => section.position >= position);
+    if (below.length) {
+      await sections.patchMany(below.map((section) => ({ id: section.id, position: section.position + 1 })), { ...passedOn(txOptions), returning: "none" });
+    }
+    return asRow(await sections.create({ name, position }, passedOn(txOptions)), txOptions);
+  }
+
+  async function updateSection(sectionId, changes, options) {
+    return asRow(await sections.patch(String(sectionId), changes, passedOn(options)), options);
+  }
+
+  /** Two sections swap places, in one write. */
+  async function swapSections(first, second, txOptions) {
+    await sections.patchMany([{ id: first.id, position: second.position }, { id: second.id, position: first.position }], { ...passedOn(txOptions), returning: "none" });
+  }
+
+  async function deleteSection(sectionId, options) {
+    await sections.delete(String(sectionId), passedOn(options));
+  }
+
+  return Object.freeze({
+    list: sectionsOf,
+    lock: lockSections,
+    owned: ownedSection,
+    insert: insertSection,
+    update: updateSection,
+    swap: swapSections,
+    remove: deleteSection
+  });
+}
+
+/**
  * The chats as the home's people and bots see them (D-112): chats, their people and bots, a person's place in each,
  * sections, and the chat seam a home's joins and leaves call. Every method reads through the bots' handles in the
  * call's `options`, so ownership keeps it in the home and the row policies (rowPolicies.js) decide what the caller
@@ -39,9 +127,8 @@ const isId = (value) => /^\d+$/u.test(String(value ?? ""));
  * @param {(reason: string) => import("@jskit-ai/resource-runtime/server/types").SystemContext} dependencies.systemContext
  * @param {import("@jskit-ai/users-core/server/types").UserProfilesRepository} dependencies.profiles users.profiles
  * @param {import("@jskit-ai/workspaces-core/server/types").WorkspaceMembershipsRepository} dependencies.memberships workspaces.memberships
- * @param {import("../types.js").WorkRepository} dependencies.work routines, paused when the person who made them leaves
  */
-export function createChatRepository({ resources, systemContext, profiles, memberships, work }) {
+export function createChatRepository({ resources, systemContext, profiles, memberships }) {
   const { bots, conversations, chatPeople, chatBots, conversationSections: sections } = resources;
   const { homeOf, personOf, asRow } = createCallerReaders();
   const rowsOf = (records, options) => records.map((record) => asRow(record, options));
@@ -304,10 +391,13 @@ export function createChatRepository({ resources, systemContext, profiles, membe
    * members, one per person and bot (ux_conversations_direct).
    */
   async function direct(botId, options, { onboardingStep = null } = {}) {
-    const person = personOf(options);
-    const findIt = async (callOptions) =>
-      asRow(await firstOf(conversations, { directUserId: person, directBotId: String(botId) }, callOptions), callOptions);
-    return madeOnce(findIt, () => create({ kind: "public", directBotId: String(botId), bots: [String(botId)], onboardingStep }, options), options);
+    const make = () => create({ kind: "public", directBotId: String(botId), bots: [String(botId)], onboardingStep }, options);
+    return madeOnce((callOptions) => directWith(botId, callOptions), make, options);
+  }
+
+  /** The person's direct chat with a bot, or null: read only, never made (a template drafted from the bot). */
+  async function directWith(botId, options) {
+    return asRow(await firstOf(conversations, { directUserId: personOf(options), directBotId: String(botId) }, options), options);
   }
 
   /** The home's everyone chat, or null. */
@@ -490,8 +580,9 @@ export function createChatRepository({ resources, systemContext, profiles, membe
   }
 
   /**
-   * Someone left the home: they're out of every chat, the private chats only they were in are deleted (nobody could
-   * open them any more), and the routines they made are paused. Their messages stay, under their name. Answers the
+   * Someone left the home: they're out of every chat, and the private chats only they were in are deleted (nobody could
+   * open them any more). What they made is paused before, with its line (chatMembers.homeChanged's `leaving`, the one
+   * path, workPause.js). Their messages stay, under their name. Answers the
    * chats they're no longer in (`left`) and those deleted, each with its bots' seats as they were (`deleted`), for the
    * computers and files that go with them. In the home's own context: what they leave is read as the home's.
    * @param {string} userId
@@ -508,7 +599,6 @@ export function createChatRepository({ resources, systemContext, profiles, membe
       const seatQuery = { filters: { conversationIds: gone }, fields: ["conversationId"] };
       const seats = gone.length ? await chatBots.queryAll(seatQuery, txOptions) : [];
       if (gone.length) await conversations.deleteWhere({ id: gone }, { ...txOptions, returning: "none" });
-      await work.pauseRoutinesMadeBy(String(userId), txOptions);
       const seatsOf = (chatId) => seats.filter((seat) => String(seat.conversationId) === chatId).map((seat) => String(seat.id));
       return {
         left: chatIds.filter((id) => !gone.includes(id)),
@@ -547,50 +637,11 @@ export function createChatRepository({ resources, systemContext, profiles, membe
     return { departed, joined, everyoneChatId: String(everyone.id) };
   }
 
-  /** The person's sections in the home, in their order. */
-  async function sectionsOf(options) {
-    return rowsOf(await sections.queryAll({ sort: ["position"] }, passedOn(options)), options);
-  }
-
-  /** The person's sections, locked, in their order: a change to their order holds them all. */
-  async function lockSections(txOptions) {
-    const locked = await sections.lockWhere({}, { ...passedOn(txOptions), all: true, lockMode: "noKeyUpdate" });
-    return rowsOf(locked, txOptions).sort((a, b) => a.position - b.position);
-  }
-
-  /** One of the person's sections, or a 404. */
-  async function ownedSection(sectionId, options) {
-    const section = isId(sectionId) ? asRow(await sections.get(String(sectionId), {}, { ...passedOn(options), missing: "skip" }), options) : null;
-    if (!section) throw new BotsError(404, "Section not found.", { code: "bots_section_not_found" });
-    return section;
-  }
-
-  /** A new section at `position`, the ones from there on moved down one, in one write each. */
-  async function insertSection(name, position, existing, txOptions) {
-    const below = existing.filter((section) => section.position >= position);
-    if (below.length) {
-      await sections.patchMany(below.map((section) => ({ id: section.id, position: section.position + 1 })), { ...passedOn(txOptions), returning: "none" });
-    }
-    return asRow(await sections.create({ name, position }, passedOn(txOptions)), txOptions);
-  }
-
-  async function updateSection(sectionId, changes, options) {
-    return asRow(await sections.patch(String(sectionId), changes, passedOn(options)), options);
-  }
-
-  /** Two sections swap places, in one write. */
-  async function swapSections(first, second, txOptions) {
-    await sections.patchMany([{ id: first.id, position: second.position }, { id: second.id, position: first.position }], { ...passedOn(txOptions), returning: "none" });
-  }
-
-  async function deleteSection(sectionId, options) {
-    await sections.delete(String(sectionId), passedOn(options));
-  }
-
   return Object.freeze({
     withTransaction,
     find,
     get,
+    byIds: chatsByIds(conversations),
     lock,
     names,
     isHomeMember,
@@ -605,6 +656,7 @@ export function createChatRepository({ resources, systemContext, profiles, membe
     isPerson,
     create,
     direct,
+    directWith,
     everyoneChat,
     makeEveryoneChat,
     appChat,
@@ -618,6 +670,7 @@ export function createChatRepository({ resources, systemContext, profiles, membe
     remove,
     updatePlace,
     markRead,
+    moveOnboarding: onboardingMover(conversations),
     markUnreadForOthers,
     nextPinPosition,
     reorderPins,
@@ -628,14 +681,6 @@ export function createChatRepository({ resources, systemContext, profiles, membe
     personJoined,
     personLeft,
     syncMembers,
-    sections: Object.freeze({
-      list: sectionsOf,
-      lock: lockSections,
-      owned: ownedSection,
-      insert: insertSection,
-      update: updateSection,
-      swap: swapSections,
-      remove: deleteSection
-    })
+    sections: sectionRecords(sections)
   });
 }

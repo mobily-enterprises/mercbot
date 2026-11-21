@@ -6,14 +6,11 @@ import * as sedna from "./sednaChanges.js";
 // Sedna's writes (D-94), each an action that goes through approvals.decide() like every other write: a message sent,
 // a draft saved, changed, sent or given an attachment, a tag or job reference put on or taken off a message, a job
 // reference made, a message assigned, a contact added or changed. Each runs as the person's own Sedna user, from one of
-// their teams, on messages in their teams, found again when it runs (an approval may run later): never another user, never
-// in a room or a group others read. Every one is real only in a live copy: Sedna is the organisation's shared mailbox,
-// where a change shows to the whole team at once and can set off its workflows, so a test copy connected to a real
-// Sedna logs it instead (sendOrSimulate, D-69), after every check a live copy makes.
-
-export const SEDNA_ONLY_OWN_CHAT =
-  "Sedna is used only in each person's own chat with their bot: here others would see it, and nothing here is done as " +
-  "anyone's Sedna user. Say so in one line, and that they can ask in their own chat.";
+// their teams, on messages in their teams, found again when it runs (an approval may run later): never another user. It
+// works in any chat (D15, R4): the person asks, and their own Sedna user acts. Every one is real only in a live copy:
+// Sedna is the organisation's shared mailbox, where a change shows to the whole team at once and can set off its
+// workflows, so a test copy connected to a real Sedna logs it instead (sendOrSimulate, D-69), after every check a live
+// copy makes.
 
 /** Why the person can't use Sedna, and what they do about it. */
 export function nobodyInSedna(who) {
@@ -35,12 +32,10 @@ export const sednaAccess = ({ integrations, call }, entry) => ({
 });
 
 /**
- * The home's Sedna for the person an action is for, found when it runs: refused where others read the chat, and for a
- * person who is no one in Sedna.
- * @param {{ integrations: object, reach: { personal?: boolean }, call: object, skip?: string[] }} context
+ * The home's Sedna for the person an action is for, found when it runs: refused for a person who is no one in Sedna.
+ * @param {{ integrations: object, call: object, skip?: string[] }} context
  */
 export async function sednaFor(context) {
-  if (!context.reach?.personal) throw new ConnectedAppError(SEDNA_ONLY_OWN_CHAT);
   const entry = await connectedKey(context, "sedna", "Sedna");
   const who = await context.integrations.connections.appPerson(entry.id, context.call);
   if (!who.person) throw new ConnectedAppError(nobodyInSedna(who));

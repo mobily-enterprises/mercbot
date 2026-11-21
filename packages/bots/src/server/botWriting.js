@@ -141,3 +141,14 @@ export async function writeSkillFromDemo(model, lines) {
     instructions: String(skill.instructions || "").trim()
   };
 }
+
+/** The person's language from the page, by its English name; English needs no line. */
+export function languageName(tag) {
+  const value = String(tag || "").trim();
+  if (!/^[a-zA-Z]{2,3}(-[a-zA-Z0-9]{2,8})*$/u.test(value) || /^en\b/iu.test(value)) return "";
+  try {
+    return new Intl.DisplayNames(["en"], { type: "language" }).of(value) || "";
+  } catch {
+    return "";
+  }
+}

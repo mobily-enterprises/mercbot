@@ -6,14 +6,15 @@ import test from "node:test";
 import { ACTIONS } from "../../packages/bots/src/server/botActions.js";
 import { buildTools } from "../../packages/bots/src/server/botTools.js";
 import { buildDraftTools } from "../../packages/bots/src/server/draftTools.js";
-import { SEDNA_ONLY_OWN_CHAT, sendSednaMessage } from "../../packages/bots/src/server/sednaActions.js";
+import { sendSednaMessage } from "../../packages/bots/src/server/sednaActions.js";
 import { SEDNA_READS, SEDNA_WRITES } from "../../packages/bots/src/server/sednaTools.js";
 import { startFakeSedna } from "../support/fakeSedna.mjs";
 import { turnDoubles } from "../support/botDoubles.mjs";
 import { accessOf } from "../support/appKey.mjs";
 
 // Sedna's writes (D-94), against the stand-in Sedna (fakeSedna.mjs) over HTTP: always as the person's own Sedna user from
-// one of their teams, only on messages in their teams, through approvals, never in a room, and real only in a live copy.
+// one of their teams, only on messages in their teams, through approvals, in any chat they ask in (D-77 as amended by
+// D-112: the asker's own Sedna user), and real only in a live copy.
 const PAT = { id: "201", name: "Pat Doe", email: "pat@acme.example", teams: [{ id: "11", name: "Chartering" }] };
 const LIVE = { ...process.env, APP_ENV: "production" };
 const TEST_COPY = { ...process.env, APP_ENV: "test" };
@@ -42,7 +43,7 @@ async function setup(context) {
       appPerson: async () => who
     }
   });
-  // The bot's files: a plain folder, as fileStore.js resolves /files/mine/… for the person's bot.
+  // The bot's files: a plain folder, as fileStore.js resolves /files/chat/… for the bot in its chat.
   const real = (virtual) => path.join(folder, virtual.replace(/^\/files\//u, ""));
   const files = {
     store: {
@@ -59,7 +60,7 @@ async function setup(context) {
   };
 
   /** One reply's tools for a person, with what approvals decided and the cards under the reply. */
-  function turn({ person = PAT, who = null, decide = "allow", env = LIVE, routineRun = false, routine = null, personal = true, viaBot = false, removed = [] } = {}) {
+  function turn({ person = PAT, who = null, decide = "allow", env = LIVE, routineRun = false, routine = null, chatKind = "public", viaBot = false, removed = [] } = {}) {
     const decisions = [];
     const run = buildTools(turnDoubles({
       approvals: {
@@ -71,21 +72,19 @@ async function setup(context) {
       integrations: integrations(who || { person, via: "email" }),
       files,
       env,
-      homeId: "1",
-      userId: "7",
-      botId: "3",
-      conversationId: "5",
+      // Pat's turn with bot 3 in chat 5 of home 1 (its seat 11).
+      seat: { id: "3", workspace_id: "1", user_id: "7", chat_id: "5", chat_bot_id: "11", chat: { id: "5", kind: chatKind } },
+      place: files.store.placeFor(),
       routineRun,
       routine,
-      personal,
       viaBot,
       toolSwitches: { skip: {}, removed, connected: ["sedna"] }
     }));
     return { ...run, decisions };
   }
   /** An action's context as an approval card's or a draft card's Send gives it. */
-  const contextOf = ({ person = PAT, env = LIVE, personal = true } = {}) => ({
-    integrations: integrations({ person, via: "email" }), reach: { userId: "7", personal }, call: {}, env, files, place: files.store.placeFor()
+  const contextOf = ({ person = PAT, env = LIVE } = {}) => ({
+    integrations: integrations({ person, via: "email" }), call: {}, env, files, place: files.store.placeFor()
   });
   const writes = () => fake.requests.filter((entry) => entry.method !== "GET" && entry.route !== "/oauth/token");
   return { fake, turn, contextOf, writes, putFile, real };
@@ -136,8 +135,8 @@ test("a reply is a card first, and Send sends it as the person from their team, 
   assert.match(live.result.body.detail, /Sedna's API has no field for answering a message/u);
 });
 
-test("never as anyone else: the person's own user, their teams, their messages, their drafts; nothing in a room", async (context) => {
-  const { fake, turn, contextOf, writes } = await setup(context);
+test("never as anyone else: the person's own user, their teams, their messages, their drafts, in any chat", async (context) => {
+  const { fake, turn, writes } = await setup(context);
   const { tools, after } = turn();
   // Another team's message is refused before any card or change, and nothing of it is shown.
   const elsewhere = await tools.sednaDraft.execute({ replyTo: "1002", text: "Hi" });
@@ -163,11 +162,11 @@ test("never as anyone else: the person's own user, their teams, their messages, 
   const nobody = turn({ who: { person: null, asked: null } });
   assert.match((await nobody.tools.sednaDraft.execute({ to: "kim@brokers.example", text: "Hi" })).error, /isn't matched to a Sedna user/u);
   assert.match((await nobody.tools.sednaSort.execute({ action: "tag", id: "1001", tag: "Fixtures" })).error, /isn't matched to a Sedna user/u);
-  // A room or a group others read gets no Sedna tools, and an action from one is refused.
-  const room = turn({ personal: false });
-  assert.deepEqual(Object.values(room.tools).filter((tool) => tool.id.startsWith("sedna")), []);
-  await assert.rejects(sendSednaMessage(contextOf({ personal: false }), { to: "kim@brokers.example", text: "Hi" }), { message: SEDNA_ONLY_OWN_CHAT });
-  await assert.rejects(ACTIONS["sedna_sort.tag"].run(contextOf({ personal: false }), { id: "1001", tag: "Fixtures" }), { message: SEDNA_ONLY_OWN_CHAT });
+  // A chat others are in too, Public or private, has the same Sedna tools: they work as the asker's own Sedna user.
+  for (const chatKind of ["public", "private"]) {
+    const sedna = Object.values(turn({ chatKind }).tools).map((tool) => tool.id).filter((id) => id.startsWith("sedna")).sort();
+    assert.deepEqual(sedna, Object.values(tools).map((tool) => tool.id).filter((id) => id.startsWith("sedna")).sort(), chatKind);
+  }
   assert.equal(writes().length, 1);
 });
 
@@ -264,16 +263,16 @@ test("attachments are saved into the bot's files from Sedna's signed link, and t
   const listed = await tools.sednaAttachments.execute({ action: "list", id: "1001" });
   assert.deepEqual(listed.result.documents.map((entry) => [entry.id, entry.name]), [["701", "recap.pdf"]]);
   const saved = await tools.sednaAttachments.execute({ action: "save", id: "1001", document: "recap.pdf" });
-  assert.deepEqual(saved.result.saved, ["/files/mine/Sedna/Fixture recap VOY-101/recap.pdf"]);
+  assert.deepEqual(saved.result.saved, ["/files/chat/Sedna/Fixture recap VOY-101/recap.pdf"]);
   assert.equal(String(await readFile(real(saved.result.saved[0]))), "%PDF-1.4 recap of VOY-101");
   const signed = fake.requests.find((entry) => entry.route.startsWith("/signed/"));
   assert.equal(signed.auth, false, "the signed link is fetched without Sedna's key");
   assert.match((await tools.sednaAttachments.execute({ action: "save", id: "1001", document: "other.pdf" })).error, /Say which attachment/u);
 
-  const notes = await putFile("/files/mine/notes.txt", "Laycan notes");
-  const big = await putFile("/files/mine/big.bin", Buffer.alloc(10 * 1024 * 1024 + 1));
+  const notes = await putFile("/files/chat/notes.txt", "Laycan notes");
+  const big = await putFile("/files/chat/big.bin", Buffer.alloc(10 * 1024 * 1024 + 1));
   assert.match((await tools.sednaMail.execute({ action: "save_draft", to: "kim@brokers.example", text: "See attached", attach: [big] })).error, /over 10 MB/u);
-  assert.match((await tools.sednaMail.execute({ action: "save_draft", to: "kim@brokers.example", text: "See attached", attach: ["/files/mine/none.txt"] })).error, /There's no file/u);
+  assert.match((await tools.sednaMail.execute({ action: "save_draft", to: "kim@brokers.example", text: "See attached", attach: ["/files/chat/none.txt"] })).error, /There's no file/u);
   assert.equal(writes().length, 0, "nothing is written for a file that can't go");
   const draft = await tools.sednaMail.execute({ action: "save_draft", to: "kim@brokers.example", subject: "Notes", text: "See attached", attach: [notes] });
   assert.equal(draft.status, "done");

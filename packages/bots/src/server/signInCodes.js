@@ -22,6 +22,8 @@ import { CODE } from "./signInSecrets.js";
 
 /** How far back a code can have come, and how long the bot waits for one still on its way. */
 export const CODE_MAIL = Object.freeze({ minutes: 10, tries: 12, everyMs: 5000 });
+// D14's one line at a sign-in on a chat's computer: what it signs in to is the chat's.
+export const SIGN_IN_LINE = "Everyone who can open this chat can use this sign-in.";
 
 const CODE_WORDS = /\b(codes?|passcode|otp|one[- ]time|verification|verify|security|pin|sign[- ]?in|log[- ]?in|login|confirm\w*)\b/iu;
 
@@ -147,16 +149,18 @@ const WAITING = new Set(["handover", "secure_form", "choice", "connect"]);
 
 /**
  * start_sign_in and fill_sign_in_code: the start of a sign-in the person asked for (the site's front page, or an address
- * they wrote), and a sign-in code the site emailed the person, typed into the page in front on the bot's computer.
- * Offered only on the person's own turn in their own chat with their bot (botTools.js, D-77). Reads only the mailboxes
- * the person connected (never another's in the home, D-111), with read_email's switch, so a mail action switched off in
- * Connect apps stays off.
+ * they wrote), and a sign-in code the site emailed them, typed into the page in front on the chat's computer. Offered on
+ * a turn the person asked for, in any chat (botTools.js, D-77, D14), never for another bot, a routine or an Apps task.
+ * Reads only the mailboxes the asker connected (D6: never another's in the home), with read_email's switch, so a mail
+ * action switched off in Connect apps stays off; and only what the asker wrote counts as asking. What the computer signs
+ * in to is the chat's, said in one line (`signedIn`).
  * @param {object} shared
  * @param {import("./types.js").AppFor} shared.appFor
  * @param {import("@local/computer/server/types").Computer} shared.computer
  * @param {string} shared.computerId
- * @param {string} shared.conversationId
- * @param {import("./types.js").TurnRepository} shared.turns records.turns, for what the person asked
+ * @param {string} shared.chatId
+ * @param {string} shared.userId the asker
+ * @param {import("./types.js").TurnRepository} shared.turns records.turns, for what the asker asked
  * @param {import("./types.js").CallOptions} shared.call
  * @param {import("./types.js").InTime} shared.inTime
  * @param {object[]} shared.before
@@ -165,13 +169,16 @@ const WAITING = new Set(["handover", "secure_form", "choice", "connect"]);
  *   Posts an approval card under the reply.
  * @param {{ name: string, caption: string }[]} shared.screenshots
  * @param {(text: string) => string} shared.untrusted
+ * @param {(signIn: { label: string, kind: string }) => Promise<void>} shared.signedIn D14's line and the computer's note
  * @param {typeof CODE_MAIL} [shared.wait]
  */
 export function buildSignInCodeTools({
   appFor,
   computer,
   computerId,
-  conversationId,
+  chatId,
+  userId,
+  signedIn,
   turns,
   call,
   inTime,
@@ -185,9 +192,9 @@ export function buildSignInCodeTools({
   // Whether this turn worked on a sign-in, so its chain ends with the turn (finished).
   let signingIn = false;
 
-  /** What the person wrote in their last few messages in this chat. */
+  /** What the asker wrote in their last few messages in this chat: nobody else's words ask for their sign-in (D6). */
   async function personSaid() {
-    const said = await turns.messages(conversationId, { role: "user", kind: "text" }, { newestFirst: true, limit: 10 }, call);
+    const said = await turns.messages(chatId, { role: "user", kind: "text", authorUserId: String(userId) }, { newestFirst: true, limit: 10 }, call);
     return said.map((message) => message.body.text || "").join("\n");
   }
 
@@ -293,6 +300,7 @@ export function buildSignInCodeTools({
         `where the sign-in you asked for led from ${page.startedFrom}.`
     );
     before.push(line);
+    await signedIn({ label: pageSite, kind: "site" });
     return {
       status: "filled",
       from: found.account,
@@ -350,7 +358,7 @@ export const SIGN_IN_CODE_ACTIONS = {
     reversible: () => false,
     describe: ({ url, from }) => `type the sign-in code from ${from} into ${url}`,
     question: ({ from }) => `Shall I type the sign-in code from ${from} into this page?`,
-    async run({ integrations, call, computer, conversationId, computerId = conversationId }, { url, site, from }) {
+    async run({ integrations, call, computer, computerId }, { url, site, from }) {
       const { skip = {} } = await integrations.toolSwitches(call);
       const mailboxes = await ownMailboxes({ integrations, call, skip: skip.read_email || [] });
       const found = mailboxes.length ? await newestCode(mailboxes, (email) => senderOf(email) === from, { ...CODE_MAIL, tries: 1 }) : null;
@@ -363,7 +371,10 @@ export const SIGN_IN_CODE_ACTIONS = {
         return couldnt(`${error.message} It was for ${url}.`);
       }
       if (!result.filled.includes("code")) return couldnt(`The page ${url} has no field for a code right now.`);
-      return typedIn(`Typed in the sign-in code ${from} emailed to ${found.account}, without showing it, into ${url}, as they said yes.`);
+      return typedIn(
+        `Typed in the sign-in code ${from} emailed to ${found.account}, without showing it, into ${url}, as they said yes, on ` +
+          `this chat's computer. ${SIGN_IN_LINE}`
+      );
     }
   }
 };

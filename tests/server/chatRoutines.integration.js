@@ -1,0 +1,93 @@
+import assert from "node:assert/strict";
+import test, { after } from "node:test";
+import { seedChat } from "../support/chatFixtures.mjs";
+import { queriesDuring } from "../support/queryCount.mjs";
+import { connectTestDatabase } from "../support/testDatabase.mjs";
+import { seedHome, startSurfaces } from "./surfaceKit.mjs";
+
+// Routines as people see and switch them (D-112, R11, R4): a chat's routines, a bot's in the chats the viewer can open
+// and no others, paused or deleted by anyone who can open their chat, resumed only by the person each runs as.
+assert.ok(process.env.TEST_DB_NAME?.trim(), "TEST_DB_NAME must identify a disposable test database.");
+assert.equal(process.env.DB_NAME, process.env.TEST_DB_NAME, "DB_NAME must match the dedicated TEST_DB_NAME.");
+
+const knex = await connectTestDatabase();
+after(() => knex.destroy());
+
+/** Anna and Ben's home with Chef in a public chat of both, Anna's private chat, and Ben's direct chat, a routine each. */
+async function kitchen(context) {
+  const kit = await startSurfaces(knex, context);
+  const home = await seedHome(knex, context);
+  const { homeId, anna, ben, bot } = home;
+  const chef = await bot("Chef");
+  const kitchenChat = await seedChat(knex, { homeId, title: "Kitchen", people: [anna, ben], bots: [chef] });
+  const secret = await seedChat(knex, { homeId, kind: "private", title: "Surprise", people: [anna], bots: [chef] });
+  const bens = await seedChat(knex, { homeId, direct: { userId: ben, botId: chef } });
+  const routine = async (chat, name, madeBy, columns = {}) => String((await knex("bot_routines").insert({
+    workspace_id: homeId, chat_bot_id: chat.chatBotIds.get(chef), name, schedule: "Sundays at 5pm", made_by: madeBy, ...columns
+  }).returning("id"))[0].id);
+  return {
+    kit, ...home, chef, kitchenChat, secret, bens,
+    menu: await routine(kitchenChat, "Weekly menu", anna, { cron: "0 17 * * 0", timezone: "Europe/Rome", enabled: false, failures: 3 }),
+    party: await routine(secret, "Party list", anna),
+    shopping: await routine(bens, "Shopping", ben)
+  };
+}
+
+test("a chat lists its routines; a bot's card lists them in the chats the viewer can open, and no others", async (context) => {
+  const { kit, anna, ben, as, chef, kitchenChat, secret, bens, menu, party, shopping } = await kitchen(context);
+
+  const inKitchen = (await kit.routines.routinesIn(kitchenChat.id, as("ben"))).routines;
+  assert.deepEqual(inKitchen.map((routine) => routine.id), [menu]);
+  assert.deepEqual(inKitchen[0], {
+    id: menu, name: "Weekly menu", schedule: "Sundays at 5pm", enabled: false, botId: chef, chatId: kitchenChat.id,
+    chatTitle: "Kitchen", madeBy: anna, canResume: false
+  }, "Ben sees it, and can't resume Anna's routine");
+  await assert.rejects(kit.routines.routinesIn(secret.id, as("ben")), { statusCode: 404 }, "a private chat he can't open");
+
+  const forAnna = (await kit.routines.routinesOf(chef, as("anna"))).routines;
+  assert.deepEqual(forAnna.map((routine) => routine.id), [menu, party, shopping]);
+  assert.deepEqual(forAnna.slice(0, 2).map((routine) => routine.chatTitle), ["Kitchen", "Surprise"]);
+  assert.match(forAnna[2].chatTitle, /^Chef and (?!you$)./u, "Ben's direct chat, named by its person");
+  const forBen = (await kit.routines.routinesOf(chef, as("ben"))).routines;
+  assert.deepEqual(forBen.map((routine) => routine.id), [menu, shopping], "never Anna's private chat's");
+  assert.equal(forBen[1].chatTitle, "Chef and you", "his own direct chat");
+  assert.equal(forBen[1].canResume, true);
+  assert.equal(forAnna.find((routine) => routine.id === shopping).chatId, bens.id, "Ben's direct chat is Public (D15), so Anna sees its routine");
+  assert.equal(ben, forBen[1].madeBy);
+});
+
+test("anyone who can open its chat pauses or deletes a routine; only the person it runs as resumes it", async (context) => {
+  const { kit, as, chef, menu, party, shopping } = await kitchen(context);
+
+  await assert.rejects(kit.routines.switchRoutine(menu, "yes", as("ben")), { statusCode: 400, code: "bots_routine_enabled" });
+  await assert.rejects(kit.routines.switchRoutine(menu, true, as("ben")), { statusCode: 403, code: "bots_routine_resume_forbidden" });
+  await assert.rejects(kit.routines.switchRoutine(party, false, as("ben")), { statusCode: 404 }, "a private chat's routine is no one else's");
+  await assert.rejects(kit.routines.switchRoutine("999999999", false, as("anna")), { statusCode: 404 });
+
+  const resumed = (await kit.routines.switchRoutine(menu, true, as("anna"))).routine;
+  assert.equal(resumed.enabled, true);
+  const row = await knex("bot_routines").where({ id: menu }).first();
+  assert.equal(row.failures, 0, "its count of failures in a row starts again");
+  assert.ok(row.next_run_at && new Date(row.next_run_at) > new Date(), "and its next run is from now");
+
+  assert.equal((await kit.routines.switchRoutine(shopping, false, as("anna"))).routine.enabled, false, "Anna pauses Ben's");
+  // Not while its bot is archived.
+  await knex("bots").where({ id: chef }).update({ archived_at: new Date() });
+  await assert.rejects(kit.routines.switchRoutine(shopping, true, as("ben")), { statusCode: 409, code: "bots_bot_archived" });
+  await knex("bots").where({ id: chef }).update({ archived_at: null });
+
+  await assert.rejects(kit.routines.deleteRoutine(party, as("ben")), { statusCode: 404 });
+  assert.deepEqual(await kit.routines.deleteRoutine(shopping, as("anna")), { deleted: shopping });
+  assert.equal(await knex("bot_routines").where({ id: shopping }).first(), undefined);
+});
+
+test("a bot's routines read the same statements across 2 chats as across 12", async (context) => {
+  const { kit, homeId, anna, as, chef } = await kitchen(context);
+  const count = async () => queriesDuring(knex, () => kit.routines.routinesOf(chef, as("anna")));
+  const few = await count();
+  for (let index = 0; index < 10; index++) {
+    const chat = await seedChat(knex, { homeId, title: `Chat ${index}`, people: [anna], bots: [chef] });
+    await knex("bot_routines").insert({ workspace_id: homeId, chat_bot_id: chat.chatBotIds.get(chef), name: `R${index}`, schedule: "daily", made_by: anna });
+  }
+  assert.equal(await count(), few);
+});

@@ -2,6 +2,7 @@
 // `mercbot.computer-events`, which the computer feature reads when a feature provides them.
 
 /** @typedef {ReturnType<typeof import("./computers.js").createComputers>} Computer */
+/** @typedef {ReturnType<typeof import("./computerRecords.js").createComputerRecords>} ComputerRecords */
 
 /**
  * A live server, as a computer's placement sees it: its id, and how many computers it holds that aren't asleep.

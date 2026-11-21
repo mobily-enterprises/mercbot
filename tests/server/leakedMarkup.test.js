@@ -10,7 +10,7 @@ const leaked = [
   ["Now I'll make the changes.\n\n<｜｜tool▁calls▁begin｜｜><｜｜invoke▁name｜｜>runCommand｜｜invoke｜｜<｜｜parameter▁name｜｜>why｜｜<｜｜parameter｜｜>Rename it｜｜<｜｜/parameter｜｜>\n\nDone.", "Now I'll make the changes.\n\nDone."],
   ["I'll set that up.\n\n<｜begin▁of▁sentence｜>中国福利彩票双色球数字范围\n\nThe draft is saved.", "I'll set that up.\n\nThe draft is saved."],
   ["Checking.\n\n<ds_safety>[分类]其他</ds_safety>### Adding the leads\n\nAll three are in.", "Checking.\n\n### Adding the leads\n\nAll three are in."],
-  ["I'll look at the files first.\n\n<parameter name=\"runCommand\">ls -la /files/mine</parameter>\n\nBoth commands work now.", "I'll look at the files first.\n\nBoth commands work now."],
+  ["I'll look at the files first.\n\n<parameter name=\"runCommand\">ls -la /files/chat</parameter>\n\nBoth commands work now.", "I'll look at the files first.\n\nBoth commands work now."],
   ["I'll take a look.\n\n<｜place▁holder▁no▁558｜> I've read it.", "I'll take a look.\n\nI've read it."]
 ];
 

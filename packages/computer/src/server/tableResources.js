@@ -12,6 +12,9 @@ export const botComputerResource = defineTableResource({
   idProperty: "chat_bot_id",
   schema: {
     id: { type: "id", primary: true, required: true, storage: { column: "chat_bot_id" } },
+    // The person who took over the computer and since when (D16): the bot doesn't act on it until it's handed back.
+    controlledAt: { type: "dateTime", nullable: true },
+    controlledBy: { type: "id", nullable: true },
     error: { type: "string", noTrim: true },
     serverId: { type: "string", maxLength: 200, noTrim: true, required: true },
     state: { type: "string", maxLength: 20, noTrim: true, search: true },
@@ -37,6 +40,8 @@ export const botBrowserStateResource = defineTableResource({
     profileFile: { type: "string", maxLength: 80, noTrim: true, nullable: true },
     profileSavedAt: { type: "dateTime", nullable: true },
     profileSha256: { type: "string", maxLength: 64, noTrim: true, nullable: true },
+    // What's signed in on its browser, as the computer panel shows it (D16): [{ label, kind, since }].
+    signIns: { type: "array" },
     url: { type: "string", noTrim: true },
     workspaceId: { type: "id", hidden: true, search: true }
   }

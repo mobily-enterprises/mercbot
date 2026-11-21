@@ -81,10 +81,12 @@
 /**
  * The model's reader (R1, D-112): the context every model-facing read of one bot's turn in one chat passes. It reads
  * `readable_from(chatId)`, the chats everyone who can open its chat can open too, and everything keyed to them, never
- * more because of who asked. `forBot` makes one; `of` answers the reader a context is, or null.
+ * more because of who asked. `forBot` makes one for a bot's turn, acting for the asker; `forChat` one for the chat
+ * itself, acting for no one (its summary); `of` answers the reader a context is, or null.
  * @typedef {{
  *   forBot: (reader: { homeId: string, botId: string, chatId: string, askerId: string }) => object,
- *   of: (context: unknown) => Readonly<{ homeId: string, botId: string, chatId: string, askerId: string }> | null
+ *   forChat: (chat: { homeId: string, chatId: string }) => object,
+ *   of: (context: unknown) => Readonly<{ homeId: string, botId: string | null, chatId: string, askerId: string | null }> | null
  * }} ModelReaders
  */
 /**
@@ -107,7 +109,6 @@
  *   followUps: FollowUpRepository,
  *   policies: PolicyRepository,
  *   turns: TurnRepository,
- *   templates: ReturnType<typeof import("./records/templateRepository.js").createTemplateRepository>,
  *   newBots: ReturnType<typeof import("./records/newBotRepository.js").createNewBotRepository>,
  *   homeTemplates: HomeTemplateRepository,
  *   knowledge: ReturnType<typeof import("./records/knowledgeRepository.js").createKnowledgeRepository>,
@@ -129,9 +130,10 @@
  * of them): `file`, a Markdown file in the form of packages/bots/skills (skills.js), listed with them by its file name.
  * @typedef {{ file: string }} AddedSkill
  */
-/** @typedef {ReturnType<typeof import("./botConversations.js").createBotConversations>} BotConversations */
-/** @typedef {ReturnType<typeof import("./homeDefaults.js").createHomeDefaults>} HomeDefaults */
-/** @typedef {ReturnType<typeof import("./botList.js").createBotList>} BotList */
+/**
+ * The Team list and new bots, as botList.js makes them: what botTemplates.js and botTeams.js make bots with.
+ * @typedef {ReturnType<typeof import("./botList.js").createBotList>} BotList
+ */
 /** @typedef {ReturnType<typeof import("./botTemplates.js").createBotTemplates>} BotTemplates */
 /** @typedef {ReturnType<typeof import("./botHistory.js").createBotHistory>} BotHistory */
 /** @typedef {ReturnType<typeof import("./backgroundWork.js").createBackgroundWork>} BackgroundWork */

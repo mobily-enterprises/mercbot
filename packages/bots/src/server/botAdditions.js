@@ -13,9 +13,11 @@ import { BotsError } from "./botsError.js";
 export const ADDITIONS_LIMIT = 20000;
 
 /**
- * Whether a person may change a bot's template or additions: the person who made the bot, or the home's owners and
- * admins (the call's own permissions, as a request has them). Renaming is open to everyone in the home; these aren't.
- * @param {string | number} creatorId the bot's maker, `bots.user_id`
+ * Whether a person may change a bot's template or additions, archive or delete it, or change a chat they started: the
+ * person who made it, or the home's owners and admins (the call's own permissions, as a request has them). Renaming a
+ * bot is open to everyone in the home; these aren't.
+ * @param {string | number | null} creatorId who made it (`bots.made_by`, `conversations.made_by`), null once their
+ *   account went
  * @param {string | null} personId the call's person
  * @param {{ context?: { permissions?: string[] } }} options the call's options
  */

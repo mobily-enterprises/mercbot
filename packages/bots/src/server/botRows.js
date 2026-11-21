@@ -1,65 +1,37 @@
-// Bots, rooms, sections and messages as the page sees them, and the person's input cleaned on the way in.
+// Bots, sections and messages as the page sees them, and the person's input cleaned on the way in.
 import { plainMentions } from "./mentions.js";
 import { BotsError } from "./botsError.js";
 import { templateChipOf } from "./botTemplate.js";
 
+/**
+ * A bot as the Team page lists it (D-112: a member of the home, as a person is), from a row of records.bots: its look,
+ * whether it's the main bot, who made it, its template's chip and whether it has additions of its own (D-98), and since
+ * when it's archived (D-108). botList.js adds what depends on who's looking and on the home (isBuilder, madeByName,
+ * archivedBy, canArchive).
+ * @param {Record<string, any>} row
+ */
 export function toBot(row) {
   return {
     id: String(row.id),
-    kind: row.kind || "bot",
     name: row.name,
     color: row.color,
     shape: cloudShape(row.shape),
-    onboardingStep: row.onboarding_step || null,
-    waitingTask: row.waiting_task || "",
+    isMain: Boolean(row.is_main),
+    madeBy: row.made_by == null ? null : String(row.made_by),
     // Its template's chip and whether it has additions of its own, with their first line (D-98).
     template: templateChipOf(row),
     ...additionsOf(row),
-    isMain: Boolean(row.is_main),
-    pinPosition: row.pin_position ?? null,
-    sectionId: row.section_id ? String(row.section_id) : null,
-    hidden: Boolean(row.hidden),
-    unread: Boolean(row.unread),
-    readUpTo: row.read_up_to ? String(row.read_up_to) : null,
-    lastActivityAt: new Date(row.last_activity_at).toISOString(),
-    sharing: row.sharing || "mixed",
-    keepOutOfNotebook: Boolean(row.keep_out_of_notebook),
     // Archived for everyone in the home (D-108): since when, null while it isn't.
-    archivedAt: row.archived_at ? new Date(row.archived_at).toISOString() : null,
-    // A shared bot's open tab (D-36), the person's own conversation when it's "You only" (D-99); its tabs come
-    // with the list of bots.
-    roomId: row.room ? String(row.room.id) : row.sharing === "shared" && row.kind !== "group" && row.seat_id ? String(row.seat_id) : null
-  };
-}
-
-/** The person's own conversation as a Shared bot's last tab, "You only" (D-99): nobody else sees it, and it has no other name. */
-export function toOwnTab(seat) {
-  return {
-    id: String(seat.id),
-    title: "You only",
-    parentId: null,
-    lastActivityAt: new Date(seat.last_activity_at).toISOString(),
-    own: true,
-    unread: Boolean(seat.unread)
+    archivedAt: row.archived_at ? new Date(row.archived_at).toISOString() : null
   };
 }
 
 /** Whether a bot has additions (D-98), and their first line, for its chip's tooltip. */
 function additionsOf(row) {
   const text = String(row.additions || "").trim();
-  if (!text || row.kind === "group") return { hasAdditions: false, additionsLine: "" };
+  if (!text) return { hasAdditions: false, additionsLine: "" };
   const line = text.split("\n").find((entry) => entry.trim()).trim();
   return { hasAdditions: true, additionsLine: line.length > 120 ? `${line.slice(0, 119)}…` : line };
-}
-
-/** A shared bot's public conversation, as a tab (D-36). */
-export function toRoom(row) {
-  return {
-    id: String(row.id),
-    title: row.title,
-    parentId: row.parent_id ? String(row.parent_id) : null,
-    lastActivityAt: new Date(row.last_activity_at).toISOString()
-  };
 }
 
 export function toSection(row) {
@@ -67,13 +39,6 @@ export function toSection(row) {
 }
 
 const NAME_LIMIT = 80;
-
-/** A shared bot's tab name (D-36): required, short enough to read in a row of tabs. */
-export function cleanTitle(value) {
-  const title = String(value || "").replace(/\s+/gu, " ").trim().slice(0, 40);
-  if (!title) throw new BotsError(400, "Give the conversation a name.", { code: "bots_conversation_name_missing" });
-  return title;
-}
 
 export function cleanName(value) {
   const name = String(value || "").trim().slice(0, NAME_LIMIT);
@@ -126,8 +91,8 @@ function cleanAttachments(value) {
     size: Math.max(0, Number(file?.size) || 0),
     type: String(file?.type || "").slice(0, 100),
     ...(typeof file?.text === "string" ? { text: file.text.slice(0, 200000) } : {}),
-    // Where an uploaded file was kept, so the bot can read it now and later.
-    ...(/^\/files\/(mine|shared)\/[^\0]{1,400}$/u.test(String(file?.path || "")) ? { path: String(file.path) } : {})
+    // Where an uploaded file was kept, so the bot can read it now and later: the chat's folder (R6) or the home's.
+    ...(/^\/files\/(chat|shared)\/[^\0]{1,400}$/u.test(String(file?.path || "")) ? { path: String(file.path) } : {})
   }));
 }
 

@@ -1,20 +1,23 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import test, { after, before } from "node:test";
+import { seedChat, seedMessage } from "../../support/chatFixtures.mjs";
 import { connectTestDatabase } from "../../support/testDatabase.mjs";
 import { bootServer, signUp } from "./http.mjs";
-import { addToGroup, forget, insertRows, removeFromGroup, say, seedSeat, seedTwoHomes } from "./seed.mjs";
+import { forget, seedHome } from "./seed.mjs";
 
-// Search (D-36, D-46), over HTTP: a person finds messages in their own conversations and in the home's shared
-// rooms; a group's room only while they are in the group; never another member's own chat, a member bot's computer for
-// a group, or anything of another home.
+// Search (D-36, D-46) on chats (D-112), over HTTP: a person finds messages in the home's chats they can open: every
+// Public one (a direct chat starts Public, D15) and a Private one only while they are in it; never an archived chat
+// or anything of another home, and someone outside the home is answered as a home that isn't there.
 
 let app;
 let knex;
 let pat;
 let kim;
 let sam;
-let seeded;
+let homeA;
+let homeB;
+let plans;
 // One word that only these messages hold.
 const word = `zq${randomUUID().slice(0, 8)}`;
 const found = {};
@@ -25,67 +28,63 @@ before(async () => {
   pat = await signUp(app, knex, "pat");
   kim = await signUp(app, knex, "kim");
   sam = await signUp(app, knex, "sam");
-  seeded = await seedTwoHomes(knex, { pat, kim, sam });
-  const { mine, patsSeat, general, group, other } = seeded;
-  const from = (person) => ({ id: person.id, name: person.name });
-  found.pats = await say(knex, patsSeat, `Pat's own ${word}`, { role: "user" });
-  found.kims = await say(knex, await seedSeat(knex, mine, kim.id), `Kim's own ${word}`, { role: "user" });
-  found.room = await say(knex, general, `The room's ${word}`, { role: "user", from: from(pat) });
-  found.group = await say(knex, group.room, `The group's ${word}`, { role: "user", from: from(pat) });
-  // A member bot's own computer for the group (botConversations.js groupSeatFor): a room-like row, never searched.
-  const [computer] = await insertRows(knex, "bot_conversations", {
-    bot_id: mine.id,
-    group_id: group.group.id,
-    user_id: null,
-    title: "Group",
-    created_by: pat.id
-  }, seeded.homeA.id);
-  found.computer = await say(knex, computer, `The computer's ${word}`);
-  found.kimsInB = await say(knex, await seedSeat(knex, other, kim.id), `Kim's own in B ${word}`, { role: "user" });
+  homeA = await seedHome(knex, pat.id, [kim.id]);
+  homeB = await seedHome(knex, sam.id, [kim.id]);
+  const botIn = async (home, makerId, name) => String((await knex("bots")
+    .insert({ workspace_id: home.id, made_by: makerId, name, color: "#1E86FC", library_template: "general" }).returning("id"))[0].id);
+  const chef = await botIn(homeA, pat.id, "Chef");
+  const other = await botIn(homeB, sam.id, "Other");
+  const kitchen = await seedChat(knex, { homeId: homeA.id, title: "Kitchen", people: [pat.id, kim.id], bots: [chef] });
+  plans = await seedChat(knex, { homeId: homeA.id, kind: "private", title: "Pat's plans", people: [pat.id], bots: [chef] });
+  const kimsDirect = await seedChat(knex, { homeId: homeA.id, direct: { userId: kim.id, botId: chef } });
+  const old = await seedChat(knex, { homeId: homeA.id, title: "Old", people: [pat.id, kim.id], bots: [chef] });
+  await knex("conversations").where({ id: old.id }).update({ archived_at: new Date() });
+  const kimsInB = await seedChat(knex, { homeId: homeB.id, direct: { userId: kim.id, botId: other } });
+  const say = (home, chat, text, author) => seedMessage(knex, { homeId: home.id, chatId: chat.id, body: { text }, ...author });
+  found.kitchen = await say(homeA, kitchen, `The kitchen's ${word}`, { userId: pat.id });
+  found.plans = await say(homeA, plans, `Pat's plans ${word}`, { userId: pat.id });
+  found.kims = await say(homeA, kimsDirect, `Kim's own ${word}`, { userId: kim.id });
+  found.old = await say(homeA, old, `The archived ${word}`, { userId: pat.id });
+  found.kimsInB = await say(homeB, kimsInB, `Kim's own in B ${word}`, { userId: kim.id });
 });
 
 after(async () => {
   await app?.close();
-  await forget(knex, [seeded?.homeA, seeded?.homeB], [pat, kim, sam]);
+  await forget(knex, [homeA, homeB], [pat, kim, sam]);
   await knex?.destroy();
 });
 
 async function search(person, home) {
   const answer = await person.get(`${home.url}/search?q=${encodeURIComponent(word)}`);
-  assert.equal(answer.status, 200, `${person.name}'s search: ${JSON.stringify(answer.body)}`);
+  assert.equal(answer.status, 200, JSON.stringify(answer.body));
   return answer.body;
 }
 
 const hits = (result) => result.messages.map((message) => message.id).sort();
 const expected = (...names) => names.map((name) => found[name]).sort();
 
-test("a person finds their own conversation, the home's shared room and their group's room", async () => {
-  const result = await search(pat, seeded.homeA);
-  assert.deepEqual(hits(result), expected("pats", "room", "group"));
-  const room = result.messages.find((message) => message.id === found.room);
-  assert.equal(room.conversationId, String(seeded.shared.id), "a hit names its bot as conversationId");
-  assert.equal(room.text, `The room's ${word}`);
+test("a person finds the home's Public chats, a direct chat among them, and their own Private one, never an archived one", async () => {
+  const result = await search(pat, homeA);
+  assert.deepEqual(hits(result), expected("kitchen", "plans", "kims"));
+  const kitchen = result.messages.find((message) => message.id === found.kitchen);
+  assert.deepEqual([kitchen.chatName, kitchen.chatKind, kitchen.authorName, kitchen.text], ["Kitchen", "public", "you", `The kitchen's ${word}`]);
   assert.ok(Array.isArray(result.routines) && Array.isArray(result.files));
 });
 
-test("another member finds their own conversation and the shared room, never Pat's chat or a group they are not in", async () => {
-  assert.deepEqual(hits(await search(kim, seeded.homeA)), expected("kims", "room"));
-});
-
-test("a group's room is found once the person is in the group", async () => {
-  const group = seeded.group.group;
-  await addToGroup(knex, group, kim.id, pat.id);
+test("another member finds the Public chats, never a Private chat they aren't in, until they're added to it", async () => {
+  assert.deepEqual(hits(await search(kim, homeA)), expected("kitchen", "kims"));
+  await knex("chat_people").insert({ conversation_id: plans.id, workspace_id: homeA.id, user_id: kim.id });
   try {
-    assert.deepEqual(hits(await search(kim, seeded.homeA)), expected("kims", "room", "group"));
+    assert.deepEqual(hits(await search(kim, homeA)), expected("kitchen", "plans", "kims"));
   } finally {
-    await removeFromGroup(knex, group, kim.id);
+    await knex("chat_people").where({ conversation_id: plans.id, user_id: kim.id }).del();
   }
-  assert.deepEqual(hits(await search(kim, seeded.homeA)), expected("kims", "room"), "and not once out of it");
+  assert.deepEqual(hits(await search(kim, homeA)), expected("kitchen", "kims"), "and not once out of it");
 });
 
 test("each home's search finds only that home's messages", async () => {
-  assert.deepEqual(hits(await search(kim, seeded.homeB)), expected("kimsInB"), "Kim in B finds only her chat in B");
-  assert.deepEqual(hits(await search(sam, seeded.homeB)), [], "Sam finds nothing of Kim's chat with Sam's bot");
-  const outside = await sam.get(`${seeded.homeA.url}/search?q=${encodeURIComponent(word)}`);
+  assert.deepEqual(hits(await search(kim, homeB)), expected("kimsInB"), "Kim in B finds only her chat in B");
+  assert.deepEqual(hits(await search(sam, homeB)), expected("kimsInB"), "it's Public, so Sam finds it too");
+  const outside = await sam.get(`${homeA.url}/search?q=${encodeURIComponent(word)}`);
   assert.equal(outside.status, 404, `someone outside A is answered as a home that isn't there: ${JSON.stringify(outside.body)}`);
 });
