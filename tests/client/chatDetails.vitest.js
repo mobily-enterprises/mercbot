@@ -141,6 +141,13 @@ describe("Chat details", () => {
     expect(actions(await details({ chat: KITCHEN, me: "2" }))).toEqual(["Leave chat"]);
   });
 
+  it("offers Hide from sidebar in place of Archive on a private chat, to anyone in it (plan 5.1)", async () => {
+    const secret = chatOf({ kind: "private" });
+    expect(actions(await details({ chat: secret, me: "1" }))).toEqual(["Leave chat", "Hide from sidebar", "Delete chat"]);
+    expect(actions(await details({ chat: secret, me: "2" }))).toEqual(["Leave chat", "Hide from sidebar"]);
+    expect(actions(await details({ chat: { ...secret, hidden: true }, me: "2" }))).toEqual(["Leave chat"]);
+  });
+
   it("offers them Unarchive in place of Archive on an archived chat", async () => {
     const archived = chatOf({ archivedAt: "2026-11-21T10:00:00.000Z" });
     expect(actions(await details({ chat: archived, me: "1" }))).toEqual(["Leave chat", "Unarchive", "Delete chat"]);
