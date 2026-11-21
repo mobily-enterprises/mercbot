@@ -69,7 +69,10 @@ export function createPractices({ resources, anyapi, systemContext }) {
 
   /**
    * Makes sure the copy holds `table`: the first use copies its newest records from the home, under
-   * the copy's row lock, so servers copying together copy it once.
+   * the copy's row lock, so servers copying together copy it once. Whoever waits for that lock holds a
+   * connection while it waits, so everything copying needs besides its own transaction comes first,
+   * before the lock: the home's records and the copy's AnyAPI instance. Otherwise reads of a copy just
+   * made, as many as the pool's connections, leave the one copying none, and every read hangs.
    * @param {object} practice as of() answers it
    * @param {object[]} tables the home's tables (the registry's)
    * @param {object} table
@@ -80,13 +83,17 @@ export function createPractices({ resources, anyapi, systemContext }) {
       copiedHere.add(key);
       return;
     }
+    const [records] = await Promise.all([
+      anyapi.newestRecords(practice.homeId, table),
+      anyapi.practiceFor(practice.homeId, practice.id, tables)
+    ]);
     await appPractices.withTransaction(passedOn(options), async (txOptions) => {
       const row = await appPractices.lock(practice.id, { ...txOptions, fields: ["copied"], missing: "skip" });
       if (!row) {
         throw new GateError(409, "This practice data was just reset or cleared. Reload the preview to start again.", { code: "apps_practice_gone" });
       }
       if (row.copied.includes(table.id)) return;
-      await anyapi.copyTable(practice.homeId, practice.id, tables, table, txOptions);
+      await anyapi.copyTable(practice.homeId, practice.id, tables, table, records, txOptions);
       await appPractices.patch(practice.id, { copied: [...row.copied, table.id] }, { ...txOptions, returning: "none" });
     });
     copiedHere.add(key);

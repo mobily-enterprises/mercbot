@@ -138,20 +138,21 @@ export function createAnyapi({ knex, notices, loadTables, maxInstances = 500 }) 
   const practiceFor = (workspaceId, copyId, tables) => instance(workspaceId, copyId, tables);
 
   /**
-   * Copies a table's newest PRACTICE_RECORDS records, obsolete ones too, from the home into its
-   * practice copy, in the caller's transaction (`txOptions.trx`). Records keep their ids, so links
-   * between copied records still hold; they go in oldest first, as they were made.
+   * A table's newest PRACTICE_RECORDS records, obsolete ones too, oldest first, as a practice copy takes them (D-71):
+   * by AnyAPI's row id, which grows as records are made, each with its own id, so links between copied records still
+   * hold. Read from the home's live records outside any transaction: practice.js reads them before it takes the copy's
+   * row lock, as the one holding it must need no other connection.
    */
-  async function copyTable(workspaceId, copyId, tables, table, txOptions) {
+  async function newestRecords(workspaceId, table) {
     const live = await instanceFor(workspaceId);
-    const practice = await practiceFor(workspaceId, copyId, tables);
-    // AnyAPI's own row id grows as records are made, so its order is theirs; the logical id is the record's.
     const newest = await knex("any_records")
       .where({ tenant_id: tenantOf(workspaceId), resource: table.id })
       .orderBy("id", "desc")
       .limit(PRACTICE_RECORDS)
       .pluck("logical_id");
     const ids = newest.reverse();
+    const stored = table.fields.filter((field) => !isCalculated(field));
+    const records = [];
     for (let start = 0; start < ids.length; start += PAGE_MAX) {
       const batch = ids.slice(start, start + PAGE_MAX);
       const { data } = await live.resources[table.id].query(
@@ -159,14 +160,24 @@ export function createAnyapi({ knex, notices, loadTables, maxInstances = 500 }) 
         { ids: batch, includeObsolete: true }
       );
       const byId = new Map(data.map((row) => [String(row.id), row]));
-      const rows = batch.filter((id) => byId.has(id)).map((id) => {
+      for (const id of batch.filter((each) => byId.has(each))) {
         const row = byId.get(id);
-        const stored = table.fields.filter((field) => !isCalculated(field));
-        return Object.fromEntries([["id", id], [OBSOLETE, row[OBSOLETE] ?? null], ...stored.map((field) => [field.id, row[field.id] ?? null])]);
-      });
-      if (rows.length) {
-        await practice.resources[table.id].postMany({ data: rows, returning: "minimal", transaction: txOptions.trx }, { includeObsolete: true });
+        const values = stored.map((field) => [field.id, row[field.id] ?? null]);
+        records.push(Object.fromEntries([["id", id], [OBSOLETE, row[OBSOLETE] ?? null], ...values]));
       }
+    }
+    return records;
+  }
+
+  /**
+   * Writes a table's `records` (newestRecords') into its practice copy, in the caller's transaction (`txOptions.trx`)
+   * and on its connection only. The copy's instance is the one practiceFor already built for these `tables`.
+   */
+  async function copyTable(workspaceId, copyId, tables, table, records, txOptions) {
+    const practice = await practiceFor(workspaceId, copyId, tables);
+    for (let start = 0; start < records.length; start += PAGE_MAX) {
+      const data = records.slice(start, start + PAGE_MAX);
+      await practice.resources[table.id].postMany({ data, returning: "minimal", transaction: txOptions.trx }, { includeObsolete: true });
     }
   }
 
@@ -196,6 +207,7 @@ export function createAnyapi({ knex, notices, loadTables, maxInstances = 500 }) 
   return Object.freeze({
     instanceFor,
     practiceFor,
+    newestRecords,
     copyTable,
     dropPractice,
     practiceCopies,

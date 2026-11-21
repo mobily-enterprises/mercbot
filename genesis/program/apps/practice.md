@@ -20,6 +20,10 @@ instead of the live ones, so Save works in a preview without touching the live a
   once and a removed field drops out. `ensure` copies a table the first time the copy needs it,
   under the row's lock: its newest `PRACTICE_RECORDS` (1,000) records by AnyAPI's row id, with their
   ids, so links between copied records hold. A link to a record outside them shows as missing.
+  Those records are read (`anyapi.newestRecords`) and the copy's AnyAPI instance built before the
+  lock, and only the writes (`anyapi.copyTable`) run under it: a read waiting for the lock holds a
+  connection, so the one copying must need no other, or a fresh copy read by as many as the pool
+  holds hangs them all (the views preview after Reset did).
 - The data gate takes a practice in its ctx (`ctx.practice`): reads and writes go to the copy,
   linked tables copied as needed, nothing is audited or announced, and each write is listed in
   `practice.changes`. `runtime.js` gives a draft's queries and buttons a practice, never a

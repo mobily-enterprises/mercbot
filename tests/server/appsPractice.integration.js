@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import http from "node:http";
 import test from "node:test";
+import knexLib from "knex";
 import { __testables as anyapiTestables } from "../../packages/apps/src/server/anyapi.js";
 import { createRuntime } from "../../packages/apps/src/server/runtime.js";
 import { createScripts } from "../../packages/apps/src/server/scripts.js";
@@ -10,6 +11,7 @@ import { compile } from "../../packages/apps/src/server/visitorAccess.js";
 import { createWebAccess } from "../../packages/apps/src/server/webAccess.js";
 import { appsHome, appsParts } from "../support/appsHome.mjs";
 import { cleanupStack } from "../support/cleanupStack.mjs";
+import { testDatabaseConfig } from "../support/testDatabase.mjs";
 
 // Practice data for draft previews (D-71, owner 2026-11-11): a draft's preview, and the Builder trying it, read and
 // write a copy of the home's newest records. Save, Edit and scripts work there as in the live app; nothing reaches the
@@ -270,4 +272,31 @@ test("a draft preview works on practice data, and nothing reaches the live app",
   const fresh = await using;
   assert.notEqual(fresh.id, swept.id);
   assert.equal((await practiceRow()).id, fresh.id);
+});
+
+test("reads of a copy Reset has just made, more at once than the pool has connections, all get its records", async (context) => {
+  // The server's pool, made small: 3 connections, and a read waits at most 5 s for one. Each read first makes sure the
+  // copy has its table (ensure): one copies it while holding the copy's row lock, and the others wait for that lock
+  // holding a connection each, so copying must need no connection but its own, or nothing is left for it.
+  const knex = knexLib({ ...(await testDatabaseConfig()), pool: { min: 0, max: 3 }, acquireConnectionTimeout: 5000 });
+  const cleanup = cleanupStack(context);
+  cleanup.after(() => knex.destroy());
+  const home = await appsHome(cleanup, { slug: "apps-practice-pool", knex });
+  const { userId, workspaceId, options } = home;
+  const { registry, gate, apps, practices } = appsParts(home);
+  const person = { type: "person", id: userId, name: "Pat" };
+  await registry.createTable(person, { key: "contacts", fields: [{ key: "name", type: "text", required: true }] }, options);
+  for (const name of ["Ana Ruiz", "Ben Okafor", "Carla Mendes"]) await gate.create(home.ctx(person), "contacts", { name });
+  await apps.createApp(person, { name: "CRM" }, options);
+  const screen = { data: { all: { from: "contacts", sort: "name" } }, content: [{ type: "table", rows: "=data.all", columns: [{ label: "Name", value: "=row.name" }] }] };
+  assert.deepEqual((await apps.saveDraft(person, "crm", { home: "people", screens: { people: screen } }, "v1", options)).errors, []);
+  const app = await apps.find("crm", options);
+  // The live app read once, as the preview had: the registry's tables and the home's own instance are ready.
+  assert.equal((await gate.read(home.ctx(person), "contacts")).total, 3);
+
+  const copy = await practices.reset(app, app.draftVersionId, options);
+  const reads = await Promise.allSettled(Array.from({ length: 8 }, () => gate.read({ ...home.ctx(person), practice: copy }, "contacts")));
+  assert.deepEqual(reads.map((read) => (read.status === "fulfilled" ? read.value.total : String(read.reason?.message))), Array(8).fill(3));
+  const copied = await knex("any_records").where({ tenant_id: practiceTenantOf(workspaceId, copy.id) }).count("* as n").first();
+  assert.equal(Number(copied.n), 3, "copied once");
 });
