@@ -1,74 +1,86 @@
 {
-  "about": "Mercbot's teams (D-105): a ready-made bundle of the library's templates for one situation, which Add a team makes into bots together, in a section named after the team. Each team has an id (lowercase words joined by -), a name, a one-line description and its templates' slugs, in the order the team screen lists them. Every slug must be a template in this folder, once per team; Mercbot checks this file when it starts (packages/bots/src/server/teams.js) and the static checks run it too (tests/server/teams.test.js). This file is not a template.",
+  "about": "Mercbot's teams (D-105): a ready-made bundle of the library's templates for one situation, which Add a team makes into bots together, in a section named after the team. Each team has an id (lowercase words joined by -), what it's for (\"home\", for home and life, or \"work\"; Add bots lists them under those two headings, D-109), a name, a one-line description and its templates' slugs, in the order the team screen lists them. Every slug must be a template in this folder, once per team; Mercbot checks this file when it starts (packages/bots/src/server/teams.js) and the static checks run it too (tests/server/teams.test.js). This file is not a template.",
   "teams": [
     {
       "id": "family-home",
+      "for": "home",
       "name": "Busy household",
       "description": "Chores, meals, the children's activities and school admin, bills and home repairs, for the whole household.",
       "templates": ["family-chores-rota", "weekly-meal-planner", "kids-activities-planner", "school-admin-helper", "household-bills-tracker", "home-maintenance-log"]
     },
     {
       "id": "just-me",
+      "for": "home",
       "name": "Personal life",
       "description": "Your habits, money, language practice, plants and job search: helpers for your own life.",
       "templates": ["habit-tracker", "money-check-in", "language-practice-partner", "plant-care", "job-search-helper"]
     },
     {
       "id": "front-desk",
+      "for": "work",
       "name": "Local service business",
       "description": "For a salon, a plumber, a clinic…: answers enquiries, books appointments, writes quotes, follows up customers and reviews, keeps receipts.",
       "templates": ["website-enquiries", "appointment-bookings", "quote-writer", "customer-follow-up", "review-replies", "receipts-and-invoices"]
     },
     {
       "id": "shop",
+      "for": "work",
       "name": "Small shop",
       "description": "Keeps an eye on stock, plans social posts, answers reviews, tidies receipts and follows up customers.",
       "templates": ["shop-stock-keeper", "social-post-calendar", "review-replies", "receipts-and-invoices", "customer-follow-up"]
     },
     {
       "id": "marketing",
+      "for": "work",
       "name": "Marketing team",
       "description": "Plans social posts, writes blog articles and newsletters, watches your brand and competitors, and keeps your voice.",
       "templates": ["social-post-calendar", "blog-article-desk", "newsletter-writer", "brand-mention-digest", "competitor-watch", "brand-voice-editor"]
     },
     {
       "id": "sales",
+      "for": "work",
       "name": "Sales team",
       "description": "Researches prospects, prepares calls, writes proposals, follows up deals and watches renewals.",
       "templates": ["prospect-research", "sales-call-prep", "proposal-writer", "deal-follow-ups", "renewal-watch"]
     },
     {
       "id": "software",
+      "for": "work",
       "name": "Software company",
       "description": "Triages bugs, sums up pull requests, looks into failed builds, hands over on-call and writes release notes.",
       "templates": ["bug-triage-helper", "pull-request-digest", "failed-build-investigator", "on-call-handover", "release-notes-writer"]
     },
     {
       "id": "product-design",
+      "for": "work",
       "name": "Design studio",
       "description": "Critiques designs, writes interface words, checks accessibility, keeps your voice and polishes presentations.",
       "templates": ["design-critique", "ux-copy-writer", "accessibility-checker", "brand-voice-editor", "presentation-polisher"]
     },
     {
       "id": "people",
+      "for": "work",
       "name": "Growing team (hiring)",
       "description": "Writes job adverts, coordinates hiring, welcomes new starters, tracks time off and runs team check-ins.",
       "templates": ["job-description-writer", "recruiting-coordinator", "new-starter-onboarding", "time-off-tracker", "team-check-in"]
     },
     {
       "id": "back-office",
+      "for": "work",
       "name": "Office manager",
       "description": "Meeting recaps, the weekly numbers, expense receipts, supplier contracts and stock reorders.",
       "templates": ["meeting-recap-writer", "weekly-kpi-report", "expense-receipt-tidy", "supplier-contract-tracker", "stock-reorder-planner"]
     },
     {
       "id": "founder",
+      "for": "work",
       "name": "Startup founder",
       "description": "The weekly numbers, meeting recaps, prospects, social posts, pull requests and supplier contracts, for a founder doing it all.",
       "templates": ["weekly-kpi-report", "meeting-recap-writer", "prospect-research", "social-post-calendar", "pull-request-digest", "supplier-contract-tracker"]
     },
     {
       "id": "consultancy",
+      "for": "work",
       "name": "Consultancy",
       "description": "Researches prospects, prepares calls, writes proposals and recaps, polishes decks, follows up deals and keeps the invoices.",
       "templates": ["prospect-research", "sales-call-prep", "proposal-writer", "meeting-recap-writer", "presentation-polisher", "deal-follow-ups", "receipts-and-invoices"]

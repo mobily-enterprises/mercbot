@@ -190,7 +190,7 @@ Press **Ctrl+/** to see this list in Mercbot. On a Mac, Cmd works in place of Ct
 | Action | Keys |
 | --- | --- |
 | Search | Ctrl+K or Ctrl+Shift+F |
-| New bot | Ctrl+Alt+N |
+| Add bots | Ctrl+Alt+N |
 | New group chat | Ctrl+Alt+G |
 | Send message | Enter (Shift+Enter adds a new line) |
 | Go to a bot by its place in the sidebar | Ctrl+Alt+1 to 9 |

@@ -74,7 +74,7 @@ chat that opens a viewer with a download. Bots also write pages (an invitation,
 a plan, a guide) that open in place of the chat; the person can publish a
 page to their own website, a folder a web server already serves or
 S3-compatible storage, set up once in Settings → Website, which shows the page without its scripts. A bot's files are its own unless it
-shares them with all the person's bots. Each bot has its own expressive avatar. People create more bots with New bot, choosing a name, shape and colour; each
+shares them with all the person's bots. Each bot has its own expressive avatar. People add more bots with Add bots: they describe what they need and check the bots Mercbot suggests, or choose one bot, with a name, shape and colour, or a ready-made team; each
 new bot greets them and asks what to help with first. Connect apps lists the integrations Mercbot offers by category, with search;
 people can add or remove them and see which still need signing in, and manage
 the private skills their bots have made. The Details panel

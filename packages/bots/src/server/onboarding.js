@@ -2,7 +2,6 @@
 // the client waits the step's delay, then asks the server to advance.
 import { writeFirstQuestion, writeGreeting } from "./botWriting.js";
 import { isModelFailure, modelFailure } from "./modelFailures.js";
-import { TEAMS } from "./teams.js";
 
 export const DEFAULT_BOT_NAME = "Mercbot";
 export const DEFAULT_BOT_COLOR = "#1C1C1C";
@@ -40,18 +39,20 @@ const homeDefaultCard = () => ({
   }
 });
 
-// A new home's first conversation offers a team (D-105), once the home's default for new bots is settled, while the home
-// has no bot but its main one: the teams by name, and NO_TEAM. Choosing one opens the team screen, where nothing is added
-// until the person says so; typing instead skips it, as for the home's default.
-const NO_TEAM = "Not now";
+// A new home's first conversation offers bots to start with (D-105, D-109), once the home's default for new bots is
+// settled, while the home has no bot but its main one: SHOW_TEAMS opens Add bots on its ready-made teams, where nothing
+// is added until the person says so; NO_TEAM, or typing instead, skips it, as for the home's default. The teams
+// themselves are never listed in the chat.
+export const SHOW_TEAMS = "Show me ready-made teams";
+export const NO_TEAM = "Not now";
 const teamCard = () => ({
   kind: "choice",
   role: "bot",
   body: {
     purpose: "team",
-    question: "Want a ready-made team?",
-    options: [...TEAMS.map((team) => team.name), NO_TEAM],
-    subline: "A few bots that work well together, in their own section. Pick one to see them first, or just type to skip.",
+    question: "Want a few bots to start with?",
+    options: [SHOW_TEAMS, NO_TEAM],
+    subline: "Ready-made teams of bots that work well together. You see them before anything is added, or just type to skip.",
     chosen: null
   }
 });

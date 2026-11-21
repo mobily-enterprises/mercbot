@@ -62,9 +62,8 @@ shell-web's Up arrow first in their own top bar, which an app makes its close (D
 or a page's close (`useShellPageClose`) where it has one, as an app's.
 In-app links are resolved by `usePaths().page()`. The switcher at
 the top of the sidebar lists the person's homes with their role, and Create a home opens New home
-(`MercbotNewHomeDialog.vue`): what the home is for, as Mercbot's teams or Something else (D-105, Bot templates), its
-name, and "Who's it for?" (Just me, preselected, or Me and other people), which sets the new home's default for new
-bots, Mixed or Shared (D-100, `homeDefault.js` `makeHome`). A person with
+(`MercbotNewHomeDialog.vue`): only its name (D-109); the new home gets the default for new bots it always started
+with, Mixed (D-100, `homeDefault.js` `makeHome`), and opens on Mercbot. A person with
 no bots sees the intro slides and a short transition while their first bot is
 created; everyone else lands in the Mercbot shell on their bots and saved
 conversations. The client waits each onboarding step's delay, then asks the
@@ -96,11 +95,11 @@ eyes; the cloud never moves and the eyes never blink: only the irises glance
 around inside them. The home's Builder alone wears a propeller beanie. The
 favicon, Mercbot's logo, is its own orange cloud.
 
-New bot opens from the sidebar, the rail, Ctrl+Alt+N or the search
-palette, or from a template's link (`?template=`, with that template chosen):
-first "What will it do?" (the General helper, the home's templates, Mercbot's
-library, or Make a new template on the draft screen; D-98), a chosen template
-shown whole, then a live preview, a name, 28 clouds plus Mercbot's own
+Add bots (D-109, which was New bot) opens from the sidebar, the rail, Ctrl+Alt+N or the search
+palette, or from a template's link (`?template=`, with that template chosen): Describe what you need (Suggested bots,
+Bot templates), or choose yourself, One bot or A ready-made team. One bot asks "What will it do?" (the General
+helper, the home's templates, Mercbot's library with an Area menu, and Describe the bot you need when nothing fits;
+D-98), a chosen template shown whole, then a live preview, a name, 28 clouds plus Mercbot's own
 fixed-orange cloud and the 11-colour palette (random on open, preferring a
 colour and cloud no bot in the home has; a library template's own to start). Creating shows a
 placeholder row, then opens the new bot. Question cards can be multi-select with

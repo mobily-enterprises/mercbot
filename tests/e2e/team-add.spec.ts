@@ -1,9 +1,10 @@
 import knexLib from "knex";
 import { expect, test, testDatabaseName, type Locator, type Page, type TestInfo } from "./harness";
 
-// New bot's Add a team (D-105) as a person meets it, on the Test Preview target, in a home of the test's own. At the foot
-// of what New bot's bot will do, Add a team lists the teams on the cards New home shows; Small shop shows its five bots,
-// all ticked, and adds the three left ticked in a Small shop section, in the team's order, with the first of them open.
+// Add bots' A ready-made team (D-105, D-109) as a person meets it, on the Test Preview target, in a home of the test's
+// own. Add bots opens on its two ways to choose; A ready-made team lists the teams under For home and life and For
+// work; Small shop shows its five bots, all ticked, and adds the three left ticked in a Small shop section, in the
+// team's order, with the first of them open.
 // Opened again, Small shop says which three are already in this home and adds only the other two. Screenshots light,
 // dark and phone. The test deletes the home it makes.
 // Run with: vibe64-helper playwright --target test-app test tests/e2e/team-add.spec.ts
@@ -25,7 +26,7 @@ async function pastIntro(page: Page) {
 const sidebar = (page: Page) => page.getByRole("navigation", { name: "Bots" });
 const section = (page: Page, name: string) =>
   sidebar(page).locator("section.mb-group").filter({ has: page.locator(".mb-header__label", { hasText: new RegExp(`^${name}$`, "u") }) });
-const newBotDialog = (page: Page) => page.getByRole("dialog", { name: "New bot" });
+const addBotsDialog = (page: Page) => page.getByRole("dialog", { name: "Add bots" });
 const appsRead = (page: Page) => page.waitForResponse((response) => new URL(response.url()).pathname.endsWith("/apps-templates"));
 const teamAdded = (page: Page) =>
   page.waitForResponse((response) => response.request().method() === "POST" && /\/teams\/shop$/u.test(new URL(response.url()).pathname));
@@ -55,16 +56,16 @@ async function noApps(dialog: Locator, read: Promise<unknown>) {
   for (const box of await dialog.getByRole("checkbox", { name: /^Also set up its .+ app/u }).all()) await box.uncheck();
 }
 
-/** New bot → Add a team: the list of teams. */
+/** Add bots → A ready-made team: the list of teams. */
 async function openTeams(page: Page) {
-  await sidebar(page).getByRole("button", { name: "New bot", exact: true }).click();
-  const dialog = newBotDialog(page);
-  await dialog.getByRole("button", { name: /^Add a team/u }).click();
-  await expect(dialog.getByRole("heading", { name: "Add a team" })).toBeVisible();
+  await sidebar(page).getByRole("button", { name: "Add bots", exact: true }).click();
+  const dialog = addBotsDialog(page);
+  await dialog.getByRole("button", { name: /^A ready-made team/u }).click();
+  await expect(dialog.getByRole("heading", { name: "A ready-made team" })).toBeVisible();
   return dialog;
 }
 
-test("Add a team adds the bots ticked in the team's order, and only the bots the home hasn't got", async ({ page }, testInfo) => {
+test("A ready-made team adds the bots ticked in the team's order, and only the bots the home hasn't got", async ({ page }, testInfo) => {
   const knex = connect();
   let homeId = "";
   try {
@@ -80,8 +81,13 @@ test("Add a team adds the bots ticked in the team's order, and only the bots the
     await pastIntro(page);
 
     const dialog = await openTeams(page);
-    await expect(dialog.getByRole("button", { name: /^Small shop/u })).toBeVisible();
-    await expect(dialog.getByRole("button", { name: /^Something else/u }), "New home's own card").toHaveCount(0);
+    // Two for home and life, then the ten for work (D-109).
+    const forHome = dialog.getByRole("region", { name: "For home and life" });
+    const forWork = dialog.getByRole("region", { name: "For work" });
+    await expect(forHome.getByRole("heading", { name: "For home and life" })).toBeVisible();
+    await expect(forHome.locator(".mb-team__choice strong")).toHaveText(["Busy household", "Personal life"]);
+    await expect(forWork.locator(".mb-team__choice")).toHaveCount(10);
+    await expect(forWork.getByRole("button", { name: /^Small shop/u })).toBeVisible();
     await shots(page, testInfo, "add-a-team-list");
 
     const shopApps = appsRead(page);

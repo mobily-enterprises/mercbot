@@ -23,7 +23,7 @@ The first time you open Mercbot, three short slides introduce it. Then your firs
 2. It asks you to pick a name for it. Choose one of its suggestions. The new name shows everywhere at once, and you can rename it later.
 3. It explains how it works and offers to connect your email. You can do that now with the card in the chat, or skip it and just tell the bot what you need.
 
-This first bot is your main bot. You can create more later with **New bot** in the sidebar.
+This first bot is your main bot. You can add more later with **Add bots** in the sidebar: describe what you need, or choose a bot or a ready-made team yourself.
 
 ## 3. Give it a first job
 

@@ -7,8 +7,7 @@ import { sendSednaMessage } from "./sednaActions.js";
 import { SednaUncertainError } from "./sednaApi.js";
 import { BotsError } from "./botsError.js";
 import { toBot } from "./botRows.js";
-import { HOME_DEFAULT_ANSWERS } from "./onboarding.js";
-import { teamNamed } from "./teams.js";
+import { HOME_DEFAULT_ANSWERS, NO_TEAM } from "./onboarding.js";
 
 /**
  * The person's answers on the cards a bot posts (D-46): a question or approval, a hand-over, a secure
@@ -61,7 +60,7 @@ export function createBotCards({ records, account, env, computer, integrations, 
         const next = (await newBots.anyBesidesMain(txOptions)) ? "about" : "team-offer";
         if (row.onboarding_step === "home-default") update.onboarding_step = next;
       }
-      // A team (D-105): the conversation carries on, and the page opens the team screen for the one chosen.
+      // Bots to start with (D-105, D-109): the conversation carries on, and the page opens Add bots on its teams.
       if (choice.body.purpose === "team" && row.onboarding_step === "team") update.onboarding_step = "about";
       const updated = await messages.setBody(choice.id, { ...choice.body, chosen: choice.body.multi ? picks : picks[0] }, txOptions);
       if (choice.body.purpose === "first-task") update.onboarding_step = null;
@@ -108,7 +107,7 @@ export function createBotCards({ records, account, env, computer, integrations, 
     if (choice.body.purpose === "approval" && choice.body.requestId) await requests.approvalAnswered(choice.body.requestId, options);
     const bot = toBot(await conversations.refresh(row, options));
     if (choice.body.purpose === "home-default") return { bot, messages: [updated, ...results], home: await homeDefaults.asSeen(options) };
-    if (choice.body.purpose === "team") return { bot, messages: [updated, ...results], team: teamNamed(picks[0])?.id ?? null };
+    if (choice.body.purpose === "team") return { bot, messages: [updated, ...results], addBots: picks[0] === NO_TEAM ? null : "teams" };
     return { bot, messages: [updated, ...results] };
   }
 

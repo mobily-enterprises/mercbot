@@ -1,6 +1,6 @@
-/* New bot (MercbotNewBotDialog.vue): Change template's frame and steps (MercbotChangeTemplateDialog.css), with what it
-   will do above the templates, Add a team and Make a new template at their foot, and the name, cloud and colour as their
-   own step. */
+/* Add bots (MercbotNewBotDialog.vue): Change template's frame and steps (MercbotChangeTemplateDialog.css), opening on
+   Describe what you need and its two ways to choose yourself, then One bot's question above the templates and Describe
+   the bot you need at their foot, and the name, cloud and colour as their own step. */
 .mb-newbot__question {
   flex: none;
   margin: 0 var(--mb-tbrowse-gutter) 12px;
@@ -8,9 +8,79 @@
   font-weight: 600;
 }
 
-/* Mercbot's General helper, first: the quick all-round choice; Add a team, last (D-105). */
-.mb-newbot__lead,
-.mb-newbot__team {
+/* Between Describe what you need and the two ways to choose yourself. */
+.mb-newbot__or {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 20px 0 12px;
+  font-size: 13px;
+  color: rgb(var(--v-theme-on-surface-variant));
+}
+
+.mb-newbot__or::before,
+.mb-newbot__or::after {
+  flex: 1;
+  height: 1px;
+  background: rgb(var(--v-theme-outline-variant));
+  content: "";
+}
+
+.mb-newbot__back {
+  flex: none;
+  align-self: flex-start;
+  margin: 0 var(--mb-tbrowse-gutter) 8px;
+}
+
+/* One bot and A ready-made team, side by side; stacked on a phone. */
+.mb-newbot__ways {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.mb-newbot__way {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  min-height: 132px;
+  padding: 16px;
+  border: 1px solid rgb(var(--v-theme-outline-variant));
+  border-radius: 16px;
+  background: transparent;
+  font: inherit;
+  font-size: 13px;
+  line-height: 18px;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.mb-newbot__way strong {
+  margin-top: 4px;
+  font-size: 15px;
+}
+
+.mb-newbot__way span:last-child {
+  color: rgb(var(--v-theme-on-surface-variant));
+}
+
+.mb-newbot__way:hover,
+.mb-newbot__way:focus-visible {
+  background: rgb(var(--v-theme-surface-container-low));
+  outline: none;
+}
+
+.mb-newbot__way-faces {
+  display: flex;
+  gap: 2px;
+  height: 40px;
+  align-items: center;
+}
+
+/* Mercbot's General helper, first: the quick all-round choice. */
+.mb-newbot__lead {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -26,14 +96,8 @@
   cursor: pointer;
 }
 
-.mb-newbot__team {
-  margin: 16px 0 0;
-}
-
 .mb-newbot__lead:hover,
-.mb-newbot__lead:focus-visible,
-.mb-newbot__team:hover,
-.mb-newbot__team:focus-visible {
+.mb-newbot__lead:focus-visible {
   background: rgb(var(--v-theme-surface-container-low));
   outline: none;
 }

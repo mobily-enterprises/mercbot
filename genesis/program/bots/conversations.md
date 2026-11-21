@@ -316,10 +316,10 @@ Sharing (D-36, D-99, D-101):
   step `home-default` waits for the answer (`answerChoice` sets the default and moves on to `team-offer`, or to `about`
   once the home has a bot besides its main one, answering `home` too, and the page asks no reply) or for a typed
   message (the card closes, unchosen). Then, while the home has no bot but its main one, a `choice` card with purpose
-  `team` offers Mercbot's teams (D-105: "Want a ready-made team?", the teams by name and Not now), at `rename` when
-  the default is chosen already or at `team-offer`; its step `team` waits, `answerChoice` moves on to `about` and
-  answers `team` (the team's id, or null), which opens New bot on that team's screen (`useChatActions.js`
-  `openTeam`), and typing past it skips it. The page keeps it in
+  `team` asks "Want a few bots to start with?" with Show me ready-made teams and Not now (D-105, D-109), at `rename`
+  when the default is chosen already or at `team-offer`; its step `team` waits, `answerChoice` moves on to `about` and
+  answers `addBots`: `"teams"` for any pick but Not now (a team's name on a card from before too), which opens Add bots
+  on its teams (`useChatActions.js` via `useNewBot.js` `openTeams`), or null; typing past it skips it. The page keeps it in
   `homeDefault.js` (`homeDefault`, set by the list's read): the sidebar's `MercbotTeamQuestion.vue` above the list,
   read again on `homeChanges`, and New home and Settings → General (`chooseHomeDefault`, `makeHome`,
   `chooseHere`, `readHere`).

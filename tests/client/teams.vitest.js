@@ -2,15 +2,15 @@ import { computed, ref } from "vue";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ONBOARDING_TIMING } from "../../src/components/mercbot/botsApi.js";
 import { setCurrentHome } from "../../src/components/mercbot/homeApi.js";
-import { addChosenBots, addLabel, appsFor, botsToAdd, choiceOf, homeQuery, nameFor, newHomeLabel } from "../../src/components/mercbot/teamChoice.js";
+import { addLabel, appsFor, botsToAdd, teamGroups } from "../../src/components/mercbot/teamChoice.js";
 import { useChatActions } from "../../src/components/mercbot/useChatActions.js";
 import { useNewBot } from "../../src/components/mercbot/useNewBot.js";
 
-// Teams (D-105) on the page: the team screen adds the bots ticked that the home hasn't got and sets up each app asked
-// for once; New home names a home after its team until the person types a name, and its action counts the bots ticked;
-// a home made for a team gets the bots ticked and the apps asked for, carried in its address; Add N bots puts the list and its sections as the server answers them and opens the first new bot; and the
-// first conversation's team card opens that team's screen without asking the bot for a reply. The routes are a
-// stand-in that records each call and answers what the server would.
+// Teams (D-105) on the page: the team screen lists the teams under For home and life and For work (D-109), adds the bots
+// ticked that the home hasn't got and sets up each app asked for once; Add N bots, a team's or a suggestion's (D-109),
+// puts the list and its sections as the server answers them and opens the first new bot; and the first conversation's card opens Add bots on its teams
+// without asking the bot for a reply. The routes are a stand-in that records each call and answers what the server
+// would.
 const calls = vi.hoisted(() => []);
 const answers = vi.hoisted(() => ({ byUrl: new Map(), fail: null }));
 vi.mock("@jskit-ai/http-runtime/client", () => ({
@@ -60,36 +60,14 @@ describe("the team screen", () => {
   });
 });
 
-describe("New home", () => {
-  it("names the home after its team until the person types a name of their own", () => {
-    const family = { name: "Busy household" };
-    const office = { name: "Office manager" };
-    expect(nameFor("", null, family)).toBe("Busy household");
-    expect(nameFor("Busy household", family, office)).toBe("Office manager");
-    expect(nameFor("Office manager", office, null), "Something else clears the team's name").toBe("");
-    expect(nameFor("The Smiths", family, office), "a name typed stays").toBe("The Smiths");
-    expect(nameFor("   ", null, office)).toBe("Office manager");
-  });
-
-  it("says Create home with as many bots as are ticked", () => {
-    expect([newHomeLabel(6, false), newHomeLabel(1, false), newHomeLabel(5, true)]).toEqual(["Create home with 6 bots", "Create home with 1 bot", "Creating…"]);
-  });
-
-  it("carries the team, its bots ticked and the apps asked for to the new home, which adds them, and says what didn't go", async () => {
-    const choice = { teamId: "shop", name: "Small shop", templates: ["shop-stock-keeper", "review-replies"], apps: [{ key: "stock", name: "Stock" }] };
-    const query = homeQuery(choice);
-    expect(query).toEqual({ team: "shop", bots: "shop-stock-keeper,review-replies", apps: "stock" });
-    expect(homeQuery({ ...choice, apps: [] })).toEqual({ team: "shop", bots: "shop-stock-keeper,review-replies" });
-    expect(choiceOf(query)).toEqual({ teamId: "shop", templates: ["shop-stock-keeper", "review-replies"], apps: ["stock"] });
-    expect([choiceOf({ team: "shop" }), choiceOf({})], "a team alone opens its screen instead").toEqual([null, null]);
-
-    expect(await addChosenBots(choiceOf(query))).toEqual({ added: true, appsFailed: [] });
-    expect(calls).toEqual([
-      ["POST", "/api/w/casa/teams/shop", { templates: ["shop-stock-keeper", "review-replies"] }],
-      ["POST", "/api/w/casa/apps-templates/stock/install", { sample: false }]
+describe("the list of teams", () => {
+  it("lists the teams for home and life, then those for work, each in the gallery's order, and no empty heading", () => {
+    const teams = [{ id: "family-home", for: "home" }, { id: "shop", for: "work" }, { id: "just-me", for: "home" }, { id: "sales", for: "work" }];
+    expect(teamGroups(teams).map((group) => [group.name, group.teams.map((team) => team.id)])).toEqual([
+      ["For home and life", ["family-home", "just-me"]],
+      ["For work", ["shop", "sales"]]
     ]);
-    answers.fail = Object.assign(new Error("Network request failed."), { status: 0 });
-    expect(await addChosenBots(choiceOf(query))).toEqual({ added: false, appsFailed: [] });
+    expect(teamGroups(teams.filter((team) => team.for === "work")).map((group) => group.name)).toEqual(["For work"]);
   });
 });
 
@@ -109,8 +87,8 @@ describe("Add N bots", () => {
     const listed = { bots: [{ id: "1" }, { id: "8" }, { id: "9" }], sections: [{ id: "3", name: "Small shop" }], added: ["8", "9"], skipped: ["social-post-calendar"], sectionId: "3" };
     answers.byUrl.set("POST /api/w/casa/teams/shop", listed);
     const { made, done, sections, picker } = newBot();
-    made.openTeam("shop");
-    expect([made.newBotOpen.value, made.newBotTeam.value]).toEqual([true, "shop"]);
+    made.openTeams();
+    expect([made.newBotOpen.value, made.newBotScreen.value]).toEqual([true, "teams"]);
     await made.addTeam({ teamId: "shop", name: "Small shop", templates: ["shop-stock-keeper", "review-replies"], apps: [{ key: "stock", name: "Stock" }] });
     expect(calls).toEqual([
       ["POST", "/api/w/casa/teams/shop", { templates: ["shop-stock-keeper", "review-replies"] }],
@@ -125,9 +103,28 @@ describe("Add N bots", () => {
     ]);
   });
 
+  it("adds a suggestion's bots ticked in the section named, and says a new template's problems when it's refused (D-109)", async () => {
+    const listed = { bots: [{ id: "1" }, { id: "8" }, { id: "9" }], sections: [{ id: "4", name: "Shop" }], added: ["8", "9"], skipped: [], sectionId: "4" };
+    answers.byUrl.set("POST /api/w/casa/bots/batch", listed);
+    const { made, done, sections } = newBot();
+    made.openNewBot();
+    const chosen = [{ library: "shop-stock-keeper" }, { draft: { tag: "rota" }, name: "Rota", shape: "storm", color: "#F59312" }];
+    await made.addBots({ section: "Shop", bots: chosen, apps: [] });
+    expect(calls).toEqual([["POST", "/api/w/casa/bots/batch", { section: "Shop", bots: chosen }]]);
+    expect([sections.value, made.newBotOpen.value, done.selected, done.notes]).toEqual([listed.sections, false, ["8"], ["2 bots added to Shop."]]);
+
+    made.openNewBot();
+    answers.fail = Object.assign(new Error("The template isn't ready to save: tag: Another template already has this tag."), { status: 422 });
+    await made.addBots({ section: "Shop", bots: chosen, apps: [] });
+    expect([made.newBotOpen.value, made.createError.value]).toEqual([true, "The template isn't ready to save: tag: Another template already has this tag."]);
+    answers.fail = Object.assign(new Error("Network request failed."), { status: 0 });
+    await made.addBots({ section: "Shop", bots: chosen, apps: [] });
+    expect(made.createError.value).toBe("The bots couldn't be added. Try again.");
+  });
+
   it("keeps the screen open with the server's words when every bot chosen is there already, and its own otherwise", async () => {
     const { made, done } = newBot();
-    made.openTeam("shop");
+    made.openTeams();
     answers.fail = Object.assign(new Error("Every bot you chose is already in this home."), { status: 409 });
     await made.addTeam({ teamId: "shop", name: "Small shop", templates: ["review-replies"] });
     expect([made.newBotOpen.value, made.createError.value, made.creating.value]).toEqual([true, "Every bot you chose is already in this home.", false]);
@@ -138,8 +135,8 @@ describe("Add N bots", () => {
   });
 });
 
-describe("the first conversation's team card", () => {
-  it("opens the team chosen on its screen and asks the bot for no reply; Not now carries on", async () => {
+describe("the first conversation's card", () => {
+  it("opens Add bots on its teams and asks the bot for no reply; Not now carries on", async () => {
     const opened = [];
     const replies = [];
     const actions = useChatActions({
@@ -150,14 +147,14 @@ describe("the first conversation's team card", () => {
       work: { playMood: () => {}, requestReply: async (botId) => replies.push(botId), describeWork: () => {} },
       reportFailure: () => {},
       notify: () => {},
-      openTeam: (teamId) => opened.push(teamId)
+      openTeams: () => opened.push("teams")
     });
     const card = { id: "40" };
-    answers.byUrl.set("POST /api/w/casa/bots/1/choices/40", { bot: { id: "1", onboardingStep: "about" }, messages: [], team: "family-home" });
-    await actions.answerChoice({ message: card, selected: ["Busy household"] });
-    answers.byUrl.set("POST /api/w/casa/bots/1/choices/40", { bot: { id: "1", onboardingStep: "about" }, messages: [], team: null });
+    answers.byUrl.set("POST /api/w/casa/bots/1/choices/40", { bot: { id: "1", onboardingStep: "about" }, messages: [], addBots: "teams" });
+    await actions.answerChoice({ message: card, selected: ["Show me ready-made teams"] });
+    answers.byUrl.set("POST /api/w/casa/bots/1/choices/40", { bot: { id: "1", onboardingStep: "about" }, messages: [], addBots: null });
     await actions.answerChoice({ message: card, selected: ["Not now"] });
-    expect([opened, replies]).toEqual([["family-home"], []]);
+    expect([opened, replies]).toEqual([["teams"], []]);
     expect(ONBOARDING_TIMING["team-offer"], "the card's step runs on its own, as the home's default's does").toBeTruthy();
   });
 });

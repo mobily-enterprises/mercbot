@@ -26,28 +26,29 @@ test("a team naming a template the library hasn't got, or one twice, is refused,
     "family-home: another team has its id",
     "family-home: another team has its name"
   ]);
-  assert.deepEqual(teamProblems([{ id: "Shop!", name: "", description: "Two\nlines", templates: [] }], GALLERY), [
+  assert.deepEqual(teamProblems([{ id: "Shop!", for: "play", name: "", description: "Two\nlines", templates: [] }], GALLERY), [
     "Shop!: id, lowercase words joined by -",
+    "Shop!: for, one of home or work",
     "Shop!: name, up to 40 characters",
     "Shop!: description, one line of up to 160 characters",
     "Shop!: templates, one or more of the library's"
   ]);
 });
 
-test("the teams are the twelve decided, each named for its situation, in order", () => {
-  assert.deepEqual(TEAMS.map((team) => [team.id, team.name, team.templates.length]), [
-    ["family-home", "Busy household", 6],
-    ["just-me", "Personal life", 5],
-    ["front-desk", "Local service business", 6],
-    ["shop", "Small shop", 5],
-    ["marketing", "Marketing team", 6],
-    ["sales", "Sales team", 5],
-    ["software", "Software company", 5],
-    ["product-design", "Design studio", 5],
-    ["people", "Growing team (hiring)", 5],
-    ["back-office", "Office manager", 5],
-    ["founder", "Startup founder", 6],
-    ["consultancy", "Consultancy", 7]
+test("the teams are the twelve decided, each named for its situation, in order, two for home and life (D-109)", () => {
+  assert.deepEqual(TEAMS.map((team) => [team.id, team.for, team.name, team.templates.length]), [
+    ["family-home", "home", "Busy household", 6],
+    ["just-me", "home", "Personal life", 5],
+    ["front-desk", "work", "Local service business", 6],
+    ["shop", "work", "Small shop", 5],
+    ["marketing", "work", "Marketing team", 6],
+    ["sales", "work", "Sales team", 5],
+    ["software", "work", "Software company", 5],
+    ["product-design", "work", "Design studio", 5],
+    ["people", "work", "Growing team (hiring)", 5],
+    ["back-office", "work", "Office manager", 5],
+    ["founder", "work", "Startup founder", 6],
+    ["consultancy", "work", "Consultancy", 7]
   ]);
   assert.deepEqual(TEAMS.find((team) => team.id === "consultancy").templates, [
     "prospect-research", "sales-call-prep", "proposal-writer", "meeting-recap-writer", "presentation-polisher", "deal-follow-ups",

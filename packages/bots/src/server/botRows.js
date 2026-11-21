@@ -111,6 +111,8 @@ const SHAPES = new Set([
   "hail", "sleet", "fog", "rainbow", "sunny", "night", "tornado", "mercbot"
 ]);
 export const cloudShape = (shape) => (SHAPES.has(shape) ? shape : "cloud");
+/** The clouds any bot may have: all but Mercbot's own. */
+export const CLOUD_SHAPES = Object.freeze([...SHAPES].filter((shape) => shape !== "mercbot"));
 
 function cleanAttachments(value) {
   return (Array.isArray(value) ? value : []).slice(0, 10).map((file) => ({

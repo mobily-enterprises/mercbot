@@ -55,6 +55,11 @@ describe("the New home form", () => {
     await makeHome(create, "Just us", HOME_FOR[0].value);
     expect(calls).toEqual([["PATCH", "/api/w/the%20smiths/home-settings", { newBotSharing: "mixed" }]]);
     expect(homeDefault.value.chosen, "another home's default isn't the page's").toBe(false);
+
+    // New home asks only the name (D-109): the home gets Mixed, as Just me gave it.
+    calls.length = 0;
+    await makeHome(create, "Casa");
+    expect(calls).toEqual([["PATCH", "/api/w/the%20smiths/home-settings", { newBotSharing: "mixed" }]]);
   });
 
   it("still gives the home made when its default doesn't go through: its first conversation asks", async () => {

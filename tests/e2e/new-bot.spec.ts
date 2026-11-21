@@ -1,8 +1,9 @@
 import knexLib from "knex";
 import { expect, test, testDatabaseName, type Page } from "./harness";
 
-// New bot as a person first meets it: the home opened with no bot named in its address, so
-// the chat shows the first bot in the list, and the new bot's "creating" row is the newest one there.
+// Add bots (D-109, which was New bot) as a person first meets it: the home opened with no bot named in its address, so
+// the chat shows the first bot in the list, and the new bot's "creating" row is the newest one there. It opens on two
+// ways to choose, and One bot's templates are calm: an area menu, no featured cards, no byline, and no "Not tested yet".
 // The fixtures give the owner's home Otto and Vera; each test deletes the bot it makes. Run with:
 // vibe64-helper playwright --target test-app test tests/e2e/new-bot.spec.ts
 const HOME = "/w/you";
@@ -24,18 +25,19 @@ async function openHome(page: Page) {
 const chat = (page: Page) => page.getByRole("main", { name: "Chat" });
 const bots = (page: Page) => page.getByRole("navigation", { name: "Bots" });
 
-const newBotDialog = (page: Page) => page.getByRole("dialog", { name: "New bot" });
+const newBotDialog = (page: Page) => page.getByRole("dialog", { name: "Add bots" });
 const created = (page: Page) => page.waitForResponse((response) => response.request().method() === "POST" && new URL(response.url()).pathname === `/api${HOME}/bots`);
 
-// New bot's dialog, from the sidebar: a General helper (20 November: New bot asks what it will do first), with `name`
+// Add bots, from the sidebar: One bot, a General helper (20 November: it asks what the bot will do first), with `name`
 // typed, up to Create.
 async function startNewBot(page: Page, name: string) {
-  await bots(page).getByRole("button", { name: "New bot", exact: true }).click();
+  await bots(page).getByRole("button", { name: "Add bots", exact: true }).click();
+  await newBotDialog(page).getByRole("button", { name: /^One bot/u }).click();
   await newBotDialog(page).getByRole("button", { name: /^General helper/u }).click();
   await newBotDialog(page).getByRole("textbox", { name: "Bot name" }).fill(name);
 }
 
-// New bot, named `name`, from the sidebar; resolves with the bot the server made.
+// One bot, named `name`, from the sidebar; resolves with the bot the server made.
 async function createBot(page: Page, name: string) {
   await startNewBot(page, name);
   const answer = created(page);
@@ -71,6 +73,38 @@ async function serveMultiSelect(page: Page) {
   return () => knex.destroy();
 }
 
+// 21 November (D-109): the screen was too busy. It opens on One bot and A ready-made team; One bot has the search and
+// an area menu, General helper first, no featured cards, no "by the Mercbot team" and no "Not tested yet" (every
+// template is the team's, and the check results are empty); Back returns to the two ways.
+test("Add bots opens on two ways to choose, and One bot's templates are calm", async ({ page }) => {
+  await openHome(page);
+  await bots(page).getByRole("button", { name: "Add bots", exact: true }).click();
+  const dialog = newBotDialog(page);
+  await expect(dialog.getByRole("heading", { name: "Add bots" })).toBeVisible();
+  await expect(dialog.getByRole("button", { name: /^One bot/u })).toBeVisible();
+  await expect(dialog.getByRole("button", { name: /^A ready-made team/u })).toBeVisible();
+  await dialog.getByRole("button", { name: /^One bot/u }).click();
+  await expect(dialog.getByRole("heading", { name: "One bot" })).toBeVisible();
+  await expect(dialog.getByRole("searchbox", { name: "Search templates" })).toBeFocused();
+  const area = dialog.getByRole("combobox", { name: "Area" });
+  await expect(area.locator("option").first()).toHaveText("All areas");
+  await expect(area.locator("option", { hasText: "Mercbot team" })).toHaveCount(0);
+  const rows = dialog.locator(".mb-tbrowse__row");
+  await expect(rows.first()).toBeVisible();
+  await expect(dialog.getByRole("button", { name: /^General helper/u })).toBeVisible();
+  await expect(dialog.locator(".mb-tbrowse__card"), "no featured cards").toHaveCount(0);
+  await expect(dialog.locator(".mb-tbrowse__list"), "no byline").not.toContainText("by the Mercbot team");
+  await expect(dialog.locator(".mb-tbrowse__list")).not.toContainText("Not tested yet");
+  // An area shows only its own.
+  await area.selectOption({ label: "Home and family" });
+  await expect(dialog.getByRole("region", { name: "Home and family" })).toBeVisible();
+  await expect(dialog.locator(".mb-tbrowse__section")).toHaveCount(1);
+  await dialog.getByRole("button", { name: "Add bots", exact: true }).click();
+  await expect(dialog.getByRole("heading", { name: "Add bots" })).toBeVisible();
+  await dialog.getByRole("button", { name: "Close" }).click();
+  await expect(dialog).toBeHidden();
+});
+
 // 11-11 production: the chat opened the creating row, read its messages (404), and Vue's error dialog
 // ("Attention required: Bot not found.") then took every click on the page until it was closed. The
 // API guard fails the test on either; the creating row's calls are also listed, whatever their answer.
@@ -94,7 +128,7 @@ test("a new bot opens in its own chat once it exists, and its creating row asks 
   }
 });
 
-// On a phone, the sidebar is a drawer: New bot is reached through "Your bots".
+// On a phone, the sidebar is a drawer: Add bots is reached through "Your bots".
 test("on a phone, a new bot's multi-select question takes picks, and Done answers with them", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   const cleanup = await serveMultiSelect(page);

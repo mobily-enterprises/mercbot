@@ -15,7 +15,9 @@ import { galleryChips, galleryView } from "./galleryView.js";
 // that picks it ({ library: slug }, or { home: id } for one of `home`, the home's own, listed first): the search box has
 // the keyboard first, the arrows move through the templates in reading order (Up from the first goes back to the
 // search), and Enter picks the one focused, or the first found from the search box. A picker's `lead` slot comes first
-// and its `foot` slot last (New bot's Add a team, D-105).
+// and its `foot` slot last. A picker is calmer (D-109): an area menu in place of the chips, no featured cards, no
+// byline, and only a passed check's badge, since nearly every template is the Mercbot team's and untested; a
+// template's preview still shows its honest badge.
 const props = defineProps({
   picking: { type: Boolean, default: false },
   // The home's own templates (id, tag, description, usedBy), in a picker; null on the page.
@@ -42,8 +44,8 @@ async function load() {
 }
 onMounted(load);
 
-const chips = computed(() => galleryChips(gallery.value));
-const view = computed(() => galleryView(gallery.value, { chip: chip.value, query: query.value, home: props.home }));
+const chips = computed(() => galleryChips(gallery.value, { picking: props.picking }));
+const view = computed(() => galleryView(gallery.value, { chip: chip.value, query: query.value, home: props.home, picking: props.picking }));
 // A library template's tag, as a bot of it shows it.
 const tagOf = (template) => ({ template: { tag: template.tag, source: "library", description: template.description } });
 const choiceOf = (template) => (template.home ? { home: template.id } : { library: template.slug });
@@ -54,9 +56,9 @@ function choose(id) {
   if (list.value) list.value.scrollTop = 0;
 }
 
-// Under the page's title the sections are its second level; in New bot, under the dialog's own.
+// Under the page's title the sections are its second level; in a picker, under the dialog's own.
 const heading = computed(() => (props.picking ? "h3" : "h2"));
-// A template on the page opens its page; in New bot it's a button that picks it.
+// A template on the page opens its page; in a picker it's a button that picks it.
 const entryTag = computed(() => (props.picking ? "button" : RouterLink));
 const entryOf = (template) => (props.picking
   ? { type: "button", onClick: () => emit("pick", choiceOf(template)) }
@@ -90,16 +92,19 @@ function onKeydown(event) {
 /** How many of the home's bots use one of its templates. */
 const usedText = (template) => (template.usedBy === 1 ? "Used by 1 bot" : `Used by ${template.usedBy || 0} bots`);
 
-defineExpose({ focusSearch: () => search.value?.focus() });
+defineExpose({ focusSearch: () => search.value?.focus(), searchWords: () => query.value.trim() });
 </script>
 
 <template>
   <div class="mb-tbrowse" :class="{ 'mb-tbrowse--picking': picking }" @keydown="onKeydown">
     <label class="mb-tbrowse__search">
       <v-icon icon="$search" :size="picking ? 16 : 18" />
-      <input ref="search" v-model="query" type="search" placeholder="Search by bot, tag or creator" aria-label="Search templates">
+      <input ref="search" v-model="query" type="search" :placeholder="picking ? 'Search bots' : 'Search by bot, tag or creator'" aria-label="Search templates">
     </label>
-    <nav class="mb-tbrowse__chips" aria-label="Job areas">
+    <select v-if="picking" class="mb-tbrowse__area" :value="chip" aria-label="Area" @change="choose($event.target.value)">
+      <option v-for="entry in chips" :key="entry.id" :value="entry.id">{{ entry.name }}</option>
+    </select>
+    <nav v-else class="mb-tbrowse__chips" aria-label="Job areas">
       <button v-for="entry in chips" :key="entry.id" type="button" class="mb-tbrowse__chip" :aria-pressed="chip === entry.id" @click="choose(entry.id)">
         {{ entry.name }}
       </button>
@@ -112,7 +117,7 @@ defineExpose({ focusSearch: () => search.value?.focus() });
         <button type="button" class="mb-set-pill" @click="load">Try again</button>
       </div>
       <div v-else-if="!gallery" class="mb-tbrowse__loading" aria-label="Loading templates" role="status">
-        <div class="mb-tbrowse__featured">
+        <div v-if="!picking" class="mb-tbrowse__featured">
           <span v-for="index in 4" :key="index" class="mb-tbrowse__card mb-tbrowse__skeleton-card"><span class="mb-tbrowse__skeleton-face" /><span class="mb-tbrowse__skeleton-bar" /></span>
         </div>
         <div class="mb-tbrowse__rows">
@@ -127,7 +132,7 @@ defineExpose({ focusSearch: () => search.value?.focus() });
       </div>
 
       <template v-else>
-        <!-- A picker's own first choice, before every template (New bot's General helper). -->
+        <!-- A picker's own first choice, before every template (Add bots' General helper). -->
         <slot v-if="!view.found" name="lead" />
         <!-- The home's own templates (D-98), first in a picker: a tag and a line each, no look of their own. -->
         <section v-if="view.home.length" class="mb-tbrowse__section" aria-label="Your home's templates">
@@ -200,7 +205,8 @@ defineExpose({ focusSearch: () => search.value?.focus() });
                 <span class="mb-tbrowse__row-head">
                   <strong>{{ entry.template.name }}</strong>
                   <MercbotTemplateTag v-if="entry.template.tag" :bot="tagOf(entry.template)" :tooltip="false" />
-                  <span class="mb-tbrowse__by">by {{ entry.template.creator }}</span> <TemplateTested :template="entry.template" />
+                  <span v-if="!picking" class="mb-tbrowse__by">by {{ entry.template.creator }}</span>
+                  <TemplateTested v-if="!picking || entry.template.tested" :template="entry.template" />
                 </span>
                 <span class="mb-tbrowse__description">{{ entry.template.description }}</span>
               </span>
@@ -216,12 +222,12 @@ defineExpose({ focusSearch: () => search.value?.focus() });
 </template>
 
 <style scoped>
-/* The gallery's own width (a container query) chooses its columns, on the page and in New bot alike. */
+/* The gallery's own width (a container query) chooses its columns, on the page and in a picker alike. */
 .mb-tbrowse {
   container: mb-tbrowse / inline-size;
 }
 
-/* In New bot the search and chips stay put and the templates scroll under them, the scroll bar at the dialog's edge:
+/* In a picker the search and area menu stay put and the templates scroll under them, the scroll bar at the dialog's edge:
    the dialog gives its side margin as --mb-tbrowse-gutter. */
 .mb-tbrowse--picking {
   display: flex;
@@ -289,7 +295,7 @@ defineExpose({ focusSearch: () => search.value?.focus() });
   color: rgb(var(--v-theme-surface));
 }
 
-/* In New bot, the search and chips of the app's other gallery, Connect apps (MercbotAppsModal.css). */
+/* In a picker, the search of the app's other gallery, Connect apps (MercbotAppsModal.css). */
 .mb-tbrowse--picking .mb-tbrowse__search {
   height: 32px;
   margin: 0 var(--mb-tbrowse-gutter, 24px);
@@ -301,21 +307,25 @@ defineExpose({ focusSearch: () => search.value?.focus() });
   font-size: 13px;
 }
 
-.mb-tbrowse--picking .mb-tbrowse__chips {
-  margin: 12px var(--mb-tbrowse-gutter, 24px) 16px;
-}
-
-.mb-tbrowse--picking .mb-tbrowse__chip {
+/* A picker's area menu, under its search, as small as Connect apps' chips. */
+.mb-tbrowse__area {
+  flex: none;
+  align-self: flex-start;
   height: 28px;
+  margin: 12px var(--mb-tbrowse-gutter, 24px) 16px;
   padding: 0 12px;
   border: 0;
   border-radius: 14px;
   background: rgb(var(--v-theme-surface-container-high));
+  color: inherit;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
 }
 
-.mb-tbrowse--picking .mb-tbrowse__chip[aria-pressed="true"] {
-  background: rgb(var(--v-theme-inverse-surface));
-  color: rgb(var(--v-theme-inverse-on-surface));
+.mb-tbrowse__area:focus-visible {
+  outline: 2px solid rgb(var(--v-theme-secondary));
+  outline-offset: 2px;
 }
 
 .mb-tbrowse__featured {
@@ -323,11 +333,6 @@ defineExpose({ focusSearch: () => search.value?.focus() });
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 16px;
   margin-bottom: 36px;
-}
-
-.mb-tbrowse--picking .mb-tbrowse__featured {
-  gap: 12px;
-  margin-bottom: 28px;
 }
 
 .mb-tbrowse__card {

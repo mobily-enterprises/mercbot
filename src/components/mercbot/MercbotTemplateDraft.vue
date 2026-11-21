@@ -5,11 +5,11 @@ import { templatesApi } from "../templates/templatesApi.js";
 import { botsApi } from "./botsApi.js";
 import { diffExcerpt, partOf, useTemplateDraft, wordDiff } from "./templateDraft.js";
 
-// The one draft screen (D-98, amended 20 November) for Make a new template, Start from this bot and Settings →
-// Templates → Edit: a sentence to Draft it from (making new), or the bot's own draft at once (from a bot); then the
+// The one draft screen (D-98, amended 20 November) for Make a new template, Start from this bot, Settings →
+// Templates → Edit and a suggested new bot's Edit in Add bots (D-109): a sentence to Draft it from (making new), or the bot's own draft at once (from a bot); then the
 // whole template, every part editable by hand and checked as the server checks it, problems at their parts; Ask for
 // changes, one call each with the whole draft, what changed highlighted and Undo back through the drafts before, on
-// this page only. Save is the dialog's to name ("Save and use", "Save"), and stays off while there are problems.
+// this page only. Save is the dialog's to name ("Save and use", "Save", "Use this"), and stays off while there are problems.
 const props = defineProps({
   purpose: { type: String, required: true, validator: (value) => ["new", "from-bot", "edit"].includes(value) },
   // From a bot: the bot ({ id, name }) and its additions, which the tick box folds in.

@@ -36,7 +36,7 @@ Pick **Private** for a bot that handles personal matters, such as health or mone
 
 Only the home's owners and admins can change it; everyone else sees the current choice and the note "The home's owners and admins choose this." Everyone in the home sees the change straight away.
 
-A new bot starts in the home's mode for new bots: Mixed until an owner or admin chooses another, when creating the home (**Who's it for?**), in the first bot's first conversation, or in **Settings** → **General**. Changing it changes no bot already there. See [Homes](/help/homes).
+A new bot starts in the home's mode for new bots: Mixed until an owner or admin chooses another, in the first bot's first conversation or in **Settings** → **General**. Changing it changes no bot already there. See [Homes](/help/homes).
 
 In a home where you're the only person, the modes differ only by a notebook nobody else reads, so Who sees what shows only for a bot that isn't on the home's mode for new bots. That way you can always set it back.
 

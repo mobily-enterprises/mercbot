@@ -64,11 +64,20 @@ templates a link opens, when a copy built on Mercbot keeps them (D-43).
 - `src/components/mercbot/useNewBot.js`
 - `src/components/mercbot/MercbotHomeSwitcher.vue`
 - `src/components/mercbot/MercbotNewHomeDialog.vue`
-- `tests/e2e/team-new-home.spec.ts`
+- `tests/e2e/new-home.spec.ts`
 - `tests/e2e/team-add.spec.ts`
 - `tests/server/teams.test.js`
 - `tests/server/teams.integration.js`
 - `tests/client/teams.vitest.js`
+- `packages/bots/src/server/botPlans.js`
+- `packages/bots/src/server/templateDrafts.js`
+- `src/components/mercbot/MercbotDescribeBox.vue`
+- `src/components/mercbot/MercbotPlanReview.vue`
+- `src/components/mercbot/useBotPlan.js`
+- `tests/server/botPlans.test.js`
+- `tests/server/botPlans.integration.js`
+- `tests/client/botPlan.vitest.js`
+- `tests/e2e/add-bots-describe.spec.ts`
 
 ## Public contract
 
@@ -174,15 +183,19 @@ templates a link opens, when a copy built on Mercbot keeps them (D-43).
   saves an edit, 409 `bots_template_stale` when `updatedAt` isn't the template's, and records a
   `home_template_changes` line naming the parts changed and who changed them; `DELETE
   …/home-templates/:id` removes one no bot uses (409 `bots_template_in_use`). The draft screen
-  (`MercbotTemplateDraft.vue`, `templateDraft.js`) serves New bot, Change template (Make a new
-  template, Start from this bot) and Settings → Templates (`MercbotSettingsTemplates.vue`); the
-  stand-in model answers drafting calls with fixed drafts for the browser suite.
+  (`MercbotTemplateDraft.vue`, `templateDraft.js`) serves a suggested new bot's Edit in Add bots (D-109), Change
+  template (Make a new template, Start from this bot) and Settings → Templates (`MercbotSettingsTemplates.vue`); the
+  stand-in model answers drafting calls with fixed drafts for the browser suite. Purpose `plan-bot` writes a suggested
+  bot's template on the name, tag and job the plan gave it, told the others' jobs (at most 7; 400
+  `bots_template_draft_bot`, `_team`, `_tag_taken`): the draft keeps that tag and must say "Ask before anything leaves
+  this chat." or "Nothing leaves this chat without the person's yes" (`ASKS_FIRST`), else it is asked once more. Every
+  draft's system prompt lists how Mercbot's own templates are written.
 - **Teams (D-105):** `bot-templates/teams.json` (not a template: `templateFiles()` leaves it out) lists twelve teams,
-  each `{ id, name, description, templates }`, checked at start (`teams.js` `checkTeams`: every slug a library
-  template, once per team; ids and names distinct). `GET /api/templates` lists them as `teams`. `GET
+  each `{ id, for, name, description, templates }`, checked at start (`teams.js` `checkTeams`: `for` home or work
+  (D-109), every slug a library template, once per team; ids and names distinct). `GET /api/templates` lists them as `teams`. `GET
   /api/w/:workspaceSlug/teams/:teamId` (`botTeams.js` `teamFor`) answers the team and each bot's slug, name, look, tag,
   line, `appTemplate` and `inHome`: whether a bot of the home follows that template (one read, `followedOf`). `POST
-  …/teams/:teamId {templates}` (`addTeam`) makes the chosen bots, last to first so the sidebar (newest first) shows them
+  …/teams/:teamId {templates}` (`addTeam`, through `make`, which `addBots` shares) makes the chosen bots, last to first so the sidebar (newest first) shows them
   in the team's order, in one transaction, under the home's lock, through
   `botList.makeBots`, the function New bot's `createBot` makes its bot with: one statement each for the bots, their
   seats, their first messages and Shared bots' General tabs (`records/newBotRepository.js`), whatever their number;
@@ -191,15 +204,30 @@ templates a link opens, when a copy built on Mercbot keeps them (D-43).
   `bots_team_all_in_home`; an unknown team, an empty choice or another team's template is 400; anyone in the home may
   (JSKIT refuses outsiders: 403 at this pin, 404 from workspaces-core 0.2.58). It answers the list as listed, with
   `added` (in the team's order) and `sectionId`. The page shows teams with one component, `MercbotTeamScreen.vue`:
-  the cards (name, line, faces, how many bots), then a team's bots, all ticked, each with its paired app's box for
-  someone who may set it up, and an action that counts the ticks. New home (`MercbotNewHomeDialog.vue`, from the
-  home switcher) shows it `fresh` (nothing in the home yet), its cards ending with Something else, the home's name
-  (the team's to start with, `teamChoice.js` `nameFor`) and who it's for below the bots, and Create home with N bots:
-  it makes the home and opens it with `?team=&bots=&apps=` (`homeQuery`), whose first load makes the main bot, then
-  adds the bots ticked and sets up the apps asked for (`choiceOf`, `addChosenBots`) before the shell shows, on the
-  team's first bot; when the bots don't go through, the address keeps `?team=` and the shell opens its team screen.
-  New bot's **Add a team** foot entry and the first conversation's team card open it in New bot (`useNewBot.js`
-  `openTeam`, `addTeam`), which sets up a ticked bot's paired app afterwards as New bot does, each app once.
+  the cards under For home and life and For work (`teamChoice.js` `teamGroups`: name, line, faces, how many bots),
+  with "Want one made to fit?" to Describe, then a team's bots, all ticked, each with its paired app's box for
+  someone who may set it up, and an action that counts the ticks. Add bots' A ready-made team and the first
+  conversation's card (**Show me ready-made teams**, `addBots: "teams"`) open it (`useNewBot.js` `openTeams`,
+  `addTeam`), which sets up a ticked bot's paired app afterwards as One bot does, each app once. New home asks only
+  the name (D-109).
+- **Suggested bots (D-109):** `POST /api/w/:workspaceSlug/bots/plan {describe, plan?, change?}` (`botPlans.js`
+  `propose`; 600 characters each, 400 `bots_plan_describe_*`, `bots_plan_change_*`; 402 in a paused home before the
+  model) is one `generateOnce` on the chat kind, metered as chat work. Its system prompt (`planSystem`: every library
+  bot a line, the teams, the rules; the same for every home) and user message (`planPrompt`: the home's name, whether
+  more than one person is in it (`everyoneIn`), its newest 100 bots, past 60 by name and tag, its first 40 templates by tag, the request, and for a change
+  `planBefore`, the plan before as the server knows it) are read back by `readPlan`: 1 to 8 bots, at most 4 new, as
+  `{library}`, `{home, name}` or `{new: {name, tag, description}}` with why, or one question, and `covered`; a new
+  bot named as a library bot becomes it, a bad or taken tag a free one from its name, a bot named twice once; the rest
+  is asked for once more, then 422 `bots_plan_failed`. The answer adds each bot's key and look (library bots their own,
+  the rest picked fresh) and `inHome`; nothing is kept; the reads are the same for any number of bots
+  (`newBots.homeBots`, `homeTemplates.list`, `followedOf`). `POST …/bots/batch {section, bots}` (`botTeams.js`
+  `addBots`; each `{library}`, `{home, name, shape, color}` or `{draft, name, shape, color}`, at most 8 and 4 drafts,
+  400 `bots_add_*`) makes them through `make` as a team's are, each draft checked whole (422), in the section named.
+  The page: `MercbotDescribeBox.vue` on Add bots' start, `useBotPlan.js` (the plan, each new bot's `plan-bot` draft
+  written at once, ticks, a change keeping drafts, the batch) and `MercbotPlanReview.vue` (the groups, View, Asks first,
+  Read it all, Edit on the draft screen, Try again and Remove, the section, Not quite right?, Add N bots). The stand-in
+  model plans library bots named by tag or name and one new bot for a request's last word, and a question for under
+  three words.
 - **The upgrade (D-98):** the migration copies every bot's label, instructions, skills and origin to
   `bots_before_templates`, then points an unchanged gallery bot at its library template, a bot with
   no instructions at `general`, and a bot with its own at a home template made from them (one per

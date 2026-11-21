@@ -195,13 +195,17 @@ test("a sent message and its answer can be acted on as soon as they show", async
 test("a bot's menu offers its actions, and Pin pins it until Unpin", async ({ page }) => {
   const calls = botCalls(page);
   await openHome(page);
+  // Archive (D-108) is offered unless Otto is the home's Builder, as apps.spec.ts makes it when it ran before on this
+  // worker.
+  const { builder } = await (await page.request.get(`/api${HOME}/apps/builder`)).json();
+  const archive = String(builder?.id ?? "") === String(await ottoId(page)) ? [] : ["Archive"];
   await sidebarBot(page, "Otto").click({ button: "right" });
-  await expect(menuItems(page)).toHaveText(["Pin", "Move to new section", "Mark as unread", "Rename bot", "Copy conversation ID", "Hide from sidebar", "Delete"]);
+  await expect(menuItems(page)).toHaveText(["Pin", "Move to new section", "Mark as unread", "Rename bot", "Copy conversation ID", "Hide from sidebar", ...archive, "Delete"]);
   await menuItems(page).filter({ hasText: /^Pin$/u }).click();
   const tile = page.getByRole("region", { name: "Pinned bots" }).getByRole("button", { name: "Otto" });
   await expect(tile).toBeVisible();
   await tile.click({ button: "right" });
-  await expect(menuItems(page)).toHaveText(["Unpin", "Mark as unread", "Copy conversation ID", "Hide from sidebar", "Delete"]);
+  await expect(menuItems(page)).toHaveText(["Unpin", "Mark as unread", "Copy conversation ID", "Hide from sidebar", ...archive, "Delete"]);
   await menuItems(page).filter({ hasText: "Unpin" }).click();
   await expect(page.getByRole("region", { name: "Pinned bots" })).toHaveCount(0);
   await expect(sidebarBot(page, "Otto")).toBeVisible();
@@ -257,7 +261,7 @@ test("the search palette lists bots then commands, and runs what is chosen", asy
   // A bot's row carries its template's tag (D-98).
   await expect(options.first()).toHaveText(/^Otto\s*general$/u);
   const commands = [
-    "New Bot", "New group chat", "Keyboard shortcuts", "Settings: General", "Settings: Computer",
+    "Add bots", "New group chat", "Keyboard shortcuts", "Settings: General", "Settings: Computer",
     "Settings: Permissions", "Settings: Files", "Settings: Website", "Settings: Memory", "Settings: Templates", "Settings: Vault",
     "Settings: Spending",
     "Settings: Mercbot account", "Settings: About", "Connect Apps", "Skills", "Theme: System", "Theme: Light", "Theme: Dark"
@@ -359,8 +363,9 @@ test("the group picker names the chosen bots in the composer and offers a new bo
   await expect(composer(page)).toHaveAttribute("placeholder", "Message Otto");
   await field.fill("Pinned helper");
   await rows.filter({ hasText: "Pinned helper" }).dispatchEvent("mousedown");
-  const newBot = page.getByRole("dialog", { name: "New bot" });
-  // What it will do comes first (20 November); the name typed waits for it.
+  const newBot = page.getByRole("dialog", { name: "Add bots" });
+  // A name typed opens Add bots on One bot (D-109), where what it will do comes first (20 November); the name waits.
+  await expect(newBot.getByRole("heading", { name: "One bot" })).toBeVisible();
   await newBot.getByRole("button", { name: /^General helper/u }).click();
   await expect(newBot.getByRole("textbox", { name: "Bot name" })).toHaveValue("Pinned helper");
   await newBot.getByRole("button", { name: "Close" }).click();

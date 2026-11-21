@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { botMenuItems, sectionMenuItems } from "../../src/components/mercbot/botMenus.js";
 import { composerPlaceholder } from "../../src/components/mercbot/composerPlaceholder.js";
 import { paletteCommands, paletteEntries } from "../../src/components/mercbot/paletteEntries.js";
-import { galleryView } from "../../src/components/templates/galleryView.js";
+import { galleryChips, galleryView } from "../../src/components/templates/galleryView.js";
 
 const titles = (items) => items.map((item) => (item.divider ? "—" : item.title));
 
@@ -81,14 +81,14 @@ describe("search palette rows", () => {
   it("lists unread, pinned, then recent bots, then the commands, before typing", () => {
     expect(rows("").map((row) => row.title)).toEqual([
       "News", "Pinned", "Ada", "Otto",
-      "New Bot", "New group chat", "Keyboard shortcuts", "Settings: General", "Connect Apps", "Skills", "Theme: System", "Theme: Light", "Theme: Dark"
+      "Add bots", "New group chat", "Keyboard shortcuts", "Settings: General", "Connect Apps", "Skills", "Theme: System", "Theme: Light", "Theme: Dark"
     ]);
     expect(commands.find((command) => command.id === "theme:dark").checked).toBe(true);
   });
 
   it("matches loosely, earliest letter first, hidden bots after apps", () => {
     expect(rows("ot").map((row) => `${row.kind}:${row.title}`)).toEqual([
-      "conversation:Otto", "conversation:Hidden Otto", "command:Connect Apps", "command:Keyboard shortcuts", "command:New Bot", "command:New group chat"
+      "conversation:Otto", "conversation:Hidden Otto", "command:Connect Apps", "command:Keyboard shortcuts", "command:Add bots", "command:New group chat"
     ]);
     expect(rows("ot").find((row) => row.title === "Hidden Otto").tag).toBe("hidden");
   });
@@ -121,6 +121,15 @@ describe("template pickers (D-98)", () => {
     expect(all.order.map((row) => row.key)).toEqual(["home:4", "featured:weekly-meal-planner", "featured:bill-tracker", "home:weekly-meal-planner", "home:bill-tracker"]);
     expect(all.home[0].template.home).toBe(true);
     expect(galleryView(gallery, { chip: "home", query: "", home }).home).toEqual([]);
+  });
+
+  // Calmer in a picker (D-109): no featured templates, and an area menu without the Mercbot team; the page keeps both.
+  it("shows a picker no featured templates and no Mercbot team, and the page both", () => {
+    const picked = galleryView(gallery, { chip: "all", query: "", home, picking: true });
+    expect(picked.order.map((row) => row.key)).toEqual(["home:4", "home:weekly-meal-planner", "home:bill-tracker"]);
+    expect(picked.featured).toEqual([]);
+    expect(galleryChips(gallery, { picking: true })).toEqual([{ id: "all", name: "All areas" }, { id: "home", name: "Home" }]);
+    expect(galleryChips(gallery).map((chip) => chip.name)).toEqual(["All", "Mercbot team", "Home"]);
   });
 
   it("searches tags, the home's first", () => {

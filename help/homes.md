@@ -31,11 +31,10 @@ To create a home:
 
 1. Click the home's name at the top of the sidebar.
 2. Choose **Create a home**.
-3. **What's this home for?** shows Mercbot's teams as cards, each with its bots' faces. Choose one, such as **Busy household** or **Small shop**, or **Something else** for a home that starts with just Mercbot.
-4. A team shows its bots, all ticked: untick any you don't want. See [Start with a team](#start-with-a-team).
-5. Under **Name your home**, keep the team's name or type another (for example, "The Smiths").
-6. Under **Who's it for?**, keep **Just me**, or choose **Me and other people** to make the home's new bots Shared.
-7. Press **Create home with 6 bots** (the number follows the bots ticked), or **Create home** for Something else.
+3. Under **Name your home**, type its name (for example, "The Smiths").
+4. Press **Create home**.
+
+The new home opens with just Mercbot, which helps you add the bots you need: in its first conversation, or with **Add bots** at the top of the sidebar (see [Start with a team](#start-with-a-team)).
 
 You're the owner of every home you create. The sidebar, bots, Connect apps and Apps all change to the home you're in. Each home keeps its own pinned bots, sections and pinned apps for you.
 
@@ -43,11 +42,11 @@ You're the owner of every home you create. The sidebar, bots, Connect apps and A
 
 Pick what you need help with, and Mercbot adds a few bots that work well together, in their own section of your sidebar: the six that help run a busy household, say, or the five a small shop needs. Since each home has its own bots, files and Apps, a team usually goes with a home of its own:
 
-- **New home:** choose the team under **What's this home for?** when you create the home, untick any bot you don't want, and press **Create home with 6 bots**. The home takes the team's name, which you can change first, and opens on the team's first bot, with the team's bots in a sidebar section named after the team, in the team's order, beside your main bot. A bot's app, when it works with one, is set up as a draft too, unless you untick it.
-- **A new home's first conversation:** in a home made without a team, your first bot asks **Want a ready-made team?** after you name it. Choose a team to see its bots and add them, or **Not now**; typing a message instead skips the question.
-- **Add a team**, at the foot of **New bot**'s list of what the bot will do, adds a team to the home you're in, for example when a company adds another part of its work. See [Add a team](/help/bots#add-a-team).
+- **A new home's first conversation:** while the home has no bot but Mercbot, your first bot asks **Want a few bots to start with?** after you name it. **Show me ready-made teams** opens **Add bots** on its teams, where nothing is added until you say so; **Not now**, or typing a message instead, skips the question.
+- **Add bots**, at the top of the sidebar, adds a team to the home you're in at any time with **A ready-made team**, for example when a company adds another part of its work. See [A ready-made team](/help/bots#a-ready-made-team).
+- When no team fits, **Describe what you need** in **Add bots**, and Mercbot suggests bots for it, including new ones written for your home. See [Describe what you need](/help/bots#describe-what-you-need).
 
-Each team bot is one of Mercbot's templates and starts as New bot would make it: in the home's mode for new bots (Mixed, unless its owners or admins chose otherwise), with its template's greeting waiting for you. Nothing runs until you open a bot and answer it, so adding a team costs no AI work. A bot whose template the home already has isn't added twice. Anyone in a home can add a team, as anyone can add a bot.
+Each team bot is one of Mercbot's templates and starts as any new bot does: in the home's mode for new bots (Mixed, unless its owners or admins chose otherwise), with its template's greeting waiting for you. Nothing runs until you open a bot and answer it, so adding a team costs no AI work. A bot whose template the home already has isn't added twice. Anyone in a home can add a team, as anyone can add a bot.
 
 The teams and their bots:
 
@@ -76,7 +75,7 @@ Everyone in the home sees the new name at once, at the top of the sidebar and in
 
 ## Bots in a home
 
-Every bot belongs to a home, and everyone in the home can use it. Anyone can add a bot with **New bot**. Deleting a bot removes it, with its conversations, for everyone, so agree on it first.
+Every bot belongs to a home, and everyone in the home can use it. Anyone can add bots with **Add bots**. Deleting a bot removes it, with its conversations, for everyone, so agree on it first.
 
 ### Who sees what
 
@@ -92,12 +91,11 @@ Mercbot asks before changing it, saying what changes and for whom. In a home wit
 
 ### The mode new bots get
 
-Each home has a default for new bots: every bot made there, with **New bot** or from a template or a link, starts in that mode. It's Mixed until an owner or admin chooses. Bots you already have keep their mode, the home's first bot included, and group chats aren't affected. A new Shared bot starts with its General tab and opens on your own **You only**, where it introduces itself.
+Each home has a default for new bots: every bot made there, with **Add bots** or from a template or a link, starts in that mode. It's Mixed until an owner or admin chooses, and a home made with **Create a home** starts Mixed. Bots you already have keep their mode, the home's first bot included, and group chats aren't affected. A new Shared bot starts with its General tab and opens on your own **You only**, where it introduces itself.
 
 Owners and admins choose it:
 
-- when they create a home, under **Who's it for?**: **Just me** makes new bots Mixed, **Me and other people** makes them Shared;
-- in the first bot's first conversation, right after naming it, when Mercbot asks "Will anyone else use this home with you?": **Just me** (Mixed) or **Me and other people** (Shared);
+- in the first bot's first conversation of a home whose default nobody has chosen, right after naming it, when Mercbot asks "Will anyone else use this home with you?": **Just me** (Mixed) or **Me and other people** (Shared);
 - any time in **Settings** → **General**, under **Home**: **New bots in this home**.
 
 When a second person joins a home whose new bots aren't Shared, its owners and admins see a note at the top of the bot list, once: "*Name* joined. New bots here are Mixed…", with **Make them Shared** and **Keep Mixed**. Either answer is kept, and bots you already have keep their mode; change one in its **Details** → **Who sees what**.

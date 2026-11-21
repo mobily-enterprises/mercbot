@@ -1,12 +1,11 @@
 import knexLib from "knex";
 import { expect, test, testDatabaseName, type Page } from "./harness";
 
-// A home's default for new bots (D-100) as a person sets it, on the Test Preview target: New home, from the home menu,
-// asks "Who's it for?" (Just me preselected; here under Something else, D-105); Me and other people makes the home's new
-// bots Shared, so a bot made there opens with
-// General for everyone and the person's own You only, open, while the home's main bot keeps its mode. Then, with the
-// home's new bots Mixed, a second person joining shows its owner the question at the top of the bot list, which Keep
-// Mixed answers for good, and Settings → General changes the default. The test deletes the home and the person it
+// A home's default for new bots (D-100) on the Test Preview target: New home, from the home menu, asks only the home's
+// name (D-109) and makes it with new bots Mixed; with its new bots made Shared, a bot made there opens with General for
+// everyone and the person's own You only, open, while the home's main bot keeps its mode. Then, with the home's new
+// bots Mixed, a second person joining shows its owner the question at the top of the bot list, which Keep Mixed
+// answers for good, and Settings → General changes the default. The test deletes the home and the person it
 // makes. Run with: vibe64-helper playwright --target test-app test tests/e2e/home-default.spec.ts
 const HOME = "/w/you";
 // Any refused API call from the page, one with no answer, or JSKIT's error dialog, fails the test (harness.ts).
@@ -25,13 +24,13 @@ async function pastIntro(page: Page) {
 
 const sidebar = (page: Page) => page.getByRole("navigation", { name: "Bots" });
 const tabs = (page: Page) => page.getByRole("navigation", { name: "Conversations" }).getByRole("tab");
-const newBotDialog = (page: Page) => page.getByRole("dialog", { name: "New bot" });
+const newBotDialog = (page: Page) => page.getByRole("dialog", { name: "Add bots" });
 const connect = () => knexLib({
   client: "pg",
   connection: { host: process.env.DB_HOST, port: Number(process.env.DB_PORT) || 5432, user: process.env.DB_USER, password: process.env.DB_PASSWORD, database: testDatabaseName() }
 });
 
-test("a New home for Me and other people makes its new bots Shared: General for everyone, and You only open", async ({ page }, testInfo) => {
+test("a home whose new bots are Shared makes a new bot with General for everyone, and You only open", async ({ page }, testInfo) => {
   const knex = connect();
   const stamp = Date.now().toString(36);
   const name = `Together ${stamp}`;
@@ -43,27 +42,24 @@ test("a New home for Me and other people makes its new bots Shared: General for 
     await sidebar(page).getByRole("button", { name: /^Home: .+\. Switch home$/u }).click();
     await page.getByText("Create a home").click();
     const newHome = page.getByRole("dialog", { name: "New home" });
-    await newHome.getByRole("button", { name: /^Something else/u }).click();
     await newHome.getByRole("textbox", { name: "Name of the new home" }).fill(name);
-    const forWhom = newHome.getByRole("group", { name: "Who's it for?" });
-    await expect(forWhom.getByRole("radio", { name: "Just me" })).toBeChecked();
-    await forWhom.getByRole("radio", { name: "Me and other people" }).check({ timeout: 10_000 });
-    await page.screenshot({ path: testInfo.outputPath("new-home-others.png") });
-
     const chosen = page.waitForResponse((response) => response.request().method() === "PATCH" && new URL(response.url()).pathname.endsWith("/home-settings"));
     await newHome.getByRole("button", { name: "Create home", exact: true }).click();
     const answer = await chosen;
     expect(answer.ok()).toBe(true);
-    expect((await answer.json()).newBotSharing).toBe("shared");
+    expect((await answer.json()).newBotSharing, "New home asks no mode: new bots Mixed, as before").toBe("mixed");
     slug = decodeURIComponent(new URL(answer.url()).pathname.split("/")[3]);
     await expect(page).toHaveURL(new RegExp(`/w/${slug}(?:[/?]|$)`, "u"));
     await pastIntro(page);
     await expect(sidebar(page).getByRole("button", { name: `Home: ${name}. Switch home` })).toBeVisible();
+    // The home's new bots made Shared, as Settings → General does (below).
+    await knex("home_settings").where({ workspace_id: (await knex("workspaces").where({ slug }).first()).id }).update({ new_bot_sharing: "shared" });
 
     // A new bot there is Shared: General, then the person's own You only, which is open, with its intro.
     const created = page.waitForResponse((response) => response.request().method() === "POST" && new URL(response.url()).pathname === `/api/w/${slug}/bots`);
-    await sidebar(page).getByRole("button", { name: "New bot", exact: true }).click();
-    // What it will do comes first (D-98, as drafting templates amended it): a General helper.
+    await sidebar(page).getByRole("button", { name: "Add bots", exact: true }).click();
+    // One bot, then what it will do (D-98, as drafting templates amended it): a General helper.
+    await newBotDialog(page).getByRole("button", { name: /^One bot/u }).click();
     await newBotDialog(page).getByRole("button", { name: /^General helper/u }).click();
     await newBotDialog(page).getByRole("textbox", { name: "Bot name" }).fill("Crew");
     await newBotDialog(page).getByRole("button", { name: "Create" }).click();

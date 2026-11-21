@@ -13,6 +13,7 @@ import { createBotKnowledge } from "./botKnowledge.js";
 import { createGroupReplies } from "./groupReplies.js";
 import { createBotReplies } from "./botReplies.js";
 import { createBotList } from "./botList.js";
+import { createBotPlans } from "./botPlans.js";
 import { createBotTeams } from "./botTeams.js";
 import { createBotSettings } from "./botSettings.js";
 import { createBotArchive } from "./botArchive.js";
@@ -56,6 +57,8 @@ import { createJoiningIn } from "./joiningIn.js";
  * @param {(lines: string[]) => Promise<object>} [dependencies.writeSkill] the skill a demonstration teaches
  * @param {(system: string, messages: Array<{ role: string, content: string }>) => Promise<string>} [dependencies.writeTemplate]
  *   the model's answer to one call drafting a template
+ * @param {(system: string, messages: Array<{ role: string, content: string }>) => Promise<string>} [dependencies.writePlan]
+ *   the model's answer to one call suggesting bots (D-109)
  * @param {(input: { previous: string, text: string }) => Promise<string>} [dependencies.summarize] replaces the summary's model call
  * @param {import("./types.js").SummaryLimits} [dependencies.compactionLimits] replaces the summary limits
  * @param {Partial<typeof import("./botRequests.js").REQUEST_LIMITS>} [dependencies.requestLimits] limits over the requests' own
@@ -83,6 +86,7 @@ export function createBotsService({
   activity = (bot, userMessage) => describeActivity(model, bot, userMessage),
   writeSkill = (lines) => writeSkillFromDemo(model, lines),
   writeTemplate = writeWith(model),
+  writePlan = writeWith(model),
   summarize,
   compactionLimits,
   requestLimits,
@@ -233,6 +237,8 @@ export function createBotsService({
     summaryOf: async (conversationId) => (await chatHistory.compaction.current(conversationId))?.summary || "",
     write: writeTemplate
   });
+  // Add bots' suggestions (D-109): what the home has, and the chat model's plan.
+  const plans = createBotPlans({ records, workspaces, meter, write: writePlan });
   const teaching = createBotTeaching({ records, computer, integrations, conversations, background, writeSkill });
   const groups = createBotGroups({ records, conversations });
   const library = createBotLibrary({ records, conversations, apps, files });
@@ -259,6 +265,8 @@ export function createBotsService({
     addFromTemplate: templates.addFromTemplate,
     teamFor: teams.teamFor,
     addTeam: teams.addTeam,
+    addBots: teams.addBots,
+    proposeBots: plans.propose,
     changeTemplate: templates.changeTemplate,
     homeTemplates: templates.homeTemplates,
     homeTemplate: templates.homeTemplate,

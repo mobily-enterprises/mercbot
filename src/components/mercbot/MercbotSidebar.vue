@@ -48,7 +48,7 @@ const appIcons = ["$calendarToday", "$mail", "$description"];
     <div v-if="!compact" class="mb-sidebar__actions">
       <div class="mb-sidebar__home"><MercbotHomeSwitcher /></div>
       <MercbotIconButton icon="$search" label="Search" @click="emit('search')" />
-      <MercbotIconButton icon="$editSquare" label="New bot" @click="emit('new-bot')" />
+      <MercbotIconButton icon="$editSquare" label="Add bots" @click="emit('new-bot')" />
     </div>
     <div v-else class="mb-sidebar__rail-top">
       <MercbotHomeSwitcher rail />
@@ -140,7 +140,7 @@ const appIcons = ["$calendarToday", "$mail", "$description"];
     <div v-else class="mb-sidebar__rail-bottom">
       <MercbotIconButton
         icon="$add"
-        label="New bot"
+        label="Add bots"
         tone="bare"
         size="small"
         :icon-size="14"
@@ -203,7 +203,7 @@ const appIcons = ["$calendarToday", "$mail", "$description"];
   padding: 12px 16px 0 10px;
 }
 
-/* The home switcher takes the room left of Search and New bot (D-36). */
+/* The home switcher takes the room left of Search and Add bots (D-36). */
 .mb-sidebar__home {
   display: flex;
   flex: 0 1 auto;

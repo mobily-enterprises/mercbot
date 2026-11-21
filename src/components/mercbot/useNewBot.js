@@ -4,10 +4,11 @@ import { appsApi } from "../apps/appsApi.js";
 import { botsApi, sleep } from "./botsApi.js";
 
 /**
- * New bot: a "creating" row appears at once; the dialog closes when the bot exists. It's made on the template New bot
- * chose (D-98): none for the General helper, one of the library's or the home's, or a new one from its draft, made
- * with it; a bot a person shared (`link`) is added as they made it. A library template's app is set up after, as a
- * draft, when the dialog asked for it. Add a team (D-105) makes a team's bots together, in a section named after it.
+ * Add bots (D-109; MercbotNewBotDialog.vue). One bot: a "creating" row appears at once; the dialog closes when the bot
+ * exists. It's made on the template chosen (D-98): none for the General helper, or one of the library's or the home's;
+ * a bot a person shared (`link`) is added as they made it. A library template's app is set up after, as a draft, when
+ * the dialog asked for it. A ready-made team (D-105) makes a team's bots together, in a section named after it, and
+ * Suggested bots (D-109) the bots ticked on it, new templates with them, in the section the person named.
  * @param {{
  *   bots: import("vue").Ref<Array<import("../../types.js").Bot>>,
  *   sections: import("vue").Ref<Array<object>>,
@@ -21,23 +22,20 @@ export function useNewBot({ bots, sections, store, picker, selectBot, notify }) 
   const newBotOpen = ref(false);
   const creating = ref(false);
   const createError = ref("");
-  // A new template's problems when the server refused it (422), for the draft screen.
-  const createProblems = ref([]);
 
   // From the group picker, a new bot starts with the typed name; from a link, with its template chosen.
   const newBotName = ref("");
   const newBotTemplate = ref("");
-  // From a new home's first conversation or its New home form, New bot opens on the team chosen (D-105).
-  const newBotTeam = ref("");
-  function openNewBot(name = "", template = "", team = "") {
+  // The screen Add bots opens on: "start", or "teams" from a new home's first conversation (D-109).
+  const newBotScreen = ref("start");
+  function openNewBot(name = "", template = "", screen = "start") {
     createError.value = "";
-    createProblems.value = [];
     newBotName.value = typeof name === "string" ? name : "";
     newBotTemplate.value = template;
-    newBotTeam.value = team;
+    newBotScreen.value = screen;
     newBotOpen.value = true;
   }
-  const openTeam = (teamId) => openNewBot("", "", teamId);
+  const openTeams = () => openNewBot("", "", "teams");
 
   /** The apps the dialog asked for set up after, as drafts, one at a time; what came of them, said once. */
   async function setUpApps(apps) {
@@ -51,7 +49,6 @@ export function useNewBot({ bots, sections, store, picker, selectBot, notify }) 
   async function createBot({ link = "", app = null, ...input }) {
     creating.value = true;
     createError.value = "";
-    createProblems.value = [];
     const placeholderId = `creating-${Date.now()}`;
     bots.value = [...bots.value, {
       id: placeholderId,
@@ -76,25 +73,41 @@ export function useNewBot({ bots, sections, store, picker, selectBot, notify }) 
       picker.value = null;
       selectBot(bot.id);
       if (app) await setUpApps([app]);
-    } catch (error) {
+    } catch {
       bots.value = bots.value.filter((entry) => entry.id !== placeholderId);
-      createProblems.value = error?.params?.problems || [];
-      createError.value = createProblems.value.length ? "Put the template's problems right, then save it again." : "Your bot couldn't be created. Try again.";
+      createError.value = "Your bot couldn't be created. Try again.";
     } finally {
       creating.value = false;
     }
   }
 
   /**
-   * Add N bots (D-105): the team's bots chosen, made together; the list and its sections come back as the server has
-   * them, with the new bots in the team's section, and the first of them opens. Then the apps asked for are set up.
+   * Add N bots of a team (D-105): the team's bots chosen, made together in the team's section.
    * @param {{ teamId: string, name: string, templates: string[], apps: Array<{ key: string, name: string }> }} choice
    */
   async function addTeam({ teamId, name, templates, apps = [] }) {
+    await addTogether(() => botsApi.addTeam(teamId, templates), name, apps, "The team couldn't be added. Try again.");
+  }
+
+  /**
+   * Add N bots of a suggestion (D-109): the bots ticked, each new one with its template, made together in the section
+   * named, as a team's are.
+   * @param {{ section: string, bots: object[], apps: Array<{ key: string, name: string }> }} choice
+   */
+  async function addBots({ section, bots: chosen, apps = [] }) {
+    await addTogether(() => botsApi.addBots({ section, bots: chosen }), section, apps, "The bots couldn't be added. Try again.");
+  }
+
+  /**
+   * Bots made together (addTeam, addBots): the list and its sections come back as the server has them, with the new bots
+   * in their section, and the first of them opens. Then the apps asked for are set up. A refusal says why: one of the
+   * bots already in the home (409) or a new template's problems (422); anything else, `failed`.
+   */
+  async function addTogether(made, name, apps, failed) {
     creating.value = true;
     createError.value = "";
     try {
-      const result = await botsApi.addTeam(teamId, templates);
+      const result = await made();
       store.mergeBots(result.bots);
       sections.value = result.sections;
       newBotOpen.value = false;
@@ -105,7 +118,7 @@ export function useNewBot({ bots, sections, store, picker, selectBot, notify }) 
       notify(`${count} ${count === 1 ? "bot" : "bots"} added to ${name}.${leftOut}`);
       await setUpApps(apps);
     } catch (error) {
-      createError.value = error?.status === 409 ? error.message : "The team couldn't be added. Try again.";
+      createError.value = error?.status === 409 || error?.status === 422 ? error.message : failed;
     } finally {
       creating.value = false;
     }
@@ -115,13 +128,13 @@ export function useNewBot({ bots, sections, store, picker, selectBot, notify }) 
     newBotOpen,
     creating,
     createError,
-    createProblems,
     newBotName,
     newBotTemplate,
-    newBotTeam,
+    newBotScreen,
     openNewBot,
-    openTeam,
+    openTeams,
     createBot,
-    addTeam
+    addTeam,
+    addBots
   };
 }

@@ -100,9 +100,24 @@ export function createNewBotRepository({ resources, systemContext, homeTemplates
     return records.length > 0;
   }
 
+  /**
+   * The home's bots (group chats aside), newest first, up to `limit` of them, with their names, looks and templates, and
+   * whether it has more: what Add bots' suggestions are told of the home (D-109). One read of one page, at most `limit` rows.
+   * @param {number} limit
+   * @param {CallOptions} options
+   */
+  async function homeBots(limit, options) {
+    const { records, page } = await bots.query(
+      { filters: { kind: "bot" }, fields: ["name", "shape", "color", "libraryTemplate", "homeTemplateId"], sort: ["-id"], page: { size: limit } },
+      passedOn(options)
+    );
+    return { bots: records.map((record) => asRow(record, options)), more: page.hasMore };
+  }
+
   return Object.freeze({
     followedOf,
     anyBesidesMain,
+    homeBots,
     createBots,
     createSeats,
     openWith,

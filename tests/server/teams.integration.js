@@ -193,7 +193,7 @@ test("an unknown team, an empty choice and a template the team hasn't got are re
   assert.deepEqual(await botsOf(homeId), []);
 });
 
-test("a new home's first conversation offers a team after its default, and not once the home has other bots", async (context) => {
+test("a new home's first conversation offers bots to start with after its default, and not once the home has other bots", async (context) => {
   const { bots, pat, newHome, as } = await setup(context);
   const user = { displayName: "Pat" };
   const named = async (homeId) => {
@@ -205,7 +205,8 @@ test("a new home's first conversation offers a team after its default, and not o
     const renamed = await bots.advanceOnboarding(main.id, "rename", user, owner);
     return { owner, main, renamed, card: renamed.messages.find((message) => message.kind === "choice") };
   };
-  const options = [...TEAMS.map((team) => team.name), "Not now"];
+  // Two choices, never the teams themselves (D-109).
+  const options = ["Show me ready-made teams", "Not now"];
 
   // The default unchosen: its card, then the team's.
   const asked = await named(await newHome());
@@ -213,10 +214,10 @@ test("a new home's first conversation offers a team after its default, and not o
   assert.equal(answered.bot.onboardingStep, "team-offer");
   const offered = await bots.advanceOnboarding(asked.main.id, "team-offer", user, asked.owner);
   const card = offered.messages.find((message) => message.kind === "choice");
-  assert.deepEqual([card.body.purpose, card.body.question, card.body.options], ["team", "Want a ready-made team?", options]);
+  assert.deepEqual([card.body.purpose, card.body.question, card.body.options], ["team", "Want a few bots to start with?", options]);
   assert.equal(offered.bot.onboardingStep, "team", "it waits for the answer");
-  const chosen = await bots.answerChoice(asked.main.id, card.id, ["Busy household"], asked.owner);
-  assert.deepEqual([chosen.team, chosen.bot.onboardingStep], ["family-home", "about"], "the page opens its team screen");
+  const chosen = await bots.answerChoice(asked.main.id, card.id, ["Show me ready-made teams"], asked.owner);
+  assert.deepEqual([chosen.addBots, chosen.bot.onboardingStep], ["teams", "about"], "the page opens Add bots on its teams");
   assert.deepEqual(await bots.listBots(asked.owner).then((list) => list.bots.length), 1, "choosing adds nothing by itself");
 
   // Chosen already (the New home form): straight to the team's card; Not now carries on.
@@ -225,7 +226,7 @@ test("a new home's first conversation offers a team after its default, and not o
   const quiet = await named(formed);
   assert.deepEqual([quiet.card.body.purpose, quiet.renamed.bot.onboardingStep], ["team", "team"]);
   const later = await bots.answerChoice(quiet.main.id, quiet.card.id, ["Not now"], quiet.owner);
-  assert.deepEqual([later.team, later.bot.onboardingStep], [null, "about"]);
+  assert.deepEqual([later.addBots, later.bot.onboardingStep], [null, "about"]);
 
   // Typing past it skips it.
   const typed = await newHome();
@@ -235,7 +236,7 @@ test("a new home's first conversation offers a team after its default, and not o
   assert.equal(sent.messages.find((message) => message.id === busy.card.id)?.body.inactive, true);
   assert.equal(sent.bot.onboardingStep, "about");
 
-  // A home that has its team's bots already (the New home form made it for one) isn't offered one.
+  // A home that has bots besides its main one already isn't offered a team.
   const teamed = await newHome();
   await bots.chooseHomeDefault("mixed", as(pat, teamed));
   const owner = as(pat, teamed);

@@ -115,7 +115,7 @@ async function remove() {
         </span>
       </li>
     </ul>
-    <p v-else class="mb-stemp__note">None yet. Make one with Make a new template in New bot, or in a bot's Change template.</p>
+    <p v-else class="mb-stemp__note">None yet. Add bots writes one when you describe a bot nothing fits, and a bot's Change template has Make a new template.</p>
     <p class="mb-stemp__note">
       {{ canManage ? "Changes to a template reach every bot that uses it from its next reply." : "Only the home's owners and admins can change or delete them." }}
       Mercbot's own templates are in the gallery.

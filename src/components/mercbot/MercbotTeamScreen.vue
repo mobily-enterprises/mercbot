@@ -2,31 +2,24 @@
 import { computed, ref, watch } from "vue";
 import { templatesApi } from "../templates/templatesApi.js";
 import { appsApi } from "../apps/appsApi.js";
-import { ONBOARDING_BLACK } from "@/theme/palettes.js";
 import MercbotAvatar from "./MercbotAvatar.vue";
 import MercbotTemplateTag from "./MercbotTemplateTag.vue";
 import { botsApi } from "./botsApi.js";
-import { TEAM_INTRO, addLabel, appsFor, botsToAdd } from "./teamChoice.js";
+import { TEAM_INTRO, addLabel, appsFor, botsToAdd, teamGroups } from "./teamChoice.js";
 
-// Teams (D-105), as New home and New bot's Add a team both show them: first Mercbot's teams as cards, each a situation
-// with its line, its bots' faces and how many, then the team chosen, its bots each with its name, look, tag and line,
-// all ticked. A bot the home already has on the same template says "Already in this home" and isn't added. Someone who
-// may set up apps also gets the app a bot works with, as New bot offers it. The action asks the dialog to make the ones
-// ticked: Add N bots in a home (useNewBot.js addTeam), Create home with N bots in New home (`fresh`, with the home's
-// name and who it's for in the slot below the bots; MercbotNewHomeDialog.vue), whose list ends with Something else.
+// Teams (D-105), as Add bots' A ready-made team shows them (D-109): first Mercbot's teams as cards under For home and
+// life and For work, each a situation with its line, its bots' faces and how many, and "Want one made to fit?", which
+// goes to Describe what you need; then the team chosen, its bots each
+// with its name, look, tag and line, all ticked. A bot the home already has on the same template says "Already in this
+// home" and isn't added. Someone who may set up apps also gets the app a bot works with, as One bot offers it. Add N
+// bots asks the dialog to make the ones ticked (useNewBot.js addTeam).
 const props = defineProps({
   busy: { type: Boolean, default: false },
-  error: { type: String, default: "" },
-  // New home: the team's bots go in a home not made yet, so none is in it, and its maker, its owner, may set up apps.
-  fresh: { type: Boolean, default: false },
-  // The link above the list back to where the dialog came from ("" for none), and whether the action may run.
-  listBack: { type: String, default: "All templates" },
-  ready: { type: Boolean, default: true },
-  actionWords: { type: Function, default: addLabel }
+  error: { type: String, default: "" }
 });
 // The team on screen, or "" for the list of teams.
 const teamId = defineModel("team", { type: String, default: "" });
-const emit = defineEmits(["add", "back", "other", "shown"]);
+const emit = defineEmits(["add", "back", "describe"]);
 
 const gallery = ref(null);
 const listFailed = ref(false);
@@ -36,8 +29,8 @@ const unticked = ref(new Set());
 // The apps a team's bots work with, by key, when the person may set them up, and those left out.
 const apps = ref(new Map());
 const withoutApp = ref(new Set());
-const mercbot = { id: "face-mercbot", name: "Mercbot", color: ONBOARDING_BLACK };
 
+const groups = computed(() => teamGroups(gallery.value?.teams || []));
 const looks = computed(() => new Map((gallery.value?.templates || []).map((template) => [template.slug, template])));
 const facesOf = (entry) => entry.templates.map((slug) => looks.value.get(slug)).filter(Boolean);
 const adding = computed(() => botsToAdd(team.value, unticked.value));
@@ -61,16 +54,14 @@ async function loadTeam(id) {
   try {
     const read = await botsApi.team(id);
     if (teamId.value !== id) return;
-    // A new home has none of them yet, whatever the home the page is in has.
-    team.value = props.fresh ? { ...read, bots: read.bots.map((bot) => ({ ...bot, inHome: false })) } : read;
-    emit("shown", team.value);
+    team.value = read;
   } catch {
     if (teamId.value === id) teamFailed.value = true;
     return;
   }
   if (!team.value.bots.some((bot) => bot.appTemplate)) return;
   const { templates = [], canManage } = await appsApi.templates().catch(() => ({}));
-  apps.value = canManage || props.fresh ? new Map(templates.map((app) => [app.key, app])) : new Map();
+  apps.value = canManage ? new Map(templates.map((app) => [app.key, app])) : new Map();
 }
 
 watch(teamId, (id) => {
@@ -101,7 +92,7 @@ function back() {
 
 /** The action: the team's ticked bots, and the apps to set up for them, each once. */
 function add() {
-  if (!adding.value.length || !props.ready || props.busy) return;
+  if (!adding.value.length || props.busy) return;
   emit("add", {
     teamId: team.value.id,
     name: team.value.name,
@@ -115,41 +106,38 @@ defineExpose({ back, add });
 
 <template>
   <div class="mb-ctemp__scroll">
-    <button v-if="teamId || listBack" type="button" class="mb-ctemp__step-link" :disabled="busy" @click="back">
-      <v-icon icon="$chevronLeft" size="16" /> {{ teamId ? "All teams" : listBack }}
+    <button type="button" class="mb-ctemp__step-link" :disabled="busy" @click="back">
+      <v-icon icon="$chevronLeft" size="16" /> {{ teamId ? "All teams" : "Add bots" }}
     </button>
 
     <template v-if="!teamId">
       <p class="mb-team__intro">{{ TEAM_INTRO }}</p>
+      <button type="button" class="mb-team__describe" @click="emit('describe')">
+        Want one made to fit? Describe your team <v-icon icon="$chevronRight" size="16" />
+      </button>
       <div v-if="listFailed" class="mb-ctemp__state" role="alert">
         <p>The teams couldn't be loaded.</p>
         <button type="button" class="mb-set-pill" @click="loadTeams">Try again</button>
       </div>
       <div v-else-if="!gallery" class="mb-ctemp__state" role="status" aria-label="Loading the teams" />
-      <div v-else class="mb-team__list">
-        <button v-for="entry in gallery.teams" :key="entry.id" type="button" class="mb-team__choice" @click="teamId = entry.id">
-          <span class="mb-team__text">
-            <strong>{{ entry.name }}</strong>
-            <span class="mb-team__line">{{ entry.description }}</span>
-            <span class="mb-team__faces" aria-hidden="true">
-              <MercbotAvatar v-for="face in facesOf(entry)" :key="face.slug" :bot="{ id: `face-${face.slug}`, name: face.name, color: face.color, shape: face.shape }" :size="22" still />
-              <span class="mb-team__count">{{ entry.templates.length }} bots</span>
-            </span>
-          </span>
-          <v-icon icon="$chevronRight" size="18" />
-        </button>
-        <button v-if="fresh" type="button" class="mb-team__choice" @click="emit('other')">
-          <span class="mb-team__text">
-            <strong>Something else</strong>
-            <span class="mb-team__line">Start with just Mercbot, and add bots whenever you like.</span>
-            <span class="mb-team__faces" aria-hidden="true">
-              <MercbotAvatar :bot="mercbot" :size="22" still />
-              <span class="mb-team__count">1 bot</span>
-            </span>
-          </span>
-          <v-icon icon="$chevronRight" size="18" />
-        </button>
-      </div>
+      <template v-else>
+        <section v-for="group in groups" :key="group.for" class="mb-team__group" :aria-label="group.name">
+          <h3 class="mb-team__group-name">{{ group.name }}</h3>
+          <div class="mb-team__list">
+            <button v-for="entry in group.teams" :key="entry.id" type="button" class="mb-team__choice" @click="teamId = entry.id">
+              <span class="mb-team__text">
+                <strong>{{ entry.name }}</strong>
+                <span class="mb-team__line">{{ entry.description }}</span>
+                <span class="mb-team__faces" aria-hidden="true">
+                  <MercbotAvatar v-for="face in facesOf(entry)" :key="face.slug" :bot="{ id: `face-${face.slug}`, name: face.name, color: face.color, shape: face.shape }" :size="22" still />
+                  <span class="mb-team__count">{{ entry.templates.length }} bots</span>
+                </span>
+              </span>
+              <v-icon icon="$chevronRight" size="18" />
+            </button>
+          </div>
+        </section>
+      </template>
     </template>
 
     <template v-else>
@@ -192,21 +180,14 @@ defineExpose({ back, add });
           They go in their own section, {{ team.name }}, and each says hello when you open it. None does any work until you
           answer.
         </p>
-        <slot />
       </template>
     </template>
   </div>
   <p v-if="error" class="mb-ctemp__error" role="alert">{{ error }}</p>
   <div class="mb-ctemp__foot">
-    <button type="button" class="mb-ctemp__button" :disabled="busy" @click="back">{{ teamId || listBack ? "Back" : "Cancel" }}</button>
-    <button
-      v-if="teamId"
-      type="button"
-      class="mb-ctemp__button mb-ctemp__button--primary"
-      :disabled="!adding.length || !ready || busy"
-      @click="add"
-    >
-      {{ actionWords(adding.length, busy) }}
+    <button type="button" class="mb-ctemp__button" :disabled="busy" @click="back">Back</button>
+    <button v-if="teamId" type="button" class="mb-ctemp__button mb-ctemp__button--primary" :disabled="!adding.length || busy" @click="add">
+      {{ addLabel(adding.length, busy) }}
     </button>
   </div>
 </template>
@@ -217,6 +198,33 @@ defineExpose({ back, add });
   margin: 0 0 14px;
   font-size: 13px;
   line-height: 18px;
+  color: rgb(var(--v-theme-on-surface-variant));
+}
+
+.mb-team__describe {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin: 0 0 16px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: rgb(var(--v-theme-primary));
+  cursor: pointer;
+}
+
+.mb-team__group + .mb-team__group {
+  margin-top: 20px;
+}
+
+.mb-team__group-name {
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
   color: rgb(var(--v-theme-on-surface-variant));
 }
 

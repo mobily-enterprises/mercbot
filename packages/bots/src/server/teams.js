@@ -7,6 +7,8 @@ import { GALLERY } from "./templates.js";
 // templates, and checked when Mercbot starts: a team naming a template the library hasn't got, or one twice, stops it.
 
 const ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/u;
+// What a team is for (D-109): Add bots lists the teams for home and life, then those for work.
+export const TEAM_FOR = Object.freeze(["home", "work"]);
 const LIMITS = Object.freeze({ id: 40, name: 40, description: 160 });
 
 /** One line of text, trimmed, of 1 to `max` characters. */
@@ -15,7 +17,8 @@ const oneLineOf = (value, max) =>
 
 /**
  * What's wrong with a list of teams, each problem naming its team: empty when every team has an id (lowercase words
- * joined by -), a name and a one-line description, all its own, and one or more of `library`'s templates, each once.
+ * joined by -), what it's for (TEAM_FOR), a name and a one-line description, all its own, and one or more of
+ * `library`'s templates, each once.
  * @param {unknown} teams
  * @param {ReadonlyArray<{ slug: string }>} library the templates a team may name
  * @returns {string[]}
@@ -28,6 +31,7 @@ export function teamProblems(teams, library) {
   for (const [index, team] of teams.entries()) {
     const label = typeof team?.id === "string" && team.id ? team.id : `team ${index + 1}`;
     if (!ID.test(String(team?.id || "")) || team.id.length > LIMITS.id) problems.push(`${label}: id, lowercase words joined by -`);
+    if (!TEAM_FOR.includes(team?.for)) problems.push(`${label}: for, one of ${TEAM_FOR.join(" or ")}`);
     if (!oneLineOf(team?.name, LIMITS.name)) problems.push(`${label}: name, up to ${LIMITS.name} characters`);
     if (!oneLineOf(team?.description, LIMITS.description)) {
       problems.push(`${label}: description, one line of up to ${LIMITS.description} characters`);
@@ -57,8 +61,8 @@ export function teamProblems(teams, library) {
 export function checkTeams(teams, library = GALLERY) {
   const problems = teamProblems(teams, library);
   if (problems.length) throw new Error(`Bot teams (bot-templates/teams.json): ${problems.join("; ")}`);
-  return Object.freeze(teams.map(({ id, name, description, templates }) =>
-    Object.freeze({ id, name, description, templates: Object.freeze([...templates]) })));
+  return Object.freeze(teams.map(({ id, for: forWhat, name, description, templates }) =>
+    Object.freeze({ id, for: forWhat, name, description, templates: Object.freeze([...templates]) })));
 }
 
 /** Mercbot's teams, in the order they are offered. */
@@ -67,8 +71,11 @@ export const TEAMS = checkTeams(JSON.parse(readFileSync(TEAMS_FILE, "utf8")).tea
 /** A team by its id, or null. @param {unknown} teamId */
 export const teamById = (teamId) => TEAMS.find((team) => team.id === teamId) || null;
 
-/** A team by its name, as the first conversation's card offers it, or null. @param {unknown} name */
-export const teamNamed = (name) => TEAMS.find((team) => team.name === name) || null;
-
-/** A team as the gallery lists it: its id, name, line and templates' slugs, in order. */
-export const teamSummary = (team) => ({ id: team.id, name: team.name, description: team.description, templates: [...team.templates] });
+/** A team as the gallery lists it: its id, what it's for, name, line and templates' slugs, in order. */
+export const teamSummary = (team) => ({
+  id: team.id,
+  for: team.for,
+  name: team.name,
+  description: team.description,
+  templates: [...team.templates]
+});

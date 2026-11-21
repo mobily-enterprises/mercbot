@@ -46,7 +46,7 @@ An operations manager asks a bot to put together the same report every Friday: f
 
 A good scenario becomes a reliable bot when its job is clear and stays clear. To set one up:
 
-1. **Give it one job.** Create a separate bot for each role with **New bot**, and give it a name that says what it does. A bot that does one thing well is easier to trust than one that does everything.
+1. **Give it one job.** Create a separate bot for each role with **Add bots**, and give it a name that says what it does. A bot that does one thing well is easier to trust than one that does everything.
 2. **Tell it the specifics once.** Explain who's involved, which accounts to use, what to avoid and how you like results presented. Lasting facts are remembered across chats.
 3. **Run the job by hand first.** Ask for it a few times in the chat and correct anything that's off, until the result is what you want.
 4. **Save the method.** Ask the bot to save what it did as a skill, or teach it by recording yourself doing the task on its computer.

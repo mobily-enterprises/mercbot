@@ -8,44 +8,46 @@ import TemplateTested from "../templates/TemplateTested.vue";
 import { templatesApi } from "../templates/templatesApi.js";
 import { appsApi } from "../apps/appsApi.js";
 import MercbotAvatar from "./MercbotAvatar.vue";
-import MercbotConfirmDialog from "./MercbotConfirmDialog.vue";
+import MercbotDescribeBox from "./MercbotDescribeBox.vue";
+import MercbotPlanReview from "./MercbotPlanReview.vue";
 import MercbotTeamScreen from "./MercbotTeamScreen.vue";
-import MercbotTemplateDraft from "./MercbotTemplateDraft.vue";
 import MercbotTemplateTag from "./MercbotTemplateTag.vue";
 import { BOT_COLOURS, BOT_PALETTE } from "@/theme/palettes.js";
 import { isBlack } from "./accent.js";
 import { SHAPES, SPECIAL_SHAPE } from "./avatarShapes.js";
 import { botsApi } from "./botsApi.js";
+import { useBotPlan } from "./useBotPlan.js";
 
-// New bot (D-98, amended 20 November). First, what it will do: Mercbot's all-round General helper, one of the home's own
-// templates (listed first), one of Mercbot's library (search, job areas and Tested badges, as the gallery shows them),
-// or Make a new template, drafted from a sentence on the draft screen. A template chosen is shown whole before Next.
-// Then its name, cloud and colour, and Create: the shell creates it (useNewBot.js) with the template chosen, so a new
-// template and its bot are made together. A template a link opens (?template=) starts New bot with it chosen; a bot a
-// person shared keeps its own name and look, so it's added from there. Add a team, at the foot of the templates, makes a
-// few bots at once (D-105: MercbotTeamScreen.vue); a new home's first conversation or its New home form starts New bot
-// there with the team chosen. On a phone it fills the screen.
+// Add bots (D-109), which was New bot (D-98, amended 20 November): it opens on Describe what you need, and two ways to
+// choose yourself, One bot and A ready-made team. Describing asks Mercbot for a plan (useBotPlan.js), shown on Suggested
+// bots (MercbotPlanReview.vue) before anything is added: library bots, the home's templates and new ones written for it,
+// made together by Add N bots. One bot is what it will do: Mercbot's all-round General helper, one of the home's own
+// templates (listed first) or one of Mercbot's library (search, an area menu and passed checks' badges); when nothing
+// fits, Describe the bot you need takes the search's words to the Describe box. A template chosen is shown whole before
+// Next. Then its name, cloud and colour, and Create: the shell creates it (useNewBot.js). A template a link opens
+// (?template=) starts on it chosen, and a name typed in the group picker on One bot; a bot a person shared keeps its own
+// name and look, so it's added from there. A ready-made team makes a few bots at once (D-105: MercbotTeamScreen.vue); a
+// new home's first conversation opens there. On a phone it fills the screen.
 const props = defineProps({
   busy: { type: Boolean, default: false },
   error: { type: String, default: "" },
-  // A refused new template's problems, shown at their parts on the draft screen.
-  problems: { type: Array, default: () => [] },
   // A name to start with, as from the group picker's "create a new bot" offer.
   initialName: { type: String, default: "" },
   // The home's bots, so a new one starts in a colour and cloud nobody has yet (D-44).
   bots: { type: Array, default: () => [] },
   // The template a link opened New bot with: one of Mercbot's library, or a bot a person shared.
   templateSlug: { type: String, default: "" },
-  // The team chosen elsewhere (D-105): New bot opens on its team screen.
-  teamId: { type: String, default: "" }
+  // The screen it opens on: "start", or "teams" (D-105, D-109) from a new home's first conversation.
+  screen: { type: String, default: "start" }
 });
 const open = defineModel({ type: Boolean, default: false });
-const emit = defineEmits(["create", "addTeam"]);
+const emit = defineEmits(["create", "addTeam", "addBots"]);
 
 const display = useDisplay();
 const phone = computed(() => display.width.value < 600);
-// pick, preview (a template chosen), draft (Make a new template), look (name, cloud and colour) or team (Add a team).
-const step = ref("pick");
+// start (Describe, and the two ways), plan (Suggested bots), pick (One bot), preview (a template chosen), look (name,
+// cloud and colour) or team (A ready-made team).
+const step = ref("start");
 // The team on the team screen, "" for the list of teams.
 const team = ref("");
 const teamScreen = ref(null);
@@ -56,14 +58,12 @@ const detail = ref(null);
 const loadFailed = ref(false);
 const appChoice = ref(null);
 const withApp = ref(true);
-// Make a new template: the draft screen stays while the look is chosen, and the draft it saved goes with Create.
-const drafting = ref(false);
-const draftScreen = ref(null);
-const drafted = ref(null);
-// Leaving a draft not yet made into a bot asks first: what to do once agreed.
-const leaving = shallowRef(null);
-const asking = computed({ get: () => Boolean(leaving.value), set: (value) => { if (!value) leaving.value = null; } });
 const browser = ref(null);
+// Describe what you need: the words, and the plan they bring.
+const words = ref("");
+const describeBox = ref(null);
+const planner = useBotPlan();
+const hasBots = computed(() => props.bots.some((bot) => bot.kind !== "group" && !bot.isMain));
 
 const name = ref("");
 const shape = ref(SHAPES[0].id);
@@ -82,38 +82,41 @@ function pickFresh(list, taken) {
 // Every cloud, Mercbot's own last, ten to a row (D-44).
 const rows = Array.from({ length: Math.ceil((SHAPES.length + 1) / 10) }, (_, index) => [...SHAPES, SPECIAL_SHAPE].slice(index * 10, index * 10 + 10));
 const colourRows = [BOT_PALETTE.slice(0, 6), BOT_PALETTE.slice(6)];
+// A ready-made team's card: three faces, each its own cloud and colour.
+const TEAM_FACES = [1, 2, 3].map((index) => ({ id: `way-team-${index}`, name: "A team's bot", shape: SHAPES[index].id, color: BOT_PALETTE[index * 2].color }));
 
 // A template of Mercbot's library is the team's; one a link opens that isn't is a bot a person shared.
 const library = computed(() => Boolean(detail.value?.team));
 const shared = computed(() => Boolean(chosen.value?.link) && Boolean(detail.value) && !library.value);
 const chosenTag = computed(() => detail.value && { template: { tag: detail.value.tag, source: chosen.value?.home ? "home" : "library", description: detail.value.description } });
 const homeTags = computed(() => (home.value || []).map((template) => template.tag));
-const title = computed(() => ({ pick: "New bot", preview: "New bot", draft: "Make a new template", look: "Name your bot", team: "Add a team" })[step.value]);
+const title = computed(() => ({
+  start: "Add bots",
+  plan: "Suggested bots",
+  pick: "One bot",
+  preview: "One bot",
+  look: "Name your bot",
+  team: "A ready-made team"
+})[step.value]);
 
 watch(open, async (value) => {
   if (!value) return;
   const bots = props.bots.filter((bot) => bot.kind !== "group");
-  step.value = "pick";
+  step.value = "start";
   chosen.value = null;
   detail.value = null;
-  drafting.value = false;
-  drafted.value = null;
   home.value = null;
+  words.value = "";
+  planner.reset();
   name.value = props.initialName;
   shape.value = pickFresh(SHAPES.map((entry) => entry.id), new Set(bots.map((bot) => bot.shape)));
   color.value = pickFresh(BOT_PALETTE.map((entry) => entry.color), new Set(bots.map((bot) => (isBlack(bot.color) ? BOT_COLOURS.Black : String(bot.color).toUpperCase()))));
   botsApi.homeTemplates().then((read) => { home.value = read.templates; }).catch(() => { home.value = []; });
-  team.value = props.teamId;
-  if (props.teamId) return toTeams();
+  team.value = "";
+  if (props.screen === "teams") return toTeams();
   if (props.templateSlug) return choose({ link: props.templateSlug });
-  await nextTick();
-  browser.value?.focusSearch();
+  if (props.initialName) await toPicker();
 }, { immediate: true });
-
-// A refused new template goes back to the draft screen, its problems at their parts.
-watch(() => props.problems, (list) => {
-  if (list.length && drafting.value) step.value = "draft";
-});
 
 async function choose(choice) {
   chosen.value = choice;
@@ -148,37 +151,45 @@ function toLook() {
   nextTick(() => nameInput.value?.focus());
 }
 
-function makeTemplate() {
-  chosen.value = null;
-  detail.value = null;
-  drafting.value = true;
-  step.value = "draft";
+/** Suggest bots: a plan for the words, shown on Suggested bots, or its question above the box to answer first. */
+async function suggest(text) {
+  const plan = await planner.suggest(text);
+  if (plan && !plan.question) step.value = "plan";
+  else if (plan) nextTick(() => describeBox.value?.focus());
 }
 
-function saveDraft({ draft }) {
-  drafted.value = draft;
-  chosen.value = { draft };
-  toLook();
+/** Describe the bot you need, or your team: back to the Describe box, with One bot's search words in it. */
+async function toDescribe() {
+  const searched = step.value === "pick" ? browser.value?.searchWords() || "" : "";
+  if (searched) words.value = searched;
+  toStart();
+  await nextTick();
+  describeBox.value?.focus();
 }
 
-/** Add a team: the list of teams, or the one chosen. */
+/** A ready-made team: the list of teams, or the one chosen. */
 function toTeams() {
   step.value = "team";
 }
 
-function toPicker() {
-  step.value = "pick";
+/** The two ways to choose. */
+function toStart() {
+  step.value = "start";
   team.value = "";
-  drafting.value = false;
-  nextTick(() => browser.value?.focusSearch());
+}
+
+/** One bot: the templates, the search first. */
+async function toPicker() {
+  step.value = "pick";
+  await nextTick();
+  browser.value?.focusSearch();
 }
 
 function back() {
   if (props.busy) return;
   if (step.value === "team") teamScreen.value?.back();
-  else if (step.value === "look" && drafting.value) step.value = "draft";
+  else if (step.value === "pick" || step.value === "plan") toStart();
   else if (step.value === "look" && !chosen.value?.general) step.value = "preview";
-  else if (step.value === "draft" && draftScreen.value?.dirty) leaving.value = toPicker;
   else toPicker();
 }
 
@@ -194,22 +205,17 @@ function create() {
     return;
   }
   if (!canCreate.value) return;
-  const template = chosen.value?.draft
-    ? { draft: drafted.value }
-    : chosen.value?.home ? { home: chosen.value.home } : library.value ? { library: detail.value.slug } : null;
+  const template = chosen.value?.home ? { home: chosen.value.home } : library.value ? { library: detail.value.slug } : null;
   const app = library.value && appChoice.value?.canManage && withApp.value ? appChoice.value : null;
   emit("create", { name: name.value.trim(), shape: shape.value, color: shownColor.value, ...(template ? { template } : {}), ...(app ? { app } : {}) });
 }
 
-// A draft not yet made into a bot is lost on closing: asked first.
 function close() {
-  if (props.busy) return;
-  if (drafting.value && draftScreen.value?.dirty) leaving.value = () => { open.value = false; };
-  else open.value = false;
+  if (!props.busy) open.value = false;
 }
 
 function onKeydown(event) {
-  if (event.key !== "Escape" || step.value === "pick") return;
+  if (event.key !== "Escape" || step.value === "start") return;
   event.preventDefault();
   event.stopPropagation();
   back();
@@ -217,8 +223,8 @@ function onKeydown(event) {
 </script>
 
 <template>
-  <v-dialog :model-value="open" width="auto" :fullscreen="phone" :persistent="busy || drafting" @update:model-value="close">
-    <div class="mb-ctemp" :class="{ 'mb-ctemp--phone': phone }" role="dialog" aria-label="New bot" @keydown="onKeydown">
+  <v-dialog :model-value="open" width="auto" :fullscreen="phone" :persistent="busy || step === 'plan'" @update:model-value="close">
+    <div class="mb-ctemp" :class="{ 'mb-ctemp--phone': phone }" role="dialog" aria-label="Add bots" @keydown="onKeydown">
       <div class="mb-ctemp__head">
         <h2 class="mb-ctemp__title">{{ title }}</h2>
         <button type="button" class="mb-ctemp__close" aria-label="Close" :disabled="busy" @click="close">
@@ -227,7 +233,37 @@ function onKeydown(event) {
       </div>
 
       <div class="mb-ctemp__body">
-        <div v-show="step === 'pick'" class="mb-ctemp__picker" :inert="step !== 'pick'">
+        <div v-show="step === 'start'" class="mb-ctemp__step" :inert="step !== 'start'">
+          <div class="mb-ctemp__scroll">
+            <MercbotDescribeBox
+              ref="describeBox"
+              v-model="words"
+              :more="hasBots"
+              :busy="planner.asking.value"
+              :question="planner.question.value"
+              :failure="step === 'start' ? planner.failure.value : ''"
+              @suggest="suggest"
+            />
+            <p class="mb-newbot__or"><span>or choose yourself</span></p>
+            <div class="mb-newbot__ways">
+              <button type="button" class="mb-newbot__way" @click="toPicker">
+                <MercbotAvatar :bot="{ id: 'way-one', name: 'One bot', shape: shape, color: shownColor }" :size="40" still />
+                <strong>One bot</strong>
+                <span>Pick one from Mercbot's library, or an all-round helper</span>
+              </button>
+              <button type="button" class="mb-newbot__way" @click="toTeams">
+                <span class="mb-newbot__way-faces" aria-hidden="true">
+                  <MercbotAvatar v-for="face in TEAM_FACES" :key="face.id" :bot="face" :size="28" still />
+                </span>
+                <strong>A ready-made team</strong>
+                <span>A salon, a shop, a busy household…: a few bots that work well together</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div v-show="step === 'pick'" class="mb-ctemp__step mb-ctemp__picker" :inert="step !== 'pick'">
+          <button type="button" class="mb-ctemp__step-link mb-newbot__back" @click="toStart"><v-icon icon="$chevronLeft" size="16" /> Add bots</button>
           <p class="mb-newbot__question">What will it do?</p>
           <TemplateBrowser ref="browser" picking :home="home || []" class="mb-ctemp__browser" @pick="choose">
             <template #lead>
@@ -240,35 +276,18 @@ function onKeydown(event) {
                 <v-icon icon="$chevronRight" size="18" />
               </button>
             </template>
-            <template #foot>
-              <button type="button" class="mb-newbot__team" data-template-entry @click="toTeams">
-                <v-icon icon="$groupAdd" size="20" />
-                <span class="mb-newbot__lead-text">
-                  <strong>Add a team</strong>
-                  <span>A few bots for one situation, such as a small shop or a busy household, made together.</span>
-                </span>
-                <v-icon icon="$chevronRight" size="18" />
-              </button>
-            </template>
           </TemplateBrowser>
           <div class="mb-ctemp__foot mb-ctemp__picker-foot">
-            <span class="mb-ctemp__hint">Nothing that fits?</span>
-            <button type="button" class="mb-ctemp__button" @click="makeTemplate"><v-icon icon="$editSquare" size="15" /> Make a new template</button>
+            <span class="mb-ctemp__hint">Nothing fits?</span>
+            <button type="button" class="mb-ctemp__button" @click="toDescribe"><v-icon icon="$editSquare" size="15" /> Describe the bot you need</button>
           </div>
         </div>
 
-        <div v-if="drafting" v-show="step === 'draft'" class="mb-ctemp__step">
-          <button type="button" class="mb-ctemp__step-link mb-ctemp__draft-back" :disabled="busy" @click="back"><v-icon icon="$chevronLeft" size="16" /> All templates</button>
-          <MercbotTemplateDraft
-            ref="draftScreen"
-            class="mb-ctemp__draft"
-            purpose="new"
-            :home-tags="homeTags"
-            save-label="Save and use"
-            :save-problems="problems"
-            @save="saveDraft"
-          />
-        </div>
+        <Transition name="mb-ctemp-step">
+          <div v-if="step === 'plan'" class="mb-ctemp__step">
+            <MercbotPlanReview :planner="planner" :busy="busy" :error="error" :home-tags="homeTags" @add="emit('addBots', $event)" @back="toStart" />
+          </div>
+        </Transition>
 
         <Transition name="mb-ctemp-step">
           <div v-if="step === 'preview'" class="mb-ctemp__step">
@@ -332,7 +351,7 @@ function onKeydown(event) {
 
         <Transition name="mb-ctemp-step">
           <div v-if="step === 'team'" class="mb-ctemp__step">
-            <MercbotTeamScreen ref="teamScreen" v-model:team="team" :busy="busy" :error="error" @add="emit('addTeam', $event)" @back="toPicker" />
+            <MercbotTeamScreen ref="teamScreen" v-model:team="team" :busy="busy" :error="error" @add="emit('addTeam', $event)" @back="toStart" @describe="toDescribe" />
           </div>
         </Transition>
 
@@ -340,11 +359,10 @@ function onKeydown(event) {
           <div v-if="step === 'look'" class="mb-ctemp__step">
             <div class="mb-ctemp__scroll mb-newbot__look">
               <button type="button" class="mb-ctemp__step-link" :disabled="busy" @click="back">
-                <v-icon icon="$chevronLeft" size="16" /> {{ drafting ? "The template" : chosen?.general ? "All templates" : "Back" }}
+                <v-icon icon="$chevronLeft" size="16" /> {{ chosen?.general ? "One bot" : "Back" }}
               </button>
               <p class="mb-newbot__chosen">
-                <template v-if="drafting">On <strong>{{ drafted.tag }}</strong>, a new template of your home's, saved when you create the bot</template>
-                <template v-else-if="chosen?.general">A <strong>General helper</strong>: it asks what you need</template>
+                <template v-if="chosen?.general">A <strong>General helper</strong>: it asks what you need</template>
                 <template v-else>On <strong>{{ detail.tag }}</strong>{{ chosen?.home ? ", your home's template" : ", from Mercbot's library" }}</template>
               </p>
               <div class="mb-newbot__preview"><MercbotAvatar :bot="preview" :size="100" /></div>
@@ -408,13 +426,6 @@ function onKeydown(event) {
         </Transition>
       </div>
     </div>
-    <MercbotConfirmDialog
-      v-model="asking"
-      title="Leave the new template?"
-      text="It isn't saved yet: the draft is lost when you leave it."
-      confirm-label="Leave"
-      @confirm="leaving?.()"
-    />
   </v-dialog>
 </template>
 

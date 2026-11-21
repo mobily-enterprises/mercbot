@@ -208,6 +208,14 @@ export function registerRoutes(http, { bots, approvals, notices, meter, records,
     bots.teamFor(request.params.teamId, options)));
   router.register("POST", "/api/w/:workspaceSlug/teams/:teamId", auth, handle(async (request, user, options) =>
     bots.addTeam(request.params.teamId, request.body?.templates, user.displayName, options)));
+  // Add bots' suggestions (D-109): a plan, one billed call like a reply, refused in a paused home, with nothing kept; and
+  // Add N bots, the bots ticked on it, for everyone in the home, as One bot is.
+  router.register("POST", "/api/w/:workspaceSlug/bots/plan", auth, handle(async (request, _user, options) => {
+    await unlessPaused(request);
+    return bots.proposeBots(request.body || {}, options);
+  }));
+  router.register("POST", "/api/w/:workspaceSlug/bots/batch", auth, handle(async (request, user, options) =>
+    bots.addBots(request.body || {}, user.displayName, options)));
   // A template drafted by the bot (D-98): one billed call, like a reply, refused in a paused home; nothing is kept.
   router.register("POST", "/api/w/:workspaceSlug/bots/templates/draft", auth, handle(async (request, _user, options) => {
     await unlessPaused(request);

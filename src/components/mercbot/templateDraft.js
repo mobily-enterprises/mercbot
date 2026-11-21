@@ -1,8 +1,8 @@
 import { computed, ref } from "vue";
 import { setupSkillOf, templateBody, templateProblems } from "@local/bots/shared/templateBody";
 
-// The draft screen's state (D-98, amended 20 November): Make a new template, Start from this bot, and Settings →
-// Templates → Edit. The draft on the page is the only state: every request to the bot sends it whole and takes a whole
+// The draft screen's state (D-98, amended 20 November): Make a new template, Start from this bot, Settings →
+// Templates → Edit, and a suggested new bot's Edit in Add bots (D-109). The draft on the page is the only state: every request to the bot sends it whole and takes a whole
 // new draft back, the earlier drafts are kept here for Undo and lost when the screen closes, and what changed since the
 // draft before is highlighted, word by word within long parts. Every draft, the bot's or edited by hand, is checked by
 // the rules the server keeps it by (templateBody.js), each problem at its part.

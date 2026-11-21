@@ -1,19 +1,22 @@
 // What the bot template gallery shows (D-43, D-98), for the gallery page and the template pickers alike
 // (TemplateBrowser.vue): chips for All, the Mercbot team and each job area that has templates; with a search, the
 // templates whose bot, tag, creator or description has it; otherwise, under All, four featured templates and then a few
-// of each area's, or the team's or one area's in full. A picker gives the home's own templates too, which come first.
+// of each area's, or the team's or one area's in full. A picker gives the home's own templates too, which come first,
+// and is calmer (D-109): an area menu of All areas and the areas, without the Mercbot team (every template is the
+// team's) and without featured templates.
 export const SECTION_SIZE = 6;
 const FEATURED_SIZE = 4;
 
 /**
- * The chips: All, Mercbot team, then each job area that has a template.
+ * The chips: All, Mercbot team, then each job area that has a template; in a picker, the area menu's All areas and the
+ * areas.
  * @param {{ categories?: Array<{ id: string, name: string }>, templates?: Array<{ category: string }> } | null} gallery
+ * @param {{ picking?: boolean }} [options]
  */
-export function galleryChips(gallery) {
+export function galleryChips(gallery, { picking = false } = {}) {
   const templates = gallery?.templates || [];
   return [
-    { id: "all", name: "All" },
-    { id: "team", name: "Mercbot team" },
+    ...(picking ? [{ id: "all", name: "All areas" }] : [{ id: "all", name: "All" }, { id: "team", name: "Mercbot team" }]),
     ...(gallery?.categories || []).filter((category) => templates.some((entry) => entry.category === category.id))
   ];
 }
@@ -23,9 +26,14 @@ export function galleryChips(gallery) {
  * featured template is also in its area: `order` lists them all as they read, the home's first, then featured, for the
  * keyboard. The home's own templates (`home`: id, tag, description) show under All and in a search, never in an area.
  * @param {{ categories?: Array<{ id: string, name: string }>, templates?: Array<Record<string, any>> } | null} gallery
- * @param {{ chip: string, query: string, home?: Array<{ id: string, tag: string, description: string }> | null }} choice
+ * @param {{
+ *   chip: string,
+ *   query: string,
+ *   home?: Array<{ id: string, tag: string, description: string }> | null,
+ *   picking?: boolean
+ * }} choice
  */
-export function galleryView(gallery, { chip, query, home = null }) {
+export function galleryView(gallery, { chip, query, home = null, picking = false }) {
   const templates = gallery?.templates || [];
   const keyed = (prefix, rows) => rows.map((template) => ({ key: `${prefix}:${template.slug}`, template }));
   const homeRows = (rows) => rows.map((template) => ({ key: `home:${template.id}`, template: { ...template, home: true } }));
@@ -39,7 +47,7 @@ export function galleryView(gallery, { chip, query, home = null }) {
     return { found, home: [], featured: [], sections: [], order: found };
   }
   const ours = chip === "all" ? homeRows(home || []) : [];
-  const featured = chip === "all"
+  const featured = chip === "all" && !picking
     ? keyed("featured", [...templates.filter((entry) => entry.featured), ...templates.filter((entry) => !entry.featured)].slice(0, FEATURED_SIZE))
     : [];
   const areas = (gallery?.categories || []).map((category) => ({ ...category, rows: templates.filter((entry) => entry.category === category.id) }));

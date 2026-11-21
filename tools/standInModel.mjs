@@ -22,7 +22,11 @@
 // (D-107). It drafts a home's templates
 // (packages/bots/src/server/templateDrafts.js) as fixed drafts: a new one from its sentence, one from a bot from that
 // bot's template (its additions on the end when they're folded in), and a change by putting the request at the end of
-// the instructions, or, for "Description: …", in place of the description. Otherwise any other bot says the copy runs on
+// the instructions, or, for "Description: …", in place of the description; a suggested bot's (D-109) on the name, tag
+// and job it was given, saying that nothing leaves the chat unasked. It plans Add bots' suggestions
+// (packages/bots/src/server/botPlans.js): Mercbot's library bots whose tag or name the request names (at most three),
+// then one new bot for the request's last long word that names none, and one more for a change's; a request of fewer
+// than three words gets a question instead. Otherwise any other bot says the copy runs on
 // a stand-in model. `misbehave` makes a template's bot break a rule on purpose, to prove the check catches it:
 // "skip-question" leaves out its second question, "routine-running" creates its routines running, and "send" has
 // something sent as the setup ends (the test copy's line for it, D-69, written by the stand-in itself as JSKIT writes
@@ -57,6 +61,7 @@ const FIRST_QUESTION = "You write one short question card for a new assistant bo
 const ACTIVITY = "You label what an assistant is about to do";
 const RULE_MATCHER = "You decide which of a person's plain-language rules apply";
 const TEMPLATE_WRITER = "You write bot templates for Mercbot.";
+const PLANNER = "You plan which bots a Mercbot home should have.";
 const JOIN_IN = /^You decide whether .+, a bot in a shared conversation, should answer the latest message\./u;
 
 /** A message's words, whether its content is a string or a list of parts. */
@@ -209,6 +214,40 @@ function knowledgeStep(system, request) {
  * @param {string} system
  * @param {string} asked the user message
  */
+// Words a request is made of that name no job, which a new bot is never named after.
+const PLAIN_WORDS = new Set(["about", "also", "help", "have", "need", "want", "with", "that", "this", "them", "they", "their", "some", "from", "what", "when", "your", "like", "more", "each", "keep", "small", "make"]);
+
+/**
+ * Add bots' suggestions (D-109): the library bots whose tag or name the request names, at most three, then a new bot
+ * for its last long word that names none, and one for a change's last such word; a question for under three words.
+ * @param {string} asked the planning call's user message
+ */
+function botPlan(asked) {
+  const request = /^What the person asked: (.+)$/mu.exec(asked)?.[1] || "";
+  const change = /^What to change: (.+)$/mu.exec(asked)?.[1] || "";
+  const words = request.toLowerCase().match(/[a-z]+/gu) || [];
+  if (words.length < 3) {
+    return { name: "New bots", summary: "", question: "What kind of work is it, and what takes up most of your time?", bots: [], covered: [] };
+  }
+  const library = GALLERY.filter((template) => words.includes(template.tag) || words.includes(template.name.toLowerCase())).slice(0, 3);
+  const named = new Set(GALLERY.flatMap((template) => [template.tag, template.name.toLowerCase()]));
+  const lastFree = (text) => (text.toLowerCase().match(/[a-z]{4,}/gu) || []).filter((word) => !named.has(word) && !PLAIN_WORDS.has(word)).at(-1);
+  const extra = [...new Set([lastFree(request), change ? lastFree(change) : null].filter(Boolean))];
+  return {
+    name: "Suggested bots",
+    summary: `Bots for: ${request}`.slice(0, 200),
+    question: null,
+    bots: [
+      ...library.map((template) => ({ library: template.slug, why: `You mentioned ${template.tag}.` })),
+      ...extra.map((word) => ({
+        new: { name: `${word[0].toUpperCase()}${word.slice(1)}`, tag: word.slice(0, 10), description: `Helps with ${word}.` },
+        why: `No library bot does ${word}.`
+      }))
+    ],
+    covered: []
+  };
+}
+
 function templateDraft(system, asked) {
   const taken = new Set((/Not one of: ([^\n]*)\.\n/u.exec(system)?.[1] || "").split(", "));
   const jsonAfter = (label) => {
@@ -241,6 +280,17 @@ function templateDraft(system, asked) {
       skills: now.skills?.length ? now.skills : [setup]
     };
   }
+  const planned = /^Write a template for a bot named (.+?), tag ([a-z][a-z0-9]{1,9}), whose job is: (.+)$/mu.exec(asked);
+  if (planned) {
+    const [, name, tag, job] = planned;
+    return {
+      tag,
+      description: job.slice(0, 120),
+      greeting: `Hi {firstName}, I'm ${name}. First, a few questions to set me up.`,
+      instructions: `You are ${name}. Your job: ${job} Ask before anything leaves this chat, and say what you did.`,
+      skills: [setup]
+    };
+  }
   const describe = asked.replace(/^Write a template for bots that will: /u, "");
   return {
     tag: freeTag(describe.split(/\s+/u).find((word) => word.length >= 4) || "helper", taken),
@@ -268,6 +318,10 @@ function answerFor(request, misbehave) {
   if (system.includes(ACTIVITY)) return say(JSON.stringify({ status: "Thinking it over", emoji: null }));
   if (system.includes(RULE_MATCHER)) return say(JSON.stringify({ matches: [] }));
   if (system.startsWith(TEMPLATE_WRITER)) return say(JSON.stringify(templateDraft(system, textOf(request.messages.at(-1)?.content))));
+  // The planner's first user message holds the request (a retry's later ones only list problems).
+  if (system.startsWith(PLANNER)) {
+    return say(JSON.stringify(botPlan(textOf(request.messages.find((message) => message.role === "user")?.content))));
+  }
   // Whether a Shared bot joins in: the conversation's last line is the message decided on; people chatting don't ask.
   if (JOIN_IN.test(system)) return say(JSON.stringify({ reply: textOf(request.messages.at(-1)?.content).trim().endsWith("?") }));
   const own = ownAdditionsStep(system, request);

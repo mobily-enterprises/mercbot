@@ -56,7 +56,7 @@ export function chooseHomeDefault(slug, sharing) {
  * again. A home made whose default didn't go through is still made, Mixed, and its first conversation asks.
  * @param {(name: string) => Promise<{ slug: string }>} create makes the home (useHomes().create)
  * @param {string} name
- * @param {string} forWhom one of HOME_FOR's values
+ * @param {string} [forWhom] one of HOME_FOR's values; New home gives none since D-109, so Just me's, Mixed
  */
 export async function makeHome(create, name, forWhom) {
   const home = await create(name);

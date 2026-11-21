@@ -59,11 +59,11 @@ test("a template's page shows its badge", async ({ page }) => {
   await expect(page.locator("[data-tested-badge]")).toHaveText(tested);
 });
 
-/** Mercbot opened from a template's link: New bot, on the template's preview, past the introduction a new account sees once. */
+/** Mercbot opened from a template's link: Add bots, on the template's preview, past the introduction a new account sees once. */
 async function openPreview(page: Page, slug: string) {
   await page.goto(`${HOME}?template=${slug}`);
   const next = page.locator(".mb-intro").getByRole("button", { name: "Next" });
-  const preview = page.getByRole("dialog", { name: "New bot" });
+  const preview = page.getByRole("dialog", { name: "Add bots" });
   await expect(preview.or(next).first()).toBeVisible();
   if (await next.isVisible()) {
     for (let slide = 0; slide < 3; slide += 1) await next.click();
@@ -72,9 +72,9 @@ async function openPreview(page: Page, slug: string) {
   return preview;
 }
 
-// 20 November (D-98, amended): a template's link opens New bot with it chosen, where Add bot's preview was; Next names
+// 20 November (D-98, amended): a template's link opens Add bots with it chosen, where Add bot's preview was; Next names
 // the bot, with the template's own name and look to start with, and Create makes it.
-test("the preview in New bot shows the badge, and adding still works", async ({ page }) => {
+test("the preview in Add bots shows the badge, and adding still works", async ({ page }) => {
   await page.goto("/templates");
   const { tested } = await gallery(page);
   const untested = await openPreview(page, UNTESTED);

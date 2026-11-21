@@ -15,7 +15,8 @@ const GENERAL_KEYWORDS = ["theme appearance accent language spell microphone tim
  */
 export function paletteCommands({ currentBot, settingsSections, theme: currentTheme }) {
   return [
-    { id: "newBot", title: "New Bot", icon: "$editSquare" },
+    // Add bots (D-109), which was New bot: found by either.
+    { id: "newBot", title: "Add bots", icon: "$editSquare", keywords: "new bot team" },
     { id: "newGroup", title: "New group chat", icon: "$group" },
     { id: "shortcuts", title: "Keyboard shortcuts", category: "Help", icon: "$keyboard" },
     ...(currentBot?.kind === "group" ? [{ id: "members", title: "Members", category: "Current chat", icon: "$group" }] : []),

@@ -68,6 +68,10 @@ export const botsApi = {
   // Teams (D-105): a team's bots as the home has them, and Add N bots, which answers the whole list and the bots it added.
   team: (teamId) => request(`/teams/${encodeURIComponent(teamId)}`),
   addTeam: (teamId, templates) => post(`/teams/${encodeURIComponent(teamId)}`, { templates }),
+  // Add bots' suggestions (D-109): a plan for what the person describes (or the plan before, changed as asked), and
+  // Add N bots, the ones ticked on it.
+  suggestBots: (body) => post("/bots/plan", body),
+  addBots: (body) => post("/bots/batch", body),
   answer: (botId, messageId, selected) => post(`/bots/${botId}/choices/${messageId}`, { selected }),
   // A shared bot's messages are its open tab's (D-36): the newest page and whether older ones are
   // left (`more`). With `since`, an earlier answer's cursor, only what was written or changed after

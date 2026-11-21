@@ -2525,7 +2525,8 @@ person changes it on one screen, and nothing about it is kept until it's saved.
   for the General helper), and `addFromTemplate`.
 - **New bot** asks first **What will it do?**: the **General helper** (`general`, the quick all-round choice), the
   home's templates, then Mercbot's library with its search, job areas and Tested badges, and **Make a new template** at
-  the foot. A template chosen is shown whole, with its paired app offered as before; then the name, cloud and colour
+  the foot. *Amended by D-109: New bot is Add bots, whose One bot ends in Describe the bot you need, and a bot nothing
+  fits gets its template written on Suggested bots; Make a new template stays in Change template.* A template chosen is shown whole, with its paired app offered as before; then the name, cloud and colour
   (a library template's own to start with) and **Create**. A template's link (`?template=`) opens New bot with it
   chosen, where the preview before Add bot was; a bot a person shared is still added as they made it.
 - **Settings → Templates** lists the home's templates with their tag, description and "Used by N bots" (one aggregate
@@ -2796,7 +2797,9 @@ one situation; since each home has its own database, Apps and files, a team main
   people** (D-100 said A team and My team, never released); the homes help is "Mercbot for families and businesses";
   the approval link for a work account names the IT department. Sedna's teams keep Sedna's own word, and the library's
   maker is still stored and shown as "the Mercbot team" (its `creator`), which a change of its own would rename.
-- **Where, by weight.** 1. **New home**, a dialog like New bot's: **What's this home for?** shows the teams as the
+- **Where, by weight.** *Amended by D-109: New home asks only the name, the first conversation's
+  card offers Show me ready-made teams or Not now, and A ready-made team is one of Add bots' two ways to choose.* 1.
+  **New home**, a dialog like New bot's: **What's this home for?** shows the teams as the
   cards Add a team shows (name, line, faces, how many bots), then **Something else**, which starts with just Mercbot
   and asks only the name and who it's for (**Create home**). A team shows its bots, all ticked, the home's name (the
   team's, editable) and who it's for below them, and **Create home with N bots**, N following the ticks. The page
@@ -3007,3 +3010,93 @@ member leaving the home.
   `tests/server/appsHandoff.integration.js` (an app button and the Builder), `tests/client/archiveBots.vitest.js` (the
   sidebar's Archived bots, menus, question, line, commands, banner and pickers) and `tests/e2e/archive-bots.spec.ts`
   (archived from its menu, another open page following at once, unarchived back in its section, light, dark and phone).
+
+## D-109 — Add bots: describe what you need, or choose yourself (2026-11-21)
+
+*The owner's decision of 21 November: yes to the design, all phases, with its recommendations. It amends D-98's New
+bot (Make a new template leaves it: a bot nothing fits is described, and its template written for it, while Change
+template keeps Make a new template) and D-105's "Where, by weight" (New home shows no teams, and the first
+conversation's card no longer lists them) and D-100's New home (no Who's it for). Phase 3 is held for now: the first conversation's work, planning and plan-shown
+steps, a plan card in chat and a `propose_bots` tool on every bot.
+`botPlans.js` `propose()` takes what those would give it, so they can be added later.*
+- **One name, three ways.** New bot is **Add bots**, in the sidebar, on Ctrl+Alt+N and in the search palette, which
+  still finds it by "new bot" and "team". It opens on **Describe what you need** and, under "or choose yourself",
+  **One bot** and **A ready-made team**. File and component names stay (`MercbotNewBotDialog.vue`, `useNewBot.js`).
+- **One bot** is a calmer picker: an **Area** menu in place of the chips (no Mercbot team chip, which equalled All), no
+  featured cards and no "by the Mercbot team" byline, "Search bots", and only a passed **Tested** badge on its rows (the
+  preview and the gallery page still say Not tested yet). Change template's picker is the same browser, so the two stay
+  alike. At its foot, **Nothing fits? Describe the bot you need** takes the search's words to the Describe box.
+- **A ready-made team** lists the teams under **For home and life** and **For work**, by each team's new `for` in
+  `bot-templates/teams.json` (`home` or `work`; `checkTeams` refuses anything else), with **Want one made to fit?
+  Describe your team** back to the Describe box. A team's own screen is D-105's.
+- **Describe → Suggested bots.** `POST /api/w/:workspaceSlug/bots/plan` with `{ describe }`, or `{ describe, plan,
+  change }` to change one (each at most 600 characters; 400 `bots_plan_describe_missing`, `_too_long`,
+  `bots_plan_change_too_long`): one call to the chat model, on the premium AI as a reply is (the chat kind of work,
+  D-59), metered and charged normally, with no price shown, and refused 402 in a paused home before the model is asked.
+  Its system prompt is the library, one bot a line (slug, tag, name, area, line, skills, routines, apps, its own app),
+  the teams and the rules: the same for every home, so the provider caches it (18,951 characters, about 4,700 tokens).
+  Its user message is the home's name, whether more than one person is in it (its active people, not its
+  mode for new bots), its bots (the newest 100, past 60 by name and tag only), its own templates (40, by tag) and the request; for a change, the plan before as the server knows it
+  (library slugs, home template ids, new bots' names, tags and lines, whatever else the screen sent) and what to
+  change: 283 characters for a home of one bot, about 5,300 at every limit (`tests/server/botPlans.test.js`). The answer is a
+  section name, a summary and either one question or 1 to 8 bots, at most 4 new: `{ library, why }`, `{ home, name,
+  why }` or `{ new: { name, tag, description }, why }`, with `covered`, the home's bots that already do a job asked
+  for. The server mends what it can (a new bot named as a library bot becomes that bot; a bad or taken tag becomes a
+  free one made from its name; a bot named twice is kept once; `covered` naming no bot of the home is dropped), asks
+  once more with the rest, then refuses 422 `bots_plan_failed`. It picks the looks of new and home bots, unlike the
+  home's bots' and each other's (library bots keep their own), and marks a library bot the home already follows
+  `inHome`. Nothing is kept. The plan reads the same statements for a home of 4 bots as of 61: four reads at once and
+  one for the templates followed (`tests/server/botPlans.integration.js`).
+- **A question** (a request too vague to choose from, or one Mercbot won't help with) shows above the Describe box, for
+  the person to add to and suggest again.
+- **New bots' templates.** As soon as a plan shows, each new bot's template is written, one drafting call each, all at
+  once: `POST …/bots/templates/draft` with purpose `plan-bot`, `{ describe, bot: { name, tag, description }, team }`
+  (the others' names and lines, at most 7; 400 `bots_template_draft_bot`, `_team` and `_tag_taken`). Its draft keeps
+  the plan's tag whatever the answer says, and its instructions must say "Ask before anything leaves this chat." or
+  "Nothing leaves this chat without the person's yes", the library's own rule (`templateChecks.test.js`); otherwise it
+  is asked once more, then refused. Every draft's system prompt now carries how Mercbot's own templates are written: one
+  job, numbered setup steps of one question each, a question card for a choice, answers saved as memories, routines made
+  paused and started on a yes, and that sentence.
+- **Suggested bots** (`MercbotPlanReview.vue`, `useBotPlan.js`) shows "For: …" and the summary, then **From Mercbot's
+  library** (each with why, **View** for everything it's told, and its app for an owner or admin, ticked), **Your home's
+  templates** and **New, written for this home** (each with its job, why, **Asks first**: its Setup interview's first
+  three questions, **Read it all** and **Edit**, on the draft screen with Ask for changes and Undo, then **Use this**;
+  "Writing its template…" meanwhile; "Couldn't write this one" with **Try again** and **Remove**). No reading is
+  required before adding (amending D-98's whole preview, for a suggestion only). Every bot is ticked but those already
+  in the home, shown unticked as **Already in this home** (**Archived in this home** when all its bots are archived,
+  as D-108's team screen says); **Already doing it in this home** lists `covered`. A note
+  says new templates are kept in this home, in Settings → Templates, and ask before anything leaves the chat.
+  **Section in your sidebar** starts as the plan's name. **Not quite right?** plans again from the plan before, keeping
+  the templates written for the new bots it keeps (one written for a plan since changed is dropped). **Add N bots** waits
+  until each new bot ticked is written.
+- **One path.** `POST /api/w/:workspaceSlug/bots/batch` with `{ section, bots }`, each `{ library }`, `{ home, name,
+  shape, color }` or `{ draft, name, shape, color }`, makes them as a team's are (D-105): `botTeams.js` `addBots` and
+  `addTeam` share one `make`, in one transaction, all or none, the home locked, each new template checked whole as Save
+  and use checks one (422 with its problems), a library template the home's bots follow left out (`skipped`; 409 when
+  nothing is left), in the section the person named, in the order given, the first one opening, "N bots added to
+  *section*". 400 for no section (`bots_add_section`), no bots (`bots_add_empty`), more than 8 (`bots_add_too_many`) or
+  4 new (`bots_add_too_many_new`), a template that isn't one of Mercbot's or is the general helper
+  (`bots_add_template_unknown`), a bot with no template or two (`bots_add_template`), and a colour not the palette's.
+  Making bots asks no model, so a paused home may still add them, as it may a team.
+- **New home** asks only the home's name, and opens on Mercbot, who helps add the bots it needs; `?team=` and
+  `addChosenBots` are gone. Its "Who's it for?" went too (the owner's direction of 21 November: nothing new offers a
+  mode or who a home is for): the home gets the default it always started with, Mixed
+  (`homeDefault.js` `makeHome`), so its first conversation doesn't ask either, and Settings → General still changes it.
+  Neither Suggested bots, Add N bots nor a bot's look offers a mode: every new bot gets the home's default.
+- **The first conversation's card** asks **Want a few bots to start with?** with **Show me ready-made teams**, which
+  opens Add bots on its teams and adds nothing by itself, and **Not now**; a card answered with a team's name, from
+  before, opens the list too. No AI reply follows either.
+- **Limits and what's left out.** 8 bots and 4 new per suggestion; no learning for the library from what people
+  describe.
+- **Tests.** `tests/server/botPlans.test.js` (the prompts and their sizes, every library bot and team in the system
+  prompt, reading and mending a plan, its problems, the plan before); `tests/server/botPlans.integration.js` (one
+  metered call told the home, nothing kept, the retry and refusal, a change, a question, the same statements for 4 bots
+  as 61, Add N bots with library, home and new bots, all or none and every refusal, `plan-bot` drafts and their
+  refusals, a paused home's plan refused and its Add allowed); `tests/server/teams.test.js` and
+  `teams.integration.js` (`for`, the card); `tests/client/botPlan.vitest.js` (drafts all at once, Add waiting, failures,
+  a change keeping drafts, a late draft dropped, a question, the first questions); `tests/client/teams.vitest.js`
+  (grouping, Add N bots of a suggestion); `tests/e2e/add-bots-describe.spec.ts` (a shop's request through the stand-in
+  model, a change, Add 3 bots with their templates, the home asked what's missing, a question; light, dark and phone),
+  `template-drafts.spec.ts` (One bot's search to Describe, Edit, Ask for changes, Undo, Use this, Add 1 bot),
+  `new-bot.spec.ts`, `team-add.spec.ts`, `new-home.spec.ts` and the specs that open Add bots. A real model's speed and
+  cost for a plan is not measured here: tests never call a real provider.
