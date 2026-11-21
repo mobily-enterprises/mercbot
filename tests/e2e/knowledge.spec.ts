@@ -96,7 +96,10 @@ test("Knowledge: short text is always in mind, a long guide is searched first, a
     await addText(page, "Shop guide", GUIDE);
     await expect(piece(page, "Shop guide"), "got ready in the background, then searched").toContainText(`${GUIDE.length.toLocaleString("en")} characters · Searched first`);
     await expect(section(page).locator(".mb-knowledge__summary")).toContainText("Each message reads only the parts that match.");
-    await expect(section(page).locator(".mb-knowledge__summary"), "a search's parts go with each message").toContainText(/Adds about \$0\.\d+ to each message, or about \$0\.\d+ while it's still cached/u);
+    const summary = (await section(page).locator(".mb-knowledge__summary").textContent()) || "";
+    const [, full, cached] = summary.match(/Adds about (\$0\.\d+) to each message(?:, or about (\$0\.\d+) while it's still cached from a recent one)?\./u) || [];
+    expect(full, "a search's parts go with each message").toBeTruthy();
+    expect(cached, "the cached figure is said only when it reads differently").not.toBe(full);
 
     // Opened, a piece shows its whole text, to change.
     await piece(page, "Opening hours").getByRole("button").first().click();

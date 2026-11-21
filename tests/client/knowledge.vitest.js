@@ -48,4 +48,12 @@ describe("the summary", () => {
     expect(of(4_500, 90).cost).toBe("Adds less than $0.0001 to each message.");
     expect(of(4_500, 90).searched).toBe("");
   });
+
+  it("says the cost once when it reads the same while cached, as with a little in mind beside a long search", () => {
+    const summary = knowledgeSummary({
+      totals: { chars: 65184, inMindChars: 28, searchedChars: 65156 },
+      perMessage: { tokens: 2560, nano: 770_000, cachedNano: 760_000 }
+    });
+    expect(summary.cost).toBe("Adds about $0.0008 to each message.");
+  });
 });

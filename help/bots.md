@@ -105,7 +105,7 @@ When an answer comes from its knowledge, the bot says where, for example "(from 
 
 ### What it costs
 
-Under the list, Knowledge says how much is in mind and how much is searched, and roughly what it adds to each message at the AI's current price, such as "Adds about $0.003 to each message, or less than $0.0001 while it's still cached from a recent one." What's in mind goes with every message, which is why longer material is searched instead: however long a book is, a message reads only the few parts that match. Reading and splitting what you add uses no AI.
+Under the list, Knowledge says how much is in mind and how much is searched, and roughly what it adds to each message at the AI's current price, such as "Adds about $0.003 to each message, or less than $0.0001 while it's still cached from a recent one." Only what's in mind can be cached, so when little is in mind beside a long search it gives just the one figure. What's in mind goes with every message, which is why longer material is searched instead: however long a book is, a message reads only the few parts that match. Reading and splitting what you add uses no AI.
 
 | Limit | Size |
 |---|---|

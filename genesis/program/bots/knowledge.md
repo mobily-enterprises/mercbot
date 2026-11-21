@@ -78,7 +78,8 @@ that every turn searches first, so a turn's prompt stays bounded whatever the bo
   implementations provide `estimateNano`; Mercbot's own answers at the provider's list prices (`estimateAtProvider`).
 - **The section** (Details tab, under Instructions, for a bot rather than a group): the empty sentence, the pieces with
   their lines and bars, failures with **Try again**, the summary (in mind, searched, "Adds about $X to each message,
-  or $Y while it's still cached from a recent one", or "less than $0.0001"), **Add text** (the editor dialog, full
+  or $Y while it's still cached from a recent one", the cached part left out when $Y reads as $X, or "less than
+  $0.0001"), **Add text** (the editor dialog, full
   screen on a phone) and **Add file** (upload to `/files/bot/Knowledge`, then add). It polls every 2 s while a piece is
   being read or split. Non-changers read it with a note saying who changes it.
 - **Stand-in model** (`tools/standInModel.mjs`): asked "What do you know about <topic>?", answers with the first line

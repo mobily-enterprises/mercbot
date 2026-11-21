@@ -40,6 +40,19 @@ const SMALLEST_SHOWN = 100_000;
 const roughly = (nano) => (nano < SMALLEST_SHOWN ? `less than ${nanoMoney(SMALLEST_SHOWN)}` : `about ${nanoMoney(nano)}`);
 
 /**
+ * What the knowledge adds to each message, and while it's cached when that reads differently: beside a long search
+ * little is in mind, so the cached figure often shows the same and isn't said twice.
+ */
+function costOf(nano, cachedNano) {
+  if (!nano) return "";
+  if (nano < SMALLEST_SHOWN) return `Adds less than ${nanoMoney(SMALLEST_SHOWN)} to each message.`;
+  const [full, cached] = [roughly(nano), roughly(cachedNano)];
+  return cached === full
+    ? `Adds ${full} to each message.`
+    : `Adds ${full} to each message, or ${cached} while it's still cached from a recent one.`;
+}
+
+/**
  * The summary under the list: how much is always in mind and searched first, and what it adds to each message (as
  * the server worked it out at the home's prices), or null for a bot that knows nothing.
  * @param {{ totals: { chars: number, inMindChars: number, searchedChars: number }, perMessage: { tokens: number, nano: number, cachedNano: number } } | null} known
@@ -51,11 +64,7 @@ export function knowledgeSummary(known) {
   return {
     inMind: inMindChars ? `Always in mind: ${numbered(inMindChars)} characters, read with every message.` : "",
     searched: searchedChars ? `Searched first: ${numbered(searchedChars)} characters. Each message reads only the parts that match.` : "",
-    cost: !nano
-      ? ""
-      : nano < SMALLEST_SHOWN
-        ? `Adds less than ${nanoMoney(SMALLEST_SHOWN)} to each message.`
-        : `Adds about ${nanoMoney(nano)} to each message, or ${roughly(cachedNano)} while it's still cached from a recent one.`
+    cost: costOf(nano, cachedNano)
   };
 }
 
