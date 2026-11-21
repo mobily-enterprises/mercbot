@@ -6,7 +6,7 @@ import { BotsError } from "./botsError.js";
 // and approves the change on a card. The template wins where they differ.
 
 /**
- * The most a bot's additions may hold: as much as one of the person's skills (memoryTools.js save_skill), about ten
+ * The most a bot's additions may hold: as much as one of the person's skills (skillTools.js save_skill), about ten
  * pages or 5,000 tokens. They're read with every message, so reference material longer than that belongs in the bot's
  * Knowledge (D-107), which searches a long piece when a turn needs it.
  */

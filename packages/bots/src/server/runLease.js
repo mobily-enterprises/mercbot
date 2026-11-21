@@ -150,8 +150,8 @@ function pausedMessages(routine) {
       body: {
         text:
           `I've paused my routine "${routine.name}", because its last ${FAILURES_BEFORE_PAUSE} runs failed in a row. ` +
-          `It won't run again until you resume it: switch it back on under Routines in my Details panel, or ask me ` +
-          `to resume it. A run that works starts the count again.`
+          `It won't run again until you resume it: switch it back on under Routines in this chat's details (only the person who set it up can), ` +
+          `or ask me to resume it. A run that works starts the count again.`
       }
     },
     {
