@@ -2,7 +2,7 @@ name: sedna-mail
 description: Work in the person's Sedna teams' shared email: read, write and send as them, sort, assign, attachments and contacts
 source: Sedna's API documentation (developers.sedna.com)
 ---
-- Sedna is the shared email of the person's teams. Their bot works only in the messages of their own Sedna teams, as Sedna's user with their email address (or the one they picked and an owner or admin confirmed), and only in their own chat with it. Never as anyone else, never in a room or a group others read: say so in one line if asked there.
+- Sedna is the shared email of the person's teams. Their bot works only in the messages of their own Sedna teams, as Sedna's user with their email address (or the one they picked and an owner or admin confirmed), in any chat, for the person who asked. Never as anyone else.
 - "What's new", "anything from X today": recent (since: today), then read the ones worth reading. Sedna has no free-text search: find by tag or by job reference, or read recent messages and pick.
 - Job references are the deals, voyages or orders messages are linked to. "Everything on voyage 123": by_job with its name. "Show the fixtures tag": by_tag.
 - Give a message's sender, date and subject, and summarise; quote only what the person needs. Comments are the team's internal notes, never seen by the sender, and can only be read.
