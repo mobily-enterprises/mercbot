@@ -4,18 +4,20 @@ import { APPROVAL_OPTIONS } from "./botActions.js";
 import { savedLogin } from "./vaultLogins.js";
 
 /**
- * Web work on the bot's own computer: one screenshot per page it worked on, signing in
- * without secrets passing through the bot, and handing the screen to the person.
+ * Web work on the chat's computer (D14): one screenshot per page it worked on, signing in without secrets passing
+ * through the bot, and handing the screen to the person. A saved login is the home's vault's (D8), in any chat; what the
+ * computer signs in to is the chat's, said in one line (`signedIn`).
  * @param {object} shared
  * @param {import("./types.js").TurnRepository} shared.turns records.turns
- * @param {{ savedLogins: (options: object) => Promise<object[]> }} shared.account the account capability (vault logins)
+ * @param {{ savedLogins: (options: object) => Promise<object[]> }} shared.account the account capability (the home's vault)
  * @param {import("./types.js").CallOptions} shared.call the turn's call options
  * @param {import("@jskit-ai/kernel/server/types").RuntimeEnv} shared.env
  * @param {import("./types.js").Approvals} shared.approvals
  * @param {import("@local/computer/server/types").Computer} shared.computer
  * @param {string} shared.computerId
- * @param {string} shared.conversationId
- * @param {boolean} shared.personal
+ * @param {string} shared.chatId
+ * @param {string} shared.userId the person the turn works for, whose words alone give a password
+ * @param {(signIn: { label: string, kind: string }) => Promise<void>} shared.signedIn D14's line and the computer's note
  * @param {string | null} shared.workingRequestId
  * @param {object[]} shared.after
  * @param {{ name: string, caption: string }[]} shared.screenshots
@@ -30,8 +32,9 @@ export function buildWebTools({
   approvals,
   computer,
   computerId,
-  conversationId,
-  personal,
+  chatId,
+  userId,
+  signedIn,
   workingRequestId,
   after,
   screenshots,
@@ -83,11 +86,11 @@ export function buildWebTools({
   async function useWebPage({ instruction, final: flagged }) {
     // Signing in is never a step to approve.
     const final = flagged && !/\b(log ?in|sign ?in|login|signin)\b/iu.test(instruction);
-    // A password is only typed when the person gave it in this chat, never one read on a page;
-    // otherwise the vault or the secure form does it.
+    // A password is only typed when the person the turn works for gave it in this chat, never one read on a page or
+    // written by someone else; otherwise the vault or the secure form does it.
     const typed = /\btype\s+["“']?(.+?)["”']?\s+(?:into|in)\b[^.]*\bpass(?:word|code)\b/iu.exec(instruction);
     if (typed) {
-      const given = await turns.messages(conversationId, { role: "user", kind: "text" }, { newestFirst: true, limit: 50 }, call)
+      const given = await turns.messages(chatId, { role: "user", kind: "text", authorUserId: String(userId) }, { newestFirst: true, limit: 50 }, call)
         .then((messages) => messages.some((message) => String(message.body.text || "").includes(typed[1])))
         .catch(() => false);
       if (!given) {
@@ -147,42 +150,41 @@ export function buildWebTools({
       execute: (input, options) => useWebPage(input, options)
     })
   );
-  if (personal) {
-    /**
-     * Signing in without secrets passing through the bot: a saved vault
-     * login first, then the person's secure form; the values are typed into the page by Mercbot.
-     */
-    async function signInWithSavedLogin({ site }) {
-      const login = await savedLogin(account, env, site, call);
-      if (!login) return { status: "none saved", note: "There's no saved login for this site. Use ask_for_login next." };
-      try {
-        const result = await inTime(
-          computer.fill(String(computerId), { site, username: login.username, password: login.password }),
-          "Filling in the login"
-        );
-        screenshots.push({ name: result.screenshot, caption: "Login filled in" });
-        return {
-          status: result.filled.length ? "filled" : "no sign-in form found",
-          filled: result.filled,
-          username: login.username,
-          vaultItem: login.label,
-          note: "Now press the site's sign-in button yourself; don't ask the person first."
-        };
-      } catch (error) {
-        return { error: error.message };
-      }
+  /**
+   * Signing in without secrets passing through the bot: a login saved in the home's vault first, then the person's
+   * secure form; the values are typed into the page by Mercbot.
+   */
+  async function signInWithSavedLogin({ site }) {
+    const login = await savedLogin(account, env, site, call);
+    if (!login) return { status: "none saved", note: "There's no saved login for this site. Use ask_for_login next." };
+    try {
+      const result = await inTime(
+        computer.fill(String(computerId), { site, username: login.username, password: login.password }),
+        "Filling in the login"
+      );
+      screenshots.push({ name: result.screenshot, caption: "Login filled in" });
+      if (result.filled.includes("password")) await signedIn({ label: site, kind: "site" });
+      return {
+        status: result.filled.length ? "filled" : "no sign-in form found",
+        filled: result.filled,
+        username: login.username,
+        vaultItem: login.label,
+        note: "Now press the site's sign-in button yourself; don't ask the person first."
+      };
+    } catch (error) {
+      return { error: error.message };
     }
-    tools.signInWithSavedLogin = createTool(
-      Object.freeze({
-        id: "sign_in_with_saved_login",
-        description:
-          "Fill in a login the person saved in their vault for the site open in your browser. You never see the password. " +
-          "Afterwards, look at the page and press the site's sign-in button yourself.",
-        inputSchema: z.object({ site: z.string().min(3).max(200).describe("The site, e.g. example.com") }),
-        execute: (input, options) => signInWithSavedLogin(input, options)
-      })
-    );
   }
+  tools.signInWithSavedLogin = createTool(
+    Object.freeze({
+      id: "sign_in_with_saved_login",
+      description:
+        "Fill in a login saved in the home's vault for the site open in your browser. You never see the password. " +
+        "Afterwards, look at the page and press the site's sign-in button yourself.",
+      inputSchema: z.object({ site: z.string().min(3).max(200).describe("The site, e.g. example.com") }),
+      execute: (input, options) => signInWithSavedLogin(input, options)
+    })
+  );
   async function askForLogin({ site, kind }) {
     if (after.some((message) => message.kind === "secure_form")) return { status: "already asked" };
     /** The sign-in page's address, so it can be reopened if the computer moves on or restarts. */

@@ -1,4 +1,5 @@
 import { generateOnce } from "@jskit-ai/agent/server";
+import { resolveActorId } from "@jskit-ai/kernel/server/actions/actionContributorHelpers";
 import { hasPermission } from "@jskit-ai/kernel/shared/support";
 import { BotsError } from "./botsError.js";
 import { changeRefusal, mayChangeBot } from "./botAdditions.js";
@@ -58,9 +59,10 @@ export function draftSystem(taken) {
       "set itself up (which accounts to connect, their preferences, and which routines to offer; routines start paused " +
       "until they say yes).",
     "Write it as Mercbot's own templates are: one job; the Setup interview's steps numbered, one question each " +
-      "(\"1. Ask ...\"), a choice between a few answers asked on a question card; what the person answers saved as " +
-      "memories; routines created paused and started only when the person says yes; and instructions that say, in so many " +
-      "words, \"Ask before anything leaves this chat.\"",
+      "(\"1. Ask ...\"), a choice between a few answers asked on a question card; each answer saved in a \"<job> notes\" " +
+      "document in /files/chat, named after the job, which the bot reads before every piece of work, routine runs included; " +
+      "routines created paused and started only when the person says yes; and instructions that say, in so many words, " +
+      "\"Ask before anything leaves this chat.\"",
     "Keep it general enough for every bot that will use it: nothing about one person, place or account unless the " +
       "request asks for it. Write plainly, as Mercbot's own templates are written. Here is one of them:",
     asJson(LIBRARY.get(EXAMPLE))
@@ -198,13 +200,12 @@ function typed(value, max, field, missing) {
  * for once more with its problems (a second billed call); a second such answer is refused.
  * @param {object} dependencies
  * @param {import("./types.js").BotRecords} dependencies.records mercbot.bots.records
- * @param {import("./types.js").BotConversations} dependencies.conversations
  * @param {import("@local/account/server/types").Meter} dependencies.meter
- * @param {(conversationId: string) => Promise<string>} dependencies.summaryOf a conversation's newest summary, "" for none
+ * @param {(chatId: string) => Promise<string>} dependencies.summaryOf a chat's newest summary, "" for none
  * @param {(system: string, messages: Array<{ role: string, content: string }>) => Promise<string>} dependencies.write
  *   the model's answer to one call
  */
-export function createTemplateDrafts({ records, conversations, meter, summaryOf, write }) {
+export function createTemplateDrafts({ records, meter, summaryOf, write }) {
   /** The user message and tags for a template made from a sentence. */
   async function fromWords(input, options) {
     const describe = typed(input.describe, DRAFT_INPUT_LIMITS.describe, "describe", "Say in a sentence what bots with this template will do.");
@@ -213,21 +214,24 @@ export function createTemplateDrafts({ records, conversations, meter, summaryOf,
 
   /**
    * The user message for a template made from a bot the person may change: its template, its additions only when
-   * they're folded in, the newest summary of the person's own chat with it and its routines' names and schedules.
+   * they're folded in, and, from the person's own direct chat with it (never a chat with others, whose words would go
+   * into a template the whole home sees), that chat's newest summary and the bot's routines there.
    */
   async function fromBot(input, options) {
     const botId = String(input.botId ?? "");
     if (!/^[1-9]\d{0,18}$/u.test(botId)) throw new BotsError(404, "Bot not found.", { code: "bots_bot_not_found" });
-    const row = await conversations.ownedSingleBot(botId, options);
-    if (!mayChangeBot(row.created_by, conversations.personOf(options), options)) {
+    const row = await records.bots.get(botId, options);
+    if (!mayChangeBot(row.made_by, String(resolveActorId(options.context) ?? ""), options)) {
       throw new BotsError(403, changeRefusal(row.name), { code: "bots_template_forbidden" });
     }
     const template = await templateOf(row, records.homeTemplates, options);
-    const routines = await records.work.routinesOf(row.conversation_id, options);
+    const direct = await records.chats.directWith(botId, options);
+    const seat = direct ? await records.chats.chatBotOf(botId, String(direct.id), options) : null;
+    const routines = seat ? await records.work.routinesOf(String(seat.id), options) : [];
     const user = fromBotPrompt({
       name: row.name,
       template,
-      summary: String(await summaryOf(String(row.seat_id)) || "").slice(0, DRAFT_INPUT_LIMITS.summary),
+      summary: String((direct && await summaryOf(String(direct.id))) || "").slice(0, DRAFT_INPUT_LIMITS.summary),
       routines: routines.map((routine) => ({ name: routine.name, schedule: routine.schedule })),
       additions: input.foldAdditions === true ? row.additions || "" : ""
     });

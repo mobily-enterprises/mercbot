@@ -13,9 +13,9 @@ import { buildConnectorTools } from "./connectorTools.js";
 import { buildDraftTools } from "./draftTools.js";
 import { buildFileTools } from "./fileTools.js";
 import { canMakePictures } from "./pictureMaker.js";
-import { buildMemoryTools } from "./memoryTools.js";
+import { buildSkillTools } from "./skillTools.js";
 import { buildRoutineTools } from "./routineTools.js";
-import { buildSignInCodeTools } from "./signInCodes.js";
+import { SIGN_IN_LINE, buildSignInCodeTools } from "./signInCodes.js";
 import { buildWebTools } from "./webTools.js";
 
 // A web step that hangs mustn't hang the reply: it fails after two minutes and the
@@ -23,6 +23,37 @@ import { buildWebTools } from "./webTools.js";
 const STEP_MS = 2 * 60 * 1000;
 // Cards other than a file's, which a reply may call "the card below".
 const REPLY_CARDS = new Set(["handover", "choice", "secure_form", "connect", "draft", "app_draft", "view"]);
+
+/**
+ * The chat's computer as a turn's tools use it: every call names the bot's seat in the chat. A request's bot not in the
+ * asking chat yet (O22) joins it on its first call (`join`, once); `computerId` is the placeholder its tools pass, and
+ * `chatBotId()` the seat once it has one.
+ * @param {import("@local/computer/server/types").Computer} computer
+ * @param {string | null} seated
+ * @param {(() => Promise<string>) | null} join
+ */
+function seatedComputer(computer, seated, join) {
+  if (seated) return { computer, computerId: seated, chatBotId: () => seated };
+  let joining = null;
+  let joined = null;
+  const seat = () => {
+    if (!join) throw new Error("You can't use your computer for this request.");
+    joining ||= join().then((id) => {
+      joined = String(id);
+      return joined;
+    });
+    return joining;
+  };
+  const viaSeat = new Proxy(computer, {
+    get(target, key) {
+      const value = target[key];
+      if (typeof value !== "function") return value;
+      return async (_placeholder, ...rest) => value.call(target, await seat(), ...rest);
+    }
+  });
+  return { computer: viaSeat, computerId: "joining", chatBotId: () => joined };
+}
+
 function inTime(work, what) {
   let timer;
   return Promise.race([
@@ -34,15 +65,15 @@ function inTime(work, what) {
 }
 
 /**
- * Tools for one reply. Messages the actions produce are collected so they can be placed
- * around the reply: results before it; screenshots, approval and handover cards after it.
- * `personal` is false in a shared bot's room (D-36): everyone sees it, so the person's memories
- * and saved logins aren't offered there. `place` is where the bot's files are (fileStore.js).
- * The per-turn data (goalOperations, inbox, notebook, appsVia, workingRequestId) is null when
- * the turn has none.
+ * Tools for one reply of one bot in one chat (`seat`), for the person it works for (R4): the home's accounts, vault and
+ * apps in any chat, the chat's computer (D14). Messages the actions produce are collected so they can be placed
+ * around the reply: results before it; screenshots, approval and handover cards after it. `place` is where the bot's
+ * files are in this chat (fileStore.js chatPlace). The per-turn data (goalOperations, inbox, appsVia, workingRequestId)
+ * is null when the turn has none. A request's bot that isn't in the asking chat (O22) has no seat yet (`seat.chat_bot_id`
+ * null): `join()` seats it there, with a line, the first time its computer is used, and answers its chat_bots id.
  * @param {object} options
- * @param {import("./types.js").CallOptions} options.call the turn's call options: every read and write of the turn uses them
- * @param {import("./types.js").BotRecords} options.records mercbot.bots.records (work, turns, directory)
+ * @param {import("./types.js").CallOptions} options.call the model's reader: every read and write of the turn uses it
+ * @param {import("./types.js").BotRecords} options.records mercbot.bots.records (work, turns, directory, bots)
  * @param {{ findById: (userId: string, options: object) => Promise<object | null> }} options.profiles users.profiles
  * @param {import("@local/account/server/types").Account} options.account the account capability (vault logins)
  * @param {import("@jskit-ai/kernel/server/types").RuntimeEnv} options.env
@@ -52,30 +83,24 @@ function inTime(work, what) {
  * @param {import("@local/files/server/types").Files} options.files
  * @param {import("@local/integrations/server/types").Integrations} options.integrations
  * @param {import("@local/apps/server/types").Apps} options.apps
- * @param {import("./types.js").HandOff} options.handOff
+ * @param {object} options.seat the bot in the chat, for the person it works for (chatTurns.js)
+ * @param {(() => Promise<string>) | null} [options.join] seats a request's bot in the asking chat (botRequests.js)
  * @param {import("./types.js").RequestTools} options.requestTools
  * @param {import("./types.js").SettleDraft} options.settleDraft
  * @param {(messages: object[]) => Promise<unknown>} options.post adds messages to the chat and tells open pages
- * @param {string} options.homeId
- * @param {string} options.userId
- * @param {string} options.botId
- * @param {string} options.conversationId
  * @param {{ name: string, instructions: string }[]} options.botSkills
  * @param {import("@jskit-ai/agent-runtime/server/types").AgentGoalOperations | null} options.goalOperations
  * @param {Parameters<typeof hearWhileWorking>[1] | null} options.inbox
- * @param {import("./types.js").Notebook | null} options.notebook
  * @param {Record<string, object>} [options.knowledgeTools] search_knowledge and read_knowledge, for a bot whose knowledge is
  *   searched (botKnowledge.js toolsFor, D-107)
  * @param {{ kind: string } | null} options.appsVia where the bot is working when not in chat (a watch run, a button's task)
  * @param {string | null} options.workingRequestId
  * @param {boolean} [options.viaBot] work another bot asked for (D-46)
  * @param {boolean} [options.isBuilder]
- * @param {string} [options.computerId]
  * @param {boolean} [options.routineRun]
  * @param {{ id: string, runId?: string | null, createdAt?: string, feeds?: object | null } | null} [options.routine] the
  *   routine this run is for, whose events-feed positions it reads and moves on (D-94)
- * @param {boolean} [options.personal]
- * @param {import("./types.js").Place} [options.place]
+ * @param {import("./types.js").Place} options.place
  * @param {{ skip: Record<string, string[]>, removed: string[], connected: string[] }} [options.toolSwitches] `connected`:
  *   the apps the call reaches a connected account of
  */
@@ -87,42 +112,43 @@ export function buildTools({
   env,
   model,
   approvals,
-  computer,
+  computer: chatComputer,
   files,
   integrations,
   apps,
-  handOff,
+  seat,
+  join = null,
   requestTools,
   settleDraft,
   post,
-  homeId,
-  userId,
-  botId,
-  conversationId,
   botSkills,
   goalOperations,
   inbox,
-  notebook,
   appsVia,
   workingRequestId,
   viaBot = false,
   isBuilder = false,
-  computerId = conversationId,
   routineRun = false,
   routine = null,
-  personal = true,
-  place = { homeId, botId, userId },
+  place,
   toolSwitches = { skip: {}, removed: [], connected: [] },
   knowledgeTools = {}
 }) {
-  // Where the tools run: the person's own chat (`personal`) or a room. Every connected account is the home's (D-111);
-  // Sedna's tools act as the person's own user there, so they run only in the person's own chat (D-93).
-  const reach = { userId, homeId, personal };
+  const homeId = String(seat.workspace_id);
+  const userId = String(seat.user_id);
+  const botId = String(seat.id);
+  const chatId = String(seat.chat_id);
+  const seated = seat.chat_bot_id ? String(seat.chat_bot_id) : null;
+  // A private chat's bot reads /files/bot and /files/shared but saves wider only through a card (D13).
+  const privateChat = seat.chat.kind !== "public";
+  // The chat's computer (D14), keyed by the bot's seat; a request's bot not yet in the asking chat joins it first.
+  const { computer, computerId, chatBotId } = seatedComputer(chatComputer, seated, join);
   /**
    * Actions the person switched off for an app in Connect apps: skipped for that app,
    * and left out altogether when every connected app offering them has them off.
    */
-  const appFor = (toolId) => ({ integrations, reach, skip: toolSwitches.skip[toolId] || [], call });
+  // The connected accounts are the home's, in any chat (D-111, R4): the call names the home and the person it works for.
+  const appFor = (toolId) => ({ integrations, skip: toolSwitches.skip[toolId] || [], call });
   // Set by nothing_new: a routine run that found nothing to tell the person.
   let nothingPosted = false;
   const before = [];
@@ -156,6 +182,20 @@ export function buildTools({
     leads.add(same);
     if (once) leads.add(`tool:${once}`);
     await post([{ kind: "text", role: "bot", body: { text: line, lead: true } }]);
+  }
+
+  /**
+   * D14: what the chat's computer signs in to is the chat's. At a sign-in the chat is told so in one line, once a turn,
+   * and the computer notes it (its status lists it).
+   * @param {{ label: string, kind: "site" | "coding" | "sedna" }} signIn
+   */
+  let signInSaid = false;
+  async function signedIn({ label, kind }) {
+    await computer.noteSignIn(computerId, { label: String(label || "a site"), kind }).catch((error) =>
+      console.warn(`Noting a sign-in on a chat's computer failed: ${error?.message}`));
+    if (signInSaid) return;
+    signInSaid = true;
+    await post([{ kind: "event", role: "bot", body: { text: SIGN_IN_LINE, detail: `Signed in to ${label || "a site"} on this chat's computer. ${SIGN_IN_LINE}` } }]);
   }
 
   /**
@@ -210,12 +250,14 @@ export function buildTools({
         call,
         env,
         work: records.work,
-        conversations: records.conversations,
+        bots: records.bots,
         botId,
-        conversationId,
+        chatId,
+        chatBotId: chatBotId(),
+        computer,
+        computerId,
         integrations,
         userId,
-        reach,
         files,
         place
       };
@@ -249,23 +291,23 @@ export function buildTools({
   const routineFeed = routineRun && routine?.runId ? { routine, positions: feedPositions } : null;
 
   const tools = {};
-  Object.assign(tools, buildRoutineTools({ work: records.work, call, conversationId, attempt, acknowledge }));
-  Object.assign(tools, buildBotRequestTools({ handOff, requestTools, goalOperations }));
-  Object.assign(tools, buildDraftTools({ turns: records.turns, call, conversationId, viaBot, routineRun, settleDraft, appFor, after }));
-  Object.assign(tools, buildCardTools({ integrations, notebook, after, call }));
+  // Routines and the to-do list are the bot's in this chat: a request's bot not in it yet has neither.
+  if (seated) Object.assign(tools, buildRoutineTools({ work: records.work, call, chatBotId: seated, attempt, acknowledge }));
+  Object.assign(tools, buildBotRequestTools({ requestTools, goalOperations }));
+  const drafts = buildDraftTools({ turns: records.turns, call, conversationId: chatId, viaBot, routineRun, settleDraft, appFor, after });
+  Object.assign(tools, drafts);
+  Object.assign(tools, buildCardTools({ integrations, after, call }));
   // Searching what the bot knows that's too long to keep in mind (D-107).
   Object.assign(tools, knowledgeTools);
   // Notes for the job in hand and a to-do list the person sees as a card (D-48, @jskit-ai/agent-runtime
   // planning), both in front of the bot at every turn.
-  if (!routineRun) Object.assign(tools, planningTools({ planning: records.turns.planning(call), conversationId, post }));
-  Object.assign(tools, buildMemoryTools({
-    turns: records.turns,
-    bots: records.conversations,
+  if (!routineRun && seated) Object.assign(tools, planningTools({ planning: records.turns.planning(call), conversationId: seated, post }));
+  Object.assign(tools, buildSkillTools({
+    bots: records.bots,
     integrations,
     botSkills,
     userId,
     botId,
-    personal,
     personInChat: !routineRun && !viaBot && !appsVia,
     attempt,
     acknowledge,
@@ -299,13 +341,14 @@ export function buildTools({
       approvals,
       computer,
       computerId,
-      conversationId,
-      personal,
+      chatId,
+      userId,
       workingRequestId,
       after,
       screenshots,
       untrusted,
-      inTime
+      inTime,
+      signedIn
     })
   );
   Object.assign(
@@ -315,9 +358,8 @@ export function buildTools({
       turns: records.turns,
       call,
       integrations,
-      reach,
       userId,
-      conversationId,
+      conversationId: chatId,
       files,
       place,
       office,
@@ -338,22 +380,31 @@ export function buildTools({
   );
   // Apps that host their own connection point, through the general connector (D-34).
   Object.assign(tools, buildConnectorTools({ integrations, call, attempt, postLead }));
-  // Sign-in codes from an inbox the person connected, and coding signed in with the person's own account,
-  // only on a turn of theirs in their own chat with their bot (D-77): never in a shared room,
-  // for work another bot asked for, or in a routine or Apps task, which run without them and can be
-  // set off by what others write (a watch reads the app's data). There the bot uses the secure form,
-  // which tells the person and lets them type the code.
-  const theirOwnTurn = personal && !viaBot && !routineRun;
+  // Sign-in codes from the asker's own inbox (D6) and coding, in any chat (D14): what they sign the chat's computer in
+  // to is the chat's, said at each sign-in. Never for work another bot asked for, or in a routine or Apps task, which
+  // run without the person and can be set off by what others write (a watch reads the app's data) (D-77). There the
+  // bot uses the secure form, which tells the person and lets them type the code.
+  const theirOwnTurn = !viaBot && !routineRun && !appsVia;
   const signIns = theirOwnTurn
     ? buildSignInCodeTools({
-      appFor, computer, computerId, conversationId, turns: records.turns, call, inTime, before, after, askFirst, screenshots, untrusted
+      appFor,
+      computer,
+      computerId,
+      chatId,
+      userId,
+      turns: records.turns,
+      call,
+      inTime,
+      before,
+      after,
+      askFirst,
+      screenshots,
+      untrusted,
+      signedIn
     })
     : null;
   if (signIns) Object.assign(tools, signIns.tools);
-  // Coding runs on their own computer with their bot, where only they signed in.
-  if (theirOwnTurn && computerId === conversationId) {
-    Object.assign(tools, buildCodingTools({ computer, computerId, before, inTime, untrusted }));
-  }
+  if (theirOwnTurn) Object.assign(tools, buildCodingTools({ computer, computerId, before, inTime, untrusted, signedIn, userId }));
   Object.assign(
     tools,
     buildFileTools({
@@ -361,7 +412,8 @@ export function buildTools({
       model,
       files,
       place,
-      personal,
+      privateChat,
+      offer: (card) => after.push(card),
       office,
       postLead,
       inTime,
@@ -372,11 +424,11 @@ export function buildTools({
       pictures,
       memos,
       refusedPictures,
-      whose: { workspaceId: homeId, userId, botId, conversationId }
+      whose: { workspaceId: homeId, userId, botId, conversationId: chatId, chatBotId: seated }
     })
   );
-  // The command line (D-47), where this server has it.
-  if (files.shell.available()) {
+  // The command line (D-47), where this server has it, for a bot seated in this chat: its runs are its seat's.
+  if (seated && files.shell.available()) {
     Object.assign(
       tools,
       buildCommandTools({
@@ -385,9 +437,9 @@ export function buildTools({
         place,
         homeId,
         botId,
-        conversationId,
+        chatBotId: seated,
         userId,
-        personal,
+        privateChat,
         viaBot,
         before,
         attempted,
@@ -451,7 +503,7 @@ export function buildTools({
     const names = new Set([...shownScreenshots, ...(handover ? [handover.body.screenshot] : [])]);
     try {
       for (const name of names) {
-        await files.media.screenshotLater({ computerId: String(computerId), name, workspaceId: homeId, userId, botId });
+        await files.media.screenshotLater({ computerId: chatBotId(), name, workspaceId: homeId, userId, chatId });
       }
     } catch (error) {
       console.warn(`Queueing a reply's screenshots for a check failed, so they aren't shown: ${error?.message}`);
@@ -470,7 +522,7 @@ export function buildTools({
     await shownScreenshotsLater();
     if (saved.size || pictures.length) await files.store.settle(homeId);
     if (!saved.size) return;
-    await files.media.filesLater({ place, paths: saved, workspaceId: homeId, userId, botId, conversationId })
+    await files.media.filesLater({ place, paths: saved, workspaceId: homeId, userId, chatBotId: chatBotId() })
       .catch((error) => console.warn(`Queueing a reply's saved files for a check failed: ${error?.message}`));
   }
 
@@ -496,7 +548,7 @@ export function buildTools({
     directory: records.directory,
     call,
     botId,
-    conversationId,
+    chatBotId: seated,
     userId,
     isBuilder,
     after,

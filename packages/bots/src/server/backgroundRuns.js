@@ -3,65 +3,59 @@ import { isModelFailure, modelFailure } from "./modelFailures.js";
 import { RUN_LEASE, RunTakenOver, jobCheckpoint, routineCheckpoint } from "./runLease.js";
 
 /**
- * In a paused home (D-73) the bot starts nothing new and says why: to each message a
- * person sends, and once for work no one is waiting on (a routine, an Apps task, a bot's request). Nothing is deleted.
- */
-export async function pausedNotice({ records, conversations }, row, text, human, call) {
-  const latest = (role) => records.turns.latestMessage(row.conversation_id, { role, kind: "text" }, call);
-  if (!human && (await latest("bot"))?.body?.paused) return [];
-  const answers = Number((await latest("user"))?.id) || 0;
-  return conversations.append(row, [{ kind: "text", role: "bot", body: { text, paused: true, answers } }], call);
-}
-
-/**
- * A bot's background runs (D-35, D-59): a scheduled routine's run and a task Apps queued,
- * each an ordinary reply (`respond`) in its chat, run as a job in the work's home. Each holds its row
- * with a run id and lease (runLease.js) while it runs, so a run whose server stopped is carried on
- * once, by the server that took it over, and only that server posts its result.
+ * A bot's background runs (D-35, D-59): a scheduled routine's run and a task Apps queued, each an ordinary reply
+ * (`respond`) of a bot in a chat, run as the person who set the work up (R4): a routine's maker, a watch's creator, a
+ * finished command's person, a button's presser. Each reads through the model's reader for that seat and person (D12).
+ * Each holds its row with a run id and lease (runLease.js) while it runs, so a run whose server stopped is carried on
+ * once, by the server that took it over, and only that server posts its result. In a paused home (D-73) the bot starts
+ * nothing new and says why once, in one line (botReplies' respond).
  * @param {object} dependencies
  * @param {import("./types.js").BotRecords} dependencies.records mercbot.bots.records
  * @param {(reason: string) => object} dependencies.systemContext the bots' system context
  * @param {import("@local/account/server/types").Meter} dependencies.meter
- * @param {import("./types.js").BotConversations} dependencies.conversations
+ * @param {import("./chatSeats.js").ChatSeats} dependencies.seats
  * @param {import("@local/apps/server/types").AppJobs | null} dependencies.jobs apps.jobs, where an Apps task's run is held
- * @param {(row: object, options: object) => Promise<object[]>} dependencies.respond botReplies' respond
- * @param {(conversationId: string, home: string, system: object) => Promise<{ row: object, call: object } | null>} dependencies.backgroundRow
- *   the chat a background run posts in, and its call options
+ * @param {(seat: object, options: object) => Promise<object[]>} dependencies.respond botReplies' respond
  */
-export function createBackgroundRuns({ records, systemContext, meter, conversations, jobs, respond, backgroundRow }) {
+export function createBackgroundRuns({ records, systemContext, meter, seats, jobs, respond }) {
   /**
    * One scheduled run of a routine, already claimed by this server (D-15). Open pages hear that
    * the bot is working and when it has posted; a failed run says so and waits for the next time,
    * and the fifth failed run in a row pauses the routine instead, saying how to resume it. A run
    * this server took over from one that stopped carries on from its saved steps (D-59); one stopped
    * for its lease (`signal`) is left, unended, to the server that carries it on.
-   * @param {object} routine the claimed routine
+   * @param {object} routine the claimed routine: its seat (chatBotId), its maker (madeBy) and its home
    * @param {AbortSignal | null} [signal] its lease's (keepLease)
    */
   async function runRoutine(routine, signal = null) {
-    // A routine made in a shared bot's room runs there, for whoever set it up (D-36).
-    const found = await backgroundRow(routine.conversationId, routine.workspaceId, systemContext("routine runner"));
+    const found = await seats.backgroundSeat(
+      { chatBotId: routine.chatBotId, homeId: routine.workspaceId, userId: routine.madeBy },
+      "routine runner"
+    );
     if (!found) {
-      // Its conversation or bot is gone: the run ends, so no server takes it over again.
+      // Its seat, chat or bot is gone or archived, or its maker can no longer open the chat: the run ends, so no server
+      // takes it over again.
       await routineCheckpoint(records.work, routine, null)
         ?.end({ failed: true }, { context: systemContext("routine runner").forWorkspace(String(routine.workspaceId)) });
       return;
     }
-    const { row, call } = found;
-    await meter.track({ userId: row.user_id, botId: String(row.id), work: "background" }, () => runRoutineFor(row, routine, call, signal));
+    const { seat, call } = found;
+    await meter.track(
+      { userId: seat.user_id, botId: seat.id, workspaceId: seat.workspace_id, work: "background" },
+      () => runRoutineFor(seat, routine, call, signal)
+    );
   }
 
-  async function runRoutineFor(row, routine, call, signal) {
-    const notify = (event) => conversations.tell(row, event, call);
+  async function runRoutineFor(seat, routine, call, signal) {
     const held = routineCheckpoint(records.work, routine, call, signal);
-    await notify({ type: "working", working: true });
+    await seats.working(seat, true, null, call);
     try {
       let appended;
       // Whether this server still held the run when it ended; one another server took over is left to it.
       let mine = true;
       try {
         if (held?.givenUp) throw new Error(`its server stopped ${RUN_LEASE.attempts} times while it ran`);
-        appended = await respond(row, {
+        appended = await respond(seat, {
           timeZone: routine.timezone,
           prompt: routinePrompt(routine),
           routineRun: true,
@@ -79,11 +73,11 @@ export function createBackgroundRuns({ records, systemContext, meter, conversati
           appended = [];
         } else {
           console.error(`Routine ${routine.id} ("${routine.name}") failed: ${isModelFailure(error) ? modelFailure(error) : error.stack}`);
-          appended = await conversations.withTransaction(call, async (txOptions) => {
+          appended = await records.chats.withTransaction(call, async (txOptions) => {
             const ending = held ? await held.end({ failed: true }, txOptions) : { paused: false, messages: [] };
             mine = Boolean(ending);
             if (!ending) return [];
-            return conversations.append(row, [
+            return seats.say(seat, [
               ...(ending.paused
                 ? []
                 : [
@@ -104,9 +98,9 @@ export function createBackgroundRuns({ records, systemContext, meter, conversati
       }
       // A one-off reminder or check ends itself after its run, with an event line.
       if (routine.once && mine) {
-        await records.work.deleteRoutine(routine.id, routine.conversationId, call);
+        await records.work.deleteRoutine(routine.id, routine.chatBotId, call);
         appended.push(
-          ...(await conversations.append(row, [
+          ...(await seats.say(seat, [
             {
               kind: "event",
               role: "system",
@@ -120,49 +114,55 @@ export function createBackgroundRuns({ records, systemContext, meter, conversati
           ], call))
         );
       }
-      if (appended.length) await notify({ type: "messages" });
+      if (appended.length) await seats.tell(seat.chat_id, { type: "messages" }, call);
     } finally {
-      await notify({ type: "working", working: false });
+      await seats.working(seat, false, null, call);
     }
   }
 
   /**
-   * A task Apps queued for this bot (D-35): a watch run goes to the chat the watch was set up in;
-   * a button's hand-off to the bot's chat with the person who pressed it (or its room, if shared).
-   * Changes the bot makes in a watch run are audited as that watch, so it can't set itself off.
-   * A task this server took over from one that stopped carries on from its saved steps (D-59), and
-   * only the server holding it posts its result; one stopped for its lease (`signal`) throws
-   * RunTakenOver, for its runner to leave it to the server that carries it on.
+   * The seat an Apps task runs in, as its person (R4): a watch run's and a finished command's seat (chatBotId), as the
+   * watch's creator or the command's person; a button's hand-off in the presser's direct chat with the bot, made on
+   * first use. An archived bot takes no task (D-108): the button that asked says so.
+   */
+  async function taskSeat(job) {
+    if (job.chatBotId) return seats.backgroundSeat({ chatBotId: job.chatBotId, homeId: job.workspaceId, userId: job.userId }, "app job runner");
+    if (!job.userId) return null;
+    const asPresser = { context: systemContext("app job runner").forWorkspaceUser(String(job.workspaceId), String(job.userId), { actorId: String(job.userId) }) };
+    const bot = await records.bots.find(String(job.botId), asPresser);
+    if (!bot) return null;
+    if (bot.archived_at) throw archivedBotRefusal(bot);
+    const chat = await records.chats.direct(String(bot.id), asPresser);
+    const seat = seats.seatOf(bot, chat, await records.chats.chatBotOf(String(bot.id), String(chat.id), asPresser), job.userId);
+    return { seat, call: seats.readerOf(seat) };
+  }
+
+  /**
+   * A task Apps queued for a bot (D-35): a watch run goes to the chat the watch was set up in, a finished command's to
+   * its chat, a button's hand-off to the presser's direct chat with the bot. Changes the bot makes in a watch run are
+   * audited as that watch, so it can't set itself off. A task this server took over from one that stopped carries on
+   * from its saved steps (D-59), and only the server holding it posts its result; one stopped for its lease (`signal`)
+   * throws RunTakenOver, for its runner to leave it to the server that carries it on.
    * @param {object} job the claimed task
    * @param {AbortSignal | null} [signal] its lease's (keepLease)
    */
   async function runAppTask(job, signal = null) {
-    let row = null;
-    let call = null;
-    if (job.kind === "watch" || job.kind === "shell") {
-      ({ row, call } = (await backgroundRow(job.conversationId, job.workspaceId, systemContext("app job runner"))) || {});
-    } else {
-      // A button's hand-off, to the bot's chat with the person who pressed it, in the job's home.
-      call = { context: systemContext("app job runner").forWorkspaceUser(String(job.workspaceId), String(job.userId), { actorId: String(job.userId) }) };
-      row = await conversations.ownedBot(String(job.botId), call).catch(() => null);
-      // An archived bot takes no task (D-108): the button that asked says so.
-      if (row?.archived_at) throw archivedBotRefusal(row);
-    }
-    if (!row) throw new BotsError(404, "The bot or chat for this task no longer exists.", { code: "bots_task_target_gone" });
+    const found = await taskSeat(job);
+    if (!found) throw new BotsError(404, "The bot or chat for this task no longer exists.", { code: "bots_task_target_gone" });
+    const { seat, call } = found;
     const held = jobs ? jobCheckpoint(jobs, job, { context: systemContext("app job runner").forWorkspace(String(job.workspaceId)) }, signal) : null;
     const appsVia =
       job.kind === "watch"
-        ? { kind: "watch", watchId: String(job.watchId), botId: String(row.id) }
-        : { kind: "task", botId: String(row.id) };
+        ? { kind: "watch", watchId: String(job.watchId), botId: seat.id }
+        : { kind: "task", botId: seat.id };
     // A button's hand-off has someone waiting on it; a watch run or a finished command doesn't (D-59).
     const work = job.kind === "watch" || job.kind === "shell" ? "background" : "chat";
-    await meter.track({ userId: row.user_id, botId: String(row.id), work }, async () => {
-      const notify = (event) => conversations.tell(row, event, call);
-      await notify({ type: "working", working: true });
+    await meter.track({ userId: seat.user_id, botId: seat.id, workspaceId: seat.workspace_id, work }, async () => {
+      await seats.working(seat, true, null, call);
       try {
         // The task's line goes up once: a run taken over from a stopped server already showed it.
         if (!(job.attempts > 1)) {
-          await conversations.append(row, [
+          await seats.say(seat, [
             {
               kind: "event",
               role: "system",
@@ -176,7 +176,7 @@ export function createBackgroundRuns({ records, systemContext, meter, conversati
         try {
           if (held?.givenUp) throw new Error(`its server stopped ${RUN_LEASE.attempts} times while it ran`);
           // A watch run reads its own last few runs, as a routine does; a finished command the chat's latest words (D-60).
-          await respond(row, {
+          await respond(seat, {
             prompt: job.prompt,
             routineRun: true,
             appsVia,
@@ -190,10 +190,10 @@ export function createBackgroundRuns({ records, systemContext, meter, conversati
             if (!signal?.aborted) console.warn(error.message);
             throw error;
           }
-          await conversations.withTransaction(call, async (txOptions) => {
+          await records.chats.withTransaction(call, async (txOptions) => {
             // Another server holds the task now, and posts its own ending.
             if (held && !(await held.end({ failed: true }, txOptions))) return;
-            await conversations.append(row, [
+            await seats.say(seat, [
               {
                 kind: "text",
                 role: "bot",
@@ -207,10 +207,10 @@ export function createBackgroundRuns({ records, systemContext, meter, conversati
           });
           throw error;
         } finally {
-          await notify({ type: "messages" });
+          await seats.tell(seat.chat_id, { type: "messages" }, call);
         }
       } finally {
-        await notify({ type: "working", working: false });
+        await seats.working(seat, false, null, call);
       }
     });
   }

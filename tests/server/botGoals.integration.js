@@ -1,10 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { connectTestDatabase } from "../support/testDatabase.mjs";
-import { createBotsService } from "../../packages/bots/src/server/botsService.js";
+import { startChatTurns } from "./turnKit.mjs";
 import { testBot } from "./testHome.js";
-import { serviceDoubles } from "../support/botDoubles.mjs";
-import { memberOptions, startBotParts } from "../support/botRecords.mjs";
+import { memberOptions } from "../support/botRecords.mjs";
 
 // Goal rounds (D-48, after DeepSeek Harness P3–P5), against the disposable test database, with
 // scripted replies in place of the model: a bot that stops short is sent another round until it
@@ -21,17 +20,17 @@ async function setup(context, reply, goalLimits = { retryMs: 200 }) {
     await knex.destroy();
   });
   // Goal rounds run in the bots' system context, as a job for the goal's person, and read what it has spent from the meter.
-  const service = createBotsService(serviceDoubles({ knex, ...(await startBotParts(knex, context)), approvals: { decide: async () => "allow" }, reply, goalLimits }));
+  const { turns: service, drain } = await startChatTurns(context, { reply, goalLimits });
   const as = (person) => memberOptions({ userId: person, homeId: bot.workspace_id });
   async function ask(text) {
-    const sent = await service.sendMessage(bot.id, { text, clientId: `g-${Date.now()}-${Math.random()}` }, as(userId));
-    await service.replyTo(bot.id, { afterMessageId: sent.messages[0].id }, undefined, as(userId));
+    const sent = await service.chat.sendMessage(bot.conversation_id, { text, clientId: `g-${Date.now()}-${Math.random()}` }, as(userId));
+    await service.chat.reply(bot.conversation_id, { afterMessageId: sent.messages[0].id }, undefined, as(userId));
     // Rounds run until none is due and no reply runs. A round due later (a retry while a reply
     // runs) is waited for until it can be claimed, by the database's clock (agent-runtime goals:
     // round_at and lease_until past); 15 s of waiting in all.
     let waited = 0;
     for (let round = 0; round < 60; round += 1) {
-      await service.drain(10000);
+      await drain(10000);
       await service.goals.runDue();
       const { due, ms } = await knex("agent_goals")
         .where({ bot_id: bot.id, status: "active" })
@@ -69,7 +68,7 @@ test("a bot that stops short gets another round and finishes the goal", async (c
   const goal = await goalOf(knex, bot);
   assert.equal(goal.status, "complete");
   assert.equal(goal.rounds, 1, "one round was enough");
-  const texts = (await knex("bot_messages").where({ bot_id: bot.id, kind: "text", role: "bot" }).orderBy("id")).map((message) => message.body.text);
+  const texts = (await knex("messages").where({ conversation_id: bot.conversation_id, kind: "text", role: "bot" }).orderBy("id")).map((message) => message.body.text);
   assert.deepEqual(texts, ["I'll start by reading the file.", "The report is made and checked."]);
 });
 
@@ -99,7 +98,7 @@ test("the round cap stops a goal that never completes", async (context) => {
   assert.equal(goal.status, "blocked");
   assert.equal(goal.rounds, 3);
   assert.match(goal.reason, /limit of 3 rounds/u);
-  const line = await knex("bot_messages").where({ bot_id: bot.id, kind: "event" }).orderBy("id", "desc").first();
+  const line = await knex("messages").where({ conversation_id: bot.conversation_id, kind: "event" }).orderBy("id", "desc").first();
   assert.equal(line.body.text, "Stopped working on the goal", "the person is told");
 });
 
@@ -154,7 +153,7 @@ test("a job stops at its cost limit and says so", async (context) => {
   assert.equal(goal.status, "blocked");
   assert.equal(goal.rounds, 0, "no round after the limit");
   assert.match(goal.reason, /cost limit of \$0.5/u);
-  const line = await knex("bot_messages").where({ bot_id: bot.id, kind: "event" }).orderBy("id", "desc").first();
+  const line = await knex("messages").where({ conversation_id: bot.conversation_id, kind: "event" }).orderBy("id", "desc").first();
   assert.match(line.body.detail, /cost limit \(\$0.5\)/u);
   await knex("usage_events").where({ bot_id: bot.id }).del();
 });

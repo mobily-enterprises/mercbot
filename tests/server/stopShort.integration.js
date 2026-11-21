@@ -179,7 +179,7 @@ test("a reply with raw markup carries on once, and people never see the markup",
     approvals: { decide: async () => "allow" },
     reply: async (_bot, history, _tools, _state, prompt) => {
       passes.push({ history, prompt });
-      if (passes.length === 1) return { text: "I'll look at the files first.\n\n<parameter name=\"runCommand\">ls -la /files/mine</parameter>", transcript: [] };
+      if (passes.length === 1) return { text: "I'll look at the files first.\n\n<parameter name=\"runCommand\">ls -la /files/chat</parameter>", transcript: [] };
       return { text: "You have one file.<｜end▁of▁sentence｜>", transcript: [] };
     }
   }));
@@ -208,7 +208,7 @@ test("a reply that claims files it didn't attach is sent back, and the person ge
   const row = await knex("bots").where({ id: bot.id }).first();
   const place = store.placeFor({ ...row, workspace_id: row.workspace_id, id: row.id }, userId);
   await store.list(place);
-  const real = await store.resolve(place, "/files/mine/week-plan-page-2.pdf");
+  const real = await store.resolve(place, "/files/chat/week-plan-page-2.pdf");
   await writeFile(real, "%PDF-1.4");
   await utimes(real, new Date(Date.now() - 86400000), new Date(Date.now() - 86400000));
   const passes = [];
@@ -223,9 +223,9 @@ test("a reply that claims files it didn't attach is sent back, and the person ge
     approvals: { decide: async () => "allow" },
     reply: async (_bot, _history, tools, _state, prompt) => {
       passes.push(prompt);
-      if (passes.length === 1) return { text: "Here they are again: /files/mine/week-plan-page-2.pdf, attached as a file card below.", transcript: [] };
-      await tools.sendFiles.execute({ paths: ["/files/mine/week-plan-page-2.pdf"] });
-      return { text: "Here's /files/mine/week-plan-page-2.pdf again.", transcript: [] };
+      if (passes.length === 1) return { text: "Here they are again: /files/chat/week-plan-page-2.pdf, attached as a file card below.", transcript: [] };
+      await tools.sendFiles.execute({ paths: ["/files/chat/week-plan-page-2.pdf"] });
+      return { text: "Here's /files/chat/week-plan-page-2.pdf again.", transcript: [] };
     }
   }));
   const sent = await service.sendMessage(bot.id, { text: "Send me the page 2 file again", clientId: `f-${Date.now()}` }, as(userId));

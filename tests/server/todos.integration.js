@@ -2,10 +2,9 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { connectTestDatabase } from "../support/testDatabase.mjs";
 import { previewOf } from "../../packages/bots/src/server/botRows.js";
-import { createBotsService } from "../../packages/bots/src/server/botsService.js";
+import { startChatTurns } from "./turnKit.mjs";
 import { testBot } from "./testHome.js";
-import { serviceDoubles } from "../support/botDoubles.mjs";
-import { memberOptions, startBotRecords } from "../support/botRecords.mjs";
+import { memberOptions } from "../support/botRecords.mjs";
 
 // A bot's to-do list (D-48): one card in the chat, updated in place as items are ticked off, the
 // open list in the state note at the next turn, and a new card for the next job. Against the
@@ -22,12 +21,8 @@ test("the to-do card is made, ticked off in place, remembered, and replaced for 
     await knex.destroy();
   });
   const turns = [];
-  const records = await startBotRecords(knex, context);
   const as = (person) => memberOptions({ userId: person, homeId: bot.workspace_id });
-  const service = createBotsService(serviceDoubles({
-    knex,
-    records,
-    approvals: { decide: async () => "allow" },
+  const { turns: service, drain } = await startChatTurns(context, {
     reply: async (_bot, _history, tools, state) => {
       turns.push({ state, tools });
       const n = turns.length;
@@ -47,13 +42,13 @@ test("the to-do card is made, ticked off in place, remembered, and replaced for 
       await tools.updateTodos.execute({ items: [{ text: "Plan the trip", status: "doing" }] });
       return { text: "Started.", transcript: [] };
     }
-  }));
+  });
   const ask = async (text) => {
-    const sent = await service.sendMessage(bot.id, { text, clientId: `t-${Date.now()}-${Math.random()}` }, as(userId));
-    await service.replyTo(bot.id, { afterMessageId: sent.messages[0].id }, undefined, as(userId));
-    await service.drain(10000);
+    const sent = await service.chat.sendMessage(bot.conversation_id, { text, clientId: `t-${Date.now()}-${Math.random()}` }, as(userId));
+    await service.chat.reply(bot.conversation_id, { afterMessageId: sent.messages[0].id }, undefined, as(userId));
+    await drain(10000);
   };
-  const cards = () => knex("bot_messages").where({ bot_id: bot.id, kind: "todos" }).orderBy("id");
+  const cards = () => knex("messages").where({ conversation_id: bot.conversation_id, kind: "todos" }).orderBy("id");
 
   await ask("Add a Due date field to the CRM");
   let list = await cards();
@@ -83,26 +78,22 @@ test("job notes are kept for the bot, shown at the next turn, and cleared", asyn
     await knex.destroy();
   });
   const states = [];
-  const records = await startBotRecords(knex, context);
   const as = (person) => memberOptions({ userId: person, homeId: bot.workspace_id });
-  const service = createBotsService(serviceDoubles({
-    knex,
-    records,
-    approvals: { decide: async () => "allow" },
+  const { turns: service, drain } = await startChatTurns(context, {
     reply: async (_bot, _history, tools, state) => {
       states.push(state);
       if (states.length === 1) assert.equal((await tools.keepNotes.execute({ notes: ["The CRM table is contacts", "Due date goes after Stage"] })).status, "saved");
       if (states.length === 2) assert.equal((await tools.keepNotes.execute({ notes: [] })).status, "cleared");
       return { text: "OK.", transcript: [] };
     }
-  }));
+  });
   for (const text of ["Start the CRM change", "Carry on", "Anything else?"]) {
-    const sent = await service.sendMessage(bot.id, { text, clientId: `n-${Date.now()}-${Math.random()}` }, as(userId));
-    await service.replyTo(bot.id, { afterMessageId: sent.messages[0].id }, undefined, as(userId));
-    await service.drain(10000);
+    const sent = await service.chat.sendMessage(bot.conversation_id, { text, clientId: `n-${Date.now()}-${Math.random()}` }, as(userId));
+    await service.chat.reply(bot.conversation_id, { afterMessageId: sent.messages[0].id }, undefined, as(userId));
+    await drain(10000);
   }
   assert.doesNotMatch(states[0], /Your notes/u);
   assert.match(states[1], /Your notes for the job in hand[\s\S]*- The CRM table is contacts\n- Due date goes after Stage/u, "shown at the next turn");
   assert.doesNotMatch(states[2], /Your notes/u, "and gone once cleared");
-  assert.equal(await knex("bot_messages").where({ bot_id: bot.id }).whereNotIn("kind", ["text"]).count("* as n").first().then((row) => Number(row.n)), 0, "nothing shows in the chat");
+  assert.equal(await knex("messages").where({ conversation_id: bot.conversation_id }).whereNotIn("kind", ["text"]).count("* as n").first().then((row) => Number(row.n)), 0, "nothing shows in the chat");
 });

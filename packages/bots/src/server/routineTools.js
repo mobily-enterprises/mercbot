@@ -16,21 +16,21 @@ function whenItRuns(routine) {
 }
 
 /**
- * Routines: setting one up and changing one. Each change starts with a short
- * acknowledgement, before its event line, and goes through attempt() like every write.
+ * Routines: setting one up and changing one, for the bot in this chat (its chat_bots seat). Each change starts with a
+ * short acknowledgement, before its event line, and goes through attempt() like every write.
  * @param {object} shared
  * @param {import("./types.js").WorkRepository} shared.work records.work
  * @param {import("./types.js").CallOptions} shared.call the turn's call options
- * @param {string} shared.conversationId
+ * @param {string} shared.chatBotId
  * @param {import("./types.js").AttemptAction} shared.attempt
  * @param {(text: string) => void} shared.acknowledge
  */
-export function buildRoutineTools({ work, call, conversationId, attempt, acknowledge }) {
+export function buildRoutineTools({ work, call, chatBotId, attempt, acknowledge }) {
   async function createRoutine({ acknowledgement, once, paused, ...input }) {
     const args = { ...cleanRoutine(input), ...(once ? { once: "true" } : {}), ...(paused ? { paused: "true" } : {}) };
     const problem = scheduleProblem(args.cron, args.timezone);
     if (problem) return { error: problem };
-    if (await work.routineNamed(conversationId, args.name, call)) {
+    if (await work.routineNamed(chatBotId, args.name, call)) {
       return { error: `There's already a routine called "${args.name}". Use update_routine to change it.` };
     }
     acknowledge(acknowledgement);
@@ -38,7 +38,7 @@ export function buildRoutineTools({ work, call, conversationId, attempt, acknowl
   }
   async function updateRoutine({ acknowledgement, ...input }) {
     const args = cleanRoutine(input);
-    const routine = await work.routineNamed(conversationId, args.routine, call);
+    const routine = await work.routineNamed(chatBotId, args.routine, call);
     if (!routine) return { error: `There's no routine called "${args.routine}".` };
     const merged = { ...routine, ...Object.fromEntries(Object.entries(args).filter(([, value]) => value)) };
     if (args.cron || args.timezone) {

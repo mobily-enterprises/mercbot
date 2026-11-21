@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import { createTool, textPart } from "@jskit-ai/agent/server";
 import { z } from "zod";
@@ -61,7 +61,8 @@ const REMOVED_NOTE =
  * @param {import("./types.js").ChatModel} shared.model
  * @param {import("@local/files/server/types").Files} shared.files
  * @param {import("./types.js").Place} shared.place
- * @param {boolean} shared.personal
+ * @param {boolean} shared.privateChat the chat is private: the bot's wider writes need a person's card (D13)
+ * @param {(card: object) => void} shared.offer puts a card under the reply (the turn's `after`)
  * @param {import("./types.js").OfficeSession} shared.office
  * @param {import("./types.js").PostLead} shared.postLead
  * @param {import("./types.js").InTime} shared.inTime
@@ -72,15 +73,16 @@ const REMOVED_NOTE =
  * @param {object[][]} shared.pictures
  * @param {object[]} shared.memos
  * @param {string[]} shared.refusedPictures what make_picture said instead of a picture a check didn't allow (D-90)
- * @param {{ workspaceId: string, userId: string | null, botId: string, conversationId: string | null }} shared.whose
- *   whose turn it is, for those checks
+ * @param {{ workspaceId: string, userId: string | null, botId: string, conversationId: string | null, chatBotId: string | null }} shared.whose
+ *   whose turn it is, for those checks: the home, the person it works for, the bot, its chat and its seat in it
  */
 export function buildFileTools({
   env,
   model,
   files,
   place,
-  personal,
+  privateChat,
+  offer,
   office,
   postLead,
   inTime,
@@ -112,8 +114,8 @@ export function buildFileTools({
         continue;
       }
       if (!listed) {
-        const { mine = [], bot = [], shared = [] } = await files.store.list(place).catch(() => ({}));
-        listed = [...mine, ...bot, ...shared].map((entry) => entry.path);
+        const { chat = [], bot = [], shared = [] } = await files.store.list(place).catch(() => ({}));
+        listed = [...chat, ...bot, ...shared].map((entry) => entry.path);
       }
       notFound.push({ path: wanted, closest: closestFiles(wanted, listed) });
     }
@@ -140,9 +142,8 @@ export function buildFileTools({
   tools.listFiles = createTool(
     Object.freeze({
       id: "list_files",
-      description: personal
-        ? "List your files with this person (/files/mine), yours for everyone who uses you (/files/bot) and the home's, shared with everyone in it and all its bots (/files/shared), newest first, at most 300 per folder; `left` says how many older ones a folder has beyond those, and a folder in `partial` has more than 5,000, so its 300 are the newest of the first 5,000 found."
-        : "List your files for everyone here who uses you (/files/bot) and the home's, shared with everyone in it and all its bots (/files/shared), newest first, at most 300 per folder; `left` says how many older ones a folder has beyond those, and a folder in `partial` has more than 5,000, so its 300 are the newest of the first 5,000 found.",
+      description:
+        "List this chat's files (/files/chat), yours in every chat you're in (/files/bot) and the home's, shared with everyone in it and all its bots (/files/shared), newest first, at most 300 per folder; `left` says how many older ones a folder has beyond those, and a folder in `partial` has more than 5,000, so its 300 are the newest of the first 5,000 found.",
       inputSchema: z.object({}),
       execute: (input, options) => listFiles(input, options)
     })
@@ -177,7 +178,7 @@ export function buildFileTools({
     Object.freeze({
       id: "read_file",
       description:
-        "Read one of your files or the shared ones, such as a file the person attached (/files/mine/Uploads/…): documents, spreadsheets, presentations, PDFs, text files and pictures. For a picture, say what you want to know in question.",
+        "Read one of your files or the shared ones, such as a file the person attached (/files/chat/Uploads/…): documents, spreadsheets, presentations, PDFs, text files and pictures. For a picture, say what you want to know in question.",
       inputSchema: z.object({
         path: z.string().min(8).max(500),
         question: z.string().max(500).optional().describe("For a picture: what you need to find out from it"),
@@ -211,7 +212,7 @@ export function buildFileTools({
     try {
       const result = await office.call(app, tool, args);
       if (!result.ok) return { error: result.text };
-      for (const match of result.text.matchAll(/\/files\/(?:mine|shared)\/[^\s"'`)\]]+\.[A-Za-z0-9]{1,8}/gu)) saved.add(match[0]);
+      for (const match of result.text.matchAll(/\/files\/(?:chat|bot|shared)\/[^\s"'`)\]]+\.[A-Za-z0-9]{1,8}/gu)) saved.add(match[0]);
       return { result: result.text };
     } catch (error) {
       return failed(error);
@@ -219,7 +220,7 @@ export function buildFileTools({
   }
   tools.useApp = createTool(Object.freeze({
     id: "use_app",
-    description: "Call one tool of an office app, with the parameters app_help shows. Paths are /files/mine/… or /files/shared/….",
+    description: "Call one tool of an office app, with the parameters app_help shows. Paths are /files/chat/…, /files/bot/… or /files/shared/….",
     inputSchema: z.object({
       app: z.enum(apps),
       tool: z.string().min(1).max(80),
@@ -231,7 +232,7 @@ export function buildFileTools({
   async function sendVoiceMemo({ text }) {
     if (memos.length) return { status: "already sent" };
     try {
-      const memo = await files.apps.voiceMemo(place, text.trim(), `/files/mine/Voice/memo-${Date.now().toString(36)}.wav`);
+      const memo = await files.apps.voiceMemo(place, text.trim(), `/files/chat/Voice/memo-${Date.now().toString(36)}.wav`);
       memos.push({ ...memo, words: text.trim() });
       return { status: "sent", seconds: memo.seconds, note: "The voice memo is below; add at most a short line, then carry on in text." };
     } catch (error) {
@@ -252,7 +253,7 @@ export function buildFileTools({
   async function makeChart({ title, type, categories, series, caption }) {
     try {
       const slug = title.toLowerCase().normalize("NFKD").replace(/[^\w\s-]/gu, "").trim().replace(/\s+/gu, "-").slice(0, 50) || "chart";
-      const chartPath = `/files/mine/Charts/${slug}-${Date.now().toString(36)}.png`;
+      const chartPath = `/files/chat/Charts/${slug}-${Date.now().toString(36)}.png`;
       await files.apps.chartImage(place, { title, type, categories, series }, chartPath);
       charts.push({ path: chartPath, title: title.trim(), caption: caption.trim() });
       return {
@@ -312,7 +313,7 @@ export function buildFileTools({
       const slug = title.toLowerCase().normalize("NFKD").replace(/[^\w\s-]/gu, "").trim().replace(/\s+/gu, "-").slice(0, 50) || "picture";
       const made = await inTime(Promise.all(Array.from({ length: variants }, () => makePicture(env, prompt, sources))), "Making the picture");
       const stamp = Date.now().toString(36);
-      const pathOf = (index) => `/files/mine/Pictures/${slug}-${stamp}${index ? `-${index + 1}` : ""}.png`;
+      const pathOf = (index) => `/files/chat/Pictures/${slug}-${stamp}${index ? `-${index + 1}` : ""}.png`;
       const answers = await Promise.all(made.map((picture, index) => files.media.check({ bytes: picture.data, origin: "picture", ...whose, path: pathOf(index) })));
       const images = [];
       for (const [index, picture] of made.entries()) {
@@ -348,7 +349,7 @@ export function buildFileTools({
         prompt: z.string().min(5).max(2000).describe("What to draw, or what to change, in plain words, including the style"),
         title: z.string().min(2).max(80).describe("A short descriptive title, for the Library"),
         caption: z.string().min(5).max(200).describe("One line describing the picture, shown when it's opened"),
-        from: z.array(z.string().min(8).max(500)).max(3).optional().describe("Paths of pictures to edit or restyle (/files/mine/…)"),
+        from: z.array(z.string().min(8).max(500)).max(3).optional().describe("Paths of pictures to edit or restyle (/files/chat/…)"),
         variants: z.number().int().min(1).max(2).optional().describe("2 to offer two takes side by side")
       }),
       execute: (input, options) => makePictureTool(input, options)
@@ -364,7 +365,7 @@ export function buildFileTools({
    */
   async function saveMarkdownPage({ title, content, path: given }) {
     const real = await files.store.resolve(place, given);
-    if (!real) return { error: "Pages live in /files/mine/Pages, /files/bot or /files/shared." };
+    if (!real) return { error: "Pages live in /files/bot or /files/shared." };
     await mkdir(dirname(real), { recursive: true });
     const text = content.trim().startsWith("#") ? content.trim() : `# ${title}\n\n${content.trim()}`;
     await writeFile(real, `${text}\n`);
@@ -376,7 +377,10 @@ export function buildFileTools({
     try {
       if (given && given.endsWith(".md") && !content.trim().startsWith("<")) return await saveMarkdownPage({ title, content, path: given });
       const slug = title.toLowerCase().normalize("NFKD").replace(/[^\w\s-]/gu, "").trim().replace(/\s+/gu, "-").slice(0, 60) || "page";
-      const page = await files.pages.save({ place, title: title.trim(), content, given: given?.endsWith(".html") ? given : null, slug });
+      const page = await files.pages.save({ place, title: title.trim(), content, given: given?.endsWith(".html") ? given : null, slug })
+        .catch((error) => (error?.code === WIDER_NEEDS_CARD ? null : Promise.reject(error)));
+      // D13: in a private chat a page goes to /files/bot or /files/shared only when a person puts it there.
+      if (!page) return await pageOnCard({ title: title.trim(), content, slug });
       pages.set(page.path, { path: page.path, title: page.title, summary: page.summary });
       return {
         status: "saved",
@@ -419,7 +423,7 @@ export function buildFileTools({
     try {
       if (!files.pages.isPagePath(pagePath)) return { error: "Give the path of one of your HTML pages, from its card." };
       const { name, html } = await files.pages.standalone({ homeId: place.homeId, botId: place.botId, path: pagePath });
-      const copyPath = `${personal ? "/files/mine" : "/files/bot"}/Copies/${name.replace(/\.html$/u, "")} (copy).html`;
+      const copyPath = `/files/chat/Copies/${name.replace(/\.html$/u, "")} (copy).html`;
       const real = await files.store.resolve(place, copyPath);
       await mkdir(dirname(real), { recursive: true });
       await writeFile(real, html);
@@ -458,15 +462,116 @@ export function buildFileTools({
   tools.moveFile = createTool(
     Object.freeze({
       id: "move_file",
-      description: personal
-        ? "Move or rename one of the files or folders. /files/mine keeps it between you and this person; /files/bot shares it with everyone in this home who uses you; /files/shared with everyone in this home and all its bots."
-        : "Move or rename one of the files or folders. /files/bot is everyone's here who uses you; /files/shared is everyone's in this home and all its bots.",
+      description:
+        "Move or rename one of the files or folders. /files/chat keeps it in this chat; /files/bot is yours in every chat you're in; /files/shared is everyone's in this home and all its bots. In a private chat, use share_file to put something in /files/bot or /files/shared.",
       inputSchema: z.object({ from: z.string().min(8).max(500), to: z.string().min(8).max(500) }),
       execute: (input, options) => moveFile(input, options)
     })
   );
+
+  /**
+   * D13: what a bot makes in a private chat stays there until a person widens it. The card asks the person the bot works
+   * for; their Yes copies the file with the store's widened place (botCards.js answerChoice), which the model can't make.
+   */
+  async function shareFile({ path: from, to }) {
+    const target = SHARE_TARGETS[to];
+    try {
+      if (!String(from).startsWith("/files/chat/")) return { error: "Share a file from this chat's folder, /files/chat/…" };
+      await files.store.existingFile(place, from);
+      const name = from.split("/").pop();
+      offer({
+        kind: "choice",
+        role: "bot",
+        body: {
+          purpose: "share-file",
+          question: `Put ${name} in ${target.words}?`,
+          subline: `This chat is private. ${target.reach}`,
+          options: SHARE_OPTIONS,
+          multi: false,
+          chosen: null,
+          share: { from, to: `${target.folder}/${name}` }
+        }
+      });
+      return { status: "waiting_for_approval", note: "Nothing is shared yet: the person decides on the card under your reply. Say so in one line." };
+    } catch (error) {
+      return failed(error);
+    }
+  }
+  /** A page this private chat can't save wider: kept in /files/chat as a file, with a card to make it a page. */
+  async function pageOnCard({ title, content, slug }) {
+    const draft = `/files/chat/Pages/${slug}.html`;
+    const real = await files.store.resolve(place, draft);
+    await mkdir(dirname(real), { recursive: true });
+    await writeFile(real, content);
+    saved.add(draft);
+    offer({
+      kind: "choice",
+      role: "bot",
+      body: {
+        purpose: "share-file",
+        question: `Make "${title}" a page in this bot's files?`,
+        subline: `This chat is private. ${SHARE_TARGETS.bot.reach}`,
+        options: SHARE_OPTIONS,
+        multi: false,
+        chosen: null,
+        share: { from: draft, to: `/files/bot/Pages/${slug}.html`, page: { title } }
+      }
+    });
+    return {
+      status: "waiting_for_approval",
+      path: draft,
+      note: "This chat is private, so the page isn't saved as a page yet: it's kept as a file here, and the person decides on the card under your reply whether to make it a page. Say so in one line."
+    };
+  }
+  if (privateChat) {
+    tools.shareFile = createTool(
+      Object.freeze({
+        id: "share_file",
+        description:
+          "In this private chat, ask the person you work for to put one of this chat's files in your folder for every chat (/files/bot) or the home's (/files/shared). It shows them a card; the file is copied only if they agree.",
+        inputSchema: z.object({
+          path: z.string().min(13).max(500).describe("The file, in /files/chat/…"),
+          to: z.enum(["bot", "shared"]).describe("bot: your folder for every chat you're in; shared: the whole home's")
+        }),
+        execute: (input, options) => shareFile(input, options)
+      })
+    );
+  }
   return tools;
 }
+
+const SHARE_TARGETS = Object.freeze({
+  bot: { folder: "/files/bot", words: "this bot's files for every chat", reach: "Everyone in every chat this bot is in will be able to open it." },
+  shared: { folder: "/files/shared", words: "the home's shared files", reach: "Everyone in the home will be able to open it." }
+});
+const SHARE_OPTIONS = Object.freeze(["Share it", "Keep it in this chat"]);
+// The refusal of a bot's write to /files/bot or /files/shared from a private chat (D13, the files package).
+const WIDER_NEEDS_CARD = "files_wider_needs_card";
+
+/**
+ * The person's Yes on a share card (D13): the chat's file copied to the wider folder, through the place the store widens
+ * for a person's own action. Answers the new path.
+ * @param {import("@local/files/server/types").Files} files
+ * @param {import("./types.js").Place} place the chat's place
+ * @param {{ from: string, to: string }} share the card's
+ */
+export async function shareFile(files, place, { from, to, page = null }) {
+  if (!String(from).startsWith("/files/chat/") || !/^\/files\/(?:bot|shared)\/(?:Pages\/)?[^/]+$/u.test(String(to))) {
+    throw new Error("A share card names a file of the chat and a wider folder.");
+  }
+  const { real } = await files.store.existingFile(place, from);
+  if (page) {
+    const slug = String(to).split("/").pop().replace(/\.html$/u, "");
+    const saved = await files.pages.save({ place: files.store.widened(place), title: String(page.title), content: await readFile(real, "utf8"), given: null, slug });
+    return saved.path;
+  }
+  const target = await files.store.resolve(files.store.widened(place), to);
+  await mkdir(dirname(target), { recursive: true });
+  await copyFile(real, target);
+  await files.store.settle(place.homeId);
+  return to;
+}
+export const SHARE_YES = SHARE_OPTIONS[0];
 
 /** Pure helpers and data the tests reach directly (rule 64). */
 export const __testables = Object.freeze({ closestFiles });
