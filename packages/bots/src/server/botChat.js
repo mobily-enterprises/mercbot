@@ -27,13 +27,13 @@ const FIND_LIMIT = 200;
  * @param {import("@local/integrations/server/types").Integrations} dependencies.integrations
  * @param {import("./types.js").Goals} dependencies.goals
  * @param {ReturnType<typeof import("./botReplies.js").createBotReplies>} dependencies.replies
- * @param {ReturnType<typeof import("./chatSeats.js").createChatSeats>} dependencies.seats
+ * @param {import("./chatSeats.js").ChatSeats} dependencies.seats
  * @param {{ get: (chatId: string, options: object) => Promise<{ chat: object }> }} dependencies.chats chatMembers, for the chat's row
  * @param {(bot: object, userMessage: object) => Promise<{ status: string, emoji: string | null }>} dependencies.activity
- * @param {{ afterMessage: (chat: object, txOptions: object) => Promise<object> } | null} [dependencies.onboarding] the
+ * @param {{ afterMessage: (chat: object, txOptions: object) => Promise<object> }} dependencies.onboarding the
  *   welcome chat's steps (B), told of a message in a chat with an onboarding step
  */
-export function createBotChat({ records, model, integrations, goals, replies, seats, chats, activity, onboarding = null }) {
+export function createBotChat({ records, model, integrations, goals, replies, seats, chats, activity, onboarding }) {
   const { messages: history } = records;
   const chatOf = async (chatId, options) => (await chats.get(chatId, options)).chat;
 
@@ -122,7 +122,7 @@ export function createBotChat({ records, model, integrations, goals, replies, se
         };
       }
     }
-    const { sent, changed } = await history.withTransaction(options, async (txOptions) => {
+    const { sent, changed } = await records.chats.withTransaction(options, async (txOptions) => {
       const [userMessage] = await history.append(chat.id, [{ kind: "text", role: "user", body }], txOptions);
       // Typing while one's own choice card is open makes the card inactive; another person's card stays theirs (R4).
       const openChoice = await history.latestOfKind(chat.id, "choice", txOptions);
@@ -131,7 +131,7 @@ export function createBotChat({ records, model, integrations, goals, replies, se
         ? [await history.setBody(openChoice.id, { ...openChoice.body, inactive: true }, txOptions)]
         : [];
       // The welcome chat's steps move on as the person writes (B's onboarding).
-      if (chat.onboarding_step && onboarding) await onboarding.afterMessage(chat, txOptions);
+      if (chat.onboarding_step) await onboarding.afterMessage(chat, txOptions);
       return { sent: userMessage, changed: inactive };
     });
     // The person writing again resumes a goal its bot paused to wait for them (D-48), for the bots it's for.
@@ -199,7 +199,8 @@ export function createBotChat({ records, model, integrations, goals, replies, se
   async function describeWork(chatId, messageId, options) {
     const message = isMessageId(String(messageId)) ? await history.messageIn(String(chatId), String(messageId), options) : null;
     if (!message) throw new BotsError(404, "Message not found.", { code: "bots_message_not_found" });
-    const present = { people: await records.chats.people(String(chatId), options), bots: await records.chats.bots(String(chatId), options) };
+    const [people, bots] = await Promise.all([records.chats.people(String(chatId), options), records.chats.bots(String(chatId), options)]);
+    const present = { people, bots };
     const [first] = message.role === "user" ? addressedBots(message, present) : [];
     if (!first) return { status: "", messages: [] };
     const bot = await records.bots.get(String(first.bot_id), options);

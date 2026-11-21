@@ -38,7 +38,10 @@ function seatedComputer(computer, seated, join) {
   let joined = null;
   const seat = () => {
     if (!join) throw new Error("You can't use your computer for this request.");
-    joining ||= join().then((id) => { joined = String(id); return joined; });
+    joining ||= join().then((id) => {
+      joined = String(id);
+      return joined;
+    });
     return joining;
   };
   const viaSeat = new Proxy(computer, {
@@ -291,7 +294,8 @@ export function buildTools({
   // Routines and the to-do list are the bot's in this chat: a request's bot not in it yet has neither.
   if (seated) Object.assign(tools, buildRoutineTools({ work: records.work, call, chatBotId: seated, attempt, acknowledge }));
   Object.assign(tools, buildBotRequestTools({ requestTools, goalOperations }));
-  Object.assign(tools, buildDraftTools({ turns: records.turns, call, conversationId: chatId, viaBot, routineRun, settleDraft, appFor, after }));
+  const drafts = buildDraftTools({ turns: records.turns, call, conversationId: chatId, viaBot, routineRun, settleDraft, appFor, after });
+  Object.assign(tools, drafts);
   Object.assign(tools, buildCardTools({ integrations, after, call }));
   // Searching what the bot knows that's too long to keep in mind (D-107).
   Object.assign(tools, knowledgeTools);
@@ -383,7 +387,8 @@ export function buildTools({
   const theirOwnTurn = !viaBot && !routineRun && !appsVia;
   const signIns = theirOwnTurn
     ? buildSignInCodeTools({
-      appFor, computer, computerId, chatId, userId, turns: records.turns, call, inTime, before, after, askFirst, screenshots, untrusted, signedIn
+      appFor, computer, computerId, chatId, userId, turns: records.turns, call, inTime,
+      before, after, askFirst, screenshots, untrusted, signedIn
     })
     : null;
   if (signIns) Object.assign(tools, signIns.tools);

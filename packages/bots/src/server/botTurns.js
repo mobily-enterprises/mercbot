@@ -57,7 +57,12 @@ export function createBotTurns({
   }
 
   /** The bot's folders in this chat (R6): the chat's, its own and the home's (D13 keeps a private chat's wider ones read-only). */
-  const filePlace = (seat) => files.store.placeFor({ homeId: seat.workspace_id, chatId: seat.chat_id, chatKind: seat.chat.kind, botId: seat.id });
+  const filePlace = (seat) => files.store.placeFor({
+    homeId: seat.workspace_id,
+    chatId: seat.chat_id,
+    chatKind: seat.chat.kind,
+    botId: seat.id
+  });
 
   /** The newest of the chat's, the bot's own and the home's shared files, so it can find what was made earlier (D-21). */
   async function recentFiles(seat) {

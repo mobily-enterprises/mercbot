@@ -13,7 +13,7 @@ import { RUN_LEASE, RunTakenOver, jobCheckpoint, routineCheckpoint } from "./run
  * @param {import("./types.js").BotRecords} dependencies.records mercbot.bots.records
  * @param {(reason: string) => object} dependencies.systemContext the bots' system context
  * @param {import("@local/account/server/types").Meter} dependencies.meter
- * @param {ReturnType<typeof import("./chatSeats.js").createChatSeats>} dependencies.seats
+ * @param {import("./chatSeats.js").ChatSeats} dependencies.seats
  * @param {import("@local/apps/server/types").AppJobs | null} dependencies.jobs apps.jobs, where an Apps task's run is held
  * @param {(seat: object, options: object) => Promise<object[]>} dependencies.respond botReplies' respond
  */
@@ -73,7 +73,7 @@ export function createBackgroundRuns({ records, systemContext, meter, seats, job
           appended = [];
         } else {
           console.error(`Routine ${routine.id} ("${routine.name}") failed: ${isModelFailure(error) ? modelFailure(error) : error.stack}`);
-          appended = await records.messages.withTransaction(call, async (txOptions) => {
+          appended = await records.chats.withTransaction(call, async (txOptions) => {
             const ending = held ? await held.end({ failed: true }, txOptions) : { paused: false, messages: [] };
             mine = Boolean(ending);
             if (!ending) return [];
@@ -190,7 +190,7 @@ export function createBackgroundRuns({ records, systemContext, meter, seats, job
             if (!signal?.aborted) console.warn(error.message);
             throw error;
           }
-          await records.messages.withTransaction(call, async (txOptions) => {
+          await records.chats.withTransaction(call, async (txOptions) => {
             // Another server holds the task now, and posts its own ending.
             if (held && !(await held.end({ failed: true }, txOptions))) return;
             await seats.say(seat, [

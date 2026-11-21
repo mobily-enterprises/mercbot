@@ -28,6 +28,8 @@ export function seatOf(bot, chat, chatBot, askerId) {
   });
 }
 
+/** @typedef {ReturnType<typeof createChatSeats>} ChatSeats a bot's seats in chats, and what they say there */
+
 /**
  * @param {object} dependencies
  * @param {import("./types.js").BotRecords} dependencies.records
@@ -90,5 +92,13 @@ export function createChatSeats({ records, systemContext, notices }) {
     return { seat, call: readerOf(seat) };
   }
 
-  return Object.freeze({ seatOf, readerOf, seatIn, say, tell, working, backgroundSeat });
+  return Object.freeze({
+    seatOf,
+    readerOf,
+    seatIn,
+    say,
+    tell,
+    working,
+    backgroundSeat
+  });
 }

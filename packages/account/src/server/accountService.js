@@ -73,7 +73,8 @@ export function createAccountService({ resources, env, copyRunners }) {
 
   async function addVaultItem(input, options) {
     const entry = vaultEntry(input, key);
-    const record = await vaultItems.create({ kind: input.kind, label: entry.label, data: entry.data, madeBy: maker(options) }, inHome(options));
+    const made = { kind: input.kind, label: entry.label, data: entry.data, madeBy: maker(options) };
+    const record = await vaultItems.create(made, inHome(options));
     return { item: toItem(record) };
   }
 

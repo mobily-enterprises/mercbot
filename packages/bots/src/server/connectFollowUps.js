@@ -31,7 +31,7 @@ const closedCard = () => new BotsError(409, "That card isn't waiting for its app
  * @param {object} dependencies
  * @param {import("./types.js").BotRecords} dependencies.records mercbot.bots.records
  * @param {(reason: string) => object} dependencies.systemContext the bots' system context
- * @param {ReturnType<typeof import("./chatSeats.js").createChatSeats>} dependencies.seats the bot's seat in a chat, and
+ * @param {import("./chatSeats.js").ChatSeats} dependencies.seats the bot's seat in a chat, and
  *   its background seat for the person who pressed the card
  * @param {import("./types.js").BotTurns} dependencies.turns
  * @param {import("./types.js").BotHistory} dependencies.chatHistory
@@ -81,7 +81,7 @@ export function createConnectFollowUps({
     if (!seat?.chat_bot_id) throw closedCard();
     const page = { timeZone: String(input.timeZone || "").slice(0, 64), language: String(input.language || "").slice(0, 35) };
     const body = { ...card.body, status: "connecting", connectingAt: new Date().toISOString(), page };
-    const id = await records.messages.withTransaction(options, async (txOptions) => {
+    const id = await records.chats.withTransaction(options, async (txOptions) => {
       const fields = { messageId: card.id, chatBotId: seat.chat_bot_id, userId: me, pluginId };
       const waiting = await followUps.wait(fields, txOptions);
       // Only while the card still waits: one a follow-up claimed meanwhile is connected, and keeps its row.
@@ -179,7 +179,10 @@ export function createConnectFollowUps({
     const checkpoint = followUpCheckpoint(followUps, run, call, held.signal);
     const input = { ...card.body.page, connected: { app: card.body.app, task: card.body.task } };
     const job = Promise.resolve()
-      .then(() => meter.track({ userId: seat.user_id, botId: seat.id, workspaceId: seat.workspace_id }, () => runReply(seat, input, call, checkpoint)))
+      .then(() => meter.track(
+        { userId: seat.user_id, botId: seat.id, workspaceId: seat.workspace_id },
+        () => runReply(seat, input, call, checkpoint)
+      ))
       .catch((error) => console.warn(`Connect follow-up ${run.id} failed: ${error?.message || error}`))
       .finally(() => {
         held.stop();

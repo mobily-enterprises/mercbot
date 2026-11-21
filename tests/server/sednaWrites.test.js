@@ -134,8 +134,8 @@ test("a reply is a card first, and Send sends it as the person from their team, 
   assert.match(live.result.body.detail, /Sedna's API has no field for answering a message/u);
 });
 
-test("never as anyone else: the person's own user, their teams, their messages, their drafts; nothing in a room", async (context) => {
-  const { fake, turn, contextOf, writes } = await setup(context);
+test("never as anyone else: the person's own user, their teams, their messages, their drafts, in any chat", async (context) => {
+  const { fake, turn, writes } = await setup(context);
   const { tools, after } = turn();
   // Another team's message is refused before any card or change, and nothing of it is shown.
   const elsewhere = await tools.sednaDraft.execute({ replyTo: "1002", text: "Hi" });

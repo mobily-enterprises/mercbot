@@ -7,8 +7,8 @@ import * as sedna from "./sednaChanges.js";
 // a draft saved, changed, sent or given an attachment, a tag or job reference put on or taken off a message, a job
 // reference made, a message assigned, a contact added or changed. Each runs as the person's own Sedna user, from one of
 // their teams, on messages in their teams, found again when it runs (an approval may run later): never another user. It
-// works in any chat (D15, R4): the person asks, and their own Sedna user acts. Every one is real only in a live copy: Sedna is the organisation's shared mailbox,
-// where a change shows to the whole team at once and can set off its workflows, so a test copy connected to a real
+// works in any chat (D15, R4): the person asks, and their own Sedna user acts. Every one is real only in a live copy:
+// Sedna is the organisation's shared mailbox, where a change shows to the whole team at once and can set off its workflows, so a test copy connected to a real
 // Sedna logs it instead (sendOrSimulate, D-69), after every check a live copy makes.
 
 /** Why the person can't use Sedna, and what they do about it. */

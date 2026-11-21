@@ -25,15 +25,21 @@ import { SIGN_IN_LINE } from "./signInCodes.js";
  * @param {import("./types.js").BotRequests} dependencies.requests
  * @param {import("@local/files/server/types").Files} dependencies.files the chat's files, which an approved action or a
  *   Sedna draft's Send attaches
- * @param {ReturnType<typeof import("./chatSeats.js").createChatSeats>} dependencies.seats
+ * @param {import("./chatSeats.js").ChatSeats} dependencies.seats
  * @param {{ get: (chatId: string, options: object) => Promise<{ chat: object }> }} dependencies.chats chatMembers, for the chat's row
- * @param {{ choiceAnswered: (chat: object, choice: object, picks: string[], txOptions: object) => Promise<object> } | null} [dependencies.onboarding]
+ * @param {{ choiceAnswered: (chat: object, choice: object, picks: string[], txOptions: object) => Promise<object> }} dependencies.onboarding
+ *   the welcome chat's steps (B), told of an answer in a chat with an onboarding step
  *   the welcome chat's steps (B), for its own cards
  */
-export function createBotCards({ records, account, env, computer, integrations, requests, files, seats, chats, onboarding = null }) {
+export function createBotCards({ records, account, env, computer, integrations, requests, files, seats, chats, onboarding }) {
   const { messages, work } = records;
   const chatOf = async (chatId, options) => (await chats.get(String(chatId), options)).chat;
-  const placeOf = (seat) => files.store.placeFor({ homeId: seat.workspace_id, chatId: seat.chat_id, chatKind: seat.chat.kind, botId: seat.id });
+  const placeOf = (seat) => files.store.placeFor({
+    homeId: seat.workspace_id,
+    chatId: seat.chat_id,
+    chatKind: seat.chat.kind,
+    botId: seat.id
+  });
 
   /** The caller, who answers a card only when it's for them (R4). */
   function answerer(card, options) {
@@ -66,7 +72,8 @@ export function createBotCards({ records, account, env, computer, integrations, 
    * `addBots`.
    */
   async function answerChoice(chatId, messageId, selected, options) {
-    const { chat, choice, picks, updated, extra } = await retryLostInsertRace(options, () => messages.withTransaction(options, async (txOptions) => {
+    const answering = (work) => retryLostInsertRace(options, () => records.chats.withTransaction(options, work));
+    const { chat, choice, picks, updated, extra } = await answering(async (txOptions) => {
       const chat = await records.chats.lock(String(chatId), txOptions, { writing: true });
       const choice = await messages.lockMessageIn(chat.id, String(messageId), txOptions, { kind: "choice" });
       if (!choice || choice.body.chosen || choice.body.inactive || choice.body.purpose === "bot-name") {
@@ -79,11 +86,11 @@ export function createBotCards({ records, account, env, computer, integrations, 
         throw new BotsError(400, "Choose an option first.", { code: "bots_choice_missing" });
       }
       const updated = await messages.setBody(choice.id, { ...choice.body, chosen: choice.body.multi ? picks : picks[0] }, txOptions);
-      const extra = chat.onboarding_step && choice.body.purpose && onboarding
+      const extra = chat.onboarding_step && choice.body.purpose
         ? await onboarding.choiceAnswered(chat, choice, picks, txOptions)
         : {};
       return { chat, choice, picks, updated, extra: extra || {} };
-    }));
+    });
     const results = [];
     const approved = choice.body.purpose === "approval" && picks[0] === APPROVAL_OPTIONS[0] && ACTIONS[choice.body.action?.id];
     const shared = choice.body.purpose === "share-file" && picks[0] === SHARE_YES && choice.body.share;
@@ -135,7 +142,7 @@ export function createBotCards({ records, account, env, computer, integrations, 
   async function settleHandover(chatId, messageId, outcome, options) {
     const status = outcome === "skipped" ? "skipped" : "done";
     // The card, the waiting state and any acknowledgement change together (D-14).
-    const { seat, changed } = await messages.withTransaction(options, async (txOptions) => {
+    const { seat, changed } = await records.chats.withTransaction(options, async (txOptions) => {
       const chat = await records.chats.lock(String(chatId), txOptions, { writing: true });
       const message = await messages.lockMessageIn(chat.id, String(messageId), txOptions);
       if (!message || message.kind !== "handover" || message.body.status !== "pending") {
@@ -235,7 +242,10 @@ export function createBotCards({ records, account, env, computer, integrations, 
       to: edited("to"),
       ...(edited("cc") ? { cc: edited("cc") } : {})
     };
-    const done = (changed) => posted(seat, [], options).then(async () => ({ messages: changed, chat: await chatOf(seat.chat_id, options) }));
+    const done = async (changed) => {
+      await posted(seat, [], options);
+      return { messages: changed, chat: await chatOf(seat.chat_id, options) };
+    };
     // A Sedna message goes out as the person's own Sedna user from their team (D-94), in a live copy; a test copy logs it.
     if (send && message.body.sedna) return done(await sendSednaCard(seat, message, body, options));
     // An email from a connected mailbox goes straight out from it (D-31), in a live copy; a test

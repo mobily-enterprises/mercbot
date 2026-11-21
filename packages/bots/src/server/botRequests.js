@@ -35,7 +35,7 @@ const isOpen = (request) => OPEN_REQUESTS.includes(request.status);
  * @param {(reason: string) => object} dependencies.systemContext the bots' system context (BotsFeature's systemScope)
  * @param {import("@local/notices/server/types").Notices} dependencies.notices
  * @param {import("@local/account/server/types").Meter} dependencies.meter
- * @param {ReturnType<typeof import("./chatSeats.js").createChatSeats>} dependencies.seats
+ * @param {import("./chatSeats.js").ChatSeats} dependencies.seats
  * @param {(seat: object, options: object) => Promise<object[]>} dependencies.respond runs one turn in a chat
  * @param {(seat: object) => Promise<boolean>} dependencies.claimReply
  * @param {import("@jskit-ai/agent-runtime/server/types").AgentRuns} dependencies.runs
@@ -96,7 +96,8 @@ export function createBotRequests({
     }
     const chain = parent ? [...parent.chain, fromSeat.id] : [fromSeat.id];
     if (chain.includes(String(target.id))) return { error: `${target.name} is already working on this job, so it can't be asked again.` };
-    const open = await work.openRequestBetween({ fromChatBotId: fromSeat.chat_bot_id, toBotId: String(target.id), userId: fromSeat.user_id }, options);
+    const between = { fromChatBotId: fromSeat.chat_bot_id, toBotId: String(target.id), userId: fromSeat.user_id };
+    const open = await work.openRequestBetween(between, options);
     if (open) return { error: `You've already asked ${target.name} something that isn't finished yet. Wait for that answer first.` };
     const person = await personName(fromSeat.user_id, options);
     const request = await work.withTransaction(options, async (txOptions) => {
@@ -341,7 +342,8 @@ export function createBotRequests({
       if (target) {
         const working = await change(request, { status: "working", turns: request.turns + 1, reply: null }, { status: "working" }, options);
         const prompt = targetPrompt({ ...working, reply: request.reply }, { asker: fromBot.name, person });
-        const appended = await meter.track({ userId: request.userId, botId: String(request.toBotId), workspaceId: request.workspaceId }, () =>
+        const payer = { userId: request.userId, botId: String(request.toBotId), workspaceId: request.workspaceId };
+        const appended = await meter.track(payer, () =>
           respond(seat, {
             timeZone: request.timeZone,
             language: request.language,

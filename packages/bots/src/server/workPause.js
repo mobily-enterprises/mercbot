@@ -6,7 +6,7 @@
  * @param {object} dependencies
  * @param {import("./types.js").BotRecords} dependencies.records mercbot.bots.records
  * @param {import("@local/apps/server/types").Apps} dependencies.apps
- * @param {ReturnType<typeof import("./chatSeats.js").createChatSeats>} dependencies.seats where each chat's people hear of it
+ * @param {import("./chatSeats.js").ChatSeats} dependencies.seats where each chat's people hear of it
  */
 export function createWorkPause({ records, apps, seats }) {
   /**

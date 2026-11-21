@@ -38,7 +38,7 @@ import { createWorkPause } from "./workPause.js";
  *   as its page shows it, which the chat's answers carry
  * @param {{ add: (work: Promise<unknown>) => void, drain: (ms: number) => Promise<void> }} dependencies.background the
  *   service's background work (backgroundWork.js), which a stopping server waits for
- * @param {{ afterMessage: Function, choiceAnswered: Function } | null} [dependencies.onboarding] the welcome chat's steps (B)
+ * @param {{ afterMessage: Function, choiceAnswered: Function }} dependencies.onboarding the welcome chat's steps (B)
  * @param {typeof generateReply} [dependencies.reply] one bot's reply
  * @param {((text: string, record: string) => Promise<string[]>) | null} [dependencies.checkClaims] the final-reply check
  * @param {(bot: object, userMessage: object) => Promise<{ status: string, emoji: string | null }>} [dependencies.activity]
@@ -65,7 +65,7 @@ export function createChatTurns({
   knowledge,
   chats,
   background,
-  onboarding = null,
+  onboarding,
   reply = generateReply,
   checkClaims = reply === generateReply ? (text, record) => unsupportedClaims({ model, reply: text, record }) : null,
   activity = (bot, userMessage) => describeActivity(model, bot, userMessage),
@@ -75,7 +75,16 @@ export function createChatTurns({
   goalLimits
 }) {
   const seats = createChatSeats({ records, systemContext, notices });
-  const chatHistory = createBotHistory({ records, systemContext, model, meter, notices, summarize, compactionLimits, background: background.add });
+  const chatHistory = createBotHistory({
+    records,
+    systemContext,
+    model,
+    meter,
+    notices,
+    summarize,
+    compactionLimits,
+    background: background.add
+  });
 
   // Bots asking bots (O22): botRequests.js keeps each request and runs its steps.
   const requests = createBotRequests({
@@ -119,7 +128,21 @@ export function createChatTurns({
   });
 
   const cards = createBotCards({ records, account, env, computer, integrations, requests, files, seats, chats, onboarding });
-  const turns = createBotTurns({ records, knowledge, profiles, account, env, model, approvals, computer, integrations, files, apps, requests, cards });
+  const turns = createBotTurns({
+    records,
+    knowledge,
+    profiles,
+    account,
+    env,
+    model,
+    approvals,
+    computer,
+    integrations,
+    files,
+    apps,
+    requests,
+    cards
+  });
   const replies = createBotReplies({
     records,
     systemContext,
@@ -153,6 +176,11 @@ export function createChatTurns({
   const runs = createBackgroundRuns({ records, systemContext, meter, seats, jobs: apps?.jobs ?? null, respond: replies.respond });
   const chat = createBotChat({ records, model, integrations, goals, replies, seats, chats, activity, onboarding });
 
+  /** A chat's newest summary, "" for none (templateDrafts.js). */
+  async function summaryOf(chatId) {
+    return (await chatHistory.compaction.current(String(chatId)))?.summary || "";
+  }
+
   return Object.freeze({
     // The chat routes' turns (registerRoutes.js `bots.chat.*`).
     chat: Object.freeze({
@@ -181,8 +209,7 @@ export function createChatTurns({
     connectFollowUps,
     runRoutine: runs.runRoutine,
     runAppTask: runs.runAppTask,
-    // A chat's newest summary, "" for none (templateDrafts.js).
-    summaryOf: async (chatId) => (await chatHistory.compaction.current(String(chatId)))?.summary || "",
+    summaryOf,
     // The routines and watches of some bots in chats paused, with a line in each chat (B's archive, the integrator's
     // removals).
     pauseWork: createWorkPause({ records, apps, seats })

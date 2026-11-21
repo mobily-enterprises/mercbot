@@ -77,12 +77,12 @@ export function addressedBots(message, { people, bots }) {
  * @param {(reason: string) => object} dependencies.systemContext the bots' system context
  * @param {import("@local/account/server/types").Meter} dependencies.meter
  * @param {import("@local/computer/server/types").Computer} dependencies.computer
- * @param {ReturnType<typeof import("./chatSeats.js").createChatSeats>} dependencies.seats
- * @param {ReturnType<typeof import("./botHistory.js").createBotHistory>} dependencies.chatHistory
+ * @param {import("./chatSeats.js").ChatSeats} dependencies.seats
+ * @param {import("./types.js").BotHistory} dependencies.chatHistory
  * @param {import("./types.js").BackgroundWork} dependencies.background
  * @param {import("./types.js").BotRequests} dependencies.requests
  * @param {import("./types.js").Goals} dependencies.goals
- * @param {ReturnType<typeof import("./botTurns.js").createBotTurns>} dependencies.turns
+ * @param {import("./types.js").BotTurns} dependencies.turns
  * @param {typeof import("./botAgent.js").generateReply} dependencies.reply
  * @param {((text: string, record: string) => Promise<string[]>) | null} dependencies.checkClaims the final-reply check, or null
  * @param {() => { afterTurn: (chatBotId: string) => Promise<unknown> }} dependencies.followUps the connect follow-ups, once made
@@ -121,7 +121,7 @@ export function createBotReplies({
    * goal's rounds stop, as after any error; the person asks to carry on once it's resumed.
    */
   async function pausedTurn(seat, text, { human = false, goalTurn = false, checkpoint = null, call }) {
-    if (checkpoint) await records.messages.withTransaction(call, (txOptions) => checkpoint.settle(txOptions, { failed: false }));
+    if (checkpoint) await records.chats.withTransaction(call, (txOptions) => checkpoint.settle(txOptions, { failed: false }));
     const line = await pausedLine(seat, text, { human, call });
     if (goalTurn) throw new Error(text);
     return line;
@@ -274,7 +274,8 @@ export function createBotReplies({
         }
       : undefined;
     try {
-      const state = await turns.currentState(seat, history, { timeZone, language, turnedOff: toolSwitches?.turnedOff || [], known, present }, call);
+      const turnedOff = toolSwitches?.turnedOff || [];
+      const state = await turns.currentState(seat, history, { timeZone, language, turnedOff, known, present }, call);
       const seen = await turns.withPictures(seat, history);
       const sofar = { kind: "text", role: "bot", authorBotId: seat.id, body: { text: "", transcript: resumed, ...(prompt ? { trigger: prompt } : {}) } };
       let unfinished = "";
@@ -317,65 +318,13 @@ export function createBotReplies({
         const next = await reply(bot, [...seen, sofar], run.tools, state, `${check}\n\n${ONLY_WHAT_WAS_ASKED}`, { summary, signal: checkpoint?.signal });
         return { ...next, transcript: [...steps, ...next.transcript] };
       };
-      // A bot only says it handed its screen over once the card exists: a reply that
-      // claims it without calling ask_for_help is sent back once to do it or say otherwise.
-      // Any other card below is a card too, so a
-      // reply that made one is not sent back over its own words.
-      if (
-        !decided &&
-        run.tools.askForHelp &&
-        !run.showsCard() &&
-        CLAIMS_HANDOVER.test(replyText)
-      ) {
-        ({ text: replyText, transcript, account = "" } = await again(HANDOVER_CHECK));
-      }
-      // Likewise a picture only exists once make_picture made it.
-      // What the turn was about: the person's message, the bot's own last message when it was about
-      // a picture (its "Shall I draw that?" answered with "Yes please", but not "Want me to make it
-      // an hour?"), and whether pictures were made in this chat lately.
-      const recent = history.slice(-8);
-      const botSaid = [...recent].reverse().find((message) => message.kind === "text" && String(message.authorBotId) === seat.id)?.body.text || "";
-      const context = [
-        [...recent].reverse().find((message) => message.kind === "text" && message.role === "user")?.body.text,
-        PICTURE_WORDS.test(botSaid) || /\bdraw/iu.test(botSaid) ? botSaid : "",
-        recent.some((message) => message.kind === "pictures") ? "picture" : ""
-      ].join("\n");
-      // The pictures join the reply only when it finishes, so this asks the run itself. A copy that can't make
-      // pictures (D-72) has nothing to send the reply back for.
-      if (!decided && run.picturesOn && !run.madePicture()) {
-        const check = REFUSES_PICTURE.test(replyText) ? REFUSAL_CHECK : claimsPicture(context, replyText) ? PICTURE_CHECK : "";
-        if (check) ({ text: replyText, transcript, account = "" } = await again(check));
-      }
-      // And a calendar change only happened if its tool ran.
-      if (
-        !decided &&
-        run.tools.addCalendarEvent &&
-        !run.attempted.some((id) => CALENDAR_ACTIONS.includes(id)) &&
-        CLAIMS_CALENDAR.test(replyText)
-      ) {
-        ({ text: replyText, transcript, account = "" } = await again(CALENDAR_CHECK));
-      }
-      // And the Drive or OneDrive files are only shown once list_drive_files read them.
-      if (!decided && run.tools.listDriveFiles && !run.attempted.some((id) => DRIVE_ACTIONS.includes(id)) && CLAIMS_DRIVE.test(replyText)) {
-        ({ text: replyText, transcript, account = "" } = await again(DRIVE_CHECK));
-      }
-      /**
-       * And mail or GitHub only changed if one of their tools ran (D-42). Mail, GitHub and apps all
-       * have labels, so a change in one answers for those words in the others.
-       */
-      const wrote = (...lists) => run.attempted.some((id) => lists.some((list) => list.includes(id)));
-      if (!decided && run.tools.forwardEmail && !wrote(MAIL_CHANGES, GITHUB_WRITES, SEDNA_CHANGES) && CLAIMS_MAIL.test(replyText)) {
-        ({ text: replyText, transcript, account = "" } = await again(MAIL_CHECK));
-      }
-      if (!decided && run.tools.githubChange && !wrote(GITHUB_WRITES, MAIL_CHANGES, SEDNA_CHANGES) && CLAIMS_GITHUB.test(replyText)) {
-        ({ text: replyText, transcript, account = "" } = await again(GITHUB_CHECK));
-      }
-      // And an app, table, field or record only changed if an Apps tool ran (D-35).
-      // A reply that ends by asking the person something hasn't claimed it did anything.
-      const asking = run.after.some((message) => message.kind === "choice");
-      const wroteAny = wrote(APP_ACTIONS, MAIL_CHANGES, GITHUB_WRITES, SEDNA_CHANGES);
-      if (!decided && !asking && run.tools.dataCreate && !wroteAny && CLAIMS_APPS.test(replyText)) {
-        ({ text: replyText, transcript, account = "" } = await again(APPS_CHECK));
+      // What the reply says it did, checked against what its tools did, in order: each false claim sends it back once.
+      if (!decided) {
+        const about = turnAbout(history.slice(-8), seat.id);
+        for (const claimCheck of CLAIM_CHECKS) {
+          const check = claimCheck(run, replyText, about);
+          if (check) ({ text: replyText, transcript, account = "" } = await again(check));
+        }
       }
       let carriedOn = false;
       const carryOn = async (check) => {
@@ -439,7 +388,7 @@ export function createBotReplies({
     // Cards are for the person the bot works for (R4): only they answer them.
     const asker = { id: seat.user_id, name: (await records.chats.names([seat.user_id], call)).get(seat.user_id) || "the person" };
     const forAsker = (message) => (CARD_KINDS.has(message.kind) ? { ...message, body: { ...message.body, for: asker } } : message);
-    const appended = await records.messages.withTransaction(call, async (txOptions) => {
+    const appended = await records.chats.withTransaction(call, async (txOptions) => {
       await keepFeeds(txOptions);
       // A routine's or a task's run ends with its result, so only the server holding it posts it.
       const ending = checkpoint ? await checkpoint.settle(txOptions, { failed }) : [];
@@ -449,7 +398,9 @@ export function createBotReplies({
         ...run.after.map(forAsker),
         ...ending
       ], txOptions);
-      if (handover && seat.chat_bot_id) await records.chats.updateChatBot(seat.chat_bot_id, { waiting_task: handover.body.task }, txOptions);
+      if (handover && seat.chat_bot_id) {
+        await records.chats.updateChatBot(seat.chat_bot_id, { waiting_task: handover.body.task }, txOptions);
+      }
       return messages;
     });
     if (handover && seat.chat_bot_id) {
@@ -537,7 +488,7 @@ export function createBotReplies({
       if (!seat?.chat_bot_id) continue;
       if (!(await chatHistory.claimReply(seat))) continue;
       const call = seats.readerOf(seat);
-      const out = await meter.track({ userId: seat.user_id, botId: seat.id, workspaceId: seat.workspace_id }, () =>
+      const out = await meter.track(meteredAs(seat), () =>
         runReply(seat, { ...input, followUp }, call, null, present));
       posted.push(...out.messages);
       if (out.paused) return posted;
@@ -563,7 +514,7 @@ export function createBotReplies({
     const found = place && await seats.backgroundSeat({ chatBotId: place.chatBotId, homeId: place.workspaceId, userId: run.user_id }, "reply resumer");
     if (!found) return chatHistory.runs.release(run.conversation_id);
     const { seat, call } = found;
-    background.add(meter.track({ userId: seat.user_id, botId: seat.id, workspaceId: seat.workspace_id }, () => runReply(seat, { resume: run.input }, call)));
+    background.add(meter.track(meteredAs(seat), () => runReply(seat, { resume: run.input }, call)));
   }
 
   async function resumeStalled() {
@@ -649,7 +600,7 @@ export function createBotReplies({
             }
           };
           appended = held
-            ? await records.messages.withTransaction(call, async (txOptions) => {
+            ? await records.chats.withTransaction(call, async (txOptions) => {
               mine = Boolean(await held.end({ failed: true }, txOptions));
               return mine ? say(seat, [sorry], txOptions) : [];
             })
@@ -697,7 +648,7 @@ export function createBotReplies({
     // The waiting message is what it answers, not the connected app it followed up (connectFollowUps.js) nor a card.
     const next = { ...input, connected: null, afterCard: false, waiting, asked: Number(latest.id) };
     const reader = seats.readerOf(fresh);
-    await meter.track({ userId: fresh.user_id, botId: fresh.id, workspaceId: fresh.workspace_id }, () => runReply(fresh, next, reader, null, present));
+    await meter.track(meteredAs(fresh), () => runReply(fresh, next, reader, null, present));
   }
 
   return Object.freeze({
@@ -711,6 +662,59 @@ export function createBotReplies({
 }
 
 /** R3's follow-up round: another bot mentioned this one. */
+/** Who pays for a seat's turn (R8): the person it works for, in its home. */
+const meteredAs = (seat) => ({ userId: seat.user_id, botId: seat.id, workspaceId: seat.workspace_id });
+
+/**
+ * What a turn was about, for the picture check: the person's message, the bot's own last message when it was about a
+ * picture (its "Shall I draw that?" answered with "Yes please", but not "Want me to make it an hour?"), and whether
+ * pictures were made in this chat lately; from the chat's last few messages (`recent`).
+ */
+function turnAbout(recent, botId) {
+  const botSaid = [...recent].reverse().find((message) => message.kind === "text" && String(message.authorBotId) === botId)?.body.text || "";
+  return [
+    [...recent].reverse().find((message) => message.kind === "text" && message.role === "user")?.body.text,
+    PICTURE_WORDS.test(botSaid) || /\bdraw/iu.test(botSaid) ? botSaid : "",
+    recent.some((message) => message.kind === "pictures") ? "picture" : ""
+  ].join("\n");
+}
+
+/** Whether the run called any tool of these lists. */
+const wrote = (run, ...lists) => run.attempted.some((id) => lists.some((list) => list.includes(id)));
+
+/**
+ * The checks of what a reply claims, in order, each read after the one before sent it back: the check to send it back
+ * with, or "". A run's pictures, cards and attempted tools are asked of the run itself, as they join the reply only
+ * when it finishes.
+ * @type {((run: object, text: string, about: string) => string)[]}
+ */
+const CLAIM_CHECKS = [
+  // A bot only says it handed its screen over once the card exists; any other card below is a card too, so a reply
+  // that made one is not sent back over its own words.
+  (run, text) => (run.tools.askForHelp && !run.showsCard() && CLAIMS_HANDOVER.test(text) ? HANDOVER_CHECK : ""),
+  // A picture only exists once make_picture made it. A copy that can't make pictures (D-72) has nothing to send back.
+  (run, text, about) => {
+    if (!run.picturesOn || run.madePicture()) return "";
+    return REFUSES_PICTURE.test(text) ? REFUSAL_CHECK : claimsPicture(about, text) ? PICTURE_CHECK : "";
+  },
+  // A calendar change only happened if its tool ran.
+  (run, text) =>
+    (run.tools.addCalendarEvent && !run.attempted.some((id) => CALENDAR_ACTIONS.includes(id)) && CLAIMS_CALENDAR.test(text) ? CALENDAR_CHECK : ""),
+  // Drive or OneDrive files are only shown once list_drive_files read them.
+  (run, text) => (run.tools.listDriveFiles && !run.attempted.some((id) => DRIVE_ACTIONS.includes(id)) && CLAIMS_DRIVE.test(text) ? DRIVE_CHECK : ""),
+  // Mail or GitHub only changed if one of their tools ran (D-42). Mail, GitHub and apps all have labels, so a change in
+  // one answers for those words in the others.
+  (run, text) => (run.tools.forwardEmail && !wrote(run, MAIL_CHANGES, GITHUB_WRITES, SEDNA_CHANGES) && CLAIMS_MAIL.test(text) ? MAIL_CHECK : ""),
+  (run, text) => (run.tools.githubChange && !wrote(run, GITHUB_WRITES, MAIL_CHANGES, SEDNA_CHANGES) && CLAIMS_GITHUB.test(text) ? GITHUB_CHECK : ""),
+  // An app, table, field or record only changed if an Apps tool ran (D-35). A reply that ends by asking the person
+  // something hasn't claimed it did anything.
+  (run, text) => {
+    const asking = run.after.some((message) => message.kind === "choice");
+    const wroteAny = wrote(run, APP_ACTIONS, MAIL_CHANGES, GITHUB_WRITES, SEDNA_CHANGES);
+    return !asking && run.tools.dataCreate && !wroteAny && CLAIMS_APPS.test(text) ? APPS_CHECK : "";
+  }
+];
+
 const FOLLOW_UP_PROMPT = "(Another bot just mentioned you. Reply only if you have something useful to add; otherwise reply with exactly PASS.)";
 
 /** What the bot is told when the app it was waiting for is connected. */

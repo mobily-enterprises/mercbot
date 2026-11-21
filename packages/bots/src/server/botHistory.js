@@ -30,7 +30,9 @@ export function createBotHistory({ records, systemContext, model, meter, notices
       ? new Map((await directory.listHomeBots(options)).map((bot) => [bot.id, bot.name]))
       : new Map();
     return list.map((message) => {
-      const authorName = message.authorUserId ? people.get(message.authorUserId) : message.authorBotId ? bots.get(message.authorBotId) : null;
+      const authorName = message.authorUserId
+        ? people.get(message.authorUserId)
+        : message.authorBotId ? bots.get(message.authorBotId) : null;
       return authorName ? { ...message, authorName } : message;
     });
   }

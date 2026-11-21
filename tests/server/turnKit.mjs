@@ -66,6 +66,8 @@ const NEUTRAL = {
     // No copy's check of pictures and videos (D-90): everything is allowed, and nothing is queued.
     media: createMediaChecks({ guard: createMediaGuard(null), mediaChecks: null, systemContext: null, store: null })
   }),
+  // No welcome chat's steps: a test's chats have none.
+  onboarding: () => ({ afterMessage: async () => ({}), choiceAnswered: async () => ({}) }),
   apps: () => ({
     apps: { builder: async () => null, findApp: async () => null, searchViews: async () => [], queueTask: missing("apps") },
     watches: { pauseIn: async () => [] }
