@@ -7,6 +7,7 @@ import { startIntegrations } from "../support/ownedHandles.mjs";
 import { serviceDoubles } from "../support/botDoubles.mjs";
 import { memberOptions, startBotParts } from "../support/botRecords.mjs";
 import { botIn, separateHome } from "./testHome.js";
+import { seedChat } from "../support/chatFixtures.mjs";
 import { createBotsService } from "../../packages/bots/src/server/botsService.js";
 import { appCard } from "../../packages/bots/src/server/botActions.js";
 import { buildCardTools } from "../../packages/bots/src/server/cardTools.js";
@@ -163,10 +164,10 @@ async function patsBot(context) {
     }
   }));
   const as = memberOptions({ userId: pat, homeId: bot.workspace_id });
-  /** One message from Pat and the bot's reply; the reply's statements that match `matching`. */
+  /** One message from Pat in their direct chat with the bot and the bot's reply; the reply's statements that match `matching`. */
   async function replyTo(text, matching = /^$/u) {
-    const sent = await bots.sendMessage(bot.id, { text }, as);
-    return statementsDuring(knex, () => bots.replyTo(bot.id, { afterMessageId: sent.messages[0].id }, undefined, as), matching);
+    const sent = await bots.chat.sendMessage(bot.conversation_id, { text }, as);
+    return statementsDuring(knex, () => bots.chat.reply(bot.conversation_id, { afterMessageId: sent.messages[0].id }, undefined, as), matching);
   }
   return { ...shared, bot, bots, as, turn, replyTo };
 }
@@ -187,8 +188,10 @@ test("a turn names the home's connected apps and who connected each, without rea
 });
 
 test("a turn and the \"/\" picker list the person's skills without their instructions", async (context) => {
-  const { knex, pat, cleanup, bot, bots, as, turn, replyTo } = await patsBot(context);
+  const { knex, pat, homeId, cleanup, bot, bots, as, turn, replyTo } = await patsBot(context);
+  // A person's skills are theirs in a home (D14).
   const skills = await knex("user_skills").insert(Array.from({ length: 35 }, (_, index) => ({
+    workspace_id: homeId,
     user_id: pat,
     name: `Skill ${String(index + 1).padStart(2, "0")}`,
     description: `Does job ${index + 1}`,
@@ -210,7 +213,7 @@ test("a turn and the \"/\" picker list the person's skills without their instruc
   assert.ok(own.includes("Skill 01") && own.includes("Skill 35"), "the picker offers every skill of theirs");
   const picked = String(skills[2].id);
   let message = null;
-  const sendReads = await statementsDuring(knex, async () => { message = await bots.sendMessage(bot.id, { text: `Please <@skill:u-${picked}>` }, as); }, /user_skills/u);
+  const sendReads = await statementsDuring(knex, async () => { message = await bots.chat.sendMessage(bot.conversation_id, { text: `Please <@skill:u-${picked}>` }, as); }, /user_skills/u);
   assert.deepEqual(message.messages.at(-1).body.skills, [{ id: `u-${picked}`, name: "Skill 03" }]);
   assert.deepEqual(instructionsRead([...pickerReads, ...sendReads]), [], "nor the picker, nor a picked skill's message");
 });
@@ -236,12 +239,12 @@ test("a person without a display name is named by their email's first part where
   await knex("workspaces").where({ id: patsOtherHome }).del();
   await assert.rejects(integrations.accountStatus("not-an-id", asPat), /Account not found/u);
 
-  // The home notebook (D-36): a note from Lee's chat.
-  await knex("bot_notebook").insert({ workspace_id: homeId, bot_id: bot.id, text: "The bins go out on Tuesday", source_user_id: lee });
+  // A chat of theirs (D-112): Pat sees Lee by that name among its people.
+  const { id: chatId } = await seedChat(knex, { homeId, title: "Bins", people: [pat, lee], bots: [bot.id] });
   const parts = await startBotParts(knex, context);
   const bots = createBotsService(serviceDoubles({ knex, ...parts, integrations, approvals: { decide: async () => "allow" }, reply: async () => ({ text: "OK.", transcript: [] }) }));
-  const { notes } = await bots.notebook(bot.id, {}, asPat);
-  assert.deepEqual(notes.map((note) => [note.text, note.author]), [["The bins go out on Tuesday", leeName]]);
+  const { chat } = await bots.chats.get(chatId, asPat);
+  assert.equal(chat.people.find((person) => String(person.userId) === String(lee))?.name, leeName);
 });
 
 test("the coming-soon apps people want are counted over everyone's wishes, most wanted first, then by name", async (context) => {

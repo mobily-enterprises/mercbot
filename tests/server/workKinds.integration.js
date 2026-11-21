@@ -8,8 +8,8 @@ import { cleanupStack } from "../support/cleanupStack.mjs";
 import { connectTestDatabase } from "../support/testDatabase.mjs";
 import { testBot } from "./testHome.js";
 
-// Each kind of work says what it is, which decides what the model runs on (D-59). Against the
-// disposable test database, with a scripted reply that notes the work it ran as.
+// Each kind of work says what it is, which decides what the model runs on (D-59). Each bot is in its direct chat with
+// the person (testBot, D-112). Against the disposable test database, with a scripted reply that notes the work it ran as.
 assert.ok(process.env.TEST_DB_NAME?.trim(), "TEST_DB_NAME must identify a disposable test database.");
 assert.equal(process.env.DB_NAME, process.env.TEST_DB_NAME, "DB_NAME must match the dedicated TEST_DB_NAME.");
 
@@ -44,16 +44,18 @@ test("chats, the Builder and background work each run as their own kind", async 
     return seen[0];
   };
   const chatWith = async (who) => {
-    const sent = await bots.sendMessage(who.id, { text: "Hello", clientId: `w-${Date.now()}-${who.id}` }, as(userId));
-    await bots.replyTo(who.id, { afterMessageId: sent.messages.at(-1).id }, undefined, as(userId));
+    const sent = await bots.chat.sendMessage(who.conversation_id, { text: "Hello", clientId: `w-${Date.now()}-${who.id}` }, as(userId));
+    await bots.chat.reply(who.conversation_id, { afterMessageId: sent.messages.at(-1).id }, undefined, as(userId));
   };
   const routineOf = async (who) => claimedWork((await knex("bot_routines").insert({
-    workspace_id: who.workspace_id, bot_id: who.id, conversation_id: who.conversation_id, name: "Check", schedule: "Every hour", instructions: "Check",
+    workspace_id: who.workspace_id, chat_bot_id: who.chat_bot_id, made_by: userId, name: "Check", schedule: "Every hour", instructions: "Check",
     cron: "0 * * * *", timezone: "UTC", next_run_at: knex.fn.now()
   }).returning("*"))[0]);
-  // A queued job as the Apps job runner claims it (apps.jobs), in the bot's home.
+  // A queued job as the Apps job runner claims it (apps.jobs), in the bot's home: a watch run's and a finished command's
+  // in the bot's chat, a button's hand-off for the presser.
   const job = (kind) => claimedWork({
-    workspace_id: bot.workspace_id, kind, bot_id: bot.id, conversation_id: bot.conversation_id, user_id: userId, watch_id: "1", title: "Task from Test", prompt: "Do it"
+    workspace_id: bot.workspace_id, kind, bot_id: bot.id, chat_bot_id: kind === "task" ? null : bot.chat_bot_id, user_id: userId, watch_id: "1",
+    title: "Task from Test", prompt: "Do it"
   });
 
   assert.equal(await ranAs(() => chatWith(bot)), "chat");
