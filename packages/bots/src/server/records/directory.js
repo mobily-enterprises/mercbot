@@ -134,7 +134,36 @@ export function createBotDirectory(resources) {
     return records.map((record) => ({ id: String(record.id), botId: String(record.botId) }));
   }
 
+  /**
+   * The chat_bots rows of these ids the caller may read, in id order, in one read: each seat's bot and chat. Ids that
+   * aren't seats, or are seats in chats the caller can't open, are left out.
+   * @param {string[]} chatBotIds
+   * @param {CallOptions} options
+   * @returns {Promise<Array<{ id: string, botId: string, chatId: string }>>}
+   */
+  async function seats(chatBotIds, options) {
+    const wanted = [...new Set((chatBotIds ?? []).map(String))].filter((id) => /^\d+$/u.test(id));
+    if (!wanted.length) return [];
+    const records = await chatBots.queryAll({ filters: { id: wanted }, sort: ["id"], fields: ["botId", "conversationId"] }, passedOn(options));
+    return records.map((record) => ({ id: String(record.id), botId: String(record.botId), chatId: String(record.conversationId) }));
+  }
+
+  /**
+   * A bot's seats in the chats the caller may read, in id order, in one read: what its routines and watches are listed
+   * by.
+   * @param {string} botId
+   * @param {CallOptions} options
+   * @returns {Promise<Array<{ id: string, chatId: string }>>}
+   */
+  async function seatsOfBot(botId, options) {
+    if (!/^\d+$/u.test(String(botId ?? ""))) return [];
+    const records = await chatBots.queryAll({ filters: { botId: String(botId) }, sort: ["id"], fields: ["conversationId"] }, passedOn(options));
+    return records.map((record) => ({ id: String(record.id), chatId: String(record.conversationId) }));
+  }
+
   return Object.freeze({
+    seats,
+    seatsOfBot,
     listHomeBots,
     homeBotFaces,
     findBot,
