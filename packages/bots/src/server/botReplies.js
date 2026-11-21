@@ -105,11 +105,22 @@ export function createBotReplies({
   const { say, tell, working } = seats;
 
   /**
+   * Whether Mercbot has said the home is paused since anyone last said anything in the chat: its own lines meanwhile
+   * (a task's title) don't count. Reads the chat's latest words, then at most its last few lines after them.
+   */
+  async function pausedSaid(seat, call) {
+    const words = await records.turns.latestMessage(seat.chat_id, { notKind: "event" }, call);
+    const since = { kind: "event", role: "system", ...newerThan(words?.id) };
+    return (await records.turns.messages(seat.chat_id, since, { newestFirst: true, limit: PAUSED_LINES_READ }, call))
+      .some((line) => line.body?.paused);
+  }
+
+  /**
    * A paused home (D-73, R3): one line in the chat, from Mercbot, and nothing runs. Background work no one is waiting on
-   * posts it once, not again while it's the chat's latest line.
+   * posts it once, not again until someone says something in the chat.
    */
   async function pausedLine(seat, text, { human = false, call }) {
-    if (!human && (await records.turns.latestMessage(seat.chat_id, { kind: "event" }, call))?.body?.paused) return [];
+    if (!human && (await pausedSaid(seat, call))) return [];
     const line = await say(seat, [{ kind: "event", role: "system", body: { text, paused: true } }], call);
     await tell(seat.chat_id, { type: "messages" }, call);
     return line;
@@ -662,6 +673,9 @@ export function createBotReplies({
 }
 
 /** R3's follow-up round: another bot mentioned this one. */
+// How many of Mercbot's lines after the chat's latest words a paused home's check reads: a run posts one or two.
+const PAUSED_LINES_READ = 10;
+
 /** The messages after a message id; every one when there is none yet (0: nothing read or answered). */
 const newerThan = (id) => (Number(id) > 0 ? { afterId: String(id) } : {});
 
