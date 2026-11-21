@@ -180,6 +180,9 @@ MCP server.
 
 ## D-21 — Bot files can be private or shared (2026-10-25)
 
+*Amended by D-112 (2026-11-22): what a bot makes goes in its chat's folder, /files/chat; the bot's folder and the
+home's stay.*
+
 A person's files can belong to one bot only, or be shared with all of that person's
 bots; there is a choice between the two.
 
@@ -377,6 +380,10 @@ pre-bundling must never reload a page mid-session.
 
 ## D-36 — Homes (2026-10-27)
 
+*Superseded by D-112 (2026-11-22) for its three modes, the home notebook, each person's own conversation and what bots
+remember about a person: chats are Public or Private, and a home's bots are its members as its people are. Homes,
+their roles and their one person on a person's own copy stand.*
+
 Mercbot is built on JSKIT's workspaces (`@jskit-ai/workspaces-core`, `@jskit-ai/workspaces-web`).
 A workspace is called a **home** in the product.
 
@@ -456,6 +463,9 @@ app the Builder makes, "external app" a connected outside service).
   app in its own view or shows inside the page, and the exact shape of the doorway (settled by D-74).
 
 ## D-41 — Bots' chats are compacted in the background (2026-10-30)
+
+*Amended by D-112 (2026-11-22): a summary is by chat, one for a chat several bots share, and the Builder's
+conversation for an app is a Public chat of its own (`conversations.app_id`).*
 
 Real compaction, done properly, in the background. A reply reads the conversation's latest summary
 and everything after it word for word, instead of only the last 60 model messages. When the part
@@ -563,6 +573,10 @@ fruit-like special shape, and every expression that moved the body or closed the
 
 ## D-46 — Bots that work with each other, and groups with several people (2026-10-30)
 
+*Superseded by D-112 (2026-11-22), except that bots aren't permission and the request limits: a group is a chat with
+any of the home's people and bots, the one reading rule replaces a group's own reach, and an asked bot works on the
+brief alone and answers in the asking chat.*
+
 A feature designed here (D-18) on 2026-10-30. A bot can ask the home's Builder (Otto, say) for an
 app and use the result, and plan features in a group chat with the bot, the Builder and other
 people. Agreed order, one step at a time: **first "ask and wait"**, **then groups with several
@@ -588,6 +602,9 @@ we've seen how bots behave in the first two.
   (anyone can leave).
 
 ## D-47 — Bots' real computers: a shell in gVisor, three file folders and file browsers (2026-10-30)
+
+*Amended by D-112 (2026-11-22): the three folders are the chat's (/files/chat, in place of /files/mine), the bot's and
+the home's, and a bot has a computer of its own in each chat.*
 
 A feature designed here (D-18). Bots get a real command line, safely.
 
@@ -967,6 +984,9 @@ above) still refuses, and links still never come from a Host header. Since 2026-
 
 ## D-66 — Nothing is private inside a home; public apps are the only boundary (2026-11-07)
 
+*Amended by D-112 (2026-11-22): a chat can be Private, opened only by its people; apps, tables, views, connections
+and the vault stay the whole home's.*
+
 No private apps and no private data inside a home: everyone in it sees and changes everything. Public apps are the
 only security boundary, through a declared visitor allowlist that the server enforces and that defaults to nothing;
 there is no other security inside Mercbot. This replaces D-35's third-stage permissions (an app for chosen people, a
@@ -1294,6 +1314,9 @@ the work cost at its providers.
   p95; a busy home's (90,000 daily totals rows) reports under 0.6 s and its 72-day CSV 12.7 s, streamed.
 
 ## D-77 — Lost runs carry on once, and only the server holding a run works on it; codes and coding only on the person's own turn (2026-11-12)
+
+*Amended by D-112 (2026-11-22): codes and coding are on a person's own turn in any chat, not only their own chat with
+the bot; never in a routine, an app's task or work another bot asked for.*
 
 Routines and finishing tasks, checked independently before they merged. This lifts D-59's known limit:
 - **Lost runs carry on, once.** A routine's run and a task from Apps (a watch run, a button's hand-off, a finished
@@ -2577,6 +2600,9 @@ Spending, gives the exact figure.
 
 ## D-99 — A Shared bot keeps each person's own chat, as its last tab, "You only" (2026-11-20)
 
+*Superseded by D-112 (2026-11-22): there are no modes, Shared tabs or You only; a person's direct chat with a bot is
+the chat Message reopens, Public unless made Private.*
+
 Amends D-36 (the three modes and the bot's computer) and D-41 (the Builder's conversation per app). The owner's
 decision: people must still be able to talk with a Shared bot privately; group chats (D-46) keep working beside it.
 Before, making a bot Shared hid every person's own chat with it (not deleted, but reachable only through search,
@@ -2626,6 +2652,9 @@ instead of the conversation, so some leaked one way or the other.
 
 ## D-100 — A home's default mode for new bots, asked when it starts and when a second person joins (2026-11-20)
 
+*Superseded by D-112 (2026-11-22): bots have no mode and a home no default for them; the welcome chat asks whether
+anyone else will use the home, and Me and other people makes the home's everyone chat.*
+
 Amends D-36 (Mixed as every new bot's mode) and D-99 (its one-person rule). The owner's decision: a home used by a
 team should get Shared bots without setting each one, and a home used alone should not be asked about people it
 doesn't have.
@@ -2673,6 +2702,9 @@ doesn't have.
 
 ## D-101 — A conversation can be archived, and resumed as it was (2026-11-20)
 
+*Superseded by D-112 (2026-11-22), which generalises it to a chat: a Public chat is archived for everyone by its maker
+or an owner or admin, a Private chat by a member for themselves.*
+
 The owner's decision. A Shared bot gathers tabs that are done with, and a person's own You only can be in the way too,
 while deleting one would lose what was said there. So a conversation can be archived: hidden, with nothing running or
 costing there, until someone resumes it, as it was. Extends D-99, whose hidden tabs it reuses.
@@ -2712,6 +2744,9 @@ costing there, until someone resumes it, as it was. Extends D-99, whose hidden t
   is the list.
 
 ## D-102 — Bots decide when to join in a Shared bot's shared tabs (2026-11-20)
+
+*Superseded by D-112 (2026-11-22): there are no shared tabs, and `home_settings.bots_join_in` is gone; bots joining
+in come back per chat in B4, off by default.*
 
 Amends D-36 (a Shared bot answering every message in its shared tabs) and D-100 (the home's settings). The owner's
 decision: in a shared tab where more than one person can talk, people talk to each other as much as to the bot, so the
@@ -2778,6 +2813,9 @@ help only said how to name a new one. Its owners and admins can now change it.
   invitation is sent, so a copy built on Mercbot that sends invitations names it by its new name from then on.
 
 ## D-105 — Teams: a home that comes with a few bots for its situation (2026-11-20)
+
+*Amended by D-112 (2026-11-22): the bots a team adds appear on the Team page and don't each open a chat; the welcome
+chat introduces them.*
 
 The owner's decision: Mercbot pre-creates bots for a purpose. A team is a ready-made bundle of Mercbot's templates for
 one situation; since each home has its own database, Apps and files, a team mainly goes with a home of its own.
@@ -2971,6 +3009,9 @@ specific about an industry."
 
 ## D-108 — A whole bot can be archived, and unarchived as it was (2026-11-21)
 
+*Amended by D-112 (2026-11-22): an archived bot is a member who has left: it stays in its chats, greyed, never speaks,
+and is listed on Team under Archived with Resume.*
+
 Amends D-101 (archiving a conversation), whose pause, line and rule for who may it reuses. The owner's decision: a home
 gathers bots it has finished with, and deleting one loses its chats, so a whole bot can be archived: put away for
 everyone in the home, its chats kept, with nothing running or costing, until someone unarchives it, as it was. It is
@@ -3012,6 +3053,9 @@ member leaving the home.
   (archived from its menu, another open page following at once, unarchived back in its section, light, dark and phone).
 
 ## D-109 — Add bots: describe what you need, or choose yourself (2026-11-21)
+
+*Amended by D-112 (2026-11-22): Add bots lives on the Team page too; the bots it adds appear there and don't each open
+a chat, and New home no longer gives the home a default mode.*
 
 *The owner's decision of 21 November: yes to the design, all phases, with its recommendations. It amends D-98's New
 bot (Make a new template leaves it: a bot nothing fits is described, and its template written for it, while Change
@@ -3100,3 +3144,185 @@ steps, a plan card in chat and a `propose_bots` tool on every bot.
   `template-drafts.spec.ts` (One bot's search to Describe, Edit, Ask for changes, Undo, Use this, Add 1 bot),
   `new-bot.spec.ts`, `team-add.spec.ts`, `new-home.spec.ts` and the specs that open Add bots. A real model's speed and
   cost for a plan is not measured here: tests never call a real provider.
+
+## D-112 — Chats are the core: members, Public and Private chats (2026-11-22)
+
+*Supersedes D-36's three modes, home notebook and per-person conversations, D-46's groups (it keeps "bots aren't
+permission" and the request limits), D-99, D-100, D-101 (generalised to archiving a chat) and D-102 (bots joining in
+come back per chat in B4). Amends D-21 and D-47 (where files go), D-41 (the Builder's chat for an app), D-66 (a chat
+can be Private), D-77 (codes and coding in any chat a person asks in), D-105 and D-109 (bots made together wait on the
+Team page) and D-108 (an archived bot is a member who has left). The accounts build (D-110, D-111) covers every
+connection and the vault being the home's, codes coming only from the asker's own mailbox, and leaving disconnecting.
+Version 0, phase B1 of the rebuild; B2 (D-113) adds the bots' memory, B3 (D-114) people in chats, B4 (D-115) bots
+together.*
+
+The owner's decisions of 21 November, in the owner's words where there are some:
+- **Brave.** "BE BRAVE. This is the time to make big changes. We have no users. This is THE TIME." and "No, we are
+  doing this. This is the way to go." Chats are the core of Mercbot.
+- **Version 0, no tech debt.** "No tech debt. NO TECH DEBT… This is version 0." and "There is no real data, no Stripe
+  anything, there is nothing in the DB." So there is no compatibility code, no expand and contract, nothing kept "for
+  one release": the old shapes are deleted outright, and the one forward migration
+  (`20261122120000_chats_core.cjs`) starts by deleting every bot and every chat-bearing row. Homes and people stay.
+- **Bots are members of the home, exactly like people.** "I really want the bots to be the SAME as users. Like the exact
+  same, with the difference that they are bots. The other difference is in their knowledge." A bot isn't a sign-in
+  account (no password, email, invitation or role) and holds no permission (D-46): approvals, settings, inviting and
+  removing stay with people, and a card is answered only by the person whose message started the turn.
+- **The chat list starts empty.** "So to start with, you have no chats. The chat list is empty." Bots live on the Team
+  page; a chat appears when someone starts one or a bot writes to them.
+- **Every connection is the home's** ("connections must be shared or simply not there"), and so is the vault ("Public
+  valut: YES."): D-110 and D-111.
+
+### Privacy is three rules, plus the accounts build's codes
+
+1. **The one reading rule** (owner, replacing the review's glass rule and its per-object rules). "I want to make
+   privacy rules VERY minimal, and only if they are VERY easy to reason about." "I want you to think in terms of what
+   *can* be read… it's about POTENTIAL OF ENTRY, not ACTUAL ENTRY." **A bot in a chat may use anything that everyone
+   who can open that chat can also open.**
+   - Who can open a chat: a Public chat, everyone in the home, now and later; a Private chat, its people (being added
+     is being a member; B1 has no invitations). Bots open nothing; only people count. Whether they have actually opened
+     it doesn't matter.
+   - So in a Public chat a bot uses every Public chat of the home and the home-wide things, and never a Private chat,
+     even when all of the Public chat's current people are in it (someone who joins the home later can open the Public
+     chat). In a Private chat it uses every Public chat, the chat itself, and every Private chat whose people include
+     all of this chat's people: Tony alone with Tripbot gets every Public chat and every Private chat Tony is in.
+   - Requests between bots follow it too: the asked bot works under the asking chat's openers, on the brief alone (no
+     chat history), and its answer and cards go to the asking chat; if it needs its computer, it joins the asking chat
+     as a member, with a line.
+   - Work made for the whole home (a template draft from a bot, a bot's card on Team) reads as a Public chat does; work
+     that leaves the home (Online's published template descriptions, `answerOnce`) reads no chat at all. A person's own
+     things (their saved skills) are opened by that person alone, so a bot uses them only in a Private chat whose only
+     person is them.
+   - It lives in one place: the SQL function `readable_from(chat)` and the model's reader (`records.readers.forBot`, a
+     caller every row policy honours), through which every read the model's side makes runs, tools, the state note
+     and background runs included. Nothing else checks privacy.
+2. **The one making rule.** **What a bot makes in a chat (files, pages, notes, watches, routines, drafts) belongs to
+   that chat and has that chat's openers.** Putting it where more people can open it (the bot's folder, the home's
+   folder, a Public chat) is done by a person, on a card they tap or by themselves, never by the bot alone, and the
+   server checks the card. From a Public chat the bot's and the home's folders don't widen anything; from a Private chat
+   they do, and need the card. The bot's additions are read in every chat of the bot, so changing them from a Private
+   chat needs the card too.
+3. **A chat's computer belongs to its chat** (owner, replacing "codes, coding and Sedna only where the asker is the only
+   person"). A chat's computer, with everything signed in on it, its files and its coding work, belongs to that chat
+   under the two rules above: anyone who can open the chat can use what's signed in there. When a sign-in happens on
+   it the bot says so in one plain line, "Everyone who can open this chat can use this sign-in.", with no pause and no
+   other rule. Sedna keeps acting as the asking person's own Sedna user (D-93); background work runs as the person who
+   set it up. There is no "only person in the chat" check anywhere, and adding a person to a chat pauses nothing.
+
+Sign-in codes come only from a mailbox the asking person connected (the accounts build): account security, not chat
+privacy.
+Nothing else is a privacy rule.
+
+### Public by default, and the computers clear
+
+- **Every new chat starts Public** (owner: "just default to PUBLIC, and then you can pick private if you really have
+  to"). Whoever is in it, a chat of one person and one bot included. Private is an explicit choice when the chat is
+  made, and the kind stays fixed: Public never becomes Private, since what was read can't be unread. New chat shows
+  Public as the default and Private as a clearly marked option, with one line under it: "Only its members can open it,
+  and nothing in it reaches other chats." Chats made without New chat (a bot's Message, a new bot's greeting, Mercbot's
+  welcome chat, an app's Builder chat, the everyone chat) are Public. So a person's chat with a bot is read by every
+  bot in the home's chats and by everyone in the home, and a direct chat is just the chat Message reopens, one per
+  person and bot, Public like any other.
+- **A chat's computers are clear, and people can still take over** (owner: "The UI needs to be clear about this, and
+  users must be able to take over still"). In a chat each bot's computer is shown and labelled as that bot's
+  ("Tripbot's computer"), says that it belongs to this chat and that everyone who can open the chat can watch it and
+  use what's signed in on it, and shows what is signed in there; with several bots they are listed one per bot, never
+  merged. Any person who can open the chat can take over a bot's computer, as before, including the hand-over that
+  waits on it (`chat_bots.waiting_task`, D-14); while a person has control the bot doesn't act on that computer, and
+  handing back works as before. The chat shows a line when someone takes over and when they hand back.
+
+### The model
+
+- **`conversations`**, one row per chat: its home, `kind` (`public` or `private`, checked), `everyone` (the home's
+  everyone chat, Public, one per home), `direct_user_id` and `direct_bot_id` (a person's direct chat with a bot, both or
+  neither, with no title), `title` (up to 80), `app_id` (the Builder's chat for an app, Public, one per app),
+  `made_by`, `onboarding_step` (the welcome chat's script), `archived_at` and `archived_by`, `last_activity_at`.
+- **Two member tables**, which the screens show as one list. `chat_people`: a person in a chat, with their own place in
+  it (read point and unread, pin, section, hidden, muted). `chat_bots`: a bot in a chat, its position, its waiting
+  hand-over and its job notes. A `chat_bots` id is "this bot in this chat": its reply runs, goal and to-do list, job
+  notes, computer, browser state, tickets, command runs, routines, watches, app jobs, follow-ups and requests hang off
+  it, so two bots in one chat have two computers and one bot's long goal never blocks another's reply. The agent
+  engine's summaries are by chat, one summary of the shared chat.
+- **`messages`**: everything said in a chat, written by a person, a bot or Mercbot itself (both authors null).
+- **`conversation_sections`**: a person's sidebar sections.
+- **`bots`** lose `kind`, `sharing` and D-98's unread `label`, `instructions`, `skills` and `origin`, and the
+  `bots_before_templates` copy; `user_id` becomes `made_by`, set null when that account goes, so a person's account
+  going no longer deletes the bots they made. D-108's `archived_at` and `archived_by` stay.
+- **Re-keyed:** routines by bot in chat plus `made_by` (a routine runs as the person who made it); requests from a bot
+  in a chat, to a bot, in the asking chat, for the asker; computers, browser state, tickets, command runs, watches, app
+  jobs and follow-ups by bot in chat; the vault and the app actions turned off by home; a person's saved skills,
+  approval rules and auto-review per person per home.
+- **Deleted outright:** `bot_conversations`, `bot_messages`, `bot_group_members`, `bot_group_people`,
+  `conversation_reads`, `bot_sections`, `bot_notebook`, `person_memories` and `home_settings` (D-100's default mode
+  and its question, D-102's join-in), with their indexes, trigger, row policies and code: the modes, the home notebook,
+  Shared tabs and You only, groups made of bots, rooms, personal memories (`remember` and `forget`) and the home's
+  default for new bots. The files bucket is emptied with the database at release, except `.mercbot-files`.
+
+### The rules
+
+- **Visibility.** A person in the home sees a chat when it's Public or they're in it, and its messages and members with
+  it; every bot of the home (archived ones marked); an anonymous visitor nothing. Reading a Public chat doesn't join it.
+  Anything the caller can't open answers 404.
+- **Members.** Anyone in the home starts chats and adds the home's people and bots (not archived ones) to a chat they're
+  in; adding a person to a Private chat warns "<Name> will see everything said here." The chat's maker and the home's
+  owners and admins remove members, rename, archive and delete; anyone leaves. A Private chat whose last person leaves
+  is deleted. Deleting a chat deletes its folder and its bots' computers. A direct chat takes no more members, so
+  Message always finds it. An everyone chat has every active person of the home (`chats.personJoined` and
+  `chats.personLeft`, which a copy built on Mercbot calls from its own invitations and removals). Leaving the home
+  removes the person's member rows, deletes their Private chats that no other person is in, pauses their routines and
+  watches with a line, and keeps their messages in shared chats under their name.
+- **Who speaks.** With one person in the chat, every bot member answers in order, or only those @-mentioned; in a
+  direct chat its one bot always answers. With several people, a bot answers when its name appears as a word, it is
+  @-mentioned, it is replied to, right after its own card is answered, or on @everyone. Then one follow-up round: bots
+  another bot mentioned may answer once, and PASS stays quiet. Each bot's reply is its own run; a message heard during
+  one bot's reply still reaches the bots it was addressed to. Archived bots never speak. A chat of people only makes no
+  model call.
+- **What a bot may use:** everything connected to the home and the home's vault, in any chat, as the person who asked;
+  codes, coding and Sedna in any chat a person asks in (never a routine, an app's task or work another bot asked for);
+  approvals always the asker's. Background work runs as its own person: a routine as its maker, a watch as its creator,
+  an app job and a follow-up as theirs, a request as its asker's.
+- **What a bot knows,** in prompt order: the cached prefix (Mercbot's rules, the template, additions and Knowledge),
+  identical in every chat of that bot, so the per-chat framing moves out of it; the chat word for word with its summary
+  (D-41); and the state note last (D-57), with the chat's framing (its name, the people present, the time zone, the
+  folders). B2 adds memory after the chat, in the state note, so the cached prefix stays warm.
+- **Files:** one folder per chat, `homes/<home>/chats/<chat>/`, which bots see as `/files/chat` (in place of the old
+  per-person `/files/mine`); the bot's folder (`/files/bot`, its Knowledge files and the pages it makes in Public chats)
+  and the home's (`/files/shared`) stay. Files and computers are reached by chat and bot (`?chat=&bot=`).
+- **Money:** the home pays; each turn is recorded with the person whose message started it and the bot that spoke;
+  background work with its own person; compaction with the home and the bot and no person.
+- **Unread and news** are per person per chat; a Public chat's news also reaches anyone with it open.
+- **Every path that builds a model's input** is a row in one table (`packages/bots/src/server/modelInputs.js`) with a
+  guard test: a new model call with no row fails it.
+
+### Screens and words
+
+- **The sidebar** is the person's chats: pins, sections, hidden, unread and drafts as before. A direct chat shows the bot;
+  any other chat its faces, its title and a globe (Public) or a lock (Private). A brand-new person sees one chat,
+  Mercbot's welcome chat.
+- **Team**, beside Files and Apps, lists the home's people and bots alike, each with Message; a bot's card holds what its
+  Details held. Archived bots are listed under Archived with Resume.
+- **New chat** (Ctrl+Alt+G, the (+) and the palette) picks people and bots, Public by default, a title, and offers the
+  Public chats to join.
+- **A chat's header** shows its members, its kind and Add; the composer says who can read it ("Everyone in <home> can
+  read this", "Only you and Chef can read this"); its details list members, kind, files and routines, archive or
+  delete, and leave.
+- **Add bots** (D-109) lives on Team and in New bot. Bots it makes appear on Team, and Mercbot's welcome chat introduces
+  them with Message buttons; a single bot made with New bot still greets in its new direct chat. The welcome chat then
+  asks "Will anyone else use this home?": Me and other people makes the home's everyone chat, pinned for each person.
+- **Archiving:** an archived bot is a member who has left: it stays in its chats, greyed, with "left" by its name, never
+  speaks, its routines and watches pause, and its direct chat says "<Bot> has left <home>. Resume it to talk again." A
+  Public chat is archived for everyone by its maker or an owner or admin; a Private chat by a member, for themselves.
+- **Templates and skills** say `/files/chat`. Each template keeps its setup answers and lasting preferences in a notes
+  document in the chat's folder named for its job ("Competitor watch notes"), read before every piece of work, routine
+  runs included, in place of memories saved with `remember`: it belongs to the chat, anyone who can open the chat can
+  read and correct it, and it survives the chat's summary. The group-chats skill is Chats with others.
+
+### Choices made for the owner, by the plan's recommendation
+
+A chat's kind is fixed at creation (Private to Public maybe later). One sidebar list, as before. The everyone chat is
+pinned for each person. Personal memories are replaced by B2's home notes and memory, nothing personal kept per person.
+A removed person's Private chats go once no other person is in them. No squash of migrations in B1. Bots joining in
+(D-102, on by default in Shared tabs) are removed and come back per chat in B4, off by default. Leaving or archiving a
+chat leaves what a bot learned; deleting a chat, removing messages or a safety removal forgets it (B2). Requests between
+bots work on the brief alone. A person's saved skills are theirs per home; the app actions turned off are the home's.
+When the Builder changes, the new one joins every app chat and the old one stays until removed. Template files carry no
+`changes` entry for this: no bot predates it.
