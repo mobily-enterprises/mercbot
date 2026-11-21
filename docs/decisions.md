@@ -3266,9 +3266,11 @@ Nothing else is a privacy rule.
   in; adding a person to a Private chat warns "<Name> will see everything said here." The chat's maker and the home's
   owners and admins remove members, rename, archive and delete; anyone leaves. A Private chat whose last person leaves
   is deleted. Deleting a chat deletes its folder and its bots' computers. A direct chat takes no more members, so
-  Message always finds it. An everyone chat has every active person of the home (`chats.personJoined` and
-  `chats.personLeft`, which a copy built on Mercbot calls from its own invitations and removals). Leaving the home
-  removes the person's member rows, deletes their Private chats that no other person is in, pauses their routines and
+  Message always finds it. The home's everyone chat has every active person of the home and is pinned first for each
+  of them (no pin is stored, so it can't be unpinned or moved); nobody leaves it or is removed from it (409
+  `bots_chat_everyone`). When the home's people change (the workspace's member event, whoever adds or removes them),
+  whoever joined is seated in it and whoever left is taken out of every chat. Leaving the home removes the person's
+  member rows, deletes their Private chats that no other person is in, pauses their routines and
   watches with a line, and keeps their messages in shared chats under their name.
 - **Who speaks.** With one person in the chat, every bot member answers in order, or only those @-mentioned; in a
   direct chat its one bot always answers. With several people, a bot answers when its name appears as a word, it is
@@ -3319,7 +3321,7 @@ Nothing else is a privacy rule.
 ### Choices made for the owner, by the plan's recommendation
 
 A chat's kind is fixed at creation (Private to Public maybe later). One sidebar list, as before. The everyone chat is
-pinned for each person. Personal memories are replaced by B2's home notes and memory, nothing personal kept per person.
+pinned first for each person. Personal memories are replaced by B2's home notes and memory, nothing personal kept per person.
 A removed person's Private chats go once no other person is in them. No squash of migrations in B1. Bots joining in
 (D-102, on by default in Shared tabs) are removed and come back per chat in B4, off by default. Leaving or archiving a
 chat leaves what a bot learned; deleting a chat, removing messages or a safety removal forgets it (B2). Requests between
