@@ -12,10 +12,12 @@ import { homeChanges, useHomes } from "./homesApi.js";
  *   store: import("../../types.js").ChatMessages,
  *   work: import("../../types.js").ChatWork,
  *   team: ReturnType<typeof import("./useTeam.js").useTeam>,
- *   onDropped: (chatId: string) => void
- * }} options `onDropped` hears of a chat gone for this person, after it's off the list
+ *   onDropped: (chatId: string) => void,
+ *   onComputer: (news: { chatId: string, botId: string, control: string | null }) => void
+ * }} options `onDropped` hears of a chat gone for this person, after it's off the list; `onComputer` of who has a
+ *   bot's computer in a chat now (a person's id, or null for its bot)
  */
-export function useChatEvents({ store, work, team, onDropped }) {
+export function useChatEvents({ store, work, team, onDropped, onComputer }) {
   let events = null;
   const { current: here, load: loadHomes } = useHomes();
   // Counts each bot's computer news in each chat ("<chatId> <botId>" → n), so an open computer panel reads it again.
@@ -92,9 +94,10 @@ export function useChatEvents({ store, work, team, onDropped }) {
     });
     // Someone took over a bot's computer in a chat, or handed it back (D16): its panel reads it again.
     events.addEventListener("computer", (event) => {
-      const { chatId, botId } = JSON.parse(event.data);
+      const { chatId, botId, control = null } = JSON.parse(event.data);
       const key = `${chatId} ${botId}`;
       computerNews.value = { ...computerNews.value, [key]: (computerNews.value[key] || 0) + 1 };
+      onComputer({ chatId: String(chatId), botId: String(botId), control: control == null ? null : String(control) });
     });
     // The home's bots changed (made, changed, archived, unarchived, deleted): told to everyone in the home.
     events.addEventListener("bot", (event) => {

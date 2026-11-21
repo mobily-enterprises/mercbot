@@ -231,8 +231,16 @@ const { computerNews } = useChatEvents({
   team,
   onDropped: (chatId) => {
     if (chatId === addressedChatId.value) router.replace({ query: firstChatQuery() });
-  }
+  },
+  onComputer
 });
+
+// Someone else took over the computer this person had open in control: the live view goes back to watching, and says so.
+function onComputer(news) {
+  if (!computerChanged(news, me.value)) return;
+  const who = team.personById(news.control)?.name?.split(/\s+/u)[0] || "Someone";
+  notify(`${who} took over ${liveBot.value?.name || "the bot"}'s computer.`);
+}
 
 function focusComposer() {
   chatPanel.value?.focusComposer();
@@ -259,7 +267,7 @@ function chatBotFace(chatId, botId) {
   const bot = team.botById(botId);
   return bot ? { id: bot.id, name: bot.name, color: bot.color, shape: bot.shape } : null;
 }
-const { liveView, liveBot, openComputer, takeOver, takeOverFor, handBack, workOnFile, teach, finishTeaching, settleHandover, closeLive } =
+const { liveView, liveBot, openComputer, takeOver, takeOverFor, handBack, workOnFile, teach, finishTeaching, settleHandover, closeLive, computerChanged } =
   useLiveView({ store, work, chatBotFace, reportFailure });
 /** A chat's computer opened from its details: to watch, or taken over (D16). */
 const openLive = (target) => (target.control ? takeOver(target) : openComputer(target));

@@ -46,6 +46,9 @@ export const chatsApi = {
   publicChats: () => request("/chats/public"),
   // A bot's [Message]: the person's direct chat with it, made on first use: { chat }.
   direct: (botId) => post(`/bots/${encodeURIComponent(botId)}/direct`),
+  // An app's chat with the Builder (D-41: Ask Builder), public and named after the app, made the first time anyone asks:
+  // { chat }; 409 apps_builder_missing while the home has no Builder.
+  appChat: (appSlug) => post(`/apps/${encodeURIComponent(appSlug)}/chat`),
   // The person's welcome chat, their direct chat with the home's main bot, made once at their first visit (a new home's
   // main bot with it): { chat }.
   welcome: () => post("/chats/welcome"),

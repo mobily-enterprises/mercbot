@@ -320,6 +320,8 @@ const fileDate = (iso) => (iso ? fileDay.format(new Date(iso)) : "");
       <p v-else-if="message.kind === 'gap-stamp' || message.kind === 'event'" class="mb-timeline__centred">
         <v-icon v-if="message.body.icon === 'routine'" icon="$schedule" size="12" class="mb-timeline__event-icon" />
         <v-icon v-else-if="message.body.icon === 'command'" icon="$terminal" size="12" class="mb-timeline__event-icon" />
+        <!-- A person taking over a bot's computer in this chat, or handing it back (D16). -->
+        <v-icon v-else-if="message.body.icon === 'computer'" icon="$laptop" size="12" class="mb-timeline__event-icon" />
         {{ message.body.text }}
         <!-- A calendar change links to the event in its own app. -->
         <a v-if="message.body.link" :href="message.body.link" target="_blank" rel="noopener" class="mb-timeline__event-link">

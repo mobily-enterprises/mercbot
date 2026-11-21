@@ -11,7 +11,7 @@ import { appsApi, errorText } from "@/components/apps/appsApi.js";
 import { ICON_PATHS, createScreenRuntime, previewNotice, screenLocation as addressOf, screenParams } from "@/components/apps/appRuntime.js";
 import { withNamedFormulas } from "@local/apps/shared";
 import { browserFunctions } from "@/components/apps/scriptFunctions.js";
-import { askInChat } from "@/components/apps/askInChat.js";
+import { askBuilder as openBuilderChat } from "@/components/apps/askInChat.js";
 import { useLiveData } from "@/components/apps/useLiveData.js";
 import ViewActions from "@/components/apps/ViewActions.vue";
 import { useAppExit } from "@/components/apps/useAppExit.js";
@@ -166,15 +166,16 @@ async function updateCopy(update) {
 useAppStyle(computed(() => loaded.value?.style || ""));
 provide(APP_AREA_KEY, computed(() => (loaded.value?.app ? `[data-app-style="${loaded.value.app.id}"]` : null)));
 
-// Ask Builder (D-35): opens the person's direct chat with the Builder, with a first line saying which app, screen and
-// (with Point and ask) part this is about, ready to finish and send.
+// Ask Builder (D-35, D-41): opens the app's chat with the Builder, public and named after the app, with a first line
+// saying which screen and (with Point and ask) part this is about, ready to finish and send.
 async function askBuilder(part = null, about = "") {
   pointing.value = false;
   highlight.value = null;
   if (!builder.value) return notify("Choose a Builder first: New app in Apps, or Make this the Builder in a bot's Details.", "error");
   const where = part ? `, the ${part.type}${part.label ? ` "${part.label}"` : ""} (${part.path})` : "";
   const line = about ? `About the app "${loaded.value.app.name}" (${slug.value}), ${about}` : `About the app "${loaded.value.app.name}" (${slug.value}), screen "${screenKey.value}"${where}: `;
-  await askInChat(router, { chat: paths.page("/"), botId: builder.value.id, line });
+  await openBuilderChat(router, { chat: paths.page("/"), appSlug: slug.value, line })
+    .catch((error) => notify(errorText(error, "The app's chat with the Builder couldn't open. Try again."), "error"));
 }
 
 function partAt(event) {

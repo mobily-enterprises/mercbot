@@ -114,5 +114,20 @@ export function useLiveView({ store, work, chatBotFace, reportFailure }) {
     if (open?.inControl && !open.teach && !open.handover) await handBack(open);
   }
 
-  return { liveView, liveBot, openComputer, takeOver, takeOverFor, handBack, workOnFile, teach, finishTeaching, settleHandover, closeLive };
+  /**
+   * The server says who has a computer now (its "computer" event, D16). The live view on it, in this person's control,
+   * goes back to watching when someone else took it over; answers whether it did.
+   */
+  function computerChanged({ chatId, botId, control }, me) {
+    const open = liveView.value;
+    if (!open?.inControl || open.chatId !== String(chatId) || open.botId !== String(botId)) return false;
+    if (control != null && String(control) === String(me)) return false;
+    liveView.value = { ...open, inControl: false };
+    return control != null;
+  }
+
+  return {
+    liveView, liveBot, openComputer, takeOver, takeOverFor, handBack, workOnFile, teach, finishTeaching, settleHandover, closeLive,
+    computerChanged
+  };
 }
