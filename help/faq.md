@@ -118,7 +118,7 @@ Yes: archive it. Open its card in **Team** and, on its **Details** tab, select *
 
 ## How do I delete a chat?
 
-Right-click the chat in the sidebar, or open its **Chat details**, and choose **Delete** (in Chat details, **Delete chat**). It goes for everyone in it, with its whole history, its files and its bots' computers; its bots stay on your team. This can't be undone. The chat's maker and the home's owners and admins can delete it. To keep it readable instead, choose **Archive**. To take a chat out of your own list, choose **Hide from sidebar**.
+Right-click the chat in the sidebar, or open its **Chat details**, and choose **Delete** (in Chat details, **Delete chat**). It goes for everyone in it, with its whole history, its files and its bots' computers; its bots stay on your team. This can't be undone. The chat's maker and the home's owners and admins can delete it. To keep a Public chat readable for everyone instead, choose **Archive**. To take any chat out of your own list, a Private chat included, choose **Hide from sidebar**.
 
 ## How do I delete my account?
 

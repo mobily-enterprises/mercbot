@@ -14,7 +14,7 @@ Version 0: chats are at the heart of Mercbot. Nothing made before version 0 was 
 - **The everyone chat:** in a home with other people, a chat for everyone in it, always first in each person's list.
 - **Ask Builder** opens the app's own chat with the Builder, made the first time anyone asks.
 - **Archiving a bot** means it has left the home: it stays in its chats, greyed out, and never answers, and whoever made it, or an owner or admin, can resume it from **Team**.
-- **Archiving a chat** puts it away, read-only, for everyone in it, under **Archived chats**.
+- **Archiving a Public chat** puts it away, read-only, for everyone in it, under **Archived chats**, and pauses its routines and watches. A Private chat isn't archived: each of its members hides it for themselves.
 
 See [Chats and your team](/help/chats).
 
