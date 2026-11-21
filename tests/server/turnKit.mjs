@@ -99,6 +99,7 @@ export async function startChatTurns(context, options = {}) {
     knex,
     cleanup,
     turns,
+    chats,
     records: filled.records,
     meter: filled.meter,
     systemContext: filled.systemContext,
