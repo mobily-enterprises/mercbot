@@ -82,7 +82,7 @@ test("Knowledge: short text is always in mind, a long guide is searched first, a
       .toHaveText(`${bot.name} knows nothing extra yet. Add text or a file, such as a price list, a manual or a book.`);
 
     await addText(page, bot, "Opening hours", "We open at 9am on Saturdays.\nWe close at noon on Sundays.");
-    await expect(known.locator(".mb-knowledge__sentence")).toHaveText(`What ${bot.name} knows, for everyone it talks with.`);
+    await expect(known.locator(".mb-knowledge__sentence")).toHaveText(`What ${bot.name} knows, in every chat it's in.`);
     await expect(piece(page, bot, "Opening hours")).toContainText("57 characters · Always in mind");
     await expect(known.locator(".mb-knowledge__summary")).toContainText("Always in mind: 57 characters, read with every message.");
     await expect(known.locator(".mb-knowledge__summary"), "57 characters cost less than money shows").toContainText("Adds less than $0.0001 to each message.");
