@@ -54,8 +54,8 @@ test("a person reads the chats they can open, and what's in them; nobody else's 
   const as = (userId) => memberOptions({ userId, homeId });
 
   // Anna is in all three; Ben in Family and Plans; Carla in none, but Family is public, so she can open it.
-  assert.deepEqual(ids(await records.chats.ofPerson(as(anna))), sorted(chats.Family.id, chats.Plans.id, chats.Diary.id));
-  assert.deepEqual(ids(await records.chats.ofPerson(as(ben))), sorted(chats.Family.id, chats.Plans.id));
+  assert.deepEqual(ids((await records.chats.ofPerson(as(anna))).chats), sorted(chats.Family.id, chats.Plans.id, chats.Diary.id));
+  assert.deepEqual(ids((await records.chats.ofPerson(as(ben))).chats), sorted(chats.Family.id, chats.Plans.id));
   assert.ok(await records.chats.find(chats.Family.id, as(carla)), "a public chat is open to everyone in the home");
   assert.equal(await records.chats.find(chats.Plans.id, as(carla)), null);
   assert.equal(await records.chats.find(chats.Diary.id, as(ben)), null, "Anna's own private chat stays hers");
@@ -162,7 +162,7 @@ test("a person's chats add archived ones beside the others when asked, and leave
   const { homeId, ben, chats } = await rossiHome(knex, context);
   const as = (userId) => memberOptions({ userId, homeId });
   await knex("conversations").where({ id: chats.Family.id }).update({ archived_at: new Date() });
-  assert.deepEqual(ids(await records.chats.ofPerson(as(ben))), [chats.Plans.id].map(String), "the list, without the archived chat");
+  assert.deepEqual(ids((await records.chats.ofPerson(as(ben))).chats), [chats.Plans.id].map(String), "the list, without the archived chat");
   // The page always asks for both, and groups the archived ones itself.
-  assert.deepEqual(ids(await records.chats.ofPerson(as(ben), { archived: true })), sorted(chats.Family.id, chats.Plans.id));
+  assert.deepEqual(ids((await records.chats.ofPerson(as(ben), { archived: true })).chats), sorted(chats.Family.id, chats.Plans.id));
 });

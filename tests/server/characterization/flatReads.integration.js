@@ -63,7 +63,8 @@ test("the Team list and the chat list send as many statements with 200 bots in 2
   await counted("/bots", "bots", 10); // the first read may warm caches
   const few = { bots: await counted("/bots", "bots", 10), chats: await counted("/chats", "chats", 10) };
   await botsInChats(190, "More");
-  const many = { bots: await counted("/bots", "bots", 200), chats: await counted("/chats", "chats", 200) };
+  // The chat list answers a page of 100 (chatRepository.js), read like the page of 10.
+  const many = { bots: await counted("/bots", "bots", 200), chats: await counted("/chats", "chats", 100) };
   assert.deepEqual(many, few, `200 bots in 200 chats took ${JSON.stringify(many)} statements, 10 took ${JSON.stringify(few)}`);
 });
 
