@@ -67,8 +67,8 @@ in that chat, for anyone who can open the chat; a chat they can't open, or a bot
 (`/files/chat`, `files.store.placeFor`), and `POST …/computer/open` opens a file from there. `POST …/computer/reset`
 starts one computer afresh, its saved browser and sign-ins gone, for anyone who can open its chat, as they all use it.
 `POST /api/w/:workspaceSlug/computers/reset` (Settings → Computer → Reset) resets the computers of the chats whose only
-person is the caller; a chat with other people keeps its computers, which are theirs too (three reads, however many
-chats). A paused home's wake answers 402.
+person is the caller; a chat with other people keeps its computers, which are theirs too (their chat list a page of
+100 at a time, as `GET …/chats` reads it, then two reads). A paused home's wake answers 402.
 
 **Taking over and handing back** (D16, `computerControl.js`): anyone who can open the chat takes a bot's computer over,
 from the bot or from another person, and anyone who can open it hands it back. Each posts a line in the chat ("<Name>
