@@ -54,6 +54,8 @@ export const chatsApi = {
   create: (choice) => post("/chats", choice),
   // The home's public chats the person isn't in, for New chat's "or join a public chat": { chats }.
   publicChats: () => request("/chats/public"),
+  // Continue with others (D-114): the hand-over note the direct chat's bot writes for a new chat, { note }; nothing kept.
+  handOverNote: (chatId) => post(chat(chatId, "/hand-over-note")),
   // A bot's [Message]: the person's direct chat with it, made on first use: { chat }.
   direct: (botId) => post(`/bots/${encodeURIComponent(botId)}/direct`),
   // An app's chat with the Builder (D-41: Ask Builder), public and named after the app, made the first time anyone asks:

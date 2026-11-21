@@ -203,7 +203,7 @@ export function createBotLibrary({ records, apps, files }) {
         chatKind: chatOf.get(String(row.conversation_id))?.kind ?? null,
         role: row.role,
         authorName: authorOf(row),
-        text: plainText(row.body.text, row.body.mentions),
+        text: plainText(row.body.text, row.body.mentions, row.body.mentionedPeople),
         createdAt: new Date(row.created_at).toISOString()
       }))
     };

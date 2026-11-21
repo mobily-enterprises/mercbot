@@ -13,6 +13,7 @@ import { createBotTeams } from "./botTeams.js";
 import { createBotLibrary } from "./botLibrary.js";
 import { createBotPlans } from "./botPlans.js";
 import { createTemplateDrafts, writeWith } from "./templateDrafts.js";
+import { createHandOverNotes, writeNoteWith } from "./handOverNotes.js";
 import { createBotTeaching } from "./botTeaching.js";
 
 /**
@@ -50,6 +51,8 @@ import { createBotTeaching } from "./botTeaching.js";
  *   the model's answer to one call drafting a template
  * @param {(system: string, messages: Array<{ role: string, content: string }>) => Promise<string>} [dependencies.writePlan]
  *   the model's answer to one call suggesting bots (D-109)
+ * @param {(system: string, messages: Array<{ role: string, content: string }>) => Promise<string>} [dependencies.writeNote]
+ *   the model's answer to the one call writing a hand-over note, for Continue with others (D-114)
  * @param {(input: { previous: string, text: string }) => Promise<string>} [dependencies.summarize] replaces the summary's model call
  * @param {import("./types.js").SummaryLimits} [dependencies.compactionLimits] replaces the summary limits
  * @param {Partial<typeof import("./botRequests.js").REQUEST_LIMITS>} [dependencies.requestLimits] limits over the requests' own
@@ -77,6 +80,7 @@ export function createBotsService({
   writeSkill = (lines) => writeSkillFromDemo(model, lines),
   writeTemplate = writeWith(model),
   writePlan = writeWith(model),
+  writeNote = writeNoteWith(model),
   summarize,
   compactionLimits,
   requestLimits,
@@ -139,6 +143,8 @@ export function createBotsService({
   const plans = createBotPlans({ records, workspaces, meter, write: writePlan });
   // A template drafted from a bot reads the newest summary of a chat it's in that the person may read.
   const drafts = createTemplateDrafts({ records, meter, summaryOf: turns.summaryOf, write: writeTemplate });
+  // Continue with others (D-114): the hand-over note a direct chat's bot writes for the new chat.
+  const notes = createHandOverNotes({ records, meter, write: writeNote });
   const routines = createChatRoutines({ records });
   // Teaching a bot on its computer in a chat (C): a recording, then the skill it teaches.
   const teaching = createBotTeaching({ records, computer, integrations, notices, background, writeSkill });
@@ -223,6 +229,7 @@ export function createBotsService({
     addBots: teams.addBots,
     proposeBots: plans.propose,
     draftTemplate: drafts.draftTemplate,
+    handOverNote: notes.handOverNote,
     library: library.library,
     pinItem: library.pinItem,
     deletePage: library.deletePage,

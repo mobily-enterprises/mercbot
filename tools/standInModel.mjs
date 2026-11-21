@@ -26,7 +26,8 @@
 // and job it was given, saying that nothing leaves the chat unasked. It plans Add bots' suggestions
 // (packages/bots/src/server/botPlans.js): Mercbot's library bots whose tag or name the request names (at most three),
 // then one new bot for the request's last long word that names none, and one more for a change's; a request of fewer
-// than three words gets a question instead. Otherwise any other bot says the copy runs on
+// than three words gets a question instead. It writes Continue with others' hand-over note (D-114) as "Continuing from
+// my chat with <bot>: we were on "<what the person said last>"...". Otherwise any other bot says the copy runs on
 // a stand-in model. `misbehave` makes a template's bot break a rule on purpose, to prove the check catches it:
 // "skip-question" leaves out its second question, "routine-running" creates its routines running, and "send" has
 // something sent as the setup ends (the test copy's line for it, D-69, written by the stand-in itself as JSKIT writes
@@ -62,6 +63,8 @@ const ACTIVITY = "You label what an assistant is about to do";
 const RULE_MATCHER = "You decide which of a person's plain-language rules apply";
 const TEMPLATE_WRITER = "You write bot templates for Mercbot.";
 const PLANNER = "You plan which bots a Mercbot home should have.";
+// packages/bots/src/server/handOverNotes.js's NOTE_WRITER: Continue with others' hand-over note (D-114).
+const NOTE_WRITER = "You write a short hand-over note that carries a chat on into a new chat with more people.";
 const JOIN_IN = /^You decide whether .+, a bot in a shared conversation, should answer the latest message\./u;
 
 /** A message's words, whether its content is a string or a list of parts. */
@@ -300,6 +303,17 @@ function templateDraft(system, asked) {
   };
 }
 
+/**
+ * A hand-over note for Continue with others (D-114): the bot's name from the instructions, then what the person said
+ * last in the chat it was given.
+ */
+function handOverNote(system, chat) {
+  const bot = /Continuing from my chat with (.+?):"/u.exec(system)?.[1] || "the bot";
+  const said = chat.split("\n").slice(1).filter((line) => line && !line.startsWith(`${bot}: `));
+  const last = said.at(-1)?.replace(/^[^:]+: /u, "") || "nothing yet";
+  return `Continuing from my chat with ${bot}: we were on "${last}". Can you all help from here?`;
+}
+
 /** What the stand-in answers a request with: one step of a reply. */
 function answerFor(request, misbehave) {
   const system = request.messages.filter((message) => message.role === "system").map((message) => textOf(message.content)).join("\n\n");
@@ -317,6 +331,7 @@ function answerFor(request, misbehave) {
   if (system.includes(ACTIVITY)) return say(JSON.stringify({ status: "Thinking it over", emoji: null }));
   if (system.includes(RULE_MATCHER)) return say(JSON.stringify({ matches: [] }));
   if (system.startsWith(TEMPLATE_WRITER)) return say(JSON.stringify(templateDraft(system, textOf(request.messages.at(-1)?.content))));
+  if (system.startsWith(NOTE_WRITER)) return say(handOverNote(system, textOf(request.messages.at(-1)?.content)));
   // The planner's first user message holds the request (a retry's later ones only list problems).
   if (system.startsWith(PLANNER)) {
     return say(JSON.stringify(botPlan(textOf(request.messages.find((message) => message.role === "user")?.content))));

@@ -272,8 +272,8 @@ through `chatPlace.js` `placeQuery`), and `path` is a bot path (`/files/chat/…
   the router doesn't pass streams through). Only
   PDFs, pictures and plain text are shown inline; everything else downloads.
 - `POST …/files/upload` (multipart, field `file`, up to 25 MB, through
-  JSKIT's `runtime.uploads`) keeps a file the person attached in `Uploads` in the chat's folder (with only a bot, the
-  bot's; with neither, the home's), or the folder named by `?folder=` (a taken name gets a number) and answers `{path, name, size, type}`.
+  JSKIT's `runtime.uploads`) keeps a file the person attached in `Uploads` in the chat's folder, whoever else is in
+  the chat, people alone included (D-114; with only a bot, the bot's; with neither, the home's), or the folder named by `?folder=` (a taken name gets a number) and answers `{path, name, size, type}`.
   A copy that checks pictures and videos (D-90) checks one before anything is written, read whole up to the limit:
   422 `media_blocked` ("This file can't be used.") or 503 `media_check_unavailable` ("This file can't be checked
   right now. Try again in a few minutes."), or the checker's own sentence; the chat's attachments and the file
@@ -339,6 +339,7 @@ page pictures.
 - `tests/e2e/files.spec.ts`
 - `tests/e2e/drive-storage.spec.ts`
 - `tests/server/filesRoutes.integration.js`
+- `tests/server/chatUploads.integration.js`
 - `tests/server/filesKeys.integration.js`
 - `tests/server/profilePictures.integration.js`
 - `tests/server/profilePictures.test.js`

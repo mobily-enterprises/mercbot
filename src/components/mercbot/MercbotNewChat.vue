@@ -9,9 +9,10 @@ import { initialsOf } from "./messageAuthors.js";
 // New chat (plan 4.3, D15): who it's with (people and bots of the home), Public or Private, and an optional title. Public
 // is the default whoever is on the To: line; Private is the marked other choice, and the kind can't change later. The
 // composer below writes its first message, or Enter on an empty composer starts it empty. Below, the public chats the
-// person isn't in yet, to join instead.
+// person isn't in yet, to join instead. Opened by Continue with others (D-114), it carries a direct chat on: its bot is
+// on the To: line, the bot's hand-over note fills the composer, and it starts once someone else is on the line.
 const props = defineProps({
-  // { kind, people: userIds, bots: botIds, title }
+  // { kind, people: userIds, bots: botIds, title, continuing?: { chatId, botId, writing } }
   choice: { type: Object, required: true },
   // The home's people (useTeam), the person among them, and its active bots.
   people: { type: Array, default: () => [] },
@@ -77,6 +78,10 @@ function onToKeydown(event) {
 }
 
 const empty = computed(() => !props.choice.people.length && !props.choice.bots.length);
+// Continuing a direct chat: its bot, and whether anyone besides it is on the To: line yet.
+const continuedBot = computed(() => props.bots.find((bot) => String(bot.id) === props.choice.continuing?.botId) || null);
+const alone = computed(() => Boolean(props.choice.continuing) && !props.choice.people.length &&
+  props.choice.bots.every((id) => id === props.choice.continuing.botId));
 
 // The public chats the person isn't in yet, to join instead (D12: everyone in the home can open them).
 const publicChats = ref([]);
@@ -95,7 +100,7 @@ defineExpose({ focusTo: () => input.value?.focus() });
 <template>
   <section class="mb-new-chat" aria-label="New chat">
     <header class="mb-new-chat__head">
-      <h2 class="mb-new-chat__title">New chat</h2>
+      <h2 class="mb-new-chat__title">{{ choice.continuing ? "Continue with others" : "New chat" }}</h2>
       <v-btn icon="$close" size="32" variant="text" aria-label="Close New chat" @click="emit('close')" />
     </header>
 
@@ -130,6 +135,11 @@ defineExpose({ focusTo: () => input.value?.focus() });
       </label>
     </div>
     <p class="mb-new-chat__fixed">You can't change this once the chat has started.</p>
+    <p v-if="choice.continuing" class="mb-new-chat__continuing" role="status">
+      <v-icon icon="$forkRight" size="16" />
+      <span v-if="choice.continuing.writing">{{ continuedBot?.name || "The bot" }} is writing a note of your chat for the others…</span>
+      <span v-else>Your chat with {{ continuedBot?.name || "the bot" }} stays as it is. The first message below is its note for the others: read it and change anything before you send it.</span>
+    </p>
 
     <div class="mb-new-chat__to">
       <span class="mb-new-chat__label">To:</span>
@@ -206,11 +216,11 @@ defineExpose({ focusTo: () => input.value?.focus() });
     </label>
 
     <div class="mb-new-chat__start">
-      <p class="mb-new-chat__hint">Write the first message below, or press Enter there to start it empty.</p>
-      <v-btn color="primary" variant="flat" :disabled="empty" :loading="starting" @click="emit('start')">Start</v-btn>
+      <p class="mb-new-chat__hint">{{ alone ? "Add the people or bots to continue with." : "Write the first message below, or press Enter there to start it empty." }}</p>
+      <v-btn color="primary" variant="flat" :disabled="empty || alone" :loading="starting" @click="emit('start')">Start</v-btn>
     </div>
 
-    <div v-if="publicChats.length" class="mb-new-chat__public">
+    <div v-if="publicChats.length && !choice.continuing" class="mb-new-chat__public">
       <p class="mb-new-chat__group">Or join a public chat</p>
       <button
         v-for="chat in publicChats"
@@ -306,6 +316,19 @@ defineExpose({ focusTo: () => input.value?.focus() });
 }
 
 .mb-new-chat__kind-line,
+.mb-new-chat__continuing {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: rgb(var(--v-theme-surface-variant));
+  font-size: 13px;
+  line-height: 18px;
+  color: rgb(var(--v-theme-on-surface));
+}
+
 .mb-new-chat__fixed,
 .mb-new-chat__hint,
 .mb-new-chat__none {

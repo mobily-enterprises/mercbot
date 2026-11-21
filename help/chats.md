@@ -1,6 +1,6 @@
 # Chats and your team
 
-Everything you do in Mercbot happens in chats. A home's people and its bots are its members, side by side on the **Team** page, and a chat can have any of them in it: you and one bot, several bots, several people, or people only. This page explains the Team page, starting a chat, Public and Private chats, who answers, what belongs to a chat, the bots' computers in a chat, members, the everyone chat, organising your chat list, and archiving.
+Everything you do in Mercbot happens in chats. A home's people and its bots are its members, side by side on the **Team** page, and a chat can have any of them in it: you and one bot, several bots, several people, or people only. This page explains the Team page, starting a chat, Public and Private chats, who answers, mentioning people and reacting, what belongs to a chat, the bots' computers in a chat, members, continuing a chat with others, the everyone chat, organising your chat list, and archiving.
 
 ## Your team
 
@@ -52,6 +52,12 @@ Chats you don't make with New chat are Public too: your chat with a bot, a new b
 
 Approval cards are always for the person whose message started the work. Only they can answer them.
 
+## Mention people and react
+
+- **Mention someone.** In a chat with other people, type **@** and pick a person from the list (it offers everyone, the chat's people and its bots). Their name shows in your message, and their chat list shows **@** on the chat until they read it. Mentioning a person doesn't make a bot answer. You can only mention people who are in the chat.
+- **React to a message.** Point at another person's message or a bot's and select **React**, or right-click it, then pick a reaction. Pick it again to take it away. Each message shows everyone's reactions, with how many chose each one, and yours ringed. You can't react to your own messages.
+- **Attach files.** A file you attach goes in the chat's folder, where everyone who can open the chat finds it. See [Attach files to a message](/help/files#attach-files-to-a-message).
+
 ## What belongs to a chat
 
 What a bot makes in a chat belongs to that chat: the files it saves go in the chat's folder, and the routines and watches it sets up there run in that chat. Anyone who can open the chat can open them, and nobody else can.
@@ -79,7 +85,11 @@ Open **Chat details** to see who's in a chat: **People** and **Bots**, each open
 - Anyone in a chat can add people and bots of the home with the **Add people or bots** button in its header. Adding someone to a Private chat asks first, for example "Ben Rossi will see everything said here."
 - The person who started the chat, and the home's owners and admins, can take people and bots out of it, rename it and delete it, and archive it when it's Public.
 - Anyone can **Leave chat**. You can open a Public chat you left again from New chat and join it. A Private chat you leave is gone from your list unless someone adds you back, and a Private chat is deleted when its last person leaves.
-- Your chat with a bot takes no other members. To bring someone in, start a new chat.
+- Your chat with a bot takes no other members. To bring others in, continue it with them (below).
+
+### Continue with others
+
+In your chat with one bot, select **Continue with others…** at the top of the chat. New chat opens as **Continue with others**, Public, with the bot already in **To:**, and the bot writes a short note of your chat for the others as the first message ("Continuing from my chat with Chef: …"). Add the people and bots to continue with (**Start** waits until someone besides the bot is there), read the note and change anything you like, then send it as your own first message. Your chat with the bot stays as it was. The note uses only what was said in that chat, never what the bot looked up for it.
 
 ## The everyone chat
 
@@ -91,7 +101,7 @@ When a home's owner or admin answers **Me and other people** to Mercbot's "Will 
 
 ## Organise your chat list
 
-The sidebar lists your chats: pinned ones at the top, then the rest (in your own sections if you have any, then **Unassigned**), then **Hidden chats** and **Archived chats**. Rows are sorted by latest activity. A dot marks a chat with something you haven't read, and **Waiting for you** a chat where a bot needs you. An unsent draft stays with each chat on your device.
+The sidebar lists your chats: pinned ones at the top, then the rest (in your own sections if you have any, then **Unassigned**), then **Hidden chats** and **Archived chats**. Rows are sorted by latest activity. A dot marks a chat with something you haven't read, **@** a chat where someone mentioned you since you last read it, and **Waiting for you** a chat where a bot needs you. An unsent draft stays with each chat on your device.
 
 Right-click a chat for **Pin** or **Unpin**, **Move to** one of your sections (or **Move to new section**), **Mark as read** or **Mark as unread**, **Hide from sidebar** (**Show in sidebar** brings it back), and **Copy chat ID**, plus **Rename chat**, **Leave chat**, **Archive** (on a Public chat) and **Delete** where you may. Pins, sections, hidden chats and unread marks are yours alone: other people organise their own lists.
 
@@ -127,6 +137,10 @@ No. A Private chat is put away by each of its members for themselves, with **Hid
 ### Can I make a Public chat Private later?
 
 No. A chat stays the kind it started as. Start a new Private chat instead.
+
+### Does the note for Continue with others include everything the bot did?
+
+No. The bot writes it from what was said in your chat with it, as you saw it. What it looked up, read or did with its tools stays out of the note, and you read and change the note before anyone else sees it.
 
 ### Can I read a Public chat without joining it?
 

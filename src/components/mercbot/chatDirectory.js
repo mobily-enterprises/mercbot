@@ -19,6 +19,8 @@ export function toChatRow(view) {
     sectionId: place.sectionId ?? null,
     hidden: Boolean(place.hidden),
     unread: Boolean(place.unread),
+    // Someone's message there mentions the person, unread since (D-114): the row's "@".
+    mentioned: Boolean(place.mentioned),
     muted: Boolean(place.muted),
     readUpTo: place.readUpTo ?? null,
     preview: view.latest?.preview || ""

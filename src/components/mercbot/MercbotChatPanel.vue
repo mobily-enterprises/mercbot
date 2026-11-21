@@ -7,8 +7,8 @@ import MercbotCallBar from "./MercbotCallBar.vue";
 import MercbotContextMenu from "./MercbotContextMenu.vue";
 import MercbotConfirmDialog from "./MercbotConfirmDialog.vue";
 import MercbotTooltip from "./MercbotTooltip.vue";
-import { mentionBotsOf, soleBotOf, useComposerTokens } from "./useComposerTokens.js";
-import { hasSeveral } from "./messageAuthors.js";
+import { mentionBotsOf, mentionPeopleOf, soleBotOf, useComposerTokens } from "./useComposerTokens.js";
+import { hasSeveral, initialsOf } from "./messageAuthors.js";
 import { chatSubtitle, chatTitle, directBotOf, isDirect, kindIcon, kindLabel, kindMeaning, publicNotice } from "./chatView.js";
 import { addPersonQuestion, chatRights } from "./chatMenus.js";
 import { useDictation } from "./useDictation.js";
@@ -69,7 +69,7 @@ const emit = defineEmits([
   "take-over", "use-computer", "secure-form", "settle-draft", "manage-rules", "settle-handover", "open-skill", "cancel-request",
   "failure", "open-page", "close-page", "open-direct",
   "new-chat-change", "new-chat-close", "new-chat-start", "new-chat-join", "new-chat", "new-bot", "team", "menu",
-  "unarchive-bot", "unarchive-chat", "join", "add-member"
+  "unarchive-bot", "unarchive-chat", "join", "add-member", "continue-with-others"
 ]);
 
 const chatId = computed(() => props.chat?.id || "");
@@ -104,6 +104,8 @@ const notice = computed(() => (
 // + Add (plan 4.4): the home's people and active bots not in the chat yet. A direct chat takes no one else, the
 // everyone chat has everyone already, and only the chat's people add to it.
 const canAdd = computed(() => Boolean(props.chat) && !props.newChat && !isDirect(props.chat) && !blocked.value);
+// A direct chat goes on with others in a new chat instead (D-114), its person's alone.
+const canContinue = computed(() => Boolean(props.chat) && !props.newChat && isDirect(props.chat) && !blocked.value);
 const addMenu = ref({ open: false, target: [0, 0] });
 const addItems = computed(() => {
   if (!props.chat) return [];
@@ -217,9 +219,13 @@ const newChatBots = computed(() => (props.newChat?.bots || [])
   .map((bot) => ({ id: String(bot.id), name: bot.name, color: bot.color, shape: bot.shape, archivedAt: null })));
 const several = computed(() => (props.newChat ? props.newChat.people.length + props.newChat.bots.length > 1 : hasSeveral(props.chat)));
 const mentionBots = computed(() => (props.newChat ? newChatBots.value : mentionBotsOf(props.chat)));
+// The people @ offers (D-114): the chat's others, or New chat's To: line.
+const mentionPeople = computed(() => (props.newChat
+  ? props.newChat.people.map((id) => (props.people || []).find((person) => String(person.id) === id)).filter(Boolean).map((person) => ({ id: String(person.id), name: person.name }))
+  : mentionPeopleOf(props.chat, props.me)));
 // In a chat of several, the mic is the round accent button.
 const filledMic = computed(() => several.value && !hasContent.value);
-const composerTokens = useComposerTokens({ draft, input, several, mentionBots, chatId: () => chatId.value || null });
+const composerTokens = useComposerTokens({ draft, input, several, mentionBots, mentionPeople, chatId: () => chatId.value || null });
 const { tokens, mention, slash, skillRows, mentionRows, updateMention, insertSkill, insertMention, snapCaret, mirrorParts, withMarkers } = composerTokens;
 const tokenColor = computed(() => soleBot.value?.color || newChatBots.value[0]?.color || undefined);
 
@@ -239,7 +245,8 @@ function send() {
   emit("send", {
     text: withMarkers(draft.value.trim()),
     quotes: [...quotes.value],
-    attachments: attachments.value.map(({ name, size, type, text, path }) => ({ name, size, type, ...(text ? { text } : {}), ...(path ? { path } : {}) })),
+    // New chat's files wait on their `file` until the chat is made (useNewChat).
+    attachments: attachments.value.map(({ name, size, type, text, path, file }) => ({ name, size, type, ...(text ? { text } : {}), ...(path ? { path } : file ? { file } : {}) })),
     replyTo: replyTarget.value ? { id: replyTarget.value.id, text: replyTarget.value.text } : null
   });
   draft.value = "";
@@ -311,6 +318,7 @@ defineExpose({ focusComposer, addSelection, startReply, toggleDictation, dictati
         <span class="mb-chat__phone-name">{{ title }}</span>
         <span class="mb-chat__phone-sub">{{ chatSubtitle(chat, me) }}</span>
       </button>
+      <MercbotIconButton v-if="canContinue" icon="$forkRight" label="Continue with others…" tone="surface" @click="emit('continue-with-others')" />
       <MercbotIconButton icon="$info" label="Chat details" tone="surface" @click="emit('open-details')" />
     </header>
 
@@ -415,6 +423,7 @@ defineExpose({ focusComposer, addSelection, startReply, toggleDictation, dictati
         <v-icon icon="$info" size="16" class="mb-chip__info" />
       </button>
       <MercbotIconButton v-if="canAdd" icon="$personAdd" label="Add people or bots" tone="surface" @click="openAddMenu" />
+      <MercbotIconButton v-else-if="canContinue" icon="$forkRight" label="Continue with others…" tone="surface" @click="emit('continue-with-others')" />
       <MercbotContextMenu v-model="addMenu.open" :target="addMenu.target" :items="addItems" />
       <MercbotConfirmDialog
         :model-value="Boolean(addQuestion)"
@@ -599,7 +608,7 @@ defineExpose({ focusComposer, addSelection, startReply, toggleDictation, dictati
                 <span v-else-if="part.token" class="mb-mention" :style="{ color: part.token.bot ? part.token.bot.color : undefined }">
                   <span class="mb-mention__at">@<span class="mb-mention__avatar">
                     <MercbotAvatar v-if="part.token.bot" :bot="part.token.bot" :size="14" still />
-                    <v-icon v-else :icon="part.token.kind === 'everyone' ? '$groupFilled' : '$alternateEmail'" size="12" />
+                    <v-icon v-else :icon="part.token.kind === 'everyone' ? '$groupFilled' : part.token.kind === 'person' ? '$person' : '$alternateEmail'" size="12" />
                   </span></span>{{ part.token.label }}
                 </span>
                 <template v-else>{{ part.text }}</template>
@@ -651,6 +660,7 @@ defineExpose({ focusComposer, addSelection, startReply, toggleDictation, dictati
                 @mousedown.prevent="insertMention(row)"
               >
                 <MercbotAvatar v-if="row.bot" :bot="row.bot" :size="18" still />
+                <span v-else-if="row.kind === 'person'" class="mb-mention-menu__glyph mb-mention-menu__initials">{{ initialsOf(row.label) }}</span>
                 <span v-else class="mb-mention-menu__glyph"><v-icon :icon="row.kind === 'everyone' ? '$groupFilled' : row.kind === 'skill' ? '$menuBook' : '$extension'" size="12" /></span>
                 <span class="mb-mention-menu__name">{{ row.label }}</span>
                 <span v-if="row.status" class="mb-mention-menu__status">{{ row.status }}</span>

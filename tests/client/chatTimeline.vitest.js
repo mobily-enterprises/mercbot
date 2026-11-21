@@ -5,7 +5,7 @@ import { createMaterialVuetifyOptions } from "@jskit-ai/material-web/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { theme } from "../../src/theme/index.js";
 import { setCurrentHome } from "../../src/components/mercbot/homeApi.js";
-import { authorOf, botReactions, hasSeveral, initialsOf, myReaction } from "../../src/components/mercbot/messageAuthors.js";
+import { authorOf, hasSeveral, initialsOf, mayReact, myReaction, reactionsOf } from "../../src/components/mercbot/messageAuthors.js";
 
 // The app cards read the apps' routes as they show; none is in these chats.
 vi.mock("../../src/components/apps/MercbotViewCard.vue", () => ({ default: { render: () => null } }));
@@ -162,19 +162,36 @@ describe("an author who has left", () => {
 });
 
 describe("reactions, one per person and per bot (user:<id>, bot:<id>)", () => {
-  const reactionsIn = (part) => [...part.matchAll(/class="mb-reaction[^"]*"[^>]*>([^<]*)</gu)].map(([, emoji]) => emoji.trim());
+  /** Each reaction shown on a message: its emoji, its count when more than one chose it, and "mine" for your own. */
+  const reactionsIn = (part) => [...part.matchAll(/<span class="([^"]*)"[^>]*>([^<]*)(?:<span class="mb-reaction__count"[^>]*>(\d+)<)?/gu)]
+    .map(([, classes, emoji, count]) => ({ classes: classes.split(" "), emoji, count }))
+    .filter(({ classes }) => classes.includes("mb-reaction__one"))
+    .map(({ classes, emoji, count }) => `${emoji.trim()}${count ? ` ${count}` : ""}${classes.includes("mb-reaction__one--mine") ? " mine" : ""}`);
+  const reactButtonIn = (part) => part.includes('aria-label="React"');
 
-  it("show your own on a bot's message and the bots' on a person's, never someone else's as yours", async () => {
+  it("show everyone's, people's and bots', each emoji once with how many, your own marked, never someone else's as yours", async () => {
     const answer = said({ botId: "7" }, "Booked for 8.", { body: { text: "Booked for 8.", reactions: { "user:1": "👍", "user:2": "🎉" } } });
-    const ask = said({ userId: "2" }, "Table for two?", { body: { text: "Table for two?", reactions: { "bot:7": "❤️", "bot:8": "❤️" } } });
+    const ask = said({ userId: "2" }, "Table for two?", { body: { text: "Table for two?", reactions: { "bot:7": "❤️", "bot:8": "❤️", "user:1": "👍" } } });
     const other = said({ botId: "8" }, "Done.", { body: { text: "Done.", reactions: { "user:2": "🙏" } } });
-    const html = await timeline({ chat: KITCHEN, messages: [answer, ask, other] });
-    expect(reactionsIn(item(html, answer))).toEqual(["👍"]);
-    expect(reactionsIn(item(html, ask))).toEqual(["❤️"]);
-    expect(reactionsIn(item(html, other)), "Ben's, not Anna's").toEqual([]);
+    const plain = said({ botId: "7" }, "Noted.");
+    const html = await timeline({ chat: KITCHEN, messages: [answer, ask, other, plain] });
+    expect(reactionsIn(item(html, answer))).toEqual(["👍 mine", "🎉"]);
+    expect(reactionsIn(item(html, ask))).toEqual(["❤️ 2", "👍 mine"]);
+    expect(reactionsIn(item(html, other)), "Ben's, not Anna's").toEqual(["🙏"]);
+    expect(reactionsIn(item(html, plain))).toEqual([]);
     // The React menu marks your own as chosen, and choosing it again takes it off.
     expect([myReaction(answer, "1"), myReaction(answer, "2"), myReaction(answer, "")]).toEqual(["👍", "🎉", null]);
-    expect(botReactions(ask)).toEqual(["❤️"]);
+    expect(reactionsOf(ask, "2")).toEqual([{ emoji: "❤️", count: 2, mine: false }, { emoji: "👍", count: 1, mine: false }]);
+  });
+
+  it("are offered on a bot's message and on another person's, never on your own or Mercbot's lines (D-114)", async () => {
+    const answer = said({ botId: "7" }, "Booked for 8.");
+    const bens = said({ userId: "2" }, "Table for two?");
+    const mine = said({ userId: "1" }, "Yes please.");
+    const line = said({ role: "system" }, "Ben joined.", { kind: "event" });
+    const html = await timeline({ chat: KITCHEN, messages: [answer, bens, mine] });
+    expect([answer, bens, mine].map((message) => reactButtonIn(item(html, message)))).toEqual([true, true, false]);
+    expect([answer, bens, mine, line].map((message) => mayReact(message, "1"))).toEqual([true, true, false, false]);
   });
 });
 

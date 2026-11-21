@@ -14,10 +14,11 @@ import { createCallerReaders, fieldsOf } from "./recordRows.js";
 // more members. The everyone chat has every active member of the home. An app's chat is its Builder's.
 
 const KINDS = new Set(["public", "private"]);
-// A person's own place in a chat, as its chat_people row names it.
-const PLACE = Object.freeze(["readUpTo", "unread", "pinPosition", "sectionId", "hidden", "muted"]);
+// A person's own place in a chat, as its chat_people row names it: since when someone mentioned them there unread too
+// (D-114), which only a message sets and only reading clears.
+const PLACE = Object.freeze(["readUpTo", "unread", "mentionedAt", "pinPosition", "sectionId", "hidden", "muted"]);
 // What a person may change of their place.
-const PLACE_CHANGES = new Set(PLACE);
+const PLACE_CHANGES = new Set(PLACE.filter((field) => field !== "mentionedAt"));
 // The most people or bots one call adds to a chat; a home's everyone chat adds its members in pages of this size.
 const ADD_LIMIT = 200;
 // A page of a person's chat list (their places, at most the resource's page limit): the page reads on while `next`.
@@ -27,7 +28,7 @@ const notFound = () => new BotsError(404, "Chat not found.", { code: "bots_chat_
 const archivedRefusal = () =>
   new BotsError(409, "This chat is archived. Unarchive it to continue.", { code: "bots_chat_archived" });
 const directRefusal = () =>
-  new BotsError(409, "A direct chat is one person's with one bot. Start a new chat to bring others in.", { code: "bots_chat_direct" });
+  new BotsError(409, "A direct chat is one person's with one bot. Continue with others to bring others in.", { code: "bots_chat_direct" });
 const isId = (value) => /^\d+$/u.test(String(value ?? ""));
 
 /**
@@ -56,6 +57,27 @@ function onboardingMover(conversations) {
     const moved = await conversations.patchWhere(filters, { onboardingStep: to ?? null }, { ...passedOn(options), returning: "ids" });
     return moved.length > 0;
   };
+}
+
+/** What a message leaves on its chat's places: one UPDATE each, however many it reaches, as the home's system. */
+function messageMarks(chatPeople, homeWide, systemContext) {
+  /** Every other person in the chat has something new to read (a message by someone else). */
+  async function markUnreadForOthers(chatId, authorUserId, options) {
+    await chatPeople.patchWhere(
+      { conversationId: String(chatId), unread: false, ...(authorUserId ? { notUserId: String(authorUserId) } : {}) },
+      { unread: true },
+      { ...homeWide(options, systemContext("a new message is unread for the chat's other people")), returning: "none" }
+    );
+  }
+
+  /** Some of the chat's people mentioned (D-114): each with none waiting there has one from now. */
+  async function markMentioned(chatId, userIds, options) {
+    const filters = { conversationId: String(chatId), userIds: [...new Set(userIds.map(String))].filter(isId), mentioned: false };
+    const home = homeWide(options, systemContext("a mention waits for the people it names in the chat"));
+    if (filters.userIds.length) await chatPeople.patchWhere(filters, { mentionedAt: new Date().toISOString() }, { ...home, returning: "none" });
+  }
+
+  return { markUnreadForOthers, markMentioned };
 }
 
 /**
@@ -547,10 +569,11 @@ export function createChatRepository({ resources, systemContext, profiles, membe
     await conversations.delete(String(chat.id), passedOn(options));
   }
 
-  /** Changes to the caller's own place in a chat (read point, unread, pin, section, hidden, muted). */
+  /** Changes to the caller's own place in a chat (read point, unread, pin, section, hidden, muted); read clears a mention. */
   async function updatePlace(chatId, changes, options) {
     const fields = Object.fromEntries(Object.entries(changes).filter(([field]) => PLACE_CHANGES.has(field)));
     if (!Object.keys(fields).length) return place(chatId, options);
+    if (fields.unread === false) fields.mentionedAt = null;
     const mine = await place(chatId, options);
     if (!mine) throw notFound();
     return asRow(await chatPeople.patch(String(mine.id), fields, passedOn(options)), options);
@@ -558,15 +581,6 @@ export function createChatRepository({ resources, systemContext, profiles, membe
 
   /** The caller has read the chat up to a message: no longer unread. */
   const markRead = (chatId, messageId, options) => updatePlace(chatId, { readUpTo: Number(messageId) || null, unread: false }, options);
-
-  /** Every other person in the chat has something new to read (a message by someone else). */
-  async function markUnreadForOthers(chatId, authorUserId, options) {
-    await chatPeople.patchWhere(
-      { conversationId: String(chatId), unread: false, ...(authorUserId ? { notUserId: String(authorUserId) } : {}) },
-      { unread: true },
-      { ...homeWide(options, systemContext("a new message is unread for the chat's other people")), returning: "none" }
-    );
-  }
 
   /** The next pin position among the person's chats: after the last one. */
   async function nextPinPosition(options) {
@@ -717,7 +731,7 @@ export function createChatRepository({ resources, systemContext, profiles, membe
     updatePlace,
     markRead,
     moveOnboarding: onboardingMover(conversations),
-    markUnreadForOthers,
+    ...messageMarks(chatPeople, homeWide, systemContext),
     nextPinPosition,
     reorderPins,
     chatBotOf,
