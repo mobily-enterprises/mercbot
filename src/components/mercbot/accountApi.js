@@ -46,17 +46,18 @@ export const accountApi = {
   /** The address of a report's CSV, which the browser downloads itself. */
   spendingExportUrl: (range) => ranged("/spending/export", range),
   settings: () => client.request("/api/settings"),
-  vault: () => client.request("/api/vault"),
-  addVaultItem: (item) => client.request("/api/vault", { method: "POST", body: item }),
+  // The home's vault (D-110): its routes are the home's.
+  vault: () => client.request(homePath("/vault")),
+  addVaultItem: (item) => client.request(homePath("/vault"), { method: "POST", body: item }),
   // Items from a CSV file, all of one kind, each with its row in the file: [{ row, data }].
-  importVaultItems: (kind, items) => client.request("/api/vault/import", { method: "POST", body: { kind, items } }),
+  importVaultItems: (kind, items) => client.request(homePath("/vault/import"), { method: "POST", body: { kind, items } }),
   // Contact details read from a photo: { fields }, counted as the home's use (D-73).
   readVaultPhoto: (photo) => {
     const form = new FormData();
     form.append("photo", photo, "photo.jpg");
     return client.request(homePath("/vault/read-photo"), { method: "POST", body: form });
   },
-  deleteVaultItem: (itemId) => client.request(`/api/vault/${itemId}`, { method: "DELETE" }),
+  deleteVaultItem: (itemId) => client.request(homePath(`/vault/${encodeURIComponent(itemId)}`), { method: "DELETE" }),
   resetComputers: () => client.request(homePath("/computers/reset"), { method: "POST", body: {} })
 };
 
