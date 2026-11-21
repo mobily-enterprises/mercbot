@@ -172,7 +172,7 @@ export function createCodingRuns({ sandbox, window, shared, installed, ended, li
 
   /**
    * Starts the tool on the brief in `folder` (a folder of the bot's files, such as
-   * /files/mine/website), once it's signed in and nothing else runs there.
+   * /files/chat/website), once it's signed in and nothing else runs there.
    */
   async function start(computer, { tool: toolId, folder, brief }) {
     const tool = CODING_TOOLS[toolId];

@@ -52,7 +52,7 @@ test("scripts: saving, buttons, data, rules, functions, jobs and the web", async
   const web = createWebAccess({ resources, env: { MERCBOT_VAULT_KEY: vaultKey, APP_ENV: "production" }, insecure: true });
   scripts = createScripts({ resources, repository, systemContext, notices: home.notices, registry, gate, apps, env: process.env, web });
   const runtime = createRuntime({ apps, gate, scripts, practices });
-  const watches = createWatches({ resources, repository, systemContext, notices: home.notices, registry, gate, apps });
+  const watches = createWatches({ resources, repository, systemContext, registry, gate, apps });
   // Before the home's own cleanup (newest first).
   cleanup.after(async () => {
     await scripts.close();

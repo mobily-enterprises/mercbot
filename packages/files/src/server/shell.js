@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
 import { refusalOf } from "@local/account/meter";
-import { BOT, MINE, SHARED } from "./fileStore.js";
+import { BOT, CHAT, SHARED } from "./fileStore.js";
 import {
   folderMount, platformFlags, runSandboxed, runsc, sandboxMemory, sandboxPlace, sandboxSpec, shellAvailable, sweepSandboxes, toolsDir
 } from "./gvisor.js";
@@ -15,7 +15,8 @@ const run = promisify(execFile);
 // Bots' command line (D-47). A command is a bash script run in gVisor, which puts its own kernel
 // between the script and the server's, rootless and without any network. The script sees the
 // Ubuntu toolbox (scripts/build-toolbox.sh; its changes vanish after the run), a private /tmp, the
-// Craft apps, and only the conversation's three folders. Limits: wall time, memory (each process,
+// Craft apps, and only its place's folders: the chat's, the bot's and the home's (a private chat's last two read-only,
+// D13). Limits: wall time, memory (each process,
 // and the whole sandbox, watched from outside), processes, open files, file size and output.
 // Every run is a shell_runs row. One that outlives the reply carries on in the background on this
 // server, with a heartbeat; its ending is passed to `onEnd` handlers, which wake the bot.
@@ -58,18 +59,23 @@ function craftPaths(env) {
   }
 }
 
+/** Where a sandbox starts: the chat's folder, else the bot's, else the home's. */
+const homeFolder = (dirs) => (dirs.chat ? CHAT : dirs.bot ? BOT : SHARED);
+
 /**
  * The OCI bundle for one run, or for a computer's command-line session (`term`, `label`). `args`,
  * `cwd`, `env` (replacing variables of the same name) and `mounts` ({source, destination,
  * readonly, exec}) are for other programs run in the same sandbox, such as the office apps. `runtimeEnv` is the
- * server's env, for the tools folder and the sandbox user.
+ * server's env, for the tools folder and the sandbox user. `readOnly` names folders ("chat", "bot", "shared") mounted
+ * read-only besides those the place itself only reads (`dirs.readOnly`).
  */
 function bundle({
   runtimeEnv,
   dirs, script, limits, readOnly = [], term = "dumb", label = "",
-  args = ["/bin/bash", "-c", script], cwd = dirs.personal ? MINE : BOT, env = [], mounts = [], rootReadOnly = false
+  args = ["/bin/bash", "-c", script], cwd = homeFolder(dirs), env = [], mounts = [], rootReadOnly = false
 }) {
   const apps = path.join(toolsDir(runtimeEnv), "apps");
+  const reads = (name) => readOnly.includes(name) || (dirs.readOnly ?? []).includes(name);
   return sandboxSpec({
     runtimeEnv,
     args,
@@ -82,10 +88,10 @@ function bundle({
     limits,
     rootReadOnly,
     mounts: [
-      folderMount(dirs.mine, MINE, { readonly: readOnly.includes(dirs.personal ? "mine" : "bot") }),
-      ...(dirs.bot ? [folderMount(dirs.bot, BOT, { readonly: readOnly.includes("bot") })] : []),
-      folderMount(dirs.shared, SHARED, { readonly: readOnly.includes("shared") }),
-      // The conversation's whole command outputs, to read with grep, tail and the like (D-48).
+      ...(dirs.chat ? [folderMount(dirs.chat, CHAT, { readonly: reads("chat") })] : []),
+      ...(dirs.bot ? [folderMount(dirs.bot, BOT, { readonly: reads("bot") })] : []),
+      folderMount(dirs.shared, SHARED, { readonly: reads("shared") }),
+      // The bot's whole command outputs in its chat, to read with grep, tail and the like (D-48).
       ...(dirs.runs ? [folderMount(dirs.runs, "/runs", { readonly: true })] : []),
       ...(existsSync(apps) ? [folderMount(apps, "/opt/apps", { readonly: true, exec: true })] : []),
       ...mounts.map((mount) => folderMount(mount.source, mount.destination, { readonly: mount.readonly, exec: mount.exec }))
@@ -253,19 +259,19 @@ function executeIn(session, { env, script, why, maxSeconds, limits }) {
 
 /** What a command started while another runs in the background tells the bot. */
 function busyMessage(runId) {
-  return `A command is still running in the background in this conversation (run ${runId}). ` +
+  return `A command is still running in the background in this chat (run ${runId}). ` +
     "Use check_command to follow it, or wait for it to finish.";
 }
 
 /** What a command still running after its foreground time tells the bot. */
 function backgroundNote(foregroundSeconds, maxSeconds) {
   return `Still running after ${foregroundSeconds} s, so it carries on in the background (up to ${Math.round(maxSeconds / 60)} minutes). ` +
-    "You'll be woken in this conversation when it ends; check_command shows its progress.";
+    "You'll be woken in this chat when it ends; check_command shows its progress.";
 }
 
 /**
- * The bots' command line (D-21, D-49): runs in gVisor sandboxes on the bot's folders, one after
- * another per conversation, with the shell_runs rows any server can read.
+ * The bots' command line (D-21, D-49): runs in gVisor sandboxes on a chat's folders, one after
+ * another per bot in a chat (its chat_bots id), with the shell_runs rows any server can read.
  * @param {object} dependencies
  * @param {import("./types.js").FileStore} dependencies.store
  * @param {import("./types.js").ShellRuns} dependencies.runs the shell_runs rows
@@ -289,7 +295,7 @@ export function createShell({
   const endHandlers = new Set();
   const sessions = new Map();
   const live = new Map();
-  // A conversation's commands run one after another: one fired while another runs waits for it,
+  // A bot's commands in a chat run one after another: one fired while another runs waits for it,
   // unless that one went on in the background (then the bot follows it with check_command).
   const busy = new Map();
   const waiting = [];
@@ -312,8 +318,8 @@ export function createShell({
   }
 
   async function changedSince(place, since) {
-    const { mine = [], bot = [], shared = [] } = await store.list(place).catch(() => ({}));
-    return [...mine, ...bot, ...shared]
+    const { chat = [], bot = [], shared = [] } = await store.list(place).catch(() => ({}));
+    return [...chat, ...bot, ...shared]
       .filter((file) => Date.parse(file.modified) >= since - 10)
       .map((file) => file.path)
       .slice(0, limits.changed);
@@ -324,17 +330,18 @@ export function createShell({
   }
 
   /**
-   * Runs `script` for a bot's conversation. Waits up to `foregroundSeconds`; a run still going
-   * after that carries on in the background and returns { status: "running", run }. `readOnly`
-   * lists folders the script may only read ("mine", "shared"), for turns nobody asked for.
+   * Runs `script` for a bot in a chat (`chatBotId`, its chat_bots id) on its place's folders. Waits up to
+   * `foregroundSeconds`; a run still going after that carries on in the background and returns { status: "running",
+   * run }. `readOnly` lists more folders the script may only read ("chat", "bot", "shared") than its place does.
    */
   async function start({
-    place, workspaceId, botId, conversationId = null, userId = null, why = "", script, readOnly = [],
+    place, workspaceId, botId, chatBotId, userId = null, why = "", script, readOnly = [],
     foregroundSeconds = limits.foregroundSeconds, maxSeconds = limits.maxSeconds
   }) {
     if (stopping) return { status: "unavailable", error: "This server is shutting down; try again in a moment." };
     if (!shellAvailable(env)) return { status: "unavailable", error: "The command line isn't installed on this server." };
-    const key = String(conversationId ?? `${botId}:${userId}`);
+    if (chatBotId == null || !/^\d+$/u.test(String(chatBotId))) throw new Error("A command runs for a bot in a chat: chatBotId is needed.");
+    const key = String(chatBotId);
     while (busy.has(key)) {
       const current = busy.get(key);
       if (current.background) return { status: "busy", error: busyMessage(current.run) };
@@ -350,8 +357,8 @@ export function createShell({
       // Its computation is recorded a block at a time while it runs (D-73): work that's refused starts nothing.
       hold = await meter.startComputation({ workspaceId, botId, ...(userId ? { userId } : {}) });
       dirs = await store.prepare(place);
-      if (conversationId && store.runsFolder) dirs = { ...dirs, runs: await store.runsFolder(conversationId) };
-      row = await runs.begin(workspaceId, { botId, conversationId, userId, why: String(why).slice(0, 300), script, server });
+      dirs = { ...dirs, runs: await store.runsFolder(key) };
+      row = await runs.begin(workspaceId, { chatBotId: key, userId, why: String(why).slice(0, 300), script, server });
     } catch (error) {
       busy.delete(key);
       settle();
@@ -363,9 +370,9 @@ export function createShell({
     mine.run = String(row.id);
     const startedAt = Date.now();
     await slot();
-    // While the conversation's computer is awake its commands run in its session, where the
-    // Terminal shows them; a turn another bot started keeps to a fresh sandbox (read-only folders).
-    const session = !readOnly.length && conversationId != null ? sessions.get(String(conversationId)) : null;
+    // While the bot's computer in the chat is awake its commands run in its session, where the
+    // Terminal shows them; one with more read-only folders keeps to a fresh sandbox.
+    const session = !readOnly.length ? sessions.get(key) : null;
     const job = session
       ? executeIn(session, { env, script, why, maxSeconds, limits })
       : execute({ env, dirs, script, maxSeconds, limits, readOnly });
@@ -409,7 +416,7 @@ export function createShell({
       }
       // What it wrote reaches where the home's files are kept before its turn goes on (D-91), and its output too.
       await store.settle(place.homeId).catch((error) => console.warn(`Sending run ${row.id}'s files on failed: ${error?.message}`));
-      if (conversationId && dirs.runs) await store.settleRuns(conversationId);
+      await store.settleRuns(key);
       const status = ["shutdown", "paused"].includes(result.killed) ? "stopped" : result.exitCode === 0 ? "done" : "failed";
       const saved = await runs.finish(row, { status, exitCode: result.exitCode, output: result.output, changed });
       return { result, status, changed, saved, everyChange };
@@ -417,7 +424,7 @@ export function createShell({
     live.set(String(row.id), { job, finished });
     const checkLater = (paths) => {
       if (!paths.length) return;
-      media.filesLater({ place, paths, workspaceId, userId, botId, conversationId })
+      media.filesLater({ place, paths, workspaceId, userId, chatBotId: key })
         .catch((error) => console.warn(`Queueing run ${row.id}'s changed files for a check failed: ${error?.message}`));
     };
     // The wait's timer is cleared once the run finishes, so it doesn't hold the process for its whole length.
@@ -486,28 +493,28 @@ export function createShell({
     const oldest = now - limits.outputFullDays * 86400 * 1000;
     // Wherever they're kept: the files folder, or the files bucket (D-91).
     for (const output of await store.runOutputs()) {
-      if (output.modified < oldest) await store.removeRunOutput(output.conversation, output.name);
+      if (output.modified < oldest) await store.removeRunOutput(output.chatBotId, output.name);
     }
   }
 
   /** A run's whole output (/runs/<run>.log), when it was kept: of a run row, check()'s, or a commandOutput. */
   async function wholeOutputOf(row) {
-    const conversationId = row?.conversationId ?? row?.conversation_id;
-    if (!conversationId || !store.runsFolder) return null;
-    const dir = await store.runsFolder(conversationId).catch(() => null);
+    const chatBotId = row?.chatBotId ?? row?.chat_bot_id;
+    if (!chatBotId) return null;
+    const dir = await store.runsFolder(chatBotId).catch(() => null);
     return dir ? fs.readFile(path.join(dir, `${row.id}.log`), "utf8").catch(() => null) : null;
   }
 
   /**
-   * The computer's session for a conversation: started when its computer wakes, ended when it
+   * The computer's session for a bot in a chat: started when its computer wakes, ended when it
    * sleeps. Its memory is watched like a run's; a session past the limit is ended.
    */
   async function attach({ key, place, label = "The bot's commands" }) {
     if (!shellAvailable(env)) return null;
     if (sessions.has(String(key))) return sessions.get(String(key));
-    // The key is the conversation's id: its whole outputs are at /runs, as in its runs.
+    // The key is the computer's, the bot's chat_bots id: its whole outputs are at /runs, as in its runs.
     let dirs = await store.prepare(place);
-    if (store.runsFolder) dirs = { ...dirs, runs: await store.runsFolder(key) };
+    dirs = { ...dirs, runs: await store.runsFolder(key) };
     await sweepSandboxes(env);
     const { id, dir: runDir, state } = sandboxPlace("session");
     await fs.mkdir(state, { recursive: true });
@@ -522,7 +529,7 @@ export function createShell({
       child.on("error", resolve);
       child.on("close", resolve);
     });
-    const session = { key: String(key), id, state, runDir, cwd: dirs.personal ? MINE : BOT, running: 0, asleep: false };
+    const session = { key: String(key), id, state, runDir, cwd: homeFolder(dirs), running: 0, asleep: false };
     session.watchdog = setInterval(async () => {
       const used = await sandboxMemory(env, session);
       if (used !== null && used <= limits.sandboxMemory) return;

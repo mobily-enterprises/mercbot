@@ -43,7 +43,7 @@ async function inSandbox({ project, home }, script, options = {}) {
   const job = await startCodingSandbox({
     runtimeEnv: process.env,
     home,
-    project: project === null ? null : { source: project, destination: "/files/mine/site" },
+    project: project === null ? null : { source: project, destination: "/files/chat/site" },
     argv: ["/bin/bash", "-c", script],
     env: ["HOME=/profile/.coding"],
     maxSeconds: 60,
@@ -94,8 +94,8 @@ echo "cwd=$PWD home=$HOME"
 echo "profile=$(ls -A /profile | tr '\\n' ' ')"
 cat /profile/Default/Cookies 2>&1 | head -1
 echo "sign-in=$(cat /profile/.coding/auth.json)"; echo "refreshed" > /profile/.coding/auth.json
-echo "files=$(ls -A /files) $(ls -A /files/mine)"
-touch /files/mine/elsewhere 2>&1 | head -1
+echo "files=$(ls -A /files) $(ls -A /files/chat)"
+touch /files/chat/elsewhere 2>&1 | head -1
 echo "io=$(ls -A /io 2>/dev/null | wc -l)"
 echo "opt=$(for at in /opt/*/; do [ -n "$(ls -A "$at")" ] && basename "$at"; done | tr '\\n' ' ')"
 touch /usr/x 2>&1 | head -1
@@ -120,17 +120,17 @@ PY
   assert.equal(exitCode, 0, output);
   assert.equal(killed, null);
   // The project, read and written.
-  assert.match(output, /^The project's own readme\nwrote=yes\ncwd=\/files\/mine\/site home=\/profile\/\.coding\n/u);
+  assert.match(output, /^The project's own readme\nwrote=yes\ncwd=\/files\/chat\/site home=\/profile\/\.coding\n/u);
   assert.equal(await readFile(path.join(dirs.project, "made.txt"), "utf8"), "made inside\n");
   // The tool's sign-in, read and kept; nothing else of the browser profile; no other folder.
   assert.match(output, /^profile=\.coding $/mu);
   assert.match(output, /^cat: \/profile\/Default\/Cookies: No such file or directory$/mu);
   assert.match(output, /^sign-in=the person's coding sign-in$/mu);
   assert.equal(await readFile(path.join(dirs.home, "auth.json"), "utf8"), "refreshed\n");
-  assert.match(output, /^files=mine site$/mu, "of the bot's files, only the project");
-  assert.match(output, /^touch: cannot touch '\/files\/mine\/elsewhere': Read-only file system$/mu, "and it writes nowhere else");
+  assert.match(output, /^files=chat site$/mu, "of the bot's files, only the project");
+  assert.match(output, /^touch: cannot touch '\/files\/chat\/elsewhere': Read-only file system$/mu, "and it writes nowhere else");
   // Where the project is shown was made in the sandbox's own folder, not in the toolbox every sandbox shares.
-  assert.equal(existsSync(path.join(toolsDir(process.env), "toolbox", "rootfs", "files", "mine", "site")), false);
+  assert.equal(existsSync(path.join(toolsDir(process.env), "toolbox", "rootfs", "files", "chat", "site")), false);
   // Nothing of the computer: nothing at /io (its gateway and its browser's control socket). Where
   // other sandboxes' folders go may be there, empty, in a toolbox made by hand (docs/deployment.md).
   assert.match(output, /^io=0$/mu);

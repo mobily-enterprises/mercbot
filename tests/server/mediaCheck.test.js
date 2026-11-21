@@ -98,11 +98,12 @@ test("without a checker everything is allowed, and only pictures and videos are 
   assert.equal(guard.on, true);
   assert.equal((await guard.check({ bytes: Buffer.from("plain text"), origin: "upload" })).verdict, "allow");
   assert.equal(copy.asked.length, 0, "a file that isn't a picture or video never reaches the checker");
-  const place = { homeId: 5, botId: 9, userId: 7 };
-  const answer = await guard.check({ bytes: PNG, origin: "upload", workspaceId: 5, userId: 7, botId: 9, place, path: "/files/mine/Uploads/a.png", ip: "10.0.0.1" });
+  // A chat's place (fileStore.js placeFor), as an upload route gives it.
+  const place = { homeId: 5, chatId: 11, chatKind: "private", botId: 9 };
+  const answer = await guard.check({ bytes: PNG, origin: "upload", workspaceId: 5, userId: 7, botId: 9, conversationId: 11, place, path: "/files/chat/Uploads/a.png", ip: "10.0.0.1" });
   assert.deepEqual(answer, { verdict: "block", notice: "Not on this copy.", ref: "check-17" });
   assert.deepEqual(copy.asked, [{
-    bytes: PNG, mime: "image/png", origin: "upload", workspaceId: "5", userId: "7", botId: "9", conversationId: null, place, path: "/files/mine/Uploads/a.png", ip: "10.0.0.1"
+    bytes: PNG, mime: "image/png", origin: "upload", workspaceId: "5", userId: "7", botId: "9", conversationId: "11", place, path: "/files/chat/Uploads/a.png", ip: "10.0.0.1"
   }], "it gets the sniffed type, the ids as strings, null where there's none, and where the file is kept");
   // The place is the checker's own copy, JSON-safe, which it may keep and give back: changing it changes nothing here.
   assert.notEqual(copy.asked[0].place, place);
@@ -110,8 +111,9 @@ test("without a checker everything is allowed, and only pictures and videos are 
   assert.equal(place.homeId, 5);
   await guard.checkText({ text: "a cat on a mat", origin: "picture_prompt", workspaceId: 5, userId: 7, botId: 9, conversationId: 11 });
   assert.deepEqual(copy.asked[1], { text: "a cat on a mat", origin: "picture_prompt", workspaceId: "5", userId: "7", botId: "9", conversationId: "11" });
-  // An item kept nowhere a place says (a picture a bot makes, a Vault photo, a profile picture, a screenshot) has none.
-  await guard.check({ bytes: PNG, origin: "screenshot", workspaceId: 5, conversationId: 11, path: "11-0123456789abcdef.jpg" });
+  // An item kept nowhere a place says (a picture a bot makes, a Vault photo, a profile picture, a screenshot) has none;
+  // a screenshot's conversationId is its computer's, a chat_bots id (mediaChecks.js).
+  await guard.check({ bytes: PNG, origin: "screenshot", workspaceId: 5, conversationId: 31, path: "31-0123456789abcdef.jpg" });
   assert.equal(copy.asked[2].place, null);
 
   // A checker that fails, or answers no verdict, counts as "unavailable": logged in one line, never with the file.
@@ -154,7 +156,8 @@ async function tempFolder(t) {
 /** An upload as the multipart reader streams it: `chunks`, and `truncated` once it stopped at the limit. */
 const uploaded = (chunks, truncated = false) => Object.assign(Readable.from(chunks), { truncated });
 const ITEM = Object.freeze({
-  origin: "upload", workspaceId: "5", userId: "7", botId: "9", conversationId: null, place: { homeId: "5", botId: "9", userId: "7" }, path: "/files/mine/Uploads/a.png", ip: "10.0.0.1"
+  origin: "upload", workspaceId: "5", userId: "7", botId: "9", conversationId: "11",
+  place: { homeId: "5", chatId: "11", chatKind: "private", botId: "9" }, path: "/files/chat/Uploads/a.png", ip: "10.0.0.1"
 });
 const refusalOf = (promise) => promise.then(() => "kept", (error) => (error instanceof FilesError ? [error.statusCode, error.code, error.message] : error));
 
@@ -237,7 +240,8 @@ test("every file a command may have written is found for its check, however many
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), "mb-changed-since-"));
   t.after(() => fs.rm(dir, { recursive: true, force: true }));
   const store = createFileStore({ root: "", fallback: dir, ownStorage: async () => null, settle: async () => {}, explain: async () => {} });
-  const place = { homeId: "11", botId: "13", userId: "12" };
+  // A Public chat's place, where a command writes in all three folders.
+  const place = store.placeFor({ homeId: "11", chatId: "12", chatKind: "public", botId: "13" });
   await store.prepare(place);
   const write = async (virtualPath) => {
     const real = await store.resolve(place, virtualPath);
@@ -250,9 +254,9 @@ test("every file a command may have written is found for its check, however many
   await fs.utimes(old, before, before);
   const since = Date.now() - 1000;
   // More in one folder than a listing shows (its newest 300), in sub-folders, in all three folders, and hidden.
-  const made = Array.from({ length: 320 }, (_, at) => `/files/mine/Frames/frame-${at}.png`);
-  made.push("/files/bot/Clips/deep/er/clip.mp4", "/files/shared/team.png", "/files/mine/.hidden.png", "/files/mine/.cache/thumb.png");
+  const made = Array.from({ length: 320 }, (_, at) => `/files/chat/Frames/frame-${at}.png`);
+  made.push("/files/bot/Clips/deep/er/clip.mp4", "/files/shared/team.png", "/files/chat/.hidden.png", "/files/chat/.cache/thumb.png");
   for (const virtualPath of made) await write(virtualPath);
   assert.deepEqual((await store.changedSince(place, since)).sort(), [...made].sort());
-  assert.equal((await store.list(place)).mine.length, 300, "a listing stops at 300; the check's read doesn't");
+  assert.equal((await store.list(place)).chat.length, 300, "a listing stops at 300; the check's read doesn't");
 });

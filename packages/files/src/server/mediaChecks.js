@@ -25,7 +25,7 @@ const SCREENSHOT_WAIT_SECONDS = 30;
 // A file is checked whole, in memory; a picture or video bigger than this can't be, so it isn't kept.
 const CHECK_LIMIT = 100 * 1024 * 1024;
 const SCREENSHOT_NAME = /^\d+-[0-9a-f]{16}\.jpg$/u;
-const FIELDS = Object.freeze(["id", "workspaceId", "origin", "place", "path", "botId", "userId", "conversationId", "attempts"]);
+const FIELDS = Object.freeze(["id", "workspaceId", "origin", "place", "path", "chatBotId", "userId", "conversationId", "attempts"]);
 const GONE = new Set(["files_file_gone", "files_path_outside"]);
 // The origins whose file is kept in a files place, which `remove` takes it from; a screenshot is a computer's.
 const IN_A_PLACE = new Set(["upload", "saved_file"]);
@@ -91,16 +91,16 @@ export function createMediaChecks({ guard, mediaChecks, systemContext, store, ti
   /**
    * A screenshot a reply shows people (its name in the computer's folder, computers.js storeScreenshot), queued once the
    * reply's turn is over (botTools.js close), after it was written, and taken about `screenshotWaitSeconds` later (by
-   * this server's clock: a new row's time can't be the database's). A computer's key is its conversation's id.
-   * @param {{ computerId: string, name: string, workspaceId: string | null, userId?: string | null, botId?: string | null }} screenshot
+   * this server's clock: a new row's time can't be the database's). A computer's key is its bot's chat_bots id (D14).
+   * @param {{ computerId: string, name: string, workspaceId: string | null, userId?: string | null, chatId?: string | null }} screenshot
    */
-  function screenshotLater({ computerId, name, workspaceId, userId = null, botId = null }) {
+  function screenshotLater({ computerId, name, workspaceId, userId = null, chatId = null }) {
     return queue(workspaceId, [{
       origin: "screenshot",
       path: name,
-      conversationId: String(computerId),
+      chatBotId: String(computerId),
+      conversationId: chatId == null ? null : String(chatId),
       userId,
-      botId,
       checkAfter: new Date(Date.now() + screenshotWaitSeconds * 1000).toISOString()
     }]);
   }
@@ -118,14 +118,14 @@ export function createMediaChecks({ guard, mediaChecks, systemContext, store, ti
   /**
    * The files a bot's turn saved, by their paths in its place (fileStore.js): the pictures and videos among them are
    * queued.
-   * @param {{ place: object, paths: Iterable<string>, workspaceId: string, userId?: string | null, botId?: string | null,
-   *   conversationId?: string | null }} saved
+   * @param {{ place: object, paths: Iterable<string>, workspaceId: string, userId?: string | null, chatBotId?: string | null }} saved
    */
-  async function filesLater({ place, paths, workspaceId, userId = null, botId = null, conversationId = null }) {
+  async function filesLater({ place, paths, workspaceId, userId = null, chatBotId = null }) {
     if (!guard.on) return;
     const rows = [];
+    const conversationId = place?.chatId ?? null;
     for (const virtualPath of new Set(paths)) {
-      if (await mayBeMedia(place, virtualPath)) rows.push({ origin: "saved_file", place, path: virtualPath, userId, botId, conversationId });
+      if (await mayBeMedia(place, virtualPath)) rows.push({ origin: "saved_file", place, path: virtualPath, userId, chatBotId, conversationId });
     }
     await queue(workspaceId, rows);
   }
@@ -150,12 +150,12 @@ export function createMediaChecks({ guard, mediaChecks, systemContext, store, ti
       if (!SCREENSHOT_NAME.test(row.path)) return null;
       // Without the volume a screenshot is neither there nor gone: it waits.
       if (!(await store.available())) throw new Error("the files volume isn't available on this server");
-      const conversation = Number(row.conversationId);
+      const computer = Number(row.chatBotId);
       // Taken on another server, it's fetched from the files bucket first (D-91).
-      const real = (await store.computerFile(conversation, `screenshots/${row.path}`)) ?? path.join(store.computersRoot, String(conversation), "screenshots", row.path);
+      const real = (await store.computerFile(computer, `screenshots/${row.path}`)) ?? path.join(store.computersRoot, String(computer), "screenshots", row.path);
       async function remove() {
         await fs.rm(real, { force: true });
-        await store.settleComputer(conversation);
+        await store.settleComputer(computer);
       }
       return { real, remove };
     }
@@ -164,9 +164,10 @@ export function createMediaChecks({ guard, mediaChecks, systemContext, store, ti
       throw error;
     });
     if (!found) return null;
-    // Removing writes, so it waits while the home's files are being moved (D-80).
+    // Removing writes, so it waits while the home's files are being moved (D-80); a blocked file goes from a private
+    // chat's wider folders too, which its bot only reads (widened, D13).
     async function remove() {
-      await fs.rm((await store.existingFile(row.place, row.path, { writing: true })).real, { force: true });
+      await fs.rm((await store.existingFile(store.widened(row.place), row.path, { writing: true })).real, { force: true });
       await store.settle(row.workspaceId);
     }
     return { real: found.real, remove };
@@ -204,8 +205,9 @@ export function createMediaChecks({ guard, mediaChecks, systemContext, store, ti
       origin: row.origin,
       workspaceId: row.workspaceId,
       userId: row.userId,
-      botId: row.botId,
-      conversationId: row.conversationId,
+      botId: row.place?.botId ?? null,
+      // A screenshot's computer, by its chat_bots id (screenshotFile); a saved file's chat.
+      conversationId: row.origin === "screenshot" ? row.chatBotId : row.conversationId,
       // A saved file's place; a screenshot's row has none.
       place: row.place ?? null,
       path: row.path,
@@ -220,22 +222,23 @@ export function createMediaChecks({ guard, mediaChecks, systemContext, store, ti
   }
 
   /**
-   * A computer's screenshot, by its name and its computer, as a check gave them: refused unless the name is one a
-   * computer gives a screenshot (storeScreenshot) and the computer an id. Answers its path here, or null when it's gone.
+   * A computer's screenshot, by its name and its computer (a chat_bots id), as a check gave them: refused unless the
+   * name is one a computer gives a screenshot (storeScreenshot) and the computer an id. Answers its path here, or null
+   * when it's gone.
    */
-  async function screenshotFile(conversationId, name) {
-    if (!SCREENSHOT_NAME.test(String(name)) || !/^\d+$/u.test(String(conversationId))) {
+  async function screenshotFile(computerId, name) {
+    if (!SCREENSHOT_NAME.test(String(name)) || !/^\d+$/u.test(String(computerId))) {
       throw new FilesError(400, "That's not a computer's screenshot.", { code: "media_screenshot_invalid" });
     }
-    const conversation = Number(conversationId);
-    return { conversation, real: await store.computerFile(conversation, `screenshots/${name}`) };
+    const computer = Number(computerId);
+    return { computer, real: await store.computerFile(computer, `screenshots/${name}`) };
   }
 
   /**
    * Removes a file a check allowed, when a copy's own review judges it later (D-90). `item` is as that check gave it:
    * `{ origin, place, path, conversationId, workspaceId }`. An upload's or a saved file's is removed from its place,
    * writing, so it waits while the home's files are moved (D-80), and the home's files are settled; a screenshot's
-   * (`path` its name, `conversationId` its computer) from its computer's folder, which is then settled. It answers
+   * (`path` its name, `conversationId` its computer's chat_bots id) from its computer's folder, which is then settled. It answers
    * "removed", or "gone" when the file isn't there any more; and "not_kept_here", doing nothing, for any other origin,
    * whose item names no place (a Vault photo is never kept, a picture a bot makes is checked before it's kept, and a
    * profile picture is JSKIT's, removed through its users service). A path outside its place, a place in another home
@@ -246,10 +249,10 @@ export function createMediaChecks({ guard, mediaChecks, systemContext, store, ti
    */
   async function remove({ origin, place = null, path: virtualPath, conversationId = null, workspaceId = null }) {
     if (origin === "screenshot") {
-      const { conversation, real } = await screenshotFile(conversationId, virtualPath);
+      const { computer, real } = await screenshotFile(conversationId, virtualPath);
       if (!real) return "gone";
       await fs.rm(real, { force: true });
-      await store.settleComputer(conversation);
+      await store.settleComputer(computer);
       return "removed";
     }
     if (!IN_A_PLACE.has(origin)) return "not_kept_here";
@@ -257,7 +260,7 @@ export function createMediaChecks({ guard, mediaChecks, systemContext, store, ti
     if (!place || typeof place !== "object" || !place.homeId || otherHome) {
       throw new FilesError(400, "That file's place isn't one of its home's.", { code: "media_place_invalid" });
     }
-    const found = await store.existingFile(place, String(virtualPath ?? ""), { writing: true }).catch((error) => {
+    const found = await store.existingFile(store.widened(place), String(virtualPath ?? ""), { writing: true }).catch((error) => {
       if (error?.code === "ENOENT" || error?.code === "files_file_gone") return null;
       throw error;
     });

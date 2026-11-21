@@ -25,17 +25,19 @@ const STREAMS = [
     register: (http, { notices, streams }) => registerComputerRoutes(http, {
       computer: { subscribe: (computerId, send) => notices.subscribe("computer", computerId, send) },
       files: {},
-      // The bot's computer in the chat the address names (?chat=, D-112): its seat there and that seat's computer.
-      directory: {
-        findBot: async (botId) => ({ id: botId }),
-        // Step 1's route, which C's merge replaces with the two below; drop seatOf then.
-        seatOf: async () => ({ id: "9" }),
-        chatBotOf: async () => ({ id: "9" }),
-        computerOf: async (chatBotId) => ({ chatBotId, chatId: "4", chatKind: "public", botId: "5", botName: "A bot", workspaceId: "3" })
+      records: {
+        directory: {
+          findBot: async (botId) => ({ id: botId }),
+          chatBotOf: async (botId, chatId) => ({ id: "9", botId, chatId }),
+          computerOf: async (chatBotId) => ({ chatBotId, chatId: "4", chatKind: "public", botId: "5", botName: "Bot", workspaceId: "3" })
+        },
+        chats: {}
       },
       streams,
       meter: {}
-    })
+    }),
+    // The bot's computer in a chat (D14).
+    query: { chat: "4" }
   }
 ];
 
@@ -43,7 +45,7 @@ const STREAMS = [
 const closeOf = (raw) => new Promise((resolve) => raw.once("close", resolve));
 
 /** The route's handler on a real server, with what it subscribed to and the keep-alives it left. */
-async function streamOn(t, { route, register }) {
+async function streamOn(t, { route, register, query = {} }) {
   const handlers = new Map();
   const streams = new Set();
   const subscriptions = [];
@@ -86,7 +88,7 @@ async function streamOn(t, { route, register }) {
   const request = {
     raw,
     params: { workspaceSlug: "home-3", botId: "5" },
-    query: { chat: "4" },
+    query,
     user: { id: "7" },
     workspace: { id: "3", slug: "home-3" },
     membership: { roleSid: "member" },

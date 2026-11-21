@@ -75,7 +75,8 @@ export async function liveAndDraftVersions({ apps, appVersions }, filters, optio
  * @param {object} dependencies
  * @param {Record<string, import("@jskit-ai/resource-runtime/server/types").ResourceHandle>} dependencies.resources the apps
  *   feature's handles
- * @param {{ directory: { listHomeBots: Function, findBot: Function } }} dependencies.records mercbot.bots.records
+ * @param {{ directory: { listHomeBots: Function, findBot: Function }, chats: { appChat: Function } }} dependencies.records
+ *   mercbot.bots.records
  * @param {import("./types.js").Registry} dependencies.registry
  * @param {import("./types.js").Anyapi} dependencies.anyapi
  * @param {import("./types.js").Practices} dependencies.practices drafts' practice copies (D-71), cleared on publishing
@@ -83,7 +84,7 @@ export async function liveAndDraftVersions({ apps, appVersions }, filters, optio
 export function createApps({ resources, records, registry, anyapi, practices }) {
   const { apps: appRows, appVersions, appScripts, appPins, appSettings, appThemes, appFields, appTables, auditEvents, appJobs } = resources;
 
-  /** What only an app does (a draft, publishing, public screens, scripts, rooms): a view refuses it. */
+  /** What only an app does (a draft, publishing, public screens, scripts, a Builder chat): a view refuses it. */
   function notAView(app, what) {
     if (app.kind === "view") throw new RegistryError(409, `A view can't ${what}.`, { code: "apps_view_refused", params: { what } });
   }
@@ -119,7 +120,7 @@ export function createApps({ resources, records, registry, anyapi, practices }) 
     return { apps: found.map(toApp), pins: pins.map((pin) => pin.appId) };
   }
 
-  /** One app or view of the home by id, retired or not (`kind` narrows it), for the bots' rooms and settings. */
+  /** One app or view of the home by id, retired or not (`kind` narrows it), for the bots' chats and settings. */
   async function findApp(appId, options, { kind } = {}) {
     const { records: [app] } = await appRows.query(
       { filters: { id: String(appId || ""), ...(kind ? { kind } : {}) }, page: { size: 1 } },
@@ -162,12 +163,12 @@ export function createApps({ resources, records, registry, anyapi, practices }) 
     }));
   }
 
-  /** The home's bots that a button can hand a task to (not group chats), in id order. */
+  /** The home's bots that a button can hand a task to, in id order. */
   const botsOf = (options) => records.directory.listHomeBots(passedOn(options));
 
-  /** One bot of the home that a button can hand a task to (not a group chat) by its id, or null. */
+  /** One bot of the home that a button can hand a task to by its id, or null. */
   const botOf = async (botId, options) =>
-    (/^\d+$/u.test(String(botId ?? "")) ? records.directory.findBot(String(botId), passedOn(options), { kind: "bot" }) : null);
+    (/^\d+$/u.test(String(botId ?? "")) ? records.directory.findBot(String(botId), passedOn(options)) : null);
 
   /**
    * version: "live" (default), "draft" (falls back to live), or a version id.
@@ -379,11 +380,23 @@ export function createApps({ resources, records, registry, anyapi, practices }) 
     const { records: [settings] } = await appSettings.query({ page: { size: 1 } }, passedOn(options));
     if (!settings?.builderBotId) return null;
     const bot = await records.directory.findBot(String(settings.builderBotId), passedOn(options));
-    return bot ? { id: String(bot.id), name: bot.name, color: bot.color, shared: bot.sharing === "shared" } : null;
+    return bot ? { id: String(bot.id), name: bot.name, color: bot.color } : null;
+  }
+
+  /**
+   * The app's chat with the Builder (D-41), which Ask Builder opens: made the first time anyone asks, Public, named
+   * after the app, with the Builder and the person who asked in it, and found again after that, also when two pages
+   * ask at once (records.chats.appChat). An app of another home is a 404; a home without a Builder can't have one.
+   */
+  async function appChat(slug, options) {
+    const app = await find(slug, options);
+    const bot = await builder(options);
+    if (!bot) throw new RegistryError(409, "This home has no Builder yet: an owner or admin chooses one first.", { code: "apps_builder_missing" });
+    return records.chats.appChat({ appId: String(app.id), botId: bot.id, title: app.name }, passedOn(options));
   }
 
   async function setBuilder(actor, botId, options) {
-    const bot = botId == null ? null : await records.directory.findBot(String(botId), passedOn(options), { kind: "bot" });
+    const bot = botId == null ? null : await records.directory.findBot(String(botId), passedOn(options));
     if (!bot) throw new RegistryError(404, "That bot isn't in this home.", { code: "apps_bot_not_in_home" });
     if (bot.archivedAt) {
       throw new RegistryError(409, `${bot.name} is archived. Unarchive it to make it the Builder.`, { code: "apps_builder_archived", params: { name: bot.name } });
@@ -593,6 +606,7 @@ export function createApps({ resources, records, registry, anyapi, practices }) 
     find,
     findPublic,
     builder,
+    appChat,
     // readable-check: allow setter-seam - not a slot: saves which bot is the home's Builder
     setBuilder,
     tablesUsed,

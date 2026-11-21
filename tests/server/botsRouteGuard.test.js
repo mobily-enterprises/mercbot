@@ -148,7 +148,15 @@ test("an archived bot's computer doesn't wake or open a file (D-108), while anot
       open: async () => ({})
     },
     files: { store: { placeFor: () => ({}), existingFile: async () => ({}) } },
-    directory: { findBot: async () => bot, seatOf: async () => ({ id: "30", roomId: null }) },
+    // The bot in its chat (?chat=40), its computer the chat_bots row 30.
+    records: {
+      directory: {
+        findBot: async () => bot,
+        chatBotOf: async () => ({ id: "30", botId: "12", chatId: "40" }),
+        computerOf: async (chatBotId) => ({ chatBotId, chatId: "40", chatKind: "public", botId: "12", botName: "Ledger", workspaceId: "3" })
+      },
+      chats: {}
+    },
     streams: new Set(),
     meter: { pausedMessage: async () => null }
   });
@@ -165,13 +173,13 @@ test("an archived bot's computer doesn't wake or open a file (D-108), while anot
         return reply;
       }
     };
-    const request = { params: { workspaceSlug: "home-3", botId: "12" }, query: {}, body, user: { id: "7" }, workspace: { id: "3" } };
+    const request = { params: { workspaceSlug: "home-3", botId: "12" }, query: { chat: "40" }, body, user: { id: "7" }, workspace: { id: "3" } };
     request.callOptions = async () => requestContextOptions(request);
     await routes.get(key)(request, reply);
     return answer;
   }
   for (const key of ["POST /api/w/:workspaceSlug/bots/:botId/computer/wake", "POST /api/w/:workspaceSlug/bots/:botId/computer/open"]) {
-    const answer = await call(key, { path: "/files/mine/notes.docx" });
+    const answer = await call(key, { path: "/files/chat/notes.docx" });
     assert.equal(answer.status, 409, key);
     assert.deepEqual(answer.body, { error: "Ledger is archived. Unarchive it to use its computer.", code: "bots_bot_archived", params: { name: "Ledger" } });
   }

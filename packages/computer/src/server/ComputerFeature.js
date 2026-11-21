@@ -75,7 +75,7 @@ const ComputerFeature = defineFeature({
   },
   /**
    * @param {object} capabilities
-   * @param {{ directory: object }} capabilities.records mercbot.bots.records
+   * @param {{ directory: object, chats: object, messages: object }} capabilities.records mercbot.bots.records
    * @param {import("@jskit-ai/kernel/server/types").RuntimeHttp} capabilities.http
    * @param {import("@jskit-ai/kernel/server/types").RuntimeFastify} capabilities.fastify
    * @param {import("@local/notices/server/types").Notices} capabilities.notices
@@ -94,6 +94,8 @@ const ComputerFeature = defineFeature({
       resources,
       systemContext,
       directory: records.directory,
+      chats: records.chats,
+      messages: records.messages,
       env,
       notices,
       files,
@@ -120,12 +122,21 @@ const ComputerFeature = defineFeature({
       findScreen: computers.findScreen,
       screenshotData: computers.screenshotData,
       sweepFiles: computers.sweepFiles,
+      // A deleted chat's computers and folders go with it (chatMembers).
+      chatRemoved: computers.chatRemoved,
+      // A person takes over a chat's computer and hands it back (D16); what's signed in on it (D14).
+      takeOver: computers.takeOver,
+      handBack: computers.handBack,
+      noteSignIn: computers.noteSignIn,
       wake: computers.wake,
       sleep: computers.sleep,
       // An archived bot's computers go to sleep (D-108).
       sleepHome: computers.sleepHome,
       reset: computers.reset,
       browse: computers.browse,
+      startSignIn: computers.startSignIn,
+      signInPage: computers.signInPage,
+      endSignIn: computers.endSignIn,
       act: computers.act,
       fill: computers.fill,
       screenshot: computers.screenshot,
@@ -136,7 +147,7 @@ const ComputerFeature = defineFeature({
       code: computers.code,
       onCodingEnd: computers.onCodingEnd
     });
-    registerRoutes(http, { computer, files, directory: records.directory, streams, meter });
+    registerRoutes(http, { computer, files, records, streams, meter });
     return { computer };
   }
 });

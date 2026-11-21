@@ -3,6 +3,8 @@ import test from "node:test";
 import knexLib from "knex";
 import { createTestResourceRuntime } from "@jskit-ai/resource-runtime/test";
 import { testDatabaseConfig } from "../support/testDatabase.mjs";
+import { startBotRecords } from "../support/botRecords.mjs";
+import { cleanupStack } from "../support/cleanupStack.mjs";
 import { createAppJobs } from "../../packages/apps/src/server/appJobs.js";
 import { withPlatformSearch } from "../../packages/apps/src/server/platformTables.js";
 import { appJobResource } from "../../packages/apps/src/server/tableResources.js";
@@ -15,12 +17,15 @@ assert.equal(process.env.DB_NAME, process.env.TEST_DB_NAME, "DB_NAME must match 
 
 /**
  * One server's runner parts on its own connection, as the server wires them: apps.jobs (createAppJobs on AppsFeature's
- * app_jobs handle) and the bots' system context the runner claims in (BotsFeature's systemScope).
+ * app_jobs handle, under its row policy, which takes the bots' chat rule from their records) and the bots' system
+ * context the runner claims in (BotsFeature's systemScope).
  * @param {import("knex").Knex} knex
+ * @param {{ after: (work: () => unknown) => void }} cleanup the test's, for the records' stop
  */
-async function serverOn(knex) {
+async function serverOn(knex, cleanup) {
+  const records = await startBotRecords(knex, cleanup);
   const runtime = await createTestResourceRuntime({ knex });
-  const { appJobs } = await runtime.own("mercbot.apps", withPlatformSearch([appJobResource]));
+  const { appJobs } = await runtime.own("mercbot.apps", withPlatformSearch([appJobResource]), { requires: { records } });
   const systemContext = runtime.declareSystemScope("mercbot.bots", "run the bots' queued work and resume their replies in every home");
   return { jobs: createAppJobs({ appJobs }), systemContext };
 }
@@ -32,8 +37,10 @@ test("each queued task runs once across servers", async (context) => {
   const userId = (await knex("users").first())?.id;
   const [home] = await knex("workspaces").insert({ slug: `apps-jobs-${Date.now()}`, name: "Jobs test", owner_user_id: userId, is_personal: false }).returning("id");
   const workspaceId = home.id ?? home;
-  const [bot] = await knex("bots").insert({ user_id: userId, workspace_id: workspaceId, name: "Tess", color: "#1E86FC" }).returning("id");
-  context.after(async () => {
+  const [bot] = await knex("bots").insert({ made_by: userId, workspace_id: workspaceId, name: "Tess", color: "#1E86FC" }).returning("id");
+  // Newest first: the records go before the home and the connections.
+  const cleanup = cleanupStack(context);
+  cleanup.after(async () => {
     await knex("workspaces").where({ id: workspaceId }).del();
     await Promise.all([knex.destroy(), other.destroy()]);
   });
@@ -48,8 +55,8 @@ test("each queued task runs once across servers", async (context) => {
     if (job.prompt === "fail") throw new Error("boom");
   };
   const notices = { publish: async () => {}, subscribe: () => () => {} };
-  const one = startAppJobRunner({ ...(await serverOn(knex)), notices, run, everyMs: 50, concurrency: 3 });
-  const two = startAppJobRunner({ ...(await serverOn(other)), notices, run, everyMs: 50, concurrency: 3 });
+  const one = startAppJobRunner({ ...(await serverOn(knex, cleanup)), notices, run, everyMs: 50, concurrency: 3 });
+  const two = startAppJobRunner({ ...(await serverOn(other, cleanup)), notices, run, everyMs: 50, concurrency: 3 });
   const deadline = Date.now() + 15000;
   while (Date.now() < deadline && Number((await knex("app_jobs").whereIn("id", ids).whereIn("status", ["queued", "running"]).count("* as n").first()).n) > 0) {
     await new Promise((resolve) => setTimeout(resolve, 50));

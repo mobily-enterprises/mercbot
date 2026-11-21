@@ -365,7 +365,7 @@ export function buildFileTools({
    */
   async function saveMarkdownPage({ title, content, path: given }) {
     const real = await files.store.resolve(place, given);
-    if (!real) return { error: "Pages live in /files/bot or /files/shared." };
+    if (!real) return { error: "Pages live in /files/chat/Pages, /files/bot or /files/shared." };
     await mkdir(dirname(real), { recursive: true });
     const text = content.trim().startsWith("#") ? content.trim() : `# ${title}\n\n${content.trim()}`;
     await writeFile(real, `${text}\n`);
