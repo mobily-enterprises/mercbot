@@ -78,6 +78,16 @@ export function createBotList({ records, apps, notices }) {
     }
   }
 
+  /** A chat's people hear it has new messages, as a turn tells them (chatSeats.js tell); a failure leaves it to their next read. */
+  async function tellMessages(chatId, options) {
+    try {
+      const people = (await chats.people(String(chatId), options)).map((person) => person.user_id);
+      if (people.length) await notices.publishEach("bots", people, { type: "messages", chatId: String(chatId) });
+    } catch (error) {
+      console.warn("Telling a chat's people of its new messages failed; they see them on their next read.", error);
+    }
+  }
+
   /**
    * The person who made a bot hears of their new direct chat with it (openWith), on every page they have open, once it
    * is saved; a failure leaves it to their next read.
@@ -120,6 +130,7 @@ export function createBotList({ records, apps, notices }) {
     listBots,
     listedBot,
     tellHome,
+    tellMessages,
     tellOpened,
     makeBots,
     openWith

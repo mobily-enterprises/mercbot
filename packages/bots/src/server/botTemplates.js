@@ -225,7 +225,7 @@ export function createBotTemplates({ records, profiles, integrations, env, templ
    * a new template drafted from it with them folded in (`foldAdditions`), has them emptied. Its maker and the home's
    * owners and admins change it. The bot says so in the changer's direct chat with it, and greets there with the new
    * template's greeting, which asks its setup questions; its routines stay as they are. Everyone in the home hears the
-   * bot changed. Answers the bot as Team lists it.
+   * bot changed, and that chat's people its new messages, so an open chat shows them. Answers the bot as Team lists it.
    */
   async function changeTemplate(botId, choice, displayName, options) {
     // A new template's lost race for its tag runs it again, when the tag is then taken.
@@ -239,7 +239,7 @@ export function createBotTemplates({ records, profiles, integrations, env, templ
       const same = pointer.library_template
         ? pointer.library_template === before.library_template
         : String(pointer.home_template_id) === String(before.home_template_id || "");
-      if (same) return false;
+      if (same) return null;
       const folded = choice.draft !== undefined && choice.foldAdditions === true ? { additions: "" } : {};
       await bots.update(before.id, { ...pointer, ...folded, template_since: new Date().toISOString() }, txOptions);
       const after = await bots.get(before.id, txOptions);
@@ -258,9 +258,12 @@ export function createBotTemplates({ records, profiles, integrations, env, templ
         },
         ...(greeting ? [{ kind: "text", role: "bot", authorBotId: String(after.id), body: { text: greeting } }] : [])
       ], txOptions);
-      return true;
+      return chat.id;
     });
-    if (changed) await botList.tellHome([String(botId)], "changed", options);
+    if (changed) {
+      await botList.tellHome([String(botId)], "changed", options);
+      await botList.tellMessages(changed, options);
+    }
     return botList.listedBot(String(botId), options);
   }
 
