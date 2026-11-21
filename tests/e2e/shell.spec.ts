@@ -215,7 +215,9 @@ test("a direct chat's details are its bot's card: its tabs read each, and it ren
   await shell.chatRow(page, "Otto").click();
   calls.length = 0;
   await shell.chat(page).getByRole("button", { name: "Otto details" }).click();
-  const details = shell.details(page, "Otto's card");
+  // The card is named after its bot, so it follows the rename. A dot stands for the apostrophe: Playwright 1.61 misreads a
+  // regular expression with one in a selector.
+  const details = shell.details(page, /^Otto( Pinned)?.s card$/u);
   await expect(details.getByRole("tab")).toHaveText(["Details", "Files", "Library", "Computer"]);
   await expect(details.getByRole("tab", { name: "Details" })).toHaveAttribute("aria-selected", "true");
   await expect(details.getByText("Routines are jobs Otto repeats on a schedule.", { exact: false })).toBeVisible();
