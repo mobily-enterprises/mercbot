@@ -114,6 +114,13 @@ export function createChatRepository({ resources, systemContext, profiles, membe
     return byChat;
   }
 
+  /** The chats among `ids` the caller may read, in id order: what routines and search results name as their chat. */
+  async function byIds(ids, options) {
+    const wanted = [...new Set(ids.map(String))].filter(isId);
+    if (!wanted.length) return [];
+    return rowsOf(await conversations.queryAll({ filters: { id: wanted }, sort: ["id"] }, passedOn(options)), options);
+  }
+
   /** The people in one chat. */
   const people = async (chatId, options) => (await peopleOf([String(chatId)], options)).get(String(chatId)) ?? [];
 
@@ -421,6 +428,20 @@ export function createChatRepository({ resources, systemContext, profiles, membe
     return asRow(await chatPeople.patch(String(mine.id), fields, passedOn(options)), options);
   }
 
+  /**
+   * A chat's onboarding script moves on (onboarding.js): from step `from` to `to` (null when it's over), only while it
+   * is still `from`, so of two pages moving it at once one does. Answers whether this one did.
+   */
+  async function moveOnboarding(chatId, from, to, options) {
+    if (!isId(chatId) || !from) return false;
+    const moved = await conversations.patchWhere(
+      { id: String(chatId), onboardingStep: String(from) },
+      { onboardingStep: to ?? null },
+      { ...passedOn(options), returning: "ids" }
+    );
+    return moved.length > 0;
+  }
+
   /** The caller has read the chat up to a message: no longer unread. */
   const markRead = (chatId, messageId, options) => updatePlace(chatId, { readUpTo: Number(messageId) || null, unread: false }, options);
 
@@ -591,6 +612,7 @@ export function createChatRepository({ resources, systemContext, profiles, membe
     withTransaction,
     find,
     get,
+    byIds,
     lock,
     names,
     isHomeMember,
@@ -618,6 +640,7 @@ export function createChatRepository({ resources, systemContext, profiles, membe
     remove,
     updatePlace,
     markRead,
+    moveOnboarding,
     markUnreadForOthers,
     nextPinPosition,
     reorderPins,
