@@ -68,6 +68,9 @@ test("adding from a template makes a member of the home pointing at it, greeting
   assert.equal(await knex("conversations").where({ direct_user_id: ben, direct_bot_id: bot.id }).first(), undefined, "Ben's chat with it comes on his [Message]");
   const heard = kit.calls.told.find((notice) => notice.event.type === "bot");
   assert.deepEqual([heard.event, heard.keys.sort()], [{ type: "bot", botId: bot.id, change: "created" }, [anna, ben].sort()]);
+  // Anna's other pages hear of her new chat, and no one else's.
+  const opened = kit.calls.told.filter((notice) => notice.event.type === "chat");
+  assert.deepEqual(opened.map((notice) => [notice.event, notice.keys]), [[{ type: "chat", chatId: String(chat.id), change: "created" }, [anna]]]);
 });
 
 test("New bot makes a general bot that introduces itself, or one on the template chosen, greeting", async (context) => {
@@ -77,6 +80,8 @@ test("New bot makes a general bot that introduces itself, or one on the template
   assert.deepEqual([general.name, general.template.tag, general.madeBy], ["Juno", "general", anna]);
   const first = await directOf(anna, general.id);
   assert.equal(first.chat.onboarding_step, "intro-greet", "it introduces itself when Anna first opens it");
+  assert.deepEqual(kit.calls.told.filter((notice) => notice.event.type === "chat").map((notice) => [notice.event, notice.keys]),
+    [[{ type: "chat", chatId: String(first.chat.id), change: "created" }, [anna]]], "her other pages hear of the new chat");
   assert.deepEqual(first.messages.map((message) => message.kind), ["timestamp"]);
 
   const chef = await kit.templates.createBot({ name: "Chef", shape: "cloud", color: "#14C16F", template: { library: "weekly-meal-planner" } }, as("anna"));

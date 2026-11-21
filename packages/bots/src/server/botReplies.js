@@ -1,3 +1,4 @@
+import { languageName } from "./botWriting.js";
 import { APP_ACTIONS } from "./appTools.js";
 import { MAIL_CHANGES } from "./mailTools.js";
 import { SEDNA_CHANGES } from "./sednaActions.js";
@@ -744,14 +745,3 @@ function connectedPrompt({ app, task }) {
 
 /** A reply that isn't checkpointed keeps none of its steps along the way. */
 async function keepNoSteps() {}
-
-/** The person's language from the page, by its English name; English needs no line. */
-export function languageName(tag) {
-  const value = String(tag || "").trim();
-  if (!/^[a-zA-Z]{2,3}(-[a-zA-Z0-9]{2,8})*$/u.test(value) || /^en\b/iu.test(value)) return "";
-  try {
-    return new Intl.DisplayNames(["en"], { type: "language" }).of(value) || "";
-  } catch {
-    return "";
-  }
-}

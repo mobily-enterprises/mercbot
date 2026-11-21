@@ -3,6 +3,7 @@ import { BOT_COMPUTER_FILTERS, SERVER_FILTERS, TICKET_FILTERS } from "./computer
 import { createComputers, LOG_COMPUTER_EVENTS, PLACE_HERE } from "./computers.js";
 import { registerRoutes } from "./registerRoutes.js";
 import { attachVncBridge } from "./vncBridge.js";
+import { standInDesktops } from "./standInDesktops.js";
 import {
   botBrowserStateResource,
   botComputerResource,
@@ -101,7 +102,9 @@ const ComputerFeature = defineFeature({
       files,
       meter,
       placement: placement ?? PLACE_HERE,
-      events: events ?? LOG_COMPUTER_EVENTS
+      events: events ?? LOG_COMPUTER_EVENTS,
+      // The Test Preview's computers pretend (standInDesktops.js); everywhere else they're real.
+      ...(standInDesktops(env) ? { createManager: standInDesktops(env) } : {})
     });
     fastify.addHook("onListen", () => {
       computers.register(fastify.server.address()).catch((error) => {

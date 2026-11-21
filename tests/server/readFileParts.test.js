@@ -15,7 +15,8 @@ test("read_file reads a long text in parts", async () => {
   await writeFile(path.join(dir, "big.txt"), lines.join("\n"));
   await writeFile(path.join(dir, "min.json"), `${"{\"a\":1}".repeat(30000)}\n{"b":2}`);
   const files = { store: { existingFile: async (_place, wanted) => ({ real: path.join(dir, path.basename(wanted)), stat: statSync(path.join(dir, path.basename(wanted))) }), list: async () => ({ mine: [], shared: [] }), settle: async () => {} }, apps: { session: () => ({ close() {} }), textOf: async () => null } };
-  const { tools } = buildTools(turnDoubles({ approvals: { decide: async () => "allow" }, computer: null, files, homeId: 1, userId: 1, botId: 1, conversationId: 1 }));
+  const { tools } = buildTools(turnDoubles({ approvals: { decide: async () => "allow" }, computer: null, files,
+    seat: { id: "1", workspace_id: "1", user_id: "1", chat_id: "1", chat_bot_id: "1", chat: { id: "1", kind: "public" } } }));
   const first = await tools.readFile.execute({ path: "/files/chat/big.txt" });
   assert.equal(first.lines, 30000);
   const next = Number(first.text.match(/from_line: (\d+)/u)[1]);

@@ -79,6 +79,15 @@ export function createBotList({ records, apps, notices }) {
   }
 
   /**
+   * The person who made a bot hears of their new direct chat with it (openWith), on every page they have open, once it
+   * is saved; a failure leaves it to their next read.
+   */
+  async function tellOpened(chatId, options) {
+    await notices.publishEach("bots", [personOf(options)], { type: "chat", chatId: String(chatId), change: "created" })
+      .catch((error) => console.warn("Telling the person about their new chat failed; they see it on their next read.", error));
+  }
+
+  /**
    * New bots, made together in the call's transaction: New bot's one, or a team's several (D-105), through the same
    * statements, so six cost what one does. Each `{ name, shape, color, start }` (lookOf, and NewBotStart) is the
    * person's, a member of the home in no chat yet: it's on Team, and someone's [Message] opens a chat with it. Nothing
@@ -111,6 +120,7 @@ export function createBotList({ records, apps, notices }) {
     listBots,
     listedBot,
     tellHome,
+    tellOpened,
     makeBots,
     openWith
   });

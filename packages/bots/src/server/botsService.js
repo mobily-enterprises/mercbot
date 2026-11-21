@@ -20,9 +20,10 @@ import { createBotTeaching } from "./botTeaching.js";
  * composed from one factory per concern: the chats and their members (chatMembers.js), the welcome chat's steps
  * (onboarding.js), the turns (chatTurns.js: messages, replies, cards, requests, goals, routines and background runs),
  * the Team page's surfaces (the bot list, templates, settings, archive, teams, the Library, knowledge, Add bots'
- * plans, drafted templates), the routines lists (chatRoutines.js) and teaching (botTeaching.js). Every read and write goes through mercbot.bots.records and the other owners' capabilities with the call's
- * options; background work (requests, goals, routines, Apps tasks, resumed replies) runs as a job for one person in
- * its home, from the bots' system context.
+ * plans, drafted templates), the routines lists (chatRoutines.js) and teaching (botTeaching.js). Every read and write
+ * goes through mercbot.bots.records and the other owners' capabilities with the call's options; background work
+ * (requests, goals, routines, Apps tasks, resumed replies) runs as a job for one person in its home, from the bots'
+ * system context.
  * @param {object} dependencies
  * @param {import("./types.js").BotRecords} dependencies.records mercbot.bots.records: the bots' tables
  * @param {(reason: string) => object} dependencies.systemContext the bots' system context (BotsFeature's systemScope)

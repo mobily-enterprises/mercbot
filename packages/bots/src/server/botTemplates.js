@@ -141,11 +141,12 @@ export function createBotTemplates({ records, profiles, integrations, env, templ
         : { library_template: template.slug };
       const start = { columns: { ...pointer, template_since: new Date().toISOString() }, greeting };
       const [bot] = await botList.makeBots([{ name, shape: template.shape, color: template.color, start }], txOptions);
-      await botList.openWith(bot, greeting, txOptions);
-      return bot;
+      const chat = await botList.openWith(bot, greeting, txOptions);
+      return { bot, chatId: chat.id };
     }));
-    await botList.tellHome([made.id], "created", options);
-    return botList.listedBot(String(made.id), options);
+    await botList.tellHome([made.bot.id], "created", options);
+    await botList.tellOpened(made.chatId, options);
+    return botList.listedBot(String(made.bot.id), options);
   }
 
   /**
@@ -159,11 +160,12 @@ export function createBotTemplates({ records, profiles, integrations, env, templ
     const made = await retryLostInsertRace(passedOn(options), () => chats.withTransaction(passedOn(options), async (txOptions) => {
       const start = await startOn({ choice: input.template ?? { library: GENERAL.slug }, botName: look.name }, txOptions);
       const [bot] = await botList.makeBots([{ ...look, start }], txOptions);
-      await botList.openWith(bot, start.greeting, txOptions);
-      return bot;
+      const chat = await botList.openWith(bot, start.greeting, txOptions);
+      return { bot, chatId: chat.id };
     }));
-    await botList.tellHome([made.id], "created", options);
-    return botList.listedBot(String(made.id), options);
+    await botList.tellHome([made.bot.id], "created", options);
+    await botList.tellOpened(made.chatId, options);
+    return botList.listedBot(String(made.bot.id), options);
   }
 
   /**

@@ -13,6 +13,7 @@ import { createRegistry } from "../../../packages/apps/src/server/registry.js";
 import { startAppJobRunner } from "../../../packages/bots/src/server/appJobRunner.js";
 import { createBotRequests } from "../../../packages/bots/src/server/botRequests.js";
 import { botRequestResource, botRoutineResource, messageResource } from "../../../packages/bots/src/server/records/tableResources.js";
+import { createChatRules } from "../../../packages/bots/src/server/records/rowPolicies.js";
 import { REQUEST_SEARCH, ROUTINE_SEARCH, createWorkRepository } from "../../../packages/bots/src/server/records/workRepository.js";
 import { startRoutineRunner } from "../../../packages/bots/src/server/routineRunner.js";
 import { ACCOUNT_FILTERS, createAccounts } from "../../../packages/integrations/src/server/accounts.js";
@@ -77,8 +78,9 @@ async function sweep(pauseMs, start) {
 }
 
 /**
- * The bots' records as BotRecordsFeature owns them, on this Knex (a second pool is a second server), and the bots'
- * system context, as BotsFeature declares it.
+ * The bots' records as BotRecordsFeature owns them, on this Knex (a second pool is a second server), the bots' system
+ * context, as BotsFeature declares it, and the chat rules the Apps tables' row policies read through (D-112), which
+ * let the sweeps' system context through.
  * @param {import("knex").Knex} knex
  */
 async function botsWork(knex) {
@@ -91,22 +93,24 @@ async function botsWork(knex) {
   return {
     runtime,
     work: createWorkRepository(resources),
+    rules: createChatRules(resources),
     systemContext: runtime.declareSystemScope("mercbot.bots", "run the bots' queued work and resume their replies in every home")
   };
 }
 
 /**
  * apps.jobs as AppsFeature gives it to the bots (createAppJobs on its app_jobs handle, owned with its search entries),
- * on the same runtime. Apps' modules load only for the Apps job sweeps.
+ * on the same runtime, with the bots' chat rules its row policy requires. Apps' modules load only for the Apps job sweeps.
  * @param {Awaited<ReturnType<typeof createTestResourceRuntime>>} runtime
+ * @param {ReturnType<typeof createChatRules>} rules
  */
-async function appJobs(runtime) {
+async function appJobs(runtime, rules) {
   const [{ createAppJobs }, { withPlatformSearch }, { appJobResource }] = await Promise.all([
     import("../../../packages/apps/src/server/appJobs.js"),
     import("../../../packages/apps/src/server/platformTables.js"),
     import("../../../packages/apps/src/server/tableResources.js")
   ]);
-  const { appJobs: handle } = await runtime.own("mercbot.apps", withPlatformSearch([appJobResource]));
+  const { appJobs: handle } = await runtime.own("mercbot.apps", withPlatformSearch([appJobResource]), { requires: { records: { rules } } });
   return createAppJobs({ appJobs: handle });
 }
 
@@ -128,8 +132,8 @@ export async function sweepRoutines(knex, { pauseMs = 0 } = {}) {
  * @param {{ pauseMs?: number }} [options]
  */
 export async function sweepAppJobs(knex, { pauseMs = 0 } = {}) {
-  const { runtime, systemContext } = await botsWork(knex);
-  const jobs = await appJobs(runtime);
+  const { runtime, rules, systemContext } = await botsWork(knex);
+  const jobs = await appJobs(runtime, rules);
   return sweep(pauseMs, (watch) =>
     startAppJobRunner({ jobs: { ...jobs, claimNext: watch(jobs.claimNext) }, systemContext, notices: QUIET, run: async () => {}, everyMs: HOUR_MS, concurrency: 1000 }));
 }
@@ -141,8 +145,8 @@ export async function sweepAppJobs(knex, { pauseMs = 0 } = {}) {
  * @param {import("knex").Knex} knex
  */
 export async function stalledClaims(knex) {
-  const { runtime, work, systemContext } = await botsWork(knex);
-  const jobs = await appJobs(runtime);
+  const { runtime, work, rules, systemContext } = await botsWork(knex);
+  const jobs = await appJobs(runtime, rules);
   const system = { context: systemContext("run the stopped servers' runs") };
   return {
     routine: () => work.claimStalledRoutine(90, system),

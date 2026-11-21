@@ -60,5 +60,8 @@ export function createWorkPause({ records, apps, seats }) {
     await sayPaused(paused, new Map(where.map((seat) => [String(seat.id), String(seat.chatId)])), line, txOptions);
   }
 
-  return Object.freeze({ pauseWork, pauseMadeBy });
+  return Object.freeze({
+    pauseWork,
+    pauseMadeBy
+  });
 }

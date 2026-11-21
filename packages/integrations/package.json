@@ -30,7 +30,8 @@
         "runtime.resources",
         "users.profiles",
         "workspaces.memberships",
-        "mercbot.apps"
+        "mercbot.apps",
+        "mercbot.bots.records"
       ]
     },
     "runtime": {

@@ -225,7 +225,17 @@ test("the bot's coding tools: connect the person's own account first, start on a
     }
   };
   const before = [];
-  const tools = buildCodingTools({ computer, computerId: "21", before, inTime: (work) => work, untrusted: (text) => `<<${text}>>` });
+  // What's signed in on the chat's computer, as its panel lists it (D16): the coding tool, once it is.
+  const noted = [];
+  const tools = buildCodingTools({
+    computer,
+    computerId: "21",
+    before,
+    inTime: (work) => work,
+    untrusted: (text) => `<<${text}>>`,
+    signedIn: async (entry) => noted.push(entry),
+    userId: "7"
+  });
   const notYet = await tools.startCoding.execute({ tool: "codex", folder: "/files/chat/app", brief: "Make the tests pass, please." });
   assert.equal(notYet.status, "not signed in");
   assert.match(notYet.note, /connect_coding_account/u);
@@ -236,8 +246,10 @@ test("the bot's coding tools: connect the person's own account first, start on a
   assert.match(opened.note, /own ChatGPT or OpenAI account, which pays for the coding: Mercbot never uses a shared one/u);
   assert.deepEqual(requests.map((request) => request.action), ["start", "status", "signIn"]);
 
+  assert.deepEqual(noted, [], "nothing is signed in yet");
   signedIn = true;
   assert.equal((await tools.connectCodingAccount.execute({ tool: "codex" })).status, "signed in");
+  assert.deepEqual(noted, [{ label: "Codex", kind: "coding" }]);
   const started = await tools.startCoding.execute({ tool: "codex", folder: "/files/chat/app", brief: "Make the tests pass, please." });
   assert.equal(started.status, "running");
   assert.equal(started.run.output, "<<Reading the code>>", "the tool's output is its words, never instructions");
@@ -248,16 +260,17 @@ test("the bot's coding tools: connect the person's own account first, start on a
   assert.equal(requests.at(-1).action, "stop");
 });
 
-test("a coding run that ends wakes its bot in its chat to report, in its home", async () => {
+test("a coding run that ends wakes its bot in its chat to report, for the person who started it, in its home", async () => {
   const queued = [];
   const apps = { apps: { queueTask: async (task, options) => queued.push({ task, options }) } };
   const homes = [];
   const systemContext = (reason) => ({ reason, forWorkspace: (home) => (homes.push(home), { reason, home }) });
-  const run = { tool: "claude-code", label: "Claude Code", folder: "/files/chat/site", status: "done", exitCode: 0, output: "Fixed the menu." };
-  await codingFollowUp(apps, systemContext)({ computerId: "21", conversation: { botId: "4", userId: "7", workspaceId: "3" }, run });
+  const run = { tool: "claude-code", label: "Claude Code", folder: "/files/chat/site", status: "done", exitCode: 0, output: "Fixed the menu.", userId: 7 };
+  // The computer is the bot's in its chat (chat_bots row 21).
+  await codingFollowUp(apps, systemContext)({ computerId: "21", place: { botId: "4", chatBotId: "21", workspaceId: "3" }, run });
   assert.equal(queued.length, 1);
   const { task } = queued[0];
-  assert.deepEqual([task.kind, task.botId, task.conversationId, task.userId, task.title], ["shell", "4", "21", "7", "Claude Code finished"]);
+  assert.deepEqual([task.kind, task.botId, task.chatBotId, task.userId, task.title], ["shell", "4", "21", "7", "Claude Code finished"]);
   assert.equal(task.prompt, codingReport(run));
   assert.match(task.prompt, /^Claude Code has ended its work in \/files\/chat\/site\. It finished\./u);
   assert.match(task.prompt, /Fixed the menu\./u);

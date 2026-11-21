@@ -48,7 +48,8 @@ test("send_files attaches existing files as cards, however old, and reports miss
   await writeFile(old, "%PDF-1.4 page two");
   await utimes(old, new Date(Date.now() - 86400000), new Date(Date.now() - 86400000));
   const files = { store, apps: { session: () => ({ close() {} }) } };
-  const run = buildTools(turnDoubles({ approvals: { decide: async () => "allow" }, computer: null, files, place, homeId: "1", userId: "3", botId: "2", conversationId: "4" }));
+  const run = buildTools(turnDoubles({ approvals: { decide: async () => "allow" }, computer: null, files, place,
+    seat: { id: "2", workspace_id: "1", user_id: "3", chat_id: "4", chat_bot_id: "9", chat: { id: "4", kind: "private" } } }));
   assert.deepEqual(await run.fileCards(), [], "an old file has no card by itself");
   const result = await run.tools.sendFiles.execute({ paths: ["/files/chat/week-plan-page-2.pdf", "/files/chat/week-plan-2-weekend.pdf"] });
   assert.deepEqual(result.attached, ["week-plan-page-2.pdf"]);

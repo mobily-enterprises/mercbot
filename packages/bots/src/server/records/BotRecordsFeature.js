@@ -128,7 +128,6 @@ const BotRecordsFeature = defineFeature({
       policies: createPolicyRepository(resources),
       // What a turn reads and keeps beside its chat: its messages, the to-do card and job notes.
       turns: createTurnRepository({ resources, work }),
-      // A bot made from a template opening a chat.
       // New bots made together, New bot's one and a team's several, in the same statements (D-105).
       newBots: createNewBotRepository({ resources, homeTemplates }),
       // The home's own bot templates and what changed in them (D-98).

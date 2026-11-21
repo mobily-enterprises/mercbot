@@ -332,10 +332,13 @@ export function createChatRepository({ resources, systemContext, profiles, membe
    * members, one per person and bot (ux_conversations_direct).
    */
   async function direct(botId, options, { onboardingStep = null } = {}) {
-    const person = personOf(options);
-    const findIt = async (callOptions) =>
-      asRow(await firstOf(conversations, { directUserId: person, directBotId: String(botId) }, callOptions), callOptions);
-    return madeOnce(findIt, () => create({ kind: "public", directBotId: String(botId), bots: [String(botId)], onboardingStep }, options), options);
+    const make = () => create({ kind: "public", directBotId: String(botId), bots: [String(botId)], onboardingStep }, options);
+    return madeOnce((callOptions) => directWith(botId, callOptions), make, options);
+  }
+
+  /** The person's direct chat with a bot, or null: read only, never made (a template drafted from the bot). */
+  async function directWith(botId, options) {
+    return asRow(await firstOf(conversations, { directUserId: personOf(options), directBotId: String(botId) }, options), options);
   }
 
   /** The home's everyone chat, or null. */
@@ -634,6 +637,7 @@ export function createChatRepository({ resources, systemContext, profiles, membe
     isPerson,
     create,
     direct,
+    directWith,
     everyoneChat,
     makeEveryoneChat,
     appChat,

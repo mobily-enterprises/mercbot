@@ -70,10 +70,15 @@ test("people and bots are added and removed; a direct chat takes no one else; th
   const seat = await records.chats.addBot(plans.id, chef, asAnna);
   assert.equal(seat.bot_id, chef, "adding a bot that's in it answers its seat");
 
-  // A direct chat is one person's with one bot, Public (D15), made once.
+  // A direct chat is one person's with one bot, Public (D15), made once; looking for it makes nothing.
+  const chatsBefore = Number((await knex("conversations").where({ workspace_id: homeId }).count("id as n").first()).n);
+  assert.equal(await records.chats.directWith(chef, asAnna), null);
+  assert.equal(Number((await knex("conversations").where({ workspace_id: homeId }).count("id as n").first()).n), chatsBefore, "looking made nothing");
   const direct = await records.chats.direct(chef, asAnna);
   assert.equal(direct.kind, "public");
   assert.equal((await records.chats.direct(chef, asAnna)).id, direct.id);
+  assert.equal((await records.chats.directWith(chef, asAnna)).id, direct.id);
+  assert.equal(await records.chats.directWith(chef, asBen), null, "Anna's, not Ben's");
   await assert.rejects(records.chats.addPerson(direct.id, ben, asAnna), { statusCode: 409 });
   await assert.rejects(records.chats.rename(direct.id, "Mine", asAnna), { statusCode: 409 });
 

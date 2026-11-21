@@ -254,7 +254,8 @@ test("a page the bot moves with move_file takes its versions along", async () =>
   await writeFile(real, "<h1>Party</h1>");
   const changes = [];
   const files = { store, apps: { session: () => ({ close() {} }) }, pages: { pathChanged: async (change) => changes.push(change) } };
-  const run = buildTools(turnDoubles({ approvals: { decide: async () => "allow" }, computer: null, files, place, homeId: "1", userId: "3", botId: "2", conversationId: "4" }));
+  const run = buildTools(turnDoubles({ approvals: { decide: async () => "allow" }, computer: null, files, place,
+    seat: { id: "2", workspace_id: "1", user_id: "3", chat_id: "4", chat_bot_id: "9", chat: { id: "4", kind: "public" } } }));
   assert.equal((await run.tools.moveFile.execute({ from: "/files/bot/Pages/party.html", to: "/files/bot/Pages/fiesta.html" })).status, "moved");
   assert.deepEqual(changes, [{ homeId: "1", botId: "2", from: "/files/bot/Pages/party.html", to: "/files/bot/Pages/fiesta.html" }]);
   await rm(dir, { recursive: true, force: true });

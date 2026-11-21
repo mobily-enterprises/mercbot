@@ -74,6 +74,7 @@ async function setup(context) {
       env,
       // Pat's turn with bot 3 in chat 5 of home 1 (its seat 11).
       seat: { id: "3", workspace_id: "1", user_id: "7", chat_id: "5", chat_bot_id: "11", chat: { id: "5", kind: chatKind } },
+      place: files.store.placeFor(),
       routineRun,
       routine,
       viaBot,
