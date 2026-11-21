@@ -140,6 +140,19 @@ describe("an author who has left", () => {
     expect([labelIn(item(html, lost)), labelIn(item(html, deleted))]).toEqual(["Someone", "Someone"]);
   });
 
+  it("keeps the name a message was written under once its author has gone, the current name while they're known (R2)", async () => {
+    const written = (author, text, authorName) => said(author, text, { body: { text, authorName } });
+    const renamed = written({ userId: "3" }, "Wine's in the fridge", "Carla B.");
+    const left = written({ userId: "4" }, "Bye all", "Dario Neri");
+    const removed = written({ role: "user" }, "Thanks!", "Elena Russo");
+    const lost = written({ botId: "12" }, "Done.", "Planner");
+    const html = await timeline({ chat: DIRECT, people, bots, messages: [renamed, left, removed, lost] });
+    expect(labelIn(item(html, renamed))).toBe("Carla Bianchi");
+    expect([labelIn(item(html, left)), initialsIn(item(html, left))]).toEqual(["Dario Neri", "DN"]);
+    expect([labelIn(item(html, removed)), initialsIn(item(html, removed))]).toEqual(["Elena Russo", "ER"]);
+    expect(labelIn(item(html, lost))).toBe("Planner");
+  });
+
   it("is told apart from the chat's members by the author's id alone", () => {
     expect(authorOf(said(BEN, "x"), { chat: KITCHEN, me: "1" })).toMatchObject({ key: "person-2", name: "Ben Rossi", member: true, mine: false });
     expect(authorOf(said(ANNA, "x"), { chat: KITCHEN, me: "1" })).toMatchObject({ key: "person-1", mine: true });

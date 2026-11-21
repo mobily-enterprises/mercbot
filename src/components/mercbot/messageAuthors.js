@@ -25,10 +25,11 @@ export const GONE_BOT = Object.freeze({ id: "gone", name: SOMEONE, color: null, 
 
 /**
  * Who wrote a message: `key` (the same for every message of one author), `name`, and either `person` with `initials`
- * or `bot`, a face for the avatar; `mine` for the person looking; `member` while they're still in the chat. A person no
- * longer in the chat keeps the name the home's people give them, a bot the Team's; one gone from the home too reads
- * "Someone". Null for Mercbot's own lines.
- * @param {{ authorUserId?: string | null, authorBotId?: string | null, role: string }} message
+ * or `bot`, a face for the avatar; `mine` for the person looking; `member` while they're still in the chat. The name is
+ * the current one while the author is in the chat, the home's people or its bots; for one who has left or a bot that's
+ * gone, the name the message was written under (body.authorName, R2); "Someone" only when an older message has none.
+ * Null for Mercbot's own lines.
+ * @param {{ authorUserId?: string | null, authorBotId?: string | null, role: string, body?: { authorName?: string } }} message
  * @param {{
  *   chat: import("../../types.js").Chat,
  *   people?: Array<{ id: string, name: string }> | null,
@@ -37,10 +38,11 @@ export const GONE_BOT = Object.freeze({ id: "gone", name: SOMEONE, color: null, 
  * }} where the open chat, the home's people and bots (null while they load), and the person looking
  */
 export function authorOf(message, { chat, people = null, bots = null, me = "" }) {
+  const written = message.body?.authorName || "";
   if (message.authorUserId != null) {
     const id = String(message.authorUserId);
     const inChat = (chat?.people || []).find((person) => String(person.userId) === id);
-    const name = inChat?.name || (people || []).find((person) => String(person.id) === id)?.name || "";
+    const name = inChat?.name || (people || []).find((person) => String(person.id) === id)?.name || written;
     return {
       key: `person-${id}`,
       name: name || SOMEONE,
@@ -56,12 +58,14 @@ export function authorOf(message, { chat, people = null, bots = null, me = "" })
     const known = inChat ? botFace(inChat) : (bots || []).find((bot) => String(bot.id) === id);
     const bot = known
       ? { id, name: known.name, color: known.color, shape: known.shape, archivedAt: known.archivedAt ?? null }
-      : { ...GONE_BOT, id };
+      : { ...GONE_BOT, id, name: written || SOMEONE };
     return { key: `bot-${id}`, name: bot.name, bot, mine: false, member: Boolean(inChat) };
   }
-  // A person or a bot whose account has gone from the home: what they said stays, under no name.
-  if (message.role === "user") return { key: "person-gone", name: SOMEONE, person: true, initials: "?", mine: false, member: false };
-  if (message.role === "bot") return { key: "bot-gone", name: SOMEONE, bot: GONE_BOT, mine: false, member: false };
+  // A person or a bot whose account has gone from the home: what they said stays, under the name it was written under.
+  if (message.role === "user") {
+    return { key: `person-gone-${written}`, name: written || SOMEONE, person: true, initials: written ? initialsOf(written) : "?", mine: false, member: false };
+  }
+  if (message.role === "bot") return { key: `bot-gone-${written}`, name: written || SOMEONE, bot: { ...GONE_BOT, name: written || SOMEONE }, mine: false, member: false };
   return null;
 }
 
