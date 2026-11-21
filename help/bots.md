@@ -85,15 +85,15 @@ The bots are added together, all or none, and appear on **Team**, and Mercbot's 
 
 Open the bot's card: select the bot on **Team**, or under **Bots** in a chat's details. In your chat with the bot, its card is the chat's details (select the chat's name at the top, or press **Ctrl+Alt+B**). There you can:
 
-- **Rename it.** Select the name, type a new one and press Enter. Escape cancels.
+- **Rename it,** if you made it or you're an owner or admin. Select the name, type a new one and press Enter. Escape cancels.
 - **Read its instructions.** **Instructions** comes first on the **Details** tab; selecting the tag under the bot's name takes you there. One line says what the bot is, such as "This bot is a meals bot, plus its own additions." Then its template, which is read-only (marked with a lock): where it's from, with the day Mercbot last tested it for one of Mercbot's, what changed in it since the bot started to follow it, its instructions (**Show all** opens out long ones) and its skills.
 - **Write its additions.** Select the box under **Additions · only this bot**, write or change them, and select **Save**, or **Cancel** to leave them as they were.
 - **Change its template.** Select **Change template** under the template. See below.
 - **Teach it.** Add text and files it should know, for everyone it talks with, under **Knowledge**, below Instructions. See [What a bot knows](#what-a-bot-knows).
-- **Look after its routines.** Each routine has an on/off switch. Right-click one for **Pause** or **Resume**, **Edit** and **Delete**. Only the person who set a routine up can resume it. See [Skills, routines and watches](/help/skills-and-routines).
+- **Look after its routines.** Each routine has an on/off switch. Right-click one for **Pause** or **Resume**, **Edit** and **Delete**. Only the person who set a routine up can resume or edit it. See [Skills, routines and watches](/help/skills-and-routines).
 - **Browse its files** on the **Files** tab: its own folder, the home's, and the chat's when you opened the card from a chat. See what it made in the chats you can open on the **Library** tab. Its **Computer** tab shows its computer in the chat you opened the card from; it has one in each chat it's in.
 
-Only the person who made the bot and the home's owners and admins can change its additions or its template; everyone else in the home can read them. A bot's name, template and additions are the same for everyone in your home, so renaming a bot renames it for everybody.
+Only the person who made the bot and the home's owners and admins can rename it or change its additions or its template; everyone else in the home can read them. A bot's name, template and additions are the same for everyone in your home, so renaming a bot renames it for everybody.
 
 ### Change a bot's template
 
@@ -233,7 +233,7 @@ When the home has finished with a bot but you may want it again, archive it inst
 The person who made the bot and the home's owners and admins. Some bots can't be archived, and the bot's card says why:
 
 - **The main bot**: make another bot the main bot first.
-- **The Builder**, the bot that builds the home's apps: choose another Builder in **Apps** first.
+- **The Builder**, the bot that builds the home's apps: make another bot the Builder from its card in **Team** first.
 
 ### Archive one
 

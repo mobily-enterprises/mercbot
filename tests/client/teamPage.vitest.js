@@ -271,9 +271,10 @@ describe("a bot's routines on its card", () => {
     expect(canSwitchRoutine(routine("1", { enabled: false, canResume: true }))).toBe(true);
     // Deleting is anyone's who can open the routine's chat (B's chatRoutines.js); resuming only its maker's.
     const titles = (entry) => routineMenuItems(entry, { toggle() {}, edit() {}, remove() {} }).filter((item) => item.title).map((item) => item.title);
-    expect(titles(routine("1"))).toEqual(["Pause", "Edit", "Delete"]);
-    expect(titles(routine("1", { enabled: false }))).toEqual(["Edit", "Delete"]);
-    expect(titles(routine("1", { enabled: false, canResume: true, madeBy: "2" }))).toEqual(["Resume", "Edit", "Delete"]);
+    expect(titles(routine("1")), "someone else's").toEqual(["Pause", "Delete"]);
+    expect(titles(routine("1", { enabled: false }))).toEqual(["Delete"]);
+    expect(titles(routine("1", { enabled: false, canResume: true, madeBy: "2" })), "their own").toEqual(["Resume", "Edit", "Delete"]);
+    expect(titles(routine("1", { canResume: true, madeBy: "2" }))).toEqual(["Pause", "Edit", "Delete"]);
   });
 
   it("are the bot's in every chat on Team, and only this bot's in a chat", async () => {

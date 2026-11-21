@@ -9,7 +9,7 @@ import { shellPreferences } from "../../src/components/mercbot/shellPreferences.
 // Chat details (plan 4.4): the chat's name, whether it's Public or Private and what that means, its people (you among
 // them, marked) and its bots; who may take whom out (its maker and the home's owners and admins, never themselves, and
 // no person out of the everyone chat); Leave, Archive, Unarchive and Delete chat as each is theirs; and its tabs, Chat,
-// Files and Computers; its routines, each with Edit and Delete for anyone in the chat, and Resume for its maker. The
+// Files and Computers; its routines, each with Delete for anyone in the chat, and Resume and Edit for its maker. The
 // routines are a stand-in that answers what the server would; the parts other screens own (the chat's files and its
 // computers) are stand-ins that show the chat they were given.
 // The chat's routines, as the server lists them.
@@ -158,7 +158,7 @@ describe("Chat details", () => {
     expect(actions(await details({ chat: archived, me: "2" }))).toEqual(["Leave chat"]);
   });
 
-  it("lists the routines that run in it, each with Edit and Delete for anyone in the chat, and Resume only for its maker", async () => {
+  it("lists the routines that run in it, each with Delete for anyone in the chat, and Resume and Edit only for its maker", async () => {
     const routine = (id, name, extra) => ({ id, name, botId: "7", schedule: "Every Monday at 09:00", enabled: true, madeBy: "1", canResume: false, ...extra });
     routines.listed = [
       routine("r1", "Weekly shop", {}),
@@ -166,8 +166,8 @@ describe("Chat details", () => {
       routine("r3", "Bin day", { enabled: false, madeBy: "2", canResume: true })
     ];
     expect(routineRows(await details({ chat: KITCHEN, me: "2" }, { afterReads: true }))).toEqual([
-      { words: "Weekly shop Every Monday at 09:00 · Chef", toggle: "Pause Weekly shop", buttons: ["Edit Weekly shop", "Delete Weekly shop"] },
-      { words: "Meal plan Paused · Chef", toggle: "Resume Meal plan, held", buttons: ["Edit Meal plan", "Delete Meal plan"] },
+      { words: "Weekly shop Every Monday at 09:00 · Chef", toggle: "Pause Weekly shop", buttons: ["Delete Weekly shop"] },
+      { words: "Meal plan Paused · Chef", toggle: "Resume Meal plan, held", buttons: ["Delete Meal plan"] },
       { words: "Bin day Paused · Chef", toggle: "Resume Bin day", buttons: ["Edit Bin day", "Delete Bin day"] }
     ]);
   });
