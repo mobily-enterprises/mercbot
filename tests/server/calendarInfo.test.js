@@ -9,6 +9,9 @@ import { accessOf, appKey } from "../support/appKey.mjs";
 // The account's key as integrations hands it over (D-96): its token, and its own paced fetch to the stand-in app.
 const KEY = appKey("k");
 
+// Bot 3's turn for person 7 in its private chat 5 of home 1, its seat there 11.
+const SEAT = Object.freeze({ id: "3", workspace_id: "1", user_id: "7", chat_id: "5", chat_bot_id: "11", chat: { id: "5", kind: "private" } });
+
 // The rest of reading calendars (D-42), against stand-ins for Google's and Graph's APIs.
 function fakeApi(context, routes) {
   const calls = [];
@@ -56,7 +59,7 @@ test("availability merges busy times across calendars and gives the free gaps be
     reachableAccounts: async () => [{ id: "1", pluginId: "google-calendar", name: "", label: "pat@example.com", status: "connected" }],
     connections: { accessToken: async () => accessOf("k") }
   };
-  const { tools } = buildTools(turnDoubles({ approvals: {}, computer: null, integrations, homeId: "1", userId: "7", botId: "3", conversationId: "5" }));
+  const { tools } = buildTools(turnDoubles({ approvals: {}, computer: null, integrations, seat: SEAT }));
   const result = await tools.calendarInfo.execute({ action: "availability", from: "2026-11-04T08:00", to: "2026-11-04T14:00", timezone: "Australia/Perth" });
   assert.equal(result.sayTimesAs, "Perth time");
   assert.deepEqual(result.busy, [{ from: "2026-11-04T09:00+08:00", to: "2026-11-04T10:00+08:00" }, { from: "2026-11-04T12:30+08:00", to: "2026-11-04T13:30+08:00" }]);
@@ -80,7 +83,7 @@ test("a busy calendar is the tool's answer: when to try again, and not to keep t
     reachableAccounts: async () => [{ id: "1", pluginId: "google-calendar", name: "", label: "pat@example.com", status: "connected" }],
     connections: { accessToken: async () => access }
   };
-  const { tools } = buildTools(turnDoubles({ approvals: {}, computer: null, integrations, homeId: "1", userId: "7", botId: "3", conversationId: "5" }));
+  const { tools } = buildTools(turnDoubles({ approvals: {}, computer: null, integrations, seat: SEAT }));
   const result = await tools.calendarInfo.execute({ action: "availability", from: "2026-11-04T08:00", to: "2026-11-04T14:00", timezone: "Australia/Perth" });
   assert.equal(
     result.error,

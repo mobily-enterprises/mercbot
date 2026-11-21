@@ -12,9 +12,6 @@ import { connectTestDatabase } from "../support/testDatabase.mjs";
 // json-rest-api's AnyAPI storage, where the apps package keeps the tables people define while an app runs, each
 // home's under its own tenant (packages/apps/src/server/anyapi.js); no table resource describes them.
 const ANYAPI_STORAGE_TABLES = Object.freeze(["any_resource_configs", "any_field_configs", "any_relationship_configs", "any_records", "any_links"]);
-// The template upgrade's copy of every bot as it was before (D-98, migrations/20261120120000): a backup kept for
-// recovery by hand, which no code reads or writes; a later release drops it with the bots' old columns.
-const UPGRADE_BACKUP_TABLES = Object.freeze(["bots_before_templates"]);
 
 const runtimeEnv = Object.freeze({
   ...process.env,
@@ -48,7 +45,7 @@ test("every table of the migrated database has an owner", async (context) => {
     knex,
     runtime: resources,
     infrastructureTables: [
-      ...LOCAL_AUTH_INFRASTRUCTURE_TABLES, ...ANYAPI_STORAGE_TABLES, ...UPGRADE_BACKUP_TABLES, ...partitions.map((row) => row.name)
+      ...LOCAL_AUTH_INFRASTRUCTURE_TABLES, ...ANYAPI_STORAGE_TABLES, ...partitions.map((row) => row.name)
     ],
     environment: runtimeEnv
   });
