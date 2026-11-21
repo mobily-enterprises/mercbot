@@ -43,6 +43,11 @@ const pageQuery = (path, chat) => `${query(path)}${(() => {
   return part ? `&${part}` : "";
 })()}`;
 export const isHtmlPage = (path) => /\.html$/u.test(String(path));
+/**
+ * A page the home can share beyond its viewer (D-74, pageDocument.js isPagePath): an .html file in a Pages folder of a
+ * bot's folder for everyone or of the home's. A page in a chat's folder is that chat's only.
+ */
+export const isHomePage = (path) => /^\/files\/(bot|shared)\/(.+\/)?Pages\/[^/]+\.html$/u.test(String(path));
 export const pageCopyUrl = (botId, path, chat = undefined) => `${pagesBase(botId)}/copy?${pageQuery(path, chat)}`;
 export const pagesApi = {
   frame: (botId, path, chat = undefined) => client.request(`${pagesBase(botId)}/frame?${pageQuery(path, chat)}`),
