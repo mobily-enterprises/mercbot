@@ -6,6 +6,9 @@ import { AUTH_PATHS } from "@jskit-ai/auth-core/shared/authPaths";
 // Client for the account menu's services (packages/account).
 const client = createHttpClient({ credentials: "include", csrf: { sessionPath: AUTH_PATHS.SESSION } });
 
+/** The home's vault as Mercbot names it: "<home>'s vault", or "the home's vault" while the home's name isn't known. */
+export const vaultName = (homeName) => (homeName ? `${homeName}'s vault` : "the home's vault");
+
 // readable-check: allow module-state - shared resource: the work this page has seen refused, which a copy's shell parts may follow
 export const workRefusals = ref(0);
 

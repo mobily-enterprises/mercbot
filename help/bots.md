@@ -174,7 +174,7 @@ Each **Draft it**, **Start from this bot**, ticking **Fold in**, **Ask for chang
 
 Every home has one main bot: the home's first bot, Mercbot unless you've renamed it, the one that welcomes you in your first chat. It's a good general helper and the natural place to start a new kind of job before you give it a bot of its own.
 
-The main bot can't be archived, so you always have someone to talk to: its card says "Make another bot the main bot first." You can rename it like any other bot.
+The main bot can't be archived, so you always have someone to talk to: its card says "Make another bot the main bot first." You can rename it like any other bot. Its row on **Team** says **Main bot**. The home's owners and admins can make another bot the main bot: open that bot's card on **Team** and, on its **Details** tab, select **Make** and its name, such as **Make Ledger the main bot**.
 
 ## Start from a bot template
 

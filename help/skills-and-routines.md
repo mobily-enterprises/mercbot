@@ -27,7 +27,7 @@ A bot never runs a new skill until you ask. After saving one, it offers a test r
 
 ### Pick a skill with /
 
-In a chat with one bot, type **/** at the start of the message box. Up to five skills appear, your own first, then Mercbot's, each with its name and a short description. Keep typing to narrow the list, then use the arrow keys and **Enter** or **Tab** to choose. The skill becomes a token in the bot's colour (**Backspace** removes it in one go). Add what you want and send, and the bot uses that skill for the job. Remember that a bot can use your own skills only in a Private chat where you're the only person.
+In a chat with one bot, type **/** at the start of the message box. Up to five skills appear, your own first (only in a Private chat where you're the only person), then Mercbot's, each with its name and a short description. Keep typing to narrow the list, then use the arrow keys and **Enter** or **Tab** to choose. The skill becomes a token in the bot's colour (**Backspace** removes it in one go). Add what you want and send, and the bot uses that skill for the job. Remember that a bot can use your own skills only in a Private chat where you're the only person.
 
 In a chat with more than one bot, **/** doesn't open a list. There, **@** names a bot, and you can ask for a skill in your own words, such as "use my Weekly invoices skill".
 

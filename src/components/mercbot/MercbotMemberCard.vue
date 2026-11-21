@@ -6,6 +6,7 @@ import FileBrowser from "../files/FileBrowser.vue";
 import { dayText } from "../templates/templatesApi.js";
 import MercbotAvatar from "./MercbotAvatar.vue";
 import MercbotBotArchive from "./MercbotBotArchive.vue";
+import MercbotBotMain from "./MercbotBotMain.vue";
 import MercbotChangeTemplateDialog from "./MercbotChangeTemplateDialog.vue";
 import MercbotChatComputers from "./MercbotChatComputers.vue";
 import MercbotConfirmDialog from "./MercbotConfirmDialog.vue";
@@ -48,7 +49,7 @@ const props = defineProps({
   computerNews: { type: Object, default: () => ({}) }
 });
 const emit = defineEmits([
-  "message", "open-chat", "open-page", "changed", "rename", "archive-bot", "unarchive-bot", "edit-routine", "messages",
+  "message", "open-chat", "open-page", "changed", "rename", "make-main", "archive-bot", "unarchive-bot", "edit-routine", "messages",
   "open-computer", "failure", "notify"
 ]);
 
@@ -443,6 +444,8 @@ async function openInstructions() {
             Routines are jobs {{ bot.name }} repeats on a schedule. {{ chat ? "Ask in this chat" : "Ask it in a chat" }} to set one up, for example a
             weekly summary.
           </p>
+          <!-- The home's main bot, and making this one it. -->
+          <MercbotBotMain :bot="bot" :manages="manages" @make-main="emit('make-main', bot)" />
           <!-- Leaving the home, and coming back (D-108). -->
           <MercbotBotArchive :bot="bot" @archive="emit('archive-bot', bot)" @unarchive="emit('unarchive-bot', bot)" />
         </template>
@@ -540,6 +543,7 @@ async function openInstructions() {
           :chat="chat"
           :me="me"
           :home-name="homeName"
+          :manages="manages"
           :only-bot-id="String(bot.id)"
           :computer-news="computerNews"
           @open-live="emit('open-computer', $event)"
