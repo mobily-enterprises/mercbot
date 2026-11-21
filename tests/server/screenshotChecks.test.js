@@ -8,7 +8,8 @@ import { turnDoubles } from "../support/botDoubles.mjs";
 // The screenshots a copy that checks pictures checks (D-90): only the ones a reply shows people, the last few under it
 // and a hand-over card's, queued once its turn is over. Every other screenshot its computer took is kept unqueued.
 
-const WHOSE = Object.freeze({ homeId: "11", userId: "12", botId: "13", conversationId: "14", computerId: "9" });
+// Bot 13's turn for person 12 in private chat 14 of home 11; its seat there, 9, is the chat's computer.
+const SEAT = Object.freeze({ id: "13", workspace_id: "11", user_id: "12", chat_id: "14", chat_bot_id: "9", chat: { id: "14", kind: "private" } });
 const shotName = (at) => `9-${String(at).padStart(16, "0")}.jpg`;
 
 /** A computer that names each screenshot it takes in turn, and one reply's tools on it. */
@@ -29,11 +30,7 @@ function turn({ checking = true, queue = null, ...options } = {}) {
     approvals: { decide: async () => "allow" },
     computer,
     files: { media },
-    homeId: WHOSE.homeId,
-    userId: WHOSE.userId,
-    botId: WHOSE.botId,
-    conversationId: WHOSE.conversationId,
-    computerId: WHOSE.computerId,
+    seat: SEAT,
     ...options
   }));
   const browse = async (pages) => {
@@ -42,7 +39,7 @@ function turn({ checking = true, queue = null, ...options } = {}) {
   return { run, queued, browse };
 }
 
-const queuedFor = (name) => ({ computerId: "9", name, workspaceId: "11", userId: "12", botId: "13" });
+const queuedFor = (name) => ({ computerId: "9", name, workspaceId: "11", userId: "12", chatId: "14" });
 
 test("only the screenshots a reply shows are queued for their check, the hand-over card's among them, once its turn is over", async () => {
   const { run, queued, browse } = turn();
