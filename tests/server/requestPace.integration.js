@@ -21,7 +21,6 @@ import { createSednaCredentials } from "../../packages/integrations/src/server/s
 assert.ok(process.env.TEST_DB_NAME?.trim(), "TEST_DB_NAME must identify a disposable test database.");
 assert.equal(process.env.DB_NAME, process.env.TEST_DB_NAME, "DB_NAME must match the dedicated TEST_DB_NAME.");
 const VAULT = randomBytes(32).toString("base64");
-const REACH = Object.freeze({ personal: true });
 const MANAGE = ["workspace.settings.update"];
 
 /**
@@ -80,7 +79,7 @@ async function setup(context, { members = 0 } = {}) {
 /** Pat's bot's Sedna tools for one reply, as a bot gets them. */
 function patBot({ connections, accounts, pat, as }) {
   const integrations = {
-    reachableAccounts: async (reach, call) => (await accounts.reachable(reach, call)).filter((entry) => entry.pluginId === "sedna" && entry.status === "connected"),
+    reachableAccounts: async (call) => (await accounts.reachable(call)).filter((entry) => entry.pluginId === "sedna" && entry.status === "connected"),
     connections
   };
   return buildSednaTools({
@@ -109,7 +108,7 @@ const apiCalls = (sedna) => sedna.requests.filter((entry) => entry.route.startsW
 test("a busy Sedna answers once: the read stops and says when to try again, and nothing more reaches Sedna meanwhile", async (context) => {
   const setUp = await setup(context);
   const { sedna, connections, account, pat, as, good } = setUp;
-  await connections.saveCredentials(REACH, account.id, good, as(pat, true));
+  await connections.saveCredentials(account.id, good, as(pat, true));
   // A morning's mail in Pat's team, and Sedna taking 8 requests a minute from these credentials (the organisation's
   // other programs use the rest).
   for (let at = 0; at < 30; at += 1) sedna.receive({ subject: `Fixture ${at}` });
@@ -134,10 +133,10 @@ test("matching a home's people costs Sedna the pages of its users, not a request
     const { sedna, connections, account, pat, as, good, clear } = await setup(context, { members });
     sedna.addUsers(145);
     const before = apiCalls(sedna);
-    const saved = await connections.saveCredentials(REACH, account.id, good, as(pat, true));
+    const saved = await connections.saveCredentials(account.id, good, as(pat, true));
     assert.equal(saved.unmatched.length, members, "the people Sedna doesn't know are listed");
     const connect = apiCalls(sedna) - before;
-    const shown = (await connections.appPeople(REACH, account.id, as(pat, true))).people;
+    const shown = (await connections.appPeople(account.id, as(pat, true))).people;
     assert.equal(shown.find((entry) => entry.id === pat).via, "email");
     counts[members] = { connect, people: apiCalls(sedna) - before - connect };
     await clear();
@@ -149,13 +148,13 @@ test("matching a home's people costs Sedna the pages of its users, not a request
 
 test("an account that never chose a pace is Gentle: its turns are spaced by a tenth of Sedna's own limit", async (context) => {
   const { knex, connections, account, pat, as, good } = await setup(context);
-  await connections.saveCredentials(REACH, account.id, good, as(pat, true));
+  await connections.saveCredentials(account.id, good, as(pat, true));
   const turns = () => knex("plugin_account_turns").where({ account_id: account.id });
   /** How far one request moves the account's next turn on, from a turn `ahead` ms off: no wait, so no clock in it. */
   async function spacing(ahead) {
     const at = Date.now() + ahead;
     await turns().update({ next_at: new Date(at).toISOString() });
-    const access = await connections.accessToken(REACH, account.id, as(pat));
+    const access = await connections.accessToken(account.id, as(pat));
     const answer = await access.fetch(`${access.api}/company/me`, { headers: { authorization: `Bearer ${access.accessToken}` } });
     assert.equal(answer.status, 200);
     return new Date((await turns().first()).next_at).getTime() - at;

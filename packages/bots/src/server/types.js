@@ -8,15 +8,15 @@
 /** @typedef {import("@jskit-ai/resource-runtime/server/types").ResourceCallOptions} CallOptions the call's options: a request's, or a job's */
 
 /**
- * Whose connected accounts a turn may use (D-37): the person's own and the home's, or in a shared
- * bot's room only the home's.
+ * Where a turn runs: its chat's person and home, and whether it is the person's own chat (`personal`) rather than a
+ * room. Every connected account is the home's in either (D-111); Sedna's tools run only in a person's own chat (D-93).
  * @typedef {{ userId: string, homeId: string, personal: boolean }} Reach
  */
 /**
- * What a tool asks connectedKey() with: the integrations, whose accounts, the apps the person
- * switched this action off for, the turn's call options, and whether only the person's own
- * accounts count (not the home's).
- * @typedef {{ integrations: import("@local/integrations/server/types").Integrations, reach: Reach, skip?: string[], call: CallOptions, own?: boolean }} AppAccess
+ * What a tool asks connectedKey() with: the integrations, where the turn runs, the apps the person
+ * switched this action off for, the turn's call options, and whether only the accounts the person
+ * whose turn it is connected count.
+ * @typedef {{ integrations: import("@local/integrations/server/types").Integrations, reach?: Reach, skip?: string[], call: CallOptions, own?: boolean }} AppAccess
  */
 /** @typedef {(toolId: string) => AppAccess} AppFor */
 /** @typedef {(actionId: string, input: object, lead?: string) => Promise<object>} AttemptAction */

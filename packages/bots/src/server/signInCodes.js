@@ -4,10 +4,11 @@ import { z } from "zod";
 import { ConnectedAppError, connectedKeys } from "./connectedApps.js";
 import { eventMessage } from "./eventMessage.js";
 import { MAIL } from "./mailTools.js";
+import { CODE } from "./signInSecrets.js";
 
 // Sign-in codes a site sends by email: a code sent to an inbox the bot can read, it fetches
 // itself. The bot never sees a security code: Mercbot finds
-// it in the person's own connected mailbox and types it straight into the page, as the secure form
+// it in a mailbox the person connected and types it straight into the page, as the secure form
 // does. Only mail that came in the last few minutes from the site the bot's page is on is read, and
 // its code is typed only into a page of that site: the sender's domain has to be registered as the
 // page's own, so a page can't have another site's code typed in (D-77).
@@ -23,9 +24,6 @@ import { MAIL } from "./mailTools.js";
 export const CODE_MAIL = Object.freeze({ minutes: 10, tries: 12, everyMs: 5000 });
 
 const CODE_WORDS = /\b(codes?|passcode|otp|one[- ]time|verification|verify|security|pin|sign[- ]?in|log[- ]?in|login|confirm\w*)\b/iu;
-// A code: 4 to 8 digits, two groups of 3 or 4 digits ("123 456", "123-456"), or 6 to 8 capitals
-// and digits with a digit in them ("AB12CD"). Not part of a date, time, price, number or address.
-const CODE = /(?<![\w$€£#+.,:/@-])(\d{3,4}[ -]\d{3,4}|\d{4,8}|(?=[A-Z\d]*\d)(?=[A-Z\d]*[A-Z])[A-Z\d]{6,8})(?![\w%@]|[.,:/-]\w)/gu;
 
 /**
  * The sign-in code in an email: the first one on a line that talks about a code (its subject
@@ -108,7 +106,7 @@ export function namesSite(text, site) {
 
 const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-/** The person's own mailboxes that may be read, or none (a mail action switched off in Connect apps stays off). */
+/** The mailboxes the person connected that may be read, or none (a mail action switched off in Connect apps stays off). */
 async function ownMailboxes(access) {
   try {
     return await connectedKeys({ ...access, own: true }, Object.keys(MAIL), "email");
@@ -150,8 +148,9 @@ const WAITING = new Set(["handover", "secure_form", "choice", "connect"]);
 /**
  * start_sign_in and fill_sign_in_code: the start of a sign-in the person asked for (the site's front page, or an address
  * they wrote), and a sign-in code the site emailed the person, typed into the page in front on the bot's computer.
- * Offered only on the person's own turn in their own chat with their bot (botTools.js, D-77). Reads only the person's
- * own connected mailboxes (never a home's), as read_email does, so a mail action switched off in Connect apps stays off.
+ * Offered only on the person's own turn in their own chat with their bot (botTools.js, D-77). Reads only the mailboxes
+ * the person connected (never another's in the home, D-111), with read_email's switch, so a mail action switched off in
+ * Connect apps stays off.
  * @param {object} shared
  * @param {import("./types.js").AppFor} shared.appFor
  * @param {import("@local/computer/server/types").Computer} shared.computer
@@ -351,9 +350,9 @@ export const SIGN_IN_CODE_ACTIONS = {
     reversible: () => false,
     describe: ({ url, from }) => `type the sign-in code from ${from} into ${url}`,
     question: ({ from }) => `Shall I type the sign-in code from ${from} into this page?`,
-    async run({ integrations, reach, call, computer, conversationId, computerId = conversationId }, { url, site, from }) {
-      const { skip = {} } = await integrations.toolSwitches(reach, call);
-      const mailboxes = await ownMailboxes({ integrations, reach, call, skip: skip.read_email || [] });
+    async run({ integrations, call, computer, conversationId, computerId = conversationId }, { url, site, from }) {
+      const { skip = {} } = await integrations.toolSwitches(call);
+      const mailboxes = await ownMailboxes({ integrations, call, skip: skip.read_email || [] });
       const found = mailboxes.length ? await newestCode(mailboxes, (email) => senderOf(email) === from, { ...CODE_MAIL, tries: 1 }) : null;
       const couldnt = (why) => eventMessage("Couldn't type in the sign-in code", why);
       if (!found) return couldnt(`No email with a code from ${from} came to their own inboxes in the last ${CODE_MAIL.minutes} minutes.`);

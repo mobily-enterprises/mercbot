@@ -443,7 +443,7 @@ test("a picture attached to the latest message is shown to the model", async (co
 // approval card, and "Go ahead" adds it with the person's own key.
 test("a calendar event with guests waits for approval, then goes on the connected calendar", async (context) => {
   const { knex, parts, as, userId, bot, cleanup } = await setup(context);
-  const [account] = await knex("plugin_accounts").insert({ user_id: userId, plugin_id: "google-calendar", name: "", status: "connected", label: "pat@example.com" }).returning("*");
+  const [account] = await knex("plugin_accounts").insert({ user_id: userId, workspace_id: bot.workspace_id, plugin_id: "google-calendar", name: "", status: "connected", label: "pat@example.com" }).returning("*");
   const posted = [];
   const original = globalThis.fetch;
   globalThis.fetch = async (url, options = {}) => {
@@ -453,7 +453,7 @@ test("a calendar event with guests waits for approval, then goes on the connecte
   try {
     const integrations = {
       ...await connectAppsReads(knex, cleanup, [{ id: "google-calendar", name: "Google Calendar" }]),
-      connections: { accessToken: async (reach, accountId) => accessOf(`key-${reach.userId}-${accountId}`) },
+      connections: { accessToken: async (accountId) => accessOf(`key-${userId}-${accountId}`) },
       skills: async () => []
     };
     let state = "";
@@ -468,7 +468,7 @@ test("a calendar event with guests waits for approval, then goes on the connecte
     });
     const sent = await bots.sendMessage(bot.id, { text: "Lunch with Ana next Tuesday at 1, invite her" }, as(userId));
     await bots.replyTo(bot.id, { afterMessageId: sent.messages[0].id }, undefined, as(userId));
-    assert.match(state, /Connected accounts: Google Calendar: pat@example\.com\./u);
+    assert.match(state, /Connected accounts: Google Calendar: pat@example\.com \(connected by them\)\.\n/u);
     assert.equal(posted.length, 0, "nothing is added before approval");
     const card = await knex("bot_messages").where({ bot_id: bot.id, conversation_id: bot.conversation_id, kind: "choice" }).first();
     assert.match(card.body.question, /invite ana@example\.com/u);
@@ -487,7 +487,7 @@ test("a calendar event with guests waits for approval, then goes on the connecte
 // Which account a bot uses stays in its own chat: remember refuses it.
 test("a choice of mailbox isn't saved for all bots", async (context) => {
   const { knex, as, userId, bot, cleanup } = await setup(context);
-  const [account] = await knex("plugin_accounts").insert({ user_id: userId, plugin_id: "gmail", name: "", status: "connected", label: "pat@example.com" }).returning("*");
+  const [account] = await knex("plugin_accounts").insert({ user_id: userId, workspace_id: bot.workspace_id, plugin_id: "gmail", name: "", status: "connected", label: "pat@example.com" }).returning("*");
   try {
     const { buildTools } = await import("../../packages/bots/src/server/botTools.js");
     // The person's own connected addresses, as the integrations service reads them in their call.
@@ -507,7 +507,7 @@ test("a choice of mailbox isn't saved for all bots", async (context) => {
 // edited; a failure leaves the card waiting so it can be tried again.
 test("Send on an email draft sends it from the connected mailbox, once", async (context) => {
   const { knex, parts, as, userId, bot, cleanup } = await setup(context);
-  const [account] = await knex("plugin_accounts").insert({ user_id: userId, plugin_id: "gmail", name: "", status: "connected", label: "pat@example.com" }).returning("*");
+  const [account] = await knex("plugin_accounts").insert({ user_id: userId, workspace_id: bot.workspace_id, plugin_id: "gmail", name: "", status: "connected", label: "pat@example.com" }).returning("*");
   const sends = [];
   let fail = true;
   const original = globalThis.fetch;
@@ -541,7 +541,7 @@ test("Send on an email draft sends it from the connected mailbox, once", async (
 // email by sender, recipients and subject, and the card ends sent, as it would in the live copy.
 test("a test copy's Send on an email draft is logged and marked sent, and nothing reaches the mailbox", async (context) => {
   const { knex, parts, as, userId, bot, cleanup } = await setup(context);
-  const [account] = await knex("plugin_accounts").insert({ user_id: userId, plugin_id: "gmail", name: "", status: "connected", label: "pat@example.com" }).returning("*");
+  const [account] = await knex("plugin_accounts").insert({ user_id: userId, workspace_id: bot.workspace_id, plugin_id: "gmail", name: "", status: "connected", label: "pat@example.com" }).returning("*");
   const calls = [];
   const original = globalThis.fetch;
   globalThis.fetch = async (url) => {
@@ -571,7 +571,7 @@ test("a test copy's Send on an email draft is logged and marked sent, and nothin
 // To its reply-to address, and it goes into the same thread; "send it" in words sends the card.
 test("a reply draft answers from the receiving mailbox to the reply-to address, in its thread", async (context) => {
   const { knex, parts, as, userId, bot, cleanup } = await setup(context);
-  const [account] = await knex("plugin_accounts").insert({ user_id: userId, plugin_id: "gmail", name: "", status: "connected", label: "pat@example.com" }).returning("*");
+  const [account] = await knex("plugin_accounts").insert({ user_id: userId, workspace_id: bot.workspace_id, plugin_id: "gmail", name: "", status: "connected", label: "pat@example.com" }).returning("*");
   const calls = [];
   const original = globalThis.fetch;
   globalThis.fetch = async (url, options = {}) => {
@@ -656,7 +656,7 @@ test("a task for an unconnected app shows a connect card, and one Mercbot can't 
   assert.equal(results[1].note, results[0].note, "asked again, the bot is told the same");
   assert.deepEqual(prompts, [""], "no second pass for a connect card below");
   const card = await knex("bot_messages").where({ bot_id: bot.id, conversation_id: bot.conversation_id, kind: "connect" }).first();
-  assert.deepEqual([card.body.app, card.body.button, card.body.plugin.logo, card.body.task], ["Google Drive", "Authorize", "googledrive", "save the list to your Drive"]);
+  assert.deepEqual([card.body.app, card.body.button, card.body.plugin.logo, card.body.task], ["Google Drive", "Connect", "googledrive", "save the list to your Drive"]);
 
   const again = await bots.sendMessage(bot.id, { text: "Add buy milk to my Todoist list" }, as(userId));
   await bots.replyTo(bot.id, { afterMessageId: again.messages[0].id }, undefined, as(userId));
@@ -873,8 +873,8 @@ test("a picture made in the reply isn't questioned, and a refusal draws its alte
 test("a calendar claim without the tool is sent back, and an event goes in one calendar", async (context) => {
   const { knex, parts, as, userId, bot, cleanup } = await setup(context);
   const accounts = await knex("plugin_accounts").insert([
-    { user_id: userId, plugin_id: "google-calendar", name: "", status: "connected", label: "pat@example.com" },
-    { user_id: userId, plugin_id: "google-calendar", name: "family", status: "connected", label: "kim@example.com" }
+    { user_id: userId, workspace_id: bot.workspace_id, plugin_id: "google-calendar", name: "", status: "connected", label: "pat@example.com" },
+    { user_id: userId, workspace_id: bot.workspace_id, plugin_id: "google-calendar", name: "family", status: "connected", label: "kim@example.com" }
   ]).returning("*");
   const posted = [];
   const original = globalThis.fetch;
@@ -885,7 +885,7 @@ test("a calendar claim without the tool is sent back, and an event goes in one c
   try {
     const integrations = {
       ...await connectAppsReads(knex, cleanup, [{ id: "google-calendar", name: "Google Calendar" }]),
-      connections: { accessToken: async (_who, accountId) => accessOf(`key-${accountId}`) },
+      connections: { accessToken: async (accountId) => accessOf(`key-${accountId}`) },
       skills: async () => []
     };
     const prompts = [];
@@ -984,8 +984,8 @@ test("my calendar is the person's own account, and an explicit invite goes ahead
   const { knex, parts, as, userId, bot, cleanup } = await setup(context);
   const { email } = await knex("users").where({ id: userId }).first("email");
   const accounts = await knex("plugin_accounts").insert([
-    { user_id: userId, plugin_id: "google-calendar", name: "family", status: "connected", label: "kim@example.com" },
-    { user_id: userId, plugin_id: "google-calendar", name: "", status: "connected", label: email }
+    { user_id: userId, workspace_id: bot.workspace_id, plugin_id: "google-calendar", name: "family", status: "connected", label: "kim@example.com" },
+    { user_id: userId, workspace_id: bot.workspace_id, plugin_id: "google-calendar", name: "", status: "connected", label: email }
   ]).returning("*");
   const calls = [];
   const original = globalThis.fetch;
@@ -1001,7 +1001,7 @@ test("my calendar is the person's own account, and an explicit invite goes ahead
   try {
     const integrations = {
       ...await connectAppsReads(knex, cleanup, [{ id: "google-calendar", name: "Google Calendar", logo: "googlecalendar", color: "#4285F4", icon: "calendar" }]),
-      connections: { accessToken: async (_who, accountId) => accessOf(`key-${accountId}`) },
+      connections: { accessToken: async (accountId) => accessOf(`key-${accountId}`) },
       skills: async () => []
     };
     let state = "";
@@ -1018,7 +1018,7 @@ test("my calendar is the person's own account, and an explicit invite goes ahead
     });
     const sent = await bots.sendMessage(bot.id, { text: "Put lunch with Ana next Tuesday at 1 in my calendar, and invite ana@example.com" }, as(userId));
     await bots.replyTo(bot.id, { afterMessageId: sent.messages[0].id }, undefined, as(userId));
-    assert.match(state, new RegExp(`${email.replace(/[.+]/gu, "\\$&")} \\(the person's own\\)`, "u"));
+    assert.match(state, new RegExp(`${email.replace(/[.+]/gu, "\\$&")} \\(the person's own, connected by them\\)`, "u"));
     const post = calls.find((call) => call.method === "POST");
     assert.equal(post.auth, `Bearer key-${accounts[1].id}`);
     assert.equal(post.body.start.dateTime, "2026-11-03T13:00:00+08:00");

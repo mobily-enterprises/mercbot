@@ -11,16 +11,16 @@ const PACES = [
   { id: "normal", name: "Normal" },
   { id: "fast", name: "Fast" }
 ];
-const props = defineProps({
+defineProps({
   plugin: { type: Object, required: true },
-  accounts: { type: Array, required: true },
-  managesHome: { type: Boolean, default: false }
+  accounts: { type: Array, required: true }
 });
 const emit = defineEmits(["changed"]);
 const busy = ref(false);
 const problem = ref("");
 
-const mayChange = (account) => !account.home || props.managesHome;
+// The person who added it and the home's owners and admins (D-111), as the server says.
+const mayChange = (account) => Boolean(account.canChange);
 
 async function choose(account, pace) {
   if (account.pace === pace || !mayChange(account)) return;

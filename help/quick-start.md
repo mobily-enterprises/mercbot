@@ -41,8 +41,8 @@ To work with your email, calendar, files or code, a bot needs you to connect tho
 
 1. Select **Connect apps** in the sidebar.
 2. Find the app, for example Gmail or Google Calendar, using the categories or search.
-3. Select **Connect**, then **Sign in** beside the account. A new tab opens on the app's own sign-in and permission page.
-4. Sign in and allow access. Back in Connect apps, the account shows as **Connected** after a few seconds.
+3. Select **Add**. The app's page opens on **Add account**: a label is optional, and it says who will use the account. Everyone in the home you're in, and their bots, can use an account you connect there, so connect a personal mailbox in a home only you are in.
+4. Select **Sign in with Google** (or the app's own). A window opens on the app's own sign-in and permission page. Sign in and allow access. The window closes by itself, and the account shows as **Connected**.
 
 You can switch off single actions for an app, such as sending email, in that app's **Tools** list. Bots always ask before sending, forwarding or deleting anything. See [The bots' computer and connected apps](/help/computer-and-apps).
 

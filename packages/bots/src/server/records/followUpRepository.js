@@ -94,7 +94,7 @@ export function createFollowUpRepository({ connectFollowUps: followUps }) {
   /**
    * The person started signing in from a card again or for the first time: its row starts waiting afresh, in the
    * call's home. Answers its id. A run holding the row is the caller's to refuse first (its card is connected).
-   * @param {{ messageId: string, conversationId: string, userId: string, personal: boolean, pluginId: string }} fields
+   * @param {{ messageId: string, conversationId: string, userId: string, pluginId: string }} fields
    * @param {CallOptions} options the person's request, inside the transaction that marks the card
    */
   async function wait(fields, options) {
@@ -103,17 +103,15 @@ export function createFollowUpRepository({ connectFollowUps: followUps }) {
   }
 
   /**
-   * Marks ready the rows a newly connected account reaches whose sign-in started in the last `minutes`: a person's
-   * own account their own chats in every home, a home's account every chat in it (D-37). Each start is due in
-   * `graceSeconds`, so the server that marked it starts it first. Answers their ids.
-   * @param {{ pluginId: string, userId: string, homeId: string | null }} connection
+   * Marks ready the rows a newly connected account reaches whose sign-in started in the last `minutes`: every chat in
+   * its home (D-111). Each start is due in `graceSeconds`, so the server that marked it starts it first. Answers their ids.
+   * @param {{ pluginId: string, homeId: string }} connection
    * @param {{ minutes: number, graceSeconds: number }} timing
    * @param {CallOptions} options the bots' system context, in the transaction that saves the connection
    */
-  function markReady({ pluginId, userId, homeId }, { minutes, graceSeconds }, options) {
-    const reached = homeId == null ? { userId: String(userId), personal: true } : { workspaceId: String(homeId) };
+  function markReady({ pluginId, homeId }, { minutes, graceSeconds }, options) {
     return followUps.patchWhere(
-      { status: "waiting", pluginId: String(pluginId), ...reached, startedWithin: minutes },
+      { status: "waiting", pluginId: String(pluginId), workspaceId: String(homeId), startedWithin: minutes },
       { status: "ready", leaseUntil: secondsFromNow(graceSeconds) },
       { ...passedOn(options), returning: "ids" }
     );

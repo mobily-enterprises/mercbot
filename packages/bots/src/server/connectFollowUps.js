@@ -73,7 +73,7 @@ export function createConnectFollowUps({
     const page = { timeZone: String(input.timeZone || "").slice(0, 64), language: String(input.language || "").slice(0, 35) };
     const body = { ...card.body, status: "connecting", connectingAt: new Date().toISOString(), page };
     const id = await conversations.withTransaction(options, async (txOptions) => {
-      const fields = { messageId: card.id, conversationId: row.conversation_id, userId: row.user_id, personal: !row.room, pluginId };
+      const fields = { messageId: card.id, conversationId: row.conversation_id, userId: row.user_id, pluginId };
       const waiting = await followUps.wait(fields, txOptions);
       // Only while the card still waits: one a follow-up claimed meanwhile is connected, and keeps its row.
       if (!(await records.messages.claimBody(card.id, card.body.status, body, txOptions))) throw closedCard();
@@ -90,7 +90,7 @@ export function createConnectFollowUps({
    * An account was connected (integrations' whenConnected): the waiting follow-ups it reaches are marked ready in the
    * transaction that saves it. Answers what this server does once that has committed: mark any row that began waiting
    * while it ran (a card pressed at that very moment), and start them all.
-   * @param {{ pluginId: string, userId: string, homeId: string | null }} connection
+   * @param {{ pluginId: string, userId: string, homeId: string }} connection
    * @param {object} txOptions the transaction that saves the connection
    */
   async function connected(connection, txOptions) {

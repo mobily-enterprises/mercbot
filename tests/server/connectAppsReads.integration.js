@@ -6,23 +6,21 @@ import { requestContextOptions } from "../support/requestContextOptions.mjs";
 import { startIntegrations } from "../support/ownedHandles.mjs";
 import { serviceDoubles } from "../support/botDoubles.mjs";
 import { memberOptions, startBotParts } from "../support/botRecords.mjs";
-import { testBot, testHome } from "./testHome.js";
+import { botIn, separateHome } from "./testHome.js";
 import { createBotsService } from "../../packages/bots/src/server/botsService.js";
 import { appCard } from "../../packages/bots/src/server/botActions.js";
 import { buildCardTools } from "../../packages/bots/src/server/cardTools.js";
 import { connectedKeys } from "../../packages/bots/src/server/connectedApps.js";
 import { accessOf } from "../support/appKey.mjs";
 
-// What the bots and Connect apps read of a person's apps, accounts and skills (D-31, D-37), against the
+// What the bots and Connect apps read of a home's apps and accounts and a person's skills (D-31, D-111), against the
 // disposable test database: an app's name and card come from the catalogue, a tool asks only for the connected
-// accounts of its own apps, a turn and the "/" picker list skills without their instructions, and a person without a
-// display name is named the same way wherever others see them. The coming-soon apps people want are counted over
+// accounts of its own apps, a turn names who connected each account, a turn and the "/" picker list skills without
+// their instructions, and a person without a display name is named the same way wherever others see them. The coming-soon apps people want are counted over
 // everyone's wishes.
 assert.ok(process.env.TEST_DB_NAME?.trim(), "TEST_DB_NAME must identify a disposable test database.");
 assert.equal(process.env.DB_NAME, process.env.TEST_DB_NAME, "DB_NAME must match the dedicated TEST_DB_NAME.");
 
-// The person's own accounts and the home's, as a bot's own chat and Connect apps reach them.
-const REACH = Object.freeze({ personal: true });
 const CATALOGUE = Object.freeze([
   { id: "gmail", name: "Gmail", logo: "gmail", color: "#EA4335", icon: "mail", oauth: { provider: "google" } },
   { id: "outlook", name: "Outlook", logo: "outlook", color: "#0078D4", icon: "mail", oauth: { provider: "microsoft" } },
@@ -33,7 +31,7 @@ const CATALOGUE = Object.freeze([
 // each account's key names it. No provider is called.
 const CONNECTIONS = Object.freeze({
   lacksAccess: (row) => row.label === "old-access@example.com",
-  accessToken: async (_reach, accountId) => accessOf(`key-${accountId}`)
+  accessToken: async (accountId) => accessOf(`key-${accountId}`)
 });
 
 /** The integrations service with the catalogue above, on the test's Knex. */
@@ -42,8 +40,9 @@ async function connectApps(knex, context) {
 }
 
 /**
- * The test database's first person (Pat) and a person of the test's own, Lee, with no display name; Lee's accounts and
- * anything else the test names in `cleanup` are removed when it ends.
+ * The test database's first person (Pat) and a person of the test's own, Lee, with no display name, in a home of the
+ * test's own (`homeId`) that Pat owns and Lee is a member of; the home with its accounts, Lee, and anything else the
+ * test names in `cleanup` are removed when it ends.
  */
 async function setup(context) {
   const knex = await connectTestDatabase();
@@ -52,26 +51,28 @@ async function setup(context) {
   const [lee] = await knex("users").insert({
     auth_provider: "test", auth_provider_user_sid: `lee-${stamp}`, email: `lee-${stamp}@example.com`, username: `lee${stamp.replace("-", "")}`, display_name: ""
   }).returning("id");
+  const homeId = await separateHome(knex, pat, [lee.id]);
   const cleanup = [];
   context.after(async () => {
     for (const work of cleanup.reverse()) await work();
+    await knex("workspaces").where({ id: homeId }).del();
     await knex("plugin_accounts").where({ user_id: lee.id }).del();
     await knex("users").where({ id: lee.id }).del();
     await knex.destroy();
   });
-  return { knex, pat, lee: String(lee.id), leeName: `lee-${stamp}`, cleanup };
+  return { knex, pat, lee: String(lee.id), leeName: `lee-${stamp}`, homeId, cleanup };
 }
 
-/** `rows` as `user_id`'s own accounts (of no home), in order; their ids. */
-async function addAccounts(knex, userId, rows) {
-  const added = await knex("plugin_accounts").insert(rows.map((row) => ({ user_id: userId, name: "", ...row }))).returning("id");
+/** `rows` as accounts `user_id` added in `homeId`, in order; their ids. */
+async function addAccounts(knex, homeId, userId, rows) {
+  const added = await knex("plugin_accounts").insert(rows.map((row) => ({ user_id: userId, workspace_id: homeId, name: "", ...row }))).returning("id");
   return added.map((row) => String(row.id));
 }
 
 test("a bot's tool asks only for the connected accounts of its own apps", async (context) => {
-  const { knex, lee } = await setup(context);
-  const as = requestContextOptions({ user: { id: lee } });
-  const ids = await addAccounts(knex, lee, [
+  const { knex, lee, homeId } = await setup(context);
+  const as = memberOptions({ userId: lee, homeId });
+  const ids = await addAccounts(knex, homeId, lee, [
     { plugin_id: "gmail", status: "connected", label: "lee@example.com" },
     { plugin_id: "gmail", status: "needs-auth" },
     { plugin_id: "google-calendar", status: "connected", label: "lee@example.com" },
@@ -88,21 +89,21 @@ test("a bot's tool asks only for the connected accounts of its own apps", async 
     }
   };
 
-  const keys = await connectedKeys({ integrations, reach: REACH, call: as }, ["gmail", "outlook"], "mail");
+  const keys = await connectedKeys({ integrations, call: as }, ["gmail", "outlook"], "mail");
   assert.deepEqual(keys.map((key) => [key.app, key.address, key.key.token]), [["Gmail", "lee@example.com", `key-${ids[0]}`], ["Outlook", "lee@work.example", `key-${ids[3]}`]]);
   assert.deepEqual(read, [ids[0], ids[3]], "not the Gmail account waiting for sign-in, nor the calendar's");
 
   // Switched off for Gmail, its account is still told apart from an app that isn't connected.
   read.length = 0;
-  await assert.rejects(connectedKeys({ integrations, reach: REACH, skip: ["gmail"], call: as }, ["gmail"], "mail"), /switched this action off for Gmail/u);
-  await assert.rejects(connectedKeys({ integrations, reach: REACH, skip: ["gmail"], call: as }, ["gmail", "outlook"], "mail", "lee@example.com"), /switched this action off for Gmail/u);
+  await assert.rejects(connectedKeys({ integrations, skip: ["gmail"], call: as }, ["gmail"], "mail"), /switched this action off for Gmail/u);
+  await assert.rejects(connectedKeys({ integrations, skip: ["gmail"], call: as }, ["gmail", "outlook"], "mail", "lee@example.com"), /switched this action off for Gmail/u);
   assert.deepEqual([...new Set(read)], [ids[0], ids[3]]);
 });
 
-test("an app's card and the connect card read the catalogue, and at most the person's connected accounts of that app", async (context) => {
-  const { knex, lee } = await setup(context);
-  const as = requestContextOptions({ user: { id: lee } });
-  const [gmail] = await addAccounts(knex, lee, [{ plugin_id: "gmail", status: "connected", label: "old-access@example.com" }]);
+test("an app's card and the connect card read the catalogue, and at most the home's connected accounts of that app", async (context) => {
+  const { knex, lee, homeId } = await setup(context);
+  const as = memberOptions({ userId: lee, homeId });
+  const [gmail] = await addAccounts(knex, homeId, lee, [{ plugin_id: "gmail", status: "connected", label: "old-access@example.com" }]);
   const integrations = await connectApps(knex, context);
 
   let card = null;
@@ -113,7 +114,7 @@ test("an app's card and the connect card read the catalogue, and at most the per
   /** One reply's connect card, and the reads it sends. */
   async function suggest(app, task) {
     const after = [];
-    const { suggestConnect } = buildCardTools({ integrations, reach: REACH, notebook: null, after, call: as });
+    const { suggestConnect } = buildCardTools({ integrations, notebook: null, after, call: as });
     let result = null;
     const reads = await statementsDuring(knex, async () => { result = await suggestConnect.execute({ app, task }); }, /^\s*(select|with)\b/iu);
     return { result, card: after[0], reads };
@@ -122,10 +123,10 @@ test("an app's card and the connect card read the catalogue, and at most the per
   // A connected Gmail that was given less than Gmail now asks for still gets its card, to sign in again (D-42).
   let shown = await suggest("gmail", "read your mail");
   assert.equal(shown.result.status, "card shown");
-  assert.deepEqual([shown.card.body.app, shown.card.body.button, shown.card.body.plugin.logo], ["Gmail", "Authorize", "gmail"]);
-  // The person's connected Gmail accounts and nothing else (JSKIT reads their hidden home column in a second statement).
+  assert.deepEqual([shown.card.body.app, shown.card.body.button, shown.card.body.plugin.logo], ["Gmail", "Connect", "gmail"]);
+  // The home's connected Gmail accounts and nothing else (JSKIT reads their hidden home column in a second statement).
   const sql = shown.reads.map((read) => read.sql);
-  assert.ok(sql.length >= 1 && sql.length <= 2 && sql.every((text) => /"plugin_accounts"/u.test(text)), `only the person's Gmail accounts are read:\n${sql.join("\n")}`);
+  assert.ok(sql.length >= 1 && sql.length <= 2 && sql.every((text) => /"plugin_accounts"/u.test(text)), `only the home's Gmail accounts are read:\n${sql.join("\n")}`);
   assert.match(sql[0], /"plugin_id" = .*"status" = /u);
 
   await knex("plugin_accounts").where({ id: gmail }).update({ label: "lee@example.com" });
@@ -135,7 +136,7 @@ test("an app's card and the connect card read the catalogue, and at most the per
 
   // Named by part of its name, and one Mercbot can't sign in to yet.
   shown = await suggest("calendar", "add lunch");
-  assert.deepEqual([shown.card.body.app, shown.card.body.button], ["Google Calendar", "Authorize"]);
+  assert.deepEqual([shown.card.body.app, shown.card.body.button], ["Google Calendar", "Connect"]);
   shown = await suggest("Todoist", "add buy milk");
   assert.deepEqual([shown.result.status, shown.card.body.button, shown.card.body.soon], ["card shown, not connectable yet", "Ask for it", true]);
   shown = await suggest("Basecamp", "list my projects");
@@ -149,9 +150,8 @@ test("an app's card and the connect card read the catalogue, and at most the per
  */
 async function patsBot(context) {
   const shared = await setup(context);
-  const { knex, pat, cleanup } = shared;
-  const bot = await testBot(knex, pat, { name: `Reads ${Date.now()}` });
-  cleanup.push(() => knex("bots").where({ id: bot.id }).del());
+  const { knex, pat, homeId } = shared;
+  const bot = await botIn(knex, homeId, pat, { name: `Reads ${Date.now()}` });
   const real = await connectApps(knex, context);
   const turn = { state: "", listed: 0 };
   const integrations = { ...real, list: async (...args) => ((turn.listed += 1), real.list(...args)) };
@@ -171,17 +171,18 @@ async function patsBot(context) {
   return { ...shared, bot, bots, as, turn, replyTo };
 }
 
-test("a turn names the connected apps without reading the Connect apps list", async (context) => {
-  const { knex, pat, cleanup, turn, replyTo } = await patsBot(context);
-  const accounts = await addAccounts(knex, pat, [
+test("a turn names the home's connected apps and who connected each, without reading the Connect apps list", async (context) => {
+  const { knex, pat, lee, leeName, homeId, turn, replyTo } = await patsBot(context);
+  await addAccounts(knex, homeId, pat, [
     { plugin_id: "gmail", status: "connected", label: "reads-inbox@example.com" },
     { plugin_id: "google-calendar", status: "needs-auth" }
   ]);
-  cleanup.push(() => knex("plugin_accounts").whereIn("id", accounts).del());
+  await addAccounts(knex, homeId, lee, [{ plugin_id: "gmail", status: "connected", label: "lee@example.com" }]);
 
   await replyTo("What can you do?");
   assert.equal(turn.listed, 0, "a turn never reads the whole Connect apps list");
-  assert.match(turn.state, /Connected accounts: [^\n]*Gmail: reads-inbox@example\.com/u);
+  // Pat's turn: Pat's mailbox is theirs, Lee's is the home's too, named by who connected it (D-111).
+  assert.match(turn.state, new RegExp(`Connected accounts: [^\\n]*Gmail: 2 accounts, reads-inbox@example\\.com \\(connected by them\\); lee@example\\.com \\(connected by ${leeName}\\)`, "u"));
   assert.match(turn.state, /waiting for sign-in in Connect apps: [^\n]*Google Calendar/u);
 });
 
@@ -215,25 +216,25 @@ test("a turn and the \"/\" picker list the person's skills without their instruc
 });
 
 test("a person without a display name is named by their email's first part wherever others see them", async (context) => {
-  const { knex, pat, lee, leeName, cleanup } = await setup(context);
-  const homeId = String(await testHome(knex, pat));
-  await knex("workspace_memberships").insert({ workspace_id: homeId, user_id: lee, role_sid: "admin", status: "active" });
-  const bot = await testBot(knex, pat, { name: `Names ${Date.now()}` });
-  cleanup.push(async () => {
-    await knex("bots").where({ id: bot.id }).del();
-    await knex("workspace_memberships").where({ workspace_id: homeId, user_id: lee }).del();
-  });
+  const { knex, pat, lee, leeName, homeId } = await setup(context);
+  await knex("workspace_memberships").where({ workspace_id: homeId, user_id: lee }).update({ role_sid: "admin" });
+  const bot = await botIn(knex, homeId, pat, { name: `Names ${Date.now()}` });
   const integrations = await connectApps(knex, context);
   const asPat = memberOptions({ userId: pat, homeId });
   const asLee = memberOptions({ userId: lee, homeId, role: "admin", permissions: ["workspace.settings.update"] });
 
-  // Connect apps: "Everyone in <home> · added by <name>" (D-37), in the list and for the one account a sign-in waits on.
-  const { accountId } = await integrations.addAccount(REACH, "gmail", "family", { forHome: true }, asLee);
-  const listed = (await integrations.list(REACH, asPat)).plugins.find((plugin) => plugin.id === "gmail").accounts.find((account) => account.id === accountId);
-  assert.deepEqual([listed.home, listed.addedBy], [true, leeName]);
-  assert.deepEqual((await integrations.accountStatus(REACH, accountId, asPat)).account, listed, "one account reads as the list shows it");
-  await assert.rejects(integrations.accountStatus(REACH, accountId, requestContextOptions({ user: { id: pat } })), /Account not found/u, "outside the home it isn't reached");
-  await assert.rejects(integrations.accountStatus(REACH, "not-an-id", asPat), /Account not found/u);
+  // Connect apps: "Added by <name>" (D-111), in the list and for the one account a sign-in waits on.
+  const { accountId } = await integrations.addAccount("gmail", "family", asLee);
+  const listed = (await integrations.list(asPat)).plugins.find((plugin) => plugin.id === "gmail").accounts.find((account) => account.id === accountId);
+  assert.deepEqual([listed.addedBy, listed.addedByYou, listed.canChange], [leeName, false, false], "a member sees who added it, and can't change it");
+  const byLee = (await integrations.list(asLee)).plugins.find((plugin) => plugin.id === "gmail").accounts.find((account) => account.id === accountId);
+  assert.deepEqual([byLee.addedByYou, byLee.canChange], [true, true]);
+  assert.deepEqual((await integrations.accountStatus(accountId, asPat)).account, listed, "one account reads as the list shows it");
+  // Another home of Pat's (this file's database copy is its own, so it goes with it).
+  const patsOtherHome = await separateHome(knex, pat);
+  await assert.rejects(integrations.accountStatus(accountId, memberOptions({ userId: pat, homeId: patsOtherHome })), /Account not found/u, "another home doesn't reach it");
+  await knex("workspaces").where({ id: patsOtherHome }).del();
+  await assert.rejects(integrations.accountStatus("not-an-id", asPat), /Account not found/u);
 
   // The home notebook (D-36): a note from Lee's chat.
   await knex("bot_notebook").insert({ workspace_id: homeId, bot_id: bot.id, text: "The bins go out on Tuesday", source_user_id: lee });
@@ -244,7 +245,7 @@ test("a person without a display name is named by their email's first part where
 });
 
 test("the coming-soon apps people want are counted over everyone's wishes, most wanted first, then by name", async (context) => {
-  const { knex, pat, lee, cleanup } = await setup(context);
+  const { knex, pat, lee, homeId, cleanup } = await setup(context);
   const colleague = String((await knex("users").whereNotIn("id", [pat, lee]).orderBy("id").first()).id);
   const catalogue = [
     { id: "gmail", name: "Gmail" },
@@ -258,7 +259,7 @@ test("the coming-soon apps people want are counted over everyone's wishes, most 
   // Each wish is made as Connect apps makes it, by adding a coming-soon app (D-33).
   const wishes = [[lee, ["trello", "asana", "notion"]], [pat, ["trello", "notion"]], [colleague, ["asana", "notion"]]];
   for (const [person, apps] of wishes) {
-    for (const app of apps) await integrations.install(REACH, app, requestContextOptions({ user: { id: person } }));
+    for (const app of apps) await integrations.install(app, memberOptions({ userId: person, homeId }));
   }
   // A wish for an app the catalogue no longer has isn't listed.
   await knex("app_interest").insert({ user_id: lee, plugin_id: "retired-app" });
@@ -270,7 +271,7 @@ test("the coming-soon apps people want are counted over everyone's wishes, most 
     { id: "trello", name: "Trello", people: 2 }
   ]);
   // Connect apps shows each person only their own wish, never how many people want an app.
-  const listed = (await integrations.list(REACH, requestContextOptions({ user: { id: pat } }))).plugins;
+  const listed = (await integrations.list(memberOptions({ userId: pat, homeId }))).plugins;
   assert.deepEqual(listed.filter((plugin) => plugin.soon).map((plugin) => [plugin.id, plugin.wanted, "wantedBy" in plugin]), [
     ["trello", true, false],
     ["asana", false, false],

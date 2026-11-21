@@ -197,8 +197,10 @@ function editRoutine(routine) {
 
 const { onboardingTiming, chooseName } = useOnboarding({ currentBot, store, focusComposer, reportFailure });
 
-const { appsOpen, appsSkillId, appsAppId, appsPage, explainerOpen, explainerPlugin, openApp, openSkill, openSkills, explainConnect, continueConnect } =
-  useConnectApps({ reportFailure, currentBot });
+const {
+  appsOpen, appsSkillId, appsAppId, appsPage, explainerOpen, explainerPlugin,
+  openApp, openSkill, openSkills, explainConnect, continueConnect
+} = useConnectApps({ reportFailure, currentBot });
 const mainBot = computed(() => bots.value.find((bot) => bot.isMain) || null);
 const { liveView, liveBot, openComputer, takeOver, workOnFile, teach, finishTeaching, settleHandover } =
   useLiveView({ currentBot, bots, store, work, reportFailure });
@@ -499,7 +501,13 @@ watch(() => currentHomeEntry.value?.slug, () => loadBuilderBot(), { immediate: t
       @add-bots="addBots"
     />
     <MercbotAppsModal v-model="appsOpen" :main-bot="mainBot" :skill-id="appsSkillId" :app-id="appsAppId" :start-page="appsPage" @failure="reportFailure('That didn\'t work. Try again.', $event)" />
-    <MercbotConnectExplainer v-model="explainerOpen" :plugin="explainerPlugin" :bot-name="currentBot.name" @continue="continueConnect" />
+    <MercbotConnectExplainer
+      v-model="explainerOpen"
+      :plugin="explainerPlugin"
+      :bot-name="currentBot.name"
+      :home-name="homeName"
+      @continue="continueConnect"
+    />
     <MercbotLiveView
       v-if="liveView"
       :bot="liveBot"

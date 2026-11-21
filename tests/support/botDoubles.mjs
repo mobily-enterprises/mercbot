@@ -53,6 +53,7 @@ const neutral = {
     skills: async () => [],
     skillNames: async () => [],
     reachableAccounts: async () => [],
+    namesOf: async () => new Map(),
     hasConnected: async () => false,
     accountLabels: async () => [],
     toolSwitches: async () => ({ skip: {}, removed: [], turnedOff: [], connected: [] }),

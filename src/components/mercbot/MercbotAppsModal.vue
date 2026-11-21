@@ -1,6 +1,8 @@
 <script setup>
 import { useDisplay } from "vuetify";
 import { computed, nextTick, ref, watch } from "vue";
+import { useRouter } from "vue-router";
+import MercbotAddAccount from "./MercbotAddAccount.vue";
 import MercbotAppPeople from "./MercbotAppPeople.vue";
 import MercbotAvatar from "./MercbotAvatar.vue";
 import MercbotCredentialsForm from "./MercbotCredentialsForm.vue";
@@ -12,18 +14,20 @@ import { useHomes } from "./homesApi.js";
 import { useAppAccounts } from "./useAppAccounts.js";
 import { usePrivateSkill } from "./usePrivateSkill.js";
 import { useSignInWatch } from "./useSignInWatch.js";
+import { signInInThisTab } from "./signInReturn.js";
 import {
   BADGES,
   MAIN_CATEGORIES,
   MORE_CATEGORIES,
-  NEEDS,
   OVERVIEW_LIMIT,
+  accountLine,
   accountTitle,
   actionLabel,
   availability,
   catalogueSections,
   enabledCount,
   parts,
+  removeAppQuestion,
   searchApps,
   searchCategories,
   signsIn,
@@ -35,6 +39,7 @@ import { usePaths } from "@jskit-ai/shell-web/client/navigation/usePaths";
 // Connect apps and skills: catalogue, app detail, Manage and private skill pages in one modal.
 // On a phone it fills the screen (D-36 UX bar).
 const paths = usePaths();
+const router = useRouter();
 const display = useDisplay();
 const phone = computed(() => display.width.value < 600);
 const props = defineProps({
@@ -61,7 +66,8 @@ const busyLabel = ref("");
 const toast = ref("");
 // An app connected with API credentials (D-93) has no sign-in: its page shows the form for them in the account's row.
 const enteringCredentials = ref("");
-// Home-wide accounts (D-37): owners and admins can add an account for everyone in the home.
+// Every account is the home's (D-111); the home's owners and admins enter an app's API credentials that are the whole
+// home's (D-93).
 const { current: currentHome } = useHomes();
 const homeName = computed(() => currentHome.value?.name || "this home");
 const managesHome = ref(false);
@@ -71,9 +77,14 @@ const onFailure = (error) => emit("failure", error);
 const { skill, skillDraft, confirmingDelete, openSkill, skillChanged, saveSkill, deleteSkill } =
   usePrivateSkill({ skills, page, showToast, onFailure });
 const {
-  newAccountLabel, addingAccount, forHome, removingAccount, confirmingDisconnect, disconnect, removeAccount, canChange,
-  startAddAccount, authorizeNewAccount, renamingAccountId, accountName, startAccountRename, commitAccountRename
-} = useAppAccounts({ plugins, managesHome, signIn, onFailure });
+  addingAccount, adding, removingAccount, removeAccount, addAccount,
+  renamingAccountId, accountName, startAccountRename, commitAccountRename
+} = useAppAccounts({ plugins, signIn, onFailure });
+/** How each account's line reads and what the person may do with it (D-110, D-111). */
+const lineOf = (account) => accountLine(account, current.value, { homeName: homeName.value });
+// Remove from this home asks first, saying what goes with it.
+const confirmingUninstall = ref(false);
+const uninstallQuestion = computed(() => (current.value ? removeAppQuestion(current.value, homeName.value) : ""));
 
 /** A list a change answered with, shown at once. */
 const showPlugins = (list) => {
@@ -131,14 +142,16 @@ function openPlugin(plugin) {
   currentId.value = plugin.id;
   enteringCredentials.value = "";
   addingAccount.value = false;
-  confirmingDisconnect.value = "";
+  confirmingUninstall.value = false;
   removingAccount.value = "";
   toolsOpen.value = false;
   query.value = "";
   page.value = "detail";
 }
 
-// Adding shows "adding", then the account that still needs signing in, and opens the sign-in.
+// Add to this home (D-110, D-111) adds the app, showing "adding", and never signs in: one people sign in to opens its page at the
+// Add account step, whose one button signs the new account in; one connected with the home's API credentials opens
+// their form.
 async function install(plugin) {
   // The home's API credentials (D-93) are its owners' and admins' to enter: the app's page says so.
   if (plugin.credentials?.home && !managesHome.value) {
@@ -150,9 +163,14 @@ async function install(plugin) {
   try {
     const [result] = await Promise.all([pluginsApi.install(plugin.id), sleep(plugin.soon ? 400 : 1200)]);
     plugins.value = result.plugins;
+    const added = result.plugins.find((entry) => entry.id === plugin.id);
     // A coming-soon app is only noted as wanted: its page explains (D-33).
     if (plugin.soon) openPlugin(plugin);
-    else signIn(result.plugins.find((entry) => entry.id === plugin.id));
+    else if (plugin.credentials) signIn(added);
+    else if (needsAccount(added)) {
+      openPlugin(added);
+      addingAccount.value = true;
+    }
   } catch (error) {
     emit("failure", error);
   } finally {
@@ -170,9 +188,10 @@ function signIn(plugin, account = null) {
     enteringCredentials.value = target?.id || "";
     return;
   }
-  openSignIn(paths.page("/connect", { surface: "account" }), plugin, target);
+  openSignIn(paths.page("/connect", { surface: "account" }), plugin, target, router);
+  if (signInInThisTab()) return;
   if (pasteSignIn.value && page.value !== "detail") openPlugin(plugin);
-  showToast(`Sign-in for ${plugin.name} opened in a new tab. Come back here once you're done.`);
+  showToast(`Sign-in for ${plugin.name} opened in its own window. It closes by itself once you're done.`);
   watchSignIn(plugin, target);
 }
 
@@ -185,7 +204,7 @@ function credentialsSaved({ credentials, plugins: list }) {
   showToast(`${app} is connected as ${label}. ${matched.length} ${matched.length === 1 ? "person" : "people"} found by email address.${missing}`);
 }
 // The home's account of an app connected with its API credentials, once connected: who each person is there.
-const homeConnected = computed(() => (current.value?.credentials?.home ? current.value.accounts.find((account) => account.home && account.status === "connected") || null : null));
+const homeConnected = computed(() => (current.value?.credentials?.home ? current.value.accounts.find((account) => account.status === "connected") || null : null));
 
 // The installed overview shows six apps, then "Show all N plugins".
 const showAllInstalled = ref(false);
@@ -207,7 +226,11 @@ async function setAction(plugin, action) {
   }
 }
 
+/** An app people sign in to that has no account yet: adding it opens the Add account step, and Your apps says so. */
+const needsAccount = (plugin) => Boolean((plugin.oauth || plugin.mcp) && !plugin.accounts.length);
+
 async function uninstall(plugin) {
+  confirmingUninstall.value = false;
   busyId.value = plugin.id;
   busyLabel.value = "Removing…";
   try {
@@ -384,15 +407,20 @@ function openTemplates() {
             {{ current.wanted ? "Requested" : "Request" }}
           </button>
           <button
-            v-else-if="!(current.credentials?.home && !managesHome)"
+            v-else-if="current.installed ? current.canRemove : !(current.credentials?.home && !managesHome)"
             type="button"
             class="mb-detail__pill"
             :class="{ 'mb-detail__pill--primary': !current.installed, 'mb-detail__pill--busy': busyId === current.id }"
             :disabled="busyId === current.id"
-            @click="current.installed ? uninstall(current) : install(current)"
+            @click="current.installed ? (confirmingUninstall = true) : install(current)"
           >
-            {{ busyId === current.id ? busyLabel : current.installed ? "Uninstall" : "Connect" }}
+            {{ busyId === current.id ? busyLabel : current.installed ? "Remove from this home" : "Add to this home" }}
           </button>
+        </div>
+        <div v-if="confirmingUninstall" class="mb-detail__confirm" role="group" aria-label="Remove from this home">
+          <span>{{ uninstallQuestion }}</span>
+          <button type="button" class="mb-detail__small-pill" @click="confirmingUninstall = false">Keep</button>
+          <button type="button" class="mb-detail__small-pill mb-detail__small-pill--danger" @click="uninstall(current)">Remove</button>
         </div>
         <p class="mb-detail__description">{{ current.description }}</p>
         <p v-if="current.soon" class="mb-detail__soon">
@@ -403,69 +431,72 @@ function openTemplates() {
           An owner or admin of {{ homeName }} connects {{ current.name }} with its API credentials, for everyone in the home.
         </p>
 
-        <!-- A coming-soon app has no sign-in yet, so no accounts to show or sign in to. -->
-        <section v-if="!current.soon && (current.installed || current.accounts.length || (managesHome && signsIn(current)))" class="mb-detail__group">
+        <!-- A coming-soon app has no sign-in yet, so no accounts to show or sign in to. Every account's line reads the same
+             way, for every app (D-110): its name and address, who can use it, how it stands, and the bin. -->
+        <section v-if="!current.soon && (signsIn(current) || current.accounts.length)" class="mb-detail__group">
           <h3>Accounts</h3>
           <div class="mb-detail__box">
-            <div v-for="account in current.accounts" :key="account.id" class="mb-detail__row">
-              <input
-                v-if="renamingAccountId === account.id"
-                v-model="accountName"
-                class="mb-detail__account-input"
-                aria-label="Account name"
-                maxlength="80"
-                autofocus
-                @keydown.enter.prevent="commitAccountRename(account)"
-                @keydown.esc.stop.prevent="renamingAccountId = ''"
-                @blur="commitAccountRename(account)"
-              >
-              <button
-                v-else
-                type="button"
-                class="mb-detail__account"
-                :aria-label="`Rename ${accountTitle(account)}`"
-                :disabled="!canChange(account)"
-                @click="startAccountRename(account)"
-              >
-                <span class="mb-detail__account-text">
-                  {{ accountTitle(account) }}
-                  <span v-if="account.home" class="mb-detail__home">
-                    <v-icon icon="$home" size="12" />Everyone in {{ homeName }}<template v-if="account.addedBy"> · added by {{ account.addedBy }}</template>
-                  </span>
+            <div v-for="account in current.accounts" :key="account.id" class="mb-detail__row mb-detail__row--account" data-testid="account-line">
+              <div class="mb-detail__account-main">
+                <input
+                  v-if="renamingAccountId === account.id"
+                  v-model="accountName"
+                  class="mb-detail__account-input"
+                  aria-label="Account name"
+                  maxlength="80"
+                  autofocus
+                  @keydown.enter.prevent="commitAccountRename(account)"
+                  @keydown.esc.stop.prevent="renamingAccountId = ''"
+                  @blur="commitAccountRename(account)"
+                >
+                <button
+                  v-else
+                  type="button"
+                  class="mb-detail__account"
+                  :aria-label="`Rename ${accountTitle(account)}`"
+                  :disabled="!lineOf(account).canChange"
+                  @click="startAccountRename(account)"
+                >
+                  <span class="mb-detail__account-text">{{ accountTitle(account) }}</span>
+                  <v-icon v-if="lineOf(account).canChange" icon="$edit" size="12" />
+                </button>
+                <span class="mb-detail__home">
+                  <v-icon icon="$home" size="12" />{{ lineOf(account).who }}<template v-if="lineOf(account).addedBy"> Added by {{ lineOf(account).addedBy }}.</template>
                 </span>
-                <v-icon v-if="canChange(account)" icon="$edit" size="12" />
-              </button>
-              <template v-if="removingAccount === account.id">
-                <span class="mb-detail__needs-auth">{{ account.home ? "Remove it for everyone?" : "Remove this account?" }}</span>
-                <button type="button" class="mb-detail__small-pill" @click="removingAccount = ''">Keep</button>
-                <button type="button" class="mb-detail__small-pill mb-detail__small-pill--danger" @click="removeAccount(account)">Remove</button>
-              </template>
-              <template v-else-if="!canChange(account)">
-                <span :class="account.status === 'connected' ? 'mb-detail__connected' : 'mb-detail__needs-auth'">
-                  {{ account.status === "connected" ? "Connected" : account.status === "more-access" ? "Needs more access" : "Needs auth" }}
-                </span>
-              </template>
-              <template v-else-if="working(account) && confirmingDisconnect === account.id">
-                <span class="mb-detail__needs-auth">Disconnect this account?</span>
-                <button type="button" class="mb-detail__small-pill" @click="confirmingDisconnect = ''">Keep</button>
-                <button type="button" class="mb-detail__small-pill mb-detail__small-pill--danger" @click="disconnect(account)">Disconnect</button>
-              </template>
-              <template v-else-if="account.status === 'connected'">
-                <span class="mb-detail__connected">Connected</span>
-                <button v-if="current.credentials" type="button" class="mb-detail__small-pill" @click="signIn(current, account)">Change credentials</button>
-                <button type="button" class="mb-detail__small-pill" @click="confirmingDisconnect = account.id">Disconnect</button>
-                <button v-if="account.home" type="button" class="mb-detail__small-pill" @click="removingAccount = account.id">Remove</button>
-              </template>
-              <template v-else-if="account.status === 'more-access'">
-                <span class="mb-detail__needs-auth" title="Signed in before this app asked for more access; it works with what it has until signed in again">Needs more access</span>
-                <button type="button" class="mb-detail__small-pill" @click="signIn(current, account)">Sign in again</button>
-                <button type="button" class="mb-detail__small-pill" @click="confirmingDisconnect = account.id">Disconnect</button>
-              </template>
-              <template v-else>
-                <span class="mb-detail__needs-auth">{{ current.credentials ? "Not connected" : "Needs auth" }}</span>
-                <button type="button" class="mb-detail__small-pill" @click="signIn(current, account)">{{ current.credentials?.button || NEEDS[account.status] || "Sign in" }}</button>
-                <button v-if="account.home || current.accounts.filter((entry) => !entry.home).length > 1" type="button" class="mb-detail__small-pill" @click="removingAccount = account.id">Remove</button>
-              </template>
+              </div>
+              <div class="mb-detail__account-actions">
+                <template v-if="removingAccount === account.id">
+                  <span class="mb-detail__needs-auth">{{ lineOf(account).removeQuestion }}</span>
+                  <button type="button" class="mb-detail__small-pill" @click="removingAccount = ''">Keep</button>
+                  <button type="button" class="mb-detail__small-pill mb-detail__small-pill--danger" @click="removeAccount(account)">Remove</button>
+                </template>
+                <template v-else>
+                  <span
+                    :class="account.status === 'connected' ? 'mb-detail__connected' : 'mb-detail__needs-auth'"
+                    :title="account.status === 'more-access' ? 'Signed in before this app asked for more access; it works with what it has until signed in again' : undefined"
+                  >{{ lineOf(account).status }}</span>
+                  <template v-if="lineOf(account).canChange">
+                    <button v-if="current.credentials && account.status === 'connected'" type="button" class="mb-detail__small-pill" @click="signIn(current, account)">Change credentials</button>
+                    <button
+                      v-else-if="lineOf(account).signIn && !addingAccount"
+                      type="button"
+                      class="mb-detail__small-pill"
+                      @click="signIn(current, account)"
+                    >
+                      {{ lineOf(account).signIn }}
+                    </button>
+                    <button
+                      type="button"
+                      class="mb-detail__bin"
+                      :aria-label="`Remove ${accountTitle(account)}`"
+                      title="Remove"
+                      @click="removingAccount = account.id"
+                    >
+                      <v-icon icon="$delete" size="16" />
+                    </button>
+                  </template>
+                </template>
+              </div>
             </div>
             <MercbotCredentialsForm
               v-if="current.credentials && enteringCredentials && current.accounts.some((account) => account.id === enteringCredentials)"
@@ -475,25 +506,23 @@ function openTemplates() {
               @saved="credentialsSaved"
               @cancel="enteringCredentials = ''"
             />
-            <form v-if="addingAccount" class="mb-detail__row mb-detail__new-account" @submit.prevent="authorizeNewAccount(current)">
-              <input
-                v-model="newAccountLabel"
-                class="mb-detail__account-input"
-                aria-label="Label for the new account"
-                placeholder="Label, e.g. work or personal"
-                maxlength="80"
-                autofocus
-                @keydown.esc.stop.prevent="addingAccount = false"
-              >
-              <div v-if="managesHome" class="mb-detail__whose" role="radiogroup" aria-label="Who the account is for">
-                <button type="button" role="radio" :aria-checked="!forHome" :disabled="!current.installed || current.credentials?.home" @click="forHome = false">Just me</button>
-                <button type="button" role="radio" :aria-checked="forHome" @click="forHome = true">Everyone in {{ homeName }}</button>
-              </div>
-              <button type="submit" class="mb-detail__small-pill" :disabled="!newAccountLabel.trim()">Authorize</button>
-              <button type="button" class="mb-detail__small-pill" @click="addingAccount = false">Cancel</button>
-            </form>
-            <button v-else-if="(current.installed || managesHome) && !(current.credentials?.home && !managesHome)" type="button" class="mb-detail__add-account" @click="startAddAccount(current)">
-              {{ current.installed ? "+ Add another account" : `+ Add an account for everyone in ${homeName}` }}
+            <MercbotAddAccount
+              v-if="addingAccount"
+              :key="current.id"
+              class="mb-detail__new-account"
+              :plugin="current"
+              :home-name="homeName"
+              :busy="adding"
+              @add="addAccount(current, $event)"
+              @cancel="addingAccount = false"
+            />
+            <button
+              v-else-if="signsIn(current) && !(current.credentials?.home && !managesHome)"
+              type="button"
+              class="mb-detail__add-account"
+              @click="addingAccount = true"
+            >
+              + Add account
             </button>
           </div>
           <form v-if="pasteSignIn && !current.soon && current.accounts.some((account) => account.status !== 'connected')" class="mb-detail__paste" @submit.prevent="finishSignIn">
@@ -512,7 +541,6 @@ function openTemplates() {
           v-if="current.limits && current.accounts.some(working)"
           :plugin="current"
           :accounts="current.accounts.filter(working)"
-          :manages-home="managesHome"
           @changed="showPlugins"
         />
 
@@ -542,22 +570,13 @@ function openTemplates() {
           </div>
         </section>
 
-        <section v-if="current.connectors.length" class="mb-detail__group">
-          <h3>Apps {{ current.connectors.length }}</h3>
-          <div class="mb-detail__box">
-            <div v-for="connector in current.connectors" :key="connector" class="mb-detail__row mb-detail__row--item">
-              <v-icon icon="$power" size="16" />
-              <span><span class="mb-detail__item-name">{{ connector }}</span><span class="mb-detail__item-sub">Connector</span></span>
-            </div>
-          </div>
-        </section>
-
+        <!-- What the app teaches the bots, in words; its connectors' and skills' code names are its source's (View source). -->
         <section v-if="current.skills.length" class="mb-detail__group">
-          <h3>Skills {{ current.skills.length }}</h3>
+          <h3>What your bots learn</h3>
           <div class="mb-detail__box">
             <div v-for="entry in current.skills" :key="entry.name" class="mb-detail__row mb-detail__row--item">
-              <v-icon icon="$deployedCode" size="16" />
-              <span><span class="mb-detail__item-name mb-detail__item-name--mono">{{ entry.name }}</span><span class="mb-detail__item-sub">{{ entry.description }}</span></span>
+              <v-icon icon="$check" size="16" />
+              <span class="mb-detail__item-name">{{ entry.description }}</span>
             </div>
           </div>
         </section>
@@ -590,15 +609,9 @@ function openTemplates() {
                   <span class="mb-app-row__description">{{ parts(plugin) }}</span>
                 </span>
               </button>
+              <!-- Only a status: the app's page, which the row opens, has the one control that signs in (D-110). -->
               <span v-if="worstState(plugin) === 'connected'" class="mb-detail__connected">Connected</span>
-              <button
-                v-else
-                type="button"
-                class="mb-app-row__action"
-                @click="signIn(plugin, plugin.accounts.find((account) => account.status === worstState(plugin)))"
-              >
-                {{ NEEDS[worstState(plugin)] }}
-              </button>
+              <span v-else-if="signsIn(plugin)" class="mb-detail__needs-auth">{{ needsAccount(plugin) ? "No account yet" : "Needs sign-in" }}</span>
             </div>
           </div>
           <button v-if="installed.length > OVERVIEW_LIMIT && !showAllInstalled" type="button" class="mb-apps-modal__show-all" @click="showAllInstalled = true">

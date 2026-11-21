@@ -308,7 +308,6 @@ export const connectFollowUpResource = defineTableResource({
     conversationId: { type: "id", required: true, search: true },
     leaseUntil: { type: "dateTime", nullable: true },
     messageId: { type: "id", required: true, search: true },
-    personal: { type: "boolean", search: true },
     pluginId: { type: "string", maxLength: 64, noTrim: true, required: true, search: true },
     runId: { type: "string", maxLength: 36, noTrim: true, nullable: true, search: true },
     status: { type: "string", maxLength: 8, noTrim: true, search: true },

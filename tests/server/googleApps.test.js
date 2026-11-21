@@ -105,7 +105,7 @@ test("tools use every connected account unless one is named", async () => {
     { id: 2, name: "work", label: "pat@work.example" }
   ];
   const reachableAccounts = async () => rows.map((row) => ({ ...row, pluginId: "gmail", status: "connected" }));
-  const app = { integrations: { reachableAccounts, connections: { accessToken: async (_reach, id) => accessOf(`key-${id}`) } }, reach: { userId: 7 } };
+  const app = { integrations: { reachableAccounts, connections: { accessToken: async (id) => accessOf(`key-${id}`) } }, reach: { userId: 7 } };
   assert.deepEqual((await connectedKeys(app, "gmail", "Gmail")).map((entry) => `${entry.account}=${entry.key.token}`), ["pat@example.com=key-1", "work · pat@work.example=key-2"]);
   assert.equal((await connectedKeys(app, "gmail", "Gmail", "WORK"))[0].key.token, "key-2");
   assert.equal((await connectedKey(app, "gmail", "Gmail", "pat@example.com")).key.token, "key-1");
@@ -194,7 +194,7 @@ test("one address in two apps: named by app, listed with the app's name", async 
     { id: 9, pluginId: "outlook", name: "", label: "pat@example.com", status: "connected" }
   ];
   const reachableAccounts = async () => rows;
-  const app = { integrations: { reachableAccounts, connections: { accessToken: async (_reach, id) => accessOf(`key-${id}`) } }, reach: { userId: 7 } };
+  const app = { integrations: { reachableAccounts, connections: { accessToken: async (id) => accessOf(`key-${id}`) } }, reach: { userId: 7 } };
   const both = await connectedKeys(app, ["google-calendar", "outlook"], "calendar");
   assert.deepEqual(both.map((entry) => entry.account), ["Google Calendar: pat@example.com", "Outlook: pat@example.com"], "Google first, each named with its app");
   assert.equal((await connectedKey(app, ["google-calendar", "outlook"], "calendar", "the Google one")).key.token, "key-3");
@@ -210,7 +210,7 @@ test("an action switched off for the named account's app is reported as switched
     { id: 13, pluginId: "outlook", name: "", label: "pat@outlook.com", status: "connected" }
   ];
   const reachableAccounts = async () => rows;
-  const app = (skip) => ({ integrations: { reachableAccounts, connections: { accessToken: async (_reach, id) => accessOf(`key-${id}`) } }, reach: { userId: 7 }, skip });
+  const app = (skip) => ({ integrations: { reachableAccounts, connections: { accessToken: async (id) => accessOf(`key-${id}`) } }, reach: { userId: 7 }, skip });
   await assert.rejects(connectedKey(app(["gmail"]), ["gmail", "outlook"], "email", "Gmail: work · pat@gmail.com"), /switched this action off for Gmail in Connect apps.*Don't blame the account/u);
   assert.equal((await connectedKey(app(["gmail"]), ["gmail", "outlook"], "email", "pat@outlook.com")).key.token, "key-13", "the other app still works");
   await assert.rejects(connectedKey(app(["gmail", "outlook"]), ["gmail", "outlook"], "email"), /switched this action off for Gmail and Outlook/u);
@@ -225,7 +225,7 @@ test("an app named in an address's domain isn't taken as naming that app", async
     { id: 13, pluginId: "outlook", name: "", label: "pat@gmail.com", status: "connected" }
   ];
   const reachableAccounts = async () => rows;
-  const app = { integrations: { reachableAccounts, connections: { accessToken: async (_reach, id) => accessOf(`key-${id}`) } }, reach: { userId: 7 } };
+  const app = { integrations: { reachableAccounts, connections: { accessToken: async (id) => accessOf(`key-${id}`) } }, reach: { userId: 7 } };
   assert.equal((await connectedKey(app, ["gmail", "outlook"], "email", "Outlook: pat@gmail.com")).key.token, "key-13");
   assert.equal((await connectedKey(app, ["gmail", "outlook"], "email", "Gmail: pat@gmail.com")).key.token, "key-8");
   assert.equal((await connectedKeys(app, ["gmail", "outlook"], "email", "pat@gmail.com")).length, 2);

@@ -54,7 +54,7 @@ const header = (name, value) => ({ name, value });
 const now = Date.now();
 
 /**
- * The tools with the person's Gmail and the home's Outlook connected, the page in front on `url` (in an open sign-in
+ * The tools with the Gmail the person connected and the Outlook someone else in the home connected, the page in front on `url` (in an open sign-in
  * chain unless `inChain` is false), and what they typed, asked and ended kept.
  */
 function signInTool({
@@ -87,11 +87,11 @@ function signInTool({
   const integrations = {
     reachableAccounts: async () =>
       accounts || [
-        { id: "1", pluginId: "gmail", label: "pat@example.org", name: "Pat", home: false },
-        { id: "2", pluginId: "outlook", label: "office@example.org", name: "Office", home: true }
+        { id: "1", pluginId: "gmail", label: "pat@example.org", name: "Pat", userId: "7" },
+        { id: "2", pluginId: "outlook", label: "office@example.org", name: "Office", userId: "8" }
       ],
     connections: {
-      accessToken: async (_reach, id) => {
+      accessToken: async (id) => {
         read.push(id);
         return accessOf(`key-${id}`);
       }
@@ -99,7 +99,9 @@ function signInTool({
     toolSwitches: async () => ({ skip: {}, removed: [], turnedOff: [] })
   };
   const reach = { userId: "7", homeId: "3", personal: true };
-  const appFor = () => ({ integrations, reach, skip: [], call: {} });
+  // Pat's turn: the person whose turn it is (D-111).
+  const call = { context: { actor: { id: "7" } } };
+  const appFor = () => ({ integrations, reach, skip: [], call });
   const turns = { messages: async () => said.map((text) => ({ body: { text } })) };
   const signIns = buildSignInCodeTools({
     appFor,
@@ -107,7 +109,7 @@ function signInTool({
     computerId: "11",
     conversationId: "11",
     turns,
-    call: {},
+    call,
     inTime: (work) => work,
     before,
     after,
@@ -117,7 +119,7 @@ function signInTool({
     wait: { minutes: 10, tries: 1, everyMs: 0 }
   });
   // The approved card's action runs with the person's reach, on the same computer (botCards.answerChoice).
-  const approve = (args) => SIGN_IN_CODE_ACTIONS.fill_sign_in_code.run({ integrations, reach, call: {}, computer, conversationId: "11" }, args);
+  const approve = (args) => SIGN_IN_CODE_ACTIONS.fill_sign_in_code.run({ integrations, reach, call, computer, conversationId: "11" }, args);
   return { tool: signIns.tools.fillSignInCode, start: signIns.tools.startSignIn, finished: signIns.finished, approve, typed, before, after, read, started, ended };
 }
 
@@ -151,7 +153,7 @@ test("a code the site emailed is typed into its page from the person's own inbox
   assert.ok(!JSON.stringify(result).includes("604217"), "the bot never sees the code");
   assert.deepEqual(before.map((message) => message.body.text), ["Typed in the sign-in code from your email"]);
   assert.ok(!JSON.stringify(before).includes("604217"), "nor does the chat");
-  assert.deepEqual(read, ["1"], "only the person's own mailbox is opened, never the home's");
+  assert.deepEqual(read, ["1"], "only the mailbox the person connected is opened, never one someone else connected");
   assert.ok(!calls.some((call) => call.url.includes("m-phish?format=full")), "mail from another domain isn't read");
   const after = Number(/after%3A(\d+)/u.exec(calls[0].url)?.[1]);
   assert.ok(Math.abs(after - (now - 10 * 60_000) / 1000) < 30, "only the last few minutes' mail");
@@ -171,9 +173,9 @@ test("a page on another site gets no code, and with nothing found the bot uses t
   assert.match(none.note, /ask_for_login with kind code/u);
   assert.deepEqual(empty.typed, []);
 
-  const noInbox = signInTool({ accounts: [{ id: "2", pluginId: "outlook", label: "office@example.org", home: true }] });
+  const noInbox = signInTool({ accounts: [{ id: "2", pluginId: "outlook", label: "office@example.org", userId: "8" }] });
   const without = await noInbox.tool.execute({ site: "example.com" });
-  assert.equal(without.status, "no inbox to check", "a home's mailbox isn't the person's own");
+  assert.equal(without.status, "no inbox to check", "a mailbox someone else in the home connected isn't the person's");
 });
 
 test("the code is typed only into a page of the site that sent it, whatever site the bot names", async (context) => {

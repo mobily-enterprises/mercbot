@@ -8,7 +8,7 @@ const TOOLS_MINUTES = 10;
  * The connected accounts of apps that host their own connection point (D-34), once connections.js has signed them in:
  * who signed in and the app's actions right after a sign-in, each action run with a key that is renewed when it runs out
  * or the app refuses it, an account signed out when the app no longer takes its sign-in, and the sign-in withdrawn at
- * the app on disconnecting.
+ * the app when the account is removed (or whoever runs the copy disconnects it).
  * @param {object} dependencies
  * @param {ReturnType<typeof import("./connector.js").createConnector>} dependencies.connector
  * @param {import("./types.js").Accounts} dependencies.accounts
@@ -64,8 +64,8 @@ export function createConnectorAccounts({ connector, accounts, oauthClient, plug
    * once, so of two servers (or calls) renewing at once the second waits and takes the first's new
    * key instead of being refused (D-15).
    */
-  async function withKey(reach, accountId, options, work) {
-    const account = await accounts.reachableAccount(reach, accountId, options, { tokens: true });
+  async function withKey(accountId, options, work) {
+    const account = await accounts.reachableAccount(accountId, options, { tokens: true });
     const plugin = pluginOf(account.pluginId);
     if (!plugin?.mcp) {
       throw new ConnectionError(400, `${plugin?.name || "That app"} has its own tools, not a connection point.`, {
@@ -119,8 +119,8 @@ export function createConnectorAccounts({ connector, accounts, oauthClient, plug
    * The app's actions for one account: `{ name, title, description, inputSchema, annotations }`, as
    * the app lists them, kept for a few minutes.
    */
-  function tools(reach, accountId, options) {
-    return withKey(reach, accountId, options, async (plugin, access, account) => {
+  function tools(accountId, options) {
+    return withKey(accountId, options, async (plugin, access, account) => {
       const kept = toolLists.get(account.id);
       if (kept && kept.at > Date.now() - TOOLS_MINUTES * 60000) return kept.tools;
       const listed = await connector.tools(plugin, access);
@@ -131,11 +131,11 @@ export function createConnectorAccounts({ connector, accounts, oauthClient, plug
   }
 
   /** Runs one of the app's actions as the account: what the app answered (`content`, `isError`). */
-  function call(reach, accountId, name, input, options) {
-    return withKey(reach, accountId, options, (plugin, access) => connector.call(plugin, access, name, input));
+  function call(accountId, name, input, options) {
+    return withKey(accountId, options, (plugin, access) => connector.call(plugin, access, name, input));
   }
 
-  /** On disconnecting: the app withdraws its own permission too, where it offers that. */
+  /** On removing an account (or whoever runs the copy disconnecting it): the app withdraws its permission too, where it can. */
   async function withdraw(account, options) {
     toolLists.delete(account.id);
     const plugin = pluginOf(account.pluginId);

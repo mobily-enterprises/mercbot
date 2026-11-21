@@ -20,12 +20,11 @@ const hasLongNumber = (text) => [...text.matchAll(/\+?\d[\d\s().-]{7,}\d/gu)]
  * answers to tap, and the line a note for the home notebook leaves (D-36).
  * @param {object} shared
  * @param {import("@local/integrations/server/types").Integrations} shared.integrations
- * @param {import("./types.js").Reach} shared.reach
  * @param {import("./types.js").Notebook | null} shared.notebook
  * @param {object[]} shared.after
  * @param {import("./types.js").CallOptions} shared.call the turn's call options
  */
-export function buildCardTools({ integrations, reach, notebook, after, call }) {
+export function buildCardTools({ integrations, notebook, after, call }) {
   const tools = {};
   // A task that needs an app that isn't connected: an inline card to connect it,
   // then the bot finishes the task once it's signed in, instead of refusing or using the website.
@@ -35,7 +34,7 @@ export function buildCardTools({ integrations, reach, notebook, after, call }) {
     if (shown) return { ...shown, status: "already shown" };
     const plugin = integrations.appNamed(wanted);
     if (!plugin) return { error: `${wanted} isn't one of the apps Mercbot connects to; use its website in your browser if it has one.` };
-    if (await integrations.hasConnected(reach, plugin.id, call)) {
+    if (await integrations.hasConnected(plugin.id, call)) {
       return { error: `${plugin.name} is already connected; ${plugin.mcp ? "use it with use_connected_app" : "use its tools"}.` };
     }
     // An app Mercbot can't sign in to yet still gets its card: its button asks for it,
@@ -49,9 +48,9 @@ export function buildCardTools({ integrations, reach, notebook, after, call }) {
         plugin: { id: plugin.id, logo: plugin.logo, logoImage: plugin.logoImage, color: plugin.color, icon: plugin.icon },
         subtitle: `Let your bot use ${plugin.name} for you`,
         footnote: ready
-          ? "Your bot always checks with you before changing anything, and you can disconnect at any time."
+          ? "Your bot always checks with you before changing anything, and you can remove the account at any time."
           : `Mercbot's connection to ${plugin.name} is on its way. Ask for it here and you'll be among the first to have it.`,
-        button: ready ? "Authorize" : "Ask for it",
+        button: ready ? "Connect" : "Ask for it",
         // A card that can connect waits for it: once the person signs in from it, the bot finishes
         // the task by itself (connectFollowUps.js).
         ...(ready ? { status: "waiting" } : { soon: true }),

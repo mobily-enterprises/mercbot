@@ -15,8 +15,11 @@ export const PROVIDERS = Object.freeze({
       token_endpoint: "https://oauth2.googleapis.com/token"
     },
     scopes: ["https://www.googleapis.com/auth/userinfo.email"],
-    // A long-lived permission, and the consent screen every time so Google always sends one.
-    params: { access_type: "offline", prompt: "consent", include_granted_scopes: "true" },
+    // A long-lived permission, and the consent screen every time so Google always sends one. The account chooser comes
+    // first, so the person picks the mailbox rather than Google taking whichever one the browser is signed in to.
+    params: { access_type: "offline", prompt: "select_account consent", include_granted_scopes: "true" },
+    // The address a line already has, suggested when it is signed in again (connections.js).
+    hint: "login_hint",
     whoami: { url: "https://www.googleapis.com/oauth2/v3/userinfo", label: (body) => body.email }
   }),
   microsoft: Object.freeze({
@@ -28,7 +31,8 @@ export const PROVIDERS = Object.freeze({
       token_endpoint: "https://login.microsoftonline.com/common/oauth2/v2.0/token"
     },
     scopes: ["offline_access", "User.Read"],
-    params: {},
+    params: { prompt: "select_account" },
+    hint: "login_hint",
     whoami: { url: "https://graph.microsoft.com/v1.0/me", label: (body) => body.mail || body.userPrincipalName }
   }),
   github: Object.freeze({
@@ -40,7 +44,8 @@ export const PROVIDERS = Object.freeze({
       token_endpoint: "https://github.com/login/oauth/access_token"
     },
     scopes: ["read:user"],
-    params: {},
+    params: { prompt: "select_account" },
+    hint: "login",
     whoami: { url: "https://api.github.com/user", label: (body) => body.login }
   })
 });
@@ -128,7 +133,11 @@ export function createOAuth({ env, insecure = false }) {
   // How an app that hosts its own connection point is reached: its sign-in server only at public addresses (connector.js).
   const optionsFor = (provider) => (provider.fetch ? { ...options, [oauth.customFetch]: provider.fetch } : options);
 
-  async function authorizeUrl(provider, scopes, state, verifier) {
+  /**
+   * The provider's consent screen for a sign-in. `loginHint` is the address the account already has, suggested where the
+   * provider takes one (its `hint` parameter), so signing in again starts from that mailbox.
+   */
+  async function authorizeUrl(provider, scopes, state, verifier, { loginHint = "" } = {}) {
     const { client: details } = client(provider);
     const url = new URL(provider.server.authorization_endpoint);
     const scope = [...new Set([...provider.scopes, ...scopes])].join(" ");
@@ -141,7 +150,8 @@ export function createOAuth({ env, insecure = false }) {
       code_challenge: await oauth.calculatePKCECodeChallenge(verifier),
       code_challenge_method: "S256",
       ...resourceOf(provider),
-      ...provider.params
+      ...provider.params,
+      ...(loginHint && provider.hint ? { [provider.hint]: loginHint } : {})
     };
     for (const [key, value] of Object.entries(params)) url.searchParams.set(key, value);
     return url.href;
@@ -186,7 +196,7 @@ export function createOAuth({ env, insecure = false }) {
     return String(provider.whoami.label(await response.json()) || "").slice(0, 200) || null;
   }
 
-  /** Withdraws a key at the provider, where it offers that: a courtesy on disconnecting, which may fail. */
+  /** Withdraws a key at the provider, where it offers that: a courtesy on removing an account, which may fail. */
   async function revoke(provider, token) {
     if (!provider.server.revocation_endpoint || !token) return;
     const { client: details, auth } = client(provider);

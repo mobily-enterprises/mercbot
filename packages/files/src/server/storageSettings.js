@@ -179,8 +179,8 @@ export function createStorageSettings({ fileStorage, systemContext, env, mounts,
   /**
    * Where the home keeps its files, for Settings → Files and the Files page, with the Google Drive
    * accounts the request's person could choose, and its latest move (`moveOf`). A Drive says whose it is, Mercbot's
-   * folder there, whether it's signed in, whether this person can sign it in again (their own account, or the home's
-   * for its owners and admins), whether the folder is in Drive's bin, and the Drive's space (driveState).
+   * folder there, whether it's signed in, whether this person can sign it in again (one they added, or any for the home's
+   * owners and admins), whether the folder is in Drive's bin, and the Drive's space (driveState).
    * @param {object} options the request's, in the home
    * @param {{ fresh?: boolean }} [how] `fresh`: look at Google Drive now (Settings → Files)
    */
@@ -205,7 +205,8 @@ export function createStorageSettings({ fileStorage, systemContext, env, mounts,
         space,
         signedIn,
         gone: !account,
-        canSignIn: Boolean(account) && (account.home ? hasPermission(options.context.permissions || [], "workspace.settings.update") : account.userId === person),
+        // As Connect apps: the person who added it, and the home's owners and admins (D-111).
+        canSignIn: Boolean(account) && (account.userId === person || hasPermission(options.context.permissions || [], "workspace.settings.update")),
         driveAccounts,
         move
       };
@@ -313,10 +314,10 @@ export function createStorageSettings({ fileStorage, systemContext, env, mounts,
   }
 
   /**
-   * Whose own Google Drive holds the home's files (D-80): the account of `userId`'s that the files are kept in, or are
+   * Whose Google Drive holds the home's files (D-80): the account `userId` added that the files are kept in, or are
    * being moved into or out of, as `{ account, moving, into }` (its label, whether a move runs, and whether it moves
-   * the files into that account), or null when none of that person's accounts holds them. A home's own Drive account
-   * isn't anyone's.
+   * the files into that account), or null when no account they added holds them. Their accounts go when they leave the
+   * home (D-111), so the files would go with them.
    * @param {string | number} homeId
    * @param {string | number} userId
    * @returns {Promise<{ account: string, moving: boolean, into: boolean } | null>}
@@ -329,7 +330,7 @@ export function createStorageSettings({ fileStorage, systemContext, env, mounts,
     for (const place of [settings, target]) {
       if (place?.kind !== "drive" || String(place.userId) !== String(userId)) continue;
       const account = await drive.account(homeId, place);
-      if (!account || account.home) continue;
+      if (!account) continue;
       return { account: place.label, moving: found.moveStatus === "running", into: place === target };
     }
     return null;

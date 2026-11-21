@@ -54,7 +54,7 @@ const savedDrive = computed(() => (current.value?.kind === "drive" ? current.val
 const notices = computed(() => driveNotices(savedDrive.value, "settings"));
 // The person's own Google Drive accounts and the home's; the saved one too when it's someone else's.
 const driveOptions = computed(() => {
-  const options = (current.value?.driveAccounts || []).map((account) => ({ value: account.id, label: account.label, hint: account.home ? "The home's" : "" }));
+  const options = (current.value?.driveAccounts || []).map((account) => ({ value: account.id, label: account.label }));
   const saved = savedDrive.value;
   if (saved && !options.some((option) => option.value === saved.accountId)) options.unshift({ value: saved.accountId, label: saved.account, hint: "In use" });
   return options;
