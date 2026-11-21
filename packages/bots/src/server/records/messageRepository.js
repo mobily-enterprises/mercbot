@@ -344,10 +344,14 @@ export function createMessageRepository({ resources, systemContext }) {
   async function searchRoutines(options) {
     const searched = await searchedConversations(options);
     const seats = await chatBots.joinSource({ alias: "s" }, passedOn(options));
+    // The bots' seats in those chats, shaped and named as a derived table: a join source is joined through .as().
+    const seated = seats.query
+      .whereIn(seats.column("conversationId"), searched.query)
+      .select({ id: seats.column("id"), bot_id: seats.column("botId"), conversation_id: seats.column("conversationId") })
+      .as("seat");
     const { query } = await routines.scopedQuery({ alias: "r" }, passedOn(options));
     return query
-      .join(seats.query, seats.column("id"), routines.column("chatBotId", "r"))
-      .whereIn(seats.column("conversationId"), searched.query)
+      .join(seated, "seat.id", routines.column("chatBotId", "r"))
       .orderBy(routines.column("id", "r"))
       .select({
         id: routines.column("id", "r"),
@@ -355,8 +359,8 @@ export function createMessageRepository({ resources, systemContext }) {
         schedule: routines.column("schedule", "r"),
         enabled: routines.column("enabled", "r"),
         chat_bot_id: routines.column("chatBotId", "r"),
-        bot_id: seats.column("botId"),
-        conversation_id: seats.column("conversationId")
+        bot_id: "seat.bot_id",
+        conversation_id: "seat.conversation_id"
       });
   }
 
