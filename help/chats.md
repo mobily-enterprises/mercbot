@@ -67,7 +67,7 @@ In a chat, each bot has its own computer. Select the chat's name at the top of t
 - **Watch** opens the computer's screen to follow what the bot does.
 - **Take over** gives you control. While you have it, the bot doesn't act on that computer, and the screen says "You have control. Chef waits until you hand it back." Select **Hand back** when you're done (or press **Escape**).
 - The chat shows a line when someone takes over ("Anna took over Chef's computer.") and when they hand it back ("Anna handed Chef's computer back.").
-- **When someone else has control,** the computer says so, for example "Anna has control of Chef's computer. Wait until they hand it back.", and **Take over** is greyed out there. You can still watch.
+- **When someone else has control,** the computer says so, for example "Anna has control of Chef's computer. You can still take it over, or hand it back to Chef." Anyone who can open the chat can take it over from them or hand it back to the bot, and the chat's line names who it was taken from ("Ben took over Chef's computer from Anna."). You can also just watch.
 - **Reset** starts that computer afresh, after asking: its browser closes, and what's signed in on it and its website data are cleared. The chat and its files stay. The chat's maker and the home's owners and admins can reset a chat's computers, and in your chat with one bot, you can.
 
 In your chat with one bot, the bot's card has the same on its **Computer** tab. On **Team**, a bot's card says it has its own computer in each chat it's in, and lists the chats you share with it. See [The bots' computer and connected apps](/help/computer-and-apps).

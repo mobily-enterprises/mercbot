@@ -3,13 +3,11 @@ import { chatsApi } from "./chatsApi.js";
 import { computerApi } from "./computerApi.js";
 
 /**
- * Why a take-over was refused, in plain words: someone else has the computer (the server names them), or it's gone
- * from the chat.
+ * Why a take-over was refused, in plain words: the computer didn't start (the server says so), or it's gone from the
+ * chat. Someone else having it never refuses: taking over takes it from them (computerControl.js).
  */
-function takeOverRefusal(error, botName) {
-  if (error?.code === "computer_person_in_control") {
-    return error.message || `Someone else has control of ${botName}'s computer. Wait until they hand it back.`;
-  }
+function takeOverRefusal(error) {
+  if (error?.code === "computer_not_started" && error.message) return error.message;
   if (error?.status === 404) return "This computer isn't in this chat any more.";
   return "You couldn't take over just now. Try again.";
 }
@@ -43,7 +41,7 @@ export function useLiveView({ store, work, chatBotFace, reportFailure }) {
       const result = await computerApi.takeOver(target);
       store.appendMessages(String(chatId), result.messages);
     } catch (error) {
-      reportFailure(takeOverRefusal(error, chatBotFace(chatId, botId)?.name || "The bot"), error);
+      reportFailure(takeOverRefusal(error), error);
       return false;
     }
     liveView.value = { botId: String(botId), chatId: String(chatId), inControl: true, handover, teach: false };
