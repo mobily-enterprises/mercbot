@@ -38,7 +38,7 @@ async function setup(context, answer = (bot) => ({ text: `${bot.name} here.` }))
 }
 
 test("with one person every bot answers in order, or only the bots mentioned", async (context) => {
-  const { pat, ada, bo, chatWith, say, calls, spoke } = await setup(context);
+  const { knex, pat, ada, bo, chatWith, say, calls, spoke } = await setup(context);
   const chat = await chatWith([pat]);
 
   const both = await say(chat, pat, "Morning, what's on today?");
@@ -50,6 +50,11 @@ test("with one person every bot answers in order, or only the bots mentioned", a
   const one = await say(chat, pat, `<@bot:${bo}> just you this time`);
   assert.deepEqual(spoke(calls, before), ["Bo"], "only the bot @-mentioned");
   assert.deepEqual(one.map((message) => message.authorBotId), [bo]);
+
+  // Each message keeps its author's name as written (R2), for when they've left the chat.
+  assert.deepEqual(both.map((message) => message.body.authorName), ["Ada", "Bo"]);
+  const [asked] = await knex("messages").where({ conversation_id: chat, role: "user" }).orderBy("id");
+  assert.equal(asked.body.authorName, "Pat");
 
   // Bo's turn read Ada's earlier reply as Ada's, and the person's under their name.
   const read = calls.at(-1).timeline;

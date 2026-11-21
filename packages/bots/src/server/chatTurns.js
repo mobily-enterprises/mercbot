@@ -113,7 +113,10 @@ export function createChatTurns({
     respond: (seat, options) => replies.respond(seat, { ...options, call: seats.readerOf(seat) }),
     claim: chatHistory.claimReply,
     record: (seat, { text, detail }) => seats.say(seat, [{ kind: "event", role: "system", body: { text, icon: "goal", detail } }], seats.readerOf(seat)),
-    notify: (seat, event) => seats.tell(seat.chat_id, event, seats.readerOf(seat)),
+    // Its "working" events name the seat's bot, as every working event does (seats.working).
+    notify: (seat, event) => (event.type === "working"
+      ? seats.working(seat, event.working, event.status, seats.readerOf(seat))
+      : seats.tell(seat.chat_id, event, seats.readerOf(seat))),
     owner: (seat) => ({ workspace_id: seat.workspace_id, bot_id: seat.id, user_id: seat.user_id }),
     // What a job has spent on the model: this person's use of this bot since the goal began.
     spent: async (goal) =>

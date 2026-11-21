@@ -20,7 +20,14 @@ async function setup(context, reply, goalLimits = { retryMs: 200 }) {
     await knex.destroy();
   });
   // Goal rounds run in the bots' system context, as a job for the goal's person, and read what it has spent from the meter.
-  const { turns: service, drain } = await startChatTurns(context, { reply, goalLimits });
+  // What the chat's open pages hear is kept in `events`.
+  const events = [];
+  const notices = {
+    publishEach: async (_channel, _people, event) => {
+      events.push(event);
+    }
+  };
+  const { turns: service, drain } = await startChatTurns(context, { reply, goalLimits, notices });
   const as = (person) => memberOptions({ userId: person, homeId: bot.workspace_id });
   async function ask(text) {
     const sent = await service.chat.sendMessage(bot.conversation_id, { text, clientId: `g-${Date.now()}-${Math.random()}` }, as(userId));
@@ -45,14 +52,14 @@ async function setup(context, reply, goalLimits = { retryMs: 200 }) {
       await new Promise((resolve) => setTimeout(resolve, (ms || 0) + 1));
     }
   }
-  return { knex, userId, bot, service, ask };
+  return { knex, userId, bot, service, ask, events };
 }
 
 const goalOf = (knex, bot) => knex("agent_goals").where({ bot_id: bot.id }).orderBy("id", "desc").first();
 
 test("a bot that stops short gets another round and finishes the goal", async (context) => {
   const prompts = [];
-  const { knex, bot, ask } = await setup(context, async (_bot, _history, tools, _state, prompt) => {
+  const { knex, bot, ask, events } = await setup(context, async (_bot, _history, tools, _state, prompt) => {
     prompts.push(prompt);
     if (!prompt) {
       await tools.createGoal.execute({ objective: "Make the report and check it." });
@@ -70,6 +77,10 @@ test("a bot that stops short gets another round and finishes the goal", async (c
   assert.equal(goal.rounds, 1, "one round was enough");
   const texts = (await knex("messages").where({ conversation_id: bot.conversation_id, kind: "text", role: "bot" }).orderBy("id")).map((message) => message.body.text);
   assert.deepEqual(texts, ["I'll start by reading the file.", "The report is made and checked."]);
+  // The round's working events name the bot that's working, like a reply's (the chat's events, R9).
+  const round = events.filter((event) => event.type === "working" && event.status === "Carrying on with the goal");
+  assert.deepEqual(round.map((event) => [event.chatId, event.botId]), [[String(bot.conversation_id), String(bot.id)]]);
+  assert.ok(events.filter((event) => event.type === "working").every((event) => event.botId === String(bot.id) && event.chatId));
 });
 
 test("blocked is refused before three rounds, and the cap ends a goal that never finishes", async (context) => {
