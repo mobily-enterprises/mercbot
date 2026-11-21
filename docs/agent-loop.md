@@ -256,10 +256,10 @@ What didn't work, or wasn't needed:
 **Quick chat (`tests/agent-evals/chat`, 5):** a greeting, 15% of 84, three bakery names, a
 friendlier rewrite, a 20-minute dinner idea. Judged on a sensible answer; timed.
 
-**Memory (`tests/agent-evals/memory`, 1):** recall-long seeds a 2.4M-character chat (about 600k
-tokens) with five facts in its older part (a birthday, a café name, a plumber's name and visit, a
-budget, an allergy) and asks for all five. Judged on a written summary plus all five facts; facts the
-bot saves to memory are cleared so they can't answer for the summary.
+**Memory (`tests/agent-evals/memory`, 1):** recall-long seeds the person's direct chat with the bot
+with 2.4M characters (about 600k tokens), five facts in its older part (a birthday, a café name, a
+plumber's name and visit, a budget, an allergy), and asks for all five. Judged on the chat's written
+summary plus all five facts; with no memories since D-112, only the summary can carry them.
 
 ### Results over time (Together unless noted)
 

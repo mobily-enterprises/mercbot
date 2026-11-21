@@ -86,9 +86,9 @@ export function createBotRequests({
     if (!fromSeat.chat_bot_id) return { error: "You can't pass this on from here: do it yourself, or say what's needed." };
     const target = await directory.botNamed(name, options, { except: fromSeat.id });
     if (!target) return { error: `There's no other bot called "${name}" in this home.` };
-    // An archived bot takes no requests (D-108) until someone unarchives it.
+    // An archived bot takes no requests (D-108) until someone resumes it.
     if (target.archivedAt) {
-      return { error: `${target.name} is archived, so it can't be asked. Someone can unarchive it from Archived bots in the sidebar.` };
+      return { error: `${target.name} is archived, so it can't be asked. Whoever made it, or an owner or admin, can resume it from Archived on Team.` };
     }
     const depth = parent ? parent.depth + 1 : 0;
     if (depth > limits.depth) {

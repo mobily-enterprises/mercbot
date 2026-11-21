@@ -251,18 +251,18 @@ async function runAppCase(name, attempt) {
   await knex("workspace_settings").insert({ workspace_id: home.id }).catch(() => {});
   const [bot] = await knex("bots").insert({ made_by: userId, workspace_id: home.id, name: "Builder", color: "#1C1C1C", is_main: true }).returning("*");
   const actor = { type: "person", id: userId, name: "Eval" };
-  const ctx = { knex, apps, workspaceId: home.id, userId, actor, bot };
   try {
+    // A group case asks in a chat of the person and the bot (not their direct chat), mentioning it (R3); the rest in
+    // their direct chat (D15). A case's setup may seed that chat (chatId).
+    const chat = await seedChat(knex, kase.group ? { homeId: home.id, people: [userId], bots: [bot.id] } : { homeId: home.id, direct: { userId, botId: bot.id } });
+    const chatBotId = chat.chatBotIds.get(String(bot.id));
+    const ctx = { knex, apps, workspaceId: home.id, userId, actor, bot, chatId: String(chat.id) };
     // App cases make the bot the home's Builder; chat cases use an ordinary bot.
     if (kase.builder !== false) await apps.apps.setBuilder(home.id, actor, bot.id);
     if (kase.setup) await kase.setup(ctx);
     usage = [];
     const started = Date.now();
     let askedId = 0;
-    // A group case asks in a chat of the person and the bot (not their direct chat), mentioning it (R3); the rest in
-    // their direct chat (D15).
-    const chat = await seedChat(knex, kase.group ? { homeId: home.id, people: [userId], bots: [bot.id] } : { homeId: home.id, direct: { userId, botId: bot.id } });
-    const chatBotId = chat.chatBotIds.get(String(bot.id));
     // One message in the chat and all that follows from it; a case's `script` holds a whole conversation.
     const say = async (text) => {
       const sent = await meter.track({ userId, botId: String(bot.id) }, () => ask(chat.id, text, home.id));

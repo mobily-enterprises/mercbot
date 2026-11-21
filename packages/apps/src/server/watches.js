@@ -42,6 +42,11 @@ const WATCH_FIELDS = [
  */
 export function createWatches({ resources, repository, systemContext, registry, gate, apps, records }) {
   const { appWatches } = resources;
+  /** Whether the call's person (the caller, or the one a bot's turn works for) made the watch, and so may resume it. */
+  const madeIt = (row, options) => {
+    const person = resolveAuditActorId(options?.context) ?? resolveUserScopeValue(options?.context);
+    return row.createdBy != null && person != null && String(row.createdBy) === String(person);
+  };
   /**
    * A condition sees the record's fields bare (as in data_query) or as row.<field>, plus before
    * (values before a change) and changed (names of the changed fields).
@@ -140,8 +145,9 @@ export function createWatches({ resources, repository, systemContext, registry, 
   }
 
   /**
-   * The watches of the chats the caller may read (their row policy), each with its bot, chat and chat_bots id; only a
-   * bot's, a chat's or one bot's in one chat when asked (seatsAsked). Three reads, however many watches.
+   * The watches of the chats the caller may read (their row policy), each with its bot, chat and chat_bots id and
+   * whether the caller may resume it (`canResume`, its maker); only a bot's, a chat's or one bot's in one chat when asked
+   * (seatsAsked). Three reads, however many watches.
    */
   async function list({ botId = null, chatId = null, chatBotId = null } = {}, options) {
     const ids = await seatsAsked({ botId, chatId, chatBotId }, options);
@@ -156,7 +162,8 @@ export function createWatches({ resources, repository, systemContext, registry, 
       ...show(tables.find((table) => table.id === row.tableId) || { label: "(removed table)" }, row),
       chatBotId: String(row.chatBotId),
       botId: seats.get(String(row.chatBotId))?.botId ?? null,
-      chatId: seats.get(String(row.chatBotId))?.chatId ?? null
+      chatId: seats.get(String(row.chatBotId))?.chatId ?? null,
+      canResume: madeIt(row, options)
     }));
   }
 
@@ -178,8 +185,7 @@ export function createWatches({ resources, repository, systemContext, registry, 
    */
   async function setEnabled(where, enabled, options) {
     const row = await find(where, options);
-    const person = resolveAuditActorId(options?.context) ?? resolveUserScopeValue(options?.context);
-    if (enabled && (row.createdBy == null || String(row.createdBy) !== String(person ?? ""))) {
+    if (enabled && !madeIt(row, options)) {
       throw new GateError(403, "Only the person who made this watch can resume it: it runs as them.", { code: "apps_watch_resume_forbidden" });
     }
     // Resuming starts from now, at the snapshot horizon: changes made while it was paused don't fire it.

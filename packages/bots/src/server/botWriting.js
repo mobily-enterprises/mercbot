@@ -114,11 +114,15 @@ const SKILL_WRITER = [
   '"steps": 2 to 8 short steps in plain words, in order, with literal values such as addresses and the example input in `backticks`;',
   '"instructions": the same steps as a numbered Markdown list for the assistant to follow later, with the input written as ' +
     "{{input}} instead of the example, and a first line saying what to ask for if the input wasn't given}.",
+  "A step that orders, pays or sends something (placing an order, paying, booking, sending a message or an email, " +
+    'submitting a form to someone) starts with "Ask first:" in both steps and instructions, and the instruction says to ' +
+    "stop there and go on only once the person has said yes in the chat, every time the skill runs.",
   'Leave out stray clicks that didn\'t matter. If nothing useful happened, reply {"name": ""}.'
 ].join("\n");
 
 /**
- * A taught task becomes a skill: its name, steps and instructions.
+ * A taught task becomes a skill: its name, steps and instructions, its steps that order, pay or send marked "Ask first:"
+ * (learning-by-demo.md).
  * @param {import("./types.js").ChatModel} model
  * @param {string[]} lines
  */
