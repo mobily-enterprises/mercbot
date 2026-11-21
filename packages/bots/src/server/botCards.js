@@ -117,8 +117,10 @@ export function createBotCards({ records, account, env, computer, integrations, 
             role: "bot",
             body: { text: "Shared", name: path.split("/").pop(), detail: `${choice.body.for?.name || "The person"} agreed: ${choice.body.share.from} is now also at ${path}.` }
           }));
-      } catch {
-        outcome = { kind: "event", role: "system", body: { text: "That didn't work" } };
+      } catch (error) {
+        // A person holding the chat's computer (D16) is named, so whoever said yes knows to wait for them.
+        const held = error?.code === "computer_person_in_control" ? { detail: error.message } : {};
+        outcome = { kind: "event", role: "system", body: { text: "That didn't work", ...held } };
       }
       const { result: _result, ...message } = outcome;
       results.push(...await seats.say(seat, [message], options));

@@ -13,7 +13,7 @@ import { buildConnectorTools } from "./connectorTools.js";
 import { buildDraftTools } from "./draftTools.js";
 import { buildFileTools } from "./fileTools.js";
 import { canMakePictures } from "./pictureMaker.js";
-import { buildMemoryTools } from "./memoryTools.js";
+import { buildSkillTools } from "./skillTools.js";
 import { buildRoutineTools } from "./routineTools.js";
 import { SIGN_IN_LINE, buildSignInCodeTools } from "./signInCodes.js";
 import { buildWebTools } from "./webTools.js";
@@ -298,7 +298,7 @@ export function buildTools({
   // Notes for the job in hand and a to-do list the person sees as a card (D-48, @jskit-ai/agent-runtime
   // planning), both in front of the bot at every turn.
   if (!routineRun && seated) Object.assign(tools, planningTools({ planning: records.turns.planning(call), conversationId: seated, post }));
-  Object.assign(tools, buildMemoryTools({
+  Object.assign(tools, buildSkillTools({
     bots: records.bots,
     integrations,
     botSkills,
@@ -531,7 +531,6 @@ export function buildTools({
     directory: records.directory,
     call,
     botId,
-    conversationId: chatId,
     chatBotId: seated,
     userId,
     isBuilder,

@@ -69,10 +69,11 @@ export function createBotChat({ records, model, integrations, goals, replies, se
    * chat.
    */
   async function findOlder(chatId, { q, before } = {}, options) {
+    // Whose chat it is first (a 404 for one the caller can't open), then what they asked for.
+    const chat = await records.chats.get(String(chatId), options);
     const text = typeof q === "string" ? q : "";
     if (!isMessageId(before)) throw new BotsError(400, "That place in the chat isn't valid.", { code: "bots_before_invalid" });
     if (text.length > FIND_LIMIT) throw new BotsError(400, "That's too long to find.", { code: "bots_find_too_long" });
-    const chat = await records.chats.get(String(chatId), options);
     if (!text) return { count: 0, newest: null, oldest: null };
     return history.findBefore(chat.id, text, before, options);
   }

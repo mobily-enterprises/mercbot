@@ -72,7 +72,7 @@ function tools({ person = PAT, who = null, removed = [], renewed = [] } = {}) {
   };
   const attempted = [];
   const built = buildSednaTools({
-    appFor: () => ({ integrations, reach: { userId: "7", personal: true }, call: {} }),
+    appFor: () => ({ integrations, call: {} }),
     attempt: async () => ({ error: "No changes in these tests." }),
     attempted,
     files: { store: {} },

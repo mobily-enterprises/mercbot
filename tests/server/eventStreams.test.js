@@ -25,7 +25,14 @@ const STREAMS = [
     register: (http, { notices, streams }) => registerComputerRoutes(http, {
       computer: { subscribe: (computerId, send) => notices.subscribe("computer", computerId, send) },
       files: {},
-      directory: { findBot: async (botId) => ({ id: botId }), seatOf: async () => ({ id: "9" }) },
+      // The bot's computer in the chat the address names (?chat=, D-112): its seat there and that seat's computer.
+      directory: {
+        findBot: async (botId) => ({ id: botId }),
+        // Step 1's route, which C's merge replaces with the two below; drop seatOf then.
+        seatOf: async () => ({ id: "9" }),
+        chatBotOf: async () => ({ id: "9" }),
+        computerOf: async (chatBotId) => ({ chatBotId, chatId: "4", chatKind: "public", botId: "5", botName: "A bot", workspaceId: "3" })
+      },
       streams,
       meter: {}
     })
@@ -72,14 +79,14 @@ async function streamOn(t, { route, register }) {
     server.closeAllConnections();
     server.close();
   });
-  const client = http.get({ host: "127.0.0.1", port: server.address().port, path: "/api/w/home-3/bots/5/computer/stream" });
+  const client = http.get({ host: "127.0.0.1", port: server.address().port, path: "/api/w/home-3/bots/5/computer/stream?chat=4" });
   client.on("error", () => {});
 
   const { raw, res } = await arrivals;
   const request = {
     raw,
     params: { workspaceSlug: "home-3", botId: "5" },
-    query: {},
+    query: { chat: "4" },
     user: { id: "7" },
     workspace: { id: "3", slug: "home-3" },
     membership: { roleSid: "member" },

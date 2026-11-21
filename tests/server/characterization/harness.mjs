@@ -3,7 +3,7 @@
 // The characterization tests reach everything else over HTTP. What no route reaches is built here, from the app's own
 // modules, as the server builds it: the three queue loops' claims (routines, Apps' jobs and bot requests run in the
 // background on a listening server, never for a request), the Apps tables a home's records live in (only the Builder
-// bot's tools make them), the accounts a bot's turn may use (only a bot's tools ask for that reach) and AnyAPI's
+// bot's tools make them), the accounts a bot's turn may use (only a bot's tools ask for them) and AnyAPI's
 // rows for a home's tables. When the port changes how these are constructed (handles and table resources in place of
 // Knex), only this file changes; the tests that call it stay as they are.
 import { setTimeout as pause } from "node:timers/promises";
@@ -12,7 +12,7 @@ import { __testables as anyapiTestables, createAnyapi } from "../../../packages/
 import { createRegistry } from "../../../packages/apps/src/server/registry.js";
 import { startAppJobRunner } from "../../../packages/bots/src/server/appJobRunner.js";
 import { createBotRequests } from "../../../packages/bots/src/server/botRequests.js";
-import { botMessageResource, botRequestResource, botRoutineResource } from "../../../packages/bots/src/server/records/tableResources.js";
+import { botRequestResource, botRoutineResource, messageResource } from "../../../packages/bots/src/server/records/tableResources.js";
 import { REQUEST_SEARCH, ROUTINE_SEARCH, createWorkRepository } from "../../../packages/bots/src/server/records/workRepository.js";
 import { startRoutineRunner } from "../../../packages/bots/src/server/routineRunner.js";
 import { ACCOUNT_FILTERS, createAccounts } from "../../../packages/integrations/src/server/accounts.js";
@@ -86,7 +86,7 @@ async function botsWork(knex) {
   const resources = await runtime.own("mercbot.bots.records", [
     { resource: botRequestResource, searchSchema: REQUEST_SEARCH },
     { resource: botRoutineResource, searchSchema: ROUTINE_SEARCH },
-    botMessageResource
+    messageResource
   ]);
   return {
     runtime,
@@ -162,21 +162,30 @@ export async function sweepBotRequests(knex, { pauseMs = 0 } = {}) {
   const claimed = [];
   const { work, systemContext } = await botsWork(knex);
   const requests = createBotRequests({
-    work,
+    // Every bot and seat is found and nobody has a name: the steps' lookups are not what these tests pin.
+    records: {
+      work,
+      directory: { findBot: async (botId) => ({ id: String(botId), name: "A bot", color: "", shape: "", kind: "bot" }) },
+      chats: {
+        chatBot: async (chatBotId) => ({ id: String(chatBotId), bot_id: "0" }),
+        names: async () => new Map()
+      }
+    },
     systemContext,
-    // Every bot is found and nobody has a name: the steps' lookups are not what these tests pin.
-    directory: { findBot: async (botId) => ({ id: String(botId), name: "A bot", color: "", shape: "", kind: "bot" }) },
-    profiles: { findById: async () => null },
+    seats: {
+      seatIn: async (chatId, botId, askerId) =>
+        ({ id: String(botId), chat: { id: String(chatId), archived_at: null }, chat_id: String(chatId), chat_bot_id: "0", user_id: String(askerId) }),
+      readerOf: () => ({}),
+      working: async () => {},
+      tell: async () => {}
+    },
     notices: QUIET,
     meter: { track: (_who, work) => work() },
-    rowOf: async (botId, conversationId) => ({ id: String(botId), conversation_id: String(conversationId) }),
-    respond: async (_row, { requestTurn }) => {
+    respond: async (_seat, { requestTurn }) => {
       claimed.push(String((requestTurn.asking || requestTurn.working).id));
       if (pauseMs) await pause(pauseMs);
       return [];
     },
-    append: async () => [],
-    tell: async () => {},
     claimReply: async () => true,
     runs: { limits: { heartbeatMs: HOUR_MS }, heartbeat: async () => {}, release: async () => {} },
     background: (work) => {
@@ -224,15 +233,15 @@ export async function dropTables(knex, workspaceId) {
 
 /**
  * The ids of the connected accounts a bot's turn may use (packages/integrations/src/server/accounts.js), in id order:
- * every account of its home (D-111), in a room as in a person's own chat; no route asks as a turn does.
+ * every account of its home (D-111), in any chat (R4); no route asks as a turn does.
  * @param {import("knex").Knex} knex
  * @param {{ userId: string, homeId: string }} turn
  */
 export async function reachableAccountIds(knex, { userId, homeId }) {
   const { accounts, systemContext } = await integrationsAccountsOn(knex);
-  // As a bot's turn asks: a job acting for the person, in the home.
+  // As a bot's turn asks: its model's reader, for the person who asked, in the home (records.readers.forBot).
   const scope = systemContext("a bot's turn reaches the accounts of its home");
-  const context = scope.forWorkspace(String(homeId), { actorId: String(userId) });
+  const context = scope.forWorkspaceUser(String(homeId), String(userId), { actorId: String(userId) });
   return (await accounts.reachable({ context })).map((account) => account.id);
 }
 

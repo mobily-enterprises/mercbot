@@ -4,8 +4,8 @@ import { findSkill } from "./skills.js";
 import { ADDITIONS_LIMIT, changeRefusal, mayChangeBot } from "./botAdditions.js";
 
 /**
- * What a bot keeps beyond a chat: skills (Mercbot's, its template's and the asker's own, per home) and its own additions
- * (D-98). Lasting facts for a job are the template's notes document in /files/chat (B1), not a tool here.
+ * Skills (Mercbot's, the bot's template's and the asker's own in the home) and the bot's own additions (D-98). Nothing
+ * else lasts beyond a chat in a tool: lasting facts for a job are the template's notes document in /files/chat (B1).
  * @param {object} shared
  * @param {import("./types.js").BotRecords["bots"]} shared.bots records.bots, for the bot's additions
  * @param {import("@local/integrations/server/types").Integrations} shared.integrations
@@ -19,7 +19,7 @@ import { ADDITIONS_LIMIT, changeRefusal, mayChangeBot } from "./botAdditions.js"
  * @param {(text: string) => void} shared.acknowledge
  * @param {import("@jskit-ai/resource-runtime/server/types").ResourceCallOptions} shared.call the turn's call options
  */
-export function buildMemoryTools({ bots, integrations, botSkills, botId, userId, personInChat, attempt, acknowledge, call }) {
+export function buildSkillTools({ bots, integrations, botSkills, botId, userId, personInChat, attempt, acknowledge, call }) {
   const tools = {};
 
   /**

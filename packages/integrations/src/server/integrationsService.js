@@ -538,7 +538,6 @@ export function createIntegrationsService({ resources, accounts, catalogue, conn
     accountStatus,
     reachableAccount,
     manageableAccount,
-    accountLabels: accounts.accountLabels,
     // For whoever runs the copy: every account a person added, in every home, and disconnecting any by its id.
     acrossHomes: Object.freeze({
       accountsOf: accounts.addedBy,
