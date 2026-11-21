@@ -7,7 +7,7 @@ import MercbotCallBar from "./MercbotCallBar.vue";
 import MercbotContextMenu from "./MercbotContextMenu.vue";
 import MercbotConfirmDialog from "./MercbotConfirmDialog.vue";
 import MercbotTooltip from "./MercbotTooltip.vue";
-import { mentionBotsOf, offersOwnSkills, soleBotOf, useComposerTokens } from "./useComposerTokens.js";
+import { mentionBotsOf, soleBotOf, useComposerTokens } from "./useComposerTokens.js";
 import { hasSeveral } from "./messageAuthors.js";
 import { chatSubtitle, chatTitle, directBotOf, isDirect, kindIcon, kindLabel, kindMeaning, publicNotice } from "./chatView.js";
 import { addPersonQuestion, chatRights } from "./chatMenus.js";
@@ -219,8 +219,7 @@ const several = computed(() => (props.newChat ? props.newChat.people.length + pr
 const mentionBots = computed(() => (props.newChat ? newChatBots.value : mentionBotsOf(props.chat)));
 // In a chat of several, the mic is the round accent button.
 const filledMic = computed(() => several.value && !hasContent.value);
-const ownSkills = () => offersOwnSkills(props.chat, props.me);
-const composerTokens = useComposerTokens({ draft, input, several, mentionBots, chatId: () => chatId.value || null, ownSkills });
+const composerTokens = useComposerTokens({ draft, input, several, mentionBots, chatId: () => chatId.value || null });
 const { tokens, mention, slash, skillRows, mentionRows, updateMention, insertSkill, insertMention, snapCaret, mirrorParts, withMarkers } = composerTokens;
 const tokenColor = computed(() => soleBot.value?.color || newChatBots.value[0]?.color || undefined);
 

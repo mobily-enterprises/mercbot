@@ -63,7 +63,7 @@ Some details:
 
 Open the bot's card in **Team**. On its **Details** tab, the **Apps** section lists its watches in the chats you can open, each with its name and what it watches, for example "Watches new records in Enquiries". Each watch has:
 
-- a switch to **pause** or **resume** it. A resumed watch starts from that moment; changes made while it was paused don't set it off.
+- a switch to **pause** or **resume** it. Anyone who can open its chat can pause it; only the person who set it up can resume it, because it runs as them. A resumed watch starts from that moment; changes made while it was paused don't set it off.
 - **Remove**, which deletes the watch. The records stay; only the watch goes.
 
 You can also ask the bot in the watch's chat: "pause my enquiries watch", "what are you watching here?" In a chat, a bot only sees and changes its watches in that chat.

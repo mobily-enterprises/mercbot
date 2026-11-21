@@ -1,4 +1,4 @@
-import { computed, nextTick, ref, watch } from "vue";
+import { computed, nextTick, ref, toValue, watch } from "vue";
 import { botsApi } from "./botsApi.js";
 import { botFace } from "./chatView.js";
 import { pluginsApi } from "./pluginsApi.js";
@@ -19,33 +19,26 @@ export function soleBotOf(chat) {
 }
 
 /**
- * Whether "/" offers the person's own skills in a chat: only in a private chat whose one person they are, the only chat
- * where the server lets its bot read them (rowPolicies.js personalRule). Mercbot's skills are offered in any chat with
- * one bot.
- * @param {import("../../types.js").Chat | null} chat
- * @param {string} me
- */
-export const offersOwnSkills = (chat, me) =>
-  chat?.kind === "private" && (chat.people || []).length === 1 && Boolean(me) && String(chat.people[0].userId) === String(me);
-
-/**
  * Mentions: in a chat of several (more than one bot or more than one person), @ opens a menu of everyone, the chat's
  * bots and the person's apps. A chosen one stays in the text as "@Name" and acts as one unit: Backspace or Delete
  * takes the whole token, and the caret can't stop inside it. A layer behind the text draws tokens in the bot's colour
  * with its avatar over the "@". Sending turns them into markers. `draft` is the composer's text, `several` whether the
  * chat has several (messageAuthors.js hasSeveral), `mentionBots` the bots @ offers (mentionBotsOf), `chatId` the
- * open chat, whose change clears the tokens, and `ownSkills` whether "/" offers the person's own skills there too.
+ * open chat, whose change clears the tokens and the skills "/" offers there (the server's, by chat).
  * @param {object} options
  * @param {import("vue").Ref<HTMLTextAreaElement | null>} options.input The composer's field.
  */
-export function useComposerTokens({ draft, input, several, mentionBots, chatId, ownSkills = () => false }) {
+export function useComposerTokens({ draft, input, several, mentionBots, chatId }) {
   const tokens = ref([]);
   const apps = ref(null);
   const mention = ref(null);
+  const skillList = ref(null);
+  const slash = ref(null);
 
   watch(chatId, () => {
     tokens.value = [];
     mention.value = null;
+    skillList.value = null;
   });
   const tokenText = (token) => `${token.prefix || "@"}${token.label}`;
   watch(draft, (text) => {
@@ -54,17 +47,14 @@ export function useComposerTokens({ draft, input, several, mentionBots, chatId, 
 
   // Skills: "/" at the start of the composer of a chat with exactly one bot opens a picker of up to five skills (short
   // queries match anywhere, longer ones the start of the name), for that bot. The chosen one becomes a token in the
-  // bot's colour, sent as <@skill:ID>.
-  const skillList = ref(null);
-  const slash = ref(null);
+  // bot's colour, sent as <@skill:ID>. They're the open chat's: the person's own come only in a Private chat whose one
+  // person they are, as the server answers; an answer for a chat no longer open is dropped.
   async function loadSkills() {
     if (skillList.value) return;
     skillList.value = [];
-    try {
-      skillList.value = (await botsApi.skills()).skills;
-    } catch {
-      skillList.value = [];
-    }
+    const forChat = toValue(chatId) || null;
+    const skills = await botsApi.skills(forChat).then((answer) => answer.skills, () => []);
+    if ((toValue(chatId) || null) === forChat) skillList.value = skills;
   }
   const skillRows = computed(() => {
     if (!slash.value) return [];
@@ -72,7 +62,7 @@ export function useComposerTokens({ draft, input, several, mentionBots, chatId, 
     const matches = (skill) => !query || (query.length <= 2
       ? `${skill.name} ${skill.description}`.toLowerCase().includes(query)
       : skill.name.toLowerCase().startsWith(query));
-    return (skillList.value || []).filter((skill) => !skill.own || ownSkills()).filter(matches).slice(0, 5);
+    return (skillList.value || []).filter(matches).slice(0, 5);
   });
 
   function updateSlash() {
