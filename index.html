@@ -3,26 +3,227 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Until the splash paints, the page follows the device's light or dark setting; the app then sets its own. -->
+    <meta name="color-scheme" content="light dark" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>Mercbot</title>
     <style>
-      /* The app's own background at once; the loading message only if opening takes over a second. */
-      #startup-shell { position: fixed; inset: 0; padding: 24px; background: #fcfcfc; color: #1c1c1c; font: 16px system-ui, sans-serif; }
-      #startup-shell > * { visibility: hidden; animation: startup-reveal 0s 1s forwards; }
-      @keyframes startup-reveal { to { visibility: visible; } }
-      #startup-shell .placeholder { height: 20px; max-width: 480px; margin: 24px 0; border-radius: 4px; background: #f0f0f0; }
-      #startup-shell a { display: inline-flex; align-items: center; min-height: 48px; color: inherit; }
-      @media (prefers-color-scheme: dark) { #startup-shell { background: #121212; color: #f5f5f5; } #startup-shell .placeholder { background: #1f1f1f; } }
+      /* Mercbot's splash, which the app replaces when it opens. It paints before any script, so its colours are
+         literal: the app's Material 3 roles, which JSKIT's material-web makes from src/theme/index.js's seed
+         (background, on-surface, on-surface-variant), and Mercbot's orange (D-44) for the bar, with the orange's own
+         Material 3 roles for the bar's track (its container) and the reload (tone 40, and 80 in dark). The cloud is
+         favicon.svg's. tests/e2e/startup.spec.ts checks the background against the app's, in light and dark. */
+      #startup-shell {
+        --startup-background: #f9f9ff;
+        --startup-on-surface: #191c20;
+        --startup-on-surface-variant: #44474e;
+        --startup-orange: #fd690f;
+        --startup-orange-container: #ffdbcd;
+        --startup-on-orange-text: #a23f00;
+        position: fixed;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        justify-content: safe center;
+        box-sizing: border-box;
+        padding: 24px 16px;
+        overflow: auto;
+        background: var(--startup-background);
+        color: var(--startup-on-surface-variant);
+        font: 14px/20px system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, Cantarell, "DejaVu Sans", sans-serif;
+        letter-spacing: 0.018em;
+        text-align: center;
+      }
+      /* Dark: as the device is set, unless Light was chosen in Settings; or when Dark was (the script below). */
+      @media (prefers-color-scheme: dark) {
+        #startup-shell:not([data-theme="light"]) {
+          --startup-background: #111318;
+          --startup-on-surface: #e2e2e9;
+          --startup-on-surface-variant: #c4c6d0;
+          --startup-orange-container: #7c2e00;
+          --startup-on-orange-text: #ffb595;
+        }
+      }
+      #startup-shell[data-theme="dark"] {
+        --startup-background: #111318;
+        --startup-on-surface: #e2e2e9;
+        --startup-on-surface-variant: #c4c6d0;
+        --startup-orange-container: #7c2e00;
+        --startup-on-orange-text: #ffb595;
+      }
+      #startup-shell p {
+        margin: 0;
+      }
+      #startup-shell .startup-logo {
+        display: block;
+        flex: none;
+        width: 88px;
+        height: 88px;
+      }
+      #startup-shell .startup-name {
+        margin-top: 12px;
+        color: var(--startup-on-surface);
+        font-size: 22px;
+        font-weight: 500;
+        line-height: 28px;
+        letter-spacing: 0;
+      }
+      /* Material 3's indeterminate linear progress: a 4 px track with its indicator sliding across, or standing still
+         in the middle when the device asks for reduced motion. */
+      #startup-shell .startup-progress {
+        position: relative;
+        flex: none;
+        width: 160px;
+        height: 4px;
+        margin: 24px 0 12px;
+        overflow: hidden;
+        border-radius: 2px;
+        background: var(--startup-orange-container);
+      }
+      #startup-shell .startup-progress span {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 30%;
+        width: 40%;
+        border-radius: inherit;
+        background: var(--startup-orange);
+      }
+      @media (prefers-reduced-motion: no-preference) {
+        #startup-shell :is(.startup-logo, .startup-name, .startup-progress, #startup-status) {
+          animation: startup-fade-in 300ms ease-out backwards;
+        }
+        #startup-shell .startup-progress span {
+          left: 0;
+          animation: startup-slide 1.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+        }
+      }
+      @keyframes startup-fade-in {
+        from { opacity: 0; }
+      }
+      @keyframes startup-slide {
+        from { transform: translateX(-100%); }
+        to { transform: translateX(250%); }
+      }
+      /* The reload shows once opening has taken 10 seconds, or at once when it failed (data-startup, which the script
+         below and main.js set). The timer is CSS, so it needs no script. */
+      #startup-shell .startup-stalled {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: center;
+        column-gap: 4px;
+        margin-top: 8px;
+        visibility: hidden;
+        animation: startup-reveal 0s 10s forwards;
+      }
+      @media (prefers-reduced-motion: no-preference) {
+        #startup-shell .startup-stalled {
+          animation: startup-reveal 0s 10s forwards, startup-fade-in 200ms ease-out 10s backwards;
+        }
+      }
+      @keyframes startup-reveal {
+        to { visibility: visible; }
+      }
+      #startup-shell[data-startup="failed"] .startup-stalled {
+        visibility: visible;
+        animation: none;
+      }
+      #startup-shell[data-startup="failed"] .startup-progress {
+        visibility: hidden;
+      }
+      #startup-shell[data-startup="failed"] .startup-slow {
+        display: none;
+      }
+      #startup-shell[data-startup="failed"] #startup-status {
+        color: var(--startup-on-surface);
+      }
+      /* A Material 3 text button in Mercbot's orange, 48 px to touch. It is a link to this page, so it reloads with
+         no script. */
+      #startup-shell .startup-reload {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 48px;
+        min-height: 48px;
+        box-sizing: border-box;
+        padding: 0 12px;
+        border-radius: 24px;
+        color: var(--startup-on-orange-text);
+        font-weight: 500;
+        letter-spacing: 0.007em;
+        text-decoration: none;
+        -webkit-tap-highlight-color: transparent;
+      }
+      #startup-shell .startup-reload:hover {
+        background: color-mix(in srgb, currentColor 8%, transparent);
+      }
+      #startup-shell .startup-reload:active {
+        background: color-mix(in srgb, currentColor 10%, transparent);
+      }
+      #startup-shell .startup-reload:focus-visible {
+        outline: 2px solid currentColor;
+        outline-offset: 0;
+      }
+      #startup-shell noscript {
+        margin-top: 24px;
+      }
     </style>
+    <noscript><style>#startup-shell .startup-progress, #startup-status, #startup-shell .startup-stalled { display: none; }</style></noscript>
   </head>
   <body>
     <div id="app">
       <main id="startup-shell">
-        <p id="startup-status" role="status" aria-live="polite">Loading application…</p>
-        <div class="placeholder" aria-hidden="true"></div>
-        <div class="placeholder" aria-hidden="true"></div>
-        <noscript>JavaScript must be enabled to open this application.</noscript>
-        <a href="">Reload page</a>
+        <script>
+          // Before the splash paints: the theme chosen in Settings (System, Light or Dark, as main.js applies it to the
+          // app); and when Mercbot's script can't be downloaded, which main.js never hears of, the failure and the
+          // reload at once.
+          (() => {
+            const shell = document.currentScript.parentElement;
+            try {
+              const theme = localStorage.getItem("jskit.themePreference");
+              if (theme === "light" || theme === "dark") shell.dataset.theme = theme;
+            } catch {
+              // No storage here: as the device is set.
+            }
+            window.addEventListener("error", (event) => {
+              if (!(event.target instanceof HTMLScriptElement) || event.target.type !== "module" || !shell.isConnected) return;
+              const status = document.getElementById("startup-status");
+              status.textContent = status.dataset.failure;
+              shell.dataset.startup = "failed";
+            }, true);
+          })();
+        </script>
+        <svg class="startup-logo" viewBox="0 0 100 100" aria-hidden="true" focusable="false">
+          <g fill="#FD690F">
+            <circle cx="27" cy="58" r="20" />
+            <circle cx="52" cy="43" r="27" />
+            <circle cx="77" cy="54" r="18" />
+            <rect x="6" y="56" width="88" height="30" rx="15" />
+            <path d="M17 76 C18 88 14 94 7 98 C21 98 31 93 37 82 Z" />
+          </g>
+          <g transform="translate(0 12)">
+            <ellipse cx="36" cy="46" rx="10.8" ry="14.4" fill="#FFFFFF" />
+            <ellipse cx="36" cy="48" rx="8.5" ry="12.2" fill="#241B33" />
+            <ellipse cx="36.6" cy="55.32" rx="5.1" ry="3.1" fill="#FD690F" opacity="0.9" />
+            <circle cx="33" cy="41.8" r="3.7" fill="#FFFFFF" />
+            <circle cx="39.5" cy="51" r="1.7" fill="#FFFFFF" />
+            <path d="M47.6 47 C47 33 27 27 23.6 41" fill="none" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round" stroke="#241B33" />
+            <ellipse cx="64" cy="46" rx="10.8" ry="14.4" fill="#FFFFFF" />
+            <ellipse cx="64" cy="48" rx="8.5" ry="12.2" fill="#241B33" />
+            <ellipse cx="64.6" cy="55.32" rx="5.1" ry="3.1" fill="#FD690F" opacity="0.9" />
+            <circle cx="61" cy="41.8" r="3.7" fill="#FFFFFF" />
+            <circle cx="67.5" cy="51" r="1.7" fill="#FFFFFF" />
+            <path d="M52.4 47 C53 33 73 27 76.4 41" fill="none" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round" stroke="#241B33" />
+          </g>
+        </svg>
+        <p class="startup-name">Mercbot</p>
+        <div class="startup-progress" aria-hidden="true"><span></span></div>
+        <p id="startup-status" role="status" aria-live="polite" data-failure="Mercbot could not open. Reload the page to try again.">Loading Mercbot…</p>
+        <noscript>JavaScript must be enabled to open Mercbot.</noscript>
+        <p class="startup-stalled" aria-live="polite"><span class="startup-slow">Taking longer than usual?</span> <a class="startup-reload" href="">Reload page</a></p>
       </main>
     </div>
     <script type="module" src="/src/main.js"></script>

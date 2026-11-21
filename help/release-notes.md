@@ -2,6 +2,10 @@
 
 What's new in Mercbot, newest first. To see which version you're using, open the account menu, choose **Help and support**, then **About Mercbot**. You can also ask any bot "What's new in Mercbot?"
 
+## 21 November 2026
+
+- **A calmer start:** while Mercbot opens, the page shows its orange cloud, its name, a thin moving bar and **Loading Mercbot…** in the middle of the screen, in light or dark as your device or your chosen theme is, so the screen no longer flashes white first. The bar stands still if your device asks for less motion. **Reload page** shows only when opening takes more than 10 seconds, or at once when Mercbot couldn't open, which it then says.
+
 ## 20 November 2026
 
 - **One click out of an app:** the **X** at the top left of an app closes it, however many screens and records you opened in it, and takes you back to where you opened it: point at it and it says where, such as **Back to Vera** when you opened the app from Vera's chat, **Back to Apps**, or **Back to Mercbot**. Before, the arrow there went back one screen at a time, so leaving could take as many clicks as you'd made in the app. **Ctrl+[** does the same. Your browser's Back still steps through what you opened in the app.

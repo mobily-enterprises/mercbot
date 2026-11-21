@@ -56,8 +56,11 @@ render across compact, medium, and expanded layouts.
   to the list; Connect apps shows one column of apps.
 - From 600 px up, the desktop layout applies (rail below 704 px).
 
-- The initial document shows loading and Reload before JavaScript is available.
-  Successful mounting replaces it; initialization failure retains a retry explanation.
+- The initial document shows Mercbot's splash before JavaScript is available: the orange cloud (D-44), the name,
+  an indeterminate bar (still under reduced motion) and "Loading Mercbot…" as a polite status, on the app's own
+  background in light or dark, by the device's setting or the theme saved on the device. Reload page, a link to the
+  page shown as a text button, shows only after 10 seconds (a CSS timer), or at once when the script can't be
+  downloaded or initialization fails, which then says "Mercbot could not open". Successful mounting replaces it.
 - The page's title, which a browser tab, a bookmark and a phone's home-screen shortcut show, is `Mercbot` from the
   initial document on; the help centre sets its own page's title while it is open and gives it back.
 - The `home` surface uses the app-owned Mercbot shell: sidebar or compact

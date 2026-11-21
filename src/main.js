@@ -94,8 +94,11 @@ void bootstrapClientShellApp({
   fallbackRoute
 }).catch((error) => {
   console.error("Failed to bootstrap client app.", error);
+  // The splash says so in its own words (index.html), and offers the reload at once.
+  const shell = document.getElementById("startup-shell");
   const status = document.getElementById("startup-status");
-  if (status) {
-    status.textContent = "The application could not open. Reload the page to try again.";
+  if (shell && status) {
+    status.textContent = status.dataset.failure;
+    shell.dataset.startup = "failed";
   }
 });
