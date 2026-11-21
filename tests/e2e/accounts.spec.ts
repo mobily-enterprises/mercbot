@@ -259,6 +259,11 @@ test("the page a sign-in ends on: Try again from where it began, else Close, whi
   const opened = page.context().waitForEvent("page");
   await page.evaluate((address) => { window.open(address, "_blank", "popup,width=520,height=720,noopener"); }, ended);
   const window = await opened;
-  await window.getByRole("button", { name: "Close" }).click();
-  await expect.poll(() => window.isClosed()).toBe(true);
+  const closed = window.waitForEvent("close");
+  // Its click closes the window at once (signInPage.js), which can be gone before the click reports back.
+  await window.getByRole("button", { name: "Close" }).click().catch((error: Error) => {
+    if (!/has been closed/u.test(String(error?.message))) throw error;
+  });
+  await closed;
+  expect(window.isClosed()).toBe(true);
 });
