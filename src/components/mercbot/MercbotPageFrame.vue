@@ -9,9 +9,11 @@ import { readPageMessage } from "./pageMessages.js";
 // the person's cookies. It talks to Mercbot only through its helper's messages, each checked here:
 // sent by this frame, from no origin ("null"), and of exactly one known shape. A link it asks for opens
 // in a new tab, and an app (the doorway) is handed to the viewer, only right after the person clicked.
-// `preview` is a card's look at its top: loaded once in sight, never answered.
+// `preview` is a card's look at its top: loaded once in sight, never answered. A page in a chat's folder is reached
+// through that chat (`chatId`); null for one in the bot's or the home's folder seen outside a chat.
 const props = defineProps({
   botId: { type: String, required: true },
+  chatId: { type: String, default: null },
   path: { type: String, required: true },
   preview: { type: Boolean, default: false }
 });
@@ -27,7 +29,7 @@ async function load() {
   problem.value = "";
   src.value = "";
   try {
-    src.value = (await pagesApi.frame(props.botId, props.path)).src;
+    src.value = (await pagesApi.frame(props.botId, props.path, props.chatId)).src;
   } catch (error) {
     src.value = "";
     problem.value = error?.status === 404 ? "This page isn't here any more." : "This page can't be shown right now.";
@@ -44,7 +46,7 @@ function onMessage(event) {
   const message = readPageMessage(event.data);
   if (!message) return;
   if (message.kind === "height") height.value = message.height;
-  else if (message.kind === "ticks") pagesApi.tick(props.botId, props.path, message.items).catch((error) => emit("failure", error));
+  else if (message.kind === "ticks") pagesApi.tick(props.botId, props.path, message.items, props.chatId).catch((error) => emit("failure", error));
   else if (message.kind === "link" && justActed()) window.open(message.href, "_blank", "noopener,noreferrer");
   else if (message.kind === "open-app" && justActed()) emit("open-app", message);
 }
@@ -66,7 +68,7 @@ onBeforeUnmount(() => {
   window.removeEventListener("message", onMessage);
   stopWatching();
 });
-watch(() => [props.botId, props.path], () => {
+watch(() => [props.botId, props.chatId, props.path], () => {
   height.value = 0;
   load();
 });

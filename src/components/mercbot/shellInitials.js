@@ -1,6 +1,6 @@
 import { computed, inject } from "vue";
 
-/** The signed-in person's initials, which MercbotShell provides for group avatars. */
+/** The signed-in person's initials, which MercbotShell provides for their own face in chats. */
 export const MERCBOT_INITIALS_KEY = "mercbotInitials";
 
 // Where JSKIT serves the picture a person uploads in their account settings.

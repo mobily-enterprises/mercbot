@@ -1,6 +1,6 @@
 # Settings and notifications
 
-Settings is where you choose how Mercbot looks and behaves for you, manage your home's files, reset your bots' computers, and keep your vault. This page goes through Settings section by section, then your account details and each bot's own options. It ends with how Mercbot shows that a bot needs you, what it does about notifications, and how errors appear.
+Settings is where you choose how Mercbot looks and behaves for you, manage your home's files, reset the bots' computers in your chats, and keep the home's vault. This page goes through Settings section by section, then your account details and each bot's own options. It ends with how Mercbot shows that a bot needs you, what it does about notifications, and how errors appear.
 
 ## Open and close Settings
 
@@ -8,7 +8,7 @@ Settings is where you choose how Mercbot looks and behaves for you, manage your 
 - In the search palette (**Ctrl+K**), type "Settings" to jump straight to a section, such as **Settings: Vault**.
 - **See spending** in the account menu opens **Spending**.
 
-Settings opens over the app, with the sections listed on the left: **General**, **Computer**, **Permissions**, **Files**, **Memory**, **Templates**, **Vault**, **Spending**, **Mercbot account** and **About**. Close it with **×**, **Escape** or a click outside. On a phone, Settings fills the screen and shows one section at a time; **All settings** at the top returns to the list.
+Settings opens over the app, with the sections listed on the left: **General**, **Computer**, **Permissions**, **Files**, **Website**, **Templates**, **Vault**, **Spending**, **Mercbot account** and **About**. Close it with **×**, **Escape** or a click outside. On a phone, Settings fills the screen and shows one section at a time; **All settings** at the top returns to the list.
 
 Most controls apply as soon as you change them. The exceptions say so: forms in **Files** and the **Vault** have their own **Save** button.
 
@@ -34,14 +34,12 @@ Your name and email address, with a button to copy the email. **Account details*
 The home you're in:
 
 - **Home name:** owners and admins type a new name and select **Save**; **Escape** puts back the name it has. Everyone in the home sees the new name at once, in the sidebar and the list of homes. Members see the name, and that owners and admins change it. A name can't be empty, and has at most 160 characters. See [Homes](/help/homes).
-- **New bots in this home** (owners and admins): **Private**, **Mixed** or **Shared**, the mode every bot made in the home from now on gets. Bots you already have keep their mode; change one in its **Details** → **Who sees what**.
-- **Bots decide when to join in** (owners and admins): on unless you turn it off. On: "In shared tabs, bots answer when it makes sense, without being called." Off: "In shared tabs, bots answer only when named, @-mentioned or replied to." It applies to Shared bots' shared tabs in a home of two or more people. See [When the bot answers](/help/shared-bots#when-the-bot-answers).
 
 ### Bots
 
 - **Timezone:** used for routines and the times your bots mention. The list can be searched and shows the time now in each zone.
 
-Language, accent, timezone, spell check and microphone are kept on the device you're using. The home's name, its mode for new bots and whether its bots decide when to join in are kept for the whole home. Set them on each computer or phone you use.
+Language, accent, timezone, spell check and microphone are kept on the device you're using. The home's name is kept for the whole home. Set them on each computer or phone you use.
 
 ## Permissions
 
@@ -74,20 +72,18 @@ Where the home's pages are published, if you have a website of your own:
 
 Then enter **Its address on the web**: where the web server serves that folder, such as `https://example.com/pages/`. Select **Save**: Mercbot checks the folder or the bucket before saving, and says what's wrong if it can't use it. The access key and secret are kept locked with the vault's key and never shown again; leave them empty to keep the saved ones.
 
-Each page you publish goes in a folder of its own there, at the address followed by the page's name. Mercbot only ever replaces or removes folders it put there itself. While pages are published, the folder or bucket can't be changed and **Remove website** is refused: unpublish them first. A new address or place asks for confirmation again at its next first publish. Only owners and admins set this up. See [Publish a page to your website](/help/files).
+Each page you publish goes in a folder of its own there, at the address followed by the page's name. Mercbot only ever replaces or removes folders it put there itself. While pages are published, the folder or bucket can't be changed and **Remove website** is refused: unpublish them first. A new address or place asks for confirmation again at its next first publish. Only owners and admins set this up. See [Publish a page to your website](/help/files#publish-a-page-to-your-website).
 
-## Computer, Memory, Templates and Vault
+## Computer, Templates and Vault
 
 ### Computer
 
+Each bot has its own computer in each chat it's in, which belongs to that chat.
+
 - **Update** shows **Up to date**. Your bots' browsers are kept up to date for you, and updating keeps their saved sign-ins.
-- **Reset** starts every bot's computer afresh. Open pages close, and saved sign-ins and website data are cleared. Your chats, routines and skills stay. Mercbot asks first.
+- **Reset** starts afresh the bots' computers in the chats only you are in. Open pages close, and saved sign-ins and website data are cleared. A chat with other people in it keeps its computers, as they're theirs too. Your chats, routines and skills stay. Mercbot asks first, then says how many computers it reset.
 
 See [The bots' computer and connected apps](/help/computer-and-apps).
-
-### Memory
-
-**What your bots remember about you:** the lasting facts you've told your bots, such as an allergy or a preference. All your bots know them. Select **×** next to a fact to make your bots forget it. Only these facts are shared between your bots; your chats with each bot stay private.
 
 ### Templates
 
@@ -96,11 +92,11 @@ See [The bots' computer and connected apps](/help/computer-and-apps).
 - **Edit** opens the template on the same screen it was made on: change any part by typing, or under **Ask for changes** ask the bot to change it, with **Undo**. See [Make your home's own template](/help/bots#make-your-home-s-own-template).
 - **Save** first says what it reaches, such as **Changes reach 2 bots from their next reply**, then saves. Each of those bots' **Instructions** then shows what changed and who changed it, for example "Instructions and setup questions changed by Ada".
 - If someone else saved the template after you opened it, your save is refused with "Someone saved *tag* since you opened it. Open it again to see their changes." Close it and open it again.
-- **Delete** works only for a template no bot uses, and asks first. For one in use, change those bots' template first, with **Change template** in each bot's Details panel.
+- **Delete** works only for a template no bot uses, and asks first. For one in use, change those bots' template first, with **Change template** on each bot's card in **Team**.
 
 ### Vault
 
-Your saved logins, cards and contact info, with tabs, search, **New item** and a delete button on each row. See [The vault: saved logins and secrets](/help/vault).
+The home's saved logins, cards and contact info, with tabs, search, **New item** and a delete button on each row. Everyone in the home shares it. An item can be deleted by the person who added it and by the home's owners and admins. See [The vault: saved logins and secrets](/help/vault).
 
 ## Spending
 
@@ -151,15 +147,18 @@ The bar at the top says **Account settings**. Its back arrow returns to where yo
 
 ## Each bot's own settings
 
-A bot's own options are in its **Details** panel. Select the bot's name in the chat header or press **Ctrl+Alt+B**.
+A bot's own options are on its card: select the bot in **Team**, or under **Bots** in a chat's **Chat details**. In your direct chat with a bot, **Chat details** shows its card.
 
-- **Name:** edit it in place. The tag under it is the bot's template; select it to go to **Instructions**.
-- **Instructions:** the template the bot follows, read-only, with **Change template**, and its own **Additions**, which its maker and the home's owners and admins edit. See [Bots](/help/bots).
-- **Who sees what:** what the bot adds to everyone's own chat with it: private (nothing), mixed (a home notebook) or shared (conversations everyone sees, with your own as the last tab, **You only**). The home's owners and admins choose it, and Mercbot asks before each change. In a home with only you, it shows only for a bot that isn't on the home's mode for new bots. See [Bots shared in a home](/help/shared-bots).
-- **Notebook:** in a mixed bot, the home's notebook, and **Keep my chats with** the bot **out of it**.
-- **Routines:** each with a switch; right-click for **Pause**, **Resume**, **Edit** and **Delete**.
-- **Apps:** whether the bot is the home's Builder, and its watches.
-- The **Files**, **Library** and **Computer** tabs. A shared bot's **Files** shows all three of its folders, and its **Computer** the computer of the tab you have open.
+- **Name:** its maker and the home's owners and admins edit it in place. The tag under it is the bot's template; select it to go to **Instructions**.
+- **Details** tab:
+  - **Instructions:** the template the bot follows, read-only, with **Change template**, and its own **Additions**, which its maker and the home's owners and admins edit. See [Bots](/help/bots).
+  - **Knowledge:** what the bot knows in every chat it's in. See [What a bot knows](/help/bots#what-a-bot-knows).
+  - **Apps:** whether the bot builds the home's apps.
+  - **Routines:** the bot's routines, each with its schedule, its chat and a switch.
+  - **Archive**, for the bot's maker and the home's owners and admins.
+- **Files**, **Library** and **Computer** tabs.
+
+A chat's own options are in its **Chat details**: its people and bots, whether it's Public or Private, its files, its bots' computers and its routines, and **Leave chat**, **Archive** (a Public chat) or **Hide from sidebar** (a Private one), and **Delete chat**. See [Chats and your team](/help/chats).
 
 Connected apps, their accounts and their tool switches are in **Connect apps**, in the sidebar.
 
@@ -169,19 +168,19 @@ Mercbot shows news inside the app:
 
 | Sign | Where | Meaning |
 | --- | --- | --- |
-| A dot on the bot's row or tile | Sidebar | Something new arrived since you last looked. |
-| An amber dot and **Waiting for you:** with a task | Sidebar | The bot has handed you its screen and is waiting. |
-| **Draft:** in the preview | Sidebar | You started a message to this bot and didn't send it. |
-| The bot's face changing | Sidebar and chat | The bot is working, for example on a routine. |
+| A dot on the chat's row | Sidebar | Something new arrived since you last looked. |
+| An amber dot and **Waiting for you:** with a task | Sidebar | A bot in the chat has handed you its screen and is waiting. |
+| **Draft:** in the preview | Sidebar | You started a message in this chat and didn't send it. |
+| The bot's face changing | Sidebar (a chat of you and one bot) and chat | The bot is working, for example on a routine. |
 | A status line | Chat | What the bot is doing right now. |
 | A "new" divider | Chat | Where the messages you haven't seen start. |
 | A card with buttons | Chat | The bot is waiting for an answer: an approval, a draft to send, a sign-in form or a question. |
-| A dot on the menu button | Phone | Another bot has something new. |
+| A dot on the menu button | Phone | Another chat has something new. |
 | **Needs sign-in** or **Needs more access** | Connect apps | An account needs signing in. |
 
-Right-click a bot and choose **Mark as unread** to keep it in view for later.
+Right-click a chat and choose **Mark as unread** to keep it in view for later.
 
-Mercbot doesn't send phone or browser notifications, or emails, when a bot replies or a routine runs. Results wait in the bot's chat, marked unread.
+Mercbot doesn't send phone or browser notifications, or emails, when a bot replies or a routine runs. Results wait in the chat, marked unread.
 
 ## How errors appear
 
@@ -206,13 +205,14 @@ The home's owners and admins. Members see the current storage choice.
 
 ### Does Reset delete my files or vault?
 
-No. It clears the bots' browsers only: open pages, sign-ins and website data.
+No. It clears the bots' browsers only, in the chats only you are in: open pages, sign-ins and website data.
 
 ## Related pages
 
+- [Chats and your team](/help/chats)
 - [Approvals, safety and privacy](/help/approvals-and-privacy)
 - [The vault: saved logins and secrets](/help/vault)
 - [The bots' computer and connected apps](/help/computer-and-apps)
 - [Homes: Mercbot for families and businesses](/help/homes)
-- [Bots: create, shape, organise and remember](/help/bots)
+- [Bots: add, shape and archive](/help/bots)
 - [Fixing common problems](/help/troubleshooting)

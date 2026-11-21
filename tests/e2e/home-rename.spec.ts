@@ -1,16 +1,15 @@
-import knexLib from "knex";
-import { expect, test, testDatabaseName, type Page } from "./harness";
+import { connectTestDb, expect, shell, test, type Page } from "./harness";
 
 // Renaming a home (D-103) as a person does it, on the Test Preview target: in a home of their own, its owner opens
 // Settings → General, where Home name refuses a name of spaces, and saving a new one shows it at once in the sidebar and
 // the home switcher, without reading the page again; as a member of someone else's home, they see its name and that its
-// owners and admins change it, with nothing to type in. Screenshots light and dark. The test deletes the homes and the
-// person it makes.
+// owners and admins change it, with nothing to type in. Screenshots light and dark. The test deletes the homes (their
+// chats go with them) and the person it makes.
 // Run with: vibe64-helper playwright --target test-app test tests/e2e/home-rename.spec.ts
 // Any refused API call from the page, one with no answer, or JSKIT's error dialog, fails the test (harness.ts).
 test.use({ apiGuard: true });
 
-// The shell, past the introduction a person sees in a home where they have no bots yet.
+// The shell, past the introduction a person sees in a home where they have no chats yet, once its welcome chat is made.
 async function pastIntro(page: Page) {
   const next = page.getByRole("button", { name: "Next" });
   const shell = page.locator(".mb-shell");
@@ -21,11 +20,6 @@ async function pastIntro(page: Page) {
   await expect(shell).toBeVisible();
 }
 
-const sidebar = (page: Page) => page.getByRole("navigation", { name: "Bots" });
-const connect = () => knexLib({
-  client: "pg",
-  connection: { host: process.env.DB_HOST, port: Number(process.env.DB_PORT) || 5432, user: process.env.DB_USER, password: process.env.DB_PASSWORD, database: testDatabaseName() }
-});
 
 async function openGeneral(page: Page) {
   await page.keyboard.press("Control+k");
@@ -37,7 +31,7 @@ async function openGeneral(page: Page) {
 }
 
 test("a home's owner renames it in Settings → General, and the sidebar and the switcher show it at once", async ({ page }, testInfo) => {
-  const knex = connect();
+  const knex = connectTestDb();
   const stamp = Date.now().toString(36);
   const slug = `rename-${stamp}`;
   const renamed = `The Smiths ${stamp}`;
@@ -58,7 +52,7 @@ test("a home's owner renames it in Settings → General, and the sidebar and the
     await page.emulateMedia({ reducedMotion: "reduce" });
     await page.goto(`/w/${slug}`);
     await pastIntro(page);
-    await expect(sidebar(page).getByRole("button", { name: `Home: Rename ${stamp}. Switch home` })).toBeVisible();
+    await expect(shell.sidebar(page).getByRole("button", { name: `Home: Rename ${stamp}. Switch home` })).toBeVisible();
 
     const settings = await openGeneral(page);
     const field = settings.getByRole("textbox", { name: "Home name" });
@@ -80,7 +74,7 @@ test("a home's owner renames it in Settings → General, and the sidebar and the
     expect((await saved).ok()).toBe(true);
     await expect(settings.getByRole("button", { name: "Save", exact: true })).toHaveCount(0);
     await expect(field).toHaveValue(renamed);
-    await expect(sidebar(page).getByRole("button", { name: `Home: ${renamed}. Switch home` })).toBeAttached();
+    await expect(shell.sidebar(page).getByRole("button", { name: `Home: ${renamed}. Switch home` })).toBeAttached();
     expect((await knex("workspaces").where({ id: homeId }).first()).name).toBe(renamed);
     for (const scheme of ["light", "dark"] as const) {
       await page.emulateMedia({ colorScheme: scheme });
@@ -90,7 +84,7 @@ test("a home's owner renames it in Settings → General, and the sidebar and the
 
     await page.keyboard.press("Escape");
     await expect(settings).toBeHidden();
-    await sidebar(page).getByRole("button", { name: `Home: ${renamed}. Switch home` }).click();
+    await shell.sidebar(page).getByRole("button", { name: `Home: ${renamed}. Switch home` }).click();
     await expect(page.locator(".mb-home-menu__name", { hasText: renamed })).toBeVisible();
     await page.screenshot({ path: testInfo.outputPath("home-switcher-renamed.png") });
     await page.keyboard.press("Escape");

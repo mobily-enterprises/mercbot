@@ -26,8 +26,12 @@ Brief for the writers of `help/*.md`. The page set, order and target lengths are
   tables for limits and states.
 - Most pages end with `## Questions` (each question a `### ` heading with a short answer), then
   `## Related pages`, a bullet list of links like `[Bots](/help/bots)` using slugs from `help/index.json`.
-- Name things the way the app does (Connect apps, the Details panel, Settings, the vault, Apps, the
-  Builder, homes). Bold a button or menu item the first time it's mentioned.
+- Name things the way the app does (Team, a bot's card, Chat details, Public and Private chats, Connect
+  apps, Settings, the vault, Apps, the Builder, homes). Bold a button or menu item the first time it's
+  mentioned, and quote its words exactly as the app has them.
+- Links between pages are `/help/<slug>` or `/help/<slug>#<heading id>` (the heading lower-cased, each run
+  of other characters a hyphen), never a file name like `views.md`; `tests/server/helpPages.test.js` checks
+  every link, and that no page names the chat model that version 0 replaced.
 - Plain, friendly, British English. Short sentences. No marketing language. Don't mention other
   products, decisions (D-numbers) or code.
 - Aim for the target word count in `help/index.json`; shorter is fine when Mercbot has less to say,

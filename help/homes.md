@@ -1,22 +1,22 @@
 # Homes: Mercbot for families and businesses
 
-Everything in Mercbot lives in a home: its bots, their files and computers, its Apps and the people who use them. A home can be just you, a household sharing a family calendar, or a small business sharing an inbox and a sales pipeline. Everyone in a home works with the same bots, and each person's own chat with a bot stays theirs, whatever the bot's mode. This page explains what belongs to a home and what stays personal, how bots and accounts are shared, Apps in a home, spending, and a setup checklist to start from.
+Everything in Mercbot lives in a home: its people and bots, their chats, files and computers, and its Apps. A home can be just you, a household sharing a family calendar, or a small business sharing an inbox and a sales pipeline. Everyone in a home works with the same bots, in chats that are Public unless someone chooses Private. This page explains what belongs to a home and what stays yours, bots and accounts in a home, Apps, spending, and a setup checklist to start from.
 
 ## What a home holds
 
-Mercbot makes your first home, called "*your first name*'s home", with you as its owner, and you can rename it or create more. Each home is separate: its bots, files and data aren't visible from your other homes.
+Mercbot makes your first home, called "*your first name*'s home", with you as its owner, and you can rename it or create more. Each home is separate: its people, bots, chats, files and data aren't visible from your other homes.
 
-| Belongs to the home | Stays personal to you |
+| Belongs to the home | Stays yours alone |
 |---|---|
-| Its bots and their routines | Your chats with each bot |
-| The shared files folder | The files a bot keeps for you in its own folder |
-| Every account connected in the home | Your accounts in your other homes |
-| A mixed bot's home notebook | What your bots remember about you |
-| Apps, their tables and records | Your vault of logins, cards and contacts |
-| Where the home keeps its files | Your **Auto-review** switch and your rules |
-| The home's spending | Your group chats |
+| Its people and bots, on **Team** | Your Private chats, shared only with their members |
+| Its Public chats, which everyone in it can open | Your own skills |
+| What each chat's bots make there, with the chat | Your **Auto-review** switch and your rules |
+| The shared files folder | Your pins, sections and unread marks |
+| Every account connected in the home, and the vault | |
+| Apps, their tables and records | |
+| Where the home keeps its files, and its spending | |
 
-Owners and admins can't read your private chats; they choose how each bot is shared.
+Every new chat is Public, so everyone in the home, owners and admins included, can open it. Choose **Private** when you start a chat to keep it to its members. See [Chats and your team](/help/chats).
 
 ## Create and switch homes
 
@@ -34,19 +34,19 @@ To create a home:
 3. Under **Name your home**, type its name (for example, "The Smiths").
 4. Press **Create home**.
 
-The new home opens with just Mercbot, which helps you add the bots you need: in its first conversation, or with **Add bots** at the top of the sidebar (see [Start with a team](#start-with-a-team)).
+The new home opens with Mercbot's welcome chat, which helps you add the bots you need, or use **Add bots** on **Team** (see [Start with a team](#start-with-a-team)).
 
-You're the owner of every home you create. The sidebar, bots, Connect apps and Apps all change to the home you're in. Each home keeps its own pinned bots, sections and pinned apps for you.
+You're the owner of every home you create. The chat list, Team, Connect apps and Apps all change to the home you're in. Each home keeps its own pinned chats, sections and pinned apps for you.
 
 ## Start with a team
 
-Pick what you need help with, and Mercbot adds a few bots that work well together, in their own section of your sidebar: the six that help run a busy household, say, or the five a small shop needs. Since each home has its own bots, files and Apps, a team usually goes with a home of its own:
+Pick what you need help with, and Mercbot adds a few bots that work well together: the six that help run a busy household, say, or the five a small shop needs. Since each home has its own bots, files and Apps, a team usually goes with a home of its own:
 
-- **A new home's first conversation:** while the home has no bot but Mercbot, your first bot asks **Want a few bots to start with?** after you name it. **Show me ready-made teams** opens **Add bots** on its teams, where nothing is added until you say so; **Not now**, or typing a message instead, skips the question.
-- **Add bots**, at the top of the sidebar, adds a team to the home you're in at any time with **A ready-made team**, for example when a company adds another part of its work. See [A ready-made team](/help/bots#a-ready-made-team).
+- **A new home's welcome chat:** once you've named Mercbot, while the home has no bot but it, Mercbot asks "What's this home for? I can suggest a few bots to help with it." **Describe what I need** opens **Add bots** on **Describe what you need**, and **Show me ready-made teams** opens it on its teams; nothing is added until you say so there. **Not now**, or typing a message instead, skips the question.
+- **Add bots**, on **Team**, adds a team to the home you're in at any time with **A ready-made team**, for example when a company adds another part of its work. See [A ready-made team](/help/bots#a-ready-made-team).
 - When no team fits, **Describe what you need** in **Add bots**, and Mercbot suggests bots for it, including new ones written for your home. See [Describe what you need](/help/bots#describe-what-you-need).
 
-Each team bot is one of Mercbot's templates and starts as any new bot does: in the home's mode for new bots (Mixed, unless its owners or admins chose otherwise), with its template's greeting waiting for you. Nothing runs until you open a bot and answer it, so adding a team costs no AI work. A bot whose template the home already has isn't added twice. Anyone in a home can add a team, as anyone can add a bot.
+Each team bot is one of Mercbot's templates and starts as any new bot does: on **Team**, with its template's greeting waiting for you when you start a chat with it. Nothing runs until you answer it, so adding a team costs no AI work. A bot whose template the home already has isn't added twice. Anyone in a home can add a team, as anyone can add a bot.
 
 The teams and their bots:
 
@@ -75,60 +75,17 @@ Everyone in the home sees the new name at once, at the top of the sidebar and in
 
 ## Bots in a home
 
-Every bot belongs to a home, and everyone in the home can use it. Anyone can add bots with **Add bots**. Deleting a bot removes it, with its conversations, for everyone, so agree on it first.
+Every bot is a member of its home, listed on **Team** beside the home's people, and anyone in the home can start a chat with it or add it to one. Anyone can add bots with **Add bots**. Archiving a bot takes it off the team for everyone, so agree on it first. See [Archive a bot](/help/bots#archive-a-bot).
 
-### Who sees what
+A bot in a chat uses only what everyone who can open that chat can also open: in any chat, every Public chat of the home; from a Private chat, also the Private chats that all of its members are in; and never a Private chat from a Public one. What it makes in a chat belongs to that chat. See [Chats and your team](/help/chats).
 
-Everyone in the home has their own chat with each bot, which only they see. Owners and admins choose what each bot adds to it, in the bot's **Details** panel under **Who sees what**. Everyone else can see the choice.
+### The chat for everyone
 
-| Setting | What it adds |
-|---|---|
-| **Private** | Nothing more. The bot keeps nothing across people |
-| **Mixed** (the usual default) | What helps everyone goes in the home's notebook, which everyone can read |
-| **Shared** | Conversations everyone in the home sees, as tabs. Each person's own chat is the last tab, **You only**. The notebook isn't used |
-
-Mercbot asks before changing it, saying what changes and for whom. In a home with only one person, Who sees what shows only for a bot that isn't on the home's default for new bots, so it can be set back.
-
-### The mode new bots get
-
-Each home has a default for new bots: every bot made there, with **Add bots** or from a template or a link, starts in that mode. It's Mixed until an owner or admin chooses, and a home made with **Create a home** starts Mixed. Bots you already have keep their mode, the home's first bot included, and group chats aren't affected. A new Shared bot starts with its General tab and opens on your own **You only**, where it introduces itself.
-
-Owners and admins choose it:
-
-- in the first bot's first conversation of a home whose default nobody has chosen, right after naming it, when Mercbot asks "Will anyone else use this home with you?": **Just me** (Mixed) or **Me and other people** (Shared);
-- any time in **Settings** → **General**, under **Home**: **New bots in this home**.
-
-When a second person joins a home whose new bots aren't Shared, its owners and admins see a note at the top of the bot list, once: "*Name* joined. New bots here are Mixed…", with **Make them Shared** and **Keep Mixed**. Either answer is kept, and bots you already have keep their mode; change one in its **Details** → **Who sees what**.
-
-Group chats are always your own, even when their bots belong to the home. A group chat can't be shared.
-
-### Shared conversations
-
-A Shared bot shows its conversations as tabs under the bot: "General" first, then the other shared tabs, and last **You only**, your own chat with the bot, with a lock.
-
-- **New conversation** (**+**) adds a shared tab. From a shared tab, it starts from what that tab knows at that moment; later messages in the original don't flow into it. From You only, it starts empty. Every tab needs a name.
-- Double-click a shared tab to rename it. You only keeps its name.
-- Every message shows who wrote it, and the bot reads each message with the writer's name.
-- Unread markers are kept for each person and each tab.
-- In shared tabs the bot never uses anyone's personal memories, saved logins or own skills. It uses the home's connected accounts, as in any chat.
-- In You only, which nobody else sees, the bot works as in any private chat. It knows the shared tabs' names, never what's said in them, and nothing from You only goes into them.
-- Making a Shared bot Private or Mixed hides its shared tabs, without deleting them, and pauses their routines and watches until it's Shared again. Each person's You only becomes their chat again.
-
-See [Bots shared in a home](/help/shared-bots).
-
-### The home notebook
-
-A mixed bot keeps a notebook for the home. When a chat teaches it something that helps everyone (how the family likes its shopping list, where the team keeps invoices), it notes it and tells you in one line, such as "Noted for The Smiths: …", with **Undo**.
-
-- It never notes anything personal. It refuses email addresses, long numbers and your saved passwords.
-- The bot reads the notebook as information, never other people's chats.
-- Everyone can read the notebook in the bot's Details panel.
-- A note's author, owners and admins can remove it.
-- Turn on **Keep my chats with** *bot* **out of it** to keep your chats out of the notebook entirely.
+Mercbot's welcome chat asks a home's owners and admins "Will anyone else use this home?" **Just me** makes nothing. **Me and other people** makes a chat for everyone in the home, named after the home, with the main bot in it. Everyone who joins the home is in it, and it's always first in each person's chat list. You leave it only by leaving the home, and nobody can take a person out of it; the person who started it and the home's owners and admins can take a bot out. See [The everyone chat](/help/chats#the-everyone-chat).
 
 ## The home's connected accounts
 
-Every account connected in **Connect apps** belongs to the home it was connected in. Everyone in the home, and every bot there, can use it in any chat, a Shared bot's shared tabs included. Each account's line says so, such as **Everyone in** *home*, **and their bots, can read and send from** *address*, and who added it.
+Every account connected in **Connect apps** belongs to the home it was connected in. Everyone in the home, and every bot there, can use it in any chat, Public or Private. Each account's line says so, such as **Everyone in** *home*, **and their bots, can read and send from** *address*, and who added it.
 
 - **Anyone in the home can add an account.** Connect one only if you're happy for everyone in the home to use it. To keep an account to yourself, connect it in a home only you are in.
 - **Who changes it:** the person who added it, and the home's owners and admins, rename it, sign it in again, choose its pace and remove it. Removing asks "Remove it for everyone in *home*?" first.
@@ -136,26 +93,24 @@ Every account connected in **Connect apps** belongs to the home it was connected
 - **Sign-in codes stay with their owner.** A bot that reads a mailbox someone else connected doesn't see the sign-in codes or sign-in links in it.
 - **Someone who leaves takes their accounts.** When a person is removed from the home, the accounts they connected there are removed too, and the **Activity** tab in **Apps** lists each one.
 
-When several accounts fit a request (two Gmail accounts), the bot asks which one and keeps to your answer in that chat. Switching actions on and off in an app's **Tools** is personal: each person chooses for their own bots.
+When several accounts fit a request (two Gmail accounts), the bot asks which one and keeps to your answer in that chat. Switching actions on and off in an app's **Tools** applies to the whole home, and only its owners and admins can.
 
-## Files, computers and memory
+## Files, computers and the vault
 
-**Files.** Each bot has two folders: one it keeps with you, and the home's shared folder, which everyone in the home and all its bots can see. Bots save in their own folder unless you ask them to share. Files follow the conversation: in a Shared bot's shared tabs, the bot keeps them in one folder that everyone using it shares; in your You only tab, in its folder with you.
+**Files.** Each chat has its own folder, where its bots keep what they make there; everyone who can open the chat can open it. Each bot also has a folder of its own, and the home has a shared folder that everyone in the home and all its bots can see. From a Private chat, a bot asks you on a card before putting something in its own folder or the shared one.
 
 **Where files are kept.** Owners and admins choose in **Settings**, under **Files**: **On Mercbot**, **In Google Drive** (a Google Drive account connected in Connect apps, where Mercbot makes one folder for the home), or **In the home's own storage** (Nextcloud or any storage with a WebDAV address, with a username and password). Mercbot checks the storage before saving the choice and never shows the password again. Changing it moves all the home's files to the new place, which becomes an exact copy of them; meanwhile they can be read but not changed.
 
-**Computers.** In your own chat with a bot, a Shared bot's You only tab included, you get your own browser on the bot's computer, so one person's website sign-ins never appear for anyone else. Each shared tab of a Shared bot has one browser that everyone in it uses. **Settings**, **Computer**, **Reset** restarts your own computers in the home; shared tabs' computers stay as they are.
+**Computers.** In each chat, each bot has its own computer, labelled with its name, such as "Chef's computer". It belongs to that chat: everyone who can open the chat can watch it, take it over and use what's signed in there. See [The bots' computers](/help/chats#the-bots-computers).
 
-**Memory.** What your bots remember about you (an allergy, a preference) is yours and is shared only between your bots in that home. You can see and remove it in **Settings**, under **Memory**.
-
-**Vault.** Your saved logins, cards and contacts are personal and never used in a Shared bot's shared tabs.
+**Vault.** The home's saved logins, cards and contacts are the home's, like its accounts. See [The vault](/help/vault).
 
 ## Apps in a home
 
 Each home has its own Apps: small apps its bots build on the home's own data, such as a contacts list, a stock tracker or a sales pipeline.
 
 - **One Builder per home.** One bot holds the Builder role and makes and changes apps when people ask. A person previews a draft and publishes it.
-- **One conversation per app.** If the Builder is Shared, it keeps a separate conversation for each app that everyone can follow; **Ask Builder** inside an app opens it. Each person's own chat with the Builder stays theirs, as its last tab, You only. If it isn't Shared, an owner or admin may be asked once whether to make it so.
+- **One chat per app.** Each app has its own Public chat with the Builder, named after the app, which everyone can follow: **Ask Builder** inside an app opens it, and makes it the first time anyone asks.
 - **Everyone's bots read and add to the same data** from chat, and any bot can watch a table and act when records change.
 - **Pins are personal.** Each person pins up to 8 apps to their sidebar.
 
@@ -184,18 +139,18 @@ Spending is only reported: the home's bots never stop because of it.
 A checklist for a new family or team home:
 
 1. Create the home and give it a name everyone will recognise.
-2. Choose the mode new bots get (**Me and other people** for Shared), then decide who sees what for each bot: mixed for everyday helpers, private for anything personal, and shared for a bot the whole home talks to together.
+2. In the welcome chat, answer **Me and other people**, so the home has a chat for everyone. Then invite the people and add the bots you need, from **Team**.
 3. Connect the accounts the home will share (the family calendar, the shared inbox). Remind everyone that an account they connect here is used by everyone in the home.
 4. Choose where the home keeps its files, if you'd rather use your own storage.
 5. Pick a Builder for Apps. Everyone in the home sees all of its apps and data, so keep anything some members mustn't read out of them.
 6. Ask everyone to check their own **Auto-review** switch and rules in Settings.
-7. Look at the notebooks and the **Activity** feed from time to time, and tidy what's no longer right.
+7. Agree that anything only some of you should read goes in a Private chat, and look at the **Activity** feed from time to time.
 
 ## Questions
 
 ### Can the owner or admins read my chats?
 
-No. Your own chats with every bot are yours, a Shared bot's You only tab included. Only a Shared bot's shared tabs are seen by everyone, and the bot says so.
+They can open Public chats, as everyone in the home can, your chat with a bot included. A Private chat is opened only by its members. See [Chats and your team](/help/chats).
 
 ### Whose spending is a bot's work?
 
@@ -203,7 +158,7 @@ The home's: every bot's work counts in the home's spending, whoever it was for. 
 
 ## Related pages
 
-- [Bots shared in a home](/help/shared-bots)
+- [Chats and your team](/help/chats)
 - [Approvals, safety and privacy](/help/approvals-and-privacy)
 - [The bots' computer and connected apps](/help/computer-and-apps)
 - [Files, documents and pictures](/help/files)

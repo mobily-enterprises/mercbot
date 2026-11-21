@@ -116,7 +116,7 @@ Apps refer to each field by a permanent identity, not by its name, so fields can
 
 **Removing.** A field is never removed without a person checking first, whoever started it.
 
-1. Press **Fields**, then **Remove…** next to the field. If the Builder suggests removing one, the same check appears as a card in its chat.
+1. Press **Fields**, then **Remove…** next to the field. If the Builder suggests removing one, the same check appears as a card in the chat.
 2. Mercbot lists every app that uses the field and how: as a column, a form field, a filter, a total and so on. Drafts are listed too.
 3. If a list filters on the field, you're warned that without that condition the list will show more records. If calculated fields are worked out from it, you're warned that they'll show "—" until the Builder changes how they're worked out.
 4. Press **Remove everywhere**, or **Keep it** to change your mind.
@@ -125,9 +125,9 @@ When you confirm, Mercbot does everything in one step: the field's data is kept,
 
 A removed field can't be brought back as it was. If you need it again, ask the Builder for a new field.
 
-## Nothing in a home is private
+## App data is the whole home's
 
-Nothing inside a home is hidden from its people. Everyone in a home sees every app and view, reads and changes every table in the Data tab, and every bot in the home can too. Anything that some members of the home must not read doesn't belong in the home's apps at all.
+Apps and their data have no private corner. Everyone in a home sees every app and view, reads and changes every table in the Data tab, and every bot in the home can too, in any chat. Anything that some members of the home must not read doesn't belong in the home's apps at all. For something only some of you should see, use a Private chat (see [Chats and your team](/help/chats)).
 
 Public screens are different: visitors without a Mercbot account only reach what the app's visitor access lists.
 

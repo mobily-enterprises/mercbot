@@ -9,7 +9,7 @@ const steps = (...paths) => paths.map((path) => ({ path, scroll: { left: 0, top:
 describe("leaving an app", () => {
   it("goes to the place the app was opened from, past every place opened in it", () => {
     const places = Array.from({ length: 16 }, (_, index) => `${BASE}/${index % 2 ? "list" : `edit/${index}`}`);
-    expect(openerOf(steps("/w/you", "/w/you?bot=7", BASE, ...places), BASE)).toBe("/w/you?bot=7");
+    expect(openerOf(steps("/w/you", "/w/you?chat=7", BASE, ...places), BASE)).toBe("/w/you?chat=7");
     expect(openerOf(steps("/w/you/apps?tab=data", `${BASE}?version=draft`), BASE)).toBe("/w/you/apps?tab=data");
   });
 
@@ -27,14 +27,14 @@ describe("leaving an app", () => {
   });
 
   it("names where it goes", () => {
-    const named = (from, bot) => exitLabel(exitPlace(from, "/w/you"), bot);
-    expect(named("/w/you?bot=7", "Vera")).toBe("Back to Vera");
-    expect(named("/w/you?bot=7&room=3", "")).toBe("Back to chat");
+    const named = (from, chat) => exitLabel(exitPlace(from, "/w/you"), chat);
+    expect(named("/w/you?chat=7", "Vera")).toBe("Back to Vera");
+    expect(named("/w/you?chat=7&team=1", "")).toBe("Back to chat");
     expect(named("/w/you/apps?tab=data", "")).toBe("Back to Apps");
     expect(named("/w/you/files", "")).toBe("Back to Files");
     expect(named("/w/you", "")).toBe("Back to Mercbot");
     expect(named("/w/you/apps/data/contacts", "")).toBe("Back to Mercbot");
     expect(named(null, "")).toBe("Back to Mercbot");
-    expect(exitPlace("/w/you/?bot=7", "/w/you/")).toEqual({ place: "bot", botId: "7" });
+    expect(exitPlace("/w/you/?chat=7", "/w/you/")).toEqual({ place: "chat", chatId: "7" });
   });
 });

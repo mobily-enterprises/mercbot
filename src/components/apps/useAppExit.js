@@ -2,7 +2,7 @@ import { computed, ref, watch } from "vue";
 import { useShellPageClose } from "@jskit-ai/shell-web/client/composables/useShellPageClose";
 import { usePaths } from "@jskit-ai/shell-web/client/navigation/usePaths";
 import { useShellNavigation, useShellNavigationRuntime } from "@jskit-ai/shell-web/client/navigation/useShellNavigation";
-import { botsApi } from "@/components/mercbot/botsApi.js";
+import { chatsApi } from "@/components/mercbot/chatsApi.js";
 import { exitLabel, exitPlace, openerOf } from "./appExit.js";
 
 /**
@@ -18,14 +18,14 @@ export function useAppExit(slug) {
   const { trail } = useShellNavigationRuntime();
   const opener = computed(() => openerOf(trail.value, paths.page(`/apps/${slug.value}`)));
   const place = computed(() => exitPlace(opener.value, paths.page("/")));
-  const botName = ref("");
-  watch(() => place.value.botId, async (botId) => {
-    botName.value = "";
-    if (!botId) return;
-    const name = await botsApi.bot(botId).then((answer) => String(answer?.bot?.name || ""), () => "");
-    if (place.value.botId === botId) botName.value = name;
+  const chatName = ref("");
+  watch(() => place.value.chatId, async (chatId) => {
+    chatName.value = "";
+    if (!chatId) return;
+    const name = await chatsApi.get(chatId).then((answer) => String(answer?.chat?.title || ""), () => "");
+    if (place.value.chatId === chatId) chatName.value = name;
   }, { immediate: true });
-  const label = computed(() => exitLabel(place.value, botName.value));
+  const label = computed(() => exitLabel(place.value, chatName.value));
 
   const leave = () => finish(opener.value || paths.page("/"));
   useShellPageClose({ label, close: leave });

@@ -270,13 +270,14 @@
   line-height: 18px;
 }
 
-/* In a group, the person's bubbles are near-black, and stay dark grey in dark theme. */
-.mb-bubble--group-user {
+/* In a chat of several, the person's own bubbles are near-black rather than one bot's colour, and stay dark grey in
+   dark theme. */
+.mb-bubble--plain {
   background: rgb(var(--v-theme-inverse-surface));
   color: rgb(var(--v-theme-inverse-on-surface));
 }
 
-.v-theme--dark .mb-bubble--group-user {
+.v-theme--dark .mb-bubble--plain {
   background: rgb(var(--v-theme-surface-container-highest));
   color: rgb(var(--v-theme-on-surface));
 }
@@ -416,4 +417,36 @@
   background: rgb(var(--v-theme-surface));
   box-shadow: var(--mb-shadow-soft);
   color: rgb(var(--v-theme-on-surface));
+}
+
+/* The bots a team or Add bots just made, each with its Message (D-109). */
+.mb-bubble__team {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.mb-bubble__team-member {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 10px 0 6px;
+  border: 1px solid rgb(var(--v-theme-outline-variant));
+  border-radius: 16px;
+  background: rgb(var(--v-theme-surface));
+  font: inherit;
+  font-size: 13px;
+  color: rgb(var(--v-theme-on-surface));
+  cursor: pointer;
+}
+
+.mb-bubble__team-member:hover {
+  background: rgb(var(--v-theme-surface-container-highest));
+}
+
+.mb-bubble__team-action {
+  font-weight: 600;
+  color: rgb(var(--v-theme-link));
 }

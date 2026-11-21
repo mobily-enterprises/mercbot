@@ -241,7 +241,7 @@
   line-height: 20px;
 }
 
-/* The boxed sections' labels, as the Details panel's are. */
+/* The boxed sections' labels, as a member card's are. */
 .mb-ctemp__label {
   display: flex;
   align-items: center;

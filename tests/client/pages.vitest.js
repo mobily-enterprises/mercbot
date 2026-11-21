@@ -81,10 +81,12 @@ describe("the doorway to apps", () => {
 });
 
 describe("a page named in a reply", () => {
-  it("opens the page instead of an address", () => {
-    const html = renderRichText("Here it is: [Rainy Sunday](/files/bot/Pages/rainy-sunday.html), and [the old one](/files/mine/Pages/plan.md).");
-    expect(html).toContain('<a class="mb-link mb-page-link" href="#" data-page="/files/bot/Pages/rainy-sunday.html">Rainy Sunday</a>');
-    expect(html).toContain('data-page="/files/mine/Pages/plan.md"');
+  it("opens the page instead of an address, from the chat's folder, the bot's or the home's (D-112 R6)", () => {
+    const html = renderRichText("Here it is: [Rainy Sunday](/files/chat/Pages/rainy-sunday.html), and [the old one](/files/bot/Pages/plan.md).");
+    expect(html).toContain('<a class="mb-link mb-page-link" href="#" data-page="/files/chat/Pages/rainy-sunday.html">Rainy Sunday</a>');
+    expect(html).toContain('data-page="/files/bot/Pages/plan.md"');
+    expect(renderRichText("[x](/files/shared/Pages/x.html)")).toContain('data-page="/files/shared/Pages/x.html"');
     expect(renderRichText("[x](/files/bot/notes.html)")).not.toContain("data-page");
+    expect(renderRichText("[x](/files/mine/Pages/plan.html)"), "a person's own folder is gone").not.toContain("data-page");
   });
 });

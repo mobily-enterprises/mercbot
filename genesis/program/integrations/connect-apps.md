@@ -47,30 +47,15 @@ the home's accounts, and keeps the private skills their bots have made.
 - `src/components/mercbot/MercbotCredentials.css`
 - `plugins/sedna/plugin.json`
 - `plugins/sedna/skill.md`
-- `tests/server/sednaCredentials.integration.js`
-- `tests/support/fakeSedna.mjs`
-- `tests/e2e/sedna.spec.ts`
 - `migrations/20261119181000_one_unlabelled_home_account.cjs`
 - `migrations/20261121225000_unlabelled_home_accounts_of_home_apps.cjs`
 - `migrations/20261121230000_accounts_belong_to_homes.cjs`
 - `plugins/calendly/plugin.json`
 - `plugins/notion/plugin.json`
 - `plugins/todoist/plugin.json`
-- `tests/server/connections.integration.js`
-- `tests/server/signInBinding.test.js`
-- `tests/server/connector.integration.js`
-- `tests/support/fakeMcpServer.mjs`
-- `tests/client/appsCatalogue.vitest.js`
-- `tests/server/accountWorkflow.integration.js`
-- `tests/server/signInReturn.test.js`
-- `tests/e2e/accounts.spec.ts`
-- `tests/e2e/connector.spec.ts`
 - `packages/integrations/src/server/appRequests.js`
 - `migrations/20261119220000_request_pace.cjs`
 - `src/components/mercbot/MercbotRequestPace.vue`
-- `tests/server/appRequests.test.js`
-- `tests/server/requestPace.integration.js`
-- `tests/support/appKey.mjs`
 
 ## Public contract
 
@@ -82,9 +67,10 @@ The catalogue is read at startup from `plugins/<id>/plugin.json`.
 **Every account is its home's** (D-111). `plugin_accounts.workspace_id` is required, and every read is scoped to the
 call's home (`accounts.reachable`, which refuses a system context): everyone in the home, and every bot there, reaches
 every account of it, in any chat. `user_id` is who added it. The apps on the home's list are `home_plugins` (home, app,
-who added it, when; unique per home and app). The person's own parts stay theirs: private skills, the app interest
-noted by Request, and the Tools switches (`plugin_actions_off`). An app connected with the home's API credentials is
-used only in a person's own chats (D-93, `botTurns.js`).
+who added it, when; unique per home and app). The person's own parts stay theirs: private skills and the app interest
+noted by Request. The Tools switches (`plugin_actions_off`) are the home's, as its accounts are. An app connected
+with the home's API credentials, such as Sedna, is used in any chat as the person who asked (D-93, D15, R4,
+`packages/bots/src/server/accountTools.js`).
 
 **Routes:**
 - `GET …/plugins`: the catalogue with each plugin's `installed` (on the home's list) and `canRemove`, and the home's
@@ -179,13 +165,14 @@ such as Preview or a home server):
 - `list_drive_files` shows the newest five (more only when the person names a number).
 - `create_drive_document` makes a Google Doc from simple HTML, or for OneDrive a Word file made with the word app, at the top level, with no approval card.
 - `bin_drive_file` moves a file to the bin (restorable for 30 days), never a permanent delete. Google Drive is signed in with full Drive access (D-42); a drive connected before that can only change files Mercbot made until it's signed in again.
-- The rest of each drive (search, folders, details and sharing, reading, downloading and exporting, making, changing, moving, copying, sharing, Google's comments) is in `driveTools.js` (see bots/conversations).
+- The rest of each drive (search, folders, details and sharing, reading, downloading and exporting, making, changing, moving, copying, sharing, Google's comments) is in `driveTools.js` (see `genesis/program/bots/bot-tools.md`).
 - Files shown or made appear as a `drive_files` card: logo, name as a link, kind, date.
 - A reply that talks about Drive files without one of these tools running is sent back once (the same kind of check as the calendar's).
 
 **Tools**:
 - A plugin's `actions` list names the bot tools that work with it. A grouped tool's actions are listed one by one as `tool.action` (D-42), so Gmail shows 24 rows, Google Drive 19 and GitHub 52.
-- A connected app's page shows "N of N enabled". It opens to a switch per action (`PUT …/plugins/:pluginId/actions/:actionId {enabled}`, stored in `plugin_actions_off` per person and app).
+- A connected app's page shows "N of N enabled". It opens to a switch per action (`PUT …/plugins/:pluginId/actions/:actionId {enabled}`, stored in `plugin_actions_off` per home, app and action; the home's owners and admins change them, since they hold
+for everyone's bots in every chat: 403 otherwise).
 - `integrations.toolSwitches(options)` gives each reply the apps to skip per tool, the tools to drop when every connected app has them off, and the switched-off actions in words. The bot is told not to do those on the app's website either.
 
 **Account states:**
@@ -279,7 +266,7 @@ the general connector's actions and listings, a credentials kind's reads and the
 name and draw apps from the catalogue (`integrations.app`, `appName`, `appNamed`) without reading
 any table. The bot's current state names who connected each account ("connected by them", or by <name>,
 `integrations.namesOf`); a mailbox someone else connected shows its bot no sign-in codes or links (D-111,
-`genesis/program/bots/conversations.md`). The bots hear of
+`genesis/program/bots/bot-tools.md`). The bots hear of
 each account that turns connected through `connections.whenConnected(listener)`: a sign-in's callback
 (`finishSignIn`) and a hub's sign-in found by `syncPending` save the account and tell each listener
 `{ pluginId, userId, homeId }` inside one transaction
@@ -393,3 +380,21 @@ remove it with its bin, which forgets its people matches too; **Change credentia
   waiting pick, checked again (404 `integrations_app_person_not_asked`); `DELETE …/people/:userId` forgets a pick, one's
   own (`me`) or, for owners and admins, anyone's. No two people are confirmed as one user of one organisation (a unique
   index), and a pick holds only for the organisation (`org`, Sedna's tenant) it was made in.
+
+## Proved by
+
+- `tests/server/sednaCredentials.integration.js`
+- `tests/e2e/sedna.spec.ts`
+- `tests/server/connections.integration.js`
+- `tests/server/signInBinding.test.js`
+- `tests/server/connector.integration.js`
+- `tests/client/appsCatalogue.vitest.js`
+- `tests/server/accountWorkflow.integration.js`
+- `tests/server/signInReturn.test.js`
+- `tests/e2e/accounts.spec.ts`
+- `tests/e2e/connector.spec.ts`
+- `tests/server/appRequests.test.js`
+- `tests/server/requestPace.integration.js`
+- `tests/server/accountsBelongToHomes.integration.js`
+- `tests/server/departedAccounts.integration.js`
+- `tests/server/connectAppsReads.integration.js`

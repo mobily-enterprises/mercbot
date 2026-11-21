@@ -22,11 +22,6 @@ followed as it moves or goes in the home's files.
 - `src/components/mercbot/websitesApi.js`
 - `src/components/mercbot/MercbotSettingsWebsite.vue`
 - `src/components/mercbot/MercbotPageWebsite.vue`
-- `tests/server/websites.test.js`
-- `tests/server/websites.integration.js`
-- `tests/support/fakeS3.mjs`
-- `tests/support/staticSite.mjs`
-- `tests/e2e/website.spec.ts`
 
 ## Public contract
 
@@ -99,3 +94,9 @@ that leaves websites out replaces this file with no section and no row and drops
 - `home_websites`: a home's website, one per home: kind, base URL, sealed settings and when its first publish was
   confirmed.
 - `page_publications`: a page published to its home's website: bot, path, slug, marker and when it was published.
+
+## Proved by
+
+- `tests/server/websites.test.js`
+- `tests/server/websites.integration.js`
+- `tests/e2e/website-settings.spec.ts`

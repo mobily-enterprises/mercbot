@@ -70,7 +70,7 @@ Below, you may see how the script was written, such as "round 1: 3 passed, 1 fai
 
 ### Ask Builder to fix
 
-Press **Ask Builder to fix**. The Builder's chat opens with a first line naming the script, its summary and its latest error. Add what you noticed and send it.
+Press **Ask Builder to fix**. The app's own chat with the Builder opens, with a first line naming the script, its summary and its latest error. Add what you noticed and send it. See [One chat per app](/help/apps-builder#one-chat-per-app).
 
 ### Turn a script off
 
@@ -124,7 +124,7 @@ Each call has 10 seconds and up to 1 MB of answer, and doesn't follow redirects 
 
 ## Watches and routines
 
-Watches and routines belong to bots, not to apps. A watch makes a bot act when records change, in the chat where you set it up, and you manage it in the bot's details. See [Bots working with app data](/help/apps-bots) and [Skills, routines and watches](/help/skills-and-routines).
+Watches and routines belong to a bot in a chat, not to apps. A watch makes a bot act when records change, in the chat where you set it up, as the person who set it up, and you manage it on the bot's card in **Team**. See [Bots working with app data](/help/apps-bots) and [Skills, routines and watches](/help/skills-and-routines).
 
 ## Questions
 

@@ -5,7 +5,7 @@ import MercbotConfirmDialog from "./MercbotConfirmDialog.vue";
 import MercbotIconButton from "./MercbotIconButton.vue";
 import { pieceLine, pieceProgress, useBotKnowledge } from "./useBotKnowledge.js";
 
-// A bot's Knowledge (D-107), on its Details tab under its Instructions: what it knows, for everyone it talks with. One
+// A bot's Knowledge (D-107), on its card's Details under its Instructions: what it knows, in every chat it's in. One
 // sentence, then each piece of text or file with its size and whether it's always in mind or searched first (a book
 // is read and got ready in the background, with its progress, and says what to do when it fails), a summary of what
 // it adds to each message, and Add text and Add file for its maker and the home's owners and admins. A piece opens in
@@ -21,7 +21,6 @@ const phone = computed(() => display.width.value < 600);
 const { known, loadFailed, pieces, summary, adding, editor, removing, load, openNew, openPiece, saveEditor, addFiles, confirmRemove, retry } =
   useBotKnowledge({
     bot: () => props.bot,
-    isGroup: computed(() => props.bot.kind === "group"),
     tab: computed(() => props.tab),
     onFailure: (error) => emit("failure", error)
   });
@@ -56,7 +55,7 @@ function chooseFiles(event) {
 </script>
 
 <template>
-  <section v-if="bot.kind !== 'group'" class="mb-knowledge" aria-labelledby="mb-knowledge-title">
+  <section class="mb-knowledge" aria-labelledby="mb-knowledge-title">
     <p id="mb-knowledge-title" class="mb-knowledge__label">Knowledge</p>
     <div v-if="!known && !loadFailed" class="mb-knowledge__skeleton" aria-label="Loading knowledge" />
     <p v-else-if="loadFailed" class="mb-knowledge__sentence" role="alert">
@@ -66,7 +65,7 @@ function chooseFiles(event) {
     <template v-else>
       <p class="mb-knowledge__sentence">
         {{ pieces.length
-          ? `What ${bot.name} knows, for everyone it talks with.`
+          ? `What ${bot.name} knows, in every chat it's in.`
           : `${bot.name} knows nothing extra yet. Add text or a file, such as a price list, a manual or a book.` }}
       </p>
 

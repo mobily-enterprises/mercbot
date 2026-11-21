@@ -68,8 +68,8 @@ describe("shortcuts (D-2)", () => {
     expect(matchShortcut(key("KeyW", { ctrlKey: true, altKey: true }))).toEqual({ action: "skills" });
     expect(matchShortcut(key("KeyB", { ctrlKey: true }))).toEqual({ action: "toggleCompact" });
     expect(matchShortcut(key("KeyB", { ctrlKey: true, altKey: true }))).toEqual({ action: "toggleDetails" });
-    expect(matchShortcut(key("Digit3", { ctrlKey: true, altKey: true }))).toEqual({ action: "goToBot", index: 2 });
-    expect(matchShortcut(key("ArrowDown", { altKey: true }))).toEqual({ action: "nextBot" });
+    expect(matchShortcut(key("Digit3", { ctrlKey: true, altKey: true }))).toEqual({ action: "goToChat", index: 2 });
+    expect(matchShortcut(key("ArrowDown", { altKey: true }))).toEqual({ action: "nextChat" });
     expect(matchShortcut(key("Slash", { ctrlKey: true }))).toEqual({ action: "shortcuts" });
   });
 

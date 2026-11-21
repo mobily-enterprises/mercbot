@@ -3,42 +3,40 @@ import { computed, ref } from "vue";
 import MercbotAvatar from "./MercbotAvatar.vue";
 import { renderRichText } from "./richText.js";
 
-// A request between bots (D-46), the same card in both chats: in the asking bot's, who it asked
-// and how it stands, with the answer once it's back; in the asked bot's, who asked and for whom.
-// Either side opens the other chat, and the person can cancel while it's open.
+// A request between bots (D-46, O22), in the chat that asked: who was asked and how it stands, with the answer once
+// it's back. The bot asked works on the brief alone, and its questions and cards come here; the person whose message
+// asked it may cancel while it's open.
 const props = defineProps({
-  message: { type: Object, required: true }
+  message: { type: Object, required: true },
+  // Whom its OK is waiting for, when it isn't the person looking.
+  waitingFor: { type: String, default: "" }
 });
-const emit = defineEmits(["open-bot", "cancel"]);
+const emit = defineEmits(["cancel"]);
 
 const STATUS = {
   queued: "Starting",
   working: "Working",
   question: "Has a question",
-  waiting_approval: "Waiting for your OK",
   done: "Done",
   failed: "Couldn't finish",
   cancelled: "Cancelled"
 };
 const body = computed(() => props.message.body);
-const asker = computed(() => body.value.side === "asker");
 const open = computed(() => ["queued", "working", "question", "waiting_approval"].includes(body.value.status));
-const pass = computed(() => body.value.kind === "pass");
-const title = computed(() => {
-  const name = body.value.other?.name;
-  if (asker.value) return pass.value ? `Passed to ${name}` : `Asked ${name}`;
-  return pass.value ? `Passed on by ${name}` : `From ${name}, for ${body.value.person}`;
+const title = computed(() => `${body.value.kind === "pass" ? "Passed to" : "Asked"} ${body.value.other?.name}`);
+const statusText = computed(() => {
+  if (body.value.status !== "waiting_approval") return STATUS[body.value.status] || body.value.status;
+  return props.waitingFor ? "Waiting for an OK" : "Waiting for your OK";
 });
 // What the person can do or should know right now.
 const hint = computed(() => {
-  const name = body.value.other?.name;
-  if (body.value.status === "waiting_approval") return asker.value ? `Waiting for your OK in ${name}'s chat` : "Waiting for your OK below";
-  if (body.value.status === "question") return asker.value ? `${name} asks: ${body.value.question}` : `Asked ${name}: ${body.value.question}`;
+  if (body.value.status === "waiting_approval") return props.waitingFor ? `Waiting for ${props.waitingFor}'s OK` : "Waiting for your OK below";
+  if (body.value.status === "question") return `${body.value.other?.name} asks: ${body.value.question}`;
   return "";
 });
 const expanded = ref(false);
 const answerOpen = ref(false);
-const answer = computed(() => (asker.value && body.value.answer ? renderRichText(body.value.answer) : ""));
+const answer = computed(() => (body.value.answer ? renderRichText(body.value.answer) : ""));
 </script>
 
 <template>
@@ -46,7 +44,7 @@ const answer = computed(() => (asker.value && body.value.answer ? renderRichText
     <div class="mb-request__head">
       <MercbotAvatar v-if="body.other" :bot="body.other" :size="22" still />
       <span class="mb-request__title">{{ title }}</span>
-      <span class="mb-request__status" :class="`mb-request__status--${body.status}`">{{ STATUS[body.status] || body.status }}</span>
+      <span class="mb-request__status" :class="`mb-request__status--${body.status}`">{{ statusText }}</span>
     </div>
     <button type="button" class="mb-request__brief" :class="{ 'mb-request__brief--open': expanded }" :aria-expanded="expanded" @click="expanded = !expanded">
       {{ body.brief }}
@@ -57,11 +55,8 @@ const answer = computed(() => (asker.value && body.value.answer ? renderRichText
     <button v-if="answer" type="button" class="mb-request__more" :aria-expanded="answerOpen" @click="answerOpen = !answerOpen">
       {{ answerOpen ? "Show less" : "Show the whole answer" }}
     </button>
-    <div class="mb-request__actions">
-      <button v-if="open" type="button" class="mb-request__button" @click="emit('cancel', body.requestId)">Cancel</button>
-      <button type="button" class="mb-request__button mb-request__button--dark" @click="emit('open-bot', body.other?.id)">
-        Open {{ body.other?.name }}'s chat <v-icon icon="$arrowForward" size="14" />
-      </button>
+    <div v-if="open && !waitingFor" class="mb-request__actions">
+      <button type="button" class="mb-request__button" @click="emit('cancel', body.requestId)">Cancel</button>
     </div>
   </section>
 </template>
@@ -196,11 +191,6 @@ const answer = computed(() => (asker.value && body.value.answer ? renderRichText
   font: inherit;
   font-size: 13px;
   cursor: pointer;
-}
-
-.mb-request__button--dark {
-  background: rgb(var(--v-theme-on-surface));
-  color: rgb(var(--v-theme-surface));
 }
 
 .mb-request__button:focus-visible,
