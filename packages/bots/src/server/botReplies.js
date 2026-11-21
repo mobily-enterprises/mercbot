@@ -20,9 +20,9 @@ const namedAsWord = (text, name) => new RegExp(`(?<![\\p{L}\\p{N}_])${escape(nam
 
 /**
  * The bots a person's message is for (R3). With one person in the chat: every bot, in order, or only those
- * @-mentioned. With several: a bot named as a word, @-mentioned, replied to, or everyone (<@everyone>). Archived bots
- * never speak. `bots` are records.chats.bots rows.
- * @param {{ body?: { text?: string, replyTo?: { botId?: string } } } | null} message
+ * @-mentioned. With several: a bot named as a word, @-mentioned, replied to, or everyone (<@everyone>), or the one the
+ * chat's join-in judge named for it (`body.judged`, D-115). Archived bots never speak. `bots` are records.chats.bots rows.
+ * @param {{ body?: { text?: string, replyTo?: { botId?: string }, judged?: string } } | null} message
  * @param {{ people: object[], bots: object[] }} present
  */
 export function addressedBots(message, { people, bots }) {
@@ -36,7 +36,9 @@ export function addressedBots(message, { people, bots }) {
   }
   const words = text.replace(/<@[^>]+>/gu, " ");
   const repliedTo = message?.body?.replyTo?.botId ? String(message.body.replyTo.botId) : null;
-  return live.filter((bot) => mentioned.has(String(bot.bot_id)) || String(bot.bot_id) === repliedTo || namedAsWord(words, bot.name));
+  const called = live.filter((bot) =>
+    mentioned.has(String(bot.bot_id)) || String(bot.bot_id) === repliedTo || namedAsWord(words, bot.name));
+  return called.length ? called : live.filter((bot) => String(bot.bot_id) === String(message?.body?.judged));
 }
 
 /**
@@ -58,6 +60,7 @@ export function addressedBots(message, { people, bots }) {
  * @param {typeof import("./botAgent.js").generateReply} dependencies.reply
  * @param {((text: string, record: string) => Promise<string[]>) | null} dependencies.checkClaims the final-reply check, or null
  * @param {() => { afterTurn: (chatBotId: string) => Promise<unknown> }} dependencies.followUps the connect follow-ups, once made
+ * @param {ReturnType<typeof import("./joiningIn.js").createJoiningIn>} dependencies.joiningIn whether a bot joins in (D-115)
  */
 export function createBotReplies({
   records,
@@ -72,7 +75,8 @@ export function createBotReplies({
   turns,
   reply,
   checkClaims,
-  followUps
+  followUps,
+  joiningIn
 }) {
   const { say, tell, working } = seats;
 
@@ -121,7 +125,9 @@ export function createBotReplies({
    * One bot's turn in one chat. `present` is who is in the chat, read once for the turns it decides; `followUp` a turn
    * of R3's follow-up round (another bot mentioned it: it may PASS); `briefOnly` a request's turn (O22), which reads no
    * chat history, only its brief (the prompt) and its own steps on the request (`steps`, kept by `save`); `join` seats
-   * a request's bot in the asking chat when it first uses its computer.
+   * a request's bot in the asking chat when it first uses its computer. `discussion` is a turn of a discussion
+   * (discussions.js, D-115): it only talks, with no tools and none of the checks that send a reply back, answers no
+   * person's message, and may PASS; its message names the discussion and its round, and `signal` stops it.
    */
   async function replyTurn(
     seat,
@@ -141,6 +147,7 @@ export function createBotReplies({
       followUp = false,
       present = null,
       checkpoint = null,
+      discussion = null,
       call
     }
   ) {
@@ -191,13 +198,15 @@ export function createBotReplies({
       : routine
         ? await chatHistory.routineHistory(seat, routine.id, call)
         : recentOnly ? await chatHistory.recentHistory(seat, call) : await chatHistory.chatHistory(seat, call);
-    // Straight after an approval decision the bot only reports back; it doesn't act again.
+    // Straight after an approval decision the bot only reports back; it doesn't act again. A discussion's turn only
+    // talks too (D-115).
     const lastTurn = [...history].reverse().find((message) => message.kind !== "event");
     const decided =
-      !prompt &&
-      String(lastTurn?.authorBotId) === seat.id &&
-      ((lastTurn?.kind === "choice" && lastTurn.body.purpose === "approval" && lastTurn.body.chosen) ||
-        (lastTurn?.kind === "handover" && lastTurn.body.status === "skipped"));
+      Boolean(discussion) ||
+      (!prompt &&
+        String(lastTurn?.authorBotId) === seat.id &&
+        ((lastTurn?.kind === "choice" && lastTurn.body.purpose === "approval" && lastTurn.body.chosen) ||
+          (lastTurn?.kind === "handover" && lastTurn.body.status === "skipped")));
     let replyText;
     let transcript;
     /**
@@ -273,7 +282,15 @@ export function createBotReplies({
         decided ? {} : run.tools,
         state,
         resumed.length ? CHECKS.resumed : prompt,
-        { summary, onSteps, followUp, carriesOn: checkpointed, throwIf, signal: checkpoint?.signal }
+        {
+          summary,
+          onSteps,
+          followUp: followUp || Boolean(discussion?.mayPass),
+          carriesOn: checkpointed,
+          throwIf,
+          signal: checkpoint?.signal ?? discussion?.signal,
+          ...discussion?.model
+        }
       ));
       // A follow-up with nothing to add stays quiet (R3): nothing is posted, and nothing it made is shown.
       if (passed) return [];
@@ -359,9 +376,11 @@ export function createBotReplies({
     const body = withMentions({
       text: mentionMarkers(replyText, members),
       transcript,
-      answers,
+      // A discussion's turn answers no person's message: one written meanwhile is still taken up after it (D-115).
+      answers: discussion ? 0 : answers,
       ...(prompt ? { trigger: prompt } : {}),
-      ...(routine ? { routine: String(routine.id) } : {})
+      ...(routine ? { routine: String(routine.id) } : {}),
+      ...(discussion ? { discussion: String(discussion.id), round: discussion.round } : {})
     }, members);
     // Cards are for the person the bot works for (R4): only they answer them.
     const asker = { id: seat.user_id, name: (await records.chats.names([seat.user_id], call)).get(seat.user_id) || "the person" };
@@ -410,31 +429,14 @@ export function createBotReplies({
   }
 
   /**
-   * Who speaks now (R3), for the chat's latest person's message or, after a card was answered, for that card's bot: the
-   * chat's latest card from a bot, whatever its bot said after it (such as "Tap what fits"). Answers the bots in order,
-   * the message they answer (its id, 0 for none), the person they work for, and after a card, the card's id.
-   */
-  async function whoSpeaks(chatId, { afterCard = false }, present, call) {
-    const latestText = await records.turns.latestMessage(chatId, { role: "user", kind: "text" }, call);
-    if (afterCard) {
-      const card = await records.turns.latestMessage(chatId, { role: "bot", kinds: [...CARD_KINDS] }, call);
-      const settled = card && (card.body?.chosen || SETTLED.has(card.body?.status));
-      const bot = settled ? present.bots.find((entry) => String(entry.bot_id) === String(card.authorBotId) && !entry.archived_at) : null;
-      if (bot) {
-        return { bots: [bot], asked: Number(latestText?.id) || 0, askerId: String(card.body?.for?.id || latestText?.authorUserId || ""), cardId: Number(card.id) };
-      }
-    }
-    if (!latestText) return { bots: [], asked: 0, askerId: null, cardId: 0 };
-    return { bots: addressedBots(latestText, present), asked: Number(latestText.id), askerId: String(latestText.authorUserId), cardId: 0 };
-  }
-
-  /**
    * The chat's bots answer (R3): those the latest message is for, each its own run in order, then one follow-up round
    * for the bots another bot mentioned (PASS stays quiet). A people-only chat makes no model call. A page that lost its
    * server mid-reply asks again (D-19): bots that already answered aren't asked twice (after a card, since the card and
    * the page's last message), and with none left to answer, what was said since the page's last message is the answer.
    * A bot still busy with an earlier reply in the chat answers once it's free (runReply's answerWaiting), so a request
-   * that only found bots busy is told it's pending. The page sets only these four: a turn's prompt is the server's own.
+   * that only found bots busy is told it's pending. With several people and no bot called, at most one bot joins in
+   * when the chat's setting says so (joiningIn.js, D-115), judged in the background with the reply it starts, so the
+   * request never waits on the judge alone. The page sets only these four: a turn's prompt is the server's own.
    * @param {string} chatId
    * @param {{ timeZone?: string, language?: string, afterMessageId?: string | number, afterCard?: boolean }} input
    * @param {import("./types.js").CallOptions} options the person's request
@@ -446,15 +448,20 @@ export function createBotReplies({
     const after = Number(afterMessageId) || 0;
     const since = async () => ({ messages: after > 0 ? await records.messages.messagesAfter(chat.id, after, options) : [] });
     if (!present.bots.some((bot) => !bot.archived_at)) return since();
-    const { bots, asked, askerId, cardId } = await whoSpeaks(chat.id, { afterCard }, present, options);
-    if (!bots.length || !askerId) return since();
-    const done = await answeredBy(chat.id, asked, bots.map((bot) => bot.bot_id), options, cardId ? Math.max(cardId, after) : asked - 1);
-    const speaking = bots.filter((bot) => !done.has(String(bot.bot_id)));
-    if (!speaking.length) return since();
+    const { bots, asked, askerId, cardId, latest } = await whoSpeaks(records.turns, chat.id, { afterCard }, present, options);
+    const judging = !bots.length && Boolean(askerId) && joiningIn.mayJudge(chat, latest, present);
+    if ((!bots.length && !judging) || !askerId) return since();
     const busy = new Set();
-    const job = speakInTurn(chat, speaking, { timeZone, language, afterCard: Boolean(cardId), asked }, askerId, present, { busy });
+    const job = (async () => {
+      const chosen = judging ? await joiningIn.joining(chat, latest, present, options) : bots;
+      const done = await answeredBy(chat.id, asked, chosen.map((bot) => bot.bot_id), options, cardId ? Math.max(cardId, after) : asked - 1);
+      const speaking = chosen.filter((bot) => !done.has(String(bot.bot_id)));
+      if (!speaking.length) return null;
+      return speakInTurn(chat, speaking, { timeZone, language, afterCard: Boolean(cardId), asked }, askerId, present, { busy });
+    })();
     background.add(job);
     const settled = await settledWithin(job, REPLY_WAIT_MS);
+    if (settled === null) return since();
     return settled && (settled.length || !busy.size) ? { messages: settled } : { pending: true };
   }
 
@@ -639,11 +646,15 @@ export function createBotReplies({
     await meter.track(meteredAs(fresh), () => runReply(fresh, next, reader, null, present));
   }
 
+  /** A bot freed by a discussion (D-115) answers a message for it newer than `since`, as after a reply of its own. */
+  const takeUpWaiting = (seat, since, input, call) => background.add(answerWaiting(seat, input, Number(since) || 0, call));
+
   return Object.freeze({
     respond,
     pausedLine,
     replyIn,
     runReply,
+    takeUpWaiting,
     resumeStalled,
     startResumer
   });
@@ -657,6 +668,28 @@ const newerThan = (id) => (Number(id) > 0 ? { afterId: String(id) } : {});
 
 /** A waiting message's words, as the prompt that names it quotes them. */
 const waitingWords = (message) => String(message.body.text || "").slice(0, 1500);
+
+/**
+ * Who speaks now (R3), for the chat's latest person's message or, after a card was answered, for that card's bot: the
+ * chat's latest card from a bot, whatever its bot said after it (such as "Tap what fits"). Answers the bots in order,
+ * the message they answer (its id, 0 for none, and `latest`, the message itself), the person they work for, and after
+ * a card, the card's id.
+ */
+async function whoSpeaks(turns, chatId, { afterCard = false }, present, call) {
+  const latestText = await turns.latestMessage(chatId, { role: "user", kind: "text" }, call);
+  if (afterCard) {
+    const card = await turns.latestMessage(chatId, { role: "bot", kinds: [...CARD_KINDS] }, call);
+    const settled = card && (card.body?.chosen || SETTLED.has(card.body?.status));
+    const bot = settled ? present.bots.find((entry) => String(entry.bot_id) === String(card.authorBotId) && !entry.archived_at) : null;
+    if (bot) {
+      const askerId = String(card.body?.for?.id || latestText?.authorUserId || "");
+      return { bots: [bot], asked: Number(latestText?.id) || 0, askerId, cardId: Number(card.id) };
+    }
+  }
+  if (!latestText) return { bots: [], asked: 0, askerId: null, cardId: 0 };
+  const asked = Number(latestText.id);
+  return { bots: addressedBots(latestText, present), asked, askerId: String(latestText.authorUserId), cardId: 0, latest: latestText };
+}
 
 /**
  * The words of the person's message `asked` when this bot posted a reply after it that didn't answer it (the reply

@@ -319,7 +319,7 @@ provide(MERCBOT_CHAT_KEY, Object.freeze({
 // The welcome chat's "what is this home for?" opens Add bots on Describe what you need ("start") or on its teams.
 const openAddBots = (screen) => (screen === "teams" ? openTeams() : openNewBot("", "start"));
 Object.assign(actions, useChatActions({ currentChat, newChat, startNewChat, store, work, reportFailure, notify, openAddBots, me: () => me.value }));
-const { send, retry, react, answerChoice, settleDraft, answerSecureForm, endVoiceConversation, cancelRequest, copyToClipboard, copyMessage, copyPicture } = actions;
+const { send, retry, react, answerChoice, settleDraft, answerSecureForm, endVoiceConversation, discuss, cancelRequest, copyToClipboard, copyMessage, copyPicture } = actions;
 
 // Cards a change in a card rewrote, such as a page deleted from a bot's Library, in their chat.
 function showChanged({ chatId, messages }) {
@@ -594,6 +594,7 @@ watch(() => currentHomeEntry.value?.slug, () => loadBuilderBot(), { immediate: t
         @teach="teach({ ...$event, chatId: currentChat.id })"
         @open-skill="openSkill"
         @cancel-request="cancelRequest"
+        @discuss="discuss"
         @choose="chooseName"
         @connect="explainConnect"
       >

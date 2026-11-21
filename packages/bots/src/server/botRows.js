@@ -114,6 +114,7 @@ export function previewOf(row) {
   if (row.kind === "bot_request") {
     return body.side === "asker" ? `Asked ${body.other?.name}: ${body.brief}` : `From ${body.other?.name}: ${body.brief}`;
   }
+  if (row.kind === "discussion") return `Discussion: ${body.question}`;
   return plainText(body.text || body.heading, body.mentions).slice(0, 200);
 }
 

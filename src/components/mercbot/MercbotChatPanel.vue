@@ -66,7 +66,7 @@ const props = defineProps({
 const emit = defineEmits([
   "open-details", "close-find", "voice-ended", "send", "choose", "connect",
   "react", "copy", "copy-image", "retry", "teach", "update:draft", "answer",
-  "take-over", "use-computer", "secure-form", "settle-draft", "manage-rules", "settle-handover", "open-skill", "cancel-request",
+  "take-over", "use-computer", "secure-form", "settle-draft", "manage-rules", "settle-handover", "open-skill", "cancel-request", "discuss",
   "failure", "open-page", "close-page", "open-direct",
   "new-chat-change", "new-chat-close", "new-chat-start", "new-chat-join", "new-chat", "new-bot", "team", "menu",
   "unarchive-bot", "unarchive-chat", "join", "add-member"
@@ -77,6 +77,7 @@ const title = computed(() => (props.chat ? chatTitle(props.chat, props.me) : "")
 const writing = computed(() => Boolean(props.newChat) || Boolean(props.chat));
 // A chat's one bot: its colour, its "/" skills, teaching it a task.
 const soleBot = computed(() => (props.newChat ? null : soleBotOf(props.chat)));
+const liveBots = computed(() => (props.newChat || !props.chat ? 0 : props.chat.bots.filter((bot) => !bot.archived).length));
 const directBot = computed(() => (props.newChat ? null : directBotOf(props.chat)));
 // A direct chat with a bot that's archived (D-108) is read-only until it's back.
 const archivedBot = computed(() => {
@@ -249,6 +250,8 @@ function send() {
   replyTarget.value = null;
 }
 
+// Discuss (D-115): what's written becomes the question of a discussion card; the composer clears once it's there.
+const discuss = () => emit("discuss", { question: withMarkers(draft.value.trim()), onDone: () => { draft.value = ""; } });
 const { onComposerKeydown } = useComposerKeys({ draft, input, quotes, replyTarget, tokens: composerTokens, send });
 
 function focusComposer() {
@@ -359,6 +362,7 @@ defineExpose({ focusComposer, addSelection, startReply, toggleDictation, dictati
           :me="me"
           :people="people"
           :bots="teamBots"
+          :manages="manages"
           @choose="emit('choose', $event)"
           @answer="emit('answer', $event)"
           @focus-composer="focusComposer"
@@ -588,6 +592,11 @@ defineExpose({ focusComposer, addSelection, startReply, toggleDictation, dictati
               <v-list-item v-if="soleBot" min-height="32" class="px-3" @click="emit('teach', { botId: String(soleBot.botId) })">
                 <template #prepend><v-icon icon="$radioOn" size="14" color="error" /></template>
                 <span class="mb-composer__menu-text">Teach {{ soleBot.name }} a task</span>
+              </v-list-item>
+              <!-- Discuss (D-115): in a chat with two or more bots, what's written becomes the question they talk over. -->
+              <v-list-item v-if="liveBots >= 2" min-height="32" class="px-3" @click="discuss">
+                <template #prepend><v-icon icon="$sms" size="14" /></template>
+                <span class="mb-composer__menu-text">Discuss with the bots</span>
               </v-list-item>
             </v-list>
           </v-menu>

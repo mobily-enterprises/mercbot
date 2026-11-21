@@ -191,4 +191,26 @@ describe("Chat details", () => {
     const html = await details({ chat: KITCHEN });
     expect(/data-sections="([^"]*)"/u.exec(html)?.[1]).toBe("This chat:/files/chat|Rossi family:/files/shared");
   });
+
+  it("shows whether its bots join in when useful, a switch for its maker and the home's owners and admins only (D-115)", async () => {
+    /** The switch under Bots: its words, whether it's on, and whether it's held. */
+    const joinIn = (html) => {
+      const bots = section(html, "Bots");
+      const row = bots.includes('class="mb-chat-details__setting"') ? bots.slice(bots.indexOf('class="mb-chat-details__setting"')) : "";
+      const input = /<input[^>]*aria-label="Bots join in when useful"[^>]*>/u.exec(row)?.[0] ?? "";
+      return row ? { words: text(/mb-chat-details__routine-text">([\s\S]*?)<\/span><\/span>/u.exec(row)?.[1] ?? ""), on: /\schecked(?=[\s>=]|$)/u.test(input), held: /\sdisabled(?=[\s>=]|$)/u.test(input) } : null;
+    };
+    expect(joinIn(await details({ chat: KITCHEN, me: "1" }))).toEqual({
+      words: "Bots join in when useful When someone writes without calling a bot, one bot may answer if it can help. Off, bots answer only when called.",
+      on: false,
+      held: false
+    });
+    expect(joinIn(await details({ chat: chatOf({ botsJoinIn: true }), me: "2", manages: true }))).toMatchObject({ on: true, held: false });
+    expect(joinIn(await details({ chat: chatOf({ botsJoinIn: true }), me: "2" }))).toEqual({
+      words: "Bots join in when useful Only the person who started this chat and the home's owners and admins can change this.",
+      on: true,
+      held: true
+    });
+    expect(joinIn(await details({ chat: chatOf({ bots: [] }), me: "1" })), "no bots, no switch").toBeNull();
+  });
 });

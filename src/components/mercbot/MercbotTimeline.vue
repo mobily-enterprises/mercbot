@@ -5,6 +5,7 @@ import MercbotAvatar from "./MercbotAvatar.vue";
 import MercbotPluginLogo from "./MercbotPluginLogo.vue";
 import MercbotHandoverCard from "./MercbotHandoverCard.vue";
 import MercbotRequestCard from "./MercbotRequestCard.vue";
+import MercbotDiscussionCard from "./MercbotDiscussionCard.vue";
 import MercbotTodoCard from "./MercbotTodoCard.vue";
 import MercbotFileViewer from "./MercbotFileViewer.vue";
 import MercbotPageCard from "./MercbotPageCard.vue";
@@ -46,7 +47,9 @@ const props = defineProps({
   me: { type: String, default: "" },
   // The home's people and bots (null while they load), which name an author no longer in the chat.
   people: { type: Array, default: null },
-  bots: { type: Array, default: null }
+  bots: { type: Array, default: null },
+  // Whether the person manages the home: they may stop any discussion in it (D-115).
+  manages: { type: Boolean, default: false }
 });
 
 // The cards a copy built on Mercbot adds, by the kind of message each shows (extensions.js).
@@ -644,6 +647,8 @@ const fileDate = (iso) => (iso ? fileDay.format(new Date(iso)) : "");
         :waiting-for="waitingFor(message)"
         @cancel="emit('cancel-request', $event)"
       />
+
+      <MercbotDiscussionCard v-else-if="message.kind === 'discussion'" :message="message" :chat="chat" :me="me" :manages="manages" />
 
       <!-- The hand-over is on the computer of the bot that asked, which anyone here may take over (D16). -->
       <MercbotHandoverCard

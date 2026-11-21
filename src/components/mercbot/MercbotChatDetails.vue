@@ -57,6 +57,10 @@ const people = computed(() => [...props.chat.people].sort((a, b) =>
 // Its maker and the home's owners and admins take people and bots out; the everyone chat has everyone in the home.
 const mayRemovePerson = (person) => may.value.removeMembers && !props.chat.everyone && String(person.userId) !== String(props.me);
 const mayRemoveBot = computed(() => may.value.removeMembers);
+// Whether its bots join in when useful (D-115): they and everyone else see it; they switch it.
+const joinInNote = computed(() => (may.value.joinIn
+  ? "When someone writes without calling a bot, one bot may answer if it can help. Off, bots answer only when called."
+  : "Only the person who started this chat and the home's owners and admins can change this."));
 
 // Routines that run in this chat (B): each one's bot, schedule, a switch (anyone pauses one; only its maker resumes it,
 // canResume), Edit through the chat for its maker too (only they change it, routineTools.js), and Delete, which is
@@ -181,6 +185,21 @@ const folderBot = computed(() => (props.chat.bots[0] ? String(props.chat.bots[0]
             </button>
           </li>
         </ul>
+        <div v-if="chat.bots.length && !chat.directBotId" class="mb-chat-details__setting">
+          <span class="mb-chat-details__routine-text">
+            <span class="mb-chat-details__routine-name">Bots join in when useful</span>
+            <span class="mb-chat-details__routine-when">{{ joinInNote }}</span>
+          </span>
+          <v-switch
+            :model-value="Boolean(chat.botsJoinIn)"
+            :disabled="!may.joinIn"
+            density="compact"
+            hide-details
+            inset
+            aria-label="Bots join in when useful"
+            @update:model-value="command('setJoinIn', { chatId: chat.id, on: Boolean($event) })"
+          />
+        </div>
       </section>
 
       <section class="mb-chat-details__group" aria-label="Routines">
@@ -364,10 +383,15 @@ const folderBot = computed(() => (props.chat.bots[0] ? String(props.chat.bots[0]
 }
 
 .mb-chat-details__members li,
-.mb-chat-details__routine {
+.mb-chat-details__routine,
+.mb-chat-details__setting {
   display: flex;
   align-items: center;
   gap: 6px;
+}
+
+.mb-chat-details__setting {
+  margin-top: 6px;
 }
 
 .mb-chat-details__member {

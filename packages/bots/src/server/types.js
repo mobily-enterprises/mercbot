@@ -160,6 +160,7 @@
  * @typedef {{ lease: RunLease, release: () => Promise<unknown> }} RunningRun
  */
 /** @typedef {ReturnType<typeof import("./botTurns.js").createBotTurns>} BotTurns */
+/** @typedef {ReturnType<typeof import("./botReplies.js").createBotReplies>} BotReplies */
 /** @typedef {ReturnType<typeof import("@jskit-ai/agent-runtime/server").createGoals>} Goals */
 /** @typedef {typeof import("@jskit-ai/agent/server").SUMMARY_LIMITS} SummaryLimits */
 /** @typedef {ReturnType<typeof import("./model.js").createChatModel>} ChatModel */
