@@ -239,7 +239,8 @@ export function createChatRepository({ resources, systemContext, profiles, membe
 
   /**
    * The person's chats in the home, newest activity first, each with their place in it (`place`): what the chat list
-   * shows. Hidden ones only with `hidden`. One read of their places and one of the chats.
+   * shows. Hidden ones are added with `hidden`, archived ones with `archived`, beside the others (the page asks for
+   * both and puts them in their own groups). One read of their places and one of the chats.
    * @param {CallOptions} options
    * @param {{ hidden?: boolean, archived?: boolean }} [only]
    */
@@ -248,7 +249,7 @@ export function createChatRepository({ resources, systemContext, profiles, membe
     const places = await chatPeople.queryAll({ filters }, passedOn(options));
     if (!places.length) return [];
     const placeOf = new Map(places.map((place) => [String(place.conversationId), place]));
-    const chats = await conversations.queryAll({ filters: { id: [...placeOf.keys()], archived }, sort: ["-lastActivityAt", "-id"] }, passedOn(options));
+    const chats = await conversations.queryAll({ filters: { id: [...placeOf.keys()], ...(archived ? {} : { archived: false }) }, sort: ["-lastActivityAt", "-id"] }, passedOn(options));
     return chats.map((chat) => ({
       ...asRow(chat, options),
       place: Object.fromEntries(PLACE.map((field) => [field, placeOf.get(String(chat.id))?.[field] ?? null]))

@@ -154,8 +154,8 @@ export function createChatMembers({ records, notices, computer, systemContext, p
   });
 
   /**
-   * The person's chat list: the chats they're in (hidden ones with `hidden`, archived ones with `archived`), newest
-   * activity first, and their sections.
+   * The person's chat list: the chats they're in (hidden ones added with `hidden`, archived ones with `archived`),
+   * newest activity first, and their sections.
    */
   async function list({ hidden = false, archived = false } = {}, options) {
     const rows = (await chats.ofPerson(options, { hidden, archived })).slice(0, LIST_LIMIT);
