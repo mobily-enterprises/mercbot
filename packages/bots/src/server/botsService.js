@@ -85,7 +85,8 @@ export function createBotsService({
   // One queue of work left running after a request answers (summaries, teaching, indexing): drain waits for all of it.
   const background = createBackgroundWork();
   // Chats and their members (D-112, R2): the chat routes' service, and every chat a turn answers with.
-  const chats = createChatMembers({ records, notices, computer, systemContext });
+  // Archiving a chat pauses its work with the turns' pauseWork; the turns are made after, as they answer with these chats.
+  const chats = createChatMembers({ records, notices, computer, systemContext, pauseWork: (...args) => turns.pauseWork(...args) });
   // The welcome chat's steps and a new bot's greeting (B): the turns tell it of messages and answers in such a chat.
   const onboarding = createOnboarding({ records, chats, model, meter, notices, workspaces });
   // What each bot knows (D-107): its Details section, and what its turns keep in mind and search.

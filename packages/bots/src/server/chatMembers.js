@@ -6,6 +6,12 @@ import { createCallerReaders } from "./records/recordRows.js";
 // The most chats one person's list shows; a home's person rarely has more than a few dozen.
 const LIST_LIMIT = 500;
 
+// The line in an archived chat naming the routines and watches its archiving paused.
+const ARCHIVED_LINE = Object.freeze({
+  text: "Paused while archived",
+  detail: (paused) => `This chat was archived, so its ${paused} paused. They stay paused when it's unarchived: resume them here.`
+});
+
 /**
  * Chats and their members (D-112, R2), as the chat routes answer them: the person's chat list, one chat, making one,
  * joining and leaving, adding and removing people and bots, renaming, archiving and deleting, the person's own place in
@@ -13,7 +19,10 @@ const LIST_LIMIT = 500;
  *
  * Who may: anyone in the home makes a chat and joins a public one; anyone in a chat adds people of the home and bots
  * of the home; the chat's maker and the home's owners and admins remove members, rename, archive and delete; anyone
- * leaves. What a caller may read is the records' (rowPolicies.js): a chat they can't open is a 404 everywhere.
+ * leaves. A Public chat is archived for everyone (plan 5.1), never the everyone chat: its bots' routines and watches there
+ * pause, with a line naming them, and stay paused when it's unarchived (D-101). A Private chat isn't archived: each of
+ * its people hides it for themselves (their place's `hidden`). What a caller may read is the records' (rowPolicies.js):
+ * a chat they can't open is a 404 everywhere.
  * Everyone in a chat is told of each change, on any server, as a `chat` event naming the chat and what changed. A
  * deleted chat's computers and files go with it (computer.chatRemoved). The home's everyone chat counts as pinned for
  * everyone in it (O9), and has every active member of the home: a change of the home's people (homeChanged) seats
@@ -23,8 +32,11 @@ const LIST_LIMIT = 500;
  * @param {import("@local/notices/server/types").Notices} dependencies.notices
  * @param {Pick<import("@local/computer/server/types").Computer, "chatRemoved">} dependencies.computer
  * @param {(reason: string) => object} dependencies.systemContext the bots' system context, for a change of the home's people
+ * @param {(seats: Array<{ id: string, chatId: string }>, line: { text: string, detail: (paused: string) => string }, txOptions: object) => Promise<void>}
+ *   dependencies.pauseWork the routines and watches of some bots in chats paused, with a line in each chat naming them
+ *   (workPause.js)
  */
-export function createChatMembers({ records, notices, computer, systemContext }) {
+export function createChatMembers({ records, notices, computer, systemContext, pauseWork }) {
   const { chats, messages } = records;
   const { homeOf, personOf } = createCallerReaders();
 
@@ -143,8 +155,8 @@ export function createChatMembers({ records, notices, computer, systemContext })
   });
 
   /**
-   * The person's chat list: the chats they're in (hidden ones with `hidden`, archived ones with `archived`), newest
-   * activity first, and their sections.
+   * The person's chat list: the chats they're in (hidden ones added with `hidden`, archived ones with `archived`),
+   * newest activity first, and their sections.
    */
   async function list({ hidden = false, archived = false } = {}, options) {
     const rows = (await chats.ofPerson(options, { hidden, archived })).slice(0, LIST_LIMIT);
@@ -251,16 +263,32 @@ export function createChatMembers({ records, notices, computer, systemContext })
     return get(chat.id, options);
   }
 
-  /** A chat archived (read-only for everyone in it) or back in use, by its maker or an owner or admin. */
+  /**
+   * A Public chat archived (read-only for everyone in it) or back in use, by its maker or an owner or admin; never the
+   * everyone chat, nor a Private chat, which each of its people hides for themselves instead (changePlace's `hidden`):
+   * its view is each member's own, so no one puts it away for the others (plan 5.1). Archiving pauses its bots' routines
+   * and watches there with a line, before it's read-only; unarchiving leaves them paused, to be resumed there. A chat
+   * already as asked is left as it is.
+   */
   async function archiving(chatId, archived, options) {
     const chat = await openChat(chatId, options);
+    if (archived && chat.kind === "private") {
+      throw new BotsError(409, "A private chat is hidden for yourself, not archived for everyone.", { code: "bots_chat_private_archive" });
+    }
     requireManager(chat, options, archived ? "archive" : "unarchive");
-    await (archived ? chats.archive(chat.id, options) : chats.unarchive(chat.id, options));
+    if (archived) requireNotEveryone(chat);
+    if (Boolean(chat.archived_at) === archived) return get(chat.id, options);
+    await chats.withTransaction(options, async (txOptions) => {
+      if (!archived) return chats.unarchive(chat.id, txOptions);
+      const seats = (await chats.bots(chat.id, txOptions)).map((bot) => ({ id: String(bot.chat_bot_id), chatId: String(chat.id) }));
+      await pauseWork(seats, ARCHIVED_LINE, txOptions);
+      return chats.archive(chat.id, txOptions);
+    });
     await told(chat.id, archived ? "archived" : "unarchived", options);
     return get(chat.id, options);
   }
 
-  /** A chat archived: read-only for everyone in it. */
+  /** A Public chat archived: read-only for everyone in it. */
   const archive = (chatId, options) => archiving(chatId, true, options);
 
   /** An archived chat back in use. */

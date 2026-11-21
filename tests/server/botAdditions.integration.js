@@ -6,6 +6,7 @@ import { buildTools } from "../../packages/bots/src/server/botTools.js";
 import { testBot, testHome } from "./testHome.js";
 import { serviceDoubles, turnDoubles } from "../support/botDoubles.mjs";
 import { memberOptions, startBotRecords } from "../support/botRecords.mjs";
+import { seedChat } from "../support/chatFixtures.mjs";
 
 // A bot's additions (D-98, D-95's instructions before them), written in its Details panel or by the bot on a card the
 // person approves, and its template, changed in Details. Renaming is open to everyone in the home; additions and the
@@ -27,7 +28,10 @@ async function setup(context) {
   await knex("workspace_memberships").insert({ workspace_id: elsewhere.id, user_id: sam.id, role_sid: "owner", status: "active" });
   const bot = await testBot(knex, pat, { name: `Pantry ${stamp}`, library_template: "weekly-meal-planner", additions: "Plan the week's meals." });
   const scratch = await testBot(knex, pat, { name: `Scratch ${stamp}`, library_template: "general" });
+  // The chats a test seeds besides the bots' direct ones, deleted before the connection closes.
+  const chats = [];
   context.after(async () => {
+    await knex("conversations").whereIn("id", chats).del();
     await knex("bots").whereIn("id", [bot.id, scratch.id]).del();
     await knex("workspace_memberships").whereIn("user_id", [kim.id, ada.id, sam.id]).del();
     await knex("workspaces").where({ id: elsewhere.id }).del();
@@ -39,7 +43,7 @@ async function setup(context) {
   const as = (userId, { home = homeId, manages = false } = {}) =>
     memberOptions({ userId, homeId: home, role: manages ? "admin" : "member", permissions: manages ? ["workspace.settings.update"] : [] });
   const stored = async (botId) => knex("bots").where({ id: botId }).first("additions", "library_template", "home_template_id");
-  return { knex, records, bots, as, stored, homeId, elsewhere: elsewhere.id, pat, kim: kim.id, ada: ada.id, sam: sam.id, bot, scratch };
+  return { knex, records, bots, as, stored, homeId, elsewhere: elsewhere.id, pat, kim: kim.id, ada: ada.id, sam: sam.id, bot, scratch, chats };
 }
 
 test("Details: its maker and the home's admins change a bot's additions; another member and another home can't", async (context) => {
@@ -88,64 +92,74 @@ test("Details: additions past 20,000 characters are refused with the reason, and
   assert.equal((await stored(scratch.id)).additions, "x".repeat(20000));
 });
 
-/** The approval card a turn of `bot` for `userId` (in `conversationId`) leaves when the bot is asked to change its additions. */
-async function cardFromTurn({ knex, records, bot, userId, conversationId, call }, additions) {
-  const { tools, after } = buildTools(turnDoubles({
-    call, records, approvals: { decide: async () => "allow" }, computer: {}, homeId: String(bot.workspace_id), userId: String(userId), botId: String(bot.id), conversationId: String(conversationId)
-  }));
+/** The bot's seat (`chatBotId`) in a public chat, as a turn's tools are given it, working for `userId`. */
+function seatIn(bot, chatId, chatBotId, userId) {
+  const chat = { id: String(chatId), kind: "public" };
+  return { id: String(bot.id), workspace_id: String(bot.workspace_id), user_id: String(userId), chat_id: chat.id, chat_bot_id: String(chatBotId), chat };
+}
+
+/**
+ * The approval card a turn of `bot` for `userId` leaves in a chat (`conversationId`, where its seat is `chatBotId`, by
+ * default its direct chat's) when the bot is asked to change its additions.
+ */
+async function cardFromTurn({ knex, records, bot, userId, conversationId, chatBotId = bot.chat_bot_id, call }, additions) {
+  const seat = seatIn(bot, conversationId, chatBotId, userId);
+  const { tools, after } = buildTools(turnDoubles({ call, records, approvals: { decide: async () => "allow" }, computer: {}, seat }));
   assert.equal((await tools.changeAdditions.execute({ additions })).status, "waiting_for_approval");
-  const [card] = await knex("bot_messages")
-    .insert({ workspace_id: bot.workspace_id, bot_id: bot.id, conversation_id: conversationId, kind: after[0].kind, role: after[0].role, body: after[0].body })
+  const [card] = await knex("messages")
+    .insert({ workspace_id: bot.workspace_id, author_bot_id: bot.id, conversation_id: conversationId, kind: after[0].kind, role: after[0].role, body: after[0].body })
     .returning("*");
   return card;
 }
 
 test("asked in its chat, a bot changes its additions only once the card is approved, from the next reply on; never its template", async (context) => {
   const { knex, records, bots, as, stored, pat, bot } = await setup(context);
+  const chatId = bot.conversation_id;
   const card = await cardFromTurn({ knex, records, bot, userId: pat, conversationId: bot.conversation_id, call: as(pat) }, "Plan meals for two, no fish.");
   assert.deepEqual(card.body.change, { before: "Plan the week's meals.", after: "Plan meals for two, no fish." });
   assert.equal((await stored(bot.id)).additions, "Plan the week's meals.", "the card alone changes nothing");
 
-  const answered = await bots.answerChoice(bot.id, card.id, ["Go ahead"], as(pat));
+  const answered = await bots.chat.answerChoice(chatId, card.id, ["Go ahead"], as(pat));
   assert.equal(answered.messages[1].body.text, `Changed ${bot.name}'s additions`);
   assert.deepEqual(await stored(bot.id), { additions: "Plan meals for two, no fish.", library_template: "weekly-meal-planner", home_template_id: null },
     "its template stays Mercbot's");
-  // What the next reply reads (botReplies.js reads the bot's row for each reply).
-  assert.equal((await records.conversations.botOf(String(bot.id), as(pat))).additions, "Plan meals for two, no fish.");
+  // What the next reply reads (chatSeats.js reads the bot's row for each reply).
+  assert.equal((await records.bots.find(String(bot.id), as(pat))).additions, "Plan meals for two, no fish.");
 
   const declined = await cardFromTurn({ knex, records, bot, userId: pat, conversationId: bot.conversation_id, call: as(pat) }, "Something else.");
-  await bots.answerChoice(bot.id, declined.id, ["Don't do it"], as(pat));
+  await bots.chat.answerChoice(chatId, declined.id, ["Don't do it"], as(pat));
   assert.equal((await stored(bot.id)).additions, "Plan meals for two, no fish.", "declined, nothing changes");
 
   // A card made before another change never overwrites it.
   const stale = await cardFromTurn({ knex, records, bot, userId: pat, conversationId: bot.conversation_id, call: as(pat) }, "From the old card.");
   await bots.updateBot(bot.id, { additions: "Changed in Details meanwhile." }, as(pat));
-  const late = await bots.answerChoice(bot.id, stale.id, ["Go ahead"], as(pat));
+  const late = await bots.chat.answerChoice(chatId, stale.id, ["Go ahead"], as(pat));
   assert.equal(late.messages[1].body.text, `${bot.name}'s additions changed after this card was made, so they were left as they are.`);
   assert.equal((await stored(bot.id)).additions, "Changed in Details meanwhile.");
 });
 
-test("in a shared bot, a member who may not change its additions gets a polite no, on the card and in the chat", async (context) => {
-  const { knex, records, bots, as, stored, pat, kim, ada, bot } = await setup(context);
-  await bots.updateBot(bot.id, { sharing: "shared" }, as(pat));
-  const { roomId } = (await bots.listBots(as(kim))).bots.find((entry) => entry.id === String(bot.id));
+test("in a chat of several people, a member who may not change its additions gets a polite no, on the card and in the chat", async (context) => {
+  const { knex, records, bots, as, stored, homeId, pat, kim, ada, bot, chats } = await setup(context);
+  const { id: chatId, chatBotIds } = await seedChat(knex, { homeId, title: "Kitchen", people: [pat, kim, ada], bots: [bot.id] });
+  const chatBotId = chatBotIds.get(String(bot.id));
+  chats.push(chatId);
 
-  // Kim asks in the shared conversation: the bot is told to say no, and leaves no card.
+  // Kim asks in the chat: the bot is told to say no, and leaves no card.
   const { tools, after } = buildTools(turnDoubles({
-    call: as(kim), records, approvals: { decide: async () => "allow" }, computer: {}, homeId: String(bot.workspace_id), userId: String(kim), botId: String(bot.id), conversationId: String(roomId), personal: false
+    call: as(kim), records, approvals: { decide: async () => "allow" }, computer: {}, seat: seatIn(bot, chatId, chatBotId, kim)
   }));
   assert.equal((await tools.changeAdditions.execute({ additions: "Kim's rules." })).error,
     `Only the person who made ${bot.name} and the home's owners and admins can change its template or additions. Say so politely: nothing was changed.`);
   assert.deepEqual(after, []);
 
   // A card Pat's turn left there, which Kim presses: refused, as the person saying yes.
-  const card = await cardFromTurn({ knex, records, bot, userId: pat, conversationId: roomId, call: as(pat) }, "Pat's rules.");
-  const refused = await bots.answerChoice(bot.id, card.id, ["Go ahead"], as(kim));
+  const card = await cardFromTurn({ knex, records, bot, userId: pat, conversationId: chatId, chatBotId, call: as(pat) }, "Pat's rules.");
+  const refused = await bots.chat.answerChoice(chatId, card.id, ["Go ahead"], as(kim));
   assert.equal(refused.messages[1].body.text, `Only the person who made ${bot.name} and the home's owners and admins can change its template or additions.`);
   assert.equal((await stored(bot.id)).additions, "Plan the week's meals.");
 
   // An admin's yes on the same kind of card does it.
-  const again = await cardFromTurn({ knex, records, bot, userId: pat, conversationId: roomId, call: as(pat) }, "Pat's rules.");
-  await bots.answerChoice(bot.id, again.id, ["Go ahead"], as(ada, { manages: true }));
+  const again = await cardFromTurn({ knex, records, bot, userId: pat, conversationId: chatId, chatBotId, call: as(pat) }, "Pat's rules.");
+  await bots.chat.answerChoice(chatId, again.id, ["Go ahead"], as(ada, { manages: true }));
   assert.equal((await stored(bot.id)).additions, "Pat's rules.");
 });

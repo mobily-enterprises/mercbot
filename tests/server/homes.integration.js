@@ -1,14 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { planOf, statementsDuring } from "../support/queryCount.mjs";
 import { connectTestDatabase } from "../support/testDatabase.mjs";
 import { createBotsService } from "../../packages/bots/src/server/botsService.js";
 import { buildMailTools } from "../../packages/bots/src/server/mailTools.js";
 import { requestContextOptions } from "../support/requestContextOptions.mjs";
 import { separateHome, testBot, testHome } from "./testHome.js";
 import { serviceDoubles } from "../support/botDoubles.mjs";
-import { memberOptions, startBotRecords } from "../support/botRecords.mjs";
+import { memberOptions, startBotParts, startBotRecords } from "../support/botRecords.mjs";
 import { startIntegrations } from "../support/ownedHandles.mjs";
+import { seedChat } from "../support/chatFixtures.mjs";
 
 
 /** A member's call options in the home, as their request's would be; owners and admins manage it. */
@@ -21,7 +21,8 @@ function inHome(userId, homeId, { manages = false } = {}) {
   });
 }
 
-// Homes (D-36): everyone in a home sees its bots, and each person talks to them privately.
+// Homes (D-36, D-112): everyone in a home sees its bots, each person has their own direct chat with one, and a chat of
+// several people is theirs together, with one computer for each bot in it.
 async function setup(context) {
   const knex = await connectTestDatabase();
   const pat = (await knex("users").first()).id;
@@ -38,12 +39,15 @@ async function setup(context) {
   const [elsewhere] = await knex("workspaces").insert({ slug: `sam-${stamp}`, name: "Sam's home", owner_user_id: outside.id, is_personal: true }).returning("id");
   await knex("workspace_memberships").insert({ workspace_id: elsewhere.id, user_id: outside.id, role_sid: "owner", status: "active" });
   const bot = await testBot(knex, pat, { name: `Shared ${stamp}` });
+  // The chats a test makes, deleted with the rest.
+  const made = [];
   // A home of the test's own for its accounts, which no other test file connects any in.
   const accountsHome = await separateHome(knex, pat, [kim.id]);
   context.after(async () => {
     await knex("workspaces").where({ id: accountsHome }).del();
+    await knex("conversations").where({ workspace_id: homeId }).whereIn("id", made).del();
+    await knex("conversations").where({ direct_bot_id: bot.id }).del();
     await knex("bots").where({ id: bot.id }).del();
-    await knex("bots").where({ user_id: kim.id }).del();
     await knex("workspace_memberships").where({ workspace_id: elsewhere.id }).del();
     await knex("workspaces").where({ id: elsewhere.id }).del();
     await knex("users").whereIn("id", [kim.id, outside.id]).del();
@@ -53,92 +57,57 @@ async function setup(context) {
   const bots = createBotsService(serviceDoubles({ knex, records, approvals: { decide: async () => "allow" }, reply: async () => ({ text: "Noted.", transcript: [] }) }));
   /** A member's request in the home (or in another home of theirs), as the bots routes make its options. */
   const as = (userId, home = homeId) => memberOptions({ userId, homeId: home });
-  return { knex, records, bots, as, homeId, accountsHome, elsewhere: elsewhere.id, pat, kim: kim.id, outside: outside.id, bot };
+  /** A chat in the home, with `people` and the bot (seedChat's fields), deleted afterwards: its id. */
+  const chatOf = async (fields) => {
+    const { id } = await seedChat(knex, { homeId, ...fields });
+    made.push(id);
+    return String(id);
+  };
+  return { knex, records, bots, as, homeId, accountsHome, elsewhere: elsewhere.id, pat, kim: kim.id, outside: outside.id, bot, chatOf, made };
 }
 
-test("two people in a home share its bots but each has a private conversation", async (context) => {
-  const { knex, bots, as, pat, kim, bot } = await setup(context);
-  const tag = `secret-${Date.now()}`;
-  await bots.sendMessage(bot.id, { text: `Pat's ${tag}` }, as(pat));
+// A direct chat is the chat a bot's [Message] reopens, one per person and bot, and Public like any other (D15): everyone
+// in the home may open it and find its words, though only its person is in it.
+test("two people in a home share its bots, and each has their own direct chat with one, Public like any chat", async (context) => {
+  const { knex, bots, as, pat, kim, bot, chatOf } = await setup(context);
+  const tag = `words-${Date.now()}`;
+  // testBot's chat is Pat's direct chat with the bot.
+  const patsChat = String(bot.conversation_id);
+  await bots.chat.sendMessage(patsChat, { text: `Pat's ${tag}` }, as(pat));
 
-  const kimsList = await bots.listBots(as(kim));
-  const seen = kimsList.bots.find((entry) => entry.id === String(bot.id));
-  assert.ok(seen, "Kim sees the home's bot");
-  assert.equal(seen.preview, "", "but nothing from Pat's conversation");
-  assert.equal(seen.onboardingStep, "intro-greet", "and the bot will introduce itself to Kim");
+  assert.ok((await bots.listBots(as(kim))).bots.some((entry) => entry.id === String(bot.id)), "Kim sees the home's bot");
+  const { chat: kims } = await bots.chats.direct(bot.id, as(kim));
+  assert.notEqual(kims.id, patsChat, "Kim's direct chat with it is her own");
+  assert.equal(kims.onboardingStep, "intro-greet", "and the bot will introduce itself to Kim there");
+  assert.equal((await bots.chats.direct(bot.id, as(kim))).chat.id, kims.id, "made once, then opened");
+  assert.deepEqual((await bots.chat.messages(kims.id, {}, as(kim))).messages.filter((message) => message.kind === "text"), [], "nothing from Pat's");
+  const directs = (await knex("conversations").where({ direct_bot_id: bot.id }).pluck("direct_user_id")).map(String).sort();
+  assert.deepEqual(directs, [pat, kim].map(String).sort(), "one direct chat each");
 
-  assert.deepEqual((await bots.messages(bot.id, null, {}, as(kim))).messages.filter((message) => message.kind === "text"), []);
-  await bots.sendMessage(bot.id, { text: "Kim's own note" }, as(kim));
-  const patsTexts = (await bots.messages(bot.id, null, {}, as(pat))).messages.filter((message) => message.kind === "text").map((message) => message.body.text);
-  assert.deepEqual(patsTexts, [`Pat's ${tag}`]);
+  // Pat's is Public: Kim opens it and finds its words, without being in it, and it isn't in her list nor offered to join.
+  const opened = (await bots.chats.get(patsChat, as(kim))).chat;
+  assert.equal(opened.place, null, "Kim isn't in Pat's direct chat");
+  assert.deepEqual((await bots.chat.messages(patsChat, {}, as(kim))).messages.filter((message) => message.kind === "text").map((message) => message.body.text), [`Pat's ${tag}`]);
+  assert.equal((await bots.search(tag, as(kim))).messages.length, 1, "search finds the home's Public chats");
+  assert.ok(!(await bots.chats.list({}, as(kim))).chats.some((entry) => entry.id === patsChat));
+  assert.ok(!(await bots.chats.publicChats(as(kim))).chats.some((entry) => entry.id === patsChat), "a direct chat is never offered to join");
 
-  assert.equal((await bots.search(tag, as(kim))).messages.length, 0, "search only finds your own conversations");
-  assert.equal((await bots.search(tag, as(pat))).messages.length, 1);
-
-  const patsMessage = (await bots.messages(bot.id, null, {}, as(pat))).messages.find((message) => message.kind === "text");
-  await assert.rejects(bots.react(bot.id, patsMessage.id, "👍", as(kim)), /not found/iu, "Kim can't reach Pat's messages by id");
-
-  await bots.updateBot(bot.id, { pinned: true, unread: false }, as(kim));
-  assert.equal((await bots.listBots(as(pat))).bots.find((entry) => entry.id === String(bot.id)).pinPosition, null, "pins are each person's own");
-  const conversations = await knex("bot_conversations").where({ bot_id: bot.id }).orderBy("user_id");
-  assert.equal(conversations.length, 2);
+  // In a chat of both, each one's place is their own: Kim's pin isn't Pat's.
+  const both = await chatOf({ title: "Both", people: [pat, kim], bots: [bot.id] });
+  await bots.chats.changePlace(both, { pinned: true }, as(kim));
+  assert.notEqual((await bots.chats.get(both, as(kim))).chat.place.pinPosition, null);
+  assert.equal((await bots.chats.get(both, as(pat))).chat.place.pinPosition, null, "pins are each person's own");
 });
 
-test("someone outside the home can't reach its bots, and a group chat is its maker's own", async (context) => {
-  const { bots, as, elsewhere, pat, kim, outside, bot } = await setup(context);
-  await assert.rejects(bots.messages(bot.id, null, {}, as(outside, elsewhere)), /not found/iu);
-  const { bot: group } = await bots.createGroup({ botIds: [String(bot.id)], text: "Plan the weekend" }, "Pat", as(pat));
-  assert.ok((await bots.listBots(as(pat))).bots.some((entry) => entry.id === group.id));
-  assert.ok(!(await bots.listBots(as(kim))).bots.some((entry) => entry.id === group.id), "Kim doesn't see Pat's group");
-  await assert.rejects(bots.messages(group.id, null, {}, as(kim)), /not found/iu);
-});
-
-// Shared bots (D-36): everyone in the home talks in the same named conversations, and a new one
-// knows what was said in the one it came from up to that moment, but nothing said there afterwards.
-test("a shared bot's conversations are everyone's, and a new one starts from what the open one knew", async (context) => {
-  const { knex, records, bots, as, pat, kim, bot } = await setup(context);
-  const histories = [];
-  const shared = createBotsService(serviceDoubles({
-    knex, records, approvals: { decide: async () => "allow" },
-    reply: async (_bot, history) => {
-      histories.push(history.filter((message) => message.kind === "text").map((message) => message.body.text));
-      return { text: "Noted.", transcript: [] };
-    }
-  }));
-  await bots.sendMessage(bot.id, { text: "Pat's private word" }, as(pat));
-  assert.equal((await bots.updateBot(bot.id, { sharing: "shared" }, as(pat))).sharing, "shared");
-
-  const general = (await bots.listBots(as(kim))).bots.find((entry) => entry.id === String(bot.id));
-  assert.deepEqual(general.rooms.map((room) => room.title), ["General"], "a shared bot starts with General");
-  assert.equal(general.onboardingStep, null, "and no introduction");
-  assert.deepEqual((await bots.messages(bot.id, null, {}, as(kim))).messages, [],"private conversations never show in a room");
-
-  await shared.sendMessage(bot.id, { text: "Budget is 500" }, as(pat));
-  await shared.replyTo(bot.id, {}, undefined, as(pat));
-  const kimSees = (await bots.listBots(as(kim))).bots.find((entry) => entry.id === String(bot.id));
-  assert.equal(kimSees.unread, true, "Kim has news in General");
-  const generalTexts = (await bots.messages(bot.id, null, {}, as(kim))).messages.filter((message) => message.kind === "text");
-  assert.ok(generalTexts[0].body.from.name, "messages say who wrote them");
-  assert.ok(histories[0].includes(`${generalTexts[0].body.from.name}: Budget is 500`), "the bot reads who said it");
-
-  await assert.rejects(bots.createRoom(bot.id, { title: "  " }, as(kim)), /name/u, "every tab has a name");
-  const { room: fork } = await bots.createRoom(bot.id, { title: "Plan B" }, as(kim));
-  await shared.sendMessage(bot.id, { text: "Actually the budget is 900", room: general.roomId }, as(pat));
-  await shared.sendMessage(bot.id, { text: "What's the budget?", room: fork.id }, as(kim));
-  await shared.replyTo(bot.id, { room: fork.id }, undefined, as(kim));
-  const forkHistory = histories.at(-1);
-  assert.ok(forkHistory.some((text) => text.endsWith("Budget is 500")), "the new conversation knows what came before it");
-  assert.ok(!forkHistory.some((text) => text.includes("900")), "but not what was said there afterwards");
-  assert.ok(!forkHistory.some((text) => text.includes("private")), "nor anyone's private conversation");
-
-  const tabs = (await bots.listBots(as(pat))).bots.find((entry) => entry.id === String(bot.id)).rooms;
-  assert.deepEqual(tabs.map((room) => room.title), ["General", "Plan B", "You only"], "everyone sees every tab, and their own chat last (D-99)");
-  await bots.renameRoom(bot.id, fork.id, { title: "Plan C" }, as(pat));
-  assert.equal((await bots.listBots(as(kim))).bots.find((entry) => entry.id === String(bot.id)).rooms.find((room) => room.id === fork.id).title, "Plan C");
-
-  await bots.updateBot(bot.id, { roomId: fork.id, unread: false }, as(kim));
-  assert.equal((await bots.listBots(as(kim))).bots.find((entry) => entry.id === String(bot.id)).roomId, fork.id, "the open tab is remembered");
-  assert.equal((await bots.search("Budget is 500", as(kim))).messages.length, 1, "search finds the home's rooms");
+test("someone outside the home can't reach its chats, and a private chat is its people's own", async (context) => {
+  const { bots, as, elsewhere, pat, kim, outside, bot, made } = await setup(context);
+  await assert.rejects(bots.chat.messages(bot.conversation_id, {}, as(outside, elsewhere)), (error) => error.statusCode === 404);
+  const { chat: weekend } = await bots.chats.create({ kind: "private", title: "Plan the weekend", bots: [String(bot.id)] }, as(pat));
+  made.push(weekend.id);
+  assert.ok((await bots.chats.list({}, as(pat))).chats.some((entry) => entry.id === weekend.id));
+  assert.ok(!(await bots.chats.list({}, as(kim))).chats.some((entry) => entry.id === weekend.id), "Kim isn't in Pat's private chat");
+  assert.ok(!(await bots.chats.publicChats(as(kim))).chats.some((entry) => entry.id === weekend.id), "nor is it offered to join");
+  await assert.rejects(bots.chat.messages(weekend.id, {}, as(kim)), (error) => error.statusCode === 404);
 });
 
 // Every account is its home's (D-111): anyone in the home adds one, everyone's bots use every one in any chat, and
@@ -178,101 +147,42 @@ test("every account of a home is everyone's in it, in any chat, and changed by w
   assert.deepEqual((await integrations.list(member)).plugins[0].accounts, []);
 });
 
-// The home notebook (D-36): a mixed bot notes reusable know-how from one person's private chat,
-// says so in a line they can undo, and every chat with that bot in the home reads it.
-test("a mixed bot's notebook carries know-how between people, never their chats", async (context) => {
-  const { knex, records, as, pat, kim, bot } = await setup(context);
-  const states = [];
-  let toNote = "";
-  const bots = createBotsService(serviceDoubles({
-    knex, records, approvals: { decide: async () => "allow" },
-    reply: async (_bot, _history, tools, state) => {
-      states.push(state);
-      if (toNote) {
-        const result = await tools.noteForHome?.execute({ text: toNote });
-        return { text: result?.error ? `Not noted: ${result.error}` : "Noted.", transcript: [] };
-      }
-      return { text: "OK.", transcript: [] };
-    }
-  }));
-  assert.equal((await bots.listBots(as(pat))).bots.find((entry) => entry.id === String(bot.id)).sharing, "mixed", "mixed is the default");
-
-  toNote = "Call the plumber on +39 333 123 4567";
-  await bots.sendMessage(bot.id, { text: "The plumber's number" }, as(pat));
-  await bots.replyTo(bot.id, {}, undefined, as(pat));
-  assert.equal((await knex("bot_notebook").where({ bot_id: bot.id })).length, 0, "phone numbers never go in");
-
-  toNote = "The recycling goes out on Tuesday evenings";
-  await bots.sendMessage(bot.id, { text: "Remember, recycling is Tuesday evening, and I'm worried about my test results" }, as(pat));
-  const replied = await bots.replyTo(bot.id, {}, undefined, as(pat));
-  const line = replied.messages.find((message) => message.kind === "note");
-  assert.equal(line.body.text, "The recycling goes out on Tuesday evenings", "the person sees what was noted");
-
-  toNote = "";
-  await bots.sendMessage(bot.id, { text: "When does recycling go out?" }, as(kim));
-  await bots.replyTo(bot.id, {}, undefined, as(kim));
-  assert.match(states.at(-1), /Notes from the home notebook.*recycling goes out on Tuesday evenings/u, "Kim's chat reads the note");
-  assert.doesNotMatch(states.at(-1), /test results/u, "but never Pat's chat");
-
-  const kimsView = await bots.notebook(bot.id, {}, as(kim));
-  assert.equal(kimsView.notes[0].canRemove, false);
-  await assert.rejects(bots.removeNote(bot.id, line.body.noteId, {}, as(kim)), /owners and admins/u, "only its author or an owner or admin removes it");
-  let undone = null;
-  const [unmarking] = await statementsDuring(knex, async () => { undone = await bots.removeNote(bot.id, line.body.noteId, {}, as(pat)); }, /update "bot_messages"/u);
-  // The note's line is found through its own index, not by reading every home's messages.
-  assert.ok((await planOf(knex, unmarking)).indexes.has("ix_bot_messages_note"), "removing a note reads its line by index");
-  assert.equal(undone.message.body.removed, true, "the line in Pat's chat shows it was undone");
-  assert.deepEqual((await bots.notebook(bot.id, {}, as(kim))).notes, []);
-
-  // An owner or admin tidies anyone's note.
-  toNote = "The spare key is with the neighbours";
-  await bots.sendMessage(bot.id, { text: "Where's the spare key?" }, as(pat));
-  const second = (await bots.replyTo(bot.id, {}, undefined, as(pat))).messages.find((message) => message.kind === "note");
-  await bots.removeNote(bot.id, second.body.noteId, { manages: true }, as(kim));
-  assert.deepEqual((await bots.notebook(bot.id, {}, as(pat))).notes, []);
-
-  await bots.updateBot(bot.id, { keepOutOfNotebook: true }, as(kim));
-  toNote = "Kim's note";
-  await bots.sendMessage(bot.id, { text: "Something" }, as(kim));
-  await bots.replyTo(bot.id, {}, undefined, as(kim));
-  assert.match(states.at(-1), /keeps this chat out of the home notebook/u);
-  assert.equal((await knex("bot_notebook").where({ bot_id: bot.id }).whereNull("removed_at")).length, 0, "a chat kept out adds nothing");
-});
-
-// The bot's computer (D-36): each person's own with a private or mixed bot, so one person's
-// sign-ins never reach another; a shared bot's conversation has one everyone uses.
-test("each person gets their own computer with a bot, and a shared conversation has one", async (context) => {
-  const { knex, records, as, pat, kim, bot } = await setup(context);
+// The bot's computer (D-112): one for each bot in each chat, so what a bot signs in to in one person's direct chat
+// never reaches another's; a chat of several people has one everyone in it uses.
+test("each chat has its own computer with a bot: two direct chats, two computers, and a chat of both one", async (context) => {
+  const { knex, as, pat, kim, bot, chatOf } = await setup(context);
   const asked = [];
   const computer = { status: async (computerId) => { asked.push(computerId); return { state: "asleep" }; } };
-  const bots = createBotsService(serviceDoubles({ knex, records, computer, approvals: { decide: async () => "allow" }, reply: async () => ({ text: "OK.", transcript: [] }) }));
-  for (const person of [pat, kim]) {
-    await bots.sendMessage(bot.id, { text: "Hello" }, as(person));
-    await bots.replyTo(bot.id, {}, undefined, as(person));
-  }
-  const own = await knex("bot_conversations").where({ bot_id: bot.id }).whereIn("user_id", [pat, kim]).pluck("id");
-  assert.deepEqual([...new Set(asked)].sort(), own.map(String).sort(), "two people, two computers");
+  const bots = createBotsService(serviceDoubles({ knex, ...await startBotParts(knex, context), computer, approvals: { decide: async () => "allow" }, reply: async () => ({ text: "OK.", transcript: [] }) }));
+  const say = async (chatId, person, text) => {
+    const sent = await bots.chat.sendMessage(chatId, { text }, as(person));
+    await bots.chat.reply(chatId, { afterMessageId: sent.messages.at(-1).id }, undefined, as(person));
+  };
+  const seatIn = async (chatId) => String((await knex("chat_bots").where({ conversation_id: chatId, bot_id: bot.id }).first("id")).id);
+  const kims = await chatOf({ direct: { userId: kim, botId: bot.id } });
+  await say(bot.conversation_id, pat, "Hello");
+  await say(kims, kim, "Hello");
+  assert.deepEqual([...new Set(asked)].sort(), [await seatIn(bot.conversation_id), await seatIn(kims)].sort(), "two direct chats, two computers");
 
-  await bots.updateBot(bot.id, { sharing: "shared" }, as(pat));
+  const both = await chatOf({ title: "Both", people: [pat, kim], bots: [bot.id] });
   asked.length = 0;
-  for (const person of [pat, kim]) {
-    await bots.sendMessage(bot.id, { text: "Hello again" }, as(person));
-    await bots.replyTo(bot.id, {}, undefined, as(person));
-  }
-  const room = await knex("bot_conversations").where({ bot_id: bot.id }).whereNull("user_id").first();
-  assert.deepEqual([...new Set(asked)], [String(room.id)], "a shared conversation's computer is everyone's");
+  // With two people in it, the bot answers whoever mentions it (R3).
+  for (const person of [pat, kim]) await say(both, person, `<@bot:${bot.id}> Hello again`);
+  assert.deepEqual([...new Set(asked)], [await seatIn(both)], "a chat's computer is everyone's in it");
 });
 
-// Connect apps' Tools: a person switches an action off for an app; their bots skip that
+// Connect apps' Tools: an action switched off for an app in the home; the home's bots skip that
 // app for it, and leave the action out when no connected app still offers it.
 test("an action switched off for an app is skipped for it, and dropped when no app offers it", async (context) => {
-  const { knex, accountsHome: homeId, pat } = await setup(context);
+  const { knex, accountsHome: homeId, pat, kim } = await setup(context);
   const catalogue = [
     { id: "gmail", name: "Gmail", actions: [{ id: "send_draft", name: "Send email" }, { id: "search_email", name: "Search mail" }, { id: "mail_drafts.send", name: "Send saved drafts" }] },
     { id: "outlook", name: "Outlook", actions: [{ id: "send_draft", name: "Send email" }, { id: "mail_drafts.send", name: "Send saved drafts" }] }
   ];
   const { integrations } = await startIntegrations(knex, context, { catalogue });
-  const as = inHome(pat, homeId);
+  // The home's owners and admins switch them, for everyone's bots in it.
+  const as = inHome(pat, homeId, { manages: true });
+  await assert.rejects(integrations.switchAction("gmail", "send_draft", false, inHome(kim, homeId)), /Only the home's owners and admins/u, "not a member");
   await knex("plugin_accounts").insert([
     { user_id: pat, workspace_id: homeId, plugin_id: "gmail", name: "", status: "connected" },
     { user_id: pat, workspace_id: homeId, plugin_id: "outlook", name: "", status: "connected" }
@@ -298,5 +208,5 @@ test("an action switched off for an app is skipped for it, and dropped when no a
   const shared = { appFor: () => ({}), attempt: async () => ({}), failed: (error) => ({ error: error.message }), account: () => undefined };
   const mailTools = buildMailTools({ ...shared, removed: (await integrations.toolSwitches(as)).removed });
   assert.deepEqual(mailTools.mailDrafts.inputSchema.shape.action.options, ["list", "read", "create", "update", "delete"]);
-  await knex("plugin_actions_off").where({ user_id: pat }).del();
+  await knex("plugin_actions_off").where({ workspace_id: homeId }).del();
 });
