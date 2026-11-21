@@ -326,6 +326,6 @@ export const shell = {
   question: (page: Page) => page.locator(".v-overlay--active .mb-confirm")
 };
 
-export { seedChat, seedMessage } from "../support/chatFixtures.mjs";
+export { seedChat, seedMessage, seedMessages } from "../support/chatFixtures.mjs";
 export { expect };
 export type { Browser, Page, Route } from "@playwright/test";

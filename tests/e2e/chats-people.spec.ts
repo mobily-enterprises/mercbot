@@ -1,6 +1,6 @@
 import type { Knex } from "knex";
 import type { TestInfo } from "@playwright/test";
-import { connectTestDb, expect, expectRefusal, homeApi, openShell, seedChat, shell, test, type Page } from "./harness";
+import { connectTestDb, expect, expectRefusal, homeApi, openShell, seedChat, seedMessages, shell, test, type Page } from "./harness";
 
 // Chats with people in them (D-112), on the Test Preview target, in a home of each test's own with a second person, Ben
 // Rossi, and two bots, Chef and Shopper. A person's own copy has one person who signs in (D-81), so Ben is a member of the
@@ -11,8 +11,10 @@ import { connectTestDb, expect, expectRefusal, homeApi, openShell, seedChat, she
 // Public unless Private is picked, and the chat's header, composer and details say who can read it; + Add puts a person
 // and a bot in a chat; Team lists people and bots alike, each with a card and [Message]; leaving a public chat keeps it
 // readable, and deleting the last chat leaves the list empty, with Start a chat. Screenshots light, dark and phone (390
-// by 844) of New chat, a chat's header and composer, Chat details, Team, a member's card and the empty list are the
-// output. Each test deletes the home and the person it makes. Run with: vibe64-helper playwright --target test-app test tests/e2e/chats-people.spec.ts
+// by 844) are the output: the list with the everyone chat, New chat, a private chat of people and a bot with their
+// messages under their names, its header and composer, Chat details' three tabs, Team, a member's card and the empty
+// list. Each test deletes the home and the person it makes.
+// Run with: vibe64-helper playwright --target test-app test tests/e2e/chats-people.spec.ts
 // Any refused API call from the page, one with no answer, or JSKIT's error dialog, fails the test (harness.ts).
 test.use({ apiGuard: true });
 
@@ -94,7 +96,7 @@ async function openNewChat(page: Page) {
   return newChat;
 }
 
-test("the home's everyone chat is the first tile for everyone in it, and no one leaves it", async ({ page }) => {
+test("the home's everyone chat is the first tile for everyone in it, and no one leaves it", async ({ page }, testInfo) => {
   const knex = connectTestDb();
   let home: Home | null = null;
   try {
@@ -108,6 +110,12 @@ test("the home's everyone chat is the first tile for everyone in it, and no one 
     await expect(tiles.first()).toHaveAccessibleName(home.name);
     await expect(tiles.first()).toHaveAttribute("aria-current", "page");
     await expect(chip(page, home.name)).toBeVisible();
+    await expect(shell.chatRow(page, `Garden ${home.stamp}`)).toBeVisible();
+    await shots(page, testInfo, "everyone-list", async () => {
+      await shell.chat(page).getByRole("button", { name: "Your chats" }).click();
+      await expect(tiles.first()).toBeVisible();
+    });
+    await openShell(page, "", home.path);
 
     // Its menu has no Leave, Unpin, Archive or Delete.
     await tiles.first().click({ button: "right" });
@@ -230,12 +238,23 @@ test("New chat is Public unless Private is picked; a private chat's header, comp
     await expect(shell.chat(page).getByLabel(`Private: ${kindLine.private}`)).toBeVisible();
     await expect(shell.chatRow(page, "Kitchen reno, private")).toBeVisible();
     await expect(shell.chat(page).getByRole("note")).toHaveCount(0);
-    await shots(page, testInfo, "chat-header", async () => {
+
+    // Said in it by Ben, the person and Chef: each other member's words under their name, the person's own unlabelled.
+    await seedMessages(knex, { homeId: home.homeId, chatId: chat.id, rows: [
+      { userId: home.ben, body: { text: "Shall we keep the old tiles?" } },
+      { userId: home.owner, body: { text: "Only if they come off cleanly." } },
+      { botId: home.chef, body: { text: "I can price new ones for you both by Friday." } }
+    ] });
+    await page.reload();
+    await expect(shell.chat(page).getByText("I can price new ones for you both by Friday.")).toBeVisible();
+    await expect(shell.chat(page).locator(".mb-speaker")).toHaveText(["Ben Rossi", "Chef"]);
+    await shots(page, testInfo, "group-chat", async () => {
       await expect(shell.chat(page).getByRole("button", { name: "Kitchen reno details" })).toContainText("You, Ben and Chef · Private");
       await expect(shell.composer(page)).toHaveAttribute("placeholder", "Only its members can read this");
     });
 
-    // Chat details: its name, Private and what that means, its people and bots, and Leave, Archive and Delete.
+    // Chat details: its name, Private and what that means, its people and bots, and Leave, Hide from sidebar and Delete.
+    // A private chat isn't archived for everyone, so it has no Archive (plan 5.1): each person hides it for themselves.
     await chip(page, "Kitchen reno").click();
     const details = shell.details(page, "Chat details");
     await expect(details.getByRole("heading", { name: "Kitchen reno" })).toBeVisible();
@@ -244,11 +263,22 @@ test("New chat is Public unless Private is picked; a private chat's header, comp
     await expect(memberNames(details, "People")).toHaveText([/ \(you\)$/u, "Ben Rossi"]);
     await expect(details.getByRole("button", { name: "Take Ben Rossi out of this chat" })).toBeVisible();
     await expect(memberNames(details, "Bots")).toHaveText(["Chef"]);
-    for (const action of ["Leave chat", "Archive", "Delete chat"]) await expect(details.getByRole("button", { name: action, exact: true })).toBeVisible();
-    await shots(page, testInfo, "chat-details", async () => {
+    for (const action of ["Leave chat", "Hide from sidebar", "Delete chat"]) await expect(details.getByRole("button", { name: action, exact: true })).toBeVisible();
+    await expect(details.getByRole("button", { name: "Archive", exact: true })).toHaveCount(0);
+    const detailsAtPhone = async () => {
       if (!(await details.isVisible())) await shell.chat(page).getByRole("button", { name: "Chat details" }).click();
       await expect(details).toBeVisible();
-    });
+    };
+    await shots(page, testInfo, "chat-details-chat", detailsAtPhone);
+
+    // Its other tabs: the chat's own folder, and Chef's computer in it.
+    await details.getByRole("tab", { name: "Files", exact: true }).click();
+    await expect(details.getByText("This chat", { exact: true }).first()).toBeVisible();
+    await shots(page, testInfo, "chat-details-files", detailsAtPhone);
+    await details.getByRole("tab", { name: "Computers", exact: true }).click();
+    await expect(details.getByRole("region", { name: "Computers" }).getByRole("listitem", { name: "Chef's computer", exact: true })).toBeVisible();
+    await expect(details.getByText("It belongs to this chat. Only the chat's members can watch it and use what's signed in on it.")).toBeVisible();
+    await shots(page, testInfo, "chat-details-computers", detailsAtPhone);
   } finally {
     await home?.remove();
     await knex.destroy();
@@ -408,8 +438,9 @@ test("leaving a public chat keeps it readable; deleting the last chat leaves the
     await expect(start.getByRole("heading", { name: "No chats yet" })).toBeVisible();
     await expect(start).toContainText(`Start a chat with people and bots in ${home.name}, or message someone on your team.`);
     for (const action of ["New chat", "Team", "Add bots"]) await expect(start.getByRole("button", { name: action, exact: true })).toBeVisible();
+    // At a phone's width the sidebar is a closed drawer, so the chat panel's start is what shows.
     await shots(page, testInfo, "empty-list", async () => {
-      await expect(page.getByText(/^No chats yet\.?$/u).first()).toBeVisible();
+      await expect(start.getByRole("heading", { name: "No chats yet" })).toBeVisible();
     });
 
     // Start a chat: New chat, Public to begin with.

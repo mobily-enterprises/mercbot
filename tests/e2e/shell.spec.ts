@@ -1,5 +1,5 @@
 import type { Knex } from "knex";
-import { HOME, MADE_UP, botNamed, connectTestDb, directChat, expect, homeApi, makeChat, openShell, seedMessage, shell, test, type Page, type Route } from "./harness";
+import { HOME, MADE_UP, botNamed, connectTestDb, directChat, expect, homeApi, makeChat, openShell, seedMessage, seedMessages, shell, test, type Page, type Route } from "./harness";
 
 // The signed-in shell around a chat (D-112), on the Test Preview target: what it shows, the actions it offers and the
 // calls they make. The fixtures give the owner's home the bots Otto and Vera; most tests use the person's direct chat
@@ -57,20 +57,11 @@ async function homeOf(knex: Knex, chatId: string) {
   return String((await knex("conversations").where({ id: chatId }).first()).workspace_id);
 }
 
-// `count` text messages written straight into a chat in one statement, as messages.append writes them (seedMessage):
-// the person's and the bot's in turn, the person's first. Resolves with their ids, oldest first.
+// `count` text messages written straight into a chat in one statement (seedMessages): the person's and the bot's in
+// turn, the person's first. Resolves with their ids, oldest first.
 async function seedLines(knex: Knex, { chatId, userId, botId, count, text }: { chatId: string; userId: string; botId: string; count: number; text: (line: number) => string }) {
-  const homeId = await homeOf(knex, chatId);
-  const rows = Array.from({ length: count }, (_, index) => ({
-    workspace_id: homeId,
-    conversation_id: chatId,
-    author_user_id: index % 2 ? null : userId,
-    author_bot_id: index % 2 ? botId : null,
-    role: index % 2 ? "bot" : "user",
-    kind: "text",
-    body: JSON.stringify({ text: text(index + 1) })
-  }));
-  return (await knex("messages").insert(rows).returning("id")).map((row: { id: number }) => String(row.id));
+  const rows = Array.from({ length: count }, (_, index) => ({ ...(index % 2 ? { botId } : { userId }), body: { text: text(index + 1) } }));
+  return seedMessages(knex, { homeId: await homeOf(knex, chatId), chatId, rows });
 }
 
 // Each test starts with Otto's direct chat in the chat list as a row, read, whichever specs ran before on this worker.
