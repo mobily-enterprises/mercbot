@@ -11,7 +11,7 @@ vi.mock("../../src/components/mercbot/botsApi.js", () => ({
 vi.mock("../../src/components/mercbot/pluginsApi.js", () => ({
   pluginsApi: { list: async () => ({ plugins: [{ id: "gmail", name: "Gmail", installed: true, accounts: [{ status: "connected" }] }] }) }
 }));
-const { mentionBotsOf, useComposerTokens } = await import("../../src/components/mercbot/useComposerTokens.js");
+const { mentionBotsOf, offersOwnSkills, soleBotOf, useComposerTokens } = await import("../../src/components/mercbot/useComposerTokens.js");
 const { useDictation } = await import("../../src/components/mercbot/useDictation.js");
 const { hasSeveral } = await import("../../src/components/mercbot/messageAuthors.js");
 
@@ -22,8 +22,11 @@ const chatOf = (people, bots) => ({ id: "5", people: people.map((name, at) => ({
 
 const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
 
-/** The composer's tokens for `chat`, with a stand-in field whose caret sits at the end of what's typed. */
-function composer(chat) {
+/**
+ * The composer's tokens for `chat`, with a stand-in field whose caret sits at the end of what's typed; `me`, the
+ * person looking, decides whether their own skills are offered (offersOwnSkills).
+ */
+function composer(chat, me = "1") {
   const draft = ref("");
   const field = { selectionStart: 0, selectionEnd: 0, focus() {}, setSelectionRange(start, end) { this.selectionStart = start; this.selectionEnd = end; } };
   const open = ref(chat);
@@ -33,7 +36,8 @@ function composer(chat) {
     input: ref(field),
     several: { get value() { return hasSeveral(open.value); } },
     mentionBots: { get value() { return mentionBotsOf(open.value); } },
-    chatId
+    chatId,
+    ownSkills: () => offersOwnSkills(open.value, me)
   });
   const type = async (text) => {
     draft.value = text;
@@ -58,12 +62,29 @@ describe("the composer's placeholder", () => {
 });
 
 describe("@ and / in a chat", () => {
-  it("offer no @ in a direct chat, and its one bot's skills under /", async () => {
-    const { tokens, type } = composer(chatOf(["Anna"], [CHEF]));
+  it("offer no @ in a direct chat, and its one bot's skills under /: Mercbot's, since the chat is public", async () => {
+    const { tokens, type } = composer({ ...chatOf(["Anna"], [CHEF]), kind: "public", directBotId: "7" });
     await type("@");
     expect(tokens.mention.value).toBe(null);
     await type("/");
-    expect(tokens.skillRows.value.map((row) => row.name)).toEqual(["Weekly menu", "My budget"]);
+    expect(tokens.skillRows.value.map((row) => row.name)).toEqual(["Weekly menu"]);
+  });
+
+  it("offer the person's own skills under / only in a private chat whose one person they are", async () => {
+    const alone = { ...chatOf(["Anna"], [CHEF]), kind: "private" };
+    const mine = composer(alone);
+    await mine.type("/");
+    expect(mine.tokens.skillRows.value.map((row) => row.name)).toEqual(["Weekly menu", "My budget"]);
+    const someoneElses = composer(alone, "2");
+    await someoneElses.type("/");
+    expect(someoneElses.tokens.skillRows.value.map((row) => row.name), "not theirs").toEqual(["Weekly menu"]);
+    expect(offersOwnSkills({ ...chatOf(["Anna", "Ben"], [CHEF]), kind: "private" }, "1"), "a private chat with others").toBe(false);
+  });
+
+  it("know a chat's one answering bot, an archived one not counted", () => {
+    expect(soleBotOf(chatOf(["Anna"], [CHEF, PULSE]))).toBe(CHEF);
+    expect(soleBotOf(chatOf(["Anna"], [CHEF, SHOPPER]))).toBe(null);
+    expect(soleBotOf(chatOf(["Anna"], [PULSE]))).toBe(null);
   });
 
   it("offer everyone, the chat's bots (never an archived one) and the person's apps under @ in a chat of several, and no /", async () => {
@@ -79,7 +100,7 @@ describe("@ and / in a chat", () => {
   it("offer / in a chat of people with exactly one bot, and @ there too", async () => {
     const { tokens, type } = composer(chatOf(["Anna", "Ben"], [CHEF, PULSE]));
     await type("/");
-    expect(tokens.skillRows.value.length).toBe(2);
+    expect(tokens.skillRows.value.map((row) => row.name)).toEqual(["Weekly menu"]);
     await type("@");
     expect(tokens.mentionRows.value.map((row) => row.label)).toEqual(["everyone", "Chef", "Gmail"]);
   });

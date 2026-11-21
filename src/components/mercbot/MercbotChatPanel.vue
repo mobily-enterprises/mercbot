@@ -5,11 +5,12 @@ import MercbotChatAvatar from "./MercbotChatAvatar.vue";
 import MercbotNewChat from "./MercbotNewChat.vue";
 import MercbotCallBar from "./MercbotCallBar.vue";
 import MercbotContextMenu from "./MercbotContextMenu.vue";
+import MercbotConfirmDialog from "./MercbotConfirmDialog.vue";
 import MercbotTooltip from "./MercbotTooltip.vue";
-import { mentionBotsOf, useComposerTokens } from "./useComposerTokens.js";
+import { mentionBotsOf, offersOwnSkills, soleBotOf, useComposerTokens } from "./useComposerTokens.js";
 import { hasSeveral } from "./messageAuthors.js";
 import { chatSubtitle, chatTitle, directBotOf, isDirect, kindIcon, kindLabel, kindMeaning, publicNotice } from "./chatView.js";
-import { chatRights } from "./chatMenus.js";
+import { addPersonQuestion, chatRights } from "./chatMenus.js";
 import { useDictation } from "./useDictation.js";
 import { useFindInChat } from "./useFindInChat.js";
 import { formatSize } from "./filesApi.js";
@@ -75,7 +76,7 @@ const chatId = computed(() => props.chat?.id || "");
 const title = computed(() => (props.chat ? chatTitle(props.chat, props.me) : ""));
 const writing = computed(() => Boolean(props.newChat) || Boolean(props.chat));
 // A chat's one bot: its colour, its "/" skills, teaching it a task.
-const soleBot = computed(() => (!props.newChat && props.chat?.bots.length === 1 ? props.chat.bots[0] : null));
+const soleBot = computed(() => (props.newChat ? null : soleBotOf(props.chat)));
 const directBot = computed(() => (props.newChat ? null : directBotOf(props.chat)));
 // A direct chat with a bot that's archived (D-108) is read-only until it's back.
 const archivedBot = computed(() => {
@@ -109,12 +110,23 @@ const addItems = computed(() => {
   const peopleIn = new Set(props.chat.people.map((person) => String(person.userId)));
   const botsIn = new Set(props.chat.bots.map((bot) => String(bot.botId)));
   const people = (props.people || []).filter((person) => !peopleIn.has(String(person.id)))
-    .map((person) => ({ title: person.name, icon: "$person", run: () => emit("add-member", { kind: "person", id: String(person.id) }) }));
+    .map((person) => ({ title: person.name, icon: "$person", run: () => addPerson(person) }));
   const bots = props.teamBots.filter((bot) => !bot.archivedAt && !botsIn.has(String(bot.id)))
     .map((bot) => ({ title: bot.name, icon: "$smartToy", run: () => emit("add-member", { kind: "bot", id: String(bot.id) }) }));
   const items = [...people, ...(people.length && bots.length ? [{ divider: true }] : []), ...bots];
   return items.length ? items : [{ title: "Everyone's in this chat already", disabled: true, run: () => {} }];
 });
+// A person into a private chat is asked about first (they'll read all of it); into a public one, at once.
+const addingPerson = ref(null);
+const addQuestion = computed(() => (addingPerson.value && props.chat ? addPersonQuestion(props.chat, title.value, addingPerson.value.name) : null));
+function addPerson(person) {
+  if (props.chat && addPersonQuestion(props.chat, title.value, person.name)) addingPerson.value = person;
+  else emit("add-member", { kind: "person", id: String(person.id) });
+}
+function confirmAddPerson() {
+  emit("add-member", { kind: "person", id: String(addingPerson.value.id) });
+  addingPerson.value = null;
+}
 function openAddMenu(event) {
   const box = event.currentTarget.getBoundingClientRect();
   addMenu.value = { open: true, target: [box.left, box.bottom + 4] };
@@ -207,7 +219,8 @@ const several = computed(() => (props.newChat ? props.newChat.people.length + pr
 const mentionBots = computed(() => (props.newChat ? newChatBots.value : mentionBotsOf(props.chat)));
 // In a chat of several, the mic is the round accent button.
 const filledMic = computed(() => several.value && !hasContent.value);
-const composerTokens = useComposerTokens({ draft, input, several, mentionBots, chatId: () => chatId.value || null });
+const ownSkills = () => offersOwnSkills(props.chat, props.me);
+const composerTokens = useComposerTokens({ draft, input, several, mentionBots, chatId: () => chatId.value || null, ownSkills });
 const { tokens, mention, slash, skillRows, mentionRows, updateMention, insertSkill, insertMention, snapCaret, mirrorParts, withMarkers } = composerTokens;
 const tokenColor = computed(() => soleBot.value?.color || newChatBots.value[0]?.color || undefined);
 
@@ -338,6 +351,7 @@ defineExpose({ focusComposer, addSelection, startReply, toggleDictation, dictati
         <MercbotTimeline
           v-else
           :chat="chat"
+          :home-name="homeName"
           :messages="messages"
           :status="status"
           :status-mood="statusMood"
@@ -403,6 +417,15 @@ defineExpose({ focusComposer, addSelection, startReply, toggleDictation, dictati
       </button>
       <MercbotIconButton v-if="canAdd" icon="$personAdd" label="Add people or bots" tone="surface" @click="openAddMenu" />
       <MercbotContextMenu v-model="addMenu.open" :target="addMenu.target" :items="addItems" />
+      <MercbotConfirmDialog
+        :model-value="Boolean(addQuestion)"
+        :title="addQuestion?.title || ''"
+        :text="addQuestion?.text || ''"
+        :confirm-label="addQuestion?.confirmLabel"
+        :danger="false"
+        @update:model-value="!$event && (addingPerson = null)"
+        @confirm="confirmAddPerson"
+      />
     </div>
 
     <MercbotCallBar

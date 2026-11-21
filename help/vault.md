@@ -32,7 +32,7 @@ While you type a card's security code, the eye button shows or hides it.
 
 The **Scan with camera** and **Upload a photo** buttons on the card form stay unavailable on purpose: reading a card from a photo would send its number to an AI, and a card's number never goes to one. Type the card in instead.
 
-You can also save a login without opening Settings: when a bot shows you a secure form to sign in, leave **Save securely to your vault** ticked (see below). The login goes in the home's vault, like any other item.
+You can also save a login without opening Settings: when a bot shows you a secure form to sign in, leave **Save securely to *home*'s vault** ticked (see below). The login goes in the home's vault, like any other item.
 
 ## Fill in contact info from a photo
 
@@ -92,7 +92,7 @@ Each bot has its own computer in each chat it's in. Once a bot has signed in the
 When a bot needs a login it doesn't have, it opens the sign-in page on its computer and posts a secure form card in the chat. Open it and you'll see **Sign in to** the site's name (or **Code for** the site, when it needs a one-time code).
 
 1. Type your **Username or email** and **Password**, or the **Code**. The eye button shows or hides the password as you type.
-2. Leave **Save securely to your vault** ticked to keep the login for next time, or untick it to use it just this once.
+2. Leave **Save securely to *home*'s vault** ticked to keep the login for next time, or untick it to use it just this once.
 3. Select **Submit**.
 
 The form says it plainly: your bot never sees what you type, and it's only filled in on that site. Mercbot types the values straight into the sign-in page on the bot's computer in that chat. If the bot's browser has moved on in the meantime, Mercbot reopens the sign-in page first. A saved login appears in the vault under the site's name. The chat then gets the line "Everyone who can open this chat can use this sign-in.", since the sign-in stays on that chat's computer.

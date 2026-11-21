@@ -149,6 +149,18 @@ export function chatQuestion(action, chat, title) {
 }
 
 /**
+ * Adding a person to a chat: a private chat asks first, since they'll read all of it; a public one, which everyone in the
+ * home can open already, doesn't ask (null).
+ * @param {import("../../types.js").Chat} chat
+ * @param {string} title the chat's name
+ * @param {string} name the person's
+ */
+export function addPersonQuestion(chat, title, name) {
+  if (chat.kind !== "private") return null;
+  return { title: `Add ${name} to “${title}”?`, text: `${name} will see everything said here.`, confirmLabel: "Add", danger: false };
+}
+
+/**
  * A section heading's context menu: Rename, Move up, Move down, Delete.
  * @param {{
  *   section: import("../../types.js").ChatSection,

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { toChatRow } from "../../src/components/mercbot/chatDirectory.js";
-import { chatMenuItems, chatQuestion, chatRights, sectionMenuItems } from "../../src/components/mercbot/chatMenus.js";
+import { addPersonQuestion, chatMenuItems, chatQuestion, chatRights, sectionMenuItems } from "../../src/components/mercbot/chatMenus.js";
 import { paletteCommands, paletteEntries } from "../../src/components/mercbot/paletteEntries.js";
 import { galleryChips, galleryView } from "../../src/components/templates/galleryView.js";
 
@@ -89,6 +89,13 @@ describe("chat list menus", () => {
     const section = sectionMenuItems({ section: { id: "s1" }, index: 0, count: 2, command, startRename: () => {} });
     expect(titles(section)).toEqual(["Rename", "Move up", "Move down", "—", "Delete"]);
     expect(section.map((item) => Boolean(item.disabled))).toEqual([false, true, false, false, false]);
+  });
+
+  it("asks before adding a person to a private chat, since they'll read all of it, and not to a public one", () => {
+    expect(addPersonQuestion({ ...kitchen, kind: "private" }, "Kitchen", "Ben Rossi")).toEqual({
+      title: "Add Ben Rossi to “Kitchen”?", text: "Ben Rossi will see everything said here.", confirmLabel: "Add", danger: false
+    });
+    expect(addPersonQuestion(kitchen, "Kitchen", "Ben Rossi")).toBeNull();
   });
 
   it("asks before Archive, Leave and Delete, saying what each does to the chat", () => {

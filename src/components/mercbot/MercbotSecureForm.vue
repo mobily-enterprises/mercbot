@@ -1,11 +1,14 @@
 <script setup>
 import { computed, ref } from "vue";
+import { vaultName } from "./accountApi.js";
 
 // The secure form: what the person types here goes straight into the bot's page on
 // that site, and optionally into their vault; the bot never sees it. Closing it means no.
 const props = defineProps({
   site: { type: String, required: true },
-  form: { type: String, default: "login" }
+  form: { type: String, default: "login" },
+  // The home whose vault a login is saved to.
+  homeName: { type: String, default: "" }
 });
 const emit = defineEmits(["submit", "close"]);
 const open = defineModel({ type: Boolean, default: false });
@@ -48,7 +51,7 @@ function close() {
             </button>
           </span>
         </label>
-        <label class="mb-secure__check"><input v-model="save" type="checkbox"> Save securely to your vault</label>
+        <label class="mb-secure__check"><input v-model="save" type="checkbox"> Save securely to {{ vaultName(homeName) }}</label>
       </template>
       <p class="mb-secure__note">Your bot never sees this. It's only filled in on {{ site }}.</p>
       <div class="mb-secure__actions">

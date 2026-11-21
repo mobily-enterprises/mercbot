@@ -4,12 +4,21 @@ import { vaultProblem } from "@local/account/shared/vault";
 import MercbotConfirmDialog from "./MercbotConfirmDialog.vue";
 import MercbotVaultImport from "./MercbotVaultImport.vue";
 import MercbotVaultPhoto from "./MercbotVaultPhoto.vue";
-import { accountApi } from "./accountApi.js";
+import { accountApi, vaultName as vaultNameOf } from "./accountApi.js";
 
-// Settings → Vault (D-17): logins the bots can sign in with, and cards and contact info kept for the person. The
+// Settings → Vault (D-17): the home's vault, logins its bots can sign in with, and cards and contact info kept there. The
 // server encrypts passwords, card numbers and codes; the list only shows what identifies an item. Items are added one at a
-// time, or from a CSV file (MercbotVaultImport); contact info can be read from a photo (MercbotVaultPhoto).
+// time, or from a CSV file (MercbotVaultImport); contact info can be read from a photo (MercbotVaultPhoto). An item is
+// deleted by the person who added it or the home's owners and admins (accountService.js deleteVaultItem).
 const create = defineModel("create", { type: String, default: "" });
+const props = defineProps({
+  // The person looking, whether they're one of the home's owners or admins, and the home's name.
+  me: { type: String, default: "" },
+  manages: { type: Boolean, default: false },
+  homeName: { type: String, default: "" }
+});
+const vaultName = computed(() => vaultNameOf(props.homeName));
+const canDelete = (item) => props.manages || (Boolean(props.me) && String(item.madeBy ?? "") === String(props.me));
 const emit = defineEmits(["failure"]);
 
 const items = ref([]);
@@ -147,7 +156,7 @@ const TITLES = { login: "New login", card: "New card", contact: "New contact inf
           <span class="mb-set-row__label">{{ item.label }}</span>
           <span class="mb-set-row__description">{{ summary(item) }}</span>
         </span>
-        <button type="button" class="mb-vault__delete" :aria-label="`Delete ${item.label}`" @click="pendingDelete = item">
+        <button v-if="canDelete(item)" type="button" class="mb-vault__delete" :aria-label="`Delete ${item.label}`" @click="pendingDelete = item">
           <v-icon icon="$delete" size="16" />
         </button>
       </li>
@@ -160,7 +169,7 @@ const TITLES = { login: "New login", card: "New card", contact: "New contact inf
     <MercbotConfirmDialog
       :model-value="Boolean(pendingDelete)"
       :title="`Delete ${pendingDelete?.label}?`"
-      text="It's removed from your vault, and your bots can't use it any more."
+      :text="`It's removed from ${vaultName}, and its bots can't use it any more.`"
       dim
       @update:model-value="pendingDelete = null"
       @confirm="remove(pendingDelete)"

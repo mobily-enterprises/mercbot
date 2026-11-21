@@ -43,7 +43,8 @@ test("a file moves from a chat's folder to the whole home, is renamed there and 
   // Move it to the whole home: the folder that's neither the chat's nor Otto's own.
   await chooseFromMenu(page, name, "Move to…");
   await page.locator(".v-dialog .v-select").click();
-  await page.getByRole("option").filter({ hasNotText: /This chat|Otto's files/u }).first().click();
+  // Two plain-text filters: Playwright 1.61 misreads a regular expression with an apostrophe in hasNotText.
+  await page.getByRole("option").filter({ hasNotText: "This chat" }).filter({ hasNotText: "Otto's files" }).first().click();
   await page.locator(".v-dialog").getByRole("button", { name: "Move" }).click();
   await expect(here.locator(".mb-files__row").filter({ hasText: name })).toHaveCount(0);
 

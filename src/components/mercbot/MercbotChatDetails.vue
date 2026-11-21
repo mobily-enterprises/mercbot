@@ -238,7 +238,7 @@ const folderBot = computed(() => (props.chat.bots[0] ? String(props.chat.bots[0]
       :key="`files-${chat.id}`"
       :bot-id="folderBot"
       :chat="chat.id"
-      :sections="[{ key: 'chat', label: 'This chat', root: '/files/chat' }]"
+      :sections="[{ key: 'chat', label: 'This chat', root: '/files/chat' }, { key: 'shared', label: homeName || 'Whole home', root: '/files/shared' }]"
     />
 
     <MercbotChatComputers
@@ -246,6 +246,7 @@ const folderBot = computed(() => (props.chat.bots[0] ? String(props.chat.bots[0]
       :chat="chat"
       :me="me"
       :home-name="homeName"
+      :manages="manages"
       :computer-news="computerNews"
       @open-live="emit('open-computer', $event)"
       @failure="emit('failure', $event)"

@@ -6,6 +6,9 @@ import { AUTH_PATHS } from "@jskit-ai/auth-core/shared/authPaths";
 // Client for the account menu's services (packages/account).
 const client = createHttpClient({ credentials: "include", csrf: { sessionPath: AUTH_PATHS.SESSION } });
 
+/** The home's vault as Mercbot names it: "<home>'s vault", or "the home's vault" while the home's name isn't known. */
+export const vaultName = (homeName) => (homeName ? `${homeName}'s vault` : "the home's vault");
+
 // readable-check: allow module-state - shared resource: the work this page has seen refused, which a copy's shell parts may follow
 export const workRefusals = ref(0);
 
@@ -43,17 +46,18 @@ export const accountApi = {
   /** The address of a report's CSV, which the browser downloads itself. */
   spendingExportUrl: (range) => ranged("/spending/export", range),
   settings: () => client.request("/api/settings"),
-  vault: () => client.request("/api/vault"),
-  addVaultItem: (item) => client.request("/api/vault", { method: "POST", body: item }),
+  // The home's vault (D-110): its routes are the home's.
+  vault: () => client.request(homePath("/vault")),
+  addVaultItem: (item) => client.request(homePath("/vault"), { method: "POST", body: item }),
   // Items from a CSV file, all of one kind, each with its row in the file: [{ row, data }].
-  importVaultItems: (kind, items) => client.request("/api/vault/import", { method: "POST", body: { kind, items } }),
+  importVaultItems: (kind, items) => client.request(homePath("/vault/import"), { method: "POST", body: { kind, items } }),
   // Contact details read from a photo: { fields }, counted as the home's use (D-73).
   readVaultPhoto: (photo) => {
     const form = new FormData();
     form.append("photo", photo, "photo.jpg");
     return client.request(homePath("/vault/read-photo"), { method: "POST", body: form });
   },
-  deleteVaultItem: (itemId) => client.request(`/api/vault/${itemId}`, { method: "DELETE" }),
+  deleteVaultItem: (itemId) => client.request(homePath(`/vault/${encodeURIComponent(itemId)}`), { method: "DELETE" }),
   resetComputers: () => client.request(homePath("/computers/reset"), { method: "POST", body: {} })
 };
 
