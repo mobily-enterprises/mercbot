@@ -10,6 +10,7 @@ import { startBotRecords } from "../support/botRecords.mjs";
 import { seedChat } from "../support/chatFixtures.mjs";
 import { compile } from "../../packages/apps/src/server/visitorAccess.js";
 import { createWatches } from "../../packages/apps/src/server/watches.js";
+import { registerRoutes } from "../../packages/apps/src/server/registerRoutes.js";
 import { cleanupStack } from "../support/cleanupStack.mjs";
 
 // Watches (D-35): every recorded change is checked once, across servers, even when a transaction
@@ -281,6 +282,58 @@ test("a watch is made only for a bot in a chat the caller can open, in their hom
     ["Robin's"],
     "only the public chat's watch was made"
   );
+});
+
+test("another home's watch, or its bot's seat there, is refused on every write: pause, resume and remove, by id or by seat", async (context) => {
+  const h = await watchedHome(context, "apps-watch-tenancy");
+  const elsewhere = await seatElsewhere(h);
+  // Otto's watch in Pat's other home, as that home's own watch_create would have made it.
+  const [theirs] = await h.knex("app_watches").insert({
+    workspace_id: elsewhere.homeId,
+    chat_bot_id: elsewhere.chatBotId,
+    created_by: h.userId,
+    name: "Theirs",
+    table_id: "deals",
+    on: "create",
+    instructions: "Summarise them.",
+    cursor: h.knex.raw("pg_current_xact_id()")
+  }).returning("id");
+  const theirId = String(theirs.id ?? theirs);
+  const missing = { code: "apps_watch_not_found" };
+
+  // The Details panel's routes, as Pat's request in this home reaches them, with the other home's watch id.
+  const routes = new Map();
+  registerRoutes({ router: { register: (method, route, _options, handler) => routes.set(`${method} ${route}`, handler) } },
+    { appsRuntime: h.apps, notices: { subscribe: () => () => {} }, streams: new Set() });
+  const send = async (route, body = {}) => {
+    const reply = {
+      statusCode: 200,
+      body: undefined,
+      code(status) {
+        this.statusCode = status;
+        return this;
+      },
+      send(sent) {
+        this.body = sent;
+        return this;
+      }
+    };
+    const request = { params: { workspaceSlug: h.workspace.slug, id: theirId }, body, query: {}, user: { id: h.userId }, workspace: h.workspace, permissions: [], callOptions: async () => h.options };
+    await routes.get(route)(request, reply);
+    return { status: reply.statusCode, code: reply.body?.code };
+  };
+  const refused = { status: 404, code: "apps_watch_not_found" };
+  assert.deepEqual(await send("PATCH /api/w/:workspaceSlug/apps/watches/:id", { enabled: false }), refused, "no pause");
+  assert.deepEqual(await send("PATCH /api/w/:workspaceSlug/apps/watches/:id", { enabled: true }), refused, "no resume");
+  assert.deepEqual(await send("DELETE /api/w/:workspaceSlug/apps/watches/:id"), refused, "no removal");
+
+  // The bot's watch_pause, watch_resume and watch_remove ask by seat and name; with the other home's seat, in this home.
+  const bySeat = { chatBotId: elsewhere.chatBotId, name: "Theirs" };
+  await assert.rejects(h.watches.setEnabled(bySeat, false, h.options), missing);
+  await assert.rejects(h.watches.setEnabled(bySeat, true, h.options), missing);
+  await assert.rejects(h.watches.remove(bySeat, h.options), missing);
+  assert.deepEqual(await h.watches.list({ chatBotId: elsewhere.chatBotId }, h.options), [], "nor is it listed here");
+  assert.deepEqual(await h.knex("app_watches").where({ id: theirId }).first("enabled", "name"), { enabled: true, name: "Theirs" }, "it is as it was");
 });
 
 test("anyone who can open a watch's chat pauses it; only the person who made it resumes it, as it runs as them", async (context) => {
