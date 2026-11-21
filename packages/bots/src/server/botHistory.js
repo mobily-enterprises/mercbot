@@ -91,7 +91,8 @@ export function createBotHistory({ records, systemContext, model, meter, notices
     async history(chatId, { after }) {
       const found = await summarised(chatId);
       const list = found ? await named(await messages.messagesAfter(String(chatId), after, found.options), found.options) : [];
-      return { messages: list, inherited: [], named: true, toModel: async (given) => toModelHistory(given, { botId: found?.reader ?? null }) };
+      const toModel = async (given) => toModelHistory(given, { botId: found?.reader ?? null });
+      return { messages: list, inherited: [], named: true, toModel };
     },
     // Metered to the chat's home and one of its bots, with no person: nobody asked for it and nobody waits on it (R8, D-59).
     async track(chatId, work) {

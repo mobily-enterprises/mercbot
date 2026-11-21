@@ -63,7 +63,8 @@ test("in a chat with others, the bot uses the home's accounts for whoever asked,
   await kit.turns.chat.reply(chat, { afterMessageId: sent.messages.at(-1).id }, undefined, as(kim));
   await kit.drain();
 
-  assert.ok(reach.askedFor.length && reach.askedFor.every((person) => person === kim), "every account read is for Kim, who asked");
+  assert.ok(reach.askedFor.length, "the turn read the home's accounts");
+  assert.deepEqual([...new Set(reach.askedFor)], [kim], "every account read is for Kim, who asked");
   const [state] = states;
   assert.match(state, /Gmail: pat@example\.org \(connected by Pat\)/u, "the home's accounts, Pat's too, in a private chat (R4)");
   assert.match(state, /Outlook: kim@example\.org \(connected by them\)/u);
