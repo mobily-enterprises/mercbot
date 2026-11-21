@@ -139,8 +139,10 @@ describe("resetting a chat's computers", () => {
     expect(resets(await computers({ chat: KITCHEN })), "neither its maker nor a manager").toEqual(["none", "none"]);
     expect(resets(await computers({ chat: { ...KITCHEN, madeBy: "2" } })), "its maker").toEqual([false, false]);
     expect(resets(await computers({ chat: KITCHEN, manages: true })), "an owner or admin").toEqual([false, false]);
-    const direct = { ...KITCHEN, title: null, directBotId: "7", people: [BEN], bots: [CHEF] };
-    expect(resets(await computers({ chat: direct })), "their chat with one bot").toEqual([false]);
+    const bens = { ...KITCHEN, title: null, directBotId: "7", madeBy: "2", people: [BEN], bots: [CHEF] };
+    expect(resets(await computers({ chat: bens })), "Ben's own chat with one bot").toEqual([false]);
+    expect(resets(await computers({ chat: bens, me: "1" })), "Anna opening Ben's chat with Chef (it's public)").toEqual(["none"]);
+    expect(resets(await computers({ chat: bens, me: "1", manages: true })), "an owner or admin").toEqual([false]);
   });
 
   it("is held while someone else has the computer", async () => {
