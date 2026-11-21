@@ -27,7 +27,7 @@ test("the owner enters Sedna's API credentials in Connect apps, then picks who t
   const knex = knexLib({ client: "pg", connection: { host: process.env.DB_HOST, port: Number(process.env.DB_PORT) || 5432, user: process.env.DB_USER, password: process.env.DB_PASSWORD, database: testDatabaseName() } });
   const clear = async () => {
     await knex("plugin_accounts").where({ plugin_id: "sedna" }).del();
-    await knex("user_plugins").where({ plugin_id: "sedna" }).del();
+    await knex("home_plugins").where({ plugin_id: "sedna" }).del();
   };
   try {
     await clear();
@@ -38,7 +38,7 @@ test("the owner enters Sedna's API credentials in Connect apps, then picks who t
     await modal.getByRole("listbox").getByRole("button", { name: "Sedna", exact: true }).click();
     const head = modal.locator(".mb-detail__head");
     await expect(head.getByRole("heading", { level: 2 })).toContainText("Sedna");
-    await head.getByRole("button", { name: "Connect", exact: true }).click();
+    await head.getByRole("button", { name: "Add to this home", exact: true }).click();
 
     // No sign-in tab: the form for the credentials, with where to make them.
     const form = modal.getByRole("form", { name: "Sedna API credentials" });
@@ -76,14 +76,28 @@ test("the owner enters Sedna's API credentials in Connect apps, then picks who t
     await expect(pace.getByRole("radio", { name: "Normal" })).toBeChecked();
     expect((await knex("plugin_accounts").where({ id: accountId }).first()).pace).toBe("normal");
 
-    // Disconnecting clears the credentials.
-    const row = modal.locator(".mb-detail__row").filter({ hasText: "Acme Shipping" });
-    await row.getByRole("button", { name: "Disconnect" }).click();
-    await modal.locator(".mb-detail__row").getByRole("button", { name: "Disconnect" }).click();
-    await expect(modal.locator(".mb-detail__row").getByRole("button", { name: "Enter API credentials" })).toBeVisible();
-    const cleared = await knex("plugin_accounts").where({ id: accountId }).first();
-    expect([cleared.status, cleared.tokens]).toEqual(["needs-auth", null]);
+    // Its bin (D-110), after one more question in the line, forgets the credentials and who each person is in Sedna.
+    const row = modal.getByTestId("account-line").filter({ hasText: "Acme Shipping" });
+    await expect(row).toContainText(/Everyone in .+, and their bots, can use Acme Shipping\. Added by you\./u);
+    await expect(row.getByRole("button", { name: "Change credentials" })).toBeVisible();
+    await row.getByRole("button", { name: "Remove Acme Shipping" }).click();
+    await expect(row).toContainText("Remove it for everyone in");
+    await row.getByRole("button", { name: "Remove", exact: true }).click();
+    await expect(modal.getByTestId("account-line")).toHaveCount(0);
+    expect(await knex("plugin_accounts").where({ id: accountId }).first()).toBeUndefined();
+    expect(Number((await knex("plugin_account_people").where({ account_id: accountId }).count({ n: "*" }))[0].n)).toBe(0);
     await expect(people).toBeHidden();
+
+    // Added again with the Add account step: the home's, and its credentials come next.
+    await modal.getByRole("button", { name: "+ Add account" }).click();
+    const step = modal.locator(".mb-add-account");
+    await expect(step).toContainText(/Everyone in .+, and their bots, can use the account you connect\./u);
+    await expect(step).not.toContainText("Who can use it");
+    await expect(step).toContainText("You enter Sedna's API credentials next.");
+    await expect(step.getByRole("radio")).toHaveCount(0);
+    await step.getByRole("button", { name: "Add", exact: true }).click();
+    await expect(modal.getByRole("form", { name: "Sedna API credentials" })).toBeVisible();
+    await expect(modal.getByTestId("account-line")).toHaveCount(1);
   } finally {
     await clear();
     await knex.destroy();
@@ -94,7 +108,7 @@ test("a Sedna draft card says its team and that a reply may land outside the thr
   const knex = knexLib({ client: "pg", connection: { host: process.env.DB_HOST, port: Number(process.env.DB_PORT) || 5432, user: process.env.DB_USER, password: process.env.DB_PASSWORD, database: testDatabaseName() } });
   const clear = async () => {
     await knex("plugin_accounts").where({ plugin_id: "sedna" }).del();
-    await knex("user_plugins").where({ plugin_id: "sedna" }).del();
+    await knex("home_plugins").where({ plugin_id: "sedna" }).del();
   };
   let botId = "";
   let headers = {};

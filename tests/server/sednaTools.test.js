@@ -63,7 +63,7 @@ function tools({ person = PAT, who = null, removed = [], renewed = [] } = {}) {
   const integrations = {
     reachableAccounts: async () => [{ id: "9", pluginId: "sedna", name: "", label: "Acme Shipping", status: "connected", home: true }],
     connections: {
-      accessToken: async (_reach, _id, _call, { refused = "" } = {}) => {
+      accessToken: async (_id, _call, { refused = "" } = {}) => {
         if (refused) renewed.push(refused);
         return { accessToken: refused ? "key-2" : "key-1", api: API, fetch: paced.fetch };
       },

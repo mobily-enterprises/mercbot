@@ -5,9 +5,9 @@
 /** @typedef {ReturnType<typeof import("./accounts.js").createAccounts>} Accounts */
 /** @typedef {ReturnType<typeof import("./oauth.js").createOAuth>} OAuthClient */
 /**
- * An account that turned connected, as `connections.whenConnected` listeners are told of it: its app, its owner, and its
- * home (null for a person's own account, which reaches their own chats in every home, D-37).
- * @typedef {{ pluginId: string, userId: string, homeId: string | null }} Connection
+ * An account that turned connected, as `connections.whenConnected` listeners are told of it: its app, who added it, and
+ * its home, whose account it is (D-111).
+ * @typedef {{ pluginId: string, userId: string, homeId: string }} Connection
  */
 /** @typedef {(connection: Connection, txOptions: object) => Promise<(() => Promise<void>) | void>} ConnectedListener */
 /**

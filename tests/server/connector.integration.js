@@ -5,6 +5,7 @@ import { startFakeMcp } from "../support/fakeMcpServer.mjs";
 import { ownedHandles } from "../support/ownedHandles.mjs";
 import { connectTestDatabase } from "../support/testDatabase.mjs";
 import { requestContextOptions } from "../support/requestContextOptions.mjs";
+import { separateHome } from "./testHome.js";
 import { ACCOUNT_OWNS } from "../../packages/account/src/server/AccountFeature.js";
 import { createAccountService } from "../../packages/account/src/server/accountService.js";
 import { publicFetch } from "../../packages/account/src/server/publicAddress.js";
@@ -24,8 +25,6 @@ assert.ok(process.env.TEST_DB_NAME?.trim(), "TEST_DB_NAME must identify a dispos
 assert.equal(process.env.DB_NAME, process.env.TEST_DB_NAME, "DB_NAME must match the dedicated TEST_DB_NAME.");
 const VAULT = randomBytes(32).toString("base64");
 const VAULT_KEY = Buffer.from(VAULT, "base64");
-// The person's own accounts, as the Connect apps routes and a bot's own chat reach them.
-const REACH = Object.freeze({ personal: true });
 // The app sending the browser back: no one is signed in to that call.
 const NO_ONE = requestContextOptions({});
 const ENV = Object.freeze({ APP_PUBLIC_URL: "http://localhost:4000", MERCBOT_VAULT_KEY: VAULT });
@@ -33,7 +32,8 @@ const CALLBACK = "http://localhost:4000/api/connections/callback";
 
 /**
  * The test database's first person with one account of a stand-in app of the test's own (its plugin id is unique to
- * the test), and `serve(env)`: the integrations service and its sign-ins as a fresh server builds them.
+ * the test) in a home of the test's own, and `serve(env)`: the integrations service and its sign-ins as a fresh
+ * server builds them.
  */
 async function setup(context, { mcp = {} } = {}) {
   const knex = await connectTestDatabase();
@@ -42,10 +42,11 @@ async function setup(context, { mcp = {} } = {}) {
   const pluginId = `tasks-${Date.now().toString(36)}-${Math.floor(Math.random() * 1e6)}`;
   // Its limit as plugin.json declares one (D-96): plenty, so these tests never wait their turns.
   const catalogue = [{ id: pluginId, name: "Tasks", mcp: { url: fake.url, whoami: "whoami", sends: ["add-comment"], ...mcp }, limits: { requests: 6000, seconds: 60 } }];
-  const [account] = await knex("plugin_accounts").insert({ user_id: userId, plugin_id: pluginId, name: "default" }).returning("*");
+  const homeId = await separateHome(knex, userId);
+  const [account] = await knex("plugin_accounts").insert({ user_id: userId, workspace_id: homeId, plugin_id: pluginId, name: "default" }).returning("*");
   context.after(async () => {
     await knex("plugin_actions_off").where({ plugin_id: pluginId }).del();
-    await knex("plugin_accounts").where({ plugin_id: pluginId }).del();
+    await knex("workspaces").where({ id: homeId }).del();
     await knex("connector_apps").where({ plugin_id: pluginId }).del();
     await knex.destroy();
   });
@@ -71,7 +72,7 @@ async function setup(context, { mcp = {} } = {}) {
     });
     return createIntegrationsService({ resources, accounts, catalogue, connections, account: accountService, profiles, systemContext });
   };
-  const as = requestContextOptions({ user: { id: userId } });
+  const as = requestContextOptions({ user: { id: userId }, workspace: { id: homeId } });
   const row = () => knex("plugin_accounts").where({ id: account.id }).first();
   const app = () => knex("connector_apps").where({ plugin_id: pluginId }).first();
   return { knex, fake, catalogue, pluginId, accountId: String(account.id), serve, as, row, app };
@@ -79,7 +80,7 @@ async function setup(context, { mcp = {} } = {}) {
 
 /** Connect, the person agreeing at the app, and the app sending the browser back: the callback's answer. */
 async function signIn(integrations, fake, accountId, as) {
-  const started = await integrations.connections.connect(REACH, accountId, as);
+  const started = await integrations.connections.connect(accountId, as);
   const url = new URL(started.url);
   const back = await fake.consent(url);
   assert.equal(`${back.origin}${back.pathname}`, CALLBACK);
@@ -121,7 +122,7 @@ test("an app is found from what it says about itself, registered once, signed in
   assert.deepEqual((await app()).tools.map((tool) => [tool.id, tool.reads]), [
     ["whoami", true], ["list-tasks", true], ["add-task", false], ["delete-task", false], ["add-comment", false], ["broken", true], ["refused", true]
   ]);
-  const listed = (await integrations.list(REACH, as)).plugins.find((entry) => entry.id === pluginId);
+  const listed = (await integrations.list(as)).plugins.find((entry) => entry.id === pluginId);
   assert.deepEqual(listed.actions.slice(0, 3), [
     { id: "whoami", name: "Who am I", reads: true, enabled: true },
     { id: "list-tasks", name: "List tasks", reads: true, enabled: true },
@@ -132,19 +133,19 @@ test("an app is found from what it says about itself, registered once, signed in
   await signIn(serve(), fake, accountId, as);
   assert.equal(fake.state.registrations, 1);
   const moved = serve({ ...ENV, APP_PUBLIC_URL: "http://localhost:4100" });
-  const movedUrl = new URL((await moved.connections.connect(REACH, accountId, as)).url);
+  const movedUrl = new URL((await moved.connections.connect(accountId, as)).url);
   assert.deepEqual([movedUrl.searchParams.get("client_id"), fake.state.registrations], ["client-2", 2]);
   assert.equal((await app()).redirect_uri, "http://localhost:4100/api/connections/callback");
   await signIn(integrations, fake, accountId, as);
 
   // The actions, read over two pages, and run: an answer as JSON or as server-sent events, the app's own error.
-  const { tools, off } = await integrations.connectors.actions(REACH, accountId, as);
+  const { tools, off } = await integrations.connectors.actions(accountId, as);
   assert.deepEqual([tools.length, off], [7, []]);
   assert.deepEqual(tools.find((tool) => tool.name === "add-task").inputSchema.required, ["content"]);
-  assert.deepEqual(await integrations.connectors.use(REACH, accountId, "list-tasks", {}, as), { text: "Buy milk\nCall the vet", isError: false });
-  assert.deepEqual(await integrations.connectors.use(REACH, accountId, "add-task", { content: "Buy a card" }, as), { text: 'Added "Buy a card".', isError: false });
-  assert.deepEqual(await integrations.connectors.use(REACH, accountId, "broken", {}, as), { text: "No such project.", isError: true });
-  await assert.rejects(integrations.connectors.use(REACH, accountId, "refused", {}, as), (error) => {
+  assert.deepEqual(await integrations.connectors.use(accountId, "list-tasks", {}, as), { text: "Buy milk\nCall the vet", isError: false });
+  assert.deepEqual(await integrations.connectors.use(accountId, "add-task", { content: "Buy a card" }, as), { text: 'Added "Buy a card".', isError: false });
+  assert.deepEqual(await integrations.connectors.use(accountId, "broken", {}, as), { text: "No such project.", isError: true });
+  await assert.rejects(integrations.connectors.use(accountId, "refused", {}, as), (error) => {
     assert.equal(error.code, "integrations_connector_refused");
     assert.equal(error.message, "Tasks refused that: Unknown project id");
     return true;
@@ -154,11 +155,11 @@ test("an app is found from what it says about itself, registered once, signed in
   assert.ok(await knex("plugin_account_turns").where({ account_id: accountId }).first(), "the account's requests took its turns");
 
   // An action the person switched off in Connect apps isn't offered, and isn't run.
-  await integrations.switchAction(REACH, pluginId, "delete-task", false, as);
-  const switched = await integrations.connectors.actions(REACH, accountId, as);
+  await integrations.switchAction(pluginId, "delete-task", false, as);
+  const switched = await integrations.connectors.actions(accountId, as);
   assert.deepEqual([switched.tools.some((tool) => tool.name === "delete-task"), switched.off], [false, ["Delete a task"]]);
-  await assert.rejects(integrations.connectors.use(REACH, accountId, "delete-task", { content: "Buy milk" }, as), { code: "integrations_connector_action_off" });
-  await assert.rejects(integrations.switchAction(REACH, pluginId, "no-such-action", false, as), { code: "integrations_action_not_found" });
+  await assert.rejects(integrations.connectors.use(accountId, "delete-task", { content: "Buy milk" }, as), { code: "integrations_connector_action_off" });
+  await assert.rejects(integrations.switchAction(pluginId, "no-such-action", false, as), { code: "integrations_action_not_found" });
 
   // Each conversation ends its session at the app.
   for (let waited = 0; fake.state.ended < 5 && waited < 2000; waited += 50) await new Promise((resolve) => setTimeout(resolve, 50));
@@ -171,7 +172,7 @@ test("an app whose connection point moves is found and registered again at its n
   await signIn(serve(), fake, accountId, as);
   const moved = await startFakeMcp(context);
   catalogue[0].mcp.url = moved.url;
-  const url = new URL((await serve().connections.connect(REACH, accountId, as)).url);
+  const url = new URL((await serve().connections.connect(accountId, as)).url);
   assert.equal(`${url.origin}${url.pathname}`, `${moved.base}/auth/authorize`);
   assert.deepEqual([url.searchParams.get("client_id"), url.searchParams.get("resource"), moved.state.registrations], ["client-1", moved.url, 1]);
   const stored = (await app()).server;
@@ -185,7 +186,7 @@ test("a key is renewed before it runs out and when the app refuses it; a withdra
 
   // About to run out: renewed first, for the app's own address, and the app's new refresh key kept (it rotates them).
   await knex("plugin_accounts").where({ id: accountId }).update({ tokens: seal({ ...first, expiresAt: Date.now() - 1000 }, VAULT_KEY) });
-  assert.equal((await integrations.connectors.use(REACH, accountId, "list-tasks", {}, as)).isError, false);
+  assert.equal((await integrations.connectors.use(accountId, "list-tasks", {}, as)).isError, false);
   const renewed = await keysOf(row);
   assert.equal(fake.state.refreshes, 1);
   assert.notEqual(renewed.access, first.access);
@@ -193,19 +194,19 @@ test("a key is renewed before it runs out and when the app refuses it; a withdra
 
   // Refused by the app before its time (401): renewed once and tried again.
   fake.expireAccessKeys();
-  assert.equal((await integrations.connectors.use(REACH, accountId, "list-tasks", {}, as)).isError, false);
+  assert.equal((await integrations.connectors.use(accountId, "list-tasks", {}, as)).isError, false);
   assert.equal(fake.state.refreshes, 2);
 
   // Withdrawn on the app's own site: signed out, still named, and the bot told plainly.
   fake.withdrawAll();
-  await assert.rejects(integrations.connectors.use(REACH, accountId, "list-tasks", {}, as), (error) => {
+  await assert.rejects(integrations.connectors.use(accountId, "list-tasks", {}, as), (error) => {
     assert.equal(error.code, "integrations_connector_signed_out");
     assert.equal(error.message, "Tasks isn't connected any more: its sign-in was withdrawn or has run out. Sign in again from Connect apps.");
     return true;
   });
   const signedOut = await row();
   assert.deepEqual([signedOut.status, signedOut.tokens, signedOut.label], ["needs-auth", null, "pat@example.com"]);
-  await assert.rejects(integrations.connectors.actions(REACH, accountId, as), { code: "integrations_account_signed_out" });
+  await assert.rejects(integrations.connectors.actions(accountId, as), { code: "integrations_account_signed_out" });
 
   // Signing in again connects it again.
   await signIn(integrations, fake, accountId, as);
@@ -220,7 +221,7 @@ test("two servers renewing one account's key at once renew it once, and both go 
   await signIn(serve(), fake, accountId, as);
   const first = await keysOf(row);
   fake.settings.tokenDelay = 300;
-  const both = () => Promise.all([serve(), serve()].map((server) => server.connectors.use(REACH, accountId, "list-tasks", {}, as)));
+  const both = () => Promise.all([serve(), serve()].map((server) => server.connectors.use(accountId, "list-tasks", {}, as)));
 
   // About to run out on both.
   await knex("plugin_accounts").where({ id: accountId }).update({ tokens: seal({ ...first, expiresAt: Date.now() - 1000 }, VAULT_KEY) });
@@ -235,21 +236,30 @@ test("two servers renewing one account's key at once renew it once, and both go 
   assert.equal((await row()).status, "connected");
 });
 
-test("disconnecting withdraws the sign-in at the app too", async (context) => {
+test("removing an account withdraws its sign-in at the app first, as whoever runs the copy disconnecting it does", async (context) => {
   const { fake, accountId, serve, as, row } = await setup(context);
   const integrations = serve();
+  // Whoever runs the copy disconnects it: withdrawn at the app, the account kept.
   await signIn(integrations, fake, accountId, as);
-  const { refresh } = await keysOf(row);
-  await integrations.connections.disconnect(REACH, accountId, as);
-  assert.deepEqual(fake.state.revoked, [refresh]);
-  const gone = await row();
-  assert.deepEqual([gone.status, gone.tokens, gone.label], ["needs-auth", null, null]);
-  await assert.rejects(integrations.connectors.use(REACH, accountId, "list-tasks", {}, as), { code: "integrations_account_signed_out" });
+  const first = (await keysOf(row)).refresh;
+  await integrations.connections.disconnectAnywhere(accountId);
+  assert.deepEqual(fake.state.revoked, [first]);
+  const kept = await row();
+  assert.deepEqual([kept.status, kept.tokens, kept.label], ["needs-auth", null, null]);
+  await assert.rejects(integrations.connectors.use(accountId, "list-tasks", {}, as), { code: "integrations_account_signed_out" });
+
+  // Its person removes it (D-110): withdrawn at the app, then gone.
+  await signIn(integrations, fake, accountId, as);
+  const second = (await keysOf(row)).refresh;
+  await integrations.removeAccount(accountId, as);
+  assert.deepEqual(fake.state.revoked, [first, second]);
+  assert.equal(await row(), undefined);
+  await assert.rejects(integrations.connectors.use(accountId, "list-tasks", {}, as), { statusCode: 404, code: "integrations_account_not_found" });
 });
 
 test("an app whose sign-in can't be trusted or used gets a plain answer", async (context) => {
   const { fake, accountId, pluginId, serve, as, app } = await setup(context);
-  const connect = () => serve().connections.connect(REACH, accountId, as);
+  const connect = () => serve().connections.connect(accountId, as);
 
   // A sign-in this copy would lend to another copy (startBridgedSignIn) is refused before the app is even looked at.
   const lent = [];
@@ -284,7 +294,7 @@ test("an app whose sign-in can't be trusted or used gets a plain answer", async 
 
   // An app that has forgotten this copy's registration: the sign-in fails plainly, and the next one registers again.
   const integrations = serve();
-  const started = await integrations.connections.connect(REACH, accountId, as);
+  const started = await integrations.connections.connect(accountId, as);
   const back = await fake.consent(new URL(started.url));
   fake.forgetClients();
   await assert.rejects(integrations.connections.callback(Object.fromEntries(back.searchParams), browserOf(started), NO_ONE), /Tasks/u);
@@ -296,7 +306,7 @@ test("an app whose sign-in can't be trusted or used gets a plain answer", async 
 
 test("an app that can't be reached says so", async (context) => {
   const { accountId, serve, as } = await setup(context, { mcp: { url: "http://127.0.0.1:9/mcp" } });
-  await assert.rejects(serve().connections.connect(REACH, accountId, as), (error) => {
+  await assert.rejects(serve().connections.connect(accountId, as), (error) => {
     assert.equal(error.code, "integrations_connector_discovery_failed");
     assert.equal(error.message, "Couldn't reach Tasks's sign-in (no answer). Try again in a few minutes.");
     return true;

@@ -10,7 +10,7 @@ Mercbot makes your first home, called "*your first name*'s home", with you as it
 |---|---|
 | Its bots and their routines | Your chats with each bot |
 | The shared files folder | The files a bot keeps for you in its own folder |
-| Accounts added for **Everyone in** the home | Accounts you add as **Just me** |
+| Every account connected in the home | Your accounts in your other homes |
 | A mixed bot's home notebook | What your bots remember about you |
 | Apps, their tables and records | Your vault of logins, cards and contacts |
 | Where the home keeps its files | Your **Auto-review** switch and your rules |
@@ -110,7 +110,7 @@ A Shared bot shows its conversations as tabs under the bot: "General" first, the
 - Double-click a shared tab to rename it. You only keeps its name.
 - Every message shows who wrote it, and the bot reads each message with the writer's name.
 - Unread markers are kept for each person and each tab.
-- In shared tabs the bot never uses anyone's personal memories, connected accounts, saved logins or own skills. It uses only the home's accounts.
+- In shared tabs the bot never uses anyone's personal memories, saved logins or own skills. It uses the home's connected accounts, as in any chat.
 - In You only, which nobody else sees, the bot works as in any private chat. It knows the shared tabs' names, never what's said in them, and nothing from You only goes into them.
 - Making a Shared bot Private or Mixed hides its shared tabs, without deleting them, and pauses their routines and watches until it's Shared again. Each person's You only becomes their chat again.
 
@@ -126,18 +126,17 @@ A mixed bot keeps a notebook for the home. When a chat teaches it something that
 - A note's author, owners and admins can remove it.
 - Turn on **Keep my chats with** *bot* **out of it** to keep your chats out of the notebook entirely.
 
-## Your accounts and the home's
+## The home's connected accounts
 
-Connected accounts can belong to you or to the whole home.
+Every account connected in **Connect apps** belongs to the home it was connected in. Everyone in the home, and every bot there, can use it in any chat, a Shared bot's shared tabs included. Each account's line says so, such as **Everyone in** *home*, **and their bots, can read and send from** *address*, and who added it.
 
-- **Just me** (the default when connecting): your own account, such as your personal Gmail. Bots use it only in your own chats. Nobody else's chats can reach it.
-- **Everyone in** *home*: an account for everyone, such as a family calendar or a shared inbox. Only owners and admins can add, sign in, rename or remove one. Everyone sees it listed in **Connect apps**, marked "Everyone in *home* · added by *name*"; members see its status only.
+- **Anyone in the home can add an account.** Connect one only if you're happy for everyone in the home to use it. To keep an account to yourself, connect it in a home only you are in.
+- **Who changes it:** the person who added it, and the home's owners and admins, rename it, sign it in again, choose its pace and remove it. Removing asks "Remove it for everyone in *home*?" first.
+- **Emails still say whose they are.** A draft card shows which mailbox it's sent from, and nothing goes until someone answers it, as with any card.
+- **Sign-in codes stay with their owner.** A bot that reads a mailbox someone else connected doesn't see the sign-in codes or sign-in links in it.
+- **Someone who leaves takes their accounts.** When a person is removed from the home, the accounts they connected there are removed too, and the **Activity** tab in **Apps** lists each one.
 
-In your own chats, a Shared bot's You only tab included, a bot can use your accounts and the home's. In a Shared bot's shared tabs it uses only the home's, because everyone can see them. When several accounts fit a request (your Gmail and the family Gmail), the bot asks which one and keeps to your answer in that chat.
-
-Owners and admins who haven't added an app for themselves still see **+ Add an account for everyone in** *home*. Removing a home's account asks "Remove it for everyone?" first.
-
-Switching actions on and off in an app's **Tools** is personal: each person chooses for their own bots.
+When several accounts fit a request (two Gmail accounts), the bot asks which one and keeps to your answer in that chat. Switching actions on and off in an app's **Tools** is personal: each person chooses for their own bots.
 
 ## Files, computers and memory
 
@@ -186,7 +185,7 @@ A checklist for a new family or team home:
 
 1. Create the home and give it a name everyone will recognise.
 2. Choose the mode new bots get (**Me and other people** for Shared), then decide who sees what for each bot: mixed for everyday helpers, private for anything personal, and shared for a bot the whole home talks to together.
-3. Add shared accounts (the family calendar, the shared inbox) as **Everyone in** the home. Ask everyone to connect their own accounts as **Just me**.
+3. Connect the accounts the home will share (the family calendar, the shared inbox). Remind everyone that an account they connect here is used by everyone in the home.
 4. Choose where the home keeps its files, if you'd rather use your own storage.
 5. Pick a Builder for Apps. Everyone in the home sees all of its apps and data, so keep anything some members mustn't read out of them.
 6. Ask everyone to check their own **Auto-review** switch and rules in Settings.

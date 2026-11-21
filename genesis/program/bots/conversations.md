@@ -104,6 +104,7 @@ onboarding and the bot's typed replies.
 - `tests/server/routineRuns.integration.js`
 - `tests/server/runLease.test.js`
 - `packages/bots/src/server/signInCodes.js`
+- `packages/bots/src/server/signInSecrets.js`
 - `tests/server/signInCodes.test.js`
 - `packages/bots/src/server/codingTools.js`
 - `packages/bots/src/server/routineSchedule.js`
@@ -555,7 +556,7 @@ person's own turn in their own chat with their bot: not for another bot's reques
 or an Apps task, D-77) first checks the computer's page is registered as the site the bot names
 (`baseDomain`: the Public Suffix List, through `tldts`, with private suffixes such as github.io, so
 two sites under ltd.uk or github.io are never one), then reads only the person's own connected
-Gmail and Outlook (never a home's, `connectedKeys` with `own`; a mail switch turned off stays off)
+Gmail and Outlook, the mailboxes the person connected (`connectedKeys` with `own`, D-111; a mail switch turned off stays off)
 for mail of the last 10 minutes whose sender is registered as that site, waiting up to a minute.
 The newest code in it (`signInCodeIn`: digits or capitals near words such as "code" or
 "verification") is never returned to the model or shown in the chat; an event line says only that
@@ -583,8 +584,8 @@ which marks it `connecting` with the time and the page's settings and keeps a `w
 again). Nothing reads the waiting rows until a sign-in finishes (`connectFollowUps.js`, D-77): integrations
 tells `connected` of every account that turns connected (`connections.whenConnected`, from the provider's
 callback or a hub's sign-in), inside the transaction that saves it, and it marks `ready` the rows the
-account reaches whose sign-in began in the last 30 minutes (a person's own account their own chats in
-every home, a home's every chat in it, D-37), through two partial indexes. Once that commits, the same
+account reaches whose sign-in began in the last 30 minutes (every waiting row of the account's home and app, D-111),
+through the partial index on home and app. Once that commits, the same
 server starts them at once (`start`): a group's, or one whose chat or bot is gone, is closed; one whose
 app isn't connected for its chat after all (`integrations.hasConnected`) waits again; one whose chat is
 busy starts when that chat's reply ends (`afterTurn`), else a minute later, and is closed 30 minutes after
@@ -715,7 +716,21 @@ each provider. Adding an event is the approval action `add_calendar_event`: it o
 rule says so, unless it invites people, which always goes through approval; `github_comment`
 always asks. With several accounts of one app, reading answers per account. The
 Current state note lists the connected accounts per app as "label · address"; which account a
-bot uses is that bot's choice in its own chat, and `remember` refuses to save it for all bots.
+bot uses is that bot's choice in its own chat, and `remember` refuses to save it for all bots. Every account is the home's
+(D-111), and the note names who connected each: "pat@example.com (the person's own, connected by them)", or
+"(connected by Sam)" (`botTurns.js`, from `integrations.namesOf`).
+
+Sign-in codes and links (D-111, `signInSecrets.js`): `connectedAccounts` marks each account `mine` when the person
+whose turn it is (`turnPerson`, the call's actor: the message's writer, a routine's owner, the person a job acts for)
+added it. Reading any other mailbox, `search_email`, `read_email` and `mail_drafts` list and read pass each email
+or draft through `hiddenInEmail`, which replaces sign-in codes with
+"[sign-in code hidden]" and sign-in links with "[sign-in link hidden]" in its subject, snippet and text (the body read
+as following the subject when the subject talks of a sign-in), and adds `signInHidden`, telling the bot why and not
+to look for them another way. It is a heuristic read from the words (`hideSignInSecrets`): a code (`CODE`, shared with
+`signInCodes.js`) on a line that talks of a code, signing in, verifying or a password, or on one of the two lines
+after it; a link whose address speaks of signing in, verifying, a reset, a token or a one-time code, or that stands
+on or just after such a line; a year after a month's name isn't a code. It errs towards hiding. Sedna's reads hide
+nothing: they are the person's own Sedna user's, only what their teams see (D-93).
 An email draft with `from` set to a connected mailbox is sent from it when the person presses
 Send (`settleDraft` claims it as `sending`, then marks it `sent`, or puts it back to pending if
 the provider refuses); a Sedna draft (`body.sedna`) is sent from Sedna as the person's own user from its

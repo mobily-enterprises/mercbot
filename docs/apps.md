@@ -9,7 +9,7 @@ and a week of normal use without problems to **★**. Build in tier order.
 1. **Connect:** it shows as connected under the right account name. Add a second account where the app allows it.
 2. **Read:** a plain request that needs the app gives a real answer and says which account it used.
 3. **Change:** a small change. The bot asks before anything outward or hard to undo, does it, and confirms. Then undo it.
-4. **Break:** disconnect, or remove access on the app's own site, then ask again. The bot says plainly that the connection is missing and offers to reconnect. It never pretends.
+4. **Break:** remove access on the app's own site (or remove the account with its bin in Connect apps), then ask again. The bot says plainly that the connection is missing and offers to reconnect. It never pretends.
 5. **Verdict:** all steps pass = ✓. Any failure stays b, with a one-line note. Promote ✓ to ★ after a week of normal use with no problems.
 
 ## The list (as written)
@@ -108,35 +108,36 @@ the app; Calendly needs a copy at an `https://` address (it refused `http://127.
 written to the log.
 
 **Calendly**
-1. Connect: Connect apps → Calendly → **Connect**, sign in on calendly.com and allow Mercbot. The account
-   shows Connected, named by your Calendly email. A second account: **+ Add another account**, signed in as
-   the other one in that tab.
+1. Connect: Connect apps → Calendly → **Add to this home**, then **Sign in with Calendly**, sign in on calendly.com
+   and allow Mercbot; the window closes itself. The account shows Connected, named by your Calendly email. A second
+   account: **+ Add account**, signed in as the other one in that window.
 2. Read: "Who has booked time with me through Calendly this week?" Real meetings, naming the account.
 3. Change: "Make me a one-time link for a 30-minute intro call." A link comes back; it reaches no one until
    shared. Undo: remove that link on calendly.com.
 4. Break: remove Mercbot's access where calendly.com lists connected apps, then ask the step 2 question
    again. The bot says Calendly isn't connected any more and offers to reconnect; Connect apps shows
-   **Sign in**. Then **Disconnect** in Connect apps, and ask once more.
+   **Sign in again**. Then remove the account with its bin in Connect apps, and ask once more.
 5. Verdict, as above.
 
 **Notion**
-1. Connect: Connect apps → Notion → **Connect**, sign in, pick the workspace and allow. The account shows
-   Connected, named by your Notion email. A second workspace is a second account (**+ Add another account**).
+1. Connect: Connect apps → Notion → **Add to this home**, then **Sign in with Notion**, sign in, pick the workspace
+   and allow. The account shows Connected, named by your Notion email. A second workspace is a second account
+   (**+ Add account**).
 2. Read: "What tasks are marked 'In progress' in our team tracker?"
 3. Change: "Add a page called 'Ideas for the spring newsletter' to my private section." Undo: delete the
    page in Notion.
 4. Break: in Notion, Settings → Connections, disconnect Mercbot, then ask the step 2 question again: the bot
-   says Notion isn't connected any more and offers to reconnect. Then **Disconnect** in Connect apps.
+   says Notion isn't connected any more and offers to reconnect. Then remove the account with its bin in Connect apps.
 5. Verdict.
 
 **Todoist**
-1. Connect: Connect apps → Todoist → **Connect**, sign in and allow. The account shows Connected, named by
-   your Todoist email.
+1. Connect: Connect apps → Todoist → **Add to this home**, then **Sign in with Todoist**, sign in and allow. The
+   account shows Connected, named by your Todoist email.
 2. Read: "What's on my to-do list for today?"
 3. Change: "Add 'buy birthday card for Leo' for Saturday morning." The bot reads it back. Undo: ask the bot
    to delete it (it asks first), or delete it in Todoist.
 4. Break: in Todoist, Settings → Integrations, remove Mercbot, then ask the step 2 question again: the bot
-   says Todoist isn't connected any more and offers to reconnect. Then **Disconnect** in Connect apps.
+   says Todoist isn't connected any more and offers to reconnect. Then remove the account with its bin in Connect apps.
 5. Verdict.
 
 ## Apps connected with a home's API credentials: Sedna (D-93, D-94, built 2026-11-19)
@@ -161,7 +162,7 @@ asks, and the bot says when to try again.
 Needs a Sedna organisation, credentials that may at least read (COMPANY_READ, USER_READ, TEAM_READ, MESSAGE_READ, EVENT_READ, CATEGORYTAG_READ, JOBREFERENCE_READ, COMMENT_READ, DOCUMENT_READ, TEMPLATE_READ and CONTACT_READ), and a Mercbot home whose owner's email is a Sedna user's (else pick
 yourself in step 1).
 
-1. Connect: Connect apps → Sedna → **Connect**, type the tenant (the *X* of X.sednanetwork.com), the client ID and
+1. Connect: Connect apps → Sedna → **Add to this home**, type the tenant (the *X* of X.sednanetwork.com), the client ID and
    secret, and **Save**. First a wrong secret: the form says Sedna didn't accept it, and nothing is saved. Then the
    right one: the account shows Connected, named by the company, and the note counts the people found by email.
    **Who you are in Sedna** names your user and your teams; with no match, find yourself and **This is me**. A
@@ -177,7 +178,8 @@ yourself in step 1).
 4. Break: delete the credential on Sedna's API Credential Management page, wait for the hourly key to run out (or
    **Change credentials** with a wrong secret, which is refused and keeps the old ones), then ask the step 2 question
    again. The bot says Sedna isn't connected and that an owner or admin enters the credentials again; Connect apps
-   shows **Enter API credentials**. Then **Disconnect** in Connect apps.
+   shows **Enter API credentials**. Then remove the account with its bin in Connect apps (it forgets who each person
+   is in Sedna too).
 5. Verdict, as above. Also note what the real tenant answered where the documentation is silent: the events feed's
    order and how far back it goes, whether `filter[user.search]` finds people by email, whether a token can be
    asked for with read scopes only, and, if Sedna ever answers 429, whether it says how long to wait (Retry-After).

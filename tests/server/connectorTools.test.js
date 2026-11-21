@@ -26,7 +26,7 @@ function standIns({ accounts = [{ id: "4", pluginId: "tasks", name: "", label: "
     connectors: {
       apps: () => [TASKS],
       actions: async () => ({ tools: TOOLS.filter((tool) => !off.includes(tool.name)), off }),
-      use: async (_reach, accountId, name, input) => {
+      use: async (accountId, name, input) => {
         used.push([accountId, name, input]);
         if (answer instanceof Error) throw answer;
         return answer || { text: `Ran ${name}.`, isError: false };
@@ -158,7 +158,7 @@ test("the connect card offers to sign in to such an app, not to ask for it", asy
   const integrations = { appNamed: () => TASKS, hasConnected: async () => false };
   const { suggestConnect } = buildCardTools({ integrations, reach: { personal: true }, notebook: null, after, call: {} });
   assert.equal((await suggestConnect.execute({ app: "Tasks", task: "add Buy a card" })).status, "card shown");
-  assert.deepEqual([after[0].body.button, after[0].body.soon], ["Authorize", undefined]);
+  assert.deepEqual([after[0].body.button, after[0].body.soon], ["Connect", undefined]);
   const connected = buildCardTools({ integrations: { ...integrations, hasConnected: async () => true }, reach: {}, notebook: null, after: [], call: {} });
   assert.equal((await connected.suggestConnect.execute({ app: "Tasks", task: "x" })).error, "Tasks is already connected; use it with use_connected_app.");
 });

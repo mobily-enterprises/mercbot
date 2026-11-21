@@ -109,11 +109,12 @@ async function setup(context) {
     servers.push(server);
     return server;
   }
-  /** A Google Drive account signed in with the stand-in's keys; `fields` may make it the home's. */
+  /** A Google Drive account `userId` added in the home, signed in with the stand-in's keys. */
   async function account(userId, label, fields = {}) {
     const { access, refresh, expiresAt } = drive.issue();
     const [row] = await knex("plugin_accounts").insert({
       user_id: userId,
+      workspace_id: homeId,
       plugin_id: "google-drive",
       name: `drive-${randomBytes(4).toString("hex")}`,
       label,
@@ -143,7 +144,7 @@ async function setup(context) {
 test("every switch copies all the home's files and makes the new place an exact copy of them; the old copy goes", { skip: SKIP }, async (context) => {
   const { knex, drive, pat, kim, homeId, serve, account, as, stored, moved, own } = await setup(context);
   const patDrive = await account(pat, "pat@example.com");
-  const homeDrive = await account(kim, "family@example.com", { workspace_id: homeId });
+  const homeDrive = await account(kim, "family@example.com");
   // Mercbot's folder in the home's Drive from before, which it remembers: a file that's no longer the home's, and one
   // of the same size and time as the home's own but other text, which a copy going by size and time would skip.
   const old = drive.add({ name: "Mercbot – Moving test", mimeType: FOLDER, parents: ["root"] });

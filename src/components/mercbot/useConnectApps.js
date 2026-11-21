@@ -1,13 +1,15 @@
-import { ref, watch } from "vue";
+import { onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { usePaths } from "@jskit-ai/shell-web/client/navigation/usePaths";
 import { botsApi } from "./botsApi.js";
 import { openSignIn, pluginsApi } from "./pluginsApi.js";
+import { listenForSignIns, signInInThisTab } from "./signInReturn.js";
 
 /**
  * Connect apps: the catalogue modal, opened straight on one app or one skill, or on
- * the person's apps and skills for Skills, and the explainer before signing in from a chat card. A sign-in started from a
- * bot's connect card tells the bot, which finishes its task once the app is connected.
+ * the person's apps and skills for Skills, and the explainer before signing in from a chat card, which ends in the same
+ * Add account step as Connect apps (D-110). A sign-in started from a bot's connect card tells the bot, which finishes its
+ * task once the app is connected. While the shell is open it answers the sign-in windows that finish (signInReturn.js).
  * `reportFailure` explains a step that failed; `currentBot` is the bot whose chat is open.
  * @param {{ reportFailure: import("../../types.js").ReportFailure, currentBot: import("vue").Ref<{ id: string } | null> }} options
  */
@@ -22,6 +24,12 @@ export function useConnectApps({ reportFailure, currentBot }) {
   const appsPage = ref("");
   const explainerOpen = ref(false);
   const explainerPlugin = ref(null);
+  // Answers the sign-in windows that finish while the shell is open, so they close themselves.
+  let stopListening = () => {};
+  onMounted(() => {
+    stopListening = listenForSignIns();
+  });
+  onBeforeUnmount(() => stopListening());
   /** The connect card the explainer was opened from, while it waits for its app: { botId, messageId }. */
   let fromCard = null;
 
@@ -74,21 +82,26 @@ export function useConnectApps({ reportFailure, currentBot }) {
     else appsOpen.value = true;
   }
 
-  async function continueConnect(plugin) {
+  /** The Add account step's answer, from the explainer: the account is made, then signed in. */
+  async function continueConnect({ plugin, label }) {
     explainerOpen.value = false;
     try {
-      if (!plugin.installed) await pluginsApi.install(plugin.id);
-      openSignIn(paths.page("/connect", { surface: "account" }), plugin);
+      const { plugins, accountId } = await pluginsApi.addAccount(plugin.id, label);
+      const added = plugins.find((entry) => entry.id === plugin.id);
+      const card = fromCard;
+      fromCard = null;
+      const told = card && botsApi.connectFromCard(card.botId, card.messageId).catch((error) =>
+        reportFailure("Your bot won't carry on by itself after you sign in. Ask it once you're connected.", error));
+      // A sign-in that takes this tab (on a phone) waits until the bot is told, so leaving doesn't cut that off.
+      if (signInInThisTab()) await told;
+      openSignIn(paths.page("/connect", { surface: "account" }), added, added.accounts.find((account) => account.id === accountId), router);
     } catch (error) {
       reportFailure("Couldn't start the sign-in. Try again.", error);
-      return;
     }
-    if (!fromCard) return;
-    const card = fromCard;
-    fromCard = null;
-    botsApi.connectFromCard(card.botId, card.messageId).catch((error) =>
-      reportFailure("Your bot won't carry on by itself after you sign in. Ask it once you're connected.", error));
   }
 
-  return { appsOpen, appsSkillId, appsAppId, appsPage, explainerOpen, explainerPlugin, openApp, openSkill, openSkills, explainConnect, continueConnect };
+  return {
+    appsOpen, appsSkillId, appsAppId, appsPage, explainerOpen, explainerPlugin,
+    openApp, openSkill, openSkills, explainConnect, continueConnect
+  };
 }

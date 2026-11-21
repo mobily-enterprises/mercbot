@@ -5,10 +5,10 @@ import { personName } from "@local/homes/server/personName";
 import { ACCOUNT_FILTERS, createAccounts } from "./accounts.js";
 import { loadCatalogue } from "./catalogue.js";
 import { SIGN_IN_STATE_FILTERS, createConnections } from "./connections.js";
+import { createDepartures } from "./departures.js";
 import { ACTION_SWITCH_FILTERS, createIntegrationsService } from "./integrationsService.js";
 import { PROVIDERS, createOAuth } from "./oauth.js";
 import { registerRoutes } from "./registerRoutes.js";
-import { reachableAccounts } from "./rowPolicies.js";
 import { createSednaCredentials } from "./sednaCredentials.js";
 import { TABLE_RESOURCES, oauthStateResource, pluginAccountResource, pluginActionsOffResource, userSkillResource } from "./tableResources.js";
 
@@ -65,33 +65,35 @@ export function homeDirectory({ memberships, profiles }) {
   };
 }
 
-/** Each owned table's row policy and search entries, by resource. */
+/** Each owned table's search entries, by resource. */
 const OWNS_ENTRIES = new Map([
-  [pluginAccountResource, { rowPolicy: reachableAccounts, searchSchema: ACCOUNT_FILTERS }],
+  [pluginAccountResource, { searchSchema: ACCOUNT_FILTERS }],
   [oauthStateResource, { searchSchema: SIGN_IN_STATE_FILTERS }],
   [pluginActionsOffResource, { searchSchema: ACTION_SWITCH_FILTERS }],
   // A person's own skills reach the model only in a private chat whose one person they are (the bots' rule, D-112).
   [userSkillResource, { rowPolicy: ({ requires, ...args }) => requires.records.rules.personalRule(args) }]
 ]);
 
-/** The tables the integrations feature owns, with their row policy and search entries. */
+/** The tables the integrations feature owns, with their search entries. */
 export const INTEGRATIONS_OWNS = Object.freeze(
   TABLE_RESOURCES.map((resource) => (OWNS_ENTRIES.has(resource) ? { resource, ...OWNS_ENTRIES.get(resource) } : resource))
 );
 
-// Connect apps (D-31, D-33, D-37): the catalogue, people's and homes' accounts of each app, signing them in, and this
-// copy's side of the bridge between copies of Mercbot. A feature that lends this copy's sign-ins to other copies
-// provides `mercbot.integrations.bridged-sign-ins`.
+// Connect apps (D-31, D-33, D-111): the catalogue, the apps on each home's list and the home's accounts of each, signing
+// them in, and this copy's side of the bridge between copies of Mercbot. When a home's people change, the accounts of
+// anyone no longer in it go (departures.js). A feature that lends this copy's sign-ins to other copies provides
+// `mercbot.integrations.bridged-sign-ins`.
 const IntegrationsFeature = defineFeature({
   id: "mercbot.integrations",
   domain: "integrations",
   owns: INTEGRATIONS_OWNS,
   systemScope:
-    "write people's own connected accounts, which belong to no home, once a scoped read found them the caller's; finish provider sign-ins, which no one is signed in to; act on a person's own apps and skills for a job; count app demand; pace each connected account's requests to its app",
+    "finish provider sign-ins, which no one is signed in to; act on a person's own wishes, switches and skills for a job; withdraw the accounts of someone no longer in a home; count app demand; pace each connected account's requests to its app",
   requires: {
     records: "mercbot.bots.records",
     http: "runtime.http",
     env: "runtime.env",
+    events: "runtime.events",
     profiles: "users.profiles",
     memberships: "workspaces.memberships",
     apps: "mercbot.apps"
@@ -106,15 +108,17 @@ const IntegrationsFeature = defineFeature({
    * @param {object} capabilities
    * @param {import("@jskit-ai/kernel/server/types").RuntimeHttp} capabilities.http
    * @param {import("@jskit-ai/kernel/server/types").RuntimeEnv} capabilities.env
+   * @param {import("@jskit-ai/kernel/server/types").RuntimeEvents} capabilities.events
    * @param {import("@jskit-ai/users-core/server/types").UsersProfiles} capabilities.profiles
    * @param {import("@jskit-ai/workspaces-core/server/types").WorkspacesMemberships} capabilities.memberships
-   * @param {import("@local/apps/server/types").Apps} capabilities.apps whose Activity trail records an unlink (D-31)
+   * @param {import("@local/apps/server/types").Apps} capabilities.apps whose Activity trail records an unlink (D-31) and
+   *   the accounts that went with someone who left (D-111)
    * @param {import("./types.js").BridgedSignIns | null} capabilities.bridgedSignIns the bridge connections this copy
    *   lends its sign-ins to, if a feature keeps them
    * @param {Record<string, any>} capabilities.resources this feature's handles
    * @param {(reason: string) => object} capabilities.systemContext
    */
-  async setup({ http, env, profiles, memberships, apps, bridgedSignIns, resources, systemContext }) {
+  async setup({ http, env, events, profiles, memberships, apps, bridgedSignIns, resources, systemContext }) {
     const catalogue = await loadCatalogue();
     const accounts = createAccounts({ pluginAccounts: resources.pluginAccounts, systemContext });
     const connections = createConnections({
@@ -132,6 +136,23 @@ const IntegrationsFeature = defineFeature({
       ...standInGoogle(env)
     });
     const integrations = createIntegrationsService({ resources, accounts, catalogue, connections, profiles, systemContext });
+    const departures = createDepartures({
+      accounts,
+      connections,
+      activeMemberIds: (homeId, options) => memberships.activeMemberIds(homeId, passedOn(options)),
+      namesOf: integrations.namesOf,
+      appName: integrations.appName,
+      recordActivity: (entry, options) => apps.activity.record(entry, options),
+      systemContext
+    });
+    // JSKIT tells of a home's people changing (workspace.member.remove among them) with the home's id alone.
+    events.register({
+      id: "mercbot.integrations.departures",
+      matches: (event) => event.type === "entity.changed" && event.source === "workspace" && event.entity === "member",
+      handle: (event) =>
+        departures.withdrawDeparted(String(event.entityId)).catch((error) =>
+          console.warn("Removing the accounts of someone who left a home failed; they go at the home's next change of people.", error))
+    });
     registerRoutes(http, { integrations, catalogue, env });
     return { integrations };
   }

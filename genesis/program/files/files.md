@@ -190,8 +190,8 @@ files are kept.
   files waits for it before it's done, and shutdown settles every home's copy.
 
 - Or in a Google Drive account connected in Connect apps (D-26, D-80; `driveStorage`):
-  the person's own (`google-drive` plugin, reached `{ personal: true }`) or the
-  home's. Choosing it makes one folder, `Mercbot – <home>`, in that Drive through
+  one of the home's (`google-drive` plugin), as every account is (D-111). Choosing it
+  makes one folder, `Mercbot – <home>`, in that Drive through
   Drive's own API (v3) and saves `{accountId, userId, label, folderId, folderName,
   driveFolders}` sealed. `driveFolders` (the folders Mercbot made for the home, by
   account) stays whatever the home chooses next, in a row of kind `mercbot` when
@@ -264,8 +264,9 @@ files are kept.
   (409 `files_storage_moving`): `store.prepare`, `resolve`, `move`, `remove`, `makeFolder` and
   `existingFile(…, {writing: true})` write, while listings, `existingFile`, previews and `textOf` read; a command
   started meanwhile is refused with that reason, and a computer woken meanwhile opens without the home's folders.
-  `storage.heldInTheirDrive(home, user)` answers whose own Drive holds the home's files when it's that person's
-  (`{account, moving, into}`, `into` while they move into it), else null. Mercbot's own pages remove no one from a home;
+  `storage.heldInTheirDrive(home, user)` answers whether a Google Drive account that person added holds the home's
+  files (`{account, moving, into}`, `into` while they move into it), else null: their accounts go when they leave
+  the home (D-111), so the files would go with them. Mercbot's own pages remove no one from a home;
   a copy built on Mercbot that lets people be removed refuses while this answers.
 
 Routes, under `/api/w/:workspaceSlug` for a bot in that home (404 otherwise), work
@@ -295,9 +296,9 @@ at `/api/w/:workspaceSlug/files…`:
   `apps.textOf` reads a document's text in the sandbox for the bot's `read_file` tool.
 - `GET …/files/storage` answers `{kind: "mercbot"}`, `{kind: "webdav", url,
   user, vendor}` or `{kind: "drive", accountId, account, folder, folderState, space,
-  signedIn, gone, canSignIn}` for the home, each with `driveAccounts` (`[{id, label, home}]`, the
-  connected Google Drive accounts the person reaches). `canSignIn`: the
-  account is the person's own, or the home's and they may change its settings.
+  signedIn, gone, canSignIn}` for the home, each with `driveAccounts` (`[{id, label}]`, the home's
+  connected Google Drive accounts). `canSignIn`: as in Connect apps, the person added the account, or they
+  may change the home's settings (D-111).
   `folderState` is `here`, `bin` or `missing` (null before Mercbot looked), and
   `space` `{used, limit, free, nearlyFull, at}` in bytes (`limit` and `free`
   null for a Drive without a limit), `nearlyFull` under 1 GB free

@@ -8,14 +8,14 @@
 /** @typedef {import("@jskit-ai/resource-runtime/server/types").ResourceCallOptions} CallOptions the call's options: a request's, or a job's */
 
 /**
- * Whose connected accounts a turn uses: the home's, in any chat (D-112), as the person who asked.
+ * Whose connected accounts a turn uses: the home's, in any chat (D-111, D-112), as the person who asked.
  * @typedef {{ userId: string, homeId: string }} Reach
  */
 /**
- * What a tool asks connectedKey() with: the integrations, whose accounts, the apps the person
- * switched this action off for, the turn's call options, and whether only the person's own
- * accounts count (not the home's).
- * @typedef {{ integrations: import("@local/integrations/server/types").Integrations, reach: Reach, skip?: string[], call: CallOptions, own?: boolean }} AppAccess
+ * What a tool asks connectedKey() with: the integrations, where the turn runs, the apps the person
+ * switched this action off for, the turn's call options, and whether only the accounts the person
+ * whose turn it is connected count.
+ * @typedef {{ integrations: import("@local/integrations/server/types").Integrations, reach?: Reach, skip?: string[], call: CallOptions, own?: boolean }} AppAccess
  */
 /** @typedef {(toolId: string) => AppAccess} AppFor */
 /** @typedef {(actionId: string, input: object, lead?: string) => Promise<object>} AttemptAction */

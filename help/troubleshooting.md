@@ -82,17 +82,18 @@ That's on purpose. Bots stop before paying, ordering, booking, sending, cancelli
 
 ## Connected apps
 
-### An account says "Needs auth"
+### An account says "Needs sign-in"
 
-The app is added but not signed in, or its sign-in has lapsed. In **Connect apps**, open the app and use the button beside the account:
+The account isn't signed in, or its sign-in has lapsed. In **Connect apps**, open the app and use the button on the account's line:
 
 | Button | What happened | What to do |
 |---|---|---|
+| **Sign in again** | The sign-in lapsed, or the app stopped accepting it. | Sign in again and pick the same account. |
 | **Sign in** | The account hasn't been signed in yet. | Sign in on the app's page that opens. |
 | **Reconnect** | A sign-in was started but not finished. | Start again and complete it. |
 | **Retry** | The last sign-in was cancelled or refused. | Try again, and allow access on the app's page. |
 
-After you sign in, go back to the Mercbot tab. The account shows **Connected** after a few seconds.
+The sign-in window closes by itself once you're done, and the account shows **Connected**. If you signed in as a different address, nothing changes and the page says so: sign in again as the account's own address, or add the other one with **+ Add account**.
 
 ### An account says "Needs more access"
 
@@ -106,9 +107,21 @@ Some work accounts can't connect until the organisation's IT department approves
 
 If you have several accounts for one app, such as personal and work email, the bot asks which one to use and keeps to your answer in that chat. To change it, tell the bot which account you mean, by its label or address.
 
-### A shared bot can't use your account
+### You can't rename, sign in again or remove an account
 
-In a shared bot's shared tabs, everyone in the home can see what the bot does, so it only uses accounts added for **The whole home**. It never uses anyone's own accounts or vault there. Ask an owner or admin to add an account for the whole home, or ask in the bot's last tab, **You only**, your own chat with it.
+An account's name, sign-in, pace and bin are for the person who added it and the home's owners and admins. Everyone else in the home can use the account and see its status. Ask whoever added it (its line says **Added by** *name*), or an owner or admin. **Remove from this home** works the same way: owners and admins can always remove an app, and the person who added it can while every account of it is one they added.
+
+### A bot says sign-in codes in a mailbox are hidden
+
+When a bot reads a mailbox someone else in the home connected, Mercbot hides the sign-in codes and sign-in links in it, so only that person's bots see them. Ask the person who connected the mailbox, or connect your own. Mercbot works this out from each email's wording, so it may also hide a code that isn't for signing in, such as a discount code; open the email yourself to see it.
+
+### An account has gone from Connect apps
+
+Someone who is no longer in the home takes the accounts they connected there with them: Mercbot signs them out and removes them, and the **Activity** tab in **Apps** lists each one. Connect the account again, or ask someone who uses it to. If it was the Google Drive the home's files were kept in, an owner or admin chooses where the files go again in **Settings → Files**.
+
+### Sedna isn't used in a shared tab
+
+Sedna works only in your own chats with your bots, never in a Shared bot's shared tabs or a group chat, because its credentials could read the whole organisation. Ask in the bot's **You only** tab.
 
 ### The app you want says "Coming soon"
 
@@ -175,7 +188,7 @@ Someone put Mercbot's folder in the bin of the Google Drive the home keeps its f
 
 ### Files say Google Drive needs signing in again
 
-The home keeps its files in a Google Drive account whose sign-in ran out or whose access was removed in Google. The files are safe in Drive. Select **Sign in again** on the Files page or in **Settings → Files**, and sign in to the same Google account. If you can't, ask whoever connected that account: a person's own account can be signed in again only by them.
+The home keeps its files in a Google Drive account whose sign-in ran out or whose access was removed in Google. The files are safe in Drive. Select **Sign in again** on the Files page or in **Settings → Files**, and sign in to the same Google account. If you can't, ask whoever connected that account: only they and the home's owners and admins can sign it in again.
 
 ## Spending
 

@@ -65,15 +65,15 @@ export const CONNECTOR_ACTIONS = {
     describe: (args) => `${args.summary} in ${args.app} as the person (its action ${args.action})`,
     question: (args) => `Shall I ${args.summary} in ${args.app}?`,
     async run(context, args) {
-      const { integrations, reach, call } = context;
+      const { integrations, call } = context;
       const plugin = integrations.app(args.pluginId);
       if (!plugin?.mcp) throw new ConnectedAppError(`${args.app} can't be used this way any more.`);
-      const entry = await account({ integrations, reach, call }, plugin, args.account);
+      const entry = await account({ integrations, call }, plugin, args.account);
       const sends = plugin.mcp.sends?.includes(args.action);
       const done = await sendOrSimulate(
         context,
         sends ? { kind: `${plugin.name} ${args.action}`, summary: args.summary, details: { account: entry.account } } : null,
-        () => integrations.connectors.use(reach, entry.id, args.action, args.input || {}, call),
+        () => integrations.connectors.use(entry.id, args.action, args.input || {}, call),
         () => ({ text: "Done.", isError: false })
       );
       if (done.isError) throw new ConnectedAppError(`${plugin.name} didn't do it: ${cut(done.text, 2000)}`);
@@ -95,15 +95,14 @@ export const CONNECTOR_ACTIONS = {
  * other connected-account tools.
  * @param {object} shared
  * @param {import("@local/integrations/server/types").Integrations} shared.integrations
- * @param {import("./types.js").Reach} shared.reach
  * @param {import("./types.js").CallOptions} shared.call
  * @param {import("./types.js").AttemptAction} shared.attempt
  * @param {import("./types.js").PostLead} shared.postLead
  */
-export function buildConnectorTools({ integrations, reach, call, attempt, postLead }) {
+export function buildConnectorTools({ integrations, call, attempt, postLead }) {
   const apps = integrations.connectors.apps();
   if (!apps.length) return {};
-  const access = { integrations, reach, call };
+  const access = { integrations, call };
   const names = apps.map((plugin) => plugin.name).join(", ");
   const statusLine = z.string().min(2).max(160).optional().describe("One short status line posted at once, e.g. Checking your Todoist.");
 
@@ -112,7 +111,7 @@ export function buildConnectorTools({ integrations, reach, call, attempt, postLe
       const plugin = connectorApp(integrations, app, apps);
       const entry = await account(access, plugin, wanted, { one: false });
       await postLead(lead, "connected_app_actions");
-      const { tools, off } = await integrations.connectors.actions(reach, entry.id, call);
+      const { tools, off } = await integrations.connectors.actions(entry.id, call);
       if (action) {
         const tool = tools.find((found) => found.name === action);
         if (!tool) throw new ConnectedAppError(`${plugin.name} has no action called ${action}. Its actions: ${tools.map((found) => found.name).join(", ")}.`);
@@ -145,7 +144,7 @@ export function buildConnectorTools({ integrations, reach, call, attempt, postLe
     try {
       const plugin = connectorApp(integrations, app, apps);
       const entry = await account(access, plugin, wanted);
-      const { tools } = await integrations.connectors.actions(reach, entry.id, call);
+      const { tools } = await integrations.connectors.actions(entry.id, call);
       const tool = tools.find((found) => found.name === action);
       if (!tool) {
         throw new ConnectedAppError(
@@ -169,7 +168,7 @@ export function buildConnectorTools({ integrations, reach, call, attempt, postLe
         );
       }
       await postLead(lead);
-      const answer = await integrations.connectors.use(reach, entry.id, tool.name, input || {}, call);
+      const answer = await integrations.connectors.use(entry.id, tool.name, input || {}, call);
       if (answer.isError) return { error: `${plugin.name} answered with an error: ${cut(answer.text, 2000)}` };
       return { app: plugin.name, account: entry.account, answer: fromApp(answer.text) };
     } catch (error) {

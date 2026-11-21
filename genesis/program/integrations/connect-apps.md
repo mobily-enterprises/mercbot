@@ -1,7 +1,7 @@
 # Connect apps and skills
 
-Lists the integrations Mercbot offers, lets a person add or remove them and
-their accounts, and keeps the private skills their bots have made.
+Lists the integrations Mercbot offers, lets the people of a home add or remove them and
+the home's accounts, and keeps the private skills their bots have made.
 
 ## Sources
 
@@ -19,6 +19,7 @@ their accounts, and keeps the private skills their bots have made.
 - `packages/integrations/src/server/connectorAccounts.js`
 - `packages/integrations/src/server/tokenRenewal.js`
 - `packages/integrations/src/server/unlinking.js`
+- `packages/integrations/src/server/departures.js`
 - `packages/integrations/package.json`
 - `plugins/README.md`
 - `migrations/20261113120000_baseline.cjs`
@@ -29,6 +30,8 @@ their accounts, and keeps the private skills their bots have made.
 - `src/components/mercbot/useSignInWatch.js`
 - `src/components/mercbot/useConnectApps.js`
 - `src/components/mercbot/MercbotConnectExplainer.vue`
+- `src/components/mercbot/MercbotAddAccount.vue`
+- `src/components/mercbot/signInReturn.js`
 - `src/components/mercbot/pluginsApi.js`
 - `src/pages/account/connect.vue`
 - `src/components/mercbot/MercbotSettingsLink.vue`
@@ -48,6 +51,8 @@ their accounts, and keeps the private skills their bots have made.
 - `tests/support/fakeSedna.mjs`
 - `tests/e2e/sedna.spec.ts`
 - `migrations/20261119181000_one_unlabelled_home_account.cjs`
+- `migrations/20261121225000_unlabelled_home_accounts_of_home_apps.cjs`
+- `migrations/20261121230000_accounts_belong_to_homes.cjs`
 - `plugins/calendly/plugin.json`
 - `plugins/notion/plugin.json`
 - `plugins/todoist/plugin.json`
@@ -56,6 +61,9 @@ their accounts, and keeps the private skills their bots have made.
 - `tests/server/connector.integration.js`
 - `tests/support/fakeMcpServer.mjs`
 - `tests/client/appsCatalogue.vitest.js`
+- `tests/server/accountWorkflow.integration.js`
+- `tests/server/signInReturn.test.js`
+- `tests/e2e/accounts.spec.ts`
 - `tests/e2e/connector.spec.ts`
 - `packages/integrations/src/server/appRequests.js`
 - `migrations/20261119220000_request_pace.cjs`
@@ -68,48 +76,97 @@ their accounts, and keeps the private skills their bots have made.
 
 The catalogue is read at startup from `plugins/<id>/plugin.json`.
 
-**Connect apps belongs to the current home** (D-37). Its routes are under `/api/w/:workspaceSlug`
+**Connect apps belongs to the current home** (D-111). Its routes are under `/api/w/:workspaceSlug`
 (written `…` below), and JSKIT supplies the person's rights in that home.
 
-**Who reaches which accounts.** A person reaches their own accounts (`workspace_id` null) and the
-home's (`workspace_id` set). In a shared bot's room, only the home's are reached.
+**Every account is its home's** (D-111). `plugin_accounts.workspace_id` is required, and every read is scoped to the
+call's home (`accounts.reachable`, which refuses a system context): everyone in the home, and every bot there, reaches
+every account of it, in any chat. `user_id` is who added it. The apps on the home's list are `home_plugins` (home, app,
+who added it, when; unique per home and app). The person's own parts stay theirs: private skills, the app interest
+noted by Request, and the Tools switches (`plugin_actions_off`). An app connected with the home's API credentials is
+used only in a person's own chats (D-93, `botTurns.js`).
 
 **Routes:**
-- `GET …/plugins`: the catalogue with each plugin's added state and the reachable accounts. A
-  home's account has `home: true` and `addedBy`. Private skills and `managesHome` come with it.
-- `POST …/plugins/:pluginId/install`: adds the app for the person, with a default account that
-  needs sign-in.
-- `DELETE …/plugins/:pluginId`: removes the app and the person's own accounts; the home's stay.
-- `POST …/plugins/:pluginId/accounts {name, home}`: adds a labelled account and returns its
-  `accountId`. With `home: true` it belongs to the home; only owners and admins may (403
-  otherwise).
+- `GET …/plugins`: the catalogue with each plugin's `installed` (on the home's list) and `canRemove`, and the home's
+  accounts, each with `addedBy` (the adder's name, as chats name people), `addedByYou` and `canChange`. Private skills
+  and `managesHome` come with it.
+- `POST …/plugins/:pluginId/install` (**Add to this home**, **Add** in the catalogue): puts the app on the home's list
+  (`home_plugins`, as added by the person; a second add finds the first) and makes no account, except for an app whose
+  API credentials are the home's (its one home account, below). It never signs in: the client then opens the Add
+  account step (D-110).
+- `DELETE …/plugins/:pluginId` (**Remove from this home**): withdraws every account of the app in the home
+  (`connections.withdraw`), then deletes them and the app's row. Allowed for the home's owners and admins, and for the
+  person who added the app while every account of it is one they added (`mayRemoveApp`); else 403
+  `integrations_home_app_remove_forbidden` ("Only the home's owners and admins can remove <app> from the home while it
+  has accounts someone else added.").
+- `POST …/plugins/:pluginId/accounts {name}`: adds an account of the home, added by the person, its label optional
+  (empty, it's shown by its address), puts the app on the home's list too, and returns its `accountId`. Anyone in the
+  home may, except for an app whose API credentials are the home's (403 `integrations_home_app_forbidden`).
 - `GET …/plugin-accounts/:accountId`: one account as the list shows it, after finishing its
-  sign-in through the hub when there is one; 404 for an account the person doesn't reach.
+  sign-in through the hub when there is one; 404 for an account of another home.
 - `PATCH …/plugin-accounts/:accountId`: renames an account.
-- `DELETE …/plugin-accounts/:accountId`: removes a home's account (owners and admins), or the person's own while it isn't connected and the app keeps another account.
+- `DELETE …/plugin-accounts/:accountId` (the line's bin): any account the person may change, connected or not, the
+  first or only one included. It withdraws the sign-in first (`connections.withdraw`: the app's own revocation where it
+  offers one, and the hub of a borrowed one), then deletes; a Sedna account's people matches go with it. The app stays on
+  the home's list.
 - `PATCH /api/skills/:skillId` and `DELETE /api/skills/:skillId` (skills stay personal).
 - `PUT …/plugin-accounts/:accountId/pace {pace}`: the account's Request pace, `gentle`, `normal` or `fast` (400
   otherwise), answering the list.
-- Changing a home's account (rename, sign in, disconnect, remove, its pace) needs `workspace.settings.update`.
+- Changing an account (rename, sign in, remove, its pace) is for the person who added it and the home's owners and
+  admins (`workspace.settings.update`), `accounts.mayChange`; anyone else gets 403
+  `integrations_account_manage_forbidden` ("Only the person who added this account and the home's owners and admins
+  can change it."). There is no route that moves an account between a person and a home (D-110's `PUT
+  …/plugin-accounts/:accountId/home` is gone: 404).
 
-**Signing in.**
-- Sign-in opens `/account/connect?plugin=<id>&home=<slug>&account=<id>` in a new tab.
-- That tab asks `POST …/plugin-accounts/:accountId/connect` for the provider's consent screen and
-  goes there.
-- `DELETE …/plugin-accounts/:accountId/connection` disconnects.
-- Connect apps checks that account every few seconds (`GET …/plugin-accounts/:accountId`) and
-  shows how it stands, until it shows as connected; for an app that lists its own actions (D-34) it then
-  reads the whole list once, which brings its **Tools**.
+**Signing in** (D-110). In Connect apps one control starts a sign-in: the Add account step's **Sign in with <Google,
+Microsoft, GitHub or the app>**, or a line's own Sign in again (hidden while the step is open). Nothing else does.
+- Sign-in opens `/account/connect?plugin=<id>&home=<slug>&account=<id>`: on a computer in a popup window
+  (`noopener`); on a phone's width (`signInInThisTab`, under 600 px) in the same tab, through the router (so the
+  browser's Back from the provider comes back to Mercbot), which first leaves its way back
+  (`mercbot-sign-in-back`, the page with `?connect=<id>`) in session storage.
+- That page leaves its own address (`mercbot-sign-in-again`) for Try again, asks `POST …/plugin-accounts/:accountId/connect`
+  for the provider's consent screen and goes there. Each provider shows its account chooser (Google
+  `prompt=select_account consent`, Microsoft and GitHub `select_account`), with the account's address suggested when it
+  has one (`login_hint`, GitHub's `login`).
+- Signing a line in again keeps it the same account: `finishSignIn` (and the hub path's `syncPending`) refuses an
+  address other than the one it has, compared without case, with 409 `integrations_sign_in_different_account`: "This
+  <app> account is <address>, but you signed in as <other>, so nothing changed. To connect <other>, use + Add
+  account.", leaving it as it was.
+- There is no disconnecting that keeps an account: the bin removes it. Whoever runs the copy still disconnects any
+  account (`acrossHomes.disconnect`, below).
+- The shell answers sign-in windows on the `BroadcastChannel` "mercbot-sign-in" (`listenForSignIns`), so a window that
+  connected closes itself, and Connect apps reads the account at once; it also checks it every few seconds
+  (`GET …/plugin-accounts/:accountId`) until it shows as connected; for an app that lists its own actions (D-34) it then
+  reads the whole list once, which brings its **Tools**. Back in the same tab, `?connect=<id>` opens Connect apps on the
+  app.
 
-**Account rows.**
-- A row reads "label · address"; the first account has no label, just its address.
-- A home's account also says "Everyone in <home> · added by <name>", the person's display name,
-  else their email's first part (as chats name people). Members see its status only.
-- "+ Add another account" asks for a label. Owners and admins also choose "Just me"
-  or "Everyone in <home>".
-- Without the app added for themselves, owners and admins see "+ Add an account for everyone in
-  <home>".
-- Removing a home's account asks "Remove it for everyone?".
+**An app's page** shows its description, accounts, Request pace and Tools, then **What your bots learn** (its skills'
+descriptions; their and its connectors' code names are in View source) and the Information table.
+
+**Account lines** (`accountLine`, D-110). The same for every app, the first line included.
+- A line reads "label · address", or the address alone; before its first sign-in, the label or "Not signed in yet".
+- Who uses it, in words (`sharedWith`): "Everyone in <home>, and their bots, can read and send from <address>." for a
+  mailbox (Gmail, Outlook), "… can use <address>." for any other app, then "Added by <name>." or "Added by you.".
+- Its status, and, only where `canChange`, rename, the button it needs (Sign in again for a line with an address, else
+  Sign in, Reconnect or Retry) and a bin, which asks "Remove it for everyone in <home>? Their bots stop using it.".
+  Request pace's choices follow `canChange` too.
+- **+ Add account** opens the Add account step (`MercbotAddAccount.vue`, `addAccountStep`): a label (optional), the
+  same sentence for "the account you connect", a note on what opens ("A Google window opens so you can pick the
+  account.", or on a phone "Google's sign-in opens here, then brings you back."), Cancel, and **Sign in with Google**,
+  never disabled for want of a label. A bot's connect card's **Connect** opens what connecting means above the same
+  step (`MercbotConnectExplainer.vue`).
+- **Remove from this home** shows only where `canRemove`, and asks first (`removeAppQuestion`): "Remove Gmail from
+  <home>, with its account? Everyone's bots stop using it.".
+
+**Someone who leaves takes their accounts** (D-111, `departures.js`). The feature listens on `runtime.events` for
+JSKIT's `entity.changed` of a home's members (published after the change is saved, the removal among them) and, in a
+job context in that home, reads its active members, withdraws (`connections.withdraw`) and deletes every account
+someone no longer in it added, and records each in the home's Activity trail through `mercbot.apps`' `activity.record`
+(actor Mercbot, via `settings`, `changes.departedAccount: { app, account, person }`; Apps' Activity reads "removed
+<app> <account>, which <person> connected, as they're no longer in the home"). It reads the home as it is, so any end
+of a membership is covered; a failure is logged and done at the home's next change of people. The apps they added stay.
+Nothing here refuses a removal: a Drive holding the home's files goes too (D-80's `storage.heldInTheirDrive` counts the
+Drive accounts the person added, for a host that refuses such a removal first).
 
 **Copies reached only on their own machine** (`APP_PUBLIC_URL` on localhost or 127.0.0.1,
 such as Preview or a home server):
@@ -118,7 +175,7 @@ such as Preview or a home server):
 - `POST …/connections/finish` (`{ address }`) finishes it, only for that address and for the
   person's own sign-in.
 
-**Files in the person's own Drive or OneDrive**:
+**Files in the home's Google Drive or OneDrive accounts**:
 - `list_drive_files` shows the newest five (more only when the person names a number).
 - `create_drive_document` makes a Google Doc from simple HTML, or for OneDrive a Word file made with the word app, at the top level, with no approval card.
 - `bin_drive_file` moves a file to the bin (restorable for 30 days), never a permanent delete. Google Drive is signed in with full Drive access (D-42); a drive connected before that can only change files Mercbot made until it's signed in again.
@@ -129,19 +186,27 @@ such as Preview or a home server):
 **Tools**:
 - A plugin's `actions` list names the bot tools that work with it. A grouped tool's actions are listed one by one as `tool.action` (D-42), so Gmail shows 24 rows, Google Drive 19 and GitHub 52.
 - A connected app's page shows "N of N enabled". It opens to a switch per action (`PUT …/plugins/:pluginId/actions/:actionId {enabled}`, stored in `plugin_actions_off` per person and app).
-- `integrations.toolSwitches(reach)` gives each reply the apps to skip per tool, the tools to drop when every connected app has them off, and the switched-off actions in words. The bot is told not to do those on the app's website either.
+- `integrations.toolSwitches(options)` gives each reply the apps to skip per tool, the tools to drop when every connected app has them off, and the switched-off actions in words. The bot is told not to do those on the app's website either.
 
 **Account states:**
-- `sign_in_state` is `started` when a sign-in begins and `failed` when it's cancelled or refused; it's cleared on success or disconnect.
-- Rows show Connected, or Needs auth with Sign in, Reconnect or Retry.
-- The installed overview shows each app's worst state, its parts ("1 connector, 2 skills"), and six apps before "Show all N plugins".
+- `sign_in_state` is `started` when a sign-in begins and `failed` when it's cancelled or refused; it's cleared on success.
+- Lines show Connected, Needs more access, or Needs sign-in with Sign in again, Sign in, Reconnect or Retry.
+- The installed overview shows each app's worst state as words (Connected, Needs sign-in, or No account yet), its parts
+  ("1 connector, 2 skills"), and six apps before "Show all N plugins"; a row opens the app, and starts no sign-in.
 - Private skills follow it, with "Open a skill to change its name, description or instructions." once there is one. Skills
   (the shell's, `openSkills`) opens the modal on this page (`startPage: "manage"`) scrolled to them.
 
-**Sign-in pages:**
-- A cancelled sign-in says nothing was connected.
+**Sign-in pages** (`signInPage.js`, D-110): a title and a sentence, then one main button and a small **Back to
+Mercbot** (the way back of a same-tab sign-in, else `/`).
+- Connected: "Connected to <provider>", **Close**. In its own window it tells the shell's tabs and closes itself once
+  one answers; in Mercbot's own tab it goes straight back.
+- Not connected: "Couldn't connect" and why, **Try again** (the sign-in's start, from session storage; else Close).
 - A work account whose organisation must approve first gets a copyable approval link for IT: Microsoft admin consent, or Google's admin console with the client ID.
-- Every page links back to Mercbot.
+- **Close** calls `window.close()`; a window the browser keeps (one a page didn't open) shows "You can close this tab
+  now." 300 ms later instead. Only a path on this site is followed. The script is served at
+  `/api/connections/sign-in-page.js`, for a Content Security Policy without inline scripts.
+- `/account/connect`'s problem page has Close: it closes the sign-in's window, or, in a tab the sign-in took (a
+  phone), replaces the page with where the sign-in began (`takeWayBack`), through the router.
 
 **Naming accounts:**
 - When a tool spans several apps (calendar: Google and Outlook), accounts are listed as "App: label · address", in the apps' order, Google first.
@@ -173,17 +238,17 @@ such as Preview or a home server):
   (RFC 8707) on the consent screen, the code exchange and every renewal; the same callback, sign-in pages
   and account rows as Google's. Right after a sign-in the app's actions are listed and stored in
   `connector_apps.tools`, which is what **Tools** shows (`{ id, name, reads }`); none until someone connects.
-- `integrations.connectors`: `apps()` (the catalogue's `mcp` entries), `actions(reach, accountId)` (the
+- `integrations.connectors`: `apps()` (the catalogue's `mcp` entries), `actions(accountId, options)` (the
   app's MCP tools for that account, kept 10 minutes per server, less the switched-off ones, named in `off`)
-  and `use(reach, accountId, name, input)` (`{ text, isError }`; 403 `integrations_connector_action_off`
+  and `use(accountId, name, input, options)` (`{ text, isError }`; 403 `integrations_connector_action_off`
   for a switched-off one). Each is one short Streamable HTTP conversation (initialize, then the request,
   JSON or server-sent events, then the session is ended).
 - Keys: a key about to run out is renewed first, a key the app refuses (401/403) is renewed once and tried
   again; a renewal refused (`invalid_grant`, or none possible) signs the account out (Needs auth, label kept)
   with 409 `integrations_connector_signed_out`. A renewal holds the account's row lock
   (`accounts.withLockedAccount`): of two servers renewing at once, the second takes the first's new key, as
-  Notion and Todoist take each refresh key once (D-15). Disconnecting withdraws the sign-in at the app too, where it
-  offers revocation.
+  Notion and Todoist take each refresh key once (D-15). Removing an account withdraws the sign-in at the app too, where
+  it offers revocation.
 
 **Request pace** (D-96, `appRequests.js`): every request to a connected account's app goes through the account's own
 `fetch`, which integrations makes: `connections.accessToken` answers it beside the key (`fetch`), and the bots' keys,
@@ -201,21 +266,23 @@ the general connector's actions and listings, a credentials kind's reads and the
   reset; Google's 403 rate-limit reasons) moves the account's next turn past the wait it names (5 s when it names none,
   an hour at most). A wait of 10 s or less is waited out once, in turn; a longer one, or a second busy answer, is
   `AppBusyError`. A 503 to a change is answered to its caller and never sent again.
-- `PUT …/plugin-accounts/:accountId/pace` (`integrations.choosePace`) changes it: a home's account its owners and admins, one's own account its
-  person (403 for anyone else, 404 for an account the person doesn't reach). The app's page shows **Request pace** with
+- `PUT …/plugin-accounts/:accountId/pace` (`integrations.choosePace`) changes it: the person who added the account and
+  the home's owners and admins (403 for anyone else, 404 for an account of another home). The app's page shows **Request pace** with
   a choice per connected account (`MercbotRequestPace.vue`); the list's accounts carry `pace` (`gentle` when unset).
 - A general connector's session handshake (initialize, initialized, ending the session) is the protocol's own and goes
   unpaced; making a key (sign-in, renewal, a credentials kind's `mint`) is too.
 
 **Connect card:** an app Mercbot can't connect to yet still gets its card, with an "Ask for it" button that opens the app's page.
 
-**Bots.** Bot tools reach accounts through `integrations.reachableAccounts(reach, options, filters)`
-(only the connected accounts of the tool's apps) and `connections.accessToken(reach, id)`, and
+**Bots.** Bot tools reach the home's accounts through `integrations.reachableAccounts(options, filters)`
+(only the connected accounts of the tool's apps) and `connections.accessToken(id, options)`, and
 name and draw apps from the catalogue (`integrations.app`, `appName`, `appNamed`) without reading
-any table. A home's account is named "(the home's)" in the bot's current state. The bots hear of
+any table. The bot's current state names who connected each account ("connected by them", or by <name>,
+`integrations.namesOf`); a mailbox someone else connected shows its bot no sign-in codes or links (D-111,
+`genesis/program/bots/conversations.md`). The bots hear of
 each account that turns connected through `connections.whenConnected(listener)`: a sign-in's callback
 (`finishSignIn`) and a hub's sign-in found by `syncPending` save the account and tell each listener
-`{ pluginId, userId, homeId }` (homeId null for a person's own) inside one transaction
+`{ pluginId, userId, homeId }` inside one transaction
 (`accounts.savedConnected`), so a listener that fails rolls the sign-in back with it, and each listener's answer
 runs once that has committed (the bots' connect follow-ups, D-77).
 
@@ -256,19 +323,20 @@ app that connection is for (`pluginOf`, none once it's gone or when no feature k
 and hands it the label and the sealed tokens (`signedIn`); `connections.bridgedToken(pluginId, sealedTokens, save)`
 answers an hourly key, renewing it, and handing the renewed tokens sealed to `save`, when it ran out. Tokens are
 sealed with `MERCBOT_VAULT_KEY`. Bot tools get a key with
-`connections.accessToken(userId, accountId)` from the `mercbot.integrations` output.
+`connections.accessToken(accountId, options)` from the `mercbot.integrations` output.
 Its `acrossHomes` is for whoever runs the copy and reads in the feature's own system context, which reaches every home:
-`accountsOf(userId, options)` lists every account a person added, their own and the homes', in the order they were
-added, each with its app, name, label, status, `home` (home-wide or personal), `workspaceId` and `connectedAt`, never
-its keys; `disconnect(accountId, options)` disconnects any account by its id as its owner's disconnect does (the app's
-sign-in withdrawn, at the hub too when it borrowed the hub's, then its keys, label and status cleared), answers what it
-disconnected, and refuses an id no account has with 404 `integrations_account_not_found`.
+`accountsOf(userId, options)` lists every account a person added, in every home, in the order they were
+added, each with its app, name, label, status, `workspaceId` and `connectedAt`, never
+its keys; `disconnect(accountId, options)` disconnects any account by its id, the safety action people themselves no
+longer have (D-110): the app's sign-in withdrawn as a removal's is, at the hub too when it borrowed the hub's, then its
+keys, label and status cleared, so its line shows Sign in and its bin; it answers what it disconnected, and refuses an
+id no account has with 404 `integrations_account_not_found`.
 A key from a direct sign-in that is about to run out (less than a minute left) is renewed
 holding the account's row lock (`tokenRenewal.js`, `accounts.withLockedAccount`, D-15): of two servers renewing at
 once, the second takes the first's new key, so the provider is asked once. A renewal the
 provider refuses (`invalid_grant`: access withdrawn, or a testing app's week ran out) signs the
 account out (Needs auth) with 409 `integrations_sign_in_ran_out`; any other failure is 502
-`integrations_renewal_failed` and leaves it signed in. `connections.accessToken(reach, id, options, {refused})`
+`integrations_renewal_failed` and leaves it signed in. `connections.accessToken(id, options, {refused})`
 also renews a key the provider turned down before it ran out (`refused`, D-80), under the same lock and only while
 it's still the saved key, so of several servers that saw it turned down one asks the provider; it answers `renewed`
 when this call asked. A home's files kept in Google Drive get their keys this way (D-80). Outside staging and production only (`APP_ENV`, D-87), `MERCBOT_TEST_GOOGLE_DRIVE_URL` makes the
@@ -285,11 +353,13 @@ home's Activity trail through `mercbot.apps`' `activity.record` (via `settings`,
 **Apps connected with a home's API credentials** (D-93): a plugin's `credentials` block names its `kind`
 (`credentials.js`; Sedna's is `sednaCredentials.js`), the `fields` of its form (`id`, `label`, `secret`, `prefix`,
 `suffix`, `hint`, `optional`, `maxLength`), `help`, a `page` link (`{tenant}` filled from the typed address) and
-`home: true`, which makes its account the home's. Only owners and admins add such an app (`POST …/plugins/:pluginId/install`
+`home: true`, which makes its credentials the whole home's. Only owners and admins add such an app (`POST …/plugins/:pluginId/install`
 answers a member 403 `integrations_home_app_forbidden`, and makes one home account however many add it, even at the
-same moment: the partial unique index `ix_plugin_accounts_home_unlabelled` on `(workspace_id, plugin_id)` where `name`
-is empty makes the second add lose the insert race and find the first, D-94), add its accounts
-(only for the home: 409 `integrations_home_account_only`), enter its credentials and disconnect it.
+same moment: the partial unique index `ix_plugin_accounts_home_app_unlabelled` on `(workspace_id, plugin_id)` where
+`name` is empty, for these apps only (D-110; other apps' home accounts may all go unlabelled), makes the second add
+lose the insert race and find the first, D-94), add its accounts (a second one needs a label, 400
+`integrations_account_label_missing`), enter its credentials (403 `integrations_home_app_forbidden` for anyone else) and
+remove it with its bin, which forgets its people matches too; **Change credentials** enters new ones.
 - `POST …/plugin-accounts/:accountId/credentials {fields…}` checks the values with the app before saving anything:
   each declared field (400 `integrations_credentials_field_missing`, `_long`), the kind's `normalize` (Sedna: the
   tenant one DNS label, 400 `integrations_sedna_tenant_invalid`), a key (`mint`: 400 `integrations_credentials_refused`
@@ -303,7 +373,7 @@ is empty makes the second add lose the insert race and find the first, D-94), ad
   under the account's row lock (`tokenRenewal.js`, the kind's `mint` in place of a refresh); it answers `api`, the
   address the key is for, built from the credentials alone (Sedna: `https://<tenant>.sednanetwork.com/platform/2019-01-01`).
   The app turning the credentials down signs the account out with 409 `integrations_credentials_missing`. A sign-in,
-  here or through the hub, is refused with 409 `integrations_credentials_only`; disconnecting clears the credentials.
+  here or through the hub, is refused with 409 `integrations_credentials_only`; removing the account deletes the credentials.
 - Outside staging and production only (`isStagingOrProduction`, D-87), `MERCBOT_TEST_SEDNA_URL` points every tenant at
   the stand-in Sedna (`tests/support/fakeSedna.mjs`, `credentialKinds` in `IntegrationsFeature.js`), for the Test
   Preview.

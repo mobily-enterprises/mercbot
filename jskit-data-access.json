@@ -76,7 +76,7 @@
     },
     {
       "feature": "mercbot.integrations",
-      "systemScope": "write people's own connected accounts, which belong to no home, once a scoped read found them the caller's; finish provider sign-ins, which no one is signed in to; act on a person's own apps and skills for a job; count app demand; pace each connected account's requests to its app"
+      "systemScope": "finish provider sign-ins, which no one is signed in to; act on a person's own wishes, switches and skills for a job; withdraw the accounts of someone no longer in a home; count app demand; pace each connected account's requests to its app"
     },
     {
       "feature": "mercbot.account",

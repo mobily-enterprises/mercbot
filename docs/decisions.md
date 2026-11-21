@@ -419,7 +419,8 @@ A workspace is called a **home** in the product.
 
 - **AI keys are the copy's.** They are set by whoever runs the copy (D-30, D-72), never per person
   or per home. Usage is counted per home (it's recorded with the home).
-- **Connected accounts and app keys can belong to a person or to the whole home.** When
+- **Connected accounts and app keys can belong to a person or to the whole home.** (Superseded by
+  D-111 on 2026-11-21: every connected account is its home's.) When
   connecting, the choice is **Just me** (the default) or **The whole home**.
   - Only the home's owners and admins connect or remove home accounts. Everyone in the home sees
     them listed.
@@ -3144,6 +3145,168 @@ steps, a plan card in chat and a `propose_bots` tool on every bot.
   `template-drafts.spec.ts` (One bot's search to Describe, Edit, Ask for changes, Undo, Use this, Add 1 bot),
   `new-bot.spec.ts`, `team-add.spec.ts`, `new-home.spec.ts` and the specs that open Add bots. A real model's speed and
   cost for a plan is not measured here: tests never call a real provider.
+
+## D-110 — One account workflow for every app, and one control that signs in (2026-11-21)
+
+The owner's report, after adding accounts in a home of four: the new-account experience is "TERRIBLE … It needs to be
+rethought completely. I really hope that there is ONE workflow and that fixing one will fix them all." Who can use an
+account couldn't be changed once it was signed in; Disconnect left a line with its old name, no address and no way to
+change it; Authorize stayed disabled until a label was typed; the first line had no Remove; after Uninstall, adding again
+forced "Everyone"; and signing a line in again quietly made it another mailbox (the browser's other Google session).
+Then: "Both "Connect" and "Authorize" will start an oauth session?!", and of the page a sign-in ends on: "The main button
+should be "close", then a little "Back to Mercbot"". The owner said yes to this design, its four choices included.
+- **One workflow.** Every app people sign in to (Google's, Microsoft's, GitHub's, and those with their own connection
+  point, D-34) and every app connected with API credentials (D-93) uses the same account line and the same Add account
+  step, on an app's page in Connect apps and from a bot's connect card (`MercbotAddAccount.vue`, `accountLine` and
+  `addAccountStep` in `appsCatalogue.js`, one server flow in `integrationsService.js`).
+- **The account line.** "label · address", or the address alone (a label is optional); who can use it; its status; Sign
+  in again (or Sign in, Reconnect, Retry) only when it needs one; and a bin, on every line, the first and the only one
+  included. (Who can use it was a Just me / Everyone switch here; D-111 supersedes it: every account is its home's, and
+  the line says so in words.)
+- **One control signs in.** In Connect apps exactly one control starts a sign-in, and it says so: the Add account step's
+  **Sign in with Google** (Microsoft, GitHub, or the app's name), under a note saying what opens ("A Google window opens
+  so you can pick the account.", or on a phone "Google's sign-in opens here, then brings you back."), or a line's own
+  Sign in again. **Add to my apps** (the app's page, **Add to this home** since D-111; **Add** in the catalogue) adds the app and opens the Add account
+  step; **+ Add account** opens it; the bot's connect card's **Connect** (was Authorize) opens what connecting means and
+  the same step. Your apps and skills shows each app's state as words, and its row opens the app. A line's Sign in again
+  is hidden while the Add account step is open. An app connected with API credentials opens its form instead.
+- **Adding an account.** The label may be empty; the button is never disabled for want of one. Adding an account adds
+  the app too (before: 409 "Add the app first"). (A Just me / Everyone choice was made here; D-111 removes it.) The
+  partial unique index that held every app to one unlabelled home account is narrowed to apps whose API credentials are
+  the home's (Sedna; `ix_plugin_accounts_home_app_unlabelled`, migration `20261121225000`), so two unlabelled home
+  Gmail accounts may coexist.
+- **Who can use it, changed in place.** Superseded by D-111, which removed the switch and its route (`PUT
+  …/plugin-accounts/:id/home`) before release: every account is its home's.
+- **The bin removes, withdrawing first.** Removing an account withdraws its sign-in at the app where it offers that
+  (Calendly, Notion, Todoist) and tells the hub of a borrowed one, then deletes it; before, Remove and Uninstall skipped
+  the withdrawal, and a connected or only account couldn't be removed at all. Who may remove one is D-111's: the person
+  who added it and the home's owners and admins (403 `integrations_account_manage_forbidden`). Sedna's bin forgets the
+  home's credentials and its people matches; **Change credentials** stays.
+- **No Disconnect.** It is gone from people's screens and its route (`DELETE …/plugin-accounts/:id/connection`): the
+  bin is how an account stops, and an app's Tools switches stop single actions. Whoever runs the copy keeps disconnecting
+  any account (`connections.disconnectAnywhere`, for whoever runs the copy), which leaves a line with no address that
+  shows Sign in and its bin.
+- **Remove from my apps** (was Uninstall) asks first, naming what goes. Since D-111 it is **Remove from this home**,
+  which takes the app and all the home's accounts of it.
+- **Signing in again keeps the mailbox.** Every provider shows its account chooser (Google `prompt=select_account
+  consent`, Microsoft and GitHub `select_account`), suggesting the line's address when it has one (`login_hint`;
+  GitHub's `login`). If the provider answers with another address, nothing changes: "This Gmail account is
+  pat@example.com, but you signed in as sam@example.com, so nothing changed. To connect sam@example.com, use + Add
+  account." (compared without regard to case; the same holds for a sign-in a hub lends).
+- **Where the sign-in happens.** On a computer it opens in a window of its own (a popup, `noopener`). The page it ends
+  on tells this browser's Mercbot tabs how it went on a `BroadcastChannel` ("mercbot-sign-in"), which works although the
+  provider's cross-origin policy cuts the link to the opener, and once a tab answers and it connected, closes itself;
+  the tab shows the account connected at once, its few-seconds check kept behind it. On a phone's width (under 600 px,
+  D-38) it takes Mercbot's own tab, which leaves its way back in session storage, and once connected the page
+  goes straight back to the home with Connect apps open on the app (`?connect=<app>`).
+- **The page a sign-in ends on.** Its title and sentence ("Connected to Google", "Couldn't connect", or "Your
+  organisation needs to approve Mercbot" with its approval link), then one main button, **Close**, and under it a small
+  **Back to Mercbot**. Close calls `window.close()`; a browser keeps a window a page didn't open, so when the window is
+  still there 300 ms later the button gives way to "You can close this tab now." Close never does nothing. A sign-in that
+  didn't connect offers **Try again** in Close's place, which starts the same account's sign-in again from where it
+  began (`/account/connect` leaves its own address in session storage); with none, Close. Only a path on this site is
+  followed. `/account/connect`'s own problem page has Close, which in a tab the sign-in took goes back where it began. The script is served at
+  `/api/connections/sign-in-page.js`, so it runs under a Content Security Policy without inline scripts.
+- **An app's page in words.** The "Apps N" list of its connectors' code names (such as "gmail · Connector") and the
+  "Skills N" list of its skills' code names are replaced by **What your bots learn**, the skills' descriptions; the code
+  names stay in View source.
+- **Not met yet.** A hub-lent sign-in gets no address suggested at the hub, and its window doesn't close by itself on
+  the copy's site. Removing a Google, Microsoft or GitHub account doesn't revoke its key at the provider, since that
+  revokes the person's whole grant to Mercbot, cutting their other accounts of the same address (the key is deleted
+  here). A browser that blocks windows opened after a wait (Safari) may block the sign-in window, as before. Nothing yet
+  refuses removing the Drive account that holds a home's files.
+- **Proof.** `tests/server/accountWorkflow.integration.js` (no label, adding after the app was removed, every line's bin
+  with the withdrawal first, Sedna's one unlabelled home account; D-111 replaced its switch tests);
+  `tests/server/connections.integration.js` (signing in again as another address changes nothing, here and through the
+  hub); `tests/server/signInReturn.test.js` (the account chooser and address for each provider; the end page's Close,
+  "You can close this tab now", Try again and way back, only on this site); `tests/client/appsCatalogue.vitest.js`,
+  `connectFromCard.vitest.js`, `signInWatch.vitest.js`; `tests/e2e/accounts.spec.ts` on Chromium, Firefox and WebKit
+  (the count of controls that start a sign-in, 0 before the Add account step and 1 on it, the window closing by itself,
+  the bin, removing the app, the phone's same-tab return, and the end page's buttons), with
+  `sedna.spec.ts`, `connector.spec.ts`, `drive-storage.spec.ts` and `shell.spec.ts`.
+
+## D-111 — Every connected account is its home's (2026-11-21)
+
+The owner, reversing D-110's Just me / Everyone switch before release: "every connection is public by definition", and
+"there are NO private connectors anymore. Every connector is public." This supersedes D-37's split of connected
+accounts into a person's own and the home's, and D-110's switch.
+- **One kind of account.** Every connected account belongs to one home (`plugin_accounts.workspace_id`, now required),
+  and everyone in the home, and every bot there, may use it, in any chat: a person's own chats, a Shared bot's shared
+  tabs and group chats alike. `user_id` says who added it. There is one permission path, the home's, with no own-plus-home
+  split (`accounts.js`: every read is scoped to the call's home; the old `rowPolicies.js` is gone). Two rules of their own
+  stay: an app connected with the home's API credentials acts as each person's own user there, so it is used only in a
+  person's own chats (D-93, D-94), and Sedna's tools run only in a person's own chat (D-93).
+- **Who may do what.** Adding an account: anyone in the home, as adding an app is (an app whose API credentials are the
+  home's stays its owners' and admins', 403 `integrations_home_app_forbidden`). Renaming, removing, signing in again and
+  choosing its Request pace: the person who added it and the home's owners and admins, else 403
+  `integrations_account_manage_forbidden` ("Only the person who added this account and the home's owners and admins
+  can change it."). The list answers each account's `addedBy`, `addedByYou` and `canChange`, and each app's `canRemove`;
+  the line shows Rename, Sign in again and the bin only to those who may.
+- **The home's apps.** The apps on a home's list are the home's too: `home_plugins` (home, app, who added it, when; one
+  row per home and app) replaces each person's `user_plugins`. **Add to my apps** is **Add to this home**. **Remove from
+  this home** withdraws every account of the app in the home at its app and the hub, then deletes them and the app's row.
+  It is the home's owners' and admins', and the person who added the app's while every account of it in the home is one
+  they added; otherwise 403 `integrations_home_app_remove_forbidden` ("Only the home's owners and admins can remove
+  <app> from the home while it has accounts someone else added."), and the button isn't shown. Removing an app's last
+  account keeps the app on the list.
+- **Plain words.** The Add account step and every account's line say who uses it: "Everyone in <home>, and their bots,
+  can read and send from <address>." for a mailbox (Gmail, Outlook), "… can use <address>." for any other app ("the
+  account you connect" before it's signed in), then "Added by <name>." or "Added by you." The bin asks "Remove it for
+  everyone in <home>? Their bots stop using it."; Remove from this home asks "Remove <app> from <home>, with its account?
+  Everyone's bots stop using it." A bot's connect card says nothing is changed or sent without a yes on its card first.
+  Nothing about sending changes: a send card shows which mailbox the mail goes from, and it is answered
+  as every card is (in a person's own chat by them, in a group by the person who asked, D-46; in a Shared bot's shared
+  tab by anyone in it).
+- **The bots' view.** Each reply's current state names every connected account with who connected it: "Gmail:
+  pat@example.com (the person's own, connected by them)", or "(connected by Sam)" (`botTurns.js`). "(the home's)" is gone.
+- **Sign-in codes and links stay with the person who connected the mailbox.** With every mailbox shared, anyone's bot
+  could otherwise sign in to someone else's accounts with a code or a magic link from that person's mail. So a bot sees
+  them only in mailboxes that the person whose turn it is connected (`signInSecrets.js`). That person is the call's
+  actor (`turnPerson`): whoever wrote the message, in a shared tab or a group too, the routine's owner in a routine, and
+  the person a job acts for. Reading any other mailbox, `search_email`, `read_email` and `mail_drafts` (list and read)
+  hide them in the subject, the snippet and the text before the bot sees them, as "[sign-in code hidden]" and
+  "[sign-in link hidden]", and tell the bot why and not to look for them another way. Sedna's reads hide nothing: they
+  read as the person's own Sedna user, only what their own teams see there (D-93). A year after a
+  month's name ("21 Nov 2026") isn't taken for a code, so a sign-in alert's date stays. Typing a code from
+  email into a page (D-77) reads only mailboxes the person connected. **This is a heuristic**, read from the words: a
+  code is 4 to 8 digits, two groups of 3 or 4, or 6 to 8 capitals and digits with a digit among them, on a line that
+  talks of a code, signing in, verifying, a password or two-step sign-in, or on one of the two lines after it, or
+  anywhere in an email whose subject does; a link is one whose address speaks of signing in, verifying, confirming, a
+  reset, a token, a one-time code, an invitation or an activation, or that stands on or just after such a line. It hides too much rather than too
+  little (a promotion's code beside "code" goes too), and misses a code in a picture or written in words.
+- **Leaving takes one's accounts.** When someone is no longer in a home (removed now; a leave, which doesn't exist yet,
+  the same way), the accounts they added there are withdrawn at their app and the hub, then deleted, and the home's
+  Activity trail says so, by Mercbot: "removed Gmail pat@example.com, which Pat connected, as they're no longer in the
+  home" (`departures.js`). It runs on every change of the home's people that JSKIT tells of (`entity.changed` for the
+  home's members, after the change is saved) and reads the home as it is, so any end of a membership is covered; one
+  that fails is logged and done at the home's next change of people. The apps they added stay on the home's list. A
+  Google Drive that holds the home's files goes too, and the home's files then need Settings → Files again: public
+  Mercbot refuses no removal for it, so a host that should refuse one does so before the removal
+  (`storage.heldInTheirDrive` counts the Drive accounts the person added).
+- **People's own accounts are moved, once** (migration `20261121230000_accounts_belong_to_homes`, one transaction).
+  Each account without a home goes, the same row with its keys, address and pace, to exactly one home: the home whose
+  files are kept in that Google Drive, or being moved into it (Settings → Files, unsealed with `MERCBOT_VAULT_KEY`, the
+  env the migrations run with; the first such home when two use it; with no key, or a setting that doesn't open, this
+  step finds nothing); else the one home the person is in besides their own first home, when there is exactly one; else
+  their first home (the one made for them, else the first they're in). One whose person is in no home is deleted, as
+  nobody could reach it. An unlabelled Sedna row without a home is named "Sedna <id>" first, as such apps keep one
+  unlabelled account a home. Each app goes on the list of every home that holds one of its accounts, added by whoever
+  added the first; an app someone added with no account goes on their first home's list. Then `user_plugins` is
+  dropped, `plugin_accounts.workspace_id` is made NOT NULL, and `connect_follow_ups.personal` and its person index
+  `ix_connect_follow_ups_person` are dropped (a connect card's follow-up now waits for any account of its home's app,
+  found by `ix_connect_follow_ups_home`). No row makes it fail.
+- **This release can't be rolled back.** Nobody uses Mercbot before day 0, so the move, the dropped table and the
+  required column come in one release, with no compatibility step; the migration's `down` refuses. An older server
+  still running during the switch-over that writes an account without a home is refused by NOT NULL.
+- **Proof.** `tests/server/characterization/connectedAccounts.integration.js` (everyone and every bot reach every
+  account of their home and none of another's; the switch route answers 404), `accountWorkflow.integration.js` (who
+  adds, changes and removes; Remove from this home), `homes.integration.js` (a member can't rename, remove or pace
+  someone else's account, an owner can), `connectAppsReads.integration.js` (the bots' view names who connected each),
+  `signInSecrets.test.js` (realistic sign-in emails hidden, ordinary ones kept, and `search_email` and `read_email`
+  hiding them in a mailbox someone else connected but not in the person's), `signInCodes.test.js` (a code is typed only
+  from a mailbox the person connected), `departedAccounts.integration.js` (a removal through JSKIT's route takes the
+  person's accounts of that home, with its Activity entry), `accountsBelongToHomes.integration.js` (the migration on
+  each branch), and the browser specs `accounts.spec.ts`, `sedna.spec.ts` and `shell.spec.ts`.
 
 ## D-112 — Chats are the core: members, Public and Private chats (2026-11-22)
 

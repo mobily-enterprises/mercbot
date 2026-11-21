@@ -104,17 +104,15 @@ export function createFollowUpRepository({ connectFollowUps: followUps }) {
   }
 
   /**
-   * Marks ready the rows a newly connected account reaches whose sign-in started in the last `minutes`: every chat of
-   * its home, as every account is the home's; one with no home the person's own rows. Each start is due in
-   * `graceSeconds`, so the server that marked it starts it first. Answers their ids.
-   * @param {{ pluginId: string, userId: string, homeId: string | null }} connection
+   * Marks ready the rows a newly connected account reaches whose sign-in started in the last `minutes`: every chat in
+   * its home (D-111). Each start is due in `graceSeconds`, so the server that marked it starts it first. Answers their ids.
+   * @param {{ pluginId: string, homeId: string }} connection
    * @param {{ minutes: number, graceSeconds: number }} timing
    * @param {CallOptions} options the bots' system context, in the transaction that saves the connection
    */
-  function markReady({ pluginId, userId, homeId }, { minutes, graceSeconds }, options) {
-    const reached = homeId == null ? { userId: String(userId) } : { workspaceId: String(homeId) };
+  function markReady({ pluginId, homeId }, { minutes, graceSeconds }, options) {
     return followUps.patchWhere(
-      { status: "waiting", pluginId: String(pluginId), ...reached, startedWithin: minutes },
+      { status: "waiting", pluginId: String(pluginId), workspaceId: String(homeId), startedWithin: minutes },
       { status: "ready", leaseUntil: secondsFromNow(graceSeconds) },
       { ...passedOn(options), returning: "ids" }
     );

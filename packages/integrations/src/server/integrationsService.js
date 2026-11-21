@@ -14,12 +14,15 @@ export const ACTION_SWITCH_FILTERS = Object.freeze({
 });
 
 /**
- * An account as Connect apps shows it; a home's says so and who added it (D-37).
+ * An account as Connect apps shows it (D-111): who added it, and whether the call's person may change it (the person
+ * who added it, and the home's owners and admins).
  * @param {Record<string, any>} account a record of accounts.reachable, with its tokens
  * @param {Connections["lacksAccess"]} lacksAccess
- * @param {Map<string, string>} names who added each home's account
+ * @param {Map<string, string>} names who added each account
+ * @param {object} options the call's
+ * @param {import("./types.js").Accounts} accounts
  */
-function toAccount(account, lacksAccess, names) {
+function toAccount(account, lacksAccess, names, options, accounts) {
   return {
     id: account.id,
     name: account.name,
@@ -27,10 +30,11 @@ function toAccount(account, lacksAccess, names) {
     // connected one whose app now asks for more than it was given (D-42).
     status: account.status === "needs-auth" && account.signInState ? account.signInState : lacksAccess(account) ? "more-access" : account.status,
     label: account.label || null,
-    home: account.home,
+    addedBy: names.get(account.userId) || "",
+    addedByYou: account.userId === String(accounts.personOf(options) ?? ""),
+    canChange: accounts.mayChange(account, options),
     // Its Request pace (D-96): the one chosen in Connect apps, or Gentle.
-    pace: paceOf(account),
-    ...(account.home ? { addedBy: names.get(account.userId) || "" } : {})
+    pace: paceOf(account)
   };
 }
 
@@ -51,8 +55,8 @@ function toSkill(record) {
 /** @typedef {ReturnType<typeof import("./connections.js").createConnections>} Connections */
 
 /**
- * Connect apps (D-31, D-33, D-37): the catalogue with what each person added, their accounts and
- * the home's, the switches on each app's actions, and the skills bots learn. Its `connections`
+ * Connect apps (D-31, D-33, D-111): the catalogue with the apps on the home's list and the home's
+ * accounts, each person's switches on each app's actions, and the skills bots learn. Its `connections`
  * sign accounts in and give bot tools a provider key (accessToken) when they call an app.
  *
  * Every method takes the call's options last: a request's (`request.callOptions()`), or a job's acting for
@@ -67,7 +71,7 @@ function toSkill(record) {
  * @param {(reason: string) => object} dependencies.systemContext the feature's system scope
  */
 export function createIntegrationsService({ resources, accounts, catalogue, connections, profiles, systemContext }) {
-  const { userPlugins, userSkills, appInterest, pluginActionsOff } = resources;
+  const { homePlugins, userSkills, appInterest, pluginActionsOff } = resources;
 
   function plugin(pluginId) {
     const found = catalogue.find((entry) => entry.id === pluginId);
@@ -76,7 +80,7 @@ export function createIntegrationsService({ resources, accounts, catalogue, conn
   }
 
   /**
-   * The options for the person's own rows (added apps, wishes, switches, skills: `user` tables). A
+   * The options for the person's own rows (wishes, switches, skills: `user` tables). A
    * request's are its own, and so are a job's already scoped to the person. A home's job acting for a
    * person reads and writes the person's rows, and only theirs, through a context for that person.
    */
@@ -85,11 +89,11 @@ export function createIntegrationsService({ resources, accounts, catalogue, conn
     const person = accounts.personOf(options);
     if (!person) throw new Error("integrations: a person's own apps and skills need a signed-in person or a job acting for one.");
     if (String(resolveUserScopeValue(options?.context) ?? "") === String(person)) return passedOn(options);
-    return { ...passedOn(options), context: systemContext("read and change a person's own apps, switches and skills for a job acting for them").forUser(person) };
+    return { ...passedOn(options), context: systemContext("read and change a person's own wishes, switches and skills for a job acting for them").forUser(person) };
   }
 
   /**
-   * People's names by id, for who added a home's account.
+   * People's names by id, for who added each account.
    * @param {Array<string | number>} userIds
    * @param {object} options
    * @returns {Promise<Map<string, string>>}
@@ -118,14 +122,14 @@ export function createIntegrationsService({ resources, accounts, catalogue, conn
   }
 
   /**
-   * The catalogue with each plugin's install state, and the accounts this person reaches: their
-   * own and the home's (D-37).
+   * The catalogue with each plugin's place on the home's list (`installed`, and `canRemove`: whether the call's person
+   * may take it off, mayRemoveApp) and the home's accounts (D-111).
    */
-  async function list(reach, options) {
+  async function list(options) {
     const mine = own(options);
-    const installed = new Set((await userPlugins.queryAll({ fields: ["pluginId"] }, mine)).map((record) => record.pluginId));
-    const accountRows = await accounts.reachable(reach, options, { tokens: true });
-    const names = await namesOf(accountRows.filter((row) => row.home).map((row) => row.userId), options);
+    const marks = new Map((await homePlugins.queryAll({ fields: ["pluginId", "userId"] }, passedOn(options))).map((record) => [record.pluginId, record]));
+    const accountRows = await accounts.reachable(options, { tokens: true });
+    const names = await namesOf([...new Set(accountRows.map((row) => row.userId))], options);
     const skills = (await userSkills.queryAll({ sort: ["id"] }, mine)).map(toSkill);
     const wanted = new Set((await appInterest.queryAll({ fields: ["pluginId"] }, mine)).map((record) => record.pluginId));
     const off = await actionsOff(options);
@@ -133,10 +137,12 @@ export function createIntegrationsService({ resources, accounts, catalogue, conn
     return {
       plugins: catalogue.map((entry) => {
         const actions = actionsOf(entry, listed);
+        const appAccounts = accountRows.filter((row) => row.pluginId === entry.id);
         return {
           ...entry,
-          installed: installed.has(entry.id),
-          accounts: accountRows.filter((row) => row.pluginId === entry.id).map((row) => toAccount(row, connections.lacksAccess, names)),
+          installed: marks.has(entry.id),
+          canRemove: marks.has(entry.id) && mayRemoveApp(marks.get(entry.id), appAccounts, options),
+          accounts: appAccounts.map((row) => toAccount(row, connections.lacksAccess, names, options, accounts)),
           // What the bot can do with the app, each with the person's switch.
           ...(actions ? { actions: actions.map((action) => ({ ...action, enabled: !off.get(entry.id)?.has(action.id) })) } : {}),
           ...(entry.soon ? { wanted: wanted.has(entry.id) } : {})
@@ -160,141 +166,143 @@ export function createIntegrationsService({ resources, accounts, catalogue, conn
     return actions?.length ? actions : null;
   }
 
-  /** Adding a plugin creates its default account, which still needs signing in. */
-  async function install(reach, pluginId, options) {
+  /** Puts the app on the home's list, once, as added by the call's person; a second add at the same moment finds the first. */
+  function addToHome(entry, options) {
+    const person = accounts.personOf(options);
+    return homePlugins.createMany([{ pluginId: entry.id, userId: person ? String(person) : null }], {
+      ...passedOn(options),
+      onConflict: { keys: ["workspaceId", "pluginId"], action: "ignore" }
+    });
+  }
+
+  /**
+   * Whether the call's person may take the app off the home's list, with all its accounts (D-111): the home's owners and
+   * admins, and the person who added it while every account of it in the home is one they added.
+   * @param {{ userId?: string | null } | undefined} mark the app's home_plugins record
+   * @param {Array<{ userId: string }>} appAccounts the home's accounts of the app
+   */
+  function mayRemoveApp(mark, appAccounts, options) {
+    if (accounts.managesHome(options)) return true;
+    const person = String(accounts.personOf(options) ?? "");
+    return Boolean(person) && String(mark?.userId ?? "") === person && appAccounts.every((found) => found.userId === person);
+  }
+
+  /** An app whose API credentials are the whole home's (D-93) is its owners' and admins' to connect. */
+  const homeAppForbidden = (entry) =>
+    new IntegrationsError(403, `Only the home's owners and admins can connect ${entry.name}: its API credentials are the whole home's.`, {
+      code: "integrations_home_app_forbidden",
+      params: { app: entry.name }
+    });
+
+  /**
+   * Adding a plugin puts it on the home's list, for anyone in the home. An app people sign in to gets its accounts from
+   * the Add account step (addAccount, D-110), never an unnamed one of its own; an app whose API credentials are the
+   * home's makes the home's one.
+   */
+  async function install(pluginId, options) {
     const entry = plugin(pluginId);
     // Not connectable yet: Add records that the person wants it (D-33).
     if (entry.soon) {
       await appInterest.createMany([{ pluginId: entry.id }], { ...own(options), onConflict: { keys: ["userId", "pluginId"], action: "ignore" } });
-      return list(reach, options);
+      return list(options);
     }
-    if (entry.credentials?.home) return installForHome(reach, entry, options);
-    // Added once: a second Add at the same time loses the unique (user, app) race and finds the first.
-    await retryLostInsertRace(options, () => userPlugins.withTransaction(passedOn(options), async (txOptions) => {
-      const mine = own(txOptions);
-      const [added] = await userPlugins.queryAll({ filters: { pluginId: entry.id }, fields: ["pluginId"] }, mine);
-      if (added) return;
-      await userPlugins.create({ pluginId: entry.id }, { ...mine, returning: "none" });
-      // The first account has no label: it's shown by its address once signed in.
-      await accounts.addPersonalAccount({ pluginId: entry.id, name: "" }, txOptions);
-    }));
-    return list(reach, options);
+    if (entry.credentials?.home) return installForHome(entry, options);
+    await addToHome(entry, options);
+    return list(options);
   }
 
   /**
    * An app whose API credentials are the whole home's (D-93), such as an organisation's: only the home's owners and
    * admins add it, and adding it makes the home's account, which still needs its credentials, unless the home has one.
    */
-  async function installForHome(reach, entry, options) {
-    if (!accounts.managesHome(options)) {
-      throw new IntegrationsError(403, `Only the home's owners and admins can connect ${entry.name}: its API credentials are the whole home's.`, {
-        code: "integrations_home_app_forbidden",
-        params: { app: entry.name }
-      });
-    }
-    await retryLostInsertRace(options, () => userPlugins.withTransaction(passedOn(options), async (txOptions) => {
-      const mine = own(txOptions);
-      const [added] = await userPlugins.queryAll({ filters: { pluginId: entry.id }, fields: ["pluginId"] }, mine);
-      if (!added) await userPlugins.create({ pluginId: entry.id }, { ...mine, returning: "none" });
-      const [homes] = await accounts.reachable(reach, txOptions, { filters: { pluginId: entry.id, homeOnly: true } });
-      if (!homes) await accounts.addHomeAccount({ pluginId: entry.id, name: "" }, txOptions);
+  async function installForHome(entry, options) {
+    if (!accounts.managesHome(options)) throw homeAppForbidden(entry);
+    await retryLostInsertRace(options, () => homePlugins.withTransaction(passedOn(options), async (txOptions) => {
+      await addToHome(entry, txOptions);
+      const [account] = await accounts.reachable(txOptions, { filters: { pluginId: entry.id } });
+      if (!account) await accounts.addAccount({ pluginId: entry.id, name: "" }, txOptions);
     }));
-    return list(reach, options);
-  }
-
-  /** Removing an app removes the person's own accounts of it; the home's stay. */
-  async function uninstall(reach, pluginId, options) {
-    const entry = plugin(pluginId);
-    await userPlugins.withTransaction(passedOn(options), async (txOptions) => {
-      const person = accounts.personOf(txOptions);
-      const ownAccounts = (await accounts.reachable({ personal: true }, txOptions, { filters: { pluginId: entry.id, userId: person } }))
-        .filter((found) => !found.home);
-      for (const found of ownAccounts) await accounts.deleteAccount(found, txOptions);
-      await userPlugins.deleteWhere({ pluginId: entry.id }, own(txOptions));
-    });
-    return list(reach, options);
+    return list(options);
   }
 
   /**
-   * Another account of the same app carries the label the person gives it, e.g. "work". The
-   * home's owners and admins can add one for the whole home instead (D-37).
+   * Remove from this home (D-111): the app leaves the home's list with every account of it in the home, each sign-in
+   * withdrawn first. Who may: mayRemoveApp, else 403 integrations_home_app_remove_forbidden.
    */
-  async function addAccount(reach, pluginId, label, { forHome = false } = {}, options) {
+  async function uninstall(pluginId, options) {
     const entry = plugin(pluginId);
-    if (entry.credentials?.home && !forHome) {
-      throw new IntegrationsError(409, `${entry.name}'s accounts are the whole home's: add one for everyone in the home.`, {
-        code: "integrations_home_account_only",
+    const appAccounts = await accounts.reachable(options, { filters: { pluginId: entry.id }, tokens: true });
+    const [mark] = await homePlugins.queryAll({ filters: { pluginId: entry.id }, fields: ["userId"] }, passedOn(options));
+    if (!mayRemoveApp(mark, appAccounts, options)) {
+      throw new IntegrationsError(403, `Only the home's owners and admins can remove ${entry.name} from the home while it has accounts someone else added.`, {
+        code: "integrations_home_app_remove_forbidden",
         params: { app: entry.name }
       });
     }
-    if (forHome && !accounts.managesHome(options)) {
-      throw new IntegrationsError(403, "Only the home's owners and admins can add accounts for everyone.", {
-        code: "integrations_home_account_forbidden"
-      });
-    }
-    if (!forHome) {
-      const { records: [added] } = await userPlugins.query({ filters: { pluginId: entry.id }, fields: ["pluginId"], page: { size: 1 } }, own(options));
-      if (!added) throw new IntegrationsError(409, "Add the app first.", { code: "integrations_app_not_added" });
-    }
-    const name = String(label || "").trim().slice(0, 80);
-    if (!name) {
-      throw new IntegrationsError(400, "Give the account a label, such as work or family.", { code: "integrations_account_label_missing" });
-    }
-    const accountId = forHome
-      ? await accounts.addHomeAccount({ pluginId: entry.id, name }, options)
-      : await accounts.addPersonalAccount({ pluginId: entry.id, name }, options);
-    return { ...await list(reach, options), accountId };
+    for (const found of appAccounts) await connections.withdraw(found, options);
+    await homePlugins.withTransaction(passedOn(options), async (txOptions) => {
+      for (const found of appAccounts) await accounts.deleteAccount(found, txOptions);
+      await homePlugins.deleteWhere({ pluginId: entry.id }, passedOn(txOptions));
+    });
+    return list(options);
   }
 
-  async function renameAccount(reach, accountId, name, options) {
+  /**
+   * The Add account step (D-110): an account of the home's, added by the call's person, with the label they give it
+   * (e.g. "work"), or none, when the list shows it by its address once signed in; the app goes on the home's list too.
+   * Anyone in the home adds one, except of an app whose API credentials are the home's: its owners and admins. That app
+   * keeps one unlabelled account a home (D-94), so another needs a label.
+   */
+  async function addAccount(pluginId, label, options) {
+    const entry = plugin(pluginId);
+    if (entry.credentials?.home && !accounts.managesHome(options)) throw homeAppForbidden(entry);
+    const name = String(label || "").trim().slice(0, 80);
+    if (!name && entry.credentials?.home) {
+      const found = await accounts.reachable(options, { filters: { pluginId: entry.id } });
+      if (found.some((account) => !account.name)) {
+        throw new IntegrationsError(400, "Give the account a label, such as work or family.", { code: "integrations_account_label_missing" });
+      }
+    }
+    await addToHome(entry, options);
+    const accountId = await accounts.addAccount({ pluginId: entry.id, name }, options);
+    return { ...await list(options), accountId };
+  }
+
+  async function renameAccount(accountId, name, options) {
     const clean = String(name || "").trim().slice(0, 80);
     if (!clean) throw new IntegrationsError(400, "Give the account a name.", { code: "integrations_account_name_missing" });
-    const found = await accounts.manageableAccount(reach, accountId, options);
+    const found = await accounts.manageableAccount(accountId, options);
     await accounts.patchAccount(found, { name: clean }, options);
-    return list(reach, options);
+    return list(options);
   }
 
   /**
    * Chooses an account's Request pace (D-96): how fast Mercbot sends its app requests, as a share of the app's own limit.
-   * Who may change the account may choose it: a home's, its owners and admins; a person's own, that person.
-   * @param {{ personal?: boolean }} reach
+   * Who may change the account may choose it: the person who added it, and the home's owners and admins.
    * @param {string} accountId
    * @param {unknown} pace "gentle", "normal" or "fast"
    * @param {object} options
    */
-  async function choosePace(reach, accountId, pace, options) {
-    const found = await accounts.manageableAccount(reach, accountId, options);
+  async function choosePace(accountId, pace, options) {
+    const found = await accounts.manageableAccount(accountId, options);
     const chosen = String(pace ?? "");
     if (!Object.hasOwn(PACES, chosen)) {
       throw new IntegrationsError(400, "Choose Gentle, Normal or Fast.", { code: "integrations_account_pace_unknown" });
     }
     await accounts.patchAccount(found, { pace: chosen }, options);
-    return list(reach, options);
+    return list(options);
   }
 
   /**
-   * A home's account is removed outright; a person's own is removed with Uninstall.
-   * Removing an account: a home's at any time, by its owners and admins; a person's own
-   * only while it isn't connected (a connected one is disconnected first) and while the app keeps
-   * another account (the last one goes with Uninstall).
+   * Removing an account (the bin on its line, D-110), connected or not, the only one or not: its sign-in is withdrawn at
+   * the app and the hub, then it is deleted with its keys. The person who added it, or the home's owners and admins. The
+   * app stays on the home's list.
    */
-  async function removeAccount(reach, accountId, options) {
-    const found = await accounts.manageableAccount(reach, accountId, options);
-    if (!found.home) {
-      if (found.status === "connected") {
-        throw new IntegrationsError(409, "Disconnect the account first.", { code: "integrations_account_still_connected" });
-      }
-      const sameApp = { filters: { pluginId: found.pluginId, userId: found.userId } };
-      const others = (await accounts.reachable({ personal: true }, options, sameApp))
-        .filter((other) => !other.home && other.id !== found.id);
-      if (!others.length) {
-        throw new IntegrationsError(409, "This is the app's only account: uninstall the app to remove it.", {
-          code: "integrations_account_last"
-        });
-      }
-    }
+  async function removeAccount(accountId, options) {
+    const found = await accounts.manageableAccount(accountId, options, { tokens: true });
+    await connections.withdraw(found, options);
     await accounts.deleteAccount(found, options);
-    return list(reach, options);
+    return list(options);
   }
 
   async function updateSkill(skillId, patch = {}, options) {
@@ -359,7 +367,7 @@ export function createIntegrationsService({ resources, accounts, catalogue, conn
     return off;
   }
 
-  async function switchAction(reach, pluginId, actionId, enabled, options) {
+  async function switchAction(pluginId, actionId, enabled, options) {
     const entry = plugin(pluginId);
     if (!actionsOf(entry, await connectorActionLists(options))?.some((action) => action.id === actionId)) {
       throw new IntegrationsError(404, "That app has no such action.", { code: "integrations_action_not_found" });
@@ -373,7 +381,7 @@ export function createIntegrationsService({ resources, accounts, catalogue, conn
         onConflict: { keys: ["userId", "pluginId", "actionId"], action: "ignore" }
       });
     }
-    return list(reach, options);
+    return list(options);
   }
 
   /**
@@ -381,9 +389,9 @@ export function createIntegrationsService({ resources, accounts, catalogue, conn
    * to leave out altogether because every connected app that offers them has them off, and the
    * switched-off actions in words for the bot.
    */
-  async function toolSwitches(reach, options) {
+  async function toolSwitches(options) {
     const off = await actionsOff(options);
-    const connected = new Set((await accounts.reachable(reach, options, { filters: { status: "connected" } })).map((found) => found.pluginId));
+    const connected = new Set((await accounts.reachable(options, { filters: { status: "connected" } })).map((found) => found.pluginId));
     const skip = {};
     const offered = new Map();
     const turnedOff = [];
@@ -421,46 +429,42 @@ export function createIntegrationsService({ resources, accounts, catalogue, conn
   /**
    * Whether the call reaches a connected account of the app that has all the access the app asks
    * for (one that needs more shows as "more-access" in Connect apps, D-42).
-   * @param {{ personal?: boolean }} reach
    * @param {string} pluginId
    * @param {object} options
    */
-  async function hasConnected(reach, pluginId, options) {
-    const connected = await accounts.reachable(reach, options, { filters: { pluginId, status: "connected" }, tokens: true });
+  async function hasConnected(pluginId, options) {
+    const connected = await accounts.reachable(options, { filters: { pluginId, status: "connected" }, tokens: true });
     return connected.some((row) => !connections.lacksAccess(row));
   }
 
   /**
-   * The accounts the call reaches, in id order: `{ id, pluginId, name, label, status, signInState,
-   * bridgeRef, userId, home }`, without tokens. The home's, and the person's own unless `personal`
-   * is false (a shared bot's room). `filters` keeps only some, e.g. `{ status: "connected",
-   * pluginIds: ["gmail", "outlook"] }`.
-   * @param {{ personal?: boolean }} reach
+   * The home's accounts, in id order: `{ id, pluginId, name, label, status, signInState, bridgeRef, pace, userId }`
+   * (userId: who added it), without tokens. `filters` keeps only some, e.g. `{ status: "connected", pluginIds:
+   * ["gmail", "outlook"] }`.
    * @param {object} options
    * @param {{ status?: string, pluginIds?: string[] }} [filters]
    */
-  function reachableAccounts(reach, options, filters = {}) {
-    return accounts.reachable(reach, options, { filters });
+  function reachableAccounts(options, filters = {}) {
+    return accounts.reachable(options, { filters });
   }
 
   /**
    * One account as Connect apps shows it, `{ account }`, for the screen waiting for its sign-in;
    * 404 integrations_account_not_found.
    */
-  async function accountStatus(reach, accountId, options) {
-    const found = await accounts.reachableAccount(reach, accountId, options, { tokens: true });
-    const names = found.home ? await namesOf([found.userId], options) : new Map();
-    return { account: toAccount(found, connections.lacksAccess, names) };
+  async function accountStatus(accountId, options) {
+    const found = await accounts.reachableAccount(accountId, options, { tokens: true });
+    return { account: toAccount(found, connections.lacksAccess, await namesOf([found.userId], options), options, accounts) };
   }
 
   /** One account the call may use; 404 integrations_account_not_found. */
-  function reachableAccount(reach, accountId, options) {
-    return accounts.reachableAccount(reach, accountId, options);
+  function reachableAccount(accountId, options) {
+    return accounts.reachableAccount(accountId, options);
   }
 
-  /** One account the call may change; 403 integrations_account_manage_forbidden for a home's, unless they manage it. */
-  function manageableAccount(reach, accountId, options) {
-    return accounts.manageableAccount(reach, accountId, options);
+  /** One account the call may change; 403 integrations_account_manage_forbidden unless they added it or manage the home. */
+  function manageableAccount(accountId, options) {
+    return accounts.manageableAccount(accountId, options);
   }
 
   /**
@@ -469,10 +473,10 @@ export function createIntegrationsService({ resources, accounts, catalogue, conn
    * Connect apps, which are named in `off`.
    * @returns {Promise<{ tools: object[], off: string[] }>}
    */
-  async function connectorActions(reach, accountId, options) {
-    const found = await accounts.reachableAccount(reach, accountId, options);
+  async function connectorActions(accountId, options) {
+    const found = await accounts.reachableAccount(accountId, options);
     const switchedOff = (await actionsOff(options)).get(found.pluginId) || new Set();
-    const tools = await connections.connectorTools(reach, found.id, options);
+    const tools = await connections.connectorTools(found.id, options);
     return {
       tools: tools.filter((tool) => !switchedOff.has(tool.name)),
       off: tools.filter((tool) => switchedOff.has(tool.name)).map((tool) => tool.title || tool.name)
@@ -484,8 +488,8 @@ export function createIntegrationsService({ resources, accounts, catalogue, conn
    * off: what the app answered, as text, and whether it was an error the app reported.
    * @returns {Promise<{ text: string, isError: boolean }>}
    */
-  async function useConnector(reach, accountId, name, input, options) {
-    const found = await accounts.reachableAccount(reach, accountId, options);
+  async function useConnector(accountId, name, input, options) {
+    const found = await accounts.reachableAccount(accountId, options);
     const entry = plugin(found.pluginId);
     if ((await actionsOff(options)).get(entry.id)?.has(name)) {
       throw new IntegrationsError(403, `The person has switched ${name} off for ${entry.name} in Connect apps.`, {
@@ -493,7 +497,7 @@ export function createIntegrationsService({ resources, accounts, catalogue, conn
         params: { app: entry.name, action: name }
       });
     }
-    const result = await connections.connectorCall(reach, found.id, name, input, options);
+    const result = await connections.connectorCall(found.id, name, input, options);
     return { text: resultText(result), isError: Boolean(result?.isError) };
   }
 

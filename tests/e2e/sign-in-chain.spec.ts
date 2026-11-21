@@ -190,19 +190,22 @@ function personTurn(said = "Please sign in to example.com for me") {
   const before: { body: { text: string; detail?: string } }[] = [];
   const after: { kind: string; body: { question: string; subline: string; action: { id: string; args: Record<string, string> } } }[] = [];
   const integrations = {
-    reachableAccounts: async () => [{ id: "1", pluginId: "gmail", label: "pat@example.org", name: "Pat", home: false }],
+    // The Gmail Pat (person 7) connected: a code is read only from a mailbox the person whose turn it is connected (D-111).
+    reachableAccounts: async () => [{ id: "1", pluginId: "gmail", label: "pat@example.org", name: "Pat", userId: "7" }],
     // The account's own paced fetch (D-96), as connections.accessToken answers it: the real pacer, over turns in memory.
     connections: { accessToken: async () => accessOf("stand-in", { app: "Gmail" }) },
     toolSwitches: async () => ({ skip: {}, removed: [], turnedOff: [] })
   };
   const reach = { userId: "7", homeId: "3", personal: true };
+  // Pat's turn: the call's actor is the person whose turn it is.
+  const call = { context: { actor: { id: "7" } } };
   const signIns = buildSignInCodeTools({
-    appFor: () => ({ integrations, reach, skip: [], call: {} }),
+    appFor: () => ({ integrations, reach, skip: [], call }),
     computer: manager,
     computerId: COMPUTER,
     conversationId: COMPUTER,
     turns: { messages: async () => [{ body: { text: said } }] },
-    call: {},
+    call,
     inTime: (work: Promise<unknown>) => work,
     before,
     after,
@@ -213,7 +216,7 @@ function personTurn(said = "Please sign in to example.com for me") {
   });
   /** The person says yes on the card: its action runs as botCards.answerChoice runs it. */
   const approve = (args: Record<string, string>) =>
-    SIGN_IN_CODE_ACTIONS.fill_sign_in_code.run({ integrations, reach, call: {}, computer: manager, conversationId: COMPUTER }, args);
+    SIGN_IN_CODE_ACTIONS.fill_sign_in_code.run({ integrations, reach, call, computer: manager, conversationId: COMPUTER }, args);
   return {
     start: (address: string) => signIns.tools.startSignIn.execute({ address }),
     fillCode: () => signIns.tools.fillSignInCode.execute({ site: "example.com" }),

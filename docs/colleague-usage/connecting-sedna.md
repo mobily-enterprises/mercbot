@@ -38,8 +38,8 @@ chat or put it in a file.
 
 ## Enter them in Connect apps (owners and admins)
 
-1. Open **Connect apps** (Ctrl+Shift+M, or search for it) and open **Sedna**, then select **Connect**. A form opens on
-   the page; there is no sign-in tab.
+1. Open **Connect apps** (Ctrl+Shift+M, or search for it) and open **Sedna**, then select **Add to this home**. A form
+   opens on the page; there is no sign-in window.
 2. Type the **Sedna address**: the first part of the address the organisation opens Sedna at (the *acme* of
    `acme.sednanetwork.com`; pasting the whole address works too). The form then links to that Sedna's API Credential
    Management page.
@@ -47,8 +47,12 @@ chat or put it in a file.
 
 Mercbot checks them with Sedna first and saves nothing until Sedna accepts them. The account then shows the company's
 name and **Connected**, for everyone in the home, and a note says how many of the home's people Sedna knows by their
-email address. **Change credentials** enters new ones (checked the same way); **Disconnect** deletes them from Mercbot.
-A member sees Sedna connected but can't connect, change or disconnect it.
+email address. **Change credentials** enters new ones (checked the same way). The bin on its line, after **Remove it
+for everyone in** the home?, deletes them from Mercbot with who each person is in Sedna; adding Sedna again starts
+over. A member sees Sedna connected but can't connect, change or remove it. Like every connected account, Sedna's is
+the home's (see [Connect an app account](connecting-app-accounts.md)); if the owner or admin who entered the
+credentials is no longer in the home, they're removed with their other accounts, and an owner or admin enters them
+again.
 
 **Request pace.** Sedna allows 100 requests a second per credential, and the organisation's other programs may use the
 same one. Mercbot uses a tenth of that (**Gentle**) unless an owner or admin chooses **Normal** or **Fast** under

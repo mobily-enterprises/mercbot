@@ -28,10 +28,10 @@ export function nobodyInSedna(who) {
 }
 
 /** The key and address of a connected Sedna, with a refused key made again once (sednaApi.js). */
-export const sednaAccess = ({ integrations, reach, call }, entry) => ({
+export const sednaAccess = ({ integrations, call }, entry) => ({
   api: entry.api,
   key: entry.key,
-  renew: async (refused) => (await integrations.connections.accessToken(reach, entry.id, call, { refused })).accessToken
+  renew: async (refused) => (await integrations.connections.accessToken(entry.id, call, { refused })).accessToken
 });
 
 /**
@@ -42,7 +42,7 @@ export const sednaAccess = ({ integrations, reach, call }, entry) => ({
 export async function sednaFor(context) {
   if (!context.reach?.personal) throw new ConnectedAppError(SEDNA_ONLY_OWN_CHAT);
   const entry = await connectedKey(context, "sedna", "Sedna");
-  const who = await context.integrations.connections.appPerson(context.reach, entry.id, context.call);
+  const who = await context.integrations.connections.appPerson(entry.id, context.call);
   if (!who.person) throw new ConnectedAppError(nobodyInSedna(who));
   return { entry, person: who.person, access: sednaAccess(context, entry) };
 }

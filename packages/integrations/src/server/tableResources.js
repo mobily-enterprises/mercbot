@@ -2,11 +2,13 @@
 // and hooks go in the owner feature's `owns` entries.
 import { defineTableResource } from "@jskit-ai/resource-core/shared/tableResource";
 
-/** plugin_accounts */
+/** plugin_accounts
+ * every connected account is its home's, for everyone in it and their bots (D-111); user_id is who added it
+ */
 export const pluginAccountResource = defineTableResource({
   name: "pluginAccounts",
   tableName: "plugin_accounts",
-  ownership: "workspace_or_shared",
+  ownership: "workspace",
   schema: {
     bridgeRef: { type: "string", maxLength: 64, noTrim: true, nullable: true },
     connectedAt: { type: "dateTime", nullable: true },
@@ -19,7 +21,7 @@ export const pluginAccountResource = defineTableResource({
     status: { type: "string", maxLength: 16, noTrim: true, search: true },
     tokens: { type: "object", nullable: true, additionalProperties: true },
     userId: { type: "id", required: true, search: true },
-    workspaceId: { type: "id", nullable: true, hidden: true, search: true }
+    workspaceId: { type: "id", hidden: true, search: true }
   }
 });
 
@@ -81,15 +83,18 @@ export const oauthStateResource = defineTableResource({
   }
 });
 
-/** user_plugins */
-export const userPluginResource = defineTableResource({
-  name: "userPlugins",
-  tableName: "user_plugins",
-  ownership: "user",
+/** home_plugins
+ * the apps on a home's list (D-111); user_id is who added it, null once they're gone
+ */
+export const homePluginResource = defineTableResource({
+  name: "homePlugins",
+  tableName: "home_plugins",
+  ownership: "workspace",
   schema: {
     installedAt: { type: "dateTime" },
     pluginId: { type: "string", maxLength: 64, noTrim: true, required: true, search: true },
-    userId: { type: "id", hidden: true, search: true }
+    userId: { type: "id", nullable: true, search: true },
+    workspaceId: { type: "id", hidden: true, search: true }
   }
 });
 
@@ -180,7 +185,7 @@ export const TABLE_RESOURCES = Object.freeze([
   pluginAccountPersonResource,
   pluginAccountTurnResource,
   oauthStateResource,
-  userPluginResource,
+  homePluginResource,
   userSkillResource,
   appInterestResource,
   pluginActionsOffResource,

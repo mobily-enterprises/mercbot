@@ -33,7 +33,7 @@ export async function saveFile(key, { name, type, data }) {
   return { name: file.name, link: file.webViewLink };
 }
 
-// Files in the person's own Drive: the newest few, a new Google Doc at the top
+// Files in a Google Drive account of the home's: the newest few, a new Google Doc at the top
 // level, and moving one to the bin. Drive keeps binned files for 30 days.
 const DRIVE = "https://www.googleapis.com/drive/v3/files";
 const KINDS = {
