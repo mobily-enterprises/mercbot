@@ -9,8 +9,8 @@ import { memberOptions, startBotRecords } from "../support/botRecords.mjs";
 import { seedChat } from "../support/chatFixtures.mjs";
 
 // A bot's additions (D-98, D-95's instructions before them), written in its Details panel or by the bot on a card the
-// person approves, and its template, changed in Details. Renaming is open to everyone in the home; additions and the
-// template only to the bot's maker and the home's owners and admins.
+// person approves, and its template, changed in Details. Its name, additions and template are changed only by the bot's
+// maker and the home's owners and admins.
 
 async function setup(context) {
   const knex = await connectTestDatabase();
@@ -54,12 +54,18 @@ test("Details: its maker and the home's admins change a bot's additions; another
   assert.equal((await bots.instructionsOf(scratch.id, as(kim))).canChange, false, "another member reads them but can't change them");
   assert.equal((await bots.instructionsOf(scratch.id, as(ada, { manages: true }))).canChange, true, "an admin can");
 
-  // Renaming is everyone's in the home, as it was; additions aren't.
-  await bots.updateBot(scratch.id, { name: "Renamed by Kim" }, as(kim));
+  // Renaming, like additions, is its maker's and the home's owners' and admins'.
+  await assert.rejects(bots.updateBot(scratch.id, { name: "Renamed by Kim" }, as(kim)), (error) => {
+    assert.equal(error.statusCode, 403);
+    assert.equal(error.code, "bots_rename_forbidden");
+    assert.equal(error.message, `Only the person who made ${scratch.name} and the home's owners and admins can rename it.`);
+    return true;
+  });
+  assert.equal((await bots.updateBot(scratch.id, { name: "Renamed by Ada" }, as(ada, { manages: true }))).name, "Renamed by Ada", "an admin renames it");
   await assert.rejects(bots.updateBot(scratch.id, { additions: "Kim's rules" }, as(kim)), (error) => {
     assert.equal(error.statusCode, 403);
     assert.equal(error.code, "bots_additions_forbidden");
-    assert.equal(error.message, "Only the person who made Renamed by Kim and the home's owners and admins can change its template or additions.");
+    assert.equal(error.message, "Only the person who made Renamed by Ada and the home's owners and admins can change its template or additions.");
     return true;
   });
   await assert.rejects(bots.updateBot(scratch.id, { additions: "Sam's rules" }, as(sam, { home: elsewhere, manages: true })), /Bot not found/u,
