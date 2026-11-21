@@ -50,7 +50,7 @@ const sorted = (...list) => list.map(String).sort((a, b) => a - b);
 
 test("a person reads the chats they can open, and what's in them; nobody else's private chat", async (context) => {
   const { records, computer } = await startChatRecords(knex, context);
-  const { homeId, anna, ben, carla, chats } = await rossiHome(knex, context);
+  const { homeId, anna, ben, carla, bots, chats } = await rossiHome(knex, context);
   const as = (userId) => memberOptions({ userId, homeId });
 
   // Anna is in all three; Ben in Family and Plans; Carla in none, but Family is public, so she can open it.
@@ -73,6 +73,12 @@ test("a person reads the chats they can open, and what's in them; nobody else's 
   assert.deepEqual(await computers(carla), [chats.Family.seat], "Carla can use the public chat's computer, no other");
   assert.deepEqual(await computers(ben), sorted(chats.Family.seat, chats.Plans.seat));
   assert.equal(await records.directory.computerOf(chats.Diary.seat, as(ben)), null);
+  // A bot's seats, and seats by id, only in the chats the caller can open.
+  const allSeats = [chats.Family.seat, chats.Plans.seat, chats.Diary.seat];
+  assert.deepEqual((await records.directory.seats([...allSeats, "999999999"], as(ben))).map((seat) => seat.chatId), [chats.Family.id, chats.Plans.id]);
+  assert.deepEqual(await records.directory.seats([chats.Plans.seat], as(ben)), [{ id: chats.Plans.seat, botId: bots[0], chatId: chats.Plans.id }]);
+  assert.deepEqual(await records.directory.seatsOfBot(bots[0], as(ben)), [{ id: chats.Family.seat, chatId: chats.Family.id }, { id: chats.Plans.seat, chatId: chats.Plans.id }]);
+  assert.deepEqual((await records.directory.seatsOfBot(bots[0], as(anna))).map((seat) => seat.id), allSeats);
   assert.equal((await records.directory.computerOf(chats.Plans.seat, as(ben))).chatKind, "private");
 
   // Search reads only what the person may: Ben never finds Diary's words.
