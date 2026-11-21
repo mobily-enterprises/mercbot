@@ -217,7 +217,9 @@ export async function checkTemplateEndToEnd({ person, template, players, run, ma
     // Add bot, as the preview does: the bot, then its paired app as a draft (the preview's box is ticked).
     const { bot } = needed(await request("POST", `${base}/bots/from-template`, { json: { slug: template.slug } }), "Adding the bot");
     if (template.appTemplate) needed(await request("POST", `${base}/apps-templates/${template.appTemplate}/install`, { json: {} }), `Setting up the ${template.appTemplate} app`);
-    const chat = `${base}/bots/${bot.id}`;
+    // Its direct chat with the person, where it greeted them, which the page opens next (D-112).
+    const { chat: direct } = needed(await request("POST", `${base}/bots/${bot.id}/direct`), "Opening its chat");
+    const chat = `${base}/chats/${direct.id}`;
     const read = async () => merge(needed(await request("GET", `${chat}/messages`), "Reading the chat").messages);
     await read();
     const greeting = timeline().find((message) => message.kind === "text" && message.role === "bot");
@@ -225,9 +227,9 @@ export async function checkTemplateEndToEnd({ person, template, players, run, ma
       reasons.push("It didn't open with its own greeting.");
     }
 
-    /** The bot's reply to what the person just did; false when it couldn't reply. */
-    const replied = async () => {
-      const json = { afterMessageId: timeline().at(-1)?.id || null, timeZone: "Europe/London", language: "en" };
+    /** The bot's reply to what the person just did (after a card, as the page asks for it); false when it couldn't reply. */
+    const replied = async (afterCard) => {
+      const json = { afterMessageId: timeline().at(-1)?.id || null, afterCard, timeZone: "Europe/London", language: "en" };
       const ask = async () => needed(await request("POST", `${chat}/reply`, { json }), "The reply");
       const until = Date.now() + REPLY_BOUND_MS;
       let answer = await ask();
@@ -247,7 +249,7 @@ export async function checkTemplateEndToEnd({ person, template, players, run, ma
       turns += 1;
       if (move.say) merge(needed(await request("POST", `${chat}/messages`, { json: { text: move.say, clientId: randomUUID() } }), "Sending a message").messages);
       else merge(needed(await request("POST", `${chat}/choices/${move.card.id}`, { json: { selected: move.picks } }), "Answering a card").messages);
-      if (!(await replied())) {
+      if (!(await replied(!move.say))) {
         reasons.push(`Its reply failed on turn ${turns}: the AI provider or Mercbot, not necessarily the template.`);
         break;
       }
