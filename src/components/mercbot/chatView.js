@@ -42,6 +42,20 @@ export function memberNames(chat, me = "") {
 }
 
 /**
+ * The person's private chat with just one other person, which [Message] on that person opens (plan 4.2): the two of
+ * them, no bots, not an app's; the one with the newest activity when there are several, or null.
+ * @param {Array<{ kind: string, appId?: string | null, people?: Array<{ userId: string }>, bots?: unknown[], lastActivityAt?: string }>} chats
+ * @param {string} me
+ * @param {string} personId
+ */
+export function privateChatWith(chats, me, personId) {
+  const pair = [String(me), String(personId)].sort().join(" ");
+  const theirs = (chats || []).filter((chat) => chat.kind === "private" && !chat.appId && !(chat.bots || []).length
+    && (chat.people || []).map((person) => String(person.userId)).sort().join(" ") === pair);
+  return theirs.sort((a, b) => String(b.lastActivityAt || "").localeCompare(String(a.lastActivityAt || "")))[0] || null;
+}
+
+/**
  * A chat's name: its title; a direct chat's bot; otherwise who's in it besides the person looking; "New chat" for a
  * chat of no one else yet.
  */

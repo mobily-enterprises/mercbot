@@ -6,7 +6,7 @@ Everything you do in Mercbot happens in chats. A home's people and its bots are 
 
 Select **Team** in the sidebar, above your chats with **Files** and **Apps**. It lists everyone in the home: each person with their role, then each bot with its tag, who made it and what it does.
 
-- **Message** beside a bot opens your chat with it. Beside a person, it opens **New chat** with them already on the **To:** line.
+- **Message** beside a bot opens your chat with it. Beside a person, it opens your private chat with just the two of you, and starts it the first time.
 - Select a person or a bot to open their card beside the list. A person's card shows their role and the **Chats you share**. A bot's card has the same, and its tabs: **Details** (its instructions, Knowledge, apps, routines and archiving), **Files**, **Library** and **Computer**.
 - **Add bots** adds bots to the home. A bot you make on its own greets you in your new chat with it. Bots you add together appear here, and Mercbot's chat with you introduces them, each with **Message**, so you can start a chat with each when you're ready.
 - Bots that have left the home are listed under **Archived**, with **Resume** for the people who can bring them back.
