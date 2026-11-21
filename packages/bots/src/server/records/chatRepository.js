@@ -424,6 +424,42 @@ export function createChatRepository({ resources, systemContext, profiles, membe
     return madeOnce(findIt, () => create({ kind: "public", appId: String(appId), title, bots: [String(botId)] }, options), options);
   }
 
+  /**
+   * The home's Builder changed (O26, D-112): in every app's chat the new Builder (`toBotId`) is seated after the bots
+   * there and the old one (`fromBotId`, if any) taken out, with its runs, computer and routines there (ON DELETE
+   * CASCADE). Answers the ids of the chats whose bots changed, for their lines. Four statements, however many apps.
+   * @param {{ fromBotId?: string | null, toBotId: string }} change
+   */
+  async function changeAppBuilder({ fromBotId = null, toBotId }, txOptions) {
+    const ids = (await conversations.queryAll({ filters: { app: true }, fields: ["appId"] }, passedOn(txOptions))).map((chat) => String(chat.id));
+    if (!ids.length) return [];
+    const seats = await chatBots.queryAll({ filters: { conversationIds: ids }, fields: ["conversationId", "botId", "position"] }, passedOn(txOptions));
+    const last = new Map();
+    const seated = new Set();
+    const leaving = new Set();
+    for (const seat of seats) {
+      const chatId = String(seat.conversationId);
+      last.set(chatId, Math.max(last.get(chatId) ?? -1, Number(seat.position)));
+      if (String(seat.botId) === String(toBotId)) seated.add(chatId);
+      else if (fromBotId != null && String(seat.botId) === String(fromBotId)) leaving.add(chatId);
+    }
+    const joining = ids.filter((id) => !seated.has(id));
+    if (joining.length) {
+      const addedBy = personOrNull(txOptions);
+      const seat = (chatId) => ({ conversationId: chatId, botId: String(toBotId), addedBy, position: (last.get(chatId) ?? -1) + 1 });
+      const rows = joining.map(seat);
+      await chatBots.createMany(rows, {
+        ...passedOn(txOptions),
+        onConflict: { keys: ["conversationId", "workspaceId", "botId"], action: "ignore" },
+        returning: "none"
+      });
+    }
+    if (leaving.size) {
+      await chatBots.deleteWhere({ conversationIds: [...leaving], botId: String(fromBotId) }, { ...passedOn(txOptions), returning: "none" });
+    }
+    return ids.filter((id) => !seated.has(id) || leaving.has(id));
+  }
+
   /** A chat that takes members: one the caller may read, not archived, not a direct chat. */
   async function openForMembers(chatId, txOptions) {
     const chat = await lock(chatId, txOptions, { writing: true });
@@ -664,6 +700,7 @@ export function createChatRepository({ resources, systemContext, profiles, membe
     everyoneChat,
     makeEveryoneChat,
     appChat,
+    changeAppBuilder,
     addPerson,
     addBot,
     removePerson,
