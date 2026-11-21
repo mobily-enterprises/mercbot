@@ -252,6 +252,7 @@ export function createFileStore({ root, fallback, volume = null, ownStorage, set
 
   /** Removes a computer's folder, wherever it's kept. */
   async function removeComputerFolder(chatBotId) {
+    if (!/^\d+$/u.test(String(chatBotId))) throw new Error("Removing a computer's folder needs its chat_bots id.");
     if (bucket?.tree) return bucket.tree.removeTree(`computers/${chatBotId}`);
     await fs.rm(path.join(computersRoot, String(chatBotId)), { recursive: true, force: true });
   }

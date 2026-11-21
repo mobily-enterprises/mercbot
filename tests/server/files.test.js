@@ -306,6 +306,13 @@ test("a deleted chat's folder and its bots' command outputs are removed, and not
     await store.removeRunsFolder("41");
     for (const bad of ["..", "42/..", null, "x"]) await assert.rejects(store.removeRunsFolder(bad), /needs its chat_bots id/u, String(bad));
     assert.deepEqual((await store.runOutputs()).map(({ chatBotId, name }) => [chatBotId, name]), [["42", "18.log"]]);
+    // A computer's folder likewise: only a chat_bots id names one.
+    await fs.writeFile(path.join(await store.computerFolder(41), "profile.txt"), "x");
+    await fs.writeFile(path.join(await store.computerFolder(42), "profile.txt"), "x");
+    await store.removeComputerFolder(41);
+    for (const bad of ["..", "42/..", null, "x"]) await assert.rejects(store.removeComputerFolder(bad), /needs its chat_bots id/u, String(bad));
+    const computers = await store.computerIds();
+    assert.deepEqual([computers.includes("41"), computers.includes("42")], [false, true]);
 
     // A home that keeps its files in its own storage (D-26): the chat's folder goes from there, and the removal is
     // sent on.
