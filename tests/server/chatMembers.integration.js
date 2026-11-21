@@ -3,6 +3,7 @@ import { randomBytes } from "node:crypto";
 import test, { after } from "node:test";
 import { createChatMembers } from "../../packages/bots/src/server/chatMembers.js";
 import { memberOptions, startChatRecords } from "../support/botRecords.mjs";
+import { seedMessage } from "../support/chatFixtures.mjs";
 import { connectTestDatabase } from "../support/testDatabase.mjs";
 
 // A chat's members (D-112, R2) through records.chats: who a chat starts with and its kind (Public unless Private was
@@ -79,6 +80,11 @@ test("people and bots are added and removed; a direct chat takes no one else; th
   await records.messages.append(plans.id, [{ role: "user", kind: "text", body: { text: "oak or pine?" } }], asAnna);
   assert.equal((await records.chats.place(plans.id, asBen)).unread, true);
   assert.equal((await records.chats.place(plans.id, asAnna)).unread, false);
+
+  // A card's body takes a patch (a request's state, a to-do list), keeping the rest of it.
+  const card = await seedMessage(knex, { homeId, chatId: plans.id, kind: "bot_request", botId: chef, body: { status: "asked", brief: "menu" } });
+  await records.work.patchCards([card], { status: "answered" }, asAnna);
+  assert.deepEqual((await knex("messages").where({ id: card }).first("body")).body, { status: "answered", brief: "menu" });
 
   // Removing a bot takes its seat; the last person out of a private chat deletes it.
   assert.equal(await records.chats.removeBot(plans.id, chef, asAnna), true);
