@@ -294,6 +294,8 @@ test("anyone who can open a watch's chat pauses it; only the person who made it 
   const enabled = async () => (await h.knex("app_watches").where({ workspace_id: h.workspaceId, name: "Robin's" }).first("enabled")).enabled;
   const forbidden = { statusCode: 403, code: "apps_watch_resume_forbidden", message: "Only the person who made this watch can resume it: it runs as them." };
 
+  const resumable = async (options) => (await h.watches.list({ chatBotId: h.chatBotId }, options)).map((watch) => watch.canResume);
+  assert.deepEqual([await resumable(robin), await resumable(h.options)], [[true], [false]], "its list says who may resume it");
   assert.equal((await h.watches.setEnabled(where, false, h.options)).enabled, false, "Pat, in the chat, pauses Robin's watch");
   await assert.rejects(h.watches.setEnabled(where, true, h.options), forbidden, "but doesn't resume it");
   await assert.rejects(h.watches.setEnabled(where, true, askedBy(h.userId)), forbidden, "nor does the bot, asked by Pat");
