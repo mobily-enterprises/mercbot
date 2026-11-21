@@ -3359,7 +3359,7 @@ The owner's decisions of 21 November, in the owner's words where there are some:
      chat history), and its answer and cards go to the asking chat; if it needs its computer, it joins the asking chat
      as a member, with a line.
    - Work made for the whole home (a template draft from a bot, a bot's card on Team) reads as a Public chat does; work
-     that leaves the home (Online's published template descriptions, `answerOnce`) reads no chat at all. A person's own
+     that leaves the home (a copy's published template descriptions, `answerOnce`) reads no chat at all. A person's own
      things (their saved skills) are opened by that person alone, so a bot uses them only in a Private chat whose only
      person is them.
    - It lives in one place: the SQL function `readable_from(chat)` and the model's reader (`records.readers.forBot`, a

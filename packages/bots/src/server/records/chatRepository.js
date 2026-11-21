@@ -612,7 +612,7 @@ export function createChatRepository({ resources, systemContext, profiles, membe
     return records.map((record) => String(record.id));
   }
 
-  /** Someone joined the home: they're in its everyone chat (Public's own joins and Online's invitations call it). */
+  /** Someone joined the home: they're in its everyone chat (the home's own joins and a copy's invitations call it). */
   async function personJoined(userId, options) {
     const chat = await everyoneChat(homeWide(options, systemContext("a person joins the home's everyone chat")));
     if (chat) await seatPeople(chat.id, [String(userId)], null, options);
