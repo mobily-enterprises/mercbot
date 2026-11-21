@@ -157,7 +157,9 @@ its output, or stops it. When the run ends the bot is woken in this chat to chec
 of them and the cross-skill rules. The person's own skills (`user_skills`, theirs in each home, taught or saved by a
 bot) are read only by them, and by a bot only in a Private chat whose one person they are (`personalRule`).
 `read_skill` opens either kind by name; `save_skill` and `delete_skill` change the person's own, only with their
-agreement. `GET /api/w/:workspaceSlug/bot-skills` lists what the "/" picker offers. `change_additions` changes the
+agreement. `GET /api/w/:workspaceSlug/bot-skills?chat=<chatId>` lists what the "/" picker offers in that chat:
+Mercbot's pickable skills, and the person's own first only by the same rule (`ownSkillsIn`); a message that picks
+one keeps it only there. `change_additions` changes the
 bot's additions (`genesis/program/bots/templates.md`), offered on a person's own turn as an action that always asks.
 
 **Teaching a task** (`botTeaching.js`, `teaching.js`): `POST /api/w/:workspaceSlug/chats/:chatId/bots/:botId/teach/start`

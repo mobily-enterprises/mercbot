@@ -43,7 +43,7 @@ const BOT_KINDS = Object.freeze(["premium", "economy"]);
 export const WORK = Object.freeze({
   chat: Object.freeze({
     kind: "premium",
-    what: "People's chats and group chats (a Builder's too), requests between bots, and tasks app buttons hand to a bot"
+    what: "Bots' replies in chats (a Builder's too), requests between bots, and tasks app buttons hand to a bot"
   }),
   browser: Object.freeze({ kind: "premium", what: "The bots' browser steps" }),
   build: Object.freeze({ kind: "economy", what: "The Builder's replies in its own chat" }),

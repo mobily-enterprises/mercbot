@@ -56,8 +56,11 @@ test("a new bot's welcome, its greeting and its first question, comes from the s
   const base = `/api/w/${home}`;
   const made = await request("POST", `${base}/bots`, { json: { name: "Wren", color: "#1E86FC" } });
   assert.equal(made.status, 200, JSON.stringify(made.body));
+  // The welcome is said in the person's direct chat with the bot (D-112), which Message opens.
+  const direct = await request("POST", `${base}/bots/${made.body.bot.id}/direct`);
+  assert.equal(direct.status, 200, JSON.stringify(direct.body));
   const advance = async (step) => {
-    const answer = await request("POST", `${base}/bots/${made.body.bot.id}/onboarding/advance`, { json: { step } });
+    const answer = await request("POST", `${base}/chats/${direct.body.chat.id}/onboarding/advance`, { json: { step } });
     assert.equal(answer.status, 200, JSON.stringify(answer.body));
     return answer.body.messages;
   };

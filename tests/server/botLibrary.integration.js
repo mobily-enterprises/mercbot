@@ -244,3 +244,15 @@ test("search reads the same statements finding 2 things as finding its most, in 
   await grow(25);
   assert.equal(await count(), few);
 });
+
+test("a card rewritten in every chat of its bot answers each card the person reads with its chat", async (context) => {
+  const { kit, homeId, as, chef, kitchenChat, secret, bens, made } = await kitchen(context);
+  const card = { slug: "weekly-plan", title: "Weekly plan" };
+  const [inKitchen] = await made(kitchenChat, [["template", card]]);
+  const [inSecret] = await made(secret, [["template", card]]);
+  const [inBens] = await made(bens, [["template", card]]);
+  const answered = await kit.records.messages.rewriteCards({ botId: chef, kind: "template", slug: "weekly-plan", homeId }, { merge: { published: false } }, as("ben"));
+  // Every card changed; Ben reads the Kitchen's and his direct chat's, not Anna's private one's.
+  assert.deepEqual((await knex("messages").whereIn("id", [inKitchen, inSecret, inBens]).orderBy("id")).map((row) => row.body.published), [false, false, false]);
+  assert.deepEqual(answered.map((message) => [message.id, message.chatId]), [[inKitchen, String(kitchenChat.id)], [inBens, String(bens.id)]]);
+});

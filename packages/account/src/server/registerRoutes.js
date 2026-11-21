@@ -9,7 +9,6 @@ import { PHOTO_LIMIT } from "./vaultPhoto.js";
 // Routes for things a home owns (D-36) live under /api/w/:workspaceSlug/…; JSKIT checks the
 // person belongs to that home and fills request.workspace before the handler runs.
 
-const SIGNED_IN = Object.freeze({ auth: "required", visibility: checkRouteVisibility("user") });
 const IN_HOME = Object.freeze({ auth: "required", contextPolicy: "required", visibility: checkRouteVisibility("workspace_user") });
 
 /**
@@ -96,9 +95,10 @@ export function registerRoutes(http, { account, spending, uploads, track, media 
   http.router.register("GET", "/api/w/:workspaceSlug/usage", IN_HOME, answering(usage));
   http.router.register("GET", "/api/w/:workspaceSlug/spending", IN_HOME, answering(report));
   http.router.register("GET", "/api/w/:workspaceSlug/spending/export", IN_HOME, exportReport);
-  http.router.register("GET", "/api/vault", SIGNED_IN, answering(vault));
-  http.router.register("POST", "/api/vault", SIGNED_IN, answering(addVaultItem));
-  http.router.register("POST", "/api/vault/import", SIGNED_IN, answering(importVaultItems));
+  // The Vault is the home's (D8), so its routes are the home's.
+  http.router.register("GET", "/api/w/:workspaceSlug/vault", IN_HOME, answering(vault));
+  http.router.register("POST", "/api/w/:workspaceSlug/vault", IN_HOME, answering(addVaultItem));
+  http.router.register("POST", "/api/w/:workspaceSlug/vault/import", IN_HOME, answering(importVaultItems));
   http.router.register("POST", "/api/w/:workspaceSlug/vault/read-photo", IN_HOME, answering(readVaultPhoto));
-  http.router.register("DELETE", "/api/vault/:itemId", SIGNED_IN, answering(deleteVaultItem));
+  http.router.register("DELETE", "/api/w/:workspaceSlug/vault/:itemId", IN_HOME, answering(deleteVaultItem));
 }

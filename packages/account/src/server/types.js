@@ -72,10 +72,11 @@
 /**
  * A picture or video to check: the whole file, its type as its own first bytes say (mediaCheck.js sniffMedia, never its
  * name's or a browser's), where it came from, whose it is, where it would be kept (a virtual path such as
- * "/files/mine/Uploads/cat.jpg", or a computer's screenshot's name, whose computer is `conversationId`) and the address
- * of the request that brought it in. `place` is the files place that path is in, for an upload (the bot's place for the
- * person, a group's everyone place or the home's) and a file a bot saved, and null for every other origin: an opaque,
- * JSON-safe object a checker may keep and give back to `files.media.remove` (D-90).
+ * "/files/chat/Uploads/cat.jpg", or a computer's screenshot's name) and the address of the request that brought it in.
+ * `conversationId` is the chat it came in (D-112), or for a screenshot its computer's chat_bots id (a bot in a chat);
+ * the name stays, as checkers outside Mercbot read it. `place` is the files place that path is in, for an upload (the
+ * chat's, the bot's or the home's) and a file a bot saved, and null for every other origin: an opaque, JSON-safe object
+ * a checker may keep and give back to `files.media.remove` (D-90).
  * @typedef {{
  *   bytes: Buffer,
  *   mime: string,

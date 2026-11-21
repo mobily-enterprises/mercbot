@@ -78,18 +78,18 @@ test("a coding run starts only once its tool is signed in, works in the folder o
   const computer = await computerFor(context);
   const { runs, asked, ended, done } = standIn("console.log('Changed index.html and styles.css.'); console.error('2 files changed');");
   assert.deepEqual(runs.status(computer).tools.map((tool) => [tool.id, tool.signedIn]), [["claude-code", false], ["codex", false]]);
-  await assert.rejects(runs.start(computer, { tool: "claude-code", folder: "/files/chat/site", brief: "Fix the menu." }), /isn't signed in/u);
+  await assert.rejects(runs.start(computer, { tool: "claude-code", folder: "/files/chat/website", brief: "Fix the menu." }), /isn't signed in/u);
   assert.equal(asked.length, 0, "nothing runs without the person's own sign-in");
 
   await signIn(computer, ".claude/.credentials.json");
   assert.equal(runs.status(computer).tools[0].signedIn, true);
-  const started = await runs.handle(computer, { action: "start", tool: "claude-code", folder: "/files/chat/site", brief: "Fix the menu on small screens.", userId: 7 });
+  const started = await runs.handle(computer, { action: "start", tool: "claude-code", folder: "/files/chat/website", brief: "Fix the menu on small screens.", userId: 7 });
   assert.equal(started.run.status, "running");
-  await assert.rejects(runs.start(computer, { tool: "claude-code", folder: "/files/chat/site", brief: "Again" }), /already working/u, "one run at a time");
+  await assert.rejects(runs.start(computer, { tool: "claude-code", folder: "/files/chat/website", brief: "Again" }), /already working/u, "one run at a time");
   await done;
 
   const [{ folder, argv, env, maxSeconds, title }] = asked;
-  assert.equal(folder, "/files/chat/site", "its own sandbox gets the project's folder");
+  assert.equal(folder, "/files/chat/website", "its own sandbox gets the project's folder");
   assert.equal(title, undefined, "a run has no window of its own: the sandbox's output is kept here");
   assert.equal(maxSeconds, 2 * 60 * 60, "two hours at most");
   assert.ok(env.includes("HOME=/profile/.coding"), "the tool's sign-in stays in the computer's profile, never the bot's files");
@@ -98,7 +98,7 @@ test("a coding run starts only once its tool is signed in, works in the folder o
   assert.equal(argv.at(-1), "--dangerously-skip-permissions");
   const [{ computerId, run }] = ended;
   assert.equal(computerId, "21");
-  assert.deepEqual([run.tool, run.label, run.folder, run.status, run.exitCode], ["claude-code", "Claude Code", "/files/chat/site", "done", 0]);
+  assert.deepEqual([run.tool, run.label, run.folder, run.status, run.exitCode], ["claude-code", "Claude Code", "/files/chat/website", "done", 0]);
   assert.equal(run.userId, "7", "its ending names the person who started it, whose report it is");
   assert.match(run.output, /Changed index\.html and styles\.css\.\n2 files changed/u);
   assert.equal(runs.status(computer).run.status, "done");
@@ -266,14 +266,14 @@ test("a coding run that ends wakes its bot in its chat to report, for the person
   const apps = { apps: { queueTask: async (task, options) => queued.push({ task, options }) } };
   const homes = [];
   const systemContext = (reason) => ({ reason, forWorkspace: (home) => (homes.push(home), { reason, home }) });
-  const run = { tool: "claude-code", label: "Claude Code", folder: "/files/chat/site", status: "done", exitCode: 0, output: "Fixed the menu.", userId: 7 };
+  const run = { tool: "claude-code", label: "Claude Code", folder: "/files/chat/website", status: "done", exitCode: 0, output: "Fixed the menu.", userId: 7 };
   // The computer is the bot's in its chat (chat_bots row 21).
   await codingFollowUp(apps, systemContext)({ computerId: "21", place: { botId: "4", chatBotId: "21", workspaceId: "3" }, run });
   assert.equal(queued.length, 1);
   const { task } = queued[0];
   assert.deepEqual([task.kind, task.botId, task.chatBotId, task.userId, task.title], ["shell", "4", "21", "7", "Claude Code finished"]);
   assert.equal(task.prompt, codingReport(run));
-  assert.match(task.prompt, /^Claude Code has ended its work in \/files\/chat\/site\. It finished\./u);
+  assert.match(task.prompt, /^Claude Code has ended its work in \/files\/chat\/website\. It finished\./u);
   assert.match(task.prompt, /Fixed the menu\./u);
   assert.deepEqual(homes, ["3"]);
 });
