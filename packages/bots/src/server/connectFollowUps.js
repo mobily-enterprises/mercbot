@@ -1,7 +1,8 @@
 import { passedOn } from "@jskit-ai/resource-core/shared/callOptions";
+import { resolveActorId } from "@jskit-ai/kernel/server/actions/actionContributorHelpers";
 import { settledWithin } from "./backgroundWork.js";
 import { BotsError } from "./botsError.js";
-import { toBot, toMessage } from "./botRows.js";
+import { toMessage } from "./botRows.js";
 import { CONNECT_WAITS } from "./cardTools.js";
 import { RUN_LEASE, followUpCheckpoint, handOverRuns, keepLease } from "./runLease.js";
 
@@ -17,7 +18,8 @@ const closedCard = () => new BotsError(409, "That card isn't waiting for its app
 
 /**
  * Connect follow-ups (D-77): once the person signs in to an app from a bot's connect card, the bot
- * finishes the task the card was for by itself, once, as a reply to the person's request in that chat.
+ * finishes the task the card was for by itself, once, as a reply to the person's request in that chat. The card is the
+ * person's it was made for (R4), and the follow-up runs as them, for the bot's seat in the chat (chat_bots.id).
  *
  * Pressing the card's button keeps a waiting row for it (records.followUps). The sign-in's callback, on whichever
  * server it lands, marks the rows its new connection reaches ready in the transaction that saves the connection
@@ -29,27 +31,27 @@ const closedCard = () => new BotsError(409, "That card isn't waiting for its app
  * @param {object} dependencies
  * @param {import("./types.js").BotRecords} dependencies.records mercbot.bots.records
  * @param {(reason: string) => object} dependencies.systemContext the bots' system context
- * @param {import("./types.js").BotConversations} dependencies.conversations
+ * @param {import("./chatSeats.js").ChatSeats} dependencies.seats the bot's seat in a chat, and
+ *   its background seat for the person who pressed the card
  * @param {import("./types.js").BotTurns} dependencies.turns
  * @param {import("./types.js").BotHistory} dependencies.chatHistory
  * @param {import("@local/account/server/types").Meter} dependencies.meter
  * @param {import("./types.js").BackgroundWork} dependencies.background where starts and runs go, so a stopping server waits for them
- * @param {(conversationId: string, home: string, system: object) => Promise<{ row: object, call: object } | null>} dependencies.backgroundRow
- *   the chat a follow-up carries on in, and its call options
- * @param {(row: object, input: object, person: string, call: object, held: import("./types.js").RunCheckpoint) => Promise<unknown>} dependencies.runReply
+ * @param {(seat: object, input: object, call: object, held: import("./types.js").RunCheckpoint) => Promise<unknown>} dependencies.runReply
  *   botReplies' reply run, with the follow-up's run held
+ * @param {{ get: (chatId: string, options: object) => Promise<{ chat: object }> }} dependencies.chats chatMembers, for the chat's row
  * @param {typeof RUN_LEASE} [dependencies.lease]
  */
 export function createConnectFollowUps({
   records,
   systemContext,
-  conversations,
+  seats,
   turns,
   chatHistory,
   meter,
   background,
-  backgroundRow,
   runReply,
+  chats,
   lease = RUN_LEASE
 }) {
   const followUps = records.followUps;
@@ -60,30 +62,38 @@ export function createConnectFollowUps({
   let stopped = false;
 
   /**
-   * The person started signing in from a connect card in their chat (`POST …/connect-cards/:messageId`): the card shows
-   * it's connecting and keeps a waiting row, in the person's time zone and language from the page. Pressing it again
-   * starts the wait again. An app already connected for the chat (in Connect apps, or a sign-in that finished as the
-   * card was pressed) is followed up at once.
+   * The person started signing in from a connect card in a chat (`POST …/connect-cards/:messageId`): the card shows it's
+   * connecting and keeps a waiting row, in the person's time zone and language from the page. Pressing it again starts
+   * the wait again. Only the person the card was made for presses it (403 for anyone else). An app the home already has
+   * connected (in Connect apps, or a sign-in that finished as the card was pressed) is followed up at once.
+   * @returns {Promise<{ messages: object[], chat: object }>}
    */
-  async function connectFromCard(botId, messageId, input = {}, options) {
-    const row = await conversations.ownedBot(botId, options);
-    const card = await records.messages.messageIn(row.conversation_id, String(messageId), options, { kind: "connect" });
+  async function connectFromCard(chatId, messageId, input = {}, options) {
+    const card = await records.messages.messageIn(String(chatId), String(messageId), options, { kind: "connect" });
     const pluginId = card?.body.plugin?.id;
     if (!card || !CONNECT_WAITS.includes(card.body.status) || !pluginId) throw closedCard();
+    const me = String(resolveActorId(options.context) ?? "");
+    if (card.body.for && String(card.body.for.id) !== me) {
+      const { name } = card.body.for;
+      throw new BotsError(403, `This is waiting for ${name}'s OK.`, { code: "bots_waiting_for_other", params: { name } });
+    }
+    const seat = card.author_bot_id ? await seats.seatIn(String(chatId), card.author_bot_id, me, options) : null;
+    if (!seat?.chat_bot_id) throw closedCard();
     const page = { timeZone: String(input.timeZone || "").slice(0, 64), language: String(input.language || "").slice(0, 35) };
     const body = { ...card.body, status: "connecting", connectingAt: new Date().toISOString(), page };
-    const id = await conversations.withTransaction(options, async (txOptions) => {
-      const fields = { messageId: card.id, conversationId: row.conversation_id, userId: row.user_id, pluginId };
+    const id = await records.chats.withTransaction(options, async (txOptions) => {
+      const fields = { messageId: card.id, chatBotId: seat.chat_bot_id, userId: me, pluginId };
       const waiting = await followUps.wait(fields, txOptions);
       // Only while the card still waits: one a follow-up claimed meanwhile is connected, and keeps its row.
       if (!(await records.messages.claimBody(card.id, card.body.status, body, txOptions))) throw closedCard();
       return waiting;
     });
     // Read once the row is saved: a sign-in that commits after this read marks the row itself.
-    if ((await turns.hasConnected(row, pluginId, options)) && (await followUps.markOneReady(id, START_GRACE_SECONDS, system()))) {
+    if ((await turns.hasConnected(seat, pluginId, options)) && (await followUps.markOneReady(id, START_GRACE_SECONDS, system()))) {
       background.add(start(id));
     }
-    return { bot: toBot(row), messages: [toMessage({ ...card, body })] };
+    await seats.tell(seat.chat_id, { type: "messages" }, options);
+    return { messages: [toMessage({ ...card, body })], chat: (await chats.get(seat.chat_id, options)).chat };
   }
 
   /**
@@ -102,9 +112,9 @@ export function createConnectFollowUps({
   }
 
   /**
-   * Starts a ready follow-up on this server, unless another server holds it. One whose chat or bot is gone, or that is
-   * a group's (a group never carries on, D-46), is closed for good. One whose app isn't connected for its chat after
-   * all waits for the next sign-in. One whose chat is busy starts when that chat's reply ends, or the next sweep; one
+   * Starts a ready follow-up on this server, unless another server holds it. One whose seat, chat or bot is gone or
+   * archived, or whose person can no longer open the chat, is closed for good. One whose app isn't connected after all
+   * waits for the next sign-in. One whose chat is busy starts when that chat's reply ends, or the next sweep; one
    * still not started 30 minutes after its sign-in began is closed, as its card would be.
    * @param {string} id
    */
@@ -120,17 +130,20 @@ export function createConnectFollowUps({
   async function startOne(id) {
     const followUp = await followUps.startable(id, system());
     if (!followUp) return;
-    const found = await backgroundRow(followUp.conversationId, followUp.workspaceId, system().context);
-    if (!found || found.row.kind === "group") {
+    const found = await seats.backgroundSeat(
+      { chatBotId: followUp.chatBotId, homeId: followUp.workspaceId, userId: followUp.userId },
+      "connect follow-up"
+    );
+    if (!found) {
       await followUps.close(id, system());
       return;
     }
-    const { row, call } = found;
-    if (!followUp.runId && !(await turns.hasConnected(row, followUp.pluginId, call))) {
+    const { seat, call } = found;
+    if (!followUp.runId && !(await turns.hasConnected(seat, followUp.pluginId, call))) {
       await followUps.waitAgain(id, system());
       return;
     }
-    if (!(await chatHistory.claimReply(row))) {
+    if (!(await chatHistory.claimReply(seat))) {
       if (!(await followUps.closeIfOlder(id, CONNECT_WAIT_MINUTES, system()))) await followUps.defer(id, SWEEP_MS / 1000, system());
       return;
     }
@@ -149,11 +162,11 @@ export function createConnectFollowUps({
         return null;
       });
     } finally {
-      if (!held) await chatHistory.runs.release(row.conversation_id);
+      if (!held) await chatHistory.runs.release(seat.chat_bot_id);
     }
     if (!held) return;
-    if (held.run.first) await conversations.tell(row, { type: "messages" }, call);
-    carryOn(row, call, held.run, held.card);
+    if (held.run.first) await seats.tell(seat.chat_id, { type: "messages" }, call);
+    carryOn(seat, call, held.run, held.card);
   }
 
   /**
@@ -161,12 +174,15 @@ export function createConnectFollowUps({
    * at its next step once this server can't be sure it holds it (runLease.js keepLease), and a server stopping hands it
    * over (drain).
    */
-  function carryOn(row, call, run, card) {
+  function carryOn(seat, call, run, card) {
     const held = keepLease(() => followUps.renew(run, lease.seconds, system()), `Connect follow-up ${run.id}`, lease);
     const checkpoint = followUpCheckpoint(followUps, run, call, held.signal);
     const input = { ...card.body.page, connected: { app: card.body.app, task: card.body.task } };
     const job = Promise.resolve()
-      .then(() => meter.track({ userId: row.user_id, botId: String(row.id) }, () => runReply(row, input, "", call, checkpoint)))
+      .then(() => meter.track(
+        { userId: seat.user_id, botId: seat.id, workspaceId: seat.workspace_id },
+        () => runReply(seat, input, call, checkpoint)
+      ))
       .catch((error) => console.warn(`Connect follow-up ${run.id} failed: ${error?.message || error}`))
       .finally(() => {
         held.stop();
@@ -175,17 +191,17 @@ export function createConnectFollowUps({
     // Handed over as this server stops, once the run has stopped here: the chat it held is freed first, so the server
     // that takes the follow-up over can reply in it at once.
     const release = async () => {
-      await chatHistory.runs.release(row.conversation_id);
+      await chatHistory.runs.release(seat.chat_bot_id);
       await followUps.handOver(run, system());
     };
     running.set(job, { lease: held, release });
     background.add(job);
   }
 
-  /** A chat's reply ended: a follow-up of that chat that is ready starts now. */
-  async function afterTurn(conversationId) {
+  /** A bot's reply in a chat ended: a follow-up of that seat that is ready starts now. */
+  async function afterTurn(chatBotId) {
     if (stopped) return;
-    const id = await followUps.startableIn(conversationId, system());
+    const id = await followUps.startableIn(chatBotId, system());
     if (id) await start(id);
   }
 

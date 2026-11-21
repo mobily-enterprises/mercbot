@@ -41,7 +41,7 @@ function standIn(script, { window = () => null, log = null, planted = () => {}, 
   const runs = createCodingRuns({
     sandbox: async (computer, request) => {
       asked.push({ computerId: computer.computerId, ...request });
-      if (request.folder === "/files/mine/missing") throw new Error("There's no folder /files/mine/missing in the bot's files.");
+      if (request.folder === "/files/chat/missing") throw new Error("There's no folder /files/chat/missing in the bot's files.");
       const child = spawn(process.execPath, ["-e", script], { stdio: ["ignore", "pipe", "pipe"] });
       let killed = null;
       const kill = async (reason) => {
@@ -78,18 +78,18 @@ test("a coding run starts only once its tool is signed in, works in the folder o
   const computer = await computerFor(context);
   const { runs, asked, ended, done } = standIn("console.log('Changed index.html and styles.css.'); console.error('2 files changed');");
   assert.deepEqual(runs.status(computer).tools.map((tool) => [tool.id, tool.signedIn]), [["claude-code", false], ["codex", false]]);
-  await assert.rejects(runs.start(computer, { tool: "claude-code", folder: "/files/mine/site", brief: "Fix the menu." }), /isn't signed in/u);
+  await assert.rejects(runs.start(computer, { tool: "claude-code", folder: "/files/chat/site", brief: "Fix the menu." }), /isn't signed in/u);
   assert.equal(asked.length, 0, "nothing runs without the person's own sign-in");
 
   await signIn(computer, ".claude/.credentials.json");
   assert.equal(runs.status(computer).tools[0].signedIn, true);
-  const started = await runs.start(computer, { tool: "claude-code", folder: "/files/mine/site", brief: "Fix the menu on small screens." });
+  const started = await runs.handle(computer, { action: "start", tool: "claude-code", folder: "/files/chat/site", brief: "Fix the menu on small screens.", userId: 7 });
   assert.equal(started.run.status, "running");
-  await assert.rejects(runs.start(computer, { tool: "claude-code", folder: "/files/mine/site", brief: "Again" }), /already working/u, "one run at a time");
+  await assert.rejects(runs.start(computer, { tool: "claude-code", folder: "/files/chat/site", brief: "Again" }), /already working/u, "one run at a time");
   await done;
 
   const [{ folder, argv, env, maxSeconds, title }] = asked;
-  assert.equal(folder, "/files/mine/site", "its own sandbox gets the project's folder");
+  assert.equal(folder, "/files/chat/site", "its own sandbox gets the project's folder");
   assert.equal(title, undefined, "a run has no window of its own: the sandbox's output is kept here");
   assert.equal(maxSeconds, 2 * 60 * 60, "two hours at most");
   assert.ok(env.includes("HOME=/profile/.coding"), "the tool's sign-in stays in the computer's profile, never the bot's files");
@@ -98,7 +98,8 @@ test("a coding run starts only once its tool is signed in, works in the folder o
   assert.equal(argv.at(-1), "--dangerously-skip-permissions");
   const [{ computerId, run }] = ended;
   assert.equal(computerId, "21");
-  assert.deepEqual([run.tool, run.label, run.folder, run.status, run.exitCode], ["claude-code", "Claude Code", "/files/mine/site", "done", 0]);
+  assert.deepEqual([run.tool, run.label, run.folder, run.status, run.exitCode], ["claude-code", "Claude Code", "/files/chat/site", "done", 0]);
+  assert.equal(run.userId, "7", "its ending names the person who started it, whose report it is");
   assert.match(run.output, /Changed index\.html and styles\.css\.\n2 files changed/u);
   assert.equal(runs.status(computer).run.status, "done");
 });
@@ -115,7 +116,7 @@ test("the person watches a run in a window that follows its log, kept to its out
       return [process.execPath, "-e", ""];
     }
   });
-  await runs.start(computer, { tool: "codex", folder: "/files/mine/app", brief: "Make the tests pass." });
+  await runs.start(computer, { tool: "codex", folder: "/files/chat/app", brief: "Make the tests pass." });
   await done;
   assert.equal(windows.length, 1);
   const [{ title, argv }] = windows;
@@ -136,7 +137,7 @@ test("a run's log never follows a link the computer's sandbox left where it goes
     // The computer's sandbox got there first: a link to one of this server's files.
     planted: () => symlinkSync(elsewhere, log)
   });
-  await runs.start(computer, { tool: "codex", folder: "/files/mine/app", brief: "Make the tests pass." });
+  await runs.start(computer, { tool: "codex", folder: "/files/chat/app", brief: "Make the tests pass." });
   await done;
   const { run } = runs.status(computer);
   assert.equal(run.status, "done", "the run itself goes ahead");
@@ -148,7 +149,7 @@ test("a run that fails, is stopped, runs out of time or can't start says so, and
   const computer = await computerFor(context);
   await signIn(computer, ".codex/auth.json");
   const failing = standIn("console.log('Tests failed'); process.exit(3);");
-  await failing.runs.start(computer, { tool: "codex", folder: "/files/mine/app", brief: "Make the tests pass." });
+  await failing.runs.start(computer, { tool: "codex", folder: "/files/chat/app", brief: "Make the tests pass." });
   await failing.done;
   assert.deepEqual([failing.ended[0].run.status, failing.ended[0].run.exitCode], ["failed", 3]);
   assert.deepEqual(failing.asked[0].argv.slice(-4, -1), ["exec", "--dangerously-bypass-approvals-and-sandbox", "--skip-git-repo-check"]);
@@ -162,25 +163,25 @@ test("a run that fails, is stopped, runs out of time or can't start says so, and
       handedOn = true;
     }
   });
-  await slow.runs.start(computer, { tool: "codex", folder: "/files/mine/app", brief: "Take your time." });
+  await slow.runs.start(computer, { tool: "codex", folder: "/files/chat/app", brief: "Take your time." });
   const stopped = await slow.runs.stop(computer, "asleep");
   assert.equal(handedOn, true, "the ending was passed on before stop resolved");
   assert.equal(stopped.run.status, "stopped");
   assert.match(slow.ended[0].run.output, /\(Stopped: the computer went to sleep\.\)$/u);
   const asked = standIn("setTimeout(() => {}, 60000);");
-  await asked.runs.start(computer, { tool: "codex", folder: "/files/mine/app", brief: "Take your time." });
+  await asked.runs.start(computer, { tool: "codex", folder: "/files/chat/app", brief: "Take your time." });
   assert.equal((await asked.runs.handle(computer, { action: "stop" })).run.status, "stopped", "the bot's stop, when the person asks");
   assert.match(asked.ended[0].run.output, /\(Stopped, as asked\.\)$/u);
 
   const late = standIn("setTimeout(() => {}, 60000);", { limitMs: 50 });
-  await late.runs.start(computer, { tool: "codex", folder: "/files/mine/app", brief: "Take all day, please." });
+  await late.runs.start(computer, { tool: "codex", folder: "/files/chat/app", brief: "Take all day, please." });
   assert.equal(late.asked[0].maxSeconds, 0.05, "the sandbox ends the run at its limit");
   await late.done;
   assert.equal(late.ended[0].run.status, "stopped");
   assert.match(late.ended[0].run.output, /\(Stopped after 0 minutes, the longest a run may go on\.\)$/u);
 
   const missing = standIn("");
-  await assert.rejects(missing.runs.start(computer, { tool: "codex", folder: "/files/mine/missing", brief: "Nothing to see here." }), /no folder/u);
+  await assert.rejects(missing.runs.start(computer, { tool: "codex", folder: "/files/chat/missing", brief: "Nothing to see here." }), /no folder/u);
   assert.equal(missing.runs.status(computer).run.status, "stopped", "a run that couldn't start leaves the last run as it was");
   assert.equal(missing.runs.running(computer), false);
 });
@@ -216,7 +217,7 @@ test("a tool's sign-in opens in a sandbox of its own, in a window on the screen,
 test("the bot's coding tools: connect the person's own account first, start on a brief, and read how it's going", async () => {
   const requests = [];
   let signedIn = false;
-  const run = { id: "1", tool: "codex", label: "Codex", folder: "/files/mine/app", status: "running", output: "Reading the code" };
+  const run = { id: "1", tool: "codex", label: "Codex", folder: "/files/chat/app", status: "running", output: "Reading the code" };
   const computer = {
     code: async (computerId, request) => {
       requests.push({ computerId, ...request });
@@ -225,8 +226,18 @@ test("the bot's coding tools: connect the person's own account first, start on a
     }
   };
   const before = [];
-  const tools = buildCodingTools({ computer, computerId: "21", before, inTime: (work) => work, untrusted: (text) => `<<${text}>>` });
-  const notYet = await tools.startCoding.execute({ tool: "codex", folder: "/files/mine/app", brief: "Make the tests pass, please." });
+  // What's signed in on the chat's computer, as its panel lists it (D16): the coding tool, once it is.
+  const noted = [];
+  const tools = buildCodingTools({
+    computer,
+    computerId: "21",
+    before,
+    inTime: (work) => work,
+    untrusted: (text) => `<<${text}>>`,
+    signedIn: async (entry) => noted.push(entry),
+    userId: "7"
+  });
+  const notYet = await tools.startCoding.execute({ tool: "codex", folder: "/files/chat/app", brief: "Make the tests pass, please." });
   assert.equal(notYet.status, "not signed in");
   assert.match(notYet.note, /connect_coding_account/u);
 
@@ -236,30 +247,33 @@ test("the bot's coding tools: connect the person's own account first, start on a
   assert.match(opened.note, /own ChatGPT or OpenAI account, which pays for the coding: Mercbot never uses a shared one/u);
   assert.deepEqual(requests.map((request) => request.action), ["start", "status", "signIn"]);
 
+  assert.deepEqual(noted, [], "nothing is signed in yet");
   signedIn = true;
   assert.equal((await tools.connectCodingAccount.execute({ tool: "codex" })).status, "signed in");
-  const started = await tools.startCoding.execute({ tool: "codex", folder: "/files/mine/app", brief: "Make the tests pass, please." });
+  assert.deepEqual(noted, [{ label: "Codex", kind: "coding" }]);
+  const started = await tools.startCoding.execute({ tool: "codex", folder: "/files/chat/app", brief: "Make the tests pass, please." });
   assert.equal(started.status, "running");
   assert.equal(started.run.output, "<<Reading the code>>", "the tool's output is its words, never instructions");
   assert.deepEqual(before.map((message) => [message.body.text, message.body.detail]), [
-    ["Codex started working", "In /files/mine/app, on this brief:\n\nMake the tests pass, please."]
+    ["Codex started working", "In /files/chat/app, on this brief:\n\nMake the tests pass, please."]
   ]);
   assert.equal((await tools.checkCoding.execute({ stop: true })).run, "none on this computer since it last started");
   assert.equal(requests.at(-1).action, "stop");
 });
 
-test("a coding run that ends wakes its bot in its chat to report, in its home", async () => {
+test("a coding run that ends wakes its bot in its chat to report, for the person who started it, in its home", async () => {
   const queued = [];
   const apps = { apps: { queueTask: async (task, options) => queued.push({ task, options }) } };
   const homes = [];
   const systemContext = (reason) => ({ reason, forWorkspace: (home) => (homes.push(home), { reason, home }) });
-  const run = { tool: "claude-code", label: "Claude Code", folder: "/files/mine/site", status: "done", exitCode: 0, output: "Fixed the menu." };
-  await codingFollowUp(apps, systemContext)({ computerId: "21", conversation: { botId: "4", userId: "7", workspaceId: "3" }, run });
+  const run = { tool: "claude-code", label: "Claude Code", folder: "/files/chat/site", status: "done", exitCode: 0, output: "Fixed the menu.", userId: 7 };
+  // The computer is the bot's in its chat (chat_bots row 21).
+  await codingFollowUp(apps, systemContext)({ computerId: "21", place: { botId: "4", chatBotId: "21", workspaceId: "3" }, run });
   assert.equal(queued.length, 1);
   const { task } = queued[0];
-  assert.deepEqual([task.kind, task.botId, task.conversationId, task.userId, task.title], ["shell", "4", "21", "7", "Claude Code finished"]);
+  assert.deepEqual([task.kind, task.botId, task.chatBotId, task.userId, task.title], ["shell", "4", "21", "7", "Claude Code finished"]);
   assert.equal(task.prompt, codingReport(run));
-  assert.match(task.prompt, /^Claude Code has ended its work in \/files\/mine\/site\. It finished\./u);
+  assert.match(task.prompt, /^Claude Code has ended its work in \/files\/chat\/site\. It finished\./u);
   assert.match(task.prompt, /Fixed the menu\./u);
   assert.deepEqual(homes, ["3"]);
 });

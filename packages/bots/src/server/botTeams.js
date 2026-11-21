@@ -4,23 +4,29 @@ import { lookOf } from "./botList.js";
 import { PLAN_LIMITS } from "./botPlans.js";
 import { GENERAL, LIBRARY } from "./templates.js";
 import { teamById } from "./teams.js";
+import { createCallerReaders } from "./records/recordRows.js";
 
 /**
  * Teams (D-105): the first step towards a home that comes with help. A team is a few of Mercbot's templates for one
  * purpose (teams.js), which the team screen shows with their looks and lines, and Add N bots makes into bots at once,
- * as One bot makes one: the same makeBots, shared as the home's new bots are (D-100), in a section of the person's
- * sidebar named after the team. Add bots' suggestions (D-109) are made the same way, in the section the person names,
- * with the home's templates and new ones beside Mercbot's. A template the home's bots already follow isn't added again.
- * Whoever may add a bot may add a team: anyone in the home (JSKIT refuses everyone else). Every method takes the call's
- * options last.
+ * as One bot makes one: the same makeBots. Add bots' suggestions (D-109) are made the same way, with the home's
+ * templates and new ones beside Mercbot's. A template the home's bots already follow isn't added again. The bots join
+ * the home (D-112): they're on Team and open no chats of their own; the main bot introduces them in the person's
+ * welcome chat, with a [Message] for each. Whoever may add a bot may add a team: anyone in the home (JSKIT refuses
+ * everyone else). Every method takes the call's options last.
  * @param {object} dependencies
- * @param {import("./types.js").BotRecords} dependencies.records mercbot.bots.records: the home's lock, the person's
- *   sections and the templates its bots follow
- * @param {import("./types.js").BotList} dependencies.botList makeBots, New bot's own way of making bots, and the list
- * @param {import("./types.js").BotTemplates} dependencies.templates what a bot made on a template starts with
+ * @param {import("./types.js").BotRecords} dependencies.records mercbot.bots.records: the home's lock and the templates
+ *   its bots follow
+ * @param {import("./types.js").BotList} dependencies.botList makeBots, New bot's own way of
+ *   making bots, the Team list, and the home told
+ * @param {{ startOn: Function }} dependencies.templates what a bot made on a template starts with (botTemplates.js)
+ * @param {{ introduce: (bots: object[], txOptions: object) => Promise<string | null> }} dependencies.onboarding the main
+ *   bot's introduction of new bots in the welcome chat (onboarding.js)
+ * @param {import("@local/notices/server/types").Notices} dependencies.notices
  */
-export function createBotTeams({ records, botList, templates }) {
-  const { conversations: store, newBots } = records;
+export function createBotTeams({ records, botList, templates, onboarding, notices }) {
+  const { bots, chats, newBots } = records;
+  const { personOf } = createCallerReaders();
 
   /** A team by the id a request names, or 400. */
   function knownTeam(teamId) {
@@ -53,60 +59,50 @@ export function createBotTeams({ records, botList, templates }) {
   }
 
   /**
-   * The person's section named after the team, at the end of their sidebar: theirs already, or new.
-   * @param {string} name
-   * @param {import("./types.js").CallOptions} txOptions
-   */
-  async function sectionNamed(name, txOptions) {
-    const sections = await store.lockSections(txOptions);
-    return sections.find((section) => section.name === name) || store.insertSection(name, sections.length, sections, txOptions);
-  }
-
-  /**
    * Makes the bots `entries` name, each `{ choice, look }` (a choice as startOn takes it: `{ library }`, `{ home }` or
-   * `{ draft }`), in the person's section `sectionName`: last to first in one transaction through makeBots (the sidebar
-   * puts the newest first, so they read there in the order given, the first on top), so either all of them are made or
-   * none is, in the same statements however many library bots there are (each new template adds its own). The home is
-   * locked meanwhile, so a library template its bots follow, read then, is never added twice (`skipped`); 409 when every
-   * one is there already. Each bot opens with its template's greeting; none starts any AI work. Answers the list as the
-   * person sees it after, with the new bots' ids (`added`) and their section (`sectionId`).
+   * `{ draft }`), in the order given, in one transaction through makeBots, so either all of them are made or none is, in
+   * the same statements however many library bots there are (each new template adds its own). The home is locked
+   * meanwhile, so a library template its bots follow, read then, is never added twice (`skipped`); 409 when every one
+   * is there already. None starts any AI work; each greets with its template's greeting when someone first opens a
+   * chat with it. Answers the Team list after, the new bots' ids (`added`) and the welcome chat that introduces them
+   * (`chatId`).
    */
-  async function make(sectionName, entries, displayName, options) {
-    const firstName = await templates.firstNameFor(displayName, options);
+  async function make(entries, options) {
     // A new template's tag lost to a race runs the whole transaction again.
-    return retryLostInsertRace(options, () => store.withTransaction(options, async (txOptions) => {
-      await store.lockHome(txOptions);
+    const done = await retryLostInsertRace(options, () => chats.withTransaction(options, async (txOptions) => {
+      await bots.lockHome(txOptions);
       const slugs = entries.filter((entry) => entry.choice.library).map((entry) => entry.choice.library);
       const followed = await newBots.followedOf(slugs, txOptions);
       const adding = entries.filter((entry) => !followed.has(entry.choice.library));
       if (!adding.length) {
         throw new BotsError(409, "Every bot you chose is already in this home.", { code: "bots_team_all_in_home" });
       }
-      const section = await sectionNamed(sectionName, txOptions);
       const starts = [];
       for (const { choice, look } of adding) {
-        starts.push({ ...look, start: await templates.startOn({ choice, botName: look.name, firstName }, txOptions) });
+        starts.push({ ...look, start: await templates.startOn({ choice, botName: look.name, firstName: "" }, txOptions) });
       }
-      const made = await botList.makeBots(starts.toReversed(), section.id, txOptions);
-      return {
-        ...(await botList.listBots(txOptions)),
-        added: made.map((bot) => bot.id).toReversed(),
-        skipped: slugs.filter((slug) => followed.has(slug)),
-        sectionId: String(section.id)
-      };
+      const made = await botList.makeBots(starts, txOptions);
+      const chatId = await onboarding.introduce(made, txOptions);
+      return { made, chatId, skipped: slugs.filter((slug) => followed.has(slug)) };
     }));
+    const added = done.made.map((bot) => String(bot.id));
+    await botList.tellHome(added, "created", options);
+    if (done.chatId) {
+      await notices.publishEach("bots", [personOf(options)], { type: "messages", chatId: done.chatId })
+        .catch((error) => console.warn("Telling the person about their team's introduction failed; they see it on their next read.", error));
+    }
+    return { ...(await botList.listBots(options)), added, skipped: done.skipped, chatId: done.chatId };
   }
 
   /**
    * Add N bots of a team: the team's bots on the templates chosen (slugs of the team's; 400 for none, or for one the
-   * team hasn't got), in the team's order, in a section named after it (make). Each takes its template's name and look;
-   * Mercbot's own templates are read from the library, with no statement.
+   * team hasn't got), in the team's order (make). Each takes its template's name and look; Mercbot's own templates are
+   * read from the library, with no statement.
    * @param {string} teamId
    * @param {unknown} chosen
-   * @param {string} displayName the person's, for the greetings
    * @param {import("./types.js").CallOptions} options
    */
-  async function addTeam(teamId, chosen, displayName, options) {
+  async function addTeam(teamId, chosen, options) {
     const team = knownTeam(teamId);
     const slugs = Array.isArray(chosen) ? [...new Set(chosen.map(String))] : [];
     if (!slugs.length) throw new BotsError(400, "Choose at least one bot to add.", { code: "bots_team_empty" });
@@ -116,7 +112,7 @@ export function createBotTeams({ records, botList, templates }) {
     }
     const entries = team.templates.filter((slug) => slugs.includes(slug))
       .map((slug) => ({ choice: { library: slug }, look: lookOf(LIBRARY.get(slug)) }));
-    return make(team.name, entries, displayName, options);
+    return make(entries, options);
   }
 
   /**
@@ -140,26 +136,23 @@ export function createBotTeams({ records, botList, templates }) {
 
   /**
    * Add N bots of a suggestion (D-109): at most PLAN_LIMITS.bots of them, at most PLAN_LIMITS.new on new templates, each
-   * checked whole as Save and use checks one (422 with its problems otherwise), in the section the person named, in the
-   * order given (make). A library bot named twice is made once.
-   * @param {{ section?: unknown, bots?: unknown }} input
-   * @param {string} displayName the person's, for the greetings
+   * checked whole as Save and use checks one (422 with its problems otherwise), in the order given (make). A library
+   * bot named twice is made once.
+   * @param {{ bots?: unknown }} input
    * @param {import("./types.js").CallOptions} options
    */
-  async function addBots(input = {}, displayName, options) {
-    const sectionName = String(input.section ?? "").trim().slice(0, PLAN_LIMITS.name);
-    if (!sectionName) throw new BotsError(400, "Name the section the bots go in.", { code: "bots_add_section" });
-    const bots = Array.isArray(input.bots) ? input.bots : [];
-    if (!bots.length) throw new BotsError(400, "Choose at least one bot to add.", { code: "bots_add_empty" });
-    if (bots.length > PLAN_LIMITS.bots) {
+  async function addBots(input = {}, options) {
+    const chosen = Array.isArray(input.bots) ? input.bots : [];
+    if (!chosen.length) throw new BotsError(400, "Choose at least one bot to add.", { code: "bots_add_empty" });
+    if (chosen.length > PLAN_LIMITS.bots) {
       throw new BotsError(400, `Add at most ${PLAN_LIMITS.bots} bots at once.`, { code: "bots_add_too_many" });
     }
-    if (bots.filter((bot) => bot?.draft !== undefined).length > PLAN_LIMITS.new) {
+    if (chosen.filter((bot) => bot?.draft !== undefined).length > PLAN_LIMITS.new) {
       throw new BotsError(400, `Add at most ${PLAN_LIMITS.new} new templates at once.`, { code: "bots_add_too_many_new" });
     }
-    const entries = bots.map(suggested)
+    const entries = chosen.map(suggested)
       .filter((entry, at, all) => !entry.choice.library || all.findIndex((other) => other.choice.library === entry.choice.library) === at);
-    return make(sectionName, entries, displayName, options);
+    return make(entries, options);
   }
 
   return Object.freeze({

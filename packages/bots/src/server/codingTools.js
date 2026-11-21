@@ -1,26 +1,26 @@
 import { createTool } from "@jskit-ai/agent/server";
 import { z } from "zod";
 
-// The coding tools a person can sign in to on their bot's computer, as
-// packages/computer's codingRuns.js names them.
+// The coding tools a person can sign in to on a chat's computer, as packages/computer's codingRuns.js names them.
 const TOOLS = { "claude-code": "Claude Code", codex: "Codex" };
 const toolId = z.enum(["claude-code", "codex"]).describe("claude-code (Claude Code) or codex (Codex CLI)");
 
 /**
- * Coding hand-off: the bot writes a brief, and a coding tool on
- * its own computer, Claude Code or Codex CLI, does the work in a folder of its files, signed in
- * with the person's own account. The person signs it in themselves, on the computer's screen;
- * Mercbot never uses a shared account or sells credits for it. The run shows in a window on the
- * computer's screen; when it ends, the bot is woken in this chat to report (botLoops).
- * Offered only in the person's own chat with their bot, where its computer is theirs.
+ * Coding hand-off: the bot writes a brief, and a coding tool on the chat's computer, Claude Code or Codex CLI, does the
+ * work in a folder of its files, signed in with the person's own account. The person signs it in themselves, on the
+ * computer's screen; Mercbot never uses a shared account or sells credits for it. The run shows in a window on the
+ * computer's screen; when it ends, the bot is woken in this chat to report (botLoops). Offered in any chat, on a turn
+ * the person asked for (D-77, D14): what it's signed in to is the chat's, which a sign-in's one line says (`signedIn`).
  * @param {object} shared
  * @param {import("@local/computer/server/types").Computer} shared.computer
  * @param {string} shared.computerId
  * @param {object[]} shared.before
  * @param {import("./types.js").InTime} shared.inTime
  * @param {(text: string) => string} shared.untrusted
+ * @param {(signIn: { label: string, kind: string }) => Promise<void>} shared.signedIn D14's line and the computer's note
+ * @param {string} shared.userId the person the turn works for, who started the run
  */
-export function buildCodingTools({ computer, computerId, before, inTime, untrusted }) {
+export function buildCodingTools({ computer, computerId, before, inTime, untrusted, signedIn, userId }) {
   const on = (request, what) => inTime(computer.code(String(computerId), request), what);
   /** A run as the bot reads it: the tool's output is its words, never instructions. */
   const told = (run) => (run ? { ...run, output: untrusted(run.output || "") } : null);
@@ -30,7 +30,10 @@ export function buildCodingTools({ computer, computerId, before, inTime, untrust
       const now = await on({ action: "status" }, "Checking the coding tools");
       const entry = now.tools.find((found) => found.id === tool);
       if (!entry?.installed) return { error: "The coding tools aren't set up on this Mercbot yet. Say so plainly; there's nothing the person can do about it." };
-      if (entry.signedIn) return { status: "signed in", note: `${TOOLS[tool]} is already signed in with their account. Go ahead with start_coding.` };
+      if (entry.signedIn) {
+        await signedIn({ label: TOOLS[tool], kind: "coding" });
+        return { status: "signed in", note: `${TOOLS[tool]} is already signed in with their account. Go ahead with start_coding.` };
+      }
       await on({ action: "signIn", tool }, "Opening the sign-in");
       return {
         status: "sign-in open",
@@ -48,7 +51,8 @@ export function buildCodingTools({ computer, computerId, before, inTime, untrust
   async function startCoding({ tool, folder, brief }) {
     let now;
     try {
-      now = await on({ action: "start", tool, folder, brief }, "Starting the coding tool");
+      // Its report wakes the bot here as the person who started it (R4, botLoops codingFollowUp).
+      now = await on({ action: "start", tool, folder, brief, userId }, "Starting the coding tool");
     } catch (error) {
       if (/isn't signed in/u.test(error.message)) {
         return { status: "not signed in", note: `${TOOLS[tool]} isn't signed in yet. Use connect_coding_account first.` };
@@ -101,7 +105,7 @@ export function buildCodingTools({ computer, computerId, before, inTime, untrust
           "internet, nothing else of your files or your computer. One run at a time.",
         inputSchema: z.object({
           tool: toolId,
-          folder: z.string().min(11).max(500).describe("The project's folder, e.g. /files/mine/website"),
+          folder: z.string().min(11).max(500).describe("The project's folder, e.g. /files/chat/website"),
           brief: z
             .string()
             .min(20)

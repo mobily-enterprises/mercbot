@@ -6,20 +6,21 @@ import { createPolicyRepository } from "../../packages/bots/src/server/records/p
 import { REQUEST_SEARCH, ROUTINE_SEARCH, createWorkRepository } from "../../packages/bots/src/server/records/workRepository.js";
 import {
   approvalRuleResource,
-  botConversationResource,
-  botMessageResource,
   botPolicyResource,
   botRequestResource,
-  botRoutineResource
+  botRoutineResource,
+  messageResource
 } from "../../packages/bots/src/server/records/tableResources.js";
+import { seedMessage } from "../support/chatFixtures.mjs";
 import { connectTestDatabase } from "../support/testDatabase.mjs";
 import { testBot, testHome } from "./testHome.js";
 import { cleanupStack } from "../support/cleanupStack.mjs";
 
 // The handle calls the bots' work makes, on PostgreSQL: claim() with SKIP LOCKED and a custom `due`
 // filter, patchWhere with now() + make_interval bound as a value, a jsonb merge as a value,
-// createMany upserts on bot_policies (user-owned), deleteWhere's count,
-// and lockMany, the stand-in for botList.js's FOR NO KEY UPDATE. Fixtures are seeded with Knex.
+// createMany upserts on bot_policies (a person's in a home), and deleteWhere's count. Each bot is in its direct chat
+// with the person (testBot), so a request runs from one bot's seat in its chat to another bot, and a routine is a
+// bot's in a chat (D-112). Fixtures are seeded with Knex.
 assert.ok(process.env.TEST_DB_NAME?.trim(), "TEST_DB_NAME must identify a disposable test database.");
 assert.equal(process.env.DB_NAME, process.env.TEST_DB_NAME, "DB_NAME must match the dedicated TEST_DB_NAME.");
 
@@ -33,8 +34,7 @@ async function setup(context) {
   const handles = await runtime.own(FEATURE, [
     { resource: botRequestResource, searchSchema: REQUEST_SEARCH },
     { resource: botRoutineResource, searchSchema: ROUTINE_SEARCH },
-    botMessageResource,
-    botConversationResource,
+    messageResource,
     botPolicyResource,
     approvalRuleResource
   ]);
@@ -66,15 +66,14 @@ async function setup(context) {
   };
 }
 
-/** A queued request between two bots, due now unless `fields` says otherwise. */
+/** A queued request from one bot's seat in its chat to another bot, due now unless `fields` says otherwise. */
 async function seedRequest(knex, { homeId, userId }, from, to, fields = {}) {
   const [row] = await knex("bot_requests").insert({
     workspace_id: homeId,
     user_id: userId,
-    from_bot_id: from.id,
-    from_conversation_id: from.conversation_id,
+    conversation_id: from.conversation_id,
+    from_chat_bot_id: from.chat_bot_id,
     to_bot_id: to.id,
-    to_conversation_id: to.conversation_id,
     brief: "probe",
     next_step: "target_turn",
     ...fields
@@ -132,10 +131,9 @@ test("a request changes only while its filters still match, run_after takes now(
   const created = await work.createRequest({
     userId: String(probe.userId),
     kind: "ask",
-    fromBotId: String(probe.asker.id),
-    fromConversationId: String(probe.asker.conversation_id),
+    conversationId: String(probe.asker.conversation_id),
+    fromChatBotId: String(probe.asker.chat_bot_id),
     toBotId: String(probe.target.id),
-    toConversationId: String(probe.target.conversation_id),
     chain: [String(probe.asker.id)],
     brief: "probe brief",
     status: "queued",
@@ -148,7 +146,7 @@ test("a request changes only while its filters still match, run_after takes now(
   const { workspace_id: stamped } = await knex("bot_requests").where({ id: created.id }).first("workspace_id");
   assert.equal(String(stamped), String(probe.homeId), "the create stamps the request's home from the context");
 
-  const open = await work.openRequestBetween({ fromBotId: probe.asker.id, toBotId: probe.target.id, userId: probe.userId }, member);
+  const open = await work.openRequestBetween({ fromChatBotId: probe.asker.chat_bot_id, toBotId: probe.target.id, userId: probe.userId }, member);
   assert.equal(open?.id, created.id, "statuses: [...] filters with IN");
 
   const changed = await work.changeRequest(created.id, { status: "working", runAfter: work.secondsFromNow(3), turns: 1 }, job, { statuses: ["queued"] });
@@ -159,25 +157,23 @@ test("a request changes only while its filters still match, run_after takes now(
   assert.equal(soon, true);
   assert.equal(await work.changeRequest(created.id, { nextStep: null }, job, { id: created.id, nextStep: "asker_turn" }), null, "nextStep filters by its value");
   assert.ok(await work.changeRequest(created.id, { leaseUntil: null, runAfter: work.now() }, job, { stepWaiting: true }), "stepWaiting matches a waiting step");
-  assert.equal((await work.newestRequest({ toConversationId: String(probe.target.conversation_id), statuses: ["working"] }, member))?.id, created.id);
+  assert.equal((await work.newestRequest({ toBotId: String(probe.target.id), statuses: ["working"] }, member))?.id, created.id);
 
-  const [message] = await knex("bot_messages").insert({
-    workspace_id: probe.homeId,
-    bot_id: probe.asker.id,
-    conversation_id: probe.asker.conversation_id,
+  const messageId = await seedMessage(knex, {
+    homeId: probe.homeId,
+    chatId: probe.asker.conversation_id,
     kind: "bot_request",
-    role: "system",
     body: { requestId: created.id, status: "queued", brief: "probe brief" }
-  }).returning("*");
-  await work.patchCards([String(message.id)], { status: "working", question: null }, job);
-  const { body } = await knex("bot_messages").where({ id: message.id }).first("body");
+  });
+  await work.patchCards([messageId], { status: "working", question: null }, job);
+  const { body } = await knex("messages").where({ id: messageId }).first("body");
   assert.deepEqual(body, { requestId: created.id, status: "working", brief: "probe brief", question: null }, "the patch merges into the stored body");
 });
 
 test("claimRoutine() takes a due routine once and moves its next run; nameIs matches in any case; deleteWhere counts", async (context) => {
   const probe = await setup(context);
   const { knex, work, job, homeId } = probe;
-  const base = { workspace_id: homeId, bot_id: probe.asker.id, conversation_id: probe.asker.conversation_id, schedule: "every day" };
+  const base = { workspace_id: homeId, chat_bot_id: probe.asker.chat_bot_id, made_by: probe.userId, schedule: "every day" };
   const [due] = await knex("bot_routines").insert({ ...base, name: `Due ${probe.tag}`, cron: "0 9 * * *", enabled: true, next_run_at: knex.raw("now() - interval '1 minute'") }).returning("*");
   await knex("bot_routines").insert([
     { ...base, name: `Off ${probe.tag}`, cron: "0 9 * * *", enabled: false, next_run_at: knex.raw("now() - interval '1 minute'") },
@@ -210,64 +206,31 @@ test("claimRoutine() takes a due routine once and moves its next run; nameIs mat
   assert.equal((await work.endRoutineRun(claimed, { failed: true }, system)).failures, 1, "a failed run counts");
   assert.equal(await work.endRoutineRun(claimed, { failed: false }, system), null, "an ended run can't end again");
 
-  const named = await work.routineNamed(probe.asker.conversation_id, `due ${probe.tag}`.toUpperCase(), job);
+  const named = await work.routineNamed(probe.asker.chat_bot_id, `due ${probe.tag}`.toUpperCase(), job);
   assert.equal(named?.id, String(due.id));
-  assert.equal(await work.deleteRoutine(due.id, probe.target.conversation_id, job), false, "another conversation's routine is left alone");
-  assert.equal(await work.deleteRoutine(due.id, probe.asker.conversation_id, job), true);
+  assert.equal(await work.deleteRoutine(due.id, probe.target.chat_bot_id, job), false, "another bot's routine in another chat is left alone");
+  assert.equal(await work.deleteRoutine(due.id, probe.asker.chat_bot_id, job), true);
 });
 
 test("bot_policies upsert on their key; a rule outside the person's own reads as missing", async (context) => {
   const probe = await setup(context);
   const { knex, policies, member, otherId, tag } = probe;
-  await knex("bot_policies").where({ user_id: probe.userId }).del();
+  const theirOwn = { workspace_id: probe.homeId, user_id: probe.userId };
+  await knex("bot_policies").where(theirOwn).del();
   assert.equal((await policies.policy(member)).autoReview, true, "auto-review is on until the person sets it");
   await policies.setAutoReview(false, member);
   await policies.setAutoReview(false, member);
   await Promise.all([policies.setAutoReview(true, member), policies.setAutoReview(true, member)]);
-  const rows = await knex("bot_policies").where({ user_id: probe.userId });
-  assert.equal(rows.length, 1, "one row per person, kept by the unique user_id");
+  const rows = await knex("bot_policies").where(theirOwn);
+  assert.equal(rows.length, 1, "one row per person in a home, kept by the unique (workspace_id, user_id)");
   assert.equal(rows[0].auto_review, true);
 
   await policies.addRule({ action: `send email ${tag}`, behaviour: "ask" }, member);
-  const [theirs] = await knex("approval_rules").insert({ user_id: otherId, action: `theirs ${tag}`, behaviour: "allow" }).returning("id");
+  const [theirs] = await knex("approval_rules").insert({ workspace_id: probe.homeId, user_id: otherId, action: `theirs ${tag}`, behaviour: "allow" }).returning("id");
   const { rules } = await policies.policy(member);
   assert.ok(rules.some((rule) => rule.action === `send email ${tag}`));
   assert.ok(!rules.some((rule) => rule.action === `theirs ${tag}`), "another person's rules stay theirs");
   assert.equal(await policies.updateRule(String(theirs.id), { action: "x", behaviour: "allow" }, member), false);
   await policies.deleteRule(String(theirs.id), member);
   assert.ok(await knex("approval_rules").where({ id: theirs.id }).first(), "another person's rule is not deleted");
-});
-
-test("lockMany() locks conversations in id order, and records whether it blocks a child row's insert (FOR NO KEY UPDATE)", async (context) => {
-  const probe = await setup(context);
-  const { knex, handles, member } = probe;
-  const ids = [probe.target.conversation_id, probe.asker.conversation_id].map(String);
-  let release;
-  const held = new Promise((resolve) => { release = resolve; });
-  let signalHeld;
-  const holding = new Promise((resolve) => { signalHeld = resolve; });
-  const locker = handles.botConversations.withTransaction(member, async (txOptions) => {
-    const locked = await handles.botConversations.lockMany(ids, { ...txOptions, fields: ["pinPosition"] });
-    signalHeld(locked.map((row) => row.id));
-    await held;
-  });
-  const lockedIds = await holding;
-  assert.deepEqual(lockedIds, [...ids].sort((a, b) => Number(a) - Number(b)), "locked in id order");
-  // A message insert checks its conversation's foreign key with FOR KEY SHARE. FOR NO KEY UPDATE (the
-  // old pin order) lets it through; FOR UPDATE makes it wait.
-  let blocked;
-  try {
-    await knex.transaction(async (trx) => {
-      await trx.raw("set local lock_timeout = '300ms'");
-      await trx("bot_messages").insert({ workspace_id: probe.homeId, bot_id: probe.asker.id, conversation_id: probe.asker.conversation_id, kind: "text", role: "user", body: { text: "while locked" } });
-      blocked = false;
-    });
-  } catch (error) {
-    if (error.code !== "55P03") throw error;
-    blocked = true;
-  } finally {
-    release();
-    await locker;
-  }
-  context.diagnostic(`lockMany on bot_conversations ${blocked ? "BLOCKS" : "does not block"} a message insert into a locked conversation (FOR UPDATE vs FOR NO KEY UPDATE).`);
 });

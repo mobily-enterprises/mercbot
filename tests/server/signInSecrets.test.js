@@ -75,7 +75,8 @@ function patsTurn() {
     reachableAccounts: async (_call, filters = {}) => accounts.filter((entry) => !filters.pluginIds || filters.pluginIds.includes(entry.pluginId)),
     connections: { accessToken: async (id) => accessOf(`key-${id}`) }
   };
-  return buildTools(turnDoubles({ approvals: {}, computer: {}, homeId: "1", userId: "7", botId: "3", conversationId: "5", integrations, call: { context: { actor: { id: "7" } } } })).tools;
+  const seat = { id: "3", workspace_id: "1", user_id: "7", chat_id: "5", chat_bot_id: "11", chat: { id: "5", kind: "public" } };
+  return buildTools(turnDoubles({ approvals: {}, computer: {}, seat, integrations, call: { context: { actor: { id: "7" } } } })).tools;
 }
 
 /** Gmail's API as a stand-in, every mailbox holding the same sign-in email. */

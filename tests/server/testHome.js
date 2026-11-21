@@ -37,9 +37,12 @@ export async function separateHome(knex, ownerId, members = []) {
   return String(home.id);
 }
 
-/** A bot `userId` made in `workspaceId`, with their conversation with it, as testBot makes one in their first home. */
+/**
+ * A bot `userId` made in `workspaceId`, with their direct chat with it, as testBot makes one in their first home:
+ * `conversation_id` is the chat, `chat_bot_id` the bot's seat in it (D-112).
+ */
 export async function botIn(knex, workspaceId, userId, fields = {}) {
-  const [bot] = await knex("bots").insert({ user_id: userId, workspace_id: workspaceId, name: "Disposable", color: "#1E86FC", ...fields }).returning("*");
-  const [conversation] = await knex("bot_conversations").insert({ workspace_id: workspaceId, bot_id: bot.id, user_id: userId }).returning("*");
-  return { ...bot, conversation_id: conversation.id };
+  const [bot] = await knex("bots").insert({ made_by: userId, workspace_id: workspaceId, name: "Disposable", color: "#1E86FC", ...fields }).returning("*");
+  const chat = await seedChat(knex, { homeId: workspaceId, direct: { userId, botId: bot.id } });
+  return { ...bot, conversation_id: chat.id, chat_bot_id: chat.chatBotIds.get(String(bot.id)) };
 }

@@ -47,6 +47,8 @@ export const REQUEST_SEARCH = Object.freeze({
  * - nameIs: the name, in any case (findRoutine).
  */
 export const ROUTINE_SEARCH = Object.freeze({
+  // The routines of the bots in chats given: a chat's, or a bot's in the chats someone may open.
+  chatBotIds: { type: "array", items: { type: "id" }, actualField: "chatBotId", filterOperator: "in" },
   // The routines still running of the bots in chats given: what an archived bot or chat pauses.
   enabledIn: {
     type: "array",
@@ -309,6 +311,27 @@ export function createWorkRepository({ botRequests, botRoutines, messages: botMe
   }
 
   /**
+   * The routines of the bots in chats given (their chat_bots ids), in id order, as the caller may read them: one read.
+   * @param {string[]} chatBotIds
+   * @param {CallOptions} options
+   */
+  async function routinesIn(chatBotIds, options) {
+    if (!chatBotIds.length) return [];
+    return botRoutines.queryAll({ filters: { chatBotIds: chatBotIds.map(String) }, sort: ["id"] }, options);
+  }
+
+  /**
+   * One routine by id, as the caller may read it (its chat's rule), or null.
+   * @param {string} routineId
+   * @param {CallOptions} options
+   */
+  async function routine(routineId, options) {
+    if (!/^\d+$/u.test(String(routineId ?? ""))) return null;
+    const [found = null] = await botRoutines.queryAll({ filters: { id: String(routineId) } }, options);
+    return found;
+  }
+
+  /**
    * The routine of a bot in a chat with this name, in any case, or null (findRoutine).
    * @param {string} chatBotId
    * @param {string} name
@@ -401,6 +424,8 @@ export function createWorkRepository({ botRequests, botRoutines, messages: botMe
     renewRoutineRun,
     endRoutineRun,
     routinesOf,
+    routinesIn,
+    routine,
     routineNamed,
     routineOf,
     createRoutine,

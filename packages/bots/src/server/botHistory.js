@@ -1,122 +1,114 @@
-import { toGroupHistory, toModelHistory } from "./botAgent.js";
+import { toModelHistory } from "./botAgent.js";
 import { toHistoryMessage } from "./botRows.js";
 
 const ROUTINE_RUNS_READ = 3;
 const RECENT_MESSAGES_READ = 6;
 
 /**
- * What a bot reads before replying (D-48): a conversation's messages after its latest summary, the summaries kept between
- * turns, and the saved runs that keep one reply per conversation at a time. Reads take the call's options last; the
- * summaries' own hooks, which name only a conversation, read it in its home (records.conversations.summaryOf).
+ * What a bot reads before replying in a chat (D-48, R5): the chat's messages after its latest summary, each under its
+ * author's name, the summaries kept between turns, and the saved runs that keep one reply per bot in a chat at a time.
+ * Every read a turn makes takes the model's reader (records.readers.forBot) as its options. A chat's summary is the
+ * chat's, read by each of its bots: the summary worker names only the chat, so its hooks read it through the chat's
+ * reader too (summarised).
  * @param {object} dependencies
  * @param {import("./types.js").BotRecords} dependencies.records mercbot.bots.records
+ * @param {(reason: string) => object} dependencies.systemContext the bots' system context factory
  * @param {import("./types.js").ChatModel} dependencies.model
  * @param {import("@local/account/server/types").Meter} dependencies.meter
  * @param {import("@local/notices/server/types").Notices} dependencies.notices
- * @param {import("./types.js").BotConversations} dependencies.conversations
  * @param {(input: { previous: string, text: string }) => Promise<string>} [dependencies.summarize] replaces the summary's model call
  * @param {import("./types.js").SummaryLimits} [dependencies.compactionLimits] replaces the summary limits
  * @param {(work: Promise<unknown>) => void} dependencies.background runs work that outlives the request (backgroundWork.js)
  */
-export function createBotHistory({ records, model, meter, notices, conversations, summarize, compactionLimits, background }) {
-  const { conversations: store, messages } = records;
-  // What the bot reads before replying: the conversation's latest summary (@jskit-ai/agent-runtime summaries)
-  // and every message after it, replies with their transcripts. A room that continues another knows
-  // that room's messages up to the moment it began, and so on back (D-36), until its own first
-  // summary takes them in; in a room each person's words carry their name.
-  const INHERITED_LIMIT = 60;
-  const historyRows = async (conversationId, after, options) =>
-    (await messages.messagesAfter(conversationId, after, options)).map(toHistoryMessage);
-  async function inheritedHistory(room, options) {
-    const inherited = [];
-    for (let current = room; current?.parent_id && current.forked_at_message_id && inherited.length < INHERITED_LIMIT;) {
-      const left = INHERITED_LIMIT - inherited.length;
-      const earlier = await messages.messagesUpTo(current.parent_id, current.forked_at_message_id, left, options);
-      inherited.unshift(...earlier.reverse().map(toHistoryMessage));
-      current = await store.conversationRow(current.parent_id, options);
-    }
-    return inherited;
-  }
-  const withNames = (list) =>
-    list.map((message) =>
-      message.role === "user" && message.body.from
-        ? { ...message, body: { ...message.body, text: `${message.body.from.name}: ${message.body.text}` } }
-        : message);
+export function createBotHistory({ records, systemContext, model, meter, notices, summarize, compactionLimits, background }) {
+  const { messages, chats, directory } = records;
 
-  async function conversationHistory(row, options) {
-    // Summarised first if it has outgrown what a reply reads, never cut unseen (D-48).
-    await compaction.ensureWithin(row.conversation_id);
-    const { summary, after } = await compaction.current(row.conversation_id);
-    const inherited = row.room && !after ? await inheritedHistory(row.room, options) : [];
-    const history = [...inherited, ...await historyRows(row.conversation_id, after, options)];
-    return { summary, history: row.room ? withNames(history) : history };
+  /** Messages as the bots read them, each with its author's name: one read of the people's, one of the home's bots'. */
+  async function named(rows, options) {
+    const list = rows.map(toHistoryMessage);
+    const people = await chats.names(list.map((message) => message.authorUserId), options);
+    const bots = list.some((message) => message.authorBotId)
+      ? new Map((await directory.listHomeBots(options)).map((bot) => [bot.id, bot.name]))
+      : new Map();
+    return list.map((message) => {
+      const authorName = message.authorUserId
+        ? people.get(message.authorUserId)
+        : message.authorBotId ? bots.get(message.authorBotId) : null;
+      return authorName ? { ...message, authorName } : message;
+    });
+  }
+
+  /** The chat after its latest summary, as a turn reads it; summarised first if it has outgrown a reply (D-48). */
+  async function chatHistory(seat, reader) {
+    await compaction.ensureWithin(seat.chat_id);
+    const { summary, after } = await compaction.current(seat.chat_id);
+    return { summary, history: await named(await messages.messagesAfter(seat.chat_id, after, reader), reader) };
   }
 
   // What a routine run reads (D-57): its own last few runs, not the whole chat. Its instructions come
   // with its prompt. Reading weeks of chat for each run is what made a headline check expensive.
-  async function routineHistory(row, routineId, options) {
-    const runs = await messages.routineRuns(row.conversation_id, routineId, ROUTINE_RUNS_READ, options);
-    return { summary: "", history: runs.reverse().map(toHistoryMessage) };
+  async function routineHistory(seat, routineId, reader) {
+    const runs = await messages.routineRuns(seat.chat_id, routineId, ROUTINE_RUNS_READ, reader);
+    return { summary: "", history: await named(runs.reverse(), reader) };
   }
 
   // What a finished command's follow-up reads (D-60): the chat's last few messages, in words only. They
   // hold what the person wanted done with the result, without weeks of chat and every old tool call.
-  async function recentHistory(row, options) {
-    const recent = await messages.recentText(row.conversation_id, RECENT_MESSAGES_READ, options);
-    const list = recent.reverse().map(toHistoryMessage);
-    const named = row.room ? withNames(list) : list;
-    return { summary: "", history: named.map((message) => ({ ...message, body: { text: message.body.text } })) };
+  async function recentHistory(seat, reader) {
+    const recent = await named((await messages.recentText(seat.chat_id, RECENT_MESSAGES_READ, reader)).reverse(), reader);
+    return { summary: "", history: recent.map((message) => ({ ...message, body: { text: message.body.text } })) };
   }
 
-  // One reply per conversation at a time, its steps saved as it goes (D-48, @jskit-ai/agent-runtime runs).
+  // One reply per bot in a chat at a time, its steps saved as it goes (D-48, @jskit-ai/agent-runtime runs): the
+  // runtime's conversation is the bot's seat in the chat (chat_bots.id), and the run knows its bot and its person.
   const runs = records.agent.createRuns();
-  const claimReply = (row) => runs.claim(row.conversation_id, { bot_id: row.id });
+  const claimReply = (seat) => runs.claim(seat.chat_bot_id, { bot_id: seat.id, user_id: seat.user_id });
 
-  // Summaries between turns (@jskit-ai/agent-runtime), read the way each bot reads its conversation: a group's
-  // messages as said by the person or a named bot, a room's with each person's name. The summary worker names
-  // only the conversation, so each hook reads it, and then the rest, in that conversation's home.
+  const SUMMARY_REASON = "a chat's summary is made from that chat's own messages, in its home";
+  /**
+   * The chat a summary is for, in its home: found through one of its bots (a chat with no bot left makes no model call,
+   * so it has nothing to summarise). Its messages are read through the chat's own reader (records.readers.forChat, R1,
+   * D12), which acts for no one: what the chat may read decides it, so no read can reach past the chat, and no person's
+   * reach is borrowed.
+   */
+  async function summarised(chatId) {
+    const across = { context: systemContext(SUMMARY_REASON) };
+    const seats = await directory.botsInChat(String(chatId), across);
+    const place = seats.length ? await directory.computerOf(seats[0].id, across) : null;
+    if (!place) return null;
+    // A chat's only bot reads the summary alone, so it keeps what that bot did with its tools; with several, each reads
+    // the others' words and records only (R5), so the summary holds no bot's tool calls.
+    const reader = seats.length === 1 ? place.botId : null;
+    return { place, reader, options: { context: records.readers.forChat({ homeId: place.workspaceId, chatId: String(chatId) }) } };
+  }
+
+  // Summaries between turns (@jskit-ai/agent-runtime), one per chat: every message under its author's name, as the
+  // chat's bots read it (summarised's reader).
   const compaction = records.agent.createSummaries({
     notices,
     model,
     app: "Mercbot",
     summarize,
     limits: compactionLimits,
-    async history(conversationId, { after }) {
-      const { conversation, options } = await store.summaryOf(conversationId);
-      const bot = await store.botOf(conversation.bot_id, options);
-      const list = await historyRows(conversationId, after, options);
-      if (bot.kind === "group") {
-        const members = (await conversations.membersOf([bot.id], options)).get(String(bot.id)) || [];
-        const owner = (await store.profilesOf([bot.user_id], options)).get(String(bot.user_id));
-        return {
-          messages: list,
-          inherited: [],
-          named: true,
-          toModel: async (given) => toGroupHistory(given, { bot: { id: "" }, members, person: owner?.displayName || "The person" })
-        };
-      }
-      const room = conversation.user_id ? null : conversation;
-      return {
-        messages: list,
-        inherited: room && !after ? await inheritedHistory(room, options) : [],
-        named: Boolean(room),
-        toModel: async (given) => toModelHistory(room ? withNames(given) : given)
-      };
+    async history(chatId, { after }) {
+      const found = await summarised(chatId);
+      const list = found ? await named(await messages.messagesAfter(String(chatId), after, found.options), found.options) : [];
+      const toModel = async (given) => toModelHistory(given, { botId: found?.reader ?? null });
+      return { messages: list, inherited: [], named: true, toModel };
     },
-    // Metered to the conversation's person (a room's: the bot's owner) and its bot; nobody is waiting on it (D-59).
-    async track(conversationId, work) {
-      const { conversation, options } = await store.summaryOf(conversationId);
-      const bot = await store.botOf(conversation.bot_id, options);
-      return meter.track({ userId: conversation.user_id ?? bot.user_id, botId: conversation.bot_id, work: "background" }, work);
+    // Metered to the chat's home and one of its bots, with no person: nobody asked for it and nobody waits on it (R8, D-59).
+    async track(chatId, work) {
+      const found = await summarised(chatId);
+      return meter.track({ userId: null, botId: found?.place.botId ?? null, workspaceId: found?.place.workspaceId ?? null, work: "background" }, work);
     }
   });
   // Background work, so a drain or a server shutting down waits for the check as for the reply that started it.
-  const compactLater = (conversationId) =>
-    background(compaction.consider(conversationId).catch((error) => console.error(`Compaction check failed: ${error?.message || error}`)));
+  const compactLater = (chatId) =>
+    background(compaction.consider(chatId).catch((error) => console.error(`Compaction check failed: ${error?.message || error}`)));
 
   return Object.freeze({
-    historyRows,
-    conversationHistory,
+    named,
+    chatHistory,
     routineHistory,
     recentHistory,
     runs,

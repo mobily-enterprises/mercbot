@@ -3,30 +3,30 @@ import { goalTools } from "@jskit-ai/agent-runtime/server";
 import { z } from "zod";
 
 /**
- * Working with the home's other bots: passing a task on, asking one and using its
- * answer, and answering one's request (D-46). A multi-step job's goal tools (D-48) come between.
+ * Working with the home's other bots (D-46, O22): passing a task on, asking one and using its answer, and answering
+ * one's request. The other bot works from the brief alone, and what it says comes back to this chat. A multi-step
+ * job's goal tools (D-48) come between.
  * @param {object} shared
- * @param {import("./types.js").HandOff} shared.handOff
  * @param {import("./types.js").RequestTools} shared.requestTools
  * @param {import("@jskit-ai/agent-runtime/server/types").AgentGoalOperations | null} shared.goalOperations
  */
-export function buildBotRequestTools({ handOff, requestTools, goalOperations }) {
+export function buildBotRequestTools({ requestTools, goalOperations }) {
   const tools = {};
-  /** Passing a task to another of the person's bots; it answers in its own chat. */
+  /** Passing a task to another bot of the home; it answers the person here. */
   async function messageBot({ bot, task }) {
-    const result = await handOff(bot, task.trim());
+    const result = await requestTools.handOff(bot, task.trim());
     if (result.error) return { error: result.error };
     return {
       status: "passed on",
-      note: `Say in one line that you've passed it to ${result.target.name}, who will answer them in its own chat.`
+      note: `Say in one line that you've passed it to ${result.target.name}, who will answer them here.`
     };
   }
   tools.messageBot = createTool(
     Object.freeze({
       id: "message_bot",
       description:
-        'Pass a task to another of the person\'s bots, by its name, when they ask you to ("ask Ledger to work out…"). That bot ' +
-        "does the work and answers them in its own chat: pass the task itself with the details it needs, and don't work it out or answer it yourself.",
+        'Pass a task to another bot of this home, by its name, when the person asks you to ("ask Ledger to work out…"). That bot ' +
+        "does the work and answers them here. It can't see this chat: pass the task itself with every detail it needs, and don't work it out or answer it yourself.",
       inputSchema: z.object({
         bot: z.string().min(1).max(60).describe("The other bot's name"),
         task: z.string().min(5).max(2000)
@@ -39,8 +39,8 @@ export function buildBotRequestTools({ handOff, requestTools, goalOperations }) 
   if (goalOperations) Object.assign(tools, goalTools(goalOperations));
 
   /**
-   * Asking another bot and using its answer (D-46): the request shows as a card in both chats, the
-   * other bot works on it in the person's chat with it, and its answer comes back here.
+   * Asking another bot and using its answer (D-46, O22): the request shows as a card here, the other bot works on its
+   * brief alone, and its answer comes back here.
    */
   async function askBot({ bot, brief }) {
     const result = await requestTools.ask(bot, brief.trim());

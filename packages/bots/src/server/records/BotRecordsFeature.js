@@ -18,6 +18,7 @@ import {
   createChatRules,
   inReadableChat,
   ofReadableChatBot,
+  chatReaderFor,
   readerFor,
   readerOf
 } from "./rowPolicies.js";
@@ -35,7 +36,6 @@ import {
   conversationResource,
   messageResource
 } from "./tableResources.js";
-import { createTemplateRepository } from "./templateRepository.js";
 import { TURN_MESSAGE_SEARCH, createTurnRepository } from "./turnRepository.js";
 import { REQUEST_SEARCH, ROUTINE_SEARCH, createWorkRepository } from "./workRepository.js";
 
@@ -114,7 +114,7 @@ const BotRecordsFeature = defineFeature({
       // The home's bots.
       bots: createBotRepository({ resources, workspaces, homeTemplates }),
       // Chats, their people and bots, each person's place in them, sections, and the home's joins and leaves.
-      chats: createChatRepository({ resources, systemContext, profiles, memberships, work }),
+      chats: createChatRepository({ resources, systemContext, profiles, memberships }),
       // Everything said in a chat.
       messages: createMessageRepository({ resources, systemContext }),
       // Bots archived (D-108), and the chats archiving one reaches.
@@ -129,8 +129,6 @@ const BotRecordsFeature = defineFeature({
       policies: createPolicyRepository(resources),
       // What a turn reads and keeps beside its chat: its messages, the to-do card and job notes.
       turns: createTurnRepository({ resources, work }),
-      // A bot made from a template opening a chat.
-      templates: createTemplateRepository(resources),
       // New bots made together, New bot's one and a team's several, in the same statements (D-105).
       newBots: createNewBotRepository({ resources, homeTemplates }),
       // The home's own bot templates and what changed in them (D-98).
@@ -140,6 +138,7 @@ const BotRecordsFeature = defineFeature({
       // The model's reader (R1, D-112): the one context a turn's model-facing reads pass, which reads what its chat may.
       readers: Object.freeze({
         forBot: (reader) => readerFor(systemContext, reader),
+        forChat: (chat) => chatReaderFor(systemContext, chat),
         of: readerOf
       }),
       // The chat rules other features' row policies apply to their rows of a bot in a chat and a person's own rows.

@@ -223,7 +223,7 @@ test("a view part reads the view's screen, tables and style alone", async (conte
 test("a button finds its one bot without listing the home's bots", async (context) => {
   const h = await home(context, "narrow-bots");
   const { knex, userId, workspaceId, options } = h;
-  const made = await knex("bots").insert(Array.from({ length: 12 }, (_, index) => ({ user_id: userId, workspace_id: workspaceId, name: `Bot ${index}`, color: "#1E86FC" }))).returning("id");
+  const made = await knex("bots").insert(Array.from({ length: 12 }, (_, index) => ({ made_by: userId, workspace_id: workspaceId, name: `Bot ${index}`, color: "#1E86FC" }))).returning("id");
   const otto = String(made[7].id ?? made[7]);
   h.cleanup.after(() => knex("bots").whereIn("id", made.map((row) => row.id ?? row)).del());
   const { registry, gate, apps, runtime } = h.apps;

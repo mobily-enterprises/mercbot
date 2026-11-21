@@ -44,9 +44,28 @@ export function readerFor(systemContext, { homeId, botId, chatId, askerId }) {
 }
 
 /**
- * The reader a call's context is, or null.
+ * The model's reader for a chat itself, for no one: a chat's summary (R1, D12), which every bot of the chat reads. It
+ * reads what the chat may, exactly as a bot's reader there does, and acts for no person, so it borrows no one's reach
+ * and leaves no one's name on what it does.
+ * @param {(reason: string) => { forWorkspace: Function }} systemContext
+ * @param {{ homeId: string, chatId: string }} chat
+ */
+export function chatReaderFor(systemContext, { homeId, chatId }) {
+  for (const [name, id] of Object.entries({ homeId, chatId })) {
+    if (!/^\d+$/u.test(String(id ?? ""))) throw new TypeError(`The chat's reader needs ${name}: got ${id}.`);
+  }
+  const context = systemContext(READER_REASON).forWorkspace(String(homeId));
+  const reader = Object.freeze({ homeId: String(homeId), botId: null, chatId: String(chatId), askerId: null });
+  return Object.freeze({
+    ...context,
+    [READER]: reader
+  });
+}
+
+/**
+ * The reader a call's context is, or null: a bot's (forBot), or a chat's own (forChat, with no bot and no asker).
  * @param {unknown} context
- * @returns {Readonly<{ homeId: string, botId: string, chatId: string, askerId: string }> | null}
+ * @returns {Readonly<{ homeId: string, botId: string | null, chatId: string, askerId: string | null }> | null}
  */
 export function readerOf(context) {
   return (context && typeof context === "object" && context[READER]) || null;

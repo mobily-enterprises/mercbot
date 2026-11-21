@@ -8,6 +8,7 @@ import { createBrowserState } from "./browserState.js";
 import { createCdpBridge } from "./cdpBridge.js";
 import { createCodingRuns } from "./codingRuns.js";
 import { startCodingSandbox } from "./codingSandbox.js";
+import { createComputerControl } from "./computerControl.js";
 import { createComputerManager } from "./computerManager.js";
 import { createComputerRecords } from "./computerRecords.js";
 import { createComputerDays } from "./computerDays.js";
@@ -25,7 +26,13 @@ const OPERATIONS = new Set([
   "wake", "sleep", "reset", "browse", "act", "screenshot", "startRecording", "stopRecording", "hold", "open", "fill", "code",
   "startSignIn", "signInPage", "endSignIn"
 ]);
+// A coding tool's requests that act on the computer, which wait while a person has control (D16); status and stop don't.
+const CODING_ACTS = new Set(["signIn", "start"]);
 const ASLEEP = Object.freeze({ state: "asleep", url: "", error: "" });
+// The notice every server hears when a chat's computers go with it (chatRemoved).
+const REMOVED = "computers-removed";
+const EVERY_SERVER = "every-server";
+
 // No live server can take a computer that runs nowhere (D-85).
 const noneFree = () => new AppError(503, "No computer can start right now. Try again in a minute.", { code: "computer_none_free" });
 // What a computer that isn't awake anywhere has in front: no page, so no sign-in chain (D-77).
@@ -37,12 +44,13 @@ function privateAddress() {
 }
 
 /**
- * Whose files the computer works on: the home's shared folder and its conversation's own, the person's for their
- * own conversation with the bot ("You only" in a Shared bot among them), the bot's everyone folder for a shared tab
- * or a group's (D-36, D-99). `found` is the computer's conversation (records.directory.computerOf).
+ * Whose files the computer works on: its chat's, its bot's and the home's (R6, D14), the last two only read in a
+ * private chat (D13). `found` is the computer's bot in its chat (records.directory.computerOf's ComputerPlace).
  */
 function filePlace(files, found) {
-  return found ? files.store.placeFor({ id: found.botId, workspace_id: found.workspaceId, room: !found.userId }, found.userId) : null;
+  return found
+    ? files.store.placeFor({ homeId: found.workspaceId, chatId: found.chatId, chatKind: found.chatKind, botId: found.botId })
+    : null;
 }
 
 /**
@@ -89,17 +97,17 @@ const codingInstalled = (env) => existsSync(path.join(path.resolve(env.MERCBOT_T
 /** A Craft app on the desktop, run in the computer's desktop sandbox. */
 function craftCommand(box, app, file = "") {
   const bin = APPS[app].bin;
-  return box.exec(["/usr/bin/env", "HOME=/files/mine/.apps", `/opt/apps/${bin}/bin/${bin}`, ...(file ? [file] : [])]);
+  return box.exec(["/usr/bin/env", "HOME=/files/chat/.apps", `/opt/apps/${bin}/bin/${bin}`, ...(file ? [file] : [])]);
 }
 
 /**
  * The office apps on bots' desktops (D-23) and the Terminal on the computer's command line (D-47),
  * each run in its computer's desktop sandbox (`boxes`).
  */
-function desktopApps(conversationOf, env, files, boxes) {
-  /** A coding run's project: `folder` of the computer's bot's files, by its link-free path here. */
+function desktopApps(placeOf, env, files, boxes) {
+  /** A coding run's project: `folder` of the computer's files, by its link-free path here. */
   async function projectFolder(computerId, folder) {
-    const place = filePlace(files, await conversationOf(computerId));
+    const place = filePlace(files, await placeOf(computerId));
     const found = place ? await files.store.prepare(place).then(() => files.store.existingFolder(place, folder)).catch(() => null) : null;
     if (!found) throw new Error(`There's no folder ${folder} in the bot's files.`);
     return { source: found.real, destination: found.virtualPath };
@@ -107,7 +115,7 @@ function desktopApps(conversationOf, env, files, boxes) {
 
   return {
     async launchers(computerId) {
-      const found = await conversationOf(computerId);
+      const found = await placeOf(computerId);
       const place = filePlace(files, found);
       const box = boxes.get(String(computerId));
       const office = box && existsSync(path.join(path.resolve(env.MERCBOT_TOOLS_DIR || ".tools"), "apps"))
@@ -135,8 +143,8 @@ function desktopApps(conversationOf, env, files, boxes) {
     },
     /**
      * A coding tool in a gVisor sandbox of its own (D-77): a run on `folder`,
-     * an existing folder of the bot's files (/files/mine, /files/bot or /files/shared, or one in
-     * them) given by its link-free path, or with `title` its sign-in, in a window on the screen.
+     * an existing folder of the computer's files it may change (/files/chat, or in a public chat
+     * /files/bot or /files/shared, or one in them) given by its link-free path, or with `title` its sign-in, in a window on the screen.
      * Either way it has the tool's sign-in, /profile/.coding in the computer's browser profile,
      * and nothing else of the computer.
      */
@@ -213,7 +221,9 @@ export const LOG_COMPUTER_EVENTS = Object.freeze({
  * @param {object} dependencies
  * @param {Record<string, any>} dependencies.resources the computer feature's handles
  * @param {(reason: string) => object} dependencies.systemContext the computer feature's system scope
- * @param {{ computerOf: Function, liveConversationIds: Function }} dependencies.directory records.directory
+ * @param {{ computerOf: Function, liveChatBotIds: Function }} dependencies.directory records.directory
+ * @param {{ names: Function, people: Function }} dependencies.chats records.chats: who takes over, and who hears of it
+ * @param {{ append: Function }} dependencies.messages records.messages: a take-over's line in its chat
  * @param {import("@jskit-ai/kernel/server/types").RuntimeEnv} dependencies.env Read when needed, so a change to it shows (tests change
  *   MERCBOT_SERVER_ID).
  * @param {import("@local/notices/server/types").Notices} dependencies.notices
@@ -230,6 +240,8 @@ export function createComputers({
   resources,
   systemContext,
   directory,
+  chats,
+  messages,
   env,
   notices,
   files,
@@ -239,18 +251,17 @@ export function createComputers({
   createManager = createComputerManager
 }) {
   // Computers run on no request and pass between servers, so their reads and writes are this
-  // feature's system context's, by the conversation's id.
+  // feature's system context's, by the computer's id.
   const system = () => ({ context: systemContext("run bot computers across servers: which server holds each, its state, saved browser and screen tickets") });
   /**
-   * A bot's computer belongs to a conversation (D-36): each person's own with a private or mixed
-   * bot, so their sign-ins never reach anyone else, or a shared bot's conversation, seen by everyone.
-   * Its key, computerId, is that conversation's id.
+   * A bot's computer belongs to its chat (D14): one per bot in each chat, used by whoever can open the chat, with
+   * everything signed in on it. Its key, computerId, is that bot's chat_bots id.
    */
-  const conversationOf = (computerId, options = system()) => directory.computerOf(String(computerId), options);
+  const placeOf = (computerId, options = system()) => directory.computerOf(String(computerId), options);
   const records = createComputerRecords({
     resources,
     system,
-    homeOf: async (computerId, options) => (await conversationOf(computerId, options))?.workspaceId ?? null
+    homeOf: async (computerId, options) => (await placeOf(computerId, options))?.workspaceId ?? null
   });
   /**
    * Tells `events` that a computer was put to sleep to make room, or couldn't start (D-88), on this server; nothing waits
@@ -272,7 +283,7 @@ export function createComputers({
   if (!state.available) console.warn(NO_SAVED_BROWSERS);
   // Stagehand and Puppeteer reach each browser's Unix socket through this server's own port (D-68).
   const cdp = createCdpBridge();
-  const desktop = desktopApps(conversationOf, env, files, boxes);
+  const desktop = desktopApps(placeOf, env, files, boxes);
   // Who hears that a coding run ended (the bots, to report it in its chat).
   const codingListeners = new Set();
   // Coding tools on the computers' screens, one run per computer.
@@ -282,22 +293,22 @@ export function createComputers({
     shared: desktop.shared,
     installed: () => codingInstalled(env),
     /**
-     * A run ended: told with the computer's conversation, so its bot can report in it. Resolves once
+     * A run ended: told with the computer's bot in its chat, so the bot can report there. Resolves once
      * every listener has, so a server shutting down hands the report on before it stops.
      */
     ended: async (computerId, run) => {
-      const found = await conversationOf(computerId).catch((error) => {
+      const found = await placeOf(computerId).catch((error) => {
         console.warn(`Computer ${computerId}'s finished coding run couldn't be reported: ${error.message}`);
         return null;
       });
       if (!found) return;
-      await Promise.all([...codingListeners].map((listener) => listener({ computerId: String(computerId), conversation: found, run })));
+      await Promise.all([...codingListeners].map((listener) => listener({ computerId: String(computerId), place: found, run })));
     }
   });
-  // A computer is recorded a day at a time, up front, for its conversation's bot, person and home (D-73).
+  // A computer is recorded a day at a time, up front, for its bot and home (D-73): it's its chat's, no one person's.
   const whose = async (computerId) => {
-    const found = await conversationOf(computerId);
-    return { computerId, botId: found?.botId ?? null, userId: found?.userId ?? null, workspaceId: found?.workspaceId ?? null };
+    const found = await placeOf(computerId);
+    return { computerId, botId: found?.botId ?? null, userId: null, workspaceId: found?.workspaceId ?? null };
   };
   const days = createComputerDays({
     start: async (computerId) => meter.startComputerDay(await whose(computerId)),
@@ -319,7 +330,7 @@ export function createComputers({
     // A computer starts only when its apps can run in gVisor; there's no other way (legal, 2026-10-31).
     browser: async (computerId, options) => {
       if (!desktopSandboxAvailable(env)) return null;
-      const place = filePlace(files, await conversationOf(computerId));
+      const place = filePlace(files, await placeOf(computerId));
       const folders = place ? await files.store.prepare(place).catch(() => null) : null;
       await boxes.get(String(computerId))?.stop().catch(() => {});
       const box = await startDesktopSandbox({
@@ -339,6 +350,7 @@ export function createComputers({
   let heartbeat = null;
   let sweeper = null;
   let newDays = null;
+  let stopHearingRemoved = null;
 
   /**
    * Called once this server listens, so its address is known. Other servers reach it on
@@ -360,6 +372,10 @@ export function createComputers({
       records.seen(me, url).catch(() => {});
     }, HEARTBEAT_MS);
     heartbeat.unref();
+    // A deleted chat's computers are put to sleep by whichever server runs them (chatRemoved).
+    stopHearingRemoved = notices.subscribe(REMOVED, EVERY_SERVER, (event) => {
+      sleepRemoved(event).catch(() => {});
+    });
     sweeper = setInterval(() => sweepFiles().catch(() => {}), SWEEP_MS);
     sweeper.unref();
     newDays = setInterval(() => days.countNewDays().catch(() => {}), NEW_DAY_MS);
@@ -367,10 +383,9 @@ export function createComputers({
   }
 
   /**
-   * A deleted conversation's computer files (its screenshots and saved browser) go with it.
-   * Conversations go in many ways (a bot, a group, a home or an account deleted), so this looks
-   * for folders whose conversation is gone, at most hourly, on every server; doing it twice is
-   * harmless.
+   * A computer's files (its screenshots and saved browser) go with its bot's seat in its chat.
+   * Seats go in many ways (a chat, a bot, a home or an account deleted, a bot taken out of a chat), so this looks
+   * for folders whose seat is gone, at most hourly, on every server; doing it twice is harmless.
    */
   async function sweepFiles() {
     if (!await files.store.available()) return;
@@ -378,7 +393,7 @@ export function createComputers({
     const names = (await files.store.computerIds()).filter((name) => /^\d+$/u.test(name));
     for (let start = 0; start < names.length; start += 1000) {
       const batch = names.slice(start, start + 1000);
-      const alive = await directory.liveConversationIds(batch, system());
+      const alive = await directory.liveChatBotIds(batch, system());
       for (const name of batch.filter((id) => !alive.has(id))) await files.store.removeComputerFolder(name);
     }
   }
@@ -519,9 +534,14 @@ export function createComputers({
     return meter.track(who, () => runHere(body.operation, String(body.computerId), Array.isArray(body.args) ? body.args : []));
   }
 
+  /**
+   * The computer's state wherever it runs, who has control of it (D16: `{ userId, name, since }` or null) and what's
+   * signed in on it (`[{ label, kind, since }]`), as its panel shows them.
+   */
   async function status(computerId) {
-    const found = await owner(String(computerId));
-    return found ? { state: found.state, url: found.url, error: found.error } : ASLEEP;
+    const [found, signIns] = await Promise.all([owner(String(computerId)), records.signIns(String(computerId))]);
+    const control = found?.control ? await takeOvers.named(found.control, system()).catch(() => ({ ...found.control, name: "Someone" })) : null;
+    return { ...(found ? { state: found.state, url: found.url, error: found.error } : ASLEEP), control, signIns };
   }
 
   /**
@@ -569,6 +589,7 @@ export function createComputers({
     clearInterval(heartbeat);
     clearInterval(sweeper);
     clearInterval(newDays);
+    stopHearingRemoved?.();
     await local.shutdown();
     if (me) await records.forgetServer(me).catch(() => {});
   }
@@ -583,7 +604,7 @@ export function createComputers({
    * those of its computers, such as an archived bot's (D-108), so none of them counts a computer day while it's put away.
    * One read of the home's awake computers, however many are asked for.
    * @param {string} homeId
-   * @param {string[] | null} [among] computer ids (conversation ids)
+   * @param {string[] | null} [among] computer ids (chat_bots ids)
    */
   async function sleepHome(homeId, among = null) {
     const only = among && new Set(among.map(String));
@@ -593,12 +614,20 @@ export function createComputers({
     }
   }
 
+  /** A reset starts the computer afresh: its saved browser goes, and with it what was signed in there. */
   const reset = (computerId) => run("reset", computerId);
 
-  const browse = (computerId, url) => run("browse", computerId, url);
+  // While a person has control of a computer, the bot's own calls that act on it are refused, naming them (D16).
+  const takeOvers = createComputerControl({ records, directory, chats, messages, notices, wake, system });
+  const bots = (operation) => async (computerId, ...args) => {
+    await takeOvers.heldOff(computerId);
+    return run(operation, computerId, ...args);
+  };
+
+  const browse = bots("browse");
 
   /** The first page of a sign-in the person asked for, where its chain starts (D-77). */
-  const startSignIn = (computerId, url) => run("startSignIn", computerId, url);
+  const startSignIn = bots("startSignIn");
 
   /** The page in front on the computer, and whether it's in an open sign-in chain (D-77). */
   const signInPage = (computerId) => runIfAwake("signInPage", computerId, [], NO_PAGE);
@@ -606,22 +635,60 @@ export function createComputers({
   /** The sign-in is over: its chain ends (D-77). */
   const endSignIn = (computerId) => runIfAwake("endSignIn", computerId, [], null);
 
-  const act = (computerId, instruction) => run("act", computerId, instruction);
+  const act = bots("act");
 
-  const fill = (computerId, values) => run("fill", computerId, values);
+  /** Typing in a sign-in's fields; one that typed a password lists its site among the computer's sign-ins (D16). */
+  async function fill(computerId, values) {
+    const result = await bots("fill")(computerId, values);
+    await takeOvers.filled(computerId, values, result);
+    return result;
+  }
 
-  const screenshot = (computerId) => run("screenshot", computerId);
+  const screenshot = bots("screenshot");
 
   const hold = (computerId, held) => run("hold", computerId, held);
 
   const open = (computerId, virtualPath) => run("open", computerId, virtualPath);
 
-  /** A coding tool on the computer, where the computer runs: see computerManager's code. */
-  const code = (computerId, request) => run("code", computerId, request);
+  /**
+   * A coding tool on the computer, where the computer runs: see computerManager's code. Signing in and starting a run
+   * wait while a person has control; a tool signed in there is listed among the computer's sign-ins.
+   */
+  async function code(computerId, request) {
+    if (CODING_ACTS.has(request?.action)) await takeOvers.heldOff(computerId);
+    const result = await run("code", computerId, request);
+    await takeOvers.coded(computerId, result);
+    return result;
+  }
 
   /**
-   * Hears each coding run that ends on this server, with its conversation (computerOf's record):
-   * `listener({ computerId, conversation, run })`. Returns a function that stops listening.
+   * A chat was deleted (chatMembers): its computers go to sleep wherever they run, and its folder, its computers' and
+   * its command outputs go from where the home's files are kept. Each step's failure is said and the rest go on; the
+   * hourly sweep removes computers' folders whose seats are gone.
+   * @param {{ homeId: string, chatId: string, chatBotIds: string[] }} chat
+   */
+  async function chatRemoved({ homeId, chatId, chatBotIds = [] }) {
+    const ids = chatBotIds.map(String);
+    const warn = (what) => (error) => console.warn(`Removing deleted chat ${chatId}'s ${what} failed.`, error?.message);
+    // Their rows went with the chat, so every server is asked (sleepRemoved): the one running each puts it to sleep.
+    await sleepRemoved({ chatBotIds: ids });
+    await notices.publish(REMOVED, EVERY_SERVER, { chatBotIds: ids }).catch(warn("computers on other servers"));
+    for (const computerId of ids) {
+      await files.store.removeComputerFolder(computerId).catch(warn(`computer ${computerId}'s folder`));
+      await files.store.removeRunsFolder(computerId).catch(warn(`computer ${computerId}'s command outputs`));
+    }
+    await files.store.removeChatFolder(homeId, chatId).catch(warn("folder"));
+  }
+
+  /** Puts to sleep the computers among `chatBotIds` that run on this server: their chat was deleted. */
+  async function sleepRemoved({ chatBotIds } = {}) {
+    const ids = Array.isArray(chatBotIds) ? chatBotIds.filter((id) => /^\d+$/u.test(String(id))) : [];
+    await Promise.all(ids.map((computerId) => local.sleep(String(computerId)).catch(() => {})));
+  }
+
+  /**
+   * Hears each coding run that ends on this server, with its bot in its chat (computerOf's record):
+   * `listener({ computerId, place, run })`. Returns a function that stops listening.
    */
   function onCodingEnd(listener) {
     codingListeners.add(listener);
@@ -646,6 +713,11 @@ export function createComputers({
     findScreen,
     screenshotData,
     sweepFiles,
+    chatRemoved,
+    takeOver: takeOvers.takeOver,
+    handBack: takeOvers.handBack,
+    placeOf: takeOvers.placeOf,
+    noteSignIn: takeOvers.noteSignIn,
     wake,
     sleep,
     sleepHome,

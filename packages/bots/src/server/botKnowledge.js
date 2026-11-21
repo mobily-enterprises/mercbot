@@ -7,6 +7,7 @@ import { mayChangeBot } from "./botAdditions.js";
 import { BotsError } from "./botsError.js";
 import { fileText } from "./fileTools.js";
 import { CHARS_PER_TOKEN, numbered, partSource } from "./knowledgePrompt.js";
+import { createCallerReaders } from "./records/recordRows.js";
 
 // What a bot knows (D-107): text and files its maker and the home's owners and admins give it, for everyone it talks
 // with. A short piece is always in its mind, in its instructions, the same in every turn for everyone, so the
@@ -142,14 +143,16 @@ function excerpts(found, titles, budget) {
  * knowledge, search and tools, and the loop that reads and splits each piece on whichever server takes it.
  * @param {object} dependencies
  * @param {import("./types.js").BotRecords} dependencies.records
- * @param {import("./types.js").BotConversations} dependencies.conversations
  * @param {import("@local/files/server/types").Files} dependencies.files
  * @param {import("@local/account/server/types").Meter} dependencies.meter what some tokens would cost the home
  * @param {import("@jskit-ai/kernel/server/types").RuntimeEnv} dependencies.env
  * @param {(reason: string) => object} dependencies.systemContext
  */
-export function createBotKnowledge({ records, conversations, files, meter, env, systemContext }) {
+export function createBotKnowledge({ records, files, meter, env, systemContext }) {
   const store = records.knowledge;
+  const { personOf } = createCallerReaders();
+  /** The bot's folder, for everyone it works with (/files/bot), where its Knowledge files are. */
+  const botFolder = (homeId, botId) => files.store.botPlace({ homeId: String(homeId), botId: String(botId) });
 
   /** A refusal for a person who may not change this bot's knowledge. */
   const notAllowed = (name) => new BotsError(
@@ -161,8 +164,8 @@ export function createBotKnowledge({ records, conversations, files, meter, env, 
 
   /** The bot, for a person who may change its knowledge. */
   async function changeable(botId, options) {
-    const row = await conversations.ownedSingleBot(botId, options);
-    if (!mayChangeBot(row.created_by, conversations.personOf(options), options)) throw notAllowed(row.name);
+    const row = await records.bots.get(botId, options);
+    if (!mayChangeBot(row.made_by, personOf(options), options)) throw notAllowed(row.name);
     return row;
   }
 
@@ -207,7 +210,7 @@ export function createBotKnowledge({ records, conversations, files, meter, env, 
    * @param {object} options the request's call options
    */
   async function list(botId, options) {
-    const row = await conversations.ownedSingleBot(botId, options);
+    const row = await records.bots.get(botId, options);
     const pieces = await store.list(row.id, options);
     const modes = modesOf(pieces);
     const inMindChars = pieces.filter((piece) => modes.get(piece.id) === "mind").reduce((sum, piece) => sum + piece.chars, 0);
@@ -236,7 +239,7 @@ export function createBotKnowledge({ records, conversations, files, meter, env, 
         cachedNano: inMind + searched ? await estimate(row.workspace_id, { cacheHit: inMind, cacheMiss: searched }) : 0
       },
       limits: { inMind: KNOWLEDGE_LIMITS.inMind, piece: KNOWLEDGE_LIMITS.piece },
-      canChange: mayChangeBot(row.created_by, conversations.personOf(options), options)
+      canChange: mayChangeBot(row.made_by, personOf(options), options)
     };
   }
 
@@ -247,7 +250,7 @@ export function createBotKnowledge({ records, conversations, files, meter, env, 
    * @param {object} options
    */
   async function read(botId, id, options) {
-    const row = await conversations.ownedSingleBot(botId, options);
+    const row = await records.bots.get(botId, options);
     const piece = await store.piece(row.id, id, options, { withText: true });
     if (!piece) throw notFound();
     const { title, kind, filePath, chars, state, text } = piece;
@@ -265,7 +268,7 @@ export function createBotKnowledge({ records, conversations, files, meter, env, 
     const row = await changeable(botId, options);
     const pieces = await store.list(row.id, options);
     const known = pieces.reduce((sum, piece) => sum + piece.chars, 0);
-    const createdBy = conversations.personOf(options);
+    const createdBy = personOf(options);
     if (input?.file !== undefined) {
       const path = String(input.file || "");
       if (!path.startsWith("/files/bot/")) {
@@ -273,7 +276,7 @@ export function createBotKnowledge({ records, conversations, files, meter, env, 
       }
       checkSize(0, known, pieces.length + 1);
       // The file must be there now; it's read in the background, on whichever server takes it.
-      await files.store.existingFile({ homeId: row.workspace_id, botId: row.id, everyone: true }, path);
+      await files.store.existingFile(botFolder(row.workspace_id, row.id), path);
       const title = titleOf(input.title, "", path.split("/").pop());
       await store.add({ botId: row.id, title, kind: "file", filePath: path, createdBy }, options);
     } else {
@@ -430,7 +433,7 @@ export function createBotKnowledge({ records, conversations, files, meter, env, 
 
   /** A file piece's text, read from the bot's folder for everyone, or what to do when it can't be. */
   async function readFilePiece(piece) {
-    const place = { homeId: piece.workspaceId, botId: piece.botId, everyone: true };
+    const place = botFolder(piece.workspaceId, piece.botId);
     let file;
     try {
       file = await files.store.existingFile(place, piece.filePath);

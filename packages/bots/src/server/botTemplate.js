@@ -6,12 +6,11 @@ import { LIBRARY } from "./templates.js";
 
 /**
  * The chip a bot shows beside its name (D-98): its template's tag, where the template is from ("library" or "home")
- * and its one-line description; null for a group chat and for a bot with no template yet. A bot read through the
- * bots' repository carries its home template's summary (`home_template`), so this reads nothing.
- * @param {{ kind?: string, library_template?: string | null, home_template_id?: unknown, home_template?: { tag: string, description: string } | null }} row
+ * and its one-line description; null for a bot with no template yet. A bot read through the bots' repository carries
+ * its home template's summary (`home_template`), so this reads nothing.
+ * @param {{ library_template?: string | null, home_template_id?: unknown, home_template?: { tag: string, description: string } | null }} row
  */
 export function templateChipOf(row) {
-  if (row.kind === "group") return null;
   if (row.library_template) {
     const template = LIBRARY.get(row.library_template);
     return template ? { tag: template.tag, source: "library", description: template.description } : null;
@@ -60,6 +59,19 @@ export async function templateOf(row, homeTemplates, options) {
     };
   }
   return null;
+}
+
+/**
+ * A template's greeting for a person greeted as `first` ("" for no name), from the bot it now runs as: the bot's own
+ * name where the template says its own. A template without one has none.
+ * @param {{ greeting?: string, name: string }} template
+ * @param {string} botName
+ * @param {string} first
+ */
+export function greetingWith(template, botName, first) {
+  if (!template.greeting) return "";
+  const named = template.greeting.replaceAll(`I'm ${template.name}`, `I'm ${botName}`);
+  return first ? named.replaceAll("{firstName}", first) : named.replace(/\s*\{firstName\}/gu, "");
 }
 
 const missing = (row, what) =>

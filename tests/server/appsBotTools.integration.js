@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { appsHome, botsOf } from "../support/appsHome.mjs";
+import { appsHome } from "../support/appsHome.mjs";
+import { startBotRecords } from "../support/botRecords.mjs";
+import { seedChat } from "../support/chatFixtures.mjs";
 import { connectTestDatabase } from "../support/testDatabase.mjs";
 import { buildAppTools } from "../../packages/bots/src/server/appTools.js";
 import { cleanupStack } from "../support/cleanupStack.mjs";
@@ -15,20 +17,21 @@ test("bots use the home's data; the Builder drafts apps", async (context) => {
   const knex = await connectTestDatabase();
   const cleanup = cleanupStack(context);
   cleanup.after(() => knex.destroy());
-  // The bots' directory finds the bot this test makes (its name is the audit's actor); the turn calls in the home
-  // with its person's options (`call`). Stopping the features closes the scripts' pool.
-  const records = botsOf(knex);
+  // The bots' records find the bot this test makes (its name is the audit's actor) and its seat in the chat its watches
+  // are of; the turn calls in the home with its person's options (`call`). Stopping the features closes the scripts'
+  // pool.
+  const records = await startBotRecords(knex, cleanup);
   const { apps, userId, workspaceId: homeId, options: call } = await appsHome(cleanup, { slug: "apps-tools", knex, records });
   const { registry } = apps;
-  const [bot] = await knex("bots").insert({ user_id: userId, workspace_id: homeId, name: "Tess", color: "#1E86FC" }).returning("id");
+  const [bot] = await knex("bots").insert({ made_by: userId, workspace_id: homeId, name: "Tess", color: "#1E86FC" }).returning("id");
   const botId = bot.id ?? bot;
   cleanup.after(() => knex("bots").where({ id: botId }).del());
   const { directory } = records;
-  const [conversation] = await knex("bot_conversations").insert({ workspace_id: homeId, bot_id: botId, user_id: userId }).returning("id");
-  const conversationId = String(conversation.id ?? conversation);
+  const chat = await seedChat(knex, { homeId, people: [userId], bots: [botId] });
+  const chatBotId = chat.chatBotIds.get(String(botId));
   const run = (tool, input) => tool.execute(input, {});
 
-  const plain = buildAppTools({ apps, directory, call, botId, conversationId, userId, isBuilder: false, after: [], attempted: [], via: null });
+  const plain = buildAppTools({ apps, directory, call, botId, conversationId: chat.id, chatBotId, userId, isBuilder: false, after: [], attempted: [], via: null });
   assert.deepEqual(Object.keys(plain).sort(), ["dataCreate", "dataMarkObsolete", "dataQuery", "dataTables", "dataUpdate", "viewGet", "viewList", "viewSave", "watchCreate", "watchList", "watchPause", "watchRemove", "watchResume"], "no Builder tools for other bots");
 
   const after = [];
@@ -86,7 +89,7 @@ test("bots use the home's data; the Builder drafts apps", async (context) => {
   // Any bot watches a table from its chat.
   const watched = await run(plain.watchCreate, { name: "Big spend", table: "suppliers", on: "any", condition: "spend > 100000.0", instructions: "Tell me." });
   assert.equal(watched.status, "watching", JSON.stringify(watched));
-  assert.equal(String((await knex("app_watches").where({ workspace_id: homeId }).first()).conversation_id), conversationId);
+  assert.equal(String((await knex("app_watches").where({ workspace_id: homeId }).first()).chat_bot_id), chatBotId);
   assert.equal((await run(plain.watchPause, { name: "Big spend" })).status, "paused");
   assert.match((await run(plain.watchRemove, { name: "Nope" })).error, /no such watch/u);
   assert.deepEqual((await run(plain.watchList, {})).watches.map((watch) => [watch.name, watch.enabled]), [["Big spend", false]]);

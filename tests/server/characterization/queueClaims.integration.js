@@ -29,7 +29,7 @@ before(async () => {
 });
 
 after(async () => {
-  // Their routines, jobs and requests go with them (each references its bot with on delete cascade).
+  // Their chats go with them, and their routines, jobs and requests with their seats (each on delete cascade).
   if (knex) await knex("bots").whereIn("id", [bot?.id, asker?.id].filter(Boolean)).del();
   await other?.destroy();
   await knex?.destroy();
@@ -50,8 +50,8 @@ async function made(context, table, rows) {
 }
 
 const routine = (fields) => ({
-  bot_id: bot.id,
-  conversation_id: bot.conversation_id,
+  chat_bot_id: bot.chat_bot_id,
+  made_by: userId,
   name: "Morning summary",
   schedule: "Every day at 9:00",
   cron: "0 9 * * *",
@@ -64,7 +64,7 @@ const job = (fields) => ({
   workspace_id: homeId,
   kind: "handoff",
   bot_id: bot.id,
-  conversation_id: bot.conversation_id,
+  chat_bot_id: bot.chat_bot_id,
   user_id: userId,
   title: "Hand-off",
   prompt: "Carry on",
@@ -77,10 +77,9 @@ const request = (fields) => ({
   workspace_id: homeId,
   user_id: userId,
   kind: "ask",
-  from_bot_id: asker.id,
-  from_conversation_id: asker.conversation_id,
+  conversation_id: asker.conversation_id,
+  from_chat_bot_id: asker.chat_bot_id,
   to_bot_id: bot.id,
-  to_conversation_id: bot.conversation_id,
   brief: "Characterization",
   status: "done",
   next_step: "asker_turn",

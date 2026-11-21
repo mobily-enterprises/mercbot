@@ -20,8 +20,8 @@ export const MODEL_CALLS = Object.freeze(["generateOnce", "generateText", "strea
 export const MODEL_INPUTS = Object.freeze([
   {
     file: "packages/bots/src/server/botAgent.js",
-    calls: { generateOnce: 1, runLoop: 2 },
-    path: "A bot's reply in a chat (generateReply, generateGroupReply), its checks and closing account; lookAtPicture",
+    calls: { generateOnce: 1, runLoop: 1 },
+    path: "A bot's reply in a chat (generateReply, one builder for a chat of one bot or several), its checks and closing account; lookAtPicture",
     reads: "the chat's messages and summary, the state note, Knowledge, and every tool result; one picture the turn already has",
     reach: "reader"
   },
@@ -33,7 +33,7 @@ export const MODEL_INPUTS = Object.freeze([
     reach: "reader"
   },
   {
-    file: "packages/bots/src/server/botsService.js",
+    file: "packages/bots/src/server/chatTurns.js",
     calls: { createGoals: 1 },
     path: "Goal rounds of a bot in a chat",
     reads: "the goal and the chat it belongs to, as a reply does",
@@ -42,7 +42,7 @@ export const MODEL_INPUTS = Object.freeze([
   {
     file: "packages/bots/src/server/records/BotRecordsFeature.js",
     calls: { createSummaries: 1, createGoals: 1 },
-    path: "agent-runtime's summary and goal stores, built for botHistory.js and botsService.js",
+    path: "agent-runtime's summary and goal stores, built for botHistory.js and chatTurns.js",
     reads: "nothing itself: the stores' owners above build the input",
     reach: "reader"
   },
@@ -59,13 +59,6 @@ export const MODEL_INPUTS = Object.freeze([
     path: "A new bot's greeting and first question, a step's activity line, answerAsBot (Online's template descriptions)",
     reads: "the bot's instructions and the words its caller hands it",
     reach: "none"
-  },
-  {
-    file: "packages/bots/src/server/joiningIn.js",
-    calls: { generateOnce: 1 },
-    path: "The join-in judge (D-102), until R3 replaces it",
-    reads: "the chat's latest messages",
-    reach: "reader"
   },
   {
     file: "packages/bots/src/server/scriptWriter.js",

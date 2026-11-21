@@ -16,7 +16,7 @@ test("a button hands a task to a bot once its steps succeed", async (context) =>
   // The apps read the home's bots through the bots' directory: here, the bot this test makes.
   const records = botsOf(knex);
   const { userId, workspaceId, options, apps: capability } = await appsHome(cleanup, { slug: "apps-handoff", knex, records });
-  const [bot] = await knex("bots").insert({ user_id: userId, workspace_id: workspaceId, name: "Otto", color: "#1E86FC" }).returning("id");
+  const [bot] = await knex("bots").insert({ made_by: userId, workspace_id: workspaceId, name: "Otto", color: "#1E86FC" }).returning("id");
   const botId = String(bot.id ?? bot);
   const { registry, gate, apps, runtime } = capability;
   const person = { type: "person", id: String(userId), name: "Pat" };

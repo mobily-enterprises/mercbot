@@ -20,7 +20,7 @@ assert.equal(process.env.DB_NAME, process.env.TEST_DB_NAME, "DB_NAME must match 
 async function homeWithBot(knex, userId, name) {
   const [home] = await knex("workspaces").insert({ slug: `${name}-${Date.now().toString(36)}`, name, owner_user_id: userId, is_personal: false }).returning("id");
   const homeId = String(home.id ?? home);
-  const [bot] = await knex("bots").insert({ user_id: userId, workspace_id: homeId, name: "Paige", color: "#1E86FC" }).returning("id");
+  const [bot] = await knex("bots").insert({ made_by: userId, workspace_id: homeId, name: "Paige", color: "#1E86FC" }).returning("id");
   return { homeId, botId: String(bot.id ?? bot) };
 }
 
@@ -52,18 +52,19 @@ test("a page is saved, versioned, ticked, framed, opened on its own, moved and r
   const { resources, systemContext } = features["mercbot.files"];
   const pages = createPages({ store, resources, systemContext, env: { AUTH_LOCAL_SESSION_SECRET: "pages-test-secret-0123456789abcdef" }, insecure: true });
   const inHome = (id) => ({ context: systemContext("the pages test, as a person in the home").forWorkspace(String(id)) });
-  const place = { homeId, botId, userId };
+  // The reply's place: a Public chat's, whose bot saves pages in /files/bot (the store needs no chat row for it).
+  const place = store.placeFor({ homeId, chatId: "1", chatKind: "public", botId });
   const page = { homeId, botId, path: "/files/bot/Pages/party.html", userId };
 
   // The chat's own picture is copied into the page's folder.
-  const pictures = await store.resolve(place, "/files/mine/Pictures");
+  const pictures = await store.resolve(place, "/files/chat/Pictures");
   await fs.mkdir(pictures, { recursive: true });
   await fs.writeFile(path.join(pictures, "invite.png"), "INVITE-PNG");
   const first = await pages.save({
     place,
     title: "Party",
     slug: "party",
-    content: "<h1>Party</h1><p>Saturday at eight.</p><img src='/files/mine/Pictures/invite.png' alt='Invite'>" +
+    content: "<h1>Party</h1><p>Saturday at eight.</p><img src='/files/chat/Pictures/invite.png' alt='Invite'>" +
       "<ul class='checklist'><li>Cake</li><li>Candles</li></ul><script>document.title = 'ran';</script><iframe src='https://x.example'></iframe>"
   });
   assert.deepEqual({ path: first.path, title: first.title, summary: first.summary, copied: first.copied }, { path: page.path, title: "Party", summary: "Saturday at eight.", copied: 1 });
@@ -74,6 +75,13 @@ test("a page is saved, versioned, ticked, framed, opened on its own, moved and r
   assert.match(key, /^[A-Za-z0-9_-]{16}$/u);
   const picture = /<img src="(party\.files\/[0-9a-f]{12}-invite\.png)"/u.exec(saved)?.[1];
   assert.ok(picture, "the page names its own copy of the picture");
+
+  // In a private chat its bot only reads /files/bot (D13): the save is refused, and nothing is written or kept.
+  const privately = store.placeFor({ homeId, chatId: "2", chatKind: "private", botId });
+  const secret = "/files/bot/Pages/secret.html";
+  await assert.rejects(pages.save({ place: privately, title: "Secret", slug: "secret", content: "<h1>Secret</h1>" }), { code: "files_wider_needs_card" });
+  assert.equal(await fs.stat(await store.resolve(place, secret)).catch(() => null), null);
+  assert.deepEqual((await pages.versions({ ...page, path: secret }, inHome(homeId))).versions, []);
 
   // Saved again under the same title: the same page, its key kept, a second version.
   await pages.save({ place, title: "Party", slug: "party", content: `${saved.replace("Saturday at eight.", "Saturday at nine.")}` });
@@ -129,7 +137,7 @@ test("a page is saved, versioned, ticked, framed, opened on its own, moved and r
   await notFound(() => pages.serveOnItsOwn(page, { key: "another-key", rest: "party.html" }), "another key");
   await notFound(() => pages.serveOnItsOwn(page, { key: "", rest: "party.html" }), "no key at all");
   await notFound(() => pages.serveOnItsOwn(page, { key, rest: "other.html" }), "another page by this page's key");
-  await notFound(() => pages.serveOnItsOwn({ ...page, path: "/files/mine/party.html" }, { key, rest: "party.html" }), "not a page's path");
+  await notFound(() => pages.serveOnItsOwn({ ...page, path: "/files/chat/party.html" }, { key, rest: "party.html" }), "not a page's path");
   const script = picture.replace(/[^/]+$/u, "run.js");
   await fs.writeFile(path.join(path.dirname(real), script), "window.ran = true;");
   assert.equal(String((await pages.serve({ frameToken: frameToken(src), rest: script })).body), "window.ran = true;", "its frame loads its scripts");

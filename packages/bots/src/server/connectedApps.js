@@ -1,7 +1,7 @@
 // The home's connected accounts as bot tools use them (D-31, D-111): which accounts a
 // request means, how they're named, a key for each, and what a test copy sends instead (D-69).
 // Shared by Google, Microsoft, GitHub and Sedna.
-import { resolveActorId } from "@jskit-ai/kernel/server/actions/actionContributorHelpers";
+import { resolveAuditActorId } from "@jskit-ai/kernel/server/actions/actionContributorHelpers";
 import { logSideEffect } from "@jskit-ai/kernel/server/runtime/appEnvironment";
 import { appEnvironment } from "@jskit-ai/kernel/shared/support/appEnvironment";
 
@@ -66,8 +66,12 @@ export function accountTitle(account) {
   return [account.name, account.label].filter(Boolean).join(" · ");
 }
 
-/** The person whose turn it is: the one who wrote the message, or whose routine or job it is (the call's actor). */
-export const turnPerson = (call) => String(resolveActorId(call?.context) ?? "");
+/**
+ * The person whose turn it is: the one who wrote the message, or whose routine or job it is. A turn reads as its bot's
+ * reader (records.readers.forBot), which works for that person without being signed in as them, so it's the person the
+ * call acts for, as the server set it from the seat, never anything the model or a client sends.
+ */
+export const turnPerson = (call) => String(resolveAuditActorId(call?.context) ?? "");
 
 // The apps' own names, so an account can be named by its app ("the Google one").
 const APP_NAMES = {

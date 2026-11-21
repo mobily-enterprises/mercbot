@@ -174,9 +174,12 @@ export function createChatMembers({ records, notices, computer, systemContext })
     return get(chat.id, options);
   }
 
-  /** The person's direct chat with a bot (its [Message]), made on first use. */
+  /**
+   * The person's direct chat with a bot (its [Message]), made on first use: then the bot introduces itself to them there
+   * (onboarding.js's intro-greet step).
+   */
   async function direct(botId, options) {
-    const chat = await chats.direct(String(botId), options);
+    const chat = await chats.direct(String(botId), options, { onboardingStep: "intro-greet" });
     return get(chat.id, options);
   }
 
@@ -353,16 +356,19 @@ export function createChatMembers({ records, notices, computer, systemContext })
 
   /**
    * The home's people changed (someone joined, left or was removed): whoever joined is seated in the everyone chat, and
-   * whoever left is taken out of every chat, their private chats with no one else deleted with their computers and
-   * files and the routines they made paused (records.chats.personLeft). Everyone in a chat that changed hears, the
+   * whoever left is taken out of every chat (records.chats.personLeft), their private chats with no one else deleted
+   * with their computers and files, after what they made is paused (`leaving`). Everyone in a chat that changed hears, the
    * person who left too. In the bots' system context for the home; the members' list bounds it.
    * @param {string} homeId
+   * @param {{ leaving?: (userId: string, home: object) => Promise<unknown> }} [steps] `leaving` runs for each person who
+   *   left before they're taken out, so when it fails they're still there to leave at the home's next change
    */
-  async function homeChanged(homeId) {
+  async function homeChanged(homeId, { leaving = async () => {} } = {}) {
     const home = { context: systemContext("the home's people join and leave its chats").forWorkspace(String(homeId)) };
     const { departed, joined, everyoneChatId } = await chats.syncMembers(home);
     if (joined.length) await told(everyoneChatId, "members", home);
     for (const userId of departed) {
+      await leaving(userId, home);
       const { left, deleted } = await chats.personLeft(userId, home);
       for (const { chatId, chatBotIds } of deleted) {
         await chatRemoved(homeId, chatId, chatBotIds);

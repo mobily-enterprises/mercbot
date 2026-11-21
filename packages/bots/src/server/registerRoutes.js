@@ -299,16 +299,16 @@ export function registerRoutes(http, { bots, approvals, notices, meter, records,
   // Teams (D-105): a team's bots as the home has them, and Add N bots, for everyone in the home, as New bot is.
   router.register("GET", `${home}/teams/:teamId`, auth, handle(async (request, _user, options) =>
     bots.teamFor(request.params.teamId, options)));
-  router.register("POST", `${home}/teams/:teamId`, auth, handle(async (request, user, options) =>
-    bots.addTeam(request.params.teamId, request.body?.templates, user.displayName, options)));
+  router.register("POST", `${home}/teams/:teamId`, auth, handle(async (request, _user, options) =>
+    bots.addTeam(request.params.teamId, request.body?.templates, options)));
   // Add bots' suggestions (D-109): a plan, one billed call like a reply, refused in a paused home, with nothing kept; and
   // Add N bots, the bots ticked on it, for everyone in the home, as One bot is.
   router.register("POST", `${home}/bots/plan`, auth, handle(async (request, _user, options) => {
     await unlessPaused(request);
     return bots.proposeBots(body(request), options);
   }));
-  router.register("POST", `${home}/bots/batch`, auth, handle(async (request, user, options) =>
-    bots.addBots(body(request), user.displayName, options)));
+  router.register("POST", `${home}/bots/batch`, auth, handle(async (request, _user, options) =>
+    bots.addBots(body(request), options)));
   // A template drafted by the bot (D-98): one billed call, like a reply, refused in a paused home; nothing is kept.
   router.register("POST", `${home}/bots/templates/draft`, auth, handle(async (request, _user, options) => {
     await unlessPaused(request);
