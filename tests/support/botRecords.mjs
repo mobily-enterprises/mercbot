@@ -37,7 +37,7 @@ function keepingHandles(feature, kept) {
     setup(dependencies, setupContext) {
       const runtime = dependencies.resourceRuntime;
       const resourceRuntime = new Proxy({}, {
-        get: (_target, name) => (name === "own" ? async (featureId, owns) => (kept.handles = await runtime.own(featureId, owns)) : runtime[name])
+        get: (_target, name) => (name === "own" ? async (featureId, owns, options) => (kept.handles = await runtime.own(featureId, owns, options)) : runtime[name])
       });
       return feature.setup({ ...dependencies, resourceRuntime }, setupContext);
     }
