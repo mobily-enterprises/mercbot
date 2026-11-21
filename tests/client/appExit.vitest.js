@@ -12,11 +12,16 @@ vi.mock("@jskit-ai/shell-web/client/navigation/useShellNavigation", () => ({
   useShellNavigationRuntime: () => ({ trail: shell.trail })
 }));
 vi.mock("@jskit-ai/shell-web/client/composables/useShellPageClose", () => ({ useShellPageClose: (close) => { shell.closed = close; } }));
-vi.mock("@/components/mercbot/chatsApi.js", () => ({
-  chatsApi: {
-    get: async () => ({ chat: { id: "7", kind: "public", title: null, directBotId: "3", people: [{ userId: "1", name: "Anna Rossi" }], bots: [{ chatBotId: "30", botId: "3", name: "Vera", color: "#1E86FC", shape: "cloud", archived: false }] } })
-  }
-}));
+vi.mock("@jskit-ai/shell-web/client/placement", async () => {
+  const { ref: vueRef } = await import("vue");
+  return { useWebPlacementContext: () => ({ context: vueRef({ user: { id: "1" } }) }) };
+});
+const VERA = { chatBotId: "30", botId: "3", name: "Vera", color: "#1E86FC", shape: "cloud", archived: false };
+const CHATS = {
+  7: { id: "7", kind: "public", title: null, directBotId: "3", people: [{ userId: "1", name: "Anna Rossi" }], bots: [VERA] },
+  8: { id: "8", kind: "public", title: null, directBotId: null, people: [{ userId: "1", name: "Anna Rossi" }, { userId: "2", name: "Ben Rossi" }], bots: [VERA] }
+};
+vi.mock("@/components/mercbot/chatsApi.js", () => ({ chatsApi: { get: async (chatId) => ({ chat: CHATS[chatId] }) } }));
 
 // Leaving an app (D-106): the place the app was opened from is the nearest step of JSKIT's trail outside the app,
 // however many of the app's places the trail holds after it, and the app's close says where it goes.
@@ -57,13 +62,19 @@ describe("leaving an app", () => {
 });
 
 describe("an app's close", () => {
-  it("names the chat it goes back to as the chat list names it, a direct chat by its bot", async () => {
-    shell.trail = ref([{ path: "/w/you?chat=7" }, { path: "/w/you/apps/contacts" }]);
+  /** The close's words after leaving for the app from `chatId`. */
+  async function closeFrom(chatId) {
+    shell.trail = ref([{ path: `/w/you?chat=${chatId}` }, { path: "/w/you/apps/contacts" }]);
     const scope = effectScope();
     scope.run(() => useAppExit(ref("contacts")));
     await new Promise((resolve) => setTimeout(resolve, 0));
     await nextTick();
-    expect(shell.closed.label.value).toBe("Back to Vera");
     scope.stop();
+    return shell.closed.label.value;
+  }
+
+  it("names the chat it goes back to as the chat list names it: a direct chat by its bot, another by who else is in it", async () => {
+    expect(await closeFrom("7")).toBe("Back to Vera");
+    expect(await closeFrom("8")).toBe("Back to Ben and Vera");
   });
 });
