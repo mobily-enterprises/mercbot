@@ -22,9 +22,14 @@ export function useTeam({ homeSlug, reportFailure }) {
   const people = ref(null);
   const failed = ref(false);
 
+  // Reads can answer out of order: only the one begun last is applied, so an older answer never drops a newer bot.
+  let botsRead = 0;
+  let peopleRead = 0;
   async function loadBots() {
+    const read = ++botsRead;
     try {
-      bots.value = (await botsApi.list()).bots;
+      const answer = (await botsApi.list()).bots;
+      if (read === botsRead) bots.value = answer;
     } catch (error) {
       failed.value = true;
       reportFailure("Your team didn't load. Try again in a moment.", error);
@@ -32,8 +37,10 @@ export function useTeam({ homeSlug, reportFailure }) {
   }
 
   async function loadPeople() {
+    const read = ++peopleRead;
     try {
-      people.value = (await peopleApi.members(homeSlug())).map(toPerson);
+      const answer = (await peopleApi.members(homeSlug())).map(toPerson);
+      if (read === peopleRead) people.value = answer;
     } catch (error) {
       failed.value = true;
       reportFailure("Your team didn't load. Try again in a moment.", error);

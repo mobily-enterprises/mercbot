@@ -37,14 +37,16 @@ export function useChatEvents({ store, work, team, onDropped, onComputer }) {
     }
   }
 
+  // The whole list read again, once.
+  async function readList() {
+    const { chats, startedAt } = await chatsApi.list({ hidden: true, archived: true });
+    store.mergeChats(chats, startedAt);
+  }
+
   // A chat's new messages: read only what changed, if it's loaded here; the row again. A chat the list doesn't have
   // (someone started one with this person) brings the whole list.
   async function chatNews(chatId) {
-    if (!store.knowsChat(chatId)) {
-      const { chats, startedAt } = await chatsApi.list({ hidden: true, archived: true });
-      store.mergeChats(chats, startedAt);
-      return;
-    }
+    if (!store.knowsChat(chatId)) return readList();
     await Promise.all([store.catchUp(chatId), readChat(chatId)]);
   }
 
@@ -99,11 +101,15 @@ export function useChatEvents({ store, work, team, onDropped, onComputer }) {
       computerNews.value = { ...computerNews.value, [key]: (computerNews.value[key] || 0) + 1 };
       onComputer({ chatId: String(chatId), botId: String(botId), control: control == null ? null : String(control) });
     });
-    // The home's bots changed (made, changed, archived, unarchived, deleted): told to everyone in the home.
+    // The home's bots changed (made, changed, archived, unarchived, deleted): told to everyone in the home. A listed
+    // chat holding the bot shows its name and face too (its row, a direct chat's title), so then the list is read again.
     events.addEventListener("bot", (event) => {
       const { botId, change } = JSON.parse(event.data);
-      if (change === "deleted") team.dropBot(String(botId));
+      const id = String(botId);
+      if (change === "deleted") team.dropBot(id);
       else team.loadBots();
+      const holds = (chat) => String(chat.directBotId) === id || (chat.bots || []).some((bot) => String(bot.botId) === id);
+      if (store.chatsNow().some(holds)) readList().catch(() => {});
     });
     // A home's people changed (D-36). If it changed this person's place in the home open here (removed, or a new role),
     // the page starts again so everything reflects it.

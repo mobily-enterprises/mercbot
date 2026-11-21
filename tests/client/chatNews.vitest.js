@@ -32,11 +32,15 @@ class FakeEvents {
 }
 vi.stubGlobal("EventSource", FakeEvents);
 
-/** The page's chats as useChatMessages keeps them, a stand-in recording what it's given, with chat 4's messages loaded. */
-function storeWith(chatIds) {
+/**
+ * The page's chats as useChatMessages keeps them, a stand-in recording what it's given, with chat 4's messages loaded.
+ * `rows` are the listed chats' bots, by chat id.
+ */
+function storeWith(chatIds, rows = {}) {
   const known = new Set(chatIds);
   return {
     knowsChat: (chatId) => known.has(chatId),
+    chatsNow: () => chatIds.map((id) => ({ id, directBotId: null, bots: [], ...rows[id] })),
     updateChat: vi.fn(),
     dropChat: vi.fn((chatId) => known.delete(chatId)),
     mergeChats: vi.fn(),
@@ -46,8 +50,8 @@ function storeWith(chatIds) {
 }
 
 /** The page listening to its news, with what it gave useChatEvents. */
-function listening(chatIds) {
-  const store = storeWith(chatIds);
+function listening(chatIds, rows) {
+  const store = storeWith(chatIds, rows);
   const dropped = [];
   const computers = [];
   const page = {
@@ -144,6 +148,19 @@ describe("news of the home's bots and of a bot's computer", () => {
     expect(computers, "a person's id, or null once its bot has it back").toEqual([
       { chatId: "4", botId: "9", control: "2" }, { chatId: "4", botId: "9", control: null }, { chatId: "5", botId: "9", control: null }
     ]);
+  });
+});
+
+describe("news of a bot a listed chat holds", () => {
+  it("reads the list again, once, since its row or title shows the bot's name and face", async () => {
+    chatsApi.list.mockResolvedValue({ chats: [], startedAt: 7 });
+    const { store, events } = listening(["4", "5"], { 4: { directBotId: "9" }, 5: { bots: [{ botId: "12" }] } });
+    events.send("bot", { botId: 9, change: "updated" });
+    events.send("bot", { botId: 12, change: "archived" });
+    events.send("bot", { botId: 30, change: "updated" });
+    await settled();
+    expect([chatsApi.list.mock.calls.length, store.mergeChats.mock.calls]).toEqual([2, [[[], 7], [[], 7]]]);
+    expect(chatsApi.get).not.toHaveBeenCalled();
   });
 });
 

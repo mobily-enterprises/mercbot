@@ -116,7 +116,10 @@ const firstChatQuery = () => (firstOpenable() ? { chat: firstOpenable() } : {});
 async function openDirect(botId, replace = false) {
   try {
     const { chat } = await chatsApi.direct(botId);
-    store.updateChat(chat);
+    // One the list doesn't have yet is this page's own, so a list read already under way keeps it (mergeChats).
+    if (store.knowsChat(String(chat.id))) store.updateChat(chat);
+    else store.addChat(chat);
+    drawerOpen.value = false;
     closeNewChat();
     await showChat(String(chat.id), { replace });
   } catch (error) {
@@ -276,7 +279,7 @@ const liveWhose = computed(() => (liveView.value ? computerLine(openable(liveVie
 const explainerBotName = computed(() => (currentChat.value?.bots.length === 1 ? currentChat.value.bots[0].name : "your bot"));
 
 const paletteOpen = ref(false);
-const { newBotOpen, creating, createError, newBotName, newBotTemplate, newBotScreen, openNewBot, openTeams, createBot, addTeam, addBots } = useNewBot({
+const { newBotOpen, creating, createError, newBotTemplate, newBotScreen, openNewBot, openTeams, createBot, addTeam, addBots } = useNewBot({
   team,
   openDirect,
   notify: (text) => setTimeout(() => chatPanel.value?.showToast(text), 600)
@@ -286,7 +289,7 @@ const { newBotOpen, creating, createError, newBotName, newBotTemplate, newBotScr
 const templateSlug = computed(() => (route.query.template ? String(route.query.template) : ""));
 watch(templateSlug, (slug) => {
   if (!slug) return;
-  openNewBot("", slug);
+  openNewBot(slug);
   const { template: _shown, ...rest } = route.query;
   router.replace({ query: rest });
 }, { immediate: true });
@@ -307,7 +310,7 @@ provide(MERCBOT_CHAT_KEY, Object.freeze({
 }));
 
 // The welcome chat's "what is this home for?" opens Add bots on Describe what you need ("start") or on its teams.
-const openAddBots = (screen) => (screen === "teams" ? openTeams() : openNewBot("", "", "start"));
+const openAddBots = (screen) => (screen === "teams" ? openTeams() : openNewBot("", "start"));
 Object.assign(actions, useChatActions({ currentChat, newChat, startNewChat, store, work, reportFailure, notify, openAddBots, me: () => me.value }));
 const { send, retry, react, answerChoice, settleDraft, answerSecureForm, endVoiceConversation, cancelRequest, copyToClipboard, copyMessage, copyPicture } = actions;
 
@@ -653,7 +656,6 @@ watch(() => currentHomeEntry.value?.slug, () => loadBuilderBot(), { immediate: t
       v-model="newBotOpen"
       :busy="creating"
       :error="createError"
-      :initial-name="newBotName"
       :template-slug="newBotTemplate"
       :screen="newBotScreen"
       :bots="team.bots.value || []"
