@@ -274,8 +274,8 @@ open General; the palette's section commands and See spending open their section
   owners and admins Edit (the draft screen, Save after "Changes reach N bots from their next reply") and Delete one no
   bot uses. Its rules and routes are in the bot templates module (`genesis/program/bots/templates.md`).
 - **Vault (D-17, D8):** the home's, used by its bots in any chat of it. Tabs with counts, search, New item (login,
-  card, contact info, Import from a CSV file), and dialogs that save only when valid. `GET/POST/DELETE
-  /api/vault` keep items in `vault_items`, the home's, each with who added it (`madeBy`, null once their account
+  card, contact info, Import from a CSV file), and dialogs that save only when valid. `GET/POST
+  /api/w/:workspaceSlug/vault` and `DELETE /api/w/:workspaceSlug/vault/:itemId`, the home's routes, keep items in `vault_items`, the home's, each with who added it (`madeBy`, null once their account
   goes); anyone in the home adds, and an item is deleted by whoever added it or the home's owners and admins (403
   `account_vault_delete_forbidden` "Only the person who added this, or the home's owners and admins, can delete
   it."). What makes an item complete is one set of
@@ -291,7 +291,7 @@ open General; the palette's section commands and See spending open their section
     are matched to the chosen kind's fields by the names password managers, browsers
     and address books use (`guessKind`, `matchColumns`), and the person can change
     each. The preview shows the count, the first five items with secrets masked, and
-    the rows that can't be saved with their reason. `POST /api/vault/import` takes
+    the rows that can't be saved with their reason. `POST /api/w/:workspaceSlug/vault/import` takes
     `{ kind, items: [{ row, data }] }`, 1 to 100 items (`VAULT_IMPORT_LIMIT`), runs
     each through `vaultEntry` and saves them in one `createMany`, all or none; a
     refusal names the file's row (`Row 3: …`, `params.row`). The client sends 100 at a

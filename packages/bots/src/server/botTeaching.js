@@ -71,13 +71,14 @@ export function createBotTeaching({ records, computer, integrations, notices, ba
       await records.messages.append(chatId, [{ kind: "text", role: "bot", authorBotId: botId, body: { text } }], options);
       await notify(chatId, { type: "messages" }, options);
     };
-    const noSteps =
-      "That recording was too short to show me a task, so I've deleted it and haven't saved a skill. Want to try again? Open Teach a task, start recording, and go through the whole task from beginning to end.";
+    // Where the page offers it again: the message box's + menu, "Teach <bot> a task".
+    const noSteps = (name) =>
+      `That recording was too short to show me a task, so I've deleted it and haven't saved a skill. Want to try again? Open + in the message box, then Teach ${name} a task, start recording, and go through the whole task from beginning to end.`;
     try {
       await working(true, "Putting it together");
       await post("Got your demo, thanks. Pulling up the recording now.");
       if (!demoHasSteps(recording.events)) {
-        await post(noSteps);
+        await post(noSteps((await records.directory.findBot(botId, options))?.name ?? "me"));
         return;
       }
       await working(true, "Studying the recording");

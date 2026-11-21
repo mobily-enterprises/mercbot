@@ -219,7 +219,8 @@ per chat and per working bot (`useChatWork.js`).
 **For a copy built on Mercbot:** `bots.answerOnce(botId, { question, purpose }, options)` gives one answer the
 person's bot writes in its own voice, kept nowhere (refused work throws the refusal, D-73; any other failure answers
 ""); `records.messages.rewriteCards({ botId, kind, slug, homeId }, { merge, drop }, options)` changes the cards of
-one kind naming one slug in every chat of a bot in a home, answering only the cards the caller sees.
+one kind naming one slug in every chat of a bot in a home, answering only the cards the caller sees, each with its
+chat (`chatId`).
 
 ## Proved by
 

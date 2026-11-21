@@ -286,7 +286,7 @@ export function buildFileTools({
 
   // Pictures: made fresh, or edited from an earlier picture
   // or a photo the person sent, and shown under the reply as their own block, a row when there
-  // are two. Each is kept in the bot's Pictures folder and listed in its Library. A copy without the
+  // are two. Each is kept in the chat's Pictures folder (/files/chat/Pictures) and listed in its Library. A copy without the
   // images kind of AI, which is optional (D-72), still offers the tool, which says pictures aren't set up. A copy that
   // checks pictures (D-90) checks what's asked for before anything is drawn, and each picture before it's kept or shown.
   async function makePictureTool({ acknowledgement, prompt, title, caption, from = [], variants = 1 }) {
@@ -541,7 +541,7 @@ export function buildFileTools({
 }
 
 const SHARE_TARGETS = Object.freeze({
-  bot: { folder: "/files/bot", words: "this bot's files for every chat", reach: "Everyone in every chat this bot is in will be able to open it." },
+  bot: { folder: "/files/bot", words: "this bot's files for every chat", reach: "Everyone in the home will be able to open it." },
   shared: { folder: "/files/shared", words: "the home's shared files", reach: "Everyone in the home will be able to open it." }
 });
 const SHARE_OPTIONS = Object.freeze(["Share it", "Keep it in this chat"]);

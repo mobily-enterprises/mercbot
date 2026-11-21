@@ -243,3 +243,22 @@ test("an archived bot's computer doesn't wake or open a file (D-108), while anot
   assert.equal((await call("POST /api/w/:workspaceSlug/bots/:botId/computer/wake")).status, 200);
   assert.deepEqual(woken, ["30"]);
 });
+
+test("only the home's owners and admins make a bot the main bot; anyone who may change it renames it", async () => {
+  const updates = [];
+  const { call } = routesWith((botId) => ({ id: botId, name: "Otto", archivedAt: null }), {
+    updateBot: async (botId, patch) => {
+      updates.push({ botId, patch });
+      return { id: botId, name: "Otto" };
+    }
+  });
+  const route = "PATCH /api/w/:workspaceSlug/bots/:botId";
+  const member = await call(route, { workspaceSlug: "home-3", botId: "12" }, { main: true });
+  assert.deepEqual([member.status, member.body.code], [403, "bots_main_bot_manage_forbidden"]);
+  assert.deepEqual(updates, [], "a member's request changes nothing");
+  const renamed = await call(route, { workspaceSlug: "home-3", botId: "12" }, { name: "Otto 2" });
+  assert.equal(renamed.status, 200, "a rename goes on to the bot's own rule (botSettings.js)");
+  const owner = await call(route, { workspaceSlug: "home-3", botId: "12" }, { main: true }, ["workspace.settings.update"]);
+  assert.equal(owner.status, 200);
+  assert.deepEqual(updates.map((update) => update.patch), [{ name: "Otto 2" }, { main: true }]);
+});

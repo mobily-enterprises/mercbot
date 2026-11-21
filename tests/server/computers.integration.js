@@ -411,7 +411,7 @@ test("a person who takes over a chat's computer holds its bot off until it's han
     ["screenshot", () => computers.screenshot(computerId)],
     ["startSignIn", () => computers.startSignIn(computerId, "https://example.com/sign-in")],
     ["a coding tool's sign-in", () => computers.code(computerId, { action: "signIn", tool: "codex" })],
-    ["a coding run", () => computers.code(computerId, { action: "start", tool: "codex", folder: "/files/chat/site", brief: "Fix the menu." })]
+    ["a coding run", () => computers.code(computerId, { action: "start", tool: "codex", folder: "/files/chat/website", brief: "Fix the menu." })]
   ]) await assert.rejects(work(), heldOff, what);
   assert.deepEqual(log.slice(reached), []);
   // What isn't the bot acting goes on: its state, holding it, opening a file for the person, a coding tool's status.
@@ -544,7 +544,7 @@ test("refused, a coding run doesn't start: its computer can't open its day", asy
     await rm(volume, { recursive: true, force: true });
   });
 
-  const start = { action: "start", tool: "claude-code", folder: "/files/chat/site", brief: "Fix the menu on small screens." };
+  const start = { action: "start", tool: "claude-code", folder: "/files/chat/website", brief: "Fix the menu on small screens." };
   await assert.rejects(computers.code(computerId, start), (error) => refusalOf(error)?.message === PAUSED);
   assert.deepEqual(opened, [computerId], "the computer's day was asked for, once");
   // Its state is recorded as it changes, without the wake waiting for the write: the row the claim made reads asleep
