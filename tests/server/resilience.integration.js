@@ -335,13 +335,14 @@ test("asking again after a card was answered returns the same reply instead of s
   const bots = startBotsService(cleanup, { knex, ...parts, approvals: { decide: async () => "allow" }, reply: async () => ({ text: `Reply ${++replies}`, transcript: [] }) });
   const sent = await bots.chat.sendMessage(bot.conversation_id, { text: "Sign me in", clientId: "pending-card" }, as(userId));
   await bots.chat.reply(bot.conversation_id, { afterMessageId: sent.messages[0].id }, undefined, as(userId));
-  // The bot's hand-over card, done on the web page: the page asks for the reply after it (afterCard), then asks again.
-  const [card] = await knex("messages").insert({
-    workspace_id: bot.workspace_id, conversation_id: bot.conversation_id, author_bot_id: bot.id, kind: "handover", role: "bot", body: { task: "Sign in", status: "done" }
-  }).returning("*");
-  const afterCard = await bots.chat.reply(bot.conversation_id, { afterMessageId: card.id, afterCard: true }, undefined, as(userId));
-  const again = await bots.chat.reply(bot.conversation_id, { afterMessageId: card.id, afterCard: true }, undefined, as(userId));
-  const third = await bots.chat.reply(bot.conversation_id, { afterMessageId: card.id, afterCard: true }, undefined, as(userId));
+  // The bot's hand-over card, done on the web page, and a line the bot said under it: the page asks for the reply after
+  // its newest message (afterCard), then asks again.
+  const said = { workspace_id: bot.workspace_id, conversation_id: bot.conversation_id, author_bot_id: bot.id, role: "bot" };
+  await knex("messages").insert({ ...said, kind: "handover", body: { task: "Sign in", status: "done" } });
+  const [line] = await knex("messages").insert({ ...said, kind: "text", body: { text: "Tell me once you're in.", answers: Number(sent.messages[0].id) } }).returning("*");
+  const afterCard = await bots.chat.reply(bot.conversation_id, { afterMessageId: line.id, afterCard: true }, undefined, as(userId));
+  const again = await bots.chat.reply(bot.conversation_id, { afterMessageId: line.id, afterCard: true }, undefined, as(userId));
+  const third = await bots.chat.reply(bot.conversation_id, { afterMessageId: line.id, afterCard: true }, undefined, as(userId));
   assert.equal(replies, 2, "one reply for the message, one after the card, then none");
   assert.deepEqual(again.messages.map((message) => message.id), afterCard.messages.map((message) => message.id));
   assert.deepEqual(third.messages.map((message) => message.id), afterCard.messages.map((message) => message.id));
