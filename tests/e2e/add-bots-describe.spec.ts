@@ -1,38 +1,23 @@
-import knexLib from "knex";
-import { expect, test, testDatabaseName, type Locator, type Page, type TestInfo } from "./harness";
+import type { Locator, Page, TestInfo } from "@playwright/test";
+import { connectTestDb, expect, homeApi, openShell, shell, test } from "./harness";
 
 // Add bots' Describe what you need and Suggested bots (D-109) as a person meets it, on the Test Preview target, in a
 // home of the test's own. The target's AI is the stand-in model (tools/standInModel.mjs): it plans the library bots
 // whose tag the request names, plus a new bot for its last word that names none, and writes a new bot's template on the
 // name, tag and job it was given. A shop's request shows Kindly and Restock from the library, each with why, and a new
 // Rota, its template written meanwhile, with what it asks first and all of it on Read it all; Not quite right? adds a
-// Payroll, keeping Rota's template; Add 3 bots makes Restock, Rota and Payroll, new templates with them, in the section
-// named. Opened again, the home is asked what's missing and Restock says it's already there. A request too short to
-// plan from gets a question. Screenshots light, dark and phone. The test deletes the home it makes.
+// Payroll, keeping Rota's template; Add 3 bots makes Restock, Rota and Payroll, new templates with them, on Team in the
+// order suggested, with no chats of their own (D-112): the welcome chat introduces them. Opened again, the home is asked
+// what's missing and Restock says it's already there. A request too short to plan from gets a question. Screenshots
+// light, dark and phone. The test deletes the home it makes.
 // Run with: vibe64-helper playwright --target test-app test tests/e2e/add-bots-describe.spec.ts
 test.use({ apiGuard: true });
 
 const REQUEST = "I run a small shop and need help with stock, reviews and the staff rota";
 
-async function pastIntro(page: Page) {
-  const next = page.getByRole("button", { name: "Next" });
-  const shell = page.locator(".mb-shell");
-  await expect(shell.or(next).first()).toBeVisible();
-  if (await next.isVisible()) {
-    for (let slide = 0; slide < 3; slide += 1) await next.click();
-  }
-  await expect(shell).toBeVisible();
-}
-
-const sidebar = (page: Page) => page.getByRole("navigation", { name: "Bots" });
-const section = (page: Page, name: string) =>
-  sidebar(page).locator("section.mb-group").filter({ has: page.locator(".mb-header__label", { hasText: new RegExp(`^${name}$`, "u") }) });
+const teamBots = (page: Page) => shell.team(page).getByRole("list", { name: "Members" }).locator('li[data-member="bot"]');
 const posted = (page: Page, path: RegExp) =>
   page.waitForResponse((response) => response.request().method() === "POST" && path.test(new URL(response.url()).pathname));
-const connect = () => knexLib({
-  client: "pg",
-  connection: { host: process.env.DB_HOST, port: Number(process.env.DB_PORT) || 5432, user: process.env.DB_USER, password: process.env.DB_PASSWORD, database: testDatabaseName() }
-});
 
 /** Light, dark (transitions off), then light at phone width, 390 by 844, once the dialog fills the screen there. */
 async function shots(page: Page, testInfo: TestInfo, name: string) {
@@ -48,8 +33,10 @@ async function shots(page: Page, testInfo: TestInfo, name: string) {
   if (size) await page.setViewportSize(size);
 }
 
+/** Team → Add bots, which opens on Describe what you need. */
 async function openAddBots(page: Page) {
-  await sidebar(page).getByRole("button", { name: "Add bots", exact: true }).click();
+  await shell.sidebar(page).getByRole("button", { name: "Team", exact: true }).click();
+  await shell.team(page).getByRole("button", { name: "Add bots" }).click();
   const dialog = page.getByRole("dialog", { name: "Add bots" });
   await expect(dialog.getByRole("textbox", { name: "Describe what you need" })).toBeVisible();
   return dialog;
@@ -61,7 +48,7 @@ async function noApps(dialog: Locator) {
 }
 
 test("Describe what you need suggests library and new bots, checked before Add makes them with their templates", async ({ page }, testInfo) => {
-  const knex = connect();
+  const knex = connectTestDb();
   let homeId = "";
   try {
     const { csrfToken } = await (await page.request.get("/api/session")).json();
@@ -72,8 +59,11 @@ test("Describe what you need suggests library and new bots, checked before Add m
     expect(made.ok(), await made.text()).toBe(true);
     const slug = String((await made.json()).data.attributes.slug);
     homeId = String((await knex("workspaces").where({ slug }).first()).id);
-    await page.goto(`/w/${slug}`);
-    await pastIntro(page);
+    // The person's welcome chat with Mercbot, as their first visit makes it, its welcome put aside for this test.
+    const api = await homeApi(page, `/w/${slug}`);
+    const { chat: welcome } = await api.post("/chats/welcome");
+    await knex("conversations").where({ id: welcome.id }).update({ onboarding_step: null });
+    await openShell(page, "", `/w/${slug}`);
 
     const drafts: Array<{ bot: { name: string } }> = [];
     page.on("request", (request) => {
@@ -98,7 +88,7 @@ test("Describe what you need suggests library and new bots, checked before Add m
     await expect(fresh.getByRole("checkbox", { name: "Add Rota" })).toBeChecked();
     await expect(fresh.getByText("Asks first: What matters most to them in this job; How often they want to hear from you")).toBeVisible();
     expect(drafts.map((draft) => draft.bot.name), "one call per new bot, as soon as the plan shows").toEqual(["Rota"]);
-    await expect(dialog.getByRole("textbox", { name: "Section in your sidebar" })).toHaveValue("Suggested bots");
+    await expect(dialog.getByRole("textbox", { name: "Section in your sidebar" }), "bots go on Team, never in a section").toHaveCount(0);
     await fresh.getByRole("button", { name: "Read it all" }).click();
     await expect(fresh.getByText("You are Rota. Your job: Helps with rota. Ask before anything leaves this chat, and say what you did.")).toBeVisible();
     await shots(page, testInfo, "suggested-bots");
@@ -116,17 +106,23 @@ test("Describe what you need suggests library and new bots, checked before Add m
 
     await library.getByRole("checkbox", { name: "Add Kindly" }).uncheck();
     await noApps(dialog);
-    await dialog.getByRole("textbox", { name: "Section in your sidebar" }).fill("Shop");
     const added = posted(page, /\/bots\/batch$/u);
     await dialog.getByRole("button", { name: "Add 3 bots" }).click();
     const batch = (await added).request().postDataJSON();
-    expect(batch.section).toBe("Shop");
+    expect(batch, "no section").not.toHaveProperty("section");
     expect(batch.bots.map((bot: { library?: string, name?: string }) => bot.library || bot.name)).toEqual(["shop-stock-keeper", "Rota", "Payroll"]);
     expect(batch.bots.slice(1).map((bot: { draft: { tag: string } }) => bot.draft.tag)).toEqual(["rota", "payroll"]);
+    const answer = await (await added).json();
+    expect([answer.added.length, answer.skipped]).toEqual([3, []]);
     await expect(dialog).toBeHidden();
-    const rows = section(page, "Shop").locator(".mb-row");
-    await expect(rows, "in the order suggested").toContainText(["Restock", "Rota", "Payroll"]);
-    await expect(page.getByPlaceholder("Message Restock"), "the first of them open").toBeVisible();
+    await expect(page.getByText("Added 3 bots to your team.")).toBeVisible();
+    await expect(teamBots(page).locator(".mb-team-row__name"), "in the order suggested").toContainText(["Restock", "Rota", "Payroll"]);
+    await expect(shell.team(page), "no chat opens").toBeVisible();
+    expect((await api.get("/chats?hidden=1&archived=1")).chats.map((chat: { id: string }) => String(chat.id)), "they make no chats")
+      .toEqual([String(welcome.id)]);
+    await shell.chatRow(page, "Mercbot").click();
+    await expect(shell.chat(page).getByText("Your team's here: Restock, Rota and Payroll. Start a chat with one of them whenever you like."))
+      .toBeVisible();
     const templates = await knex("home_templates").where({ workspace_id: homeId }).orderBy("tag").select("id", "tag");
     expect(templates.map((row) => row.tag)).toEqual(["payroll", "rota"]);
     const onThem = await knex("bots").where({ workspace_id: homeId }).whereIn("home_template_id", templates.map((row) => row.id)).count("* as n").first();

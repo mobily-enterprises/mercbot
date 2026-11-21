@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import knexLib from "knex";
 import { expect, test as base, type Browser, type BrowserContext, type Locator, type Page, type Request as PageRequest, type Route } from "@playwright/test";
 
 // The browser suite's `test`: when the run started its own Test Previews (globalSetup.mjs), each
@@ -228,5 +229,103 @@ export function testDatabaseName() {
   return target(Number(process.env.TEST_PARALLEL_INDEX))?.database ?? process.env.TEST_DB_NAME;
 }
 
+/** The fixtures' home: the personal home of the copy's one person (tests/support/fixtures.mjs). */
+export const HOME = "/w/you";
+
+/** The worker's test database, for what a test seeds or checks itself; `destroy()` it when the test ends. */
+export const connectTestDb = () => knexLib({
+  client: "pg",
+  connection: { host: process.env.DB_HOST, port: Number(process.env.DB_PORT) || 5432, user: process.env.DB_USER, password: process.env.DB_PASSWORD, database: testDatabaseName() }
+});
+
+type Json = Record<string, any>;
+
+/**
+ * The test's own calls to a home's API (page.request, with JSKIT's CSRF token), under /api/w/<slug>: each expects an
+ * answer of 2xx, naming the call and its answer when it isn't, and resolves with its JSON. `answer` gives the raw
+ * response, for a test that checks a refusal.
+ */
+export async function homeApi(page: Page, home = HOME) {
+  const { csrfToken } = await (await page.request.get("/api/session")).json();
+  const headers = { "csrf-token": csrfToken };
+  const at = (path: string) => `/api${home}${path}`;
+  const answer = (method: string, path: string, data?: unknown) =>
+    page.request.fetch(at(path), { method, headers, ...(data === undefined ? {} : { data }) });
+  const call = async (method: string, path: string, data?: unknown): Promise<Json> => {
+    const response = await answer(method, path, data);
+    const text = await response.text();
+    expect(response.ok(), `${method} ${at(path)} answered ${response.status()}: ${text}`).toBe(true);
+    return text ? JSON.parse(text) : {};
+  };
+  return {
+    headers,
+    get: (path: string) => call("GET", path),
+    post: (path: string, data: unknown = {}) => call("POST", path, data),
+    patch: (path: string, data: unknown) => call("PATCH", path, data),
+    put: (path: string, data: unknown) => call("PUT", path, data),
+    del: (path: string) => call("DELETE", path),
+    answer
+  };
+}
+
+/** The home's bot named `name` (GET /bots, the Team page's list), or a failed expectation naming it. */
+export async function botNamed(page: Page, name: string, home = HOME): Promise<Json> {
+  const { bots } = await (await homeApi(page, home)).get("/bots");
+  const bot = bots.find((entry: { name: string }) => entry.name === name);
+  expect(bot, `${home} has a bot called ${name}`).toBeTruthy();
+  return bot;
+}
+
+/**
+ * A chat made as New chat's [Start] makes it (D-112, D15): Public unless `kind` is "private", the person who asks among
+ * its people. Resolves with the chat (the ChatView).
+ */
+export async function makeChat(page: Page, choice: { kind?: "public" | "private"; title?: string | null; people?: string[]; bots?: string[] }, home = HOME): Promise<Json> {
+  const { chat } = await (await homeApi(page, home)).post("/chats", { kind: "public", title: null, people: [], bots: [], ...choice });
+  return chat;
+}
+
+/** The person's direct chat with a bot, as its [Message] opens it (made on first use). */
+export async function directChat(page: Page, botId: string, home = HOME): Promise<Json> {
+  const { chat } = await (await homeApi(page, home)).post(`/bots/${botId}/direct`);
+  return chat;
+}
+
+/**
+ * A home's shell at `query` (?chat=<id>, ?team=1, ?bot=<id>…), past the intro slides a person sees in their first home
+ * when its welcome chat is made, once the shell shows.
+ */
+export async function openShell(page: Page, query = "", home = HOME) {
+  await page.goto(`${home}${query}`);
+  const next = page.getByRole("button", { name: "Next" });
+  const shown = page.locator(".mb-shell");
+  await expect(shown.or(next).first()).toBeVisible();
+  if (await next.isVisible()) {
+    for (let slide = 0; slide < 3; slide += 1) await next.click();
+  }
+  await expect(shown).toBeVisible();
+}
+
+/** The shell's parts as a person finds them (D-112): the chat list, a chat's row, the open chat, Team and Details. */
+export const shell = {
+  /** The sidebar: Team, Files, Apps and the person's chats. */
+  sidebar: (page: Page) => page.getByRole("navigation", { name: "Chats" }),
+  /** A chat's row or pinned tile in the sidebar, by the name it shows ("<title>, private" for a private chat). */
+  chatRow: (page: Page, name: string) => shell.sidebar(page).getByRole("button", { name, exact: true }),
+  /** The chat panel: the open chat, New chat, or where to start. */
+  chat: (page: Page) => page.locator("main.mb-chat"),
+  /** The open chat's composer. */
+  composer: (page: Page) => page.locator("textarea.mb-composer__input"),
+  /** The Team page (D3): the home's people and bots alike. */
+  team: (page: Page) => page.getByRole("region", { name: /^Team/u }),
+  /** Details beside what's shown: "Chat details", or "<Name>'s card". */
+  details: (page: Page, name: string | RegExp) => page.getByRole("complementary", { name }),
+  /** The open context menu's items. */
+  menuItems: (page: Page) => page.locator(".v-overlay--active .mb-menu .mb-menu__text"),
+  /** The open question (Archive, Leave, Delete…). */
+  question: (page: Page) => page.locator(".v-overlay--active .mb-confirm")
+};
+
+export { seedChat, seedMessage } from "../support/chatFixtures.mjs";
 export { expect };
 export type { Browser, Page, Route } from "@playwright/test";

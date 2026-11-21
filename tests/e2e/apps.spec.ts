@@ -1,34 +1,28 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
-import { expect, holdDraftReads, test, testDatabaseName, textContrast, type Page } from "./harness";
-import knexLib from "knex";
+import { HOME, botNamed, connectTestDb, directChat, expect, holdDraftReads, homeApi, openShell, seedMessage, shell, test, textContrast, type Page } from "./harness";
 
 // Apps (D-35), on the Test Preview target only: its fixtures give the owner's home a Contacts table
 // (Ana Ruiz, Ben Okafor, Carla Mendes), a bot called Otto, a published Contacts app pinned in the
 // sidebar (list with "Ask Otto", edit, a Stages chart, a public contact form), and a draft that adds
-// a Notes column. The test target's AI is the stand-in model, so Otto's replies only say so. Run with: vibe64-helper playwright --target test-app test tests/e2e/apps.spec.ts
+// a Notes column. The test target's AI is the stand-in model, so Otto's replies only say so. A button's task for a bot
+// runs in the presser's direct chat with it; Ask Builder opens the app's own chat with the home's Builder (D-41, D-112).
+// Run with: vibe64-helper playwright --target test-app test tests/e2e/apps.spec.ts
 // The tests run in order and change that data (the last removes the Notes field), so each run
 // needs a fresh start of the target.
-const HOME = "/w/you";
 // Any refused API call from the page, one with no answer, or JSKIT's error dialog, fails the test (harness.ts).
 test.use({ apiGuard: true });
 test.describe.configure({ mode: "serial" });
 
-// The home page, past the first-run introduction a new account sees there once.
-async function openHome(page: Page) {
-  await page.goto(HOME);
-  const next = page.getByRole("button", { name: "Next" });
-  const shell = page.locator(".mb-shell");
-  await expect(shell.or(next).first()).toBeVisible();
-  if (await next.isVisible()) {
-    for (let slide = 0; slide < 3; slide += 1) await next.click();
-  }
-  await expect(shell).toBeVisible();
-}
-
 const snackbar = (page: Page) => page.locator(".v-snackbar__content");
-// The worker's test database, for what the page doesn't show.
-const testDatabase = () => knexLib({ client: "pg", connection: { host: process.env.DB_HOST, port: Number(process.env.DB_PORT) || 5432, user: process.env.DB_USER, password: process.env.DB_PASSWORD, database: testDatabaseName() } });
+
+/** What's said in a chat, newest page (GET /chats/:id/messages); while it can't be read, its refusal, for the failure. */
+async function chatText(page: Page, chatId: string) {
+  const response = await page.request.get(`/api${HOME}/chats/${chatId}/messages`);
+  if (!response.ok()) return `${response.status()} ${await response.text()}`;
+  const { messages } = await response.json();
+  return messages.map((message: { body?: { text?: string } }) => message.body?.text || "").join("\n");
+}
 
 async function contacts(page: Page) {
   const response = await page.request.get(`/api${HOME}/app-data/tables/contacts/records?size=50`);
@@ -39,7 +33,7 @@ async function contacts(page: Page) {
 }
 
 test("a pinned app opens, a record is edited, and Activity shows the change", async ({ page }) => {
-  await openHome(page);
+  await openShell(page);
   await page.locator(".mb-apps-entry__app").filter({ hasText: "Contacts" }).click();
   await expect(page).toHaveURL(/\/apps\/contacts/u);
   await expect(page.locator("thead th:not(.app-actions-column)")).toHaveText(["Name", "Email", "Stage"]);
@@ -125,7 +119,7 @@ test.describe("a draft", () => {
     await expect(row("Ana Ruiz")).toBeVisible();
     await expect(row("Pia Practice")).toHaveCount(0);
     expect((await contacts(page)).map((record: { name: string }) => record.name)).not.toContain("Pia Practice");
-    const knex = testDatabase();
+    const knex = connectTestDb();
     try {
       const copies = knex("app_practices").whereIn("app_id", knex("apps").select("id").where({ slug: "contacts" }));
       expect(Number((await copies.count("* as n").first()).n), "publishing cleared the copy").toBe(0);
@@ -135,26 +129,22 @@ test.describe("a draft", () => {
   });
 
   test("the Builder's draft card publishes the draft from the chat", async ({ page }) => {
-    await openHome(page);
-    const { csrfToken } = await (await page.request.get("/api/session")).json();
-    const installed = await page.request.post(`/api${HOME}/apps-templates/stock/install`, { headers: { "csrf-token": csrfToken }, data: {} });
-    expect(installed.ok()).toBe(true);
-    const { app } = await installed.json();
+    const api = await homeApi(page);
+    const { app } = await api.post("/apps-templates/stock/install", {});
     const name = `Builder ${Date.now().toString(36)}`;
-    const created = await page.request.post(`/api${HOME}/bots`, { headers: { "csrf-token": csrfToken }, data: { name, color: "#1E86FC" } });
-    expect(created.ok()).toBe(true);
-    const { bot } = await created.json();
-    const knex = testDatabase();
+    const { bot } = await api.post("/bots", { name, color: "#1E86FC" });
+    const knex = connectTestDb();
     try {
-      // The card the Builder posts after app_save_draft.
-      const conversation = await knex("bot_conversations").where({ bot_id: bot.id }).whereNotNull("user_id").first();
-      await knex("bot_conversations").where({ id: conversation.id }).update({ onboarding_step: null });
+      // The card the Builder posts after app_save_draft, in the person's direct chat with it, past its greeting.
+      const chat = await directChat(page, String(bot.id));
+      await knex("conversations").where({ id: chat.id }).update({ onboarding_step: null });
+      const { workspace_id: homeId } = await knex("conversations").where({ id: chat.id }).first();
       const { draft_version_id: versionId } = await knex("apps").where({ id: app.id }).first();
-      await knex("bot_messages").insert({ bot_id: bot.id, conversation_id: conversation.id, workspace_id: conversation.workspace_id, kind: "app_draft", role: "bot", body: { slug: app.slug, name: app.name, summary: "Tracks what's in stock", versionId: String(versionId) } });
+      await seedMessage(knex, { homeId, chatId: chat.id, kind: "app_draft", botId: bot.id, body: { slug: app.slug, name: app.name, summary: "Tracks what's in stock", versionId: String(versionId) } });
 
-      await openHome(page);
-      await page.getByRole("navigation", { name: "Bots" }).getByRole("button", { name, exact: true }).click();
-      const card = page.getByRole("main", { name: "Chat" }).getByRole("region", { name: `Draft of ${app.name}` });
+      await openShell(page);
+      await shell.chatRow(page, name).click();
+      const card = shell.chat(page).getByRole("region", { name: `Draft of ${app.name}` });
       await expect(card).toContainText("Try it in Preview on practice data, then press Publish to start using it.");
       await expect(card.getByRole("link", { name: "Preview" })).toBeVisible();
       await card.getByRole("button", { name: "Publish" }).click();
@@ -169,7 +159,7 @@ test.describe("a draft", () => {
       await knex.destroy();
       // Left first, so the page doesn't go on reading the bot once it's gone (the API guard would see that).
       await page.goto("about:blank");
-      await page.request.delete(`/api${HOME}/bots/${bot.id}`, { headers: { "csrf-token": csrfToken } });
+      await api.answer("DELETE", `/bots/${bot.id}`);
     }
   });
 });
@@ -232,16 +222,14 @@ test("a chart shows the totals of a query", async ({ page }, testInfo) => {
   await page.screenshot({ path: testInfo.outputPath("chart.png") });
 });
 
-test("a button hands a task to a bot, which works on it in its chat", async ({ page }) => {
+test("a button hands a task to a bot, which works on it in the presser's direct chat with it", async ({ page }) => {
   await page.goto(`${HOME}/apps/contacts`);
   await page.getByRole("row", { name: /Carla Mendes/u }).getByRole("button", { name: "Ask Otto" }).click();
   await expect(snackbar(page)).toHaveText("Sent to Otto");
-  const { bots } = await (await page.request.get(`/api${HOME}/bots`)).json();
-  const otto = bots.find((bot: { name: string }) => bot.name === "Otto");
-  await expect.poll(async () => {
-    const { messages } = await (await page.request.get(`/api${HOME}/bots/${otto.id}/messages`)).json();
-    return messages.map((message: { body: { text?: string } }) => message.body?.text || "").join("\n");
-  }).toMatch(/Task from Contacts[\s\S]*runs on a stand-in model, which only plays the bot templates/u);
+  // The person's one direct chat with Otto: asking for it finds the one the task went to.
+  const chat = await directChat(page, String((await botNamed(page, "Otto")).id));
+  await expect.poll(() => chatText(page, String(chat.id)))
+    .toMatch(/Task from Contacts[\s\S]*runs on a stand-in model, which only plays the bot templates/u);
 });
 
 test("the home's look applies to its apps", async ({ page }, testInfo) => {
@@ -336,28 +324,31 @@ test("scripts: a formula function, data worked out by a script, a button and a r
   await page.screenshot({ path: testInfo.outputPath("scripts-tab.png") });
 });
 
-test("Ask Builder opens the app's own conversation with a shared Builder, asking once", async ({ page }, testInfo) => {
-  const { csrfToken } = await (await page.request.get("/api/session")).json();
-  const { bots } = await (await page.request.get(`/api${HOME}/bots`)).json();
-  const otto = bots.find((bot: { name: string }) => bot.name === "Otto");
-  expect((await page.request.put(`/api${HOME}/apps/builder`, { headers: { "csrf-token": csrfToken }, data: { botId: otto.id } })).ok()).toBe(true);
+test("Ask Builder opens the app's own chat with the home's Builder, the same one every time", async ({ page }, testInfo) => {
+  const api = await homeApi(page);
+  const otto = await botNamed(page, "Otto");
+  await api.put("/apps/builder", { botId: otto.id });
 
+  // The app's chat (D-41): Public, named after the app, with the Builder and the person who asked, and a first line
+  // saying where they asked from in its composer.
   await page.goto(`${HOME}/apps/contacts`);
   await page.getByRole("button", { name: "Ask Builder" }).click();
-  await expect(page.getByText("A conversation for each app?")).toBeVisible();
-  await page.screenshot({ path: testInfo.outputPath("rooms-question.png") });
-  await page.getByRole("button", { name: "Yes, one per app" }).click();
-  await expect(page).toHaveURL(new RegExp(`bot=${otto.id}`, "u"));
-  await expect(page.getByRole("tab", { name: /Contacts/u })).toHaveAttribute("aria-selected", "true");
-  await expect(page.locator("textarea.mb-composer__input")).toHaveValue(/^About the app "Contacts" \(contacts\), screen "list": $/u);
-  await page.screenshot({ path: testInfo.outputPath("app-room.png") });
+  await expect(page).toHaveURL(/[?&]chat=\d+/u);
+  const chatId = new URL(page.url()).searchParams.get("chat");
+  const { chat } = await api.get(`/chats/${chatId}`);
+  expect([chat.title, chat.kind, chat.directBotId, Boolean(chat.appId), chat.people.length]).toEqual(["Contacts", "public", null, true, 1]);
+  expect(chat.bots.map((bot: { botId: string }) => String(bot.botId))).toEqual([String(otto.id)]);
+  await expect(shell.chat(page).getByRole("button", { name: "Contacts details" })).toContainText("Public");
+  await expect(shell.composer(page)).toHaveValue(/^About the app "Contacts" \(contacts\), screen "list": $/u);
+  await page.screenshot({ path: testInfo.outputPath("app-chat.png") });
 
-  // The second time there's no question, and the same conversation opens.
+  // The second time the same chat opens, and the home still has one chat for the app.
   await page.goto(`${HOME}/apps/contacts`);
   await page.getByRole("button", { name: "Ask Builder" }).click();
-  await expect(page).toHaveURL(new RegExp(`bot=${otto.id}`, "u"));
-  await expect(page.getByText("A conversation for each app?")).toHaveCount(0);
-  await expect(page.getByRole("tab", { name: /Contacts/u })).toHaveCount(1);
+  await expect(page).toHaveURL(new RegExp(`[?&]chat=${chatId}(&|$)`, "u"));
+  await expect(shell.chat(page).getByRole("button", { name: "Contacts details" })).toBeVisible();
+  const { chats } = await api.get("/chats");
+  expect(chats.filter((entry: { appId: string | null }) => entry.appId === chat.appId)).toHaveLength(1);
 });
 
 test("an app's own CSS restyles its area, and only its area", async ({ page }, testInfo) => {
