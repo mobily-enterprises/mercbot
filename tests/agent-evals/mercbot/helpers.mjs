@@ -5,7 +5,7 @@ import { toNames } from "../../../packages/apps/src/shared/definitions.js";
 // and whether that version passes the app's own save check.
 export async function appsOf(ctx) {
   const rows = await ctx.knex("apps").where({ workspace_id: ctx.workspaceId }).orderBy("id");
-  const tables = await ctx.apps.registry.loadTables(ctx.workspaceId);
+  const tables = await ctx.apps.registry.loadTables(ctx.options);
   const result = [];
   for (const app of rows) {
     const version = await ctx.knex("app_versions").where({ app_id: app.id }).orderBy("id", "desc").first();
