@@ -104,7 +104,7 @@ A skill is *how* to do a task: saved steps a bot follows when asked. A routine i
 
 ## How do I make a skill or a routine?
 
-For a skill, ask the bot to save what it just did as a skill, or teach it by recording yourself doing the task on its computer: in a chat with one bot, select **+**, then **Teach** and the bot's name, such as **Teach Ledger a task**. Type "/" in the message box of a chat with one bot to pick a skill. For a routine, just ask in the chat it should run in: "Every weekday at 8, check my calendar and list my meetings." The chat's **Chat details** lists its routines under **Routines**, where you can pause, edit or delete them; only the person who set a routine up can turn it back on.
+For a skill, ask the bot to save what it just did as a skill, or teach it by recording yourself doing the task on its computer: in a chat with one bot, select **+**, then **Teach** and the bot's name, such as **Teach Ledger a task**. Type "/" in the message box of a chat with one bot to pick a skill: Mercbot's anywhere, and your own only in a Private chat where you're the only person. For a routine, just ask in the chat it should run in: "Every weekday at 8, check my calendar and list my meetings." The chat's **Chat details** lists its routines under **Routines**, where you can pause, edit or delete them; only the person who set a routine up can turn it back on.
 
 ## Can I share a bot with someone?
 

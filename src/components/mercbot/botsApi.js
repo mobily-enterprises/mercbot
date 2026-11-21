@@ -16,8 +16,9 @@ export const botsApi = {
   // One bot as Team lists it: { bot }.
   bot: (botId) => request(`/bots/${botId}`),
   search: (query) => request(`/search?q=${encodeURIComponent(query)}`),
-  // Mercbot's pickable skills and the person's own, for the "/" picker.
-  skills: () => request("/bot-skills"),
+  // The "/" picker's skills in a chat: Mercbot's pickable ones, and the person's own only in a Private chat whose one
+  // person they are (the server decides); without a chat, Mercbot's only.
+  skills: (chatId = null) => request(chatId ? `/bot-skills?${new URLSearchParams({ chat: String(chatId) })}` : "/bot-skills"),
   // What the bot made in the chats the person can open, for its Library.
   library: (botId) => request(`/bots/${botId}/library`),
   pinItem: (botId, item, pinned) => post(`/bots/${botId}/library/pin`, { messageId: item.messageId, path: item.path, pinned }),

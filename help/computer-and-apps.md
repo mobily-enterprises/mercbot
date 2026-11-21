@@ -121,6 +121,8 @@ Open **Settings** > **Computer**:
 
 Reset is useful when a website is stuck in a strange state, or when you want a bot to forget every website it's signed in to.
 
+A single chat's computers have their own **Reset**, under **Computers** in **Chat details**. The person who started the chat and the home's owners and admins can reset them, and in your chat with one bot, you can.
+
 ## Connect apps
 
 **Connect apps** is where you choose which outside apps your home's bots can use. Apps and accounts you add belong to the home you're in: everyone in it, and their bots, can use them. Open it from the sidebar, or type "Connect Apps" in the search palette (**Ctrl+K**). On a phone it fills the screen. **Skills**, the book beside it in the sidebar, opens it straight on your private skills.

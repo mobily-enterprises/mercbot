@@ -3,15 +3,24 @@ import { describe, expect, it, vi } from "vitest";
 import { composerPlaceholder } from "../../src/components/mercbot/composerPlaceholder.js";
 
 // The composer's helpers in a chat (D-112): its placeholder, the @ and "/" menus by who's in the chat, and a voice
-// conversation, offered only in a direct chat and counted where it was made. The skills and apps routes are stand-ins.
+// conversation, offered only in a direct chat and counted where it was made. The skills and apps routes are stand-ins:
+// the skills route answers the person's own skills only for chat "6", as the server does for a Private chat whose one
+// person is the caller.
 vi.mock("vue", async (importOriginal) => ({ ...(await importOriginal()), onBeforeUnmount: () => {} }));
+const skillsAsked = vi.hoisted(() => []);
 vi.mock("../../src/components/mercbot/botsApi.js", () => ({
-  botsApi: { skills: async () => ({ skills: [{ id: "s1", name: "Weekly menu", description: "Plans the week", own: false }, { id: "s2", name: "My budget", description: "Mine", own: true }] }) }
+  botsApi: {
+    skills: async (chatId) => {
+      skillsAsked.push(chatId);
+      const menu = { id: "s1", name: "Weekly menu", description: "Plans the week", own: false };
+      return { skills: chatId === "6" ? [menu, { id: "s2", name: "My budget", description: "Mine", own: true }] : [menu] };
+    }
+  }
 }));
 vi.mock("../../src/components/mercbot/pluginsApi.js", () => ({
   pluginsApi: { list: async () => ({ plugins: [{ id: "gmail", name: "Gmail", installed: true, accounts: [{ status: "connected" }] }] }) }
 }));
-const { mentionBotsOf, offersOwnSkills, soleBotOf, useComposerTokens } = await import("../../src/components/mercbot/useComposerTokens.js");
+const { mentionBotsOf, soleBotOf, useComposerTokens } = await import("../../src/components/mercbot/useComposerTokens.js");
 const { useDictation } = await import("../../src/components/mercbot/useDictation.js");
 const { hasSeveral } = await import("../../src/components/mercbot/messageAuthors.js");
 
@@ -22,11 +31,8 @@ const chatOf = (people, bots) => ({ id: "5", people: people.map((name, at) => ({
 
 const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
 
-/**
- * The composer's tokens for `chat`, with a stand-in field whose caret sits at the end of what's typed; `me`, the
- * person looking, decides whether their own skills are offered (offersOwnSkills).
- */
-function composer(chat, me = "1") {
+/** The composer's tokens for `chat`, with a stand-in field whose caret sits at the end of what's typed. */
+function composer(chat) {
   const draft = ref("");
   const field = { selectionStart: 0, selectionEnd: 0, focus() {}, setSelectionRange(start, end) { this.selectionStart = start; this.selectionEnd = end; } };
   const open = ref(chat);
@@ -36,8 +42,7 @@ function composer(chat, me = "1") {
     input: ref(field),
     several: { get value() { return hasSeveral(open.value); } },
     mentionBots: { get value() { return mentionBotsOf(open.value); } },
-    chatId,
-    ownSkills: () => offersOwnSkills(open.value, me)
+    chatId
   });
   const type = async (text) => {
     draft.value = text;
@@ -70,15 +75,18 @@ describe("@ and / in a chat", () => {
     expect(tokens.skillRows.value.map((row) => row.name)).toEqual(["Weekly menu"]);
   });
 
-  it("offer the person's own skills under / only in a private chat whose one person they are", async () => {
-    const alone = { ...chatOf(["Anna"], [CHEF]), kind: "private" };
-    const mine = composer(alone);
-    await mine.type("/");
-    expect(mine.tokens.skillRows.value.map((row) => row.name)).toEqual(["Weekly menu", "My budget"]);
-    const someoneElses = composer(alone, "2");
-    await someoneElses.type("/");
-    expect(someoneElses.tokens.skillRows.value.map((row) => row.name), "not theirs").toEqual(["Weekly menu"]);
-    expect(offersOwnSkills({ ...chatOf(["Anna", "Ben"], [CHEF]), kind: "private" }, "1"), "a private chat with others").toBe(false);
+  it("offer under / the skills the server gives for the open chat, asked again when another chat opens", async () => {
+    skillsAsked.length = 0;
+    const { tokens, type, open, chatId } = composer({ ...chatOf(["Anna", "Ben"], [CHEF]), kind: "private" });
+    await type("/");
+    expect(tokens.skillRows.value.map((row) => row.name), "a private chat with others: Mercbot's only").toEqual(["Weekly menu"]);
+    open.value = { ...chatOf(["Anna"], [CHEF]), id: "6", kind: "private" };
+    chatId.value = "6";
+    await nextTick();
+    await type("");
+    await type("/");
+    expect(tokens.skillRows.value.map((row) => row.name), "Anna's own private chat: hers too").toEqual(["Weekly menu", "My budget"]);
+    expect(skillsAsked).toEqual(["5", "6"]);
   });
 
   it("know a chat's one answering bot, an archived one not counted", () => {

@@ -59,7 +59,8 @@ const mayRemovePerson = (person) => may.value.removeMembers && !props.chat.every
 const mayRemoveBot = computed(() => may.value.removeMembers);
 
 // Routines that run in this chat (B): each one's bot, schedule, a switch (anyone pauses one; only its maker resumes it,
-// canResume), Edit through the chat, and Delete, which is anyone's who can open the chat.
+// canResume), Edit through the chat for its maker too (only they change it, routineTools.js), and Delete, which is
+// anyone's who can open the chat.
 const routines = ref(null);
 async function loadRoutines() {
   try {
@@ -201,7 +202,7 @@ const folderBot = computed(() => (props.chat.bots[0] ? String(props.chat.bots[0]
               :aria-label="routine.enabled ? `Pause ${routine.name}` : `Resume ${routine.name}`"
               @update:model-value="switchRoutine(routine)"
             />
-            <v-btn icon="$edit" size="28" variant="text" :aria-label="`Edit ${routine.name}`" @click="emit('edit-routine', routine)" />
+            <v-btn v-if="routine.canResume" icon="$edit" size="28" variant="text" :aria-label="`Edit ${routine.name}`" @click="emit('edit-routine', routine)" />
             <v-btn
               icon="$delete"
               size="28"
