@@ -1,19 +1,17 @@
 import { isStagingOrProduction } from "@jskit-ai/kernel/shared/support/appEnvironment";
 import { FilesError } from "./fileStore.js";
 
-// A home's files kept in a person's own Google Drive (D-26, D-80), through a Google Drive account connected in Connect
-// apps with the access D-42 already asks for. Mercbot makes one folder there for the home and keeps the files in it,
+// A home's files kept in a Google Drive (D-26, D-80), through one of the home's Google Drive accounts connected in Connect
+// apps (D-111) with the access D-42 already asks for. Mercbot makes one folder there for the home and keeps the files in it,
 // and nowhere else; rclone's Drive backend mounts that folder like WebDAV storage (remoteMounts.js), asking this
 // server for each key (driveKey), so the account's long-lived permission never leaves Mercbot and is renewed under the
-// account's row lock (connections.js). Here: the accounts a person may choose, the folder, and the key for a mount.
+// account's row lock (connections.js). Here: the accounts the home may choose, the folder, and the key for a mount.
 // Mercbot's own requests to Drive go through the account's own fetch, in its Request pace (D-96); rclone's mount keeps
 // to rclone's Drive pacer (a request every 100 ms at most, backing off when Drive says it's busy).
 
 export const DRIVE_PLUGIN = "google-drive";
 const FOLDER = "application/vnd.google-apps.folder";
 const DRIVE = "https://www.googleapis.com";
-// The access a person's own accounts are reached with: theirs and the home's (D-37).
-const REACH = Object.freeze({ personal: true });
 
 /**
  * Outside staging and production only (APP_ENV, D-87): a stand-in for Google Drive (tests/support/fakeDrive.mjs), which
@@ -50,7 +48,7 @@ const signInAgain = (label) =>
 export function createDriveStorage({ integrations, systemContext, env }) {
   const api = driveStandIn(env)?.url || DRIVE;
 
-  /** The account's owner, as a job in the home: their own accounts and the home's are reachable. */
+  /** The person who added the account, as a job in the home, whose accounts are all reachable there (D-111). */
   const asOwner = (homeId, settings) => ({
     context: systemContext("reach the Google Drive account a home keeps its files in, as the person it belongs to")
       .forWorkspaceUser(String(homeId), String(settings.userId), { actorId: String(settings.userId) })
@@ -70,10 +68,10 @@ export function createDriveStorage({ integrations, systemContext, env }) {
     return { status: response.status, body };
   }
 
-  /** The connected Google Drive accounts the request's person may keep the home's files in: their own and the home's. */
+  /** The home's connected Google Drive accounts, which its files may be kept in. */
   async function accounts(options) {
-    const found = await integrations.reachableAccounts(REACH, options, { status: "connected", pluginIds: [DRIVE_PLUGIN] });
-    return found.map((account) => ({ id: account.id, label: account.label || account.name, home: account.home }));
+    const found = await integrations.reachableAccounts(options, { status: "connected", pluginIds: [DRIVE_PLUGIN] });
+    return found.map((account) => ({ id: account.id, label: account.label || account.name }));
   }
 
   /**
@@ -82,7 +80,7 @@ export function createDriveStorage({ integrations, systemContext, env }) {
    */
   async function keyFor(accountId, options, label, refused = "") {
     try {
-      return await integrations.connections.accessToken(REACH, accountId, options, { refused });
+      return await integrations.connections.accessToken(accountId, options, { refused });
     } catch (error) {
       if (["integrations_sign_in_ran_out", "integrations_account_signed_out"].includes(error?.code)) throw signInAgain(label);
       throw error;
@@ -97,14 +95,14 @@ export function createDriveStorage({ integrations, systemContext, env }) {
    * @param {object} options the request's, in the home
    */
   async function prepare(input, made, options) {
-    const account = await integrations.reachableAccount(REACH, String(input.accountId || ""), options).catch(noneIfMissing);
+    const account = await integrations.reachableAccount(String(input.accountId || ""), options).catch(noneIfMissing);
     if (!account || account.pluginId !== DRIVE_PLUGIN) {
       throw new FilesError(400, "Choose one of your connected Google Drive accounts.", { code: "files_storage_drive_account_unknown" });
     }
     const label = account.label || account.name;
     if (account.status !== "connected") throw signInAgain(label);
     const key = await keyFor(account.id, options, label);
-    // Whose Drive it is: a person's own account is reached as them, a home's by anyone in it (asOwner).
+    // Who added it: the home's mount reaches it as them (asOwner).
     const chosen = { accountId: account.id, userId: account.userId, label };
     const home = String(options?.context?.workspace?.name || "").trim();
     const name = home ? `Mercbot – ${home}`.slice(0, 200) : "Mercbot";
@@ -130,7 +128,7 @@ export function createDriveStorage({ integrations, systemContext, env }) {
    * @returns {Promise<object | null>}
    */
   async function account(homeId, settings) {
-    const found = await integrations.reachableAccount(REACH, settings.accountId, asOwner(homeId, settings)).catch(noneIfMissing);
+    const found = await integrations.reachableAccount(settings.accountId, asOwner(homeId, settings)).catch(noneIfMissing);
     return found && found.pluginId === DRIVE_PLUGIN ? found : null;
   }
 

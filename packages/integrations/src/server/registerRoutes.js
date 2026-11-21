@@ -32,12 +32,9 @@ function handle(work) {
   };
 }
 
-// A Connect apps request reaches the person's own accounts and the home's (D-37); the person and
-// the home come from its options.
-const REACH = Object.freeze({ personal: true });
-
 /**
- * Connect apps, signing accounts in, and this copy's link to a hub (D-31, D-33, D-37).
+ * Connect apps, signing accounts in, and this copy's link to a hub (D-31, D-33, D-111). A request reaches its home's
+ * accounts; the person and the home come from its options.
  * @param {import("@jskit-ai/kernel/server/types").RuntimeHttp} http
  * @param {object} capabilities
  * @param {import("./types.js").Integrations} capabilities.integrations
@@ -53,7 +50,7 @@ export function registerRoutes(http, { integrations, catalogue, env }) {
       .syncPending(options)
       .catch((error) => console.warn("Finishing pending sign-ins failed; the list shows what is known.", error));
     return {
-      ...await integrations.list(REACH, options),
+      ...await integrations.list(options),
       pasteSignIn: isLocal(env),
       managesHome: hasPermission(request.permissions, "workspace.settings.update")
     };
@@ -65,35 +62,35 @@ export function registerRoutes(http, { integrations, catalogue, env }) {
     await connections
       .syncPending(options, { accountId })
       .catch((error) => console.warn("Finishing a pending sign-in failed; the account shows what is known.", error));
-    return integrations.accountStatus(REACH, accountId, options);
+    return integrations.accountStatus(accountId, options);
   }
 
   function installPlugin(request, options) {
-    return integrations.install(REACH, request.params.pluginId, options);
+    return integrations.install(request.params.pluginId, options);
   }
 
   function uninstallPlugin(request, options) {
-    return integrations.uninstall(REACH, request.params.pluginId, options);
+    return integrations.uninstall(request.params.pluginId, options);
   }
 
   function addAccount(request, options) {
-    return integrations.addAccount(REACH, request.params.pluginId, request.body?.name, { forHome: request.body?.home === true }, options);
+    return integrations.addAccount(request.params.pluginId, request.body?.name, options);
   }
 
   function renameAccount(request, options) {
-    return integrations.renameAccount(REACH, request.params.accountId, request.body?.name, options);
+    return integrations.renameAccount(request.params.accountId, request.body?.name, options);
   }
 
   function choosePace(request, options) {
-    return integrations.choosePace(REACH, request.params.accountId, request.body?.pace, options);
+    return integrations.choosePace(request.params.accountId, request.body?.pace, options);
   }
 
   function switchAction(request, options) {
-    return integrations.switchAction(REACH, request.params.pluginId, request.params.actionId, request.body?.enabled !== false, options);
+    return integrations.switchAction(request.params.pluginId, request.params.actionId, request.body?.enabled !== false, options);
   }
 
   function removeAccount(request, options) {
-    return integrations.removeAccount(REACH, request.params.accountId, options);
+    return integrations.removeAccount(request.params.accountId, options);
   }
 
   function updateSkill(request, options) {
@@ -150,7 +147,7 @@ export function registerRoutes(http, { integrations, catalogue, env }) {
   }
 
   async function connectAccount(request, options, reply) {
-    return keptInBrowser(reply, await connections.connect(REACH, request.params.accountId, options));
+    return keptInBrowser(reply, await connections.connect(request.params.accountId, options));
   }
 
   /** A sign-in this copy lends a linked copy, begun by the account it's linked to, signed in (D-97). */
@@ -160,30 +157,25 @@ export function registerRoutes(http, { integrations, catalogue, env }) {
 
   /** API credentials entered for an account (D-93), checked with the app, saved sealed: who they matched, and the list. */
   async function enterCredentials(request, options) {
-    const credentials = await connections.saveCredentials(REACH, request.params.accountId, request.body || {}, options);
-    return { credentials, ...await integrations.list(REACH, options) };
+    const credentials = await connections.saveCredentials(request.params.accountId, request.body || {}, options);
+    return { credentials, ...await integrations.list(options) };
   }
 
   // Who each of the home's people is at an app connected with the home's API credentials (D-93, appPeople.js).
-  const appPerson = (request, options) => connections.appPerson(REACH, request.params.accountId, options);
-  const appPeople = (request, options) => connections.appPeople(REACH, request.params.accountId, options);
+  const appPerson = (request, options) => connections.appPerson(request.params.accountId, options);
+  const appPeople = (request, options) => connections.appPeople(request.params.accountId, options);
   const appUsers = async (request, options) => ({
-    users: await connections.appUsers(REACH, request.params.accountId, request.query?.q, options)
+    users: await connections.appUsers(request.params.accountId, request.query?.q, options)
   });
-  const pickAppUser = (request, options) => connections.pickAppUser(REACH, request.params.accountId, request.body?.appUserId, options);
+  const pickAppUser = (request, options) => connections.pickAppUser(request.params.accountId, request.body?.appUserId, options);
   const confirmAppPerson = (request, options) =>
-    connections.confirmAppPerson(REACH, request.params.accountId, request.params.userId, options);
+    connections.confirmAppPerson(request.params.accountId, request.params.userId, options);
   const forgetAppPerson = (request, options) =>
-    connections.forgetAppPerson(REACH, request.params.accountId, request.params.userId, options);
-
-  async function disconnectAccount(request, options) {
-    await connections.disconnect(REACH, request.params.accountId, options);
-    return integrations.list(REACH, options);
-  }
+    connections.forgetAppPerson(request.params.accountId, request.params.userId, options);
 
   async function finishPasted(request, options) {
     const result = await connections.finishPasted(request.body?.address, options);
-    return { ...result, ...await integrations.list(REACH, options) };
+    return { ...result, ...await integrations.list(options) };
   }
 
   /**
@@ -197,15 +189,15 @@ export function registerRoutes(http, { integrations, catalogue, env }) {
     try {
       const { provider, label } = await connections.callback(request.query || {}, request.cookies || {}, await request.callOptions());
       const signedInAs = label ? `Signed in as ${label}. ` : "";
-      page = signInPage(`Connected to ${provider}`, `${signedInAs}It's all set: you can close this tab.`, { back: "/" });
+      page = signInPage(`Connected to ${provider}`, `${signedInAs}It's all set.`, { connected: true });
     } catch (error) {
       if (!(error instanceof ConnectionError)) console.error(`Sign-in callback failed: ${error?.message || error}`);
       const didNotConnect = error instanceof ConnectionError
         ? error.message
         : "The sign-in didn't go through. Try again from Connect apps.";
       page = error?.approval
-        ? signInPage("Your organisation needs to approve Mercbot", error.message, { approval: error.approval, back: "/" })
-        : signInPage("Nothing was connected", didNotConnect, { back: "/" });
+        ? signInPage("Your organisation needs to approve Mercbot", error.message, { approval: error.approval })
+        : signInPage("Couldn't connect", didNotConnect);
     }
     reply.code(200).header("content-type", "text/html; charset=utf-8").header("cache-control", "no-store").send(page);
   }
@@ -247,10 +239,10 @@ export function registerRoutes(http, { integrations, catalogue, env }) {
   router.register("GET", "/api/plugins/:pluginId/source", PUBLIC, pluginSource);
   router.register("GET", "/api/plugins/:pluginId/logo.svg", PUBLIC, pluginLogo);
   router.register("GET", "/api/plugins/:pluginId/logo.png", PUBLIC, pluginLogoImage);
-  // Signing an account in (D-31): the consent screen's address, an app's API credentials (D-93), and disconnecting.
+  // Signing an account in (D-31): the consent screen's address, and an app's API credentials (D-93). Removing an account
+  // (DELETE above) withdraws its sign-in; there is no disconnecting that keeps it (D-110).
   router.register("POST", "/api/w/:workspaceSlug/plugin-accounts/:accountId/connect", IN_HOME, handle(connectAccount));
   router.register("POST", "/api/w/:workspaceSlug/plugin-accounts/:accountId/credentials", IN_HOME, handle(enterCredentials));
-  router.register("DELETE", "/api/w/:workspaceSlug/plugin-accounts/:accountId/connection", IN_HOME, handle(disconnectAccount));
   // Who the home's people are at an app connected with its API credentials (D-93): a person's own, and picking it when
   // their address finds no one; everyone's, and confirming picks, for the home's owners and admins.
   router.register("GET", "/api/w/:workspaceSlug/plugin-accounts/:accountId/people/me", IN_HOME, handle(appPerson));

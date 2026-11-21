@@ -2,32 +2,20 @@ import { ref } from "vue";
 import { pluginsApi } from "./pluginsApi.js";
 
 /**
- * The accounts on an app's page (D-37): disconnecting asks once more in the
- * row, so a stray click can't cut an account off; "+ Add another account" asks for a label (work,
- * personal), then signs it in; names edit in place, where Enter or leaving the field saves and
- * Escape cancels. A home's account is changed only by the home's owners and admins.
+ * The home's accounts on an app's page (D-110, D-111): every line has a bin, which asks once more in the row so a stray
+ * click can't remove an account, and removing withdraws its sign-in; "+ Add account" opens the Add account step (a
+ * label, if any), then signs it in; names edit in place, where Enter or leaving the field saves and Escape cancels. An
+ * account is changed by the person who added it and the home's owners and admins.
  * @param {{
  *   plugins: import("vue").Ref<Array<import("../../types.js").Plugin>>,
- *   managesHome: import("vue").Ref<boolean>,
  *   signIn: (plugin: import("../../types.js").Plugin, account: Record<string, any>) => void,
  *   onFailure: (error: unknown) => void
  * }} options
  */
-export function useAppAccounts({ plugins, managesHome, signIn, onFailure }) {
-  const newAccountLabel = ref("");
+export function useAppAccounts({ plugins, signIn, onFailure }) {
   const addingAccount = ref(false);
-  const forHome = ref(false);
+  const adding = ref(false);
   const removingAccount = ref("");
-  const confirmingDisconnect = ref("");
-
-  async function disconnect(account) {
-    confirmingDisconnect.value = "";
-    try {
-      plugins.value = (await pluginsApi.disconnect(account.id)).plugins;
-    } catch (error) {
-      onFailure(error);
-    }
-  }
 
   async function removeAccount(account) {
     removingAccount.value = "";
@@ -38,27 +26,19 @@ export function useAppAccounts({ plugins, managesHome, signIn, onFailure }) {
     }
   }
 
-  const canChange = (account) => !account.home || managesHome.value;
-
-  function startAddAccount(plugin) {
-    newAccountLabel.value = "";
-    // Without the app added for themselves, an owner or admin adds one for the home; the home's API credentials (D-93)
-    // are always the home's.
-    forHome.value = !plugin.installed || Boolean(plugin.credentials?.home);
-    addingAccount.value = true;
-  }
-
-  async function authorizeNewAccount(plugin) {
-    const label = newAccountLabel.value.trim();
-    if (!label) return;
+  /** The Add account step's answer: the account is made, then signed in (or its credentials entered). */
+  async function addAccount(plugin, { label }) {
+    adding.value = true;
     try {
-      const result = await pluginsApi.addAccount(plugin.id, label, forHome.value);
+      const result = await pluginsApi.addAccount(plugin.id, label);
       plugins.value = result.plugins;
       addingAccount.value = false;
       const updated = result.plugins.find((entry) => entry.id === plugin.id);
       signIn(updated, updated.accounts.find((entry) => entry.id === result.accountId));
     } catch (error) {
       onFailure(error);
+    } finally {
+      adding.value = false;
     }
   }
 
@@ -83,7 +63,7 @@ export function useAppAccounts({ plugins, managesHome, signIn, onFailure }) {
   }
 
   return {
-    newAccountLabel, addingAccount, forHome, removingAccount, confirmingDisconnect, disconnect, removeAccount, canChange,
-    startAddAccount, authorizeNewAccount, renamingAccountId, accountName, startAccountRename, commitAccountRename
+    addingAccount, adding, removingAccount, removeAccount, addAccount,
+    renamingAccountId, accountName, startAccountRename, commitAccountRename
   };
 }

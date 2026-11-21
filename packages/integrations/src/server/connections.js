@@ -19,6 +19,20 @@ const CONNECTOR = "connector";
 const token = () => randomBytes(32).toString("base64url");
 const olderThan = (minutes) => new Date(Date.now() - minutes * 60000).toISOString();
 
+/** Two accounts' addresses are the same one, whatever their letters' case. */
+const sameAddress = (one, other) => String(one).trim().toLowerCase() === String(other).trim().toLowerCase();
+
+/**
+ * A sign-in again of an account that already has an address, that came back as another: refused, so one line never
+ * quietly becomes someone else's mailbox. A new mailbox is a new account (+ Add account).
+ */
+const otherAddress = (app, kept, signedInAs) =>
+  new ConnectionError(
+    409,
+    `This ${app} account is ${kept}, but you signed in as ${signedInAs}, so nothing changed. To connect ${signedInAs}, use + Add account.`,
+    { code: "integrations_sign_in_different_account", params: { app, account: kept, signedInAs } }
+  );
+
 /** A sign-in that is gone, ran out, or was finished already. */
 const linkExpired = () =>
   new ConnectionError(400, "This sign-in link has expired. Start again from Connect apps.", { code: "integrations_sign_in_link_expired" });
@@ -161,7 +175,7 @@ export function createConnections({
    * (`lentTo`, the account that copy is linked to) is begun here by that account, signed in: its `url` is that page,
    * and it gets its browser there (beginLentSignIn).
    */
-  async function startSignIn(provider, scopes, row, options) {
+  async function startSignIn(provider, scopes, row, options, { loginHint = "" } = {}) {
     const state = oauthClient.random();
     const verifier = oauthClient.random();
     const lent = row.lentTo != null;
@@ -177,7 +191,7 @@ export function createConnections({
       verifier: sealed(verifier)
     }, { ...passedOn(options), returning: "none" });
     if (lent) return { url: `${publicUrl(env)}/account/connect?${new URLSearchParams({ lent: state })}` };
-    return { url: await oauthClient.authorizeUrl(provider, scopes, state, verifier), cookie };
+    return { url: await oauthClient.authorizeUrl(provider, scopes, state, verifier, { loginHint }), cookie };
   }
 
   // This copy's one link to a hub (hubLink.js).
@@ -188,17 +202,19 @@ export function createConnections({
 
   /**
    * The consent screen to send the person to: through this copy's own app, with the `cookie` for the browser that asked
-   * (D-97), or the hub's (whose page the person begins it on, signed in there). A home's account is signed in by its
-   * owners or admins (D-37).
+   * (D-97), or the hub's (whose page the person begins it on, signed in there). An account is signed in by the person who
+   * added it or the home's owners and admins (D-111). An account that already has an address suggests it to the
+   * provider, and only that address may sign it in again (finishSignIn).
    */
-  async function connect(reach, accountId, options) {
-    const account = await accounts.manageableAccount(reach, accountId, options);
+  async function connect(accountId, options) {
+    const account = await accounts.manageableAccount(accountId, options);
     const { plugin, provider, scopes } = await signInFor(account.pluginId, options);
     // An app that hosts its own connection point is signed in to directly by every copy, never through the hub.
     if (plugin.mcp || credentials(provider, env)) {
       // Until it comes back, the account shows Needs auth with Reconnect.
       if (account.status !== "connected") await accounts.patchAccount(account, { signInState: "started" }, options);
-      return startSignIn(provider, scopes, { provider: plugin.mcp ? CONNECTOR : plugin.oauth.provider, accountId: account.id }, options);
+      const row = { provider: plugin.mcp ? CONNECTOR : plugin.oauth.provider, accountId: account.id };
+      return startSignIn(provider, scopes, row, options, { loginHint: account.label || "" });
     }
     const hub = await linkedHub(options);
     if (!hub) {
@@ -217,9 +233,8 @@ export function createConnections({
   }
 
   /**
-   * The person's accounts signed in through the hub turn connected once the hub has their
-   * permission: their own, and the ones they added to the call's home. With `accountId`, only that
-   * one (the screen waiting for its sign-in).
+   * The accounts the person added to the call's home and signed in through the hub turn connected once
+   * the hub has their permission. With `accountId`, only that one (the screen waiting for its sign-in).
    * @param {object} options
    * @param {{ accountId?: string }} [only]
    */
@@ -227,7 +242,7 @@ export function createConnections({
     const person = accounts.personOf(options);
     const one = accountId === undefined ? {} : { id: String(accountId) };
     if (!person || (one.id !== undefined && !/^\d+$/u.test(one.id))) return;
-    const waiting = await accounts.reachable({ personal: true }, options, {
+    const waiting = await accounts.reachable(options, {
       filters: { userId: person, hasBridgeRef: true, statusNot: "connected", ...one }
     });
     if (!waiting.length) return;
@@ -235,9 +250,15 @@ export function createConnections({
     if (!hub) return;
     for (const account of waiting) {
       const result = await hub.status(account.bridgeRef).catch(() => null);
-      if (result?.connected) {
-        await accounts.connectedHere(account, { status: "connected", label: result.label || null, connectedAt: new Date().toISOString() }, options);
+      if (!result?.connected) continue;
+      // Signed in again as another address: the hub's sign-in is withdrawn and the account stays as it was, to retry.
+      if (account.label && result.label && !sameAddress(account.label, result.label)) {
+        await hub.disconnect(account.bridgeRef).catch((error) => console.warn("Withdrawing a sign-in as another address at the hub failed.", error));
+        await accounts.patchAccount(account, { bridgeRef: null, signInState: "failed" }, options);
+        continue;
       }
+      const label = result.label || account.label || null;
+      await accounts.connectedHere(account, { status: "connected", label, connectedAt: new Date().toISOString() }, options);
     }
   }
 
@@ -247,8 +268,8 @@ export function createConnections({
    * `fetch` is the account's own way to its app, the only one its callers use: each request waits its turn in the
    * account's Request pace, and a busy app says when to try again (appRequests.js, D-96).
    */
-  async function accessToken(reach, accountId, options, { refused = "" } = {}) {
-    const account = await accounts.reachableAccount(reach, accountId, options, { tokens: true });
+  async function accessToken(accountId, options, { refused = "" } = {}) {
+    const account = await accounts.reachableAccount(accountId, options, { tokens: true });
     const paced = requests.fetchFor(account, pluginOf(account.pluginId));
     if (pluginOf(account.pluginId)?.credentials) return { ...await credentialToken(account, options, refused), fetch: paced };
     const { provider } = await signInFor(account.pluginId, options);
@@ -286,22 +307,21 @@ export function createConnections({
   }
 
   /**
-   * Saves an account's API credentials, entered in Connect apps by someone who may change it (a home's: its owners and
-   * admins). Nothing is saved until the app has taken them: a key is made, and the kind's check reads who they belong to
-   * (the account's label) and matches the home's people to the app's users by address. Answers the label and who was
-   * matched; the others pick themselves (appPeople.js).
-   * @param {{ personal?: boolean }} reach
+   * Saves an account's API credentials, entered in Connect apps by someone who may change it; credentials that are the
+   * whole home's (D-93), only by its owners and admins. Nothing is saved until the app has taken them: a key is made,
+   * and the kind's check reads who they belong to (the account's label) and matches the home's people to the app's
+   * users by address. Answers the label and who was matched; the others pick themselves (appPeople.js).
    * @param {string} accountId
    * @param {Record<string, unknown>} body the form's values, by field id
    * @param {object} options
    */
-  async function saveCredentials(reach, accountId, body, options) {
-    const account = await accounts.manageableAccount(reach, accountId, options);
+  async function saveCredentials(accountId, body, options) {
+    const account = await accounts.manageableAccount(accountId, options);
     const plugin = pluginOf(account.pluginId);
     const kind = credentialKind(plugin, credentialKinds);
-    if (plugin.credentials.home && !account.home) {
-      throw new ConnectionError(409, `${plugin.name}'s credentials are the whole home's: add its account for everyone in the home.`, {
-        code: "integrations_credentials_home_only",
+    if (plugin.credentials.home && !accounts.managesHome(options)) {
+      throw new ConnectionError(403, `Only the home's owners and admins can enter ${plugin.name}'s credentials: they're the whole home's.`, {
+        code: "integrations_home_app_forbidden",
         params: { app: plugin.name }
       });
     }
@@ -332,14 +352,26 @@ export function createConnections({
     memberWithEmail
   });
 
-  async function disconnect(reach, accountId, options) {
-    await disconnected(await accounts.manageableAccount(reach, accountId, options, { tokens: true }), options);
+  /**
+   * Withdraws an account's sign-in where it was given, before the account is removed (integrationsService.removeAccount):
+   * at the app, where it offers that, and at the hub when it borrowed the hub's. Each is a courtesy that may fail, so the
+   * account is removed here anyway. `account` is a scoped read's record with its tokens.
+   * @param {{ id: string, pluginId: string, tokens?: object | null, bridgeRef?: string | null }} account
+   * @param {object} options
+   */
+  async function withdraw(account, options) {
+    await connectorAccounts.withdraw(account, options);
+    if (account.bridgeRef) {
+      await (await linkedHub(options))
+        ?.disconnect(account.bridgeRef)
+        .catch((error) => console.warn("Telling the hub about a removed account failed; the account is removed here anyway.", error));
+    }
   }
 
   /**
-   * Disconnects any account by its id, in any home or of none, for whoever runs the copy, as its owner's disconnect
-   * does. Answers what it disconnected, `{ id, pluginId, name, label, status, userId, home, workspaceId }`; 404 when
-   * there is none.
+   * Disconnects any account by its id, in any home, for whoever runs the copy: its sign-in withdrawn as a removal's
+   * is, then its keys, label and status cleared, the account kept for its person to sign in again or remove. Answers
+   * what it disconnected, `{ id, pluginId, name, label, status, userId, workspaceId }`; 404 when there is none.
    * @param {string | number} accountId
    * @param {object} [options] the call's transaction, if any
    */
@@ -353,12 +385,7 @@ export function createConnections({
 
   /** Withdraws an account's sign-in at the app and the hub, and clears it here: its keys, label and status. */
   async function disconnected(account, options) {
-    await connectorAccounts.withdraw(account, options);
-    if (account.bridgeRef) {
-      await (await linkedHub(options))
-        ?.disconnect(account.bridgeRef)
-        .catch((error) => console.warn("Telling the hub about a disconnect failed; the account is removed here anyway.", error));
-    }
+    await withdraw(account, options);
     await accounts.patchAccount(
       account,
       { tokens: null, bridgeRef: null, status: "needs-auth", signInState: null, label: null, connectedAt: null },
@@ -494,9 +521,13 @@ export function createConnections({
         { code: "integrations_sign_in_scopes_missing", params: { provider: provider.name, app: plugin.name } }
       );
     }
-    const label = connecting
+    const signedInAs = connecting
       ? await connectorAccounts.signedIn(connecting, tokens.access, options)
       : await oauthClient.whoami(provider, tokens.access).catch(() => null);
+    // An account signed in again keeps its own address: another one is refused, and none found keeps the one it had.
+    const kept = row.accountId ? (await accounts.signingIn(row.accountId, options))?.label : null;
+    if (kept && signedInAs && !sameAddress(kept, signedInAs)) throw otherAddress(plugin.name, kept, signedInAs);
+    const label = signedInAs || kept || null;
     const update = { tokens: sealed(tokens), label };
     if (row.accountId) {
       await accounts.signedIn(row.accountId, { ...update, status: "connected", signInState: null, connectedAt: new Date().toISOString() }, options);
@@ -508,7 +539,7 @@ export function createConnections({
 
   /**
    * The address a provider sent the person back to, pasted when their browser couldn't reach this
-   * copy. It must be this copy's own return address, for a sign-in to one of their own accounts: the person pasting it,
+   * copy. It must be this copy's own return address, for a sign-in to an account they may change: the person pasting it,
    * signed in, is what ties it to them, in place of the callback's cookie (D-97).
    */
   async function finishPasted(address, options) {
@@ -528,12 +559,9 @@ export function createConnections({
     const query = Object.fromEntries(url.searchParams);
     const state = String(query.state || "");
     const signIn = state ? await oauthStates.get(state, {}, { ...passedOn(options), missing: "skip" }) : null;
-    // A sign-in of one of the person's own accounts: their own, or one they added to this home.
-    const person = accounts.personOf(options);
-    const mine = signIn?.accountId && person
-      ? (await accounts.reachable({ personal: true }, options, { filters: { id: String(signIn.accountId), userId: person } })).length > 0
-      : false;
-    if (!mine) {
+    // A sign-in of an account of this home the person may change (accounts.mayChange).
+    const [account] = signIn?.accountId ? await accounts.reachable(options, { filters: { id: String(signIn.accountId) } }) : [];
+    if (!account || !accounts.mayChange(account, options)) {
       throw new ConnectionError(400, "This sign-in has expired or was already finished. Start again with Sign in.", {
         code: "integrations_sign_in_state_unknown"
       });
@@ -622,7 +650,7 @@ export function createConnections({
     callback,
     finishPasted,
     accessToken,
-    disconnect,
+    withdraw,
     disconnectAnywhere,
     syncPending,
     whenConnected: accounts.whenConnected,

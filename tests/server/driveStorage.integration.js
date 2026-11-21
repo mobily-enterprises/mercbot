@@ -18,8 +18,8 @@ import { createIntegrationsService } from "../../packages/integrations/src/serve
 import { PROVIDERS, createOAuth } from "../../packages/integrations/src/server/oauth.js";
 
 // A home's files kept in Google Drive (D-80), against the disposable test database and the stand-in Drive
-// (tests/support/fakeDrive.mjs), which is Google's token endpoint too: an owner or admin chooses one of the Google
-// Drive accounts they reach, Mercbot makes its one folder there (and reuses it), a key that ran out is renewed once
+// (tests/support/fakeDrive.mjs), which is Google's token endpoint too: an owner or admin chooses one of the home's Google
+// Drive accounts, whoever added it (D-111), Mercbot makes its one folder there (and reuses it), a key that ran out is renewed once
 // across two servers under the account's row lock, and a refused renewal asks to sign in again while the home's choice
 // and its files stay. The mount itself is proven in driveMount.test.js.
 assert.ok(process.env.TEST_DB_NAME?.trim(), "TEST_DB_NAME must identify a disposable test database.");
@@ -98,11 +98,12 @@ async function setup(context) {
     return { drive: driveStorage, storage, mounted };
   };
 
-  /** A Google Drive account signed in with the stand-in's keys; `fields` may make it the home's or change its key. */
+  /** A Google Drive account `userId` added in the home, signed in with the stand-in's keys; `fields` may change its key. */
   async function account(userId, label, { tokens, ...fields } = {}) {
     const { access, refresh, expiresAt } = drive.issue();
     const [row] = await knex("plugin_accounts").insert({
       user_id: userId,
+      workspace_id: homeId,
       plugin_id: "google-drive",
       name: `drive-${randomBytes(4).toString("hex")}`,
       label,
@@ -125,18 +126,19 @@ async function setup(context) {
   return { knex, drive, pat, kim, homeId, serve, account, as, row, stored };
 }
 
-test("an owner or admin keeps the home's files in a Google Drive they reach, in one folder Mercbot makes there", async (context) => {
+test("an owner or admin keeps the home's files in any Google Drive of the home, in one folder Mercbot makes there", async (context) => {
   const { drive, pat, kim, homeId, serve, account, as, stored } = await setup(context);
   const patDrive = await account(pat, "pat@example.com");
   const kimDrive = await account(kim, "kim@example.com");
-  const homeDrive = await account(kim, "family@example.com", { workspace_id: homeId });
+  const homeDrive = await account(kim, "family@example.com");
   const { storage, mounted } = serve();
 
-  // Pat may choose their own account or the home's, never Kim's own.
+  // Pat may choose any of the home's Drives, Kim's included; not one of another home's, nor none.
   const before = await storage.describe(as(pat));
   assert.equal(before.kind, "mercbot");
-  assert.deepEqual(before.driveAccounts.map((found) => [found.id, found.label, found.home]).sort(), [[patDrive.id, "pat@example.com", false], [homeDrive.id, "family@example.com", true]].sort());
-  await assert.rejects(storage.choose(homeId, { kind: "drive", accountId: kimDrive.id }, as(pat)), { code: "files_storage_drive_account_unknown" });
+  assert.deepEqual(before.driveAccounts.map((found) => [found.id, found.label]).sort(), [[patDrive.id, "pat@example.com"], [kimDrive.id, "kim@example.com"], [homeDrive.id, "family@example.com"]].sort());
+  assert.ok(before.driveAccounts.every((found) => !("home" in found)), "no Drive is anyone's own");
+  await assert.rejects(storage.choose(homeId, { kind: "drive", accountId: "999999999999" }, as(pat)), { code: "files_storage_drive_account_unknown" });
   await assert.rejects(storage.choose(homeId, { kind: "drive", accountId: "" }, as(pat)), { code: "files_storage_drive_account_unknown" });
   assert.equal(await stored(), null, "nothing was saved");
 
@@ -165,12 +167,12 @@ test("an owner or admin keeps the home's files in a Google Drive they reach, in 
   const seenByKim = await storage.describe(as(kim, []));
   assert.deepEqual([seenByKim.kind, seenByKim.account, seenByKim.signedIn, seenByKim.canSignIn], ["drive", "pat@example.com", true, false]);
 
-  // The home's own account, which Kim added: its owners and admins may sign it in again.
+  // A Drive Kim added: the person who added it, and the home's owners and admins, may sign it in again.
   const homeChoice = await storage.choose(homeId, { kind: "drive", accountId: homeDrive.id }, as(pat));
   assert.deepEqual([homeChoice.account, homeChoice.canSignIn], ["family@example.com", true]);
   assert.equal((await stored()).settings.userId, kim, "a home's account is reached as the person who added it");
   assert.notEqual((await stored()).settings.folderId, folder.id, "another Drive, another folder");
-  assert.equal((await storage.describe(as(kim, []))).canSignIn, false);
+  assert.equal((await storage.describe(as(kim, []))).canSignIn, true, "Kim added it");
 
   // Files that can be read where they are always move with the home.
   await assert.rejects(storage.choose(homeId, { kind: "mercbot", withoutFiles: true }, as(pat)), { code: "files_storage_move_needed" });
@@ -199,7 +201,7 @@ test("an owner or admin keeps the home's files in a Google Drive they reach, in 
 test("a mount gets Drive keys only while that Drive is the home's choice", async (context) => {
   const { pat, homeId, serve, account, as, stored } = await setup(context);
   const patDrive = await account(pat, "pat@example.com");
-  const homeDrive = await account(pat, "family@example.com", { workspace_id: homeId });
+  const homeDrive = await account(pat, "family@example.com");
   const { storage } = serve();
   await storage.choose(homeId, { kind: "drive", accountId: patDrive.id }, as(pat));
   const mounted = (await stored()).settings;
@@ -365,7 +367,7 @@ test("a refused renewal asks to sign in again; the home's choice and its files s
   assert.deepEqual(mounted, []);
   const described = await storage.describe(as(pat));
   assert.deepEqual([described.kind, described.folder, described.signedIn, described.gone, described.canSignIn], ["drive", "Mercbot – Drive test", false, false, true]);
-  assert.equal((await storage.describe(as(kim, []))).canSignIn, false, "only Pat can sign their own account in again");
+  assert.equal((await storage.describe(as(kim, []))).canSignIn, false, "a member who didn't add it can't sign it in again");
   assert.deepEqual((await stored()).settings, settings, "the home's choice is kept");
   assert.ok(drive.named("Mercbot – Drive test"), "the folder and its files are untouched");
   await assert.rejects(storage.choose(homeId, { kind: "drive", accountId: patDrive.id }, as(pat)), { code: "files_storage_sign_in_again" });

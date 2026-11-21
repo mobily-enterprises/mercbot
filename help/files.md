@@ -67,7 +67,7 @@ In both places you can open a file in the viewer, download it, upload files, mak
 
 By default, Mercbot keeps the bots' files. A home's owners and admins can choose to keep them elsewhere, in **Settings → Files**:
 
-- **In Google Drive:** a Google Drive account connected in **Connect apps**, either your own or one of the home's. Mercbot makes one folder there, named after the home, and keeps the bots' files in it. You can open that folder in Google Drive like any other.
+- **In Google Drive:** a Google Drive account connected in the home in **Connect apps**. Mercbot makes one folder there, named after the home, and keeps the bots' files in it. You can open that folder in Google Drive like any other.
 - **In the home's own storage:** Nextcloud or any storage with a WebDAV address. The bots' files live there, in a Mercbot folder.
 
 Changing where the files are kept moves all of them to the new place, every time, and the new place becomes an exact copy: whatever was there before is replaced. It usually takes a few minutes, and **Settings → Files** shows how far it's got, with **Cancel** for owners and admins. Meanwhile the files can be read but not changed: the bots and the Files page say "Moving this home's files…", and changes work again once it's done. Once it's done, a Google Drive folder left behind goes to that Drive's bin (Google keeps it for 30 days), and Mercbot's own copy is deleted. A move that's cancelled or fails leaves the files where they were.

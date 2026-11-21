@@ -135,8 +135,8 @@ export function buildSednaTools({
   /** A connected Sedna's key and address, and the person's Sedna user; a ConnectedAppError when they are no one there. */
   async function connected(access) {
     const entry = await connectedKey(access, "sedna", "Sedna");
-    const { integrations, reach, call } = access;
-    found ||= integrations.connections.appPerson(reach, entry.id, call);
+    const { integrations, call } = access;
+    found ||= integrations.connections.appPerson(entry.id, call);
     const who = await found.catch((error) => {
       found = null;
       throw error;
@@ -164,7 +164,10 @@ export function buildSednaTools({
     return inTime(work(sednaAccess(app, entry), person, entry), "Using Sedna");
   }
 
-  /** A read: its answer, with Sedna's text marked as information. */
+  /**
+   * A read: its answer, with Sedna's text marked as information. It reads as the person's own Sedna user, only what
+   * their own teams see, so nothing in it is hidden as another person's mail is (D-111).
+   */
   async function run(toolId, action, read) {
     try {
       const result = await using(`${toolId}.${action}`, read);

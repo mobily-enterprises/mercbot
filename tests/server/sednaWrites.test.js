@@ -35,7 +35,7 @@ async function setup(context) {
     reachableAccounts: async () => [{ id: "9", pluginId: "sedna", name: "", label: "Acme Shipping", status: "connected", home: true }],
     app: (id) => (id === "sedna" ? { id: "sedna", name: "Sedna", credentials: { home: true } } : null),
     connections: {
-      accessToken: async (_reach, _id, _call, { refused = "" } = {}) => {
+      accessToken: async (_id, _call, { refused = "" } = {}) => {
         if (refused) key = await mint();
         return { ...accessOf(key), api };
       },

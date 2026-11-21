@@ -9,8 +9,8 @@ Everyone in the home. A home has three roles:
 | Role | What they can do with bots |
 | --- | --- |
 | **Owner** | Everything: use every bot, choose who sees what, manage people and the home's accounts. There's one owner per home. |
-| **Admin** | Choose who sees what, and connect accounts for the whole home. |
-| **Member** | Use every bot in the home, create new bots, and organise their own sidebar. |
+| **Admin** | Choose who sees what, and change or remove any of the home's connected accounts. |
+| **Member** | Use every bot in the home, create new bots, connect accounts for the home and change the ones they added, and organise their own sidebar. |
 
 See [Homes: Mercbot for families and businesses](/help/homes).
 
@@ -76,7 +76,7 @@ In a shared tab, people talk to each other as much as to the bot, so a Shared bo
 
 You only is your own chat with the bot: the same one you had before the bot was Shared, with its messages, routines, files and computer. Only you ever see it; the home's owners and admins can't read it either.
 
-- **The bot works as in any private chat.** It uses what it remembers about you, your own connected accounts and the home's, your vault, your own skills, your folder with the bot and your own computer with it.
+- **The bot works as in any private chat.** It uses what it remembers about you, the home's connected accounts, your vault, your own skills, your folder with the bot and your own computer with it.
 - **It knows the shared tabs by name only.** It never sees what's said in them, so if you need something from one, it suggests you look there.
 - **Nothing goes out of it.** The bot notes nothing in a notebook and posts nothing into a shared tab, and a tab you start from here starts empty.
 - **Asking another bot from here** lands in that bot's chat with you, never in one of its shared tabs. Asked from a shared tab, the other bot answers in one of its own shared tabs if it has them, else in its chat with you.
@@ -124,13 +124,13 @@ This is the most important thing to understand about shared bots.
 | --- | --- | --- |
 | **Who sees it** | Only you. | Everyone in the home. |
 | **What bots remember about you** | Used. | Never used. |
-| **Your connected accounts** | Your own accounts and the home's. | Only the home's accounts. |
+| **Connected accounts** | The home's accounts. | The home's accounts, except Sedna. |
 | **Your saved logins in the vault** | Used to sign in for you, without the bot ever seeing them. | Never used. |
 | **Your own skills** | Used. | Not used. |
 | **Files** | Your folder with the bot, the bot's folder for everyone using it, and the home's folder. | The bot's folder for everyone using it, and the home's folder. |
 | **The bot's computer** | Your own, so your sign-ins never appear in anyone else's session. | One for each shared tab, used by everyone in it. |
 
-In short, a shared tab never uses anything personal, because everyone would see it. If you need your own inbox, a remembered fact or a saved password, ask in your You only tab. The bot will suggest this itself.
+In short, a shared tab never uses anything personal, because everyone would see it. If you need a remembered fact, a saved password or your own Sedna teams, ask in your You only tab. The bot will suggest this itself.
 
 ### Files and the computer follow the tab
 
@@ -138,9 +138,9 @@ What a bot saves, and the computer it works on, belong to the tab it's in, not t
 
 A Shared bot's Details panel always shows all three folders under **Files**: **Just me**, **Everyone using** the bot, and the home's folder. Its **Computer** tab shows the computer of the tab you have open.
 
-### What about the home's accounts?
+### What about connected accounts?
 
-Owners and admins can connect an account for the whole home, such as a family calendar or a shared inbox, by choosing **Everyone in** the home when they add it in Connect apps. Everyone sees these accounts listed. Shared tabs use only these. See [The bots' computer and connected apps](/help/computer-and-apps).
+Every account connected in the home is the home's, such as a family calendar or a shared inbox, and shared tabs use them as any chat does. The one exception is Sedna, which works only in each person's own chats. Sign-in codes and sign-in links in a mailbox reach only the bots of the person who connected it. See [The bots' computer and connected apps](/help/computer-and-apps).
 
 ### Is the home's shared folder private?
 

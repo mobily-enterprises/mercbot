@@ -1,6 +1,7 @@
 import { createHttpClient } from "@jskit-ai/http-runtime/client";
 import { AUTH_PATHS } from "@jskit-ai/auth-core/shared/authPaths";
 import { currentHome, requestInHome } from "./homeApi.js";
+import { rememberWayBack, signInInThisTab } from "./signInReturn.js";
 
 // Client for the integrations package (packages/integrations).
 const client = createHttpClient({ credentials: "include", csrf: { sessionPath: AUTH_PATHS.SESSION } });
@@ -11,8 +12,8 @@ export const pluginsApi = {
   list: () => requestInHome(client, "/plugins"),
   install: (pluginId) => requestInHome(client, `/plugins/${pluginId}/install`, { method: "POST", body: {} }),
   uninstall: (pluginId) => requestInHome(client, `/plugins/${pluginId}`, { method: "DELETE" }),
-  // `home` adds the account for everyone in the home (owners and admins).
-  addAccount: (pluginId, name, home = false) => requestInHome(client, `/plugins/${pluginId}/accounts`, { method: "POST", body: { name, home } }),
+  // An account of the home, for everyone in it (D-111); the label may be empty (D-110).
+  addAccount: (pluginId, name) => requestInHome(client, `/plugins/${pluginId}/accounts`, { method: "POST", body: { name } }),
   // One account as Connect apps shows it, while the screen waits for its sign-in.
   account: (accountId) => requestInHome(client, `/plugin-accounts/${accountId}`),
   renameAccount: (accountId, name) => requestInHome(client, `/plugin-accounts/${accountId}`, { method: "PATCH", body: { name } }),
@@ -24,7 +25,6 @@ export const pluginsApi = {
   updateSkill: (skillId, changes) => client.request(`/api/skills/${skillId}`, { method: "PATCH", body: changes }),
   deleteSkill: (skillId) => client.request(`/api/skills/${skillId}`, { method: "DELETE" }),
   connect: (accountId) => requestInHome(client, `/plugin-accounts/${accountId}/connect`, { method: "POST", body: {} }),
-  disconnect: (accountId) => requestInHome(client, `/plugin-accounts/${accountId}/connection`, { method: "DELETE" }),
   finishSignIn: (address) => requestInHome(client, "/connections/finish", { method: "POST", body: { address } }),
   // A sign-in this copy lends a copy linked to the person's account, begun here signed in (D-97): `{ url, app }`.
   beginLentSignIn: (state) => client.request("/api/connections/lent/begin", { method: "POST", body: { state } }),
@@ -47,9 +47,16 @@ export const bridgeApi = {
   unlink: () => requestInHome(client, "/bridge/link", { method: "DELETE" })
 };
 
-// Sign-in opens in its own window, which hands over to the provider's consent screen.
-// `connectPage` is that window's page, from usePaths().page("/connect", { surface: "account" }).
-export function openSignIn(connectPage, plugin, account) {
+// Sign-in opens in a window of its own on a computer, which hands over to the provider's consent screen and closes once
+// it's done; on a phone it takes this tab, through the router, and comes back (D-110, signInReturn.js). `connectPage` is
+// its page, from usePaths().page("/connect", { surface: "account" }); `router` the caller's.
+export function openSignIn(connectPage, plugin, account, router) {
   const query = new URLSearchParams({ plugin: plugin.id, home: currentHome(), ...(account ? { account: account.id } : {}) });
-  window.open(`${connectPage}?${query}`, "_blank", "noopener");
+  const address = `${connectPage}?${query}`;
+  if (signInInThisTab()) {
+    rememberWayBack(plugin.id);
+    router.push(address);
+  } else {
+    window.open(address, "_blank", "popup,width=520,height=720,noopener");
+  }
 }

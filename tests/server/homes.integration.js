@@ -5,13 +5,11 @@ import { connectTestDatabase } from "../support/testDatabase.mjs";
 import { createBotsService } from "../../packages/bots/src/server/botsService.js";
 import { buildMailTools } from "../../packages/bots/src/server/mailTools.js";
 import { requestContextOptions } from "../support/requestContextOptions.mjs";
-import { testBot, testHome } from "./testHome.js";
+import { separateHome, testBot, testHome } from "./testHome.js";
 import { serviceDoubles } from "../support/botDoubles.mjs";
 import { memberOptions, startBotRecords } from "../support/botRecords.mjs";
 import { startIntegrations } from "../support/ownedHandles.mjs";
 
-// The person's own accounts and the home's, as Connect apps reaches them.
-const REACH = Object.freeze({ personal: true });
 
 /** A member's call options in the home, as their request's would be; owners and admins manage it. */
 function inHome(userId, homeId, { manages = false } = {}) {
@@ -40,7 +38,10 @@ async function setup(context) {
   const [elsewhere] = await knex("workspaces").insert({ slug: `sam-${stamp}`, name: "Sam's home", owner_user_id: outside.id, is_personal: true }).returning("id");
   await knex("workspace_memberships").insert({ workspace_id: elsewhere.id, user_id: outside.id, role_sid: "owner", status: "active" });
   const bot = await testBot(knex, pat, { name: `Shared ${stamp}` });
+  // A home of the test's own for its accounts, which no other test file connects any in.
+  const accountsHome = await separateHome(knex, pat, [kim.id]);
   context.after(async () => {
+    await knex("workspaces").where({ id: accountsHome }).del();
     await knex("bots").where({ id: bot.id }).del();
     await knex("bots").where({ user_id: kim.id }).del();
     await knex("workspace_memberships").where({ workspace_id: elsewhere.id }).del();
@@ -52,7 +53,7 @@ async function setup(context) {
   const bots = createBotsService(serviceDoubles({ knex, records, approvals: { decide: async () => "allow" }, reply: async () => ({ text: "Noted.", transcript: [] }) }));
   /** A member's request in the home (or in another home of theirs), as the bots routes make its options. */
   const as = (userId, home = homeId) => memberOptions({ userId, homeId: home });
-  return { knex, records, bots, as, homeId, elsewhere: elsewhere.id, pat, kim: kim.id, outside: outside.id, bot };
+  return { knex, records, bots, as, homeId, accountsHome, elsewhere: elsewhere.id, pat, kim: kim.id, outside: outside.id, bot };
 }
 
 test("two people in a home share its bots but each has a private conversation", async (context) => {
@@ -140,42 +141,41 @@ test("a shared bot's conversations are everyone's, and a new one starts from wha
   assert.equal((await bots.search("Budget is 500", as(kim))).messages.length, 1, "search finds the home's rooms");
 });
 
-// Home-wide accounts (D-37): owners and admins add them for everyone in the home; everyone's bots
-// may use them, and in a shared conversation they're the only accounts used.
-test("a home's account is everyone's in that home, and the only kind a shared conversation uses", async (context) => {
-  const { knex, homeId, pat, kim, outside } = await setup(context);
+// Every account is its home's (D-111): anyone in the home adds one, everyone's bots use every one in any chat, and
+// it's changed or removed by the person who added it or the home's owners and admins.
+test("every account of a home is everyone's in it, in any chat, and changed by who added it or an owner or admin", async (context) => {
+  const { knex, accountsHome: homeId, pat, kim, outside } = await setup(context);
   const catalogue = [{ id: "gmail", name: "Gmail" }];
   const { integrations } = await startIntegrations(knex, context, { catalogue });
   const owner = inHome(pat, homeId, { manages: true });
   const member = inHome(kim, homeId);
 
-  await assert.rejects(integrations.addAccount(REACH, "gmail", "family", { forHome: true }, member), /owners and admins/u, "members can't add one");
-  const { accountId } = await integrations.addAccount(REACH, "gmail", "family", { forHome: true }, owner);
-  await integrations.install(REACH, "gmail", member);
+  const { accountId } = await integrations.addAccount("gmail", "family", owner);
+  const { accountId: kims } = await integrations.addAccount("gmail", "", member);
 
-  const kimsAccounts = (await integrations.list(REACH, member)).plugins[0].accounts;
-  assert.deepEqual(kimsAccounts.map((account) => [account.name, account.home]).sort(), [["", false], ["family", true]], "Kim sees her own and the home's");
-  assert.deepEqual((await integrations.list(REACH, owner)).plugins[0].accounts.map((account) => account.name), ["family"], "but not Kim's own");
-  await assert.rejects(integrations.renameAccount(REACH, accountId, "ours", member), /owners and admins/u, "members can't change it");
-
-  const inRoom = (await integrations.reachableAccounts({ personal: false }, member)).map((account) => account.name);
-  assert.deepEqual(inRoom, ["family"], "a shared conversation reaches only the home's account");
-  const elsewhere = (await integrations.reachableAccounts(REACH, inHome(outside, -1))).map((account) => account.id);
+  for (const [who, options] of [["Kim", member], ["Pat", owner]]) {
+    const listed = (await integrations.list(options)).plugins[0].accounts;
+    assert.deepEqual(listed.map((account) => account.id).sort(), [accountId, kims].sort(), `${who} sees every account of the home`);
+    assert.ok(listed.every((account) => !("home" in account)), "no account is anyone's own");
+    // A bot's turn reaches the same, in a room as in the person's own chat: the call is the same either way.
+    assert.deepEqual((await integrations.reachableAccounts(options)).map((account) => account.id).sort(), [accountId, kims].sort(), `${who}'s bots use every one`);
+  }
+  const elsewhere = (await integrations.reachableAccounts(inHome(outside, -1))).map((account) => account.id);
   assert.ok(!elsewhere.map(String).includes(accountId), "another home never reaches it");
 
-  await integrations.removeAccount(REACH, accountId, owner);
+  // Kim, a member, didn't add Pat's: she can't rename or remove it. Pat, the owner, can change Kim's.
+  const refused = /Only the person who added this account and the home's owners and admins can change it/u;
+  await assert.rejects(integrations.renameAccount(accountId, "ours", member), refused);
+  await assert.rejects(integrations.removeAccount(accountId, member), refused);
+  await assert.rejects(integrations.choosePace(accountId, "gentle", member), refused);
+  await integrations.renameAccount(kims, "Kim's", owner);
+  await integrations.renameAccount(kims, "Kim's mail", member);
+  await integrations.removeAccount(accountId, owner);
 
-  // A half-added account of one's own can be removed while the app keeps another; a connected one
-  // or the last one can't.
-  const [extra] = await knex("plugin_accounts").insert({ user_id: kim, plugin_id: "gmail", name: "test" }).returning("id");
-  const own = await knex("plugin_accounts").where({ user_id: kim, plugin_id: "gmail", name: "" }).first();
-  await knex("plugin_accounts").where({ id: own.id }).update({ status: "connected" });
-  await assert.rejects(integrations.removeAccount(REACH, own.id, member), /Disconnect the account first/u);
-  await integrations.removeAccount(REACH, extra.id, member);
-  await knex("plugin_accounts").where({ id: own.id }).update({ status: "needs-auth" });
-  await assert.rejects(integrations.removeAccount(REACH, own.id, member), /only account/u);
-  assert.deepEqual((await integrations.list(REACH, member)).plugins[0].accounts.map((account) => account.home), [false]);
-  await integrations.uninstall(REACH, "gmail", member);
+  // One's own account is one's own to remove, connected or not, the only one too (D-110, accountWorkflow.integration.js).
+  await knex("plugin_accounts").where({ id: kims }).update({ status: "connected" });
+  await integrations.removeAccount(kims, member);
+  assert.deepEqual((await integrations.list(member)).plugins[0].accounts, []);
 });
 
 // The home notebook (D-36): a mixed bot notes reusable know-how from one person's private chat,
@@ -266,39 +266,37 @@ test("each person gets their own computer with a bot, and a shared conversation 
 // Connect apps' Tools: a person switches an action off for an app; their bots skip that
 // app for it, and leave the action out when no connected app still offers it.
 test("an action switched off for an app is skipped for it, and dropped when no app offers it", async (context) => {
-  const { knex, homeId, pat } = await setup(context);
+  const { knex, accountsHome: homeId, pat } = await setup(context);
   const catalogue = [
     { id: "gmail", name: "Gmail", actions: [{ id: "send_draft", name: "Send email" }, { id: "search_email", name: "Search mail" }, { id: "mail_drafts.send", name: "Send saved drafts" }] },
     { id: "outlook", name: "Outlook", actions: [{ id: "send_draft", name: "Send email" }, { id: "mail_drafts.send", name: "Send saved drafts" }] }
   ];
   const { integrations } = await startIntegrations(knex, context, { catalogue });
-  const reach = REACH;
   const as = inHome(pat, homeId);
   await knex("plugin_accounts").insert([
-    { user_id: pat, plugin_id: "gmail", name: "", status: "connected" },
-    { user_id: pat, plugin_id: "outlook", name: "", status: "connected" }
+    { user_id: pat, workspace_id: homeId, plugin_id: "gmail", name: "", status: "connected" },
+    { user_id: pat, workspace_id: homeId, plugin_id: "outlook", name: "", status: "connected" }
   ]);
 
-  const listed = (await integrations.switchAction(reach, "gmail", "send_draft", false, as)).plugins.find((entry) => entry.id === "gmail");
+  const listed = (await integrations.switchAction("gmail", "send_draft", false, as)).plugins.find((entry) => entry.id === "gmail");
   assert.deepEqual(listed.actions.map((action) => action.enabled), [false, true, true], "the switch shows, and the count drops");
-  let switches = await integrations.toolSwitches(reach, as);
+  let switches = await integrations.toolSwitches(as);
   assert.deepEqual(switches.skip.send_draft, ["gmail"]);
   assert.deepEqual(switches.removed, [], "Outlook still sends");
 
-  await integrations.switchAction(reach, "outlook", "send_draft", false, as);
-  switches = await integrations.toolSwitches(reach, as);
+  await integrations.switchAction("outlook", "send_draft", false, as);
+  switches = await integrations.toolSwitches(as);
   assert.deepEqual(switches.removed, ["send_draft"], "no connected app sends any more, so the bot isn't offered it");
   assert.deepEqual(switches.turnedOff, ["Send email (Gmail)", "Send email (Outlook)"], "the bot is told what was switched off");
-  await integrations.switchAction(reach, "gmail", "send_draft", true, as);
-  assert.deepEqual((await integrations.toolSwitches(reach, as)).removed, []);
-  await assert.rejects(integrations.switchAction(reach, "gmail", "nope", false, as), /no such action/u);
+  await integrations.switchAction("gmail", "send_draft", true, as);
+  assert.deepEqual((await integrations.toolSwitches(as)).removed, []);
+  await assert.rejects(integrations.switchAction("gmail", "nope", false, as), /no such action/u);
 
   // One action of a grouped tool (D-42): off in every app, the tool no longer offers it.
-  await integrations.switchAction(reach, "gmail", "mail_drafts.send", false, as);
-  await integrations.switchAction(reach, "outlook", "mail_drafts.send", false, as);
+  await integrations.switchAction("gmail", "mail_drafts.send", false, as);
+  await integrations.switchAction("outlook", "mail_drafts.send", false, as);
   const shared = { appFor: () => ({}), attempt: async () => ({}), failed: (error) => ({ error: error.message }), account: () => undefined };
-  const mailTools = buildMailTools({ ...shared, removed: (await integrations.toolSwitches(reach, as)).removed });
+  const mailTools = buildMailTools({ ...shared, removed: (await integrations.toolSwitches(as)).removed });
   assert.deepEqual(mailTools.mailDrafts.inputSchema.shape.action.options, ["list", "read", "create", "update", "delete"]);
   await knex("plugin_actions_off").where({ user_id: pat }).del();
-  await knex("plugin_accounts").where({ user_id: pat }).whereIn("plugin_id", ["gmail", "outlook"]).whereNull("workspace_id").whereNull("tokens").del();
 });

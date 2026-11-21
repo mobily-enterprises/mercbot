@@ -36,8 +36,9 @@ publishes and can restore, and fields removed from every app in one save (D-35).
   copy in the same transaction (practice.md). Creation and publishing are audited.
 - One Builder bot per home (`app_settings.builder_bot_id`); each person pins up to 8 apps.
 - `mercbot.apps`' `activity.record(entry, options)` adds another feature's entry (`{ actor, via, action,
-  changes }`) to the call's home's Activity trail: an unlinked copy (integrations, D-31) is `via.kind`
-  `settings`, shown as "Settings".
+  changes }`) to the call's home's Activity trail: an unlinked copy (integrations, D-31) and an account removed with
+  the person who connected it (integrations, `changes.departedAccount`, D-111) are `via.kind` `settings`, shown as
+  "Settings" (`AppsActivity.vue`).
 - `mercbot.apps`' `acrossHomes` reads every home the options reach (a system context's; a request's reads its own):
   `madeBy(userId, limit, options)`, the apps a person made, newest first, retired ones left out, each with its home
   and `publicAt`; `publicCounts(workspaceIds, options)`, how many public apps each home has, in one statement.

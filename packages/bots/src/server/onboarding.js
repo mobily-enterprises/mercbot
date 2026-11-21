@@ -117,7 +117,7 @@ export const ONBOARDING_STEPS = {
         body: {
           app: "Gmail",
           subtitle: "Let your bot read and draft email for you",
-          footnote: "Your bot always checks with you before changing anything, and you can disconnect at any time."
+          footnote: "Your bot always checks with you before changing anything, and you can remove the account at any time."
         }
       }
     ]

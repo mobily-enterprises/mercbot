@@ -1,13 +1,17 @@
 <script setup>
+import MercbotAddAccount from "./MercbotAddAccount.vue";
 import MercbotPluginLogo from "./MercbotPluginLogo.vue";
 
-// Before signing in from a chat card: what connecting means.
-defineProps({
+// Before signing in from a chat card: what connecting means, then the same Add account step as Connect apps (D-110),
+// which says who uses the account (everyone in the home and their bots, D-111), what opens next, and signs it in.
+const props = defineProps({
   plugin: { type: Object, default: null },
-  botName: { type: String, default: "your bot" }
+  botName: { type: String, default: "your bot" },
+  homeName: { type: String, default: "this home" }
 });
 const open = defineModel({ type: Boolean, default: false });
 const emit = defineEmits(["continue"]);
+const add = (choice) => emit("continue", { plugin: props.plugin, ...choice });
 </script>
 
 <template>
@@ -20,12 +24,18 @@ const emit = defineEmits(["continue"]);
       <h2 class="mb-explainer__title">Link {{ plugin.name }} to Mercbot</h2>
       <p class="mb-explainer__subtitle">So {{ botName }} can work in {{ plugin.name }} for you.</p>
       <ul class="mb-explainer__points">
-        <li><v-icon icon="$check" size="16" />Nothing gets changed or sent without a yes from you first.</li>
+        <li><v-icon icon="$check" size="16" />Nothing gets changed or sent without a yes on its card first.</li>
         <li><v-icon icon="$check" size="16" />{{ plugin.name }} handles the login on its own page, so {{ botName }} only gets a key, not your password.</li>
-        <li><v-icon icon="$check" size="16" />Changed your mind? Unlink it from Connect apps in one click.</li>
+        <li><v-icon icon="$check" size="16" />Changed your mind? Remove the account in Connect apps, with the bin on its line.</li>
       </ul>
-      <p class="mb-explainer__note">All your linked apps are listed under Connect apps.</p>
-      <button type="button" class="mb-explainer__continue" @click="emit('continue', plugin)">Continue</button>
+      <MercbotAddAccount
+        :key="plugin.id"
+        class="mb-explainer__add"
+        :plugin="plugin"
+        :home-name="homeName"
+        @add="add"
+        @cancel="open = false"
+      />
     </div>
   </v-dialog>
 </template>
@@ -36,7 +46,6 @@ const emit = defineEmits(["continue"]);
   display: flex;
   flex-direction: column;
   align-items: center;
-  min-height: 560px;
   padding: 56px 24px 24px;
   border-radius: 16px;
   background: rgb(var(--v-theme-surface));
@@ -92,22 +101,9 @@ const emit = defineEmits(["continue"]);
   gap: 10px;
 }
 
-.mb-explainer__note {
-  margin: 16px 0 0;
-  font-size: 12px;
-  color: rgb(var(--v-theme-on-surface-variant));
-}
-
-.mb-explainer__continue {
+.mb-explainer__add {
   width: 100%;
-  height: 40px;
-  margin-top: auto;
-  border: 0;
-  border-radius: 20px;
-  background: rgb(var(--v-theme-inverse-surface));
-  font: inherit;
-  font-size: 14px;
-  color: rgb(var(--v-theme-inverse-on-surface));
-  cursor: pointer;
+  margin-top: 16px;
+  padding: 0;
 }
 </style>

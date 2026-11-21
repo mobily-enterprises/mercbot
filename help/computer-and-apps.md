@@ -95,7 +95,7 @@ Bots never ask for passwords, card numbers or codes in the chat. When a website 
 3. A secure form card in the chat, where you type the login (or a one-time code) yourself. Mercbot fills it into the page, and you can tick a box to save it to your vault.
 4. Only then, a **Your turn** card so you can sign in on the screen yourself.
 
-When a site emails you a sign-in or verification code, a bot signing in for you in your own chat can fetch it itself, as long as you've connected that mailbox (Gmail or Outlook). Mercbot looks only at mail that came in the last few minutes from the site the bot is signing in to: the bot never sees the code, and it never appears in the chat. A **Typed in the sign-in code from your email** line shows it happened. A home's shared mailbox is never used for this. If no code turns up, for example because the site sent it by text message, the bot posts a secure form for you to type it in. It does the same in a routine or a task from an app, which run while you're away.
+When a site emails you a sign-in or verification code, a bot signing in for you in your own chat can fetch it itself, as long as you've connected that mailbox (Gmail or Outlook). Mercbot looks only at mail that came in the last few minutes from the site the bot is signing in to: the bot never sees the code, and it never appears in the chat. A **Typed in the sign-in code from your email** line shows it happened. Only mailboxes you connected are used for this, never one someone else in the home connected. If no code turns up, for example because the site sent it by text message, the bot posts a secure form for you to type it in. It does the same in a routine or a task from an app, which run while you're away.
 
 The code goes in by itself only on the pages the sign-in you asked for leads to. The bot starts that sign-in from the site's front page, or from an address you give it, and follows the site's own redirects, forms and buttons from there, including windows it opens, such as **Sign in with Google**. That lasts until the sign-in is done, or 10 minutes, or until the bot opens another address itself. On any other page, even one on the same site, such as a form someone published on docs.google.com, and for a code from another site the sign-in passes through, such as Google's own, the bot asks first: a card asks *Shall I type the sign-in code from no-reply@example.com into this page?* with the page's full address under it. Check the address is the site you meant to sign in to before you press **Go ahead**. If the page has moved on by then, nothing is typed.
 
@@ -126,33 +126,41 @@ Reset is useful when a website is stuck in a strange state, or when you want a b
 
 ## Connect apps
 
-**Connect apps** is where you choose which outside apps your bots can use. Open it from the sidebar, or type "Connect Apps" in the search palette (**Ctrl+K**). On a phone it fills the screen. **Skills**, the book beside it in the sidebar, opens it straight on your private skills.
+**Connect apps** is where you choose which outside apps your home's bots can use. Apps and accounts you add belong to the home you're in: everyone in it, and their bots, can use them. Open it from the sidebar, or type "Connect Apps" in the search palette (**Ctrl+K**). On a phone it fills the screen. **Skills**, the book beside it in the sidebar, opens it straight on your private skills.
 
 The catalogue shows:
 
 - **Recommended for you** at the top, then a section for each category.
 - Category chips: **All**, **Password Managers**, **Productivity**, **Communication**, **Design** and **Code**, with **More** for Data, Sales, Marketing, Finance, Research and Support. **View all** opens a whole category.
 - A search box, **Search apps and skills**, which finds apps by name or description.
-- A summary at the top right, such as "3 connected", which opens **Your apps and skills**: the apps you've added with their state, and your private skills.
+- A summary at the top right, such as "3 connected", which opens **Your apps and skills**: the apps added to the home with their state, and your private skills.
 - **Bot templates**, which opens the template gallery in a new tab.
 
 Each app has a small badge: **b** means built but not yet tested by hand, **✓** means tested, and **★** means it has worked well in everyday use.
 
-Select an app to open its page. It shows a description, your accounts, the app's tools, and an Information table (capabilities, developer, category, website and availability). **Share** copies a link to the app, and **View source** shows the app's definition.
+Select an app to open its page. It shows a description, the home's accounts, the app's tools, **What your bots learn** from it, and an Information table (capabilities, developer, category, website and availability). **Share** copies a link to the app, and **View source** shows the app's definition.
 
 ## Add an app and sign in
 
-1. In Connect apps, select **Connect** next to the app (or open its page and select **Connect**).
-2. A sign-in tab opens with the app's own sign-in page. Sign in and agree to what Mercbot asks for.
-3. The tab says **Connected to Google** (or Microsoft, GitHub, Calendly, Notion or Todoist), and you can close it. Back in Connect apps, a note confirms the app is connected.
+Only one button signs you in: **Sign in with Google** (or Microsoft, GitHub, or the app's name), and it says what happens next. Every other button just takes you there.
+
+1. In Connect apps, select **Add** next to the app, or open its page and select **Add to this home**. The app is added and the **Add account** step opens.
+2. Type a **Label** if you like, such as "Work". It's optional: without one, the account shows its address.
+3. Read who will use it: for example **Everyone in Smith family, and their bots, can read and send from the account you connect.** Connect an account only if you're happy to share it in this home (see below).
+4. Select **Sign in with Google** (or the app's own). On a computer, a small window opens with the app's own sign-in page; on a phone, the sign-in takes the page and brings you back. Pick the account, sign in and agree to what Mercbot asks for.
+5. The window says **Connected to Google** (or Microsoft, GitHub, Calendly, Notion or Todoist) and closes by itself. Back in Connect apps, the account shows **Connected** and a note confirms it.
+
+If the window stays open, for example because you closed Mercbot meanwhile, select **Close**. If your browser won't let the page close its own window, it says **You can close this tab now**. The small **Back to Mercbot** link under it opens Mercbot.
+
+To add another account of the same app later, open the app's page and select **+ Add account**.
 
 The app's maker handles your login on its own page, so Mercbot gets a key to act for you, never your password. Connect apps keeps checking for a few minutes while you sign in, so there's nothing to refresh.
 
-Finish the sign-in in the browser you started it in, within 15 minutes. A sign-in belongs to that browser: if the app's page sends another browser back to Mercbot, such as one you copied the sign-in page's address into or someone you sent it to, the tab says **This sign-in was started in another browser, so nothing was connected**, and nothing is. Start again from Connect apps in the browser you sign in with.
+Finish the sign-in in the browser you started it in, within 15 minutes. A sign-in belongs to that browser: if the app's page sends another browser back to Mercbot, such as one you copied the sign-in page's address into or someone you sent it to, the page says **This sign-in was started in another browser, so nothing was connected**, and nothing is. Start again from Connect apps in the browser you sign in with.
 
-A bot can also suggest an app. If you ask for something that needs an app you haven't connected, the bot posts a card for it in the chat. Its button explains what connecting means (nothing is changed or sent without your yes, and you can unlink it at any time), then takes you to the sign-in. As soon as you've signed in, the card shows **Connected** and the bot finishes the job it was waiting to do, by itself: there's no need to ask again. If the bot is busy with another of your messages, it finishes that first. It waits up to 30 minutes for you to finish signing in; if you cancel the sign-in, the card stays as it was, so you can select its button again.
+A bot can also suggest an app. If you ask for something that needs an app you haven't connected, the bot posts a card for it in the chat. Its **Connect** button explains what connecting means (nothing is changed or sent without a yes on its card first, and the account can be removed at any time) and shows the same **Add account** step, whose **Sign in with Google** (or the app's own) signs you in. As soon as you've signed in, the card shows **Connected** and the bot finishes the job it was waiting to do, by itself: there's no need to ask again. If the bot is busy with another of your messages, it finishes that first. It waits up to 30 minutes for you to finish signing in; if you cancel the sign-in, the card stays as it was, so you can select its button again.
 
-If you run your own copy of Mercbot that's only reachable from your own machine, the sign-in may not be able to come back to Mercbot by itself. The app's page then shows a box: paste the whole address the sign-in tab ended on and select **Finish**.
+If you run your own copy of Mercbot that's only reachable from your own machine, the sign-in may not be able to come back to Mercbot by itself. The app's page then shows a box: paste the whole address the sign-in page ended on and select **Finish**.
 
 ### Apps connected with API credentials: Sedna
 
@@ -161,36 +169,31 @@ Some apps have no sign-in for other apps. Sedna, the shared email for shipping t
 1. In Sedna, an admin opens **Settings**, then **API Credential Management**, and makes a credential. Note its client ID and secret. Give it these permissions to read: COMPANY_READ, USER_READ, TEAM_READ, MESSAGE_READ, EVENT_READ, CATEGORYTAG_READ, JOBREFERENCE_READ, COMMENT_READ, DOCUMENT_READ, TEMPLATE_READ and CONTACT_READ; and to change things: MESSAGE_WRITE, MESSAGE_DELETE, JOBREFERENCE_WRITE and CONTACT_WRITE. For reading only, the first ones are enough. If that page isn't there, your Sedna plan may not include the API: ask Sedna's support.
 
    If another program of yours already uses Sedna's API with a **username and password** (Sedna calls that Basic auth), that pair is one of these credentials: paste its username as the **Client ID** and its password as the **Client secret**. Mercbot first asks Sedna for a key with them; if Sedna gives none, it uses them as a username and password, as your other program does.
-2. In Connect apps, open **Sedna** and select **Connect**. A form opens on the page instead of a sign-in tab.
+2. In Connect apps, open **Sedna** and select **Add to this home**. A form opens on the page instead of a sign-in window.
 3. Type your **Sedna address** (the first part of the address you open Sedna at, the *acme* of acme.sednanetwork.com), the **Client ID** and the **Client secret**, and select **Save**. Once you've typed the address, the form also links to your Sedna's API Credential Management page.
 
-Mercbot checks the credentials with Sedna before keeping them: a wrong ID or secret is refused in the form, and nothing is saved. Once they're accepted, the account shows your company's name and **Connected**, and a note says how many of the home's people Sedna knows by their email address. **Change credentials** enters new ones; **Disconnect** deletes them from Mercbot.
+Mercbot checks the credentials with Sedna before keeping them: a wrong ID or secret is refused in the form, and nothing is saved. Once they're accepted, the account shows your company's name and **Connected**, and a note says how many of the home's people Sedna knows by their email address. **Change credentials** enters new ones; the bin on its line (after **Remove it for everyone in** your home?) deletes them from Mercbot, with who each person is in Sedna.
 
 **Who you are in Sedna.** The credentials read the whole organisation, so a bot reads only what *your* Sedna teams see. Mercbot finds you by your email address. If no Sedna user has it, Sedna's page shows **Who you are in Sedna**: type your name, find yourself and select **This is me**. An owner or admin confirms it under **People** (an owner's or admin's own choice counts at once). Until then your bots read nothing in Sedna. Nobody can choose a Sedna user that someone else in the home already is.
 
-### Just me, or everyone in the home
+### Everyone in the home uses its accounts
 
-An account you connect is yours. Your bots use it in your own chats, and nobody else in the home can use it.
+Every account connected in a home is the home's. Everyone in the home, and every bot there, can use it, in any chat: your own chats, a Shared bot's shared tabs and group chats. Each account's line says so in plain words, such as **Everyone in Smith family, and their bots, can read and send from pat@example.com.** for a mailbox, then who added it (**Added by Pat.**, or **Added by you.**).
 
-Owners and admins can also connect an account for the whole home, such as a family calendar or a shared inbox:
+- **Sending stays clear.** A draft card shows which mailbox the email goes from, and it's answered like any other card: in your own chats only you can, and in a group chat only the person who asked (see [Approval cards](/help/approvals-and-privacy#approval-cards)).
+- **Sign-in codes stay with whoever connected the mailbox.** When a bot reads a mailbox someone else connected, Mercbot hides the sign-in codes and sign-in links in it, so only the bots of the person who connected it see them. This is worked out from the wording of each email, so now and then it hides a code that isn't a sign-in code, such as a discount code.
+- **Who can change an account.** The person who added it and the home's owners and admins can rename it, sign it in again, choose its pace and remove it. Everyone else sees its status.
+- **Your accounts go with you.** If you're no longer in a home, for example because an owner or admin removed you, the accounts you connected there are signed out and removed, and the **Activity** tab in **Apps** says so. Your accounts in your other homes stay.
 
-1. On the app's page, select **+ Add another account** (or **+ Add an account for everyone in** your home, if you haven't added the app for yourself).
-2. Type a label, such as "Family".
-3. Choose **Everyone in** your home instead of **Just me**.
-4. Select **Authorize** and sign in.
+To keep an account to yourself, connect it in a home only you are in, such as the one Mercbot made for you.
 
-A home's account shows "Everyone in" the home's name, and who added it. Everyone in the home sees it listed. Members can see its status but can't change it.
-
-Which accounts a bot uses depends on where it's working:
-
-- **In your own chats**, a Shared bot's **You only** tab included, a bot can use your own accounts and the home's.
-- **In a Shared bot's shared tabs** it uses only the home's accounts, because everyone in the conversation can see the results.
+Sedna is the one app used only in each person's own chats with their bots, never in a shared conversation: its API credentials could read the whole organisation, so a bot reads only your own Sedna teams.
 
 ### More than one account
 
-You can connect several accounts of the same app, such as a work and a personal Gmail. Select **+ Add another account**, type a label (for example "work"), and select **Authorize**. Account rows read "label · address". Select an account's name to rename it.
+You can connect several accounts of the same app, such as a work and a personal Gmail. Select **+ Add account**, type a label if you like (for example "work"), and select **Sign in with Google** (or the app's own). Account lines read "label · address", or just the address. Select an account's name to rename it.
 
-With several accounts, a bot reads all of them unless you name one, and groups its answer by account. You can name an account by its label, its address, or its app ("the Google one"). "My calendar" means your own address. When a bot has to choose one account for a change, it asks once and keeps to your answer in that chat.
+With several accounts, a bot reads all of them unless you name one, and groups its answer by account. You can name an account by its label, its address, or its app ("the Google one"). "My calendar" means the account with your own address. When a bot has to choose one account for a change, it asks once and keeps to your answer in that chat.
 
 ### Request pace: how fast Mercbot uses an app
 
@@ -200,7 +203,7 @@ Every app limits how many requests it takes from one account, and Mercbot keeps 
 - **Normal** uses four tenths.
 - **Fast** uses nine tenths: close to the app's limit, never over it.
 
-You choose the pace of your own accounts; a home's account's pace is chosen by the home's owners and admins. Sedna, for example, allows 100 requests a second: Gentle sends at most 10.
+The person who added an account and the home's owners and admins choose its pace. Sedna, for example, allows 100 requests a second: Gentle sends at most 10.
 
 If an app asks Mercbot to wait, Mercbot sends that account nothing until the wait is over, and a bot or card says, for example, **Sedna is busy: try again in 30 s. Nothing was done.** It says the same when the account's pace has no turn free in the next 20 seconds because your bots already used it. Try again after the time it names. A routine that meets a busy app reads the same new mail on its next run, so nothing is skipped.
 
@@ -210,29 +213,33 @@ Each account on an app's page shows where it stands:
 
 | State | What it means | What to do |
 | --- | --- | --- |
-| **Connected** | Bots can use the account. | Nothing. **Disconnect** stops it. |
-| **Needs auth**, with **Sign in** | The account was added but hasn't been signed in yet. | Select **Sign in**. |
-| **Needs auth**, with **Reconnect** | A sign-in was started but not finished. | Select **Reconnect** and finish signing in. |
-| **Needs auth**, with **Retry** | The sign-in was cancelled or refused. | Select **Retry**. |
+| **Connected** | Bots can use the account. | Nothing. The bin removes it. |
+| **Needs sign-in**, with **Sign in again** | The account's sign-in has lapsed, or the app stopped accepting it. | Select **Sign in again** and pick the same account. |
+| **Needs sign-in**, with **Sign in** | The account was added but hasn't been signed in yet. | Select **Sign in**. |
+| **Needs sign-in**, with **Reconnect** | A sign-in was started but not finished. | Select **Reconnect** and finish signing in. |
+| **Needs sign-in**, with **Retry** | The sign-in was cancelled or refused. | Select **Retry**. |
 | **Needs more access**, with **Sign in again** | The account was connected before the app asked for more access. It still works with what it has. | Select **Sign in again** when convenient. |
 
-**Your apps and skills** shows each app with its worst state, so an app that needs you stands out. Its button (**Sign in**, **Reconnect**, **Retry** or **Sign in again**) goes straight to the account that needs attention. Six apps show at first; **Show all** lists the rest.
+**Your apps and skills** shows each app with its worst state, such as **Needs sign-in** or **No account yet**, so an app that needs you stands out. Select it to open its page, where the account's button is. Six apps show at first; **Show all** lists the rest.
 
-If a sign-in is cancelled, the sign-in tab says **Nothing was connected**, and you can try again from Connect apps. Never sign in from a link someone else sent you to connect an app: it would connect your account to theirs, and Mercbot refuses it.
+Signing an account in again keeps it the same account. The app's sign-in page suggests the account's own address and lets you pick. If you sign in as a different address, nothing changes, and the page says so: to connect that one, use **+ Add account**.
+
+If a sign-in is cancelled or doesn't work, the page says **Couldn't connect** and why. **Try again** starts the same sign-in again. Never sign in from a link someone else sent you to connect an app: it would connect your account to theirs, and Mercbot refuses it.
 
 ### Work accounts that need approval
 
-Some organisations only let their staff connect apps that an administrator has approved. If that happens with a Microsoft or Google work or school account, the sign-in tab says **Your organisation needs to approve Mercbot**. You did nothing wrong.
+Some organisations only let their staff connect apps that an administrator has approved. If that happens with a Microsoft or Google work or school account, the sign-in page says **Your organisation needs to approve Mercbot**. You did nothing wrong.
 
 1. Select **Copy the link** under **Approval link for your IT department**.
 2. Send the link to your IT department.
-3. Once they've approved Mercbot, select **Retry** or **Sign in** on the account and sign in again.
+3. Once they've approved Mercbot, select **Retry** or **Sign in** on the account's line and sign in again.
 
-### Disconnect or remove
+### Remove an account or an app
 
-- **Disconnect** (after **Disconnect this account?**) signs the account out. It stays listed so you can sign in again later. For Calendly, Notion and Todoist it also withdraws Mercbot's access on the app's side.
-- **Remove** takes an account off the list. You can remove one of your own accounts while it isn't connected and the app still has another. Owners and admins can remove a home's account; Mercbot asks **Remove it for everyone?** first.
-- **Uninstall** on the app's page removes the app and your own accounts with it. The home's accounts for that app stay.
+- **The bin** on an account's line removes that account, connected or not, the first and the only one too. Mercbot asks first (**Remove it for everyone in** *home*? **Their bots stop using it.**), then deletes its key. For Calendly, Notion and Todoist it also withdraws Mercbot's access on the app's side. The person who added the account and the home's owners and admins see the bin. Removing an app's last account keeps the app in the home.
+- **Remove from this home** on the app's page removes the app and all the home's accounts of it, after asking (**Remove Gmail from** *home*, **with its account? Everyone's bots stop using it.**). Owners and admins can always do it; the person who added the app can while every account of it is one they added. You can add it again any time.
+
+To stop bots doing just one thing with an app, switch that action off under **Tools** instead.
 
 ## Tools: a switch for each action
 
@@ -331,7 +338,7 @@ No. You sign in on the app's own page, and Mercbot receives a key that lets your
 
 ### Can other people in my home use my Gmail?
 
-No. Accounts you connect with **Just me** are yours alone. Only accounts an owner or admin connects for **Everyone in** the home are used by everyone, and those are the only ones used in Shared bots' shared tabs.
+Yes, if you connect it in that home: everyone in the home, and their bots, can read and send from it. Each email a bot writes shows which mailbox it's from, and waits for a yes like any card. Sign-in codes and sign-in links in it reach only your own bots. To keep a mailbox to yourself, connect it in a home only you are in.
 
 ### Why is my app showing "Needs more access"?
 

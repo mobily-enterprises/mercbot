@@ -48,9 +48,11 @@ chat's theirs. Changing a bot's mode asks first; a bot that stops being shared
 hides its shared tabs and pauses their routines and watches until it's shared
 again. With one person in the home, as on a person's own copy, the choice shows
 only for a bot off the default.
-Connected accounts belong to the person, or to the whole home (a family
-calendar, a team inbox). Bots use the person's own accounts and the home's;
-shared conversations use only the home's.
+Connected accounts belong to the home they are connected in (a family
+calendar, a team inbox, a person's Gmail): everyone in it, and their bots, use
+them in any chat, and the person who added one and the home's owners and admins
+change it. A bot sees sign-in codes and links only in mailboxes its person
+connected, and someone who leaves a home takes the accounts they added there.
 The AI behind the bots runs on the copy's own provider keys, one for each of
 Mercbot's three kinds of AI (D-72). There are no plans: what the bots use (their
 AI, pictures, a computer's days and commands) is counted for its home, person

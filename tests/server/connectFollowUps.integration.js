@@ -4,7 +4,7 @@ import http from "node:http";
 import test from "node:test";
 import { passedOn } from "@jskit-ai/resource-runtime/server";
 import { connectTestDatabase } from "../support/testDatabase.mjs";
-import { testBot } from "./testHome.js";
+import { botIn, separateHome, testBot } from "./testHome.js";
 import { startBotsService } from "../support/botDoubles.mjs";
 import { memberOptions, startBotParts } from "../support/botRecords.mjs";
 import { cleanupStack } from "../support/cleanupStack.mjs";
@@ -26,8 +26,6 @@ assert.equal(process.env.DB_NAME, process.env.TEST_DB_NAME, "DB_NAME must match 
 const VAULT = randomBytes(32).toString("base64");
 const CATALOGUE = [{ id: "testmail", name: "Testmail", oauth: { provider: "test", scopes: ["mail"] } }];
 const ENV = { APP_PUBLIC_URL: "http://localhost:4000", TESTMAIL_TEST_CLIENT_ID: "client", TESTMAIL_TEST_CLIENT_SECRET: "secret", MERCBOT_VAULT_KEY: VAULT };
-// The person's own accounts, as Connect apps reaches them, and a callback no one is signed in to.
-const REACH = Object.freeze({ personal: true });
 const NO_ONE = requestContextOptions({});
 
 /** The stand-in provider: a token endpoint that answers the code "good", and "who am I". */
@@ -76,7 +74,7 @@ function deferred() {
  * IntegrationsFeature builds them) and its bots service, whose integrations see what the database says is connected.
  * `reply` stands in for the model; each server's prompts are kept.
  */
-async function startServer(cleanup, { userId, providers, reply = async () => ({ text: "Done.", transcript: [] }) }) {
+async function startServer(cleanup, { homeId, providers, reply = async () => ({ text: "Done.", transcript: [] }) }) {
   const knex = await connectTestDatabase();
   cleanup.after(() => knex.destroy());
   const { features } = await ownedHandles(knex, cleanup, { "mercbot.integrations": INTEGRATIONS_OWNS });
@@ -101,8 +99,8 @@ async function startServer(cleanup, { userId, providers, reply = async () => ({ 
     ...parts,
     approvals: { decide: async () => "allow" },
     integrations: {
-      hasConnected: async (_reach, pluginId) =>
-        Boolean(await knex("plugin_accounts").where({ user_id: userId, plugin_id: pluginId, status: "connected" }).first()),
+      hasConnected: async (pluginId) =>
+        Boolean(await knex("plugin_accounts").where({ workspace_id: homeId, plugin_id: pluginId, status: "connected" }).first()),
       connections
     },
     reply: (bot, history, tools, state, prompt, options) => {
@@ -120,7 +118,7 @@ async function setup(context, replies = {}) {
   const userId = (await knex("users").first())?.id;
   assert.ok(userId, "the test database needs a user row");
   const bot = await testBot(knex, userId, { name: "Follow-ups" });
-  const [account] = await knex("plugin_accounts").insert({ user_id: userId, plugin_id: "testmail", name: "default" }).returning("*");
+  const [account] = await knex("plugin_accounts").insert({ user_id: userId, workspace_id: bot.workspace_id, plugin_id: "testmail", name: "default" }).returning("*");
   cleanup.after(async () => {
     await knex("plugin_accounts").where({ id: account.id }).del();
     await knex("bots").where({ id: bot.id }).del();
@@ -128,14 +126,13 @@ async function setup(context, replies = {}) {
   });
   const providers = await standInProvider(cleanup);
   // The sign-in's callback lands on A; the person's page, and their chat, are on B.
-  const a = await startServer(cleanup, { userId, providers, reply: replies.a });
-  const b = await startServer(cleanup, { userId, providers, reply: replies.b });
+  const a = await startServer(cleanup, { homeId: bot.workspace_id, providers, reply: replies.a });
+  const b = await startServer(cleanup, { homeId: bot.workspace_id, providers, reply: replies.b });
   const as = memberOptions({ userId, homeId: bot.workspace_id });
-  const person = requestContextOptions({ user: { id: String(userId) } });
   const [card] = await knex("bot_messages").insert(connectCard(bot)).returning("*");
   /** Signs in on server A from start to the callback; `query` is what the provider sends back. */
   const signIn = async (query = { code: "good" }) => {
-    const { url, cookie } = await a.connections.connect(REACH, account.id, person);
+    const { url, cookie } = await a.connections.connect(account.id, as);
     const state = new URL(url).searchParams.get("state");
     // The browser the sign-in started in comes back with its cookie (D-97).
     return a.connections.callback({ ...query, state }, { [cookie.name]: cookie.value }, NO_ONE);
@@ -307,7 +304,7 @@ test("a follow-up its server marked but never started waits out its start there,
   await b.bots.connectFromCard(bot.id, card.id, {}, as);
   // The account is saved connected and its follow-up marked, and that server stops before it starts it.
   await knex("plugin_accounts").where({ id: account.id }).update({ status: "connected" });
-  await b.bots.connectFollowUps.connected({ pluginId: "testmail", userId: String(userId), homeId: null }, b.system);
+  await b.bots.connectFollowUps.connected({ pluginId: "testmail", userId: String(userId), homeId: String(bot.workspace_id) }, b.system);
   await b.bots.connectFollowUps.sweep();
   const left = await followUp();
   assert.deepEqual([left.status, left.run_id], ["ready", null], "another server's sweep leaves its start to the server that marked it, for 10 seconds");
@@ -337,16 +334,13 @@ test("a cancelled sign-in leaves the card as it is, one never finished goes afte
   assert.equal((await followUp()).status, "waiting");
   assert.equal(await cardStatus(), "connecting");
 
-  // Only a connection that reaches the card's chat marks it (D-37): not another person's own account, nor another
-  // home's or app's; a home's account reaches every chat in its home.
+  // Only a connection in the card's home marks it (D-111): an account of the app connected there, whoever connected
+  // it, reaches every chat in the home; another home's or another app's doesn't.
   const timing = { minutes: 30, graceSeconds: 10 };
-  const marks = (connection) => b.parts.records.followUps.markReady({ pluginId: "testmail", userId: String(userId), homeId: null, ...connection }, timing, b.system);
-  const other = (await knex("users").whereNot({ id: userId }).first())?.id;
-  assert.ok(other, "the test database needs a second user row");
-  assert.deepEqual(await marks({ userId: String(other) }), []);
+  const marks = (connection) => b.parts.records.followUps.markReady({ pluginId: "testmail", homeId: String(bot.workspace_id), ...connection }, timing, b.system);
   assert.deepEqual(await marks({ pluginId: "othermail" }), []);
-  assert.deepEqual(await marks({ userId: String(other), homeId: "999999999" }), []);
-  const ids = await marks({ userId: String(other), homeId: String(bot.workspace_id) });
+  assert.deepEqual(await marks({ homeId: "999999999" }), []);
+  const ids = await marks({});
   assert.deepEqual(ids.map(String), [String((await followUp()).id)]);
   await b.parts.records.followUps.waitAgain(ids[0], b.system);
   assert.equal((await followUp()).status, "waiting", "a ready follow-up whose app isn't connected for its chat waits again");
@@ -366,7 +360,6 @@ test("a cancelled sign-in leaves the card as it is, one never finished goes afte
     message_id: groupCard.id,
     conversation_id: group.conversation_id,
     user_id: userId,
-    personal: true,
     plugin_id: "testmail",
     status: "ready",
     lease_until: knex.raw("now() - interval '1 second'")
@@ -397,8 +390,15 @@ test("only the person can start a card's follow-up, from a connect card still wa
 });
 
 test("a sweep's statements and a sign-in's marking don't grow with the cards waiting, and read through their indexes", async (context) => {
-  const { knex, a, bot, userId } = await setup(context);
-  // `count` more cards waiting for a sign-in, each another person's, in the bot's chat.
+  const { knex, cleanup, a, bot, userId } = await setup(context);
+  // `count` more cards waiting for a sign-in, each another person's, in a chat of another home, which a sign-in in the
+  // bot's home doesn't reach.
+  const elsewhereHome = await separateHome(knex, userId);
+  const elsewhere = await botIn(knex, elsewhereHome, userId, { name: "Elsewhere" });
+  cleanup.after(async () => {
+    await knex("bots").where({ id: elsewhere.id }).del();
+    await knex("workspaces").where({ id: elsewhereHome }).del();
+  });
   const seed = (count) => knex.raw(
     `with cards as (
        insert into bot_messages (workspace_id, bot_id, conversation_id, kind, role, body)
@@ -406,13 +406,13 @@ test("a sweep's statements and a sign-in's marking don't grow with the cards wai
          from generate_series(1, ?)
        returning id
      )
-     insert into connect_follow_ups (workspace_id, message_id, conversation_id, user_id, personal, plugin_id)
-     select ?, id, ?, 900000000 + id, true, 'testmail' from cards`,
-    [bot.workspace_id, bot.id, bot.conversation_id, count, bot.workspace_id, bot.conversation_id]
+     insert into connect_follow_ups (workspace_id, message_id, conversation_id, user_id, plugin_id)
+     select ?, id, ?, 900000000 + id, 'testmail' from cards`,
+    [elsewhereHome, elsewhere.id, elsewhere.conversation_id, count, elsewhereHome, elsewhere.conversation_id]
   );
-  // The person's own account connected, with none of their own cards waiting.
+  // An account connected in the bot's home, with none of its cards waiting.
   const mark = async () => {
-    const after = await a.bots.connectFollowUps.connected({ pluginId: "testmail", userId: String(userId), homeId: null }, a.system);
+    const after = await a.bots.connectFollowUps.connected({ pluginId: "testmail", userId: String(userId), homeId: String(bot.workspace_id) }, a.system);
     await after();
   };
   const sweeps = {};
@@ -425,7 +425,7 @@ test("a sweep's statements and a sign-in's marking don't grow with the cards wai
   console.log(`connect follow-ups, statements at 10 and 10,000 cards waiting: a sweep ${JSON.stringify(sweeps)}, a sign-in's marking ${JSON.stringify(marking)}`);
   assert.equal(sweeps[10000], sweeps[10], "a sweep sends the same statements however many cards wait");
   assert.equal(marking[10000], marking[10], "so does marking a sign-in's follow-ups");
-  assert.equal(Number((await knex("connect_follow_ups").where({ conversation_id: bot.conversation_id, status: "waiting" }).count("* as n").first()).n), 10000);
+  assert.equal(Number((await knex("connect_follow_ups").where({ conversation_id: elsewhere.conversation_id, status: "waiting" }).count("* as n").first()).n), 10000);
 
   // Each statement reads through its index, a handful of rows, not the 10,000 waiting.
   const statements = await statementsDuring(a.knex, async () => {

@@ -41,9 +41,9 @@ export function searchCategories(query) {
 // The owner's badges (D-33), and apps whose connection isn't built yet: listed, but not addable.
 export const BADGES = { b: "Beta: built, not yet tested by hand", "✓": "Tested", "★": "Works well" };
 
-// Catalogue rows show the logo, the name and one pill: Connect, or Request for an
+// Catalogue rows show the logo, the name and one pill: Add (which never signs in, D-110), or Request for an
 // app that's coming.
-export const actionLabel = (plugin) => (plugin.soon ? (plugin.wanted ? "Requested" : "Request") : plugin.installed ? "Added" : "Connect");
+export const actionLabel = (plugin) => (plugin.soon ? (plugin.wanted ? "Requested" : "Request") : plugin.installed ? "Added" : "Add");
 
 // Where an account's sign-in stands: the words and the button for each state.
 // "more-access": connected, but the app now asks for more than it was given (D-42).
@@ -80,3 +80,73 @@ export function availability(plugin) {
 
 // How an account row reads: "label · address", just the address, or the label before sign-in.
 export const accountTitle = (account) => [account.name, account.label].filter(Boolean).join(" · ") || "Not signed in yet";
+
+const PROVIDER_NAMES = { google: "Google", microsoft: "Microsoft", github: "GitHub" };
+
+/** Whose sign-in an app's accounts use: Google's, Microsoft's, GitHub's, or the app's own (D-34); none for API credentials. */
+export const signInName = (plugin) => (plugin.credentials ? "" : PROVIDER_NAMES[plugin.oauth?.provider] || plugin.name);
+
+// The apps whose accounts are mailboxes, which bots read and send from.
+const MAILBOXES = new Set(["gmail", "outlook"]);
+
+/**
+ * Who uses an app's accounts, in words (D-111): everyone in the home and their bots, from the account's address, or
+ * before it's signed in "the account you connect".
+ * @param {{ id: string }} plugin
+ * @param {string} homeName
+ * @param {string} [address]
+ */
+export function sharedWith(plugin, homeName, address = "") {
+  const what = address || "the account you connect";
+  return `Everyone in ${homeName}, and their bots, can ${MAILBOXES.has(plugin.id) ? "read and send from" : "use"} ${what}.`;
+}
+
+/**
+ * One account's line in Connect apps (D-110, D-111): that everyone in the home and their bots use it, who added it,
+ * and what the person looking at it may do (the server's `canChange`: the person who added it, and the home's owners
+ * and admins). Every line has the same bin, the first one included.
+ * @param {{ addedBy?: string, addedByYou?: boolean, canChange?: boolean, status: string, label?: string | null }} account
+ * @param {{ id: string, credentials?: object }} plugin
+ * @param {{ homeName: string }} where
+ */
+export function accountLine(account, plugin, { homeName }) {
+  const canChange = Boolean(account.canChange);
+  return {
+    who: sharedWith(plugin, homeName, account.label || ""),
+    addedBy: account.addedByYou ? "you" : account.addedBy || "",
+    canChange,
+    canRemove: canChange,
+    removeQuestion: `Remove it for everyone in ${homeName}? Their bots stop using it.`,
+    status: account.status === "connected" ? "Connected" : account.status === "more-access" ? "Needs more access" : plugin.credentials ? "Not connected" : "Needs sign-in",
+    // Signing in again keeps to the address the line already has (D-110).
+    signIn: working(account) && account.status !== "more-access"
+      ? ""
+      : plugin.credentials?.button || (account.status === "needs-auth" && account.label ? "Sign in again" : NEEDS[account.status] || "Sign in")
+  };
+}
+
+/**
+ * What removing an app from the home takes with it (D-111), asked before it goes.
+ * @param {{ name: string, accounts: Array<object> }} plugin
+ * @param {string} homeName
+ */
+export function removeAppQuestion(plugin, homeName) {
+  const count = plugin.accounts.length;
+  const going = count ? `, with its ${count === 1 ? "account" : `${count} accounts`}` : "";
+  return `Remove ${plugin.name} from ${homeName}${going}? Everyone's bots stop using it.`;
+}
+
+/**
+ * What the Add account step says will happen, and its button (D-110): on a computer the app's sign-in opens in a window
+ * of its own, which closes once it's done; on a phone it takes this tab and comes back. API credentials are typed here.
+ * @param {{ credentials?: object, oauth?: { provider: string }, name: string }} plugin
+ * @param {boolean} inThisTab
+ */
+export function addAccountStep(plugin, inThisTab) {
+  const by = signInName(plugin);
+  if (!by) return { note: `You enter ${plugin.name}'s API credentials next.`, submit: "Add" };
+  return {
+    note: inThisTab ? `${by}'s sign-in opens here, then brings you back.` : `A ${by} window opens so you can pick the account.`,
+    submit: `Sign in with ${by}`
+  };
+}

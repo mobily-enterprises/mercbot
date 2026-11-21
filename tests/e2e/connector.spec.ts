@@ -33,7 +33,7 @@ test("Connect apps offers Calendly, Notion and Todoist to connect, in beta, no l
     const head = modal.locator(".mb-detail__head");
     await expect(head.getByRole("heading", { level: 2 })).toContainText(app);
     await expect(head.locator(".mb-badge")).toHaveText("b");
-    await expect(head.getByRole("button", { name: "Connect", exact: true })).toBeVisible();
+    await expect(head.getByRole("button", { name: "Add to this home", exact: true })).toBeVisible();
     await expect(modal.locator(".mb-detail__soon")).toHaveCount(0);
     await expect(modal.locator(".mb-detail__info").filter({ hasText: "Availability" })).toContainText("Not added yet");
     await modal.getByRole("button", { name: "Connect apps", exact: true }).click();

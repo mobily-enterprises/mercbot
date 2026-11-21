@@ -1,6 +1,7 @@
-// The person's connected accounts as bot tools use them (D-31): which accounts a
+// The home's connected accounts as bot tools use them (D-31, D-111): which accounts a
 // request means, how they're named, a key for each, and what a test copy sends instead (D-69).
 // Shared by Google, Microsoft, GitHub and Sedna.
+import { resolveActorId } from "@jskit-ai/kernel/server/actions/actionContributorHelpers";
 import { logSideEffect } from "@jskit-ai/kernel/server/runtime/appEnvironment";
 import { appEnvironment } from "@jskit-ai/kernel/shared/support/appEnvironment";
 
@@ -59,11 +60,14 @@ export async function sendOrSimulate({ env }, effect, act, simulated = () => ({}
 
 /**
  * How an account is called: its label and address ("work · pat@example.com"), or just the address.
- * A home's account says so (D-37). Accounts are integrations.reachableAccounts records.
+ * Accounts are integrations.reachableAccounts records.
  */
 export function accountTitle(account) {
-  return `${[account.name, account.label].filter(Boolean).join(" · ")}${account.home ? " (the home's)" : ""}`;
+  return [account.name, account.label].filter(Boolean).join(" · ");
 }
+
+/** The person whose turn it is: the one who wrote the message, or whose routine or job it is (the call's actor). */
+export const turnPerson = (call) => String(resolveActorId(call?.context) ?? "");
 
 // The apps' own names, so an account can be named by its app ("the Google one").
 const APP_NAMES = {
@@ -99,11 +103,11 @@ function named(entry, wanted) {
 
 /**
  * The connected accounts a tool should use, from one or more plugins (Gmail and Outlook for mail):
- * the one the bot named, by address or label, or else all of them, each with its id and title.
- * `reach` says whose: the person's own and the home's, or only the home's (D-37).
+ * the one the bot named, by address or label, or else all of them, each with its id and title, and
+ * `mine`: whether the person whose turn it is connected it (turnPerson). Every account is the home's (D-111).
  * `skip` lists apps the person has switched this action off for in Connect apps.
  * An action the person switched off for an app is never blamed on the account.
- * `own` leaves the home's accounts out: only the person's own are used.
+ * `own` keeps only the accounts the person whose turn it is connected.
  */
 const switchedOff = (apps) =>
   new ConnectedAppError(
@@ -112,15 +116,16 @@ const switchedOff = (apps) =>
       `account and don't ask which account.`
   );
 
-export async function connectedAccounts({ integrations, reach, skip = [], call, own = false }, pluginIds, name, wanted = "") {
+export async function connectedAccounts({ integrations, skip = [], call, own = false }, pluginIds, name, wanted = "") {
   const all = [].concat(pluginIds);
   const allowed = all.filter((id) => !skip.includes(id));
   const skipped = all.filter((id) => skip.includes(id));
   const offApps = () => skipped.map((id) => APP_NAMES[id] || id);
   if (!allowed.length) throw switchedOff(offApps());
   // The connected accounts of these apps the call reaches, in id order, read once.
-  const connected = (await integrations.reachableAccounts(reach, call, { status: "connected", pluginIds: all }))
-    .filter((account) => !(own && account.home));
+  const person = turnPerson(call);
+  const connected = (await integrations.reachableAccounts(call, { status: "connected", pluginIds: all }))
+    .filter((account) => !own || account.userId === person);
   /** In the apps' own order (Google first, then Microsoft), so "my calendar" picks the same one each time. */
   const accounts = connected.filter((account) => allowed.includes(account.pluginId))
     .sort((a, b) => allowed.indexOf(a.pluginId) - allowed.indexOf(b.pluginId));
@@ -148,7 +153,8 @@ export async function connectedAccounts({ integrations, reach, skip = [], call, 
     pluginId: account.pluginId,
     app: appName(account),
     account: titled(account),
-    address: account.label
+    address: account.label,
+    mine: Boolean(person) && account.userId === person
   }));
 }
 
@@ -159,9 +165,9 @@ export async function connectedAccounts({ integrations, reach, skip = [], call, 
  */
 export async function connectedKeys(access, pluginIds, name, wanted = "") {
   const chosen = await connectedAccounts(access, pluginIds, name, wanted);
-  const { integrations, reach, call } = access;
+  const { integrations, call } = access;
   return Promise.all(chosen.map(async (entry) => {
-    const token = await integrations.connections.accessToken(reach, entry.id, call);
+    const token = await integrations.connections.accessToken(entry.id, call);
     return { ...entry, key: { token: token.accessToken, fetch: token.fetch }, ...(token.api ? { api: token.api } : {}) };
   }));
 }
