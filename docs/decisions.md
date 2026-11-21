@@ -2704,7 +2704,7 @@ doesn't have.
 ## D-101 — A conversation can be archived, and resumed as it was (2026-11-20)
 
 *Superseded by D-112 (2026-11-22), which generalises it to a chat: a Public chat is archived for everyone by its maker
-or an owner or admin, a Private chat by a member for themselves.*
+or an owner or admin; a Private chat isn't archived, but hidden by each of its people for themselves.*
 
 The owner's decision. A Shared bot gathers tabs that are done with, and a person's own You only can be in the way too,
 while deleting one would lose what was said there. So a conversation can be archived: hidden, with nothing running or
@@ -3427,9 +3427,13 @@ Nothing else is a privacy rule.
   Anything the caller can't open answers 404.
 - **Members.** Anyone in the home starts chats and adds the home's people and bots (not archived ones) to a chat they're
   in; adding a person to a Private chat warns "<Name> will see everything said here." The chat's maker and the home's
-  owners and admins remove members, rename, archive and delete; anyone leaves. A Private chat whose last person leaves
-  is deleted. Deleting a chat deletes its folder and its bots' computers. A direct chat takes no more members, so
-  Message always finds it. The home's everyone chat has every active person of the home and is pinned first for each
+  owners and admins remove members, rename, archive and delete; anyone leaves. Only a Public chat is archived, for
+  everyone, and never the everyone chat: its bots' routines and watches there pause with D-101's "Paused while
+  archived" line and stay paused when it's unarchived. A Private chat isn't archived (409
+  `bots_chat_private_archive`, "A private chat is hidden for yourself, not archived for everyone."): each of its people
+  hides it for themselves. The chat list leaves archived chats out unless asked, and then adds them beside the others,
+  as it does hidden ones. A Private chat whose last person leaves is deleted. Deleting a chat deletes its folder and its
+  bots' computers. A direct chat takes no more members, so Message always finds it. The home's everyone chat has every active person of the home and is pinned first for each
   of them (no pin is stored, so it can't be unpinned or moved); nobody leaves it or is removed from it (409
   `bots_chat_everyone`). When the home's people change (the workspace's member event, whoever adds or removes them),
   whoever joined is seated in it and whoever left is taken out of every chat. Leaving the home removes the person's
