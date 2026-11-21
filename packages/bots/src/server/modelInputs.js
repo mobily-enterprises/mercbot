@@ -47,6 +47,13 @@ export const MODEL_INPUTS = Object.freeze([
     reach: "reader"
   },
   {
+    file: "packages/bots/src/server/botMemory.js",
+    calls: { generateOnce: 1 },
+    path: "A bot's digest of the home's public chats it's in (D-113), refreshed in the background",
+    reads: "the bot's earlier digest and its public chats' new lines, through the memory's reader (records.readers.forHome)",
+    reach: "public"
+  },
+  {
     file: "packages/bots/src/server/approvals.js",
     calls: { generateOnce: 1 },
     path: "The approvals rule matcher",

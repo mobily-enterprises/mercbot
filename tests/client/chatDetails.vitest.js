@@ -92,7 +92,7 @@ describe("Chat details", () => {
     expect(text(/<h2 class="mb-chat-details__title">[\s\S]*?<\/h2>/u.exec(kitchen)[0])).toBe("Kitchen reno");
     expect(text(/<p class="mb-chat-details__kind">[\s\S]*?<\/p>/u.exec(kitchen)[0])).toBe("Public");
     expect(text(/<p class="mb-chat-details__means">[\s\S]*?<\/p>/u.exec(kitchen)[0])).toBe(
-      "Everyone in Rossi family can open it, and its bots can use what's said here in other chats."
+      "Everyone in Rossi family can open it, and its bots remember what's said here in their other chats."
     );
     expect(membersIn(kitchen, "People")).toEqual(["Ben Rossi (you)", "Anna Rossi", "Cara Bianchi"]);
     expect(membersIn(kitchen, "Bots")).toEqual(["Chef"]);

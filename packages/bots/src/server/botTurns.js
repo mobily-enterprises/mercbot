@@ -8,7 +8,7 @@ import { planningNotes } from "@jskit-ai/agent-runtime/server";
 import { accountTitle, turnPerson } from "./connectedApps.js";
 import { blankPasswords } from "./replyChecks.js";
 import { templateOf } from "./botTemplate.js";
-
+import { memoryToolsFor } from "./memoryTools.js";
 
 /**
  * What a bot is told and given for one turn (D-14): the current state the server writes for the model, the pictures
@@ -17,6 +17,8 @@ import { templateOf } from "./botTemplate.js";
  * @param {object} dependencies
  * @param {import("./types.js").BotRecords} dependencies.records mercbot.bots.records
  * @param {ReturnType<typeof import("./botKnowledge.js").createBotKnowledge>} dependencies.knowledge what each bot knows (D-107)
+ * @param {import("./types.js").BotMemory} dependencies.memory what each bot remembers, and the
+ *   home's notes (D-113)
  * @param {{ findById: (userId: string, options: object) => Promise<{ email?: string } | null> }} dependencies.profiles users.profiles
  * @param {import("@local/account/server/types").Account} dependencies.account the account capability (vault logins)
  * @param {import("@jskit-ai/kernel/server/types").RuntimeEnv} dependencies.env
@@ -32,6 +34,7 @@ import { templateOf } from "./botTemplate.js";
 export function createBotTurns({
   records,
   knowledge,
+  memory,
   profiles,
   account,
   env,
@@ -134,13 +137,15 @@ export function createBotTurns({
   /**
    * What's true right now, written by the server for the model each turn (D-14), with the parts of the bot's searched
    * knowledge that match the person's latest message (D-107; `known`, turnTools' knowledge). The chat's own framing
-   * (R5) is here, not in the instructions, so their start is the same in every chat of the bot.
+   * (R5) is here, not in the instructions, so their start is the same in every chat of the bot. Last come what the bot
+   * remembers (D-113): the home's notes, and in a turn that `remembers` (a person's chat, not a routine's or a
+   * request's run) its digest of its public chats and "since then", so the chat before it stays cached.
    * @param {object} seat the bot in the chat, for its asker (chatTurns.js)
    * @param {Array<object>} history
-   * @param {{ timeZone: string, language?: string, turnedOff?: string[], known?: object | null, present?: object }} turn
+   * @param {{ timeZone: string, language?: string, turnedOff?: string[], known?: object | null, present?: object, remembers?: boolean }} turn
    * @param {object} call the model's reader
    */
-  async function currentState(seat, history, { timeZone, language = "", turnedOff = [], known = null, present = null }, call) {
+  async function currentState(seat, history, { timeZone, language = "", turnedOff = [], known = null, present = null, remembers = false }, call) {
     const latest = [...history].reverse().find((message) => message.role === "user" && message.kind === "text")?.body?.text || "";
     const status = seat.chat_bot_id ? await computer.status(String(seat.chat_bot_id)) : null;
     const routines = seat.chat_bot_id ? await records.work.routinesOf(seat.chat_bot_id, call) : [];
@@ -213,8 +218,10 @@ export function createBotTurns({
       }.`,
       // The job's open to-do list and the bot's notes (D-48), so they outlast summaries and restarts.
       ...(seat.chat_bot_id ? await planningNotes(records.turns.planning(call), seat.chat_bot_id) : []),
-      // Last, as it changes with every message: what its searched knowledge says about the latest one (D-107).
-      ...(await knowledge.stateLines(seat, known, latest, call))
+      // As it changes with every message: what its searched knowledge says about the latest one (D-107).
+      ...(await knowledge.stateLines(seat, known, latest, call)),
+      // Last: the home's notes, and what it remembers of its other chats (D-113).
+      ...(await memory.stateLines(seat, { timeZone, remembers }, call))
     ].join("\n");
   }
 
@@ -261,7 +268,8 @@ export function createBotTurns({
   /**
    * A bot's tools for one turn in one chat, for the person it works for (R4): the home's accounts, vault and apps in
    * any chat, its computer the chat's (D14). A request's bot that isn't in the asking chat (O22) has no seat until its
-   * computer is first used: `join` seats it then and answers its chat_bots id.
+   * computer is first used: `join` seats it then and answers its chat_bots id. A turn that `remembers` searches and
+   * reads its other chats (recall, read_chat), and one that `tells` (the person's own) may ask to tell everyone (D-113).
    */
   async function turnTools(
     seat,
@@ -276,7 +284,9 @@ export function createBotTurns({
       post,
       join = null,
       goalOperations = null,
-      inbox = null
+      inbox = null,
+      remembers = false,
+      tells = false
     },
     call
   ) {
@@ -318,7 +328,15 @@ export function createBotTurns({
       goalOperations,
       inbox,
       post,
-      knowledgeTools: knowledge.toolsFor(seat, known, call)
+      knowledgeTools: knowledge.toolsFor(seat, known, call),
+      memoryTools: memoryToolsFor({
+        records,
+        memory,
+        seat,
+        turn: { remembers, tells, timeZone, home: tells ? await memory.homeName(seat.workspace_id, call) : "" },
+        withoutSecrets: (text) => withoutSecrets(text, call),
+        call
+      })
     });
     return { run, isBuilder, toolSwitches, template, knowledge: known };
   }
@@ -333,7 +351,13 @@ export function createBotTurns({
     return integrations.hasConnected(pluginId, call);
   }
 
+  /** A bot's words in a public chat ask for its chat's bots' memory refreshes, in the background (D-113). */
+  function remembered(seat) {
+    if (seat.chat?.kind === "public") memory.noticedLater(seat.workspace_id, seat.chat_id);
+  }
+
   return Object.freeze({
+    remembered,
     withoutSecrets,
     filePlace,
     currentState,

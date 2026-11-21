@@ -34,6 +34,8 @@ import { createWorkPause } from "./workPause.js";
  * @param {import("@local/files/server/types").Files} dependencies.files
  * @param {import("@local/apps/server/types").Apps} dependencies.apps
  * @param {object} dependencies.knowledge what each bot knows (botKnowledge.js): forTurn, toolsFor, stateLines
+ * @param {import("./types.js").BotMemory} dependencies.memory what each bot remembers and
+ *   the home's notes (botMemory.js, D-113): stateLines, noticedLater and what its tools read
  * @param {{ get: (chatId: string, options: object) => Promise<{ chat: object }> }} dependencies.chats chatMembers: a chat
  *   as its page shows it, which the chat's answers carry
  * @param {{ add: (work: Promise<unknown>) => void, drain: (ms: number) => Promise<void> }} dependencies.background the
@@ -63,6 +65,7 @@ export function createChatTurns({
   files,
   apps,
   knowledge,
+  memory,
   chats,
   background,
   onboarding,
@@ -135,6 +138,7 @@ export function createChatTurns({
   const turns = createBotTurns({
     records,
     knowledge,
+    memory,
     profiles,
     account,
     env,
@@ -178,7 +182,7 @@ export function createChatTurns({
     chats
   });
   const runs = createBackgroundRuns({ records, systemContext, meter, seats, jobs: apps?.jobs ?? null, respond: replies.respond });
-  const chat = createBotChat({ records, model, integrations, goals, replies, seats, chats, activity, onboarding });
+  const chat = createBotChat({ records, model, integrations, goals, replies, seats, chats, activity, onboarding, memory });
 
   /** A chat's newest summary, "" for none (templateDrafts.js). */
   async function summaryOf(chatId) {

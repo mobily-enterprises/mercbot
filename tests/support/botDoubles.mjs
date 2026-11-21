@@ -6,6 +6,7 @@ import { estimateAtProvider } from "../../packages/account/src/server/cost.js";
 import { createMediaGuard } from "../../packages/account/src/server/mediaCheck.js";
 import { createMeter } from "../../packages/account/src/server/meter.js";
 import { createBackgroundWork } from "../../packages/bots/src/server/backgroundWork.js";
+import { createBotMemory } from "../../packages/bots/src/server/botMemory.js";
 import { createBotsService } from "../../packages/bots/src/server/botsService.js";
 import { createChatMembers } from "../../packages/bots/src/server/chatMembers.js";
 import { createChatTurns } from "../../packages/bots/src/server/chatTurns.js";
@@ -168,6 +169,8 @@ const serviceNeutral = {
 // The service's own collaborators; the reply's turn callbacks and per-turn data come on top.
 const SERVICE = ["meter", "notices", "computer", "integrations", "files", "apps"];
 const TURN = {
+  // What the bot remembers (memoryTools.js): no recall, read_chat or tell_everyone in a tools test.
+  memoryTools: () => () => ({}),
   handOff: () => async () => ({ error: "There's no other bot to ask in this test." }),
   requestTools: () => ({ ask: async () => ({ error: "There's no other bot to ask in this test." }), answer: null, askBack: null, answerBot: null }),
   settleDraft: () => missing("draft"),
@@ -248,6 +251,9 @@ const turnsNeutral = {
  * the rest. Also a test's own database connection and its cleanups (newest first): add the rows a test makes to
  * `cleanup` after this, so they go before the connection closes. Drain the background work before reading what the
  * bots said: a reply that outlives its request goes on in it.
+ * What the bots remember (botMemory.js, D-113) is the real memory on the test's records: `writeMemory` stands in for a
+ * digest's model call (none is made without it), and `memoryLimits` replaces its limits; `memory` (the turns' and the
+ * chats' memory) is answered for the test to refresh and forget with.
  * @param {import("node:test").TestContext} context
  * @param {object} [options] createChatTurns's collaborators over the neutral ones; `reply` stands in for the model
  */
@@ -262,14 +268,33 @@ export async function startChatTurns(context, options = {}) {
   const background = createBackgroundWork();
   cleanup.after(() => background.drain(10000));
   const { records, notices, computer, systemContext } = filled;
-  // Archiving a chat pauses its work with the turns' pauseWork, as the bots service wires it.
-  const chats = createChatMembers({ records, notices, computer, systemContext, pauseWork: (...args) => turns.pauseWork(...args) });
-  const turns = createChatTurns({ ...filled, chats, background });
+  const memory = createBotMemory({
+    records,
+    systemContext,
+    workspaces: filled.workspaces,
+    model: filled.model,
+    meter: filled.meter,
+    background,
+    write: options.writeMemory ?? (async () => { throw new Error("There's no model in this test: pass writeMemory."); }),
+    limits: options.memoryLimits
+  });
+  // Archiving a chat pauses its work with the turns' pauseWork, and deleting a public chat forgets it, as the bots
+  // service wires them.
+  const chats = createChatMembers({
+    records,
+    notices,
+    computer,
+    systemContext,
+    pauseWork: (...args) => turns.pauseWork(...args),
+    forget: (botIds, callOptions) => memory.forget({ botIds }, callOptions)
+  });
+  const turns = createChatTurns({ ...filled, memory, chats, background });
   return {
     knex,
     cleanup,
     turns,
     chats,
+    memory,
     records: filled.records,
     meter: filled.meter,
     systemContext: filled.systemContext,

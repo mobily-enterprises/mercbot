@@ -153,6 +153,7 @@ A bot's own options are on its card: select the bot in **Team**, or under **Bots
 - **Details** tab:
   - **Instructions:** the template the bot follows, read-only, with **Change template**, and its own **Additions**, which its maker and the home's owners and admins edit. See [Bots](/help/bots).
   - **Knowledge:** what the bot knows in every chat it's in. See [What a bot knows](/help/bots#what-a-bot-knows).
+  - **Memory:** what the bot remembers of the Public chats it's in, and **Notes for everyone**, the home's notes, which their authors and the home's owners and admins remove. See [What bots remember](/help/memory).
   - **Apps:** whether the bot builds the home's apps.
   - **Routines:** the bot's routines, each with its schedule, its chat and a switch.
   - **Archive**, for the bot's maker and the home's owners and admins.
