@@ -43,7 +43,9 @@ export function createBotCards({ records, account, env, computer, integrations, 
 
   /** The caller, who answers a card only when it's for them (R4). */
   function answerer(card, options) {
-    const me = String(resolveActorId(options.context) ?? "");
+    // The person's own request (a card's button), or the bot's turn for the person it works for, who said it in words
+    // (send_draft): that turn's model reader names them (records.readers.of), never an id a client sent.
+    const me = String(resolveActorId(options.context) ?? records.readers.of(options.context)?.askerId ?? "");
     if (card.body.for && String(card.body.for.id) !== me) {
       const { name } = card.body.for;
       throw new BotsError(403, `This is waiting for ${name}'s OK.`, { code: "bots_waiting_for_other", params: { name } });

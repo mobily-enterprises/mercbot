@@ -7,6 +7,7 @@ import { requestContextOptions } from "../support/requestContextOptions.mjs";
 import { testBot, testHome } from "./testHome.js";
 import { serviceDoubles } from "../support/botDoubles.mjs";
 import { memberOptions, startBotParts } from "../support/botRecords.mjs";
+import { seedChat } from "../support/chatFixtures.mjs";
 import { queriesDuring } from "../support/queryCount.mjs";
 
 // A home's templates made and edited by drafting (D-98, amended 20 November): one billed call per draft, metered like a
@@ -38,7 +39,7 @@ async function setup(context, { answers = null } = {}) {
     templates.push(...(await knex("bots").whereIn("id", made).pluck("home_template_id")).filter(Boolean));
     await knex("bots").whereIn("id", made).del();
     await knex("home_templates").whereIn("id", templates).whereNotExists(knex("bots").whereRaw("bots.home_template_id = home_templates.id")).del();
-    await knex("bot_conversations").whereIn("user_id", people).del();
+    await knex("conversations").whereIn("direct_user_id", people).del();
     await knex("workspace_memberships").whereIn("user_id", people).del();
     await knex("workspaces").whereIn("id", homes).del();
     await knex("users").whereIn("id", people).del();
@@ -88,7 +89,11 @@ async function setup(context, { answers = null } = {}) {
     return template;
   };
   const count = async (table, where) => Number((await knex(table).where(where).count("* as n").first()).n);
-  return { knex, parts, bots, as, pat, homeId, made, someone, bot, homeTemplate, count, writes, tracked };
+  /** What Pat's direct chat with a bot shows, where a new bot greets its maker and a changed template says so (D-112). */
+  const patsChatWith = async (botId) => (await bots.chat.messages((await bots.chats.direct(botId, as(pat))).chat.id, {}, as(pat))).messages;
+  /** The onboarding step of Pat's direct chat with a bot, where a new bot introduces itself or greets with its template's words. */
+  const onboardingWith = async (botId) => (await bots.chats.direct(botId, as(pat))).chat.onboardingStep;
+  return { knex, parts, bots, as, pat, homeId, made, someone, bot, homeTemplate, count, writes, tracked, patsChatWith, onboardingWith };
 }
 
 test("a new template is drafted in one call, metered to the person and home like a reply, and nothing is kept", async (context) => {
@@ -122,10 +127,10 @@ test("a bot's draft reads its template, the person's own newest summary and its 
   });
   // Kim's own chat with the same bot: never read for Pat's draft.
   const kim = await someone("Kim");
-  const [kimSeat] = await knex("bot_conversations").insert({ workspace_id: kitchen.workspace_id, bot_id: kitchen.id, user_id: kim.id }).returning("id");
-  await knex("agent_summaries").insert({ conversation_id: kimSeat.id, covers_up_to: 5, summary: "KIM'S OWN CHAT", messages: 5 });
+  const kims = await seedChat(knex, { homeId: kitchen.workspace_id, direct: { userId: kim.id, botId: kitchen.id } });
+  await knex("agent_summaries").insert({ conversation_id: kims.id, covers_up_to: 5, summary: "KIM'S OWN CHAT", messages: 5 });
   await knex("bot_routines").insert({
-    workspace_id: kitchen.workspace_id, bot_id: kitchen.id, conversation_id: kitchen.conversation_id, name: "Weekly plan", schedule: "Sundays at 5pm"
+    workspace_id: kitchen.workspace_id, chat_bot_id: kitchen.chat_bot_id, made_by: pat, name: "Weekly plan", schedule: "Sundays at 5pm"
   });
 
   await bots.draftTemplate({ purpose: "from-bot", botId: String(kitchen.id) }, as(pat));
@@ -214,14 +219,14 @@ test("drafting from a bot needs mayChangeBot; another home's bot and template ar
 });
 
 test("Save and use: New bot makes the template and the bot on it, from the draft's five parts only", async (context) => {
-  const { knex, bots, as, pat, made, count, homeId } = await setup(context);
+  const { knex, bots, as, pat, made, count, homeId, patsChatWith, onboardingWith } = await setup(context);
   const tag = freshTag();
   // A body a client claims is one of Mercbot's library: it's only ever a new home template.
   const claimed = { ...draftOf(tag), slug: "weekly-meal-planner", source: "library", creator: "the Mercbot team", tested: "2026-11-20", routines: [] };
   const made1 = await bots.createBot({ name: "Gardener", color: "#1E86FC", template: { draft: claimed } }, as(pat));
   made.push(made1.id);
   assert.deepEqual(made1.template, { tag, source: "home", description: "Keeps the garden watered." });
-  assert.equal(made1.onboardingStep, null, "it greets with its template's greeting instead of the general introduction");
+  assert.equal(await onboardingWith(made1.id), null, "it greets with its template's greeting instead of the general introduction");
   const row = await knex("bots").where({ id: made1.id }).first();
   const kept = await knex("home_templates").where({ id: row.home_template_id }).first();
   assert.equal(row.library_template, null);
@@ -231,8 +236,7 @@ test("Save and use: New bot makes the template and the bot on it, from the draft
   );
   assert.equal(bots.templateGallery().templates.some((entry) => entry.tag === tag), false, "never in Mercbot's library");
   assert.match((await bots.templateDetails("weekly-meal-planner", as(pat))).instructions, /allerg/u, "the library's template is its file's");
-  const { messages } = await bots.messages(made1.id, null, {}, as(pat));
-  assert.match(messages.at(-1).body.text, /^Hi(?: [^,]+)?, I'll keep your garden watered\.$/u);
+  assert.match((await patsChatWith(made1.id)).at(-1).body.text, /^Hi(?: [^,]+)?, I'll keep your garden watered\.$/u);
 
   // A library choice and a draft at once is refused; the library's own and Mercbot's general one still work.
   await assert.rejects(bots.createBot({ name: "Both", color: "#1E86FC", template: { library: "weekly-meal-planner", draft: draftOf(freshTag()) } }, as(pat)), {
@@ -241,10 +245,10 @@ test("Save and use: New bot makes the template and the bot on it, from the draft
   const pantry = await bots.createBot({ name: "Larder", color: "#1E86FC", template: { library: "weekly-meal-planner", instructions: "Mine." } }, as(pat));
   made.push(pantry.id);
   assert.deepEqual([pantry.template.tag, pantry.template.source], ["meals", "library"]);
-  assert.match((await bots.messages(pantry.id, null, {}, as(pat))).messages.at(-1).body.text, /I'm Larder\./u, "the template's greeting, as the bot");
+  assert.match((await patsChatWith(pantry.id)).at(-1).body.text, /I'm Larder\./u, "the template's greeting, as the bot");
   const plain = await bots.createBot({ name: "Plain", color: "#1E86FC", template: { library: "general" } }, as(pat));
   made.push(plain.id);
-  assert.deepEqual([plain.template.tag, plain.onboardingStep], ["general", "intro-greet"]);
+  assert.deepEqual([plain.template.tag, await onboardingWith(plain.id)], ["general", "intro-greet"]);
 
   // A draft with problems makes nothing, and says what's wrong at each part.
   const templates = await count("home_templates", { workspace_id: homeId });
@@ -259,7 +263,7 @@ test("Save and use: New bot makes the template and the bot on it, from the draft
 });
 
 test("Save and use in Change template points the bot at the new template; folding in empties its additions only when ticked", async (context) => {
-  const { knex, bots, as, pat, bot } = await setup(context);
+  const { knex, bots, as, pat, bot, patsChatWith } = await setup(context);
   const kept = await bot({ name: "Keeps", library_template: "general", additions: "Keep me." });
   const folded = await bot({ name: "Folds", library_template: "general", additions: "Fold me." });
   const other = await bot({ name: "Library", library_template: "general", additions: "Stay." });
@@ -277,8 +281,7 @@ test("Save and use in Change template points the bot at the new template; foldin
   // Folding goes with a draft: a template of the library's leaves the additions.
   await bots.changeTemplate(other.id, { library: "weekly-meal-planner", foldAdditions: true }, "Pat", as(pat));
   assert.deepEqual(await row(other.id), { library_template: "weekly-meal-planner", home_template_id: null, additions: "Stay." });
-  const { messages } = await bots.messages(kept.id, null, {}, as(pat));
-  assert.equal(messages.at(-2).body.text, `Now a ${first} bot`);
+  assert.equal((await patsChatWith(kept.id)).at(-2).body.text, `Now a ${first} bot`);
 });
 
 test("an edit records its change line and how many bots it reaches; a stale updatedAt gets 409", async (context) => {

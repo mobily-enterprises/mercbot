@@ -133,17 +133,22 @@ test("the everyone chat has every member; joining and leaving the home follow it
   assert.equal((await records.messages.timeline(shared.id, {}, asAnna)).messages[0].body.text, "from Ben");
 });
 
-/** The chat routes' service on the records, with what it tells people and what it asks the computers to remove. */
+/**
+ * The chat routes' service on the records, with what it tells people, what it asks the computers to remove and the
+ * seats whose work an archive asks the turns to pause (workPause.js).
+ */
 function chatService({ records, systemContext }) {
   const heard = [];
   const removed = [];
+  const paused = [];
   const chats = createChatMembers({
     records,
     systemContext,
     notices: { publishEach: async (_topic, keys, event) => heard.push({ keys: [...keys].sort((a, b) => a - b), ...event }) },
-    computer: { chatRemoved: async (chat) => removed.push(chat) }
+    computer: { chatRemoved: async (chat) => removed.push(chat) },
+    pauseWork: async (seats, line) => { paused.push({ seats: seats.map((seat) => ({ ...seat })), text: line.text }); }
   });
-  return { chats, heard, removed };
+  return { chats, heard, removed, paused };
 }
 
 test("the chat routes' service: anyone in a chat adds, its maker and the home's owners and admins manage, everyone in it hears", async (context) => {
@@ -151,7 +156,7 @@ test("the chat routes' service: anyone in a chat adds, its maker and the home's 
   const { records } = parts;
   const { homeId, anna, ben, carla, chef } = await home(knex, context);
   await knex("workspace_memberships").insert({ workspace_id: homeId, user_id: carla, role_sid: "member", status: "active" });
-  const { chats, heard, removed } = chatService(parts);
+  const { chats, heard, removed, paused } = chatService(parts);
   const asAnna = memberOptions({ userId: anna, homeId, role: "owner", permissions: ["workspace.settings.update"] });
   const asBen = memberOptions({ userId: ben, homeId });
   const asCarla = memberOptions({ userId: carla, homeId });
@@ -177,6 +182,15 @@ test("the chat routes' service: anyone in a chat adds, its maker and the home's 
   assert.equal((await chats.rename(kitchen.id, "Kitchen 2", asBen)).chat.title, "Kitchen 2");
   assert.equal((await chats.removePerson(kitchen.id, carla, asAnna)).chat.people.length, 2);
   assert.deepEqual(heard.at(-2), { keys: [carla], type: "chat", chatId: kitchen.id, change: "members" }, "who was taken out hears too");
+  // Archived (a Public chat, by an owner), its bots' work there pauses, once, and it takes no members; unarchived, its
+  // work stays paused, to be resumed there.
+  const kitchenSeat = kitchen.bots[0].chatBotId;
+  await chats.archive(kitchen.id, asAnna);
+  await chats.archive(kitchen.id, asAnna);
+  assert.deepEqual(paused, [{ seats: [{ id: kitchenSeat, chatId: kitchen.id }], text: "Paused while archived" }], "its bot's work, once");
+  await assert.rejects(chats.addBot(kitchen.id, chef, asBen), { statusCode: 409, code: "bots_chat_archived" });
+  await chats.unarchive(kitchen.id, asBen);
+  assert.equal(paused.length, 1, "unarchived, its work stays paused");
   // Anyone leaves; a public chat stays readable to who left it.
   assert.equal((await chats.leave(kitchen.id, asBen)).chat.place, null);
   assert.equal(removed.length, 0, "leaving a public chat removes nothing");
@@ -185,12 +199,15 @@ test("the chat routes' service: anyone in a chat adds, its maker and the home's 
   const { chat: secret } = await chats.create({ kind: "private", title: "Surprise", people: [anna], bots: [chef] }, asBen);
   await assert.rejects(chats.get(secret.id, asCarla), { statusCode: 404 });
   await assert.rejects(chats.join(secret.id, asCarla), { statusCode: 404 });
-  // Archived, it takes no members; deleted, its people hear and its computers and files go; leaving the last person
-  // deletes a private chat the same way.
+  // A Private chat isn't archived for everyone, even by an owner: each of its people hides it for themselves (plan 5.1).
+  // Deleted, its people hear and its computers and files go; leaving the last person deletes a private chat the same way.
   const secretSeat = secret.bots[0].chatBotId;
-  await chats.archive(secret.id, asAnna);
-  await assert.rejects(chats.addBot(secret.id, chef, asBen), { statusCode: 409, code: "bots_chat_archived" });
-  await chats.unarchive(secret.id, asBen);
+  await assert.rejects(chats.archive(secret.id, asAnna), {
+    statusCode: 409, code: "bots_chat_private_archive", message: "A private chat is hidden for yourself, not archived for everyone."
+  });
+  assert.equal(paused.length, 1, "nothing of its work paused");
+  assert.equal((await chats.changePlace(secret.id, { hidden: true }, asBen)).chat.place.hidden, true, "Ben hides it for himself");
+  assert.equal((await chats.get(secret.id, asAnna)).chat.place.hidden, false, "and Anna still sees it");
   await assert.rejects(chats.remove(secret.id, asCarla), { statusCode: 404 });
   assert.deepEqual(await chats.remove(secret.id, asAnna), { deleted: true });
   assert.deepEqual(heard.pop(), { keys: both, type: "chat", chatId: secret.id, change: "deleted" });

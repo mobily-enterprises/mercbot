@@ -14,7 +14,8 @@ import { cleanupStack } from "../support/cleanupStack.mjs";
 import { accessOf } from "../support/appKey.mjs";
 
 // Disposable machines (D-19), against the disposable test database: a bot's browser state comes
-// back on another machine, and repeated sends and replies don't double up.
+// back on another machine, and repeated sends and replies don't double up. Each test's bot is in its direct chat with
+// the person (testBot, D-112): `bot.conversation_id` is that chat, `bot.chat_bot_id` the bot's seat in it.
 assert.ok(process.env.TEST_DB_NAME?.trim(), "TEST_DB_NAME must identify a disposable test database.");
 assert.equal(process.env.DB_NAME, process.env.TEST_DB_NAME, "DB_NAME must match the dedicated TEST_DB_NAME.");
 process.env.MERCBOT_VAULT_KEY = process.env.MERCBOT_VAULT_KEY || randomBytes(32).toString("base64");
@@ -37,7 +38,13 @@ async function setup(context) {
   const parts = await startBotParts(knex, cleanup);
   /** The person's request in the bot's home, as the bots routes make its options. */
   const as = (person) => memberOptions({ userId: person, homeId: bot.workspace_id });
-  return { knex, parts, as, userId, bot, cleanup };
+  return { knex, parts, as, userId, bot, cleanup, seat: seatOf(bot, userId) };
+}
+
+/** The bot's seat in its direct chat, as a turn's tools are given it, working for `userId`. */
+function seatOf(bot, userId) {
+  const chat = { id: String(bot.conversation_id), kind: "public" };
+  return { id: String(bot.id), workspace_id: String(bot.workspace_id), user_id: String(userId), chat_id: chat.id, chat_bot_id: String(bot.chat_bot_id), chat };
 }
 
 /**
@@ -76,26 +83,26 @@ test("a bot's browser profile and newer cookies come back on another machine", a
   const machineA = await mkdtemp(path.join(os.tmpdir(), "mercbot-a-"));
   const machineB = await mkdtemp(path.join(os.tmpdir(), "mercbot-b-"));
   context.after(() => Promise.all([machineA, machineB, volume].map((dir) => rm(dir, { recursive: true, force: true }))));
-  const folder = path.join(volume, "computers", String(bot.conversation_id));
+  const folder = path.join(volume, "computers", String(bot.chat_bot_id));
   await mkdir(path.join(machineA, "Default", "Cache"), { recursive: true });
   await writeFile(path.join(machineA, "Default", "Cookies"), "signed-in");
   await writeFile(path.join(machineA, "Default", "Cache", "big"), "x".repeat(10000));
   await writeFile(path.join(machineA, "SingletonLock"), "machine-a");
 
-  await state.save(String(bot.conversation_id), machineA, "https://example.com/inbox");
-  let row = await knex("bot_browser_state").where({ conversation_id: bot.conversation_id }).first();
+  await state.save(String(bot.chat_bot_id), machineA, "https://example.com/inbox");
+  let row = await knex("bot_browser_state").where({ chat_bot_id: bot.chat_bot_id }).first();
   assert.equal("profile" in row, false, "no profile bytes in the database");
   assert.ok(!(await readFile(path.join(folder, row.profile_file))).toString("latin1").includes("signed-in"), "the saved profile is sealed");
   // Saving again replaces the file, and only then removes the old one.
   const first = row.profile_file;
-  await state.save(String(bot.conversation_id), machineA, "https://example.com/inbox");
-  row = await knex("bot_browser_state").where({ conversation_id: bot.conversation_id }).first();
+  await state.save(String(bot.chat_bot_id), machineA, "https://example.com/inbox");
+  row = await knex("bot_browser_state").where({ chat_bot_id: bot.chat_bot_id }).first();
   assert.notEqual(row.profile_file, first);
   assert.deepEqual((await readdir(folder)).filter((name) => name.startsWith("profile-")), [row.profile_file]);
 
   await new Promise((resolve) => setTimeout(resolve, 20));
-  await state.snapshotCookies(String(bot.conversation_id), [{ name: "session", value: "abc", domain: "example.com", path: "/" }], "https://example.com/inbox");
-  const restored = await state.restore(String(bot.conversation_id), machineB);
+  await state.snapshotCookies(String(bot.chat_bot_id), [{ name: "session", value: "abc", domain: "example.com", path: "/" }], "https://example.com/inbox");
+  const restored = await state.restore(String(bot.chat_bot_id), machineB);
   assert.equal(await readFile(path.join(machineB, "Default", "Cookies"), "utf8"), "signed-in");
   await assert.rejects(stat(path.join(machineB, "Default", "Cache", "big")), "caches aren't kept");
   await assert.rejects(stat(path.join(machineB, "SingletonLock")), "the other machine's lock isn't kept");
@@ -106,10 +113,10 @@ test("a bot's browser profile and newer cookies come back on another machine", a
   await writeFile(path.join(folder, "cookies.sealed"), "tampered");
   const machineC = await mkdtemp(path.join(os.tmpdir(), "mercbot-c-"));
   context.after(() => rm(machineC, { recursive: true, force: true }));
-  assert.deepEqual((await state.restore(String(bot.conversation_id), machineC)).cookies, []);
+  assert.deepEqual((await state.restore(String(bot.chat_bot_id), machineC)).cookies, []);
 
-  await state.forget(String(bot.conversation_id));
-  assert.equal(await knex("bot_browser_state").where({ conversation_id: bot.conversation_id }).first(), undefined);
+  await state.forget(String(bot.chat_bot_id));
+  assert.equal(await knex("bot_browser_state").where({ chat_bot_id: bot.chat_bot_id }).first(), undefined);
   assert.deepEqual(await readdir(folder), []);
 });
 
@@ -125,16 +132,16 @@ test("a repeated send stores one message, and a repeated reply returns the first
       return { text: `Answer ${replies}`, transcript: [] };
     }
   });
-  const first = await bots.sendMessage(bot.id, { text: "Hello", clientId: "pending-1" }, as(userId));
-  const again = await bots.sendMessage(bot.id, { text: "Hello", clientId: "pending-1" }, as(userId));
+  const first = await bots.chat.sendMessage(bot.conversation_id, { text: "Hello", clientId: "pending-1" }, as(userId));
+  const again = await bots.chat.sendMessage(bot.conversation_id, { text: "Hello", clientId: "pending-1" }, as(userId));
   assert.equal(again.messages[0].id, first.messages[0].id);
   const userMessageId = first.messages[0].id;
 
-  const answer = await bots.replyTo(bot.id, { afterMessageId: userMessageId }, undefined, as(userId));
-  const retried = await bots.replyTo(bot.id, { afterMessageId: userMessageId }, undefined, as(userId));
+  const answer = await bots.chat.reply(bot.conversation_id, { afterMessageId: userMessageId }, undefined, as(userId));
+  const retried = await bots.chat.reply(bot.conversation_id, { afterMessageId: userMessageId }, undefined, as(userId));
   assert.equal(replies, 1);
   assert.deepEqual(retried.messages.map((message) => message.id), answer.messages.map((message) => message.id));
-  const texts = (await knex("bot_messages").where({ bot_id: bot.id, conversation_id: bot.conversation_id, kind: "text" }).orderBy("id")).map((row) => row.body.text);
+  const texts = (await knex("messages").where({ conversation_id: bot.conversation_id, kind: "text" }).orderBy("id")).map((row) => row.body.text);
   assert.deepEqual(texts, ["Hello", "Answer 1"]);
 });
 
@@ -154,23 +161,23 @@ test("two requests at once make one reply, and a failed reply still posts a mess
       return { text: `Answer ${replies}`, transcript: [] };
     }
   });
-  const sent = await bots.sendMessage(bot.id, { text: "Hello", clientId: "pending-a" }, as(userId));
+  const sent = await bots.chat.sendMessage(bot.conversation_id, { text: "Hello", clientId: "pending-a" }, as(userId));
   const after = sent.messages[0].id;
-  const [one, two] = await Promise.all([bots.replyTo(bot.id, { afterMessageId: after }, undefined, as(userId)), bots.replyTo(bot.id, { afterMessageId: after }, undefined, as(userId))]);
+  const [one, two] = await Promise.all([bots.chat.reply(bot.conversation_id, { afterMessageId: after }, undefined, as(userId)), bots.chat.reply(bot.conversation_id, { afterMessageId: after }, undefined, as(userId))]);
   assert.equal(replies, 1, "only one reply ran");
   assert.equal([one, two].filter((result) => result.pending).length, 1, "the second request was told it's pending");
-  assert.equal(await knex("agent_runs").where({ conversation_id: bot.conversation_id }).first(), undefined, "the claim is released");
+  assert.equal(await knex("agent_runs").where({ conversation_id: bot.chat_bot_id }).first(), undefined, "the claim is released");
 
   const logged = context.mock.method(console, "error", () => {});
   failure = new Error("the model went away");
-  const second = await bots.sendMessage(bot.id, { text: "Again", clientId: "pending-b" }, as(userId));
-  const failed = await bots.replyTo(bot.id, { afterMessageId: second.messages[0].id }, undefined, as(userId));
+  const second = await bots.chat.sendMessage(bot.conversation_id, { text: "Again", clientId: "pending-b" }, as(userId));
+  const failed = await bots.chat.reply(bot.conversation_id, { afterMessageId: second.messages[0].id }, undefined, as(userId));
   assert.match(failed.messages.at(-1).body.text, /something went wrong on my side/u);
 
   // A model call's failure is logged as its status and message, never the error, which carries the person's message.
   failure = new APICallError({ message: "Invalid API key", url: "https://models.example/v1/chat/completions", requestBodyValues: { messages: [{ role: "user", content: "Once more" }] }, statusCode: 401, isRetryable: false });
-  const third = await bots.sendMessage(bot.id, { text: "Once more", clientId: "pending-c" }, as(userId));
-  const refused = await bots.replyTo(bot.id, { afterMessageId: third.messages[0].id }, undefined, as(userId));
+  const third = await bots.chat.sendMessage(bot.conversation_id, { text: "Once more", clientId: "pending-c" }, as(userId));
+  const refused = await bots.chat.reply(bot.conversation_id, { afterMessageId: third.messages[0].id }, undefined, as(userId));
   assert.match(refused.messages.at(-1).body.text, /something went wrong on my side/u);
   assert.deepEqual(logged.mock.calls.map((call) => call.arguments).filter(([line]) => String(line).includes("reply failed")), [
     [`Bot ${bot.id}'s reply failed: the model went away`],
@@ -186,12 +193,12 @@ test("a reply whose server stopped is taken over by the next request", async (co
     approvals: { decide: async () => "allow" },
     reply: async () => ({ text: "Taken over", transcript: [] })
   });
-  const sent = await bots.sendMessage(bot.id, { text: "Hello", clientId: "pending-c" }, as(userId));
+  const sent = await bots.chat.sendMessage(bot.conversation_id, { text: "Hello", clientId: "pending-c" }, as(userId));
   const after = sent.messages[0].id;
-  await knex("agent_runs").insert({ conversation_id: bot.conversation_id, bot_id: bot.id });
-  assert.equal((await bots.replyTo(bot.id, { afterMessageId: after }, undefined, as(userId))).pending, true, "a live reply isn't doubled");
-  await knex("agent_runs").where({ conversation_id: bot.conversation_id }).update({ heartbeat_at: knex.raw("now() - interval '5 minutes'") });
-  const result = await bots.replyTo(bot.id, { afterMessageId: after }, undefined, as(userId));
+  await knex("agent_runs").insert({ conversation_id: bot.chat_bot_id, bot_id: bot.id, user_id: userId });
+  assert.equal((await bots.chat.reply(bot.conversation_id, { afterMessageId: after }, undefined, as(userId))).pending, true, "a live reply isn't doubled");
+  await knex("agent_runs").where({ conversation_id: bot.chat_bot_id }).update({ heartbeat_at: knex.raw("now() - interval '5 minutes'") });
+  const result = await bots.chat.reply(bot.conversation_id, { afterMessageId: after }, undefined, as(userId));
   assert.equal(result.messages.at(-1).body.text, "Taken over");
 });
 
@@ -211,15 +218,15 @@ test("a bot that says it handed its screen over without doing it is sent back to
       return { text: "The sign-in page is open and the screen is yours now.", transcript: [] };
     }
   });
-  const sent = await bots.sendMessage(bot.id, { text: "Hand me the screen please", clientId: "pending-h" }, as(userId));
-  const result = await bots.replyTo(bot.id, { afterMessageId: sent.messages[0].id }, undefined, as(userId));
+  const sent = await bots.chat.sendMessage(bot.conversation_id, { text: "Hand me the screen please", clientId: "pending-h" }, as(userId));
+  const result = await bots.chat.reply(bot.conversation_id, { afterMessageId: sent.messages[0].id }, undefined, as(userId));
   assert.equal(calls.length, 2, "the reply was sent back once");
   assert.ok(result.messages.some((message) => message.kind === "handover"), "the hand-over card exists");
   assert.equal(result.messages.find((message) => message.kind === "text").body.text, "The sign-in page is open and the screen is yours now.");
 });
 
 test("a one-off routine runs once and then removes itself", async (context) => {
-  const { knex, parts, bot, cleanup } = await setup(context);
+  const { knex, parts, userId, bot, cleanup } = await setup(context);
   const bots = startBotsService(cleanup, {
     knex,
     ...parts,
@@ -228,12 +235,12 @@ test("a one-off routine runs once and then removes itself", async (context) => {
   });
   // The routine as its runner claims it (records.work), in the bot's home.
   const [routine] = (await knex("bot_routines").insert({
-    workspace_id: bot.workspace_id, bot_id: bot.id, conversation_id: bot.conversation_id, name: "Call Rui", schedule: "Once, at 14:35", instructions: "Remind them to call Rui.",
+    workspace_id: bot.workspace_id, chat_bot_id: bot.chat_bot_id, made_by: userId, name: "Call Rui", schedule: "Once, at 14:35", instructions: "Remind them to call Rui.",
     cron: "35 14 25 10 *", timezone: "UTC", next_run_at: knex.fn.now(), once: true
   }).returning("*")).map(claimedWork);
   await bots.runRoutine(routine);
   assert.equal(await knex("bot_routines").where({ id: routine.id }).first(), undefined, "the routine is gone");
-  const messages = await knex("bot_messages").where({ bot_id: bot.id }).orderBy("id");
+  const messages = await knex("messages").where({ conversation_id: bot.conversation_id }).orderBy("id");
   assert.equal(messages.at(-2).body.text, "Time to call Rui!");
   assert.equal(messages.at(-1).body.text, "Routine finished and removed");
 });
@@ -260,20 +267,20 @@ test("a message that arrives while a reply is running gets its own reply afterwa
       return { text: `Answer to ${last.body.text}`, transcript: [] };
     }
   });
-  const first = await bots.sendMessage(bot.id, { text: "First", clientId: "pending-x1" }, as(userId));
-  const running = bots.replyTo(bot.id, { afterMessageId: first.messages[0].id }, undefined, as(userId));
+  const first = await bots.chat.sendMessage(bot.conversation_id, { text: "First", clientId: "pending-x1" }, as(userId));
+  const running = bots.chat.reply(bot.conversation_id, { afterMessageId: first.messages[0].id }, undefined, as(userId));
   await firstRead;
-  const second = await bots.sendMessage(bot.id, { text: "Second", clientId: "pending-x2" }, as(userId));
-  const meanwhile = await bots.replyTo(bot.id, { afterMessageId: second.messages[0].id }, undefined, as(userId));
+  const second = await bots.chat.sendMessage(bot.conversation_id, { text: "Second", clientId: "pending-x2" }, as(userId));
+  const meanwhile = await bots.chat.reply(bot.conversation_id, { afterMessageId: second.messages[0].id }, undefined, as(userId));
   assert.equal(meanwhile.pending, true);
   release();
   await running;
   // Nobody asks again (the page went away): the server answers the waiting message on its own.
   await bots.drain(10000);
-  const texts = (await knex("bot_messages").where({ bot_id: bot.id, conversation_id: bot.conversation_id, role: "bot", kind: "text" }).orderBy("id")).map((row) => row.body.text);
+  const texts = (await knex("messages").where({ conversation_id: bot.conversation_id, role: "bot", kind: "text" }).orderBy("id")).map((row) => row.body.text);
   assert.deepEqual(texts, ["Answer to First", "Answer to Second"]);
   assert.deepEqual(seen, ["First", "Second"]);
-  const later = await bots.replyTo(bot.id, { afterMessageId: second.messages[0].id }, undefined, as(userId));
+  const later = await bots.chat.reply(bot.conversation_id, { afterMessageId: second.messages[0].id }, undefined, as(userId));
   assert.ok(later.messages.some((message) => message.body.text === "Answer to Second"));
 });
 
@@ -284,64 +291,33 @@ test("a secure form fills the bot's page, can save to the vault, and closing it 
   // The login is saved through the account feature, in the person's own Vault.
   const { records, account } = await startBotRecordsWithAccount(knex, cleanup);
   const bots = startBotsService(cleanup, { knex, records, account, computer, approvals: { decide: async () => "allow" }, reply: async () => ({ text: "ok", transcript: [] }) });
-  const [card] = await knex("bot_messages").insert({ workspace_id: bot.workspace_id, bot_id: bot.id, conversation_id: bot.conversation_id, kind: "secure_form", role: "bot", body: { site: "practice.example", form: "login", status: "pending", url: "https://practice.example/login" } }).returning("*");
-  const result = await bots.settleSecureForm(bot.id, card.id, { action: "submit", username: "tester", password: "s3cret!", save: true }, as(userId));
+  const [card] = await knex("messages").insert({ workspace_id: bot.workspace_id, conversation_id: bot.conversation_id, author_bot_id: bot.id, kind: "secure_form", role: "bot", body: { site: "practice.example", form: "login", status: "pending", url: "https://practice.example/login" } }).returning("*");
+  const result = await bots.chat.settleSecureForm(bot.conversation_id, card.id, { action: "submit", username: "tester", password: "s3cret!", save: true }, as(userId));
   assert.equal(result.messages[0].body.status, "submitted");
   assert.equal(filled[0].password, "s3cret!");
   assert.equal(filled[0].url, "https://practice.example/login");
-  const saved = await knex("vault_items").where({ user_id: userId, kind: "login", label: "practice.example" }).orderBy("id", "desc").first();
+  const saved = await knex("vault_items").where({ workspace_id: bot.workspace_id, made_by: userId, kind: "login", label: "practice.example" }).orderBy("id", "desc").first();
   assert.ok(saved, "the login was saved to the vault");
   assert.ok(!JSON.stringify(saved.data).includes("s3cret!"), "the saved password is sealed");
   assert.ok(!JSON.stringify(result).includes("s3cret!"), "the password never comes back");
-  await assert.rejects(bots.settleSecureForm(bot.id, card.id, { action: "submit", username: "x", password: "y" }, as(userId)), /already been dealt/);
+  await assert.rejects(bots.chat.settleSecureForm(bot.conversation_id, card.id, { action: "submit", username: "x", password: "y" }, as(userId)), /already been dealt/);
   await knex("vault_items").where({ id: saved.id }).del();
 
-  const [second] = await knex("bot_messages").insert({ workspace_id: bot.workspace_id, bot_id: bot.id, conversation_id: bot.conversation_id, kind: "secure_form", role: "bot", body: { site: "practice.example", form: "login", status: "pending" } }).returning("*");
-  const closed = await bots.settleSecureForm(bot.id, second.id, { action: "close" }, as(userId));
+  const [second] = await knex("messages").insert({ workspace_id: bot.workspace_id, conversation_id: bot.conversation_id, author_bot_id: bot.id, kind: "secure_form", role: "bot", body: { site: "practice.example", form: "login", status: "pending" } }).returning("*");
+  const closed = await bots.chat.settleSecureForm(bot.conversation_id, second.id, { action: "close" }, as(userId));
   assert.equal(closed.messages[0].body.status, "closed");
   assert.equal(filled.length, 1, "closing fills nothing");
-});
-
-test("a bot passes a task to another bot, which answers in its own chat", async (context) => {
-  const { knex, parts, as, userId, bot, cleanup } = await setup(context);
-  await knex("bots").where("name", "like", "Handoff Helper%").del();
-  const helper = `Handoff Helper ${Date.now()}`;
-  const other = await testBot(knex, userId, { name: helper });
-  const bots = startBotsService(cleanup, {
-    knex,
-    ...parts,
-    approvals: { decide: async () => "allow" },
-    reply: async (current, _history, tools, _state, prompt) => {
-      if (String(current.id) === String(bot.id)) {
-        await tools.messageBot.execute({ bot: helper, task: "Work out 15% of 84 euros." });
-        return { text: "I've passed it to Handoff Helper.", transcript: [] };
-      }
-      return { text: prompt.includes("passed on a task") ? "Bot A passed this on: 15% of €84 is €12.60." : "?", transcript: [] };
-    }
-  });
-  const sent = await bots.sendMessage(bot.id, { text: "Ask Handoff Helper to work out 15% of 84 euros", clientId: "pending-ho" }, as(userId));
-  await bots.replyTo(bot.id, { afterMessageId: sent.messages[0].id }, undefined, as(userId));
-  const mine = await knex("bot_messages").where({ conversation_id: bot.conversation_id, kind: "bot_request" }).orderBy("id", "desc").first();
-  assert.equal(mine.body.side, "asker");
-  assert.equal(mine.body.other.name, helper);
-  await bots.drain(10000);
-  const theirs = await knex("bot_messages").where({ bot_id: other.id }).orderBy("id");
-  assert.equal(theirs[0].kind, "bot_request");
-  assert.equal(theirs[0].body.kind, "pass");
-  assert.equal((await knex("bot_requests").where({ to_bot_id: other.id }).first()).status, "done");
-  assert.equal(theirs.at(-1).body.text, "Bot A passed this on: 15% of €84 is €12.60.");
-  await knex("bots").where({ id: other.id }).del();
 });
 
 test("the Library lists what the bot made, newest version once, and keeps pins; search finds files", async (context) => {
   const { knex, parts, as, userId, bot, cleanup } = await setup(context);
   const bots = startBotsService(cleanup, { knex, ...parts, approvals: { decide: async () => "allow" }, reply: async () => ({ text: "ok", transcript: [] }) });
   const tag = `lib${Date.now()}`;
-  await knex("bot_messages").insert([
-    { workspace_id: bot.workspace_id, bot_id: bot.id, conversation_id: bot.conversation_id, kind: "files", role: "bot", body: { files: [{ path: `/files/mine/${tag}-sales.xlsx`, name: `${tag}-sales.xlsx`, size: 4000 }] } },
-    { workspace_id: bot.workspace_id, bot_id: bot.id, conversation_id: bot.conversation_id, kind: "page", role: "bot", body: { path: `/files/mine/Pages/${tag}.md`, title: `${tag} guide`, summary: "Old" } },
-    { workspace_id: bot.workspace_id, bot_id: bot.id, conversation_id: bot.conversation_id, kind: "chart", role: "bot", body: { path: `/files/mine/Charts/${tag}.png`, title: `${tag} chart`, caption: "A chart" } },
-    { workspace_id: bot.workspace_id, bot_id: bot.id, conversation_id: bot.conversation_id, kind: "page", role: "bot", body: { path: `/files/mine/Pages/${tag}.md`, title: `${tag} guide`, summary: "New" } }
+  await knex("messages").insert([
+    { workspace_id: bot.workspace_id, conversation_id: bot.conversation_id, author_bot_id: bot.id, kind: "files", role: "bot", body: { files: [{ path: `/files/chat/${tag}-sales.xlsx`, name: `${tag}-sales.xlsx`, size: 4000 }] } },
+    { workspace_id: bot.workspace_id, conversation_id: bot.conversation_id, author_bot_id: bot.id, kind: "page", role: "bot", body: { path: `/files/chat/Pages/${tag}.md`, title: `${tag} guide`, summary: "Old" } },
+    { workspace_id: bot.workspace_id, conversation_id: bot.conversation_id, author_bot_id: bot.id, kind: "chart", role: "bot", body: { path: `/files/chat/Charts/${tag}.png`, title: `${tag} chart`, caption: "A chart" } },
+    { workspace_id: bot.workspace_id, conversation_id: bot.conversation_id, author_bot_id: bot.id, kind: "page", role: "bot", body: { path: `/files/chat/Pages/${tag}.md`, title: `${tag} guide`, summary: "New" } }
   ]);
   const { items } = await bots.library(bot.id, as(userId));
   assert.deepEqual(items.map((item) => item.kind), ["page", "chart", "file"]);
@@ -357,40 +333,42 @@ test("asking again after a card was answered returns the same reply instead of s
   const { knex, parts, as, userId, bot, cleanup } = await setup(context);
   let replies = 0;
   const bots = startBotsService(cleanup, { knex, ...parts, approvals: { decide: async () => "allow" }, reply: async () => ({ text: `Reply ${++replies}`, transcript: [] }) });
-  const sent = await bots.sendMessage(bot.id, { text: "Sign me in", clientId: "pending-card" }, as(userId));
-  await bots.replyTo(bot.id, { afterMessageId: sent.messages[0].id }, undefined, as(userId));
-  const [event] = await knex("bot_messages").insert({ workspace_id: bot.workspace_id, bot_id: bot.id, conversation_id: bot.conversation_id, kind: "event", role: "system", body: { text: "Done on the web page" } }).returning("*");
-  const afterCard = await bots.replyTo(bot.id, { afterMessageId: event.id }, undefined, as(userId));
-  const again = await bots.replyTo(bot.id, { afterMessageId: event.id }, undefined, as(userId));
-  const third = await bots.replyTo(bot.id, { afterMessageId: event.id }, undefined, as(userId));
+  const sent = await bots.chat.sendMessage(bot.conversation_id, { text: "Sign me in", clientId: "pending-card" }, as(userId));
+  await bots.chat.reply(bot.conversation_id, { afterMessageId: sent.messages[0].id }, undefined, as(userId));
+  // The bot's hand-over card, done on the web page: the page asks for the reply after it (afterCard), then asks again.
+  const [card] = await knex("messages").insert({
+    workspace_id: bot.workspace_id, conversation_id: bot.conversation_id, author_bot_id: bot.id, kind: "handover", role: "bot", body: { task: "Sign in", status: "done" }
+  }).returning("*");
+  const afterCard = await bots.chat.reply(bot.conversation_id, { afterMessageId: card.id, afterCard: true }, undefined, as(userId));
+  const again = await bots.chat.reply(bot.conversation_id, { afterMessageId: card.id, afterCard: true }, undefined, as(userId));
+  const third = await bots.chat.reply(bot.conversation_id, { afterMessageId: card.id, afterCard: true }, undefined, as(userId));
   assert.equal(replies, 2, "one reply for the message, one after the card, then none");
   assert.deepEqual(again.messages.map((message) => message.id), afterCard.messages.map((message) => message.id));
   assert.deepEqual(third.messages.map((message) => message.id), afterCard.messages.map((message) => message.id));
 });
 
 test("a vault password never shows in a bot's reply", async (context) => {
-  const { knex, as, userId, bot, cleanup } = await setup(context);
-  const { records, account } = await startBotRecordsWithAccount(knex, cleanup);
+  const { knex, parts, as, userId, bot, cleanup } = await setup(context);
   const { saveLogin } = await import("../../packages/bots/src/server/vaultLogins.js");
-  const saved = await saveLogin(account, process.env, "secret-test.example", "tester", "Zebra-Quartz-77", as(userId));
-  const bots = startBotsService(cleanup, { knex, records, account, approvals: { decide: async () => "allow" }, reply: async () => ({ text: "Signed in as tester with Zebra-Quartz-77.", transcript: [] }) });
-  const sent = await bots.sendMessage(bot.id, { text: "Sign me in", clientId: "pending-secret" }, as(userId));
-  const result = await bots.replyTo(bot.id, { afterMessageId: sent.messages[0].id }, undefined, as(userId));
+  const saved = await saveLogin(parts.account, process.env, "secret-test.example", "tester", "Zebra-Quartz-77", as(userId));
+  const bots = startBotsService(cleanup, { knex, ...parts, approvals: { decide: async () => "allow" }, reply: async () => ({ text: "Signed in as tester with Zebra-Quartz-77.", transcript: [] }) });
+  const sent = await bots.chat.sendMessage(bot.conversation_id, { text: "Sign me in", clientId: "pending-secret" }, as(userId));
+  const result = await bots.chat.reply(bot.conversation_id, { afterMessageId: sent.messages[0].id }, undefined, as(userId));
   assert.equal(result.messages.find((message) => message.kind === "text").body.text, "Signed in as tester with •••.");
   await knex("vault_items").where({ id: saved.id }).del();
 });
 
 test("a bot only types a password the person gave it, and sign-in clicks never wait for approval", async (context) => {
-  const { knex, parts, as, userId, bot } = await setup(context);
+  const { knex, parts, as, userId, bot, seat } = await setup(context);
   const { buildTools } = await import("../../packages/bots/src/server/botTools.js");
   const acted = [];
   const computer = { act: async (_botId, instruction) => { acted.push(instruction); return { success: true, message: "", url: "", title: "", screenshot: "s" }; }, screenshot: async () => "s" };
   let asked = 0;
   // The tools read the chat's messages in the person's call in the bot's home.
-  const run = buildTools(turnDoubles({ records: parts.records, call: as(userId), approvals: { decide: async () => { asked += 1; return "ask"; } }, computer, homeId: bot.workspace_id, userId, botId: bot.id, conversationId: bot.conversation_id }));
+  const run = buildTools(turnDoubles({ records: parts.records, call: as(userId), approvals: { decide: async () => { asked += 1; return "ask"; } }, computer, seat }));
   const refused = await run.tools.useWebPage.execute({ instruction: "Type PagePassword123 into the Password field", final: false });
   assert.match(refused.error, /Only type a password the person gave you/u);
-  await knex("bot_messages").insert({ workspace_id: bot.workspace_id, bot_id: bot.id, conversation_id: bot.conversation_id, kind: "text", role: "user", body: { text: "Use password GivenPass456 please" } });
+  await knex("messages").insert({ workspace_id: bot.workspace_id, conversation_id: bot.conversation_id, author_user_id: userId, kind: "text", role: "user", body: { text: "Use password GivenPass456 please" } });
   await run.tools.useWebPage.execute({ instruction: "Type GivenPass456 into the Password field", final: false });
   await run.tools.useWebPage.execute({ instruction: "Click the Login button", final: true });
   assert.deepEqual(acted, ["Type GivenPass456 into the Password field", "Click the Login button"]);
@@ -400,13 +378,13 @@ test("a bot only types a password the person gave it, and sign-in clicks never w
 test("a draft card sends only what the person approved, and Discard sends nothing", async (context) => {
   const { knex, parts, as, userId, bot, cleanup } = await setup(context);
   const bots = startBotsService(cleanup, { knex, ...parts, approvals: { decide: async () => "allow" }, reply: async () => ({ text: "ok", transcript: [] }) });
-  const [card] = await knex("bot_messages").insert({ workspace_id: bot.workspace_id, bot_id: bot.id, conversation_id: bot.conversation_id, kind: "draft", role: "bot", body: { to: "Landlord", via: "Gmail", text: "Hi, the boiler is broken.", status: "pending" } }).returning("*");
-  const sent = await bots.settleDraft(bot.id, card.id, { action: "send", text: "Hi Ana, the boiler is broken again." }, as(userId));
+  const [card] = await knex("messages").insert({ workspace_id: bot.workspace_id, conversation_id: bot.conversation_id, author_bot_id: bot.id, kind: "draft", role: "bot", body: { to: "Landlord", via: "Gmail", text: "Hi, the boiler is broken.", status: "pending" } }).returning("*");
+  const sent = await bots.chat.settleDraft(bot.conversation_id, card.id, { action: "send", text: "Hi Ana, the boiler is broken again." }, as(userId));
   assert.equal(sent.messages[0].body.status, "send");
   assert.equal(sent.messages[0].body.text, "Hi Ana, the boiler is broken again.");
-  await assert.rejects(bots.settleDraft(bot.id, card.id, { action: "discard" }, as(userId)), /already been dealt/);
-  const [other] = await knex("bot_messages").insert({ workspace_id: bot.workspace_id, bot_id: bot.id, conversation_id: bot.conversation_id, kind: "draft", role: "bot", body: { to: "Team", via: "Slack", text: "Hello", status: "pending" } }).returning("*");
-  const discarded = await bots.settleDraft(bot.id, other.id, { action: "discard", text: "changed" }, as(userId));
+  await assert.rejects(bots.chat.settleDraft(bot.conversation_id, card.id, { action: "discard" }, as(userId)), /already been dealt/);
+  const [other] = await knex("messages").insert({ workspace_id: bot.workspace_id, conversation_id: bot.conversation_id, author_bot_id: bot.id, kind: "draft", role: "bot", body: { to: "Team", via: "Slack", text: "Hello", status: "pending" } }).returning("*");
+  const discarded = await bots.chat.settleDraft(bot.conversation_id, other.id, { action: "discard", text: "changed" }, as(userId));
   assert.equal(discarded.messages[0].body.status, "discarded");
   assert.equal(discarded.messages[0].body.text, "Hello");
 });
@@ -431,11 +409,11 @@ test("a picture attached to the latest message is shown to the model", async (co
       return { text: "ok", transcript: [] };
     }
   });
-  const attachment = { name: "receipt.png", size: picture.length, type: "image/png", path: "/files/mine/Uploads/receipt.png" };
-  const first = await bots.sendMessage(bot.id, { text: "What's this?", attachments: [attachment] }, as(userId));
-  await bots.replyTo(bot.id, { afterMessageId: first.messages[0].id }, undefined, as(userId));
-  const second = await bots.sendMessage(bot.id, { text: "Thanks" }, as(userId));
-  await bots.replyTo(bot.id, { afterMessageId: second.messages[0].id }, undefined, as(userId));
+  const attachment = { name: "receipt.png", size: picture.length, type: "image/png", path: "/files/chat/Uploads/receipt.png" };
+  const first = await bots.chat.sendMessage(bot.conversation_id, { text: "What's this?", attachments: [attachment] }, as(userId));
+  await bots.chat.reply(bot.conversation_id, { afterMessageId: first.messages[0].id }, undefined, as(userId));
+  const second = await bots.chat.sendMessage(bot.conversation_id, { text: "Thanks" }, as(userId));
+  await bots.chat.reply(bot.conversation_id, { afterMessageId: second.messages[0].id }, undefined, as(userId));
   assert.deepEqual(seen, [["not really a png"], [null, null]]);
 });
 
@@ -466,42 +444,23 @@ test("a calendar event with guests waits for approval, then goes on the connecte
         return { text: "It's waiting for your OK on the card below.", transcript: [] };
       }
     });
-    const sent = await bots.sendMessage(bot.id, { text: "Lunch with Ana next Tuesday at 1, invite her" }, as(userId));
-    await bots.replyTo(bot.id, { afterMessageId: sent.messages[0].id }, undefined, as(userId));
-    assert.match(state, /Connected accounts: Google Calendar: pat@example\.com \(connected by them\)\.\n/u);
+    const sent = await bots.chat.sendMessage(bot.conversation_id, { text: "Lunch with Ana next Tuesday at 1, invite her" }, as(userId));
+    await bots.chat.reply(bot.conversation_id, { afterMessageId: sent.messages[0].id }, undefined, as(userId));
+    assert.match(state, /connected accounts, which you use for the person you're working for: Google Calendar: pat@example\.com \(connected by them\)\.\n/u);
     assert.equal(posted.length, 0, "nothing is added before approval");
-    const card = await knex("bot_messages").where({ bot_id: bot.id, conversation_id: bot.conversation_id, kind: "choice" }).first();
+    const card = await knex("messages").where({ conversation_id: bot.conversation_id, kind: "choice" }).first();
     assert.match(card.body.question, /invite ana@example\.com/u);
-    await bots.answerChoice(bot.id, card.id, ["Go ahead"], as(userId));
+    await bots.chat.answerChoice(bot.conversation_id, card.id, ["Go ahead"], as(userId));
     assert.equal(posted.length, 1);
     assert.equal(posted[0].auth, `Bearer key-${userId}-${account.id}`);
     assert.deepEqual(posted[0].body.attendees, [{ email: "ana@example.com" }]);
-    const event = await knex("bot_messages").where({ bot_id: bot.id, conversation_id: bot.conversation_id, kind: "event" }).orderBy("id", "desc").first();
+    const event = await knex("messages").where({ conversation_id: bot.conversation_id, kind: "event" }).orderBy("id", "desc").first();
     assert.equal(event.body.text, "Added to your calendar: Lunch with Ana");
   } finally {
     globalThis.fetch = original;
     await knex("plugin_accounts").where({ id: account.id }).del();
   }
 });
-
-// Which account a bot uses stays in its own chat: remember refuses it.
-test("a choice of mailbox isn't saved for all bots", async (context) => {
-  const { knex, as, userId, bot, cleanup } = await setup(context);
-  const [account] = await knex("plugin_accounts").insert({ user_id: userId, workspace_id: bot.workspace_id, plugin_id: "gmail", name: "", status: "connected", label: "pat@example.com" }).returning("*");
-  try {
-    const { buildTools } = await import("../../packages/bots/src/server/botTools.js");
-    // The person's own connected addresses, as the integrations service reads them in their call.
-    const { integrations } = await startIntegrations(knex, cleanup, { catalogue: [] });
-    const run = buildTools(turnDoubles({ integrations, call: as(userId), approvals: { decide: async () => "allow" }, computer: null, homeId: bot.workspace_id, userId, botId: bot.id }));
-    const refused = await run.tools.remember.execute({ fact: "Only check pat@example.com when asked about email." });
-    assert.match(refused.error, /this chat only/u);
-    assert.match((await run.tools.remember.execute({ fact: "Use just their own inbox." })).error, /this chat only/u);
-    assert.equal(await knex("person_memories").where({ user_id: userId }).whereILike("fact", "%pat@example.com%").first(), undefined);
-  } finally {
-    await knex("plugin_accounts").where({ id: account.id }).del();
-  }
-});
-
 
 // An email draft from a connected mailbox goes straight out on Send (D-31), once, exactly as
 // edited; a failure leaves the card waiting so it can be tried again.
@@ -520,16 +479,16 @@ test("Send on an email draft sends it from the connected mailbox, once", async (
   try {
     const integrations = { reachableAccounts: await connectedAccounts(knex, cleanup), connections: { accessToken: async () => accessOf("key") } };
     const bots = startBotsService(cleanup, { knex, ...parts, integrations, env: live(), approvals: { decide: async () => "allow" }, reply: async () => ({ text: "ok", transcript: [] }) });
-    const [card] = await knex("bot_messages").insert({ workspace_id: bot.workspace_id, bot_id: bot.id, conversation_id: bot.conversation_id, kind: "draft", role: "bot", body: { to: "Ana <ana@example.com>", via: "Gmail", from: "pat@example.com", subject: "Lunch", text: "1pm?", status: "pending" } }).returning("*");
-    await assert.rejects(bots.settleDraft(bot.id, card.id, { action: "send", text: "1pm Tuesday?" }, as(userId)), /It wasn't sent: Backend Error/u);
-    assert.equal((await knex("bot_messages").where({ id: card.id }).first()).body.status, "pending");
+    const [card] = await knex("messages").insert({ workspace_id: bot.workspace_id, conversation_id: bot.conversation_id, author_bot_id: bot.id, kind: "draft", role: "bot", body: { to: "Ana <ana@example.com>", via: "Gmail", from: "pat@example.com", subject: "Lunch", text: "1pm?", status: "pending" } }).returning("*");
+    await assert.rejects(bots.chat.settleDraft(bot.conversation_id, card.id, { action: "send", text: "1pm Tuesday?" }, as(userId)), /It wasn't sent: Backend Error/u);
+    assert.equal((await knex("messages").where({ id: card.id }).first()).body.status, "pending");
     fail = false;
-    const sent = await bots.settleDraft(bot.id, card.id, { action: "send", text: "1pm Tuesday?" }, as(userId));
+    const sent = await bots.chat.settleDraft(bot.conversation_id, card.id, { action: "send", text: "1pm Tuesday?" }, as(userId));
     assert.equal(sent.messages[0].body.status, "sent");
     const raw = Buffer.from(sends.at(-1).raw, "base64url").toString("utf8");
     assert.match(raw, /^To: ana@example\.com\r\n/u);
     assert.equal(Buffer.from(raw.split("\r\n\r\n")[1], "base64").toString("utf8"), "1pm Tuesday?");
-    await assert.rejects(bots.settleDraft(bot.id, card.id, { action: "send" }, as(userId)), /already been dealt/u);
+    await assert.rejects(bots.chat.settleDraft(bot.conversation_id, card.id, { action: "send" }, as(userId)), /already been dealt/u);
     assert.equal(sends.length, 2, "one failed try and one send");
   } finally {
     globalThis.fetch = original;
@@ -551,9 +510,9 @@ test("a test copy's Send on an email draft is logged and marked sent, and nothin
   try {
     const integrations = { reachableAccounts: await connectedAccounts(knex, cleanup), connections: { accessToken: async () => accessOf("key") } };
     const bots = startBotsService(cleanup, { knex, ...parts, integrations, env: { ...process.env, APP_ENV: "test" }, approvals: { decide: async () => "allow" }, reply: async () => ({ text: "ok", transcript: [] }) });
-    const [card] = await knex("bot_messages").insert({ workspace_id: bot.workspace_id, bot_id: bot.id, conversation_id: bot.conversation_id, kind: "draft", role: "bot", body: { to: "Ana <ana@example.com>", via: "Gmail", from: "pat@example.com", subject: "Lunch", text: "1pm?", status: "pending" } }).returning("*");
+    const [card] = await knex("messages").insert({ workspace_id: bot.workspace_id, conversation_id: bot.conversation_id, author_bot_id: bot.id, kind: "draft", role: "bot", body: { to: "Ana <ana@example.com>", via: "Gmail", from: "pat@example.com", subject: "Lunch", text: "1pm?", status: "pending" } }).returning("*");
     const logged = context.mock.method(console, "info", () => {});
-    const sent = await bots.settleDraft(bot.id, card.id, { action: "send", text: "1pm Tuesday?" }, as(userId));
+    const sent = await bots.chat.settleDraft(bot.conversation_id, card.id, { action: "send", text: "1pm Tuesday?" }, as(userId));
     logged.mock.restore();
     assert.equal(sent.messages[0].body.status, "sent");
     assert.deepEqual(calls, [], "nothing reached Gmail");
@@ -596,20 +555,20 @@ test("a reply draft answers from the receiving mailbox to the reply-to address, 
         return { text: "ok", transcript: [] };
       }
     });
-    const first = await bots.sendMessage(bot.id, { text: "Draft a reply to the school saying thanks, we'll be there" }, as(userId));
-    await bots.replyTo(bot.id, { afterMessageId: first.messages[0].id }, undefined, as(userId));
+    const first = await bots.chat.sendMessage(bot.conversation_id, { text: "Draft a reply to the school saying thanks, we'll be there" }, as(userId));
+    await bots.chat.reply(bot.conversation_id, { afterMessageId: first.messages[0].id }, undefined, as(userId));
     assert.match(results[0].doubt, /came from reed@school\.example but asks for replies to go to office@school\.example/u);
-    const card = await knex("bot_messages").where({ bot_id: bot.id, conversation_id: bot.conversation_id, kind: "draft" }).first();
+    const card = await knex("messages").where({ conversation_id: bot.conversation_id, kind: "draft" }).first();
     assert.deepEqual([card.body.from, card.body.to, card.body.subject, card.body.cc], ["pat@example.com", "office@school.example", "Re: Sports day", "kim@example.com"]);
     assert.equal(card.body.inReplyTo.from, "Ms Reed <reed@school.example>");
-    const second = await bots.sendMessage(bot.id, { text: "Looks good, send it" }, as(userId));
-    await bots.replyTo(bot.id, { afterMessageId: second.messages[0].id }, undefined, as(userId));
-    assert.equal(results[1].status, "sent");
+    const second = await bots.chat.sendMessage(bot.conversation_id, { text: "Looks good, send it" }, as(userId));
+    await bots.chat.reply(bot.conversation_id, { afterMessageId: second.messages[0].id }, undefined, as(userId));
+    assert.equal(results[1].status, "sent", JSON.stringify(results[1]));
     const send = calls.find((call) => call.url.includes("/messages/send"));
     assert.equal(send.body.threadId, "t9");
     const raw = Buffer.from(send.body.raw, "base64url").toString("utf8");
     assert.match(raw, /^To: office@school\.example\r\nCc: kim@example\.com\r\nIn-Reply-To: <abc@school\.example>\r\n/u);
-    assert.equal((await knex("bot_messages").where({ id: card.id }).first()).body.status, "sent");
+    assert.equal((await knex("messages").where({ id: card.id }).first()).body.status, "sent");
   } finally {
     globalThis.fetch = original;
     await knex("plugin_accounts").where({ id: account.id }).del();
@@ -649,19 +608,19 @@ test("a task for an unconnected app shows a connect card, and one Mercbot can't 
       return { text: "It isn't connected yet; the card below asks for it.", transcript: [] };
     }
   });
-  const sent = await bots.sendMessage(bot.id, { text: "Save the shopping list to my Drive" }, as(userId));
-  await bots.replyTo(bot.id, { afterMessageId: sent.messages[0].id }, undefined, as(userId));
+  const sent = await bots.chat.sendMessage(bot.conversation_id, { text: "Save the shopping list to my Drive" }, as(userId));
+  await bots.chat.reply(bot.conversation_id, { afterMessageId: sent.messages[0].id }, undefined, as(userId));
   assert.equal(results[0].status, "card shown");
   assert.equal(results[1].status, "already shown", "one connect card per reply");
   assert.equal(results[1].note, results[0].note, "asked again, the bot is told the same");
   assert.deepEqual(prompts, [""], "no second pass for a connect card below");
-  const card = await knex("bot_messages").where({ bot_id: bot.id, conversation_id: bot.conversation_id, kind: "connect" }).first();
+  const card = await knex("messages").where({ conversation_id: bot.conversation_id, kind: "connect" }).first();
   assert.deepEqual([card.body.app, card.body.button, card.body.plugin.logo, card.body.task], ["Google Drive", "Connect", "googledrive", "save the list to your Drive"]);
 
-  const again = await bots.sendMessage(bot.id, { text: "Add buy milk to my Todoist list" }, as(userId));
-  await bots.replyTo(bot.id, { afterMessageId: again.messages[0].id }, undefined, as(userId));
+  const again = await bots.chat.sendMessage(bot.conversation_id, { text: "Add buy milk to my Todoist list" }, as(userId));
+  await bots.chat.reply(bot.conversation_id, { afterMessageId: again.messages[0].id }, undefined, as(userId));
   assert.equal(results[2].status, "card shown, not connectable yet");
-  const soon = await knex("bot_messages").where({ bot_id: bot.id, conversation_id: bot.conversation_id, kind: "connect" }).orderBy("id", "desc").first();
+  const soon = await knex("messages").where({ conversation_id: bot.conversation_id, kind: "connect" }).orderBy("id", "desc").first();
   assert.deepEqual([soon.body.app, soon.body.button, soon.body.soon], ["Todoist", "Ask for it", true]);
 });
 
@@ -683,7 +642,7 @@ function setImagesKind() {
 // Making pictures: two variants become one row under the reply, an edit sends the
 // earlier picture along, each is kept in the Pictures folder, and the Library lists them.
 test("pictures are made, edited from an earlier one, shown in a row and listed in the Library", async (context) => {
-  const { knex, parts, as, userId, bot, cleanup } = await setup(context);
+  const { knex, parts, as, userId, bot, cleanup, seat } = await setup(context);
   const dir = await mkdtemp(path.join(os.tmpdir(), "mb-pictures-"));
   const requests = [];
   const original = globalThis.fetch;
@@ -708,7 +667,7 @@ test("pictures are made, edited from an earlier one, shown in a row and listed i
     };
     const { buildTools } = await import("../../packages/bots/src/server/botTools.js");
     const posted = [];
-    const fresh = () => buildTools(turnDoubles({ approvals: { decide: async () => "allow" }, computer: null, files, homeId: bot.workspace_id, userId, botId: bot.id, post: async (messages) => posted.push(...messages) }));
+    const fresh = () => buildTools(turnDoubles({ approvals: { decide: async () => "allow" }, computer: null, files, seat, post: async (messages) => posted.push(...messages) }));
     let run = fresh();
     const two = await run.tools.makePicture.execute({ acknowledgement: "I'll draw it now.", prompt: "A birthday cake with balloons, watercolour", title: "Birthday cake", caption: "A cake with balloons", variants: 2 });
     assert.deepEqual(posted.map((message) => message.body), [{ text: "I'll draw it now.", lead: true }]);
@@ -728,7 +687,7 @@ test("pictures are made, edited from an earlier one, shown in a row and listed i
     const refused = await fresh().tools.makePicture.execute({ acknowledgement: "One moment.", prompt: "A portrait of Taylor Swift", title: "Portrait", caption: "A portrait" });
     assert.match(refused.error, /couldn't be made \(IMAGE_SAFETY\)/u);
     const bots = startBotsService(cleanup, { knex, ...parts, approvals: { decide: async () => "allow" }, reply: async () => ({ text: "ok", transcript: [] }) });
-    await knex("bot_messages").insert(shown.map((message) => ({ workspace_id: bot.workspace_id, bot_id: bot.id, conversation_id: bot.conversation_id, ...message })));
+    await knex("messages").insert(shown.map((message) => ({ workspace_id: bot.workspace_id, conversation_id: bot.conversation_id, author_bot_id: bot.id, role: "bot", ...message })));
     const library = await bots.library(bot.id, as(userId));
     assert.deepEqual(library.items.filter((item) => item.kind === "picture").map((item) => item.name), ["Purple cake", "Birthday cake", "Birthday cake (2)"]);
 
@@ -767,11 +726,11 @@ test("a reply that claims a picture without making one is sent back to make it",
         return { text: "Here's the cartoony cake.", transcript: [] };
       }
     });
-    const sent = await bots.sendMessage(bot.id, { text: "Make it more cartoony" }, as(userId));
-    await bots.replyTo(bot.id, { afterMessageId: sent.messages[0].id }, undefined, as(userId));
+    const sent = await bots.chat.sendMessage(bot.conversation_id, { text: "Make it more cartoony" }, as(userId));
+    await bots.chat.reply(bot.conversation_id, { afterMessageId: sent.messages[0].id }, undefined, as(userId));
     assert.equal(prompts.length, 2);
     assert.match(prompts[1], /you didn't call make_picture/u);
-    const kinds = (await knex("bot_messages").where({ bot_id: bot.id }).where("id", ">", sent.messages[0].id).orderBy("id")).map((row) => `${row.kind}:${row.body.text || ""}`);
+    const kinds = (await knex("messages").where({ conversation_id: bot.conversation_id }).where("id", ">", sent.messages[0].id).orderBy("id")).map((row) => `${row.kind}:${row.body.text || ""}`);
     assert.deepEqual(kinds, ["text:Drawing it now.", "text:Here's the cartoony cake.", "pictures:"]);
   } finally {
     globalThis.fetch = original;
@@ -797,8 +756,8 @@ test("a bot's offer to make a meeting longer doesn't make the next reply a pictu
       }
     });
     for (const text of ["Put a meeting in for Friday", "Take it off again"]) {
-      const sent = await bots.sendMessage(bot.id, { text }, as(userId));
-      await bots.replyTo(bot.id, { afterMessageId: sent.messages[0].id }, undefined, as(userId));
+      const sent = await bots.chat.sendMessage(bot.conversation_id, { text }, as(userId));
+      await bots.chat.reply(bot.conversation_id, { afterMessageId: sent.messages[0].id }, undefined, as(userId));
     }
     assert.deepEqual(prompts, ["", ""], "no second pass");
   } finally {
@@ -822,8 +781,8 @@ test("a copy that can't make pictures doesn't send a reply back for the picture 
         return { text: "Picture making isn't available on this copy of Mercbot, sorry.", transcript: [] };
       }
     });
-    const sent = await bots.sendMessage(bot.id, { text: "Draw me a cartoony cake" }, as(userId));
-    await bots.replyTo(bot.id, { afterMessageId: sent.messages[0].id }, undefined, as(userId));
+    const sent = await bots.chat.sendMessage(bot.conversation_id, { text: "Draw me a cartoony cake" }, as(userId));
+    await bots.chat.reply(bot.conversation_id, { afterMessageId: sent.messages[0].id }, undefined, as(userId));
     assert.deepEqual(prompts, [""], "no second pass");
   } finally {
     restoreImages();
@@ -853,14 +812,14 @@ test("a picture made in the reply isn't questioned, and a refusal draws its alte
         return { text: "I don't make pictures of real, named people. Want a microphone and guitar instead?", transcript: [] };
       }
     });
-    const first = await bots.sendMessage(bot.id, { text: "Turn this into a watercolour picture" }, as(userId));
-    await bots.replyTo(bot.id, { afterMessageId: first.messages[0].id }, undefined, as(userId));
+    const first = await bots.chat.sendMessage(bot.conversation_id, { text: "Turn this into a watercolour picture" }, as(userId));
+    await bots.chat.reply(bot.conversation_id, { afterMessageId: first.messages[0].id }, undefined, as(userId));
     assert.deepEqual(prompts, [""]);
-    const second = await bots.sendMessage(bot.id, { text: "Make a picture of Taylor Swift singing by the cake" }, as(userId));
-    await bots.replyTo(bot.id, { afterMessageId: second.messages[0].id }, undefined, as(userId));
+    const second = await bots.chat.sendMessage(bot.conversation_id, { text: "Make a picture of Taylor Swift singing by the cake" }, as(userId));
+    await bots.chat.reply(bot.conversation_id, { afterMessageId: second.messages[0].id }, undefined, as(userId));
     assert.equal(prompts.length, 3);
     assert.match(prompts[2], /call make_picture now with an original alternative/u);
-    assert.equal((await knex("bot_messages").where({ bot_id: bot.id, conversation_id: bot.conversation_id, kind: "pictures" })).length, 2);
+    assert.equal((await knex("messages").where({ conversation_id: bot.conversation_id, kind: "pictures" })).length, 2);
   } finally {
     globalThis.fetch = original;
     restoreImages();
@@ -918,8 +877,8 @@ test("a calendar claim without the tool is sent back, and an event goes in one c
         return { text: "Added to pat@example.com.", transcript: [] };
       }
     });
-    const sent = await bots.sendMessage(bot.id, { text: "Put lunch with Ana next Tuesday at 1 in my calendar" }, as(userId));
-    await bots.replyTo(bot.id, { afterMessageId: sent.messages[0].id }, undefined, as(userId));
+    const sent = await bots.chat.sendMessage(bot.conversation_id, { text: "Put lunch with Ana next Tuesday at 1 in my calendar" }, as(userId));
+    await bots.chat.reply(bot.conversation_id, { afterMessageId: sent.messages[0].id }, undefined, as(userId));
     assert.match(prompts[1], /you didn't call add_calendar_event/u);
     assert.match(results[0].error, /clearly the person's own, so don't guess/u);
     assert.equal(results[1].status, "done");
@@ -931,9 +890,9 @@ test("a calendar claim without the tool is sent back, and an event goes in one c
     // Each step first lets the last reply finish its background work: that work answers a message
     // that arrived meanwhile, so it could take up the step's own message.
     await bots.drain(10000);
-    const work = await bots.sendMessage(bot.id, { text: "Put a team call on my work calendar for Wednesday at 9" }, as(userId));
+    const work = await bots.chat.sendMessage(bot.conversation_id, { text: "Put a team call on my work calendar for Wednesday at 9" }, as(userId));
     results.length = 0;
-    await bots.replyTo(bot.id, { afterMessageId: work.messages[0].id }, undefined, as(userId));
+    await bots.chat.reply(bot.conversation_id, { afterMessageId: work.messages[0].id }, undefined, as(userId));
     assert.match(results[0].error, /don't guess/u, "no account given: still asks");
     assert.match(results[1].error, /Nothing was added\. The person asked for their "work" calendar.*ask_with_options/u, "a named account that isn't the work one isn't used");
     assert.equal(posted.length, 1, "nothing more was added");
@@ -941,14 +900,14 @@ test("a calendar claim without the tool is sent back, and an event goes in one c
 
     // Their pick on that card is the answer: the calendar they picked is used at once.
     await bots.drain(10000);
-    const { conversation_id: conversationId } = await knex("bot_messages").where({ id: work.messages[0].id }).first("conversation_id");
-    const [card] = await knex("bot_messages").insert({
-      workspace_id: bot.workspace_id, bot_id: bot.id, conversation_id: conversationId, role: "bot", kind: "choice",
+    const { conversation_id: conversationId } = await knex("messages").where({ id: work.messages[0].id }).first("conversation_id");
+    const [card] = await knex("messages").insert({
+      workspace_id: bot.workspace_id, author_bot_id: bot.id, conversation_id: conversationId, role: "bot", kind: "choice",
       body: { purpose: "question", question: "Which calendar?", options: ["Google Calendar: pat@example.com", "Connect another"], multi: false, chosen: null }
     }).returning("*");
-    await bots.answerChoice(bot.id, card.id, ["Google Calendar: pat@example.com"], as(userId));
+    await bots.chat.answerChoice(bot.conversation_id, card.id, ["Google Calendar: pat@example.com"], as(userId));
     results.length = 0;
-    await bots.replyTo(bot.id, { afterMessageId: Number(card.id) }, undefined, as(userId));
+    await bots.chat.reply(bot.conversation_id, { afterMessageId: Number(card.id), afterCard: true }, undefined, as(userId));
     assert.equal(results[1].status, "done", "the picked calendar is used");
     assert.equal(posted.length, 2);
 
@@ -956,10 +915,10 @@ test("a calendar claim without the tool is sent back, and an event goes in one c
     await bots.drain(10000);
     claim = "Removed \"Lunch with Ana\" from Google Calendar: pat@example.com.Taken off — Tuesday is clear again.";
     prompts.length = 0;
-    const off = await bots.sendMessage(bot.id, { text: "Take the lunch off again please" }, as(userId));
-    await bots.replyTo(bot.id, { afterMessageId: off.messages[0].id }, undefined, as(userId));
+    const off = await bots.chat.sendMessage(bot.conversation_id, { text: "Take the lunch off again please" }, as(userId));
+    await bots.chat.reply(bot.conversation_id, { afterMessageId: off.messages[0].id }, undefined, as(userId));
     assert.match(prompts[1], /you didn't call add_calendar_event/u);
-    const leads = await knex("bot_messages").where({ bot_id: bot.id }).where("id", ">", off.messages[0].id).whereRaw("body->>'lead' = 'true'");
+    const leads = await knex("messages").where({ conversation_id: bot.conversation_id }).where("id", ">", off.messages[0].id).whereRaw("body->>'lead' = 'true'");
     assert.deepEqual(leads.map((message) => message.body.text), ["Checking Tuesday first.", "Taking lunch off your calendar."], "a status line is said once per reply, and a lookup's once");
 
     // A pass sent back by a check carries on from what the first pass already did, so it neither
@@ -967,8 +926,8 @@ test("a calendar claim without the tool is sent back, and an event goes in one c
     await bots.drain(10000);
     claim = "rerun";
     prompts.length = 0;
-    const rerun = await bots.sendMessage(bot.id, { text: "Take the lunch off again please" }, as(userId));
-    await bots.replyTo(bot.id, { afterMessageId: rerun.messages[0].id }, undefined, as(userId));
+    const rerun = await bots.chat.sendMessage(bot.conversation_id, { text: "Take the lunch off again please" }, as(userId));
+    await bots.chat.reply(bot.conversation_id, { afterMessageId: rerun.messages[0].id }, undefined, as(userId));
     assert.equal(prompts.length, 2);
     assert.match(prompts[1], /you didn't call ask_for_help/u);
     assert.match(lastSeen.body.text, /the screen is yours now/u, "the second pass reads the first one's reply");
@@ -1016,8 +975,8 @@ test("my calendar is the person's own account, and an explicit invite goes ahead
         return { text: "Done.", transcript: [] };
       }
     });
-    const sent = await bots.sendMessage(bot.id, { text: "Put lunch with Ana next Tuesday at 1 in my calendar, and invite ana@example.com" }, as(userId));
-    await bots.replyTo(bot.id, { afterMessageId: sent.messages[0].id }, undefined, as(userId));
+    const sent = await bots.chat.sendMessage(bot.conversation_id, { text: "Put lunch with Ana next Tuesday at 1 in my calendar, and invite ana@example.com" }, as(userId));
+    await bots.chat.reply(bot.conversation_id, { afterMessageId: sent.messages[0].id }, undefined, as(userId));
     assert.match(state, new RegExp(`${email.replace(/[.+]/gu, "\\$&")} \\(the person's own, connected by them\\)`, "u"));
     const post = calls.find((call) => call.method === "POST");
     assert.equal(post.auth, `Bearer key-${accounts[1].id}`);
@@ -1027,7 +986,7 @@ test("my calendar is the person's own account, and an explicit invite goes ahead
     assert.equal(results[0].result.link, "https://calendar.google.com/e1");
     assert.equal(results[1].status, "done", "an invite the person asked for needs no card");
     assert.deepEqual(results[1].result.guests, [{ email: "ana@example.com", answer: "needsAction" }]);
-    const rows = await knex("bot_messages").where({ bot_id: bot.id }).where("id", ">", sent.messages[0].id).orderBy("id");
+    const rows = await knex("messages").where({ conversation_id: bot.conversation_id }).where("id", ">", sent.messages[0].id).orderBy("id");
     assert.equal(rows[0].body.text, "Adding it for Tuesday 3 Nov at 1pm Perth time.");
     const added = rows.find((row) => row.kind === "event" && row.body.text === "Added to your calendar: Lunch with Ana");
     assert.equal(added.body.link, "https://calendar.google.com/e1");
@@ -1042,11 +1001,11 @@ test("my calendar is the person's own account, and an explicit invite goes ahead
 // A new bot's "what first?" card is skipped when the person has already written.
 test("a new bot's first-task card isn't posted after the person has already written", async (context) => {
   const { knex, parts, as, userId, bot, cleanup } = await setup(context);
-  await knex("bot_conversations").where({ id: bot.conversation_id }).update({ onboarding_step: "intro-ask" });
+  await knex("conversations").where({ id: bot.conversation_id }).update({ onboarding_step: "intro-ask" });
   const bots = startBotsService(cleanup, { knex, ...parts, approvals: { decide: async () => "allow" }, reply: async () => ({ text: "ok", transcript: [] }) });
-  await bots.sendMessage(bot.id, { text: "Draw me a cake" }, as(userId));
-  const result = await bots.advanceOnboarding(bot.id, "intro-ask", { displayName: "Pat" }, as(userId));
+  await bots.chat.sendMessage(bot.conversation_id, { text: "Draw me a cake" }, as(userId));
+  const result = await bots.chat.advanceOnboarding(bot.conversation_id, "intro-ask", { displayName: "Pat" }, as(userId));
   assert.equal(result.messages.length, 0);
-  assert.equal(await knex("bot_messages").where({ bot_id: bot.id, conversation_id: bot.conversation_id, kind: "choice" }).first(), undefined);
-  assert.equal((await knex("bot_conversations").where({ id: bot.conversation_id }).first()).onboarding_step, null);
+  assert.equal(await knex("messages").where({ conversation_id: bot.conversation_id, kind: "choice" }).first(), undefined);
+  assert.equal((await knex("conversations").where({ id: bot.conversation_id }).first()).onboarding_step, null);
 });

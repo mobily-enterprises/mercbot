@@ -57,10 +57,10 @@ export async function startSurfaces(knex, context, {
     },
     pages: { pathChanged: async (change) => { calls.files.push({ pathChanged: change }); } }
   };
-  // The turns' pauseWork (chatTurns.js): which seats an archive asked to pause, and the line it asked for.
+  // The turns' pauseWork (chatTurns.js): which seats an archive (a bot's or a chat's) asked to pause, and its line.
   const pauseWork = async (seats, line) => { calls.paused.push({ seats: seats.map((seat) => ({ id: String(seat.id), chatId: String(seat.chatId) })), text: line.text }); };
 
-  const chats = createChatMembers({ records, notices, computer, systemContext });
+  const chats = createChatMembers({ records, notices, computer, systemContext, pauseWork });
   const onboarding = createOnboarding({ records, chats, model, meter, notices, workspaces });
   const botList = createBotList({ records, apps, notices });
   const templates = createBotTemplates({ records, profiles, integrations, env: process.env, templateLinks, botList });
