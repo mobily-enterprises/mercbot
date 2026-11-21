@@ -127,7 +127,13 @@ async function openDirect(botId, replace = false) {
   }
 }
 
-const { view, addressedChatId, memberKey, chatQuery, showChat, showTeam, showMember } = useShellAddress({ route, router, openDirect });
+const { view, addressedChatId, memberKey, chatQuery, showChat, showTeam, showMember } = useShellAddress({
+  route,
+  router,
+  openDirect,
+  showDetails,
+  shownChatId: currentChatId
+});
 
 // The chat shown: the one the address names (a public chat the person only visits too), or with none named the first
 // in the list, which stays open whatever another chat's news does to the list (Back to such an address shows it
@@ -282,7 +288,8 @@ const paletteOpen = ref(false);
 const { newBotOpen, creating, createError, newBotTemplate, newBotScreen, openNewBot, openTeams, createBot, addTeam, addBots } = useNewBot({
   team,
   openDirect,
-  notify: (text) => setTimeout(() => chatPanel.value?.showToast(text), 600)
+  // In the chat panel's own toast, or the shell's on Team, where no chat panel is.
+  notify: (text) => setTimeout(() => (chatPanel.value ? chatPanel.value.showToast(text) : notify(text)), 600)
 });
 
 // A bot from a template or a shared link (D-98): ?template=<code> opens Add bots with it chosen, and leaves the address.
@@ -363,6 +370,7 @@ function openTeam() {
   closeNewChat();
   showTeam(memberKey.value);
 }
+// The card opens in Details, again if it's the one the address names already (a closed card tapped again).
 function openMember(key) {
   showMember(key);
   showDetails();
