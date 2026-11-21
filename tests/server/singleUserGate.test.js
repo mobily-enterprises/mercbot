@@ -52,11 +52,11 @@ test("/open takes the key itself, exactly", () => {
 
 test("a change or a websocket comes from Mercbot's own page, and with the key", () => {
   for (const method of ["POST", "PUT", "PATCH", "DELETE"]) {
-    assert.equal(refused({ method, url: "/api/vault", origin: `http://${OWN}` }), null, method);
-    assert.equal(refused({ method, url: "/api/vault" }), 403, `${method} without an Origin`);
-    assert.equal(refused({ method, url: "/api/vault", origin: "http://evil.example" }), 403, method);
-    assert.equal(refused({ method, url: "/api/vault", origin: "http://localhost:3001" }), 403, `${method} from the other loopback name`);
-    assert.equal(refused({ method, url: "/api/vault", origin: "null" }), 403, `${method} from a file`);
+    assert.equal(refused({ method, url: "/api/w/you/vault", origin: `http://${OWN}` }), null, method);
+    assert.equal(refused({ method, url: "/api/w/you/vault" }), 403, `${method} without an Origin`);
+    assert.equal(refused({ method, url: "/api/w/you/vault", origin: "http://evil.example" }), 403, method);
+    assert.equal(refused({ method, url: "/api/w/you/vault", origin: "http://localhost:3001" }), 403, `${method} from the other loopback name`);
+    assert.equal(refused({ method, url: "/api/w/you/vault", origin: "null" }), 403, `${method} from a file`);
   }
   const socket = "/socket.io/?EIO=4&transport=websocket";
   assert.equal(refused({ url: socket, origin: `http://${OWN}` }, true), null);
