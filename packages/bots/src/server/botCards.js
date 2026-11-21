@@ -1,4 +1,5 @@
 import { retryLostInsertRace } from "@jskit-ai/database-runtime/shared";
+import { resolveActorId } from "@jskit-ai/kernel/server/actions/actionContributorHelpers";
 import { ACTIONS, APPROVAL_OPTIONS, EMAIL_ADDRESS } from "./botActions.js";
 import { MAIL } from "./mailTools.js";
 import { saveLogin } from "./vaultLogins.js";
@@ -6,167 +7,180 @@ import { ConnectedAppError, appBusy, connectedKey, sendOrSimulate } from "./conn
 import { sendSednaMessage } from "./sednaActions.js";
 import { SednaUncertainError } from "./sednaApi.js";
 import { BotsError } from "./botsError.js";
-import { toBot } from "./botRows.js";
-import { HOME_DEFAULT_ANSWERS, NO_TEAM } from "./onboarding.js";
+import { SHARE_YES, shareFile } from "./fileTools.js";
+import { SIGN_IN_LINE } from "./signInCodes.js";
 
 /**
- * The person's answers on the cards a bot posts (D-46): a question or approval, a hand-over, a secure
- * form and a draft, and a request cancelled from its card. Every method takes the call's options last: the person and
- * the home are its context.
+ * A person's answers on the cards a bot posts in a chat (D-46, R4): a question or approval, a hand-over, a secure
+ * form, a draft and a share (D13), and a request cancelled from its card. A card is answered only by the person its
+ * bot worked for (`body.for`): anyone else is refused (403), whatever chat it's in. The card's bot acts for that person
+ * in that chat, on the chat's computer. Every method takes the call's options last: the person and the home are its
+ * context.
  * @param {object} dependencies
  * @param {import("./types.js").BotRecords} dependencies.records mercbot.bots.records
  * @param {import("@local/account/server/types").Account} dependencies.account mercbot.account, where saved logins go
  * @param {import("@jskit-ai/kernel/server/types").RuntimeEnv} dependencies.env
  * @param {import("@local/computer/server/types").Computer} dependencies.computer
  * @param {import("@local/integrations/server/types").Integrations} dependencies.integrations
- * @param {import("./types.js").BotConversations} dependencies.conversations
  * @param {import("./types.js").BotRequests} dependencies.requests
- * @param {import("@local/files/server/types").Files} dependencies.files the bot's files, which an approved action or a
+ * @param {import("@local/files/server/types").Files} dependencies.files the chat's files, which an approved action or a
  *   Sedna draft's Send attaches
- * @param {import("./types.js").HomeDefaults} dependencies.homeDefaults the home's default for new bots, which the main
- *   bot's first conversation asks (D-100)
+ * @param {ReturnType<typeof import("./chatSeats.js").createChatSeats>} dependencies.seats
+ * @param {{ get: (chatId: string, options: object) => Promise<{ chat: object }> }} dependencies.chats chatMembers, for the chat's row
+ * @param {{ choiceAnswered: (chat: object, choice: object, picks: string[], txOptions: object) => Promise<object> } | null} [dependencies.onboarding]
+ *   the welcome chat's steps (B), for its own cards
  */
-export function createBotCards({ records, account, env, computer, integrations, conversations, requests, files, homeDefaults }) {
-  const { conversations: store, messages, work, newBots } = records;
+export function createBotCards({ records, account, env, computer, integrations, requests, files, seats, chats, onboarding = null }) {
+  const { messages, work } = records;
+  const chatOf = async (chatId, options) => (await chats.get(String(chatId), options)).chat;
+  const placeOf = (seat) => files.store.placeFor({ homeId: seat.workspace_id, chatId: seat.chat_id, chatKind: seat.chat.kind, botId: seat.id });
+
+  /** The caller, who answers a card only when it's for them (R4). */
+  function answerer(card, options) {
+    const me = String(resolveActorId(options.context) ?? "");
+    if (card.body.for && String(card.body.for.id) !== me) {
+      const { name } = card.body.for;
+      throw new BotsError(403, `This is waiting for ${name}'s OK.`, { code: "bots_waiting_for_other", params: { name } });
+    }
+    return me;
+  }
+
+  /** The card's bot in its chat, working for the person answering. */
+  async function seatFor(chatId, card, me, options) {
+    const seat = card.author_bot_id ? await seats.seatIn(chatId, card.author_bot_id, me, options) : null;
+    if (!seat) throw new BotsError(409, "That card's bot isn't here any more.", { code: "bots_card_closed" });
+    return seat;
+  }
+
+  /** What the card's bot posts after an answer, and the chat's people hear of it. */
+  async function posted(seat, lines, options) {
+    const appended = lines.length ? await seats.say(seat, lines, options) : [];
+    await seats.tell(seat.chat_id, { type: "messages" }, options);
+    return appended;
+  }
 
   /**
-   * Answering a question card: one pick, or several for multi-select. No user bubble.
-   * The card is claimed in a short transaction; an approved action then runs outside it, because
-   * it may take a while on the bot's computer and must never hold the bot's rows locked.
+   * Answering a question card: one pick, or several for multi-select. No message bubble. The card is claimed in a short
+   * transaction; an approved action then runs outside it, because it may take a while on the chat's computer and must
+   * never hold the chat's rows locked. The welcome chat's cards (B's onboarding) move its steps on, and may answer
+   * `addBots`.
    */
-  async function answerChoice(botId, messageId, selected, options) {
-    const userId = conversations.personOf(options);
-    const { row, choice, picks, updated } = await retryLostInsertRace(options, () => store.withTransaction(options, async (txOptions) => {
-      const row = await conversations.ownedBot(botId, txOptions, { lock: true });
-      const choice = await messages.lockMessageIn(row.conversation_id, String(messageId), txOptions, { kind: "choice" });
+  async function answerChoice(chatId, messageId, selected, options) {
+    const { chat, choice, picks, updated, extra } = await retryLostInsertRace(options, () => messages.withTransaction(options, async (txOptions) => {
+      const chat = await records.chats.lock(String(chatId), txOptions, { writing: true });
+      const choice = await messages.lockMessageIn(chat.id, String(messageId), txOptions, { kind: "choice" });
       if (!choice || choice.body.chosen || choice.body.inactive || choice.body.purpose === "bot-name") {
         throw new BotsError(409, "That question isn't open any more.", { code: "bots_question_closed" });
       }
-      if (choice.body.for && String(choice.body.for.id) !== userId) {
-        const { name } = choice.body.for;
-        throw new BotsError(403, `This is waiting for ${name}'s OK.`, { code: "bots_waiting_for_other", params: { name } });
-      }
+      answerer(choice, txOptions);
       const picks = [...new Set((Array.isArray(selected) ? selected : []).map(String))].filter((pick) =>
         choice.body.options.includes(pick));
       if (!picks.length || (!choice.body.multi && picks.length !== 1)) {
         throw new BotsError(400, "Choose an option first.", { code: "bots_choice_missing" });
       }
-      const update = { last_activity_at: new Date().toISOString() };
-      // The home's default for new bots (D-100), for its owners and admins only (403), and the first conversation
-      // carries on.
-      if (choice.body.purpose === "home-default") {
-        await homeDefaults.set(HOME_DEFAULT_ANSWERS[picks[0]], txOptions);
-        // Then a team, while the home has no bot but its main one (D-105).
-        const next = (await newBots.anyBesidesMain(txOptions)) ? "about" : "team-offer";
-        if (row.onboarding_step === "home-default") update.onboarding_step = next;
-      }
-      // Bots to start with (D-105, D-109): the conversation carries on, and the page opens Add bots on its teams.
-      if (choice.body.purpose === "team" && row.onboarding_step === "team") update.onboarding_step = "about";
       const updated = await messages.setBody(choice.id, { ...choice.body, chosen: choice.body.multi ? picks : picks[0] }, txOptions);
-      if (choice.body.purpose === "first-task") update.onboarding_step = null;
-      await store.updateConversation(row.conversation_id, update, txOptions);
-      return { row, choice, picks, updated };
+      const extra = chat.onboarding_step && choice.body.purpose && onboarding
+        ? await onboarding.choiceAnswered(chat, choice, picks, txOptions)
+        : {};
+      return { chat, choice, picks, updated, extra: extra || {} };
     }));
     const results = [];
-    // In a group the card's bot acts for the person it asked (D-46).
-    const { actor, computerId } =
-      row.kind === "group" ? await conversations.groupActor(row, choice, options) : { actor: row, computerId: row.conversation_id };
-    // An approved action runs exactly as it was proposed on the card.
-    if (choice.body.purpose === "approval" && picks[0] === APPROVAL_OPTIONS[0] && ACTIONS[choice.body.action?.id]) {
+    const approved = choice.body.purpose === "approval" && picks[0] === APPROVAL_OPTIONS[0] && ACTIONS[choice.body.action?.id];
+    const shared = choice.body.purpose === "share-file" && picks[0] === SHARE_YES && choice.body.share;
+    if (approved || shared) {
+      const me = answerer(choice, options);
+      const seat = await seatFor(chat.id, choice, me, options);
+      const place = placeOf(seat);
       let outcome;
       try {
-        outcome = await ACTIONS[choice.body.action.id].run(
-          {
-            call: options,
-            env,
-            work,
-            conversations: store,
-            computer,
-            integrations,
-            reach: conversations.reachOf(actor),
-            userId: actor.user_id,
-            botId: actor.id,
-            conversationId: actor.conversation_id,
-            computerId,
-            files,
-            place: files.store.placeFor(actor, actor.user_id)
-          },
-          choice.body.action.args
-        );
+        outcome = approved
+          ? await ACTIONS[choice.body.action.id].run(
+            {
+              call: options,
+              env,
+              work,
+              bots: records.bots,
+              computer,
+              integrations,
+              userId: me,
+              botId: seat.id,
+              chatId: seat.chat_id,
+              chatBotId: seat.chat_bot_id,
+              computerId: seat.chat_bot_id,
+              files,
+              place
+            },
+            choice.body.action.args
+          )
+          : await shareFile(files, place, choice.body.share).then((path) => ({
+            kind: "event",
+            role: "bot",
+            body: { text: "Shared", name: path.split("/").pop(), detail: `${choice.body.for?.name || "The person"} agreed: ${choice.body.share.from} is now also at ${path}.` }
+          }));
       } catch {
         outcome = { kind: "event", role: "system", body: { text: "That didn't work" } };
       }
       const { result: _result, ...message } = outcome;
-      results.push(
-        ...(await conversations.append(row, [
-          row.kind === "group" ? { ...message, body: { ...message.body, speaker: choice.body.speaker } } : message
-        ], options))
-      );
+      results.push(...await seats.say(seat, [message], options));
     }
     // An approval asked during a request (D-46): the bot carries on with it either way.
     if (choice.body.purpose === "approval" && choice.body.requestId) await requests.approvalAnswered(choice.body.requestId, options);
-    const bot = toBot(await conversations.refresh(row, options));
-    if (choice.body.purpose === "home-default") return { bot, messages: [updated, ...results], home: await homeDefaults.asSeen(options) };
-    if (choice.body.purpose === "team") return { bot, messages: [updated, ...results], addBots: picks[0] === NO_TEAM ? null : "teams" };
-    return { bot, messages: [updated, ...results] };
+    await seats.tell(chat.id, { type: "messages" }, options);
+    return { messages: [updated, ...results], chat: await chatOf(chat.id, options), ...extra };
   }
 
-  /** The person finishes or skips a handover on the bot's computer. */
-  async function settleHandover(botId, messageId, outcome, options) {
-    const row = await conversations.ownedBot(botId, options);
-    // In a group, only the person it was handed to settles it, on the bot's computer for the group (D-46).
-    let computerId = row.conversation_id;
-    if (row.kind === "group") {
-      const card = await messages.messageIn(row.conversation_id, String(messageId), options);
-      if (card) ({ computerId } = await conversations.groupActor(row, card, options));
-    }
+  /** The person finishes or skips a handover on the chat's computer. */
+  async function settleHandover(chatId, messageId, outcome, options) {
     const status = outcome === "skipped" ? "skipped" : "done";
     // The card, the waiting state and any acknowledgement change together (D-14).
-    const result = await store.withTransaction(options, async (txOptions) => {
-      const message = await messages.lockMessageIn(row.conversation_id, String(messageId), txOptions);
+    const { seat, changed } = await messages.withTransaction(options, async (txOptions) => {
+      const chat = await records.chats.lock(String(chatId), txOptions, { writing: true });
+      const message = await messages.lockMessageIn(chat.id, String(messageId), txOptions);
       if (!message || message.kind !== "handover" || message.body.status !== "pending") {
         throw new BotsError(409, "That's already been dealt with.", { code: "bots_card_closed" });
       }
+      const me = answerer(message, txOptions);
+      const seat = await seatFor(chat.id, message, me, txOptions);
       const updated = await messages.setBody(message.id, { ...message.body, status }, txOptions);
       // A skip gets a set acknowledgement; "done" goes back to the bot to check the page.
-      const acknowledged =
-        status === "skipped"
-          ? await conversations.append(row, [
-            {
-              kind: "text",
-              role: "bot",
-              body: {
-                text:
-                    `No problem, I've left that: "${message.body.task}" isn't done. The page is still ` +
-                    `open on my computer, so just ask whenever you want to pick it up again.`
-              }
-            }
-          ], txOptions)
-          : [];
-      await store.updateConversation(row.conversation_id, { waiting_task: null, last_activity_at: new Date().toISOString() }, txOptions);
-      return { bot: toBot(await conversations.refresh(row, txOptions)), messages: [updated, ...acknowledged] };
+      const acknowledged = status === "skipped"
+        ? await seats.say(seat, [{
+          kind: "text",
+          role: "bot",
+          body: {
+            text:
+              `No problem, I've left that: "${message.body.task}" isn't done. The page is still ` +
+              `open on my computer, so just ask whenever you want to pick it up again.`
+          }
+        }], txOptions)
+        : [];
+      if (seat.chat_bot_id) await records.chats.updateChatBot(seat.chat_bot_id, { waiting_task: null }, txOptions);
+      return { seat, changed: [updated, ...acknowledged] };
     });
-    computer
-      .hold(String(computerId), false)
-      .catch((error) => console.warn("Letting the bot's computer sleep again failed; it sleeps when idle.", error));
-    return result;
+    if (seat.chat_bot_id) {
+      computer
+        .hold(String(seat.chat_bot_id), false)
+        .catch((error) => console.warn("Letting the bot's computer sleep again failed; it sleeps when idle.", error));
+    }
+    await seats.tell(seat.chat_id, { type: "messages" }, options);
+    return { messages: changed, chat: await chatOf(seat.chat_id, options) };
   }
 
   /**
-   * The person's answer on a secure form: their login or code is typed straight into
-   * the bot's page and, if they ticked the box, saved to the vault; the bot never sees it. Closing
-   * the form means no. Either way the card is settled, and the page asks the bot to carry on.
+   * The person's answer on a secure form: their login or code is typed straight into the bot's page on the chat's
+   * computer and, if they ticked the box, saved to the home's vault; the bot never sees it. What it signs in to is the
+   * chat's (D14), which the chat is told in one line. Closing the form means no. Either way the card is settled, and the
+   * page asks the bot to carry on.
    */
-  async function settleSecureForm(botId, messageId, input = {}, options) {
-    const row = await conversations.ownedBot(botId, options);
-    const message = await messages.messageIn(row.conversation_id, String(messageId), options);
+  async function settleSecureForm(chatId, messageId, input = {}, options) {
+    const message = await messages.messageIn(String(chatId), String(messageId), options);
     if (!message || message.kind !== "secure_form" || message.body.status !== "pending") {
       throw new BotsError(409, "That form has already been dealt with.", { code: "bots_form_closed" });
     }
-    // In a group only the person it asked fills it in, into the bot's page for this group (D-46).
-    const { computerId } =
-      row.kind === "group" ? await conversations.groupActor(row, message, options) : { computerId: row.conversation_id };
+    const me = answerer(message, options);
+    const seat = await seatFor(String(chatId), message, me, options);
     let body = { ...message.body, status: "closed" };
+    const lines = [];
     if (input.action === "submit") {
       const values = message.body.form === "code"
         ? { code: String(input.code || "").slice(0, 64) }
@@ -174,7 +188,7 @@ export function createBotCards({ records, account, env, computer, integrations, 
       if (!values.code && !values.password) throw new BotsError(400, "Fill in the form first.", { code: "bots_form_empty" });
       let result;
       try {
-        result = await computer.fill(String(computerId), { site: message.body.site, url: message.body.url, ...values });
+        result = await computer.fill(String(seat.chat_bot_id), { site: message.body.site, url: message.body.url, ...values });
       } catch (error) {
         throw new BotsError(409, `It couldn't be filled in: ${error.message}`, {
           code: "bots_form_fill_failed",
@@ -188,23 +202,24 @@ export function createBotCards({ records, account, env, computer, integrations, 
         ? await saveLogin(account, env, message.body.site, values.username, values.password, options).catch(() => null)
         : null;
       body = { ...message.body, status: "submitted", filled: result.filled, ...(saved ? { vaultItem: saved.label } : {}) };
+      lines.push({ kind: "event", role: "bot", body: { text: SIGN_IN_LINE, detail: `Signed in to ${message.body.site} on this chat's computer. ${SIGN_IN_LINE}` } });
     }
-    return { bot: toBot(row), messages: [await messages.setBody(message.id, body, options)] };
+    const settled = await messages.setBody(message.id, body, options);
+    return { messages: [settled, ...await posted(seat, lines, options)], chat: await chatOf(seat.chat_id, options) };
   }
 
   /**
-   * The person's answer on a draft card: Send (with any edits) or Discard. After Send, the page asks
-   * the bot to send exactly the card's text; Discard sends nothing.
+   * The person's answer on a draft card: Send (with any edits) or Discard. After Send, the page asks the bot to send
+   * exactly the card's text; Discard sends nothing. A mail goes from what the home connected, for the person the draft
+   * was written for (R4).
    */
-  async function settleDraft(botId, messageId, input = {}, options) {
-    const row = await conversations.ownedBot(botId, options);
-    if (row.kind === "group" && !row.room) throw new BotsError(400, "That's a group chat, not a bot.", { code: "bots_group_not_bot" });
-    const message = await messages.messageIn(row.conversation_id, String(messageId), options, { kind: "draft" });
+  async function settleDraft(chatId, messageId, input = {}, options) {
+    const message = await messages.messageIn(String(chatId), String(messageId), options, { kind: "draft" });
     if (!message || message.body.status !== "pending") {
       throw new BotsError(409, "That draft has already been dealt with.", { code: "bots_draft_closed" });
     }
-    // In a group, the person the draft was written for sends it, from what their bot may reach (D-46).
-    const { actor } = row.kind === "group" ? await conversations.groupActor(row, message, options) : { actor: row };
+    const me = answerer(message, options);
+    const seat = await seatFor(String(chatId), message, me, options);
     const send = input.action === "send";
     const text = send ? String(input.text ?? message.body.text).trim().slice(0, 8000) : message.body.text;
     if (send && !text) throw new BotsError(400, "The draft is empty.", { code: "bots_draft_empty" });
@@ -218,8 +233,9 @@ export function createBotCards({ records, account, env, computer, integrations, 
       to: edited("to"),
       ...(edited("cc") ? { cc: edited("cc") } : {})
     };
+    const done = (changed) => posted(seat, [], options).then(async () => ({ messages: changed, chat: await chatOf(seat.chat_id, options) }));
     // A Sedna message goes out as the person's own Sedna user from their team (D-94), in a live copy; a test copy logs it.
-    if (send && message.body.sedna) return sendSednaCard(row, actor, message, body, options);
+    if (send && message.body.sedna) return done(await sendSednaCard(seat, message, body, options));
     // An email from a connected mailbox goes straight out from it (D-31), in a live copy; a test
     // copy logs it instead and marks the card sent (D-69). Anything else is sent by the bot on its
     // computer once it hears about the Send.
@@ -235,7 +251,7 @@ export function createBotCards({ records, account, env, computer, integrations, 
       if (!(await messages.claimBody(message.id, "pending", { ...body, status: "sending" }, options))) throw new BotsError(409, "That draft has already been dealt with.", { code: "bots_draft_closed" });
       try {
         const entry = await connectedKey(
-          { integrations, reach: conversations.reachOf(actor), call: options },
+          { integrations, call: options },
           Object.keys(MAIL),
           "email",
           message.body.from
@@ -260,19 +276,18 @@ export function createBotCards({ records, account, env, computer, integrations, 
         }
         throw error;
       }
-      const sent = await messages.setBody(message.id, { ...body, status: "sent", sentAt: new Date().toISOString() }, options);
-      return { bot: toBot(row), messages: [sent] };
+      return done([await messages.setBody(message.id, { ...body, status: "sent", sentAt: new Date().toISOString() }, options)]);
     }
-    return { bot: toBot(row), messages: [await messages.setBody(message.id, { ...body, status: send ? "send" : "discarded" }, options)] };
+    return done([await messages.setBody(message.id, { ...body, status: send ? "send" : "discarded" }, options)]);
   }
 
   /**
    * Send on a Sedna draft card (D-94): the press is the person's approval. Claimed first, so a second press (or another
-   * server) can't send it twice, then sent as the person's own Sedna user from the card's team, never in a room or a group
-   * others read; a reply quotes the answered message, read again in their teams. A failure puts the card back with what
-   * happened; one where it isn't known whether it went says to check Sedna first, and nothing tries again by itself.
+   * server) can't send it twice, then sent as the person's own Sedna user from the card's team, in any chat (D14); a
+   * reply quotes the answered message, read again in their teams. A failure puts the card back with what happened; one
+   * where it isn't known whether it went says to check Sedna first, and nothing tries again by itself.
    */
-  async function sendSednaCard(row, actor, message, body, options) {
+  async function sendSednaCard(seat, message, body, options) {
     const addresses = String(body.to || "").match(new RegExp(EMAIL_ADDRESS.source, "giu")) || [];
     if (!addresses.length) {
       throw new BotsError(400, "This draft has no email address to send to. Ask the bot to add one.", { code: "bots_draft_recipient_missing" });
@@ -283,7 +298,7 @@ export function createBotCards({ records, account, env, computer, integrations, 
     let sent;
     try {
       sent = await sendSednaMessage(
-        { call: options, env, integrations, reach: conversations.reachOf(actor), files, place: files.store.placeFor(actor, actor.user_id) },
+        { call: options, env, integrations, files, place: placeOf(seat) },
         {
           team: body.sedna.team?.id,
           to: body.to,
@@ -310,10 +325,10 @@ export function createBotCards({ records, account, env, computer, integrations, 
     }, options);
     // The event line says what went where, as an approved action's does.
     const { result: _result, ...line } = sent;
-    return { bot: toBot(row), messages: [done, ...(await conversations.append(row, [line], options))] };
+    return [done, ...await seats.say(seat, [line], options)];
   }
 
-  /** The person cancels a request from either card (D-46). */
+  /** The person cancels a request from its card (D-46). */
   async function cancelRequest(requestId, options) {
     const request = await requests.cancel(requestId, options);
     if (!request) throw new BotsError(404, "That request isn't yours.", { code: "bots_request_not_found" });

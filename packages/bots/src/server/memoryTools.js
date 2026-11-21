@@ -4,15 +4,14 @@ import { findSkill } from "./skills.js";
 import { ADDITIONS_LIMIT, changeRefusal, mayChangeBot } from "./botAdditions.js";
 
 /**
- * What the bot keeps for the person: memories shared by all their bots, skills, and its own additions (D-98). In a shared
- * bot's room (`personal` false, D-36) only Mercbot's own skills and its template's are offered.
+ * What a bot keeps beyond a chat: skills (Mercbot's, its template's and the asker's own, per home) and its own additions
+ * (D-98). Lasting facts for a job are the template's notes document in /files/chat (B1), not a tool here.
  * @param {object} shared
- * @param {import("./types.js").TurnRepository} shared.turns records.turns
- * @param {import("./types.js").BotRecords["conversations"]} shared.bots records.conversations, for the bot's additions
+ * @param {import("./types.js").BotRecords["bots"]} shared.bots records.bots, for the bot's additions
  * @param {import("@local/integrations/server/types").Integrations} shared.integrations
  * @param {{ name: string, instructions: string }[]} shared.botSkills
  * @param {string} shared.botId
- * @param {boolean} shared.personal
+ * @param {string} shared.userId the person the turn works for
  * @param {boolean} shared.personInChat a person's own message started the turn: not a routine's run, an app's task or
  *   work another bot asked for
  * @param {(actionId: string, args: object, lead: string, change: { before: string, after: string }) => Promise<object>} shared.attempt
@@ -20,55 +19,14 @@ import { ADDITIONS_LIMIT, changeRefusal, mayChangeBot } from "./botAdditions.js"
  * @param {(text: string) => void} shared.acknowledge
  * @param {import("@jskit-ai/resource-runtime/server/types").ResourceCallOptions} shared.call the turn's call options
  */
-export function buildMemoryTools({ turns, bots, integrations, botSkills, botId, personal, personInChat, attempt, acknowledge, call }) {
+export function buildMemoryTools({ bots, integrations, botSkills, botId, userId, personInChat, attempt, acknowledge, call }) {
   const tools = {};
-  if (personal) {
-    /** Memory shared by all the person's bots: lasting facts only, never chat content. */
-    async function remember({ fact }) {
-      const text = fact.trim();
-      /** Which connected account to use is one bot's choice, kept in its own chat. */
-      const addresses = (await integrations.accountLabels(call)).map((address) => address.toLowerCase());
-      if (addresses.some((address) => text.toLowerCase().includes(address)) || /\b(inbox|mailbox)(es)?\b/iu.test(text)) {
-        return {
-          error:
-            "Which account to use isn't saved for all bots: it's your choice in this chat only. Don't say it's shared; just keep to it here."
-        };
-      }
-      // A person's memories belong to them within this bot's home (D-36): the call's.
-      await turns.rememberFact(text, botId, call);
-      return {
-        status: "saved",
-        note: "If you haven't already said it, say once, in one line, that you've saved it so their other bots know too."
-      };
-    }
-    tools.remember = createTool(
-      Object.freeze({
-        id: "remember",
-        description:
-          "Save a lasting fact about the person so all their bots know it: an allergy, a diet, a preference, an important date, someone close to them. One fact per call, in a short plain sentence. Never save passwords, card numbers or codes.",
-        inputSchema: z.object({ fact: z.string().min(3).max(300) }),
-        execute: (input, options) => remember(input, options)
-      })
-    );
-    async function forget({ fact }) {
-      return (await turns.forgetFact(fact.trim(), call)) ? { status: "forgotten" } : { error: "There's no remembered fact worded like that." };
-    }
-    tools.forget = createTool(
-      Object.freeze({
-        id: "forget",
-        description:
-          "Forget something you remember about the person, when they ask or it's no longer true. Give the fact as it's listed in the Current state note.",
-        inputSchema: z.object({ fact: z.string().min(3).max(300) }),
-        execute: (input, options) => forget(input, options)
-      })
-    );
-  }
 
   /**
    * Skills: Mercbot's own and the person's, read before doing the job. The person's
    * can be saved, changed and deleted, only when they agree, taught tasks too.
    */
-  const ownSkills = async () => (personal ? integrations.skills(call) : []);
+  const ownSkills = () => integrations.skills(call);
   async function readSkill({ acknowledgement, name }) {
     const skill = findSkill(name, [...await ownSkills(), ...botSkills.map((entry, index) => ({ ...entry, id: `t${index}` }))]);
     if (!skill) return { error: `There's no skill called "${name}".` };
@@ -87,48 +45,46 @@ export function buildMemoryTools({ turns, bots, integrations, botSkills, botId, 
       execute: (input, options) => readSkill(input, options)
     })
   );
-  if (personal) {
-    async function saveSkill({ name, description, instructions, replaces }) {
-      const existing = replaces ? (await ownSkills()).find((skill) => skill.name.toLowerCase() === replaces.trim().toLowerCase()) : null;
-      if (replaces && !existing) return { error: `There's no skill of theirs called "${replaces}".` };
-      const skill = existing
-        ? (await integrations.updateSkill(existing.id, { name, description, instructions }, call)).skill
-        : await integrations.createSkill({ name, description, instructions }, call);
-      return { status: existing ? "changed" : "saved", name: skill.name, note: "Don't run it now; offer a test run." };
-    }
-    tools.saveSkill = createTool(
-      Object.freeze({
-        id: "save_skill",
-        description:
-          "Save a new skill for the person, or change one of theirs (give its current name as `replaces`). Only when they've agreed. Never put passwords or codes in a skill.",
-        inputSchema: z.object({
-          name: z.string().min(1).max(80),
-          description: z.string().min(1).max(240).describe("One line: what it does"),
-          instructions: z
-            .string()
-            .min(1)
-            .max(20000)
-            .describe(
-              "When it applies, what it needs, the steps, where to stop and check (paying, ordering, sending), and what never to do"
-            ),
-          replaces: z.string().max(80).optional()
-        }),
-        execute: (input, options) => saveSkill(input, options)
-      })
-    );
-    async function deleteSkill({ name }) {
-      const existing = (await ownSkills()).find((skill) => skill.name.toLowerCase() === name.trim().toLowerCase());
-      if (!existing) return { error: `There's no skill of theirs called "${name}".` };
-      await integrations.deleteSkill(existing.id, call);
-      return { status: "deleted", name: existing.name };
-    }
-    tools.deleteSkill = createTool(Object.freeze({
-      id: "delete_skill",
-      description: "Delete one of the person's own skills, only when they asked for it.",
-      inputSchema: z.object({ name: z.string().min(1).max(80) }),
-      execute: (input, options) => deleteSkill(input, options)
-    }));
+  async function saveSkill({ name, description, instructions, replaces }) {
+    const existing = replaces ? (await ownSkills()).find((skill) => skill.name.toLowerCase() === replaces.trim().toLowerCase()) : null;
+    if (replaces && !existing) return { error: `There's no skill of theirs called "${replaces}".` };
+    const skill = existing
+      ? (await integrations.updateSkill(existing.id, { name, description, instructions }, call)).skill
+      : await integrations.createSkill({ name, description, instructions }, call);
+    return { status: existing ? "changed" : "saved", name: skill.name, note: "Don't run it now; offer a test run." };
   }
+  tools.saveSkill = createTool(
+    Object.freeze({
+      id: "save_skill",
+      description:
+        "Save a new skill for the person, or change one of theirs (give its current name as `replaces`). Only when they've agreed. Never put passwords or codes in a skill.",
+      inputSchema: z.object({
+        name: z.string().min(1).max(80),
+        description: z.string().min(1).max(240).describe("One line: what it does"),
+        instructions: z
+          .string()
+          .min(1)
+          .max(20000)
+          .describe(
+            "When it applies, what it needs, the steps, where to stop and check (paying, ordering, sending), and what never to do"
+          ),
+        replaces: z.string().max(80).optional()
+      }),
+      execute: (input, options) => saveSkill(input, options)
+    })
+  );
+  async function deleteSkill({ name }) {
+    const existing = (await ownSkills()).find((skill) => skill.name.toLowerCase() === name.trim().toLowerCase());
+    if (!existing) return { error: `There's no skill of theirs called "${name}".` };
+    await integrations.deleteSkill(existing.id, call);
+    return { status: "deleted", name: existing.name };
+  }
+  tools.deleteSkill = createTool(Object.freeze({
+    id: "delete_skill",
+    description: "Delete one of the person's own skills, only when they asked for it.",
+    inputSchema: z.object({ name: z.string().min(1).max(80) }),
+    execute: (input, options) => deleteSkill(input, options)
+  }));
 
   /**
    * The bot's own additions to its template (D-98, D-95's instructions before them), changed only when the person in
@@ -137,9 +93,9 @@ export function buildMemoryTools({ turns, bots, integrations, botSkills, botId, 
    */
   if (personInChat) {
     async function changeAdditions({ additions }) {
-      const bot = await bots.botOf(String(botId), call);
-      // A request's turn knows whether its person may; a reply resumed later without one leaves it to the card's yes.
-      if (call.context?.permissions && !mayChangeBot(bot.user_id, bots.personOf(call), call)) {
+      const bot = await bots.get(String(botId), call);
+      // A request's turn knows whether its person may; the model's reader has no permissions, which the card's yes checks.
+      if (call.context?.permissions && !mayChangeBot(bot.made_by, userId, call)) {
         return { error: `${changeRefusal(bot.name)} Say so politely: nothing was changed.` };
       }
       const change = { before: bot.additions || "", after: additions.trim() };

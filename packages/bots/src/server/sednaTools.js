@@ -24,8 +24,8 @@ import {
 } from "./sednaApi.js";
 import { JOB_TYPES, ownDraft, ownTeam, recipients, replyBasis } from "./sednaChanges.js";
 
-// The home's Sedna (D-93, D-94), used for the person who asks: only what their own Sedna user's teams see (sednaApi.js),
-// and only in their own chat with their bot, where nobody else reads the answer. Who they are in Sedna is integrations'
+// The home's Sedna (D-93, D-94), used for the person who asks, in any chat (D15, R4): only what their own Sedna user's
+// teams see (sednaApi.js). Who they are in Sedna is integrations'
 // (appPeople.js): their address, or the user they picked and an owner or admin confirmed. Reads answer at once; every
 // change in Sedna is an action (sednaActions.js) that goes through approvals, real only in a live copy; a message to
 // send is a draft card first, sent when the person presses Send. Each action is its own switch in Connect apps
@@ -56,7 +56,7 @@ const DESCRIPTIONS = {
     "and template (one by id: its subject and text). words narrows tags, jobs, contacts and templates by name.",
   sedna_attachments:
     "A Sedna message's attachments (the message in the person's teams, by its id): list them, save one (document: its id or name " +
-    "from list) or save_all into your files, under /files/mine/Sedna/. 25 MB each at most; save_all saves 10 files, 60 MB in all, " +
+    "from list) or save_all into your files, under /files/chat/Sedna/. 25 MB each at most; save_all saves 10 files, 60 MB in all, " +
     "and says what it left.",
   sedna_mail:
     "Send from Sedna as the person, from one of their teams, or work on their own Sedna drafts. To write something for them to " +
@@ -260,7 +260,7 @@ export function buildSednaTools({
   if (attachments.length) {
     /** Saves attachments into the bot's files: what was saved, and what was left with why, never silently. */
     async function save(access, listed, chosen) {
-      const folder = `/files/mine/Sedna/${safeName(listed.subject, `message ${listed.message}`)}`;
+      const folder = `/files/chat/Sedna/${safeName(listed.subject, `message ${listed.message}`)}`;
       const saved = [];
       const left = [];
       let bytes = 0;
@@ -372,7 +372,7 @@ export function buildSednaTools({
         cc: z.string().max(400).optional().describe("Email addresses to copy in, only when the person asked"),
         subject: z.string().max(200).optional(),
         text: z.string().max(8000).optional().describe("The message, starting with a greeting by first name and ending with a sign-off"),
-        attach: z.array(z.string().min(8).max(500)).max(5).optional().describe("Your files to attach (/files/mine/…)")
+        attach: z.array(z.string().min(8).max(500)).max(5).optional().describe("Your files to attach (/files/chat/…)")
       }),
       execute: (input) => sednaDraft(input)
     }));
@@ -393,7 +393,7 @@ export function buildSednaTools({
         cc: z.string().max(400).optional(),
         subject: z.string().max(300).optional(),
         text: z.string().max(20000).optional().describe("The whole message text, plain"),
-        attach: z.array(z.string().min(8).max(500)).max(5).optional().describe("Your files to attach (/files/mine/…)"),
+        attach: z.array(z.string().min(8).max(500)).max(5).optional().describe("Your files to attach (/files/chat/…)"),
         personAsked
       }),
       execute: ({ action, acknowledgement, id, replyTo, team, to, cc, subject, text, attach = [], personAsked: asked }) =>

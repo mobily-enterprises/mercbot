@@ -1,5 +1,5 @@
-// Mentions in group chats. Messages store a mention as a marker: <@bot:ID>,
-// <@everyone> or <@app:ID>. The model reads and writes plain "@Name" instead.
+// Mentions in chats (D-112, R3): a mention of a bot of the chat makes it speak. Messages store a mention as a marker:
+// <@bot:ID>, <@everyone> or <@app:ID>. The model reads and writes plain "@Name" instead.
 const MARKER = /<@(bot|app|skill):([\w-]+)>|<@everyone>/gu;
 
 export function mentionsIn(text) {

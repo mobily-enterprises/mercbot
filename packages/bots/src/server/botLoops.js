@@ -33,20 +33,20 @@ export function codingReport(run) {
 }
 
 /**
- * Queues the report of each coding run that ends as a task for its bot in its chat, as a finished
- * command's is (kind shell: background work with no one waiting on it).
+ * Queues the report of each coding run that ends as a task for its bot in its chat (the computer's seat), as a finished
+ * command's is (kind shell: background work with no one waiting on it), for the person who started it (R4).
  * @param {import("@local/apps/server/types").Apps} apps
  * @param {(reason: string) => object} systemContext
  */
 export function codingFollowUp(apps, systemContext) {
-  return ({ computerId, conversation, run }) => apps.apps.queueTask({
+  return ({ computerId, place, run }) => apps.apps.queueTask({
     kind: "shell",
-    botId: conversation.botId,
-    conversationId: computerId,
-    userId: conversation.userId,
+    botId: place.botId,
+    chatBotId: place.chatBotId,
+    userId: run.userId == null ? null : String(run.userId),
     title: `${run.label} ${run.status === "done" ? "finished" : run.status === "stopped" ? "stopped" : "ended with an error"}`,
     prompt: codingReport(run)
-  }, { context: systemContext("a finished coding run's follow-up").forWorkspace(conversation.workspaceId) })
+  }, { context: systemContext("a finished coding run's follow-up").forWorkspace(place.workspaceId) })
     .catch((error) => console.warn(`The report of a coding run on computer ${computerId} couldn't be queued: ${error.message}`));
 }
 
@@ -88,18 +88,23 @@ export function createBotLoops({ records, systemContext, notices, files, apps, c
       // What the bots know (D-107): each piece added is read and split once across servers.
       bots.knowledge.start()
     ];
-    // A command that went on in the background (D-47) wakes its bot in the same conversation
-    // when it ends; runs whose server stopped are found by any server.
+    // A command that went on in the background (D-47) wakes its bot in the same chat when it ends, for the person
+    // whose turn ran it; runs whose server stopped are found by any server.
     files.shell.startSweeping();
-    // The run's own home queues it (a run row, snake_case, as the shell keeps it).
-    shellEnded = files.shell.onEnd((run) => apps.apps.queueTask({
-      kind: "shell",
-      botId: String(run.bot_id),
-      conversationId: String(run.conversation_id),
-      userId: run.user_id == null ? null : String(run.user_id),
-      title: run.status === "stopped" ? "Command stopped" : "Command finished",
-      prompt: shellReport(run)
-    }, { context: systemContext("a finished command's follow-up").forWorkspace(String(run.workspace_id)) }));
+    // The run's own home queues it (a run row, snake_case, as the shell keeps it), for its seat's bot.
+    shellEnded = files.shell.onEnd(async (run) => {
+      const inHome = { context: systemContext("a finished command's follow-up").forWorkspace(String(run.workspace_id)) };
+      const [seat] = await records.directory.seats([String(run.chat_bot_id)], inHome);
+      if (!seat) return;
+      await apps.apps.queueTask({
+        kind: "shell",
+        botId: seat.botId,
+        chatBotId: seat.id,
+        userId: run.user_id == null ? null : String(run.user_id),
+        title: run.status === "stopped" ? "Command stopped" : "Command finished",
+        prompt: shellReport(run)
+      }, inHome);
+    });
     // A coding run on a bot's computer wakes its bot to report, the same way.
     // It keeps listening through the drain: computers are put away before it, and a run they stop is
     // reported too.

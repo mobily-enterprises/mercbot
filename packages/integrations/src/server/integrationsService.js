@@ -1,6 +1,6 @@
 import { resolveActorId } from "@jskit-ai/kernel/server/actions/actionContributorHelpers";
 import { retryLostInsertRace } from "@jskit-ai/database-runtime/shared";
-import { passedOn, resolveUserScopeValue } from "@jskit-ai/resource-runtime/server";
+import { passedOn, resolveUserScopeValue, resolveWorkspaceScopeValue } from "@jskit-ai/resource-runtime/server";
 import { personName } from "@local/homes/server/personName";
 import { IntegrationsError } from "./accounts.js";
 import { PACES, paceOf } from "./appRequests.js";
@@ -80,16 +80,22 @@ export function createIntegrationsService({ resources, accounts, catalogue, conn
   }
 
   /**
-   * The options for the person's own rows (wishes, switches, skills: `user` tables). A
-   * request's are its own, and so are a job's already scoped to the person. A home's job acting for a
-   * person reads and writes the person's rows, and only theirs, through a context for that person.
+   * The options for the person's own rows (wishes, and their skills in this home: `user` and `workspace_user` tables).
+   * A request's are its own, and so are a job's already scoped to the person. A home's job acting for a person reads and
+   * writes the person's rows in that home, and only theirs, through a context for that person there.
    */
   function own(options) {
     if (resolveActorId(options?.context)) return passedOn(options);
     const person = accounts.personOf(options);
     if (!person) throw new Error("integrations: a person's own apps and skills need a signed-in person or a job acting for one.");
     if (String(resolveUserScopeValue(options?.context) ?? "") === String(person)) return passedOn(options);
-    return { ...passedOn(options), context: systemContext("read and change a person's own wishes, switches and skills for a job acting for them").forUser(person) };
+    const home = resolveWorkspaceScopeValue(options?.context);
+    if (!home) throw new Error("integrations: a person's own skills are theirs in a home: the job needs its home.");
+    return {
+      ...passedOn(options),
+      context: systemContext("read and change a person's own wishes and skills in a home for a job acting for them")
+        .forWorkspaceUser(String(home), String(person), { actorId: String(person) })
+    };
   }
 
   /**
@@ -359,33 +365,40 @@ export function createIntegrationsService({ resources, accounts, catalogue, conn
     return records.map((record) => ({ id: String(record.id), name: record.name, description: record.description }));
   }
 
-  /** The actions a person has turned off, by app. */
+  /** The actions the home has turned off, by app (D-112: the home's, as its accounts are). */
   async function actionsOff(options) {
-    const records = await pluginActionsOff.queryAll({ fields: ["pluginId", "actionId"] }, own(options));
+    const records = await pluginActionsOff.queryAll({ fields: ["pluginId", "actionId"] }, passedOn(options));
     const off = new Map();
     for (const record of records) off.set(record.pluginId, new Set([...(off.get(record.pluginId) || []), record.actionId]));
     return off;
   }
 
+  /**
+   * An action switched off or on for the whole home: its owners' and admins' to change, since it holds for everyone's
+   * bots in every chat (403 otherwise).
+   */
   async function switchAction(pluginId, actionId, enabled, options) {
+    if (!accounts.managesHome(options)) {
+      throw new IntegrationsError(403, "Only the home's owners and admins can switch an app's actions on or off.", { code: "integrations_actions_forbidden" });
+    }
     const entry = plugin(pluginId);
     if (!actionsOf(entry, await connectorActionLists(options))?.some((action) => action.id === actionId)) {
       throw new IntegrationsError(404, "That app has no such action.", { code: "integrations_action_not_found" });
     }
-    const mine = own(options);
+    const home = passedOn(options);
     if (enabled) {
-      await pluginActionsOff.deleteWhere({ pluginId: entry.id, actionId }, mine);
+      await pluginActionsOff.deleteWhere({ pluginId: entry.id, actionId }, home);
     } else {
       await pluginActionsOff.createMany([{ pluginId: entry.id, actionId }], {
-        ...mine,
-        onConflict: { keys: ["userId", "pluginId", "actionId"], action: "ignore" }
+        ...home,
+        onConflict: { keys: ["workspaceId", "pluginId", "actionId"], action: "ignore" }
       });
     }
     return list(options);
   }
 
   /**
-   * What a person's bots may use: for each tool, the apps it's switched off for, the tools
+   * What the home's bots may use: for each tool, the apps it's switched off for, the tools
    * to leave out altogether because every connected app that offers them has them off, and the
    * switched-off actions in words for the bot.
    */

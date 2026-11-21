@@ -1,33 +1,36 @@
 /**
- * Work paused where nobody sees it or can stop it (D-99, D-101): the routines and watches of the conversations given
- * pause, as a person pausing each would, and each conversation with something paused says so in a line naming them,
- * read when it's seen again. They stay paused until someone resumes them there, so nothing starts again unexpectedly.
+ * Work paused where nobody sees it or can stop it (D-99, D-101, D-112): the routines and watches of the bots' seats
+ * given pause, as a person pausing each would, and each chat with something paused says so in a line naming them, read
+ * when it's seen again; its people hear of it. They stay paused until someone resumes them there, so nothing starts
+ * again unexpectedly.
  * @param {object} dependencies
  * @param {import("./types.js").BotRecords} dependencies.records mercbot.bots.records
  * @param {import("@local/apps/server/types").Apps} dependencies.apps
- * @param {import("./types.js").BotConversations} dependencies.conversations
+ * @param {ReturnType<typeof import("./chatSeats.js").createChatSeats>} dependencies.seats where each chat's people hear of it
  */
-export function createWorkPause({ records, apps, conversations }) {
+export function createWorkPause({ records, apps, seats }) {
   /**
-   * @param {{ id: string }} bot
-   * @param {string[]} conversationIds
+   * @param {Array<{ id: string, chatId: string }>} chatBots the seats (chat_bots ids) whose work pauses, and their chats
    * @param {{ text: string, detail: (paused: string) => string }} line the line's title, and its words given what paused
-   * @param {import("./types.js").CallOptions} txOptions
+   * @param {import("./types.js").CallOptions} txOptions a context that may write in each of those chats
    */
-  return async function pauseWorkIn(bot, conversationIds, line, txOptions) {
-    if (!conversationIds.length) return;
-    const routines = await records.work.pauseRoutinesIn(conversationIds, txOptions);
-    const watches = await apps.watches.pauseIn({ botId: String(bot.id), conversationIds }, txOptions);
+  return async function pauseWork(chatBots, line, txOptions) {
+    if (!chatBots.length) return;
+    const chatOf = new Map(chatBots.map((seat) => [String(seat.id), String(seat.chatId)]));
+    const chatBotIds = [...chatOf.keys()];
+    const routines = await records.work.pauseRoutinesIn(chatBotIds, txOptions);
+    const watches = await apps.watches.pauseIn({ chatBotIds }, txOptions);
     const paused = [
-      ...routines.map((routine) => ({ conversationId: String(routine.conversationId), name: `routine "${routine.name}"` })),
-      ...watches.map((watch) => ({ ...watch, name: `watch "${watch.name}"` }))
+      ...routines.map((routine) => ({ chatBotId: String(routine.chatBotId), name: `routine "${routine.name}"` })),
+      ...watches.map((watch) => ({ chatBotId: String(watch.chatBotId), name: `watch "${watch.name}"` }))
     ];
-    for (const [conversationId, list] of Map.groupBy(paused, (entry) => entry.conversationId)) {
-      await conversations.append({ id: bot.id, conversation_id: conversationId }, [{
+    for (const [chatId, list] of Map.groupBy(paused, (entry) => chatOf.get(entry.chatBotId))) {
+      await records.messages.append(chatId, [{
         kind: "event",
         role: "system",
         body: { text: line.text, icon: "routine", detail: line.detail(list.map((entry) => entry.name).join(", ")) }
       }], txOptions);
+      await seats.tell(chatId, { type: "messages" }, txOptions);
     }
   };
 }
