@@ -82,7 +82,7 @@ The **ⓘ** button opens the app's details panel. It has six tabs: **Overview**,
 
 If several apps are being built at once, talking about all of them in one chat gets confusing. So each app has its own chat with the Builder: **Ask Builder** in an app opens it. It's made the first time anyone asks, named after the app, with the Builder and the person who asked in it. It's a Public chat, so everyone in the home can read it. If someone else started it, select **Join** to write in it.
 
-The chat keeps the bots it was made with. If the home picks another Builder later, the new one isn't added to the app's chats by itself: add it with **Add people or bots** in the chat's header, as only the Builder changes apps. See [Chats and your team](/help/chats).
+If the home picks another Builder later, the new one joins every app's chat by itself, and each chat shows a line saying so, for example "Chef is the Builder now, in place of Vera." The old Builder stays in the chat until someone removes it. See [Chats and your team](/help/chats).
 
 ## What you can change yourself
 
