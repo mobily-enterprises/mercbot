@@ -512,7 +512,8 @@ async function openInstructions() {
             :bot-id="String(bot.id)"
             :path="sharingItem.path"
             :title="sharingItem.name"
-            :access="accessOf(sharingItem)"
+            :chat-id="itemChatId(sharingItem)"
+            :home-name="homeName"
             @copied="emit('notify', $event)"
             @failure="emit('failure', $event)"
           />
