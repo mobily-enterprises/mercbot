@@ -1,7 +1,7 @@
 import { appsOf, fail, fieldsOf, json, pass } from "./helpers.mjs";
 // Change an existing app (the CRM template): a new field, shown on the contacts list.
 export async function setup(ctx) {
-  await ctx.apps.installTemplate({ workspaceId: ctx.workspaceId, actor: ctx.actor }, "crm");
+  await ctx.apps.installTemplate({ options: ctx.options, actor: ctx.actor }, "crm");
 }
 export const prompt = "In the CRM app, add a \"Birthday\" date field to contacts, and show it as a column on the contacts list.";
 export async function judge(ctx) {

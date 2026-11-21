@@ -15,7 +15,7 @@ export async function judge(ctx) {
   if (!part) return fail(`no copy: ${JSON.stringify(parts)}`);
   const screen = definition.screens[part.screen];
   if (screen?.copiedFrom?.view !== "pipeline") return fail(`copiedFrom: ${JSON.stringify(screen?.copiedFrom)}`);
-  const context = { workspaceId: ctx.workspaceId, actor: ctx.actor, via: { kind: "data" } };
+  const context = { options: ctx.options, actor: ctx.actor, via: { kind: "data" } };
   const answer = await ctx.apps.runtime.query(context, { slug: app.slug, version: "draft", screen: part.screen, query: Object.keys(screen.data)[0] });
   if (answer.needsAttention) return fail("the copy's query doesn't run");
   return pass();

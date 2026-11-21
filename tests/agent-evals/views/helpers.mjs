@@ -18,15 +18,15 @@ export const OPEN_TOTAL = DEALS.filter(([, stage]) => !["Won", "Lost"].includes(
 
 /** A home's sales data, as a person who has been using Mercbot for a while has it. */
 export async function dealsTable(ctx) {
-  const context = { workspaceId: ctx.workspaceId, actor: ctx.actor, via: { kind: "data" } };
-  const table = await ctx.apps.registry.createTable(ctx.workspaceId, ctx.actor, {
+  const context = { options: ctx.options, actor: ctx.actor, via: { kind: "data" } };
+  const table = await ctx.apps.registry.createTable(ctx.actor, {
     key: "deals",
     fields: [
       { key: "title", type: "text", required: true },
       { key: "stage", type: "choice", choices: ["New", "Proposal", "Won", "Lost"] },
       { key: "amount", type: "money" }
     ]
-  });
+  }, ctx.options);
   const id = (key) => table.fields.find((field) => field.key === key).id;
   for (const [title, stage, amount] of DEALS) {
     await ctx.apps.gate.create(context, "deals", { [id("title")]: title, [id("stage")]: stage, [id("amount")]: amount });
@@ -43,7 +43,7 @@ export async function anotherBot(ctx, name) {
 
 /** A view the person already has, saved as their bot would have saved it. */
 export function haveView(ctx, title, definition, { botId = ctx.bot.id } = {}) {
-  const context = { workspaceId: ctx.workspaceId, actor: { type: "bot", id: String(botId), name: "A bot" }, via: { kind: "chat" } };
+  const context = { options: ctx.options, actor: { type: "bot", id: String(botId), name: "A bot" }, via: { kind: "chat" } };
   return ctx.apps.views.save(context, { title, summary: `${title}, kept up to date`, definition }, { userId: ctx.userId, botId });
 }
 
@@ -60,9 +60,9 @@ export const PIPELINE = {
 
 /** The home's views: as stored, by names, checked again, with every query run for real. */
 export async function viewsOf(ctx) {
-  const tables = await ctx.apps.registry.loadTables(ctx.workspaceId);
+  const tables = await ctx.apps.registry.loadTables(ctx.options);
   const rows = await ctx.knex("apps").where({ workspace_id: ctx.workspaceId, kind: "view" }).orderBy("created_at");
-  const context = { workspaceId: ctx.workspaceId, actor: ctx.actor, via: { kind: "data" } };
+  const context = { options: ctx.options, actor: ctx.actor, via: { kind: "data" } };
   const views = [];
   for (const row of rows) {
     const versions = await ctx.knex("app_versions").where({ app_id: row.id }).orderBy("number");
@@ -89,7 +89,7 @@ export async function toolsCalled(ctx, bot = ctx.bot) {
 
 /** An app's parts of a kind, in a version's definition by names: `draft` or `live`. */
 export async function viewParts(ctx, slug, version = "draft") {
-  const { definition } = await ctx.apps.apps.get(ctx.workspaceId, slug, { version });
+  const { definition } = await ctx.apps.apps.get(slug, { version }, ctx.options);
   const parts = [];
   const walk = (value) => {
     if (Array.isArray(value)) return value.forEach(walk);
