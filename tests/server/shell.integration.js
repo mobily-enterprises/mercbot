@@ -3,6 +3,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { seedChat } from "../support/chatFixtures.mjs";
 import { startShell } from "../support/ownedHandles.mjs";
 import { connectTestDatabase } from "../support/testDatabase.mjs";
 import { createFileStore } from "../../packages/files/src/server/fileStore.js";
@@ -12,21 +13,22 @@ import { refuseWork } from "../../packages/account/src/server/meter.js";
 
 const { LIMITS } = __testables;
 
-// Bots' command line (D-47): gVisor, no network, only the conversation's folders, limits on time,
-// memory, processes, file size and output; background runs, heartbeats and stopped servers.
+// Bots' command line (D-47): gVisor, no network, only the chat's folders (R6; in a private chat the bot's and the
+// home's are read-only, D13), limits on time, memory, processes, file size and output; background runs, heartbeats and
+// stopped servers. A bot's commands in a chat are its seat's there (chat_bots, D14).
 assert.ok(process.env.TEST_DB_NAME?.trim(), "TEST_DB_NAME must identify a disposable test database.");
 assert.equal(process.env.DB_NAME, process.env.TEST_DB_NAME, "DB_NAME must match the dedicated TEST_DB_NAME.");
 
 test("bots' commands run sealed off, within limits, and carry on in the background", { skip: shellAvailable(process.env) ? false : "the toolbox isn't installed (npm run tools:install)" }, async (context) => {
   const knex = await connectTestDatabase();
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), "mercbot-shell-test-"));
-  const userId = (await knex("users").first())?.id;
+  const userId = String((await knex("users").first())?.id);
   const [home] = await knex("workspaces").insert({ slug: `shell-${Date.now()}`, name: "Shell test", owner_user_id: userId, is_personal: false }).returning("id");
-  const workspaceId = home.id ?? home;
-  const [bot] = await knex("bots").insert({ user_id: userId, workspace_id: workspaceId, name: "Shelly", color: "#1E86FC" }).returning("id");
+  const workspaceId = String(home.id ?? home);
+  const [bot] = await knex("bots").insert({ made_by: userId, workspace_id: workspaceId, name: "Shelly", color: "#1E86FC" }).returning("id");
   const botId = String(bot.id ?? bot);
-  const [conversation] = await knex("bot_conversations").insert({ workspace_id: workspaceId, bot_id: botId, user_id: userId }).returning("id");
-  const conversationId = String(conversation.id ?? conversation);
+  const chat = await seedChat(knex, { homeId: workspaceId, kind: "public", people: [userId], bots: [botId] });
+  const chatBotId = chat.chatBotIds.get(botId);
   context.after(async () => {
     await knex("workspaces").where({ id: workspaceId }).del();
     await knex.destroy();
@@ -36,19 +38,19 @@ test("bots' commands run sealed off, within limits, and carry on in the backgrou
   // The whole sandbox's memory under one program's here, so that one program can go past it.
   const limits = { ...LIMITS, fileSize: 10 * 1024 * 1024, sandboxMemory: 1024 ** 3 };
   const { shell, inHome } = await startShell(knex, context, { store, limits });
-  const place = { homeId: workspaceId, botId, userId };
+  const place = store.placeFor({ homeId: workspaceId, chatId: chat.id, chatKind: "public", botId });
   const ended = [];
   shell.onEnd((run) => ended.push(run));
-  const go = (script, extra = {}) => shell.start({ place, workspaceId, botId, conversationId, userId, why: "test", script, ...extra });
+  const go = (script, extra = {}) => shell.start({ place, workspaceId, botId, chatBotId, userId, why: "test", script, ...extra });
 
   // The toolbox, the three folders, and what changed.
-  let run = await go("echo hello > /files/mine/hello.txt && ls /files && ffmpeg -version | head -1 && python3 -c 'import pandas, pptx; print(\"py ok\")'");
+  let run = await go("echo hello > /files/chat/hello.txt && ls /files && ffmpeg -version | head -1 && python3 -c 'import pandas, pptx; print(\"py ok\")'");
   assert.equal(run.status, "done", run.output);
-  assert.match(run.output, /^bot\nmine\nshared\n/u);
+  assert.match(run.output, /^bot\nchat\nshared\n/u);
   assert.match(run.output, /ffmpeg version/u);
   assert.match(run.output, /py ok/u);
-  assert.deepEqual(run.changed, ["/files/mine/hello.txt"]);
-  assert.equal((await fs.readFile((await store.existingFile(place, "/files/mine/hello.txt")).real, "utf8")), "hello\n");
+  assert.deepEqual(run.changed, ["/files/chat/hello.txt"]);
+  assert.equal((await fs.readFile((await store.existingFile(place, "/files/chat/hello.txt")).real, "utf8")), "hello\n");
 
   // No network, no server files, no server environment.
   run = await go("python3 -c 'import socket; socket.create_connection((\"1.1.1.1\", 80), 3)' 2>&1 | tail -1; ls /var/lib /home 2>&1; ls " + JSON.stringify(dir) + " 2>&1; env | cut -d= -f1 | sort | tr '\\n' ' '");
@@ -65,7 +67,7 @@ test("bots' commands run sealed off, within limits, and carry on in the backgrou
   assert.match(run.output, /MemoryError/u);
   run = await go("python3 -c 'x = bytearray(1536 * 1024 ** 2); import time; time.sleep(30)'", { maxSeconds: 60 });
   assert.equal(run.stopped, "It used too much memory.");
-  run = await go("head -c 20M /dev/zero > /files/mine/big 2>&1; ls -l /files/mine/big | awk '{print $5}'");
+  run = await go("head -c 20M /dev/zero > /files/chat/big 2>&1; ls -l /files/chat/big | awk '{print $5}'");
   assert.match(run.output, /File too large|10485760/u);
   run = await go("bomb() { bomb | bomb & }; bomb; sleep 2; echo survived", { maxSeconds: 10 });
   assert.ok(["done", "failed"].includes(run.status));
@@ -74,21 +76,36 @@ test("bots' commands run sealed off, within limits, and carry on in the backgrou
   assert.match(run.output, /output cut/u);
 
   // Files are never programs: nothing in the folders can be started, scripts run through bash.
-  run = await go("cp /bin/echo /files/mine/e && chmod +x /files/mine/e && /files/mine/e hi 2>&1; printf 'echo via-bash' > /files/mine/s.sh && bash /files/mine/s.sh; rm -f /files/mine/e /files/mine/s.sh");
-  assert.match(run.output, /\/files\/mine\/e: Permission denied/u);
+  run = await go("cp /bin/echo /files/chat/e && chmod +x /files/chat/e && /files/chat/e hi 2>&1; printf 'echo via-bash' > /files/chat/s.sh && bash /files/chat/s.sh; rm -f /files/chat/e /files/chat/s.sh");
+  assert.match(run.output, /\/files\/chat\/e: Permission denied/u);
   assert.match(run.output, /via-bash/u);
 
   // A link made inside can't make the app serve a server file.
-  await go("ln -s /etc/passwd /files/mine/p");
-  await assert.rejects(store.existingFile(place, "/files/mine/p"), /isn't there/u);
+  await go("ln -s /etc/passwd /files/chat/p");
+  await assert.rejects(store.existingFile(place, "/files/chat/p"), /isn't there/u);
 
-  // Asked by another bot: the person's and the home's folders are read-only.
-  run = await go("touch /files/mine/x 2>&1; touch /files/shared/x 2>&1; touch /files/bot/ok && echo bot-ok", { readOnly: ["mine", "shared"] });
-  assert.match(run.output, /\/files\/mine\/x.*Read-only file system/u);
+  // Asked by another bot: the chat's and the home's folders are read-only.
+  run = await go("touch /files/chat/x 2>&1; touch /files/shared/x 2>&1; touch /files/bot/ok && echo bot-ok", { readOnly: ["chat", "shared"] });
+  assert.match(run.output, /\/files\/chat\/x.*Read-only file system/u);
   assert.match(run.output, /\/files\/shared\/x.*Read-only file system/u);
   assert.match(run.output, /bot-ok/u);
 
-  // One command at a time per conversation: two fired together run one after the other.
+  // In a private chat its bot only reads /files/bot and /files/shared (D13): they're mounted read-only and the chat's
+  // own folder isn't. Widened (a card a person tapped), it writes in all three.
+  await go("echo for-everyone > /files/bot/note.txt && echo the-home > /files/shared/note.txt");
+  const secret = await seedChat(knex, { homeId: workspaceId, kind: "private", people: [userId], bots: [botId] });
+  const privately = store.placeFor({ homeId: workspaceId, chatId: secret.id, chatKind: "private", botId });
+  const goPrivately = (script, where = privately) => shell.start({ place: where, workspaceId, botId, chatBotId: secret.chatBotIds.get(botId), userId, why: "test", script });
+  run = await goPrivately("cat /files/bot/note.txt /files/shared/note.txt; touch /files/chat/ok && echo chat-ok; touch /files/bot/x 2>&1; touch /files/shared/x 2>&1");
+  assert.match(run.output, /^for-everyone\nthe-home\nchat-ok\n/u);
+  assert.match(run.output, /\/files\/bot\/x.*Read-only file system/u);
+  assert.match(run.output, /\/files\/shared\/x.*Read-only file system/u);
+  assert.deepEqual(run.changed, ["/files/chat/ok"]);
+  run = await goPrivately("touch /files/bot/wide.txt /files/shared/wide.txt && echo wide-ok", store.widened(privately));
+  assert.match(run.output, /wide-ok/u);
+  assert.deepEqual([...run.changed].sort(), ["/files/bot/wide.txt", "/files/shared/wide.txt"]);
+
+  // One command at a time per bot in a chat: two fired together run one after the other.
   const [first, second] = await Promise.all([go("sleep 1; date +%s%N"), go("date +%s%N")]);
   assert.equal(first.status, "done");
   assert.equal(second.status, "done");
@@ -110,9 +127,9 @@ test("bots' commands run sealed off, within limits, and carry on in the backgrou
 
   // A computer's session: the bot's commands run in it, share its /tmp, show in its log, and keep
   // their own time limit; the Terminal's command attaches to it; it ends with the computer.
-  const session = await shell.attach({ key: conversationId, place, label: "Shelly's commands" });
+  const session = await shell.attach({ key: chatBotId, place, label: "Shelly's commands" });
   assert.ok(session);
-  assert.deepEqual(shell.terminalCommand(conversationId).slice(-4), ["tmux", "attach", "-t", "main"]);
+  assert.deepEqual(shell.terminalCommand(chatBotId).slice(-4), ["tmux", "attach", "-t", "main"]);
   run = await go("echo kept > /tmp/kept.txt; echo first-run");
   assert.equal(run.status, "done", run.output);
   run = await go("cat /tmp/kept.txt; tmux ls | cut -d: -f1");
@@ -139,8 +156,8 @@ test("bots' commands run sealed off, within limits, and carry on in the backgrou
   // and the session ends after it.
   const sleeper = go("sleep 3; cat /tmp/kept.txt; echo finished");
   await new Promise((resolve) => setTimeout(resolve, 1000));
-  await shell.detach(conversationId);
-  assert.equal(shell.terminalCommand(conversationId), null);
+  await shell.detach(chatBotId);
+  assert.equal(shell.terminalCommand(chatBotId), null);
   run = await sleeper;
   assert.equal(run.status, "done", run.output);
   assert.match(run.output, /kept\nfinished/u);
@@ -148,7 +165,7 @@ test("bots' commands run sealed off, within limits, and carry on in the backgrou
   assert.match(run.output, /No such file/u, "after the session ends, commands start fresh again");
 
   // A background run whose server stopped heartbeating is marked stopped, once, and its bot told.
-  const [stale] = await knex("shell_runs").insert({ workspace_id: workspaceId, bot_id: botId, conversation_id: conversationId, script: "sleep 999", server: "gone:1", background: true, heartbeat_at: knex.raw("now() - interval '5 minutes'") }).returning("id");
+  const [stale] = await knex("shell_runs").insert({ workspace_id: workspaceId, chat_bot_id: chatBotId, script: "sleep 999", server: "gone:1", background: true, heartbeat_at: knex.raw("now() - interval '5 minutes'") }).returning("id");
   await shell.sweep();
   await shell.sweep();
   assert.equal((await knex("shell_runs").where({ id: stale.id ?? stale }).first()).status, "stopped");
@@ -158,11 +175,12 @@ test("bots' commands run sealed off, within limits, and carry on in the backgrou
 test("a command's computation is opened a block at a time: refused, none starts, and one running stops", { skip: shellAvailable(process.env) ? false : "the toolbox isn't installed (npm run tools:install)" }, async (context) => {
   const knex = await connectTestDatabase();
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), "mercbot-shell-paused-"));
-  const userId = (await knex("users").first())?.id;
+  const userId = String((await knex("users").first())?.id);
   const [home] = await knex("workspaces").insert({ slug: `shell-paused-${Date.now()}`, name: "Shell paused", owner_user_id: userId, is_personal: false }).returning("id");
-  const workspaceId = home.id ?? home;
-  const [bot] = await knex("bots").insert({ user_id: userId, workspace_id: workspaceId, name: "Shelly", color: "#1E86FC" }).returning("id");
+  const workspaceId = String(home.id ?? home);
+  const [bot] = await knex("bots").insert({ made_by: userId, workspace_id: workspaceId, name: "Shelly", color: "#1E86FC" }).returning("id");
   const botId = String(bot.id ?? bot);
+  const chat = await seedChat(knex, { homeId: workspaceId, kind: "public", people: [userId], bots: [botId] });
   context.after(async () => {
     await knex("workspaces").where({ id: workspaceId }).del();
     await knex.destroy();
@@ -180,7 +198,8 @@ test("a command's computation is opened a block at a time: refused, none starts,
     }
   };
   const { shell } = await startShell(knex, context, { store, meter, limits: { ...LIMITS, heartbeatSeconds: 1 } });
-  const go = (script) => shell.start({ place: { homeId: workspaceId, botId, userId }, workspaceId, botId, userId, why: "test", script, maxSeconds: 60 });
+  const place = store.placeFor({ homeId: workspaceId, chatId: chat.id, chatKind: "public", botId });
+  const go = (script) => shell.start({ place, workspaceId, botId, chatBotId: chat.chatBotIds.get(botId), userId, why: "test", script, maxSeconds: 60 });
 
   const run = await go("sleep 30; echo never");
   assert.equal(run.status, "stopped", JSON.stringify(run));
@@ -194,4 +213,8 @@ test("a command's computation is opened a block at a time: refused, none starts,
   assert.equal(notStarted.status, "unavailable");
   assert.equal(notStarted.error, "This home's work is paused.");
   assert.equal(await knex("shell_runs").where({ workspace_id: workspaceId, script: "echo hello" }).first(), undefined, "nothing started");
+  // A command is always a bot's in a chat: without its seat, none starts.
+  refused = false;
+  await assert.rejects(shell.start({ place, workspaceId, botId, userId, why: "test", script: "echo nowhere" }), /chatBotId is needed/u);
+  assert.equal(await knex("shell_runs").where({ workspace_id: workspaceId, script: "echo nowhere" }).first(), undefined);
 });

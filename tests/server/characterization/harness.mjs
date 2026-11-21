@@ -3,7 +3,7 @@
 // The characterization tests reach everything else over HTTP. What no route reaches is built here, from the app's own
 // modules, as the server builds it: the three queue loops' claims (routines, Apps' jobs and bot requests run in the
 // background on a listening server, never for a request), the Apps tables a home's records live in (only the Builder
-// bot's tools make them), the accounts a bot's turn may use (only a bot's tools ask for that reach) and AnyAPI's
+// bot's tools make them), the accounts a bot's turn may use (only a bot's tools ask for them) and AnyAPI's
 // rows for a home's tables. When the port changes how these are constructed (handles and table resources in place of
 // Knex), only this file changes; the tests that call it stay as they are.
 import { setTimeout as pause } from "node:timers/promises";
@@ -12,7 +12,13 @@ import { __testables as anyapiTestables, createAnyapi } from "../../../packages/
 import { createRegistry } from "../../../packages/apps/src/server/registry.js";
 import { startAppJobRunner } from "../../../packages/bots/src/server/appJobRunner.js";
 import { createBotRequests } from "../../../packages/bots/src/server/botRequests.js";
-import { botMessageResource, botRequestResource, botRoutineResource } from "../../../packages/bots/src/server/records/tableResources.js";
+import {
+  botRequestResource,
+  botRoutineResource,
+  chatBotResource,
+  messageResource
+} from "../../../packages/bots/src/server/records/tableResources.js";
+import { createChatRules } from "../../../packages/bots/src/server/records/rowPolicies.js";
 import { REQUEST_SEARCH, ROUTINE_SEARCH, createWorkRepository } from "../../../packages/bots/src/server/records/workRepository.js";
 import { startRoutineRunner } from "../../../packages/bots/src/server/routineRunner.js";
 import { ACCOUNT_FILTERS, createAccounts } from "../../../packages/integrations/src/server/accounts.js";
@@ -77,8 +83,9 @@ async function sweep(pauseMs, start) {
 }
 
 /**
- * The bots' records as BotRecordsFeature owns them, on this Knex (a second pool is a second server), and the bots'
- * system context, as BotsFeature declares it.
+ * The bots' records as BotRecordsFeature owns them, on this Knex (a second pool is a second server), the bots' system
+ * context, as BotsFeature declares it, and the chat rules the Apps tables' row policies read through (D-112), which
+ * let the sweeps' system context through.
  * @param {import("knex").Knex} knex
  */
 async function botsWork(knex) {
@@ -86,27 +93,31 @@ async function botsWork(knex) {
   const resources = await runtime.own("mercbot.bots.records", [
     { resource: botRequestResource, searchSchema: REQUEST_SEARCH },
     { resource: botRoutineResource, searchSchema: ROUTINE_SEARCH },
-    botMessageResource
+    messageResource,
+    // The bots in chats, which the chat rules read for an Apps job of a bot in a chat outside a system context.
+    chatBotResource
   ]);
   return {
     runtime,
     work: createWorkRepository(resources),
+    rules: createChatRules(resources),
     systemContext: runtime.declareSystemScope("mercbot.bots", "run the bots' queued work and resume their replies in every home")
   };
 }
 
 /**
  * apps.jobs as AppsFeature gives it to the bots (createAppJobs on its app_jobs handle, owned with its search entries),
- * on the same runtime. Apps' modules load only for the Apps job sweeps.
+ * on the same runtime, with the bots' chat rules its row policy requires. Apps' modules load only for the Apps job sweeps.
  * @param {Awaited<ReturnType<typeof createTestResourceRuntime>>} runtime
+ * @param {ReturnType<typeof createChatRules>} rules
  */
-async function appJobs(runtime) {
+async function appJobs(runtime, rules) {
   const [{ createAppJobs }, { withPlatformSearch }, { appJobResource }] = await Promise.all([
     import("../../../packages/apps/src/server/appJobs.js"),
     import("../../../packages/apps/src/server/platformTables.js"),
     import("../../../packages/apps/src/server/tableResources.js")
   ]);
-  const { appJobs: handle } = await runtime.own("mercbot.apps", withPlatformSearch([appJobResource]));
+  const { appJobs: handle } = await runtime.own("mercbot.apps", withPlatformSearch([appJobResource]), { requires: { records: { rules } } });
   return createAppJobs({ appJobs: handle });
 }
 
@@ -128,8 +139,8 @@ export async function sweepRoutines(knex, { pauseMs = 0 } = {}) {
  * @param {{ pauseMs?: number }} [options]
  */
 export async function sweepAppJobs(knex, { pauseMs = 0 } = {}) {
-  const { runtime, systemContext } = await botsWork(knex);
-  const jobs = await appJobs(runtime);
+  const { runtime, rules, systemContext } = await botsWork(knex);
+  const jobs = await appJobs(runtime, rules);
   return sweep(pauseMs, (watch) =>
     startAppJobRunner({ jobs: { ...jobs, claimNext: watch(jobs.claimNext) }, systemContext, notices: QUIET, run: async () => {}, everyMs: HOUR_MS, concurrency: 1000 }));
 }
@@ -141,8 +152,8 @@ export async function sweepAppJobs(knex, { pauseMs = 0 } = {}) {
  * @param {import("knex").Knex} knex
  */
 export async function stalledClaims(knex) {
-  const { runtime, work, systemContext } = await botsWork(knex);
-  const jobs = await appJobs(runtime);
+  const { runtime, work, rules, systemContext } = await botsWork(knex);
+  const jobs = await appJobs(runtime, rules);
   const system = { context: systemContext("run the stopped servers' runs") };
   return {
     routine: () => work.claimStalledRoutine(90, system),
@@ -162,21 +173,30 @@ export async function sweepBotRequests(knex, { pauseMs = 0 } = {}) {
   const claimed = [];
   const { work, systemContext } = await botsWork(knex);
   const requests = createBotRequests({
-    work,
+    // Every bot and seat is found and nobody has a name: the steps' lookups are not what these tests pin.
+    records: {
+      work,
+      directory: { findBot: async (botId) => ({ id: String(botId), name: "A bot", color: "", shape: "", kind: "bot" }) },
+      chats: {
+        chatBot: async (chatBotId) => ({ id: String(chatBotId), bot_id: "0" }),
+        names: async () => new Map()
+      }
+    },
     systemContext,
-    // Every bot is found and nobody has a name: the steps' lookups are not what these tests pin.
-    directory: { findBot: async (botId) => ({ id: String(botId), name: "A bot", color: "", shape: "", kind: "bot" }) },
-    profiles: { findById: async () => null },
+    seats: {
+      seatIn: async (chatId, botId, askerId) =>
+        ({ id: String(botId), chat: { id: String(chatId), archived_at: null }, chat_id: String(chatId), chat_bot_id: "0", user_id: String(askerId) }),
+      readerOf: () => ({}),
+      working: async () => {},
+      tell: async () => {}
+    },
     notices: QUIET,
     meter: { track: (_who, work) => work() },
-    rowOf: async (botId, conversationId) => ({ id: String(botId), conversation_id: String(conversationId) }),
-    respond: async (_row, { requestTurn }) => {
+    respond: async (_seat, { requestTurn }) => {
       claimed.push(String((requestTurn.asking || requestTurn.working).id));
       if (pauseMs) await pause(pauseMs);
       return [];
     },
-    append: async () => [],
-    tell: async () => {},
     claimReply: async () => true,
     runs: { limits: { heartbeatMs: HOUR_MS }, heartbeat: async () => {}, release: async () => {} },
     background: (work) => {
@@ -224,15 +244,15 @@ export async function dropTables(knex, workspaceId) {
 
 /**
  * The ids of the connected accounts a bot's turn may use (packages/integrations/src/server/accounts.js), in id order:
- * every account of its home (D-111), in a room as in a person's own chat; no route asks as a turn does.
+ * every account of its home (D-111), in any chat (R4); no route asks as a turn does.
  * @param {import("knex").Knex} knex
  * @param {{ userId: string, homeId: string }} turn
  */
 export async function reachableAccountIds(knex, { userId, homeId }) {
   const { accounts, systemContext } = await integrationsAccountsOn(knex);
-  // As a bot's turn asks: a job acting for the person, in the home.
+  // As a bot's turn asks: its model's reader, for the person who asked, in the home (records.readers.forBot).
   const scope = systemContext("a bot's turn reaches the accounts of its home");
-  const context = scope.forWorkspace(String(homeId), { actorId: String(userId) });
+  const context = scope.forWorkspaceUser(String(homeId), String(userId), { actorId: String(userId) });
   return (await accounts.reachable({ context })).map((account) => account.id);
 }
 

@@ -54,17 +54,20 @@ const header = (name, value) => ({ name, value });
 const now = Date.now();
 
 /**
- * The tools with the Gmail the person connected and the Outlook someone else in the home connected, the page in front on `url` (in an open sign-in
- * chain unless `inChain` is false), and what they typed, asked and ended kept.
+ * Pat's turn in a chat (D14: any chat), with the Gmail Pat connected and the Outlook someone else in the home connected,
+ * the page in front on `url` (in an open sign-in chain unless `inChain` is false), and what they typed, asked, ended
+ * and said about the sign-in kept. `said` is what Pat wrote; `othersSaid` what someone else in the chat wrote.
  */
 function signInTool({
   url = "https://login.example.com/verify",
   inChain = true,
   startedFrom = `${new URL(url).origin}/`,
   accounts,
-  said = ["Please sign in to example.com for me"]
+  said = ["Please sign in to example.com for me"],
+  othersSaid = []
 } = {}) {
   const typed = [];
+  const signIns = [];
   const before = [];
   const after = [];
   const read = [];
@@ -98,16 +101,26 @@ function signInTool({
     },
     toolSwitches: async () => ({ skip: {}, removed: [], turnedOff: [] })
   };
-  const reach = { userId: "7", homeId: "3", personal: true };
   // Pat's turn: the person whose turn it is (D-111).
   const call = { context: { actor: { id: "7" } } };
-  const appFor = () => ({ integrations, reach, skip: [], call });
-  const turns = { messages: async () => said.map((text) => ({ body: { text } })) };
-  const signIns = buildSignInCodeTools({
+  const appFor = () => ({ integrations, skip: [], call });
+  // The chat's messages, as records.turns.messages answers its filters: a person's words carry their id.
+  const written = [...said.map((text) => ({ text, by: "7" })), ...othersSaid.map((text) => ({ text, by: "8" }))];
+  const turns = {
+    messages: async (chatId, filters) => {
+      assert.equal(chatId, "5");
+      return written.filter((message) => !filters.authorUserId || message.by === filters.authorUserId).map(({ text }) => ({ body: { text } }));
+    }
+  };
+  const tools = buildSignInCodeTools({
     appFor,
     computer,
     computerId: "11",
-    conversationId: "11",
+    chatId: "5",
+    userId: "7",
+    signedIn: async (signIn) => {
+      signIns.push(signIn);
+    },
     turns,
     call,
     inTime: (work) => work,
@@ -118,9 +131,9 @@ function signInTool({
     untrusted: (text) => text,
     wait: { minutes: 10, tries: 1, everyMs: 0 }
   });
-  // The approved card's action runs with the person's reach, on the same computer (botCards.answerChoice).
-  const approve = (args) => SIGN_IN_CODE_ACTIONS.fill_sign_in_code.run({ integrations, reach, call, computer, conversationId: "11" }, args);
-  return { tool: signIns.tools.fillSignInCode, start: signIns.tools.startSignIn, finished: signIns.finished, approve, typed, before, after, read, started, ended };
+  // The approved card's action runs for the person who answered it, on the same computer (botCards.answerChoice).
+  const approve = (args) => SIGN_IN_CODE_ACTIONS.fill_sign_in_code.run({ integrations, call, computer, computerId: "11" }, args);
+  return { tool: tools.tools.fillSignInCode, start: tools.tools.startSignIn, finished: tools.finished, approve, typed, before, after, read, started, ended, signIns };
 }
 
 test("a code the site emailed is typed into its page from the person's own inbox, never shown, and only the site's own mail counts", async (context) => {
@@ -146,7 +159,7 @@ test("a code the site emailed is typed into its page from the person's own inbox
       }
     }
   });
-  const { tool, typed, before, read } = signInTool();
+  const { tool, typed, before, read, signIns } = signInTool();
   const result = await tool.execute({ site: "example.com" });
   assert.equal(result.status, "filled");
   assert.deepEqual(typed, [{ site: "example.com", code: "604217", inChain: true }], "the newest code from the site itself, only into the sign-in's chain");
@@ -154,6 +167,7 @@ test("a code the site emailed is typed into its page from the person's own inbox
   assert.deepEqual(before.map((message) => message.body.text), ["Typed in the sign-in code from your email"]);
   assert.ok(!JSON.stringify(before).includes("604217"), "nor does the chat");
   assert.deepEqual(read, ["1"], "only the mailbox the person connected is opened, never one someone else connected");
+  assert.deepEqual(signIns, [{ label: "example.com", kind: "site" }], "the chat is told its computer is signed in (D14)");
   assert.ok(!calls.some((call) => call.url.includes("m-phish?format=full")), "mail from another domain isn't read");
   const after = Number(/after%3A(\d+)/u.exec(calls[0].url)?.[1]);
   assert.ok(Math.abs(after - (now - 10 * 60_000) / 1000) < 30, "only the last few minutes' mail");
@@ -243,6 +257,7 @@ test("a page the sign-in didn't lead to gets a card with its full address and th
   // Yes: the newest code from that sender, read again, goes into that page only.
   const said = await outside.approve(card.body.action.args);
   assert.equal(said.body.text, "Typed in the sign-in code from your email");
+  assert.match(said.body.detail, /Everyone who can open this chat can use this sign-in\.$/u, "the sign-in is the chat's (D14)");
   assert.deepEqual(outside.typed, [{ site: "example.com", code: "111222", onlyAt: url }]);
   assert.ok(!JSON.stringify(said).includes("111222"));
   // A yes for one sender never types another sender's code from the same site.
@@ -285,6 +300,10 @@ test("a sign-in starts its chain only for a site the person named, from its fron
   const google = signInTool({ said: ["Sign in to Google and check my storage"] });
   assert.match((await google.start.execute({ address: "https://docs.google.com/forms/d/e/1FAIpQL/viewform" })).error, /front page/u);
   assert.deepEqual([...unnamed.started, ...google.started], []);
+  // Someone else in the chat naming a site doesn't ask for the asker's sign-in (D6): only the asker's own words count.
+  const theirs = signInTool({ said: ["What's new?"], othersSaid: ["Sign in to example.com for me"] });
+  assert.match((await theirs.start.execute({ address: "example.com" })).error, /hasn't asked for a sign-in to example\.com/u);
+  assert.deepEqual(theirs.started, []);
   await unnamed.finished();
   assert.deepEqual(unnamed.ended, [], "a turn that never worked on a sign-in leaves the computer alone");
 
@@ -308,16 +327,16 @@ test("the person's words name a site by its address or its name", () => {
   assert.ok(!namesSite("", "example.com"));
 });
 
-test("sign-in codes and coding are offered only on the person's own turn in their own chat with their bot", () => {
-  const offered = (options) => {
-    const { tools } = buildTools(turnDoubles({ approvals: {}, computer: {}, homeId: "1", userId: "7", botId: "3", conversationId: "5", ...options }));
+test("sign-in codes and coding are offered on the person's own turn in any chat, never for a routine or another bot", () => {
+  const offered = (options = {}, chat = { kind: "public" }) => {
+    const seat = { id: "3", workspace_id: "1", user_id: "7", chat_id: "5", chat_bot_id: "11", chat: { id: "5", ...chat } };
+    const { tools } = buildTools(turnDoubles({ approvals: {}, computer: {}, seat, ...options }));
     return ["startSignIn", "fillSignInCode", "startCoding"].filter((name) => name in tools);
   };
-  assert.deepEqual(offered({}), ["startSignIn", "fillSignInCode", "startCoding"], "their own turn");
+  assert.deepEqual(offered(), ["startSignIn", "fillSignInCode", "startCoding"], "their own turn, in a chat others are in too (D14)");
+  assert.deepEqual(offered({}, { kind: "private" }), ["startSignIn", "fillSignInCode", "startCoding"], "and in a private chat");
   // A routine never types a code: without these it uses the secure form, which tells the person.
   assert.deepEqual(offered({ routineRun: true }), [], "a routine, a watch run or a button's task: they aren't there");
   assert.deepEqual(offered({ routineRun: true, appsVia: { kind: "watch" } }), [], "a watch run, which others' app data sets off");
   assert.deepEqual(offered({ viaBot: true }), [], "work another bot asked for");
-  assert.deepEqual(offered({ personal: false }), [], "a shared room");
-  assert.deepEqual(offered({ computerId: "9" }), ["startSignIn", "fillSignInCode"], "coding only on the computer of their own chat");
 });

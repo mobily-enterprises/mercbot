@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import test, { after } from "node:test";
 import { createChatMembers } from "../../packages/bots/src/server/chatMembers.js";
+import { startBotsService } from "../support/botDoubles.mjs";
 import { memberOptions, startChatRecords } from "../support/botRecords.mjs";
 import { seedMessage } from "../support/chatFixtures.mjs";
 import { connectTestDatabase } from "../support/testDatabase.mjs";
@@ -10,7 +11,8 @@ import { connectTestDatabase } from "../support/testDatabase.mjs";
 // chosen, D15), adding and removing people and bots, a direct chat taking no one else, the last person out of a
 // private chat deleting it, unread for the others, and the home's everyone chat following who joins and leaves; then the
 // chat routes' service over them (chatMembers.js): who may add, remove, rename, archive and delete, who is told, what a
-// deleted chat's computers and files are asked to go, and a change of the home's people (homeChanged).
+// deleted chat's computers and files are asked to go, and a change of the home's people (homeChanged), with what
+// someone who left made there paused (the bots service's homeChanged).
 assert.ok(process.env.TEST_DB_NAME?.trim(), "TEST_DB_NAME must identify a disposable test database.");
 assert.equal(process.env.DB_NAME, process.env.TEST_DB_NAME, "DB_NAME must match the dedicated TEST_DB_NAME.");
 
@@ -68,10 +70,15 @@ test("people and bots are added and removed; a direct chat takes no one else; th
   const seat = await records.chats.addBot(plans.id, chef, asAnna);
   assert.equal(seat.bot_id, chef, "adding a bot that's in it answers its seat");
 
-  // A direct chat is one person's with one bot, Public (D15), made once.
+  // A direct chat is one person's with one bot, Public (D15), made once; looking for it makes nothing.
+  const chatsBefore = Number((await knex("conversations").where({ workspace_id: homeId }).count("id as n").first()).n);
+  assert.equal(await records.chats.directWith(chef, asAnna), null);
+  assert.equal(Number((await knex("conversations").where({ workspace_id: homeId }).count("id as n").first()).n), chatsBefore, "looking made nothing");
   const direct = await records.chats.direct(chef, asAnna);
   assert.equal(direct.kind, "public");
   assert.equal((await records.chats.direct(chef, asAnna)).id, direct.id);
+  assert.equal((await records.chats.directWith(chef, asAnna)).id, direct.id);
+  assert.equal(await records.chats.directWith(chef, asBen), null, "Anna's, not Ben's");
   await assert.rejects(records.chats.addPerson(direct.id, ben, asAnna), { statusCode: 409 });
   await assert.rejects(records.chats.rename(direct.id, "Mine", asAnna), { statusCode: 409 });
 
@@ -112,19 +119,17 @@ test("the everyone chat has every member; joining and leaving the home follow it
   assert.equal(await records.chats.personJoined(carla, asAnna), true);
   assert.deepEqual(await peopleIn(records, family.id, asAnna), [anna, ben, carla].sort((a, b) => a - b));
 
-  // Ben's own private chat goes with him, a shared one stays; the routines he made pause; his words stay.
+  // Ben's own private chat goes with him, a shared one stays; his words stay. (What he made pauses before, with its
+  // line: the home-change test below.)
   const bensOwn = await records.chats.create({ kind: "private", title: "Ben's", bots: [chef] }, asBen);
   const bensSeat = await records.chats.chatBotOf(chef, bensOwn.id, asBen);
   const shared = await records.chats.create({ kind: "private", title: "Shared", people: [anna], bots: [chef] }, asBen);
-  const seat = await records.chats.chatBotOf(chef, shared.id, asBen);
-  await knex("bot_routines").insert({ workspace_id: homeId, chat_bot_id: seat.id, made_by: ben, name: "Ben's routine", schedule: "every day", instructions: "x", enabled: true });
   await records.messages.append(shared.id, [{ role: "user", kind: "text", body: { text: "from Ben" } }], asBen);
   const { left, deleted } = await records.chats.personLeft(ben, asAnna);
   assert.deepEqual(deleted, [{ chatId: bensOwn.id, chatBotIds: [bensSeat.id] }], "deleted with its bots' seats, for their computers");
   assert.deepEqual(left.sort((a, b) => a - b), [family.id, shared.id].sort((a, b) => a - b));
   assert.deepEqual(await peopleIn(records, shared.id, asAnna), [anna]);
   assert.deepEqual(await peopleIn(records, family.id, asAnna), [anna, carla].sort((a, b) => a - b));
-  assert.equal((await knex("bot_routines").where({ chat_bot_id: seat.id }).first("enabled")).enabled, false);
   assert.equal((await records.messages.timeline(shared.id, {}, asAnna)).messages[0].body.text, "from Ben");
 });
 
@@ -198,6 +203,8 @@ test("the chat routes' service: anyone in a chat adds, its maker and the home's 
   await records.messages.append(kitchen.id, [{ role: "user", kind: "text", body: { text: "oak it is" } }], asAnna);
   const { chat: withChef } = await chats.direct(chef, asBen);
   assert.equal(withChef.directBotId, chef);
+  assert.equal(withChef.onboardingStep, "intro-greet", "made at his first [Message], where the bot introduces itself");
+  assert.equal((await chats.direct(chef, asBen)).chat.id, withChef.id, "and made once");
   const { chats: listed } = await chats.list({}, asAnna);
   const row = listed.find((chat) => chat.id === kitchen.id);
   assert.equal(row.latest.preview, "oak it is");
@@ -242,4 +249,53 @@ test("a change of the home's people: who joins is in the everyone chat, pinned f
     { keys: [anna, ben, carla].sort((a, b) => a - b), type: "chat", chatId: family.id, change: "members" }
   ]);
   assert.deepEqual(await chats.homeChanged(homeId), { joined: [], departed: [] }, "and once is enough");
+});
+
+test("leaving the home pauses the routines and watches the person made there, with a line; a failure leaves it all to the next change", async (context) => {
+  const parts = await startChatRecords(knex, context);
+  const { records, systemContext } = parts;
+  const { homeId, anna, ben, chef } = await home(knex, context);
+  const elsewhere = await home(knex, context);
+  const asAnna = memberOptions({ userId: anna, homeId, role: "owner", permissions: ["workspace.settings.update"] });
+  const family = await records.chats.makeEveryoneChat({ title: "Rossi", bots: [chef] }, asAnna);
+  const seat = await records.chats.chatBotOf(chef, family.id, asAnna);
+  const there = await records.chats.makeEveryoneChat({ title: "Elsewhere", bots: [elsewhere.chef] }, memberOptions({ userId: anna, homeId: elsewhere.homeId, role: "owner" }));
+  const otherSeat = await records.chats.chatBotOf(elsewhere.chef, there.id, memberOptions({ userId: anna, homeId: elsewhere.homeId }));
+  const routine = (workspaceId, chatBotId) => ({ workspace_id: workspaceId, chat_bot_id: chatBotId, made_by: ben, name: "Ben's routine", schedule: "every day", instructions: "x", enabled: true });
+  await knex("bot_routines").insert([routine(homeId, seat.id), routine(elsewhere.homeId, otherSeat.id)]);
+  const asked = [];
+  let fails = 1;
+  const bots = startBotsService(context, {
+    records,
+    systemContext,
+    profiles: { findById: async (userId) => (String(userId) === ben ? { displayName: "Ben" } : null) },
+    apps: {
+      watches: {
+        pauseIn: async (where) => {
+          asked.push(where);
+          if (fails-- > 0) throw new Error("the watches are down");
+          return [{ chatBotId: String(seat.id), name: "Prices" }];
+        }
+      }
+    }
+  });
+  const enabled = async (chatBotId) => (await knex("bot_routines").where({ chat_bot_id: chatBotId }).first("enabled")).enabled;
+  const lines = async () => (await knex("messages").where({ conversation_id: family.id, kind: "event" }).orderBy("id")).map((row) => row.body);
+
+  await knex("workspace_memberships").where({ workspace_id: homeId, user_id: ben }).del();
+  await assert.rejects(bots.homeChanged(homeId), /the watches are down/);
+  assert.deepEqual(await peopleIn(records, family.id, asAnna), [anna, ben].sort((a, b) => a - b), "still seated, to leave next time");
+  assert.equal(await enabled(seat.id), true, "nothing paused without its line");
+  assert.deepEqual(await lines(), []);
+
+  assert.deepEqual(await bots.homeChanged(homeId), { joined: [], departed: [ben] });
+  assert.deepEqual(asked, [{ createdBy: ben, homeId }, { createdBy: ben, homeId }]);
+  assert.equal(await enabled(seat.id), false);
+  assert.equal(await enabled(otherSeat.id), true, "what he made in another home runs on");
+  assert.deepEqual(await peopleIn(records, family.id, asAnna), [anna]);
+  assert.deepEqual(await lines(), [{
+    text: "Paused: its maker left",
+    icon: "routine",
+    detail: 'Ben left the home, so the routine "Ben\'s routine", watch "Prices" they made paused.'
+  }]);
 });

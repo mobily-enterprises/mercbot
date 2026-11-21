@@ -26,8 +26,7 @@ export class IntegrationsError extends AppError {
 
 /**
  * The search entries plugin_accounts' owns entry adds (IntegrationsFeature.js).
- * - `hasBridgeRef`, `hasLabel`, `statusNot`: accounts signed in through the hub, those with an
- *   address, and those not in a status.
+ * - `hasBridgeRef`, `statusNot`: accounts signed in through the hub, and those not in a status.
  * - `pluginIds`: the accounts of any of these apps (a bot tool's apps: Gmail and Outlook for mail).
  * - `userIdNot`: the accounts someone other than this person added.
  */
@@ -44,12 +43,6 @@ export const ACCOUNT_FILTERS = Object.freeze({
     type: "boolean",
     applyFilter(query, _value, { column }) {
       query.whereNotNull(column("bridgeRef"));
-    }
-  },
-  hasLabel: {
-    type: "boolean",
-    applyFilter(query, _value, { column }) {
-      query.whereNotNull(column("label"));
     }
   },
   statusNot: { type: "string", actualField: "status", filterOperator: "!=" }
@@ -173,23 +166,6 @@ export function createAccounts({ pluginAccounts, systemContext }) {
   async function addAccount(fields, options) {
     const id = await pluginAccounts.create({ ...fields, userId: String(personOf(options)) }, { ...passedOn(options), returning: "id" });
     return String(id);
-  }
-
-  /**
-   * The labels (addresses) of every account the call's person added, in every home: a bot
-   * never saves which mailbox to use to the memory all the person's bots share (memoryTools.js). Only
-   * the rows they added are read.
-   * @param {object} options
-   * @returns {Promise<string[]>}
-   */
-  async function accountLabels(options) {
-    const person = personOf(options);
-    if (!person) return [];
-    const records = await pluginAccounts.queryAll(
-      { filters: { userId: String(person), hasLabel: true }, sort: ["id"], fields: ["label"] },
-      { ...passedOn(options), context: systemContext("read the addresses of the accounts a person added in every home, to keep them out of shared memory") }
-    );
-    return records.map((record) => record.label);
   }
 
   /**
@@ -346,7 +322,6 @@ export function createAccounts({ pluginAccounts, systemContext }) {
     withLockedAccount,
     deleteAccount,
     addAccount,
-    accountLabels,
     addedBy,
     anywhere,
     anyAccount,

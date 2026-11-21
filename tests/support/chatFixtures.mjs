@@ -39,16 +39,24 @@ export async function seedChat(knex, { homeId, kind = "public", title = null, pe
  * @param {import("knex").Knex} knex
  * @param {{ homeId: string | number, chatId: string | number, kind?: string, body: object, userId?: string | number, botId?: string | number }} message
  */
-export async function seedMessage(knex, { homeId, chatId, kind = "text", body, userId = null, botId = null }) {
-  const role = userId != null ? "user" : botId != null ? "bot" : "system";
-  const [row] = await knex("messages").insert({
+export async function seedMessage(knex, { homeId, chatId, ...message }) {
+  const [id] = await seedMessages(knex, { homeId, chatId, rows: [message] });
+  return id;
+}
+
+/**
+ * Many messages in one chat, in the order given, written in one statement: each `{ kind = "text", body, userId, botId }`
+ * as seedMessage takes one. Their ids, in that order.
+ */
+export async function seedMessages(knex, { homeId, chatId, rows }) {
+  const inserted = await knex("messages").insert(rows.map(({ kind = "text", body, userId = null, botId = null }) => ({
     workspace_id: homeId,
     conversation_id: chatId,
     author_user_id: userId,
     author_bot_id: botId,
-    role,
+    role: userId != null ? "user" : botId != null ? "bot" : "system",
     kind,
     body: JSON.stringify(body)
-  }).returning("id");
-  return String(row.id);
+  }))).returning("id");
+  return inserted.map((row) => String(row.id));
 }

@@ -1,69 +1,29 @@
-import { generateReply, generateGroupReply } from "./botAgent.js";
 import { describeActivity, writeSkillFromDemo } from "./botWriting.js";
-import { unsupportedClaims } from "@jskit-ai/agent/server";
-import { currentWork } from "@local/account/meter";
-import { GOAL_LIMITS } from "@jskit-ai/agent-runtime/server";
-import { REQUEST_LIMITS, createBotRequests } from "./botRequests.js";
-import { createBotConversations } from "./botConversations.js";
-import { createBotHistory } from "./botHistory.js";
 import { createBackgroundWork } from "./backgroundWork.js";
-import { createBotCards } from "./botCards.js";
-import { createBotTurns } from "./botTurns.js";
+import { createChatMembers } from "./chatMembers.js";
+import { createOnboarding } from "./onboarding.js";
+import { createChatTurns } from "./chatTurns.js";
+import { createChatRoutines } from "./chatRoutines.js";
 import { createBotKnowledge } from "./botKnowledge.js";
-import { createGroupReplies } from "./groupReplies.js";
-import { createBotReplies } from "./botReplies.js";
 import { createBotList } from "./botList.js";
-import { createBotPlans } from "./botPlans.js";
-import { createBotTeams } from "./botTeams.js";
+import { createBotTemplates } from "./botTemplates.js";
 import { createBotSettings } from "./botSettings.js";
 import { createBotArchive } from "./botArchive.js";
-import { createBotChat } from "./botChat.js";
-import { createBotTemplates } from "./botTemplates.js";
+import { createBotTeams } from "./botTeams.js";
+import { createBotLibrary } from "./botLibrary.js";
+import { createBotPlans } from "./botPlans.js";
 import { createTemplateDrafts, writeWith } from "./templateDrafts.js";
 import { createBotTeaching } from "./botTeaching.js";
-import { createBotGroups } from "./botGroups.js";
-import { createBotLibrary } from "./botLibrary.js";
-import { createBotMemory } from "./botMemory.js";
-import { createHomeDefaults } from "./homeDefaults.js";
-import { createJoiningIn } from "./joiningIn.js";
-import { BotsError } from "./botsError.js";
-import { createChatMembers } from "./chatMembers.js";
-
-// The chat routes step 2 of D-112 builds, by owner (the plan's section 7: A the turns, B the surfaces, C the
-// computers). Until its owner lands one it answers 501 naming who builds it; none is left when B1 lands.
-const IN_STEP_2 = Object.freeze({
-  messages: "A",
-  findOlder: "A",
-  sendMessage: "A",
-  reply: "A",
-  describeWork: "A",
-  react: "A",
-  answerChoice: "A",
-  settleHandover: "A",
-  settleSecureForm: "A",
-  connectFromCard: "A",
-  settleDraft: "A",
-  recordVoiceCall: "A",
-  welcome: "B",
-  advanceOnboarding: "B",
-  chooseName: "B",
-  routinesIn: "B",
-  routinesOf: "B",
-  switchRoutine: "B",
-  deleteRoutine: "B",
-  startTeaching: "C",
-  stopTeaching: "C"
-});
-const notBuilt = (name, owner) => async () => {
-  throw new BotsError(501, `${name} isn't built yet (D-112 step 2, ${owner}).`, { code: "bots_not_built" });
-};
-const CHAT_IN_STEP_2 = Object.freeze(Object.fromEntries(Object.entries(IN_STEP_2).map(([name, owner]) => [name, notBuilt(name, owner)])));
 
 /**
- * The bots service (`mercbot.bots`): the person's bots and everything said and done in them, composed from one factory per
- * concern. Every read and write goes through mercbot.bots.records and the other owners' capabilities with the call's
- * options; background work (requests, goals, routines, Apps tasks, resumed replies) runs as a job for one person in
- * its home, from the bots' system context.
+ * The bots service (`mercbot.bots`): the home's bots and its chats, and everything said and done in them (D-112),
+ * composed from one factory per concern: the chats and their members (chatMembers.js), the welcome chat's steps
+ * (onboarding.js), the turns (chatTurns.js: messages, replies, cards, requests, goals, routines and background runs),
+ * the Team page's surfaces (the bot list, templates, settings, archive, teams, the Library, knowledge, Add bots'
+ * plans, drafted templates), the routines lists (chatRoutines.js) and teaching (botTeaching.js). Every read and write
+ * goes through mercbot.bots.records and the other owners' capabilities with the call's options; background work
+ * (requests, goals, routines, Apps tasks, resumed replies) runs as a job for one person in its home, from the bots'
+ * system context.
  * @param {object} dependencies
  * @param {import("./types.js").BotRecords} dependencies.records mercbot.bots.records: the bots' tables
  * @param {(reason: string) => object} dependencies.systemContext the bots' system context (BotsFeature's systemScope)
@@ -81,8 +41,7 @@ const CHAT_IN_STEP_2 = Object.freeze(Object.fromEntries(Object.entries(IN_STEP_2
  * @param {import("@local/apps/server/types").Apps} dependencies.apps
  * @param {import("./types.js").TemplateLinks} dependencies.templateLinks the templates links open
  *   (`mercbot.template-links`, or NO_TEMPLATE_LINKS)
- * @param {typeof import("./botAgent.js").generateReply} [dependencies.reply] a bot's reply in its own chat
- * @param {typeof import("./botAgent.js").generateGroupReply} [dependencies.groupReply] a bot's reply in a group
+ * @param {typeof import("./botAgent.js").generateReply} [dependencies.reply] a bot's reply in a chat (the turns')
  * @param {((text: string, record: string) => Promise<string[]>) | null} [dependencies.checkClaims] the final-reply check, or null
  * @param {(bot: object, userMessage: object) => Promise<{ status: string, emoji: string | null }>} [dependencies.activity] the status line
  *   and the bot's reaction
@@ -112,9 +71,8 @@ export function createBotsService({
   files,
   apps,
   templateLinks,
-  reply = generateReply,
-  groupReply = generateGroupReply,
-  checkClaims = reply === generateReply ? (text, record) => unsupportedClaims({ model, reply: text, record }) : null,
+  reply,
+  checkClaims,
   activity = (bot, userMessage) => describeActivity(model, bot, userMessage),
   writeSkill = (lines) => writeSkillFromDemo(model, lines),
   writeTemplate = writeWith(model),
@@ -124,212 +82,114 @@ export function createBotsService({
   requestLimits,
   goalLimits
 }) {
-  const conversations = createBotConversations({ records, notices });
-  // The sharing a home's new bots get (D-100): every way of making a bot reads it, and the home's first conversation asks.
-  const homeDefaults = createHomeDefaults({ records });
+  // One queue of work left running after a request answers (summaries, teaching, indexing): drain waits for all of it.
   const background = createBackgroundWork();
-  const chatHistory = createBotHistory({
-    records,
-    model,
-    meter,
-    notices,
-    conversations,
-    summarize,
-    compactionLimits,
-    background: background.add
-  });
-  /**
-   * A background turn's call options: a job for the person in their home, from the bots' system context.
-   * @param {object} system
-   * @param {string} home
-   * @param {string} person
-   */
-  const jobFor = (system, home, person) => ({
-    context: system.forWorkspaceUser(String(home), String(person), { actorId: String(person) })
-  });
-
-  // Bots asking bots (D-46): botRequests.js keeps each request and runs its steps.
-  const requests = createBotRequests({
-    work: records.work,
-    directory: records.directory,
-    profiles,
-    systemContext,
-    notices,
-    meter,
-    rowOf: conversations.rowOf,
-    append: conversations.append,
-    tell: conversations.tell,
-    claimReply: chatHistory.claimReply,
-    runs: chatHistory.runs,
-    // Late-bound, a cycle: the reply engine below works on requests, and a request's step replies through it.
-    respond: (row, options) => replies.respond(row, options),
-    background: background.add,
-    ...(requestLimits ? { limits: { ...REQUEST_LIMITS, ...requestLimits } } : {})
-  });
-
-  // Goals and goal rounds (D-48, @jskit-ai/agent-runtime goals): a multi-step job carries on until it's done,
-  // its events shown as goal lines in the chat.
-  // A goal's rounds run for its person in its home; the rows they're handed are that person's (row.workspace_id, row.user_id).
-  const goalCall = (home, person) => jobFor(systemContext("goal rounds"), home, person);
-  const rowCall = (row) => goalCall(row.workspace_id, row.user_id);
-  const goals = records.agent.createGoals({
-    runs: chatHistory.runs,
-    notices,
-    find: (goal) => conversations.rowOf(String(goal.bot_id), String(goal.conversation_id), goalCall(goal.workspace_id, goal.user_id)),
-    // Late-bound, a cycle: the reply engine below runs goals, and a goal round replies through it.
-    respond: (row, options) => replies.respond(row, { ...options, call: rowCall(row) }),
-    claim: chatHistory.claimReply,
-    record: (row, { text, detail }) =>
-      conversations.append(row, [{ kind: "event", role: "system", body: { text, icon: "goal", detail } }], rowCall(row)),
-    notify: (row, event) => conversations.tell(row, event, rowCall(row)),
-    owner: (row) => ({ workspace_id: row.workspace_id, bot_id: row.id, user_id: row.user_id }),
-    // What a job has spent on the model: this person's use of this bot since the goal began.
-    spent: async (goal) =>
-      Number(await meter.spentSince(
-        { workspaceId: String(goal.workspace_id), userId: String(goal.user_id), botId: String(goal.bot_id), since: goal.created_at },
-        goalCall(goal.workspace_id, goal.user_id)
-      )) || 0,
-    track: (goal, run) => meter.track({ userId: goal.user_id, botId: String(goal.bot_id), work: "background" }, run),
-    background: background.add,
-    ...(goalLimits ? { limits: { ...GOAL_LIMITS, ...goalLimits } } : {})
-  });
-
-  const cards = createBotCards({ records, env, account, computer, integrations, conversations, requests, files, homeDefaults });
+  // Chats and their members (D-112, R2): the chat routes' service, and every chat a turn answers with.
+  const chats = createChatMembers({ records, notices, computer, systemContext });
+  // The welcome chat's steps and a new bot's greeting (B): the turns tell it of messages and answers in such a chat.
+  const onboarding = createOnboarding({ records, chats, model, meter, notices, workspaces });
   // What each bot knows (D-107): its Details section, and what its turns keep in mind and search.
-  const knowledge = createBotKnowledge({ records, conversations, files, meter, env, systemContext });
-  const turns = createBotTurns({
+  const knowledge = createBotKnowledge({ records, files, meter, env, systemContext });
+  const turns = createChatTurns({
     records,
-    knowledge,
+    systemContext,
     profiles,
-    workspaces,
     account,
     env,
     model,
     approvals,
+    meter,
     computer,
+    notices,
     integrations,
     files,
     apps,
-    conversations,
-    requests,
-    cards
-  });
-  // Every reply, the stand-ins' too, is handed the chat model.
-  const groupReplies = createGroupReplies({
-    records,
-    computer,
-    conversations,
-    chatHistory,
-    turns,
-    groupReply: (bot, options) => groupReply(bot, { ...options, languageModel: model })
-  });
-  const replies = createBotReplies({
-    records,
-    systemContext,
-    meter,
-    computer,
-    conversations,
-    chatHistory,
+    knowledge,
+    chats,
     background,
-    requests,
-    goals,
-    turns,
-    // A Shared bot's shared tabs judge whether it joins in (D-102), with the home's setting and the chat model.
-    joiningIn: createJoiningIn({ records, conversations, homeDefaults, meter, model }),
-    groupReplies,
-    // The Builder making apps runs as "build" (D-59), unless it's already background work.
-    reply: (bot, timeline, tools, state, prompt, options) =>
-      meter.track({ work: bot.isBuilder && currentWork() === "chat" ? "build" : currentWork() }, () =>
-        reply(bot, timeline, tools, state, prompt, { ...options, languageModel: model })),
+    onboarding,
+    // Left out (undefined), each takes the turns' own default: the agent's reply, and its claims check.
+    reply,
     checkClaims,
-    jobs: apps?.jobs ?? null
+    activity,
+    summarize,
+    compactionLimits,
+    requestLimits,
+    goalLimits
   });
   // A sign-in finishing on this server marks the connect follow-ups it reaches, as it is saved, and starts them here.
-  integrations.connections.whenConnected(replies.connectFollowUps.connected);
-  const templates = createBotTemplates({ records, profiles, integrations, conversations, env, templateLinks, homeDefaults });
-  const botList = createBotList({ records, conversations, homeDefaults, templates });
-  const teams = createBotTeams({ records, botList, templates });
-  const settings = createBotSettings({ records, conversations, apps });
-  const archive = createBotArchive({ records, conversations, apps, computer, listedBot: botList.listedBot });
-  const chat = createBotChat({
+  integrations.connections.whenConnected(turns.connectFollowUps.connected);
+
+  // The Team page: the home's bots, made from templates or described, changed, archived, in teams, and what they made.
+  const botList = createBotList({ records, apps, notices });
+  const templates = createBotTemplates({ records, profiles, integrations, env, templateLinks, botList });
+  const settings = createBotSettings({ records, computer, notices, tellHome: botList.tellHome, listedBot: botList.listedBot });
+  const archive = createBotArchive({
     records,
-    model,
-    integrations,
-    conversations,
-    goals,
-    activity,
-    homeDefaults,
-    pausedMessage: meter.pausedMessage
+    apps,
+    computer,
+    pauseWork: turns.pauseWork,
+    tellHome: botList.tellHome,
+    listedBot: botList.listedBot
   });
-  // A template drafted from a bot reads the newest summary of the person's own chat with it, never anyone else's.
-  const drafts = createTemplateDrafts({
-    records,
-    conversations,
-    meter,
-    summaryOf: async (conversationId) => (await chatHistory.compaction.current(conversationId))?.summary || "",
-    write: writeTemplate
-  });
+  const teams = createBotTeams({ records, botList, templates, onboarding, notices });
+  const library = createBotLibrary({ records, apps, files });
   // Add bots' suggestions (D-109): what the home has, and the chat model's plan.
   const plans = createBotPlans({ records, workspaces, meter, write: writePlan });
-  const teaching = createBotTeaching({ records, computer, integrations, conversations, background, writeSkill });
-  const groups = createBotGroups({ records, conversations });
-  const library = createBotLibrary({ records, conversations, apps, files });
-  const memory = createBotMemory({ records, conversations });
-  // Chats and their members (D-112, R2): the chat routes' service.
-  const chats = createChatMembers({ records, notices, computer, systemContext });
+  // A template drafted from a bot reads the newest summary of a chat it's in that the person may read.
+  const drafts = createTemplateDrafts({ records, meter, summaryOf: turns.summaryOf, write: writeTemplate });
+  const routines = createChatRoutines({ records });
+  // Teaching a bot on its computer in a chat (C): a recording, then the skill it teaches.
+  const teaching = createBotTeaching({ records, computer, integrations, notices, background, writeSkill });
+
+  /**
+   * A change of the home's people (BotsFeature, as members join and leave): who joined is seated in its everyone chat
+   * and who left is out of its chats (chatMembers.js homeChanged, R2), and the routines and watches they made there
+   * pause, with a line in each chat, since they ran as them (R4).
+   * @param {string} homeId
+   */
+  async function homeChanged(homeId) {
+    return chats.homeChanged(homeId, { leaving: (userId, home) => pauseWhatTheyMade(userId, homeId, home) });
+  }
+
+  // All of it or none, so a failure leaves it to the next change, with its line.
+  async function pauseWhatTheyMade(userId, homeId, home) {
+    const name = (await profiles.findById(userId, home))?.displayName || "Someone";
+    await records.chats.withTransaction(home, (txOptions) => turns.pauseMadeBy({ userId, homeId }, {
+      text: "Paused: its maker left",
+      detail: (paused) => `${name} left the home, so the ${paused} they made paused.`
+    }, txOptions));
+  }
 
   return Object.freeze({
     chats,
-    chat: CHAT_IN_STEP_2,
-    compaction: chatHistory.compaction,
-    requests,
-    goals,
-    startResumer: replies.startResumer,
-    resumeStalled: replies.resumeStalled,
-    connectFollowUps: replies.connectFollowUps,
-    connectFromCard: replies.connectFollowUps.connectFromCard,
-    cancelRequest: cards.cancelRequest,
-    listBots: botList.listBots,
-    listedBot: botList.listedBot,
-    ensureFirstBot: botList.ensureFirstBot,
-    createBot: botList.createBot,
-    answerChoice: cards.answerChoice,
-    settleHandover: cards.settleHandover,
-    templateGallery: templates.templateGallery,
-    templateChecks: templates.templateChecks,
-    templateDetails: templates.templateDetails,
-    addFromTemplate: templates.addFromTemplate,
-    teamFor: teams.teamFor,
-    addTeam: teams.addTeam,
-    addBots: teams.addBots,
-    proposeBots: plans.propose,
-    changeTemplate: templates.changeTemplate,
-    homeTemplates: templates.homeTemplates,
-    homeTemplate: templates.homeTemplate,
-    editHomeTemplate: templates.editHomeTemplate,
-    deleteHomeTemplate: templates.deleteHomeTemplate,
-    draftTemplate: drafts.draftTemplate,
-    messages: chat.messages,
-    findOlder: chat.findOlder,
-    advanceOnboarding: chat.advanceOnboarding,
-    chooseName: chat.chooseName,
-    sendMessage: chat.sendMessage,
-    skillsFor: chat.skillsFor,
-    settleDraft: cards.settleDraft,
-    library: library.library,
-    pinItem: library.pinItem,
-    deletePage: library.deletePage,
-    settleSecureForm: cards.settleSecureForm,
-    memories: memory.memories,
-    forgetMemory: memory.forgetMemory,
-    replyTo: replies.replyTo,
-    describeWork: chat.describeWork,
-    answerOnce: chat.answerOnce,
-    react: chat.react,
-    updateBot: settings.updateBot,
-    instructionsOf: templates.instructionsOf,
-    notebook: memory.notebook,
-    removeNote: memory.removeNote,
+    homeChanged,
+    // A chat's own routes (registerRoutes.js `bots.chat.*`): the turns', the welcome chat's, routines' and teaching's.
+    chat: Object.freeze({
+      ...turns.chat,
+      welcome: onboarding.welcome,
+      advanceOnboarding: onboarding.advance,
+      chooseName: onboarding.chooseName,
+      routinesIn: routines.routinesIn,
+      routinesOf: routines.routinesOf,
+      switchRoutine: routines.switchRoutine,
+      deleteRoutine: routines.deleteRoutine,
+      startTeaching: teaching.startTeaching,
+      stopTeaching: teaching.stopTeaching
+    }),
+    skillsFor: turns.skillsFor,
+    answerOnce: turns.answerOnce,
+    cancelRequest: turns.cancelRequest,
+    // The background loops' (botLoops.js).
+    compaction: turns.compaction,
+    requests: turns.requests,
+    goals: turns.goals,
+    startResumer: turns.startResumer,
+    resumeStalled: turns.resumeStalled,
+    connectFollowUps: turns.connectFollowUps,
+    runRoutine: turns.runRoutine,
+    runAppTask: turns.runAppTask,
+    drain: background.drain,
     knowledge: Object.freeze({
       list: knowledge.list,
       read: knowledge.read,
@@ -340,39 +200,31 @@ export function createBotsService({
       runDue: knowledge.indexer.runDue,
       start: knowledge.indexer.start
     }),
-    createRoom: settings.createRoom,
-    roomForApp: settings.roomForApp,
-    renameRoom: settings.renameRoom,
-    archiveRoom: archive.archiveRoom,
-    resumeRoom: archive.resumeRoom,
-    archivedConversations: archive.archivedConversations,
+    listBots: botList.listBots,
+    listedBot: botList.listedBot,
+    createBot: templates.createBot,
+    templateGallery: templates.templateGallery,
+    templateChecks: templates.templateChecks,
+    templateDetails: templates.templateDetails,
+    addFromTemplate: templates.addFromTemplate,
+    changeTemplate: templates.changeTemplate,
+    instructionsOf: templates.instructionsOf,
+    homeTemplates: templates.homeTemplates,
+    homeTemplate: templates.homeTemplate,
+    editHomeTemplate: templates.editHomeTemplate,
+    deleteHomeTemplate: templates.deleteHomeTemplate,
+    updateBot: settings.updateBot,
+    deleteBot: settings.deleteBot,
     archiveBot: archive.archiveBot,
     unarchiveBot: archive.unarchiveBot,
-    deleteBot: settings.deleteBot,
-    runRoutine: replies.runRoutine,
-    runAppTask: replies.runAppTask,
-    drain: background.drain,
-    recordVoiceCall: chat.recordVoiceCall,
-    search: library.search,
-    createGroup: groups.createGroup,
-    addMember: groups.addMember,
-    removeMember: groups.removeMember,
-    addPerson: groups.addPerson,
-    removePerson: groups.removePerson,
-    startTeaching: teaching.startTeaching,
-    stopTeaching: teaching.stopTeaching,
-    routines: memory.routines,
-    // readable-check: allow setter-seam - not a slot: switches a routine off or on
-    setRoutineEnabled: memory.setRoutineEnabled,
-    deleteRoutine: memory.deleteRoutine,
-    reorderPins: botList.reorderPins,
-    createSection: botList.createSection,
-    updateSection: botList.updateSection,
-    moveSection: botList.moveSection,
-    deleteSection: botList.deleteSection,
-    homeDefault: homeDefaults.asSeen,
-    chooseHomeDefault: homeDefaults.choose,
-    changeHomeSettings: homeDefaults.change,
-    answerTeamQuestion: homeDefaults.answerTeamQuestion
+    teamFor: teams.teamFor,
+    addTeam: teams.addTeam,
+    addBots: teams.addBots,
+    proposeBots: plans.propose,
+    draftTemplate: drafts.draftTemplate,
+    library: library.library,
+    pinItem: library.pinItem,
+    deletePage: library.deletePage,
+    search: library.search
   });
 }

@@ -36,7 +36,7 @@ const BotsFeature = defineFeature({
   },
   // Requests between bots, goal rounds, routines, Apps tasks and replies left part-way are claimed
   // across every home, then each runs as a job for its person in its own home.
-  systemScope: "run the bots' queued work and resume their replies in every home; seat a home's people in its chats as they join and leave",
+  systemScope: "run the bots' queued work and resume their replies in every home; seat a home's people in its chats as they join and leave, pausing what someone who left made",
   provides: {
     bots: "mercbot.bots",
     // Provided so the shutdown hook can drain the loops.
@@ -119,7 +119,7 @@ const BotsFeature = defineFeature({
       id: "mercbot.bots.chat-members",
       matches: (event) => event.type === "entity.changed" && event.source === "workspace" && event.entity === "member",
       handle: (event) =>
-        bots.chats.homeChanged(String(event.entityId)).catch((error) =>
+        bots.homeChanged(String(event.entityId)).catch((error) =>
           console.warn("Seating a home's people in its chats failed; it catches up at the home's next change of people.", error))
     });
     registerRoutes(http, { bots, approvals, notices, meter: botMeter, records, streams });

@@ -7,7 +7,7 @@ import { passedOn } from "@jskit-ai/resource-runtime/server";
 // database's clock (now()) times the heartbeats, as every server reads them.
 
 const RUN_FIELDS = Object.freeze([
-  "botId", "conversationId", "userId", "why", "script", "server", "status", "exitCode", "output", "changed", "background",
+  "chatBotId", "userId", "why", "script", "server", "status", "exitCode", "output", "changed", "background",
   "startedAt", "finishedAt", "heartbeatAt"
 ]);
 
@@ -28,8 +28,8 @@ export const SHELL_RUN_FILTERS = Object.freeze({
 });
 
 /**
- * A run as the shell's callers read it: today's snake_case shell_runs row (bots botLoops.js and
- * commandTools.js).
+ * A run as the shell's callers read it: the snake_case shell_runs row (bots botLoops.js and
+ * commandTools.js). Its bot and chat are its chat_bots row's (records.directory.computerOf).
  * @param {Record<string, any>} record
  * @param {string | number} workspaceId the run's home
  */
@@ -37,8 +37,7 @@ function asRunRow(record, workspaceId) {
   return {
     id: String(record.id),
     workspace_id: String(workspaceId),
-    bot_id: record.botId == null ? null : String(record.botId),
-    conversation_id: record.conversationId == null ? null : String(record.conversationId),
+    chat_bot_id: String(record.chatBotId),
     user_id: record.userId == null ? null : String(record.userId),
     why: record.why,
     script: record.script,
@@ -65,9 +64,9 @@ export function createShellRuns({ shellRuns, systemContext }) {
     return { context: systemContext("start, beat and finish a bot's command runs in the home they run in").forWorkspace(String(workspaceId)) };
   }
 
-  /** A new run, running: its row. */
-  async function begin(workspaceId, { botId, conversationId, userId, why, script, server }) {
-    const record = await shellRuns.create({ botId: String(botId), conversationId, userId, why, script, server }, inHome(workspaceId));
+  /** A new run of a bot in a chat (its chat_bots id), running: its row. */
+  async function begin(workspaceId, { chatBotId, userId, why, script, server }) {
+    const record = await shellRuns.create({ chatBotId: String(chatBotId), userId, why, script, server }, inHome(workspaceId));
     return asRunRow(record, workspaceId);
   }
 
@@ -132,21 +131,21 @@ export function createShellRuns({ shellRuns, systemContext }) {
   }
 
   /**
-   * A run of one conversation in the call's home, for reading its whole output (bots commandTools.js).
+   * A run of one bot in a chat (its chat_bots id) in the call's home, for reading its whole output (bots commandTools.js).
    * @param {string} runId
-   * @param {string} conversationId
+   * @param {string} chatBotId
    * @param {object} options
-   * @returns {Promise<{ id: string, conversationId: string, output: string, status: string } | null>}
+   * @returns {Promise<{ id: string, chatBotId: string, output: string, status: string } | null>}
    */
-  async function commandOutput(runId, conversationId, options) {
+  async function commandOutput(runId, chatBotId, options) {
     const id = String(runId ?? "");
-    if (!/^\d+$/u.test(id) || conversationId == null) return null;
+    if (!/^\d+$/u.test(id) || chatBotId == null || !/^\d+$/u.test(String(chatBotId))) return null;
     const [record] = await shellRuns.queryAll(
-      { filters: { id, conversationId: String(conversationId) }, fields: ["conversationId", "output", "status"] },
+      { filters: { id, chatBotId: String(chatBotId) }, fields: ["chatBotId", "output", "status"] },
       passedOn(options)
     );
     if (!record) return null;
-    return { id: String(record.id), conversationId: String(record.conversationId), output: record.output, status: record.status };
+    return { id: String(record.id), chatBotId: String(record.chatBotId), output: record.output, status: record.status };
   }
 
   return Object.freeze({

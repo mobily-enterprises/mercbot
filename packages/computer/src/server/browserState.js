@@ -46,7 +46,7 @@ function run(command, args, input) {
  * so a crash at any point leaves a whole profile to restore. Files whose sha256 doesn't match the
  * record are ignored.
  * @param {object} dependencies
- * @param {ReturnType<typeof import("./computerRecords.js").createComputerRecords>} dependencies.records the saved browsers' records
+ * @param {import("./types.js").ComputerRecords} dependencies.records the saved browsers' records
  * @param {import("@jskit-ai/kernel/server/types").RuntimeEnv} dependencies.env
  * @param {(computerId: number | string, how?: { fresh?: boolean }) => Promise<string>} dependencies.folderOf The
  *   computer's folder on the shared volume, brought up to date (`fresh`: even if it was a moment ago).

@@ -81,11 +81,12 @@ export async function startDesktopSandbox({ runtimeEnv, computerId, display, pro
 
   const bind = (source, destination, { readonly = false, exec = true } = {}) => folderMount(source, destination, { readonly, exec });
   const apps = path.join(tools(runtimeEnv), "apps");
-  const home = folders ? "/files/mine" : "/tmp";
+  // The chat's folder is the desktop's home (R6): its apps' settings are the chat's, as everything else on it is (D14).
+  const home = folders?.chat ? "/files/chat" : "/tmp";
   const env = [
     "PATH=/usr/local/bin:/usr/bin:/bin",
     `HOME=${home}`, `DISPLAY=:${display}`, "LANG=C.UTF-8", "LC_ALL=C.UTF-8",
-    "XDG_CACHE_HOME=/tmp/.cache", `XDG_CONFIG_HOME=${folders ? "/files/mine/.apps" : "/tmp/.config"}`,
+    "XDG_CACHE_HOME=/tmp/.cache", `XDG_CONFIG_HOME=${folders?.chat ? "/files/chat/.apps" : "/tmp/.config"}`,
     ...PROXY_ENV,
     `VK_ICD_FILENAMES=${DESKTOP_GRAPHICS.vulkan}`, `__EGL_VENDOR_LIBRARY_FILENAMES=${DESKTOP_GRAPHICS.egl}`,
     ...extraEnv
@@ -115,10 +116,11 @@ export async function startDesktopSandbox({ runtimeEnv, computerId, display, pro
       bind(profile, "/profile"),
       ...storeMounts(runtimeEnv),
       ...(existsSync(STAGEHAND_EXTENSION) ? [bind(STAGEHAND_EXTENSION, "/opt/stagehand-extension", { readonly: true })] : []),
+      // The chat's folders (fileStore.js): a private chat's bot and home folders only read (D13).
       ...(folders ? [
-        bind(folders.mine, "/files/mine", { exec: false }),
-        ...(folders.bot ? [bind(folders.bot, "/files/bot", { exec: false })] : []),
-        bind(folders.shared, "/files/shared", { exec: false })
+        ...(folders.chat ? [bind(folders.chat, "/files/chat", { exec: false })] : []),
+        ...(folders.bot ? [bind(folders.bot, "/files/bot", { readonly: folders.readOnly?.includes("bot"), exec: false })] : []),
+        bind(folders.shared, "/files/shared", { readonly: folders.readOnly?.includes("shared"), exec: false })
       ] : []),
       ...(existsSync(apps) ? [bind(apps, "/opt/apps", { readonly: true })] : [])
     ],

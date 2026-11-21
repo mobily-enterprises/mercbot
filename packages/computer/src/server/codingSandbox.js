@@ -79,7 +79,7 @@ async function marked(dirs, mark) {
  * @param {import("@jskit-ai/kernel/server/types").RuntimeEnv} options.runtimeEnv the server's env
  * @param {string} options.home the sign-in's folder on this server, a link-free real path
  * @param {{ source: string, destination: string } | null} [options.project] the project's folder on
- *   this server (a link-free real path) and where the bot sees it (/files/mine/site)
+ *   this server (a link-free real path) and where the bot sees it (/files/chat/site)
  * @param {string[]} options.argv the tool's command line
  * @param {string[]} options.env the tool's own variables
  * @param {number} options.maxSeconds

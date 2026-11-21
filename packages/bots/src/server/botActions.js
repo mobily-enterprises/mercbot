@@ -38,8 +38,8 @@ export function appCard(integrations, pluginId) {
  * @param {import("./types.js").AppAccess} access
  * @param {string} [account]
  */
-async function calendarAccount({ integrations, reach, call }, account) {
-  const entry = await connectedKey({ integrations, reach, call }, Object.keys(CALENDARS), "calendar", account);
+async function calendarAccount({ integrations, call }, account) {
+  const entry = await connectedKey({ integrations, call }, Object.keys(CALENDARS), "calendar", account);
   return { entry, app: appCard(integrations, entry.pluginId) };
 }
 
@@ -207,8 +207,8 @@ export const ACTIONS = {
     reversible: () => false,
     describe: ({ instruction }) => `on a web page: ${instruction}`,
     question: ({ instruction }) => `Shall I go ahead and ${instruction}?`,
-    // The computer is the conversation's, or in a group the bot's own one for that group (D-46).
-    async run({ computer, conversationId, computerId = conversationId }, { instruction }) {
+    // The computer is the chat's (D-112): the bot's seat there.
+    async run({ computer, computerId }, { instruction }) {
       const result = await computer.act(String(computerId), instruction);
       return {
         kind: "event",
@@ -222,12 +222,12 @@ export const ACTIONS = {
     reversible: () => true,
     describe: ({ name, schedule }) => `create a recurring routine "${name}" that runs ${schedule}`,
     question: ({ name, schedule }) => `Shall I set up "${name}" to run ${schedule}?`,
-    async run({ work, call, botId, conversationId }, args) {
+    async run({ work, call, chatBotId, userId }, args) {
       const nextRun = nextRunAt(args.cron, args.timezone);
-      // A routine runs in the conversation it was set up in (D-36), in its home.
+      // A routine runs in the chat it was set up in, by its bot (D-36), as the person who set it up (R4).
       await work.createRoutine({
-        botId: String(botId),
-        conversationId: String(conversationId),
+        chatBotId: String(chatBotId),
+        madeBy: String(userId),
         name: args.name,
         schedule: args.schedule,
         instructions: args.instructions,
@@ -245,8 +245,8 @@ export const ACTIONS = {
     reversible: () => true,
     describe: ({ routine }) => `change the routine "${routine}"`,
     question: ({ routine }) => `Shall I change "${routine}"?`,
-    async run({ work, call, conversationId }, args) {
-      const routine = await work.routineNamed(conversationId, args.routine, call);
+    async run({ work, call, chatBotId }, args) {
+      const routine = await work.routineNamed(chatBotId, args.routine, call);
       if (!routine) return { kind: "event", role: "system", body: { text: `Couldn't find the routine ${args.routine}` } };
       const update = {};
       for (const field of ["name", "schedule", "instructions", "cron", "timezone"]) {
@@ -271,15 +271,15 @@ export const ACTIONS = {
     reversible: () => false,
     describe: () => "change the bot's own additions",
     question: () => "Shall I change my additions to this?",
-    async run({ conversations, call, botId }, { before, additions }) {
-      const bot = await conversations.botOf(String(botId), call);
+    async run({ bots, call, botId, userId }, { before, additions }) {
+      const bot = await bots.get(String(botId), call);
       const refused = (text) => ({ kind: "event", role: "system", body: { text, detail: `${text} Nothing was changed.` } });
-      if (!mayChangeBot(bot.user_id, conversations.personOf(call), call)) return refused(changeRefusal(bot.name));
+      if (!mayChangeBot(bot.made_by, userId, call)) return refused(changeRefusal(bot.name));
       // The card shows what they were; a change made since (in Details, or another card) is never overwritten.
       if (String(bot.additions || "") !== String(before || "")) {
         return refused(`${bot.name}'s additions changed after this card was made, so they were left as they are.`);
       }
-      await conversations.updateBot(bot.id, additionsChange(additions), call);
+      await bots.update(bot.id, additionsChange(additions), call);
       return {
         kind: "event",
         role: "system",

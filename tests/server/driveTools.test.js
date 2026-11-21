@@ -81,10 +81,10 @@ test("OneDrive: a folder by path, a file made from text, a PDF conversion, and n
 
 test("each drive action is its own switch, and sharing or commenting asks unless the person asked for it", () => {
   const shared = { attempt: async () => ({}), attempted: [], failed: (error) => ({ error: error.message }), account: () => undefined, pickDrive: async () => ({}), inTime: (work) => work };
-  const all = buildDriveTools({ ...shared, removed: [], keep: async () => "/files/mine/Drive/x" });
+  const all = buildDriveTools({ ...shared, removed: [], keep: async () => "/files/chat/Drive/x" });
   assert.deepEqual(Object.keys(all), ["driveFind", "driveRead", "driveChange", "driveComments"]);
   assert.deepEqual(all.driveRead.inputSchema.shape.action.options, ["read", "download", "export"]);
-  const noFiles = buildDriveTools({ ...shared, removed: ["drive_change.share", "drive_comments.list", "drive_comments.add", "drive_comments.reply"], keep: async () => "/files/mine/Drive/x" });
+  const noFiles = buildDriveTools({ ...shared, removed: ["drive_change.share", "drive_comments.list", "drive_comments.add", "drive_comments.reply"], keep: async () => "/files/chat/Drive/x" });
   assert.equal(noFiles.driveChange.inputSchema.shape.action.options.includes("share"), false);
   assert.equal(noFiles.driveComments, undefined);
   assert.equal(DRIVE_ACTIONS["drive_change.share"].reversible({ personAsked: false }), false);

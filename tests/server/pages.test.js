@@ -34,7 +34,7 @@ const { fetchOutside } = pageFilesTestables;
 test("a page's path is an .html file in a Pages folder of a bot's folder for everyone or of the home's", () => {
   for (const good of ["/files/bot/Pages/party.html", "/files/shared/Pages/plan.html", "/files/bot/Trips/Pages/rome.html"]) assert.ok(isPagePath(good), good);
   for (const bad of [
-    "/files/mine/Pages/party.html",
+    "/files/chat/Pages/party.html",
     "/files/bot/Pages/party.md",
     "/files/bot/party.html",
     "/files/bot/Pages/../secret.html",
@@ -141,7 +141,8 @@ async function pageStore(context) {
   const dir = await mkdtemp(path.join(os.tmpdir(), "mb-pages-"));
   context.after(() => rm(dir, { recursive: true, force: true }));
   const store = createFileStore({ root: "", fallback: dir, ownStorage: async () => null, settle: async () => {}, explain: async () => {} });
-  return { store, place: { homeId: "1", botId: "2", userId: "3" } };
+  // A Public chat's place: its bot saves pages in /files/bot (a private chat's only reads there, D13).
+  return { store, place: store.placeFor({ homeId: "1", chatId: "4", chatKind: "public", botId: "2" }) };
 }
 
 test("saving copies what a page loads from outside into its folder, and takes out what it can't", async (context) => {
@@ -155,19 +156,19 @@ test("saving copies what a page loads from outside into its folder, and takes ou
     "/moved.png": [302, null, "", { location: "/cake.png" }]
   });
   const { store, place } = await pageStore(context);
-  const uploads = await store.resolve(place, "/files/mine/Pictures");
+  const uploads = await store.resolve(place, "/files/chat/Pictures");
   await mkdir(uploads, { recursive: true });
   await writeFile(path.join(uploads, "invite.png"), "INVITE");
   const files = createPageFiles({ store, insecure: true });
   const document = readPage(
-    `<img src="${site}/cake.png"><img src="${site}/moved.png"><img src="/files/mine/Pictures/invite.png"><link rel="stylesheet" href="${site}/look.css">` +
+    `<img src="${site}/cake.png"><img src="${site}/moved.png"><img src="/files/chat/Pictures/invite.png"><link rel="stylesheet" href="${site}/look.css">` +
     `<script src="${site}/chart.js"></script><img src="${site}/page.html"><img src="${site}/gone.png"><img src="ftp://files.example/x.png">` +
-    `<img src="/files/mine/secret.pdf"><img srcset="${site}/cake.png 1x, ${site}/gone.png 2x"><div style="background:url(${site}/paper.png)">x</div>`
+    `<img src="/files/chat/secret.pdf"><img srcset="${site}/cake.png 1x, ${site}/gone.png 2x"><div style="background:url(${site}/paper.png)">x</div>`
   );
   const { copied, removed } = await files.bringIn(document, { place, pagePath: "/files/bot/Pages/party.html" });
   const html = writePage(document);
   assert.equal(copied, 6, "cake, moved, the chat's picture, the style sheet, the library and the paper");
-  assert.deepEqual(removed.map((entry) => entry.address).sort(), ["/files/mine/secret.pdf", `${site}/gone.png`, `${site}/page.html`, "ftp://files.example/x.png", "more.css"].sort());
+  assert.deepEqual(removed.map((entry) => entry.address).sort(), ["/files/chat/secret.pdf", `${site}/gone.png`, `${site}/page.html`, "ftp://files.example/x.png", "more.css"].sort());
   assert.match(removed.find((entry) => entry.address === `${site}/page.html`).why, /can't hold text\/html/u);
   assert.match(removed.find((entry) => entry.address === `${site}/gone.png`).why, /answered 404/u);
   assert.doesNotMatch(html, /127\.0\.0\.1|ftp:|secret/u, "nothing outside is named any more");
@@ -247,13 +248,14 @@ test("the request log names a page's address without its token", () => {
 test("a page the bot moves with move_file takes its versions along", async () => {
   const dir = await mkdtemp(path.join(os.tmpdir(), "mb-move-"));
   const store = createFileStore({ root: "", fallback: dir, ownStorage: async () => null, settle: async () => {}, explain: async () => {} });
-  const place = { homeId: "1", botId: "2", userId: "3" };
+  const place = store.placeFor({ homeId: "1", chatId: "4", chatKind: "public", botId: "2" });
   const real = await store.resolve(place, "/files/bot/Pages/party.html");
   await mkdir(path.dirname(real), { recursive: true });
   await writeFile(real, "<h1>Party</h1>");
   const changes = [];
   const files = { store, apps: { session: () => ({ close() {} }) }, pages: { pathChanged: async (change) => changes.push(change) } };
-  const run = buildTools(turnDoubles({ approvals: { decide: async () => "allow" }, computer: null, files, place, homeId: "1", userId: "3", botId: "2", conversationId: "4" }));
+  const run = buildTools(turnDoubles({ approvals: { decide: async () => "allow" }, computer: null, files, place,
+    seat: { id: "2", workspace_id: "1", user_id: "3", chat_id: "4", chat_bot_id: "9", chat: { id: "4", kind: "public" } } }));
   assert.equal((await run.tools.moveFile.execute({ from: "/files/bot/Pages/party.html", to: "/files/bot/Pages/fiesta.html" })).status, "moved");
   assert.deepEqual(changes, [{ homeId: "1", botId: "2", from: "/files/bot/Pages/party.html", to: "/files/bot/Pages/fiesta.html" }]);
   await rm(dir, { recursive: true, force: true });

@@ -1,6 +1,5 @@
 import { createTool } from "@jskit-ai/agent/server";
 import { z } from "zod";
-import { EMAIL_ADDRESS } from "./botActions.js";
 
 /**
  * A connect card that can still be signed in from: "waiting" until the person starts
@@ -9,22 +8,14 @@ import { EMAIL_ADDRESS } from "./botActions.js";
 export const CONNECT_WAITS = Object.freeze(["waiting", "connecting"]);
 
 /**
- * What never goes in the home notebook (D-36): phone, card and account numbers, that is runs of
- * nine or more digits (dates aside).
- */
-const hasLongNumber = (text) => [...text.matchAll(/\+?\d[\d\s().-]{7,}\d/gu)]
-  .some(([found]) => !/^\d{4}-\d{2}-\d{2}/u.test(found) && found.replace(/\D/gu, "").length >= 9);
-
-/**
- * Cards under the reply: one to connect an app a task needs, a question with a few
- * answers to tap, and the line a note for the home notebook leaves (D-36).
+ * Cards under the reply: one to connect an app a task needs, and a question with a few answers to tap. Each is for the
+ * person the turn works for (botReplies sets `body.for`).
  * @param {object} shared
  * @param {import("@local/integrations/server/types").Integrations} shared.integrations
- * @param {import("./types.js").Notebook | null} shared.notebook
  * @param {object[]} shared.after
  * @param {import("./types.js").CallOptions} shared.call the turn's call options
  */
-export function buildCardTools({ integrations, notebook, after, call }) {
+export function buildCardTools({ integrations, after, call }) {
   const tools = {};
   // A task that needs an app that isn't connected: an inline card to connect it,
   // then the bot finishes the task once it's signed in, instead of refusing or using the website.
@@ -118,32 +109,5 @@ export function buildCardTools({ integrations, notebook, after, call }) {
     })
   );
 
-  // The home notebook (D-36): a mixed bot notes what it learned that helps everyone in the home,
-  // never anything personal, and the person sees a line they can undo.
-  if (notebook) {
-    async function noteForHome({ text }) {
-      if (after.some((message) => message.kind === "note")) return { status: "already noted" };
-      const note = text.trim();
-      if (EMAIL_ADDRESS.test(note) || hasLongNumber(note)) {
-        return { error: "That has contact or card details, which never go in the notebook. Leave it out." };
-      }
-      const saved = await notebook.note(note);
-      if (saved.error) return saved;
-      after.push({ kind: "note", role: "system", body: { noteId: saved.id, text: note, home: notebook.home } });
-      return { status: "noted", note: `Say in one short line that you noted it for ${notebook.home}; they can undo it.` };
-    }
-    tools.noteForHome = createTool(
-      Object.freeze({
-        id: "note_for_home",
-        description:
-          `Add a line to the ${notebook.home} notebook, which everyone in the home and their chats with you can read: only reusable ` +
-          `know-how about the home's work and routines (how something is done, where things are, what was decided for everyone). ` +
-          `Never anything personal: no health, money, passwords, contact details, private plans or anything said about someone else ` +
-          `without their OK. Use it sparingly, once per reply at most.`,
-        inputSchema: z.object({ text: z.string().min(8).max(500).describe("The note, written so it makes sense on its own") }),
-        execute: (input, options) => noteForHome(input, options)
-      })
-    );
-  }
   return tools;
 }

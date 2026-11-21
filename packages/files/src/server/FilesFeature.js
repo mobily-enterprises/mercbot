@@ -53,7 +53,7 @@ const FilesFeature = defineFeature({
   },
   /**
    * @param {object} capabilities
-   * @param {{ directory: object }} capabilities.records mercbot.bots.records
+   * @param {{ directory: object, chats: object }} capabilities.records mercbot.bots.records
    * @param {import("@jskit-ai/kernel/server/types").RuntimeHttp} capabilities.http
    * @param {import("@jskit-ai/kernel/server/types").RuntimeFastify} capabilities.fastify
    * @param {import("@jskit-ai/uploads-runtime/server/types").RuntimeUploads} capabilities.uploads
@@ -70,7 +70,7 @@ const FilesFeature = defineFeature({
   async setup({ records, http, fastify, uploads, storage, integrations, env, meter, sweeps, mediaCheck, resources, systemContext }) {
     const files = createFilesRuntime({ resources, systemContext, env, meter, integrations, mediaCheck });
     sweeps.useFilesSync(files.volume.sync);
-    registerRoutes(http, { files, directory: records.directory, uploads });
+    registerRoutes(http, { files, records, uploads });
     // A Google Drive mount's rclone asks this server for its keys, at its own address (D-80), and so does a move's,
     // so this server carries on moves whose server stopped only once it listens.
     await registerDriveTokenRoute(fastify, files.mounts);

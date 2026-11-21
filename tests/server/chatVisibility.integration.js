@@ -130,6 +130,18 @@ test("the model's reader reads readable_from its chat, whoever asked, and nothin
   assert.deepEqual((await records.chats.readableFrom(chats.Diary.id, fromDiary)).sort((a, b) => a - b), sorted(chats.Family.id, chats.Plans.id, chats.Diary.id));
   assert.equal((await integrations.userSkills.queryAll({}, fromDiary)).length, 1);
 
+  // A chat's own reader (its summary, forChat) acts for no one and reads exactly what a bot's reader there does.
+  const ofFamily = { context: records.readers.forChat({ homeId, chatId: chats.Family.id }) };
+  assert.deepEqual(records.readers.of(ofFamily.context), { homeId, botId: null, chatId: chats.Family.id, askerId: null });
+  assert.deepEqual(await records.chats.readableFrom(chats.Family.id, ofFamily), [chats.Family.id]);
+  assert.equal(await records.chats.find(chats.Plans.id, ofFamily), null, "never a private chat, whoever is in the chat");
+  assert.equal((await records.messages.timeline(chats.Diary.id, {}, ofFamily)).messages.length, 0);
+  assert.deepEqual((await records.messages.timeline(chats.Family.id, {}, ofFamily)).messages.map((row) => row.body.text), ["said in Family"]);
+  const ofPlans = { context: records.readers.forChat({ homeId, chatId: chats.Plans.id }) };
+  assert.deepEqual((await records.chats.readableFrom(chats.Plans.id, ofPlans)).sort((a, b) => a - b), sorted(chats.Family.id, chats.Plans.id));
+  assert.equal(await records.chats.find(chats.Diary.id, ofPlans), null);
+  assert.throws(() => records.readers.forChat({ homeId, chatId: "x" }), /chatId/u);
+
   // Who asked doesn't widen it: Ben asking in Family reads what Anna asking there does.
   assert.deepEqual(await records.chats.readableFrom(chats.Family.id, reader(chats.Family, ben)), [chats.Family.id]);
   // A copy of a reader's context is still that reader (it fails closed), and a reader can't name a made-up chat.
