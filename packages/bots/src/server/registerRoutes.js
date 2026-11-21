@@ -254,7 +254,8 @@ export function registerRoutes(http, { bots, approvals, notices, meter, records,
   // A page deleted from the Library, after the person confirmed: the Library again, and the page's cards.
   router.register("DELETE", `${home}/bots/:botId/library/pages/:messageId`, auth, handle(async (request, _user, options) =>
     bots.deletePage(request.params.botId, request.params.messageId, options)));
-  router.register("GET", `${home}/bot-skills`, auth, handle(async (_request, _user, options) => bots.skillsFor(options)));
+  // The "/" picker's skills in a chat (?chat=): the person's own only in a Private chat of theirs alone.
+  router.register("GET", `${home}/bot-skills`, auth, handle(async (request, _user, options) => bots.skillsFor(request.query?.chat, options)));
   router.register("GET", `${home}/search`, auth, handle(async (request, _user, options) => bots.search(request.query?.q, options)));
   // What changed for this person's chats and bots, as server-sent events from any server (D-15).
   router.register("GET", `${home}/bot-events`, auth, async (request, reply) => {

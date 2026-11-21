@@ -1,6 +1,6 @@
 // A very long chat (about 600k tokens, past what a reply reads word for word) with five facts
-// planted in its older part; the bot is asked for all five (D-48: never forget unseen). The
-// summary is written before the reply, by the real summariser.
+// planted in its older part, in the person's direct chat with the bot; the bot is asked for all five (D-48: never forget
+// unseen). The summary is written before the reply, by the real summariser.
 export const builder = false;
 export const prompt = "Quick check on things we talked about a while ago: (1) when is my sister Lucia's birthday, (2) what did we decide to call the café, (3) who is the plumber and when is he coming, (4) what's the kitchen budget, and (5) what am I allergic to? Short answers please.";
 
@@ -22,35 +22,36 @@ function random(seed) {
   };
 }
 
-// Facts an earlier run saved with remember would answer for the summary, so they go first and last.
-const forget = (knex, userId) => knex("person_memories").where({ user_id: userId }).where((query) => {
-  for (const word of ["Lucia", "Little Fern", "Kowalski", "18,500", "18500", "cashew"]) query.orWhere("fact", "ilike", `%${word}%`);
-});
-
-export async function setup({ knex, bot, userId }) {
-  await forget(knex, userId).del();
-  const conversationId = (await knex("bot_conversations").where({ bot_id: bot.id }).first()).id;
+// The facts are only in the chat itself (D-112 keeps no memories): the summary has to carry them.
+export async function setup({ knex, bot, userId, chatId }) {
   const next = random(42);
   const pick = (list) => list[Math.floor(next() * list.length)];
   const rows = [];
   let chars = 0;
   const factAt = [40, 160, 300, 420, 520];
+  const row = (role, text) => ({
+    workspace_id: bot.workspace_id,
+    conversation_id: chatId,
+    author_user_id: role === "user" ? userId : null,
+    author_bot_id: role === "bot" ? bot.id : null,
+    kind: "text",
+    role,
+    body: { text }
+  });
   for (let turn = 0; chars < 2400000; turn += 1) {
     const topic = pick(TOPICS);
     const fact = factAt.indexOf(turn) >= 0 ? `${FACTS[factAt.indexOf(turn)]} ` : "";
     const asked = `${fact}${pick(PHRASES)} ${topic}. ${"It's been on my mind this week, nothing urgent. ".repeat(3 + Math.floor(next() * 4))}`;
     const answer = Array.from({ length: 6 + Math.floor(next() * 6) }, (_, n) => `Point ${n + 1} about ${topic}: ${pick(["keep it simple", "try a small change first", "see how it feels after a week", "ask a friend for a second opinion", "write it down so you don't forget", "pick the option that's easiest to undo"])}, and ${pick(["it often works better than expected", "it saves time later", "most people find it easier", "you can always adjust it"])}.`).join(" ");
-    rows.push({ workspace_id: bot.workspace_id, bot_id: bot.id, conversation_id: conversationId, kind: "text", role: "user", body: { text: asked } });
-    rows.push({ workspace_id: bot.workspace_id, bot_id: bot.id, conversation_id: conversationId, kind: "text", role: "bot", body: { text: answer } });
+    rows.push(row("user", asked), row("bot", answer));
     chars += asked.length + answer.length;
   }
-  for (let index = 0; index < rows.length; index += 500) await knex("bot_messages").insert(rows.slice(index, index + 500));
+  for (let index = 0; index < rows.length; index += 500) await knex("messages").insert(rows.slice(index, index + 500));
 }
 
-export async function judge({ reply, knex, bot, userId }) {
-  await forget(knex, userId).del();
-  const conversationId = (await knex("bot_conversations").where({ bot_id: bot.id }).first()).id;
-  const summarised = await knex("agent_summaries").where({ conversation_id: conversationId }).first();
+export async function judge({ reply, knex, chatId }) {
+  // Summaries are the chat's (agentTables.js): agent_summaries.conversation_id is the chat's id.
+  const summarised = await knex("agent_summaries").where({ conversation_id: chatId }).first();
   if (!summarised) return { pass: false, notes: "no summary was written before the reply" };
   const missing = [
     [/14(th)? March|March 14/iu, "birthday"],

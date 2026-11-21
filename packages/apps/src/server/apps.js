@@ -75,13 +75,14 @@ export async function liveAndDraftVersions({ apps, appVersions }, filters, optio
  * @param {object} dependencies
  * @param {Record<string, import("@jskit-ai/resource-runtime/server/types").ResourceHandle>} dependencies.resources the apps
  *   feature's handles
- * @param {{ directory: { listHomeBots: Function, findBot: Function }, chats: { appChat: Function } }} dependencies.records
- *   mercbot.bots.records
+ * @param {{ directory: { listHomeBots: Function, findBot: Function }, chats: { appChat: Function, changeAppBuilder: Function,
+ *   peopleOf: Function }, messages: { append: Function } }} dependencies.records mercbot.bots.records
+ * @param {import("@local/notices/server/types").Notices} dependencies.notices an app chat's people hear its Builder changed
  * @param {import("./types.js").Registry} dependencies.registry
  * @param {import("./types.js").Anyapi} dependencies.anyapi
  * @param {import("./types.js").Practices} dependencies.practices drafts' practice copies (D-71), cleared on publishing
  */
-export function createApps({ resources, records, registry, anyapi, practices }) {
+export function createApps({ resources, records, registry, anyapi, practices, notices }) {
   const { apps: appRows, appVersions, appScripts, appPins, appSettings, appThemes, appFields, appTables, auditEvents, appJobs } = resources;
 
   /** What only an app does (a draft, publishing, public screens, scripts, a Builder chat): a view refuses it. */
@@ -386,30 +387,60 @@ export function createApps({ resources, records, registry, anyapi, practices }) 
   /**
    * The app's chat with the Builder (D-41), which Ask Builder opens: made the first time anyone asks, Public, named
    * after the app, with the Builder and the person who asked in it, and found again after that, also when two pages
-   * ask at once (records.chats.appChat). An app of another home is a 404; a home without a Builder can't have one.
+   * ask at once (records.chats.appChat). An app of another home is a 404; a view (D-66) has none, and a home without a
+   * Builder can't have one.
    */
   async function appChat(slug, options) {
     const app = await find(slug, options);
+    notAView(app, "have a Builder chat");
     const bot = await builder(options);
     if (!bot) throw new RegistryError(409, "This home has no Builder yet: an owner or admin chooses one first.", { code: "apps_builder_missing" });
     return records.chats.appChat({ appId: String(app.id), botId: bot.id, title: app.name }, passedOn(options));
   }
 
+  /**
+   * A bot of the home made its Builder (D-35), by an owner or admin (the route's). The new Builder is seated in every
+   * app's chat (D-41) and the old one taken out, each such chat with Mercbot's line (O26), in the same transaction;
+   * their people hear of it after. Answers the Builder.
+   */
   async function setBuilder(actor, botId, options) {
     const bot = botId == null ? null : await records.directory.findBot(String(botId), passedOn(options));
     if (!bot) throw new RegistryError(404, "That bot isn't in this home.", { code: "apps_bot_not_in_home" });
     if (bot.archivedAt) {
       throw new RegistryError(409, `${bot.name} is archived. Unarchive it to make it the Builder.`, { code: "apps_builder_archived", params: { name: bot.name } });
     }
-    await appSettings.withTransaction(options, async (txOptions) => {
+    const changed = await appSettings.withTransaction(options, async (txOptions) => {
+      const before = await builder(txOptions);
       await appSettings.createMany([{ builderBotId: String(bot.id) }], {
         ...txOptions,
         onConflict: { keys: ["workspaceId"], action: "merge" },
         returning: "none"
       });
       await audit({ actor, via: { kind: "app" }, action: "app", changes: { builder: { id: String(bot.id), name: bot.name } } }, txOptions);
+      if (before?.id === String(bot.id)) return [];
+      const chatIds = await records.chats.changeAppBuilder({ fromBotId: before?.id ?? null, toBotId: String(bot.id) }, passedOn(txOptions));
+      const text = before ? `${bot.name} is the Builder now, in place of ${before.name}.` : `${bot.name} is the Builder now.`;
+      for (const chatId of chatIds) await records.messages.append(chatId, [{ kind: "event", role: "system", body: { text } }], passedOn(txOptions));
+      return chatIds;
     });
+    await tellChanged(changed, options);
     return builder(options);
+  }
+
+  /** The people of each chat given hear its members and messages changed, on any server; a failure only warns. */
+  async function tellChanged(chatIds, options) {
+    if (!chatIds.length) return;
+    try {
+      const people = await records.chats.peopleOf(chatIds, passedOn(options));
+      for (const chatId of chatIds) {
+        const keys = (people.get(chatId) ?? []).map((person) => person.user_id);
+        if (!keys.length) continue;
+        await notices.publishEach("bots", keys, { type: "chat", chatId, change: "members" });
+        await notices.publishEach("bots", keys, { type: "messages", chatId });
+      }
+    } catch (error) {
+      console.warn("Telling an app chat's people of the new Builder failed; they see it on their next read.", error);
+    }
   }
 
   /** Which tables each app's live and draft versions read or write; with `app` (an id), that app's only. */

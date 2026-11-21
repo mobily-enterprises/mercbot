@@ -292,7 +292,7 @@ export function buildTools({
 
   const tools = {};
   // Routines and the to-do list are the bot's in this chat: a request's bot not in it yet has neither.
-  if (seated) Object.assign(tools, buildRoutineTools({ work: records.work, call, chatBotId: seated, attempt, acknowledge }));
+  if (seated) Object.assign(tools, buildRoutineTools({ work: records.work, call, chatBotId: seated, userId, attempt, acknowledge }));
   Object.assign(tools, buildBotRequestTools({ requestTools, goalOperations }));
   const drafts = buildDraftTools({ turns: records.turns, call, conversationId: chatId, viaBot, routineRun, settleDraft, appFor, after });
   Object.assign(tools, drafts);

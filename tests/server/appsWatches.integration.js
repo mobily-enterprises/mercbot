@@ -217,7 +217,7 @@ async function watchedHome(context, slug) {
   const home = await appsHome(cleanup, { slug, knex, records });
   const person = { type: "person", id: home.userId, name: "Pat" };
   await home.apps.registry.createTable(person, { key: "deals", fields: [{ key: "title", type: "text", required: true }] }, home.options);
-  return { ...home, cleanup, person, watches: home.apps.watches, ...(await botIn(home)) };
+  return { ...home, cleanup, records, person, watches: home.apps.watches, ...(await botIn(home)) };
 }
 
 /** A second person of the test database: a member of the home, in none of its chats unless a test puts them there. */
@@ -281,6 +281,30 @@ test("a watch is made only for a bot in a chat the caller can open, in their hom
     ["Robin's"],
     "only the public chat's watch was made"
   );
+});
+
+test("anyone who can open a watch's chat pauses it; only the person who made it resumes it, as it runs as them", async (context) => {
+  const h = await watchedHome(context, "apps-watch-resume");
+  const robinId = await anotherPerson(h.knex);
+  const robin = h.memberOptions(robinId, h.workspace);
+  await h.watches.create({ chatBotId: h.chatBotId, createdBy: robinId }, { name: "Robin's", ...NEW_DEALS }, robin);
+  const where = { chatBotId: h.chatBotId, name: "Robin's" };
+  // The bot's watch_pause and watch_resume ask on the model's reader, for the person whose message started the turn.
+  const askedBy = (askerId) => ({ context: h.records.readers.forBot({ homeId: h.workspaceId, botId: h.botId, chatId: h.chatId, askerId }) });
+  const enabled = async () => (await h.knex("app_watches").where({ workspace_id: h.workspaceId, name: "Robin's" }).first("enabled")).enabled;
+  const forbidden = { statusCode: 403, code: "apps_watch_resume_forbidden", message: "Only the person who made this watch can resume it: it runs as them." };
+
+  const resumable = async (options) => (await h.watches.list({ chatBotId: h.chatBotId }, options)).map((watch) => watch.canResume);
+  assert.deepEqual([await resumable(robin), await resumable(h.options)], [[true], [false]], "its list says who may resume it");
+  assert.equal((await h.watches.setEnabled(where, false, h.options)).enabled, false, "Pat, in the chat, pauses Robin's watch");
+  await assert.rejects(h.watches.setEnabled(where, true, h.options), forbidden, "but doesn't resume it");
+  await assert.rejects(h.watches.setEnabled(where, true, askedBy(h.userId)), forbidden, "nor does the bot, asked by Pat");
+  assert.equal(await enabled(), false);
+  assert.equal((await h.watches.setEnabled(where, true, askedBy(robinId))).enabled, true, "the bot, asked by Robin, resumes it");
+  assert.equal((await h.watches.setEnabled(where, false, askedBy(h.userId))).enabled, false, "and, asked by Pat, pauses it");
+  const [{ id }] = await h.watches.list({ chatBotId: h.chatBotId }, robin);
+  assert.equal((await h.watches.setEnabled({ id }, true, robin)).enabled, true, "Robin resumes it on the bot's card");
+  assert.equal(await enabled(), true);
 });
 
 test("a person leaving a home pauses only the watches they made there", async (context) => {

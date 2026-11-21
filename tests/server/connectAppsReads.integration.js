@@ -191,7 +191,7 @@ test("a turn names the home's connected apps and who connected each, without rea
 });
 
 test("a turn and the \"/\" picker list the person's skills without their instructions", async (context) => {
-  const { knex, pat, homeId, cleanup, bot, bots, as, turn, replyTo } = await patsBot(context);
+  const { knex, pat, lee, homeId, cleanup, bot, bots, as, turn, replyTo } = await patsBot(context);
   // A person's skills are theirs in a home (D14).
   const skills = await knex("user_skills").insert(Array.from({ length: 35 }, (_, index) => ({
     workspace_id: homeId,
@@ -214,11 +214,18 @@ test("a turn and the \"/\" picker list the person's skills without their instruc
   assert.deepEqual(instructionsRead(turnReads), [], "a turn lists skills without their instructions");
   assert.equal(turnReads.length, 1, "in one read of the first 30");
 
-  // The "/" picker, and a message that picks a skill with it, read names too.
+  // The "/" picker offers them by the same rule: in that Private chat, never in their direct chat, a Private chat with
+  // someone else, or without a chat; and a message that picks one keeps it only where it's offered.
+  const ownIn = async (chatId) => (await bots.skillsFor(chatId, as)).skills.filter((skill) => skill.own).map((skill) => skill.name);
+  const { id: withLee } = await seedChat(knex, { homeId, kind: "private", title: "Pat and Lee", people: [pat, lee], bots: [bot.id] });
+  assert.deepEqual([await ownIn(bot.conversation_id), await ownIn(withLee), await ownIn(undefined)], [[], [], []]);
+  assert.ok((await ownIn(withLee)).length === 0 && (await bots.skillsFor(withLee, as)).skills.length > 0, "Mercbot's skills are still offered");
   let offered = null;
-  const pickerReads = await statementsDuring(knex, async () => { offered = await bots.skillsFor(as); }, /user_skills/u);
+  const pickerReads = await statementsDuring(knex, async () => { offered = await bots.skillsFor(alone, as); }, /user_skills/u);
   const own = offered.skills.filter((skill) => skill.own).map((skill) => skill.name);
   assert.ok(own.includes("Skill 01") && own.includes("Skill 35"), "the picker offers every skill of theirs");
+  const elsewhere = await bots.chat.sendMessage(bot.conversation_id, { text: `Please <@skill:u-${skills[0].id}>` }, as);
+  assert.deepEqual(elsewhere.messages.at(-1).body.skills, [], "not kept in their direct chat, which is Public");
   const picked = String(skills[2].id);
   let message = null;
   const sendReads = await statementsDuring(knex, async () => { message = await bots.chat.sendMessage(alone, { text: `Please <@skill:u-${picked}>` }, as); }, /user_skills/u);

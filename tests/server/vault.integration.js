@@ -6,8 +6,8 @@ import { createKnexMigrationConfigFromApp } from "@jskit-ai/database-runtime/ser
 import { createServer } from "../../server.js";
 import { PICTURE, browser } from "../support/browser.mjs";
 
-// The Vault's Import from a CSV file and Read a photo routes on the real server (D-17):
-// an import is checked, sealed and saved whole or not at all, and a photo goes to Gemini (a
+// The Vault's routes on the real server (D-17), each the home's (D8), at its address: an import from a CSV file is
+// checked, sealed and saved whole or not at all, an item is deleted by whoever added it, and a photo goes to Gemini (a
 // stand-in here) only when it's a picture. The server reads its database as it starts, so this
 // file runs in the database suite, on its own copy of the test template.
 assert.equal(process.env.DB_NAME, process.env.TEST_DB_NAME, "DB_NAME must be this file's own test database copy: run it with npm run test:database.");
@@ -27,6 +27,14 @@ const runtimeEnv = {
   AI_IMAGES_API_KEY: "test-key"
 };
 
+/** The address of a person's own home, by their email: where its Vault is. */
+async function homeOf(database, email) {
+  return database("workspaces")
+    .join("users", "users.id", "workspaces.owner_user_id")
+    .where({ "users.email": email, "workspaces.is_personal": true })
+    .first("workspaces.id", "workspaces.slug");
+}
+
 async function signedIn(app, email = `vault-${randomUUID()}@example.test`) {
   const request = browser(app);
   assert.equal((await request("GET", "/api/session")).status, 200);
@@ -42,16 +50,19 @@ test("the Vault imports a file's items whole or not at all, sealed, and reads co
   t.after(() => app.close());
   const email = `vault-${randomUUID()}@example.test`;
   const request = await signedIn(app, email);
-  const items = async () => (await request("GET", "/api/vault")).body.items;
-  // A photo is read in a home, which pays for it (D-73): here the person's own.
-  const home = await database("workspaces")
-    .join("users", "users.id", "workspaces.owner_user_id")
-    .where({ "users.email": email, "workspaces.is_personal": true })
-    .first("workspaces.id", "workspaces.slug");
-  const readPhoto = `/api/w/${home.slug}/vault/read-photo`;
+  // The person's own home, whose Vault it is; a photo read there is the home's to pay for (D-73).
+  const home = await homeOf(database, email);
+  const vault = `/api/w/${home.slug}/vault`;
+  const readPhoto = `${vault}/read-photo`;
+  const items = async () => {
+    const answer = await request("GET", vault);
+    assert.equal(answer.status, 200, JSON.stringify(answer.body));
+    return answer.body.items;
+  };
+  assert.equal((await request("GET", "/api/vault")).status, 404, "there's no Vault outside a home");
 
   // A refused row refuses the batch, and says which row of the file it was.
-  const refused = await request("POST", "/api/vault/import", {
+  const refused = await request("POST", `${vault}/import`, {
     json: {
       kind: "login",
       items: [
@@ -64,13 +75,13 @@ test("the Vault imports a file's items whole or not at all, sealed, and reads co
   assert.deepEqual(refused.body, { error: "Row 3: A login needs a website and a password.", code: "account_vault_login_incomplete", params: { row: 3 } });
   assert.deepEqual(await items(), [], "nothing was saved");
 
-  const tooMany = await request("POST", "/api/vault/import", {
+  const tooMany = await request("POST", `${vault}/import`, {
     json: { kind: "contact", items: Array.from({ length: 101 }, (_, index) => ({ row: index + 2, data: { fullName: `Person ${index}` } })) }
   });
   assert.equal(tooMany.status, 400);
   assert.equal(tooMany.body.code, "account_vault_import_size");
 
-  const logins = await request("POST", "/api/vault/import", {
+  const logins = await request("POST", `${vault}/import`, {
     json: {
       kind: "login",
       items: [
@@ -84,7 +95,7 @@ test("the Vault imports a file's items whole or not at all, sealed, and reads co
     ["login", "first.example", { website: "first.example", username: "me" }],
     ["login", "second.example", { website: "second.example", username: "you" }]
   ]);
-  const cards = await request("POST", "/api/vault/import", {
+  const cards = await request("POST", `${vault}/import`, {
     json: { kind: "card", items: [{ row: 2, data: { number: "4242 4242 4242 4242", expiry: "07/28", code: "123", name: "A Person" } }] }
   });
   assert.equal(cards.status, 200, JSON.stringify(cards.body));
@@ -152,10 +163,23 @@ test("the Vault imports a file's items whole or not at all, sealed, and reads co
   assert.ok(logged.includes(line), "the failure is in the server log");
   assert.deepEqual(await recorded(), { images: "0", cost: "300000", calls: "2" }, "a failed read is recorded, at no cost");
 
-  // Someone else sees none of it, and someone signed out can't call either route.
-  assert.deepEqual(await (await signedIn(app))("GET", "/api/vault").then((answer) => answer.body.items), []);
+  // An item is deleted by whoever added it, and is gone.
+  const [first] = logins.body.items;
+  assert.deepEqual((await request("DELETE", `${vault}/${first.id}`)).body, { deleted: first.id });
+  assert.deepEqual((await items()).map((item) => item.label), ["Visa •••• 4242", "second.example"]);
+
+  // Someone else sees none of it: their own home's Vault is empty, and this home's isn't theirs to reach. Someone
+  // signed out can't call any of its routes.
+  const otherEmail = `vault-${randomUUID()}@example.test`;
+  const other = await signedIn(app, otherEmail);
+  assert.deepEqual((await other("GET", `/api/w/${(await homeOf(database, otherEmail)).slug}/vault`)).body.items, []);
+  for (const [method, path] of [["GET", vault], ["POST", `${vault}/import`], ["DELETE", `${vault}/${cards.body.items[0].id}`]]) {
+    const answer = await other(method, path, method === "POST" ? { json: { kind: "contact", items: [{ data: { fullName: "X" } }] } } : {});
+    assert.ok([403, 404].includes(answer.status), `${method} ${path} by someone of another home: ${answer.status}`);
+  }
+  assert.equal((await items()).length, 2, "nothing of this home's changed");
   const stranger = browser(app);
   await stranger("GET", "/api/session");
-  assert.equal((await stranger("POST", "/api/vault/import", { json: { kind: "contact", items: [{ data: { fullName: "X" } }] } })).status, 401);
+  assert.equal((await stranger("POST", `${vault}/import`, { json: { kind: "contact", items: [{ data: { fullName: "X" } }] } })).status, 401);
   assert.equal((await stranger("POST", readPhoto, { upload: ["photo", "photo.png", "image/png", PICTURE] })).status, 401);
 });

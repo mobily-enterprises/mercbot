@@ -38,7 +38,7 @@ export function createAppsRuntime({ resources, systemContext, records, anyapi, n
     beforeSave: (...args) => scripts.beforeSave(...args),
     beforeSaveEach: (...args) => scripts.beforeSaveEach(...args)
   });
-  const apps = createApps({ resources, records, registry, anyapi, practices });
+  const apps = createApps({ resources, records, registry, anyapi, practices, notices });
   scripts = createScripts({ resources, repository, systemContext, registry, gate, apps, env });
   const runtime = createRuntime({ apps, gate, scripts, practices });
   const trial = createTrial({ apps, runtime, scripts });

@@ -245,11 +245,13 @@ export const ACTIONS = {
     reversible: () => true,
     describe: ({ routine }) => `change the routine "${routine}"`,
     question: ({ routine }) => `Shall I change "${routine}"?`,
-    async run({ work, call, chatBotId }, args) {
+    async run({ work, call, chatBotId, userId }, args) {
       const routine = await work.routineNamed(chatBotId, args.routine, call);
       if (!routine) return { kind: "event", role: "system", body: { text: `Couldn't find the routine ${args.routine}` } };
+      const refusal = routineChangeRefusal(routine, args, userId);
+      if (refusal) return { kind: "event", role: "system", body: { text: refusal, detail: `${refusal} Nothing was changed.` } };
       const update = {};
-      for (const field of ["name", "schedule", "instructions", "cron", "timezone"]) {
+      for (const field of ROUTINE_FIELDS) {
         if (args[field]) update[field] = args[field];
       }
       // Starting a paused routine, or pausing one, when the person says so. Starting it
@@ -303,6 +305,23 @@ export const ACTIONS = {
   // The home's Sedna, changed as the person's own Sedna user (D-94).
   ...SEDNA_ACTIONS
 };
+
+/** What update_routine changes of a routine besides whether it runs. */
+const ROUTINE_FIELDS = Object.freeze(["name", "schedule", "instructions", "cron", "timezone"]);
+
+/**
+ * Why the person may not make this change to a routine, or null (R4, D-112). A routine runs as the person who set it
+ * up, so only they resume it or change it; anyone who can open its chat may pause it, as on its card
+ * (chatRoutines.js). The same for a turn's update_routine and for a card answered later.
+ * @param {{ name: string, madeBy?: string | number | null }} routine
+ * @param {Record<string, string | undefined>} args update_routine's
+ * @param {string | number | null | undefined} userId the person the turn works for
+ */
+export function routineChangeRefusal(routine, args, userId) {
+  const pausing = args.running === "false" && !ROUTINE_FIELDS.some((field) => args[field]);
+  if (pausing || (routine.madeBy != null && userId != null && String(routine.madeBy) === String(userId))) return null;
+  return `Only the person who set up "${routine.name}" can resume or change it: it runs as them. Anyone in this chat can pause it.`;
+}
 
 /** The centred event line shows the words and the name; the model also gets the schedule and next run. */
 function routineEvent(text, routine, nextRun) {

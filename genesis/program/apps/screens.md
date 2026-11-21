@@ -56,8 +56,11 @@ definition contains, so an app can't do anything it wasn't saved to do (D-35).
 - Ask Builder opens the app's chat with the Builder with a first line naming the app, screen and part
   (`askInChat.js`, `POST /api/w/:slug/apps/:slug/chat`, `apps.appChat`): one per app, made the first time anyone asks
   (two asks at once make one), Public (D15), named after the app, with the Builder and the person who asked; anyone in
-  the home opens it after that. A home without a Builder is refused (409 `apps_builder_missing`), and an app of
-  another home is 404.
+  the home opens it after that. A home without a Builder is refused (409 `apps_builder_missing`), a view has none (409
+  `apps_view_refused`), and an app of another home is 404. When an owner or admin chooses another Builder
+  (`apps.setBuilder`, O26), the new one takes the old one's seat in every app's chat, archived ones too
+  (`records.chats.changeAppBuilder`), each with the line "<New> is the Builder now, in place of <Old>.", and their
+  people hear of it; an app without a chat yet gets none.
 - Named formulas (D-78): the definition's `formulas` (`{ name: { params, formula } }`, at most 30,
   8 parameters each) are added to the app's script functions (`withNamedFormulas`) wherever its
   formulas run: screens on the server and in the browser, a draft tried with `app_try`, public
