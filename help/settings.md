@@ -158,7 +158,7 @@ A bot's own options are on its card: select the bot in **Team**, or under **Bots
   - **Archive**, for the bot's maker and the home's owners and admins.
 - **Files**, **Library** and **Computer** tabs.
 
-A chat's own options are in its **Chat details**: its people and bots, whether it's Public or Private, its files, its bots' computers and its routines, and leave, archive or delete. See [Chats and your team](/help/chats).
+A chat's own options are in its **Chat details**: its people and bots, whether it's Public or Private, its files, its bots' computers and its routines, and **Leave chat**, **Archive** (a Public chat) or **Hide from sidebar** (a Private one), and **Delete chat**. See [Chats and your team](/help/chats).
 
 Connected apps, their accounts and their tool switches are in **Connect apps**, in the sidebar.
 

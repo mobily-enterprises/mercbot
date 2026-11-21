@@ -35,6 +35,7 @@ Every new chat is **Public** unless you choose **Private** when you start it. Ne
 | Who can open it | Everyone in the home, including people who join later | Only its members |
 | What its bots can use | Every Public chat in the home | Every Public chat, this chat, and other Private chats that all of this chat's members are in |
 | Does it reach other chats? | Yes: bots can use it in any chat of the home | No: nothing in it reaches a chat someone else can open |
+| Putting it away | Archived, for everyone in it | Hidden, by each member for themselves |
 
 The rule behind this is simple: **a bot in a chat uses only what everyone who can open that chat can also open.** It doesn't matter who has actually looked.
 
@@ -75,7 +76,7 @@ In your chat with one bot, the bot's card has the same on its **Computer** tab. 
 Open **Chat details** to see who's in a chat: **People** and **Bots**, each opening their card.
 
 - Anyone in a chat can add people and bots of the home with the **Add people or bots** button in its header.
-- The person who started the chat, and the home's owners and admins, can take people and bots out of it, rename it, archive it or delete it.
+- The person who started the chat, and the home's owners and admins, can take people and bots out of it, rename it and delete it, and archive it when it's Public.
 - Anyone can **Leave chat**. You can open a Public chat you left again from New chat and join it. A Private chat you leave is gone from your list unless someone adds you back, and a Private chat is deleted when its last person leaves.
 - Your chat with a bot takes no other members. To bring someone in, start a new chat.
 
@@ -83,7 +84,7 @@ Open **Chat details** to see who's in a chat: **People** and **Bots**, each open
 
 When a home's owner or admin answers **Me and other people** to Mercbot's "Will anyone else use this home?", the home gets a chat for everyone, named after the home, with everyone in the home and the main bot in it.
 
-- It's always first in each person's chat list, and it can't be unpinned, archived or deleted.
+- It's always first in each person's chat list, and it can't be unpinned, archived or deleted. You can hide it from your sidebar.
 - Everyone in the home is in it, people who join later too. You leave it only by leaving the home, and nobody can take a person out of it. Chat details says: "Everyone in *your home* is in this chat, for as long as they're in the home."
 - The person who started it, and the home's owners and admins, can take a bot out of it, as in any chat.
 
@@ -91,16 +92,20 @@ When a home's owner or admin answers **Me and other people** to Mercbot's "Will 
 
 The sidebar lists your chats: pinned ones at the top, then the rest (in your own sections if you have any, then **Unassigned**), then **Hidden chats** and **Archived chats**. Rows are sorted by latest activity. A dot marks a chat with something you haven't read, and **Waiting for you** a chat where a bot needs you. An unsent draft stays with each chat on your device.
 
-Right-click a chat for **Pin** or **Unpin**, **Move to** one of your sections (or **Move to new section**), **Mark as read** or **Mark as unread**, **Hide from sidebar** (**Show in sidebar** brings it back), and **Copy chat ID**, plus **Rename chat**, **Leave chat**, **Archive** and **Delete** where you may. Pins, sections, hidden chats and unread marks are yours alone: other people organise their own lists.
+Right-click a chat for **Pin** or **Unpin**, **Move to** one of your sections (or **Move to new section**), **Mark as read** or **Mark as unread**, **Hide from sidebar** (**Show in sidebar** brings it back), and **Copy chat ID**, plus **Rename chat**, **Leave chat**, **Archive** (on a Public chat) and **Delete** where you may. Pins, sections, hidden chats and unread marks are yours alone: other people organise their own lists.
 
 To jump between chats, press **Ctrl+Alt+1** to **9** for the chats in sidebar order, **Alt+↑** and **Alt+↓** for the previous or next one, or **Ctrl+K** to search.
 
 ## Archive and delete
 
-- **Archive** a chat to put it away for everyone in it. Mercbot asks first: "It stays readable for everyone in it, and no one can write in it until it's unarchived." The chat moves to **Archived chats**, marked read-only, and **Unarchive** brings it back.
+- **Archive** a Public chat to put it away for everyone in it. Mercbot asks first: "It stays readable for everyone in it, and no one can write in it until it's unarchived." The chat moves to **Archived chats**, marked read-only.
+- Archiving pauses the routines and watches its bots run there, and the chat gets a line, **Paused while archived**: "This chat was archived, so its … paused. They stay paused when it's unarchived: resume them here." They can be resumed there once the chat is back in use; a routine only by whoever set it up.
+- **Unarchive**, from the chat's row under **Archived chats** or its **Chat details**, brings it back.
+- **A Private chat isn't archived.** Each of its members puts it away for themselves with **Hide from sidebar**, on the chat's row or in its **Chat details**, and it moves to their **Hidden chats**; the others' lists don't change. Mercbot offers no **Archive** there, and asked to archive one, it answers: "A private chat is hidden for yourself, not archived for everyone."
+- **The everyone chat** can't be archived at all.
 - **Delete** a chat to remove it for good: "This chat goes for everyone in it, with its whole history, its files and its bots' computers. Its bots stay on your team. This can't be undone."
 
-The person who started a chat, and the home's owners and admins, can archive, unarchive and delete it. To put a chat away only for yourself, hide it from your sidebar instead.
+The person who started a chat, and the home's owners and admins, can archive a Public chat, unarchive a chat and delete one. To put any chat away only for yourself, hide it from your sidebar.
 
 When a bot is archived, it has left the home: it stays in its chats, greyed out, and never answers. Its routines and watches pause. Your chat with it says it has left, and whoever made it, or an owner or admin, can resume it from **Team**. See [Archive a bot](/help/bots#archive-a-bot).
 
@@ -113,6 +118,10 @@ Everyone in the home can open a Public chat, your chat with a bot included. Only
 ### Does a bot tell other chats what I said in a Private chat?
 
 No. Nothing in a Private chat reaches a chat that someone else can open.
+
+### Can I archive a Private chat?
+
+No. A Private chat is put away by each of its members for themselves, with **Hide from sidebar**. Only a Public chat is archived, for everyone in it.
 
 ### Can I make a Public chat Private later?
 
