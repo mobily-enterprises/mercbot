@@ -51,8 +51,15 @@ describe("chat list menus", () => {
     expect(titles(menu(kitchen, "archived", { me: "2" })), "nor unarchive it").toEqual(["Copy chat ID", "—", "Leave chat"]);
     expect(titles(menu(kitchen, "row", { me: "2", manages: true }))).toEqual(titles(menu(kitchen, "row")));
     expect(chatRights({ ...kitchen, madeBy: null }, { me: "1", manages: false }), "a chat no one made").toEqual({
-      removeMembers: false, rename: false, archive: false, remove: false, leave: true, unpin: true
+      removeMembers: false, rename: false, archive: false, unarchive: false, remove: false, leave: true, unpin: true
     });
+  });
+
+  it("archives only a public chat: a private one is hidden by each person for themselves, and one archived before unarchives (plan 5.1)", () => {
+    const secret = { ...kitchen, kind: "private" };
+    for (const place of ["row", "tile", "hidden"]) expect(titles(menu(secret, place)), place).not.toContain("Archive");
+    expect(titles(menu(secret, "row"))).toContain("Hide from sidebar");
+    expect(titles(menu({ ...secret, archivedAt: "2026-11-02T10:00:00Z" }, "archived"))[0]).toBe("Unarchive");
   });
 
   it("offers no Unpin, Leave, Archive or Delete on the everyone chat, even to whoever manages the home", () => {
