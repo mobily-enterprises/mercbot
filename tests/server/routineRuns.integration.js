@@ -63,11 +63,16 @@ const botTexts = async (knex, bot) =>
   (await knex("messages").where({ conversation_id: bot.conversation_id, role: "bot", kind: "text" }).orderBy("id")).map(
     (row) => row.body.text
   );
+// The paused home's line (D-73): Mercbot's own, once while it's the chat's latest line.
+const pausedLines = async (knex, bot) =>
+  (await knex("messages").where({ conversation_id: bot.conversation_id, role: "system", kind: "event" }).orderBy("id"))
+    .filter((row) => row.body.paused)
+    .map((row) => row.body.text);
 
 test("a routine pauses after five failed runs in a row, says how to resume it, and a run that works starts the count again", async (context) => {
   let failing = true;
   let refused = false;
-  const { knex, userId, bot, bots, records } = await setup(context, async () => {
+  const { knex, bot, bots } = await setup(context, async () => {
     if (refused) throw refusal();
     if (failing) throw new Error("The model is down.");
     return { text: "Here's the news.", transcript: [] };
@@ -98,8 +103,8 @@ test("a routine pauses after five failed runs in a row, says how to resume it, a
   await bots.runRoutine(await claimedRun(knex, routine.id));
   stored = await knex("bot_routines").where({ id: routine.id }).first();
   assert.equal(stored.enabled, true, "refused work doesn't pause a routine");
-  assert.equal((await botTexts(knex, bot)).at(-1), PAUSED_NOTICE);
-  assert.equal((await botTexts(knex, bot)).length, said, "the next run refused says nothing more");
+  assert.deepEqual(await pausedLines(knex, bot), [PAUSED_NOTICE], "Mercbot says so, once: the next run refused says nothing more");
+  assert.equal((await botTexts(knex, bot)).length, said, "and the bot says nothing");
   refused = false;
   await knex("bot_routines").where({ id: routine.id }).update({ failures: 3 });
   failing = false;
@@ -110,7 +115,7 @@ test("a routine pauses after five failed runs in a row, says how to resume it, a
 });
 
 test("Apps tasks and watches its copy refuses (D-73) say so once between them", async (context) => {
-  const { knex, userId, bot, bots, records } = await setup(context, async () => {
+  const { knex, userId, bot, bots } = await setup(context, async () => {
     throw refusal();
   });
   // Queued jobs as the Apps job runner claims them (apps.jobs), in the bot's home.
@@ -126,7 +131,8 @@ test("Apps tasks and watches its copy refuses (D-73) say so once between them", 
   // Refused part-way, each ends as it does in a home whose work is paused already: unfailed, with the notice (the owner,
   // 2026-11-12).
   for (const [kind, watchId] of [["watch", "1"], ["watch", "1"], ["task", null]]) await bots.runAppTask(job(kind, watchId));
-  assert.deepEqual(await botTexts(knex, bot), [PAUSED_NOTICE]);
+  assert.deepEqual(await pausedLines(knex, bot), [PAUSED_NOTICE]);
+  assert.deepEqual(await botTexts(knex, bot), []);
 });
 
 test("a routine run whose server stopped is taken over once, carries on from its steps, and only the new run posts", async (context) => {
@@ -196,7 +202,7 @@ test("a stopped run its routine no longer wants ends unrun, and one tried three 
 test("a run that loses its lease stops at its next step: it posts nothing, and its run, a one-off's too, is left to the server holding it", async (context) => {
   let asked = 0;
   // As the agent loop does: a model call ends at once when the run's signal aborts, with its reason.
-  const { knex, bot, bots, records } = await setup(context, (_bot, _history, _tools, _state, _prompt, options) => {
+  const { knex, bot, bots } = await setup(context, (_bot, _history, _tools, _state, _prompt, options) => {
     asked += 1;
     return new Promise((_resolve, reject) => options.signal.addEventListener("abort", () => reject(options.signal.reason), { once: true }));
   });
@@ -218,7 +224,7 @@ test("a run that loses its lease stops at its next step: it posts nothing, and i
 
 test("a routine whose model call fails logs one line with the provider's status, never the request it sent", async (context) => {
   const logged = context.mock.method(console, "error", () => {});
-  const { knex, bot, bots, records } = await setup(context, async () => {
+  const { knex, bot, bots } = await setup(context, async () => {
     throw new APICallError({
       message: "Invalid API key",
       url: "https://models.example/v1/chat/completions",
