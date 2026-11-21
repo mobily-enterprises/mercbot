@@ -34,25 +34,19 @@ test("the bot's maker and the home's owners and admins may change its template a
 
 /** The tools of one turn for person 7 with bot 3 (made by `creator`), and what it parked under the reply. */
 function turn(options = {}) {
-  const stored = { id: "3", name: "Ada", user_id: options.creator ?? "7", library_template: "general", additions: "Answer in English." };
+  const stored = { id: "3", name: "Ada", made_by: options.creator ?? "7", library_template: "general", additions: "Answer in English." };
   const saved = [];
   const neutral = turnDoubles({}).records;
-  const conversations = {
-    botOf: async () => stored,
-    personOf: (call) => call.context?.actor?.id ?? null,
-    updateBot: async (...args) => saved.push(args)
-  };
+  const bots = { get: async () => stored, update: async (...args) => saved.push(args) };
   const call = options.call ?? requestContextOptions({ user: { id: "7" }, workspace: { id: "9" }, permissions: [] });
   const built = buildTools(turnDoubles({
     call,
-    records: { ...neutral, conversations },
+    records: { ...neutral, bots },
     // Every rule says go ahead, and auto-review is off: the additions still wait for a yes.
     approvals: { decide: async () => "allow" },
     computer: {},
-    homeId: "9",
-    userId: "7",
-    botId: "3",
-    conversationId: "5",
+    // Ada's turn for person 7 in their private chat 5 of home 9, her seat there 11.
+    seat: { id: "3", workspace_id: "9", user_id: "7", chat_id: "5", chat_bot_id: "11", chat: { id: "5", kind: "private" } },
     ...options.turn
   }));
   return { ...built, saved };

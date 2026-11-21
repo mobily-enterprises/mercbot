@@ -262,7 +262,8 @@ export async function startChatTurns(context, options = {}) {
   const background = createBackgroundWork();
   cleanup.after(() => background.drain(10000));
   const { records, notices, computer, systemContext } = filled;
-  const chats = createChatMembers({ records, notices, computer, systemContext });
+  // Archiving a chat pauses its work with the turns' pauseWork, as the bots service wires it.
+  const chats = createChatMembers({ records, notices, computer, systemContext, pauseWork: (...args) => turns.pauseWork(...args) });
   const turns = createChatTurns({ ...filled, chats, background });
   return {
     knex,
