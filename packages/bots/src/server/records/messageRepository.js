@@ -1,4 +1,3 @@
-import { toSnakeCase } from "@jskit-ai/kernel/shared/support/stringCase";
 import { passedOn } from "@jskit-ai/resource-core/shared/callOptions";
 import { toMessage } from "../botRows.js";
 import { createCallerReaders } from "./recordRows.js";
@@ -15,54 +14,67 @@ export const PREVIEW_KINDS = Object.freeze(["text", "choice", "connect", "handov
 export const MADE_KINDS = Object.freeze(["files", "page", "chart", "pictures", "view"]);
 // What search finds among them by name; views are the home's, found among its apps (D-55).
 const SEARCHED_MADE = Object.freeze(MADE_KINDS.filter((kind) => kind !== "view"));
-// What the list reads of a shared bot's room, as asSeen and toRoom take it, and whether it's archived (D-101).
-const ROOM_FIELDS = Object.freeze([
-  "id", "botId", "title", "parentId", "appId", "waitingTask", "lastActivityAt", "createdBy", "createdAt", "forkedAtMessageId", "userId",
-  "groupId", "archivedAt", "archivedBy"
-]);
-
 /**
- * The bots' messages (D-15, D-48): written, paged, caught up on, previewed, searched and
- * read back for a reply. Every method reads through the bots' handles in the call's `options`, so
- * a message is reached only where its conversation is (messageVisibility); rows answer in the
- * snake_case shape the bots' code reads (toMessage, previewOf, toHistoryMessage take them).
+ * A chat's messages (D-15, D-48, D-112): written, paged, caught up on, previewed, searched and read back for a reply.
+ * A message is a person's (author_user_id), a bot's (author_bot_id) or Mercbot's own (neither); role says which.
+ * Every method reads through the bots' handles in the call's `options`, so a message is reached only where its chat is
+ * (rowPolicies.js inReadableChat); rows answer in the snake_case shape the bots' code reads (toMessage,
+ * toHistoryMessage take them).
  * @param {object} dependencies
  * @param {Record<string, ResourceHandle>} dependencies.resources the records feature's handles
  * @param {(reason: string) => import("@jskit-ai/resource-runtime/server/types").SystemContext} dependencies.systemContext
  */
 export function createMessageRepository({ resources, systemContext }) {
-  const { bots, botConversations: conversations, botMessages: messages, conversationReads: reads, botRoutines: routines } = resources;
-  const { homeOf, personOf, asRow, personalOptions } = createCallerReaders(systemContext);
+  const { conversations, messages, chatPeople, chatBots, botRoutines: routines } = resources;
+  const { homeOf, personOf, asRow } = createCallerReaders();
   const rowsOf = (records, options) => records.map((record) => asRow(record, options));
   // An ILIKE pattern for text containing the words, its wildcards taken literally.
   const containing = (text) => `%${text.replace(/[\\%_]/gu, (char) => `\\${char}`)}%`;
 
-  /** Messages count as activity; anything the bot posts marks it unread until opened. */
-  async function append(row, list, options) {
+  /**
+   * Messages written in a chat, in order: each `{ role, kind, body, authorUserId?, authorBotId? }`, a person's message
+   * written by the caller's person unless it names its author. They count as the chat's activity, and anything by
+   * someone (a person or a bot, not Mercbot's own lines) is unread for the chat's other people until they open it.
+   * @param {string} chatId
+   * @param {Array<{ role: "user" | "bot" | "system", kind: string, body: object, authorUserId?: string | null, authorBotId?: string | null }>} list
+   * @param {CallOptions} options
+   */
+  async function append(chatId, list, options) {
     if (!list.length) return [];
-    const created = await messages.createMany(list.map((message) => ({
-      botId: row.id,
-      conversationId: row.conversation_id,
+    const rows = list.map((message) => ({
+      conversationId: String(chatId),
       kind: message.kind,
       role: message.role,
-      body: message.body
-    })), { ...passedOn(options), returning: "records" });
-    const activity = { lastActivityAt: new Date().toISOString(), ...(list.some((message) => message.role === "bot") ? { unread: true } : {}) };
-    await conversations.patch(row.conversation_id, activity, { ...passedOn(options), returning: "none" });
+      body: message.body,
+      authorUserId: message.role === "user" ? String(message.authorUserId ?? personOf(options)) : null,
+      authorBotId: message.role === "bot" && message.authorBotId != null ? String(message.authorBotId) : null
+    }));
+    const created = await messages.createMany(rows, { ...passedOn(options), returning: "records" });
+    const home = { ...passedOn(options), context: systemContext("a chat's new messages are its activity, unread for its other people").forWorkspace(homeOf(options)) };
+    await conversations.patch(String(chatId), { lastActivityAt: new Date().toISOString() }, { ...home, returning: "none" });
+    const authors = rows.filter((row) => row.role !== "system");
+    if (authors.length) {
+      const onlyBy = new Set(authors.map((row) => row.authorUserId));
+      const author = onlyBy.size === 1 ? [...onlyBy][0] : null;
+      await chatPeople.patchWhere(
+        { conversationId: String(chatId), unread: false, ...(author ? { notUserId: author } : {}) },
+        { unread: true },
+        { ...home, returning: "none" }
+      );
+    }
     return rowsOf(created, options).sort((a, b) => Number(a.id) - Number(b.id)).map(toMessage);
   }
 
   /**
-   * A page of a conversation: its newest messages, or with `before` (a message id) those
-   * just before that one, oldest first; `more` says whether older ones are left. A chat opens on its
-   * newest page and reads older ones as the person scrolls up, so opening an old chat doesn't read
-   * its whole history.
-   * @param {{ conversation_id: string | number }} row
+   * A page of a chat: its newest messages, or with `before` (a message id) those just before that one, oldest first;
+   * `more` says whether older ones are left. A chat opens on its newest page and reads older ones as the person scrolls
+   * up, so opening an old chat doesn't read its whole history.
+   * @param {string} chatId
    * @param {{ before?: string }} page
    * @param {CallOptions} options
    */
-  async function timeline(row, { before } = {}, options) {
-    const filters = { conversationId: row.conversation_id, ...(before ? { beforeId: before } : {}) };
+  async function timeline(chatId, { before } = {}, options) {
+    const filters = { conversationId: String(chatId), ...(before ? { beforeId: before } : {}) };
     const { records, page } = await messages.query({ filters, sort: ["-id"], page: { size: PAGE } }, passedOn(options));
     return { messages: rowsOf(records, options).reverse().map(toMessage), more: page.hasMore };
   }
@@ -86,65 +98,23 @@ export function createMessageRepository({ resources, systemContext }) {
    * @param {CallOptions} options
    * @returns {Promise<object[]>} message rows, one per conversation that has one
    */
-  // Knex: newest-per-group - each conversation's latest message the list can preview (the bot's, or anyone's in a
-  // group), found from its newest end through the (conversation_id, id) index: one row per conversation
+  // Knex: newest-per-group - each chat's latest message the list can preview (a person's or a bot's, never Mercbot's
+  // own lines), found from its newest end through the (conversation_id, id) index: one row per chat
   async function latestPerConversation(conversationIds, options) {
     if (!conversationIds.length) return [];
     const { query } = await conversations.scopedQuery({ alias: "c" }, passedOn(options));
     const latest = await messages.scopedQuery({ alias: "m" }, passedOn(options));
-    const group = await bots.scopedQuery({ alias: "b" }, passedOn(options));
     const newest = latest.query
       .select(messages.column("id", "m"))
       .whereColumn(messages.column("conversationId", "m"), conversations.column("id", "c"))
       .whereIn(messages.column("kind", "m"), PREVIEW_KINDS)
-      .where((who) => who
-        .where(messages.column("role", "m"), "bot")
-        .orWhereExists(group.query.select(1).whereColumn(bots.column("id", "b"), messages.column("botId", "m")).where(bots.column("kind", "b"), "group")))
+      .whereNot(messages.column("role", "m"), "system")
       .orderBy(messages.column("id", "m"), "desc")
       .limit(1)
       .as("message_id");
     const found = await query.whereIn(conversations.column("id", "c"), conversationIds.map(String)).select(newest);
     const ids = found.map((row) => row.message_id).filter((id) => id != null).map(String);
     return ids.length ? rowsOf(await messages.queryAll({ filters: { id: ids } }, passedOn(options)), options) : [];
-  }
-
-  /**
-   * @param {string[]} botIds
-   * @param {CallOptions} options
-   * @returns {Promise<object[]>} room rows in id order, each with read_up_to and unread
-   */
-  // Knex: report - a shared bot's rooms with where the person read up to and whether each has news since: a message
-  // from the bot or someone else, never the person's own or a system line (D-36), joined on the person's read points
-  async function roomsWithNews(botIds, options) {
-    if (!botIds.length) return [];
-    const person = personOf(options);
-    const points = await reads.scopedQuery({ alias: "r" }, personalOptions(options));
-    const readPoints = points.query
-      .select({ conversation_id: reads.column("conversationId", "r"), read_up_to: reads.column("readUpTo", "r") })
-      .as("rr");
-    const news = await messages.scopedQuery({ alias: "m" }, passedOn(options));
-    const role = messages.column("role", "m");
-    const { query } = await conversations.scopedQuery({ alias: "c" }, passedOn(options));
-    const roomId = conversations.column("id", "c");
-    const newer = news.query
-      .select(1)
-      .whereColumn(messages.column("conversationId", "m"), roomId)
-      .whereRaw("?? > coalesce(??, 0)", [messages.column("id", "m"), "rr.read_up_to"])
-      .whereNot(role, "system")
-      .whereNot((own) => own.where(role, "user").whereRaw("?? -> ? ->> ? = ?", [messages.column("body", "m"), "from", "id", person]));
-    const rows = await query
-      .leftJoin(readPoints, "rr.conversation_id", roomId)
-      .whereIn(conversations.column("botId", "c"), botIds.map(String))
-      .whereNull(conversations.column("userId", "c"))
-      .whereNull(conversations.column("groupId", "c"))
-      .orderBy(roomId)
-      .select(
-        Object.fromEntries(ROOM_FIELDS.map((field) => [toSnakeCase(field), conversations.column(field, "c")])),
-        { read_up_to: "rr.read_up_to" },
-        newer.limit(1).as("unread")
-      );
-    // unread: the first newer message's 1, or null when there is none.
-    return rows.map((row) => ({ ...row, unread: row.unread !== null, workspace_id: homeOf(options) }));
   }
 
   /** One message of a conversation (of one kind, when given), or null. */
@@ -225,9 +195,10 @@ export function createMessageRepository({ resources, systemContext }) {
     return rowsOf((await messages.query({ filters: { conversationId, kind: "text" }, sort: ["-id"], page: { size: limit } }, passedOn(options))).records, options);
   }
 
-  /** What the bot made in a conversation (the Library), newest first, up to `limit`: one page. */
-  async function madeIn(conversationId, limit, options) {
-    const { records } = await messages.query({ filters: { conversationId, kinds: [...MADE_KINDS] }, sort: ["-id"], page: { size: limit } }, passedOn(options));
+  /** What the bots made in a chat (the Library), newest first, up to `limit`: one page; with `botId`, one bot's. */
+  async function madeIn(conversationId, limit, options, { botId = null } = {}) {
+    const filters = { conversationId: String(conversationId), kinds: [...MADE_KINDS], ...(botId ? { madeBy: String(botId) } : {}) };
+    const { records } = await messages.query({ filters, sort: ["-id"], page: { size: limit } }, passedOn(options));
     return rowsOf(records, options);
   }
 
@@ -268,30 +239,11 @@ export function createMessageRepository({ resources, systemContext }) {
   }
 
   /** @param {CallOptions} options */
-  // Knex: subquery - the ids of the conversations a person searches: their own and the rooms they see, never a group
-  // computer's, a shared tab hidden while its bot isn't Shared (D-99) nor an archived one (D-101: an archived "You only"
-  // is always a Shared bot's, as leaving Shared un-archives it), nor any of an archived bot's (D-108), for the search
-  // reports below to read inside
+  // Knex: subquery - the ids of the chats the caller searches: the ones it may read (the row policy) that aren't
+  // archived, for the search reports below to read inside
   async function searchedConversations(options) {
     const { query } = await conversations.scopedQuery({ alias: "c" }, passedOn(options));
-    const { query: showing } = await bots.scopedQuery({ alias: "sb" }, passedOn(options));
-    showing
-      .select(1)
-      .whereColumn(bots.column("id", "sb"), conversations.column("botId", "c"))
-      .where((tabs) => tabs.where(bots.column("sharing", "sb"), "shared").orWhere(bots.column("kind", "sb"), "group"));
-    const { query: archivedBot } = await bots.scopedQuery({ alias: "ab" }, passedOn(options));
-    archivedBot
-      .select(1)
-      .whereColumn(bots.column("id", "ab"), conversations.column("botId", "c"))
-      .whereNotNull(bots.column("archivedAt", "ab"));
-    return {
-      query: query
-        .whereNull(conversations.column("groupId", "c"))
-        .whereNull(conversations.column("archivedAt", "c"))
-        .where((seen) => seen.whereNotNull(conversations.column("userId", "c")).orWhereExists(showing))
-        .whereNotExists(archivedBot)
-        .select(conversations.column("id", "c"))
-    };
+    return { query: query.whereNull(conversations.column("archivedAt", "c")).select(conversations.column("id", "c")) };
   }
 
   /**
@@ -312,7 +264,8 @@ export function createMessageRepository({ resources, systemContext }) {
       .limit(5)
       .select({
         id: messages.column("id", "m"),
-        bot_id: messages.column("botId", "m"),
+        author_bot_id: messages.column("authorBotId", "m"),
+        author_user_id: messages.column("authorUserId", "m"),
         conversation_id: messages.column("conversationId", "m"),
         role: messages.column("role", "m"),
         body,
@@ -324,10 +277,10 @@ export function createMessageRepository({ resources, systemContext }) {
    * @param {string} text the words, at least two characters
    * @param {number} limit
    * @param {CallOptions} options
-   * @returns {Promise<Array<{ id: string, bot_id: string, conversation_id: string, kind: string, created_at: string, part: object }>>}
+   * @returns {Promise<Array<{ id: string, author_bot_id: string | null, conversation_id: string, kind: string, created_at: string, part: object }>>}
    */
   // Knex: newest-per-group - the newest things the bots made whose name holds the words, in the
-  // conversations the person searches (searchedConversations): each made message's parts (a files card's files, a
+  // chats the caller searches (searchedConversations): each made message's parts (a files card's files, a
   // pictures card's pictures, or the card itself), matched by name and numbered newest first per path, so search reaches
   // anything ever made and reads only the `limit` entries it shows, one per path
   async function searchMade(text, limit, options) {
@@ -340,7 +293,7 @@ export function createMessageRepository({ resources, systemContext }) {
       .whereIn(kind, SEARCHED_MADE)
       .select({
         id: messages.column("id", "m"),
-        bot_id: messages.column("botId", "m"),
+        author_bot_id: messages.column("authorBotId", "m"),
         conversation_id: messages.column("conversationId", "m"),
         kind,
         created_at: messages.column("createdAt", "m")
@@ -365,7 +318,7 @@ export function createMessageRepository({ resources, systemContext }) {
       .limit(limit)
       .select({
         id: "found.id",
-        bot_id: "found.bot_id",
+        author_bot_id: "found.author_bot_id",
         conversation_id: "found.conversation_id",
         kind: "found.kind",
         created_at: "found.created_at",
@@ -374,21 +327,24 @@ export function createMessageRepository({ resources, systemContext }) {
   }
 
   /** @param {CallOptions} options */
-  // Knex: report - every routine of the conversations the person searches (searchedConversations), in id order, for
-  // the search palette to match
+  // Knex: report - every routine of the bots in the chats the caller searches (searchedConversations), in id order,
+  // for the search palette to match: each with its bot and its chat
   async function searchRoutines(options) {
     const searched = await searchedConversations(options);
+    const seats = await chatBots.joinSource({ alias: "s" }, passedOn(options));
     const { query } = await routines.scopedQuery({ alias: "r" }, passedOn(options));
     return query
-      .whereIn(routines.column("conversationId", "r"), searched.query)
+      .join(seats.query, seats.column("id"), routines.column("chatBotId", "r"))
+      .whereIn(seats.column("conversationId"), searched.query)
       .orderBy(routines.column("id", "r"))
       .select({
         id: routines.column("id", "r"),
         name: routines.column("name", "r"),
         schedule: routines.column("schedule", "r"),
         enabled: routines.column("enabled", "r"),
-        bot_id: routines.column("botId", "r"),
-        conversation_id: routines.column("conversationId", "r")
+        chat_bot_id: routines.column("chatBotId", "r"),
+        bot_id: seats.column("botId"),
+        conversation_id: seats.column("conversationId")
       });
   }
 
@@ -401,18 +357,12 @@ export function createMessageRepository({ resources, systemContext }) {
   /** A body with `fields` merged in. */
   const mergedBody = (fields) => messages.raw("?? || ?::jsonb", [messages.column("body"), JSON.stringify(fields)]);
 
-  /** The chat line that showed a note marks it removed (D-36), merged into its body; answers that line, or null. */
-  async function markNoteRemoved(noteId, options) {
-    const [line = null] = await rewriteBodies({ kind: "note", noteId: String(noteId) }, mergedBody({ removed: true }), options);
-    return line;
-  }
-
   /**
-   * A page's every card, marked deleted from the Library, wherever the same file shows (`where`): in one
-   * conversation (`conversationId`), every card one bot made of it (`madeBy`: its chats and groups), or the home's.
-   * The person deleting it may not see the others' chats with the bot, so the mark reaches the whole home (D-66): the
-   * caller has already checked the page is theirs to delete. Answers the cards in `shownIn`, the conversation the
-   * person is looking at; the others catch up by themselves.
+   * A page's every card, marked deleted from the Library, wherever the same file shows (`where`): in one chat
+   * (`conversationId`), every card one bot made of it (`madeBy`: in all its chats), or the home's. The person deleting
+   * it may not read every chat the cards are in, so the mark reaches the whole home (D-66): the caller has already
+   * checked the page is theirs to delete. Answers the cards in `shownIn`, the chat the person is looking at; the
+   * others catch up by themselves.
    */
   async function markPageRemoved(where, path, shownIn, options) {
     const home = { ...passedOn(options), context: systemContext("a deleted page's cards say so wherever its file showed").forWorkspace(homeOf(options)) };
@@ -428,16 +378,16 @@ export function createMessageRepository({ resources, systemContext }) {
   }
 
   /**
-   * The cards of one kind that name one slug (`body.slug`), in every chat of a bot in a home (`homeId`, else the
+   * The cards of one kind that name one slug (`body.slug`), that a bot wrote in any chat of a home (`homeId`, else the
    * call's), given `merge`'s fields and without `drop`'s: a change one person makes that every chat with the bot must
-   * show, though nobody sees the others' chats with it, as a deleted page's mark does. The caller has already checked
-   * the change is theirs to make. Answers the cards the caller sees; the others catch up by themselves.
+   * show, though nobody reads all of them, as a deleted page's mark does. The caller has already checked the change is
+   * theirs to make. Answers the cards the caller reads; the others catch up by themselves.
    * @param {{ botId: string, kind: string, slug: string, homeId?: string | null }} where
    * @param {{ merge?: object, drop?: string[] }} change
    * @param {CallOptions} options
    */
   async function rewriteCards({ botId, kind, slug, homeId = null }, { merge = {}, drop = [] }, options) {
-    const filters = { botId: String(botId), kind: String(kind), bodySlug: String(slug) };
+    const filters = { madeBy: String(botId), kind: String(kind), bodySlug: String(slug) };
     const home = String(homeId ?? homeOf(options));
     const everywhere = { ...passedOn(options), context: systemContext("a card's change reaches every chat of its bot").forWorkspace(home) };
     const body = messages.raw("(?? - array(select jsonb_array_elements_text(?::jsonb))) || ?::jsonb", [
@@ -457,7 +407,6 @@ export function createMessageRepository({ resources, systemContext }) {
     catchUp,
     changeHorizon,
     latestPerConversation,
-    roomsWithNews,
     messageIn,
     lockMessageIn,
     // readable-check: allow setter-seam - not a slot: saves a message's new body
@@ -479,7 +428,6 @@ export function createMessageRepository({ resources, systemContext }) {
     searchText,
     searchMade,
     searchRoutines,
-    markNoteRemoved,
     markPageRemoved,
     rewriteCards
   });

@@ -15,7 +15,12 @@ export const FILES_OWNS = Object.freeze([
   filesKeyResource,
   { resource: mediaCheckResource, searchSchema: MEDIA_CHECK_FILTERS },
   pageVersionResource,
-  { resource: shellRunResource, searchSchema: SHELL_RUN_FILTERS }
+  // A bot's commands in a chat are read by whoever may read that chat (the bots' chat rule, D-112).
+  {
+    resource: shellRunResource,
+    searchSchema: SHELL_RUN_FILTERS,
+    rowPolicy: ({ requires, ...args }) => requires.records.rules.chatBotRule(args)
+  }
 ]);
 
 // A bot's files, the home's files, the bots' command line on them and the pages bots write there

@@ -12,34 +12,53 @@ const bodyText = (compare) => Object.freeze({
   }
 });
 
-export const CONVERSATION_SEARCH = Object.freeze({
-  botIds: idList("botId"),
-  // A seat with a pin position: the person's pinned bots.
-  pinned: Object.freeze({
-    type: "boolean",
-    applyFilter(query, input, { column }) {
-      if (input) query.whereNotNull(column("pinPosition"));
-      else query.whereNull(column("pinPosition"));
+const isSet = (field) => Object.freeze({
+  type: "boolean",
+  applyFilter(query, input, { column }) {
+    if (input) query.whereNotNull(column(field));
+    else query.whereNull(column(field));
+  }
+});
+
+export const CHAT_SEARCH = Object.freeze({
+  // Archived chats, or those that aren't.
+  archived: isSet("archivedAt"),
+  // A direct chat (one person's with one bot), or any other.
+  direct: isSet("directBotId"),
+  // Every chat but these: the public chats a person isn't in yet.
+  notIds: Object.freeze({
+    type: "array",
+    items: { type: "id" },
+    applyFilter(query, ids, { column }) {
+      query.whereNotIn(column("id"), ids.map(String));
     }
   }),
-  // Archived conversations (D-101), or those that aren't.
-  archived: Object.freeze({
-    type: "boolean",
+  // The chats a bot in this chat may read (D-112): the migration's readable_from(chat).
+  readableFrom: Object.freeze({
+    type: "id",
     applyFilter(query, input, { column }) {
-      if (input) query.whereNotNull(column("archivedAt"));
-      else query.whereNull(column("archivedAt"));
+      query.whereRaw(`?? in (select readable_from(?))`, [column("id"), String(input)]);
+    }
+  })
+});
+
+export const CHAT_PERSON_SEARCH = Object.freeze({
+  conversationIds: idList("conversationId"),
+  userIds: idList("userId"),
+  // Everyone in the chat but this person: who a new message marks unread.
+  notUserId: Object.freeze({
+    type: "id",
+    applyFilter(query, id, { column }) {
+      query.whereNot(column("userId"), id);
     }
   }),
-  // A person's own conversation with a bot (user_id set), not a room: what leaving Shared un-archives (D-101).
-  seat: Object.freeze({
-    type: "boolean",
-    applyFilter(query, input, { column }) {
-      if (input) query.whereNotNull(column("userId"));
-      else query.whereNull(column("userId"));
-    }
-  }),
-  // Rooms active since a moment: a turn's recent group chats (turnRepository.js recentGroupsOf).
-  lastActivityAfter: Object.freeze({ type: "dateTime", actualField: "lastActivityAt", filterOperator: ">" })
+  // A pinned chat: the person's pins, in their order.
+  pinned: isSet("pinPosition")
+});
+
+export const CHAT_BOT_SEARCH = Object.freeze({
+  conversationIds: idList("conversationId"),
+  botIds: idList("botId")
 });
 
 export const MESSAGE_SEARCH = Object.freeze({
@@ -50,26 +69,18 @@ export const MESSAGE_SEARCH = Object.freeze({
   kinds: Object.freeze({ type: "array", actualField: "kind", filterOperator: "in", items: { type: "string" } }),
   // A chat's catch-up: the messages a transaction changed since the page's cursor (the trigger-kept xid8 stamp).
   changedSince: Object.freeze({ type: "xid8", actualField: "changed", filterOperator: ">=" }),
-  // The person's message as their page sent it (D-19), a routine run's message (D-57), a note's chat line (D-36) and a
-  // card's status, claimed once (a draft being sent).
+  // The person's message as their page sent it (D-19), a routine run's message (D-57) and a card's status, claimed
+  // once (a draft being sent).
   clientId: bodyText((query, body, value) => query.whereRaw("?? ->> 'clientId' = ?", [body, value])),
   routineId: bodyText((query, body, value) => query.whereRaw("?? ->> 'routine' = ?", [body, value])),
-  // As ix_bot_messages_note indexes it: (body->>'noteId') where kind = 'note'.
-  noteId: bodyText((query, body, value) => query.whereRaw("?? ->> 'noteId' = ?", [body, value])),
   bodyStatus: bodyText((query, body, value) => query.whereRaw("?? ->> 'status' = ?", [body, value])),
   // A page's cards, deleted from the Library together, and the cards that name one slug (rewriteCards).
   bodyPath: bodyText((query, body, value) => query.whereRaw("?? ->> 'path' = ?", [body, value])),
   bodySlug: bodyText((query, body, value) => query.whereRaw("?? ->> 'slug' = ?", [body, value])),
-  // What one bot made: in its own conversations (no other speaker), and where it spoke in a group (D-46).
-  madeBy: Object.freeze({
-    type: "id",
-    applyFilter(query, input, { column }) {
-      const botId = String(input);
-      query.where((made) => made
-        .where((own) => own.where(column("botId"), botId).whereRaw("?? -> 'speaker' is null", [column("body")]))
-        .orWhereRaw("?? -> 'speaker' ->> 'id' = ?", [column("body"), botId]));
-    }
-  }),
+  // What one bot made, in every chat it's in: the messages it wrote (D-112).
+  madeBy: Object.freeze({ type: "id", actualField: "authorBotId", filterOperator: "=" }),
+  // The messages of some chats.
+  conversationIds: idList("conversationId"),
   // A made message holding a Library pin: its own (a page, chart or view), or one of its files' or pictures'.
   pinned: Object.freeze({
     type: "boolean",
@@ -83,10 +94,6 @@ export const MESSAGE_SEARCH = Object.freeze({
     }
   })
 });
-
-export const GROUP_SEARCH = Object.freeze({ groupIds: idList("groupId") });
-
-export const READ_SEARCH = Object.freeze({ conversationIds: idList("conversationId") });
 
 export const BOT_SEARCH = Object.freeze({
   // The bots pointing at some of the home's templates (D-98): how many use each.
@@ -118,7 +125,3 @@ export const BOT_SEARCH = Object.freeze({
     }
   })
 });
-
-// The notes still in a bot's notebook (removedAt: null, which matches IS NULL: json-rest-api 3.1 takes a null filter
-// only on a nullable entry). turnRepository.js reads the notebook through it.
-export const NOTEBOOK_SEARCH = Object.freeze({ removedAt: Object.freeze({ type: "dateTime", nullable: true, actualField: "removedAt" }) });

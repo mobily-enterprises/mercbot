@@ -2,6 +2,7 @@ import { hasPermission } from "@jskit-ai/kernel/shared/support";
 import { checkRouteVisibility } from "@jskit-ai/kernel/shared/support/visibility";
 import { refusalOf } from "@local/account/meter";
 import { KNOWLEDGE_LIMITS } from "./botKnowledge.js";
+import { isId } from "./botRows.js";
 import { BotsError, archivedBotRefusal } from "./botsError.js";
 import { isModelFailure, modelFailure } from "./modelFailures.js";
 
@@ -40,7 +41,7 @@ function userOf(request) {
 }
 
 /**
- * The bots' routes (D-36). Everything belongs to a home: routes live under
+ * The bots' and chats' routes (D-36, D-112). Everything belongs to a home: routes live under
  * /api/w/:workspaceSlug/…, and JSKIT checks membership and fills request.workspace first.
  * @param {import("@jskit-ai/kernel/server/types").RuntimeHttp} http
  * @param {object} capabilities
@@ -48,30 +49,34 @@ function userOf(request) {
  * @param {import("./types.js").Approvals} capabilities.approvals
  * @param {import("@local/notices/server/types").Notices} capabilities.notices
  * @param {import("@local/account/server/types").Meter} capabilities.meter
- * @param {import("./types.js").BotRecords} capabilities.records mercbot.bots.records, for the bot in the address
+ * @param {import("./types.js").BotRecords} capabilities.records mercbot.bots.records, for the bot and the chat in the address
  * @param {Set<import("node:http").ServerResponse>} capabilities.streams the live event streams, ended on shutdown
  */
 export function registerRoutes(http, { bots, approvals, notices, meter, records, streams }) {
   /**
-   * A bot or group in the address must be one the person sees in that same home, whatever its id:
-   * one check for every route, so a member of one home can't reach another home's bots by their
-   * numbers, nor a group chat they aren't in. An archived bot (D-108) is read-only: only a route that says it
-   * takes one (`archived`) changes anything about it.
+   * A bot or a chat in the address must be one the person may open in that same home, whatever its id: one check for
+   * every route, so a member of one home can't reach another home's bots by their numbers, nor a private chat they
+   * can't open (404, as for one that isn't there). An archived bot (D-108) and an archived chat are read-only: only a
+   * route that says it takes one (`archived`) changes anything about it.
    */
   async function guard(request, options, { archived = false } = {}) {
-    const { botId, groupId } = request.params || {};
-    const id = String(botId || groupId || "");
-    if (!id) return;
-    const bot = /^[1-9]\d{0,18}$/u.test(id) ? await records.directory.findBot(id, options) : null;
-    if (bot?.archivedAt && request.method !== "GET" && !archived) throw archivedBotRefusal(bot);
-    if (bot) return;
-    if (botId) throw new BotsError(404, "Bot not found.", { code: "bots_bot_not_found" });
-    throw new BotsError(404, "Group not found.", { code: "bots_group_not_found" });
+    const { botId, chatId } = request.params || {};
+    const writing = request.method !== "GET" && !archived;
+    if (chatId !== undefined) {
+      const chat = isId(chatId) ? await records.chats.find(String(chatId), options) : null;
+      if (!chat) throw new BotsError(404, "Chat not found.", { code: "bots_chat_not_found" });
+      if (chat.archived_at && writing) throw new BotsError(409, "This chat is archived. Unarchive it to continue.", { code: "bots_chat_archived" });
+    }
+    if (botId !== undefined) {
+      const bot = isId(botId) ? await records.directory.findBot(String(botId), options) : null;
+      if (!bot) throw new BotsError(404, "Bot not found.", { code: "bots_bot_not_found" });
+      if (bot.archivedAt && writing) throw archivedBotRefusal(bot);
+    }
   }
 
   /**
    * A route's work, given the request, its person and home, and the call options its reads and writes use. `archived`
-   * lets it change an archived bot (guard).
+   * lets it change an archived bot or chat (guard).
    */
   function handle(work, { archived = false } = {}) {
     return async function (request, reply) {
@@ -79,7 +84,8 @@ export function registerRoutes(http, { bots, approvals, notices, meter, records,
         const user = userOf(request);
         const options = await request.callOptions();
         await guard(request, options, { archived });
-        // AI calls made for this request are recorded for its person, bot and home (D-73).
+        // AI calls made for this request are recorded for its person, bot and home (D-73); in a chat, each speaking
+        // bot's own (R8, the turns').
         const who = { userId: user.id, botId: request.params?.botId, workspaceId: request.workspace?.id };
         reply.code(200).send(await meter.track(who, () => work(request, user, options)));
       } catch (thrown) {
@@ -109,55 +115,149 @@ export function registerRoutes(http, { bots, approvals, notices, meter, records,
   const auth = { auth: "required", contextPolicy: "required", visibility: checkRouteVisibility("workspace_user") };
   /** Owners and admins of the home in the address may change what's shared there (D-36). */
   const manages = (request) => hasPermission(request.permissions, "workspace.settings.update");
+  const home = "/api/w/:workspaceSlug";
+  const chat = `${home}/chats/:chatId`;
+  const body = (request) => request.body || {};
+  const { chats } = bots;
 
-  router.register("GET", "/api/w/:workspaceSlug/bots", auth, handle(async (_request, _user, options) => bots.listBots(options)));
-  // One bot as the list shows it, read again when it has news (D-15).
-  router.register("GET", "/api/w/:workspaceSlug/bots/:botId", auth, handle(async (request, _user, options) => ({
+  // Chats (D-112, R2): the person's chat list, New chat, the public chats to join, one chat, and its members. Each
+  // change answers the chat as the page shows it (or the list), and tells everyone in it (a `chat` event).
+  router.register("GET", `${home}/chats`, auth, handle(async (request, _user, options) =>
+    chats.list({ hidden: request.query?.hidden === "1", archived: request.query?.archived === "1" }, options)));
+  router.register("POST", `${home}/chats`, auth, handle(async (request, _user, options) => chats.create(body(request), options)));
+  router.register("GET", `${home}/chats/public`, auth, handle(async (_request, _user, options) => chats.publicChats(options)));
+  router.register("GET", chat, auth, handle(async (request, _user, options) => chats.get(request.params.chatId, options)));
+  router.register("PATCH", chat, auth, handle(async (request, _user, options) =>
+    chats.rename(request.params.chatId, request.body?.title, options)));
+  router.register("DELETE", chat, auth, handle(async (request, _user, options) =>
+    chats.remove(request.params.chatId, options), { archived: true }));
+  router.register("POST", `${chat}/archive`, auth, handle(async (request, _user, options) =>
+    chats.archive(request.params.chatId, options)));
+  router.register("POST", `${chat}/unarchive`, auth, handle(async (request, _user, options) =>
+    chats.unarchive(request.params.chatId, options), { archived: true }));
+  router.register("POST", `${chat}/join`, auth, handle(async (request, _user, options) => chats.join(request.params.chatId, options)));
+  router.register("POST", `${chat}/leave`, auth, handle(async (request, _user, options) =>
+    chats.leave(request.params.chatId, options), { archived: true }));
+  router.register("POST", `${chat}/people`, auth, handle(async (request, _user, options) =>
+    chats.addPerson(request.params.chatId, request.body?.userId, options)));
+  router.register("DELETE", `${chat}/people/:userId`, auth, handle(async (request, _user, options) =>
+    chats.removePerson(request.params.chatId, request.params.userId, options)));
+  router.register("POST", `${chat}/bots`, auth, handle(async (request, _user, options) =>
+    chats.addBot(request.params.chatId, request.body?.botId, options)));
+  // The bot in the address is the chat's: an archived one can be taken out of it.
+  router.register("DELETE", `${chat}/bots/:botId`, auth, handle(async (request, _user, options) =>
+    chats.removeBot(request.params.chatId, request.params.botId, options), { archived: true }));
+  // The person's own place in a chat: pinned, its section, hidden, muted, unread; and how far they've read.
+  router.register("PATCH", `${chat}/place`, auth, handle(async (request, _user, options) =>
+    chats.changePlace(request.params.chatId, body(request), options), { archived: true }));
+  router.register("POST", `${chat}/read`, auth, handle(async (request, _user, options) =>
+    chats.markRead(request.params.chatId, request.body?.messageId, options), { archived: true }));
+  router.register("PUT", `${home}/chat-pins`, auth, handle(async (request, _user, options) =>
+    chats.reorderPins(request.body?.chatIds, options)));
+  router.register("POST", `${home}/chat-sections`, auth, handle(async (request, _user, options) =>
+    chats.createSection({ name: request.body?.name, chatId: request.body?.chatId }, options)));
+  router.register("PATCH", `${home}/chat-sections/:sectionId`, auth, handle(async (request, _user, options) =>
+    chats.updateSection(request.params.sectionId, body(request), options)));
+  router.register("POST", `${home}/chat-sections/:sectionId/move`, auth, handle(async (request, _user, options) =>
+    chats.moveSection(request.params.sectionId, request.body?.direction, options)));
+  router.register("DELETE", `${home}/chat-sections/:sectionId`, auth, handle(async (request, _user, options) =>
+    chats.deleteSection(request.params.sectionId, options)));
+  // A bot's [Message] (Team, its card): the person's direct chat with it, made on first use.
+  router.register("POST", `${home}/bots/:botId/direct`, auth, handle(async (request, _user, options) =>
+    chats.direct(request.params.botId, options)));
+
+  // What is said in a chat (D-112; the turns, step 2's A, and onboarding, B): its messages a page at a time (`before`,
+  // a message id) or what changed since a cursor (`since`), Find in chat, a person's message, the bots' reply to it
+  // (who speaks, R3), the status line, reactions, and the cards' answers.
+  router.register("GET", `${chat}/messages`, auth, handle(async (request, _user, options) =>
+    bots.chat.messages(request.params.chatId, { since: request.query?.since, before: request.query?.before }, options)));
+  router.register("GET", `${chat}/find`, auth, handle(async (request, _user, options) =>
+    bots.chat.findOlder(request.params.chatId, { q: request.query?.q, before: request.query?.before }, options)));
+  router.register("POST", `${chat}/messages`, auth, handle(async (request, _user, options) =>
+    bots.chat.sendMessage(request.params.chatId, body(request), options)));
+  router.register("POST", `${chat}/reply`, auth, handle(async (request, user, options) =>
+    bots.chat.reply(request.params.chatId, body(request), user.displayName, options)));
+  // The status line is an AI call of its own: a paused home's reply says why instead.
+  router.register("POST", `${chat}/messages/:messageId/activity`, auth, handle(async (request, _user, options) =>
+    (await meter.pausedMessage(request.workspace.id))
+      ? { status: "", messages: [] }
+      : bots.chat.describeWork(request.params.chatId, request.params.messageId, options)));
+  router.register("PUT", `${chat}/messages/:messageId/reaction`, auth, handle(async (request, _user, options) =>
+    bots.chat.react(request.params.chatId, request.params.messageId, request.body?.emoji, options)));
+  router.register("POST", `${chat}/choices/:messageId`, auth, handle(async (request, _user, options) =>
+    bots.chat.answerChoice(request.params.chatId, request.params.messageId, request.body?.selected, options)));
+  router.register("POST", `${chat}/handover/:messageId`, auth, handle(async (request, _user, options) =>
+    bots.chat.settleHandover(request.params.chatId, request.params.messageId, request.body?.outcome, options)));
+  router.register("POST", `${chat}/secure-forms/:messageId`, auth, handle(async (request, _user, options) =>
+    bots.chat.settleSecureForm(request.params.chatId, request.params.messageId, body(request), options)));
+  // The person started signing in from a connect card: the bot finishes the task once it's connected.
+  router.register("POST", `${chat}/connect-cards/:messageId`, auth, handle(async (request, _user, options) =>
+    bots.chat.connectFromCard(request.params.chatId, request.params.messageId, body(request), options)));
+  router.register("POST", `${chat}/drafts/:messageId`, auth, handle(async (request, _user, options) =>
+    bots.chat.settleDraft(request.params.chatId, request.params.messageId, body(request), options)));
+  // The welcome chat (B's onboarding): made at a person's first visit with the main bot, and its steps.
+  router.register("POST", `${home}/chats/welcome`, auth, handle(async (_request, _user, options) => bots.chat.welcome(options)));
+  router.register("POST", `${chat}/onboarding/advance`, auth, handle(async (request, user, options) =>
+    bots.chat.advanceOnboarding(request.params.chatId, String(request.body?.step || ""), user, options)));
+  router.register("POST", `${chat}/onboarding/name`, auth, handle(async (request, _user, options) =>
+    bots.chat.chooseName(request.params.chatId, String(request.body?.name || ""), options)));
+  // A bot in a chat: a voice call's seconds, and teaching it on the chat's computer (D14: the chat's).
+  router.register("POST", `${chat}/bots/:botId/voice-call`, auth, handle(async (request, _user, options) =>
+    bots.chat.recordVoiceCall(request.params.chatId, request.params.botId, request.body?.seconds, options)));
+  router.register("POST", `${chat}/bots/:botId/teach/start`, auth, handle(async (request, _user, options) => {
+    await unlessPaused(request);
+    return bots.chat.startTeaching(request.params.chatId, request.params.botId, options);
+  }));
+  router.register("POST", `${chat}/bots/:botId/teach/stop`, auth, handle(async (request, _user, options) =>
+    bots.chat.stopTeaching(request.params.chatId, request.params.botId, { discard: request.body?.discard === true }, options)));
+  // Routines belong to a bot in a chat (D-112): a chat's, a bot's in the chats the person can open, and one switched
+  // off, on or deleted.
+  router.register("GET", `${chat}/routines`, auth, handle(async (request, _user, options) =>
+    bots.chat.routinesIn(request.params.chatId, options)));
+  router.register("GET", `${home}/bots/:botId/routines`, auth, handle(async (request, _user, options) =>
+    bots.chat.routinesOf(request.params.botId, options)));
+  router.register("PATCH", `${home}/routines/:routineId`, auth, handle(async (request, _user, options) =>
+    bots.chat.switchRoutine(request.params.routineId, request.body?.enabled, options)));
+  router.register("DELETE", `${home}/routines/:routineId`, auth, handle(async (request, _user, options) =>
+    bots.chat.deleteRoutine(request.params.routineId, options)));
+  // A request between bots is cancelled by the person it's for (D-46).
+  router.register("POST", `${home}/bot-requests/:requestId/cancel`, auth, handle(async (request, _user, options) =>
+    bots.cancelRequest(request.params.requestId, options)));
+
+  // The home's bots (D-112: members of the home, in any number of chats): the Team page's list, one bot, New bot,
+  // templates and teams, and a bot's own Details (instructions, knowledge, template, library).
+  router.register("GET", `${home}/bots`, auth, handle(async (_request, _user, options) => bots.listBots(options)));
+  router.register("GET", `${home}/bots/:botId`, auth, handle(async (request, _user, options) => ({
     bot: await bots.listedBot(request.params.botId, options)
   })));
-  // What the person's bots remember about them, to see and remove.
-  router.register("POST", "/api/w/:workspaceSlug/bots/:botId/secure-forms/:messageId", auth, handle(async (request, _user, options) =>
-    bots.settleSecureForm(request.params.botId, request.params.messageId, request.body || {}, options)));
-  router.register(
-    "GET",
-    "/api/w/:workspaceSlug/bots/:botId/library",
-    auth,
-    handle(async (request, _user, options) => bots.library(request.params.botId, options))
-  );
-  router.register(
-    "POST",
-    "/api/w/:workspaceSlug/bots/:botId/library/pin",
-    auth,
-    handle(async (request, _user, options) => bots.pinItem(request.params.botId, request.body || {}, options))
-  );
+  router.register("POST", `${home}/bots`, auth, handle(async (request, _user, options) => ({
+    bot: await bots.createBot(body(request), options)
+  })));
+  router.register("PATCH", `${home}/bots/:botId`, auth, handle(async (request, _user, options) => {
+    if (request.body?.main !== undefined && !manages(request)) {
+      throw new BotsError(403, "Only the home's owners and admins can replace the main bot.", { code: "bots_main_bot_manage_forbidden" });
+    }
+    return { bot: await bots.updateBot(request.params.botId, body(request), options) };
+  }, { archived: true }));
+  // A whole bot archived and unarchived for everyone in the home (D-108), by whoever made it and the home's owners and
+  // admins. Each answers the bot as listed.
+  router.register("POST", `${home}/bots/:botId/archive`, auth, handle(async (request, _user, options) =>
+    bots.archiveBot(request.params.botId, options), { archived: true }));
+  router.register("POST", `${home}/bots/:botId/unarchive`, auth, handle(async (request, _user, options) =>
+    bots.unarchiveBot(request.params.botId, options), { archived: true }));
+  router.register("DELETE", `${home}/bots/:botId`, auth, handle(async (request, _user, options) =>
+    bots.deleteBot(request.params.botId, options), { archived: true }));
+  router.register("GET", `${home}/bots/:botId/library`, auth, handle(async (request, _user, options) =>
+    bots.library(request.params.botId, options)));
+  router.register("POST", `${home}/bots/:botId/library/pin`, auth, handle(async (request, _user, options) =>
+    bots.pinItem(request.params.botId, body(request), options)));
   // A page deleted from the Library, after the person confirmed: the Library again, and the page's cards.
-  router.register(
-    "DELETE",
-    "/api/w/:workspaceSlug/bots/:botId/library/pages/:messageId",
-    auth,
-    handle(async (request, _user, options) => bots.deletePage(request.params.botId, request.params.messageId, options))
-  );
-  // The person started signing in from a connect card: the bot finishes the task once it's connected.
-  router.register("POST", "/api/w/:workspaceSlug/bots/:botId/connect-cards/:messageId", auth, handle(async (request, _user, options) =>
-    bots.connectFromCard(request.params.botId, request.params.messageId, request.body || {}, options)));
-  router.register("POST", "/api/w/:workspaceSlug/bots/:botId/drafts/:messageId", auth, handle(async (request, _user, options) =>
-    bots.settleDraft(request.params.botId, request.params.messageId, request.body || {}, options)));
-  router.register("GET", "/api/w/:workspaceSlug/memories", auth, handle(async (_request, _user, options) => bots.memories(options)));
-  router.register(
-    "DELETE",
-    "/api/w/:workspaceSlug/memories/:memoryId",
-    auth,
-    handle(async (request, _user, options) => bots.forgetMemory(request.params.memoryId, options))
-  );
-  router.register("GET", "/api/w/:workspaceSlug/bot-skills", auth, handle(async (_request, _user, options) => bots.skillsFor(options)));
-  router.register(
-    "GET",
-    "/api/w/:workspaceSlug/search",
-    auth,
-    handle(async (request, _user, options) => bots.search(request.query?.q, options))
-  );
-  // What changed for this person's bots, as server-sent events from any server (D-15).
-  router.register("GET", "/api/w/:workspaceSlug/bot-events", auth, async (request, reply) => {
+  router.register("DELETE", `${home}/bots/:botId/library/pages/:messageId`, auth, handle(async (request, _user, options) =>
+    bots.deletePage(request.params.botId, request.params.messageId, options)));
+  router.register("GET", `${home}/bot-skills`, auth, handle(async (_request, _user, options) => bots.skillsFor(options)));
+  router.register("GET", `${home}/search`, auth, handle(async (request, _user, options) => bots.search(request.query?.q, options)));
+  // What changed for this person's chats and bots, as server-sent events from any server (D-15).
+  router.register("GET", `${home}/bot-events`, auth, async (request, reply) => {
     reply.hijack();
     reply.raw.writeHead(200, {
       "content-type": "text/event-stream",
@@ -180,13 +280,6 @@ export function registerRoutes(http, { bots, approvals, notices, meter, records,
     if (request.raw.destroyed) stop();
     else request.raw.on("close", stop);
   });
-  router.register("POST", "/api/w/:workspaceSlug/bots", auth, handle(async (request, _user, options) => ({
-    bot: await bots.createBot(request.body || {}, options)
-  })));
-  router.register("POST", "/api/w/:workspaceSlug/bots/:botId/choices/:messageId", auth, handle(async (request, _user, options) =>
-    bots.answerChoice(request.params.botId, request.params.messageId, request.body?.selected, options)));
-  router.register("POST", "/api/w/:workspaceSlug/bots/:botId/handover/:messageId", auth, handle(async (request, _user, options) =>
-    bots.settleHandover(request.params.botId, request.params.messageId, request.body?.outcome, options)));
   /** Bot templates: the gallery and a template's page are public; adding one is the person's. */
   const open = (work) => async (request, reply) => {
     try {
@@ -200,195 +293,70 @@ export function registerRoutes(http, { bots, approvals, notices, meter, records,
   // A template's page reads with the request's own options: a visitor's name no one.
   router.register("GET", "/api/templates/:slug", { auth: "public" }, open(async (request) =>
     bots.templateDetails(request.params.slug, await request.callOptions())));
-  router.register("POST", "/api/w/:workspaceSlug/bots/from-template", auth, handle(async (request, user, options) => ({
+  router.register("POST", `${home}/bots/from-template`, auth, handle(async (request, user, options) => ({
     bot: await bots.addFromTemplate(String(request.body?.slug || ""), user.displayName, options)
   })));
   // Teams (D-105): a team's bots as the home has them, and Add N bots, for everyone in the home, as New bot is.
-  router.register("GET", "/api/w/:workspaceSlug/teams/:teamId", auth, handle(async (request, _user, options) =>
+  router.register("GET", `${home}/teams/:teamId`, auth, handle(async (request, _user, options) =>
     bots.teamFor(request.params.teamId, options)));
-  router.register("POST", "/api/w/:workspaceSlug/teams/:teamId", auth, handle(async (request, user, options) =>
+  router.register("POST", `${home}/teams/:teamId`, auth, handle(async (request, user, options) =>
     bots.addTeam(request.params.teamId, request.body?.templates, user.displayName, options)));
   // Add bots' suggestions (D-109): a plan, one billed call like a reply, refused in a paused home, with nothing kept; and
   // Add N bots, the bots ticked on it, for everyone in the home, as One bot is.
-  router.register("POST", "/api/w/:workspaceSlug/bots/plan", auth, handle(async (request, _user, options) => {
+  router.register("POST", `${home}/bots/plan`, auth, handle(async (request, _user, options) => {
     await unlessPaused(request);
-    return bots.proposeBots(request.body || {}, options);
+    return bots.proposeBots(body(request), options);
   }));
-  router.register("POST", "/api/w/:workspaceSlug/bots/batch", auth, handle(async (request, user, options) =>
-    bots.addBots(request.body || {}, user.displayName, options)));
+  router.register("POST", `${home}/bots/batch`, auth, handle(async (request, user, options) =>
+    bots.addBots(body(request), user.displayName, options)));
   // A template drafted by the bot (D-98): one billed call, like a reply, refused in a paused home; nothing is kept.
-  router.register("POST", "/api/w/:workspaceSlug/bots/templates/draft", auth, handle(async (request, _user, options) => {
+  router.register("POST", `${home}/bots/templates/draft`, auth, handle(async (request, _user, options) => {
     await unlessPaused(request);
-    return bots.draftTemplate(request.body || {}, options);
+    return bots.draftTemplate(body(request), options);
   }));
   // The home's own templates (D-98), for everyone in it: each one's tag, description and how many bots use it. Its owners
   // and admins change one (PUT, naming the updatedAt they opened) and delete one no bot uses.
-  router.register("GET", "/api/w/:workspaceSlug/home-templates", auth, handle(async (_request, _user, options) =>
-    bots.homeTemplates(options)));
-  router.register("GET", "/api/w/:workspaceSlug/home-templates/:templateId", auth, handle(async (request, _user, options) =>
+  router.register("GET", `${home}/home-templates`, auth, handle(async (_request, _user, options) => bots.homeTemplates(options)));
+  router.register("GET", `${home}/home-templates/:templateId`, auth, handle(async (request, _user, options) =>
     bots.homeTemplate(request.params.templateId, options)));
-  router.register("PUT", "/api/w/:workspaceSlug/home-templates/:templateId", auth, handle(async (request, _user, options) =>
+  router.register("PUT", `${home}/home-templates/:templateId`, auth, handle(async (request, _user, options) =>
     bots.editHomeTemplate(request.params.templateId, { draft: request.body?.draft, updatedAt: request.body?.updatedAt }, options)));
-  router.register("DELETE", "/api/w/:workspaceSlug/home-templates/:templateId", auth, handle(async (request, _user, options) =>
+  router.register("DELETE", `${home}/home-templates/:templateId`, auth, handle(async (request, _user, options) =>
     bots.deleteHomeTemplate(request.params.templateId, options)));
-  // The sharing the home's new bots get (D-100) and whether its bots decide when to join in (D-102), for everyone in it;
-  // its owners and admins change them (403 for anyone else) and answer the question asked once a second person joins.
-  router.register("GET", "/api/w/:workspaceSlug/home-settings", auth, handle(async (_request, _user, options) =>
-    bots.homeDefault(options)));
-  router.register("PATCH", "/api/w/:workspaceSlug/home-settings", auth, handle(async (request, _user, options) =>
-    bots.changeHomeSettings({ newBotSharing: request.body?.newBotSharing, botsJoinIn: request.body?.botsJoinIn }, options)));
-  router.register("POST", "/api/w/:workspaceSlug/home-settings/team-question", auth, handle(async (request, _user, options) =>
-    bots.answerTeamQuestion(request.body?.answer, options)));
-  // Group chats: created by their first message; members added and removed in Details.
-  router.register("POST", "/api/w/:workspaceSlug/groups", auth, handle(async (request, user, options) =>
-    bots.createGroup(request.body || {}, user.displayName, options)));
-  router.register("POST", "/api/w/:workspaceSlug/groups/:groupId/members", auth, handle(async (request, _user, options) =>
-    bots.addMember(request.params.groupId, request.body?.botId, options)));
-  router.register("DELETE", "/api/w/:workspaceSlug/groups/:groupId/members/:botId", auth, handle(async (request, _user, options) =>
-    bots.removeMember(request.params.groupId, request.params.botId, options), { archived: true }));
-  // People in a group (D-46): anyone in it adds; its maker, owners and admins remove; anyone leaves.
-  router.register("POST", "/api/w/:workspaceSlug/groups/:groupId/people", auth, handle(async (request, _user, options) =>
-    bots.addPerson(request.params.groupId, String(request.body?.userId || ""), options)));
-  router.register("DELETE", "/api/w/:workspaceSlug/groups/:groupId/people/:userId", auth, handle(async (request, _user, options) =>
-    bots.removePerson(request.params.groupId, request.params.userId, { manages: manages(request) }, options)));
-  router.register(
-    "POST",
-    "/api/w/:workspaceSlug/bots/first",
-    auth,
-    handle(async (_request, _user, options) => ({ bot: await bots.ensureFirstBot(options) }))
-  );
-  // A chat's newest messages; with `before` (a message id) the page before it, as the person scrolls
-  // back; with `since` (an earlier answer's cursor) only what changed after it (D-15).
-  router.register("GET", "/api/w/:workspaceSlug/bots/:botId/messages", auth, handle(async (request, _user, options) =>
-    bots.messages(request.params.botId, request.query?.room || null, {
-      since: request.query?.since,
-      before: request.query?.before
-    }, options)));
-  // Find in chat in the part of a chat the page hasn't read: how often the words appear before `before`.
-  router.register("GET", "/api/w/:workspaceSlug/bots/:botId/find", auth, handle(async (request, _user, options) =>
-    bots.findOlder(request.params.botId, request.query?.room || null, {
-      q: request.query?.q,
-      before: request.query?.before
-    }, options)));
-  router.register("POST", "/api/w/:workspaceSlug/bots/:botId/messages", auth, handle(async (request, _user, options) =>
-    bots.sendMessage(request.params.botId, request.body || {}, options)));
-  router.register("POST", "/api/w/:workspaceSlug/bots/:botId/reply", auth, handle(async (request, user, options) =>
-    bots.replyTo(request.params.botId, request.body || {}, user.displayName, options)));
-  // The status line is an AI call of its own: a paused home's reply says why instead.
-  router.register("POST", "/api/w/:workspaceSlug/bots/:botId/messages/:messageId/activity", auth, handle(async (request, _user, options) =>
-    (await meter.pausedMessage(request.workspace.id)) ? { status: "", messages: [] } : bots.describeWork(request.params.botId, request.params.messageId, options)));
-  router.register("PUT", "/api/w/:workspaceSlug/bots/:botId/messages/:messageId/reaction", auth, handle(async (request, _user, options) =>
-    bots.react(request.params.botId, request.params.messageId, request.body?.emoji, options)));
-  router.register("POST", "/api/w/:workspaceSlug/bots/:botId/onboarding/advance", auth, handle(async (request, user, options) =>
-    bots.advanceOnboarding(request.params.botId, String(request.body?.step || ""), user, options)));
-  router.register("POST", "/api/w/:workspaceSlug/bots/:botId/onboarding/name", auth, handle(async (request, _user, options) =>
-    bots.chooseName(request.params.botId, String(request.body?.name || ""), options)));
-
-  // A request between bots is cancelled by the person it's for (D-46).
-  router.register("POST", "/api/w/:workspaceSlug/bot-requests/:requestId/cancel", auth, handle(async (request, _user, options) =>
-    bots.cancelRequest(request.params.requestId, options)));
-  router.register("PATCH", "/api/w/:workspaceSlug/bots/:botId", auth, handle(async (request, _user, options) => {
-    // Who sees what in a bot is for the home's owners and admins (D-36).
-    if (request.body?.sharing !== undefined && !manages(request)) {
-      throw new BotsError(403, "Only the home's owners and admins can change who sees what.", { code: "bots_visibility_manage_forbidden" });
-    }
-    if (request.body?.main !== undefined && !manages(request)) {
-      throw new BotsError(403, "Only the home's owners and admins can replace the main bot.", { code: "bots_main_bot_manage_forbidden" });
-    }
-    return { bot: await bots.updateBot(request.params.botId, request.body || {}, options) };
-  }, { archived: true }));
-  // A mixed bot's home notebook (D-36): everyone reads it, a page at a time (?after= the page before's
-  // next); a note's author, owners and admins remove notes.
-  router.register("GET", "/api/w/:workspaceSlug/bots/:botId/notebook", auth, handle(async (request, _user, options) =>
-    bots.notebook(request.params.botId, { manages: manages(request), after: request.query?.after || null }, options)));
-  router.register("DELETE", "/api/w/:workspaceSlug/bots/:botId/notebook/:noteId", auth, handle(async (request, _user, options) =>
-    bots.removeNote(request.params.botId, request.params.noteId, { manages: manages(request) }, options)));
-  // A shared bot's conversations, each a named tab (D-36).
-  router.register("POST", "/api/w/:workspaceSlug/bots/:botId/rooms", auth, handle(async (request, _user, options) =>
-    bots.createRoom(request.params.botId, request.body || {}, options)));
-  router.register("POST", "/api/w/:workspaceSlug/bots/:botId/rooms/app", auth, handle(async (request, _user, options) =>
-    bots.roomForApp(request.params.botId, request.body || {}, options)));
-  router.register("PATCH", "/api/w/:workspaceSlug/bots/:botId/rooms/:roomId", auth, handle(async (request, _user, options) =>
-    bots.renameRoom(request.params.botId, request.params.roomId, request.body || {}, options)));
-  // A conversation archived and resumed (D-101): a shared tab, or with the person's own conversation's id their You only.
-  // Each answers the bot as listed; the archived ones the person sees are read when their list opens.
-  router.register("POST", "/api/w/:workspaceSlug/bots/:botId/rooms/:roomId/archive", auth, handle(async (request, _user, options) =>
-    bots.archiveRoom(request.params.botId, request.params.roomId, options)));
-  router.register("POST", "/api/w/:workspaceSlug/bots/:botId/rooms/:roomId/resume", auth, handle(async (request, _user, options) =>
-    bots.resumeRoom(request.params.botId, request.params.roomId, options)));
-  router.register("GET", "/api/w/:workspaceSlug/bots/:botId/archived", auth, handle(async (request, _user, options) =>
-    bots.archivedConversations(request.params.botId, options)));
-  // A whole bot archived and unarchived for everyone in the home (D-108), by whoever made it and the home's owners and
-  // admins. Each answers the bot as listed.
-  router.register("POST", "/api/w/:workspaceSlug/bots/:botId/archive", auth, handle(async (request, _user, options) =>
-    bots.archiveBot(request.params.botId, options), { archived: true }));
-  router.register("POST", "/api/w/:workspaceSlug/bots/:botId/unarchive", auth, handle(async (request, _user, options) =>
-    bots.unarchiveBot(request.params.botId, options), { archived: true }));
-  router.register("DELETE", "/api/w/:workspaceSlug/bots/:botId", auth, handle(async (request, _user, options) =>
-    bots.deleteBot(request.params.botId, options), { archived: true }));
   // A bot's template and additions (D-98), for its Details panel's Instructions; PATCH …/bots/:botId changes its
   // additions, and PUT …/template points it at another template ({ library: slug } or { home: id }), or at a new one of
   // the home's made from a draft ({ draft, foldAdditions }).
-  router.register("GET", "/api/w/:workspaceSlug/bots/:botId/instructions", auth, handle(async (request, _user, options) =>
+  router.register("GET", `${home}/bots/:botId/instructions`, auth, handle(async (request, _user, options) =>
     bots.instructionsOf(request.params.botId, options)));
+  router.register("PUT", `${home}/bots/:botId/template`, auth, handle(async (request, user, options) => ({
+    bot: await bots.changeTemplate(request.params.botId, body(request), user.displayName, options)
+  })));
   // What a bot knows (D-107), in its Details panel: everyone in the home reads it; its maker and the home's owners and
   // admins add pasted text ({ title, text }, up to a book: the body limit is a whole piece's) or a file they put in the
   // bot's folder ({ title, file }), change a piece's title or text, remove it, or try a failed one again. Each change
   // answers the whole list, as the list does.
-  const knowledgeAt = "/api/w/:workspaceSlug/bots/:botId/knowledge";
+  const knowledgeAt = `${home}/bots/:botId/knowledge`;
   const bookSized = { ...auth, bodyLimit: KNOWLEDGE_BODY_LIMIT };
   router.register("GET", knowledgeAt, auth, handle(async (request, _user, options) =>
     bots.knowledge.list(request.params.botId, options)));
   router.register("POST", knowledgeAt, bookSized, handle(async (request, _user, options) =>
-    bots.knowledge.add(request.params.botId, request.body || {}, options)));
+    bots.knowledge.add(request.params.botId, body(request), options)));
   router.register("GET", `${knowledgeAt}/:knowledgeId`, auth, handle(async (request, _user, options) =>
     bots.knowledge.read(request.params.botId, request.params.knowledgeId, options)));
   router.register("PATCH", `${knowledgeAt}/:knowledgeId`, bookSized, handle(async (request, _user, options) =>
-    bots.knowledge.change(request.params.botId, request.params.knowledgeId, request.body || {}, options)));
+    bots.knowledge.change(request.params.botId, request.params.knowledgeId, body(request), options)));
   router.register("DELETE", `${knowledgeAt}/:knowledgeId`, auth, handle(async (request, _user, options) =>
     bots.knowledge.remove(request.params.botId, request.params.knowledgeId, options)));
   router.register("POST", `${knowledgeAt}/:knowledgeId/retry`, auth, handle(async (request, _user, options) =>
     bots.knowledge.retry(request.params.botId, request.params.knowledgeId, options)));
-  router.register("PUT", "/api/w/:workspaceSlug/bots/:botId/template", auth, handle(async (request, user, options) => ({
-    bot: await bots.changeTemplate(request.params.botId, request.body || {}, user.displayName, options)
-  })));
-  router.register("GET", "/api/w/:workspaceSlug/bots/:botId/routines", auth, handle(async (request, _user, options) => ({
-    routines: await bots.routines(request.params.botId, options)
-  })));
-  router.register("PATCH", "/api/w/:workspaceSlug/bots/:botId/routines/:routineId", auth, handle(async (request, _user, options) => ({
-    routine: await bots.setRoutineEnabled(request.params.botId, request.params.routineId, request.body?.enabled, options)
-  })));
-  router.register("POST", "/api/w/:workspaceSlug/bots/:botId/voice-call", auth, handle(async (request, _user, options) =>
-    bots.recordVoiceCall(request.params.botId, request.body?.seconds, options)));
-  router.register("POST", "/api/w/:workspaceSlug/bots/:botId/teach/start", auth, handle(async (request, _user, options) => {
-    await unlessPaused(request);
-    return bots.startTeaching(request.params.botId, options);
-  }));
-  router.register("POST", "/api/w/:workspaceSlug/bots/:botId/teach/stop", auth, handle(async (request, _user, options) =>
-    bots.stopTeaching(request.params.botId, { discard: request.body?.discard === true }, options)));
-  router.register("DELETE", "/api/w/:workspaceSlug/bots/:botId/routines/:routineId", auth, handle(async (request, _user, options) =>
-    bots.deleteRoutine(request.params.botId, request.params.routineId, options)));
-  router.register("PUT", "/api/w/:workspaceSlug/bot-pins", auth, handle(async (request, _user, options) => ({
-    bots: await bots.reorderPins(request.body?.botIds, options)
-  })));
-  router.register("POST", "/api/w/:workspaceSlug/bot-sections", auth, handle(async (request, _user, options) =>
-    bots.createSection({ name: request.body?.name, botId: request.body?.botId }, options)));
-  router.register("PATCH", "/api/w/:workspaceSlug/bot-sections/:sectionId", auth, handle(async (request, _user, options) => ({
-    section: await bots.updateSection(request.params.sectionId, request.body || {}, options)
-  })));
-  router.register("POST", "/api/w/:workspaceSlug/bot-sections/:sectionId/move", auth, handle(async (request, _user, options) =>
-    bots.moveSection(request.params.sectionId, request.body?.direction, options)));
-  router.register("DELETE", "/api/w/:workspaceSlug/bot-sections/:sectionId", auth, handle(async (request, _user, options) =>
-    bots.deleteSection(request.params.sectionId, options)));
 
-  // A person's approval rules and auto-review are their own, the same in every home (bot_policies, approval_rules).
-  router.register("GET", "/api/w/:workspaceSlug/bot-policy", auth, handle((_request, _user, options) => approvals.policy(options)));
-  router.register("PATCH", "/api/w/:workspaceSlug/bot-policy", auth, handle((request, _user, options) =>
+  // A person's approval rules and auto-review are their own in each home (bot_policies, approval_rules).
+  router.register("GET", `${home}/bot-policy`, auth, handle((_request, _user, options) => approvals.policy(options)));
+  router.register("PATCH", `${home}/bot-policy`, auth, handle((request, _user, options) =>
     approvals.setAutoReview(request.body?.autoReview, options)));
-  router.register("POST", "/api/w/:workspaceSlug/bot-policy/rules", auth, handle((request, _user, options) =>
-    approvals.addRule(request.body || {}, options)));
-  router.register("PATCH", "/api/w/:workspaceSlug/bot-policy/rules/:ruleId", auth, handle((request, _user, options) =>
-    approvals.updateRule(request.params.ruleId, request.body || {}, options)));
-  router.register("DELETE", "/api/w/:workspaceSlug/bot-policy/rules/:ruleId", auth, handle((request, _user, options) =>
+  router.register("POST", `${home}/bot-policy/rules`, auth, handle((request, _user, options) => approvals.addRule(body(request), options)));
+  router.register("PATCH", `${home}/bot-policy/rules/:ruleId`, auth, handle((request, _user, options) =>
+    approvals.updateRule(request.params.ruleId, body(request), options)));
+  router.register("DELETE", `${home}/bot-policy/rules/:ruleId`, auth, handle((request, _user, options) =>
     approvals.deleteRule(request.params.ruleId, options)));
 }

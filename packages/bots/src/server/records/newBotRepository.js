@@ -8,17 +8,17 @@ const inIdOrder = (rows) => rows.toSorted((first, second) => Number(first.id) - 
 
 /**
  * New bots, made together (D-105): New bot makes one and a team several through the same writes, each one statement
- * for all of them, so making six costs the statements making one does. Every method takes the call's options last.
+ * for all of them, so making six costs the statements making one does. A new bot is in no chat until someone adds it
+ * or opens a direct chat with it (records.chats). Every method takes the call's options last.
  * @param {object} dependencies
  * @param {Record<string, import("@jskit-ai/resource-runtime/server/types").ResourceHandle>} dependencies.resources the
  *   records feature's handles
- * @param {(reason: string) => import("@jskit-ai/resource-runtime/server/types").SystemContext} dependencies.systemContext
  * @param {import("../types.js").HomeTemplateRepository} dependencies.homeTemplates the home's own templates (D-98), whose
  *   tag and description every bot read here carries
  */
-export function createNewBotRepository({ resources, systemContext, homeTemplates }) {
-  const { bots, botConversations: conversations, botMessages: messages } = resources;
-  const { asRow, personOf } = createCallerReaders(systemContext);
+export function createNewBotRepository({ resources, homeTemplates }) {
+  const { bots, messages } = resources;
+  const { asRow } = createCallerReaders();
 
   /**
    * New bots of the home, given in their columns' names, read back in the order given, each with its home template's
@@ -32,44 +32,20 @@ export function createNewBotRepository({ resources, systemContext, homeTemplates
   }
 
   /**
-   * The person's own conversation with each new bot, in the order given: its first columns, as its rows name them.
-   * A bot just made has none yet, so nothing can make one first.
-   * @param {Array<Record<string, unknown>>} rows each with bot_id
-   * @param {CallOptions} options
-   */
-  async function createSeats(rows, options) {
-    const person = personOf(options);
-    const records = await conversations.createMany(rows.map((row) => fieldsOf({ ...row, user_id: person })), {
-      ...passedOn(options),
-      returning: "records"
-    });
-    return inIdOrder(records).map((record) => asRow(record, options));
-  }
-
-  /**
-   * New bots' first messages, in their people's own conversations: what a bot opens with, written as it is made.
-   * @param {Array<{ bot_id: string, conversation_id: string, kind: string, role: string, body: object }>} list
+   * New bots' first messages in a chat, written as they're made: unlike messages.append they neither mark the chat
+   * unread nor move its activity. Each is the bot's own (author_bot_id).
+   * @param {Array<{ chat_id: string, bot_id: string, kind: string, body: object }>} list
    * @param {CallOptions} options
    */
   async function openWith(list, options) {
     if (!list.length) return;
-    await messages.createMany(list.map((message) => fieldsOf(message)), { ...passedOn(options), returning: "none" });
-  }
-
-  /**
-   * New Shared bots' first tabs (D-99, D-100): each bot's General, for everyone in the home, and its maker's own
-   * conversation made its open tab, You only. Answers the General tabs in the order of the bots given.
-   * @param {Array<{ bot: { id: string }, seat: { id: string } }>} made
-   * @param {CallOptions} options
-   */
-  async function startTabs(made, options) {
-    const person = personOf(options);
-    const rooms = await conversations.createMany(made.map(({ bot }) => ({ botId: bot.id, title: "General", createdBy: person })), {
-      ...passedOn(options),
-      returning: "records"
-    });
-    await conversations.patchMany(made.map(({ seat }) => ({ id: seat.id, roomId: seat.id })), { ...passedOn(options), returning: "none" });
-    return inIdOrder(rooms).map((room) => asRow(room, options));
+    await messages.createMany(list.map((message) => ({
+      conversationId: String(message.chat_id),
+      authorBotId: String(message.bot_id),
+      role: "bot",
+      kind: message.kind,
+      body: message.body
+    })), { ...passedOn(options), returning: "none" });
   }
 
   /**
@@ -91,24 +67,24 @@ export function createNewBotRepository({ resources, systemContext, homeTemplates
   }
 
   /**
-   * Whether the home has a bot besides its main one (group chats aside): a new home's first conversation offers a team
-   * only while it hasn't (D-105). One read of at most one row.
+   * Whether the home has a bot besides its main one: a new home's first chat offers a team only while it hasn't
+   * (D-105). One read of at most one row.
    * @param {CallOptions} options
    */
   async function anyBesidesMain(options) {
-    const { records } = await bots.query({ filters: { isMain: false, kind: "bot" }, page: { size: 1 } }, passedOn(options));
+    const { records } = await bots.query({ filters: { isMain: false }, page: { size: 1 } }, passedOn(options));
     return records.length > 0;
   }
 
   /**
-   * The home's bots (group chats aside), newest first, up to `limit` of them, with their names, looks and templates, and
+   * The home's bots, newest first, up to `limit` of them, with their names, looks and templates, and
    * whether it has more: what Add bots' suggestions are told of the home (D-109). One read of one page, at most `limit` rows.
    * @param {number} limit
    * @param {CallOptions} options
    */
   async function homeBots(limit, options) {
     const { records, page } = await bots.query(
-      { filters: { kind: "bot" }, fields: ["name", "shape", "color", "libraryTemplate", "homeTemplateId"], sort: ["-id"], page: { size: limit } },
+      { fields: ["name", "shape", "color", "libraryTemplate", "homeTemplateId"], sort: ["-id"], page: { size: limit } },
       passedOn(options)
     );
     return { bots: records.map((record) => asRow(record, options)), more: page.hasMore };
@@ -119,8 +95,6 @@ export function createNewBotRepository({ resources, systemContext, homeTemplates
     anyBesidesMain,
     homeBots,
     createBots,
-    createSeats,
-    openWith,
-    startTabs
+    openWith
   });
 }

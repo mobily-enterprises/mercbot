@@ -7,6 +7,9 @@ import { UsersIdentityProvider } from "@jskit-ai/users-core/server/UsersIdentity
 import { WorkspaceRecordsFeature } from "@jskit-ai/workspaces-core/test/WorkspaceRecordsFeature";
 import { AccountFeature } from "../../packages/account/src/server/AccountFeature.js";
 import { BotRecordsFeature } from "../../packages/bots/src/server/records/BotRecordsFeature.js";
+import { COMPUTER_OWNS } from "../../packages/computer/src/server/ComputerFeature.js";
+import { FILES_OWNS } from "../../packages/files/src/server/FilesFeature.js";
+import { INTEGRATIONS_OWNS } from "../../packages/integrations/src/server/IntegrationsFeature.js";
 import { requestContextOptions } from "./requestContextOptions.mjs";
 
 const OWNERS = Object.freeze([BotRecordsFeature, WorkspaceRecordsFeature, UsersIdentityProvider, UsersExtensionsProvider]);
@@ -84,6 +87,30 @@ export async function startBotRecordsForChecks(knex, context) {
   context.after(stop);
   const systemContext = resources.declareSystemScope("tests.bots", "seed and read back the bots tests' homes");
   return { records: capabilities.records, handles: kept.handles, systemContext };
+}
+
+/**
+ * The bots' records as startBotRecordsForChecks starts them, with the computers', files' and integrations' tables
+ * owned beside them under their features' own row policies (COMPUTER_OWNS, FILES_OWNS, INTEGRATIONS_OWNS), which narrow
+ * through the records' chat rules: for the chat privacy tests (D-112), which read a chat's computer, its command runs
+ * and a person's skills as their features would, without starting those features.
+ * @param {import("knex").Knex} knex the test database
+ * @param {{ after: (work: () => unknown) => void }} context the test's context, for its cleanup
+ */
+export async function startChatRecords(knex, context) {
+  const kept = {};
+  const { capabilities, resources, stop } = await startTestFeatures({
+    knex,
+    features: [keepingHandles(BotRecordsFeature, kept), ...OWNERS.slice(1)],
+    requires: { records: "mercbot.bots.records" }
+  });
+  context.after(stop);
+  const requires = { records: capabilities.records };
+  const computer = await resources.own("mercbot.computer", COMPUTER_OWNS, { requires });
+  const integrations = await resources.own("mercbot.integrations", INTEGRATIONS_OWNS, { requires });
+  const files = await resources.own("mercbot.files", FILES_OWNS, { requires });
+  const systemContext = resources.declareSystemScope("tests.chats", "seed and read back the chat privacy tests' homes");
+  return { records: capabilities.records, handles: kept.handles, computer, files, integrations, systemContext };
 }
 
 /**

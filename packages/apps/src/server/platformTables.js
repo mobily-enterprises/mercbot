@@ -183,11 +183,16 @@ const PLATFORM_OWNS = Object.freeze([
   { resource: appResource, searchSchema: appSearch },
   { resource: appVersionResource, searchSchema: appVersionSearch },
   { resource: appScriptResource, searchSchema: appScriptSearch },
-  { resource: appWatcheResource, searchSchema: appWatchSearch },
+  // A watch and a job of a bot in a chat are read by whoever may read that chat (the bots' chat rule, D-112).
+  {
+    resource: appWatcheResource,
+    searchSchema: appWatchSearch,
+    rowPolicy: ({ requires, ...args }) => requires.records.rules.chatBotRule(args)
+  },
   { resource: appTableResource, searchSchema: appTableSearch },
   { resource: appFieldResource, searchSchema: appFieldSearch },
   { resource: auditEventResource, searchSchema: auditSearch },
-  { resource: appJobResource, searchSchema: appJobSearch },
+  { resource: appJobResource, searchSchema: appJobSearch, rowPolicy: ({ requires, ...args }) => requires.records.rules.chatBotRule(args, "chatBotId", { nullable: true }) },
   { resource: appPracticeResource, searchSchema: appPracticeSearch },
   // The web addresses a home lets its scripts reach, looked up by origin (webAccess.js).
   { resource: appWebAccessResource, searchSchema: { origin: { type: "string", actualField: "origin", filterOperator: "=" } } }

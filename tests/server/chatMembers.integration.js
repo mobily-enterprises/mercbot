@@ -1,0 +1,180 @@
+import assert from "node:assert/strict";
+import { randomBytes } from "node:crypto";
+import test, { after } from "node:test";
+import { createChatMembers } from "../../packages/bots/src/server/chatMembers.js";
+import { memberOptions, startChatRecords } from "../support/botRecords.mjs";
+import { connectTestDatabase } from "../support/testDatabase.mjs";
+
+// A chat's members (D-112, R2) through records.chats: who a chat starts with and its kind (Public unless Private was
+// chosen, D15), adding and removing people and bots, a direct chat taking no one else, the last person out of a
+// private chat deleting it, unread for the others, and the home's everyone chat following who joins and leaves; then the
+// chat routes' service over them (chatMembers.js): who may add, remove, rename, archive and delete, and who is told.
+assert.ok(process.env.TEST_DB_NAME?.trim(), "TEST_DB_NAME must identify a disposable test database.");
+assert.equal(process.env.DB_NAME, process.env.TEST_DB_NAME, "DB_NAME must match the dedicated TEST_DB_NAME.");
+
+// One connection pool for the file, closed after every test's own cleanup has run.
+const knex = await connectTestDatabase();
+after(() => knex.destroy());
+
+/** A home with Anna (owner) and Ben, Carla not in it yet, and two bots. */
+async function home(knex, context) {
+  const [anna, ben, carla] = (await knex("users").orderBy("id").limit(3).pluck("id")).map(String);
+  assert.ok(carla, "the test database needs three users");
+  const [row] = await knex("workspaces").insert({ slug: `members-${randomBytes(5).toString("hex")}`, name: "Rossi", owner_user_id: anna, is_personal: false }).returning("id");
+  const homeId = String(row.id);
+  context.after(() => knex("workspaces").where({ id: homeId }).del());
+  await knex("workspace_memberships").insert([
+    { workspace_id: homeId, user_id: anna, role_sid: "owner", status: "active" },
+    { workspace_id: homeId, user_id: ben, role_sid: "member", status: "active" }
+  ]);
+  const bot = async (name, columns = {}) => String((await knex("bots").insert({ workspace_id: homeId, made_by: anna, name, color: "#1E86FC", ...columns }).returning("id"))[0].id);
+  return { homeId, anna, ben, carla, chef: await bot("Chef"), pulse: await bot("Pulse", { archived_at: new Date() }) };
+}
+
+const peopleIn = async (records, chatId, options) => (await records.chats.people(chatId, options)).map((person) => person.user_id).sort((a, b) => a - b);
+
+test("a new chat is Public unless Private is chosen, starts with its maker, and takes only the home's people", async (context) => {
+  const { records } = await startChatRecords(knex, context);
+  const { homeId, anna, ben, carla, chef, pulse } = await home(knex, context);
+  const asAnna = memberOptions({ userId: anna, homeId });
+
+  const kitchen = await records.chats.create({ title: "Kitchen", people: [ben], bots: [chef] }, asAnna);
+  assert.equal(kitchen.kind, "public", "Public by default (D15), whoever is in it");
+  const solo = await records.chats.create({ title: "Just me and Chef", bots: [chef] }, asAnna);
+  assert.equal(solo.kind, "public", "a chat of one person and one bot too");
+  assert.deepEqual(await peopleIn(records, kitchen.id, asAnna), [anna, ben].sort((a, b) => a - b), "the maker is in it");
+  assert.deepEqual((await records.chats.bots(kitchen.id, asAnna)).map((bot) => bot.bot_id), [chef]);
+  const secret = await records.chats.create({ kind: "private", title: "Surprise", bots: [chef] }, asAnna);
+  assert.equal(secret.kind, "private");
+  await assert.rejects(records.chats.create({ kind: "group" }, asAnna), { statusCode: 400 });
+  await assert.rejects(records.chats.create({ people: [carla] }, asAnna), { statusCode: 404 }, "Carla isn't in the home");
+  await assert.rejects(records.chats.create({ bots: [pulse] }, asAnna), { statusCode: 409 }, "an archived bot joins no chat");
+});
+
+test("people and bots are added and removed; a direct chat takes no one else; the last person out deletes a private chat", async (context) => {
+  const { records } = await startChatRecords(knex, context);
+  const { homeId, anna, ben, carla, chef, pulse } = await home(knex, context);
+  const asAnna = memberOptions({ userId: anna, homeId });
+  const asBen = memberOptions({ userId: ben, homeId });
+
+  const plans = await records.chats.create({ kind: "private", title: "Plans", bots: [chef] }, asAnna);
+  await assert.rejects(records.chats.addPerson(plans.id, ben, asBen), { statusCode: 404 }, "Ben can't add himself to a private chat he can't open");
+  assert.equal(await records.chats.addPerson(plans.id, ben, asAnna), true);
+  assert.equal(await records.chats.addPerson(plans.id, ben, asAnna), false, "adding someone twice adds them once");
+  await assert.rejects(records.chats.addPerson(plans.id, carla, asAnna), { statusCode: 404 });
+  await assert.rejects(records.chats.addBot(plans.id, pulse, asAnna), { statusCode: 409 });
+  const seat = await records.chats.addBot(plans.id, chef, asAnna);
+  assert.equal(seat.bot_id, chef, "adding a bot that's in it answers its seat");
+
+  // A direct chat is one person's with one bot, Public (D15), made once.
+  const direct = await records.chats.direct(chef, asAnna);
+  assert.equal(direct.kind, "public");
+  assert.equal((await records.chats.direct(chef, asAnna)).id, direct.id);
+  await assert.rejects(records.chats.addPerson(direct.id, ben, asAnna), { statusCode: 409 });
+  await assert.rejects(records.chats.rename(direct.id, "Mine", asAnna), { statusCode: 409 });
+
+  // Unread: Anna's message is news for Ben, not for her; Ben reading clears it.
+  await records.chats.markRead(plans.id, null, asBen);
+  await records.messages.append(plans.id, [{ role: "user", kind: "text", body: { text: "oak or pine?" } }], asAnna);
+  assert.equal((await records.chats.place(plans.id, asBen)).unread, true);
+  assert.equal((await records.chats.place(plans.id, asAnna)).unread, false);
+
+  // Removing a bot takes its seat; the last person out of a private chat deletes it.
+  assert.equal(await records.chats.removeBot(plans.id, chef, asAnna), true);
+  assert.equal(await records.chats.removePerson(plans.id, ben, asAnna), false);
+  assert.equal(await records.chats.removePerson(plans.id, anna, asAnna), true);
+  assert.equal(await knex("conversations").where({ id: plans.id }).first("id"), undefined);
+  // A public chat stays when its people leave: everyone in the home can still open it.
+  const garden = await records.chats.create({ title: "Garden" }, asAnna);
+  assert.equal(await records.chats.removePerson(garden.id, anna, asAnna), false);
+  assert.ok(await records.chats.find(garden.id, asBen));
+});
+
+test("the everyone chat has every member; joining and leaving the home follow it, and leaving tidies up", async (context) => {
+  const { records } = await startChatRecords(knex, context);
+  const { homeId, anna, ben, carla, chef } = await home(knex, context);
+  const asAnna = memberOptions({ userId: anna, homeId });
+  const asBen = memberOptions({ userId: ben, homeId });
+
+  const family = await records.chats.makeEveryoneChat({ title: "Rossi", bots: [chef] }, asAnna);
+  assert.equal(family.everyone, true);
+  assert.equal((await records.chats.makeEveryoneChat({ title: "Again" }, asAnna)).id, family.id, "one per home");
+  assert.deepEqual(await peopleIn(records, family.id, asAnna), [anna, ben].sort((a, b) => a - b));
+
+  await knex("workspace_memberships").insert({ workspace_id: homeId, user_id: carla, role_sid: "member", status: "active" });
+  assert.equal(await records.chats.personJoined(carla, asAnna), true);
+  assert.deepEqual(await peopleIn(records, family.id, asAnna), [anna, ben, carla].sort((a, b) => a - b));
+
+  // Ben's own private chat goes with him, a shared one stays; the routines he made pause; his words stay.
+  const bensOwn = await records.chats.create({ kind: "private", title: "Ben's", bots: [chef] }, asBen);
+  const shared = await records.chats.create({ kind: "private", title: "Shared", people: [anna], bots: [chef] }, asBen);
+  const seat = await records.chats.chatBotOf(chef, shared.id, asBen);
+  await knex("bot_routines").insert({ workspace_id: homeId, chat_bot_id: seat.id, made_by: ben, name: "Ben's routine", schedule: "every day", instructions: "x", enabled: true });
+  await records.messages.append(shared.id, [{ role: "user", kind: "text", body: { text: "from Ben" } }], asBen);
+  const deleted = await records.chats.personLeft(ben, asAnna);
+  assert.deepEqual(deleted, [bensOwn.id]);
+  assert.deepEqual(await peopleIn(records, shared.id, asAnna), [anna]);
+  assert.deepEqual(await peopleIn(records, family.id, asAnna), [anna, carla].sort((a, b) => a - b));
+  assert.equal((await knex("bot_routines").where({ chat_bot_id: seat.id }).first("enabled")).enabled, false);
+  assert.equal((await records.messages.timeline(shared.id, {}, asAnna)).messages[0].body.text, "from Ben");
+});
+
+test("the chat routes' service: anyone in a chat adds, its maker and the home's owners and admins manage, everyone in it hears", async (context) => {
+  const { records } = await startChatRecords(knex, context);
+  const { homeId, anna, ben, carla, chef } = await home(knex, context);
+  await knex("workspace_memberships").insert({ workspace_id: homeId, user_id: carla, role_sid: "member", status: "active" });
+  const heard = [];
+  const chats = createChatMembers({ records, notices: { publishEach: async (_topic, keys, event) => heard.push({ keys: [...keys].sort((a, b) => a - b), ...event }) } });
+  const asAnna = memberOptions({ userId: anna, homeId, role: "owner", permissions: ["workspace.settings.update"] });
+  const asBen = memberOptions({ userId: ben, homeId });
+  const asCarla = memberOptions({ userId: carla, homeId });
+  const both = [anna, ben].sort((a, b) => a - b);
+
+  // Ben starts Kitchen with Anna: Public (D15), and both hear of it.
+  const { chat: kitchen } = await chats.create({ title: "Kitchen", people: [anna], bots: [chef] }, asBen);
+  assert.equal(kitchen.kind, "public");
+  assert.deepEqual(kitchen.people.map((person) => person.userId).sort((a, b) => a - b), both);
+  assert.deepEqual(kitchen.bots.map((bot) => bot.botId), [chef]);
+  assert.deepEqual(heard.pop(), { keys: both, type: "chat", chatId: kitchen.id, change: "created" });
+
+  // Carla isn't in it: she reads it (public) but adds no one until she joins.
+  assert.equal((await chats.get(kitchen.id, asCarla)).chat.place, null);
+  await assert.rejects(chats.addPerson(kitchen.id, carla, asCarla), { statusCode: 403, code: "bots_chat_join_first" });
+  assert.ok((await chats.join(kitchen.id, asCarla)).chat.place, "joined, she has a place in it");
+  assert.deepEqual(heard.pop().keys, [anna, ben, carla].sort((a, b) => a - b));
+
+  // Only its maker (Ben) and the home's owners and admins (Anna) manage it.
+  await assert.rejects(chats.rename(kitchen.id, "Mine", asCarla), { statusCode: 403, code: "bots_chat_manage_forbidden" });
+  await assert.rejects(chats.removePerson(kitchen.id, ben, asCarla), { statusCode: 403 });
+  assert.equal((await chats.rename(kitchen.id, "Kitchen reno", asAnna)).chat.title, "Kitchen reno");
+  assert.equal((await chats.rename(kitchen.id, "Kitchen 2", asBen)).chat.title, "Kitchen 2");
+  assert.equal((await chats.removePerson(kitchen.id, carla, asAnna)).chat.people.length, 2);
+  assert.deepEqual(heard.at(-2), { keys: [carla], type: "chat", chatId: kitchen.id, change: "members" }, "who was taken out hears too");
+  // Anyone leaves; a public chat stays readable to who left it.
+  assert.equal((await chats.leave(kitchen.id, asBen)).chat.place, null);
+
+  // A private chat is a 404 to anyone outside it, joining included.
+  const { chat: secret } = await chats.create({ kind: "private", title: "Surprise", people: [anna], bots: [chef] }, asBen);
+  await assert.rejects(chats.get(secret.id, asCarla), { statusCode: 404 });
+  await assert.rejects(chats.join(secret.id, asCarla), { statusCode: 404 });
+  // Archived, it takes no members; deleted, its people hear; leaving the last person deletes a private chat.
+  await chats.archive(secret.id, asAnna);
+  await assert.rejects(chats.addBot(secret.id, chef, asBen), { statusCode: 409, code: "bots_chat_archived" });
+  await chats.unarchive(secret.id, asBen);
+  await assert.rejects(chats.remove(secret.id, asCarla), { statusCode: 404 });
+  assert.deepEqual(await chats.remove(secret.id, asAnna), { deleted: true });
+  assert.deepEqual(heard.pop(), { keys: both, type: "chat", chatId: secret.id, change: "deleted" });
+  const { chat: alone } = await chats.create({ kind: "private", title: "Notes" }, asCarla);
+  assert.deepEqual(await chats.leave(alone.id, asCarla), { deleted: true });
+
+  // The list: the chats Ben is in, each with its people, bots, latest message and his place; and a direct chat.
+  await records.messages.append(kitchen.id, [{ role: "user", kind: "text", body: { text: "oak it is" } }], asAnna);
+  const { chat: withChef } = await chats.direct(chef, asBen);
+  assert.equal(withChef.directBotId, chef);
+  const { chats: listed } = await chats.list({}, asAnna);
+  const row = listed.find((chat) => chat.id === kitchen.id);
+  assert.equal(row.latest.preview, "oak it is");
+  assert.equal(row.latest.authorUserId, anna);
+  assert.equal(row.place.unread, false);
+  assert.equal((await chats.list({}, asBen)).chats.some((chat) => chat.id === withChef.id), true);
+});

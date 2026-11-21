@@ -105,25 +105,28 @@ export function botsOf(knex) {
   return Object.freeze({
     directory: Object.freeze({
       async listHomeBots(options) {
-        const rows = await inHome(options).where({ kind: "bot" }).orderBy("id").select("id", "name", "archived_at");
+        const rows = await inHome(options).orderBy("id").select("id", "name", "archived_at");
         return rows.map((row) => ({ id: String(row.id), name: row.name, archived: Boolean(row.archived_at) }));
       },
-      async findBot(botId, options, { kind } = {}) {
-        const row = await inHome(options).where({ id: botId, ...(kind ? { kind } : {}) })
-          .first("id", "name", "color", "shape", "kind", "sharing", "user_id", "archived_at");
+      async findBot(botId, options) {
+        const row = await inHome(options).where({ id: botId }).first("id", "name", "color", "shape", "made_by", "archived_at");
         return row
           ? {
             id: String(row.id),
             name: row.name,
             color: row.color,
             shape: row.shape,
-            kind: row.kind,
-            sharing: row.sharing,
-            userId: String(row.user_id),
+            madeBy: row.made_by == null ? null : String(row.made_by),
             archivedAt: row.archived_at ? new Date(row.archived_at).toISOString() : null
           }
           : null;
       }
+    }),
+    // The chat rules the apps' watches and jobs narrow by (records/rowPolicies.js createChatRules), which the bots'
+    // own tests cover: here only an anonymous caller is refused.
+    rules: Object.freeze({
+      chatBotRule: ({ caller }) => caller.kind !== "anonymous",
+      personalRule: ({ caller }) => caller.kind !== "anonymous"
     })
   });
 }

@@ -3,15 +3,15 @@
 import { defineTableResource } from "@jskit-ai/resource-core/shared/tableResource";
 
 /** bot_computers
- * addWorkspace from bot_conversations via conversation_id
+ * the computer of one bot in one chat (chat_bot_id, D-112): the chat's, used by whoever can open it
  */
 export const botComputerResource = defineTableResource({
   name: "botComputers",
   tableName: "bot_computers",
   ownership: "workspace",
-  idProperty: "conversation_id",
+  idProperty: "chat_bot_id",
   schema: {
-    id: { type: "id", primary: true, required: true, storage: { column: "conversation_id" } },
+    id: { type: "id", primary: true, required: true, storage: { column: "chat_bot_id" } },
     error: { type: "string", noTrim: true },
     serverId: { type: "string", maxLength: 200, noTrim: true, required: true },
     state: { type: "string", maxLength: 20, noTrim: true, search: true },
@@ -22,15 +22,15 @@ export const botComputerResource = defineTableResource({
 });
 
 /** bot_browser_state
- * addWorkspace from bot_conversations via conversation_id
+ * the saved browser of one bot's computer in one chat (chat_bot_id)
  */
 export const botBrowserStateResource = defineTableResource({
   name: "botBrowserState",
   tableName: "bot_browser_state",
   ownership: "workspace",
-  idProperty: "conversation_id",
+  idProperty: "chat_bot_id",
   schema: {
-    id: { type: "id", primary: true, required: true, storage: { column: "conversation_id" } },
+    id: { type: "id", primary: true, required: true, storage: { column: "chat_bot_id" } },
     cookiesSavedAt: { type: "dateTime", nullable: true },
     cookiesSha256: { type: "string", maxLength: 64, noTrim: true, nullable: true },
     profileBytes: { type: "integer", nullable: true },
@@ -43,7 +43,7 @@ export const botBrowserStateResource = defineTableResource({
 });
 
 /** computer_tickets
- * addWorkspace from bot_conversations via conversation_id
+ * a screen ticket for one bot's computer in one chat (chat_bot_id)
  * a ticket redeemed without a home (desktop socket) is read in the computer's system scope
  */
 export const computerTicketResource = defineTableResource({
@@ -53,7 +53,7 @@ export const computerTicketResource = defineTableResource({
   idProperty: "ticket",
   schema: {
     id: { type: "string", primary: true, maxLength: 64, noTrim: true, required: true, storage: { column: "ticket" } },
-    conversationId: { type: "id", required: true, search: true },
+    chatBotId: { type: "id", required: true, search: true },
     expiresAt: { type: "dateTime", required: true },
     workspaceId: { type: "id", hidden: true, search: true }
   }

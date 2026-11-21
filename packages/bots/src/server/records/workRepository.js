@@ -1,10 +1,12 @@
 import { randomUUID } from "node:crypto";
 import { passedOn } from "@jskit-ai/resource-core/shared/callOptions";
 
-// The bots' queued work (D-15, D-46): requests between bots, routines, and the request cards
-// in both chats. Every server runs the loops, so each next step is taken with claim() (SKIP LOCKED)
-// in the runner's system context, and leases and due times use the database's clock (now()), as
-// they always have, so servers with different clocks agree on what is due.
+// The bots' queued work (D-15, D-46, D-112): requests between bots, routines, and the request cards in the asking
+// chat. A request is asked by a bot in a chat (from_chat_bot_id) of another bot of the home, its card and answer in
+// that chat; a routine belongs to a bot in a chat (chat_bot_id) and runs as the person who made it (made_by). Every
+// server runs the loops, so each next step is taken with claim() (SKIP LOCKED) in the runner's system context, and
+// leases and due times use the database's clock (now()), as they always have, so servers with different clocks agree on
+// what is due.
 
 /** A request still being worked on (botRequests.js OPEN). */
 export const OPEN_REQUESTS = Object.freeze(["queued", "working", "question", "waiting_approval"]);
@@ -45,12 +47,19 @@ export const REQUEST_SEARCH = Object.freeze({
  * - nameIs: the name, in any case (findRoutine).
  */
 export const ROUTINE_SEARCH = Object.freeze({
-  // The routines still running in the conversations given: what a bot leaving Shared pauses in its rooms (D-99).
+  // The routines still running of the bots in chats given: what an archived bot or chat pauses.
   enabledIn: {
     type: "array",
     items: { type: "id" },
     applyFilter(query, ids, { column }) {
-      query.where(column("enabled"), true).whereIn(column("conversationId"), ids.map(String));
+      query.where(column("enabled"), true).whereIn(column("chatBotId"), ids.map(String));
+    }
+  },
+  // The routines still running that one person made: what their leaving the home pauses.
+  enabledMadeBy: {
+    type: "id",
+    applyFilter(query, id, { column }) {
+      query.where(column("enabled"), true).where(column("madeBy"), String(id));
     }
   },
   due: {
@@ -122,13 +131,13 @@ export function createWorkRepository({ botRequests, botRoutines, botMessages }) 
   }
 
   /**
-   * A request one bot asked another for this person that isn't finished yet, or null.
-   * @param {{ fromBotId: string, toBotId: string, userId: string }} between
+   * A request a bot in a chat asked another bot for this person that isn't finished yet, or null.
+   * @param {{ fromChatBotId: string, toBotId: string, userId: string }} between
    * @param {CallOptions} options
    */
-  function openRequestBetween({ fromBotId, toBotId, userId }, options) {
+  function openRequestBetween({ fromChatBotId, toBotId, userId }, options) {
     return newestRequest(
-      { fromBotId: String(fromBotId), toBotId: String(toBotId), userId: String(userId), statuses: [...OPEN_REQUESTS] },
+      { fromChatBotId: String(fromChatBotId), toBotId: String(toBotId), userId: String(userId), statuses: [...OPEN_REQUESTS] },
       options
     );
   }
@@ -290,33 +299,33 @@ export function createWorkRepository({ botRequests, botRoutines, botMessages }) 
   }
 
   /**
-   * A conversation's routines, in id order.
-   * @param {string} conversationId
+   * A bot's routines in a chat (its chat_bots id), in id order.
+   * @param {string} chatBotId
    * @param {CallOptions} options
    */
-  function routinesOf(conversationId, options) {
-    return botRoutines.queryAll({ filters: { conversationId: String(conversationId) }, sort: ["id"] }, options);
+  function routinesOf(chatBotId, options) {
+    return botRoutines.queryAll({ filters: { chatBotId: String(chatBotId) }, sort: ["id"] }, options);
   }
 
   /**
-   * The conversation's routine with this name, in any case, or null (findRoutine).
-   * @param {string} conversationId
+   * The routine of a bot in a chat with this name, in any case, or null (findRoutine).
+   * @param {string} chatBotId
    * @param {string} name
    * @param {CallOptions} options
    */
-  async function routineNamed(conversationId, name, options) {
-    const { records } = await botRoutines.query({ filters: { conversationId: String(conversationId), nameIs: String(name) }, sort: ["id"], page: { size: 1 } }, options);
+  async function routineNamed(chatBotId, name, options) {
+    const { records } = await botRoutines.query({ filters: { chatBotId: String(chatBotId), nameIs: String(name) }, sort: ["id"], page: { size: 1 } }, options);
     return records[0] ?? null;
   }
 
   /**
-   * A routine of the conversation by id, or null.
+   * A routine of a bot in a chat by id, or null.
    * @param {string} routineId
-   * @param {string} conversationId
+   * @param {string} chatBotId
    * @param {CallOptions} options
    */
-  async function routineOf(routineId, conversationId, options) {
-    const filters = { id: String(routineId), conversationId: String(conversationId) };
+  async function routineOf(routineId, chatBotId, options) {
+    const filters = { id: String(routineId), chatBotId: String(chatBotId) };
     const [found = null] = await botRoutines.queryAll({ filters }, options);
     return found;
   }
@@ -341,24 +350,34 @@ export function createWorkRepository({ botRequests, botRoutines, botMessages }) 
   }
 
   /**
-   * Pauses every running routine of the conversations given, as a person pausing each would, and answers them
-   * (D-99: a bot leaving Shared hides its rooms). One statement, however many.
-   * @param {string[]} conversationIds
+   * Pauses every running routine of the bots in chats given, as a person pausing each would, and answers them (an
+   * archived bot or chat). One statement, however many.
+   * @param {string[]} chatBotIds
    * @param {CallOptions} options
    */
-  async function pauseRoutinesIn(conversationIds, options) {
-    if (!conversationIds.length) return [];
-    return botRoutines.patchWhere({ enabledIn: conversationIds }, { enabled: false, nextRunAt: null }, { ...options, returning: "records" });
+  async function pauseRoutinesIn(chatBotIds, options) {
+    if (!chatBotIds.length) return [];
+    return botRoutines.patchWhere({ enabledIn: chatBotIds }, { enabled: false, nextRunAt: null }, { ...options, returning: "records" });
   }
 
   /**
-   * Deletes a routine of the conversation; answers whether one was deleted.
-   * @param {string} routineId
-   * @param {string} conversationId
+   * Pauses every running routine one person made, and answers them: they left the home, and a routine runs as the
+   * person who made it (D-112). One statement, however many.
+   * @param {string} userId
    * @param {CallOptions} options
    */
-  async function deleteRoutine(routineId, conversationId, options) {
-    const deleted = await botRoutines.deleteWhere({ id: String(routineId), conversationId: String(conversationId) }, { ...options, returning: "count" });
+  async function pauseRoutinesMadeBy(userId, options) {
+    return botRoutines.patchWhere({ enabledMadeBy: String(userId) }, { enabled: false, nextRunAt: null }, { ...options, returning: "records" });
+  }
+
+  /**
+   * Deletes a routine of a bot in a chat; answers whether one was deleted.
+   * @param {string} routineId
+   * @param {string} chatBotId
+   * @param {CallOptions} options
+   */
+  async function deleteRoutine(routineId, chatBotId, options) {
+    const deleted = await botRoutines.deleteWhere({ id: String(routineId), chatBotId: String(chatBotId) }, { ...options, returning: "count" });
     return Number(deleted) > 0;
   }
 
@@ -386,18 +405,19 @@ export function createWorkRepository({ botRequests, botRoutines, botMessages }) 
     createRoutine,
     changeRoutine,
     pauseRoutinesIn,
+    pauseRoutinesMadeBy,
     deleteRoutine
   });
 }
 
 // What a claimed request and routine read: every stored field, as a plain read answers them.
 const REQUEST_FIELDS = Object.freeze([
-  "answer", "attempts", "brief", "chain", "createdAt", "deadlineAt", "depth", "fromBotId", "fromConversationId", "fromMessageId", "kind",
-  "language", "lastError", "leaseUntil", "nextStep", "parentId", "question", "questions", "reply", "runAfter", "status", "timeZone",
-  "toBotId", "toConversationId", "toMessageId", "turns", "updatedAt", "userId"
+  "answer", "attempts", "brief", "chain", "conversationId", "createdAt", "deadlineAt", "depth", "fromChatBotId", "kind",
+  "language", "lastError", "leaseUntil", "messageId", "nextStep", "parentId", "question", "questions", "reply", "runAfter", "status",
+  "steps", "timeZone", "toBotId", "turns", "updatedAt", "userId"
 ]);
 const ROUTINE_FIELDS = Object.freeze([
-  "botId", "conversationId", "createdAt", "cron", "enabled", "failures", "feeds", "instructions", "lastRunAt", "name", "nextRunAt", "once", "runAttempts",
+  "chatBotId", "createdAt", "cron", "enabled", "failures", "feeds", "instructions", "lastRunAt", "madeBy", "name", "nextRunAt", "once", "runAttempts",
   "runId", "runLeaseUntil", "runSteps", "schedule", "timezone"
 ]);
 /** A routine with no run in progress. */

@@ -45,9 +45,9 @@ export const shellRunResource = defineTableResource({
   ownership: "workspace",
   schema: {
     background: { type: "boolean" },
-    botId: { type: "id", required: true, search: true },
     changed: { type: "array" },
-    conversationId: { type: "id", nullable: true, search: true },
+    // The bot in a chat whose command it is (D-112).
+    chatBotId: { type: "id", required: true, search: true },
     exitCode: { type: "integer", nullable: true },
     finishedAt: { type: "dateTime", nullable: true },
     heartbeatAt: { type: "dateTime" },
@@ -86,8 +86,9 @@ export const mediaCheckResource = defineTableResource({
   ownership: "workspace",
   schema: {
     attempts: { type: "integer" },
-    botId: { type: "id", nullable: true, search: true },
     checkAfter: { type: "dateTime" },
+    // Where the picture came from, kept loose: the check runs after its chat or bot may have gone.
+    chatBotId: { type: "id", nullable: true, search: true },
     conversationId: { type: "id", nullable: true, search: true },
     createdAt: { type: "dateTime" },
     origin: { type: "string", maxLength: 16, noTrim: true, required: true, search: true },

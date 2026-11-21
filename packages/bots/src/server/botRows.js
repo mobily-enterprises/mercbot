@@ -81,6 +81,9 @@ export function cleanName(value) {
   return name;
 }
 
+/** Whether a value is a record id as an address names one: anything else is no bot, chat or message. */
+export const isId = (value) => /^[1-9]\d{0,18}$/u.test(String(value ?? ""));
+
 export function toMessage(row) {
   // The model transcript and a routine run's prompt stay on the server; the page only needs what's shown.
   const { transcript, trigger, recording, ...body } = row.body || {};
@@ -88,6 +91,9 @@ export function toMessage(row) {
     id: String(row.id),
     kind: row.kind,
     role: row.role,
+    // Who said it (D-112): a person (role "user") or a bot ("bot"); neither for Mercbot's own lines, or once they're gone.
+    authorUserId: row.author_user_id == null ? null : String(row.author_user_id),
+    authorBotId: row.author_bot_id == null ? null : String(row.author_bot_id),
     body,
     createdAt: new Date(row.created_at).toISOString()
   };

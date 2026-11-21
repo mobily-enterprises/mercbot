@@ -2,64 +2,70 @@ import { defineFeature } from "@jskit-ai/kernel/server/features";
 import { createRuns, createGoals, createSummaries } from "@jskit-ai/agent-runtime/server";
 import { AGENT_TABLE_RESOURCES } from "./agentTables.js";
 import { createArchiveRepository } from "./archiveRepository.js";
-import { createConversationRepository } from "./conversationRepository.js";
+import { createBotRepository } from "./botRepository.js";
+import { createChatRepository } from "./chatRepository.js";
 import { createBotDirectory } from "./directory.js";
 import { FOLLOW_UP_SEARCH, createFollowUpRepository } from "./followUpRepository.js";
-import { createHomeSettingsRepository } from "./homeSettingsRepository.js";
 import { createHomeTemplateRepository } from "./homeTemplateRepository.js";
 import { KNOWLEDGE_PART_SEARCH, KNOWLEDGE_SEARCH, createKnowledgeRepository } from "./knowledgeRepository.js";
 import { createMakerRepository } from "./makerRepository.js";
 import { createMessageRepository } from "./messageRepository.js";
 import { createNewBotRepository } from "./newBotRepository.js";
 import { createPolicyRepository } from "./policyRepository.js";
-import { botVisibility, conversationVisibility, messageVisibility } from "./rowPolicies.js";
-import { BOT_SEARCH, CONVERSATION_SEARCH, GROUP_SEARCH, MESSAGE_SEARCH, NOTEBOOK_SEARCH, READ_SEARCH } from "./searchSchemas.js";
+import {
+  botVisibility,
+  conversationVisibility,
+  createChatRules,
+  inReadableChat,
+  ofReadableChatBot,
+  readerFor,
+  readerOf
+} from "./rowPolicies.js";
+import { BOT_SEARCH, CHAT_BOT_SEARCH, CHAT_PERSON_SEARCH, CHAT_SEARCH, MESSAGE_SEARCH } from "./searchSchemas.js";
 import {
   TABLE_RESOURCES,
-  botConversationResource,
-  botGroupMemberResource,
-  botGroupPeopleResource,
   botKnowledgePartResource,
   botKnowledgeResource,
-  botMessageResource,
-  botNotebookResource,
   botRequestResource,
   botResource,
   botRoutineResource,
+  chatBotResource,
+  chatPersonResource,
   connectFollowUpResource,
-  conversationReadResource,
-  personMemoryResource
+  conversationResource,
+  messageResource
 } from "./tableResources.js";
 import { createTemplateRepository } from "./templateRepository.js";
-import { MEMORY_SEARCH, TURN_MESSAGE_SEARCH, createTurnRepository } from "./turnRepository.js";
+import { TURN_MESSAGE_SEARCH, createTurnRepository } from "./turnRepository.js";
 import { REQUEST_SEARCH, ROUTINE_SEARCH, createWorkRepository } from "./workRepository.js";
 
-// The bots' tables and who may see them. Apps, computer, files
-// and account read bots and conversations, and BotsFeature requires all four, so the tables have
-// a feature of their own that requires none of them: BotsFeature's services call its repositories,
-// the others its read-only directory.
+// The bots' tables and who may read them (D-112). Apps, computer, files, account and integrations read bots, chats
+// and bots in chats, and BotsFeature requires them, so the tables have a feature of their own that requires none of
+// them: BotsFeature's services call its repositories, the others its read-only directory and its chat rules.
 const ROW_POLICIES = new Map([
   [botResource, botVisibility],
-  [botConversationResource, conversationVisibility],
-  [botMessageResource, messageVisibility]
+  [conversationResource, conversationVisibility],
+  [chatPersonResource, inReadableChat],
+  [chatBotResource, inReadableChat],
+  [messageResource, inReadableChat],
+  [botRequestResource, inReadableChat],
+  [botRoutineResource, ofReadableChatBot],
+  [connectFollowUpResource, ofReadableChatBot]
 ]);
-// The filters the repositories read by beyond each table's search fields (searchSchemas.js), with
-// the queued work's (workRepository.js: what is due, by the database's clock), a turn's
-// (turnRepository.js), the connect follow-ups' (followUpRepository.js) and what the bots know (knowledgeRepository.js).
+// The filters the repositories read by beyond each table's search fields (searchSchemas.js), with the queued work's
+// (workRepository.js: what is due, by the database's clock), a turn's (turnRepository.js), the connect follow-ups'
+// (followUpRepository.js) and what the bots know (knowledgeRepository.js).
 const SEARCH = new Map([
   [botResource, BOT_SEARCH],
-  [botConversationResource, CONVERSATION_SEARCH],
-  [botMessageResource, { ...MESSAGE_SEARCH, ...TURN_MESSAGE_SEARCH }],
-  [botGroupMemberResource, GROUP_SEARCH],
-  [botGroupPeopleResource, GROUP_SEARCH],
-  [conversationReadResource, READ_SEARCH],
-  [botNotebookResource, NOTEBOOK_SEARCH],
+  [conversationResource, CHAT_SEARCH],
+  [chatPersonResource, CHAT_PERSON_SEARCH],
+  [chatBotResource, CHAT_BOT_SEARCH],
+  [messageResource, { ...MESSAGE_SEARCH, ...TURN_MESSAGE_SEARCH }],
   [botKnowledgeResource, KNOWLEDGE_SEARCH],
   [botKnowledgePartResource, KNOWLEDGE_PART_SEARCH],
   [botRequestResource, REQUEST_SEARCH],
   [botRoutineResource, ROUTINE_SEARCH],
-  [connectFollowUpResource, FOLLOW_UP_SEARCH],
-  [personMemoryResource, MEMORY_SEARCH]
+  [connectFollowUpResource, FOLLOW_UP_SEARCH]
 ]);
 
 /** A table's owns entry: with its row policy and filters, when it has them. */
@@ -78,11 +84,11 @@ const BotRecordsFeature = defineFeature({
     ...TABLE_RESOURCES.map(ownsEntry),
     ...AGENT_TABLE_RESOURCES
   ],
-  // agent-runtime's stores keep their rows in their owner's system context (its reasons are its own);
-  // the repositories write another person's seat and read point once a service has checked the caller.
-  systemScope: "keep the bots' agent runs, goals, summaries and commands for every conversation, and people's seats and read points when a group adds or removes them or work is done for them",
-  // People's names (a room's and a group's lines, D-36, D-46), who is in the home (its news), and the
-  // home itself, locked while its first bot is made.
+  // agent-runtime's stores keep their rows in their owner's system context (its reasons are its own); the
+  // repositories write other people's places in a chat (unread, a new member) once a service has checked the caller.
+  systemScope: "keep the bots' agent runs, goals, summaries and commands for every bot in every chat, and people's places in chats when a message, a member or a departure changes them",
+  // People's names (a chat's people), who is in the home (its everyone chat, a new member), and the home itself,
+  // locked while its first bot is made.
   requires: {
     profiles: "users.profiles",
     memberships: "workspaces.memberships",
@@ -101,33 +107,43 @@ const BotRecordsFeature = defineFeature({
    */
   setup({ resources, systemContext, profiles, memberships, workspaces }) {
     const work = createWorkRepository(resources);
-    const homeTemplates = createHomeTemplateRepository({ resources, systemContext });
+    const homeTemplates = createHomeTemplateRepository({ resources });
     const records = Object.freeze({
-      directory: createBotDirectory(resources, systemContext),
-      // Bots, seats, rooms, read points, groups, sections, the notebook and memories; and messages.
-      conversations: createConversationRepository({ resources, systemContext, profiles, memberships, workspaces, homeTemplates }),
+      // Bots, chats and bots in chats, for the other features: read-only.
+      directory: createBotDirectory(resources),
+      // The home's bots.
+      bots: createBotRepository({ resources, workspaces, homeTemplates }),
+      // Chats, their people and bots, each person's place in them, sections, and the home's joins and leaves.
+      chats: createChatRepository({ resources, systemContext, profiles, memberships, work }),
+      // Everything said in a chat.
       messages: createMessageRepository({ resources, systemContext }),
-      // Conversations archived and resumed (D-101).
+      // Bots archived (D-108), and the chats archiving one reaches.
       archives: createArchiveRepository({ resources, systemContext }),
-      // The bots a person made and their own conversations, with their homes, in every home a system context reaches.
+      // The bots a person made and the chats they're in, with their homes, in every home a system context reaches.
       makers: createMakerRepository(resources),
-      // Requests between bots, routines and their cards; a person's approval rules and auto-review.
+      // Requests between bots, routines and their cards.
       work,
       // The connect cards a person started signing in from, until their bot has carried on (D-77).
       followUps: createFollowUpRepository(resources),
+      // A person's approval rules and auto-review in each home.
       policies: createPolicyRepository(resources),
-      // What a turn reads and keeps beside its conversation: memories, the notebook, groups, planning.
+      // What a turn reads and keeps beside its chat: its messages, the to-do card and job notes.
       turns: createTurnRepository({ resources, work }),
-      // A bot made from a template opening its conversation.
+      // A bot made from a template opening a chat.
       templates: createTemplateRepository(resources),
       // New bots made together, New bot's one and a team's several, in the same statements (D-105).
-      newBots: createNewBotRepository({ resources, systemContext, homeTemplates }),
+      newBots: createNewBotRepository({ resources, homeTemplates }),
       // The home's own bot templates and what changed in them (D-98).
       homeTemplates,
       // What each bot knows, and the parts of it its turns search (D-107).
       knowledge: createKnowledgeRepository(resources),
-      // The home's settings for its bots: the sharing its new bots get, and whether its team question was answered (D-100).
-      homeSettings: createHomeSettingsRepository({ resources, systemContext, memberships }),
+      // The model's reader (R1, D-112): the one context a turn's model-facing reads pass, which reads what its chat may.
+      readers: Object.freeze({
+        forBot: (reader) => readerFor(systemContext, reader),
+        of: readerOf
+      }),
+      // The chat rules other features' row policies apply to their rows of a bot in a chat and a person's own rows.
+      rules: createChatRules(resources),
       agent: Object.freeze({
         createRuns: (dependencies = {}) => createRuns({ ...dependencies, resources, systemContext }),
         createSummaries: (dependencies) => createSummaries({ ...dependencies, resources, systemContext }),

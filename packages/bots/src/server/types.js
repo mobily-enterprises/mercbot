@@ -8,9 +8,8 @@
 /** @typedef {import("@jskit-ai/resource-runtime/server/types").ResourceCallOptions} CallOptions the call's options: a request's, or a job's */
 
 /**
- * Whose connected accounts a turn may use (D-37): the person's own and the home's, or in a shared
- * bot's room only the home's.
- * @typedef {{ userId: string, homeId: string, personal: boolean }} Reach
+ * Whose connected accounts a turn uses: the home's, in any chat (D-112), as the person who asked.
+ * @typedef {{ userId: string, homeId: string }} Reach
  */
 /**
  * What a tool asks connectedKey() with: the integrations, whose accounts, the apps the person
@@ -44,17 +43,62 @@
 /** @typedef {ReturnType<typeof import("./records/followUpRepository.js").createFollowUpRepository>} FollowUpRepository */
 /** @typedef {ReturnType<typeof import("./records/turnRepository.js").createTurnRepository>} TurnRepository */
 /** @typedef {ReturnType<typeof import("./records/homeTemplateRepository.js").createHomeTemplateRepository>} HomeTemplateRepository */
-/** @typedef {ReturnType<typeof import("./records/homeSettingsRepository.js").createHomeSettingsRepository>} HomeSettingsRepository */
+/** @typedef {ReturnType<typeof import("./records/chatRepository.js").createChatRepository>} ChatRepository */
+/** @typedef {ReturnType<typeof import("./records/botRepository.js").createBotRepository>} BotRepository */
+/** @typedef {ReturnType<typeof import("./records/messageRepository.js").createMessageRepository>} MessageRepository */
+/** @typedef {ReturnType<typeof import("./records/rowPolicies.js").createChatRules>} ChatRules */
 /**
- * The bots' tables (`mercbot.bots.records`, records/BotRecordsFeature.js): the directory other features read, the
- * conversations' and messages' repositories, the bots a person made across homes, the bots' work (requests, routines,
- * cards) and policies, the connect follow-ups, what a turn reads beside its conversation, a bot made from a template
- * opening its chat, new bots made together (D-105), the home's own templates (D-98), the home's settings for its bots
- * (D-100), conversations archived and resumed (D-101), and agent-runtime's stores.
+ * The chats' service behind the chat routes (D-112, R2: chatMembers.js), `bots.chats`: the chat list, one chat, New chat,
+ * joining and leaving, members, renaming, archiving, deleting, a person's place, pins, sections and a bot's direct chat.
+ * @typedef {ReturnType<typeof import("./chatMembers.js").createChatMembers>} ChatMembers
+ */
+/**
+ * A chat as every chat route answers it (`{ chat }`, and each of `{ chats }`), the page's one shape for a chat.
+ * @typedef {{
+ *   id: string, kind: "public" | "private", title: string | null, everyone: boolean, directBotId: string | null,
+ *   appId: string | null, madeBy: string | null, onboardingStep: string | null, archivedAt: string | null,
+ *   lastActivityAt: string, people: Array<{ userId: string, name: string }>,
+ *   bots: Array<{
+ *     chatBotId: string, botId: string, name: string, color: string, shape: string, archived: boolean,
+ *     waitingTask: string | null
+ *   }>,
+ *   place: {
+ *     readUpTo: string | null, unread: boolean, pinPosition: number | null, sectionId: string | null,
+ *     hidden: boolean, muted: boolean
+ *   } | null,
+ *   latest: {
+ *     id: string, kind: string, role: string, authorUserId: string | null, authorBotId: string | null,
+ *     body: object, createdAt: string, preview: string
+ *   } | null
+ * }} ChatView
+ */
+/**
+ * A chat event (`bot-events`, event name `chat`), told to everyone in the chat and to anyone a change took out of it.
+ * @typedef {{ chatId: string, change: "created" | "members" | "renamed" | "archived" | "unarchived" | "deleted" }} ChatEvent
+ */
+/**
+ * The model's reader (R1, D-112): the context every model-facing read of one bot's turn in one chat passes. It reads
+ * `readable_from(chatId)`, the chats everyone who can open its chat can open too, and everything keyed to them, never
+ * more because of who asked. `forBot` makes one; `of` answers the reader a context is, or null.
+ * @typedef {{
+ *   forBot: (reader: { homeId: string, botId: string, chatId: string, askerId: string }) => object,
+ *   of: (context: unknown) => Readonly<{ homeId: string, botId: string, chatId: string, askerId: string }> | null
+ * }} ModelReaders
+ */
+/**
+ * The bots' tables (`mercbot.bots.records`, records/BotRecordsFeature.js), D-112's records contract: the directory
+ * other features read; the home's bots; chats with their people, bots and each person's place, sections and the
+ * home's joins and leaves (`chats.personJoined`, `chats.personLeft`); a chat's messages; bots archived (D-108); the
+ * bots a person made and the chats they're in across homes; the bots' work (requests, routines, cards) and policies;
+ * the connect follow-ups; what a turn reads beside its chat; a bot made from a template opening a chat; new bots made
+ * together (D-105); the home's own templates (D-98); what each bot knows (D-107); the model's reader; the chat rules
+ * other features' row policies apply; and agent-runtime's stores, keyed by the bot's seat in a chat (chat_bots.id)
+ * for runs, goals and commands, and by the chat for summaries.
  * @typedef {{
  *   directory: BotDirectory,
- *   conversations: ReturnType<typeof import("./records/conversationRepository.js").createConversationRepository>,
- *   messages: ReturnType<typeof import("./records/messageRepository.js").createMessageRepository>,
+ *   bots: BotRepository,
+ *   chats: ChatRepository,
+ *   messages: MessageRepository,
  *   archives: ReturnType<typeof import("./records/archiveRepository.js").createArchiveRepository>,
  *   makers: ReturnType<typeof import("./records/makerRepository.js").createMakerRepository>,
  *   work: WorkRepository,
@@ -64,8 +108,9 @@
  *   templates: ReturnType<typeof import("./records/templateRepository.js").createTemplateRepository>,
  *   newBots: ReturnType<typeof import("./records/newBotRepository.js").createNewBotRepository>,
  *   homeTemplates: HomeTemplateRepository,
- *   homeSettings: HomeSettingsRepository,
  *   knowledge: ReturnType<typeof import("./records/knowledgeRepository.js").createKnowledgeRepository>,
+ *   readers: ModelReaders,
+ *   rules: ChatRules,
  *   agent: { createRuns: Function, createSummaries: Function, createGoals: Function }
  * }} BotRecords
  */

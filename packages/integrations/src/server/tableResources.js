@@ -93,18 +93,21 @@ export const userPluginResource = defineTableResource({
   }
 });
 
-/** user_skills */
+/** user_skills
+ * a person's own skills in a home (D-112): the model uses them only in a private chat whose one person they are
+ */
 export const userSkillResource = defineTableResource({
   name: "userSkills",
   tableName: "user_skills",
-  ownership: "user",
+  ownership: "workspace_user",
   schema: {
     createdAt: { type: "dateTime" },
     description: { type: "string", maxLength: 240, noTrim: true },
     instructions: { type: "string", noTrim: true },
     name: { type: "string", maxLength: 80, noTrim: true, required: true, search: true },
     updatedAt: { type: "dateTime" },
-    userId: { type: "id", hidden: true, search: true }
+    userId: { type: "id", hidden: true, search: true },
+    workspaceId: { type: "id", hidden: true, search: true }
   }
 });
 
@@ -123,16 +126,16 @@ export const appInterestResource = defineTableResource({
 });
 
 /** plugin_actions_off
- * surrogateId (user_id, plugin_id, action_id)
+ * the app actions a home turned off (D-112: the home's, as its accounts are), one row each (workspace_id, plugin_id, action_id)
  */
 export const pluginActionsOffResource = defineTableResource({
   name: "pluginActionsOff",
   tableName: "plugin_actions_off",
-  ownership: "user",
+  ownership: "workspace",
   schema: {
     actionId: { type: "string", maxLength: 80, noTrim: true, required: true },
     pluginId: { type: "string", maxLength: 80, noTrim: true, required: true, search: true },
-    userId: { type: "id", hidden: true, search: true }
+    workspaceId: { type: "id", hidden: true, search: true }
   }
 });
 

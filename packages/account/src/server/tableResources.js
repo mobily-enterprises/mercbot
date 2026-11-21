@@ -2,17 +2,20 @@
 // and hooks go in the owner feature's `owns` entries.
 import { defineTableResource } from "@jskit-ai/resource-core/shared/tableResource";
 
-/** vault_items */
+/** vault_items
+ * the home's vault (D-112): used in any chat of the home; made_by is who added it, null once their account goes
+ */
 export const vaultItemResource = defineTableResource({
   name: "vaultItems",
   tableName: "vault_items",
-  ownership: "user",
+  ownership: "workspace",
   schema: {
     createdAt: { type: "dateTime" },
     data: { type: "object", additionalProperties: true },
     kind: { type: "string", maxLength: 20, noTrim: true, required: true, search: true },
     label: { type: "string", maxLength: 120, noTrim: true },
-    userId: { type: "id", hidden: true, search: true }
+    madeBy: { type: "id", nullable: true, search: true },
+    workspaceId: { type: "id", hidden: true, search: true }
   }
 });
 

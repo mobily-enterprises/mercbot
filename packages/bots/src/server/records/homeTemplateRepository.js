@@ -10,11 +10,10 @@ const SUMMARY = Object.freeze(["tag", "description", "updatedAt"]);
 /**
  * @param {object} dependencies
  * @param {Record<string, import("@jskit-ai/resource-runtime/server/types").ResourceHandle>} dependencies.resources
- * @param {(reason: string) => import("@jskit-ai/resource-runtime/server/types").SystemContext} dependencies.systemContext
  */
-export function createHomeTemplateRepository({ resources, systemContext }) {
+export function createHomeTemplateRepository({ resources }) {
   const { homeTemplates, homeTemplateChanges, bots } = resources;
-  const { asRow } = createCallerReaders(systemContext);
+  const { asRow } = createCallerReaders();
 
   /** One of the home's templates in full, or null. @param {string} id @param {CallOptions} options */
   async function find(id, options) {

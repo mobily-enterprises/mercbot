@@ -10,7 +10,7 @@ import { PROVIDERS, createOAuth } from "./oauth.js";
 import { registerRoutes } from "./registerRoutes.js";
 import { reachableAccounts } from "./rowPolicies.js";
 import { createSednaCredentials } from "./sednaCredentials.js";
-import { TABLE_RESOURCES, oauthStateResource, pluginAccountResource, pluginActionsOffResource } from "./tableResources.js";
+import { TABLE_RESOURCES, oauthStateResource, pluginAccountResource, pluginActionsOffResource, userSkillResource } from "./tableResources.js";
 
 /**
  * Outside staging and production only (APP_ENV, D-87): the Test Preview's stand-in Google Drive
@@ -69,7 +69,9 @@ export function homeDirectory({ memberships, profiles }) {
 const OWNS_ENTRIES = new Map([
   [pluginAccountResource, { rowPolicy: reachableAccounts, searchSchema: ACCOUNT_FILTERS }],
   [oauthStateResource, { searchSchema: SIGN_IN_STATE_FILTERS }],
-  [pluginActionsOffResource, { searchSchema: ACTION_SWITCH_FILTERS }]
+  [pluginActionsOffResource, { searchSchema: ACTION_SWITCH_FILTERS }],
+  // A person's own skills reach the model only in a private chat whose one person they are (the bots' rule, D-112).
+  [userSkillResource, { rowPolicy: ({ requires, ...args }) => requires.records.rules.personalRule(args) }]
 ]);
 
 /** The tables the integrations feature owns, with their row policy and search entries. */
@@ -87,6 +89,7 @@ const IntegrationsFeature = defineFeature({
   systemScope:
     "write people's own connected accounts, which belong to no home, once a scoped read found them the caller's; finish provider sign-ins, which no one is signed in to; act on a person's own apps and skills for a job; count app demand; pace each connected account's requests to its app",
   requires: {
+    records: "mercbot.bots.records",
     http: "runtime.http",
     env: "runtime.env",
     profiles: "users.profiles",

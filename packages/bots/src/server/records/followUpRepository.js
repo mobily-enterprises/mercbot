@@ -65,12 +65,13 @@ export const FOLLOW_UP_SEARCH = Object.freeze({
 });
 
 /** What a follow-up's start and run read of its row. */
-const FIELDS = Object.freeze(["messageId", "conversationId", "workspaceId", "pluginId", "runId", "attempts", "steps"]);
+const FIELDS = Object.freeze(["messageId", "chatBotId", "workspaceId", "pluginId", "runId", "attempts", "steps"]);
 
 /** @typedef {import("@jskit-ai/resource-runtime/server/types").ResourceCallOptions} CallOptions */
 /**
- * A follow-up's row as its start reads it: the card, its chat and home, the app it waits for, and its run so far.
- * @typedef {{ id: string, messageId: string, conversationId: string, workspaceId: string, pluginId: string,
+ * A follow-up's row as its start reads it: the card, its bot in its chat (chat_bot_id) and home, the app it waits for,
+ * and its run so far.
+ * @typedef {{ id: string, messageId: string, chatBotId: string, workspaceId: string, pluginId: string,
  *   runId: string | null, attempts: number, steps: object[] | null }} FollowUp
  */
 /** A follow-up this server holds: its run id, and whether this is its first run (its card isn't claimed yet). @typedef {FollowUp & { runId: string, first: boolean }} HeldFollowUp */
@@ -94,7 +95,7 @@ export function createFollowUpRepository({ connectFollowUps: followUps }) {
   /**
    * The person started signing in from a card again or for the first time: its row starts waiting afresh, in the
    * call's home. Answers its id. A run holding the row is the caller's to refuse first (its card is connected).
-   * @param {{ messageId: string, conversationId: string, userId: string, personal: boolean, pluginId: string }} fields
+   * @param {{ messageId: string, chatBotId: string, userId: string, pluginId: string }} fields
    * @param {CallOptions} options the person's request, inside the transaction that marks the card
    */
   async function wait(fields, options) {
@@ -103,15 +104,15 @@ export function createFollowUpRepository({ connectFollowUps: followUps }) {
   }
 
   /**
-   * Marks ready the rows a newly connected account reaches whose sign-in started in the last `minutes`: a person's
-   * own account their own chats in every home, a home's account every chat in it (D-37). Each start is due in
+   * Marks ready the rows a newly connected account reaches whose sign-in started in the last `minutes`: every chat of
+   * its home, as every account is the home's; one with no home the person's own rows. Each start is due in
    * `graceSeconds`, so the server that marked it starts it first. Answers their ids.
    * @param {{ pluginId: string, userId: string, homeId: string | null }} connection
    * @param {{ minutes: number, graceSeconds: number }} timing
    * @param {CallOptions} options the bots' system context, in the transaction that saves the connection
    */
   function markReady({ pluginId, userId, homeId }, { minutes, graceSeconds }, options) {
-    const reached = homeId == null ? { userId: String(userId), personal: true } : { workspaceId: String(homeId) };
+    const reached = homeId == null ? { userId: String(userId) } : { workspaceId: String(homeId) };
     return followUps.patchWhere(
       { status: "waiting", pluginId: String(pluginId), ...reached, startedWithin: minutes },
       { status: "ready", leaseUntil: secondsFromNow(graceSeconds) },
@@ -141,10 +142,10 @@ export function createFollowUpRepository({ connectFollowUps: followUps }) {
     return records.map((record) => String(record.id));
   }
 
-  /** The id of a row of the chat that can be started now, or null: what the chat's last reply starts as it ends. */
-  async function startableIn(conversationId, options) {
+  /** The id of a row of a bot in a chat that can be started now, or null: what its last reply starts as it ends. */
+  async function startableIn(chatBotId, options) {
     const { records } = await followUps.query(
-      { filters: { conversationId: String(conversationId), startable: true }, sort: ["id"], page: { size: 1 }, fields: ["conversationId"] },
+      { filters: { chatBotId: String(chatBotId), startable: true }, sort: ["id"], page: { size: 1 }, fields: ["chatBotId"] },
       passedOn(options)
     );
     return records[0] ? String(records[0].id) : null;

@@ -1,11 +1,12 @@
 import { agentResources } from "@jskit-ai/agent-runtime/server";
 
-// @jskit-ai/agent-runtime's tables, with the columns mercbot adds (its baseline migration): a
-// run also knows its bot; a goal its home, bot and person. agent-runtime declares them system tables:
-// only their owner's system context reaches them, never a request's.
+// @jskit-ai/agent-runtime's tables, with the columns mercbot adds: a run also knows its bot and the
+// person it answers (D-112); a goal its home, bot and person. Runs, goals and commands are keyed by the
+// bot in the chat (chat_bots.id) as the runtime's conversation id, and summaries by the chat. agent-runtime
+// declares them system tables: only their owner's system context reaches them, never a request's.
 const AGENT_TABLES = agentResources({
   columns: {
-    runs: { bot_id: { type: "id", required: true } },
+    runs: { bot_id: { type: "id", required: true }, user_id: { type: "id", required: true } },
     goals: {
       workspace_id: { type: "id", required: true },
       bot_id: { type: "id", required: true },

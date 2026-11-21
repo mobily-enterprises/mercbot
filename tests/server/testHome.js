@@ -1,3 +1,5 @@
+import { seedChat } from "../support/chatFixtures.mjs";
+
 // The test person's home (D-36): bots belong to a home, so tests create theirs in it. The test
 // database's user gets one the first time it's needed.
 export async function testHome(knex, userId) {
@@ -9,11 +11,12 @@ export async function testHome(knex, userId) {
   return home.id;
 }
 
-// A bot in the test home, with the test person's conversation with it (D-36).
+// A bot in the test home, made by the test person, with their direct chat with it: Public, as every new chat is
+// (D-112, D15). `conversation_id` is the chat, `chat_bot_id` the bot's seat in it.
 export async function testBot(knex, userId, fields = {}) {
   const workspaceId = await testHome(knex, userId);
   const { onboarding_step: onboarding = null, ...rest } = fields;
-  const [bot] = await knex("bots").insert({ user_id: userId, workspace_id: workspaceId, name: "Disposable", color: "#1E86FC", ...rest }).returning("*");
-  const [conversation] = await knex("bot_conversations").insert({ workspace_id: workspaceId, bot_id: bot.id, user_id: userId, onboarding_step: onboarding }).returning("*");
-  return { ...bot, conversation_id: conversation.id };
+  const [bot] = await knex("bots").insert({ made_by: userId, workspace_id: workspaceId, name: "Disposable", color: "#1E86FC", ...rest }).returning("*");
+  const chat = await seedChat(knex, { homeId: workspaceId, direct: { userId, botId: bot.id }, onboardingStep: onboarding });
+  return { ...bot, conversation_id: chat.id, chat_bot_id: chat.chatBotIds.get(String(bot.id)) };
 }

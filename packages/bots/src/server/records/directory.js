@@ -1,160 +1,137 @@
 import { passedOn } from "@jskit-ai/resource-core/shared/callOptions";
-import { createCallerReaders } from "./recordRows.js";
 
-// The bots' read-only directory for the features that need a bot or a conversation but not the
-// rest of the bots (apps, computer, files, account).
-// Every method reads through the bots' handles in the caller's `options`, so ownership keeps it in
-// the request's home and the row policies (rowPolicies.js) decide which bots and conversations the
-// caller sees. Records are { id, ...fields } with string ids. The signatures are frozen.
+// The bots' read-only directory for the features that need a bot, a chat or a bot in a chat but not the rest of the
+// bots (apps, computer, files, account, integrations). Every method reads through the bots' handles in the caller's
+// `options`, so ownership keeps it in the call's home and the row policies (rowPolicies.js) decide which chats and
+// bots in chats the caller reads. Records are { id, ...fields } with string ids.
 
 /** @typedef {import("@jskit-ai/resource-runtime/server/types").ResourceCallOptions} CallOptions */
 /**
- * A bot as the directory answers it; `archivedAt` is when it was archived (D-108), null while it isn't.
- * @typedef {{ id: string, name: string, color: string, shape: string, kind: "bot" | "group", sharing: string, userId: string, archivedAt: string | null }} DirectoryBot
+ * A bot as the directory answers it; `archivedAt` is when it was archived (D-108), null while it isn't; `madeBy` who
+ * made it, null once their account went.
+ * @typedef {{ id: string, name: string, color: string, shape: string, madeBy: string | null, archivedAt: string | null }} DirectoryBot
  */
-/** @typedef {{ conversationId: string, botId: string, botName: string, botKind: string, botSharing: string, userId: string | null, groupId: string | null, workspaceId: string }} ComputerPlace */
+/**
+ * Where a bot's computer is (D-112): one bot in one chat. `chatKind` says who can open the chat, so who may use the
+ * computer and what's signed in on it.
+ * @typedef {{ chatBotId: string, chatId: string, chatKind: "public" | "private", botId: string, botName: string, workspaceId: string }} ComputerPlace
+ */
 
-const BOT_FIELDS = Object.freeze(["name", "color", "shape", "kind", "sharing", "userId", "archivedAt"]);
+const BOT_FIELDS = Object.freeze(["name", "color", "shape", "madeBy", "archivedAt"]);
 
 /**
  * @param {Record<string, import("@jskit-ai/resource-runtime/server/types").ResourceHandle>} resources
- * @param {(reason: string) => import("@jskit-ai/resource-runtime/server/types").SystemContext} systemContext
  */
-export function createBotDirectory(resources, systemContext) {
-  const { bots, botConversations: conversations, botGroupMembers: groupMembers, botGroupPeople: groupPeople } = resources;
-  const { personOf } = createCallerReaders(systemContext);
-  const first = async (handle, filters, options) =>
-    (await handle.query({ filters, page: { size: 1 } }, passedOn(options))).records[0] ?? null;
-  /** @returns {DirectoryBot | null} */
-  const asBot = (record) =>
-    (record ? { id: String(record.id), ...Object.fromEntries(BOT_FIELDS.map((field) => [field, record[field]])) } : null);
+export function createBotDirectory(resources) {
+  const { bots, conversations, chatBots } = resources;
   const idOrNull = (value) => (value == null ? null : String(value));
+  /** @returns {DirectoryBot | null} */
+  function asBot(record) {
+    if (!record) return null;
+    return {
+      id: String(record.id),
+      name: record.name,
+      color: record.color,
+      shape: record.shape,
+      madeBy: idOrNull(record.madeBy),
+      archivedAt: record.archivedAt ?? null
+    };
+  }
 
   /**
-   * The home's bots, not group chats, in id order (apps.js:108-109), each saying whether it's archived (D-108): an app
-   * still names an archived bot, which its turns never offer to ask.
+   * The home's bots in id order, each saying whether it's archived (D-108): an app still names an archived bot, which
+   * its turns never offer to ask.
    */
   async function listHomeBots(options) {
-    const records = await bots.queryAll({ filters: { kind: "bot" }, sort: ["id"], fields: ["name", "archivedAt"] }, passedOn(options));
+    const records = await bots.queryAll({ sort: ["id"], fields: ["name", "archivedAt"] }, passedOn(options));
     return records.map((record) => ({ id: String(record.id), name: record.name, archived: Boolean(record.archivedAt) }));
   }
 
-  /** The home's bots, not group chats, in id order, with how they look: the home's Files page (files registerRoutes.js). */
+  /** The home's bots in id order, with how they look: the home's Files page. */
   async function homeBotFaces(options) {
-    const records = await bots.queryAll({ filters: { kind: "bot" }, sort: ["id"], fields: ["name", "color", "shape"] }, passedOn(options));
+    const records = await bots.queryAll({ sort: ["id"], fields: ["name", "color", "shape"] }, passedOn(options));
     return records.map((record) => ({ id: String(record.id), name: record.name, color: record.color, shape: record.shape }));
   }
 
-  /**
-   * One bot the caller sees, in the home, of one kind when given (apps.js:309,314, views.js:207,
-   * computers.js:94, the bots, computer and files routes).
-   * @param {string} botId
-   * @param {CallOptions} options
-   * @param {{ kind?: "bot" | "group" }} [only]
-   */
-  async function findBot(botId, options, { kind } = {}) {
-    if (kind) return asBot(await first(bots, { id: String(botId), kind }, options));
+  /** One bot of the home, or null. @param {string} botId @param {CallOptions} options */
+  async function findBot(botId, options) {
+    if (!/^\d+$/u.test(String(botId ?? ""))) return null;
     return asBot(await bots.get(String(botId), { fields: [...BOT_FIELDS] }, { ...passedOn(options), missing: "skip" }));
   }
 
   /**
-   * The home's bot (not a group chat) with this name, in any case, other than `except`, or null
-   * (botRequests.js: a bot asks another by name). One row: the store skips `except`.
+   * The home's bot with this name, in any case, other than `except`, or null (a bot asks another by name). One row: the
+   * store skips `except`.
    * @param {string} name
    * @param {CallOptions} options
    * @param {{ except?: string | null }} [skip]
    */
   async function botNamed(name, options, { except = null } = {}) {
-    const { records } = await bots.query(
-      {
-        filters: { kind: "bot", nameInAnyCase: String(name).trim(), ...(except ? { notId: String(except) } : {}) },
-        sort: ["id"],
-        fields: [...BOT_FIELDS],
-        page: { size: 1 }
-      },
-      passedOn(options)
-    );
+    const { records } = await bots.query({
+      filters: { nameInAnyCase: String(name).trim(), ...(except ? { notId: String(except) } : {}) },
+      sort: ["id"],
+      fields: [...BOT_FIELDS],
+      page: { size: 1 }
+    }, passedOn(options));
     return asBot(records[0] ?? null);
   }
 
   /**
    * The bot's maker, home and name, for recording what its work uses (account usage.js): it names the hidden
-   * workspaceId, in the caller's system context.
+   * workspaceId, in the caller's system context. The maker is null once their account went.
    */
-  async function botOwner(botId, options) {
-    const bot = await bots.get(String(botId), { fields: ["userId", "workspaceId", "name"] }, { ...passedOn(options), missing: "skip" });
-    return bot ? { userId: String(bot.userId), workspaceId: String(bot.workspaceId), name: String(bot.name || "") } : null;
+  async function botMaker(botId, options) {
+    const bot = await bots.get(String(botId), { fields: ["madeBy", "workspaceId", "name"] }, { ...passedOn(options), missing: "skip" });
+    return bot ? { madeBy: idOrNull(bot.madeBy), workspaceId: String(bot.workspaceId), name: String(bot.name || "") } : null;
   }
 
-  /** The caller's own conversation with the bot (computer registerRoutes.js:38). */
-  const seatOf = (botId, options) => first(conversations, { botId: String(botId), userId: personOf(options) }, options);
-
-  /**
-   * One room of the bot (no person, no group), never an archived one (D-101): the one asked for, or with no id its
-   * first, else null (computer registerRoutes.js: a shared bot's computer).
-   */
-  async function roomOf(botId, roomId, options) {
-    const asked = roomId == null ? {} : { id: String(roomId) };
-    const filters = { botId: String(botId), userId: null, groupId: null, archived: false, ...asked };
-    const { records: [room] } = await conversations.query({ filters, sort: ["id"], fields: ["botId"], page: { size: 1 } }, passedOn(options));
-    return room ?? null;
+  /** A bot in a chat the caller may read, by the bot and the chat, or null. */
+  async function chatBotOf(botId, chatId, options) {
+    if (![botId, chatId].every((id) => /^\d+$/u.test(String(id ?? "")))) return null;
+    const { records: [found] } = await chatBots.query(
+      { filters: { botId: String(botId), conversationId: String(chatId) }, fields: ["botId", "conversationId"], page: { size: 1 } },
+      passedOn(options)
+    );
+    return found ? { id: String(found.id), botId: String(found.botId), chatId: String(found.conversationId) } : null;
   }
 
   /**
-   * A member bot's own computer for a group (computer registerRoutes.js:28-29), or null. The row
-   * policy shows it to the group's people only.
-   */
-  const groupSeat = (botId, groupId, options) => first(conversations, { botId: String(botId), groupId: String(groupId) }, options);
-
-  /** The bot is in the group and the caller is one of its people (files registerRoutes.js:53-54). */
-  async function isGroupMember(groupId, botId, options) {
-    const [member, person] = await Promise.all([
-      first(groupMembers, { groupId: String(groupId), botId: String(botId) }, options),
-      first(groupPeople, { groupId: String(groupId), userId: personOf(options) }, options)
-    ]);
-    return Boolean(member && person);
-  }
-
-  /**
-   * A computer's conversation and bot (computers.js:43), or null: its home is the hidden
-   * workspaceId, read in the caller's system context.
+   * A computer's place: its bot in its chat (D-112), or null when the caller may not read that chat. Its home is the
+   * hidden workspaceId, read in the caller's context.
+   * @param {string} chatBotId
+   * @param {CallOptions} options
    * @returns {Promise<ComputerPlace | null>}
    */
-  async function computerOf(conversationId, options) {
-    const conversation = await conversations.get(
-      String(conversationId),
-      { fields: ["botId", "userId", "groupId", "workspaceId"] },
-      { ...passedOn(options), missing: "skip" }
-    );
-    if (!conversation) return null;
-    const bot = await bots.get(String(conversation.botId), { fields: ["name", "kind", "sharing"] }, { ...passedOn(options), missing: "skip" });
-    if (!bot) return null;
+  async function computerOf(chatBotId, options) {
+    if (!/^\d+$/u.test(String(chatBotId ?? ""))) return null;
+    const seat = await chatBots.get(String(chatBotId), { fields: ["botId", "conversationId", "workspaceId"] }, { ...passedOn(options), missing: "skip" });
+    if (!seat) return null;
+    const [bot, chat] = await Promise.all([
+      bots.get(String(seat.botId), { fields: ["name"] }, { ...passedOn(options), missing: "skip" }),
+      conversations.get(String(seat.conversationId), { fields: ["kind"] }, { ...passedOn(options), missing: "skip" })
+    ]);
+    if (!bot || !chat) return null;
     return {
-      conversationId: String(conversation.id),
-      botId: String(conversation.botId),
+      chatBotId: String(seat.id),
+      chatId: String(seat.conversationId),
+      chatKind: chat.kind,
+      botId: String(seat.botId),
       botName: bot.name,
-      botKind: bot.kind,
-      botSharing: bot.sharing,
-      userId: idOrNull(conversation.userId),
-      groupId: idOrNull(conversation.groupId),
-      workspaceId: String(conversation.workspaceId)
+      workspaceId: String(seat.workspaceId)
     };
   }
 
-  /** Which of the conversation ids still exist, read in the caller's system context (computers.js:208). */
-  async function liveConversationIds(ids, options) {
+  /** Which of the bots in chats still exist, read in the caller's context (the computers' sweep). */
+  async function liveChatBotIds(ids, options) {
     if (!ids.length) return new Set();
-    const records = await conversations.queryAll({ filters: { id: ids.map(String) }, fields: ["botId"] }, passedOn(options));
+    const records = await chatBots.queryAll({ filters: { id: ids.map(String) }, fields: ["botId"] }, passedOn(options));
     return new Set(records.map((record) => String(record.id)));
   }
 
-  /** The caller's own conversations with single bots in the home (computer registerRoutes.js:102). */
-  async function ownSingleBotSeatIds(options) {
-    const seats = await conversations.queryAll({ filters: { userId: personOf(options) }, fields: ["botId"] }, passedOn(options));
-    if (!seats.length) return [];
-    const botIds = [...new Set(seats.map((seat) => String(seat.botId)))];
-    const single = new Set((await bots.queryAll({ filters: { id: botIds, kind: "bot" }, fields: ["kind"] }, passedOn(options))).map((bot) => String(bot.id)));
-    return seats.filter((seat) => single.has(String(seat.botId))).map((seat) => String(seat.id));
+  /** The bots in one chat the caller may read, in their order: { id (the chat_bots id), botId }. */
+  async function botsInChat(chatId, options) {
+    const records = await chatBots.queryAll({ filters: { conversationId: String(chatId) }, sort: ["position", "id"], fields: ["botId"] }, passedOn(options));
+    return records.map((record) => ({ id: String(record.id), botId: String(record.botId) }));
   }
 
   return Object.freeze({
@@ -162,13 +139,10 @@ export function createBotDirectory(resources, systemContext) {
     homeBotFaces,
     findBot,
     botNamed,
-    botOwner,
-    seatOf,
-    roomOf,
-    groupSeat,
-    isGroupMember,
+    botMaker,
+    chatBotOf,
     computerOf,
-    liveConversationIds,
-    ownSingleBotSeatIds
+    liveChatBotIds,
+    botsInChat
   });
 }

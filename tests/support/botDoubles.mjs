@@ -113,8 +113,9 @@ const neutral = {
   })
 };
 
-// What one reply's tools keep and read through their owners, with nothing kept: no routines, memories, notes, messages,
-// groups or saved logins, a to-do card nobody wrote, nobody's name, and no other bot in the home.
+// What one reply's tools keep and read through their owners, with nothing kept: no routines, messages, chats or saved
+// logins, a to-do card nobody wrote, nobody's name, and no other bot in the home. The model's reader is a plain
+// context here: a test that reads the database passes its own records.
 const turnNeutral = {
   records: () => ({
     work: {
@@ -128,15 +129,11 @@ const turnNeutral = {
     turns: {
       messages: async () => [],
       latestMessage: async () => null,
-      memoryFacts: async () => [],
-      rememberFact: missing("memory store"),
-      forgetFact: missing("memory store"),
-      addNote: missing("notebook"),
-      recentNotes: async () => [],
-      recentGroupsOf: async () => [],
       planning: () => ({ currentTodos: async () => undefined, mergeTodos: missing("to-do card"), jobNotes: async () => null, setJobNotes: missing("job notes") })
     },
-    directory: { findBot: async () => null, listHomeBots: async () => [] }
+    chats: { readableFrom: async () => [], people: async () => [], bots: async () => [] },
+    readers: { forBot: () => ({}), of: () => null },
+    directory: { findBot: async () => null, listHomeBots: async () => [], chatBotOf: async () => null }
   }),
   profiles: () => ({ findById: async () => null }),
   account: () => ({ savedLogins: async () => [], savedLogin: async () => null, saveLogin: missing("Vault") }),

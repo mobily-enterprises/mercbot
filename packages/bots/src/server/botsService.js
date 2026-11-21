@@ -26,6 +26,38 @@ import { createBotLibrary } from "./botLibrary.js";
 import { createBotMemory } from "./botMemory.js";
 import { createHomeDefaults } from "./homeDefaults.js";
 import { createJoiningIn } from "./joiningIn.js";
+import { BotsError } from "./botsError.js";
+import { createChatMembers } from "./chatMembers.js";
+
+// The chat routes step 2 of D-112 builds, by owner (the plan's section 7: A the turns, B the surfaces, C the
+// computers). Until its owner lands one it answers 501 naming who builds it; none is left when B1 lands.
+const IN_STEP_2 = Object.freeze({
+  messages: "A",
+  findOlder: "A",
+  sendMessage: "A",
+  reply: "A",
+  describeWork: "A",
+  react: "A",
+  answerChoice: "A",
+  settleHandover: "A",
+  settleSecureForm: "A",
+  connectFromCard: "A",
+  settleDraft: "A",
+  recordVoiceCall: "A",
+  welcome: "B",
+  advanceOnboarding: "B",
+  chooseName: "B",
+  routinesIn: "B",
+  routinesOf: "B",
+  switchRoutine: "B",
+  deleteRoutine: "B",
+  startTeaching: "C",
+  stopTeaching: "C"
+});
+const notBuilt = (name, owner) => async () => {
+  throw new BotsError(501, `${name} isn't built yet (D-112 step 2, ${owner}).`, { code: "bots_not_built" });
+};
+const CHAT_IN_STEP_2 = Object.freeze(Object.fromEntries(Object.entries(IN_STEP_2).map(([name, owner]) => [name, notBuilt(name, owner)])));
 
 /**
  * The bots service (`mercbot.bots`): the person's bots and everything said and done in them, composed from one factory per
@@ -243,8 +275,12 @@ export function createBotsService({
   const groups = createBotGroups({ records, conversations });
   const library = createBotLibrary({ records, conversations, apps, files });
   const memory = createBotMemory({ records, conversations });
+  // Chats and their members (D-112, R2): the chat routes' service.
+  const chats = createChatMembers({ records, notices });
 
   return Object.freeze({
+    chats,
+    chat: CHAT_IN_STEP_2,
     compaction: chatHistory.compaction,
     requests,
     goals,

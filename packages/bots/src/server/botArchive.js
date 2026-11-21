@@ -1,9 +1,8 @@
 import { BotsError } from "./botsError.js";
 import { mayChangeBot } from "./botAdditions.js";
+import { isId } from "./botRows.js";
 import { createWorkPause } from "./workPause.js";
 
-// A conversation's id as an address names it.
-const isId = (value) => /^[1-9]\d{0,18}$/u.test(String(value ?? ""));
 
 /**
  * Archiving what is in the way, and bringing it back. A conversation (D-101): a Shared bot's shared tab, hidden for

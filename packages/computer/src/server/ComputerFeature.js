@@ -12,10 +12,16 @@ import {
 } from "./tableResources.js";
 
 /** The tables the computer feature owns, with their search entries. */
+/** The bots' chat rule over a row's bot in a chat (`field`). @param {string} field */
+const chatBotRow = (field) => function chatBotRow({ requires, ...args }) {
+  return requires.records.rules.chatBotRule(args, field);
+};
+
 export const COMPUTER_OWNS = Object.freeze([
-  { resource: botComputerResource, searchSchema: BOT_COMPUTER_FILTERS },
-  botBrowserStateResource,
-  { resource: computerTicketResource, searchSchema: TICKET_FILTERS },
+  // A chat's computers, their saved browsers and screen tickets are read by whoever may read that chat (D-112, D14).
+  { resource: botComputerResource, searchSchema: BOT_COMPUTER_FILTERS, rowPolicy: chatBotRow("id") },
+  { resource: botBrowserStateResource, rowPolicy: chatBotRow("id") },
+  { resource: computerTicketResource, searchSchema: TICKET_FILTERS, rowPolicy: chatBotRow("chatBotId") },
   { resource: mercbotServerResource, searchSchema: SERVER_FILTERS },
   mercbotSettingResource
 ]);

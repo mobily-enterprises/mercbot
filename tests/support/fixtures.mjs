@@ -3,6 +3,7 @@ import { __testables as anyapiTestables } from "../../packages/apps/src/server/a
 import { startApps } from "./appsFeatures.mjs";
 import { botsOf } from "./appsHome.mjs";
 import { testPreviewHome, testPreviewOwner } from "./testPreviewExtensions.mjs";
+import { seedChat, seedMessage } from "./chatFixtures.mjs";
 
 const { tenantOf } = anyapiTestables;
 
@@ -71,9 +72,9 @@ try {
   }
 
   // Bots point at a template (D-98): these at Mercbot's general one, as a bot made with New bot does.
-  await knex("bots").insert({ user_id: user.id, workspace_id: workspaceId, name: "Otto", color: "#7E57C2", library_template: "general" });
+  await knex("bots").insert({ made_by: user.id, workspace_id: workspaceId, name: "Otto", color: "#7E57C2", library_template: "general" });
   // The views tests' own bot: others make Otto the home's shared Builder, which takes its private chat out of view.
-  await knex("bots").insert({ user_id: user.id, workspace_id: workspaceId, name: "Vera", color: "#00897B", library_template: "general" });
+  await knex("bots").insert({ made_by: user.id, workspace_id: workspaceId, name: "Vera", color: "#00897B", library_template: "general" });
 
   const definition = (columns) => ({
     home: "list",
@@ -284,16 +285,10 @@ try {
     screens: { home: { content: [{ type: "view", view: everyones.key }] } }
   }, "Also shows the view", options));
   await apps.publish(person, second.slug, {}, options);
-  const [conversation] = await knex("bot_conversations").insert({ workspace_id: workspaceId, bot_id: vera, user_id: user.id }).onConflict().ignore().returning("id");
-  const conversationId = conversation?.id ?? (await knex("bot_conversations").where({ bot_id: vera, user_id: user.id }).first("id")).id;
-  await knex("bot_messages").insert({
-    workspace_id: workspaceId,
-    bot_id: vera,
-    conversation_id: conversationId,
-    kind: "view",
-    role: "bot",
-    body: JSON.stringify({ path: mine.key, title: mine.title, summary: mine.summary })
-  });
+  // Vera's direct chat with the person (D-112), made once, with her view card in it.
+  const direct = await knex("conversations").where({ direct_user_id: user.id, direct_bot_id: vera }).first("id");
+  const chatId = direct?.id ?? (await seedChat(knex, { homeId: workspaceId, direct: { userId: user.id, botId: vera } })).id;
+  await seedMessage(knex, { homeId: workspaceId, chatId, kind: "view", botId: vera, body: { path: mine.key, title: mine.title, summary: mine.summary } });
 
   console.log(`Test fixtures ready: home "${home.slug}", app "${app.slug}".`);
 } finally {

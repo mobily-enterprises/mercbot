@@ -3,8 +3,7 @@
 import { defineTableResource } from "@jskit-ai/resource-core/shared/tableResource";
 
 /** bots
- * label, instructions, skills and origin are no longer read (D-98): the upgrade copied them to bots_before_templates,
- * and a later release drops them
+ * a bot of the home, a member of its chats as a person is (D-112); made_by is who made it, null once their account goes
  */
 export const botResource = defineTableResource({
   name: "bots",
@@ -21,145 +20,117 @@ export const botResource = defineTableResource({
     // The template it points at (D-98): one of its home's, or one of Mercbot's library by slug; never both.
     homeTemplateId: { type: "id", nullable: true, search: true },
     isMain: { type: "boolean" },
-    kind: { type: "string", maxLength: 10, noTrim: true, search: true },
     libraryTemplate: { type: "string", maxLength: 40, noTrim: true, nullable: true, search: true },
+    madeBy: { type: "id", nullable: true, search: true },
     name: { type: "string", maxLength: 80, noTrim: true, required: true, search: true },
     shape: { type: "string", maxLength: 24, noTrim: true },
-    sharing: { type: "string", maxLength: 16, noTrim: true },
     // When it started to point at its template: the template's changes after it are what changed.
     templateSince: { type: "dateTime", nullable: true },
     updatedAt: { type: "dateTime" },
+    workspaceId: { type: "id", hidden: true, search: true }
+  }
+});
+
+/** conversations
+ * a chat (D-112): public (everyone in the home can open it) or private (its people only); a direct chat is one
+ * person's own with one bot; the everyone chat has every active member of the home; an app's chat is its Builder's
+ */
+export const conversationResource = defineTableResource({
+  name: "conversations",
+  tableName: "conversations",
+  ownership: "workspace",
+  schema: {
+    appId: { type: "string", maxLength: 24, noTrim: true, nullable: true, search: true },
+    archivedAt: { type: "dateTime", nullable: true },
+    archivedBy: { type: "id", nullable: true },
+    createdAt: { type: "dateTime" },
+    directBotId: { type: "id", nullable: true, search: true },
+    directUserId: { type: "id", nullable: true, search: true },
+    everyone: { type: "boolean", search: true },
+    kind: { type: "string", maxLength: 8, noTrim: true, required: true, search: true },
+    lastActivityAt: { type: "dateTime" },
+    madeBy: { type: "id", nullable: true, search: true },
+    onboardingStep: { type: "string", maxLength: 32, noTrim: true, nullable: true },
+    title: { type: "string", maxLength: 80, noTrim: true, nullable: true },
+    workspaceId: { type: "id", hidden: true, search: true }
+  }
+});
+
+/** chat_people
+ * a person in a chat, with their own place in it: where they read up to, unread, pin, section, hidden and muted
+ */
+export const chatPersonResource = defineTableResource({
+  name: "chatPeople",
+  tableName: "chat_people",
+  ownership: "workspace",
+  schema: {
+    addedBy: { type: "id", nullable: true },
+    conversationId: { type: "id", required: true, search: true },
+    hidden: { type: "boolean", search: true },
+    joinedAt: { type: "dateTime" },
+    muted: { type: "boolean" },
+    pinPosition: { type: "integer", nullable: true },
+    readUpTo: { type: "integer", nullable: true },
+    sectionId: { type: "id", nullable: true, search: true },
+    unread: { type: "boolean", search: true },
     userId: { type: "id", required: true, search: true },
     workspaceId: { type: "id", hidden: true, search: true }
   }
 });
 
-/** bot_conversations */
-export const botConversationResource = defineTableResource({
-  name: "botConversations",
-  tableName: "bot_conversations",
+/** chat_bots
+ * a bot in a chat: its id is "this bot in this chat", which its runs, goal, to-do list, job notes, computer, commands,
+ * routines, watches, app jobs and follow-ups hang off
+ */
+export const chatBotResource = defineTableResource({
+  name: "chatBots",
+  tableName: "chat_bots",
   ownership: "workspace",
   schema: {
-    appId: { type: "string", maxLength: 24, noTrim: true, nullable: true, search: true },
-    // Archived (D-101): since when, null while it isn't, and by whom.
-    archivedAt: { type: "dateTime", nullable: true },
-    archivedBy: { type: "id", nullable: true },
+    addedBy: { type: "id", nullable: true },
     botId: { type: "id", required: true, search: true },
-    createdAt: { type: "dateTime" },
-    createdBy: { type: "id", nullable: true, search: true },
-    forkedAtMessageId: { type: "id", nullable: true, search: true },
-    groupId: { type: "id", nullable: true, search: true },
-    hidden: { type: "boolean" },
+    conversationId: { type: "id", required: true, search: true },
     jobNotes: { type: "array" },
-    keepOutOfNotebook: { type: "boolean" },
-    lastActivityAt: { type: "dateTime" },
-    onboardingStep: { type: "string", maxLength: 32, noTrim: true, nullable: true },
-    parentId: { type: "id", nullable: true, search: true },
-    pinPosition: { type: "integer", nullable: true },
-    readUpTo: { type: "integer", nullable: true },
-    roomId: { type: "id", nullable: true, search: true },
-    sectionId: { type: "id", nullable: true, search: true },
-    title: { type: "string", maxLength: 40, noTrim: true, nullable: true },
-    unread: { type: "boolean" },
-    userId: { type: "id", nullable: true, search: true },
+    joinedAt: { type: "dateTime" },
+    position: { type: "integer", required: true },
     waitingTask: { type: "string", maxLength: 200, noTrim: true, nullable: true },
     workspaceId: { type: "id", hidden: true, search: true }
   }
 });
 
-/** bot_messages
- * addWorkspace from bot_conversations via conversation_id
+/** messages
+ * everything said in a chat: by a person (authorUserId), a bot (authorBotId) or Mercbot itself (neither); role is the
+ * kind of author, kept when the author's account or bot goes
  */
-export const botMessageResource = defineTableResource({
-  name: "botMessages",
-  tableName: "bot_messages",
+export const messageResource = defineTableResource({
+  name: "messages",
+  tableName: "messages",
   ownership: "workspace",
   // The Library reads up to 400 of what a bot made in one page (botLibrary.js).
   queryMaxLimit: 400,
   schema: {
+    authorBotId: { type: "id", nullable: true, search: true },
+    authorUserId: { type: "id", nullable: true, search: true },
     body: { type: "object", additionalProperties: true },
-    botId: { type: "id", required: true, search: true },
     changed: { type: "xid8", nullable: true },
     conversationId: { type: "id", required: true, search: true },
     createdAt: { type: "dateTime" },
     kind: { type: "string", maxLength: 16, noTrim: true, required: true, search: true },
-    role: { type: "string", maxLength: 16, noTrim: true, required: true, search: true },
+    role: { type: "string", maxLength: 8, noTrim: true, required: true, search: true },
     workspaceId: { type: "id", hidden: true, search: true }
   }
 });
 
-/** conversation_reads
- * surrogateId (conversation_id, user_id)
- */
-export const conversationReadResource = defineTableResource({
-  name: "conversationReads",
-  tableName: "conversation_reads",
-  ownership: "user",
-  schema: {
-    conversationId: { type: "id", required: true, search: true },
-    readUpTo: { type: "integer", required: true },
-    userId: { type: "id", hidden: true, search: true }
-  }
-});
-
-/** bot_sections */
-export const botSectionResource = defineTableResource({
-  name: "botSections",
-  tableName: "bot_sections",
+/** conversation_sections: a person's sidebar sections in a home */
+export const conversationSectionResource = defineTableResource({
+  name: "conversationSections",
+  tableName: "conversation_sections",
   ownership: "workspace_user",
   schema: {
     collapsed: { type: "boolean" },
     name: { type: "string", maxLength: 80, noTrim: true, required: true, search: true },
     position: { type: "integer", required: true },
     userId: { type: "id", hidden: true, search: true },
-    workspaceId: { type: "id", hidden: true, search: true }
-  }
-});
-
-/** bot_group_members
- * addWorkspace from bots via group_id; surrogateId (group_id, bot_id)
- */
-export const botGroupMemberResource = defineTableResource({
-  name: "botGroupMembers",
-  tableName: "bot_group_members",
-  ownership: "workspace",
-  schema: {
-    botId: { type: "id", required: true, search: true },
-    createdAt: { type: "dateTime" },
-    groupId: { type: "id", required: true, search: true },
-    position: { type: "integer", required: true },
-    workspaceId: { type: "id", hidden: true, search: true }
-  }
-});
-
-/** bot_group_people
- * addWorkspace from bots via group_id; surrogateId (group_id, user_id)
- */
-export const botGroupPeopleResource = defineTableResource({
-  name: "botGroupPeople",
-  tableName: "bot_group_people",
-  ownership: "workspace",
-  schema: {
-    addedBy: { type: "id", nullable: true, search: true },
-    createdAt: { type: "dateTime" },
-    groupId: { type: "id", required: true, search: true },
-    userId: { type: "id", required: true, search: true },
-    workspaceId: { type: "id", hidden: true, search: true }
-  }
-});
-
-/** bot_notebook */
-export const botNotebookResource = defineTableResource({
-  name: "botNotebook",
-  tableName: "bot_notebook",
-  ownership: "workspace",
-  schema: {
-    botId: { type: "id", required: true, search: true },
-    createdAt: { type: "dateTime" },
-    removedAt: { type: "dateTime", nullable: true },
-    sourceConversationId: { type: "id", nullable: true, search: true },
-    sourceUserId: { type: "id", nullable: true, search: true },
-    text: { type: "string", maxLength: 500, noTrim: true, required: true },
     workspaceId: { type: "id", hidden: true, search: true }
   }
 });
@@ -211,23 +182,10 @@ export const botKnowledgePartResource = defineTableResource({
   }
 });
 
-/** person_memories
- * a person's own memories in a home: a bot's turn reads only those of the person it answers, in a shared room too
+/** bot_requests
+ * a request one bot in a chat asks another (D-46, D-112): conversation_id is the asking chat, where its card
+ * (message_id), its cards and its answer go; the asked bot works on the brief alone, its own steps kept in steps
  */
-export const personMemoryResource = defineTableResource({
-  name: "personMemories",
-  tableName: "person_memories",
-  ownership: "workspace_user",
-  schema: {
-    botId: { type: "id", nullable: true, search: true },
-    createdAt: { type: "dateTime" },
-    fact: { type: "string", noTrim: true, required: true },
-    userId: { type: "id", hidden: true, search: true },
-    workspaceId: { type: "id", hidden: true, search: true }
-  }
-});
-
-/** bot_requests */
 export const botRequestResource = defineTableResource({
   name: "botRequests",
   tableName: "bot_requests",
@@ -237,16 +195,16 @@ export const botRequestResource = defineTableResource({
     attempts: { type: "integer" },
     brief: { type: "string", noTrim: true, required: true },
     chain: { type: "array" },
+    conversationId: { type: "id", required: true, search: true },
     createdAt: { type: "dateTime" },
     deadlineAt: { type: "dateTime" },
     depth: { type: "integer" },
-    fromBotId: { type: "id", required: true, search: true },
-    fromConversationId: { type: "id", required: true, search: true },
-    fromMessageId: { type: "id", nullable: true, search: true },
+    fromChatBotId: { type: "id", required: true, search: true },
     kind: { type: "string", maxLength: 8, noTrim: true, search: true },
     language: { type: "string", maxLength: 40, noTrim: true },
     lastError: { type: "string", noTrim: true, nullable: true },
     leaseUntil: { type: "dateTime", nullable: true },
+    messageId: { type: "id", nullable: true, search: true },
     nextStep: { type: "string", maxLength: 12, noTrim: true, nullable: true },
     parentId: { type: "id", nullable: true, search: true },
     question: { type: "string", noTrim: true, nullable: true },
@@ -254,10 +212,9 @@ export const botRequestResource = defineTableResource({
     reply: { type: "string", noTrim: true, nullable: true },
     runAfter: { type: "dateTime" },
     status: { type: "string", maxLength: 20, noTrim: true, search: true },
+    steps: { type: "array", nullable: true },
     timeZone: { type: "string", maxLength: 64, noTrim: true },
     toBotId: { type: "id", required: true, search: true },
-    toConversationId: { type: "id", required: true, search: true },
-    toMessageId: { type: "id", nullable: true, search: true },
     turns: { type: "integer" },
     updatedAt: { type: "dateTime" },
     userId: { type: "id", required: true, search: true },
@@ -266,15 +223,14 @@ export const botRequestResource = defineTableResource({
 });
 
 /** bot_routines
- * addWorkspace from bots via bot_id
+ * a routine of a bot in a chat (chat_bot_id), run as the person who made it (made_by), paused once they leave
  */
 export const botRoutineResource = defineTableResource({
   name: "botRoutines",
   tableName: "bot_routines",
   ownership: "workspace",
   schema: {
-    botId: { type: "id", required: true, search: true },
-    conversationId: { type: "id", required: true, search: true },
+    chatBotId: { type: "id", required: true, search: true },
     createdAt: { type: "dateTime" },
     cron: { type: "string", maxLength: 120, noTrim: true, nullable: true },
     enabled: { type: "boolean" },
@@ -283,6 +239,7 @@ export const botRoutineResource = defineTableResource({
     feeds: { type: "object", nullable: true, additionalProperties: true },
     instructions: { type: "string", noTrim: true },
     lastRunAt: { type: "dateTime", nullable: true },
+    madeBy: { type: "id", nullable: true, search: true },
     name: { type: "string", maxLength: 120, noTrim: true, required: true, search: true },
     nextRunAt: { type: "dateTime", nullable: true },
     once: { type: "boolean" },
@@ -305,10 +262,9 @@ export const connectFollowUpResource = defineTableResource({
   ownership: "workspace",
   schema: {
     attempts: { type: "integer" },
-    conversationId: { type: "id", required: true, search: true },
+    chatBotId: { type: "id", required: true, search: true },
     leaseUntil: { type: "dateTime", nullable: true },
     messageId: { type: "id", required: true, search: true },
-    personal: { type: "boolean", search: true },
     pluginId: { type: "string", maxLength: 64, noTrim: true, required: true, search: true },
     runId: { type: "string", maxLength: 36, noTrim: true, nullable: true, search: true },
     status: { type: "string", maxLength: 8, noTrim: true, search: true },
@@ -320,33 +276,30 @@ export const connectFollowUpResource = defineTableResource({
 });
 
 /** bot_policies
- * surrogateId (user_id)
- * workspace_id is unused by code; kept, never written
+ * a person's auto-review in a home, one row each (ux_bot_policies_key: workspace_id, user_id)
  */
 export const botPolicyResource = defineTableResource({
   name: "botPolicies",
   tableName: "bot_policies",
-  ownership: "user",
+  ownership: "workspace_user",
   schema: {
     autoReview: { type: "boolean" },
     userId: { type: "id", hidden: true, search: true },
-    workspaceId: { type: "id", nullable: true, search: true }
+    workspaceId: { type: "id", hidden: true, search: true }
   }
 });
 
-/** approval_rules
- * workspace_id is unused by code; kept, never written
- */
+/** approval_rules: a person's approval rules in a home */
 export const approvalRuleResource = defineTableResource({
   name: "approvalRules",
   tableName: "approval_rules",
-  ownership: "user",
+  ownership: "workspace_user",
   schema: {
     action: { type: "string", maxLength: 200, noTrim: true, required: true },
     behaviour: { type: "string", maxLength: 8, noTrim: true, required: true },
     createdAt: { type: "dateTime" },
     userId: { type: "id", hidden: true, search: true },
-    workspaceId: { type: "id", nullable: true, search: true }
+    workspaceId: { type: "id", hidden: true, search: true }
   }
 });
 
@@ -386,45 +339,21 @@ export const homeTemplateChangeResource = defineTableResource({
   }
 });
 
-/** home_settings
- * a home's settings for its bots (D-100), one row per home, made the first time one is set; surrogateId (workspace_id)
- */
-export const homeSettingResource = defineTableResource({
-  name: "homeSettings",
-  tableName: "home_settings",
-  ownership: "workspace",
-  schema: {
-    // The sharing a bot made in the home gets: private, mixed or shared; null until chosen, which means mixed.
-    newBotSharing: { type: "string", maxLength: 16, noTrim: true, nullable: true },
-    // When an owner or admin answered the question asked once its people went from one to two.
-    teamQuestionAnsweredAt: { type: "dateTime", nullable: true },
-    // Whether its bots decide when to join in a Shared bot's shared tabs (D-102): true unless turned off.
-    botsJoinIn: { type: "boolean" },
-    updatedAt: { type: "dateTime" },
-    updatedBy: { type: "id", nullable: true },
-    workspaceId: { type: "id", hidden: true, search: true }
-  }
-});
-
 /** Every table resource this feature owns, in table order. */
 export const TABLE_RESOURCES = Object.freeze([
   botResource,
-  botConversationResource,
-  botMessageResource,
-  conversationReadResource,
-  botSectionResource,
-  botGroupMemberResource,
-  botGroupPeopleResource,
-  botNotebookResource,
+  conversationResource,
+  chatPersonResource,
+  chatBotResource,
+  messageResource,
+  conversationSectionResource,
   botKnowledgeResource,
   botKnowledgePartResource,
-  personMemoryResource,
   botRequestResource,
   botRoutineResource,
   connectFollowUpResource,
   botPolicyResource,
   approvalRuleResource,
   homeTemplateResource,
-  homeTemplateChangeResource,
-  homeSettingResource
+  homeTemplateChangeResource
 ]);

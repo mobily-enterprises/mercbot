@@ -106,15 +106,16 @@ export const appScriptRoundResource = defineTableResource({
   }
 });
 
-/** app_watches */
+/** app_watches
+ * a watch of a bot in a chat (chat_bot_id, D-112), run as the person who made it (created_by)
+ */
 export const appWatcheResource = defineTableResource({
   name: "appWatches",
   tableName: "app_watches",
   ownership: "workspace",
   schema: {
-    botId: { type: "id", required: true, search: true },
+    chatBotId: { type: "id", required: true, search: true },
     condition: { type: "string", noTrim: true, nullable: true },
-    conversationId: { type: "id", required: true, search: true },
     createdAt: { type: "dateTime" },
     createdBy: { type: "integer", nullable: true },
     cursor: { type: "string", required: true },
@@ -241,8 +242,9 @@ export const appJobResource = defineTableResource({
   schema: {
     attempts: { type: "integer" },
     botId: { type: "id", required: true, search: true },
+    // The bot in a chat it runs for (D-112); null for an app's own job, which no chat asked for.
+    chatBotId: { type: "id", nullable: true, search: true },
     claimedAt: { type: "dateTime", nullable: true },
-    conversationId: { type: "id", nullable: true, search: true },
     createdAt: { type: "dateTime" },
     finishedAt: { type: "dateTime", nullable: true },
     kind: { type: "string", maxLength: 16, noTrim: true, required: true, search: true },

@@ -1,91 +1,170 @@
-// Who may see a bot, a conversation and its messages (D-36, D-46). These are the visibility rules
-// that were written by hand at every read: listBots (botList.js:26-31), ownedBot and inGroup
-// (botConversations.js:71-72,166-172) and yoursOrRooms (botLibrary.js:83-92). Ownership already
-// keeps every read in the request's home; these only narrow inside it. What one screen lists
-// (search leaving out a member bot's group computer, the list leaving out other people's seats)
-// stays a filter on that screen's read: a policy hides a row everywhere.
+// Who may read a chat and everything keyed to it (D-112). These policies are the one place chat privacy is decided;
+// ownership already keeps every read in the call's home, and they only narrow inside it. Writes are the services'
+// to check (a create is never narrowed by a policy).
 //
-// A signed-in person sees:
-// - every bot of the home that is not a group chat, and the group chats they are in;
-// - their own conversation with any bot (a seat: user_id is theirs);
-// - a bot's rooms (user_id and group_id empty), when the bot is not a group chat or they are in it;
-// - a member bot's own computer for a group (user_id empty, group_id set), when they are in that group;
-// - the messages of the conversations they see.
-// A job for a person (`{ actorId }`, a reply or a request carried out later) sees what that person
-// sees. Background work for no one (a system context, a home's job) is scoped by ownership alone; an
-// anonymous caller (a public app's visitor) sees none of them.
+// A chat can be opened by everyone in its home when it is public, and by its people when it is private. So:
+// - a signed-in person, or a job acting for one (`{ actorId }`), reads the chats they can open, and every row keyed to
+//   them: their people, bots and messages, the bots' routines, requests and follow-ups;
+// - the model's reader (a job context `readerFor` made for one bot in one chat) reads `readable_from(chat)`: the chats
+//   everyone who can open its chat can open too (the migration's SQL function), whoever the asker is, and the rows
+//   keyed to those chats. It never reads another chat because the asker could;
+// - background work for no one (a system context, a home's job without a person) is scoped by ownership alone;
+// - an anonymous caller (a public app's visitor) reads none of them.
+// Bots are the home's, so every caller in the home but an anonymous one reads every bot.
+//
+// Other features' tables keyed to a bot in a chat (computers, browser state, tickets, shell runs, app watches and
+// jobs) narrow through `chatBotRule`, and a person's own rows (personal skills) through `personalRule`: both read this
+// feature's tables through their owners' join sources in the caller's own scope, so the same rule decides.
 
-const GROUP = "group";
+// The model's reader is a job context carrying, under this module-private symbol, the bot and chat it reads for. Only
+// `readerFor` sets it, so no caller can claim to be a reader or name another chat; and since object spread keeps a
+// symbol, a copy of a reader's context (json-rest-api copies the context it's given; a service may add to it) is still
+// that reader. A context made as a reader that lost it anyway (rebuilt field by field) reads nothing: every rule here
+// refuses a job with the reader's reason and no reader, so the reader fails closed, never reading as the asker.
+const READER = Symbol("mercbot.bots.modelReader");
+const READER_REASON = "the model reads for one bot in one chat";
 
-/** Whom the call is for: a request's signed-in person, or the person a job works for. */
-function personOf(caller) {
-  return caller.kind === "user" ? caller.userId : caller.actorId;
-}
-
-/** The person is one of the group's people: bot_group_people holds a row for them. */
-function personInGroup(ownTable, groupIdColumn, userId) {
-  return ownTable("botGroupPeople")
-    .select(1)
-    .whereColumn("bot_group_people.group_id", groupIdColumn)
-    .where("bot_group_people.user_id", userId);
+/**
+ * The model's reader for one bot in one chat: the context every model-facing read of that turn passes (R1, D-112).
+ * It acts for the asker (`actorId`, for audit fields and for whose approvals a card asks), and reads what the chat may.
+ * @param {(reason: string) => { forWorkspaceUser: Function }} systemContext
+ * @param {{ homeId: string, botId: string, chatId: string, askerId: string }} reader
+ */
+export function readerFor(systemContext, { homeId, botId, chatId, askerId }) {
+  for (const [name, id] of Object.entries({ homeId, botId, chatId, askerId })) {
+    if (!/^\d+$/u.test(String(id ?? ""))) throw new TypeError(`The model's reader needs ${name}: got ${id}.`);
+  }
+  const context = systemContext(READER_REASON)
+    .forWorkspaceUser(String(homeId), String(askerId), { actorId: String(askerId) });
+  const reader = Object.freeze({ homeId: String(homeId), botId: String(botId), chatId: String(chatId), askerId: String(askerId) });
+  return Object.freeze({
+    ...context,
+    [READER]: reader
+  });
 }
 
 /**
- * The conversation predicate, for the conversations' own reads and for the messages' (which read
- * it on their conversation). `col` names a column of the conversation row as its query sees it.
- * @param {import("knex").Knex.QueryBuilder} builder
- * @param {{ col: (column: string) => string, ownTable: (name: string) => import("knex").Knex.QueryBuilder, userId: string }} options
+ * The reader a call's context is, or null.
+ * @param {unknown} context
+ * @returns {Readonly<{ homeId: string, botId: string, chatId: string, askerId: string }> | null}
  */
-function visibleConversation(builder, { col, ownTable, userId }) {
-  return builder
-    .where(col("user_id"), userId)
-    .orWhere((room) => room
-      .whereNull(col("user_id"))
-      .whereNull(col("group_id"))
-      .where((kind) => kind
-        .whereNotExists(ownTable("bots").select(1).whereColumn("bots.id", col("bot_id")).where("bots.kind", GROUP))
-        .orWhereExists(personInGroup(ownTable, col("bot_id"), userId))))
-    .orWhere((groupSeat) => groupSeat
-      .whereNull(col("user_id"))
-      .whereNotNull(col("group_id"))
-      .whereExists(personInGroup(ownTable, col("group_id"), userId)));
+export function readerOf(context) {
+  return (context && typeof context === "object" && context[READER]) || null;
 }
 
-const CONVERSATION_FIELDS = Object.freeze({ user_id: "userId", group_id: "groupId", bot_id: "botId" });
-
-/** bots: a group chat only for its people (listBots, ownedBot). */
-export function botVisibility({ query, caller, column, value, ownTable }) {
-  if (caller.kind === "anonymous") return false;
-  const person = personOf(caller);
-  if (!person) return true;
-  query.where((visible) => visible
-    .whereNot(column("kind"), GROUP)
-    .orWhereExists(personInGroup(ownTable, column("id"), value("userId", person))));
-  return true;
+/**
+ * The call's reader, null for a call that isn't one, or false for one made as a reader that no longer carries it.
+ * @param {{ kind: string, reason?: string }} caller
+ * @param {unknown} context
+ */
+function readerIn(caller, context) {
+  const reader = readerOf(context);
+  if (reader) return reader;
+  return caller.kind === "job" && String(caller.reason ?? "").endsWith(READER_REASON) ? false : null;
 }
 
-/** bot_conversations: the person's own seats, the rooms of bots they see, their groups' member computers. */
-export function conversationVisibility({ query, caller, column, value, ownTable }) {
-  if (caller.kind === "anonymous") return false;
-  const person = personOf(caller);
-  if (!person) return true;
-  const userId = value("userId", person);
-  query.where((visible) => visibleConversation(visible, { col: (name) => column(CONVERSATION_FIELDS[name]), ownTable, userId }));
-  return true;
+/** Whom the call is for: a request's signed-in person, or the person a job works for. */
+function personOf(caller) {
+  if (caller.kind === "user") return caller.userId;
+  return caller.kind === "job" ? caller.actorId ?? null : null;
 }
 
-/** bot_messages: the messages of a conversation the person sees (search, the timeline, the list's preview). */
-export function messageVisibility({ query, caller, column, value, ownTable }) {
+/**
+ * Narrows `query` to rows whose chat (`chatColumn`) the call may read. False refuses every row.
+ * @param {{ query: any, caller: any, options: any, ownTable: (name: string) => any, value: Function }} args
+ * @param {string} chatColumn
+ */
+function narrowToChats({ query, caller, options, ownTable, value }, chatColumn) {
   if (caller.kind === "anonymous") return false;
+  const reader = readerIn(caller, options?.context);
+  if (reader === false) return false;
+  if (reader) {
+    query.whereIn(chatColumn, ownTable("conversations")
+      .select("conversations.id")
+      .whereRaw("conversations.id in (select readable_from(?))", [reader.chatId]));
+    return true;
+  }
   const person = personOf(caller);
   if (!person) return true;
   const userId = value("userId", person);
-  query.whereExists(ownTable("botConversations")
-    .select(1)
-    .whereColumn("bot_conversations.id", column("conversationId"))
-    .where((visible) => visibleConversation(visible, { col: (name) => `bot_conversations.${name}`, ownTable, userId })));
+  query.where((open) => open
+    .whereIn(chatColumn, ownTable("conversations").select("conversations.id").where("conversations.kind", "public"))
+    .orWhereIn(chatColumn, ownTable("chatPeople").select("chat_people.conversation_id").where("chat_people.user_id", userId)));
   return true;
 }
 
-/** Pure parts the tests reach directly. */
-export const __testables = Object.freeze({ visibleConversation });
+/** bots: the home's, for every caller in it but an anonymous one. */
+export function botVisibility({ caller }) {
+  return caller.kind !== "anonymous";
+}
+
+/** conversations: the chats the call may read. */
+export function conversationVisibility(args) {
+  return narrowToChats(args, args.column("id"));
+}
+
+/** chat_people, chat_bots, messages and bot_requests: the rows of chats the call may read. */
+export function inReadableChat(args) {
+  return narrowToChats(args, args.column("conversationId"));
+}
+
+/** bot_routines and connect_follow_ups: the rows of a bot in a chat the call may read. */
+export function ofReadableChatBot(args) {
+  if (args.caller.kind === "anonymous") return false;
+  const chatBots = args.ownTable("chatBots").select("chat_bots.id");
+  narrowToChats({ ...args, query: chatBots }, "chat_bots.conversation_id");
+  args.query.whereIn(args.column("chatBotId"), chatBots);
+  return true;
+}
+
+/**
+ * The rules other features' row policies apply, over this feature's own tables in the caller's scope.
+ * @param {Record<string, import("@jskit-ai/resource-runtime/server/types").ResourceHandle>} resources
+ */
+export function createChatRules(resources) {
+  /**
+   * A row keyed to a bot in a chat (`field`, its chat_bots id) is read only by a call that may read that chat: the
+   * computers, browser states, tickets, shell runs, app watches and app jobs (D-112; a chat's computer is the chat's).
+   * With `nullable`, a row with no bot in a chat (an app's own job) is the home's. Use it as a row policy: it returns
+   * false for an anonymous caller.
+   * @param {{ query: any, caller: any, column: (field: string) => string, options: any }} args
+   * @param {string} [field]
+   * @param {{ nullable?: boolean }} [settings]
+   */
+  async function chatBotRule({ query, caller, column, options }, field = "chatBotId", { nullable = false } = {}) {
+    if (caller.kind === "anonymous") return false;
+    if (caller.kind === "system") return true;
+    const chatBots = await resources.chatBots.joinSource({ alias: "readable_chat_bots" }, options);
+    const readable = chatBots.query.select(1).whereColumn(chatBots.column("id"), column(field));
+    if (nullable) query.where((either) => either.whereNull(column(field)).orWhereExists(readable));
+    else query.whereExists(readable);
+    return true;
+  }
+
+  /**
+   * A person's own row (`field`, their user id; a personal skill) is read by that person, and by the model's reader
+   * only in a private chat whose one person they are: the only chat everyone who can open it can also open it from
+   * (D-112). Ownership "user" or "workspace_user" already keeps it to its person for everyone else.
+   * @param {{ query: any, caller: any, column: (field: string) => string, options: any }} args
+   * @param {string} [field]
+   */
+  async function personalRule({ query, caller, column, options }, field = "userId") {
+    if (caller.kind === "anonymous") return false;
+    const reader = readerIn(caller, options?.context);
+    if (reader === false) return false;
+    if (!reader) return true;
+    const chat = await resources.conversations.joinSource({ alias: "reader_chat", filters: { id: reader.chatId } }, options);
+    const theirs = await resources.chatPeople.joinSource({ alias: "reader_chat_person", filters: { conversationId: reader.chatId } }, options);
+    const others = await resources.chatPeople.joinSource({ alias: "reader_chat_other", filters: { conversationId: reader.chatId } }, options);
+    query
+      .whereExists(chat.query.select(1).where(chat.column("kind"), "private"))
+      .whereExists(theirs.query.select(1).whereColumn(theirs.column("userId"), column(field)))
+      .whereNotExists(others.query.select(1).whereColumn(others.column("userId"), "<>", column(field)));
+    return true;
+  }
+
+  return Object.freeze({
+    chatBotRule,
+    personalRule
+  });
+}

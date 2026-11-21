@@ -1,6 +1,6 @@
-// A person's approval rules and auto-review (docs/architecture.md §3.7). Both tables are the
-// person's own (ownership `user`): every call reads and writes the caller's rows, in a request the
-// signed-in person's and in a job the person it acts for (forWorkspaceUser).
+// A person's approval rules and auto-review (docs/architecture.md §3.7), in each home (D-112). Both tables are the
+// person's own in the home (ownership `workspace_user`): every call reads and writes the caller's rows, in a request
+// the signed-in person's and in a job the person it acts for (forWorkspaceUser).
 
 /** @typedef {import("@jskit-ai/resource-runtime/server/types").ResourceCallOptions} CallOptions */
 /** @typedef {import("@jskit-ai/resource-runtime/server/types").ResourceHandle} ResourceHandle */
@@ -32,7 +32,7 @@ export function createPolicyRepository({ botPolicies, approvalRules }) {
   async function setAutoReview(enabled, options) {
     await botPolicies.createMany([{ autoReview: Boolean(enabled) }], {
       ...options,
-      onConflict: { keys: ["userId"], action: "merge", merge: ["autoReview"] }
+      onConflict: { keys: ["workspaceId", "userId"], action: "merge", merge: ["autoReview"] }
     });
   }
 
