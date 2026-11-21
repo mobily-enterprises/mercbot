@@ -12,7 +12,12 @@ import { __testables as anyapiTestables, createAnyapi } from "../../../packages/
 import { createRegistry } from "../../../packages/apps/src/server/registry.js";
 import { startAppJobRunner } from "../../../packages/bots/src/server/appJobRunner.js";
 import { createBotRequests } from "../../../packages/bots/src/server/botRequests.js";
-import { botRequestResource, botRoutineResource, messageResource } from "../../../packages/bots/src/server/records/tableResources.js";
+import {
+  botRequestResource,
+  botRoutineResource,
+  chatBotResource,
+  messageResource
+} from "../../../packages/bots/src/server/records/tableResources.js";
 import { createChatRules } from "../../../packages/bots/src/server/records/rowPolicies.js";
 import { REQUEST_SEARCH, ROUTINE_SEARCH, createWorkRepository } from "../../../packages/bots/src/server/records/workRepository.js";
 import { startRoutineRunner } from "../../../packages/bots/src/server/routineRunner.js";
@@ -88,7 +93,9 @@ async function botsWork(knex) {
   const resources = await runtime.own("mercbot.bots.records", [
     { resource: botRequestResource, searchSchema: REQUEST_SEARCH },
     { resource: botRoutineResource, searchSchema: ROUTINE_SEARCH },
-    messageResource
+    messageResource,
+    // The bots in chats, which the chat rules read for an Apps job of a bot in a chat outside a system context.
+    chatBotResource
   ]);
   return {
     runtime,

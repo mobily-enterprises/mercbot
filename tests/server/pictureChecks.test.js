@@ -18,8 +18,8 @@ const IMAGES = Object.freeze({ AI_IMAGES_PROVIDER: "gemini", AI_IMAGES_API_KEY: 
 // Bot 13's turn for person 12 in public chat 14 of home 11, its seat there 15.
 const WHOSE = Object.freeze({ homeId: "11", userId: "12", botId: "13", chatId: "14", chatBotId: "15" });
 const SEAT = Object.freeze({ id: "13", workspace_id: "11", user_id: "12", chat_id: "14", chat_bot_id: "15", chat: { id: "14", kind: "public" } });
-// Whose a check says the picture is: the home, the person, the bot, its chat and its seat there.
-const CHECKED_AS = Object.freeze({ workspaceId: "11", userId: "12", botId: "13", conversationId: "14", chatBotId: "15" });
+// Whose a check says the picture is: the home, the person, the bot and its chat.
+const CHECKED_AS = Object.freeze({ workspaceId: "11", userId: "12", botId: "13", conversationId: "14" });
 
 /** A checker whose text and picture verdicts the test sets, and what it was asked. */
 function copyChecker() {
@@ -103,8 +103,8 @@ test("each picture made is checked before it's kept or shown: one not allowed is
   assert.match(one.note, /Only 1 of the 2 pictures is shown: The picture that was made can't be shown, so it wasn't kept\./u);
   assert.equal((await pictures()).length, 1);
   const checked = copy.asked.filter((item) => item.origin === "picture");
-  assert.deepEqual(checked.map((item) => [item.mime, item.workspaceId, item.userId, item.botId, item.conversationId, item.chatBotId, item.path.startsWith("/files/chat/Pictures/cake-")]),
-    [["image/png", "11", "12", "13", "14", "15", true], ["image/png", "11", "12", "13", "14", "15", true]]);
+  assert.deepEqual(checked.map((item) => [item.mime, item.workspaceId, item.userId, item.botId, item.conversationId, item.path.startsWith("/files/chat/Pictures/cake-")]),
+    [["image/png", "11", "12", "13", "14", true], ["image/png", "11", "12", "13", "14", true]]);
   assert.deepEqual(checked[0].bytes, PICTURE);
   await run.finish();
   assert.deepEqual(run.after.filter((message) => message.kind === "pictures").map((message) => message.body.images.map((image) => image.title)), [["Cake"]]);

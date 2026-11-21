@@ -160,6 +160,7 @@ test("uploads, Vault photos and profile pictures are checked before anything is 
 
     // The home's own files.
     const homeUpload = `/api/w/${home.slug}/files/upload`;
+    answer = { verdict: "block" };
     const shared = await request("POST", homeUpload, { upload: ["file", "team.png", "image/png", PICTURE] });
     assert.equal(shared.status, 422, JSON.stringify(shared.body));
     assert.deepEqual(refusal(shared), BLOCKED);
