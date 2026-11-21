@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "./harness";
+import { directChat, expect, shell, test, type Page } from "./harness";
 
 // The bot templates' honest badge (D-43, D-79), where people choose a bot: the gallery, a template's page, and the
 // preview before Add bot. A Test Preview's own results (tests/support/start-test-app.mjs) have Pantry, the weekly meal
@@ -93,8 +93,10 @@ test("the preview in Add bots shows the badge, and adding still works", async ({
   const { bot } = (await (await added).json()) as { bot: { id: string } };
   try {
     await expect(preview).toBeHidden();
-    await expect(page).toHaveURL(new RegExp(`[?&]bot=${bot.id}\\b`, "u"));
-    await expect(page.getByRole("main", { name: "Chat" })).toContainText("I'm Pantry");
+    // The new bot's direct chat opens (D-112), where its greeting already is.
+    const chat = await directChat(page, String(bot.id));
+    await expect(page).toHaveURL(new RegExp(`[?&]chat=${chat.id}\\b`, "u"));
+    await expect(shell.chat(page)).toContainText("I'm Pantry");
   } finally {
     // The page is left first: still open on the bot, it would go on reading it once it's gone.
     await page.goto("about:blank");
