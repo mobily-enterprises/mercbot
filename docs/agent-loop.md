@@ -30,7 +30,7 @@ Everything below is on `main` and covered by unit and integration tests.
 
 ## 2. How a reply runs
 
-Every reply (a person's own chat, a room, a group, a request from another bot, a routine, an app
+Every reply (in any chat, with one bot or several, a request from another bot, a routine, an app
 task) goes through **one loop**: `runLoop` in JSKIT's `@jskit-ai/agent` package (saved runs, goals,
 summaries, planning and default tools in `@jskit-ai/agent-runtime`), on the
 AI SDK's `generateText` (call the model, run the tools it asks for, feed the results back, repeat
@@ -116,7 +116,7 @@ person's message
 - **To-do list** (`update_todos`): one card in the chat, updated in place, folded to "Done: n of
   n" when finished; the open list is in the state note at every turn. Bots chose to keep one in 10
   of 14 hard runs.
-- **Job notes** (`keep_notes`): the bot's private notes for the job (`bot_conversations.job_notes`),
+- **Job notes** (`keep_notes`): the bot's notes for the job (`chat_bots.job_notes`, the bot in its chat),
   in the state note at every turn, never shown in the chat.
 - **Goals** (`create_goal`, `get_goal`, `update_goal`): a multi-step job keeps going in rounds until
   it's complete, blocked (not before round 3), at 24 rounds, or at its cost limit.
@@ -145,7 +145,7 @@ sees the first one's work, so nothing is redone).
 | Check | Catches | Since |
 |---|---|---|
 | **Raw markup** | a tool call written as text, DeepSeek's tokens (`<｜begin▁of▁sentence｜>`), budget and safety tags | D-48 |
-| **Stopped short** | a reply under 600 characters that ends by announcing its next step; any bot with tools, groups too (with a goal active, its round carries on instead; the engine's own account of a reply that stopped early is left alone) | D-47, widened D-48 |
+| **Stopped short** | a reply under 600 characters that ends by announcing its next step; any bot with tools, in any chat (with a goal active, its round carries on instead; the engine's own account of a reply that stopped early is left alone) | D-47, widened D-48 |
 | **Claimed files** | "attached below" with no card | D-48 |
 | **Unsupported claims** | a reply that reports actions is compared with what its tools actually did, in one short call; "emailed it to Sam" with no email is sent back | D-48 |
 | Pictures, calendar, Drive, mail, GitHub, apps, hand-over | specific claims by words | before D-48 |

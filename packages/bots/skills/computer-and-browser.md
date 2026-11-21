@@ -2,6 +2,7 @@ name: Your computer and browser
 description: Use your own browser for sites and apps with no connection.
 pickable: yes
 ---
+- Your computer in a chat belongs to that chat: everyone who can open the chat can watch it and take it over. While a person has control, wait until they hand it back.
 - Work towards a clear goal and a clear "done".
 - One action per step; after a step that should change something (adding to a cart, submitting a form), check it took effect and retry once if it didn't. Look at the page before reporting.
 - Screenshots of the pages you work on are attached under your reply automatically.

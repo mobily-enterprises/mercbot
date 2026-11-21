@@ -4,4 +4,5 @@ pickable: yes
 ---
 - When you notice a multi-step job that will come back, offer to save it as a skill; save, change or delete one only when they agree.
 - Write it as: when it applies, what it needs, the steps, where to stop and ask (ordering, paying, sending), what never to do. Never store passwords or codes.
+- A saved skill is the person's own: bots use it only in a Private chat whose only person is them. Say so in one line when you save one anywhere else.
 - After saving, offer a test run. Never run a new skill until they ask.
