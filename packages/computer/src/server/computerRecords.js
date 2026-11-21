@@ -3,14 +3,17 @@ import { retryLostInsertRace } from "@jskit-ai/database-runtime/shared";
 
 // The bot computers' rows (D-15): which server runs each computer and its state (bot_computers),
 // the servers and when each was last seen (mercbot_servers), the servers' shared secret
-// (mercbot_settings) and one-time screen tickets (computer_tickets). Computers run on no request
-// and pass between servers, so every read and write here is in the computer feature's system
-// context, by the conversation's id; a computer's rows are created in its conversation's home.
-// The database's clock (now()) decides which servers are alive, as every server reads it.
+// (mercbot_settings) and one-time screen tickets (computer_tickets), who has control of each
+// computer and what's signed in on it (D16). Computers run on no request and pass between servers,
+// so every read and write here is in the computer feature's system context, by the computer's id,
+// its bot's chat_bots id (D14); a computer's rows are created in its chat's home. The database's
+// clock (now()) decides which servers are alive, as every server reads it.
 
 const ALIVE_SECONDS = 45;
 const SERVER_DAYS = 1;
 const TICKET_SECONDS = 30;
+// The most sign-ins a computer's panel lists: the newest.
+const SIGN_INS_KEPT = 30;
 
 /** The search entries the owns entries of bot_computers, mercbot_servers and computer_tickets add. */
 export const BOT_COMPUTER_FILTERS = Object.freeze({
@@ -36,6 +39,14 @@ export const SERVER_FILTERS = Object.freeze({
     }
   }
 });
+// Nobody has control: the bot's own (D16).
+const NO_CONTROL = Object.freeze({ controlledBy: null, controlledAt: null });
+
+/** A computer row's control, `{ userId, since }`, or null. */
+const controlOf = (row) => (row?.controlledBy == null
+  ? null
+  : { userId: String(row.controlledBy), since: new Date(row.controlledAt).toISOString() });
+
 export const TICKET_FILTERS = Object.freeze({
   expiredBy: { type: "dateTime", actualField: "expires_at", filterOperator: "<" }
 });
@@ -44,7 +55,7 @@ export const TICKET_FILTERS = Object.freeze({
  * @param {object} dependencies
  * @param {Record<string, any>} dependencies.resources the computer feature's handles
  * @param {() => { context: object }} dependencies.system the computer feature's system context, as call options
- * @param {(computerId: string, options: object) => Promise<string | null>} dependencies.homeOf the conversation's home
+ * @param {(computerId: string, options: object) => Promise<string | null>} dependencies.homeOf the computer's chat's home
  */
 export function createComputerRecords({ resources, system, homeOf }) {
   const { botComputers, botBrowserState, computerTickets, mercbotServers, mercbotSettings } = resources;
@@ -80,20 +91,20 @@ export function createComputerRecords({ resources, system, homeOf }) {
     return found.map((computer) => String(computer.id));
   }
 
-  /** A server's computers after it restarted: all asleep, in every home. */
+  /** A server's computers after it restarted: all asleep, in every home, and nobody's in control of them any more. */
   function putToSleep(serverId) {
-    return botComputers.patchWhere({ serverId }, { state: "asleep", url: "" }, { ...system(), returning: "none" });
+    return botComputers.patchWhere({ serverId }, { state: "asleep", url: "", ...NO_CONTROL }, { ...system(), returning: "none" });
   }
 
   /**
    * The computer's row, locked, then changed by `work(current, txOptions)`; a missing row is
-   * created in the conversation's home first when `create` gives its fields.
+   * created in its chat's home first when `create` gives its fields.
    * A missing row is created under retryLostInsertRace, so two first uses at once make it once.
    */
   function withComputer(computerId, work) {
     const options = system();
     return retryLostInsertRace(options, () => botComputers.withTransaction(options, async (txOptions) => {
-      const current = await botComputers.lock(computerId, { ...txOptions, missing: "skip", fields: ["serverId"] });
+      const current = await botComputers.lock(computerId, { ...txOptions, missing: "skip", fields: ["serverId", "controlledBy", "controlledAt"] });
       return work(current, txOptions);
     }));
   }
@@ -113,13 +124,14 @@ export function createComputerRecords({ resources, system, homeOf }) {
   /**
    * Only the server holding a computer records its state; one that lost it to another server
    * can't take it back. A computer's states are written one at a time, in the order they're asked for.
+   * One that goes to sleep is nobody's to control any more: it's the bot's again when it wakes.
    */
   function recordState(computerId, serverId, { state, url, error }) {
     const key = String(computerId);
     const write = () => withComputer(key, async (current, txOptions) => {
       if (!current) return createComputer(key, { serverId, state, url, error }, txOptions);
       if (current.serverId !== serverId) return false;
-      await botComputers.patch(key, { state, url, error }, { ...txOptions, returning: "none" });
+      await botComputers.patch(key, { state, url, error, ...(state === "asleep" ? NO_CONTROL : {}) }, { ...txOptions, returning: "none" });
       return true;
     });
     const written = (writing.get(key) ?? Promise.resolve()).then(write);
@@ -182,22 +194,83 @@ export function createComputerRecords({ resources, system, homeOf }) {
     });
   }
 
-  /** The computer's row, if the server holding it is alive: `{ serverId, serverUrl, state, url, error }`. */
+  /**
+   * The computer's row, if the server holding it is alive: `{ serverId, serverUrl, state, url, error, control }`, with
+   * `control` its controller's `{ userId, since }` or null.
+   */
   async function owner(computerId) {
-    const found = await botComputers.get(String(computerId), { fields: ["serverId", "state", "url", "error"] }, { ...system(), missing: "skip" });
+    const found = await botComputers.get(String(computerId), { fields: ["serverId", "state", "url", "error", "controlledBy", "controlledAt"] }, { ...system(), missing: "skip" });
     const server = found ? await liveServer(found.serverId) : null;
-    return server ? { serverId: found.serverId, serverUrl: server.url, state: found.state, url: found.url, error: found.error } : null;
+    if (!server) return null;
+    return {
+      serverId: found.serverId,
+      serverUrl: server.url,
+      state: found.state,
+      url: found.url,
+      error: found.error,
+      control: controlOf(found)
+    };
+  }
+
+  /** Who has control of the computer, `{ userId, since }`, or null; a computer that's asleep has none. */
+  async function control(computerId) {
+    const found = await botComputers.get(String(computerId), { fields: ["controlledBy", "controlledAt"] }, { ...system(), missing: "skip" });
+    return found ? controlOf(found) : null;
+  }
+
+  /**
+   * Gives control of the computer to `userId`, or with null back to its bot (D16). Only a computer with a row can be
+   * controlled: one that has been awake. Answers `{ before, control }`, each `{ userId, since }` or null, or null when
+   * the computer has no row.
+   */
+  function giveControl(computerId, userId) {
+    return withComputer(String(computerId), async (current, txOptions) => {
+      if (!current) return null;
+      const changes = userId == null ? NO_CONTROL : { controlledBy: String(userId), controlledAt: new Date().toISOString() };
+      await botComputers.patch(String(computerId), changes, { ...txOptions, returning: "none" });
+      return { before: controlOf(current), control: controlOf(changes) };
+    });
+  }
+
+  /** What's signed in on the computer's browser, newest first: [{ label, kind, since }]. */
+  async function signIns(computerId) {
+    const found = await botBrowserState.get(String(computerId), { fields: ["signIns"] }, { ...system(), missing: "skip" });
+    return Array.isArray(found?.signIns) ? found.signIns : [];
+  }
+
+  /**
+   * A sign-in made on the computer: listed first, in place of one of the same kind and label, the newest SIGN_INS_KEPT
+   * kept. It goes with the saved browser (a reset forgets both).
+   */
+  function noteSignIn(computerId, { label, kind }) {
+    const id = String(computerId);
+    const entry = { label: String(label).slice(0, 200), kind, since: new Date().toISOString() };
+    const options = system();
+    return retryLostInsertRace(options, () => botBrowserState.withTransaction(options, async (txOptions) => {
+      const before = await botBrowserState.lock(id, { ...txOptions, missing: "skip", fields: ["signIns"] });
+      const kept = Array.isArray(before?.signIns) ? before.signIns : [];
+      const others = kept.filter((one) => one.kind !== entry.kind || one.label !== entry.label);
+      const listed = [entry, ...others].slice(0, SIGN_INS_KEPT);
+      if (before) {
+        await botBrowserState.patch(id, { signIns: listed }, { ...txOptions, returning: "none" });
+        return listed;
+      }
+      const workspaceId = await homeOf(id, txOptions);
+      if (!workspaceId) return [];
+      await botBrowserState.create({ id, workspaceId, signIns: listed }, { ...txOptions, returning: "none" });
+      return listed;
+    }));
   }
 
   /** A one-time ticket for the computer's screen, valid for 30 seconds; expired ones go first. */
   async function issueTicket(computerId, ticket) {
     const workspaceId = await homeOf(String(computerId), system());
-    if (!workspaceId) throw new Error("This computer's conversation is gone.");
+    if (!workspaceId) throw new Error("This computer's chat is gone.");
     await computerTickets.deleteWhere({ expiredBy: new Date().toISOString() }, system());
     await computerTickets.create(
       {
         id: ticket,
-        conversationId: String(computerId),
+        chatBotId: String(computerId),
         workspaceId,
         expiresAt: new Date(Date.now() + TICKET_SECONDS * 1000).toISOString()
       },
@@ -207,8 +280,8 @@ export function createComputerRecords({ resources, system, homeOf }) {
 
   /** The computer a live ticket is for, or null. */
   async function ticketFor(ticket) {
-    const found = await computerTickets.get(String(ticket || ""), { fields: ["conversationId", "expiresAt"] }, { ...system(), missing: "skip" });
-    return found && new Date(found.expiresAt) > new Date() ? { ticket: String(found.id), computerId: String(found.conversationId) } : null;
+    const found = await computerTickets.get(String(ticket || ""), { fields: ["chatBotId", "expiresAt"] }, { ...system(), missing: "skip" });
+    return found && new Date(found.expiresAt) > new Date() ? { ticket: String(found.id), computerId: String(found.chatBotId) } : null;
   }
 
   /** Uses a ticket up: true once, for whoever deleted it. */
@@ -218,7 +291,7 @@ export function createComputerRecords({ resources, system, homeOf }) {
 
   /**
    * The computer's saved browser record, changed by `changes`, and the one it replaced:
-   * `{ before, saved }`, or null when the conversation is gone.
+   * `{ before, saved }`, or null when its chat is gone.
    * It answers the record it replaced, which an upsert cannot, so the row is read first and a
    * missing one created under retryLostInsertRace.
    */
@@ -253,6 +326,10 @@ export function createComputerRecords({ resources, system, homeOf }) {
     servers,
     claim,
     owner,
+    control,
+    giveControl,
+    signIns,
+    noteSignIn,
     issueTicket,
     ticketFor,
     useTicket,

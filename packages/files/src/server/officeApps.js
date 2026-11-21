@@ -49,7 +49,7 @@ const READS = {
 const PREVIEW_PAGES = 20;
 const RESULT_LIMIT = 12000;
 
-const READ_ONLY = ["mine", "bot", "shared"];
+const READ_ONLY = ["chat", "bot", "shared"];
 
 /**
  * `argv` in the gVisor sandbox with the place's folders (`readOnly` names folders it may only
@@ -231,7 +231,7 @@ export function createOfficeApps({ store, env }) {
     if (!await available()) throw new Error("The office apps aren't available on this server.");
     const dirs = await store.prepare(place);
     const target = await store.resolve(place, virtualPath);
-    if (!target) throw new Error("Charts go in /files/mine or /files/shared.");
+    if (!target) throw new Error("Charts go in /files/chat, /files/bot or /files/shared.");
     await fs.mkdir(path.dirname(target), { recursive: true });
     const out = await sharedScratch(env, "mercbot-chart-");
     // One series of columns: the highest stands out in a second colour, as its own stacked series.
@@ -272,7 +272,7 @@ export function createOfficeApps({ store, env }) {
     if (!existsSync(path.join(piper, "piper")) || !shellAvailable(env)) throw new Error("Voice memos aren't installed on this server.");
     const dirs = await store.prepare(place);
     const target = await store.resolve(place, virtualPath);
-    if (!target) throw new Error("Voice memos go in /files/mine.");
+    if (!target) throw new Error("Voice memos go in /files/chat.");
     await fs.mkdir(path.dirname(target), { recursive: true });
     const box = await gvisorProcess({
       runtimeEnv: env,

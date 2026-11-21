@@ -17,7 +17,7 @@ import { createWatches } from "./watches.js";
  * @param {Record<string, import("@jskit-ai/resource-runtime/server/types").ResourceHandle>} dependencies.resources the apps
  *   feature's handles
  * @param {import("@jskit-ai/resource-runtime/server/types").SystemContext} dependencies.systemContext AppsFeature's
- * @param {{ directory: object }} dependencies.records mercbot.bots.records
+ * @param {{ directory: object }} dependencies.records mercbot.bots.records: bots, and the bots in chats watches are of
  * @param {import("./types.js").Anyapi} dependencies.anyapi the homes' runtime tables
  * @param {import("@local/notices/server/types").Notices} dependencies.notices
  * @param {import("@jskit-ai/kernel/server/types").RuntimeEnv} dependencies.env
@@ -43,7 +43,7 @@ export function createAppsRuntime({ resources, systemContext, records, anyapi, n
   const runtime = createRuntime({ apps, gate, scripts, practices });
   const trial = createTrial({ apps, runtime, scripts });
   const views = createViews({ resources, records, systemContext, registry, apps, runtime });
-  const watches = createWatches({ resources, repository, systemContext, registry, gate, apps });
+  const watches = createWatches({ resources, repository, systemContext, registry, gate, apps, records });
   const installTemplateFor = (ctx, key, options) => installTemplate({ registry, apps, gate }, ctx, key, options);
   return Object.freeze({
     anyapi,

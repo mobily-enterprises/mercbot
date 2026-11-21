@@ -1,61 +1,86 @@
+import { resolveAuditActorId } from "@jskit-ai/kernel/server/actions/actionContributorHelpers";
+import { resolveUserScopeValue } from "@jskit-ai/resource-runtime/server";
 import { refusalOf } from "@local/account/meter";
 import { demoHasSteps, demoLines, demoSummary } from "./teaching.js";
 import { BotsError } from "./botsError.js";
-import { toBot } from "./botRows.js";
 
 /**
- * Teaching a bot a task from a recorded demonstration. Every method takes the call's options last;
- * learning in the background keeps the request's.
+ * Teaching a bot a task from a recorded demonstration, in a chat: the person takes over the bot's computer there
+ * (D16) and records themselves on it. Every method takes the call's options last; learning in the background keeps
+ * the request's.
  * @param {object} dependencies
  * @param {import("./types.js").BotRecords} dependencies.records mercbot.bots.records
  * @param {import("@local/computer/server/types").Computer} dependencies.computer
  * @param {import("@local/integrations/server/types").Integrations} dependencies.integrations
- * @param {import("./types.js").BotConversations} dependencies.conversations
+ * @param {import("@local/notices/server/types").Notices} dependencies.notices
  * @param {import("./types.js").BackgroundWork} dependencies.background
  * @param {typeof import("./botWriting.js").writeSkillFromDemo} dependencies.writeSkill
  */
-export function createBotTeaching({ records, computer, integrations, conversations, background, writeSkill }) {
-  /**
-   * Teach a task: the person records themselves on the bot's computer. Stopping posts
-   * their "finished" message with the skill chip, and the bot learns from it in the background,
-   * posting progress as it goes. Discarding keeps nothing and posts nothing.
-   */
-  async function startTeaching(botId, options) {
-    const row = await conversations.ownedSingleBot(botId, options);
-    await computer.startRecording(String(row.conversation_id));
-    return { recording: true };
+export function createBotTeaching({ records, computer, integrations, notices, background, writeSkill }) {
+  /** The bot's seat in the chat, which the caller may open, or a 404. */
+  async function seatOf(chatId, botId, options) {
+    const seat = await records.directory.chatBotOf(String(botId), String(chatId), options);
+    if (!seat) throw new BotsError(404, "That bot isn't in this chat.", { code: "bots_bot_not_in_chat" });
+    return seat;
   }
 
-  async function stopTeaching(botId, { discard = false } = {}, options) {
-    const row = await conversations.ownedSingleBot(botId, options);
-    const recording = await computer.stopRecording(String(row.conversation_id));
-    if (discard) return { bot: toBot(row), messages: [] };
+  /** The chat's people, and whoever is teaching, hear of it on any server; a failure leaves it to their next read. */
+  async function notify(chatId, event, options) {
+    const people = (await records.chats.people(chatId, options)).map((person) => String(person.user_id));
+    const teacher = resolveAuditActorId(options?.context) ?? resolveUserScopeValue(options?.context);
+    const to = [...new Set([...people, ...(teacher ? [String(teacher)] : [])])];
+    await notices.publishEach("bots", to, { ...event, chatId: String(chatId) })
+      .catch((error) => console.warn("Telling people about a demonstration failed; they see it on their next read.", error));
+  }
+
+  /**
+   * Teach a task: the person takes over the bot's computer in the chat and records themselves on it. Answers
+   * `{ recording: true, control }`, control as the take-over gave it.
+   */
+  async function startTeaching(chatId, botId, options) {
+    const seat = await seatOf(chatId, botId, options);
+    const { control } = await computer.takeOver(seat.id, options);
+    await computer.startRecording(seat.id);
+    return { recording: true, control };
+  }
+
+  /**
+   * Stop teaching: the computer goes back to the bot, and the person's "finished" message with the skill chip is
+   * posted, from which the bot learns in the background, posting progress as it goes. Discarding keeps no recording
+   * and posts no message. Answers `{ messages, control: null }`: the hand-back's line and the message.
+   */
+  async function stopTeaching(chatId, botId, { discard = false } = {}, options) {
+    const seat = await seatOf(chatId, botId, options);
+    const recording = await computer.stopRecording(seat.id);
+    const handed = await computer.handBack(seat.id, options);
+    if (discard) return { messages: handed.messages, control: null };
     if (!recording) throw new BotsError(409, "There's no recording to stop.", { code: "bots_recording_missing" });
-    const [finished] = await conversations.append(row, [{
+    const [finished] = await records.messages.append(String(chatId), [{
       kind: "text",
       role: "user",
       body: { text: "I've finished recording. Please learn from it.", chip: "Learn from demonstration", recording }
     }], options);
-    background.add(learn(row, finished.id, recording, options));
-    return { bot: toBot(await conversations.refresh(row, options)), messages: [finished] };
+    await notify(chatId, { type: "messages" }, options);
+    background.add(learn({ chatId: String(chatId), botId: String(botId) }, finished.id, recording, options));
+    return { messages: [...handed.messages, finished], control: null };
   }
 
-  async function learn(row, messageId, recording, options) {
-    const notify = (event) => conversations.tell(row, event, options);
+  async function learn({ chatId, botId }, messageId, recording, options) {
+    const working = (on, status) => notify(chatId, { type: "working", botId, working: on, ...(status ? { status } : {}) }, options);
     const post = async (text) => {
-      await conversations.append(row, [{ kind: "text", role: "bot", body: { text } }], options);
-      await notify({ type: "messages" });
+      await records.messages.append(chatId, [{ kind: "text", role: "bot", authorBotId: botId, body: { text } }], options);
+      await notify(chatId, { type: "messages" }, options);
     };
     const noSteps =
       "That recording was too short to show me a task, so I've deleted it and haven't saved a skill. Want to try again? Open Teach a task, start recording, and go through the whole task from beginning to end.";
     try {
-      await notify({ type: "working", working: true, status: "Putting it together" });
+      await working(true, "Putting it together");
       await post("Got your demo, thanks. Pulling up the recording now.");
       if (!demoHasSteps(recording.events)) {
         await post(noSteps);
         return;
       }
-      await notify({ type: "working", working: true, status: "Studying the recording" });
+      await working(true, "Studying the recording");
       await post(demoSummary(recording.events));
       const skill = await writeSkill(demoLines(recording.events));
       if (!skill.name || !skill.steps.length) {
@@ -74,7 +99,7 @@ export function createBotTeaching({ records, computer, integrations, conversatio
         const { recording: _recording, ...body } = message.body;
         await records.messages.setBody(messageId, body, options);
       }
-      await notify({ type: "working", working: false });
+      await working(false);
     }
   }
 

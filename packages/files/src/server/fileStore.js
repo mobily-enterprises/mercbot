@@ -2,18 +2,23 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { AppError } from "@jskit-ai/kernel/server/runtime/errors";
 
-// Where bots' files live (D-20, D-21, D-36, D-47). Files belong to a home, in three folders:
-//   <root>/homes/<homeId>/shared/                          /files/shared: the whole home
-//   <root>/homes/<homeId>/bots/<botId>/everyone/           /files/bot: everyone using the bot
-//   <root>/homes/<homeId>/bots/<botId>/people/<userId>/    /files/mine: one person with the bot
-// A bot names them by those paths, the same ones it sees in its sandboxes, so nothing it writes or
-// reads ever names a real path on the server. Every call takes a place: { homeId, botId, userId }
-// for a person with a bot; { homeId, botId, everyone: true } where nothing personal may be reached
-// (a shared bot, whose old /files/mine paths still lead to its bot folder); or
-// { homeId, home: true } for the home's own folder alone.
-export const MINE = "/files/mine";
+// Where bots' files live (D-20, D-21, D-47, D-112). Files belong to a home, in three kinds of folder:
+//   <root>/homes/<homeId>/chats/<chatId>/    /files/chat: one chat's, for whoever can open it (R6)
+//   <root>/homes/<homeId>/bots/<botId>/everyone/   /files/bot: one bot's, for everyone in the home (Knowledge, pages)
+//   <root>/homes/<homeId>/shared/            /files/shared: the whole home's
+// A bot names them by those paths, the same ones it sees in its sandboxes, so nothing it writes or reads ever names a
+// real path on the server. Every call takes a place:
+//   { homeId, chatId, chatKind, botId? }: a chat's files, with its bot's when a bot works there (placeFor);
+//   { homeId, botId }: a bot's own folder and the home's (botPlace);
+//   { homeId, home: true }: the home's own folder alone (homePlace).
+// What a bot makes in a chat belongs to that chat (D13): in a private chat, whose people are fewer than the home's,
+// /files/bot and /files/shared only read, in the store and in every sandbox, unless the place is widened (`widened`):
+// a person's own action, or the card a person taps, never the bot alone.
+export const CHAT = "/files/chat";
 export const BOT = "/files/bot";
 export const SHARED = "/files/shared";
+// A widened place: only `widened` sets it, so nothing a bot sends (and nothing stored as JSON) can be one.
+const WIDE = Symbol("mercbot.files.widened");
 const MARKER = ".mercbot-files";
 const LIST_LIMIT = 300;
 // A folder's walk stops after this many entries, so one that holds something huge (an unpacked
@@ -38,6 +43,23 @@ export class FilesError extends AppError {
     super(status, message, options);
     this.name = "FilesError";
   }
+}
+
+/**
+ * The refusal for writing in a folder the place may only read: a private chat's bot and home folders (D13), which more
+ * people can open than its own.
+ */
+const onlyReads = (prefix) => new FilesError(
+  403,
+  `This is a private chat, so its bots only read ${prefix}: what they make stays in ${CHAT}. ` +
+    "Putting it where more people can open it is for a person to do.",
+  { code: "files_wider_needs_card", params: { folder: prefix } }
+);
+
+/** The folders a place has, in words: "/files/chat, /files/bot or /files/shared". */
+function placeFolders(place) {
+  const named = [...(place.chatId != null ? [CHAT] : []), ...(place.botId != null && !place.home ? [BOT] : []), SHARED];
+  return named.length > 1 ? `${named.slice(0, -1).join(", ")} or ${named.at(-1)}` : named[0];
 }
 
 /**
@@ -79,31 +101,37 @@ export function createFileStore({ root, fallback, volume = null, ownStorage, set
   }
 
   /**
-   * The real folders of a place: `mine` is the person's own (for a place without a person, the
-   * bot folder, so the /files/mine every sandbox has still leads somewhere), `personal` says
-   * whether it really is theirs, and `bot` is null for the home's own place. Only `reading` gets
-   * them while the home's files are being moved to other storage (D-80): every other call is
-   * refused then, so whatever writes is refused unless it says it only reads.
+   * The real folders of a place: `chat`, `bot` and `shared`, each null when the place has none, and `readOnly`, the
+   * ones the place may only read (a private chat's bot and home folders, unless widened, D13). Only `reading` gets them
+   * while the home's files are being moved to other storage (D-80): every other call is refused then, so whatever writes
+   * is refused unless it says it only reads.
    */
-  async function folders({ homeId, botId, userId, everyone = false, home: homeOnly = false }, { reading = false, fresh = false } = {}) {
-    if (!homeId || !(homeOnly || (botId && (userId || everyone)))) {
-      throw new Error("A file place needs a home, and a bot with a person or everyone.");
+  async function folders(place, { reading = false, fresh = false } = {}) {
+    const { homeId, chatId = null, botId = null, home: homeOnly = false } = place ?? {};
+    const named = (id) => id != null && /^\d+$/u.test(String(id));
+    const malformed = (id) => id != null && !named(id);
+    if (!named(homeId) || (!homeOnly && !named(chatId) && !named(botId)) || malformed(chatId) || malformed(botId)) {
+      throw new Error("A file place needs a home, and a chat, a bot or the home's own folder.");
     }
     const given = await ownStorage(homeId, { reading });
     const own = typeof given === "string" ? { dir: given, tree: null } : given;
     if (!own && !(await available())) throw unavailable();
     const home = own?.dir || path.join(base, "homes", String(homeId));
-    const shared = path.join(home, "shared");
-    const bot = path.join(home, "bots", String(botId));
-    const everyoneFolder = path.join(bot, "everyone");
-    const dirs = homeOnly
-      ? { mine: null, bot: null, shared, personal: false }
-      : everyone
-        ? { mine: everyoneFolder, bot: everyoneFolder, shared, personal: false }
-        : { mine: path.join(bot, "people", String(userId)), bot: everyoneFolder, shared, personal: true };
+    const dirs = {
+      chat: !homeOnly && chatId != null ? path.join(home, "chats", String(chatId)) : null,
+      bot: !homeOnly && botId != null ? path.join(home, "bots", String(botId), "everyone") : null,
+      shared: path.join(home, "shared"),
+      readOnly: narrow(place) ? ["bot", "shared"] : []
+    };
     await pullFolders(dirs, own, homeId, { fresh });
     return dirs;
   }
+
+  /**
+   * Whether a place's bot may only read /files/bot and /files/shared: a chat's that isn't public (a private chat, or one
+   * whose kind wasn't given), unless it's widened (D13).
+   */
+  const narrow = (place) => place.chatId != null && place.chatKind !== "public" && !place[WIDE];
 
   /**
    * Brings the place's folders here up to date from where they're kept (D-91): the home's own storage, through its
@@ -148,7 +176,7 @@ export function createFileStore({ root, fallback, volume = null, ownStorage, set
     return dir;
   }
 
-  const rootsOf = (dirs) => [[MINE, dirs.mine], [BOT, dirs.bot], [SHARED, dirs.shared]].filter(([, dir]) => dir);
+  const rootsOf = (dirs) => [[CHAT, dirs.chat, "chat"], [BOT, dirs.bot, "bot"], [SHARED, dirs.shared, "shared"]].filter(([, dir]) => dir);
 
   /**
    * The place's folders, made when missing (empty folders, which a move of the home's files needn't carry); `reading`
@@ -185,24 +213,24 @@ export function createFileStore({ root, fallback, volume = null, ownStorage, set
     await fs.rm(path.join(base, "homes", String(homeId)), { recursive: true, force: true });
   }
 
-  // A conversation's whole command outputs (D-48), on Mercbot's own shared volume, outside every
-  // person's folders: the sandbox sees them read-only at /runs. `runsRoot` is where they all are.
+  // A bot's whole command outputs in a chat (D-48), by its chat_bots id, on Mercbot's own shared volume, outside every
+  // chat's folders: the sandbox sees them read-only at /runs. `runsRoot` is where they all are.
   const runsRoot = path.join(base, "runs");
-  const runsFolder = (conversationId, how) => bucketFolder(`runs/${conversationId}`, how);
-  /** Sends a conversation's command outputs written here to the bucket. */
-  const settleRuns = (conversationId) => pushFolder(`runs/${conversationId}`);
+  const runsFolder = (chatBotId, how) => bucketFolder(`runs/${chatBotId}`, how);
+  /** Sends a bot's command outputs in a chat written here to the bucket. */
+  const settleRuns = (chatBotId) => pushFolder(`runs/${chatBotId}`);
 
-  // A bot computer's own files (D-50): its screenshots and its saved browser, also on Mercbot's
-  // own shared volume and outside every person's folders, never in the database or on a server's
-  // own disk. `computersRoot` is where they all are.
+  // A bot's computer in a chat, by its chat_bots id (D-50, D14): its screenshots and its saved browser, also on
+  // Mercbot's own shared volume and outside every chat's folders, never in the database or on a server's own disk.
+  // `computersRoot` is where they all are.
   const computersRoot = path.join(base, "computers");
   // Only its own files are pulled: its screenshots are fetched one at a time (computerFile).
-  const computerFolder = (conversationId, how) => bucketFolder(`computers/${conversationId}`, { ...how, shallow: true });
+  const computerFolder = (chatBotId, how) => bucketFolder(`computers/${chatBotId}`, { ...how, shallow: true });
 
   /** A file in a computer's folder (`name`, such as "screenshots/<file>"), by its path here, or null when there's none. */
-  async function computerFile(conversationId, name) {
+  async function computerFile(chatBotId, name) {
     if (!await available()) throw unavailable();
-    const rel = `computers/${conversationId}/${name}`;
+    const rel = `computers/${chatBotId}/${name}`;
     if (bucket?.tree) {
       return bucket.tree.fetch(rel).catch((error) => {
         console.warn(`Reading ${rel} from the files bucket failed: ${error?.message}`);
@@ -213,9 +241,9 @@ export function createFileStore({ root, fallback, volume = null, ownStorage, set
     return (await fs.lstat(file).catch(() => null))?.isFile() ? file : null;
   }
   /** Sends a computer's files written here (its screenshots, its saved browser) to the bucket. */
-  const settleComputer = (conversationId) => pushFolder(`computers/${conversationId}`);
+  const settleComputer = (chatBotId) => pushFolder(`computers/${chatBotId}`);
 
-  /** The conversations that have a computer folder, wherever they're kept. */
+  /** The chat_bots ids that have a computer folder, wherever they're kept. */
   async function computerIds() {
     if (!await available()) return [];
     if (bucket?.tree) return bucket.tree.children("computers");
@@ -223,34 +251,56 @@ export function createFileStore({ root, fallback, volume = null, ownStorage, set
   }
 
   /** Removes a computer's folder, wherever it's kept. */
-  async function removeComputerFolder(conversationId) {
-    if (bucket?.tree) return bucket.tree.removeTree(`computers/${conversationId}`);
-    await fs.rm(path.join(computersRoot, String(conversationId)), { recursive: true, force: true });
+  async function removeComputerFolder(chatBotId) {
+    if (bucket?.tree) return bucket.tree.removeTree(`computers/${chatBotId}`);
+    await fs.rm(path.join(computersRoot, String(chatBotId)), { recursive: true, force: true });
+  }
+
+  /** Removes a bot's command outputs in a chat, wherever they're kept: the chat was deleted. */
+  async function removeRunsFolder(chatBotId) {
+    if (bucket?.tree) return bucket.tree.removeTree(`runs/${chatBotId}`);
+    await fs.rm(path.join(runsRoot, String(chatBotId)), { recursive: true, force: true });
   }
 
   /**
-   * The command outputs kept, wherever they are: `{ conversation, name, modified }` (`modified` in ms), and how to
+   * Removes a deleted chat's folder (/files/chat), wherever the home keeps its files: Mercbot's own storage or the
+   * home's (D-26), whose synced tree then sends the removal on.
+   */
+  async function removeChatFolder(homeId, chatId) {
+    if (!/^\d+$/u.test(String(homeId)) || !/^\d+$/u.test(String(chatId))) throw new Error("A chat's folder needs its home and chat.");
+    const given = await ownStorage(homeId, { reading: false });
+    const own = typeof given === "string" ? { dir: given, tree: null } : given;
+    if (!own && !(await available())) throw unavailable();
+    const home = own?.dir || path.join(base, "homes", String(homeId));
+    const dir = path.join(home, "chats", String(chatId));
+    if (!own && bucket?.tree) return bucket.tree.removeTree(inBucket(dir));
+    await fs.rm(dir, { recursive: true, force: true });
+    if (own) await settle(homeId);
+  }
+
+  /**
+   * The command outputs kept, wherever they are: `{ chatBotId, name, modified }` (`modified` in ms), and how to
    * remove one (D-48's week).
    */
   async function runOutputs() {
     if (bucket?.tree) {
       if (!await available()) return [];
       return (await bucket.tree.entries("runs")).filter((entry) => !entry.dir && entry.path.split("/").length === 3)
-        .map((entry) => ({ conversation: entry.path.split("/")[1], name: entry.path.split("/")[2], modified: entry.modified }));
+        .map((entry) => ({ chatBotId: entry.path.split("/")[1], name: entry.path.split("/")[2], modified: entry.modified }));
     }
     const found = [];
-    for (const conversation of await fs.readdir(runsRoot).catch(() => [])) {
-      for (const name of await fs.readdir(path.join(runsRoot, conversation)).catch(() => [])) {
-        const stat = await fs.stat(path.join(runsRoot, conversation, name)).catch(() => null);
-        if (stat?.isFile()) found.push({ conversation, name, modified: stat.mtimeMs });
+    for (const chatBotId of await fs.readdir(runsRoot).catch(() => [])) {
+      for (const name of await fs.readdir(path.join(runsRoot, chatBotId)).catch(() => [])) {
+        const stat = await fs.stat(path.join(runsRoot, chatBotId, name)).catch(() => null);
+        if (stat?.isFile()) found.push({ chatBotId, name, modified: stat.mtimeMs });
       }
     }
     return found;
   }
-  async function removeRunOutput(conversation, name) {
-    if (bucket?.tree) return bucket.tree.removeFile(`runs/${conversation}/${name}`);
-    await fs.rm(path.join(runsRoot, String(conversation), String(name)), { force: true });
-    await fs.rmdir(path.join(runsRoot, String(conversation))).catch(() => {});
+  async function removeRunOutput(chatBotId, name) {
+    if (bucket?.tree) return bucket.tree.removeFile(`runs/${chatBotId}/${name}`);
+    await fs.rm(path.join(runsRoot, String(chatBotId), String(name)), { force: true });
+    await fs.rmdir(path.join(runsRoot, String(chatBotId))).catch(() => {});
   }
 
   // People's profile pictures (D-19, profilePictures.js), on Mercbot's own shared volume as well,
@@ -281,14 +331,19 @@ export function createFileStore({ root, fallback, volume = null, ownStorage, set
     return dir;
   }
 
-  /** "/files/mine/a/b.docx" → the real path, or null outside the place's folders; for writing unless `reading`. */
+  /**
+   * "/files/chat/a/b.docx" → the real path, or null outside the place's folders; for writing unless `reading`, which in a
+   * folder the place only reads is refused (files_wider_needs_card).
+   */
   async function resolve(place, virtualPath, { reading = false } = {}) {
     const value = path.posix.normalize(String(virtualPath || "").trim());
     const dirs = await folders(place, { reading });
-    for (const [prefix, dir] of rootsOf(dirs)) {
+    for (const [prefix, dir, name] of rootsOf(dirs)) {
       if (!value.startsWith(`${prefix}/`)) continue;
       const real = path.join(dir, value.slice(prefix.length + 1));
-      if (real.startsWith(dir + path.sep)) return real;
+      if (!real.startsWith(dir + path.sep)) return null;
+      if (!reading && dirs.readOnly.includes(name)) throw onlyReads(prefix);
+      return real;
     }
     return null;
   }
@@ -322,14 +377,16 @@ export function createFileStore({ root, fallback, volume = null, ownStorage, set
   const existingFile = (place, virtualPath, { writing = false } = {}) => existingEntry(place, virtualPath, { reading: !writing });
 
   /**
-   * An existing folder the bot may reach, one of its folders ("/files/mine") or a folder in one,
-   * by its link-free real path and the path the bot gives it: what a coding run's own sandbox is
-   * given (D-77), so a link can't lead it anywhere else.
+   * An existing folder the bot may reach and change, one of its folders ("/files/chat") or a folder in one, by its
+   * link-free real path and the path the bot gives it: what a coding run's own sandbox is given (D-77), so a link can't
+   * lead it anywhere else. A folder the place only reads is refused (D13).
    */
   async function existingFolder(place, virtualPath) {
     const value = path.posix.normalize(String(virtualPath || "").trim()).replace(/(.)\/$/u, "$1");
-    const root = rootsOf(await folders(place)).find(([prefix]) => prefix === value);
+    const dirs = await folders(place);
+    const root = rootsOf(dirs).find(([prefix]) => prefix === value);
     if (!root) return { real: (await existingEntry(place, value, { folder: true })).real, virtualPath: value };
+    if (dirs.readOnly.includes(root[2])) throw onlyReads(root[0]);
     const real = await fs.realpath(root[1]).catch(() => null);
     if (!real || !(await fs.lstat(real)).isDirectory()) {
       throw new FilesError(404, "That folder isn't there any more.", { code: "files_file_gone" });
@@ -337,12 +394,8 @@ export function createFileStore({ root, fallback, volume = null, ownStorage, set
     return { real, virtualPath: value };
   }
 
-  /** The place's folders a listing names: mine only when it's the person's own. */
-  const sectionsOf = (dirs) => [
-    ...(dirs.personal ? [["mine", dirs.mine, MINE]] : []),
-    ...(dirs.bot ? [["bot", dirs.bot, BOT]] : []),
-    ["shared", dirs.shared, SHARED]
-  ];
+  /** The place's folders a listing names, by key: chat, bot and shared, each when the place has it. */
+  const sectionsOf = (dirs) => rootsOf(dirs).map(([prefix, dir, key]) => [key, dir, prefix]);
   const byNewest = (a, b) => b.modified.localeCompare(a.modified);
   const visible = (entries) => entries.filter((entry) => !entry.name.startsWith("."));
 
@@ -377,8 +430,8 @@ export function createFileStore({ root, fallback, volume = null, ownStorage, set
   }
 
   /**
-   * The files in the place's folders and all their sub-folders, each folder's newest 300: { mine
-   * (only when it's the person's own), bot, shared, left, partial }. `left` counts, for each folder
+   * The files in the place's folders and all their sub-folders, each folder's newest 300: { chat, bot
+   * and shared (each when the place has it), left, partial }. `left` counts, for each folder
    * with more, the older files left out. A folder named in `partial` has more than 5,000 files; its
    * walk stopped there, so its 300 are the newest of the first 5,000 found. The bots' turns and
    * tools read this; the file browser reads one folder at a time (listFolder).
@@ -457,8 +510,8 @@ export function createFileStore({ root, fallback, volume = null, ownStorage, set
   }
 
   /**
-   * Every sub-folder of the place's folders, for Move to…: { mine (only when it's the person's
-   * own), bot, shared }, each a list of folder paths in name order. Only folders are read, at most
+   * Every sub-folder of the place's folders, for Move to…: { chat, bot and shared, each when the
+   * place has it }, each a list of folder paths in name order. Only folders are read, at most
    * 5,000 in each of the place's folders.
    */
   async function folderTree(place) {
@@ -481,15 +534,16 @@ export function createFileStore({ root, fallback, volume = null, ownStorage, set
   }
 
   /**
-   * Moving between the folders is how a file becomes private, the bot's or the home's (D-21,
-   * D-47); moving within one renames. Folders move too, never a folder into itself.
+   * Moving between the folders is how a file becomes the chat's, the bot's or the home's (D-21, D-47, D13); moving
+   * within one renames. Folders move too, never a folder into itself. A folder the place only reads takes nothing and
+   * gives nothing up.
    */
   async function move(place, from, to) {
     await prepare(place);
     const source = await existingEntry(place, from, { folder: true });
     const target = await resolve(place, to);
     if (!target) {
-      throw new FilesError(400, "Files can only go in /files/mine, /files/bot or /files/shared.", {
+      throw new FilesError(400, `Files can only go in ${placeFolders(place)}.`, {
         code: "files_file_destination_invalid"
       });
     }
@@ -508,7 +562,7 @@ export function createFileStore({ root, fallback, volume = null, ownStorage, set
     await fs.rename(source.real, target);
   }
 
-  /** Deletes a file, or an empty folder (never one of the three folders themselves). */
+  /** Deletes a file, or an empty folder (never one of the place's folders themselves). */
   async function remove(place, virtualPath) {
     const entry = await existingEntry(place, virtualPath, { folder: true });
     if (!entry.stat.isDirectory()) return fs.unlink(entry.real);
@@ -520,7 +574,7 @@ export function createFileStore({ root, fallback, volume = null, ownStorage, set
     await prepare(place);
     const target = await resolve(place, virtualPath);
     if (!target) {
-      throw new FilesError(400, "Folders can only go in /files/mine, /files/bot or /files/shared.", {
+      throw new FilesError(400, `Folders can only go in ${placeFolders(place)}.`, {
         code: "files_folder_destination_invalid"
       });
     }
@@ -544,20 +598,31 @@ export function createFileStore({ root, fallback, volume = null, ownStorage, set
   }
 
   /**
-   * Where a bot's files are for a person in one conversation, which they follow whatever the bot's mode: a shared
-   * tab's or a group's with others (a row with `room`) are the bot's everyone folder in its home (D-36, D-46), the
-   * person's own conversation's, a Shared bot's "You only" among them, their own (D-99).
-   * @param {{ id: string, workspace_id: string, room?: unknown }} row the bot as seen in that conversation
-   * @param {string} userId
+   * A chat's files (R6): its folder at /files/chat, with its bot's at /files/bot when `botId` is given, and the home's
+   * at /files/shared. `chatKind` is the chat's: in a private chat, or when it isn't given, the bot only reads
+   * /files/bot and /files/shared (D13).
+   * @param {{ homeId: string | number, chatId: string | number, chatKind?: "public" | "private", botId?: string | number | null }} chat
    */
-  function placeFor(row, userId) {
-    return row.room
-      ? { homeId: row.workspace_id, botId: row.id, everyone: true }
-      : { homeId: row.workspace_id, botId: row.id, userId };
+  function placeFor({ homeId, chatId, chatKind = null, botId = null }) {
+    return Object.freeze({
+      homeId: String(homeId),
+      chatId: String(chatId),
+      chatKind: chatKind === "public" ? "public" : "private",
+      botId: botId == null ? null : String(botId)
+    });
   }
 
+  /** A bot's own folder (/files/bot) and the home's (/files/shared): its Knowledge files and pages, everyone's in the home. */
+  const botPlace = ({ homeId, botId }) => Object.freeze({ homeId: String(homeId), botId: String(botId) });
+
   /** The home's own folder alone, for the home's Files page. */
-  const homePlace = (homeId) => ({ homeId, home: true });
+  const homePlace = (homeId) => Object.freeze({ homeId: String(homeId), home: true });
+
+  /**
+   * The same place, whose bot may write in /files/bot and /files/shared even in a private chat: for what a person does
+   * themselves (the file routes), or a card a person tapped (D13). Server code only: the mark can't be sent or stored.
+   */
+  const widened = (place) => Object.freeze({ ...place, [WIDE]: true });
 
   return Object.freeze({
     available,
@@ -576,8 +641,12 @@ export function createFileStore({ root, fallback, volume = null, ownStorage, set
     makeFolder,
     settle: settleHome,
     placeFor,
+    botPlace,
     homePlace,
+    widened,
+    removeChatFolder,
     runsFolder,
+    removeRunsFolder,
     runsRoot,
     settleRuns,
     runOutputs,

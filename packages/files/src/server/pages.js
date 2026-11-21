@@ -26,8 +26,9 @@ import {
 import { pageHeaders } from "./pageHeaders.js";
 import { LIMITS as PAGE_LIMITS, PAGE_FILE_TYPES, createPageFiles } from "./pageFiles.js";
 
-// Rich HTML pages (D-40, D-63, D-74): HTML files in a bot's folder for everyone (or the home's), which
-// belong to the whole home like every file there. Saving copies in what a page loads from outside
+// Rich HTML pages (D-40, D-63, D-74): HTML files in a bot's folder (or the home's), which belong to the whole home
+// like every file there. So a bot in a private chat can't save one on its own: putting it where everyone in the home
+// can open it is a person's to do (D13, fileStore.js). Saving copies in what a page loads from outside
 // (pageFiles.js) and keeps every version (page_versions); a page is shown in a sealed frame from a
 // page-only address that carries a signed token, since the frame has no cookies. Opened on its own, outside its
 // viewer, a page shows without its scripts, and only while its file still carries the key it was opened by.
@@ -71,7 +72,7 @@ const takenOut = (forbidden, removed) => [...forbidden.map((tag) => ({ address: 
 export function createPages({ store, resources, systemContext, env, insecure = false }) {
   const { pageVersions } = resources;
   const files = createPageFiles({ store, insecure });
-  const pagePlace = (homeId, botId) => ({ homeId: String(homeId), botId: String(botId), everyone: true });
+  const pagePlace = (homeId, botId) => store.botPlace({ homeId, botId });
   /** The options of a bot's own saves, which run on no request, in the home they're in. */
   const inHome = (homeId) => ({ context: systemContext("keep the versions of the pages bots save in their home").forWorkspace(String(homeId)) });
 
@@ -153,8 +154,8 @@ export function createPages({ store, resources, systemContext, env, insecure = f
    * Saves a page the bot wrote (save_page): a whole document with its title and key, with what it
    * loads from outside copied in (anything that can't be is taken out and named in `removed`), as a
    * new version. `place` is the reply's, where the chat's own pictures are read; the page itself goes
-   * in the bot's folder for everyone, at `given` or Pages/<slug>.html, where a page with that name is
-   * updated and keeps its key.
+   * in the bot's folder, at `given` or Pages/<slug>.html, where a page with that name is updated and
+   * keeps its key. A private chat's place only reads there, so the save is refused (files_wider_needs_card).
    * @returns {Promise<{ path: string, title: string, summary: string, copied: number, removed: { address: string, why: string }[] }>}
    */
   async function save({ place, title, content, given = null, slug }) {

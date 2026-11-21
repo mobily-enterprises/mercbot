@@ -112,8 +112,8 @@ export function buildFileTools({
         continue;
       }
       if (!listed) {
-        const { mine = [], bot = [], shared = [] } = await files.store.list(place).catch(() => ({}));
-        listed = [...mine, ...bot, ...shared].map((entry) => entry.path);
+        const { chat = [], bot = [], shared = [] } = await files.store.list(place).catch(() => ({}));
+        listed = [...chat, ...bot, ...shared].map((entry) => entry.path);
       }
       notFound.push({ path: wanted, closest: closestFiles(wanted, listed) });
     }
@@ -141,7 +141,7 @@ export function buildFileTools({
     Object.freeze({
       id: "list_files",
       description: personal
-        ? "List your files with this person (/files/mine), yours for everyone who uses you (/files/bot) and the home's, shared with everyone in it and all its bots (/files/shared), newest first, at most 300 per folder; `left` says how many older ones a folder has beyond those, and a folder in `partial` has more than 5,000, so its 300 are the newest of the first 5,000 found."
+        ? "List this chat's files, for whoever can open it (/files/chat), yours for everyone who uses you (/files/bot) and the home's, shared with everyone in it and all its bots (/files/shared), newest first, at most 300 per folder; `left` says how many older ones a folder has beyond those, and a folder in `partial` has more than 5,000, so its 300 are the newest of the first 5,000 found."
         : "List your files for everyone here who uses you (/files/bot) and the home's, shared with everyone in it and all its bots (/files/shared), newest first, at most 300 per folder; `left` says how many older ones a folder has beyond those, and a folder in `partial` has more than 5,000, so its 300 are the newest of the first 5,000 found.",
       inputSchema: z.object({}),
       execute: (input, options) => listFiles(input, options)
@@ -177,7 +177,7 @@ export function buildFileTools({
     Object.freeze({
       id: "read_file",
       description:
-        "Read one of your files or the shared ones, such as a file the person attached (/files/mine/Uploads/…): documents, spreadsheets, presentations, PDFs, text files and pictures. For a picture, say what you want to know in question.",
+        "Read one of your files or the shared ones, such as a file the person attached (/files/chat/Uploads/…): documents, spreadsheets, presentations, PDFs, text files and pictures. For a picture, say what you want to know in question.",
       inputSchema: z.object({
         path: z.string().min(8).max(500),
         question: z.string().max(500).optional().describe("For a picture: what you need to find out from it"),
@@ -211,7 +211,7 @@ export function buildFileTools({
     try {
       const result = await office.call(app, tool, args);
       if (!result.ok) return { error: result.text };
-      for (const match of result.text.matchAll(/\/files\/(?:mine|shared)\/[^\s"'`)\]]+\.[A-Za-z0-9]{1,8}/gu)) saved.add(match[0]);
+      for (const match of result.text.matchAll(/\/files\/(?:chat|bot|shared)\/[^\s"'`)\]]+\.[A-Za-z0-9]{1,8}/gu)) saved.add(match[0]);
       return { result: result.text };
     } catch (error) {
       return failed(error);
@@ -219,7 +219,7 @@ export function buildFileTools({
   }
   tools.useApp = createTool(Object.freeze({
     id: "use_app",
-    description: "Call one tool of an office app, with the parameters app_help shows. Paths are /files/mine/… or /files/shared/….",
+    description: "Call one tool of an office app, with the parameters app_help shows. Paths are /files/chat/…, /files/bot/… or /files/shared/….",
     inputSchema: z.object({
       app: z.enum(apps),
       tool: z.string().min(1).max(80),
@@ -231,7 +231,7 @@ export function buildFileTools({
   async function sendVoiceMemo({ text }) {
     if (memos.length) return { status: "already sent" };
     try {
-      const memo = await files.apps.voiceMemo(place, text.trim(), `/files/mine/Voice/memo-${Date.now().toString(36)}.wav`);
+      const memo = await files.apps.voiceMemo(place, text.trim(), `/files/chat/Voice/memo-${Date.now().toString(36)}.wav`);
       memos.push({ ...memo, words: text.trim() });
       return { status: "sent", seconds: memo.seconds, note: "The voice memo is below; add at most a short line, then carry on in text." };
     } catch (error) {
@@ -252,7 +252,7 @@ export function buildFileTools({
   async function makeChart({ title, type, categories, series, caption }) {
     try {
       const slug = title.toLowerCase().normalize("NFKD").replace(/[^\w\s-]/gu, "").trim().replace(/\s+/gu, "-").slice(0, 50) || "chart";
-      const chartPath = `/files/mine/Charts/${slug}-${Date.now().toString(36)}.png`;
+      const chartPath = `/files/chat/Charts/${slug}-${Date.now().toString(36)}.png`;
       await files.apps.chartImage(place, { title, type, categories, series }, chartPath);
       charts.push({ path: chartPath, title: title.trim(), caption: caption.trim() });
       return {
@@ -312,7 +312,7 @@ export function buildFileTools({
       const slug = title.toLowerCase().normalize("NFKD").replace(/[^\w\s-]/gu, "").trim().replace(/\s+/gu, "-").slice(0, 50) || "picture";
       const made = await inTime(Promise.all(Array.from({ length: variants }, () => makePicture(env, prompt, sources))), "Making the picture");
       const stamp = Date.now().toString(36);
-      const pathOf = (index) => `/files/mine/Pictures/${slug}-${stamp}${index ? `-${index + 1}` : ""}.png`;
+      const pathOf = (index) => `/files/chat/Pictures/${slug}-${stamp}${index ? `-${index + 1}` : ""}.png`;
       const answers = await Promise.all(made.map((picture, index) => files.media.check({ bytes: picture.data, origin: "picture", ...whose, path: pathOf(index) })));
       const images = [];
       for (const [index, picture] of made.entries()) {
@@ -348,7 +348,7 @@ export function buildFileTools({
         prompt: z.string().min(5).max(2000).describe("What to draw, or what to change, in plain words, including the style"),
         title: z.string().min(2).max(80).describe("A short descriptive title, for the Library"),
         caption: z.string().min(5).max(200).describe("One line describing the picture, shown when it's opened"),
-        from: z.array(z.string().min(8).max(500)).max(3).optional().describe("Paths of pictures to edit or restyle (/files/mine/…)"),
+        from: z.array(z.string().min(8).max(500)).max(3).optional().describe("Paths of pictures to edit or restyle (/files/chat/…)"),
         variants: z.number().int().min(1).max(2).optional().describe("2 to offer two takes side by side")
       }),
       execute: (input, options) => makePictureTool(input, options)
@@ -364,7 +364,7 @@ export function buildFileTools({
    */
   async function saveMarkdownPage({ title, content, path: given }) {
     const real = await files.store.resolve(place, given);
-    if (!real) return { error: "Pages live in /files/mine/Pages, /files/bot or /files/shared." };
+    if (!real) return { error: "Pages live in /files/chat/Pages, /files/bot or /files/shared." };
     await mkdir(dirname(real), { recursive: true });
     const text = content.trim().startsWith("#") ? content.trim() : `# ${title}\n\n${content.trim()}`;
     await writeFile(real, `${text}\n`);
@@ -419,7 +419,7 @@ export function buildFileTools({
     try {
       if (!files.pages.isPagePath(pagePath)) return { error: "Give the path of one of your HTML pages, from its card." };
       const { name, html } = await files.pages.standalone({ homeId: place.homeId, botId: place.botId, path: pagePath });
-      const copyPath = `${personal ? "/files/mine" : "/files/bot"}/Copies/${name.replace(/\.html$/u, "")} (copy).html`;
+      const copyPath = `/files/chat/Copies/${name.replace(/\.html$/u, "")} (copy).html`;
       const real = await files.store.resolve(place, copyPath);
       await mkdir(dirname(real), { recursive: true });
       await writeFile(real, html);
@@ -459,7 +459,7 @@ export function buildFileTools({
     Object.freeze({
       id: "move_file",
       description: personal
-        ? "Move or rename one of the files or folders. /files/mine keeps it between you and this person; /files/bot shares it with everyone in this home who uses you; /files/shared with everyone in this home and all its bots."
+        ? "Move or rename one of the files or folders. /files/chat keeps it in this chat, for whoever can open it; /files/bot shares it with everyone in this home who uses you; /files/shared with everyone in this home and all its bots."
         : "Move or rename one of the files or folders. /files/bot is everyone's here who uses you; /files/shared is everyone's in this home and all its bots.",
       inputSchema: z.object({ from: z.string().min(8).max(500), to: z.string().min(8).max(500) }),
       execute: (input, options) => moveFile(input, options)

@@ -13,7 +13,7 @@ const PER_HOUR = 30;
 const WATCH_EVERY_MS = 5000;
 // What a claim reads of a watch, with the home it is in.
 const WATCH_FIELDS = [
-  "id", "workspaceId", "botId", "conversationId", "name", "tableId", "on", "condition", "instructions", "enabled", "cursor",
+  "id", "workspaceId", "chatBotId", "createdBy", "name", "tableId", "on", "condition", "instructions", "enabled", "cursor",
   "runsHourStart", "runsInHour"
 ];
 
@@ -21,7 +21,9 @@ const WATCH_FIELDS = [
  * Bots' watches on a home's tables.
  *
  * Watches (D-35): a bot told to act when records of a table are added or changed, optionally only
- * when a condition holds ("stage became Won"). Every server runs the evaluation loop; a watch is
+ * when a condition holds ("stage became Won"). A watch is a bot's in one chat (its chat_bots id), and
+ * belongs to that chat (D13): whoever can open the chat sees it, and it runs as the person who made it
+ * (R4). Every server runs the evaluation loop; a watch is
  * claimed with SKIP LOCKED, reads the changes recorded since its cursor, and queues at most one
  * bot task per claim, all in one transaction (D-15). The cursor is a transaction horizon (see the
  * apps_automation migration), so every change is seen exactly once. Every method takes the call's
@@ -34,8 +36,10 @@ const WATCH_FIELDS = [
  * @param {import("./types.js").Registry} dependencies.registry
  * @param {import("./types.js").DataGate} dependencies.gate
  * @param {import("./types.js").AppStore} dependencies.apps
+ * @param {{ directory: { seats: Function, seatsOfBot: Function, botsInChat: Function } }} dependencies.records
+ *   mercbot.bots.records: the bots in chats the watches are of
  */
-export function createWatches({ resources, repository, systemContext, registry, gate, apps }) {
+export function createWatches({ resources, repository, systemContext, registry, gate, apps, records }) {
   const { appWatches } = resources;
   /**
    * A condition sees the record's fields bare (as in data_query) or as row.<field>, plus before
@@ -79,8 +83,12 @@ export function createWatches({ resources, repository, systemContext, registry, 
     enabled: row.enabled
   });
 
-  /** A new watch only sees changes made after it, never older ones. */
-  async function create({ botId, conversationId, createdBy = null }, input = {}, options) {
+  /**
+   * A new watch of a bot in a chat (`chatBotId`), made by `createdBy`, as whom it runs. It only sees changes made after
+   * it, never older ones. Its name is its own among that bot's watches in that chat.
+   */
+  async function create({ chatBotId, createdBy = null }, input = {}, options) {
+    if (!/^\d+$/u.test(String(chatBotId ?? ""))) throw new TypeError("A watch is a bot's in a chat: chatBotId is needed.");
     const { table } = await gate.tableFor(input.table, options, { forWrite: true });
     const on = ON[input.on] ? input.on : "any";
     const name = String(input.name || "").trim().slice(0, 120);
@@ -89,15 +97,17 @@ export function createWatches({ resources, repository, systemContext, registry, 
       throw new GateError(400, "A watch needs instructions: what to do when it fires.", { code: "apps_watch_instructions_missing" });
     }
     const condition = checkCondition(table, input.condition || null);
-    const { records: [taken] } = await appWatches.query({ filters: { botId: String(botId), name }, page: { size: 1 } }, passedOn(options));
+    const { records: [taken] } = await appWatches.query(
+      { filters: { chatBotId: String(chatBotId), name }, page: { size: 1 } },
+      passedOn(options)
+    );
     if (taken) {
       throw new GateError(400, `You already have a watch called "${name}".`, { code: "apps_watch_name_taken", params: { name } });
     }
     const row = await appWatches.withTransaction(options, async (txOptions) =>
       appWatches.create({
-        botId: String(botId),
-        conversationId: String(conversationId),
-        createdBy,
+        chatBotId: String(chatBotId),
+        createdBy: createdBy == null ? null : Number(createdBy),
         name,
         tableId: table.id,
         on,
@@ -109,18 +119,50 @@ export function createWatches({ resources, repository, systemContext, registry, 
     return show(table, row);
   }
 
-  async function list({ botId = null } = {}, options) {
-    const tables = await registry.loadTables(options);
-    const rows = await appWatches.queryAll({ filters: botId ? { botId: String(botId) } : {}, sort: ["id"] }, passedOn(options));
+  /**
+   * The bots' seats a list asks for, as chat_bots ids: one bot in one chat (`chatBotId`), a bot's in the chats the
+   * caller may read (`botId`), the bots' in a chat (`chatId`), both of these; or null for every watch the caller may
+   * read.
+   */
+  async function seatsAsked({ botId, chatId, chatBotId }, options) {
+    if (chatBotId != null) return [String(chatBotId)];
+    if (botId == null && chatId == null) return null;
+    const [ofBot, inChat] = await Promise.all([
+      botId == null ? null : records.directory.seatsOfBot(String(botId), options),
+      chatId == null ? null : records.directory.botsInChat(String(chatId), options)
+    ]);
+    const ids = (ofBot ?? inChat).map((seat) => String(seat.id));
+    return ofBot && inChat ? ids.filter((id) => inChat.some((seat) => String(seat.id) === id)) : ids;
+  }
+
+  /**
+   * The watches of the chats the caller may read (their row policy), each with its bot, chat and chat_bots id; only a
+   * bot's, a chat's or one bot's in one chat when asked (seatsAsked). Three reads, however many watches.
+   */
+  async function list({ botId = null, chatId = null, chatBotId = null } = {}, options) {
+    const ids = await seatsAsked({ botId, chatId, chatBotId }, options);
+    if (ids && !ids.length) return [];
+    const [tables, rows] = await Promise.all([
+      registry.loadTables(options),
+      appWatches.queryAll({ filters: ids ? { chatBotIds: ids } : {}, sort: ["id"] }, passedOn(options))
+    ]);
+    const found = await records.directory.seats(rows.map((row) => String(row.chatBotId)), options);
+    const seats = new Map(found.map((seat) => [seat.id, seat]));
     return rows.map((row) => ({
       ...show(tables.find((table) => table.id === row.tableId) || { label: "(removed table)" }, row),
-      botId: String(row.botId)
+      chatBotId: String(row.chatBotId),
+      botId: seats.get(String(row.chatBotId))?.botId ?? null,
+      chatId: seats.get(String(row.chatBotId))?.chatId ?? null
     }));
   }
 
-  /** A watch of the home by `{ id }`, or by its bot and name (`{ botId, name }`). */
+  /** A watch the caller may read, by `{ id }`, or by its bot in its chat and its name (`{ chatBotId, name }`). */
   async function find(where, options) {
-    const { records: [row] } = await appWatches.query({ filters: where, page: { size: 1 } }, passedOn(options));
+    const filters = where?.id != null
+      ? { id: String(where.id) }
+      : { chatBotId: String(where?.chatBotId ?? ""), name: String(where?.name ?? "") };
+    if (!/^\d+$/u.test(filters.id ?? filters.chatBotId)) throw new GateError(404, "There's no such watch.", { code: "apps_watch_not_found" });
+    const { records: [row] } = await appWatches.query({ filters, page: { size: 1 } }, passedOn(options));
     if (!row) throw new GateError(404, "There's no such watch.", { code: "apps_watch_not_found" });
     return row;
   }
@@ -136,18 +178,23 @@ export function createWatches({ resources, repository, systemContext, registry, 
   }
 
   /**
-   * Pauses a bot's running watches in the conversations given and answers them `{ conversationId, name }`: a bot
-   * leaving Shared hides its rooms, and nothing runs where nobody sees it (D-99). Resuming one is setEnabled's.
-   * @param {{ botId: string, conversationIds: string[] }} where
+   * Pauses running watches and answers them `{ chatBotId, name }`: those of the bots in chats given (`chatBotIds`: a
+   * bot archived, D-108), or those a person made in a home they left (`createdBy` and `homeId`: a watch runs as its
+   * maker, R2, R4). Resuming one is setEnabled's.
+   * @param {{ chatBotIds: string[] } | { createdBy: string, homeId: string }} where
    */
-  async function pauseIn({ botId, conversationIds }, options) {
-    if (!conversationIds.length) return [];
-    const paused = await appWatches.patchWhere(
-      { botId: String(botId), conversationIds: conversationIds.map(String), enabled: true },
-      { enabled: false },
-      { ...passedOn(options), returning: "records" }
-    );
-    return paused.map((row) => ({ conversationId: String(row.conversationId), name: row.name }));
+  async function pauseIn(where, options) {
+    let filters;
+    if (Array.isArray(where?.chatBotIds)) {
+      if (!where.chatBotIds.length) return [];
+      filters = { chatBotIds: where.chatBotIds.map(String) };
+    } else if (/^\d+$/u.test(String(where?.createdBy ?? "")) && /^\d+$/u.test(String(where?.homeId ?? ""))) {
+      filters = { createdBy: Number(where.createdBy), workspaceId: String(where.homeId) };
+    } else {
+      throw new TypeError("Pausing watches needs chatBotIds, or createdBy with homeId.");
+    }
+    const paused = await appWatches.patchWhere({ ...filters, enabled: true }, { enabled: false }, { ...passedOn(options), returning: "records" });
+    return paused.map((row) => ({ chatBotId: String(row.chatBotId), name: row.name }));
   }
 
   async function remove(where, options) {
@@ -269,7 +316,15 @@ export function createWatches({ resources, repository, systemContext, registry, 
         { ...advance, runsHourStart: hourStart, runsInHour: runs, ...(paused ? { enabled: false } : {}) },
         { ...home, returning: "none" }
       );
-      const task = { kind: "watch", botId: String(watch.botId), conversationId: String(watch.conversationId), watchId: String(watch.id) };
+      // Its run is its bot's in its chat, as the person who made it (R4).
+      const [seat] = await records.directory.seats([String(watch.chatBotId)], home);
+      const task = {
+        kind: "watch",
+        botId: seat?.botId ?? null,
+        chatBotId: String(watch.chatBotId),
+        watchId: String(watch.id),
+        userId: watch.createdBy == null ? null : String(watch.createdBy)
+      };
       if (paused) {
         await apps.queueTask(
           {
