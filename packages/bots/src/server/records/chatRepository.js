@@ -492,7 +492,11 @@ export function createChatRepository({ resources, systemContext, profiles, membe
   /**
    * Someone left the home: they're out of every chat, the private chats only they were in are deleted (nobody could
    * open them any more), and the routines they made are paused. Their messages stay, under their name. Answers the
-   * chats deleted. In the home's own context: what they leave is read as the home's.
+   * chats they're no longer in (`left`) and those deleted, each with its bots' seats as they were (`deleted`), for the
+   * computers and files that go with them. In the home's own context: what they leave is read as the home's.
+   * @param {string} userId
+   * @param {CallOptions} options
+   * @returns {Promise<{ left: string[], deleted: Array<{ chatId: string, chatBotIds: string[] }> }>}
    */
   async function personLeft(userId, options) {
     const home = homeWide(options, "a person leaves the home's chats");
@@ -500,19 +504,47 @@ export function createChatRepository({ resources, systemContext, profiles, membe
       const places = await chatPeople.queryAll({ filters: { userId: String(userId) }, fields: ["conversationId"] }, txOptions);
       const chatIds = [...new Set(places.map((row) => String(row.conversationId)))];
       await chatPeople.deleteWhere({ userId: String(userId) }, { ...txOptions, returning: "none" });
-      const deleted = [];
-      if (chatIds.length) {
-        const privateChats = await conversations.queryAll({ filters: { id: chatIds, kind: "private" }, fields: ["kind"] }, txOptions);
-        const privateIds = privateChats.map((chat) => String(chat.id));
-        const stillIn = privateIds.length
-          ? new Set((await chatPeople.queryAll({ filters: { conversationIds: privateIds }, fields: ["conversationId"] }, txOptions)).map((row) => String(row.conversationId)))
-          : new Set();
-        deleted.push(...privateIds.filter((id) => !stillIn.has(id)));
-        if (deleted.length) await conversations.deleteWhere({ id: deleted }, { ...txOptions, returning: "none" });
-      }
+      const gone = chatIds.length ? await emptiedPrivateChats(chatIds, txOptions) : [];
+      const seatQuery = { filters: { conversationIds: gone }, fields: ["conversationId"] };
+      const seats = gone.length ? await chatBots.queryAll(seatQuery, txOptions) : [];
+      if (gone.length) await conversations.deleteWhere({ id: gone }, { ...txOptions, returning: "none" });
       await work.pauseRoutinesMadeBy(String(userId), txOptions);
-      return deleted;
+      const seatsOf = (chatId) => seats.filter((seat) => String(seat.conversationId) === chatId).map((seat) => String(seat.id));
+      return {
+        left: chatIds.filter((id) => !gone.includes(id)),
+        deleted: gone.map((chatId) => ({ chatId, chatBotIds: seatsOf(chatId) }))
+      };
     });
+  }
+
+  /** Of these chats, the private ones nobody is in any more: two reads. */
+  async function emptiedPrivateChats(chatIds, txOptions) {
+    const privateChats = await conversations.queryAll({ filters: { id: chatIds, kind: "private" }, fields: ["kind"] }, txOptions);
+    const privateIds = privateChats.map((chat) => String(chat.id));
+    if (!privateIds.length) return [];
+    const stillIn = await chatPeople.queryAll({ filters: { conversationIds: privateIds }, fields: ["conversationId"] }, txOptions);
+    const occupied = new Set(stillIn.map((row) => String(row.conversationId)));
+    return privateIds.filter((id) => !occupied.has(id));
+  }
+
+  /**
+   * What a change of the home's people leaves to do: who has a place in its chats but is no longer an active member
+   * (`departed`), and the active members its everyone chat was missing, now seated in it (`joined`). The members' list
+   * and two reads, bounded by the home's people; in the home's own context.
+   * @param {CallOptions} options
+   * @returns {Promise<{ departed: string[], joined: string[], everyoneChatId: string | null }>}
+   */
+  async function syncMembers(options) {
+    const home = homeWide(options, "the home's people join and leave its chats");
+    const active = (await everyoneIn(home)).map(String);
+    const stale = await chatPeople.queryAll({ filters: { notUserIds: active }, fields: ["userId"] }, home);
+    const departed = [...new Set(stale.map((row) => String(row.userId)))];
+    const everyone = await everyoneChat(home);
+    if (!everyone) return { departed, joined: [], everyoneChatId: null };
+    const seated = new Set((await people(everyone.id, home)).map((person) => String(person.user_id)));
+    const joined = active.filter((id) => !seated.has(id));
+    if (joined.length) await seatPeople(everyone.id, joined, null, home);
+    return { departed, joined, everyoneChatId: String(everyone.id) };
   }
 
   /** The person's sections in the home, in their order. */
@@ -595,6 +627,7 @@ export function createChatRepository({ resources, systemContext, profiles, membe
     readableFrom,
     personJoined,
     personLeft,
+    syncMembers,
     sections: Object.freeze({
       list: sectionsOf,
       lock: lockSections,

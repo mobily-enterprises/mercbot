@@ -238,7 +238,7 @@ export function registerRoutes(http, { bots, approvals, notices, meter, records,
       throw new BotsError(403, "Only the home's owners and admins can replace the main bot.", { code: "bots_main_bot_manage_forbidden" });
     }
     return { bot: await bots.updateBot(request.params.botId, body(request), options) };
-  }, { archived: true }));
+  }));
   // A whole bot archived and unarchived for everyone in the home (D-108), by whoever made it and the home's owners and
   // admins. Each answers the bot as listed.
   router.register("POST", `${home}/bots/:botId/archive`, auth, handle(async (request, _user, options) =>

@@ -52,6 +52,14 @@ export const CHAT_PERSON_SEARCH = Object.freeze({
       query.whereNot(column("userId"), id);
     }
   }),
+  // Everyone but these people: who has a place in a home's chats but is no longer one of its active members.
+  notUserIds: Object.freeze({
+    type: "array",
+    items: { type: "id" },
+    applyFilter(query, ids, { column }) {
+      query.whereNotIn(column("userId"), ids.map(String));
+    }
+  }),
   // A pinned chat: the person's pins, in their order.
   pinned: isSet("pinPosition")
 });

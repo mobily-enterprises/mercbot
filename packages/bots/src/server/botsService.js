@@ -276,7 +276,7 @@ export function createBotsService({
   const library = createBotLibrary({ records, conversations, apps, files });
   const memory = createBotMemory({ records, conversations });
   // Chats and their members (D-112, R2): the chat routes' service.
-  const chats = createChatMembers({ records, notices });
+  const chats = createChatMembers({ records, notices, computer, systemContext });
 
   return Object.freeze({
     chats,

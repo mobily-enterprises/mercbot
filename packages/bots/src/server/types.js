@@ -49,11 +49,13 @@
 /** @typedef {ReturnType<typeof import("./records/rowPolicies.js").createChatRules>} ChatRules */
 /**
  * The chats' service behind the chat routes (D-112, R2: chatMembers.js), `bots.chats`: the chat list, one chat, New chat,
- * joining and leaving, members, renaming, archiving, deleting, a person's place, pins, sections and a bot's direct chat.
+ * joining and leaving, members, renaming, archiving, deleting, a person's place, pins, sections and a bot's direct chat;
+ * and `homeChanged(homeId)`, which BotsFeature runs when a home's people change.
  * @typedef {ReturnType<typeof import("./chatMembers.js").createChatMembers>} ChatMembers
  */
 /**
- * A chat as every chat route answers it (`{ chat }`, and each of `{ chats }`), the page's one shape for a chat.
+ * A chat as every chat route answers it (`{ chat }`, and each of `{ chats }`), the page's one shape for a chat. The
+ * everyone chat (`everyone`) counts as pinned for everyone in it, first in the list, with no `pinPosition` (O9).
  * @typedef {{
  *   id: string, kind: "public" | "private", title: string | null, everyone: boolean, directBotId: string | null,
  *   appId: string | null, madeBy: string | null, onboardingStep: string | null, archivedAt: string | null,
