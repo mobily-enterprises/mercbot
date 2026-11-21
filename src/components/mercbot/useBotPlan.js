@@ -23,7 +23,7 @@ export function firstQuestions(draft) {
  * one call each, all at once, as soon as the plan shows, so the plan never waits on them. Every bot is ticked but those
  * already in the home; a new bot whose template couldn't be written says so, to try again or leave out. "Change"
  * plans again from the plan before and what to change, keeping the templates already written for the new bots it keeps.
- * Add N bots needs every new bot ticked to be written, and a section's name. Nothing is kept on the server until Add.
+ * Add N bots needs every new bot ticked to be written. Nothing is kept on the server until Add.
  * @param {{ api?: Pick<typeof botsApi, "suggestBots" | "draftTemplate"> }} [options] the routes (botsApi)
  */
 export function useBotPlan({ api = botsApi } = {}) {
@@ -34,13 +34,11 @@ export function useBotPlan({ api = botsApi } = {}) {
   // Each new bot's template, by its key: { state: "writing" | "ready" | "failed", draft?, message? }.
   const drafts = ref({});
   const unticked = ref(new Set());
-  const section = ref("");
 
   const question = computed(() => plan.value?.question || "");
   const bots = computed(() => plan.value?.bots || []);
   const adding = computed(() => bots.value.filter((bot) => !bot.inHome && !unticked.value.has(bot.key)));
-  const ready = computed(() =>
-    Boolean(adding.value.length && section.value.trim()) && adding.value.every((bot) => !bot.new || drafts.value[bot.key]?.state === "ready"));
+  const ready = computed(() => adding.value.length > 0 && adding.value.every((bot) => !bot.new || drafts.value[bot.key]?.state === "ready"));
 
   /** The others suggested with a bot, whose jobs its template leaves out. */
   const othersOf = (bot) => bots.value.filter((other) => other.key !== bot.key).map((other) => ({ name: other.name, description: other.description }));
@@ -81,7 +79,6 @@ export function useBotPlan({ api = botsApi } = {}) {
       plan.value = next;
       drafts.value = kept;
       unticked.value = new Set(next.bots.filter((bot) => bot.inHome).map((bot) => bot.key));
-      section.value = next.name;
       for (const bot of next.bots) if (bot.new && !kept[bot.key]) write(bot.key);
       return next;
     } catch (error) {
@@ -104,9 +101,8 @@ export function useBotPlan({ api = botsApi } = {}) {
     drafts.value = { ...drafts.value, [key]: { state: "ready", draft } };
   }
 
-  /** What Add N bots sends: the section and each bot ticked, a new one with its template. */
+  /** What Add N bots sends: each bot ticked, a new one with its template. */
   const batch = computed(() => ({
-    section: section.value.trim(),
     bots: adding.value.map((bot) => {
       if (bot.library) return { library: bot.library };
       const look = { name: bot.name, shape: bot.shape, color: bot.color };
@@ -121,8 +117,7 @@ export function useBotPlan({ api = botsApi } = {}) {
     failure.value = "";
     drafts.value = {};
     unticked.value = new Set();
-    section.value = "";
   }
 
-  return { describe, plan, question, bots, asking, failure, drafts, unticked, section, adding, ready, batch, suggest, write, tick, useDraft, reset };
+  return { describe, plan, question, bots, asking, failure, drafts, unticked, adding, ready, batch, suggest, write, tick, useDraft, reset };
 }

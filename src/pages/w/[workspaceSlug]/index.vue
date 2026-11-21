@@ -4,41 +4,48 @@ import MercbotAvatar from "@/components/mercbot/MercbotAvatar.vue";
 import MercbotIntro from "@/components/mercbot/MercbotIntro.vue";
 import MercbotShell from "@/components/mercbot/MercbotShell.vue";
 import { ONBOARDING_BLACK } from "@/theme/palettes.js";
-import { botsApi } from "@/components/mercbot/botsApi.js";
+import { chatsApi } from "@/components/mercbot/chatsApi.js";
 import { useHomes } from "@/components/mercbot/homesApi.js";
 
-// First run: intro slides, then a short transition while the first bot is created.
-// Returning users go straight to the shell.
+// A person's first visit to a home (plan 4.1): Mercbot's welcome chat is made for them with the main bot, after the
+// intro slides when this is their first home, then a short pause on Mercbot's face. Anyone who has chats, or whose
+// welcome chat was made before, goes straight to the shell, whose chat list may be empty (D4).
 const phase = ref("loading");
-const bots = ref([]);
+const chats = ref([]);
 const sections = ref([]);
 const loadFailed = ref(false);
 const firstBot = { name: "Mercbot", color: ONBOARDING_BLACK };
 const { load: loadHomes } = useHomes();
 
+async function readList() {
+  const listed = await chatsApi.list({ hidden: true, archived: true });
+  chats.value = listed.chats;
+  sections.value = listed.sections;
+}
+
 async function load() {
   loadFailed.value = false;
   try {
-    const result = await botsApi.list();
-    bots.value = result.bots;
-    sections.value = result.sections;
-    if (bots.value.length) phase.value = "shell";
-    // A new home of someone who already has one skips the welcome and makes its first bot (D-36).
-    else if ((await loadHomes()).length > 1) await finishIntro();
+    await readList();
+    if (chats.value.length) {
+      phase.value = "shell";
+      return;
+    }
+    const { chat } = await chatsApi.welcome();
+    if (!chat) phase.value = "shell";
+    // A new home of someone who already has one skips the slides (D-36).
+    else if ((await loadHomes()).length > 1) await enter();
     else phase.value = "intro";
   } catch {
     loadFailed.value = true;
   }
 }
 
-async function finishIntro() {
+// After the slides: Mercbot's face a moment, then the shell on the welcome chat.
+async function enter() {
   phase.value = "transition";
-  const pause = new Promise((resolve) => setTimeout(resolve, 2000));
   try {
-    await botsApi.createFirst();
-    const [result] = await Promise.all([botsApi.list(), pause]);
-    bots.value = result.bots;
-    sections.value = result.sections;
+    await Promise.all([readList(), new Promise((resolve) => setTimeout(resolve, 2000))]);
     phase.value = "shell";
   } catch {
     phase.value = "loading";
@@ -50,15 +57,15 @@ onMounted(load);
 </script>
 
 <template>
-  <MercbotShell v-if="phase === 'shell'" :initial-bots="bots" :initial-sections="sections" />
-  <MercbotIntro v-else-if="phase === 'intro'" @finish="finishIntro" />
+  <MercbotShell v-if="phase === 'shell'" :initial-chats="chats" :initial-sections="sections" />
+  <MercbotIntro v-else-if="phase === 'intro'" @finish="enter" />
   <div v-else-if="phase === 'transition'" class="mb-first-run">
     <div class="mb-first-run__avatar"><MercbotAvatar :bot="firstBot" :size="74" /></div>
   </div>
   <div v-else class="mb-first-run mb-first-run--loading">
     <div class="mb-first-run__sidebar" />
     <div v-if="loadFailed" class="mb-first-run__error" role="alert">
-      <p>Mercbot couldn't load your bots.</p>
+      <p>Mercbot couldn't load your chats.</p>
       <v-btn variant="tonal" @click="load">Try again</v-btn>
     </div>
   </div>

@@ -1,25 +1,25 @@
 import { fileKind } from "./filesApi.js";
 import extensions from "./extensions.js";
+import { chatTitle, memberNames, joinNames } from "./chatView.js";
 
 // What Settings: General is found by, with the buttons a copy built on Mercbot adds there (extensions.js).
 const GENERAL_KEYWORDS = ["theme appearance accent language spell microphone timezone", ...extensions.generalActions.map((action) => action.title.toLowerCase())].join(" ");
 
 /**
- * The search palette's commands: new bot and group, shortcuts, the open group's members,
- * each settings section, Connect Apps, Skills and the three themes, the current one checked.
+ * The search palette's commands: Add bots, New chat, Team, shortcuts, each settings section, Connect Apps, Skills and the
+ * three themes, the current one checked.
  * @param {{
- *   currentBot: import("../../types.js").Bot | null,
  *   settingsSections: Array<{ value: string, title: string }>,
  *   theme: string
  * }} state
  */
-export function paletteCommands({ currentBot, settingsSections, theme: currentTheme }) {
+export function paletteCommands({ settingsSections, theme: currentTheme }) {
   return [
     // Add bots (D-109), which was New bot: found by either.
     { id: "newBot", title: "Add bots", icon: "$editSquare", keywords: "new bot team" },
-    { id: "newGroup", title: "New group chat", icon: "$group" },
+    { id: "newChat", title: "New chat", icon: "$chat", keywords: "start public private" },
+    { id: "team", title: "Team", icon: "$group", keywords: "people bots members invite" },
     { id: "shortcuts", title: "Keyboard shortcuts", category: "Help", icon: "$keyboard" },
-    ...(currentBot?.kind === "group" ? [{ id: "members", title: "Members", category: "Current chat", icon: "$group" }] : []),
     ...settingsSections.map((section) => ({
       id: `settings:${section.value}`,
       title: `Settings: ${section.title}`,
@@ -69,24 +69,31 @@ const byScore = (entries) => entries
   .filter((entry) => entry.score !== null)
   .sort((a, b) => a.score - b.score || a.title.localeCompare(b.title));
 
-function conversationRow(bot) {
+function chatRow(chat, me) {
+  const title = chatTitle(chat, me);
+  const names = memberNames(chat, me).filter((name) => name !== "you");
   return {
-    key: `bot-${bot.id}`,
-    kind: "conversation",
-    bot,
-    title: bot.name,
-    secondary: bot.kind === "group" ? (bot.members || []).map((member) => member.name).join(", ") : "",
-    tag: bot.hidden ? "hidden" : "",
-    unread: bot.unread
+    key: `chat-${chat.id}`,
+    kind: "chat",
+    chat,
+    title,
+    secondary: chat.title && names.length ? joinNames(names) : "",
+    tag: chat.archivedAt ? "archived" : chat.hidden ? "hidden" : "",
+    unread: chat.unread && !chat.archivedAt
   };
 }
 
-// Before typing: unread first, then pinned in tile order, then by latest activity. Hidden bots
-// aren't listed until you search.
-function emptyOrder(bots) {
-  const rank = (bot) => (bot.unread ? 0 : bot.pinPosition !== null && bot.pinPosition !== undefined ? 1 : 2);
-  return bots.filter((bot) => !bot.hidden).sort((a, b) => rank(a) - rank(b) ||
-    (rank(a) === 1 ? a.pinPosition - b.pinPosition : new Date(b.lastActivityAt) - new Date(a.lastActivityAt)));
+// The home's people and bots (D3), as Team has them: a bot opens the person's direct chat with it, a person their card.
+const botRow = (bot) => ({ key: `bot-${bot.id}`, kind: "bot", bot, title: bot.name, secondary: "Bot" });
+const personRow = (person) => ({ key: `person-${person.id}`, kind: "person", person, title: person.name, secondary: person.roleLabel || "Person" });
+
+// Before typing: unread first, then pinned in tile order (the everyone chat first), then by latest activity. Hidden
+// and archived chats aren't listed until you search.
+function emptyOrder(chats) {
+  const rank = (chat) => (chat.unread ? 0 : chat.pinned ? 1 : 2);
+  const pin = (chat) => (chat.everyone ? -1 : chat.pinPosition ?? 0);
+  return chats.filter((chat) => !chat.hidden && !chat.archivedAt).sort((a, b) => rank(a) - rank(b) ||
+    (rank(a) === 1 ? pin(a) - pin(b) : new Date(b.lastActivityAt) - new Date(a.lastActivityAt)));
 }
 
 // A message cut so the match is visible, with "…" where it was cut.
@@ -105,19 +112,19 @@ function ago(iso) {
   return days === 1 ? "yesterday" : `${days} days ago`;
 }
 
-function whereAndWhen(message) {
-  if (message.conversationKind === "group") return `${message.conversationName} · ${ago(message.createdAt)}`;
-  const who = message.role === "user" ? `You to ${message.conversationName}` : `${message.conversationName} to you`;
-  return `${who} · ${ago(message.createdAt)}`;
-}
+// Where a found message is, and when: "In Kitchen · 2 h ago".
+const whereAndWhen = (message) => `In ${message.chatTitle || "a chat"} · ${ago(message.createdAt)}`;
 
 /**
- * The palette's rows. Before typing: bots and groups, then commands. While
- * typing: bots and groups, apps, hidden bots, commands, routines, made files and messages, each
- * matched loosely and the earliest first letter first.
+ * The palette's rows. Before typing: the person's chats, then commands. While typing: chats, the home's bots and people,
+ * apps, hidden and archived chats, commands, routines, made files and messages, each matched loosely and the earliest
+ * first letter first.
  * @param {{
  *   needle: string,
- *   bots: Array<import("../../types.js").Bot>,
+ *   me: string,
+ *   chats: Array<import("../../types.js").Chat>,
+ *   bots: Array<Record<string, any>>,
+ *   people: Array<{ id: string, name: string, roleLabel: string }>,
  *   commands: ReturnType<typeof paletteCommands>,
  *   apps: Array<import("../../types.js").Plugin>,
  *   routines: Array<Record<string, any>>,
@@ -125,16 +132,24 @@ function whereAndWhen(message) {
  *   messages: Array<Record<string, any>>
  * }} state `needle` is the typed text, trimmed and lower case.
  */
-export function paletteEntries({ needle, bots: allBots, commands: allCommands, apps, routines, files, messages }) {
+export function paletteEntries({ needle, me, chats: allChats, bots: allBots, people, commands: allCommands, apps, routines, files, messages }) {
   const commands = allCommands.map((command) => ({ key: command.id, kind: "command", ...command }));
-  if (!needle) return [...emptyOrder(allBots).map(conversationRow), ...commands];
-  // A bot's template tag is searched too (D-98); its contiguous match counts from where it starts.
-  const matched = byScore(allBots.map((bot) => {
-    const tag = bot.template?.tag || "";
-    return { ...conversationRow(bot), score: best(score(bot.name, needle), tag.includes(needle) ? tag.indexOf(needle) + 100 : null) };
+  if (!needle) return [...emptyOrder(allChats).map((chat) => chatRow(chat, me)), ...commands];
+  // A chat by its name or who's in it.
+  const matched = byScore(allChats.map((chat) => {
+    const row = chatRow(chat, me);
+    const inNames = score(row.secondary, needle);
+    return { ...row, score: best(score(row.title, needle), inNames === null ? null : 100 + inNames) };
   }));
-  const bots = matched.filter((entry) => !entry.bot.hidden);
-  const hidden = matched.filter((entry) => entry.bot.hidden);
+  const chats = matched.filter((entry) => !entry.tag);
+  const tucked = matched.filter((entry) => entry.tag);
+  // A bot's template tag is searched too (D-98); its contiguous match counts from where it starts.
+  const botRows = byScore(allBots.map((bot) => {
+    const tag = bot.template?.tag || "";
+    return { ...botRow(bot), score: best(score(bot.name, needle), tag.includes(needle) ? tag.indexOf(needle) + 100 : null) };
+  }));
+  const personRows = byScore(people.filter((person) => String(person.id) !== String(me))
+    .map((person) => ({ ...personRow(person), score: score(person.name, needle) })));
   const appRows = byScore(apps.map((plugin) => ({
     key: `app-${plugin.id}`,
     kind: "app",
@@ -153,11 +168,11 @@ export function paletteEntries({ needle, bots: allBots, commands: allCommands, a
     kind: "routine",
     routine,
     title: routine.name,
-    secondary: `${routine.schedule} · ${routine.botName}`,
+    secondary: [routine.schedule, routine.botName, routine.chatTitle].filter(Boolean).join(" · "),
     score: score(routine.name, needle)
   })));
   const fileRows = files.map((file) => ({
-    key: `file-${file.botId ?? "home"}-${file.path}`,
+    key: `file-${file.chatId ?? "home"}-${file.botId ?? "home"}-${file.path}`,
     kind: "file",
     file,
     title: file.name,
@@ -165,5 +180,5 @@ export function paletteEntries({ needle, bots: allBots, commands: allCommands, a
     icon: file.kind === "view" ? "$dashboard" : file.kind === "page" ? "$book2" : file.kind === "chart" ? "$barChart" : fileKind(file.name).icon
   }));
   const messageRows = messages.map((message) => ({ key: `message-${message.id}`, kind: "message", message, ...snippet(message.text, needle), secondary: whereAndWhen(message) }));
-  return [...bots, ...appRows, ...hidden, ...commandRows, ...routineRows, ...fileRows, ...messageRows];
+  return [...chats, ...botRows, ...personRows, ...appRows, ...tucked, ...commandRows, ...routineRows, ...fileRows, ...messageRows];
 }

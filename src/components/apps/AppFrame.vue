@@ -14,7 +14,6 @@ import { browserFunctions } from "@/components/apps/scriptFunctions.js";
 import { askInChat } from "@/components/apps/askInChat.js";
 import { useLiveData } from "@/components/apps/useLiveData.js";
 import ViewActions from "@/components/apps/ViewActions.vue";
-import { botsApi } from "@/components/mercbot/botsApi.js";
 import { useAppExit } from "@/components/apps/useAppExit.js";
 import { useAppStyle } from "@/components/apps/useAppStyle.js";
 import { closestElement } from "@/browser.js";
@@ -47,10 +46,8 @@ const details = ref(false);
 const pointing = ref(false);
 const highlight = ref(null);
 const builder = ref(null);
-const canManage = ref(false);
 appsApi.builder().then((result) => {
   builder.value = result.builder;
-  canManage.value = result.canManage;
 }, () => {});
 
 const definition = computed(() => loaded.value?.definition);
@@ -169,48 +166,15 @@ async function updateCopy(update) {
 useAppStyle(computed(() => loaded.value?.style || ""));
 provide(APP_AREA_KEY, computed(() => (loaded.value?.app ? `[data-app-style="${loaded.value.app.id}"]` : null)));
 
-// Ask Builder (D-35): opens the chat with the Builder, with a first line saying which app, screen
-// and (with Point and ask) part this is about, ready to finish and send. A shared Builder has one
-// conversation per app (owner, 2026-10-30), and that's the one that opens. When the Builder isn't
-// shared yet, an owner or admin is asked once whether to make it so; otherwise, and after a no,
-// the person's own chat opens as before.
-const roomsQuestion = ref(null);
-const ASKED = "mercbot.builder-rooms-asked";
-const alreadyAsked = (botId) => {
-  try {
-    return (JSON.parse(window.localStorage.getItem(ASKED) || "[]") || []).includes(botId);
-  } catch {
-    return false;
-  }
-};
-function rememberAsked(botId) {
-  try {
-    window.localStorage.setItem(ASKED, JSON.stringify([...new Set([...(JSON.parse(window.localStorage.getItem(ASKED) || "[]") || []), botId])]));
-  } catch {
-    // Without storage it may ask again next time.
-  }
-}
-async function appRoom() {
-  if (!builder.value.shared && canManage.value && !alreadyAsked(builder.value.id)) {
-    const yes = await new Promise((resolve) => (roomsQuestion.value = { resolve }));
-    roomsQuestion.value = null;
-    rememberAsked(builder.value.id);
-    if (yes) {
-      await botsApi.update(builder.value.id, { sharing: "shared" });
-      builder.value = { ...builder.value, shared: true };
-    }
-  }
-  if (builder.value.shared) await botsApi.roomForApp(builder.value.id, { appId: loaded.value.app.id, title: loaded.value.app.name });
-}
-
+// Ask Builder (D-35): opens the person's direct chat with the Builder, with a first line saying which app, screen and
+// (with Point and ask) part this is about, ready to finish and send.
 async function askBuilder(part = null, about = "") {
   pointing.value = false;
   highlight.value = null;
   if (!builder.value) return notify("Choose a Builder first: New app in Apps, or Make this the Builder in a bot's Details.", "error");
-  await appRoom().catch((error) => notify(errorText(error, "The app's conversation couldn't open; your own chat with the Builder opens instead."), "error"));
   const where = part ? `, the ${part.type}${part.label ? ` "${part.label}"` : ""} (${part.path})` : "";
   const line = about ? `About the app "${loaded.value.app.name}" (${slug.value}), ${about}` : `About the app "${loaded.value.app.name}" (${slug.value}), screen "${screenKey.value}"${where}: `;
-  askInChat(router, { chat: paths.page("/"), botId: builder.value.id, line });
+  await askInChat(router, { chat: paths.page("/"), botId: builder.value.id, line });
 }
 
 function partAt(event) {
@@ -359,16 +323,6 @@ async function publish() {
       <AppDetailsPanel :loaded="loaded" :home="home" @restored="(result) => { notify(`Restored as version ${result.number}.`); loadApp().then(openScreen); }" @narrowed="(result) => { notify(`Saved as version ${result.number}.`); loadApp().then(openScreen); }" @failed="(message) => notify(message, 'error')" @themed="() => { notify('Saved.'); loadApp().then(openScreen); }" @ask="(about) => askBuilder(null, about)" />
     </v-navigation-drawer>
 
-    <v-dialog :model-value="Boolean(roomsQuestion)" max-width="460" persistent>
-      <v-card v-if="roomsQuestion && builder" rounded="lg" class="pa-4">
-        <div class="text-subtitle-1 mb-2">A conversation for each app?</div>
-        <div class="text-body-2 mb-4">{{ builder.name }} can keep a separate conversation for each app, which everyone in the home can follow. That makes {{ builder.name }} Shared: in those conversations it doesn't use anyone's own accounts or memories. Each person's own chat with {{ builder.name }} stays theirs, as its last tab, You only.</div>
-        <div class="d-flex justify-end ga-2">
-          <v-btn variant="text" @click="roomsQuestion.resolve(false)">No, use my own chat</v-btn>
-          <v-btn color="primary" variant="flat" @click="roomsQuestion.resolve(true)">Yes, one per app</v-btn>
-        </div>
-      </v-card>
-    </v-dialog>
     <v-snackbar v-model="snackbar.open" :color="snackbar.color" timeout="3000">{{ snackbar.text }}</v-snackbar>
   </div>
 </template>

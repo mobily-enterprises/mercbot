@@ -10,6 +10,8 @@ import MercbotPageFrame from "./MercbotPageFrame.vue";
 // card, marked Deleted, which no longer opens.
 const props = defineProps({
   botId: { type: String, required: true },
+  // The chat the card is in, whose folder a page it made there is kept in (D-112 R6).
+  chatId: { type: String, required: true },
   page: { type: Object, required: true }
 });
 const emit = defineEmits(["open"]);
@@ -19,7 +21,7 @@ const html = computed(() => isHtmlPage(props.page.path));
 <template>
   <div class="mb-page-card" :class="{ 'mb-page-card--removed': page.removed }">
     <v-theme-provider theme="light" class="mb-page-card__preview" :style="{ background: PAPER }" aria-hidden="true">
-      <MercbotPageFrame v-if="html && !page.removed" :bot-id="botId" :path="page.path" preview />
+      <MercbotPageFrame v-if="html && !page.removed" :bot-id="botId" :chat-id="chatId" :path="page.path" preview />
       <p v-else class="mb-page-card__summary">{{ page.summary || page.title }}</p>
     </v-theme-provider>
     <div class="mb-page-card__footer">

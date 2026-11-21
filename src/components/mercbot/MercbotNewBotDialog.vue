@@ -24,20 +24,20 @@ import { useBotPlan } from "./useBotPlan.js";
 // made together by Add N bots. One bot is what it will do: Mercbot's all-round General helper, one of the home's own
 // templates (listed first) or one of Mercbot's library (search, an area menu and passed checks' badges); when nothing
 // fits, Describe the bot you need takes the search's words to the Describe box. A template chosen is shown whole before
-// Next. Then its name, cloud and colour, and Create: the shell creates it (useNewBot.js). A template a link opens
-// (?template=) starts on it chosen, and a name typed in the group picker on One bot; a bot a person shared keeps its own
-// name and look, so it's added from there. A ready-made team makes a few bots at once (D-105: MercbotTeamScreen.vue); a
-// new home's first conversation opens there. On a phone it fills the screen.
+// Next. Then its name, cloud and colour, and Create: the shell creates it (useNewBot.js) and opens its chat. A template a
+// link opens (?template=) starts on it chosen, and a name typed in New chat on One bot; a bot a person shared keeps its
+// own name and look, so it's added from there. A ready-made team adds a few bots at once (D-105: MercbotTeamScreen.vue);
+// the welcome chat opens there. On a phone it fills the screen.
 const props = defineProps({
   busy: { type: Boolean, default: false },
   error: { type: String, default: "" },
-  // A name to start with, as from the group picker's "create a new bot" offer.
+  // A name to start with, as from New chat's offer to make a bot by the name typed.
   initialName: { type: String, default: "" },
   // The home's bots, so a new one starts in a colour and cloud nobody has yet (D-44).
   bots: { type: Array, default: () => [] },
   // The template a link opened New bot with: one of Mercbot's library, or a bot a person shared.
   templateSlug: { type: String, default: "" },
-  // The screen it opens on: "start", or "teams" (D-105, D-109) from a new home's first conversation.
+  // The screen it opens on: "start", or "teams" (D-105, D-109) from the welcome chat.
   screen: { type: String, default: "start" }
 });
 const open = defineModel({ type: Boolean, default: false });
@@ -63,7 +63,7 @@ const browser = ref(null);
 const words = ref("");
 const describeBox = ref(null);
 const planner = useBotPlan();
-const hasBots = computed(() => props.bots.some((bot) => bot.kind !== "group" && !bot.isMain));
+const hasBots = computed(() => props.bots.some((bot) => !bot.isMain));
 
 const name = ref("");
 const shape = ref(SHAPES[0].id);
@@ -101,7 +101,7 @@ const title = computed(() => ({
 
 watch(open, async (value) => {
   if (!value) return;
-  const bots = props.bots.filter((bot) => bot.kind !== "group");
+  const bots = props.bots;
   step.value = "start";
   chosen.value = null;
   detail.value = null;

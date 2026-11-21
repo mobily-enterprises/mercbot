@@ -20,6 +20,8 @@ import MercbotContextMenu from "./MercbotContextMenu.vue";
 import extensions from "./extensions.js";
 import { ONBOARDING_BLACK, ON_IDENTITY, PAPER } from "@/theme/palettes.js";
 import { choiceColor, isBlack, mixColor, onChoiceColor } from "./accent.js";
+import { botFace } from "./chatView.js";
+import { GONE_BOT, authorOf, hasSeveral, isLabelled, sideOf } from "./messageAuthors.js";
 import { mentionParts } from "./mentions.js";
 import { screenshotUrl } from "./computerApi.js";
 import { fileKind, fileUrl, formatSize } from "./filesApi.js";
@@ -27,36 +29,43 @@ import { renderRichText } from "./richText.js";
 import { closestElement } from "@/browser.js";
 import { MENU_REACTIONS, MORE_REACTIONS, QUICK_REACTIONS, messageMenuItems, pictureMenuItems, plainText, savePictureAsFile } from "./messageMenus.js";
 
-// Conversation timeline: the messages, the status line while a bot works, and each message's hover actions.
+// A chat's timeline (D-112): its messages, the status line while its bots work, and each message's hover actions.
 const props = defineProps({
-  bot: { type: Object, required: true },
+  // The open chat (its row): its people and bots name who wrote what, and every file, page, screenshot and voice
+  // address names it.
+  chat: { type: Object, required: true },
   messages: { type: Array, required: true },
   status: { type: String, default: "" },
   statusMood: { type: String, default: "working" },
   unreadAfter: { type: String, default: null },
+  // The faces of the bots working now, from the shell.
   statusBots: { type: Array, default: () => [] },
-  // The signed-in person's id: in a shared bot's room, everyone else's messages are labelled (D-36).
-  me: { type: String, default: "" }
+  // The signed-in person's id: their own messages are on the right.
+  me: { type: String, default: "" },
+  // The home's people and bots (null while they load), which name an author no longer in the chat.
+  people: { type: Array, default: null },
+  bots: { type: Array, default: null }
 });
 
 // The cards a copy built on Mercbot adds, by the kind of message each shows (extensions.js).
 const addedCards = new Map(extensions.messageCards.map((card) => [card.kind, card.component]));
 
-// Group chats: each run of one bot's bubbles has its name above the first and its
-// avatar beside the last; mentions show as the bot's avatar and name in its colour. In a shared
-// bot's room (D-36) other people's messages run the same way, on the left, with their initial.
+// Who wrote each message (messageAuthors.js). In a chat of several, each run of one author's bubbles has their name
+// above the first and their face (a bot's) or initials (a person's) beside the last; mentions show as the bot's face
+// and name in its colour. A direct chat looks as a chat with one bot always has.
 const theme = useTheme();
-function speakerOf(message) {
-  if (message?.kind !== "text") return null;
-  if (message.role === "bot") return message.body.speaker || null;
-  const from = message.body.from;
-  return message.role === "user" && from && from.id !== props.me ? { ...from, person: true } : null;
-}
-const sideOf = (message) => (speakerOf(message)?.person ? "other" : message.role);
-const initialOf = (speaker) => (String(speaker.name || "?").trim()[0] || "?").toUpperCase();
-const sameSpeaker = (a, b) => Boolean(speakerOf(a) && speakerOf(b) && speakerOf(a).id === speakerOf(b).id);
+const several = computed(() => hasSeveral(props.chat));
+const authors = computed(() => new Map(props.messages.map((message) => [message.id, authorOf(message, props)])));
+const authorFor = (message) => authors.value.get(message?.id) ?? null;
+const sideFor = (message) => sideOf(authorFor(message));
+const keyFor = (message) => authorFor(message)?.key ?? "system";
+const speakerOf = (message) => (message?.kind === "text" && isLabelled(authorFor(message), several.value) ? authorFor(message) : null);
+const sameSpeaker = (a, b) => Boolean(speakerOf(a) && speakerOf(b) && speakerOf(a).key === speakerOf(b).key);
 const runStart = (index) => Boolean(speakerOf(items.value[index])) && !sameSpeaker(items.value[index - 1], items.value[index]);
 const runEnd = (index) => Boolean(speakerOf(items.value[index])) && !sameSpeaker(items.value[index], items.value[index + 1]);
+// The bot a message came from, whose computer and folder its files, pages and screenshots are in; null for a person's.
+const botOf = (message) => (message.authorBotId == null ? null : String(message.authorBotId));
+const faceOf = (message) => authorFor(message)?.bot || GONE_BOT;
 
 function labelColor(color) {
   const dark = theme.current.value.dark;
@@ -91,7 +100,7 @@ function toggleCommand(id) {
   openCommands.value = next;
 }
 
-const emit = defineEmits(["take-over", "use-computer", "secure-form", "settle-draft", "manage-rules", "settle-handover", "choose", "answer", "focus-composer", "connect", "react", "reply", "copy", "copy-image", "retry", "open-skill", "undo-note", "open-bot", "cancel-request", "open-page"]);
+const emit = defineEmits(["take-over", "use-computer", "secure-form", "settle-draft", "manage-rules", "settle-handover", "choose", "answer", "focus-composer", "connect", "react", "reply", "copy", "copy-image", "retry", "open-skill", "cancel-request", "open-page"]);
 
 // Right-click menus: on a message, Reply, Copy and Copy request ID, with a bot's adding a
 // row of reactions; on a picture, copy or save it. Selected words and links keep the browser's own
@@ -127,12 +136,19 @@ function openPictureMenu(event, fileName) {
   };
 }
 
+// Every address for a message's files, pages and screenshots names this chat (D-112 R6): a file is in its folder, or
+// in the folder of the bot that wrote the message, and a screenshot is from that bot's computer here (D14).
+const chatId = computed(() => String(props.chat.id));
+const fileOf = (message, path, download = false) => fileUrl(botOf(message), path, { download, chat: chatId.value });
+const shotOf = (message, name) => screenshotUrl(botOf(message), name, chatId.value);
+const openPage = (message, path) => emit("open-page", { path, botId: botOf(message), chatId: chatId.value });
+
 // A skill link in a bot reply opens that skill; a page named by its path opens the page (D-74).
 function clickRich(event, message) {
   const page = closestElement(event.target, "[data-page]");
   if (page) {
     event.preventDefault();
-    emit("open-page", { path: page.dataset.page, botId: ownerOf(message), group: placeOf(message) });
+    openPage(message, page.dataset.page);
     return;
   }
   const link = closestElement(event.target, "[data-skill]");
@@ -156,17 +172,24 @@ function answerSecureForm(answer) {
 // Files the bot saved (D-20): a card each, opening the viewer. Pages open in place of the chat (D-74).
 const viewing = ref(null);
 const viewingView = ref(null);
-// What a bot made in a group is its own (D-46): its files and screenshots are reached through it,
-// in its folder for everyone when other people are in the group, and from its computer for the group.
-const ownerOf = (message) => String(message.body?.speaker?.id || props.bot.id);
-const placeOf = (message) => (props.bot.kind === "group" && message.body?.place === "group" ? String(props.bot.id) : null);
-const shotGroup = computed(() => (props.bot.kind === "group" ? String(props.bot.id) : null));
-// A card in a group waits for the person whose request made it; others see whom (D-46).
+function editedOnComputer() {
+  const { botId } = viewing.value;
+  viewing.value = null;
+  emit("use-computer", { botId });
+}
+// A card waits for the person whose message made it; everyone else sees whom (D-46, R4).
 const waitingFor = (message) => (message.body?.for && String(message.body.for.id) !== props.me ? message.body.for.name : "");
+function secureStatus(message) {
+  if (message.body.status === "submitted") return "Submitted ✓";
+  if (message.body.status === "closed") return "Closed";
+  return waitingFor(message) ? `Waiting for ${waitingFor(message)}` : "Your bot never sees what you type";
+}
 
-// Question cards: chosen badges take the bot's colour, black bots use blue.
-const badgeColor = computed(() => choiceColor(props.bot.color));
-const onBadgeColor = computed(() => onChoiceColor(props.bot.color));
+// Question cards: chosen badges take the colour of the bot that asked, black bots use blue.
+const choiceStyle = (message) => {
+  const color = authorFor(message)?.bot?.color ?? null;
+  return { "--mb-choice": choiceColor(color), "--mb-on-choice": onChoiceColor(color) };
+};
 const picks = ref({});
 
 function chosenList(message) {
@@ -201,6 +224,12 @@ function shownOptions(message) {
   return message.body.chosen ? options.filter((entry) => chosenList(message).includes(entry.option)) : options;
 }
 
+// The status line: the faces of the bots working, or, with none named, the chat's one bot in its mood.
+const statusFaces = computed(() => {
+  if (props.statusBots.length) return props.statusBots;
+  return props.chat.bots?.length === 1 ? [botFace(props.chat.bots[0])] : [];
+});
+
 const LETTERS = ["A", "B", "C", "D", "E"];
 const GAP_MS = 20 * 60 * 1000;
 const dayTime = new Intl.DateTimeFormat(undefined, { weekday: "long", hour: "numeric", minute: "2-digit" });
@@ -216,12 +245,12 @@ function stampText(iso) {
   return dayTime.format(date);
 }
 
-// A timestamp goes above any message that follows a long gap, and the "new" divider
-// above the first message the person hadn't seen when they opened the bot.
+// A timestamp goes above any message that follows a long gap, and the "new" divider above the first message, not the
+// person's own, that they hadn't seen when they opened the chat.
 const firstUnreadId = computed(() => {
   if (props.unreadAfter === null) return null;
   const after = Number(props.unreadAfter);
-  return props.messages.find((message) => message.role !== "user" && message.kind !== "timestamp" && Number(message.id) > after)?.id ?? null;
+  return props.messages.find((message) => !authorFor(message)?.mine && message.kind !== "timestamp" && Number(message.id) > after)?.id ?? null;
 });
 
 const items = computed(() => {
@@ -246,8 +275,7 @@ function spacing(index) {
   const previous = items.value[index - 1];
   if (!previous) return "first";
   if (previous.kind === "gap-stamp") return "after-stamp";
-  const sameTurn = previous.kind === "text" && current.kind === "text" && previous.role === current.role &&
-    (!speakerOf(current) || sameSpeaker(previous, current));
+  const sameTurn = previous.kind === "text" && current.kind === "text" && keyFor(previous) === keyFor(current);
   return sameTurn ? "same-turn" : "turn";
 }
 
@@ -300,16 +328,6 @@ const fileDate = (iso) => (iso ? fileDay.format(new Date(iso)) : "");
         </a>
       </p>
 
-      <!-- A line noted for the home notebook (D-36), which its person can undo. -->
-      <p v-else-if="message.kind === 'note'" class="mb-timeline__centred mb-timeline__note">
-        <v-icon icon="$book2" size="12" class="mb-timeline__event-icon" />
-        <template v-if="message.body.removed">Taken out of the notebook</template>
-        <template v-else>
-          Noted for {{ message.body.home }}: “{{ message.body.text }}”
-          <button type="button" class="mb-timeline__retry" @click="emit('undo-note', message)">Undo</button>
-        </template>
-      </p>
-
       <p v-else-if="message.kind === 'error'" class="mb-timeline__error" role="alert">
         {{ message.body.text }}
         <button type="button" class="mb-timeline__retry" @click="emit('retry', message)">Try again</button>
@@ -318,19 +336,19 @@ const fileDate = (iso) => (iso ? fileDay.format(new Date(iso)) : "");
       <div
         v-else-if="message.kind === 'text'"
         class="mb-message"
-        :class="[`mb-message--${sideOf(message)}`, {
+        :class="[`mb-message--${sideFor(message)}`, {
           'mb-message--reacted': message.body.reactions?.[message.role === 'bot' ? 'user' : 'bot'],
           'mb-message--speaker': speakerOf(message),
           'mb-message--labelled': runStart(index)
         }]"
         @contextmenu="openMessageMenu($event, message)"
       >
-        <span v-if="runStart(index)" class="mb-speaker" :style="speakerOf(message).person ? null : { color: labelColor(speakerOf(message).color) }">{{ speakerOf(message).name }}</span>
+        <span v-if="runStart(index)" class="mb-speaker" :style="speakerOf(message).person ? null : { color: labelColor(speakerOf(message).bot.color) }">{{ speakerOf(message).name }}</span>
         <span v-if="runEnd(index)" class="mb-speaker__avatar">
-          <span v-if="speakerOf(message).person" class="mb-speaker__initial" aria-hidden="true">{{ initialOf(speakerOf(message)) }}</span>
-          <MercbotAvatar v-else :bot="speakerOf(message)" :size="24" still />
+          <span v-if="speakerOf(message).person" class="mb-speaker__initial" aria-hidden="true">{{ speakerOf(message).initials }}</span>
+          <MercbotAvatar v-else :bot="speakerOf(message).bot" :size="24" still />
         </span>
-        <div class="mb-bubble" :class="[`mb-bubble--${sideOf(message)}`, { 'mb-bubble--pending': message.pending, 'mb-bubble--group-user': bot.kind === 'group' && message.role === 'user' }]">
+        <div class="mb-bubble" :class="[`mb-bubble--${sideFor(message)}`, { 'mb-bubble--pending': message.pending, 'mb-bubble--plain': several && sideFor(message) === 'user' }]">
           <p v-if="message.body.replyTo" class="mb-bubble__quote">{{ message.body.replyTo.text }}</p>
           <p v-for="quote in message.body.quotes || []" :key="quote" class="mb-bubble__quote">{{ quote }}</p>
           <template v-for="file in message.body.attachments || []" :key="file.name">
@@ -338,7 +356,7 @@ const fileDate = (iso) => (iso ? fileDay.format(new Date(iso)) : "");
             <span v-if="file.path && /^image\//u.test(file.type || '')" class="mb-bubble__frame">
               <img
                 class="mb-bubble__picture"
-                :src="fileUrl(bot.id, file.path, { download: false })"
+                :src="fileOf(message, file.path)"
                 :alt="file.name"
                 @contextmenu.stop="openPictureMenu($event, file.name)"
               >
@@ -375,7 +393,7 @@ const fileDate = (iso) => (iso ? fileDay.format(new Date(iso)) : "");
           <span v-if="message.role === 'bot' && message.body.reactions?.user" class="mb-reaction mb-reaction--right">
             {{ message.body.reactions.user }}
           </span>
-          <span v-if="message.role === 'user' && message.body.reactions?.bot" class="mb-reaction" :class="sideOf(message) === 'other' ? 'mb-reaction--right' : 'mb-reaction--left'">
+          <span v-if="message.role === 'user' && message.body.reactions?.bot" class="mb-reaction" :class="sideFor(message) === 'other' ? 'mb-reaction--right' : 'mb-reaction--left'">
             {{ message.body.reactions.bot }}
           </span>
         </div>
@@ -443,7 +461,7 @@ const fileDate = (iso) => (iso ? fileDay.format(new Date(iso)) : "");
         v-else-if="message.kind === 'choice'"
         class="mb-card mb-choice"
         :class="{ 'mb-choice--answered': message.body.chosen, 'mb-choice--inactive': message.body.inactive }"
-        :style="{ '--mb-choice': badgeColor, '--mb-on-choice': onBadgeColor }"
+        :style="choiceStyle(message)"
       >
         <p class="mb-choice__question">{{ message.body.question }}</p>
         <p v-if="message.body.subline" class="mb-choice__subline">{{ message.body.subline }}</p>
@@ -502,10 +520,10 @@ const fileDate = (iso) => (iso ? fileDay.format(new Date(iso)) : "");
           type="button"
           class="mb-shot"
           :aria-label="`Open screenshot: ${image.caption}`"
-          @click="lightbox = { src: screenshotUrl(ownerOf(message), image.name, shotGroup), caption: image.caption, fileName: image.name }"
+          @click="lightbox = { src: shotOf(message, image.name), caption: image.caption, fileName: image.name }"
         >
           <img
-            :src="screenshotUrl(ownerOf(message), image.name, shotGroup)"
+            :src="shotOf(message, image.name)"
             :alt="image.caption"
             :class="{ 'mb-shot__img--loaded': loadedShots[image.name] }"
             @load="loadedShots = { ...loadedShots, [image.name]: true }"
@@ -518,7 +536,7 @@ const fileDate = (iso) => (iso ? fileDay.format(new Date(iso)) : "");
 
       <MercbotAppDraftCard v-else-if="message.kind === 'app_draft'" :message="message" />
       <MercbotFieldRemovalCard v-else-if="message.kind === 'field_removal'" :message="message" />
-      <MercbotVoiceMemo v-else-if="message.kind === 'voice'" :bot-id="ownerOf(message)" :group="placeOf(message)" :memo="message.body" />
+      <MercbotVoiceMemo v-else-if="message.kind === 'voice'" :bot-id="botOf(message)" :chat-id="chatId" :memo="message.body" />
 
       <div v-else-if="message.kind === 'pictures'" class="mb-pictures">
         <button
@@ -527,10 +545,10 @@ const fileDate = (iso) => (iso ? fileDay.format(new Date(iso)) : "");
           type="button"
           class="mb-pictures__open"
           :aria-label="`Open picture: ${image.title}`"
-          @click="lightbox = { src: fileUrl(ownerOf(message), image.path, { download: false, group: placeOf(message) }), caption: image.caption, fileName: `${image.title}.png` }"
+          @click="lightbox = { src: fileOf(message, image.path), caption: image.caption, fileName: `${image.title}.png` }"
         >
           <img
-            :src="fileUrl(ownerOf(message), image.path, { download: false, group: placeOf(message) })"
+            :src="fileOf(message, image.path)"
             :alt="image.caption"
             @contextmenu="openPictureMenu($event, `${image.title}.png`)"
           >
@@ -543,10 +561,10 @@ const fileDate = (iso) => (iso ? fileDay.format(new Date(iso)) : "");
           class="mb-chart__open"
           :style="{ background: PAPER }"
           :aria-label="`Open chart: ${message.body.title}`"
-          @click="lightbox = { src: fileUrl(ownerOf(message), message.body.path, { download: false, group: placeOf(message) }), caption: message.body.caption, fileName: `${message.body.title}.png` }"
+          @click="lightbox = { src: fileOf(message, message.body.path), caption: message.body.caption, fileName: `${message.body.title}.png` }"
         >
           <img
-            :src="fileUrl(ownerOf(message), message.body.path, { download: false, group: placeOf(message) })"
+            :src="fileOf(message, message.body.path)"
             :alt="message.body.caption"
             @contextmenu="openPictureMenu($event, `${message.body.title}.png`)"
           >
@@ -556,9 +574,10 @@ const fileDate = (iso) => (iso ? fileDay.format(new Date(iso)) : "");
       <!-- A page deleted from the Library keeps its card, which no longer opens. -->
       <MercbotPageCard
         v-else-if="message.kind === 'page'"
-        :bot-id="ownerOf(message)"
+        :bot-id="botOf(message) || ''"
+        :chat-id="chatId"
         :page="message.body"
-        @open="emit('open-page', { path: message.body.path, botId: ownerOf(message), group: placeOf(message) })"
+        @open="openPage(message, message.body.path)"
       />
 
       <MercbotViewCard v-else-if="message.kind === 'view'" :message="message" @open="viewingView = $event" />
@@ -570,7 +589,7 @@ const fileDate = (iso) => (iso ? fileDay.format(new Date(iso)) : "");
           type="button"
           class="mb-files__card"
           :aria-label="`Open ${file.name}`"
-          @click="viewing = { ...file, owner: ownerOf(message), group: placeOf(message) }"
+          @click="viewing = { ...file, botId: botOf(message) }"
         >
           <span class="mb-files__icon"><v-icon :icon="fileKind(file.name).icon" size="22" /></span>
           <span class="mb-files__text">
@@ -580,7 +599,7 @@ const fileDate = (iso) => (iso ? fileDay.format(new Date(iso)) : "");
         </button>
       </div>
 
-      <!-- Files in the person's own Drive or OneDrive, listed or just made. -->
+      <!-- Files in a connected Drive or OneDrive, listed or just made. -->
       <ul v-else-if="message.kind === 'drive_files'" class="mb-drive-files" :aria-label="`Files in ${message.body.account}`">
         <li v-for="file in message.body.files" :key="file.id || file.link" class="mb-drive-files__row">
           <MercbotPluginLogo :plugin="message.body.app" :size="16" />
@@ -593,9 +612,9 @@ const fileDate = (iso) => (iso ? fileDay.format(new Date(iso)) : "");
         <span class="mb-secure-card__icon"><v-icon icon="$key" size="18" /></span>
         <span class="mb-secure-card__text">
           <span class="mb-secure-card__title">{{ message.body.form === "code" ? `Code for ${message.body.site}` : `Sign in to ${message.body.site}` }}</span>
-          <span class="mb-secure-card__status">{{ message.body.status === "submitted" ? "Submitted ✓" : message.body.status === "closed" ? "Closed" : "Your bot never sees what you type" }}</span>
+          <span class="mb-secure-card__status">{{ secureStatus(message) }}</span>
         </span>
-        <button v-if="message.body.status === 'pending'" type="button" class="mb-set-pill mb-set-pill--dark" @click="secureForm = message">Open</button>
+        <button v-if="message.body.status === 'pending' && !waitingFor(message)" type="button" class="mb-set-pill mb-set-pill--dark" @click="secureForm = message">Open</button>
       </section>
 
       <MercbotTodoCard v-else-if="message.kind === 'todos'" :message="message" />
@@ -603,21 +622,23 @@ const fileDate = (iso) => (iso ? fileDay.format(new Date(iso)) : "");
       <MercbotRequestCard
         v-else-if="message.kind === 'bot_request'"
         :message="message"
-        @open-bot="emit('open-bot', $event)"
+        :waiting-for="waitingFor(message)"
         @cancel="emit('cancel-request', $event)"
       />
 
+      <!-- The hand-over is on the computer of the bot that asked, which anyone here may take over (D16). -->
       <MercbotHandoverCard
         v-else-if="message.kind === 'handover'"
-        :bot="bot"
+        :bot="faceOf(message)"
+        :chat-id="chatId"
         :message="message"
         :me="me"
-        @take-over="emit('take-over', message)"
+        @take-over="emit('take-over', { message, botId: botOf(message) })"
         @settle="emit('settle-handover', { message, outcome: $event })"
       />
 
       <!-- A kind of card a copy built on Mercbot adds (extensions.js). -->
-      <component :is="addedCards.get(message.kind)" v-else-if="addedCards.has(message.kind)" :message="message" :bot="bot" />
+      <component :is="addedCards.get(message.kind)" v-else-if="addedCards.has(message.kind)" :message="message" :chat="chat" />
 
       <template v-else-if="message.kind === 'connect'">
         <section class="mb-card mb-connect">
@@ -664,20 +685,20 @@ const fileDate = (iso) => (iso ? fileDay.format(new Date(iso)) : "");
     <MercbotViewViewer v-if="viewingView" :slug="viewingView.path" :title="viewingView.title" @close="viewingView = null" />
     <MercbotFileViewer
       v-if="viewing"
-      :bot-id="viewing.owner || String(bot.id)"
-      :group="viewing.group"
+      :bot-id="viewing.botId"
+      :chat-id="chatId"
       :file="viewing"
       @close="viewing = null"
-      @opened="viewing = null; emit('use-computer')"
+      @opened="editedOnComputer"
     />
 
     <div v-if="status" class="mb-timeline__item mb-timeline__item--turn mb-status" role="status">
-      <span v-if="statusBots.length" class="mb-status__group">
-        <span v-for="worker in statusBots" :key="worker.id" class="mb-status__member">
+      <span v-if="statusFaces.length > 1" class="mb-status__group">
+        <span v-for="worker in statusFaces" :key="worker.id" class="mb-status__member">
           <MercbotAvatar :bot="worker" :size="25" state="working" />
         </span>
       </span>
-      <MercbotAvatar v-else :bot="bot" :size="25" :state="statusMood" />
+      <MercbotAvatar v-else-if="statusFaces.length" :bot="statusFaces[0]" :size="25" :state="statusMood" />
       <span class="mb-status__text">{{ status }}</span>
     </div>
   </div>

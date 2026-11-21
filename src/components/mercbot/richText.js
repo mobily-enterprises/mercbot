@@ -31,7 +31,8 @@ const APP_HOSTS = {
   "docs.google.com": "google-drive"
 };
 
-const PAGE_PATH = /^\/files\/(mine|bot|shared)\/(?:[^?#]+\/)?Pages\/[^/?#]+\.(html|md)$/u;
+// A page is kept in the chat's folder, the bot's or the home's (D-112 R6).
+const PAGE_PATH = /^\/files\/(chat|bot|shared)\/(?:[^?#]+\/)?Pages\/[^/?#]+\.(html|md)$/u;
 function decodeLink(href) {
   try {
     return decodeURI(String(href || ""));

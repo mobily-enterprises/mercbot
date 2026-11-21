@@ -2,28 +2,29 @@
 import { computed } from "vue";
 import { archivedBotLine } from "./archiveBot.js";
 
-// In place of the composer while the open bot is archived (D-108): its chats are read, never written to. Who archived it
-// and when, what that means, and Unarchive for whoever may (its maker and the home's owners and admins).
+// In place of the composer in a direct chat with a bot that has left the home (D-108, plan 5.1): it no longer answers.
+// That it has left, who archived it and when, and Resume for whoever may (its maker and the home's owners and admins).
 const props = defineProps({
-  bot: { type: Object, required: true }
+  bot: { type: Object, required: true },
+  homeName: { type: String, default: "" }
 });
 const emit = defineEmits(["unarchive"]);
 
-const line = computed(() => archivedBotLine(props.bot));
+const title = computed(() => `${props.bot.name} has left ${props.homeName || "this home"}`);
 const hint = computed(() => (props.bot.canArchive
-  ? "Its chats are read-only, and its routines and watches are paused. Unarchive it to talk to it again."
-  : `Its chats are read-only. The person who made ${props.bot.name} and the home's owners and admins can unarchive it.`));
+  ? `${archivedBotLine(props.bot)}. Resume it to talk again.`
+  : `${archivedBotLine(props.bot)}. The person who made ${props.bot.name} and the home's owners and admins can resume it.`));
 </script>
 
 <template>
-  <div class="mb-archived-bot" role="status" aria-label="Archived">
+  <div class="mb-archived-bot" role="status" aria-label="Left the home">
     <v-icon icon="$archive" size="20" class="mb-archived-bot__icon" />
     <span class="mb-archived-bot__text">
-      <span class="mb-archived-bot__title">{{ line }}</span>
+      <span class="mb-archived-bot__title">{{ title }}</span>
       <span class="mb-archived-bot__hint">{{ hint }}</span>
     </span>
-    <button v-if="bot.canArchive" type="button" class="mb-set-pill mb-archived-bot__unarchive" @click="emit('unarchive')">
-      <v-icon icon="$unarchive" size="16" /> Unarchive
+    <button v-if="bot.canArchive" type="button" class="mb-set-pill mb-archived-bot__unarchive" :aria-label="`Resume ${bot.name}`" @click="emit('unarchive')">
+      <v-icon icon="$unarchive" size="16" /> Resume
     </button>
   </div>
 </template>

@@ -4,12 +4,10 @@ import { useDisplay } from "vuetify";
 import { useRouter } from "vue-router";
 import { usePaths } from "@jskit-ai/shell-web/client/navigation/usePaths";
 import { HOME_NAME_MAX, useHomes } from "./homesApi.js";
-import { makeHome } from "./homeDefault.js";
 
-// New home (D-36), from the home switcher: only the home's name (D-109). Create home makes the home, with the default
-// for new bots it always started with (Mixed, D-100), which nothing here offers to change, and goes there, where it
-// starts with just Mercbot, whose first conversation offers bots to start with, and Add bots adds more whenever the
-// person likes. On a phone it fills the screen.
+// New home (D-36), from the home switcher: only the home's name (D-109). Create home makes the home and goes there,
+// where it starts with just Mercbot, whose welcome chat offers bots to start with, and Add bots adds more whenever the
+// person likes. Nothing about its bots is set here. On a phone it fills the screen.
 const open = defineModel("open", { type: Boolean, default: false });
 
 const paths = usePaths();
@@ -40,7 +38,7 @@ async function createHome() {
   busy.value = true;
   problem.value = "";
   try {
-    const home = await makeHome(create, wanted);
+    const home = await create(wanted);
     open.value = false;
     await router.push(paths.page("/", { params: { workspaceSlug: home.slug } }));
   } catch (error) {

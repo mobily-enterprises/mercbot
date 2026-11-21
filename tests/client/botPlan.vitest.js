@@ -4,7 +4,8 @@ import { firstQuestions, useBotPlan } from "../../src/components/mercbot/useBotP
 // Add bots' suggestions on the page (D-109): a plan shows at once, every bot ticked but those already in the home, and
 // each new bot's template is written one call each, all at once; Add waits for the ones ticked; one that couldn't be
 // written says why, to try again or remove; a change keeps the templates written for the new bots it keeps, and a
-// template that answers after its plan changed is dropped. The routes are a stand-in whose answers each test releases.
+// template that answers after its plan changed is dropped. A plan names no section: the bots join the team (plan 5.2).
+// The routes are a stand-in whose answers each test releases.
 
 /** A stand-in for the two routes: each call waits until the test answers it. */
 function routes() {
@@ -15,7 +16,6 @@ function routes() {
 const settled = () => new Promise((resolve) => setTimeout(resolve, 0));
 const bot = (key, extra = {}) => ({ key, name: key.split(":")[1], tag: key.split(":")[1].slice(0, 10), description: `Does ${key}.`, shape: "cloud", color: "#1E86FC", inHome: false, ...extra });
 const PLAN = {
-  name: "Shop",
   summary: "Stock and a rota",
   question: null,
   bots: [
@@ -37,7 +37,8 @@ describe("a suggestion on the page", () => {
     asked[0].resolve({ plan: PLAN });
     await suggesting;
     expect(asked[0].body).toEqual({ describe: "a shop with a rota" });
-    expect([planner.describe.value, planner.section.value, planner.asking.value]).toEqual(["a shop with a rota", "Shop", false]);
+    expect([planner.describe.value, planner.asking.value]).toEqual(["a shop with a rota", false]);
+    expect(planner, "no section to name").not.toHaveProperty("section");
     expect(planner.adding.value.map((entry) => entry.key), "all but the one in the home").toEqual(["library:shop-stock-keeper", "new:rota", "new:payroll"]);
     expect(asked.slice(1).map((call) => [call.route, call.body.bot.name]), "both at once").toEqual([["draft", "rota"], ["draft", "payroll"]]);
     expect(asked[1].body).toEqual({
@@ -56,15 +57,16 @@ describe("a suggestion on the page", () => {
     await settled();
     expect(planner.ready.value).toBe(true);
     expect(planner.batch.value).toEqual({
-      section: "Shop",
       bots: [
         { library: "shop-stock-keeper" },
         { draft: draftOf("rota"), name: "rota", shape: "cloud", color: "#1E86FC" },
         { draft: draftOf("payroll"), name: "payroll", shape: "cloud", color: "#1E86FC" }
       ]
     });
-    planner.section.value = "  ";
-    expect(planner.ready.value, "a section's name is needed").toBe(false);
+    planner.tick("library:shop-stock-keeper");
+    planner.tick("new:rota");
+    planner.tick("new:payroll");
+    expect(planner.ready.value, "nothing ticked").toBe(false);
   });
 
   it("says when a template couldn't be written, to try again or remove; Edit's template takes its place", async () => {
@@ -117,7 +119,7 @@ describe("a suggestion on the page", () => {
     const { asked, api } = routes();
     const planner = useBotPlan({ api });
     const asking = planner.suggest("my business");
-    asked[0].resolve({ plan: { name: "New bots", summary: "", question: "What do you sell?", bots: [], covered: [] } });
+    asked[0].resolve({ plan: { summary: "", question: "What do you sell?", bots: [], covered: [] } });
     expect(await asking).toMatchObject({ question: "What do you sell?" });
     expect([planner.question.value, asked.length, planner.ready.value]).toEqual(["What do you sell?", 1, false]);
 

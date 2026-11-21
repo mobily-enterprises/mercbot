@@ -3,15 +3,15 @@ import { matchShortcut } from "./shortcuts.js";
 
 /**
  * The shell's keyboard. `actions` runs a shortcut's action by name,
- * `visualOrder` is the sidebar's bot order and `currentBotId` the open bot, `selectBot` and
- * `selectIndex` open a bot by id or position. `paletteOpen` is the search palette, `overlayOpen`
+ * `visualOrder` is the sidebar's chat order and `currentChatId` the open chat, `selectChat` and
+ * `selectIndex` open a chat by id or position. `paletteOpen` is the search palette, `overlayOpen`
  * says a dialog has the keyboard, `detailsDismissable` says Escape may close the docked details
  * and `closeDetails` does it, and `releaseDictation` ends a held Ctrl+D.
  * @param {object} options
  * @param {Record<string, () => void>} options.actions
  * @param {import("vue").ComputedRef<string[]>} options.visualOrder
- * @param {() => string} options.currentBotId
- * @param {(id: string) => void} options.selectBot
+ * @param {() => string} options.currentChatId
+ * @param {(id: string) => void} options.selectChat
  * @param {(index: number) => void} options.selectIndex
  * @param {import("vue").Ref<boolean>} options.paletteOpen
  * @param {() => boolean} options.overlayOpen
@@ -22,8 +22,8 @@ import { matchShortcut } from "./shortcuts.js";
 export function useShellKeys({
   actions,
   visualOrder,
-  currentBotId,
-  selectBot,
+  currentChatId,
+  selectChat,
   selectIndex,
   paletteOpen,
   overlayOpen,
@@ -31,15 +31,15 @@ export function useShellKeys({
   closeDetails,
   releaseDictation
 }) {
-  // Ctrl+Alt shows each bot's position; Tab moves a ring while the modifier is held.
+  // Ctrl+Alt shows each chat's position; Tab moves a ring while the modifier is held.
   const positionHints = ref(false);
   const switchHighlightId = ref("");
 
-  // Switch Bots: releasing the modifier opens the ringed bot.
-  function switchBots(step) {
+  // Switch chats: releasing the modifier opens the ringed chat.
+  function switchChats(step) {
     const order = visualOrder.value;
     if (!order.length) return;
-    const from = order.indexOf(switchHighlightId.value || currentBotId());
+    const from = order.indexOf(switchHighlightId.value || currentChatId());
     switchHighlightId.value = order[(from + step + order.length) % order.length];
   }
 
@@ -65,10 +65,10 @@ export function useShellKeys({
     event.preventDefault();
     // Holding Ctrl+D talks until release: only the first press counts.
     if (match.action === "dictate" && event.repeat) return;
-    if (match.action === "goToBot") {
+    if (match.action === "goToChat") {
       selectIndex(match.index);
-    } else if (match.action === "switchBots") {
-      switchBots(match.backwards ? -1 : 1);
+    } else if (match.action === "switchChats") {
+      switchChats(match.backwards ? -1 : 1);
     } else {
       actions[match.action]();
     }
@@ -78,7 +78,7 @@ export function useShellKeys({
     if (event.code === "KeyD") releaseDictation();
     positionHints.value = event.ctrlKey && event.altKey;
     if (!positionHints.value && switchHighlightId.value) {
-      selectBot(switchHighlightId.value);
+      selectChat(switchHighlightId.value);
       switchHighlightId.value = "";
     }
   }

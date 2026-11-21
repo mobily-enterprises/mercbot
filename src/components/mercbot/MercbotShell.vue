@@ -9,6 +9,7 @@ import MercbotChatPanel from "./MercbotChatPanel.vue";
 import { refusedWork } from "./accountApi.js";
 import extensions from "./extensions.js";
 import MercbotDetailsPanel from "./MercbotDetailsPanel.vue";
+import MercbotTeamPage from "./MercbotTeamPage.vue";
 import MercbotAppsModal from "./MercbotAppsModal.vue";
 import MercbotLiveView from "./MercbotLiveView.vue";
 import MercbotFileViewer from "./MercbotFileViewer.vue";
@@ -21,54 +22,59 @@ import MercbotAboutDialog from "./MercbotAboutDialog.vue";
 import MercbotSettingsDialog from "./MercbotSettingsDialog.vue";
 import { EVERYONE_SECTIONS } from "./settingsSections.js";
 import MercbotSidebar from "./MercbotSidebar.vue";
-import { buildSidebarModel, railOrder } from "./botDirectory.js";
+import { buildSidebarModel, railOrder, toChatRow } from "./chatDirectory.js";
+import { botFace, computerLine, isDirect, readersLine } from "./chatView.js";
+import { chatsApi } from "./chatsApi.js";
+import { followOpenChat } from "./chatPlace.js";
 import { composerPlaceholder } from "./composerPlaceholder.js";
+import { currentHome } from "./homeApi.js";
 import { useHomes } from "./homesApi.js";
 import { DETAILS_MIN } from "./shellGeometry.js";
 import { shellPreferences } from "./shellPreferences.js";
 import { MERCBOT_INITIALS_KEY, uploadedPicture } from "./shellInitials.js";
 import { MERCBOT_CHAT_KEY, createKeyHolds } from "./shellChat.js";
 import MercbotIconButton from "./MercbotIconButton.vue";
-import { useBotEvents } from "./useBotEvents.js";
-import { useBotMessages } from "./useBotMessages.js";
-import { useBotWork } from "./useBotWork.js";
+import { useChatEvents } from "./useChatEvents.js";
+import { useChatMessages } from "./useChatMessages.js";
+import { useChatWork } from "./useChatWork.js";
 import { useChatActions } from "./useChatActions.js";
 import { useConnectApps } from "./useConnectApps.js";
 import { useDrafts } from "./useDrafts.js";
-import { useGroupPicker } from "./useGroupPicker.js";
+import { useNewChat } from "./useNewChat.js";
 import { useLiveView } from "./useLiveView.js";
 import { useNewBot } from "./useNewBot.js";
 import { useOnboarding } from "./useOnboarding.js";
 import { useOpenPage } from "./useOpenPage.js";
 import { usePaletteRunner } from "./usePaletteRunner.js";
-import { useRooms } from "./useRooms.js";
+import { useShellAddress } from "./useShellAddress.js";
 import { useShellDialogs } from "./useShellDialogs.js";
 import { useShellKeys } from "./useShellKeys.js";
 import { useShellLayout } from "./useShellLayout.js";
 import { useShellTheme } from "./useShellTheme.js";
-import { followOpenTabs } from "./openTabs.js";
 import { useSidebarCommands } from "./useSidebarCommands.js";
+import { useTeam } from "./useTeam.js";
 
-// The signed-in Mercbot shell around the user's saved bots and conversations (D-8).
-// The composables beside it hold each part; the shell joins them and opens the dialogs.
+// The signed-in Mercbot shell (D-8, D-112): the person's chats in the sidebar, the open chat, the Team page of the
+// home's people and bots (D3), New chat, and the details beside them. The composables beside it hold each part; the
+// shell joins them and opens the dialogs.
 const props = defineProps({
-  initialBots: { type: Array, required: true },
+  initialChats: { type: Array, required: true },
   initialSections: { type: Array, default: () => [] }
 });
 
-const bots = ref(props.initialBots);
+const chats = ref(props.initialChats.map(toChatRow));
 const sections = ref(props.initialSections);
 const editingSectionId = ref("");
 const route = useRoute();
 const router = useRouter();
 const auth = useAuthStore();
 const { context: placementContext } = useWebPlacementContext();
-const myId = computed(() => String(placementContext.value?.user?.id || ""));
-const { current: currentHomeEntry } = useHomes();
+const me = computed(() => String(placementContext.value?.user?.id || ""));
+const { current: currentHomeEntry, manages } = useHomes();
 const homeName = computed(() => currentHomeEntry.value?.name || "this home");
 const errorRuntime = useShellWebErrorRuntime();
 
-// The parts a copy built on Mercbot adds to the shell (extensions.js shellParts): above the open conversation's composer
+// The parts a copy built on Mercbot adds to the shell (extensions.js shellParts): above the open chat's composer
 // (place "notice"), or beside the shell's dialogs.
 const noticeParts = extensions.shellParts.filter((part) => part.place === "notice");
 const dialogParts = extensions.shellParts.filter((part) => part.place !== "notice");
@@ -83,66 +89,98 @@ function notify(message) {
   errorRuntime.report({ source: "mercbot.chat", message, intent: "action-feedback", severity: "success" });
 }
 
+const team = useTeam({ homeSlug: currentHome, reportFailure });
+team.load();
+
 const { geometry, detailsShown, showDetails, closeDetails, drawerOpen, toggleCompact, resizeSidebar, resizeDetails } = useShellLayout();
 const sidebarModel = computed(() => buildSidebarModel({
-  bots: bots.value,
+  chats: chats.value,
   sections: sections.value,
   hiddenExpanded: shellPreferences.hiddenExpanded,
   archivedExpanded: shellPreferences.archivedExpanded
 }));
 const visualOrder = computed(() => (geometry.value.compact ? railOrder(sidebarModel.value) : sidebarModel.value.visualOrder));
-// A bot still being created (useNewBot) is only its row: it never opens, so nothing asks the server
-// about it before it exists. The chat stays on the bot it shows until the new one exists, then moves
-// to it, even when no bot is named in the address and the new row is first in the list.
-const openable = (id) => bots.value.find((bot) => bot.id === id && !bot.creating);
-const firstOpenable = () => visualOrder.value.find(openable);
-// With no bot named in the address (the home's own address, or a bot that's gone), the chat opens on
-// the first bot in the list and keeps it: another bot's news puts that bot first, never the chat on it.
-// Back to such an address shows that bot again.
-const unnamedBotId = ref("");
-const currentBot = computed(() =>
-  openable(route.query.bot) ||
-  openable(unnamedBotId.value) ||
-  openable(firstOpenable()) ||
-  bots.value.find((bot) => !bot.creating)
-);
-watch(() => currentBot.value.id, (botId) => {
-  if (!openable(route.query.bot)) unnamedBotId.value = botId;
-}, { immediate: true });
-const currentBotId = () => currentBot.value.id;
-const currentIndex = computed(() => visualOrder.value.indexOf(currentBot.value.id));
-const hints = computed(() => (positionHints.value
-  ? Object.fromEntries(visualOrder.value.slice(0, 9).map((id, index) => [id, index + 1]))
-  : {}));
-const { drafts, currentDraft } = useDrafts({ currentBotId });
 
-const store = useBotMessages({ bots, currentBotId });
-const { messagesByBot, olderByBot, markSeen } = store;
-// A Shared bot's files and computer follow the tab it has open here (D-99).
-followOpenTabs(store.roomOf);
-const work = useBotWork({ bots, store });
-const { workByBot, speakersByBot, moodByBot } = work;
-const currentMessages = computed(() => (picker.value ? [] : messagesByBot.value[currentBot.value.id] || []));
-const { openPage, showPage, closePage, chatQuery } = useOpenPage({ route, router, messages: currentMessages, bots, currentBot });
-const { picker, pickerBots, accentColor, chatDraft, openGroupPicker, startGroup } =
-  useGroupPicker({ bots, currentBot, currentDraft, store, work, selectBot, reportFailure });
+// The open chat, by id; `currentChat` below says which one it is.
+const currentChatId = () => currentChat.value?.id || "";
+const store = useChatMessages({ chats, currentChatId });
+const { messagesByChat, olderByChat, markSeen } = store;
+const work = useChatWork({ store });
+const { workByChat, speakersByChat, moodByChat } = work;
+
+const openable = (id) => (id ? chats.value.find((chat) => chat.id === id) || null : null);
+const firstOpenable = () => visualOrder.value.find(openable) || "";
+const firstChatQuery = () => (firstOpenable() ? { chat: firstOpenable() } : {});
+
+/** The person's direct chat with a bot (made the first time), opened: a bot's [Message], and a link naming a bot. */
+async function openDirect(botId, replace = false) {
+  try {
+    const { chat } = await chatsApi.direct(botId);
+    store.updateChat(chat);
+    closeNewChat();
+    await showChat(String(chat.id), { replace });
+  } catch (error) {
+    reportFailure(error?.code === "bots_bot_archived" ? error.message : "That chat didn't open. Try again.", error);
+  }
+}
+
+const { view, addressedChatId, memberKey, chatQuery, showChat, showTeam, showMember } = useShellAddress({ route, router, openDirect });
+
+// The chat shown: the one the address names (a public chat the person only visits too), or with none named the first
+// in the list, which stays open whatever another chat's news does to the list (Back to such an address shows it
+// again). An empty list has none (D4), and Team shows none.
+const unnamedChatId = ref("");
+const currentChat = computed(() => {
+  if (view.value === "team") return null;
+  return openable(addressedChatId.value) || openable(unnamedChatId.value) || openable(firstOpenable());
+});
+watch(currentChatId, (chatId) => {
+  if (chatId && !openable(addressedChatId.value)) unnamedChatId.value = chatId;
+}, { immediate: true });
+// A chat's files and computer follow the open chat (chatPlace.js).
+followOpenChat(currentChatId);
+
+// A chat the address names that's not on the list (a public chat opened from search or a link): read once, and shown
+// without being listed. One the person can't open is a 404 (a private chat they're not in), and the first chat opens.
+watch(addressedChatId, async (chatId) => {
+  if (!chatId || openable(chatId)) return;
+  try {
+    store.updateChat((await chatsApi.get(chatId)).chat);
+  } catch (error) {
+    reportFailure(error?.status === 404 ? "That chat isn't there, or it's private." : "That chat didn't open. Try again.", error);
+    router.replace({ query: firstChatQuery() });
+  }
+}, { immediate: true });
+
+const { drafts, currentDraft } = useDrafts({ currentChatId });
+const currentMessages = computed(() => (newChat.value || !currentChat.value ? [] : messagesByChat.value[currentChat.value.id] || []));
+const botName = (botId) => team.botById(botId)?.name || "";
+const { openPage, showPage, closePage } = useOpenPage({ route, router, messages: currentMessages, botName, chatQuery, currentChatId });
+
+// New chat sends its first message through the chat's own send, once the chat is made (late-bound: useChatActions
+// takes New chat's state).
+const actions = {};
+const { newChat, starting, accentColor, chatDraft, openNewChat, closeNewChat, changeNewChat, startNewChat, joinPublic } =
+  useNewChat({ currentChat, currentDraft, store, showChat, send: (payload) => actions.send(payload), botById: team.botById, reportFailure });
+
 // The page shown in place of the chat; on a phone it has the screen, with its own Close.
-const shownPage = computed(() => (picker.value ? null : openPage.value));
-const status = computed(() => (picker.value ? "" : workByBot.value[currentBot.value.id] || onboardingTiming.value?.status || ""));
-// In a group, the status line shows the bots that are working.
-const statusBots = computed(() => (speakersByBot.value[currentBot.value.id] || [])
-  .map((id) => currentBot.value.members?.find((member) => member.id === id))
-  .filter(Boolean));
+const shownPage = computed(() => (newChat.value ? null : openPage.value));
+const status = computed(() => (newChat.value || !currentChat.value ? "" : workByChat.value[currentChat.value.id] || onboardingTiming.value?.status || ""));
+// The status line shows the bots that are working in this chat.
+const statusBots = computed(() => (speakersByChat.value[currentChatId()] || [])
+  .map((botId) => currentChat.value?.bots.find((bot) => String(bot.botId) === String(botId)))
+  .filter(Boolean)
+  .map(botFace));
 const statusMood = computed(() => {
-  const mood = moodByBot.value[currentBot.value.id];
+  const mood = moodByChat.value[currentChatId()];
   return mood === "thinking" || mood === "attention" ? mood : "working";
 });
-const placeholder = computed(() => composerPlaceholder({
-  pickerNames: picker.value ? pickerBots.value.map((bot) => bot.name) : null,
-  messages: currentMessages.value,
-  bot: currentBot.value,
-  homeName: homeName.value
-}));
+// The composer's line says who can read what's written (plan 4.4, 8), unless an open card asks for something.
+const placeholder = computed(() => {
+  if (!currentChat.value || newChat.value) return "";
+  return composerPlaceholder({ messages: currentMessages.value, me: me.value }) ||
+    readersLine(currentChat.value, { me: me.value, homeName: homeName.value, short: geometry.value.phone });
+});
 
 const displayName = computed(() => {
   const user = placementContext.value?.user || {};
@@ -156,62 +194,83 @@ const initials = computed(() => {
 // as the person comes back from their settings.
 const picture = computed(() => uploadedPicture(placementContext.value?.user));
 
-// Group avatars show the person's initials.
+// A person's own face in a chat shows their initials.
 provide(MERCBOT_INITIALS_KEY, initials);
 
 const chatPanel = ref(null);
 const { shortcutsOpen, settingsOpen, settingsSection, openSettings, aboutOpen, findOpen } = useShellDialogs({ route, router });
 // The open chat's page before its oldest loaded message, as the person scrolls up.
-const loadOlder = () => store.loadOlder(currentBot.value.id).catch((error) => reportFailure("Older messages didn't load.", error));
-// Find in chat counts the matches in the pages not loaded yet on the server, and brings the pages down to
-// one only when the person goes to it.
-const findOlder = (text) => store.findOlder(currentBot.value.id, text);
-const loadThrough = (messageId) => store.loadThrough(currentBot.value.id, messageId)
+const loadOlder = () => store.loadOlder(currentChatId()).catch((error) => reportFailure("Older messages didn't load.", error));
+// Find in chat counts the matches in the pages not loaded yet on the server, and brings the pages down to one only
+// when the person goes to it.
+const findOlder = (text) => store.findOlder(currentChatId(), text);
+const loadThrough = (messageId) => store.loadThrough(currentChatId(), messageId)
   .catch((error) => reportFailure("Older messages didn't load.", error));
 
 const { themePreference, setTheme } = useShellTheme({ accentColor, reportFailure });
-const { selectRoom, createRoom, renameRoom, archiveRoom, resumeRoom, undoNote, keepOutOfNotebook, setSharing } =
-  useRooms({ currentBot, store, reportFailure });
 
-// Opening a bot with unread messages puts the "new" divider above the first of them. It stays
-// for this visit and is gone the next time the bot is opened.
-const unreadAfterByBot = ref({});
-
-watch(() => currentBot.value.id, (botId) => {
-  const bot = currentBot.value;
-  unreadAfterByBot.value = { ...unreadAfterByBot.value, [botId]: bot.unread ? bot.readUpTo || "0" : null };
-  if (bot.unread) markSeen(botId);
+// Opening a chat with unread messages puts the "new" divider above the first of them. It stays for this visit and is
+// gone the next time the chat is opened.
+const unreadAfterByChat = ref({});
+watch(currentChatId, (chatId) => {
+  const chat = currentChat.value;
+  if (!chat) return;
+  unreadAfterByChat.value = { ...unreadAfterByChat.value, [chatId]: chat.unread ? chat.readUpTo || "0" : null };
+  if (chat.unread) markSeen(chatId);
 }, { immediate: true });
 
-useBotEvents({ store, work, dropBot });
+/** A chat gone for this person (left, deleted, or one they can no longer open): if it was open, the first one opens. */
+function dropChat(chatId) {
+  const wasOpen = chatId === currentChatId();
+  store.dropChat(chatId);
+  if (wasOpen) router.replace({ query: firstChatQuery() });
+}
+const { computerNews } = useChatEvents({
+  store,
+  work,
+  team,
+  onDropped: (chatId) => {
+    if (chatId === addressedChatId.value) router.replace({ query: firstChatQuery() });
+  }
+});
 
 function focusComposer() {
   chatPanel.value?.focusComposer();
 }
 
-// Edit goes through the chat: the composer gets a request naming the routine.
-function editRoutine(routine) {
+// Edit goes through the chat: the composer gets a request naming the routine, in the chat it's in.
+async function editRoutine(routine) {
+  if (routine.chatId && String(routine.chatId) !== currentChatId()) await showChat(String(routine.chatId));
   currentDraft.value = `Edit your routine "${routine.name}": `;
   focusComposer();
 }
 
-const { onboardingTiming, chooseName } = useOnboarding({ currentBot, store, focusComposer, reportFailure });
+const { onboardingTiming, chooseName } = useOnboarding({ currentChat, store, focusComposer, reportFailure });
 
 const {
   appsOpen, appsSkillId, appsAppId, appsPage, explainerOpen, explainerPlugin,
   openApp, openSkill, openSkills, explainConnect, continueConnect
-} = useConnectApps({ reportFailure, currentBot });
-const mainBot = computed(() => bots.value.find((bot) => bot.isMain) || null);
-const { liveView, liveBot, openComputer, takeOver, workOnFile, teach, finishTeaching, settleHandover } =
-  useLiveView({ currentBot, bots, store, work, reportFailure });
+} = useConnectApps({ reportFailure, currentChat });
+
+/** A bot's face as a chat has it, else as Team has it. */
+function chatBotFace(chatId, botId) {
+  const member = openable(String(chatId))?.bots.find((bot) => String(bot.botId) === String(botId));
+  if (member) return botFace(member);
+  const bot = team.botById(botId);
+  return bot ? { id: bot.id, name: bot.name, color: bot.color, shape: bot.shape } : null;
+}
+const { liveView, liveBot, openComputer, takeOver, takeOverFor, handBack, workOnFile, teach, finishTeaching, settleHandover, closeLive } =
+  useLiveView({ store, work, chatBotFace, reportFailure });
+/** A chat's computer opened from its details: to watch, or taken over (D16). */
+const openLive = (target) => (target.control ? takeOver(target) : openComputer(target));
+const liveWhose = computed(() => (liveView.value ? computerLine(openable(liveView.value.chatId), homeName.value) : ""));
+// Who signs in to an app from a connect card: the chat's one bot, else "your bot".
+const explainerBotName = computed(() => (currentChat.value?.bots.length === 1 ? currentChat.value.bots[0].name : "your bot"));
 
 const paletteOpen = ref(false);
 const { newBotOpen, creating, createError, newBotName, newBotTemplate, newBotScreen, openNewBot, openTeams, createBot, addTeam, addBots } = useNewBot({
-  bots,
-  sections,
-  store,
-  picker,
-  selectBot,
+  team,
+  openDirect,
   notify: (text) => setTimeout(() => chatPanel.value?.showToast(text), 600)
 });
 
@@ -224,13 +283,14 @@ watch(templateSlug, (slug) => {
   router.replace({ query: rest });
 }, { immediate: true });
 
-// The chat, for the parts a copy built on Mercbot adds beside the shell's dialogs, to Details and to the timeline
+// The chat, for the parts a copy built on Mercbot adds beside the shell's dialogs, to a bot's card and to the timeline
 // (shellChat.js). A part's dialog keeps the keyboard shortcuts away while it's open, as the shell's own dialogs do.
 const keyHolds = createKeyHolds();
 provide(MERCBOT_CHAT_KEY, Object.freeze({
   appendMessages: store.appendMessages,
   replaceMessage: store.replaceMessage,
-  updateBot: store.updateBot,
+  updateChat: store.updateChat,
+  openChat: (chatId) => showChat(String(chatId)),
   setWork: work.setWork,
   playMood: work.playMood,
   showToast: (text) => chatPanel.value?.showToast(text),
@@ -238,66 +298,101 @@ provide(MERCBOT_CHAT_KEY, Object.freeze({
   holdKeys: keyHolds.hold
 }));
 
-const { send, retry, react, answerChoice, settleDraft, answerSecureForm, endVoiceConversation, cancelRequest, copyToClipboard, copyMessage, copyPicture } =
-  useChatActions({ currentBot, picker, startGroup, store, work, reportFailure, notify, openTeams });
+Object.assign(actions, useChatActions({ currentChat, newChat, startNewChat, store, work, reportFailure, notify, openTeams, me: () => me.value }));
+const { send, retry, react, answerChoice, settleDraft, answerSecureForm, endVoiceConversation, cancelRequest, copyToClipboard, copyMessage, copyPicture } = actions;
 
-// Cards a change in Details rewrote, such as a page deleted from the Library, in their bot's chat.
-function showChanged({ botId, messages }) {
-  for (const message of messages) store.replaceMessage(botId, message);
+// Cards a change in a card rewrote, such as a page deleted from a bot's Library, in their chat.
+function showChanged({ chatId, messages }) {
+  if (!chatId) return;
+  for (const message of messages) store.replaceMessage(String(chatId), message);
 }
 
-function reopen(botId) {
-  router.replace({ query: chatQuery({ bot: botId }) });
-}
-
-// A conversation that's gone for this person: off the list, and if it was open, the first one opens.
-function dropBot(botId) {
-  const wasOpen = botId === currentBot.value?.id;
-  bots.value = bots.value.filter((bot) => bot.id !== botId);
-  if (wasOpen) reopen(firstOpenable());
-}
-
-// A chosen bot is named in the address, so it stays open whatever another bot's news does to the list
-// (a new bot is chosen as it's made). Choosing the bot already shown adds no history entry: it's named
-// in place, so Back never lands on the same chat, nor on an address that shows another bot.
-function selectBot(id) {
+// A chosen chat is named in the address, so it stays open whatever another chat's news does to the list. Choosing the
+// chat already shown adds no history entry.
+function selectChat(id) {
   drawerOpen.value = false;
-  // An open page closes too (D-74), so choosing the bot shown goes back to its chat.
-  if (id === route.query.bot && !openPage.value) return;
-  const query = chatQuery({ bot: id });
-  if (id === currentBot.value.id) router.replace({ query });
-  else router.push({ query });
+  closeNewChat();
+  // An open page closes too (D-74), so choosing the chat shown goes back to it.
+  if (id === route.query.chat && !openPage.value && view.value === "chat") return;
+  showChat(id);
 }
 
-// On a phone, a dot on the drawer's button says another bot has news (D-36 UX bar), never an archived one (D-108).
-const otherNews = computed(() => bots.value.some((bot) => bot.unread && !bot.archivedAt && bot.id !== currentBot.value.id));
-// What's offered to pick or go to: never a bot being made, nor an archived one (D-108).
-const pickable = computed(() => bots.value.filter((bot) => !bot.creating && !bot.archivedAt));
+// On a phone, a dot on the drawer's button says another chat has news (D-36 UX bar).
+const otherNews = computed(() => chats.value.some((chat) => chat.unread && !chat.archivedAt && !chat.visiting && chat.id !== currentChatId()));
 
 function selectIndex(index) {
   const id = visualOrder.value[index];
-  if (id) selectBot(id);
+  if (id) selectChat(id);
 }
 
 const { runCommand } = useSidebarCommands({
-  bots,
   sections,
   editingSectionId,
   store,
-  currentBotId,
-  mainBotId: () => mainBot.value?.id,
-  firstBotId: firstOpenable,
-  reopen,
-  dropBot,
+  team,
+  dropChat,
   open: { shortcuts: shortcutsOpen, about: aboutOpen, settings: openSettings },
   copy: copyToClipboard,
-  reportFailure
+  reportFailure,
+  homeName: () => homeName.value
+});
+
+// + Add in the chat's header: a person or a bot of the home into the open chat.
+function addMember({ kind, id }) {
+  const chatId = currentChatId();
+  if (kind === "person") runCommand({ name: "addPerson", args: { chatId, userId: id } });
+  else runCommand({ name: "addBot", args: { chatId, botId: id } });
+}
+
+// Team (D3): the home's people and bots alike, each one's card beside it.
+function openTeam() {
+  drawerOpen.value = false;
+  closeNewChat();
+  showTeam(memberKey.value);
+}
+function openMember(key) {
+  showMember(key);
+  showDetails();
+}
+
+// New chat (D15): Public unless the person picks Private, with whoever's given on its To: line.
+async function beginNewChat(to = {}) {
+  drawerOpen.value = false;
+  if (view.value === "team") await router.push({ query: firstChatQuery() });
+  openNewChat(to);
+}
+
+// [Message]: a bot's opens the person's direct chat with it; a person's opens New chat with them on its To: line.
+function messageMember(member) {
+  if (member.kind === "person") beginNewChat({ people: [member.person.id] });
+  else openDirect(String(member.bot.id));
+}
+
+// The details beside what's shown: on Team, the open member's card; in a direct chat, its bot's card with this chat's
+// computer; in any other chat, Chat details.
+function memberOf(key) {
+  const [kind, id] = String(key || "").split(":");
+  const bot = kind === "bot" ? team.botById(id) : null;
+  if (bot) return { kind: "bot", bot };
+  const person = kind === "person" ? team.personById(id) : null;
+  return person ? { kind: "person", person } : null;
+}
+const details = computed(() => {
+  if (view.value === "team") {
+    const member = memberOf(memberKey.value);
+    return member ? { member, chat: null } : null;
+  }
+  const chat = currentChat.value;
+  if (!chat || newChat.value) return null;
+  const bot = isDirect(chat) ? team.botById(chat.directBotId) : null;
+  return bot ? { member: { kind: "bot", bot }, chat } : { member: null, chat };
 });
 
 const ACTIONS = {
   search: () => { paletteOpen.value = true; },
   newBot: openNewBot,
-  newGroup: openGroupPicker,
+  newChat: () => beginNewChat(),
+  team: openTeam,
   connectApps: () => { appsOpen.value = true; },
   skills: openSkills,
   settings: () => openSettings("general"),
@@ -308,18 +403,33 @@ const ACTIONS = {
   find: () => { findOpen.value = true; },
   dictate: () => chatPanel.value?.dictationPress(),
   addSelection: () => chatPanel.value?.addSelection(),
-  previousBot: () => selectIndex(currentIndex.value - 1),
-  nextBot: () => selectIndex(currentIndex.value + 1)
+  previousChat: () => selectIndex(visualOrder.value.indexOf(currentChatId()) - 1),
+  nextChat: () => selectIndex(visualOrder.value.indexOf(currentChatId()) + 1)
 };
 
-const { foundFile, runPaletteEntry } = usePaletteRunner({ selectBot, selectRoom, showPage, store, chatPanel, openApp, openSettings, setTheme, actions: ACTIONS });
+const { foundFile, runPaletteEntry } = usePaletteRunner({
+  selectChat,
+  openDirect,
+  openMember: (key) => {
+    showTeam(key);
+    showDetails();
+  },
+  showPage,
+  store,
+  chatPanel,
+  openApp,
+  openSettings,
+  setTheme,
+  showDetails,
+  actions: ACTIONS
+});
 
 const overlays = [shortcutsOpen, settingsOpen, aboutOpen, paletteOpen, newBotOpen, appsOpen, explainerOpen, liveView];
 const { positionHints, switchHighlightId } = useShellKeys({
   actions: ACTIONS,
   visualOrder,
-  currentBotId,
-  selectBot,
+  currentChatId,
+  selectChat,
   selectIndex,
   paletteOpen,
   overlayOpen: () => overlays.some((overlay) => Boolean(overlay.value)) || keyHolds.held(),
@@ -327,6 +437,9 @@ const { positionHints, switchHighlightId } = useShellKeys({
   closeDetails,
   releaseDictation: () => chatPanel.value?.dictationRelease()
 });
+const hints = computed(() => (positionHints.value
+  ? Object.fromEntries(visualOrder.value.slice(0, 9).map((id, index) => [id, index + 1]))
+  : {}));
 
 // The home's Builder has its own face (builderBot.js).
 watch(() => currentHomeEntry.value?.slug, () => loadBuilderBot(), { immediate: true });
@@ -341,82 +454,113 @@ watch(() => currentHomeEntry.value?.slug, () => loadBuilderBot(), { immediate: t
         :class="{ 'mb-shell__drawer': geometry.phone }"
         :model="sidebarModel"
         :sections="sections"
-        :current-bot-id="currentBot.id"
+        :current-chat-id="currentChat && !newChat ? currentChat.id : ''"
+        :team-open="view === 'team'"
+        :me="me"
+        :manages="manages"
         :compact="geometry.compact"
         :width="geometry.sidebarWidth"
         :hints="hints"
         :switch-highlight-id="switchHighlightId"
         :drafts="drafts"
-        :moods="moodByBot"
+        :moods="moodByChat"
         :hidden-expanded="shellPreferences.hiddenExpanded"
         :archived-expanded="shellPreferences.archivedExpanded"
         :editing-section-id="editingSectionId"
         :display-name="displayName"
         :initials="initials"
         :picture="picture"
-        @select="selectBot"
+        @select="selectChat"
         @command="runCommand"
         @search="paletteOpen = true"
+        @new-chat="beginNewChat()"
         @new-bot="openNewBot"
+        @team="openTeam"
         @connect-apps="appsOpen = true"
         @skills="openSkills"
         @resize="resizeSidebar"
       />
-      <div v-if="geometry.phone && !shownPage" class="mb-shell__menu">
-        <MercbotIconButton icon="$menu" label="Your bots" tone="surface" @click="drawerOpen = true" />
+      <!-- On a phone a chat's own header has the drawer's button (plan 4.6); Team and an empty list show this one. -->
+      <div v-if="geometry.phone && !shownPage && !(currentChat || newChat)" class="mb-shell__menu">
+        <MercbotIconButton icon="$menu" label="Your chats" tone="surface" @click="drawerOpen = true" />
         <span v-if="otherNews" class="mb-shell__menu-dot" aria-hidden="true" />
       </div>
+      <MercbotTeamPage
+        v-if="view === 'team'"
+        class="mb-shell__main"
+        :bots="team.bots.value"
+        :people="team.people.value"
+        :failed="team.failed.value"
+        :me="me"
+        :home-name="homeName"
+        :manages="manages"
+        :selected="memberKey"
+        @open-member="openMember"
+        @message-bot="messageMember({ kind: 'bot', bot: $event })"
+        @message-person="messageMember({ kind: 'person', person: $event })"
+        @add-bots="openNewBot()"
+        @unarchive-bot="runCommand({ name: 'unarchiveBot', args: { botId: $event.id } })"
+        @retry="team.load()"
+      />
       <MercbotChatPanel
+        v-else
         ref="chatPanel"
         v-model:draft="chatDraft"
-        :bot="currentBot"
+        :chat="currentChat"
         :messages="currentMessages"
-        :has-older="!picker && Boolean(olderByBot[currentBot.id])"
+        :people="team.people.value"
+        :team-bots="team.bots.value || []"
+        :home-name="homeName"
+        :manages="manages"
+        :phone="geometry.phone"
+        :other-news="otherNews"
+        :has-older="!newChat && Boolean(currentChat && olderByChat[currentChat.id])"
         :load-older="loadOlder"
         :find-older="findOlder"
         :load-through="loadThrough"
         :page="shownPage"
-        @open-page="showPage"
-        @close-page="closePage"
         :status="status"
         :status-mood="statusMood"
         :status-bots="statusBots"
-        :picker="picker ? { chosen: pickerBots, candidates: pickable.filter((bot) => bot.kind !== 'group') } : null"
-        @picker-change="picker = { botIds: $event }"
-        @picker-close="picker = null"
-        @picker-new-bot="openNewBot($event)"
-        @picker-start="startGroup({})"
+        :new-chat="newChat"
+        :starting="starting"
         :placeholder="placeholder"
-        :unread-after="unreadAfterByBot[currentBot.id] || null"
+        :unread-after="currentChat ? unreadAfterByChat[currentChat.id] || null : null"
         :column-width="geometry.columnWidth"
         :find-open="findOpen"
-        :me="myId"
-        @room-select="selectRoom"
-        @room-create="createRoom"
-        @room-rename="renameRoom"
-        @room-archive="archiveRoom"
-        @room-resume="resumeRoom"
-        @unarchive="runCommand({ name: 'unarchiveBot', args: { botId: currentBot.id } })"
-        @undo-note="undoNote"
+        :me="me"
+        @open-page="showPage"
+        @close-page="closePage"
+        @new-chat-change="changeNewChat"
+        @new-chat-close="closeNewChat"
+        @new-chat-start="startNewChat()"
+        @new-chat-join="joinPublic"
+        @new-chat="beginNewChat()"
+        @new-bot="openNewBot()"
+        @team="openTeam"
+        @menu="drawerOpen = true"
+        @unarchive-bot="runCommand({ name: 'unarchiveBot', args: { botId: $event } })"
+        @unarchive-chat="runCommand({ name: 'unarchiveChat', args: { chatId: currentChat.id } })"
+        @join="runCommand({ name: 'joinChat', args: { chatId: currentChat.id } })"
+        @add-member="addMember"
         @open-details="showDetails"
         @close-find="findOpen = false"
         @voice-ended="endVoiceConversation"
         @send="send"
         @failure="reportFailure($event?.message || 'That file didn\'t upload.', $event)"
         @answer="answerChoice"
-        @take-over="takeOver"
-        @use-computer="workOnFile"
+        @take-over="takeOverFor({ ...$event, chatId: currentChat.id })"
+        @use-computer="workOnFile({ ...$event, chatId: currentChat.id })"
         @secure-form="answerSecureForm"
         @settle-draft="settleDraft"
         @manage-rules="openSettings('permissions')"
-        @settle-handover="settleHandover"
+        @settle-handover="settleHandover({ ...$event, chatId: currentChat.id })"
         @react="react"
         @copy="copyMessage"
         @copy-image="copyPicture"
         @retry="retry"
-        @teach="teach"
+        @teach="teach({ ...$event, chatId: currentChat.id })"
         @open-skill="openSkill"
-        @open-bot="selectBot"
         @cancel-request="cancelRequest"
         @choose="chooseName"
         @connect="explainConnect"
@@ -425,46 +569,51 @@ watch(() => currentHomeEntry.value?.slug, () => loadBuilderBot(), { immediate: t
           <component :is="part.component" v-for="(part, at) in noticeParts" :key="at" :pulse="currentMessages.length" @open-settings="openSettings" />
         </template>
       </MercbotChatPanel>
-      <div v-if="detailsShown && !geometry.detailsVisible" class="mb-shell__scrim" @click="closeDetails" />
+      <div v-if="detailsShown && details && !geometry.detailsVisible" class="mb-shell__scrim" @click="closeDetails" />
       <MercbotDetailsPanel
-        v-if="detailsShown"
+        v-if="detailsShown && details"
         :class="{ 'mb-shell__floating': !geometry.detailsVisible }"
         :width="geometry.detailsVisible ? geometry.detailsWidth : geometry.phone ? geometry.chatWidth : DETAILS_MIN"
-        :bot="currentBot"
-        :mood="moodByBot[currentBot.id] || 'idle'"
+        :member="details.member"
+        :chat="details.chat"
+        :chats="chats"
+        :me="me"
+        :home-name="homeName"
+        :manages="manages"
+        :team-bots="team.bots.value || []"
+        :people="team.people.value || []"
+        :computer-news="computerNews"
+        :mood="details.chat ? moodByChat[details.chat.id] || 'idle' : 'idle'"
         @close="closeDetails"
-        @open-page="showPage"
-        @sharing="setSharing"
-        @resume-room="resumeRoom"
-        @archive-bot="runCommand({ name: 'archiveBot', args: { botId: currentBot.id } })"
-        @unarchive-bot="runCommand({ name: 'unarchiveBot', args: { botId: currentBot.id } })"
-        @keep-out="keepOutOfNotebook"
         @resize="resizeDetails"
-        @rename="runCommand({ name: 'renameBot', args: { botId: currentBot.id, name: $event } })"
-        @changed="store.updateBot($event)"
+        @open-page="showPage"
+        @open-chat="selectChat"
+        @open-member="openMember"
+        @message="messageMember"
+        @command="runCommand"
+        @changed="team.updateBot($event)"
         @failure="reportFailure('That didn\'t work. Try again.', $event)"
-        @open-computer="openComputer"
-        @edit-routine="editRoutine"
-        :all-bots="bots"
-        @add-member="runCommand({ name: 'addMember', args: { groupId: currentBot.id, botId: $event.id } })"
-        @remove-member="runCommand({ name: 'removeMember', args: { groupId: currentBot.id, botId: $event.id } })"
-        :me="myId"
-        :display-name="displayName"
         @notify="notify"
         @messages="showChanged"
-        @add-person="runCommand({ name: 'addPerson', args: { groupId: currentBot.id, userId: $event.id } })"
-        @remove-person="runCommand({ name: 'removePerson', args: { groupId: currentBot.id, userId: $event.id } })"
+        @edit-routine="editRoutine"
+        @open-computer="openLive"
       />
     </div>
 
     <MercbotViewViewer v-if="foundFile?.kind === 'view'" :slug="foundFile.path" :title="foundFile.name" @close="foundFile = null" />
-    <MercbotFileViewer v-else-if="foundFile" :bot-id="foundFile.botId" :file="{ path: foundFile.path, name: ['chart', 'picture'].includes(foundFile.kind) ? `${foundFile.name}.png` : foundFile.name }" @close="foundFile = null" />
+    <MercbotFileViewer
+      v-else-if="foundFile"
+      :bot-id="foundFile.botId"
+      :chat-id="foundFile.chatId || null"
+      :file="{ path: foundFile.path, name: ['chart', 'picture'].includes(foundFile.kind) ? `${foundFile.name}.png` : foundFile.name }"
+      @close="foundFile = null"
+    />
     <MercbotShortcutsDialog v-model="shortcutsOpen" />
     <component
       :is="part.component"
       v-for="(part, at) in dialogParts"
       :key="at"
-      :bot="currentBot || null"
+      :chat="currentChat"
       @notify="notify"
       @failure="reportFailure"
     />
@@ -482,8 +631,10 @@ watch(() => currentHomeEntry.value?.slug, () => loadBuilderBot(), { immediate: t
     <MercbotAboutDialog v-model="aboutOpen" @failure="reportFailure('Couldn\'t copy to the clipboard.', $event)" />
     <MercbotSearchPalette
       v-model="paletteOpen"
-      :bots="pickable"
-      :current-bot="currentBot"
+      :chats="chats.filter((chat) => !chat.visiting)"
+      :bots="team.activeBots.value"
+      :people="team.people.value || []"
+      :me="me"
       :settings-sections="EVERYONE_SECTIONS"
       :theme="themePreference"
       @run="runPaletteEntry"
@@ -495,28 +646,32 @@ watch(() => currentHomeEntry.value?.slug, () => loadBuilderBot(), { immediate: t
       :initial-name="newBotName"
       :template-slug="newBotTemplate"
       :screen="newBotScreen"
-      :bots="bots"
+      :bots="team.bots.value || []"
       @create="createBot"
       @add-team="addTeam"
       @add-bots="addBots"
     />
-    <MercbotAppsModal v-model="appsOpen" :main-bot="mainBot" :skill-id="appsSkillId" :app-id="appsAppId" :start-page="appsPage" @failure="reportFailure('That didn\'t work. Try again.', $event)" />
+    <MercbotAppsModal v-model="appsOpen" :main-bot="team.mainBot.value" :skill-id="appsSkillId" :app-id="appsAppId" :start-page="appsPage" @failure="reportFailure('That didn\'t work. Try again.', $event)" />
     <MercbotConnectExplainer
       v-model="explainerOpen"
       :plugin="explainerPlugin"
-      :bot-name="currentBot.name"
+      :bot-name="explainerBotName"
       :home-name="homeName"
       @continue="continueConnect"
     />
     <MercbotLiveView
-      v-if="liveView"
+      v-if="liveView && liveBot"
       :bot="liveBot"
-      :start-in-control="liveView.inControl"
+      :chat-id="liveView.chatId"
+      :whose="liveWhose"
+      :in-control="liveView.inControl"
       :handover="Boolean(liveView.handover)"
       :teach="Boolean(liveView.teach)"
       @taught="finishTeaching"
       @failure="reportFailure('That didn\'t work. Try again.', $event)"
-      @close="liveView = null"
+      @close="closeLive"
+      @take-over="takeOver({ botId: liveView.botId, chatId: liveView.chatId })"
+      @hand-back="handBack()"
       @done="settleHandover({ message: liveView.handover, outcome: 'done' })"
     />
   </div>

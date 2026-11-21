@@ -1,146 +1,154 @@
 import { botsApi } from "./botsApi.js";
-import { homeDefault } from "./homeDefault.js";
+import { chatsApi } from "./chatsApi.js";
 import { copyPictureToClipboard } from "./messageMenus.js";
-import { ownTabOpen } from "./openTabs.js";
-
-/** Whether the bot is open on one of a Shared bot's shared tabs, not You only (D-99) nor a group's chat. */
-const inSharedTab = (bot) => bot.kind !== "group" && bot.sharing === "shared" && Boolean(bot.roomId) && !ownTabOpen(bot);
 
 /**
- * What the person does in the open chat: send and retry, react, answer cards, settle drafts and
- * secure forms, cancel a request between bots, and copy a message or a picture. Each step that
- * reaches the server then asks the bot for its reply where the conversation goes on.
+ * How a chat's bots answer what's written (R3): none in a chat of people only; in a chat of one person, every bot, so
+ * the page shows them working at once; with several people only the bots called, so the page shows one working only
+ * once the server says it started.
+ */
+const answering = (chat) => {
+  const bots = (chat.bots || []).filter((bot) => !bot.archived);
+  if (!bots.length) return "none";
+  return (chat.people || []).length > 1 ? "called" : "all";
+};
+
+/**
+ * What the person does in the open chat: send and retry, react, answer cards, settle drafts and secure forms, cancel a
+ * request between bots, and copy a message or a picture. Each step that reaches the server then asks the chat's bots
+ * for their reply where the chat goes on.
  * @param {{
- *   currentBot: import("vue").ComputedRef<import("../../types.js").Bot>,
- *   picker: import("vue").Ref<{ botIds: string[] } | null>,
- *   startGroup: (payload: Record<string, any>) => Promise<void>,
- *   store: import("../../types.js").BotMessages,
- *   work: import("../../types.js").BotWork,
+ *   currentChat: import("vue").ComputedRef<import("../../types.js").Chat | null>,
+ *   newChat: import("vue").Ref<object | null>,
+ *   startNewChat: (payload: Record<string, any>) => Promise<void>,
+ *   store: import("../../types.js").ChatMessages,
+ *   work: import("../../types.js").ChatWork,
  *   reportFailure: import("../../types.js").ReportFailure,
  *   notify: (message: string) => void,
- *   openTeams: () => void
- * }} options `openTeams` opens Add bots on its ready-made teams (D-105, D-109)
+ *   openTeams: () => void,
+ *   me: () => string
+ * }} options `openTeams` opens Add bots on its ready-made teams (D-105, D-109); `me` is the person
  */
-export function useChatActions({ currentBot, picker, startGroup, store, work, reportFailure, notify, openTeams }) {
-  const { messagesByBot, updateBot, appendMessages, replaceMessage, removeMessage } = store;
+export function useChatActions({ currentChat, newChat, startNewChat, store, work, reportFailure, notify, openTeams, me }) {
+  const { messagesByChat, updateChat, appendMessages, replaceMessage, removeMessage } = store;
   const { playMood, requestReply, describeWork } = work;
 
+  /** The bots' reply to what the person just wrote, as R3 has them answer. */
+  function replyTo(chat, userMessage) {
+    const how = answering(chat);
+    if (how === "none") return null;
+    if (how === "called") return requestReply(chat.id, { untilStarted: true, onStart: () => userMessage && describeWork(chat.id, userMessage.id) });
+    if (userMessage && chat.bots.length === 1) describeWork(chat.id, userMessage.id);
+    return requestReply(chat.id);
+  }
+
   async function send(payload, retryOf = null) {
-    if (picker.value) {
-      await startGroup(payload);
+    if (newChat.value) {
+      await startNewChat(payload);
       return;
     }
-    const bot = currentBot.value;
-    const pending = retryOf || { id: `pending-${Date.now()}`, kind: "text", role: "user", body: { ...payload, text: payload.text } };
-    const others = (messagesByBot.value[bot.id] || []).filter((message) => message.id !== pending.id);
-    messagesByBot.value = { ...messagesByBot.value, [bot.id]: [...others, { ...pending, pending: true, failed: false }] };
-    updateBot({ id: bot.id, lastActivityAt: new Date().toISOString() });
+    const chat = currentChat.value;
+    if (!chat) return;
+    const pending = retryOf || { id: `pending-${Date.now()}`, kind: "text", role: "user", authorUserId: me(), authorBotId: null, body: { ...payload, text: payload.text } };
+    const others = (messagesByChat.value[chat.id] || []).filter((message) => message.id !== pending.id);
+    messagesByChat.value = { ...messagesByChat.value, [chat.id]: [...others, { ...pending, pending: true, failed: false }] };
+    updateChat({ id: chat.id, lastActivityAt: new Date().toISOString() });
     let result;
     try {
-      result = await botsApi.send(bot.id, { ...payload, clientId: pending.id, room: bot.roomId ?? null });
+      result = await chatsApi.send(chat.id, { ...payload, clientId: pending.id });
     } catch (error) {
-      replaceMessage(bot.id, { ...pending, payload, pending: false, failed: true });
-      // A tab archived meanwhile (D-101) says so: resume it to write there.
-      reportFailure(error?.code === "bots_conversation_archived" ? error.message : "Your message didn't send.", error);
+      replaceMessage(chat.id, { ...pending, payload, pending: false, failed: true });
+      // A chat archived meanwhile says so: unarchive it to write there.
+      reportFailure(error?.code === "bots_chat_archived" ? error.message : "Your message didn't send.", error);
       return;
     }
-    removeMessage(bot.id, pending.id);
-    appendMessages(bot.id, result.messages);
-    updateBot(result.bot);
-    const userMessage = result.messages[result.messages.length - 1];
-    // In a shared tab the bot may leave the message to the people (D-102): it shows it's working, and what on, only
-    // once it starts.
-    if (inSharedTab(bot)) {
-      await requestReply(bot.id, { untilStarted: true, onStart: () => describeWork(bot.id, userMessage.id) });
-      return;
-    }
-    if (bot.kind !== "group") describeWork(bot.id, userMessage.id);
-    await requestReply(bot.id);
+    removeMessage(chat.id, pending.id);
+    appendMessages(chat.id, result.messages);
+    if (result.chat) updateChat(result.chat);
+    await replyTo(chat, result.messages[result.messages.length - 1]);
   }
 
   function retry(message) {
+    const chat = currentChat.value;
+    if (!chat) return;
     if (message.kind === "error") {
-      removeMessage(currentBot.value.id, message.id);
-      requestReply(currentBot.value.id, { untilStarted: inSharedTab(currentBot.value) });
+      removeMessage(chat.id, message.id);
+      replyTo(chat, null);
     } else if (message.failed) {
       send(message.payload, message);
     }
   }
 
   async function react({ message, emoji }) {
-    const botId = currentBot.value.id;
-    replaceMessage(botId, { ...message, body: { ...message.body, reactions: { ...message.body.reactions, user: emoji || undefined } } });
-    if (emoji) playMood(botId, [["happy", 2000]]);
+    const chatId = currentChat.value.id;
+    replaceMessage(chatId, { ...message, body: { ...message.body, reactions: { ...message.body.reactions, user: emoji || undefined } } });
+    if (emoji) playMood(chatId, [["happy", 2000]]);
     try {
-      const result = await botsApi.react(botId, message.id, emoji);
-      for (const updated of result.messages) replaceMessage(botId, updated);
+      const result = await chatsApi.react(chatId, message.id, emoji);
+      for (const updated of result.messages) replaceMessage(chatId, updated);
     } catch (error) {
-      replaceMessage(botId, message);
+      replaceMessage(chatId, message);
       reportFailure("That reaction didn't stick. Try again.", error);
     }
   }
 
-  // Question cards: the picks are the answer, then the bot replies.
+  // Question cards: the picks are the answer, then the bots reply.
   async function answerChoice({ message, selected }) {
-    const botId = currentBot.value.id;
+    const chatId = currentChat.value.id;
     try {
-      const result = await botsApi.answer(botId, message.id, selected);
-      appendMessages(botId, result.messages);
-      updateBot(result.bot);
-      // The home's default for new bots (D-100): the first conversation carries on with its own next step, no reply.
-      if (result.home) {
-        homeDefault.value = result.home;
-        return;
-      }
-      // Bots to start with (D-105, D-109): the same, and Add bots opens on its ready-made teams, where nothing is added
-      // until Add.
+      const result = await chatsApi.answer(chatId, message.id, selected);
+      appendMessages(chatId, result.messages);
+      if (result.chat) updateChat(result.chat);
+      // Bots to start with (D-105, D-109): the welcome chat carries on by itself, and Add bots opens on its ready-made
+      // teams, where nothing is added until Add.
       if ("addBots" in result) {
         if (result.addBots === "teams") openTeams();
         return;
       }
+      if (currentChat.value?.onboardingStep) return;
     } catch (error) {
       reportFailure("That answer didn't go through. Try again.", error);
       return;
     }
-    await requestReply(botId, { afterCard: true });
+    await requestReply(chatId, { afterCard: true });
   }
 
-  // Send or Discard on a draft the bot wrote. An email from a connected mailbox has
-  // gone already; anything else the bot sends after Send. Discard has nothing to undo on failure.
+  // Send or Discard on a draft the bot wrote. An email from a connected mailbox has gone already; anything else the bot
+  // sends after Send. Discard has nothing to undo on failure.
   function keepDraftCard() {}
   async function settleDraft({ message, answer, onFail = keepDraftCard }) {
-    const botId = currentBot.value.id;
+    const chatId = currentChat.value.id;
     let result;
     try {
-      result = await botsApi.settleDraft(botId, message.id, answer);
-      appendMessages(botId, result.messages);
+      result = await chatsApi.settleDraft(chatId, message.id, answer);
+      appendMessages(chatId, result.messages);
     } catch (error) {
       onFail();
       reportFailure(error?.message || "That didn't go through. Try again.", error);
       return;
     }
-    if (answer.action === "send" && result.messages[0]?.body.status === "send") await requestReply(botId, { afterCard: true });
+    if (answer.action === "send" && result.messages[0]?.body.status === "send") await requestReply(chatId, { afterCard: true });
   }
 
   // The person's answer on a bot's secure form; then the bot carries on.
   async function answerSecureForm({ message, answer }) {
-    const botId = currentBot.value.id;
+    const chatId = currentChat.value.id;
     try {
-      const result = await botsApi.settleSecureForm(botId, message.id, answer);
-      appendMessages(botId, result.messages);
+      const result = await chatsApi.settleSecureForm(chatId, message.id, answer);
+      appendMessages(chatId, result.messages);
     } catch (error) {
       reportFailure(error?.message || "That didn't go through. Try again.", error);
       return;
     }
-    await requestReply(botId, { afterCard: true });
+    await requestReply(chatId, { afterCard: true });
   }
 
-  // A voice conversation leaves a line in the chat with how long it lasted.
-  async function endVoiceConversation(seconds) {
-    const botId = currentBot.value.id;
+  // A voice conversation (with a direct chat's bot) leaves a line in the chat it was in, with how long it lasted: the
+  // chat the call started in, even if another is open by the time it ends.
+  async function endVoiceConversation({ chatId, botId, seconds }) {
     try {
-      const result = await botsApi.voiceCall(botId, seconds);
-      appendMessages(botId, result.messages);
+      const result = await chatsApi.voiceCall(chatId, botId, seconds);
+      appendMessages(chatId, result.messages);
     } catch (error) {
       reportFailure("The conversation's record didn't save.", error);
     }

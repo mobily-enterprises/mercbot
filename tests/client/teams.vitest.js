@@ -1,16 +1,13 @@
-import { computed, ref } from "vue";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { ONBOARDING_TIMING } from "../../src/components/mercbot/botsApi.js";
 import { setCurrentHome } from "../../src/components/mercbot/homeApi.js";
 import { addLabel, appsFor, botsToAdd, teamGroups } from "../../src/components/mercbot/teamChoice.js";
-import { useChatActions } from "../../src/components/mercbot/useChatActions.js";
 import { useNewBot } from "../../src/components/mercbot/useNewBot.js";
 
-// Teams (D-105) on the page: the team screen lists the teams under For home and life and For work (D-109), adds the bots
-// ticked that the home hasn't got and sets up each app asked for once; Add N bots, a team's or a suggestion's (D-109),
-// puts the list and its sections as the server answers them and opens the first new bot; and the first conversation's card opens Add bots on its teams
-// without asking the bot for a reply. The routes are a stand-in that records each call and answers what the server
-// would.
+// Teams (D-105) and Add bots (D-109) on the page: the team screen lists the teams under For home and life and For
+// work, adds the bots ticked that the home hasn't got and sets up each app asked for once. One bot joins the team and
+// opens the person's direct chat with it, where it has said hello; Add N bots, a team's or a suggestion's, puts the
+// bots on Team as the server answers them ({ bots, added, skipped }) and opens no chat (plan 5.2). The routes are a
+// stand-in that records each call and answers what the server would.
 const calls = vi.hoisted(() => []);
 const answers = vi.hoisted(() => ({ byUrl: new Map(), fail: null }));
 vi.mock("@jskit-ai/http-runtime/client", () => ({
@@ -71,54 +68,78 @@ describe("the list of teams", () => {
   });
 });
 
-describe("Add N bots", () => {
-  /** useNewBot with its collaborators as records of what it did to them. */
-  function newBot() {
-    const done = { merged: [], selected: [], notes: [] };
-    const bots = ref([{ id: "1", name: "Mercbot" }]);
-    const sections = ref([]);
-    const picker = ref({ botIds: [] });
-    const store = { mergeBots: (list) => done.merged.push(list), addBot: () => {} };
-    const made = useNewBot({ bots, sections, store, picker, selectBot: (id) => done.selected.push(id), notify: (text) => done.notes.push(text) });
-    return { made, done, sections, picker };
-  }
+/** useNewBot with the team and the shell as records of what it did to them. */
+function newBot() {
+  const done = { updated: [], loaded: 0, opened: [], notes: [] };
+  const team = { updateBot: (bot) => done.updated.push(bot.id), loadBots: async () => { done.loaded += 1; } };
+  const made = useNewBot({ team, openDirect: async (botId) => { done.opened.push(botId); }, notify: (text) => done.notes.push(text) });
+  return { made, done };
+}
 
-  it("puts the list and its sections as the server has them, opens the first new bot, then sets up the apps asked for", async () => {
-    const listed = { bots: [{ id: "1" }, { id: "8" }, { id: "9" }], sections: [{ id: "3", name: "Small shop" }], added: ["8", "9"], skipped: ["social-post-calendar"], sectionId: "3" };
+describe("One bot", () => {
+  it("joins the team and opens your direct chat with it, then sets up the app asked for", async () => {
+    answers.byUrl.set("POST /api/w/casa/bots", { bot: { id: "12", name: "Chef" } });
+    const { made, done } = newBot();
+    made.openNewBot("Chef");
+    expect([made.newBotOpen.value, made.newBotName.value, made.newBotScreen.value]).toEqual([true, "Chef", "start"]);
+    await made.createBot({ name: "Chef", shape: "cloud", color: "#1E86FC", template: { library: "meal-planner" }, app: { key: "meals", name: "Meals" } });
+    expect(calls).toEqual([
+      ["POST", "/api/w/casa/bots", { name: "Chef", shape: "cloud", color: "#1E86FC", template: { library: "meal-planner" } }],
+      ["POST", "/api/w/casa/apps-templates/meals/install", { sample: false }]
+    ]);
+    expect([done.updated, done.opened, made.newBotOpen.value, made.creating.value]).toEqual([["12"], ["12"], false, false]);
+    expect(done.notes).toEqual(["The Meals app is set up as a draft in Apps for you to review and publish."]);
+  });
+
+  it("adds a bot a person shared from its link, and says when it couldn't be made, opening nothing", async () => {
+    answers.byUrl.set("POST /api/w/casa/bots/from-template", { bot: { id: "13", name: "Otto" } });
+    const { made, done } = newBot();
+    made.openNewBot("", "otto-abc");
+    await made.createBot({ name: "Otto", link: "otto-abc" });
+    expect(calls).toEqual([["POST", "/api/w/casa/bots/from-template", { slug: "otto-abc" }]]);
+    expect(done.opened).toEqual(["13"]);
+
+    made.openNewBot();
+    answers.fail = Object.assign(new Error("Bad gateway"), { status: 502 });
+    await made.createBot({ name: "Chef" });
+    expect([made.newBotOpen.value, made.createError.value, done.opened]).toEqual([true, "Your bot couldn't be created. Try again.", ["13"]]);
+  });
+});
+
+describe("Add N bots", () => {
+  it("puts a team's bots on Team as the server has them, opens no chat, says how many, then sets up the apps asked for", async () => {
+    const listed = { bots: [{ id: "1" }, { id: "8" }, { id: "9" }], added: ["8", "9"], skipped: ["social-post-calendar"] };
     answers.byUrl.set("POST /api/w/casa/teams/shop", listed);
-    const { made, done, sections, picker } = newBot();
+    const { made, done } = newBot();
     made.openTeams();
     expect([made.newBotOpen.value, made.newBotScreen.value]).toEqual([true, "teams"]);
-    await made.addTeam({ teamId: "shop", name: "Small shop", templates: ["shop-stock-keeper", "review-replies"], apps: [{ key: "stock", name: "Stock" }] });
+    await made.addTeam({ teamId: "shop", templates: ["shop-stock-keeper", "review-replies"], apps: [{ key: "stock", name: "Stock" }] });
     expect(calls).toEqual([
       ["POST", "/api/w/casa/teams/shop", { templates: ["shop-stock-keeper", "review-replies"] }],
       ["POST", "/api/w/casa/apps-templates/stock/install", { sample: false }]
     ]);
-    expect(done.merged).toEqual([listed.bots]);
-    expect(sections.value).toEqual(listed.sections);
-    expect([made.newBotOpen.value, picker.value, done.selected]).toEqual([false, null, ["8"]]);
+    expect([done.updated, done.opened, made.newBotOpen.value]).toEqual([["1", "8", "9"], [], false]);
     expect(done.notes).toEqual([
-      "2 bots added to Small shop. 1 already in this home was left out.",
+      "Added 2 bots to your team. 1 already in this home was left out.",
       "The Stock app is set up as a draft in Apps for you to review and publish."
     ]);
   });
 
-  it("adds a suggestion's bots ticked in the section named, and says a new template's problems when it's refused (D-109)", async () => {
-    const listed = { bots: [{ id: "1" }, { id: "8" }, { id: "9" }], sections: [{ id: "4", name: "Shop" }], added: ["8", "9"], skipped: [], sectionId: "4" };
-    answers.byUrl.set("POST /api/w/casa/bots/batch", listed);
-    const { made, done, sections } = newBot();
+  it("adds a suggestion's bots ticked, with no section, and says a new template's problems when it's refused (D-109)", async () => {
+    answers.byUrl.set("POST /api/w/casa/bots/batch", { bots: [{ id: "8" }], added: ["8"], skipped: [] });
+    const { made, done } = newBot();
     made.openNewBot();
     const chosen = [{ library: "shop-stock-keeper" }, { draft: { tag: "rota" }, name: "Rota", shape: "storm", color: "#F59312" }];
-    await made.addBots({ section: "Shop", bots: chosen, apps: [] });
-    expect(calls).toEqual([["POST", "/api/w/casa/bots/batch", { section: "Shop", bots: chosen }]]);
-    expect([sections.value, made.newBotOpen.value, done.selected, done.notes]).toEqual([listed.sections, false, ["8"], ["2 bots added to Shop."]]);
+    await made.addBots({ bots: chosen, apps: [] });
+    expect(calls).toEqual([["POST", "/api/w/casa/bots/batch", { bots: chosen }]]);
+    expect([made.newBotOpen.value, done.opened, done.notes]).toEqual([false, [], ["Added 1 bot to your team."]]);
 
     made.openNewBot();
     answers.fail = Object.assign(new Error("The template isn't ready to save: tag: Another template already has this tag."), { status: 422 });
-    await made.addBots({ section: "Shop", bots: chosen, apps: [] });
+    await made.addBots({ bots: chosen, apps: [] });
     expect([made.newBotOpen.value, made.createError.value]).toEqual([true, "The template isn't ready to save: tag: Another template already has this tag."]);
     answers.fail = Object.assign(new Error("Network request failed."), { status: 0 });
-    await made.addBots({ section: "Shop", bots: chosen, apps: [] });
+    await made.addBots({ bots: chosen, apps: [] });
     expect(made.createError.value).toBe("The bots couldn't be added. Try again.");
   });
 
@@ -126,35 +147,11 @@ describe("Add N bots", () => {
     const { made, done } = newBot();
     made.openTeams();
     answers.fail = Object.assign(new Error("Every bot you chose is already in this home."), { status: 409 });
-    await made.addTeam({ teamId: "shop", name: "Small shop", templates: ["review-replies"] });
+    await made.addTeam({ teamId: "shop", templates: ["review-replies"] });
     expect([made.newBotOpen.value, made.createError.value, made.creating.value]).toEqual([true, "Every bot you chose is already in this home.", false]);
     answers.fail = Object.assign(new Error("Network request failed."), { status: 0 });
-    await made.addTeam({ teamId: "shop", name: "Small shop", templates: ["review-replies"] });
+    await made.addTeam({ teamId: "shop", templates: ["review-replies"] });
     expect(made.createError.value).toBe("The team couldn't be added. Try again.");
-    expect(done.selected).toEqual([]);
-  });
-});
-
-describe("the first conversation's card", () => {
-  it("opens Add bots on its teams and asks the bot for no reply; Not now carries on", async () => {
-    const opened = [];
-    const replies = [];
-    const actions = useChatActions({
-      currentBot: computed(() => ({ id: "1", kind: "bot" })),
-      picker: ref(null),
-      startGroup: async () => {},
-      store: { messagesByBot: ref({}), updateBot: () => {}, appendMessages: () => {}, replaceMessage: () => {}, removeMessage: () => {} },
-      work: { playMood: () => {}, requestReply: async (botId) => replies.push(botId), describeWork: () => {} },
-      reportFailure: () => {},
-      notify: () => {},
-      openTeams: () => opened.push("teams")
-    });
-    const card = { id: "40" };
-    answers.byUrl.set("POST /api/w/casa/bots/1/choices/40", { bot: { id: "1", onboardingStep: "about" }, messages: [], addBots: "teams" });
-    await actions.answerChoice({ message: card, selected: ["Show me ready-made teams"] });
-    answers.byUrl.set("POST /api/w/casa/bots/1/choices/40", { bot: { id: "1", onboardingStep: "about" }, messages: [], addBots: null });
-    await actions.answerChoice({ message: card, selected: ["Not now"] });
-    expect([opened, replies]).toEqual([["teams"], []]);
-    expect(ONBOARDING_TIMING["team-offer"], "the card's step runs on its own, as the home's default's does").toBeTruthy();
+    expect([done.updated, done.opened, done.notes]).toEqual([[], [], []]);
   });
 });

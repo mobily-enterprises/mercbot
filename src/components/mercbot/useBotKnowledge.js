@@ -3,7 +3,8 @@ import { nanoMoney } from "./accountApi.js";
 import { botsApi } from "./botsApi.js";
 import { uploadFile } from "./filesApi.js";
 
-// Where a file added to a bot's knowledge is kept: its folder for everyone using it, which Files shows (D-107).
+// Where a file added to a bot's knowledge is kept: the bot's own folder, in no chat, which its card's Files show (D-107,
+// D-112 R6).
 export const KNOWLEDGE_FOLDER = "/files/bot/Knowledge";
 // How often the list is read again while a piece is being read or got ready.
 const POLL_MS = 2000;
@@ -69,18 +70,17 @@ export function knowledgeSummary(known) {
 }
 
 /**
- * Details tab: what the bot knows (D-107). Read on the Details tab, and again every POLL_MS while a piece is being read
+ * A bot card's Knowledge (D-107): what the bot knows, in every chat it's in. Read on the Details tab, and again every POLL_MS while a piece is being read
  * or got ready, so its progress shows; its maker and the home's owners and admins add pasted text in the editor, add
  * a file (uploaded to KNOWLEDGE_FOLDER first), open a piece to read or change it, remove one, or try a failed one
  * again. A refusal shows in the server's words: the editor's under its box, the rest through onFailure.
  * @param {{
  *   bot: () => import("../../types.js").Bot,
- *   isGroup: import("vue").ComputedRef<boolean>,
  *   tab: import("vue").ComputedRef<string>,
  *   onFailure: (error: unknown) => void
  * }} options
  */
-export function useBotKnowledge({ bot, isGroup, tab, onFailure }) {
+export function useBotKnowledge({ bot, tab, onFailure }) {
   const known = ref(null);
   const loadFailed = ref(false);
   const adding = ref("");
@@ -110,7 +110,6 @@ export function useBotKnowledge({ bot, isGroup, tab, onFailure }) {
   }
 
   async function load() {
-    if (isGroup.value) return;
     const botId = bot().id;
     try {
       show(botId, await botsApi.knowledge(botId));
@@ -151,13 +150,13 @@ export function useBotKnowledge({ bot, isGroup, tab, onFailure }) {
     }
   }
 
-  /** Uploads each file to the bot's Knowledge folder, then adds it; the list shows it being read. */
+  /** Uploads each file to the bot's own Knowledge folder (whichever chat is open), then adds it; the list shows it being read. */
   async function addFiles(files) {
     const botId = bot().id;
     for (const file of files) {
       adding.value = file.name;
       try {
-        const uploaded = await uploadFile(botId, file, KNOWLEDGE_FOLDER);
+        const uploaded = await uploadFile(botId, file, KNOWLEDGE_FOLDER, null);
         show(botId, await botsApi.addKnowledge(botId, { title: file.name, file: uploaded.path }));
       } catch (error) {
         onFailure(error);

@@ -1,20 +1,24 @@
 <script setup>
 import { computed, nextTick, ref, watch } from "vue";
-import MercbotConvoAvatar from "./MercbotConvoAvatar.vue";
+import MercbotAvatar from "./MercbotAvatar.vue";
+import MercbotChatAvatar from "./MercbotChatAvatar.vue";
 import MercbotTemplateTag from "./MercbotTemplateTag.vue";
 import MercbotPluginLogo from "./MercbotPluginLogo.vue";
 import { botsApi } from "./botsApi.js";
 import { paletteCommands, paletteEntries } from "./paletteEntries.js";
 import { pluginsApi } from "./pluginsApi.js";
 import { useShellInitials } from "./shellInitials.js";
+import { initialsOf } from "./messageAuthors.js";
 
-// The search palette: bots and groups, then commands, before you type
-// (hidden bots left out); while typing, bots and groups, apps, hidden bots, commands, routines
-// and messages, matched loosely (letters in order), the earliest first letter ranking first,
-// with contiguous runs in bold. No motion, nothing remembered between openings.
+// The search palette: the person's chats, then commands, before you type (hidden and archived chats left out); while
+// typing, chats, the home's bots and people, apps, hidden and archived chats, commands, routines, made files and
+// messages, matched loosely (letters in order), the earliest first letter ranking first, with contiguous runs in bold.
+// No motion, nothing remembered between openings.
 const props = defineProps({
-  bots: { type: Array, required: true },
-  currentBot: { type: Object, default: null },
+  chats: { type: Array, required: true },
+  bots: { type: Array, default: () => [] },
+  people: { type: Array, default: () => [] },
+  me: { type: String, default: "" },
   settingsSections: { type: Array, default: () => [] },
   theme: { type: String, default: "system" }
 });
@@ -29,7 +33,7 @@ const list = ref(null);
 const apps = ref([]);
 const routines = ref([]);
 const messages = ref([]);
-// Files, charts and pages bots made, found by name before messages.
+// Files, charts and pages bots made in the person's chats, found by name before messages.
 const files = ref([]);
 const searching = ref(false);
 
@@ -71,11 +75,14 @@ watch(query, (text) => {
   }, 150);
 });
 
-const COMMANDS = computed(() => paletteCommands({ currentBot: props.currentBot, settingsSections: props.settingsSections, theme: props.theme }));
+const COMMANDS = computed(() => paletteCommands({ settingsSections: props.settingsSections, theme: props.theme }));
 
 const entries = computed(() => paletteEntries({
   needle: query.value.trim().toLowerCase(),
+  me: props.me,
+  chats: props.chats,
   bots: props.bots,
+  people: props.people,
   commands: COMMANDS.value,
   apps: apps.value,
   routines: routines.value,
@@ -86,11 +93,14 @@ const entries = computed(() => paletteEntries({
 // While messages are being searched and nothing else matches, five placeholder rows show.
 const loading = computed(() => searching.value && !entries.value.length);
 
-function messageAvatar(message) {
-  const conversation = props.bots.find((bot) => bot.id === message.conversationId);
-  if (conversation?.kind === "group") return conversation;
-  if (message.role === "bot") return conversation || null;
-  return null;
+
+// A found message shows its author: a bot's face, or a person's initials (the person's own for theirs).
+function messageBot(message) {
+  return message.authorBotId ? props.bots.find((bot) => String(bot.id) === String(message.authorBotId)) || null : null;
+}
+function messageInitials(message) {
+  if (String(message.authorUserId) === String(props.me)) return initials.value;
+  return initialsOf(props.people.find((person) => String(person.id) === String(message.authorUserId))?.name);
 }
 
 // The contiguous match in a title, for bold.
@@ -161,12 +171,14 @@ function onKeydown(event) {
           @click="choose(entry)"
         >
           <span class="mb-palette__lead">
-            <MercbotConvoAvatar v-if="entry.kind === 'conversation'" :bot="entry.bot" :size="20" still />
+            <MercbotChatAvatar v-if="entry.kind === 'chat'" :chat="entry.chat" :me="me" :size="20" still />
+            <MercbotAvatar v-else-if="entry.kind === 'bot'" :bot="entry.bot" :size="20" still />
+            <span v-else-if="entry.kind === 'person'" class="mb-palette__person">{{ initialsOf(entry.person.name) }}</span>
             <MercbotPluginLogo v-else-if="entry.kind === 'app'" :plugin="entry.plugin" :size="20" />
             <span v-else-if="entry.kind === 'routine'" class="mb-palette__clock"><v-icon icon="$schedule" size="12" /></span>
             <template v-else-if="entry.kind === 'message'">
-              <MercbotConvoAvatar v-if="messageAvatar(entry.message)" :bot="messageAvatar(entry.message)" :size="20" still />
-              <span v-else class="mb-palette__person">{{ initials }}</span>
+              <MercbotAvatar v-if="messageBot(entry.message)" :bot="messageBot(entry.message)" :size="20" still />
+              <span v-else class="mb-palette__person">{{ messageInitials(entry.message) }}</span>
             </template>
             <span v-else class="mb-palette__icon"><v-icon :icon="entry.icon" size="13" /></span>
           </span>
@@ -177,7 +189,7 @@ function onKeydown(event) {
                   <b v-if="part.bold">{{ part.text }}</b><template v-else>{{ part.text }}</template>
                 </template>
               </span>
-              <MercbotTemplateTag v-if="entry.kind === 'conversation' && entry.bot.kind !== 'group'" :bot="entry.bot" :tooltip="false" />
+              <MercbotTemplateTag v-if="entry.kind === 'bot'" :bot="entry.bot" :tooltip="false" />
             </span>
             <span v-if="entry.secondary || entry.category" class="mb-palette__secondary">{{ entry.secondary || entry.category }}</span>
           </span>

@@ -3,14 +3,15 @@ import { computed, onBeforeUnmount, ref } from "vue";
 import { fileUrl } from "./filesApi.js";
 
 // A bot's voice memo: play, a speed pill, the waveform filling as it plays, the
-// length, and an arrow that shows the transcript underneath.
+// length, and an arrow that shows the transcript underneath. Its file is in the chat it was said in (D-112 R6).
 const props = defineProps({
-  botId: { type: String, required: true },
-  group: { type: String, default: null },
+  // The bot that said it, null once it's gone from the home.
+  botId: { type: String, default: null },
+  chatId: { type: String, required: true },
   memo: { type: Object, required: true }
 });
 const SPEEDS = [1, 1.5, 2];
-const audio = new Audio(fileUrl(props.botId, props.memo.path, { download: false, group: props.group }));
+const audio = new Audio(fileUrl(props.botId, props.memo.path, { download: false, chat: props.chatId }));
 audio.preload = "none";
 const playing = ref(false);
 const position = ref(0);

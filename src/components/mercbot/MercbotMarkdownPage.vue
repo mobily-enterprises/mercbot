@@ -7,7 +7,8 @@ import { renderRichText } from "./richText.js";
 // with checklist items as boxes the person ticks; each tick is saved into the page.
 const props = defineProps({
   botId: { type: String, required: true },
-  group: { type: String, default: null },
+  // The chat whose page this is (its folder, /files/chat), or null for a bot's own or the home's.
+  chatId: { type: String, default: null },
   path: { type: String, required: true }
 });
 const html = ref("");
@@ -15,7 +16,7 @@ const problem = ref("");
 
 async function load() {
   try {
-    const response = await fetch(previewUrl(props.botId, props.path, props.group), { credentials: "include" });
+    const response = await fetch(previewUrl(props.botId, props.path, props.chatId), { credentials: "include" });
     const body = await response.json();
     if (!response.ok) throw new Error(body.error || "This page can't be shown.");
     // Checklist items become real boxes that remember being ticked: each carries its line number.
@@ -33,7 +34,7 @@ async function toggle(event) {
   const box = event.target;
   if (!(box instanceof HTMLInputElement) || !box.dataset.line) return;
   try {
-    await checkPageItem(props.botId, props.path, Number(box.dataset.line), box.checked, props.group);
+    await checkPageItem(props.botId, props.path, Number(box.dataset.line), box.checked, props.chatId);
   } catch {
     box.checked = !box.checked;
   }
