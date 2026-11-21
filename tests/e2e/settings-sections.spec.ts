@@ -31,7 +31,6 @@ test("a home's owner gets Mercbot's own Settings sections, and General has no Si
     "Permissions",
     "Files",
     "Website",
-    "Memory",
     "Templates",
     "Vault",
     "Spending",
