@@ -12,10 +12,7 @@ chat (D-35).
 - `packages/bots/skills/building-apps.md`
 - `packages/bots/src/server/scriptWriter.js`
 - `packages/bots/src/server/botAgent.js`
-- `tests/server/appsScriptWriter.integration.js`
-- `tests/server/builderInstructions.test.js`
 - `src/components/apps/MercbotFieldRemovalCard.vue`
-- `tests/server/appsBotTools.integration.js`
 
 ## Public contract
 
@@ -52,3 +49,9 @@ chat (D-35).
 - Every bot also has `view_save`, `view_list` and `view_get` (D-55): a view saved at once, with one `view` card
   per reply, for what the person it's working for can see. Only the Builder may change a view an app shares. No
   tool shares, restores or retires a view.
+
+## Proved by
+
+- `tests/server/appsScriptWriter.integration.js`
+- `tests/server/builderInstructions.test.js`
+- `tests/server/appsBotTools.integration.js`

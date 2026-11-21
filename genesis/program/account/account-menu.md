@@ -33,19 +33,8 @@ D-76, docs/architecture.md §3.8).
 - `packages/account/src/server/publicAddress.js`
 - `packages/account/package.json`
 - `migrations/20261113120000_baseline.cjs`
-- `tests/server/vault.test.js`
-- `tests/server/vault.integration.js`
-- `tests/server/mediaCheck.test.js`
-- `tests/client/vaultImport.vitest.js`
-- `tests/e2e/vault.spec.ts`
-- `tests/server/aiKinds.test.js`
-- `tests/server/testPreviewAi.integration.js`
 - `tools/previewAi.mjs`
 - `packages/account/src/server/keys.js`
-- `tests/server/keys.test.js`
-- `tests/server/meter.test.js`
-- `tests/server/computerDays.test.js`
-- `tests/client/spending.vitest.js`
 - `src/components/mercbot/spendingView.js`
 - `src/components/mercbot/MercbotSpendingReport.vue`
 - `src/components/mercbot/MercbotSpendingChart.vue`
@@ -55,13 +44,10 @@ D-76, docs/architecture.md §3.8).
 - `src/components/mercbot/MercbotAboutDialog.vue`
 - `src/components/help/HelpCentre.vue`
 - `src/components/help/helpGroups.js`
-- `tests/client/helpGroups.vitest.js`
 - `src/components/account/settings/AccountSettingsUsageSection.vue`
 - `src/components/mercbot/MercbotSettingsDialog.vue`
 - `src/components/mercbot/settingsSections.js`
 - `src/components/mercbot/extensions.js`
-- `tests/client/settingsSections.vitest.js`
-- `tests/e2e/settings-sections.spec.ts`
 - `src/components/mercbot/MercbotSettingsGeneral.vue`
 - `src/components/mercbot/MercbotHomeName.vue`
 - `src/components/mercbot/MercbotSettingsPermissions.vue`
@@ -141,11 +127,11 @@ archive's check. `createSpending` and `createReports` take `spend`, the totals' 
 
 Work refused before it starts: `refusalOf(error)` (`@local/account/meter`) finds a 402 in an error or its causes and
 answers its message and notice. Mercbot itself never refuses, but its code says why when a copy's recorder does. While
-`meter.pausedMessage(homeId)` answers a message, new replies, routines, Apps tasks, goal rounds, group replies, template
+`meter.pausedMessage(homeId)` answers a message, new replies (each bot's turn in a chat), routines, Apps tasks, goal rounds, template
 drafts, teaching and computer wakes don't start (402 `work_paused` for a bots route); running steps finish, and nothing
 is deleted. A bot says the notice to each message a person sends, and once for background work (routines, Apps tasks
 and watches: `pausedNotice` in `backgroundRuns.js`), whether the home is paused before the turn or a step's work is
-refused part-way (botReplies' `pausedTurn`); a group gets the paused line, a lesson the notice and a template draft
+refused part-way (botReplies' `pausedTurn`, once per bot in a chat with several); a lesson the notice and a template draft
 nothing drafted. A refused computer's day keeps it asleep with the message, a refused command answers `unavailable` with
 it, a command whose renewal is refused stops ("It was stopped because its home's work is paused."), and a refused Vault
 photo sends nothing. The page counts every 402 (`refusedWork` in `accountApi.js`, into `workRefusals`), so a shell part
@@ -213,8 +199,8 @@ Mercbot's stand-in model (`tools/standInModel.mjs`, through `tools/previewAi.mjs
 on a local port and sets it, with each kind's type and no key, so nothing it asks of its AI reaches a provider;
 staging and production ignore the setting and behave as before.
 
-What each kind of work runs on (D-59, D-72) is one table, `WORK` in `providers/index.js`: people's chats and group
-chats (a Builder's too), requests between bots, app buttons' tasks and the bots' browser steps on the premium AI; the
+What each kind of work runs on (D-59, D-72) is one table, `WORK` in `packages/account/src/server/providers/index.js`: people's chats
+(a Builder's too), requests between bots, app buttons' tasks and the bots' browser steps on the premium AI; the
 Builder's replies (`build`) on the slower, cheaper AI; background work (routines, watch runs, finished background
 commands, goal rounds and summaries) on its Flex tier; pictures on images. The kind of work is carried by
 `meter.track({ work })` and read with `currentWork()`. `modelSettings(env, work)` gives a text model client that work's
@@ -242,7 +228,7 @@ The first account-menu line is **Spending**, with this month's figure; its hover
 is ("Everyone in this home" or "Your bots' work for you") or, in its place, the summary's `note` (shown as needing
 attention when `attention` says so), an item named by the summary's `action` when there is one, and See spending; both
 items open Settings → Spending (D-73). Above the composer the shell shows the parts a copy built on
-Mercbot adds there (`extensions.js` `shellParts` whose `place` is `notice`): each gets `pulse`, the open conversation's
+Mercbot adds there (`extensions.js` `shellParts` whose `place` is `notice`): each gets `pulse`, the open chat's
 message count, and may emit `open-settings` with a section's `value` to open it. Mercbot adds none. The shell opens a
 Settings section for `?settings=<section>` (a link in an email, or back from another site), takes `settings` out of the
 address and leaves the rest for the section to read (`useShellDialogs.js`). The sidebar shows no bot's price, with
@@ -262,7 +248,8 @@ Mercbot's, refusing a page listed twice) and what About says about updates (`abo
 About shows the version and build date from the build (a reproducible build's from `SOURCE_DATE_EPOCH`, so the same sources build the same files), and copies version, build time, channel and system.
 
 Settings is a 900×655 window over the app, with a section
-list on the left (General, Computer, Vault, Spending, About) and grouped
+list on the left (General, Computer, Permissions, Files, Website where a copy has it, Templates, Vault, Spending,
+Mercbot account, About; `settingsSections.js`, with a copy's own sections in their place) and grouped
 cards on the right. Every control applies at once. Ctrl+, and the menu's Settings
 open General; the palette's section commands and See spending open their section.
 ×, Escape or a click outside closes it. The sections:
@@ -274,21 +261,24 @@ open General; the palette's section commands and See spending open their section
   Language (searchable, own name plus English name), Spell check (the message box)
   and Microphone (the browser's inputs); Home, for everyone in it: Home name (`MercbotHomeName.vue`, D-103: its
   owners and admins rename the home with Save, on JSKIT's `PATCH /api/w/:workspaceSlug` through `homesApi.js`
-  `rename`, and the sidebar and the home switcher show the kept name at once; members see it read-only), and for
-  owners and admins New bots in this home (Private, Mixed or Shared, D-100: "Bots you already have keep their mode;
-  change one in its Details → Who sees what.", `homeDefault.js` `chooseHere`); Timezone (searchable, with the time
-  now);
+  `rename`, and the sidebar and the home switcher show the kept name at once; members see it read-only); Timezone
+  (searchable, with the time now);
   and the approval rules. Language, timezone, spell check and microphone are kept on the
   device. Replies send the language and time zone, and bots reply in that language.
 - **Computer:** Update (always up to date) and Reset, which asks first and then calls
-  `POST /api/computers/reset`. Each of the person's bots' computers sleeps on its
-  owner server and has its browser profile deleted.
+  `POST /api/w/:workspaceSlug/computers/reset`: the computers of the chats the person is alone in sleep on their
+  owner server and have their browser profile and sign-ins deleted; a chat with other people keeps its computers, which
+  are theirs too (D14; one computer is reset from the chat's details, `genesis/program/computer/bot-computer.md`).
+  It answers `{reset}`, or 502 naming how many couldn't be reset.
 - **Templates (D-98):** the home's own templates with their tag, description and "Used by N bots", for everyone;
   owners and admins Edit (the draft screen, Save after "Changes reach N bots from their next reply") and Delete one no
   bot uses. Its rules and routes are in the bot templates module (`genesis/program/bots/templates.md`).
-- **Vault (D-17):** tabs with counts, search, New item (login, card, contact info,
-  Import from a CSV file), and dialogs that save only when valid. `GET/POST/DELETE
-  /api/vault` keep items in `vault_items`. What makes an item complete is one set of
+- **Vault (D-17, D8):** the home's, used by its bots in any chat of it. Tabs with counts, search, New item (login,
+  card, contact info, Import from a CSV file), and dialogs that save only when valid. `GET/POST/DELETE
+  /api/vault` keep items in `vault_items`, the home's, each with who added it (`madeBy`, null once their account
+  goes); anyone in the home adds, and an item is deleted by whoever added it or the home's owners and admins (403
+  `account_vault_delete_forbidden` "Only the person who added this, or the home's owners and admins, can delete
+  it."). What makes an item complete is one set of
   rules, `packages/account/src/shared/vault.js` (`vaultProblem`), which the forms, the
   CSV import's preview and the server all check. Contact info is plain. A login's password
   and notes, and a card's number, code and billing address, are sealed with
@@ -342,3 +332,21 @@ open General; the palette's section commands and See spending open their section
 
 DeepInfra (D-58) serves the same model in the OpenAI style; its layer adds `reasoning_effort: high` to each call, because
 it doesn't think unless asked. A Flex call that's refused or waits 2 minutes goes again at Standard.
+
+## Proved by
+
+- `tests/server/vault.test.js`
+- `tests/server/vault.integration.js`
+- `tests/server/mediaCheck.test.js`
+- `tests/client/vaultImport.vitest.js`
+- `tests/e2e/vault.spec.ts`
+- `tests/server/aiKinds.test.js`
+- `tests/server/testPreviewAi.integration.js`
+- `tests/server/keys.test.js`
+- `tests/server/meter.test.js`
+- `tests/server/computerDays.test.js`
+- `tests/client/spending.vitest.js`
+- `tests/client/helpGroups.vitest.js`
+- `tests/client/settingsSections.vitest.js`
+- `tests/e2e/settings-sections.spec.ts`
+- `tests/server/pausedHome.integration.js`

@@ -9,9 +9,7 @@ the `mercbot.apps` capability, and its part of an app's Overview through `appPar
 
 - Main: `packages/apps/src/server/visitorAccess.js`
 - `packages/apps/src/shared/visitorAccess.js`
-- `tests/server/appsVisitorAccess.integration.js`
 - `migrations/20261113120000_baseline.cjs`
-- `tests/server/appsVisitorAccessChanges.integration.js`
 - `packages/apps/src/server/runtime.js`
 - `packages/apps/src/server/apps.js`
 - `packages/apps/src/server/appVisitorAccess.js`
@@ -57,3 +55,8 @@ the `mercbot.apps` capability, and its part of an app's Overview through `appPar
   narrowing isn't checked.
 - The visitors' own tables (sessions, codes, sign-ins, allow lists, form counts) aren't Mercbot's: a copy
   that serves visitors keeps its own.
+
+## Proved by
+
+- `tests/server/appsVisitorAccess.integration.js`
+- `tests/server/appsVisitorAccessChanges.integration.js`
