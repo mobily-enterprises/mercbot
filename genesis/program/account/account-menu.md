@@ -91,8 +91,10 @@ reply it asks for and the pictures it asks for: Gemini's image output, `candidat
 go out when opening it fails; then the meter reads the provider's own figures (cache-hit, cache-miss and output tokens
 in DeepSeek's, the OpenAI-style or the Anthropic form, Gemini's `usageMetadata` and its pictures, or a stream's last
 usage) and finishes the call before handing back its answer, a streamed reply when its stream ends. A failed call used
-nothing; a cut or figureless call is recorded as an estimate from its size. A call made outside tracked work belongs to
-no one: it goes out unrecorded, with a warning. A computer's day (UTC) is opened as it wakes and counted once it has
+nothing; a cut or figureless call is recorded as an estimate from its size (`callFigures`, which the recorder and
+`counting` share). Work run inside `meter.counting(calls, work)` also hears what each of its own AI calls used, once
+it ends, and nothing else the same person or bot does meanwhile: a discussion's cap counts its turns' calls so (D-115).
+A call made outside tracked work belongs to no one: it goes out unrecorded, with a warning. A computer's day (UTC) is opened as it wakes and counted once it has
 started (computerManager's `withDay`, `meter.startComputerDay`), so one that can't start counts nothing, and is counted
 when a new day finds it awake (`computerDays.js`, `meter.computerDay`, which puts it to sleep when that's refused).
 Commands' computation is opened ten minutes at a time (`meter.startComputation`, `COMPUTATION_BLOCK_SECONDS`);

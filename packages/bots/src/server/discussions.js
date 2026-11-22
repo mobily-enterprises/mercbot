@@ -4,7 +4,7 @@ import { resolveActorId } from "@jskit-ai/kernel/server/actions/actionContributo
 import { WORK, aiKind } from "@local/account/model";
 import { mayChangeBot } from "./botAdditions.js";
 import { BotsError } from "./botsError.js";
-import { toMessage } from "./botRows.js";
+import { discussionNow, toMessage } from "./botRows.js";
 import { languageName } from "./botWriting.js";
 import { validTimeZone } from "./routineSchedule.js";
 
@@ -19,15 +19,18 @@ import { validTimeZone } from "./routineSchedule.js";
 // - Every round after the first, and the wrap-up (one bot sums it up), needs the person's press: no round runs by
 //   itself. Only the person who started it presses Start, One more round and Wrap up; Stop is theirs and the chat
 //   managers' (its maker, the home's owners and admins).
-// - The cap is the server's: before each turn the discussion's spending so far (the meter's spentSince for each bot
-//   taking part, as its person, since it started) plus that turn's estimate must stay within it, or it stops there,
-//   mid-round if need be.
+// - The cap is the server's: before each turn the discussion's spending so far plus that turn's estimate must stay
+//   within it, or it stops there, mid-round if need be. Its spending is its own turns' AI calls only (meter.counting),
+//   each priced as the meter counts it (meter.estimateNano on the call's figures), never the rest of the person's work
+//   with those bots meanwhile.
 // - A round holds every speaking bot's reply run in the chat (claimReply, kept alive by its heartbeat), so a message
 //   written meanwhile finds the bots busy and is answered once the round lets go (answerWaiting). Stop ends the card at
 //   once; the round sees it at its next heartbeat or turn, stops the turn in progress and lets go.
 // - Each turn is metered to the person who started it and the bot that speaks (R8), as chat work.
-// A round runs on the server that took the press; if that server stops, the card stays "running" until someone
-// presses Stop (any server can), and nothing is lost but the rest of that round.
+// A round runs on the server that took the press. Its card is leased like the runs it holds: renewed at each heartbeat,
+// and once the lease lapses (that server stopped) the card reads as interrupted (botRows.js discussionNow), by when
+// those runs are stale too, so any server takes them over: its person may press One more round (unless it was wrapping
+// up), Wrap up or Stop, and nothing is lost but the rest of that round.
 
 export const DISCUSSION_LIMITS = Object.freeze({
   // The most rounds one discussion has, and what a new card offers first.
@@ -35,6 +38,11 @@ export const DISCUSSION_LIMITS = Object.freeze({
   defaultRounds: 2,
   // The longest question.
   questionChars: 500,
+  // How often a round renews its runs and its card's lease, and looks for a Stop: the runs' own heartbeat unless set.
+  heartbeatMs: null,
+  // How long a round's card holds without a renewal before it reads as interrupted: a heartbeat past the time its runs
+  // go stale, unless set (tests), so a card read as interrupted has its runs free.
+  leaseMs: null,
   // What one turn and the wrap-up may write: the reply's own output limit, so the estimate holds.
   turnOutputTokens: 1200,
   wrapOutputTokens: 2000,
@@ -83,7 +91,7 @@ export function discussionTokens({ bots, baseTokens, limits = DISCUSSION_LIMITS 
  * @param {object} dependencies
  * @param {import("./types.js").BotRecords} dependencies.records
  * @param {(reason: string) => object} dependencies.systemContext the bots' system context
- * @param {import("@local/account/server/types").Meter} dependencies.meter estimates, spending and the turns' tickets
+ * @param {import("@local/account/server/types").Meter} dependencies.meter estimates, the turns' tickets and their calls
  * @param {import("@jskit-ai/kernel/server/types").RuntimeEnv} dependencies.env which provider the chat AI runs on
  * @param {import("./chatSeats.js").ChatSeats} dependencies.seats
  * @param {import("./types.js").BotHistory} dependencies.chatHistory the reply runs a round holds, and the chat's summary
@@ -94,6 +102,9 @@ export function discussionTokens({ bots, baseTokens, limits = DISCUSSION_LIMITS 
 export function createDiscussions({ records, systemContext, meter, env, seats, chatHistory, replies, background, limits = {} }) {
   const LIMITS = { ...DISCUSSION_LIMITS, ...limits };
   const { runs } = chatHistory;
+  const heartbeatMs = LIMITS.heartbeatMs || runs.limits.heartbeatMs;
+  const leaseMs = LIMITS.leaseMs || Number(runs.limits.staleSeconds) * 1000 + Number(runs.limits.heartbeatMs);
+  const leaseFrom = () => new Date(Date.now() + leaseMs).toISOString();
   const inHome = (homeId) => ({ context: systemContext("a discussion's card is kept as it runs").forWorkspace(String(homeId)) });
   const refused = (status, message, code) => new BotsError(status, message, { code });
   const notFound = () => refused(404, "Discussion not found.", "bots_discussion_not_found");
@@ -177,7 +188,7 @@ export function createDiscussions({ records, systemContext, meter, env, seats, c
     const result = await records.chats.withTransaction(options, async (txOptions) => {
       const card = await records.messages.lockMessageIn(String(chatId), String(cardId), txOptions, { kind: "discussion" });
       if (!card) throw notFound();
-      const next = change(card.body);
+      const next = change(discussionNow(card.body));
       if (!next) return { message: toMessage(card), changed: false };
       return { message: await records.messages.setBody(String(card.id), next, txOptions), changed: true };
     });
@@ -188,7 +199,9 @@ export function createDiscussions({ records, systemContext, meter, env, seats, c
   // A card keeps the token of the round that last ran (`run`), so that round still adds up what its last turn cost after
   // a Stop ended the card; only that round's runner writes while it says "running".
   const isRunning = (body, token) => body.status === "running" && body.run === token;
-  const ended = (body, why, more = {}) => ({ ...body, status: "ended", ended: why, ...more });
+  const ended = (body, why, more = {}) => ({ ...body, status: "ended", ended: why, leaseUntil: null, ...more });
+  // Waiting for a press: after a round, or once its round was interrupted.
+  const awaitsPress = (body) => body.status === "waiting" || body.status === "interrupted";
 
   /** Only the person who started it presses Start, One more round and Wrap up (it's their work, R8). */
   function requireStarter(body, me) {
@@ -237,13 +250,13 @@ export function createDiscussions({ records, systemContext, meter, env, seats, c
     const card = await records.messages.messageIn(String(chat.id), String(cardId), options, { kind: "discussion" });
     if (!card) throw notFound();
     requireStarter(card.body, me);
-    change(card.body);
+    change(discussionNow(card.body));
     const { held, present } = await claimSpeakers(chat, card.body, me);
     const token = randomUUID();
     const since = Number(await records.messages.latestId(chat.id, options)) || 0;
     let result;
     try {
-      result = await changeCard(chat.id, cardId, options, (body) => ({ ...change(body), status: "running", run: token, passed: [] }));
+      result = await changeCard(chat.id, cardId, options, (body) => ({ ...change(body), status: "running", run: token, passed: [], leaseUntil: leaseFrom() }));
     } catch (error) {
       await release(held);
       throw error;
@@ -272,7 +285,7 @@ export function createDiscussions({ records, systemContext, meter, env, seats, c
   /** One more round, after the last one ended, while the rounds chosen allow. */
   function nextRound(chatId, cardId, input = {}, options) {
     return startRound(chatId, cardId, input, options, (body) => {
-      if (body.status !== "waiting") throw refused(409, "This discussion isn't waiting for another round.", "bots_discussion_not_waiting");
+      if (!awaitsPress(body) || body.wrapping) throw refused(409, "This discussion isn't waiting for another round.", "bots_discussion_not_waiting");
       if (body.round >= body.rounds) throw refused(409, `This discussion had all its ${body.rounds} rounds. Wrap it up, or start a new one.`, "bots_discussion_rounds_done");
       return { ...body, round: body.round + 1 };
     });
@@ -281,7 +294,7 @@ export function createDiscussions({ records, systemContext, meter, env, seats, c
   /** Wrap up: one bot sums the discussion up, and it ends. */
   function wrapUp(chatId, cardId, input = {}, options) {
     return startRound(chatId, cardId, input, options, (body) => {
-      if (body.status !== "waiting") throw refused(409, "This discussion isn't waiting to be wrapped up.", "bots_discussion_not_waiting");
+      if (!awaitsPress(body)) throw refused(409, "This discussion isn't waiting to be wrapped up.", "bots_discussion_not_waiting");
       return { ...body, wrapping: true };
     });
   }
@@ -322,20 +335,27 @@ export function createDiscussions({ records, systemContext, meter, env, seats, c
   async function runRound(chat, cardId, token, held, present, where, since) {
     const home = inHome(chat.workspace_id);
     const control = new AbortController();
-    const current = async () => (await records.messages.messageIn(String(chat.id), cardId, home, { kind: "discussion" }))?.body ?? null;
+    const current = async () => {
+      const card = await records.messages.messageIn(String(chat.id), cardId, home, { kind: "discussion" });
+      return card ? discussionNow(card.body) : null;
+    };
+    const stopped = () => control.abort(new Error("The discussion was stopped."));
+    // Each heartbeat renews the runs and the card's lease while the card says this round runs; once it doesn't (Stop,
+    // or a lease that lapsed meanwhile), the turn in progress stops.
     const heartbeat = setInterval(() => {
       for (const { seat } of held) {
         runs.heartbeat(seat.chat_bot_id).catch((error) => console.warn("A discussion's heartbeat failed; the next one renews it.", error));
       }
-      current().then((body) => {
-        if (!body || !isRunning(body, token)) control.abort(new Error("The discussion was stopped."));
-      }).catch(() => {});
-    }, runs.limits.heartbeatMs);
+      changeCard(chat.id, cardId, home, (body) => (isRunning(body, token) ? { ...body, leaseUntil: leaseFrom() } : null)).then(
+        ({ changed }) => changed || stopped(),
+        (error) => (error?.statusCode === 404 ? stopped() : console.warn("Renewing a discussion's lease failed; the next heartbeat renews it.", error))
+      );
+    }, heartbeatMs);
     const finish = (change) => changeCard(chat.id, cardId, home, (body) => (isRunning(body, token) ? change(body) : null));
     // What each bot's turns cost so far, written while the card is this round's, running or stopped meanwhile.
-    const record = (seat, spent, outcome) => changeCard(chat.id, cardId, home, (now) => {
+    const record = (seat, cost, outcome) => changeCard(chat.id, cardId, home, (now) => {
       if (now.run !== token) return null;
-      const spentByBot = { ...now.spentByBot, [seat.id]: spent };
+      const spentByBot = { ...now.spentByBot, [seat.id]: Number(now.spentByBot?.[seat.id] || 0) + cost };
       const passed = outcome === "passed" ? [...now.passed, seat.id] : now.passed;
       return { ...now, spentByBot, spentNano: Object.values(spentByBot).reduce((sum, value) => sum + Number(value || 0), 0), passed };
     });
@@ -346,8 +366,8 @@ export function createDiscussions({ records, systemContext, meter, env, seats, c
       for (const { seat: claimed } of speakers) {
         body = await current();
         if (!body || !isRunning(body, token)) return;
-        const cost = body.wrapping ? body.wrapNano : body.turnNano;
-        if (Number(body.spentNano) + Number(cost) > Number(body.capNano)) {
+        const estimate = body.wrapping ? body.wrapNano : body.turnNano;
+        if (Number(body.spentNano) + Number(estimate) > Number(body.capNano)) {
           await finish((now) => ended(now, "cap"));
           return;
         }
@@ -358,8 +378,8 @@ export function createDiscussions({ records, systemContext, meter, env, seats, c
           return;
         }
         if (!seat?.chat_bot_id || seat.archived_at) continue;
-        const outcome = await turn(seat, cardId, body, present, where, control.signal);
-        await record(seat, await spentBy(seat, body), outcome);
+        const { outcome, cost } = await turn(seat, cardId, body, present, where, control.signal);
+        await record(seat, cost, outcome);
         if (outcome === "stopped") return;
         if (outcome === "paused" || outcome === "failed") {
           await finish((now) => ended(now, outcome));
@@ -370,7 +390,7 @@ export function createDiscussions({ records, systemContext, meter, env, seats, c
       await finish((now) => {
         if (now.wrapping) return ended(now, "wrapped", { wrappedBy: speakers[0]?.seat.id ?? null });
         if (!spoke.size) return ended(now, "passed");
-        return { ...now, status: "waiting", run: null };
+        return { ...now, status: "waiting", run: null, leaseUntil: null };
       });
     } catch (error) {
       console.error(`A discussion in chat ${chat.id} stopped: ${error?.message || error}`);
@@ -385,7 +405,7 @@ export function createDiscussions({ records, systemContext, meter, env, seats, c
   /**
    * One bot's turn: a reply that only talks, with the round's words or the wrap-up's, through the replies' own turn
    * (the bot's instructions, the chat as it reads it, the state note), metered to the person and the bot, as chat work.
-   * Answers "spoke", "passed", "paused", "stopped" or "failed".
+   * Answers how it went, "spoke", "passed", "paused", "stopped" or "failed", and what its own AI calls cost.
    */
   async function turn(seat, cardId, body, present, where, signal) {
     const call = seats.readerOf(seat);
@@ -401,30 +421,33 @@ export function createDiscussions({ records, systemContext, meter, env, seats, c
         modelSettings: { maxOutputTokens: body.wrapping ? LIMITS.wrapOutputTokens : LIMITS.turnOutputTokens }
       }
     };
+    const calls = [];
+    let outcome;
     await seats.working(seat, true, null, call);
     try {
-      const posted = await meter.track({ userId: seat.user_id, botId: seat.id, workspaceId: seat.workspace_id, work: "chat" }, () =>
-        replies.respond(seat, { ...where, prompt, present, discussion, call }));
+      const posted = await meter.counting(calls, () => meter.track(
+        { userId: seat.user_id, botId: seat.id, workspaceId: seat.workspace_id, work: "chat" },
+        () => replies.respond(seat, { ...where, prompt, present, discussion, call })
+      ));
       if (posted.length) await seats.tell(seat.chat_id, { type: "messages" }, call);
-      if (posted.some((message) => message.role === "bot" && message.kind === "text")) return "spoke";
       // Nothing said: it passed, unless its home is paused (the turn then left one line saying so, or found one).
-      return (await meter.pausedMessage(seat.workspace_id)) ? "paused" : "passed";
+      if (posted.some((message) => message.role === "bot" && message.kind === "text")) outcome = "spoke";
+      else outcome = (await meter.pausedMessage(seat.workspace_id)) ? "paused" : "passed";
     } catch (error) {
-      if (signal.aborted) return "stopped";
-      console.error(`Bot ${seat.id}'s turn in a discussion failed: ${error?.message || error}`);
-      return "failed";
+      if (!signal.aborted) console.error(`Bot ${seat.id}'s turn in a discussion failed: ${error?.message || error}`);
+      outcome = signal.aborted ? "stopped" : "failed";
     } finally {
       await seats.working(seat, false, null, call);
     }
+    return { outcome, cost: await costOf(seat.workspace_id, calls) };
   }
 
-  /** What the person's work with this bot has cost since the discussion started, in nanodollars (R8). */
-  async function spentBy(seat, body) {
-    const who = { workspaceId: seat.workspace_id, userId: seat.user_id, botId: seat.id, since: body.startedAt };
-    const system = systemContext("a discussion adds up what it cost");
-    const context = system.forWorkspaceUser(seat.workspace_id, seat.user_id, { actorId: seat.user_id });
-    const reader = { context };
-    return Math.round((Number(await meter.spentSince(who, reader)) || 0) * 1e9);
+  /** What a turn's own AI calls cost the home, in nanodollars, each as the meter counts it (R8). */
+  async function costOf(homeId, calls) {
+    const used = await Promise.all(calls);
+    const costs = await Promise.all(used.map(({ provider, kind, ...figures }) =>
+      meter.estimateNano({ ...figures, workspaceId: String(homeId), kind: kind || WORK.chat.kind, provider })));
+    return costs.reduce((sum, nano) => sum + Math.round(Number(nano) || 0), 0);
   }
 
   return Object.freeze({

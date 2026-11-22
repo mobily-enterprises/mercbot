@@ -110,6 +110,7 @@ const AccountFeature = defineFeature({
       meter: Object.freeze({
         track: meter.track,
         currentMeter: meter.currentMeter,
+        counting: meter.counting,
         startComputerDay: meter.startComputerDay,
         computerDay: meter.computerDay,
         startComputation: meter.startComputation,
