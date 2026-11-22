@@ -69,6 +69,40 @@ async function shots(page: Page, testInfo: TestInfo, name: string, atPhone?: () 
 /** The page's next `method` call to `path` (under the home's API), once the server has answered it. */
 const answered = (page: Page, method: string, path: RegExp) =>
   page.waitForResponse((response) => response.request().method() === method && path.test(new URL(response.url()).pathname));
+/**
+ * Whether the composer is as tall as its text needs, as useComposerLines counts it: one line (22 px) while the text fits
+ * beside its buttons, else 20 px a line, 2 to 6 lines, measured here from the field's own text at its own width.
+ */
+const composerFits = (page: Page) => shell.composer(page).evaluate((field: HTMLTextAreaElement) => {
+  const height = field.offsetHeight;
+  const set = field.style.height;
+  field.style.height = "0px";
+  const needs = field.scrollHeight;
+  field.style.height = set;
+  return height === 22 ? needs <= 22 : height === Math.min(6, Math.max(2, Math.round(needs / 20))) * 20;
+});
+/**
+ * What hides New chat's Start line: "" when its hint (at its left, middle and right) and its Start button are what the
+ * page shows there, else the class of whatever is on top of them (the message box, a button) or "nothing" off screen.
+ */
+const startLineHidden = (page: Page) => page.evaluate(() => {
+  const hint = document.querySelector(".mb-new-chat__hint");
+  const start = document.querySelector(".mb-new-chat__start .v-btn");
+  if (!hint || !start) return "no Start line";
+  const line = hint.getBoundingClientRect();
+  const button = start.getBoundingClientRect();
+  const points: Array<[Element, number, number]> = [
+    ...[0.1, 0.5, 0.9].map((at): [Element, number, number] => [hint, line.left + line.width * at, line.top + line.height / 2]),
+    [start, button.left + button.width / 2, button.top + button.height / 2]
+  ];
+  // A disabled Start takes no pointer, so the page would answer what's under it: it's asked as one that takes them.
+  const given = (start as HTMLElement).style.pointerEvents;
+  (start as HTMLElement).style.pointerEvents = "auto";
+  const found = points.map(([, x, y]) => document.elementFromPoint(x, y));
+  (start as HTMLElement).style.pointerEvents = given;
+  return found.filter((element, index) => !element || !points[index][0].contains(element))
+    .map((element) => (element ? String(element.getAttribute("class") || element.tagName) : "nothing")).join(", ");
+});
 const message = (page: Page, text: string) => shell.chat(page).locator("[data-message-id]").filter({ hasText: text }).last();
 const mentionedAt = async (knex: Knex, chatId: string, userId: string) =>
   (await knex("chat_people").where({ conversation_id: chatId, user_id: userId }).first("mentioned_at"))?.mentioned_at ?? null;
@@ -244,12 +278,7 @@ test("Continue with others takes a direct chat on into a new Public chat, starti
     await newChat.getByRole("textbox", { name: "Add people and bots" }).fill("Ben");
     await newChat.getByRole("listbox", { name: "People and bots" }).getByRole("option", { name: /Ben Rossi/u }).click();
     await expect(newChat.getByRole("button", { name: "Start", exact: true })).toBeEnabled();
-    await shots(page, testInfo, "continue-with-others", async () => {
-      // As the note arrives on a phone: the composer measures its lines when its text changes, not when the window does.
-      await shell.composer(page).press("End");
-      await shell.composer(page).pressSequentially(" ");
-      await shell.composer(page).press("Backspace");
-    });
+    await shots(page, testInfo, "continue-with-others", () => expect.poll(() => composerFits(page)).toBe(true));
     await shell.composer(page).fill(`${note} Ben, can you bring wine?`);
     const started = page.waitForResponse((response) => response.request().method() === "POST" && new URL(response.url()).pathname === `/api${home!.path}/chats`);
     const noteSent = answered(page, "POST", /\/chats\/\d+\/messages$/u);
@@ -266,6 +295,52 @@ test("Continue with others takes a direct chat on into a new Public chat, starti
     // The direct chat is as it was: the owner's with Chef alone.
     expect(await knex("chat_people").where({ conversation_id: direct.id }).pluck("user_id").then((ids) => ids.map(String))).toEqual([home.owner]);
     expect(await knex("messages").where({ conversation_id: direct.id }).count("* as count").first()).toEqual({ count: "2" });
+  } finally {
+    await home?.remove();
+    await knex.destroy();
+  }
+});
+
+test("on a phone, New chat's message box is as tall as the note needs, and New chat's Start line stays above it", async ({ page }, testInfo) => {
+  const knex = connectTestDb();
+  let home: Home | null = null;
+  try {
+    home = await homeWithBen(page, knex);
+    const direct = await seedChat(knex, { homeId: home.homeId, direct: { userId: home.owner, botId: home.chef } });
+    await seedMessages(knex, { homeId: home.homeId, chatId: direct.id, rows: [
+      { userId: home.owner, body: { text: "Dinner for six on Saturday" } },
+      { botId: home.chef, body: { text: "Risotto, then a lemon tart?", authorName: "Chef" } }
+    ] });
+    await openShell(page, `?chat=${direct.id}`, home.path);
+    await shell.chat(page).getByRole("button", { name: "Continue with others…" }).click();
+    await expect(shell.composer(page)).toHaveValue(/^Continuing from my chat with Chef:/u);
+    // On a wide window the note fits on one line beside the buttons.
+    await expect.poll(() => shell.composer(page).evaluate((field) => field.offsetHeight)).toBe(22);
+    expect(await composerFits(page)).toBe(true);
+
+    // The window narrowed to a phone's: the box takes the lines the note needs there, no more, and the Start line
+    // (its hint and Start) stays above it; widened again, it's one line again.
+    const size = page.viewportSize();
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expect.poll(() => shell.composer(page).evaluate((field) => field.offsetHeight)).toBeGreaterThan(22);
+    await expect.poll(() => composerFits(page), "as tall as the note needs at a phone's width").toBe(true);
+    await expect.poll(() => startLineHidden(page), "the Start line shows above the message box").toBe("");
+    if (size) await page.setViewportSize(size);
+    await expect.poll(() => shell.composer(page).evaluate((field) => field.offsetHeight)).toBe(22);
+
+    // On the phone, the person makes the note longer: six lines, and the Start line still above the box.
+    await page.setViewportSize({ width: 390, height: 844 });
+    const longer = `${await shell.composer(page).inputValue()} Ben, can you bring the wine and the bread? Carla said she'd do a salad, ` +
+      "and I'll ask Chef for a shopping list for the risotto and the tart once we know who's coming. Starts at eight.";
+    await shell.composer(page).fill(longer);
+    await expect.poll(() => composerFits(page), "as tall as the longer note needs").toBe(true);
+    await expect.poll(() => startLineHidden(page), "the Start line shows above the taller message box").toBe("");
+    await expect(page.getByRole("region", { name: "New chat" }).locator(".mb-new-chat__hint")).toBeInViewport();
+    for (const scheme of ["light", "dark"] as const) {
+      await page.emulateMedia({ colorScheme: scheme, reducedMotion: "reduce" });
+      await expect(page.locator(".v-application")).toHaveClass(new RegExp(`\\bv-theme--(workspace-)?${scheme}\\b`, "u"));
+      await page.screenshot({ path: testInfo.outputPath(`continue-tall-note-phone-${scheme}.png`), animations: "disabled" });
+    }
   } finally {
     await home?.remove();
     await knex.destroy();

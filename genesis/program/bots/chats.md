@@ -36,6 +36,7 @@ person can open.
 - `src/components/mercbot/useNewChat.js`
 - `src/components/mercbot/MercbotChatDetails.vue`
 - `src/components/mercbot/MercbotChatList.vue`
+- `src/components/mercbot/MercbotChatPanel.vue`
 
 ## Public contract
 
@@ -161,7 +162,9 @@ reaches other chats.", with "You can't change this once the chat has started." u
 "Title (optional)" (placeholder "Its members' names"), then "Write the first message below, or press Enter there to
 start it empty." and Start. Under it, "Or join a public chat", each with its people count and Join. Files attached
 before Start wait on their attachments and are uploaded into the new chat's folder once it's made, before the first
-message (`useComposerFiles.js` `uploadAttached`); one refused is reported and left out. A person's
+message (`useComposerFiles.js` `uploadAttached`); one refused is reported and left out. As the message box grows
+(a long first message on a phone), the line with the hint and Start is scrolled to stay above it, and the chat's
+"Scroll to the latest message" and new-messages pill don't show over New chat (`MercbotChatPanel.vue`). A person's
 Message on Team opens New chat with them on To:. Chats made without New chat (a bot's Message, a new bot's greeting,
 the welcome chat, an app's Builder chat, the everyone chat) are Public.
 
