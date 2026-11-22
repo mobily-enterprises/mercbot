@@ -66,6 +66,8 @@ In a chat with two or more bots, the bots can talk a question over together.
 - A round in which every bot passes ends the discussion.
 - Nothing runs without your press: no round starts by itself.
 - What you write while the bots are discussing waits, and the bots answer it once the round ends or you stop it.
+- If a round can't finish (for example, Mercbot restarted while the bots were talking), the card says the round **was
+  interrupted** after about a minute, and you can carry on with **One more round** or **Wrap up**, or **Stop** it.
 - Only the person who started a discussion can start it, ask for another round or wrap it up. They, the chat's maker and the home's owners and admins can stop it.
 - What it cost so far is on the card. In **Spending** it counts as your use of each bot that spoke.
 

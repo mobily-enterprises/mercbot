@@ -74,6 +74,27 @@ test("each call is written down before it goes out and recorded before its answe
   assert.deepEqual(recorder.calls[0].outcome, { state: "done", cacheHit: 0, cacheMiss: 100, output: 10 });
 });
 
+test("work that counts its own calls hears what each used, failed ones too, and nothing done outside it (D-115)", async () => {
+  const recorder = keptCalls();
+  const meter = createMeter({ recorder });
+  const answers = [json({ usage: { prompt_tokens: 100, completion_tokens: 10, estimated_cost: 0.002 } }), json({ error: "busy" }, 503)];
+  globalThis.fetch = async () => answers.shift() ?? json({ usage: { prompt_tokens: 1, completion_tokens: 1 } });
+  const calls = [];
+  let carried;
+  await meter.counting(calls, () => meter.track({ userId: "1", botId: "2" }, async () => {
+    carried = meter.currentMeter();
+    await send({}, "deepinfra");
+    await send({}, "deepinfra");
+  }));
+  await meter.track({ userId: "1", botId: "2" }, () => send({}, "deepinfra"));
+  assert.deepEqual(carried, { userId: "1", botId: "2" }, "what goes to another server carries no calls");
+  assert.deepEqual(await Promise.all(calls), [
+    { provider: "deepinfra", kind: undefined, state: "done", cacheHit: 0, cacheMiss: 100, output: 10, images: 0, reportedCost: 0.002 },
+    { provider: "deepinfra", kind: undefined, state: "failed", cacheHit: 0, cacheMiss: 0, output: 0, images: 0 }
+  ], "the two calls inside it; the third, outside, isn't counted");
+  assert.equal(recorder.calls.length, 3, "all three are recorded as ever");
+});
+
 test("a call that can't be opened doesn't go out: the database is down, or the recorder refuses the work", async () => {
   let sent = 0;
   globalThis.fetch = async () => {

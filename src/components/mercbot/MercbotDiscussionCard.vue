@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, watch } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import MercbotAvatar from "./MercbotAvatar.vue";
 import { nanoMoney } from "./accountApi.js";
 import { botFace } from "./chatView.js";
@@ -8,7 +8,9 @@ import { chatsApi } from "./chatsApi.js";
 // A discussion (D-115, plan 4.5): the bots of a chat talk a question over, a round at a time, as the person who started
 // it asks. Before it starts, it says what it may cost for 1, 2 or 3 rounds, from the server's estimate; Start, One more
 // round and Wrap up are that person's; Stop is theirs and the chat's managers'. The server keeps the card: each press
-// answers it as it now stands, and everyone in the chat hears of every change.
+// answers it as it now stands, and everyone in the chat hears of every change. A round's card is leased while it runs:
+// once its lease lapses (the server running it stopped) it reads as interrupted, here as on the server, and waits for a
+// press like a finished round.
 const props = defineProps({
   message: { type: Object, required: true },
   chat: { type: Object, required: true },
@@ -21,6 +23,17 @@ const props = defineProps({
 const pressed = ref(null);
 watch(() => props.message.body, () => { pressed.value = null; });
 const body = computed(() => pressed.value?.body || props.message.body);
+// The time now, kept every few seconds while the card is shown, for a running round's lease.
+const now = ref(Date.now());
+let ticking = null;
+onMounted(() => {
+  ticking = setInterval(() => {
+    now.value = Date.now();
+  }, 5000);
+});
+onBeforeUnmount(() => clearInterval(ticking));
+const state = computed(() => (body.value.status === "running" && Date.parse(body.value.leaseUntil) <= now.value ? "interrupted" : body.value.status));
+const awaitsPress = computed(() => state.value === "waiting" || state.value === "interrupted");
 const mine = computed(() => String(body.value.for?.id) === String(props.me));
 const mayStop = computed(() => mine.value || props.manages || String(props.chat.madeBy) === String(props.me));
 // Each bot's face as the chat shows it; one gone from the chat since keeps its name.
@@ -28,8 +41,8 @@ const faces = computed(() => body.value.bots.map((bot) => botFace(props.chat.bot
 
 const rounds = ref(body.value.rounds || 2);
 const choice = computed(() => body.value.choices?.find((entry) => entry.rounds === rounds.value) || null);
-const STATUS = { proposed: "Not started", running: "Talking", waiting: "Your turn", ended: "Ended" };
-const status = computed(() => (body.value.status === "waiting" && !mine.value ? "Paused" : STATUS[body.value.status] || body.value.status));
+const STATUS = { proposed: "Not started", running: "Talking", waiting: "Your turn", interrupted: "Interrupted", ended: "Ended" };
+const status = computed(() => (state.value === "waiting" && !mine.value ? "Paused" : STATUS[state.value] || state.value));
 const botName = (botId) => body.value.bots.find((bot) => String(bot.id) === String(botId))?.name || "A bot";
 const ENDED = {
   passed: () => "Ended: no bot had anything new to add.",
@@ -42,15 +55,15 @@ const ENDED = {
 };
 const line = computed(() => {
   const spent = `${nanoMoney(body.value.spentNano)} so far`;
-  if (body.value.status === "proposed") return choice.value ? `Up to about ${nanoMoney(choice.value.upToNano)}, as your work in this home.` : "";
-  if (body.value.status === "running") return `${body.value.wrapping ? "Wrapping up" : `Round ${body.value.round} of ${body.value.rounds}`} · ${spent}`;
-  if (body.value.status === "waiting") {
-    const next = mine.value ? "" : ` · waiting for ${body.value.for?.name || "its starter"}`;
-    return `Round ${body.value.round} of ${body.value.rounds} done · ${spent}${next}`;
-  }
+  const what = body.value.wrapping ? "The wrap-up" : `Round ${body.value.round} of ${body.value.rounds}`;
+  const next = mine.value ? "" : ` · waiting for ${body.value.for?.name || "its starter"}`;
+  if (state.value === "proposed") return choice.value ? `Up to about ${nanoMoney(choice.value.upToNano)}, as your work in this home.` : "";
+  if (state.value === "running") return `${body.value.wrapping ? "Wrapping up" : what} · ${spent}`;
+  if (state.value === "waiting") return `${what} done · ${spent}${next}`;
+  if (state.value === "interrupted") return `${what} was interrupted · ${spent}${next}`;
   return `${(ENDED[body.value.ended] || (() => "Ended."))()} It cost ${nanoMoney(body.value.spentNano)}.`;
 });
-const passedLine = computed(() => (body.value.status !== "proposed" && body.value.passed?.length ? `Passed: ${body.value.passed.map(botName).join(", ")}` : ""));
+const passedLine = computed(() => (state.value !== "proposed" && body.value.passed?.length ? `Passed: ${body.value.passed.map(botName).join(", ")}` : ""));
 
 // A press, answered with the card as it now stands; a refusal (someone else's discussion, a bot still answering) says why.
 const busy = ref("");
@@ -73,7 +86,7 @@ async function press(verb, input = {}) {
     <div class="mb-discussion__head">
       <v-icon icon="$sms" size="18" class="mb-discussion__icon" />
       <span class="mb-discussion__title">Discussion</span>
-      <span class="mb-discussion__status" :class="`mb-discussion__status--${body.status}`">{{ status }}</span>
+      <span class="mb-discussion__status" :class="`mb-discussion__status--${state}`">{{ status }}</span>
     </div>
     <p class="mb-discussion__question">{{ body.question }}</p>
     <div class="mb-discussion__bots">
@@ -81,7 +94,7 @@ async function press(verb, input = {}) {
       <span>{{ body.bots.map((bot) => bot.name).join(", ") }}<template v-if="body.for"> · started by {{ mine ? "you" : body.for.name }}</template></span>
     </div>
 
-    <div v-if="body.status === 'proposed' && mine" class="mb-discussion__rounds" role="radiogroup" aria-label="Rounds">
+    <div v-if="state === 'proposed' && mine" class="mb-discussion__rounds" role="radiogroup" aria-label="Rounds">
       <button
         v-for="entry in body.choices"
         :key="entry.rounds"
@@ -97,20 +110,20 @@ async function press(verb, input = {}) {
     </div>
     <p v-if="line" class="mb-discussion__line">{{ line }}</p>
     <p v-if="passedLine" class="mb-discussion__line">{{ passedLine }}</p>
-    <p v-if="body.status === 'proposed' && !mine" class="mb-discussion__line">Waiting for {{ body.for?.name || "its starter" }} to start it.</p>
+    <p v-if="state === 'proposed' && !mine" class="mb-discussion__line">Waiting for {{ body.for?.name || "its starter" }} to start it.</p>
     <p v-if="failure" class="mb-discussion__failure" role="alert">{{ failure }}</p>
 
-    <div v-if="body.status !== 'ended'" class="mb-discussion__actions">
-      <template v-if="body.status === 'proposed' && mine">
+    <div v-if="state !== 'ended'" class="mb-discussion__actions">
+      <template v-if="state === 'proposed' && mine">
         <button type="button" class="mb-discussion__button" :disabled="Boolean(busy)" @click="press('cancel')">Cancel</button>
         <button type="button" class="mb-discussion__button mb-discussion__button--go" :disabled="Boolean(busy)" @click="press('start', { rounds })">Start</button>
       </template>
-      <template v-else-if="body.status === 'waiting' && mine">
+      <template v-else-if="awaitsPress && mine">
         <button type="button" class="mb-discussion__button" :disabled="Boolean(busy)" @click="press('stop')">Stop</button>
-        <button v-if="body.round < body.rounds" type="button" class="mb-discussion__button" :disabled="Boolean(busy)" @click="press('round')">One more round</button>
+        <button v-if="body.round < body.rounds && !body.wrapping" type="button" class="mb-discussion__button" :disabled="Boolean(busy)" @click="press('round')">One more round</button>
         <button type="button" class="mb-discussion__button mb-discussion__button--go" :disabled="Boolean(busy)" @click="press('wrap')">Wrap up</button>
       </template>
-      <button v-else-if="body.status !== 'proposed' && mayStop" type="button" class="mb-discussion__button" :disabled="Boolean(busy)" @click="press('stop')">Stop</button>
+      <button v-else-if="state !== 'proposed' && mayStop" type="button" class="mb-discussion__button" :disabled="Boolean(busy)" @click="press('stop')">Stop</button>
     </div>
   </section>
 </template>
@@ -157,7 +170,8 @@ async function press(verb, input = {}) {
   color: rgb(var(--v-theme-info));
 }
 
-.mb-discussion__status--waiting {
+.mb-discussion__status--waiting,
+.mb-discussion__status--interrupted {
   background: rgba(var(--v-theme-warning), 0.15);
   color: rgb(var(--v-theme-warning));
 }

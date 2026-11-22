@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createMeter, currentWork } from "../../packages/account/src/server/meter.js";
+import { createMeter, createMeteredFetch, currentWork } from "../../packages/account/src/server/meter.js";
 import { WORK } from "../../packages/account/src/server/providers/index.js";
 import { DISCUSSION_LIMITS, discussionTokens } from "../../packages/bots/src/server/discussions.js";
 import { seedChat } from "../support/chatFixtures.mjs";
@@ -11,22 +11,32 @@ import { memberOptions } from "../support/botRecords.mjs";
 // more bots, proposed with what it may cost (the meter's estimate), started only by its person's press; each round one
 // turn per bot, that only talks and may PASS, metered to the person and the speaking bot; no round runs without a
 // press; a round of passes ends it; Wrap up has one bot sum it up; the server's cap stops it mid-round; Stop ends it and
-// lets go of the bots, which then answer what was written meanwhile. The model is a scripted reply, the spending the
-// test's own: a turn costs what the script says.
+// lets go of the bots, which then answer what was written meanwhile, and a turn in progress ends at the next heartbeat;
+// a discussion counts only its own turns' calls; a round whose server stopped reads as interrupted once its lease
+// lapses. The model is a scripted reply that makes one call through the meter, as every AI call goes, costing what the
+// script says.
 assert.ok(process.env.TEST_DB_NAME?.trim(), "TEST_DB_NAME must identify a disposable test database.");
 assert.equal(process.env.DB_NAME, process.env.TEST_DB_NAME, "DB_NAME must match the dedicated TEST_DB_NAME.");
 
 const MANAGE = ["workspace.settings.update"];
 // The test's prices, in nanodollars per token: what the chat AI's estimate answers.
-const PER_INPUT = 300;
-const PER_OUTPUT = 1200;
+const PER_INPUT = 1;
+const PER_OUTPUT = 4;
+// A model call through the meter, as every AI call goes: an answer giving `nano` input tokens, so `nano` nanodollars at
+// the test's prices.
+const modelCall = createMeteredFetch({}, "stand-in");
+const callCosting = (nano) =>
+  modelCall(`data:application/json,${encodeURIComponent(JSON.stringify({ usage: { prompt_tokens: Math.round(nano), completion_tokens: 0 } }))}`);
+const isDiscussion = (prompt) => String(prompt ?? "").startsWith("(A discussion");
+const seatsOf = async (knex, chatId) => (await knex("chat_bots").where({ conversation_id: chatId }).orderBy("position")).map((row) => ({ id: String(row.id), botId: String(row.bot_id) }));
 
 /**
  * A home of Pat (its owner), Kim and Lee, with Pat's bots Ada, Bo and Cy, and the turns, whose replies follow
- * `script(bot, prompt, options)` (a text, PASS, or a promise of either) and spend `cost(bot)` dollars each, which the
- * meter's spentSince adds up per person and bot. Every turn is kept in `turns`.
+ * `script(bot, prompt, options)` (a text, PASS, or a promise of either) and make one model call costing
+ * `cost(bot, prompt)` nanodollars, which the recorder adds up per person and bot (the meter's spentSince, which a
+ * discussion must not count by). Every turn is kept in `turns`. `discussionLimits` replaces the discussion's.
  */
-async function setup(context) {
+async function setup(context, { discussionLimits } = {}) {
   const spent = new Map();
   const estimates = [];
   const meter = {
@@ -39,15 +49,18 @@ async function setup(context) {
     spentSince: async ({ userId, botId }) => spent.get(`${userId}:${botId}`) || 0
   };
   const turns = [];
-  const steer = { script: (bot) => `${bot.name}: a point.`, cost: () => 0.000001 };
+  const steer = { script: (bot) => `${bot.name}: a point.`, cost: () => 1000 };
   const kit = await startChatTurns(context, {
+    ...(discussionLimits ? { discussionLimits } : {}),
     meter,
     reply: async (bot, _timeline, tools, _state, prompt, options) => {
       const turn = { bot: bot.name, prompt, tools: Object.keys(tools), who: meter.currentMeter(), work: currentWork(), options };
       turns.push(turn);
       const said = await steer.script(bot, prompt, options);
+      const cost = steer.cost(bot, prompt);
+      await callCosting(cost);
       const key = `${turn.who.userId}:${turn.who.botId}`;
-      spent.set(key, (spent.get(key) || 0) + steer.cost(bot));
+      spent.set(key, (spent.get(key) || 0) + cost / 1e9);
       if (options.followUp && said === "PASS") return { text: "", transcript: [], passed: true };
       return { text: said, transcript: [] };
     }
@@ -70,7 +83,10 @@ async function setup(context) {
   }
   const said = async (chatId) => (await kit.knex("messages").where({ conversation_id: chatId, role: "bot", kind: "text" }).orderBy("id"))
     .map((row) => ({ bot: String(row.author_bot_id), text: row.body.text, discussion: row.body.discussion, round: row.body.round, answers: row.body.answers }));
-  return { ...kit, meter, spent, estimates, turns, steer, homeId, pat, kim, lee, ada, bo, cy, owner, as, chatOf, chat, propose, cardOf, press, said };
+  /** The card as a page reads it now: the chat's newest page, as the person reads it. */
+  const shown = async (chatId, cardId, person) =>
+    (await kit.records.messages.timeline(chatId, {}, as(person))).messages.find((message) => message.id === String(cardId)).body;
+  return { ...kit, meter, spent, estimates, turns, steer, homeId, pat, kim, lee, ada, bo, cy, owner, as, chatOf, chat, propose, cardOf, press, said, shown };
 }
 
 test("a discussion needs two bots, the chat's person and a question, and is proposed with what it may cost", async (context) => {
@@ -186,7 +202,7 @@ test("the server's cap stops it mid-round, before a turn that could pass it", as
   const { choices } = await cardOf(card.id);
   // Ada's turn costs all but half a turn of the cap for 1 round: Bo's turn could pass it, so it never starts.
   const cap = choices[0].upToNano;
-  steer.cost = (bot) => (bot.name === "Ada" ? (cap - choices[0].turnNano / 2) / 1e9 : 0.000001);
+  steer.cost = (bot) => (bot.name === "Ada" ? cap - choices[0].turnNano / 2 : 1000);
   await press("start", kitchen, card.id, kim, { rounds: 1 });
   const body = await cardOf(card.id);
   assert.deepEqual([body.status, body.ended], ["ended", "cap"]);
@@ -254,4 +270,96 @@ test("a bot still answering refuses the press and keeps the others free; Cancel 
   assert.equal((await chat.cancelDiscussion(kitchen, other.id, as(kim))).message.body.ended, "cancelled");
   await assert.rejects(press("start", kitchen, other.id, kim), { statusCode: 409, code: "bots_discussion_started" });
   await assert.rejects(chat.cancelDiscussion(kitchen, card.id, as(kim)), { statusCode: 409 }, "a started one is stopped, not cancelled");
+});
+
+test("a discussion counts only its own turns: the person's other work with its bots meanwhile doesn't bring its cap nearer", async (context) => {
+  const { kim, ada, bo, turns, steer, spent, as, chatOf, chat, propose, cardOf, drain } = await setup(context);
+  const kitchen = await chatOf([ada, bo]);
+  const elsewhere = await chatOf([ada], [kim]);
+  const card = await propose(kitchen, kim, "Tiles or wood?");
+  const { choices } = await cardOf(card.id);
+  let release;
+  const held = new Promise((resolve) => {
+    release = resolve;
+  });
+  // Kim's other work with Ada costs twice what the whole discussion may.
+  steer.cost = (_bot, prompt) => (isDiscussion(prompt) ? 1000 : 2 * choices[0].upToNano);
+  steer.script = (bot, prompt) => (bot.name === "Ada" && isDiscussion(prompt) ? held.then(() => "Ada: tiles.") : `${bot.name}: sure.`);
+  await chat.startDiscussion(kitchen, card.id, { rounds: 1 }, as(kim));
+  while (!turns.length) await new Promise((resolve) => setImmediate(resolve));
+
+  const sent = await chat.sendMessage(elsewhere, { text: "Ada, what's for dinner?" }, as(kim));
+  const answer = await chat.reply(elsewhere, { afterMessageId: sent.messages.at(-1).id }, undefined, as(kim));
+  assert.equal(answer.messages?.at(-1)?.body.text, "Ada: sure.", "Ada answered Kim in another chat meanwhile");
+  assert.ok(spent.get(`${kim}:${ada}`) * 1e9 > choices[0].upToNano, "Kim's work with Ada since it started is past its cap");
+  release();
+  await drain();
+
+  const body = await cardOf(card.id);
+  assert.deepEqual([body.status, body.ended], ["waiting", null], "its cap wasn't reached: round 1 ran to its end");
+  assert.deepEqual(turns.filter((turn) => isDiscussion(turn.prompt)).map((turn) => turn.bot), ["Ada", "Bo"]);
+  assert.deepEqual(body.spentByBot, { [ada]: 1000, [bo]: 1000 }, "each bot's turns in it, and nothing else");
+  assert.equal(body.spentNano, 2000);
+});
+
+test("a round whose server stopped reads as interrupted once its lease lapses, and its person carries on on the runs it left", async (context) => {
+  const { knex, kim, lee, ada, bo, turns, chatOf, propose, cardOf, press, shown } = await setup(context);
+  const kitchen = await chatOf([ada, bo], [kim, lee]);
+  const card = await propose(kitchen, kim, "Tiles or wood?");
+  await press("start", kitchen, card.id, kim, { rounds: 3 });
+  // Round 2 started on a server that then stopped: the card says it runs, and the bots' runs are that server's, stale.
+  const seats = await seatsOf(knex, kitchen);
+  await knex("agent_runs").insert(seats.map((seat) => ({
+    conversation_id: seat.id, bot_id: seat.botId, user_id: kim, heartbeat_at: knex.raw("now() - interval '5 minutes'")
+  })));
+  const leased = (seconds) => knex("messages").where({ id: card.id }).update({
+    body: knex.raw("body || ?::jsonb", [JSON.stringify({ status: "running", run: "a-stopped-server", round: 2, leaseUntil: new Date(Date.now() + seconds * 1000).toISOString() })])
+  });
+
+  await leased(60);
+  assert.equal((await shown(kitchen, card.id, lee)).status, "running", "while its lease holds, it runs");
+  await assert.rejects(press("round", kitchen, card.id, kim), { statusCode: 409, code: "bots_discussion_not_waiting" });
+
+  await leased(-1);
+  assert.equal((await shown(kitchen, card.id, lee)).status, "interrupted", "lapsed, it never reads as running");
+  assert.equal((await shown(kitchen, card.id, kim)).status, "interrupted");
+  const before = turns.length;
+  await press("round", kitchen, card.id, kim);
+  const body = await cardOf(card.id);
+  assert.deepEqual([body.status, body.round], ["waiting", 3], "One more round ran, on the runs the stopped server left");
+  assert.notEqual(body.run, "a-stopped-server");
+  assert.deepEqual(turns.slice(before).map((turn) => turn.bot), ["Ada", "Bo"]);
+  assert.equal(await knex("agent_runs").whereIn("conversation_id", seats.map((seat) => seat.id)).first(), undefined, "and let them go");
+});
+
+test("Stop during a turn ends it at the round's next heartbeat, which renews the card's lease while the round runs", async (context) => {
+  const { knex, kim, lee, ada, bo, turns, steer, as, chatOf, chat, propose, cardOf, drain, said, shown } = await setup(context, {
+    discussionLimits: { heartbeatMs: 50, leaseMs: 300 }
+  });
+  const kitchen = await chatOf([ada, bo], [kim, lee]);
+  const card = await propose(kitchen, kim, "Tiles or wood?");
+  // Ada's turn talks until it's stopped, or for 5 seconds at most.
+  steer.script = (bot, _prompt, options) => new Promise((resolve, reject) => {
+    const late = setTimeout(() => resolve(`${bot.name}: at last.`), 5000);
+    options.signal?.addEventListener("abort", () => {
+      clearTimeout(late);
+      reject(options.signal.reason);
+    }, { once: true });
+  });
+  await chat.startDiscussion(kitchen, card.id, { rounds: 1 }, as(kim));
+  while (!turns.length) await new Promise((resolve) => setImmediate(resolve));
+  await new Promise((resolve) => setTimeout(resolve, 600));
+  assert.equal((await shown(kitchen, card.id, lee)).status, "running", "twice its lease later, renewed at each heartbeat");
+
+  const stoppedAt = Date.now();
+  await chat.stopDiscussion(kitchen, card.id, as(kim));
+  await drain();
+  assert.ok(Date.now() - stoppedAt < 2000, `the turn stopped at the next heartbeat, not when it would have ended (${Date.now() - stoppedAt} ms)`);
+  assert.equal(turns[0].options.signal.aborted, true, "Ada's turn was stopped");
+  const body = await cardOf(card.id);
+  assert.deepEqual([body.status, body.ended], ["ended", "stopped"]);
+  assert.deepEqual(turns.map((turn) => turn.bot), ["Ada"], "Bo's turn never ran");
+  assert.deepEqual(await said(kitchen), [], "the stopped turn posted nothing");
+  const seats = await seatsOf(knex, kitchen);
+  assert.equal(await knex("agent_runs").whereIn("conversation_id", seats.map((seat) => seat.id)).first(), undefined, "its runs are free");
 });

@@ -1,5 +1,6 @@
 import { retryLostInsertRace } from "@jskit-ai/database-runtime/shared";
 import { estimateAtProvider, kindOf, providerCostNano } from "./cost.js";
+import { callFigures } from "./meter.js";
 
 // Mercbot's own recorder (D-56, D-73): every AI call, a computer's day and its commands' computation are counted for
 // their home, person and bot, with what the call cost at its provider. It never refuses work. Each finished piece of
@@ -13,8 +14,6 @@ const MINUTE_MS = 60 * 1000;
 /** A bot's maker, home and name, kept this long for its calls, for at most this many bots. */
 const BOT_FOR_MS = 10 * MINUTE_MS;
 const BOTS_KEPT = 2000;
-/** A model's text is about four characters a token: what an estimate counts by. */
-const CHARS_PER_TOKEN = 4;
 /** How a call ended when it gave no figures of its own: counted as an estimate. */
 export const ESTIMATES = Object.freeze(["cut", "lost", "no_usage"]);
 
@@ -107,17 +106,12 @@ export async function addTo(handle, key, amounts, also, txOptions) {
  * @param {{ state?: string, cacheHit?: number, cacheMiss?: number, output?: number, images?: number, reportedCost?: number, tier?: string, outputChars?: number }} outcome
  */
 export function callUsage(ticket, outcome) {
-  const state = outcome.state || "no_usage";
-  const tokens = (chars) => Math.round((chars || 0) / CHARS_PER_TOKEN);
-  const usage = state === "done" ? outcome : state === "failed" ? {} : { cacheMiss: tokens(ticket.requestChars), output: tokens(outcome.outputChars) };
+  const figures = callFigures(ticket.requestChars, outcome);
+  const { reportedCost: _reportedCost, ...used } = figures;
   return {
-    state,
-    cacheHit: usage.cacheHit || 0,
-    cacheMiss: usage.cacheMiss || 0,
-    output: usage.output || 0,
-    images: usage.images || 0,
+    ...used,
     servedBy: [ticket.provider, outcome.tier].filter((part) => part && part !== "default").join("/") || null,
-    costNano: state === "failed" ? 0 : providerCostNano(usage, ticket.provider || "", ticket.pictures)
+    costNano: figures.state === "failed" ? 0 : providerCostNano(figures, ticket.provider || "", ticket.pictures)
   };
 }
 

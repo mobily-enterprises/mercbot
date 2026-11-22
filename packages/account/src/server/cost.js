@@ -46,9 +46,10 @@ export function providerCostNano(usage, provider, pictures = 0) {
 /**
  * What some tokens of an AI call would cost a home, in nanodollars, before any call is made: Mercbot's own recorder's
  * estimate (usage.js), at the provider's list prices, as a call is counted. A bot's Knowledge shows what it adds to a
- * message with it (D-107).
- * @param {{ workspaceId?: string, kind?: string, provider?: string, cacheHit?: number, cacheMiss?: number, output?: number }} usage
+ * message with it (D-107). Given a call's figures afterwards (meter.js counting), it answers what that call is counted
+ * at, the cost its provider reported included.
+ * @param {{ workspaceId?: string, kind?: string, provider?: string, cacheHit?: number, cacheMiss?: number, output?: number, reportedCost?: number }} usage
  */
-export async function estimateAtProvider({ provider, cacheHit = 0, cacheMiss = 0, output = 0 }) {
-  return providerCostNano({ cacheHit, cacheMiss, output }, provider || "");
+export async function estimateAtProvider({ provider, cacheHit = 0, cacheMiss = 0, output = 0, reportedCost }) {
+  return providerCostNano({ cacheHit, cacheMiss, output, ...(Number.isFinite(reportedCost) ? { reportedCost } : {}) }, provider || "");
 }

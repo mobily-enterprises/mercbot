@@ -3549,8 +3549,11 @@ talks, and approvals stay with people.
     the wrap-up, which the turns are given as their own limits so the estimate holds. Two bots and two rounds in a
     short chat come to about $0.05 at Premium AI's prices ($0.0478 on the Test Preview's card).
   - **Start** fixes the rounds and the cap: the chosen estimate. Before each turn, what the discussion has spent so far
-    (the meter's `spentSince` for each of its bots, as the person who started it, since it started) plus that turn's
-    estimate must stay within the cap, or it ends there, mid-round if need be ("It stopped at its cost limit.").
+    plus that turn's estimate must stay within the cap, or it ends there, mid-round if need be ("It stopped at its cost
+    limit."). What it has spent is its own turns' AI calls only: each turn runs inside `meter.counting`, which hears
+    every call made inside it, and each call is priced as the meter counts it (`meter.estimateNano` on the call's own
+    figures, a cost its provider reported included). The person's other work with the same bots meanwhile, in other
+    chats, never brings the cap nearer.
   - **A round** is one turn per bot, in the chat's order. A turn is the bot's reply with no tools, no checks that send
     it back and no reasoning, asked to add something new (a point, a fact, a risk, a disagreement or a question) or
     reply exactly PASS; a PASS posts nothing. A round in which every bot passes ends the discussion. Its messages carry
@@ -3561,15 +3564,20 @@ talks, and approvals stay with people.
     managers' (its maker, the home's owners and admins). Before Start, its starter can **Cancel** it.
   - **It holds the chat's reply runs.** A round claims each of its bots' runs in the chat (`claimReply`, renewed on its
     heartbeat), so a message written meanwhile finds them busy and is answered once the round lets go
-    (`answerWaiting`). Stop ends the card at once; a running round sees it at its next heartbeat or turn, stops the turn
-    in progress and lets go. A press while one of the bots is still answering something else is refused (409,
-    `bots_discussion_busy`).
+    (`answerWaiting`). Stop ends the card at once; a running round sees it at its next heartbeat (every 15 seconds) or
+    turn, stops the turn in progress and lets go. A press while one of the bots is still answering something else is
+    refused (409, `bots_discussion_busy`).
+  - **A round's card is leased.** Starting a round sets `leaseUntil`, and each heartbeat renews it while the card says
+    that round runs: 75 seconds, a heartbeat past the 60 seconds after which its runs are stale. If the server running
+    it stops, the lease lapses and the card reads as `interrupted` (`botRows.js` `discussionNow`, for every page's read
+    and every press; the card itself also checks the time), never as running: by then its runs are stale, so any server
+    takes them over. Its person may press **One more round** (unless it was wrapping up, and while rounds are left),
+    **Wrap up** or **Stop**, as after a round; only the rest of the interrupted round is lost. A round that was only
+    slow, not stopped, finds its card no longer its own at its next heartbeat and stops.
   - **Metering** (R8): each turn is the person's work with the bot that speaks, on the chat kind of work, so
     **Spending** shows it per bot; the card shows what it has cost so far and in the end.
   - Ended reasons on the card: `passed`, `wrapped`, `stopped`, `cancelled`, `cap`, `paused` (the home was paused) and
     `failed` (a turn's error). The chat list shows a card as "Discussion: <question>".
-  - A round runs on the server that took the press. If that server stops, the card stays running until someone presses
-    Stop (any server can), and only the rest of that round is lost.
 - **Routes** (`packages/bots/src/server/registerRoutes.js`): `POST …/chats/:chatId/discussions` `{ question }` (at most
   500 characters), and `POST …/discussions/:messageId/start` `{ rounds, timeZone?, language? }`, `/round`, `/wrap`,
   `/cancel` and `/stop`, each answering `{ message }`, the card as it now stands.
