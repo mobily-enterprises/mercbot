@@ -106,6 +106,8 @@ export default defineConfig({
   ],
   test: {
     include: ["tests/client/**/*.vitest.js"],
+    // The viewer's locale and time zone are en-US and UTC in every run, whatever the host's (tests/client/viewerDefaults.js).
+    setupFiles: ["tests/client/viewerDefaults.js"],
     // As many test files at once as the machine's test budget allows.
     maxWorkers: testConcurrency(),
     // Vuetify's components import their CSS, so a test that renders a component takes Vuetify through Vite.
