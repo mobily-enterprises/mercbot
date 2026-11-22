@@ -91,7 +91,7 @@ Open the bot's card: select the bot under **Bots** in the sidebar, and in your c
 - **Change its template.** Select **Change template** under the template. See below.
 - **Teach it.** Add text and files it should know, for everyone it talks with, under **Knowledge**, below Instructions. See [What a bot knows](#what-a-bot-knows).
 - **Look after its routines.** Each routine has an on/off switch. Right-click one for **Pause** or **Resume**, **Edit** and **Delete**. Only the person who set a routine up can resume or edit it. See [Skills, routines and watches](/help/skills-and-routines).
-- **Browse its files** on the **Files** tab: the chat's folder when you opened the card from a chat, and its own; **Home files →** opens the home's files, and **Move to…** on a file still offers **Home files**. See what it made in the chats you can open on the **Library** tab. Its **Computer** tab shows its computer in the chat you opened the card from; it has one in each chat it's in.
+- **Browse its files** on the **Files** tab: the file browser, open at the bot's own files, with every other place you can open (this chat, **Home files**, the other bots' files, your rooms) beside them, so you can copy or move a file to any of them (see [Files, documents and pictures](/help/files)). See what it made in the chats you can open on the **Library** tab. Its **Computer** tab shows its computer in the chat you opened the card from; it has one in each chat it's in.
 
 Only the person who made the bot and the home's owners and admins can rename it or change its additions or its template; everyone else in the home can read them. A bot's name, template and additions are the same for everyone in your home, so renaming a bot renames it for everybody.
 

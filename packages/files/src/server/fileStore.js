@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { AppError } from "@jskit-ai/kernel/server/runtime/errors";
+import { placeTransfer } from "./fileCopies.js";
 
 // Where bots' files live (D-20, D-21, D-47, D-112). Files belong to a home, in three kinds of folder:
 //   <root>/homes/<homeId>/chats/<chatId>/    /files/chat: one chat's, for whoever can open it (R6)
@@ -585,6 +586,9 @@ export function createFileStore({ root, fallback, volume = null, ownStorage, set
     await fs.mkdir(target, { recursive: true });
   }
 
+  // Copy to… and Move to… between places (fileCopies.js, D-120).
+  const transfer = placeTransfer({ prepare, existingEntry, existingFolder, makeFolder });
+
   /**
    * Waits until what changed in the home's files here has reached where they're kept: the files bucket (D-91) and the
    * home's own storage (`settle`, D-26).
@@ -639,6 +643,7 @@ export function createFileStore({ root, fallback, volume = null, ownStorage, set
     listFolder,
     folderTree,
     move,
+    transfer,
     remove,
     makeFolder,
     settle: settleHome,

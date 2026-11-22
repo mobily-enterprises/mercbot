@@ -23,15 +23,21 @@ export const fileUrl = (botId, path, { download = true, chat } = {}) =>
   `${filesBase()}/content?${query(path)}${download ? "&download=1" : ""}${and(botId, chat)}`;
 export const previewUrl = (botId, path, chat = undefined) => `${filesBase()}/preview?${query(path)}${and(botId, chat)}`;
 
-// The file browsers (D-47): the folders a person sees with a bot in a chat, or the home's, and changing them.
+// The file browser (D-47): one place's folders (a chat's, through a bot in it or alone; a bot's own; or, naming neither,
+// the home's), changing them, and the places themselves.
 export const filesApi = {
   list: (botId, folder, chat) => client.request(`${filesBase()}?folder=${encodeURIComponent(folder)}${and(botId, chat)}`),
   folders: (botId, chat) => client.request(`${filesBase()}/folders${first(botId, chat)}`),
   move: (botId, from, to, chat) => client.request(`${filesBase()}/move${first(botId, chat)}`, { method: "POST", body: { from, to } }),
   makeFolder: (botId, path, chat) => client.request(`${filesBase()}/folder${first(botId, chat)}`, { method: "POST", body: { path } }),
   remove: (botId, path, chat) => client.request(`${filesBase()}?${query(path)}${and(botId, chat)}`, { method: "DELETE" }),
-  // The home's bots, as the home's Files page shows them: { id, name, color, shape }.
-  homeBots: () => client.request(homePath("/files/bots"))
+  // Every place the person can open (the home's folder, each bot's, the chats they can open), for the file browser's
+  // places and the place picker: { places: [{ kind: "home" } | { kind: "bot", botId, … } | { kind: "chat", chatId, … }] }.
+  places: () => client.request(homePath("/files/places")),
+  // A file or folder copied or moved from one place to another (`place` is { kind, botId | chatId }): its new path.
+  // 409 `files_wider_needs_confirm` until `confirmed` when it leaves a private chat for a wider place.
+  transfer: ({ mode, from, to, confirmed = false }) =>
+    client.request(homePath("/files/transfer"), { method: "POST", body: { mode, from, to, ...(confirmed ? { confirmed: true } : {}) } })
 };
 
 // A bot's HTML pages (D-74): the address its frame loads, ticks, versions with Restore, and a standalone copy. A page in

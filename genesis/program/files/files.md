@@ -11,6 +11,8 @@ card in the chat with a viewer and a download (D-20, D-21).
 - `packages/files/src/server/registerRoutes.js`
 - `packages/files/src/server/types.js`
 - `packages/files/src/server/fileStore.js`
+- `packages/files/src/server/fileTransfer.js`
+- `packages/files/src/server/fileCopies.js`
 - `packages/files/src/server/filesVolume.js`
 - `packages/files/src/server/s3Bucket.js`
 - `packages/files/src/server/filesCipher.js`
@@ -41,6 +43,10 @@ card in the chat with a viewer and a download (D-20, D-21).
 - `src/components/mercbot/MercbotFileViewer.vue`
 - `src/components/mercbot/useEscapeToClose.js`
 - `src/components/files/FileBrowser.vue`
+- `src/components/files/FileBrowser.css`
+- `src/components/files/MercbotPlacePicker.vue`
+- `src/components/files/filePlaces.js`
+- `src/components/files/useFileTransfer.js`
 - `src/components/files/HomeFiles.vue`
 - `src/components/files/MercbotFilesEntry.vue`
 - `src/pages/w/[workspaceSlug]/files/index.vue`
@@ -266,7 +272,35 @@ through `chatPlace.js` `placeQuery`), and `path` is a bot path (`/files/chat/…
 
 - `GET …/files?folder=` lists one of the place's folders (`listFolder`), and
   `GET …/files/folders` every folder there is (`folderTree`, for Move to…); `POST …/files/move
-  {from, to}`, `POST …/files/folder {path}` and `DELETE …/files?path=` change them.
+  {from, to}` (moving and renaming inside one place), `POST …/files/folder {path}` and `DELETE …/files?path=` change
+  them.
+
+Two routes name their places in the body instead (`fileTransfer.js`, D-120), each place
+`{kind: "home"} | {kind: "bot", botId} | {kind: "chat", chatId}`, resolved with the caller's rights as `placeOf` does
+(404 `files_place_not_found` for one they can't open, a bot of another home or an id that isn't one; a chat's place is
+widened, the person's own doing):
+
+- `GET …/files/places` answers `{places}`: `{kind: "home", label: "Home files"}`, then every bot of the home that isn't
+  archived, in id order (`{kind: "bot", botId, name, color, shape, main}`), then every chat the person can open, newest
+  made first (`{kind: "chat", chatId, title, private, direct: "bot" | "person" | null, archived}`): their own, hidden
+  and archived ones too, and the public rooms they aren't in, a direct chat titled by its other side. Three reads (the
+  bots, `directory.openableChats`, the other people's names) whatever the number of chats.
+- `POST …/files/transfer {mode: "copy" | "move", from: {place, path}, to: {place, folder}, confirmed?}` copies or moves
+  a file or a whole folder and answers `{path}`, the full path where it arrived. Paths are full bot paths under the
+  place's own folder: `/files/shared/…` for the home, `/files/bot/…` for a bot, `/files/chat/…` for a chat (400
+  `files_path_outside` for any other, or for the folder itself as the source). A folder that isn't there yet is made;
+  a name taken there gets " (2)", " (3)" before its extension. Refusals: 404 `files_file_gone` for a source that isn't
+  there; 409 `files_transfer_same` for a move into the folder it's in, or a folder into itself or one of its folders;
+  409 `bots_chat_archived` into an archived chat, or a move out of one; 409 `files_storage_moving` while the home's
+  files move (D-80); and 409 `files_wider_needs_confirm` ("Everyone who can open <place> will see this file.
+  Continue?", `params.place`) when the source is a private chat (a private room, a chat with a bot or between two
+  people) and the destination is the home's files, a bot's, a public room, or a private chat with someone not among
+  the source's people, unless `confirmed` is `true`. The store's `transfer` (`fileCopies.js` `placeTransfer`) renames
+  a move (copying then removing across disks), and copies a folder one directory entry at a time, links left out,
+  never reading the tree into memory. Every file that arrived is queued for a copy's check like a bot's saved file
+  (`media.filesLater`, 200 at a time, each batch after the files are settled, D-90); a moved page's versions and
+  publication follow it, into another bot's folder too (`pages.pathChanged` with `toBotId`, D-74); a copied page gets a
+  new key and no versions (`pages.copied`).
 
 - `GET …/files/content?path=[&download=1]` sends the file (read whole;
   the router doesn't pass streams through). Only
@@ -310,17 +344,32 @@ through `chatPlace.js` `placeQuery`), and `path` is a bot path (`/files/chat/…
   more}`, `{kind: "image"}` or `{kind: "text", text, more}`, or 415 when there's no
   preview.
 
-The file browsers (D-47): `FileBrowser` shows a place's folders with breadcrumbs and open,
-download, upload, new folder, Move to…, rename and delete. It reads each folder as it is opened,
-so a folder's older files and folders that hold only old files are reached however many newer
-files the rest of the place has. Chat details has a Files tab (the chat's folder, "This chat"), and a bot's card a
-Files tab ("This chat" when opened from a chat, "<Bot>'s files" and the home's); the viewer offers Edit on computer
-for a file of the chat open; the sidebar's Files button, beside Search and before Apps, opens `/w/<home>/files`, with the home's folder and
-the home's bots (`GET …/files/bots`: `{bots: [{id, name, color, shape}]}`), each leading to `?bot=<id>&files=1` (that
-bot's card on Files).
+The file browser (D-47): one `FileBrowser` everywhere. On the left it lists every place the person can open, read
+once as it opens (`GET …/files/places`, ordered by `filePlaces.js` `orderPlaces`): the chat it was opened from first
+("This room", or "This chat" for a direct chat), then Home files, then the bots (the home's main bot first, when the
+place says `main`), then the rooms and chats ("Rooms and chats", an archived one taking nothing new). On the right it
+shows one folder of the place chosen, with breadcrumbs, upload and new folder, reading each folder as it is opened
+(`useFolderListing`), so a folder's older files and folders that hold only old files are reached however many newer
+files the rest of the place has. Where it is narrower than 600px (a phone, or the details panel) the places are a
+picker at the top instead. Each place is reached by the per-place routes as before: the home's naming neither chat nor
+bot, a bot's naming the bot, a chat's naming the chat (through the bot whose card it's on, or the chat's first bot, for
+the chat it was opened from, so the viewer offers Edit on computer there). The sidebar's Files button, beside Search
+and before Apps, opens `/w/<home>/files`, the browser at Home files; chat details' Files tab opens it at the chat; a
+bot's card's Files tab at the bot's own files (`?bot=<id>&files=1` still opens that card on Files).
+
+Every file and folder has Open, Download (files), Rename, Copy to…, Move to… and Delete. Copy to… and Move to… open
+`MercbotPlacePicker` (a place, then a folder in it, then "Copy here" or "Move here"; it refuses an archived chat, a
+folder into itself and a move to where it already is). Rows drag onto the places in the left column: a move, or a copy
+with Ctrl held (⌥ on a Mac), the place saying "Move to <place>" or "Copy to <place>" while something is over it.
+`useFileTransfer` runs all of them alike: a move inside one place is the place's own `POST …/files/move`; anything else
+is `POST …/files/transfer`, and its 409 `files_wider_needs_confirm` asks "Everyone who can open <place> will see this
+file. Continue?", sending it again with `confirmed: true` on Continue. Refusals go to the shared snackbar, in the
+server's words. The message box's + has Add from files…: the same picker over every other place, choosing files, each
+copied into the chat's `Uploads` by the same transfer and attached to the message being written as an attached upload
+is (`useComposerFiles` `addCopies`: its name, size and path in the chat's folder); a file not copied is left out.
 
 The bots package gives each reply the tools `list_files`, `app_help`, `use_app`,
-`move_file` and, in a Private chat, `share_file` (`genesis/program/bots/bot-tools.md`). Every file under `/files/` that an app call names and that was
+`move_file` (inside one folder) and `transfer_file` (to another place, on a card; `genesis/program/bots/bot-tools.md`). Every file under `/files/` that an app call names and that was
 saved during the reply becomes a `files` message (`{files: [{path, name, size}]}`)
 after the reply's text. The timeline shows it as file cards, and the viewer shows
 page pictures.
@@ -334,8 +383,10 @@ page pictures.
 - `tests/server/driveMount.test.js`
 - `tests/server/driveStorage.integration.js`
 - `tests/server/fileMoves.integration.js`
+- `tests/server/fileTransfer.integration.js`
 - `tests/client/storageNotices.vitest.js`
 - `tests/client/uploadRefusal.vitest.js`
+- `tests/client/fileBrowser.vitest.js`
 - `tests/e2e/files.spec.ts`
 - `tests/e2e/drive-storage.spec.ts`
 - `tests/server/filesRoutes.integration.js`

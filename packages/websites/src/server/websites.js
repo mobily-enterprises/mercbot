@@ -322,13 +322,14 @@ export function createWebsites({ resources, systemContext, env, pages, runsThisC
   /**
    * Follows a page as it moves or goes in its home's files (files.pages.follow): its publication moves with it and
    * keeps its address, or its copy is taken off the website and the publication goes. A copy that can't be taken off
-   * now stays on the website.
+   * now stays on the website. A page moved into another bot's folder (`toBotId`) becomes that bot's.
    */
-  async function pageChanged({ homeId, botId, from, to }) {
+  async function pageChanged({ homeId, botId, from, to, toBotId = null }) {
     const options = inHome(homeId);
     const where = botId ? { botId, path: from } : { path: from };
     if (to) {
-      await pagePublications.patchWhere(where, { path: to }, { ...passedOn(options), returning: "none" });
+      // A page moved into another bot's folder is that bot's now (Move to…).
+      await pagePublications.patchWhere(where, { path: to, ...(toBotId ? { botId: String(toBotId) } : {}) }, { ...passedOn(options), returning: "none" });
       return;
     }
     const publications = await pagePublications.queryAll({ filters: where, fields: PUBLICATION_FIELDS }, passedOn(options));

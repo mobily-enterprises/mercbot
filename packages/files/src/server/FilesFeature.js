@@ -2,6 +2,7 @@ import { defineFeature } from "@jskit-ai/kernel/server/features";
 import { registerDriveTokenRoute } from "./driveTokenRoute.js";
 import { FILE_STORAGE_FILTERS } from "./fileMoves.js";
 import { createFilesRuntime } from "./filesRuntime.js";
+import { createFileTransfer } from "./fileTransfer.js";
 import { MEDIA_CHECK_FILTERS } from "./mediaChecks.js";
 import { registerPageRoutes } from "./pageRoutes.js";
 import { PROFILE_PICTURES, profilePictureDriver } from "./profilePictures.js";
@@ -68,7 +69,9 @@ const FilesFeature = defineFeature({
    * @param {(reason: string) => object} capabilities.systemContext
    */
   async setup({ records, http, fastify, uploads, storage, integrations, env, meter, sweeps, mediaCheck, resources, systemContext }) {
-    const files = createFilesRuntime({ resources, systemContext, env, meter, integrations, mediaCheck });
+    const runtime = createFilesRuntime({ resources, systemContext, env, meter, integrations, mediaCheck });
+    // Copy to… and Move to… between the places a person can open: chats and bots are the records' (D-120).
+    const files = Object.freeze({ ...runtime, transfer: createFileTransfer({ files: runtime, records }) });
     sweeps.useFilesSync(files.volume.sync);
     registerRoutes(http, { files, records, uploads });
     // A Google Drive mount's rclone asks this server for its keys, at its own address (D-80), and so does a move's,

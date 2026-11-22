@@ -320,20 +320,38 @@ export function createPages({ store, resources, systemContext, env, insecure = f
    * person or a bot, or was deleted from the Library: its versions follow it, or go, so a later page at
    * the same path never shows old versions. A page in a
    * bot's folder is that bot's (`botId`); one in the home's folder, any bot's. The move or delete was
-   * already allowed, so this runs in the home's own context, as a bot's saves do. Then whatever else
-   * follows pages (`follow`) is told, with `botId` null for a page in the home's folder.
+   * already allowed, so this runs in the home's own context, as a bot's saves do. A page moved into another bot's
+   * folder (Move to…, fileTransfer.js) names that bot, `toBotId`, and becomes its page. Then whatever else follows
+   * pages (`follow`) is told, with `botId` null for a page in the home's folder, and `toBotId` the bot it's now in when
+   * it moved into another bot's folder.
    */
-  async function pathChanged({ homeId, botId, from, to }) {
+  async function pathChanged({ homeId, botId, from, to, toBotId = null }) {
     if (!isPagePath(from)) return;
     const mine = from.startsWith("/files/bot/");
     if (mine && !botId) return;
     const where = mine ? { botId: String(botId), path: from } : { path: from };
     const write = { ...inHome(homeId), returning: "none" };
     const stays = Boolean(to) && isPagePath(to);
-    if (stays) await pageVersions.patchWhere(where, { path: to }, write);
+    const ownerNow = stays && to.startsWith("/files/bot/") && toBotId != null ? String(toBotId) : null;
+    if (stays) await pageVersions.patchWhere(where, { path: to, ...(ownerNow ? { botId: ownerNow } : {}) }, write);
     else await pageVersions.deleteWhere(where, write);
     const change = { homeId: String(homeId), botId: mine ? String(botId) : null, from, to: stays ? to : null };
+    if (ownerNow) change.toBotId = ownerNow;
     for (const follower of followers) await follower(change);
+  }
+
+  /**
+   * A page copied somewhere else (Copy to…, fileTransfer.js) is a page of its own: its copy gets a new key, so the
+   * original's link never opens it, and starts with no versions. Anything that isn't a page is left as it is.
+   * @param {{ place: object, path: string }} copy where the copy is
+   */
+  async function copied({ place, path: pagePath }) {
+    if (!isPagePath(pagePath)) return;
+    const current = await readDocument(place, pagePath, { writing: true }).catch(() => null);
+    if (!current || !pageKeyOf(current.document)) return;
+    const { document } = current;
+    prepareForSave(document, { title: describePage(document).title || pageNames(pagePath).name.replace(/\.html$/u, ""), key: newPageKey() });
+    await writeFile(place, pagePath, writePage(document));
   }
 
   const followers = [];
@@ -464,6 +482,7 @@ export function createPages({ store, resources, systemContext, env, insecure = f
     versions,
     restore,
     pathChanged,
+    copied,
     follow,
     published,
     standalone,

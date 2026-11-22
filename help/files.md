@@ -8,6 +8,8 @@ Bots don't just talk: they read the files you send and make real ones for you, s
 2. Choose one or more files. Each appears above the message box with its name and size; select its cross to remove it.
 3. Add a note if you like ("Summarise the second section"), or just send.
 
+To attach a file that's already in Mercbot, in another room, a bot's files or Home files, select **+** then **Add from files…**, choose a place, then the file or files, and select **Add**. Each is copied into this chat's **Uploads** folder (the original stays where it was) and attached to your message.
+
 Each file you attach is kept in the chat's **Uploads** folder, whoever else is in the chat: other people, bots, or people only. Everyone who can open the chat can open it there, and nobody else. The bots in the chat are told where it is and can open it now, or later in the chat when you ask about it again. If a file with the same name is already there, the new one gets a number added.
 
 ### What bots can read
@@ -60,13 +62,29 @@ You can ask a bot "What files do you have?" at any time. It lists the chat's fil
 
 ### See and manage the files yourself
 
-- **A chat's files:** select **Chat details** at the top of the chat and choose **Files**: **This chat**, then the home's folder. In your direct chat with a bot, Chat details shows the bot's card: its **Files** tab starts with **This chat**, then the bot's folder, and **Home files →** opens the home's. **Move to…** on a file there still offers **Home files**.
-- **A bot's files:** open its card and choose **Files**: the bot's folder and the home's.
-- **The home's files:** choose **Files**, the folder button beside **Search** at the top of the sidebar. You see the home's folder, then **Bots' files**: select a bot to open its card at its **Files**.
+There's one file browser, wherever you open it:
+
+- **The home's files:** choose **Files**, the folder button beside **Search** at the top of the sidebar. It opens at **Home files**.
+- **A room's files:** select **Chat details** at the top of the room and choose **Files**. It opens at **This room**.
+- **A bot's files:** open its card and choose **Files**. It opens at the bot's own files. In your direct chat with a bot, Chat details shows the bot's card.
+
+On the left the browser lists every place you can open: **This room** (or **This chat**) when you opened it from one, **Home files**, each bot's files under **Bots**, and your rooms and chats under **Rooms and chats**. Select a place to see its files. On a phone, or in the narrow details panel, the places are a list at the top instead.
 
 Each folder shows its newest 300 files and says how many older ones it leaves out. A folder with more than 5,000 files shows the newest 300 of the first 5,000 it finds, and says so.
 
-Wherever a folder is shown, you can open a file in the viewer, download it, upload files, make a folder, and use a file's **⋮** menu to **Move to…** another folder shown there, **Rename** it or **Delete** it. Deleting asks first and can't be undone; a folder can only be deleted when it's empty.
+You can upload files and make a folder in the folder you're in. Each file and folder has a **⋮** menu with **Open**, **Download**, **Rename**, **Copy to…**, **Move to…** and **Delete**. Deleting asks first and can't be undone; a folder can only be deleted when it's empty.
+
+#### Copy or move a file to another place
+
+1. Select **⋮** beside the file or folder, then **Copy to…** or **Move to…**.
+2. Choose the place, then open the folder you want it in.
+3. Select **Copy here** or **Move here**.
+
+Copying keeps the original; moving takes it away from where it was. If a file with the same name is already there, the new one gets a number added, such as "Report (2).pdf".
+
+You can also drag a file or folder onto a place in the left column: dragging moves it. Hold **Ctrl** (**⌥** on a Mac) while you drag to copy it instead. The place says **Move to…** or **Copy to…** while you hold the file over it.
+
+If the file comes from a private room or chat and the place you chose can be opened by more people, such as **Home files**, a bot's files or a public room, Mercbot asks first, naming the place, for example "Everyone who can open Home files will see this file. Continue?" Nothing is copied or moved unless you select **Continue**.
 
 ### The home's own storage
 

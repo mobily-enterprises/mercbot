@@ -12,6 +12,7 @@ import { GITHUB_ACTIONS } from "./githubTools.js";
 import { CONNECTOR_ACTIONS } from "./connectorTools.js";
 import { SIGN_IN_CODE_ACTIONS } from "./signInCodes.js";
 import { SEDNA_ACTIONS } from "./sednaActions.js";
+import { FILE_ACTIONS } from "./fileTools.js";
 import { additionsChange, changeRefusal, mayChangeBot } from "./botAdditions.js";
 
 export const EMAIL_ADDRESS = /[^\s<>,;"]+@[^\s<>,;"]+\.[a-z]{2,}/iu;
@@ -341,7 +342,9 @@ export const ACTIONS = {
   // A sign-in code the person said yes to, for a page outside a sign-in's chain (D-77).
   ...SIGN_IN_CODE_ACTIONS,
   // The home's Sedna, changed as the person's own Sedna user (D-94).
-  ...SEDNA_ACTIONS
+  ...SEDNA_ACTIONS,
+  // A file copied or moved to another place, only once its person said yes on its card (D-120).
+  ...FILE_ACTIONS
 };
 
 /** What update_routine changes of a routine besides whether it runs. */

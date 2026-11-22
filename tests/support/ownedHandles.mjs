@@ -24,6 +24,7 @@ import { createIntegrationsService } from "../../packages/integrations/src/serve
  * @returns {Promise<{
  *   profiles: import("@jskit-ai/users-core/server/types").UsersProfiles,
  *   memberships: object,
+ *   records: import("../../packages/bots/src/server/types.js").BotRecords,
  *   features: Record<string, { resources: Record<string, any>, systemContext: (reason: string) => object }>
  * }>}
  */
@@ -42,7 +43,7 @@ export async function ownedHandles(knex, context, ownsByFeature) {
       systemContext: runtime.declareSystemScope(featureId, `the ${featureId} tests' own modules, built without starting the feature`)
     };
   }
-  return { profiles: capabilities.profiles, memberships: capabilities.memberships, features };
+  return { profiles: capabilities.profiles, memberships: capabilities.memberships, records: capabilities.records, features };
 }
 
 /**

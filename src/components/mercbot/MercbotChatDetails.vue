@@ -105,9 +105,6 @@ function confirmAsked() {
   command(ASKED[asking.value], { chatId: props.chat.id });
   asking.value = "";
 }
-
-// The chat's folder is reached through one of its bots (or none, in a chat of people only).
-const folderBot = computed(() => (props.chat.bots[0] ? String(props.chat.bots[0].botId) : null));
 </script>
 
 <template>
@@ -256,13 +253,8 @@ const folderBot = computed(() => (props.chat.bots[0] ? String(props.chat.bots[0]
       </section>
     </template>
 
-    <FileBrowser
-      v-else-if="tab === 'files'"
-      :key="`files-${chat.id}`"
-      :bot-id="folderBot"
-      :chat="chat.id"
-      :sections="[{ key: 'chat', label: 'This chat', root: '/files/chat' }, { key: 'shared', label: homeName || 'Whole home', root: '/files/shared' }]"
-    />
+    <!-- The file browser, opened at this chat's folder, with every other place beside it. -->
+    <FileBrowser v-else-if="tab === 'files'" :key="`files-${chat.id}`" :chat="chat" />
 
     <MercbotChatComputers
       v-else

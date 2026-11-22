@@ -63,10 +63,17 @@ subsystem's (`genesis/program/files/files.md`). `list_files` lists the three new
 with `left` and `partial`), `read_file` reads documents, spreadsheets, slides and PDFs through the office apps, text as
 it is and pictures by asking the vision model the bot's question; `app_help` and `use_app` (up to 40 steps a reply)
 work the office apps; `send_files` attaches existing files as cards (reporting missing ones with the closest names);
-`move_file` moves or renames. In a Private chat the bot can't write to `/files/bot` or `/files/shared` (the files
-answer 403 `files_wider_needs_card`): `share_file` asks the person on a card ("Put <name> in this bot's files for
-every chat?" or "… the home's shared files?", "This chat is private." with who will be able to open it, "Share it" /
-"Keep it in this chat"), and only their Yes copies it, with a "Shared" line. Files saved during a reply become a
+`move_file` moves or renames inside one of the three folders; a move to another of them is refused, pointing at
+`transfer_file` (D-120). In a Private chat the bot can't write to `/files/bot` or `/files/shared` (the files answer 403
+`files_wider_needs_card`). `transfer_file {mode: "copy" | "move", from: {path, room?}, to: {folder, room?}}` copies
+or moves a file or folder to another place: another of the bot's folders, or a room's or chat's `/files/chat` named by
+`room` (the name the person sees it by). It checks a file of this place is there, then always asks on an approval card
+for the person the bot works for, whatever approvals say (`ACTIONS.transfer_file`, `alwaysAsks`: "Copy <name> from
+this chat to Home files?", "my files" for `/files/bot`, a room by its quoted name). Only that person answers it (403
+`bots_waiting_for_other` for anyone else); their Go ahead runs the files' transfer (`files.transfer.transfer`,
+`genesis/program/files/files.md`) as them with `confirmed: true`, a room resolved among the chats they can open
+(`chatNamed`), and posts "Moved" or "Copied" with where it went, or "That didn't work" with the refusal's sentence.
+Cards from before it (`share-file`, "Share it") still copy on their Yes. Files saved during a reply become a
 `files` card after its text and come back to the model as a note of their paths; the state note lists the 12 newest.
 An attached file is uploaded to `/files/chat/Uploads` and the message keeps its `path`; pictures (PNG, JPEG, GIF,
 WebP, up to 10 MB) attached to the message being answered reach the model as images; HEIC is refused with a request
@@ -171,6 +178,7 @@ offer to try it. A recording it can't learn from gets a short explanation and no
 
 ## Proved by
 
+- `tests/server/transferFileCard.integration.js`
 - `tests/server/truthfulFiles.test.js`
 - `tests/server/readFileParts.test.js`
 - `tests/server/commandOutput.integration.js`

@@ -3870,3 +3870,48 @@ Decided:
   `tests/client/archiveBots.vitest.js`, `tests/client/settingsSections.vitest.js`,
   `tests/client/commonKnowledgeSettings.vitest.js` (who sees a bin, the empty line, the card's link and where it opens)
   and `tests/client/teamPage.vitest.js` (the card's Files tab and its Home files link).
+
+## D-120 — Copy to… and Move to… between any places (2026-11-22)
+
+Amends D13, D-21 and D-47. Files sat in three kinds of place (a chat's, a bot's, the home's), and moving was possible
+only between the folders the screen at hand showed; a bot in a private chat could only ask to share a file wider.
+
+Decided (server and bot; the file browser's side is described in `genesis/program/files/files.md`):
+- **Places.** `GET …/files/places` lists every place a person can open: Home files, the home's bots that aren't
+  archived (the main bot marked) and every chat they can open, public rooms they aren't in included, in a fixed number
+  of reads.
+- **One transfer.** `POST …/files/transfer` copies or moves a file or a whole folder between any two of them, each
+  resolved with the person's rights (404 otherwise). A name taken gets " (2)"; a missing destination folder is made;
+  folders are copied entry by entry, never read whole into memory. Arriving pictures and videos wait for a copy's
+  check (D-90); a moved page keeps its versions and publication, a copied page is a new page.
+- **Privacy, said out loud.** Out of a private chat into a place someone outside it can open needs `confirmed`
+  (409 `files_wider_needs_confirm`, naming the place). Archived chats take nothing in, and the read-only time while a
+  home's files move storage (D-80) applies.
+- **Bots.** `transfer_file` replaces `share_file` and `move_file`'s moves between folders: always a card for the person
+  the bot works for, whose yes runs the same transfer as them, confirmed. `move_file` stays for moving and renaming
+  inside one folder.
+- **Proof:** `tests/server/fileTransfer.integration.js`, `tests/server/transferFileCard.integration.js`.
+
+## D-121 — One file browser, and a sidebar that shows what's new and what each bot is (2026-11-22)
+
+Amends D-47, D-117 and D-120. The owner, 22 November: "make sure that there is one way of copying/moving, is obvious,
+and it's simple", and of the sidebar: "freshly added things never show up, and they should", "We ABSOLUTELY need the
+skill name for EVERY BOT next to their names", "just the template name … Then on hover, expand".
+
+Decided:
+- **One file browser** for the sidebar's Files, a room's details and a bot's card. Its left column lists every place
+  the person can open (this room or chat first when opened from one; Home files; the bots, main first; rooms and chats,
+  a direct chat named "Chat with <name>"); each screen opens it at its own place. Below 600px of its own width the
+  column becomes a place picker at the top.
+- **One way to copy or move:** every file and folder's menu has Copy to… and Move to…, one picker (a place, named on its
+  own as "Home files", "<Bot>'s files", a room's title or "Chat with <name>", then a folder). Dragging onto a place
+  moves; Ctrl (⌥ on a Mac) copies, and the place says which. Out of a private chat it asks first (D-120).
+- **Add from files…** in the composer's + copies chosen files into the chat (its Uploads folder) and attaches them as
+  uploads are.
+- **Sidebar.** People and Bots show every entry up to 7; past 7 only an entry both added more than 14 days ago and not
+  chatted with for 14 days goes under "N more", and the open one, the main bot, unread and mentions always show. A
+  person's join date isn't in JSKIT's members list, so a person is judged by their direct chat alone. Each bot row
+  shows its template's tag after its name, muted and cut first; the hover (and accessible description) gives the
+  template and its one-line description, while the row's name stays the bot's.
+- **Proof:** `tests/client/fileBrowser.vitest.js`, `tests/client/chatDirectory.vitest.js`, `tests/client/chatList.vitest.js`.
+

@@ -1,3 +1,4 @@
+import { nameOf } from "../files/filePlaces.js";
 import { uploadFile } from "./filesApi.js";
 
 // Text files up to 200 KB are read so the bot can see them.
@@ -14,15 +15,19 @@ async function uploadTo(chat, file) {
 
 /**
  * Attach files. Each file is kept in the open chat's folder, so its bots can read any kind and come back to it later; a
- * file the server refuses is left out, and the refusal reported in its own words.
+ * file the server refuses is left out, and the refusal reported in its own words. Add from files attaches files from
+ * any place the person can open the same way: each is copied into the chat's Uploads first (the original stays where it
+ * was), through `transfer` (useFileTransfer's, which asks before a private chat's file goes where more people see it,
+ * and reports a refusal), and a file not copied is left out.
  * @param {{
  *   attachments: import("vue").Ref<Array<Record<string, any>>>,
  *   chat: () => import("../../types.js").Chat | null,
  *   focusComposer: () => void,
- *   onFailure: (error: unknown) => void
+ *   onFailure: (error: unknown) => void,
+ *   transfer: (request: Record<string, any>) => Promise<string | null>
  * }} options `chat` is the open chat (the composer shows only in one)
  */
-export function useComposerFiles({ attachments, chat, focusComposer, onFailure }) {
+export function useComposerFiles({ attachments, chat, focusComposer, onFailure, transfer }) {
   async function addFiles(event) {
     for (const file of event.target.files || []) {
       const entry = { id: `${file.name}-${file.size}-${Date.now()}`, name: file.name, size: file.size, type: file.type };
@@ -41,5 +46,18 @@ export function useComposerFiles({ attachments, chat, focusComposer, onFailure }
     focusComposer();
   }
 
-  return { addFiles };
+  /**
+   * Files chosen in the place picker ({ item, path, size }: item is the place, filePlaces.js), copied into this chat
+   * (`to`, its place) and attached.
+   */
+  async function addCopies(chosen, to) {
+    for (const file of chosen) {
+      const path = await transfer({ mode: "copy", from: file.item, path: file.path, to, folder: CHAT_UPLOADS });
+      if (!path) continue;
+      attachments.value = [...attachments.value, { id: `${path}-${Date.now()}`, name: nameOf(path), size: file.size, type: "", path }];
+    }
+    focusComposer();
+  }
+
+  return { addFiles, addCopies };
 }

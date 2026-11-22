@@ -37,9 +37,9 @@ const stub = vi.hoisted(() => (vue, name, props = []) => ({
     })
   })
 }));
-// The Files tab's link to the home's Files page, on the open home's surface.
+// Links on the open home's surface.
 vi.mock("@jskit-ai/shell-web/client/navigation/usePaths", () => ({ usePaths: () => ({ page: (path) => `/w/casa${path}` }) }));
-vi.mock("../../src/components/files/FileBrowser.vue", async () => stub(await import("vue"), "FileBrowser", ["botId", "chat", "sections", "moveTargets"]));
+vi.mock("../../src/components/files/FileBrowser.vue", async () => stub(await import("vue"), "FileBrowser", ["botId", "chat"]));
 vi.mock("../../src/components/mercbot/MercbotChatComputers.vue", async () => stub(await import("vue"), "MercbotChatComputers", ["chat", "me", "homeName", "onlyBotId"]));
 vi.mock("../../src/components/apps/MercbotAppsSection.vue", async () => stub(await import("vue"), "MercbotAppsSection", ["bot"]));
 vi.mock("../../src/components/apps/MercbotViewViewer.vue", async () => stub(await import("vue"), "MercbotViewViewer"));
@@ -163,17 +163,15 @@ describe("a bot's card", () => {
     expect(await card({ member: { kind: "bot", bot: { ...chef, canArchive: false } }, allBots: [], manages: true })).toContain("Rename Chef");
   });
 
-  it("has its own files beside another chat, and this chat's first from a chat; the home's only as a link and a place to move to", async () => {
+  it("opens the file browser at its own files, with the chat it's opened from (no link to Home files: the browser lists it)", async () => {
     shellPreferences.detailsTab = "files";
     const team = await card();
     expect(team).toContain("data-chat=\"null\"");
     expect(team).toContain("data-bot-id=\"\"7\"\"");
-    expect(team).toContain("data-sections=\"[{\"key\":\"bot\",\"label\":\"Chef's files\",\"root\":\"/files/bot\"}]\"");
-    expect(team).toContain("data-move-targets=\"[{\"key\":\"shared\",\"label\":\"Home files\",\"root\":\"/files/shared\"}]\"");
-    expect(team).toMatch(/<a href="\/w\/casa\/files"[^>]*>Home files →<\/a>/u);
+    expect(team).not.toContain("Home files →");
     const inChat = await card({ chat: kitchen });
-    expect(inChat).toContain("data-chat=\"\"55\"\"");
-    expect(inChat).toContain("data-sections=\"[{\"key\":\"chat\",\"label\":\"This chat\",\"root\":\"/files/chat\"},{\"key\":\"bot\"");
+    expect(inChat).toMatch(/data-chat="\{"id":"55"/u);
+    expect(inChat).toContain("data-bot-id=\"\"7\"\"");
   });
 
   it("says beside another chat where its computers are, with the chats to open; from a chat, its computer there", async () => {

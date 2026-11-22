@@ -1,4 +1,4 @@
-import { copyFile, mkdir, readFile, writeFile } from "node:fs/promises";
+import { copyFile, lstat, mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import { createTool, textPart } from "@jskit-ai/agent/server";
 import { z } from "zod";
@@ -61,8 +61,9 @@ const REMOVED_NOTE =
  * @param {import("./types.js").ChatModel} shared.model
  * @param {import("@local/files/server/types").Files} shared.files
  * @param {import("./types.js").Place} shared.place
- * @param {boolean} shared.privateChat the chat is private: the bot's wider writes need a person's card (D13)
  * @param {(card: object) => void} shared.offer puts a card under the reply (the turn's `after`)
+ * @param {(actionId: string, input: object) => Promise<object>} shared.attempt the turn's way to an action (botTools.js):
+ *   transfer_file's always asks on a card
  * @param {import("./types.js").OfficeSession} shared.office
  * @param {import("./types.js").PostLead} shared.postLead
  * @param {import("./types.js").InTime} shared.inTime
@@ -81,8 +82,8 @@ export function buildFileTools({
   model,
   files,
   place,
-  privateChat,
   offer,
+  attempt,
   office,
   postLead,
   inTime,
@@ -449,6 +450,9 @@ export function buildFileTools({
     })
   );
   async function moveFile({ from, to }) {
+    if (folderOf(from) !== folderOf(to)) {
+      return { error: "move_file only moves and renames inside one of the folders. To put it in another folder or another room, use transfer_file, which asks the person first." };
+    }
     try {
       await files.store.move(place, from, to);
       // A page's versions and link follow it (D-74).
@@ -463,40 +467,54 @@ export function buildFileTools({
     Object.freeze({
       id: "move_file",
       description:
-        "Move or rename one of the files or folders. /files/chat keeps it in this chat; /files/bot is yours in every chat you're in; /files/shared is everyone's in this home and all its bots. In a private chat, use share_file to put something in /files/bot or /files/shared.",
+        "Move or rename a file or folder inside the folder it's in: /files/chat, /files/bot or /files/shared. To copy or move it to another of them, or to another room, use transfer_file.",
       inputSchema: z.object({ from: z.string().min(8).max(500), to: z.string().min(8).max(500) }),
       execute: (input, options) => moveFile(input, options)
     })
   );
 
   /**
-   * D13: what a bot makes in a private chat stays there until a person widens it. The card asks the person the bot works
-   * for; their Yes copies the file with the store's widened place (botCards.js answerChoice), which the model can't make.
+   * Copying or moving a file or folder to another place (D-120): another of the bot's folders, or a room's, by its name.
+   * It always asks the person the bot works for on a card; their yes makes the same transfer the file browser's Copy
+   * to… and Move to… make, as them (botActions.js transfer_file), so it reaches only places they can open.
    */
-  async function shareFile({ path: from, to }) {
-    const target = SHARE_TARGETS[to];
-    try {
-      if (!String(from).startsWith("/files/chat/")) return { error: "Share a file from this chat's folder, /files/chat/…" };
-      await files.store.existingFile(place, from);
-      const name = from.split("/").pop();
-      offer({
-        kind: "choice",
-        role: "bot",
-        body: {
-          purpose: "share-file",
-          question: `Put ${name} in ${target.words}?`,
-          subline: `This chat is private. ${target.reach}`,
-          options: SHARE_OPTIONS,
-          multi: false,
-          chosen: null,
-          share: { from, to: `${target.folder}/${name}` }
-        }
-      });
-      return { status: "waiting_for_approval", note: "Nothing is shared yet: the person decides on the card under your reply. Say so in one line." };
-    } catch (error) {
-      return failed(error);
+  async function transferFile({ mode, from, to }) {
+    const source = { path: String(from?.path || "").trim(), room: String(from?.room || "").trim() || null };
+    const target = { folder: String(to?.folder || "").trim().replace(/(?<=.)\/+$/u, ""), room: String(to?.room || "").trim() || null };
+    const named = [[source.path, source.room], [target.folder, target.room]];
+    if (named.some(([given, room]) => !folderOf(given) || (room && folderOf(given) !== "chat"))) {
+      return { error: "Name paths in /files/chat, /files/bot or /files/shared. A room's files are /files/chat/… with its name in `room`." };
     }
+    if (source.path === folderRoot(source.path)) return { error: "Name a file or folder, not one of the folders themselves." };
+    if (!source.room) {
+      const real = await files.store.resolve(place, source.path, { reading: true }).catch(() => null);
+      if (!real || !(await lstat(real).catch(() => null))) return { error: `${source.path} isn't there. list_files shows the files.` };
+    }
+    const name = source.path.split("/").pop();
+    const words = ({ room }, given) => (room ? `"${room}"` : PLACE_WORDS[folderOf(given)]);
+    return attempt("transfer_file", { mode, from: source, to: target, name, fromWords: words(source, source.path), toWords: words(target, target.folder) });
   }
+  tools.transferFile = createTool(
+    Object.freeze({
+      id: "transfer_file",
+      description:
+        "Copy or move a file or folder to another place: another of your folders (/files/chat, /files/bot, /files/shared), or a room's or chat's files by its name. " +
+        "It shows the person a card, and nothing is copied or moved unless they agree. A name already taken there gets a number.",
+      inputSchema: z.object({
+        mode: z.enum(["copy", "move"]).describe("copy keeps the original; move takes it away from where it is"),
+        from: z.object({
+          path: z.string().min(12).max(500).describe("The file or folder: /files/chat/… (this chat's, or the room's named in room), /files/bot/… or /files/shared/…"),
+          room: z.string().max(80).optional().describe("Another room or chat whose /files/chat it's in, by its name; leave out for this chat")
+        }),
+        to: z.object({
+          folder: z.string().min(10).max(500).describe("The folder it goes in: /files/chat, /files/bot, /files/shared, or a folder in one"),
+          room: z.string().max(80).optional().describe("Another room or chat whose /files/chat it goes in, by its name; leave out for this chat")
+        })
+      }),
+      execute: (input, options) => transferFile(input, options)
+    })
+  );
+
   /** A page this private chat can't save wider: kept in /files/chat as a file, with a card to make it a page. */
   async function pageOnCard({ title, content, slug }) {
     const draft = `/files/chat/Pages/${slug}.html`;
@@ -523,34 +541,76 @@ export function buildFileTools({
       note: "This chat is private, so the page isn't saved as a page yet: it's kept as a file here, and the person decides on the card under your reply whether to make it a page. Say so in one line."
     };
   }
-  if (privateChat) {
-    tools.shareFile = createTool(
-      Object.freeze({
-        id: "share_file",
-        description:
-          "In this private chat, ask the person you work for to put one of this chat's files in your folder for every chat (/files/bot) or the home's (/files/shared). It shows them a card; the file is copied only if they agree.",
-        inputSchema: z.object({
-          path: z.string().min(13).max(500).describe("The file, in /files/chat/…"),
-          to: z.enum(["bot", "shared"]).describe("bot: your folder for every chat you're in; shared: the whole home's")
-        }),
-        execute: (input, options) => shareFile(input, options)
-      })
-    );
-  }
   return tools;
 }
 
 const SHARE_TARGETS = Object.freeze({
-  bot: { folder: "/files/bot", words: "this bot's files for every chat", reach: "Everyone in the home will be able to open it." },
-  shared: { folder: "/files/shared", words: "the home's shared files", reach: "Everyone in the home will be able to open it." }
+  bot: { folder: "/files/bot", words: "this bot's files for every chat", reach: "Everyone in the home will be able to open it." }
 });
 const SHARE_OPTIONS = Object.freeze(["Share it", "Keep it in this chat"]);
+
+/** Which of the bot's folders a path is in: "chat", "bot" or "shared", or null outside them. */
+const folderOf = (given) => /^\/files\/(chat|bot|shared)(?:\/|$)/u.exec(String(given ?? ""))?.[1] ?? null;
+/** The folder itself a path is in: "/files/chat". */
+const folderRoot = (given) => `/files/${folderOf(given)}`;
+// The bot's folders as its card names them, from the bot.
+const PLACE_WORDS = Object.freeze({ chat: "this chat", bot: "my files", shared: "Home files" });
+
+/**
+ * The places a transfer_file card names, as the person it's for can open them (D-120): /files/chat is this chat's, or
+ * the room's or chat's named `room` (among the chats they can open, by the name they see); /files/bot is the bot's;
+ * /files/shared the home's.
+ */
+async function transferPlace({ files, call, userId, botId, chatId }, given, room) {
+  const kind = folderOf(given);
+  if (kind === "bot") return { kind: "bot", botId: String(botId) };
+  if (kind === "shared") return { kind: "home" };
+  if (!room) return { kind: "chat", chatId: String(chatId) };
+  return { kind: "chat", chatId: await files.transfer.chatNamed(room, { userId: String(userId) }, call) };
+}
+
+/**
+ * transfer_file (D-120): an action that always asks, on a card for the person the bot works for. Their yes runs the
+ * same transfer as the file browser's Copy to… and Move to…, as them and confirmed, so a private chat's file goes
+ * wider only because they said yes on the card naming where it goes.
+ */
+export const FILE_ACTIONS = Object.freeze({
+  transfer_file: {
+    alwaysAsks: true,
+    reversible: () => true,
+    describe: ({ mode }) => (mode === "move" ? "move a file to another place" : "copy a file to another place"),
+    question: ({ mode, name, fromWords, toWords }) => `${mode === "move" ? "Move" : "Copy"} ${name} from ${fromWords} to ${toWords}?`,
+    async run(context, { mode, from, to, name, toWords }) {
+      const { files, call, userId, place } = context;
+      try {
+        const landed = await files.transfer.transfer({
+          homeId: String(place.homeId),
+          userId: String(userId),
+          mode,
+          from: { place: await transferPlace(context, from.path, from.room), path: from.path },
+          to: { place: await transferPlace(context, to.folder, to.room), folder: to.folder },
+          confirmed: true
+        }, call);
+        return {
+          kind: "event",
+          role: "bot",
+          body: { text: mode === "move" ? "Moved" : "Copied", name: landed.path.split("/").pop(), detail: `${name} is now in ${toWords}, at ${landed.path}.` }
+        };
+      } catch (error) {
+        // A refusal says why (a place that isn't there, an archived chat, its name taken); anything else is the card's.
+        if (!(error?.statusCode < 500)) throw error;
+        return { kind: "event", role: "system", body: { text: "That didn't work", detail: error.message } };
+      }
+    }
+  }
+});
 // The refusal of a bot's write to /files/bot or /files/shared from a private chat (D13, the files package).
 const WIDER_NEEDS_CARD = "files_wider_needs_card";
 
 /**
- * The person's Yes on a share card (D13): the chat's file copied to the wider folder, through the place the store widens
- * for a person's own action. Answers the new path.
+ * The person's Yes on a share card (D13): the chat's page draft made a page in the bot's folder (pageOnCard), or, on a
+ * card from before transfer_file, the chat's file copied to the wider folder, through the place the store widens for a
+ * person's own action. Answers the new path.
  * @param {import("@local/files/server/types").Files} files
  * @param {import("./types.js").Place} place the chat's place
  * @param {{ from: string, to: string }} share the card's

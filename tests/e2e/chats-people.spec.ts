@@ -300,9 +300,9 @@ test("New room is Public unless Private is picked and needs a name; a private ro
     };
     await shots(page, testInfo, "chat-details-chat", detailsAtPhone);
 
-    // Its other tabs: the chat's own folder, and Chef's computer in it.
+    // Its other tabs: the file browser at the room's own folder, and Chef's computer in it.
     await details.getByRole("tab", { name: "Files", exact: true }).click();
-    await expect(details.getByText("This chat", { exact: true }).first()).toBeVisible();
+    await expect(details.locator(".mb-files__crumb--here")).toHaveText("This room");
     await shots(page, testInfo, "chat-details-files", detailsAtPhone);
     await details.getByRole("tab", { name: "Computers", exact: true }).click();
     await expect(details.getByRole("region", { name: "Computers" }).getByRole("listitem", { name: "Chef's computer", exact: true })).toBeVisible();

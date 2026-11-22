@@ -178,7 +178,7 @@ export function createBotTurns({
       )
       .map((message) => message.body.question);
     const folders = seat.chat.kind === "private"
-      ? "/files/chat (this chat's), and /files/bot and /files/shared to read (saving there needs share_file and a person's OK, as this chat is private)"
+      ? "/files/chat (this chat's), and /files/bot and /files/shared to read (putting something there needs transfer_file and a person's OK, as this chat is private)"
       : "/files/chat (this chat's), /files/bot (yours, in every chat you're in) and /files/shared (the home's)";
     return [
       "Current state, from the system. It is the truth; earlier messages may be out of date:",

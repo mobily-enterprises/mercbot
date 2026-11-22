@@ -13,6 +13,10 @@ import { useDictation } from "./useDictation.js";
 import { useFindInChat } from "./useFindInChat.js";
 import { formatSize } from "./filesApi.js";
 import { useComposerFiles } from "./useComposerFiles.js";
+import MercbotPlacePicker from "../files/MercbotPlacePicker.vue";
+import MercbotConfirmDialog from "./MercbotConfirmDialog.vue";
+import { useFilePlaces } from "../files/filePlaces.js";
+import { useFileTransfer } from "../files/useFileTransfer.js";
 import { useChatScroll } from "./useChatScroll.js";
 import { useComposerKeys } from "./useComposerKeys.js";
 import { useComposerLines } from "./useComposerLines.js";
@@ -225,12 +229,27 @@ function focusComposer() {
   input.value?.focus();
 }
 
-const { addFiles } = useComposerFiles({
+// Add from files: the place picker over every place the person can open (read as it opens), copying what's chosen into
+// this chat and attaching it.
+const { question: widerQuestion, asking: widerAsking, confirm: confirmWider, transfer } = useFileTransfer({ report: (error) => emit("failure", error) });
+const { places: filePlaces, problem: placesProblem, load: loadPlaces } = useFilePlaces({ chat: () => props.chat, chatBotId: () => null });
+const addingFromFiles = ref(false);
+const { addFiles, addCopies } = useComposerFiles({
   attachments,
   chat: () => props.chat,
   focusComposer,
-  onFailure: (error) => emit("failure", error)
+  onFailure: (error) => emit("failure", error),
+  transfer
 });
+async function startAddFromFiles() {
+  filePlaces.value = null;
+  addingFromFiles.value = true;
+  await loadPlaces();
+  if (!placesProblem.value) return;
+  addingFromFiles.value = false;
+  emit("failure", new Error(placesProblem.value));
+}
+const addPicked = ({ files }) => addCopies(files, (filePlaces.value || []).find((item) => item.group === "here"));
 
 function startReply(message) {
   replyTarget.value = { id: message.id, text: message.body.text || message.body.heading || "" };
@@ -529,6 +548,11 @@ defineExpose({ focusComposer, addSelection, startReply, toggleDictation, dictati
                 <template #prepend><v-icon icon="$attachFile" size="14" /></template>
                 <span class="mb-composer__menu-text">Attach files</span>
               </v-list-item>
+              <!-- Files already in Mercbot, from any place the person can open, copied into this chat. -->
+              <v-list-item min-height="32" class="px-3" @click="startAddFromFiles">
+                <template #prepend><v-icon icon="$folder" size="14" /></template>
+                <span class="mb-composer__menu-text">Add from files…</span>
+              </v-list-item>
               <!-- Teaching is for one bot: a chat with one. -->
               <v-list-item v-if="soleBot" min-height="32" class="px-3" @click="emit('teach', { botId: String(soleBot.botId) })">
                 <template #prepend><v-icon icon="$radioOn" size="14" color="error" /></template>
@@ -542,6 +566,15 @@ defineExpose({ focusComposer, addSelection, startReply, toggleDictation, dictati
             </v-list>
           </v-menu>
           <input ref="fileInput" type="file" multiple hidden @change="addFiles">
+          <MercbotPlacePicker v-model="addingFromFiles" mode="add" :places="filePlaces" :exclude="`chat:${chat.id}`" @choose="addPicked" />
+          <MercbotConfirmDialog
+            v-model="widerAsking"
+            title="Let more people see it?"
+            :text="widerQuestion"
+            confirm-label="Continue"
+            :danger="false"
+            @confirm="confirmWider"
+          />
           <div class="mb-composer__field">
             <div v-if="tokens.length" ref="mirror" class="mb-composer__mirror" :style="{ height: inputHeight }" aria-hidden="true">
               <template v-for="(part, index) in mirrorParts" :key="index">

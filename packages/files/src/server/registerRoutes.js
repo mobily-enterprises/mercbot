@@ -31,7 +31,7 @@ const TEXT_LIMIT = 200000;
  * command line (shell.js) runs on the same folders.
  * @param {import("@jskit-ai/kernel/server/types").RuntimeHttp} http
  * @param {object} capabilities
- * @param {import("./types.js").Files} capabilities.files
+ * @param {import("./types.js").Files} capabilities.files with `transfer` (fileTransfer.js)
  * @param {{ directory: object, chats: object }} capabilities.records mercbot.bots.records: the chats and bots the caller
  *   may read
  * @param {import("@jskit-ai/uploads-runtime/server/types").RuntimeUploads} capabilities.uploads
@@ -202,6 +202,22 @@ export function registerRoutes(http, { files, records, uploads }) {
     await pages.pathChanged({ homeId: place.homeId, botId: place.botId, from, to: String(request.body?.to) });
     reply.send({ path: String(request.body?.to) });
   }));
+  // Every place the person can open, and Copy to… and Move to… between any two of them (fileTransfer.js): `from` names
+  // a place and a path under its own folder, `to` a place and a folder there.
+  router.register("GET", `${base}/places`, home, served(async function listPlaces(request, reply) {
+    reply.send(await files.transfer.places({ userId: String(request.user.id) }, await request.callOptions()));
+  }));
+  router.register("POST", `${base}/transfer`, home, served(async function transferFile(request, reply) {
+    const body = request.body ?? {};
+    reply.send(await files.transfer.transfer({
+      homeId: String(request.workspace.id),
+      userId: String(request.user.id),
+      mode: body.mode,
+      from: body.from,
+      to: body.to,
+      confirmed: body.confirmed === true
+    }, await request.callOptions()));
+  }));
   router.register("POST", `${base}/folder`, home, served(async function makeFolder(request, reply) {
     const place = await placeOf(request);
     await store.makeFolder(place, String(request.body?.path || ""));
@@ -236,7 +252,8 @@ export function registerRoutes(http, { files, records, uploads }) {
 
   // The home's bots for the home's Files page, each leading to its files.
   router.register("GET", `${base}/bots`, home, async function homeBots(request, reply) {
-    reply.send({ bots: await records.directory.homeBotFaces(await request.callOptions()) });
+    const bots = await records.directory.homeBotFaces(await request.callOptions());
+    reply.send({ bots: bots.map(({ id, name, color, shape }) => ({ id, name, color, shape })) });
   });
 
   // Where the home's files are kept (D-26, D-36). Owners and admins choose it. Settings → Files asks with ?fresh=1, and

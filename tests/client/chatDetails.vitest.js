@@ -19,11 +19,10 @@ const stub = vi.hoisted(() => (vue, name) => ({
   default: vue.defineComponent({
     name,
     inheritAttrs: false,
-    props: ["chat", "sections"],
+    props: ["chat"],
     setup: (given) => () => vue.h("div", {
       "data-stub": name,
-      "data-chat": typeof given.chat === "object" ? given.chat.id : given.chat,
-      "data-sections": given.sections ? given.sections.map((entry) => `${entry.label}:${entry.root}`).join("|") : undefined
+      "data-chat": typeof given.chat === "object" ? given.chat.id : given.chat
     })
   })
 }));
@@ -193,10 +192,11 @@ describe("Chat details", () => {
     expect(shown).toEqual({ details: ["People"], files: ["FileBrowser of chat 9"], computer: ["MercbotChatComputers of chat 9"] });
   });
 
-  it("shows this chat's folder and the home's in Files, so Move to… reaches the home's", async () => {
+  it("opens the file browser at this chat, given its row (the browser lists every other place beside it)", async () => {
     shellPreferences.detailsTab = "files";
     const html = await details({ chat: KITCHEN });
-    expect(/data-sections="([^"]*)"/u.exec(html)?.[1]).toBe("This chat:/files/chat|Rossi family:/files/shared");
+    expect(html).toContain("data-stub=\"FileBrowser\" data-chat=\"9\"");
+    expect(html).not.toContain("data-sections");
   });
 
   it("shows whether its bots join in when useful, a switch for its maker and the home's owners and admins only (D-115)", async () => {

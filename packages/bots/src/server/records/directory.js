@@ -47,10 +47,42 @@ export function createBotDirectory(resources) {
     return records.map((record) => ({ id: String(record.id), name: record.name, archived: Boolean(record.archivedAt) }));
   }
 
-  /** The home's bots in id order, with how they look: the home's Files page. */
+  /**
+   * The home's bots in id order, with how they look, whether they're archived and which is the home's main bot: the
+   * home's Files page and its places.
+   */
   async function homeBotFaces(options) {
-    const records = await bots.queryAll({ sort: ["id"], fields: ["name", "color", "shape"] }, passedOn(options));
-    return records.map((record) => ({ id: String(record.id), name: record.name, color: record.color, shape: record.shape }));
+    const records = await bots.queryAll({ sort: ["id"], fields: ["name", "color", "shape", "archivedAt", "isMain"] }, passedOn(options));
+    return records.map((record) => ({
+      id: String(record.id),
+      name: record.name,
+      color: record.color,
+      shape: record.shape,
+      archived: Boolean(record.archivedAt),
+      main: Boolean(record.isMain)
+    }));
+  }
+
+  /**
+   * Every chat the caller can open, newest made first, in one read whatever their history: their own, hidden and
+   * archived ones too, and the home's public rooms they aren't in, as the row policies decide. The file browser's
+   * places and Copy to… (the files package's fileTransfer.js).
+   * @param {CallOptions} options
+   * @returns {Promise<Array<{ id: string, kind: string, title: string | null, directBotId: string | null,
+   *   directUserId: string | null, directPersonId: string | null, archivedAt: string | null }>>}
+   */
+  async function openableChats(options) {
+    const fields = ["kind", "title", "directBotId", "directUserId", "directPersonId", "archivedAt"];
+    const records = await conversations.queryAll({ sort: ["-id"], fields }, passedOn(options));
+    return records.map((record) => ({
+      id: String(record.id),
+      kind: record.kind,
+      title: record.title ?? null,
+      directBotId: idOrNull(record.directBotId),
+      directUserId: idOrNull(record.directUserId),
+      directPersonId: idOrNull(record.directPersonId),
+      archivedAt: record.archivedAt ?? null
+    }));
   }
 
   /** One bot of the home, or null. @param {string} botId @param {CallOptions} options */
@@ -170,6 +202,7 @@ export function createBotDirectory(resources) {
     seatsOfBot,
     listHomeBots,
     homeBotFaces,
+    openableChats,
     findBot,
     botNamed,
     botMaker,

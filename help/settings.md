@@ -169,7 +169,7 @@ A bot's own options are on its card: select the bot under **Bots** in the sideba
   - **Routines:** the bot's routines, each with its schedule, its chat and a switch, when it has some.
   - A **Main bot** or **Builder** chip when the bot is one, and for owners and admins a link to **Settings** > **Main bot and Builder**.
   - **Archive**, for the bot's maker and the home's owners and admins.
-- **Files** (this chat's folder and the bot's own, with **Home files →** to the home's; **Move to…** still offers **Home files**), **Library** and **Computer** tabs.
+- **Files** (the file browser, open at the bot's own files, with every other place you can open beside them), **Library** and **Computer** tabs.
 
 A room's own options are in its **Chat details**: its people and bots, whether it's Public or Private, its files, its bots' computers and its routines, and **Leave chat**, **Archive** (a Public room) or **Hide from sidebar** (a Private one), and **Delete chat**. See [Rooms, people and bots](/help/chats).
 
