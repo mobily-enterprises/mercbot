@@ -59,10 +59,22 @@ export function discussionNow(body, now = Date.now()) {
   return body?.status === "running" && Date.parse(String(body.leaseUntil)) <= now ? { ...body, status: "interrupted" } : body;
 }
 
+/**
+ * A discussion card as a page reads it: as it stands now, and while a round runs, how much of its lease is left by the
+ * server's clock (`leaseLeftMs`), which the page counts down on its own clock, whatever time a browser says it is.
+ * @param {Record<string, unknown>} body
+ */
+function shownDiscussion(body) {
+  const now = Date.now();
+  const current = discussionNow(body, now);
+  const until = Date.parse(String(current.leaseUntil));
+  return current.status === "running" && Number.isFinite(until) ? { ...current, leaseLeftMs: Math.max(0, until - now) } : current;
+}
+
 export function toMessage(row) {
   // The model transcript and a routine run's prompt stay on the server; the page only needs what's shown.
   const { transcript, trigger, recording, ...kept } = row.body || {};
-  const body = row.kind === "discussion" ? discussionNow(kept) : kept;
+  const body = row.kind === "discussion" ? shownDiscussion(kept) : kept;
   return {
     id: String(row.id),
     kind: row.kind,
