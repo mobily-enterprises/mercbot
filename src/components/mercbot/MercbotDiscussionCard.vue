@@ -2,7 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import MercbotAvatar from "./MercbotAvatar.vue";
 import { nanoMoney } from "./accountApi.js";
-import { botFace } from "./chatView.js";
+import { botFace, discussionState } from "./chatView.js";
 import { chatsApi } from "./chatsApi.js";
 
 // A discussion (D-115, plan 4.5): the bots of a chat talk a question over, a round at a time, as the person who started
@@ -10,7 +10,8 @@ import { chatsApi } from "./chatsApi.js";
 // round and Wrap up are that person's; Stop is theirs and the chat's managers'. The server keeps the card: each press
 // answers it as it now stands, and everyone in the chat hears of every change. A round's card is leased while it runs:
 // once its lease lapses (the server running it stopped) it reads as interrupted, here as on the server, and waits for a
-// press like a finished round.
+// press like a finished round. Here the lease left is counted on this page's clock from when the card came, never
+// against the server's time, which a browser's clock may be ahead of.
 const props = defineProps({
   message: { type: Object, required: true },
   chat: { type: Object, required: true },
@@ -23,8 +24,13 @@ const props = defineProps({
 const pressed = ref(null);
 watch(() => props.message.body, () => { pressed.value = null; });
 const body = computed(() => pressed.value?.body || props.message.body);
-// The time now, kept every few seconds while the card is shown, for a running round's lease.
-const now = ref(Date.now());
+// When the card as it stands came, and the time now, kept every few seconds while it's shown: a running round's lease.
+const arrived = ref(Date.now());
+const now = ref(arrived.value);
+watch(body, () => {
+  arrived.value = Date.now();
+  now.value = arrived.value;
+});
 let ticking = null;
 onMounted(() => {
   ticking = setInterval(() => {
@@ -32,7 +38,7 @@ onMounted(() => {
   }, 5000);
 });
 onBeforeUnmount(() => clearInterval(ticking));
-const state = computed(() => (body.value.status === "running" && Date.parse(body.value.leaseUntil) <= now.value ? "interrupted" : body.value.status));
+const state = computed(() => discussionState(body.value, arrived.value, now.value));
 const awaitsPress = computed(() => state.value === "waiting" || state.value === "interrupted");
 const mine = computed(() => String(body.value.for?.id) === String(props.me));
 const mayStop = computed(() => mine.value || props.manages || String(props.chat.madeBy) === String(props.me));

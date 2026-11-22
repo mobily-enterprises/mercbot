@@ -159,3 +159,17 @@ export function controlLine(control, me = "") {
   if (!control) return "";
   return String(control.userId) === String(me) ? "You have control" : `${firstName(control.name)} has control`;
 }
+
+/**
+ * A Discussion card's state as this page sees it (D-115): a running round whose lease ran out reads as interrupted.
+ * The lease is counted from what the server said was left of it when it answered (`leaseLeftMs`, by its own clock), on
+ * this page's clock from when the card arrived (`arrivedAt`), so a browser clock set ahead of the server's, or behind
+ * it, changes nothing. A card that doesn't say stays as the server last said.
+ * @param {{ status?: string, leaseLeftMs?: number }} body
+ * @param {number} arrivedAt
+ * @param {number} now
+ */
+export function discussionState(body, arrivedAt, now) {
+  const left = body?.leaseLeftMs;
+  return body?.status === "running" && typeof left === "number" && now - arrivedAt >= left ? "interrupted" : body?.status;
+}
