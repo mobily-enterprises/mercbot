@@ -15,9 +15,10 @@ const ARCHIVED_LINE = Object.freeze({
  * each (pins, sections, hidden, muted, read), and the direct chat a bot's [Message] opens.
  *
  * Who may: anyone in the home makes a chat and joins a public one; anyone in a chat adds people of the home and bots
- * of the home; the chat's maker and the home's owners and admins remove members, rename, archive and delete; anyone
- * leaves. A Public chat is archived for everyone (plan 5.1), never the everyone chat: its bots' routines and watches there
- * pause, with a line naming them, and stay paused when it's unarchived (D-101). A Private chat isn't archived: each of
+ * of the home; the chat's maker and the home's owners and admins remove members, rename, switch whether its bots join
+ * in (D-115), archive and delete; anyone leaves. A Public chat is archived for everyone (plan 5.1), never the everyone
+ * chat: its bots' routines and watches there pause, with a line naming them, and stay paused when it's unarchived
+ * (D-101). A Private chat isn't archived: each of
  * its people hides it for themselves (their place's `hidden`). What a caller may read is the records' (rowPolicies.js):
  * a chat they can't open is a 404 everywhere.
  * Everyone in a chat is told of each change, on any server, as a `chat` event naming the chat and what changed. A
@@ -109,6 +110,7 @@ export function createChatMembers({ records, notices, computer, systemContext, p
         directBotId: row.direct_bot_id == null ? null : String(row.direct_bot_id),
         appId: row.app_id ?? null,
         madeBy: row.made_by == null ? null : String(row.made_by),
+        botsJoinIn: Boolean(row.bots_join_in),
         onboardingStep: row.onboarding_step ?? null,
         archivedAt: row.archived_at ?? null,
         lastActivityAt: row.last_activity_at,
@@ -266,6 +268,26 @@ export function createChatMembers({ records, notices, computer, systemContext, p
     await chats.rename(chat.id, title, options);
     await told(chat.id, "renamed", options);
     return get(chat.id, options);
+  }
+
+  /**
+   * Whether a chat's bots join in when useful (D-115), by its maker or an owner or admin: true or false, never in a
+   * direct chat (409, it has one person). Everyone in it hears of it.
+   */
+  async function switchJoinIn(chatId, on, options) {
+    const chat = await openChat(chatId, options);
+    requireManager(chat, options, "change who answers in");
+    if (typeof on !== "boolean") throw new BotsError(400, "Say whether the bots join in: true or false.", { code: "bots_join_in_invalid" });
+    await chats.switchJoinIn(chat.id, on, options);
+    await told(chat.id, "settings", options);
+    return get(chat.id, options);
+  }
+
+  /** A chat's settings changed: `title` renames it and `botsJoinIn` switches joining in (D-115), each only when given. */
+  async function change(chatId, changes = {}, options) {
+    if (Object.hasOwn(changes, "botsJoinIn")) await switchJoinIn(chatId, changes.botsJoinIn, options);
+    if (Object.hasOwn(changes, "title") || !Object.hasOwn(changes, "botsJoinIn")) return rename(chatId, changes.title, options);
+    return get(chatId, options);
   }
 
   /**
@@ -433,6 +455,7 @@ export function createChatMembers({ records, notices, computer, systemContext, p
     addBot,
     removeBot,
     rename,
+    change,
     archive,
     unarchive,
     remove,

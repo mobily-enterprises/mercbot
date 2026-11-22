@@ -26,6 +26,7 @@ person can open.
 - `packages/bots/src/server/records/searchSchemas.js`
 - `migrations/20261122120000_chats_core.cjs`
 - `migrations/20261122150000_chat_mentions.cjs`
+- `migrations/20261122160000_chat_bots_join_in.cjs`
 - `packages/bots/src/server/handOverNotes.js`
 - `src/components/mercbot/chatsApi.js`
 - `src/components/mercbot/chatMenus.js`
@@ -66,7 +67,7 @@ person's own place and read point answers 409 `bots_chat_archived` "This chat is
 
 **Routes** (all under `/api/w/:workspaceSlug`, for a member of the home; each change tells everyone in the chat, and
 anyone it took out, a `chat` event `{ chatId, change }` on bot events, `change` one of created, members, renamed,
-archived, unarchived or deleted):
+settings (its bots joining in), archived, unarchived or deleted):
 - `GET …/chats` (`?hidden=1` for hidden ones, `?archived=1` for archived ones, `?after=` the page before's `next`):
   `{ chats, sections, next }`, a page of the chats the person is in: their places 100 at a time, newest chat first, an
   order no chat moves in while the pages are read (activity would move them), with the everyone chat first in its
@@ -84,7 +85,8 @@ archived, unarchived or deleted):
   its people, with the people (active members of the home, else 404 `bots_person_not_found`) and bots named, up to
   200 of each (400 `bots_chat_too_many`), and a title of up to 80 characters; a Private chat needs a person (400
   `bots_chat_needs_person`).
-- `GET`, `PATCH {title}` and `DELETE …/chats/:chatId`; `POST …/archive` and `…/unarchive`, `…/join` (a Public chat
+- `GET`, `PATCH {title?, botsJoinIn?}` and `DELETE …/chats/:chatId` (`botsJoinIn`, a boolean, by whoever may rename
+  it, never in a direct chat: D-115, `bots_join_in_invalid` for another value; with neither field it renames); `POST …/archive` and `…/unarchive`, `…/join` (a Public chat
   only; a Private one is 404), `…/leave`; `POST …/people {userId}` and `DELETE …/people/:userId`; `POST …/bots {botId}`
   and `DELETE …/bots/:botId` (an archived bot can be taken out). A bot taken out of a chat takes its runs, computer,
   routines and watches there with it. Each answers `{ chat }`, except leaving a Private chat (`{ left: true }`, it's
@@ -172,6 +174,10 @@ with a rename pencil for whoever may, "Public" or "Private" (" · Archived") and
 Chat tab lists "People" (each opens their card; "(you)"), with an × for whoever may remove them, "Bots" (" ·
 archived"), "Routines" (`genesis/program/bots/routines.md`), and Leave chat, Archive (a Public chat) or Unarchive,
 Hide from sidebar (a Private chat the person is in and hasn't hidden) and Delete chat for whoever may; the everyone chat says "Everyone in <home> is in this chat, for as long as they're in the home."
+Under Bots, a chat with bots shows **Bots join in when useful** (D-115, the chat view's `botsJoinIn`, off by default),
+a switch for whoever may rename it (`chatRights` `joinIn`), with "When someone writes without calling a bot, one bot
+may answer if it can help. Off, bots answer only when called."; for anyone else it is shown but disabled, with "Only
+the person who started this chat and the home's owners and admins can change this."
 
 ## Proved by
 
@@ -184,6 +190,7 @@ Hide from sidebar (a Private chat the person is in and hasn't hidden) and Delete
 - `tests/server/botLibrary.integration.js`
 - `tests/client/newChat.vitest.js`
 - `tests/client/chatDetails.vitest.js`
+- `tests/server/joinInChats.integration.js`
 - `tests/client/chatDirectory.vitest.js`
 - `tests/e2e/chats-people.spec.ts`
 - `tests/e2e/chats-archive.spec.ts`

@@ -13,6 +13,8 @@ import { createBackgroundRuns } from "./backgroundRuns.js";
 import { createConnectFollowUps } from "./connectFollowUps.js";
 import { createChatSeats } from "./chatSeats.js";
 import { createWorkPause } from "./workPause.js";
+import { createJoiningIn } from "./joiningIn.js";
+import { createDiscussions } from "./discussions.js";
 
 /**
  * The turns of the bots in chats (D-112, step 2's A): who speaks (R3), what each bot reads (D12, R5) and may use (R4),
@@ -49,6 +51,7 @@ import { createWorkPause } from "./workPause.js";
  * @param {import("./types.js").SummaryLimits} [dependencies.compactionLimits]
  * @param {Partial<typeof REQUEST_LIMITS>} [dependencies.requestLimits]
  * @param {Partial<typeof GOAL_LIMITS>} [dependencies.goalLimits]
+ * @param {Partial<typeof import("./discussions.js").DISCUSSION_LIMITS>} [dependencies.discussionLimits] a discussion's limits (tests)
  */
 export function createChatTurns({
   records,
@@ -75,7 +78,8 @@ export function createChatTurns({
   summarize,
   compactionLimits,
   requestLimits,
-  goalLimits
+  goalLimits,
+  discussionLimits
 }) {
   const seats = createChatSeats({ records, systemContext, notices });
   const workPause = createWorkPause({ records, apps, seats });
@@ -168,7 +172,21 @@ export function createChatTurns({
         reply(bot, timeline, tools, state, prompt, { ...options, languageModel: model })),
     checkClaims,
     // Late-bound, a cycle: a follow-up replies through the replies, and a reply's end starts a waiting follow-up.
-    followUps: () => connectFollowUps
+    followUps: () => connectFollowUps,
+    // Bots joining in when useful, in a chat that says so (D-115).
+    joiningIn: createJoiningIn({ records, meter, model })
+  });
+  // Discuss (D-115): the bots of a chat talk a question over in rounds, each round from a person's press.
+  const discussions = createDiscussions({
+    records,
+    systemContext,
+    meter,
+    env,
+    seats,
+    chatHistory,
+    replies,
+    background,
+    ...(discussionLimits ? { limits: discussionLimits } : {})
   });
   const connectFollowUps = createConnectFollowUps({
     records,
@@ -203,7 +221,13 @@ export function createChatTurns({
       settleSecureForm: cards.settleSecureForm,
       connectFromCard: connectFollowUps.connectFromCard,
       settleDraft: cards.settleDraft,
-      recordVoiceCall: chat.recordVoiceCall
+      recordVoiceCall: chat.recordVoiceCall,
+      discuss: discussions.propose,
+      startDiscussion: discussions.start,
+      discussMore: discussions.nextRound,
+      wrapUpDiscussion: discussions.wrapUp,
+      cancelDiscussion: discussions.cancel,
+      stopDiscussion: discussions.stop
     }),
     skillsFor: chat.skillsFor,
     answerOnce: chat.answerOnce,

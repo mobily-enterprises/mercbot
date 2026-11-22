@@ -576,7 +576,8 @@ fruit-like special shape, and every expression that moved the body or closed the
 
 *Superseded by D-112 (2026-11-22), except that bots aren't permission and the request limits: a group is a chat with
 any of the home's people and bots, the one reading rule replaces a group's own reach, and an asked bot works on the
-brief alone and answers in the asking chat.*
+brief alone and answers in the asking chat. Step 3 is closed by D-115: bots talk together on a Discuss card in a
+chat, with no bots-only threads and no company chart.*
 
 A feature designed here (D-18) on 2026-10-30. A bot can ask the home's Builder (Otto, say) for an
 app and use the result, and plan features in a group chat with the bot, the Builder and other
@@ -2754,8 +2755,8 @@ costing there, until someone resumes it, as it was. Extends D-99, whose hidden t
 
 ## D-102 — Bots decide when to join in a Shared bot's shared tabs (2026-11-20)
 
-*Superseded by D-112 (2026-11-22): there are no shared tabs, and `home_settings.bots_join_in` is gone; bots joining
-in come back per chat in B4, off by default.*
+*Superseded by D-112 and D-115 (2026-11-22): there are no shared tabs, and `home_settings.bots_join_in` is gone; its
+judging call decides per chat, off by default, and names at most one bot (D-115).*
 
 Amends D-36 (a Shared bot answering every message in its shared tabs) and D-100 (the home's settings). The owner's
 decision: in a shared tab where more than one person can talk, people talk to each other as much as to the bot, so the
@@ -3655,3 +3656,73 @@ What people do in chats with other people, beside what the bots do there:
   for the bot in that chat (R1), and never from a reply's transcript, a routine's prompt, the chat's summary or the
   bot's state note there (an R12 row in `modelInputs.js`). Nothing is kept: the new chat is New chat's, with no link
   back.
+
+## D-115 — Bots join in and discuss (2026-11-22)
+
+B4 of the chats rebuild (D-112): bots together in one chat. It supersedes what D-112 left of D-102 (its judging call
+moves to chats, off by default) and closes D-46 step 3: bots talk together in a chat its people can read, on a card a
+person runs, so there are no bots-only threads and no company chart. Bots still aren't permission: a discussion only
+talks, and approvals stay with people.
+
+- **Bots join in when useful** (O17, O27). A chat's setting, `conversations.bots_join_in` (boolean NOT NULL DEFAULT
+  false), shown in **Chat details** under **Bots** as a switch when the chat has bots and isn't a direct chat. Its
+  maker and the home's owners and admins change it (`PATCH …/chats/:chatId` with `{ botsJoinIn: true|false }`; anyone
+  else 403, `bots_chat_manage_forbidden`; not a boolean 400, `bots_join_in_invalid`; a direct chat 409); everyone in the
+  chat hears of it (a `chat` event, `settings`). The chat view answers `botsJoinIn`.
+- **Who it changes.** Only a chat with several people, for a person's message that calls no bot (R3: its name, an
+  @-mention, a reply to one of its messages, @everyone). Alone in a chat, every bot answers as before, and a call is
+  always answered. On, such a message goes through one judging call, which names at most one of the chat's live bots,
+  or none: with several people and nobody called, at most one bot joins per message. Off, nothing is judged and no bot
+  answers. A paused home (D-73) judges nothing.
+- **The judgement is kept on the message**, `body.judged`: the bot's id, or `"quiet"`. The first one kept under the
+  message's lock stands, so two pages asking at once, another server, or a bot freed later (`answerWaiting`) read the
+  same answer, and nothing is judged twice. `addressedBots` counts a judged bot as called, so a bot busy when it was
+  judged answers once it's free.
+- **The judging call** (`packages/bots/src/server/joiningIn.js`). One `generateOnce` on the chat kind of work, at most
+  40 tokens out, metered to the person whose message it decides on, in the chat's home, and no bot (R8). Its fixed
+  instructions list the chat's bots and their jobs (each one's template description, else the general bot's) and ask
+  for `{"bot": "<its name>"}` or `{"bot": null}`: a bot when the message asks it something, asks for something its job
+  covers, asks everyone a question it can usefully answer or carries on a conversation with it; null for people
+  talking to each other, chatting, thanking, agreeing, saying goodbye, when an answer would interrupt, and when
+  unsure. It reads the chat's last 12 text messages, oldest first, one line each, `[Author]: text`, mentions as names,
+  each clipped to 400 characters, through the chat's own reader (R1). A failure, or an answer in another shape (a
+  code fence around it is read; a name that isn't one of the chat's bots isn't), leaves the chat quiet, logged without
+  the conversation. It runs in the background with the reply it starts, so a page's request never waits on the judge
+  alone. Its statements are the same for a chat of 4 messages and one of 40
+  (`tests/server/joinInChats.integration.js`).
+- **Discuss** (O18, plan 4.5): in a chat with two or more live bots, a person writes a question and chooses **+** →
+  **Discuss with the bots**. The server writes a card, a message of kind `discussion` by that person, whose body it
+  alone keeps (`packages/bots/src/server/discussions.js`):
+  - **Before it starts**, the card offers 1, 2 or 3 rounds (2 first) and what each may cost at most, "Up to about $X,
+    as your work in this home", from the meter's estimate at the home's prices (`meter.estimateNano`: Mercbot's list
+    prices, or a copy's own). The estimate counts every turn reading the chat (its summary and what's after, at about
+    4 characters a token), a 24,000-token prefix for the bot's own instructions and Knowledge at the uncached price, and
+    everything said before it in the discussion, and writing at most its output limit: 1,200 tokens a turn, 2,000 for
+    the wrap-up, which the turns are given as their own limits so the estimate holds. Two bots and two rounds in a
+    short chat come to about $0.05 at Premium AI's prices ($0.0478 on the Test Preview's card).
+  - **Start** fixes the rounds and the cap: the chosen estimate. Before each turn, what the discussion has spent so far
+    (the meter's `spentSince` for each of its bots, as the person who started it, since it started) plus that turn's
+    estimate must stay within the cap, or it ends there, mid-round if need be ("It stopped at its cost limit.").
+  - **A round** is one turn per bot, in the chat's order. A turn is the bot's reply with no tools, no checks that send
+    it back and no reasoning, asked to add something new (a point, a fact, a risk, a disagreement or a question) or
+    reply exactly PASS; a PASS posts nothing. A round in which every bot passes ends the discussion. Its messages carry
+    `body.discussion` (the card's id) and `body.round` (a number, or `"wrap"`), and answer no person's message.
+  - **No round runs by itself.** After each round the card waits: **One more round** (while rounds are left), **Wrap
+    up** (the chat's first bot that took part sums it up: where they agreed and differed, and what is left to decide)
+    or **Stop**. Only the person who started it presses Start, One more round and Wrap up; Stop is theirs and the chat's
+    managers' (its maker, the home's owners and admins). Before Start, its starter can **Cancel** it.
+  - **It holds the chat's reply runs.** A round claims each of its bots' runs in the chat (`claimReply`, renewed on its
+    heartbeat), so a message written meanwhile finds them busy and is answered once the round lets go
+    (`answerWaiting`). Stop ends the card at once; a running round sees it at its next heartbeat or turn, stops the turn
+    in progress and lets go. A press while one of the bots is still answering something else is refused (409,
+    `bots_discussion_busy`).
+  - **Metering** (R8): each turn is the person's work with the bot that speaks, on the chat kind of work, so
+    **Spending** shows it per bot; the card shows what it has cost so far and in the end.
+  - Ended reasons on the card: `passed`, `wrapped`, `stopped`, `cancelled`, `cap`, `paused` (the home was paused) and
+    `failed` (a turn's error). The chat list shows a card as "Discussion: <question>".
+  - A round runs on the server that took the press. If that server stops, the card stays running until someone presses
+    Stop (any server can), and only the rest of that round is lost.
+- **Routes** (`packages/bots/src/server/registerRoutes.js`): `POST …/chats/:chatId/discussions` `{ question }` (at most
+  500 characters), and `POST …/discussions/:messageId/start` `{ rounds, timeZone?, language? }`, `/round`, `/wrap`,
+  `/cancel` and `/stop`, each answering `{ message }`, the card as it now stands.
+- **Bench:** `tests/agent-evals/chat/discuss-three.mjs`, a three-bot discussion on a real model (not run in the suites).

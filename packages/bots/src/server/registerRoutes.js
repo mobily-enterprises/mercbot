@@ -129,8 +129,9 @@ export function registerRoutes(http, { bots, approvals, notices, meter, records,
   router.register("POST", `${home}/chats`, auth, handle(async (request, _user, options) => chats.create(body(request), options)));
   router.register("GET", `${home}/chats/public`, auth, handle(async (_request, _user, options) => chats.publicChats(options)));
   router.register("GET", chat, auth, handle(async (request, _user, options) => chats.get(request.params.chatId, options)));
+  // A chat's settings: its title, and whether its bots join in when useful (D-115), each written only when given.
   router.register("PATCH", chat, auth, handle(async (request, _user, options) =>
-    chats.rename(request.params.chatId, request.body?.title, options)));
+    chats.change(request.params.chatId, body(request), options)));
   router.register("DELETE", chat, auth, handle(async (request, _user, options) =>
     chats.remove(request.params.chatId, options), { archived: true }));
   router.register("POST", `${chat}/archive`, auth, handle(async (request, _user, options) =>
@@ -203,6 +204,21 @@ export function registerRoutes(http, { bots, approvals, notices, meter, records,
     bots.chat.connectFromCard(request.params.chatId, request.params.messageId, body(request), options)));
   router.register("POST", `${chat}/drafts/:messageId`, auth, handle(async (request, _user, options) =>
     bots.chat.settleDraft(request.params.chatId, request.params.messageId, body(request), options)));
+  // Discuss (D-115): a card proposed with its question, then Start, One more round, Wrap up, Cancel and Stop on it.
+  const discussion = `${chat}/discussions/:messageId`;
+  router.register("POST", `${chat}/discussions`, auth, handle(async (request, _user, options) =>
+    bots.chat.discuss(request.params.chatId, body(request), options)));
+  router.register("POST", `${discussion}/start`, auth, handle(async (request, _user, options) =>
+    bots.chat.startDiscussion(request.params.chatId, request.params.messageId, body(request), options)));
+  router.register("POST", `${discussion}/round`, auth, handle(async (request, _user, options) =>
+    bots.chat.discussMore(request.params.chatId, request.params.messageId, body(request), options)));
+  router.register("POST", `${discussion}/wrap`, auth, handle(async (request, _user, options) =>
+    bots.chat.wrapUpDiscussion(request.params.chatId, request.params.messageId, body(request), options)));
+  router.register("POST", `${discussion}/cancel`, auth, handle(async (request, _user, options) =>
+    bots.chat.cancelDiscussion(request.params.chatId, request.params.messageId, options)));
+  // Stop stays open in an archived chat, so a round running when it was archived can still be ended.
+  router.register("POST", `${discussion}/stop`, auth, handle(async (request, _user, options) =>
+    bots.chat.stopDiscussion(request.params.chatId, request.params.messageId, options), { archived: true }));
   // The welcome chat (B's onboarding): made at a person's first visit with the main bot, and its steps.
   router.register("POST", `${home}/chats/welcome`, auth, handle(async (_request, _user, options) => bots.chat.welcome(options)));
   router.register("POST", `${chat}/onboarding/advance`, auth, handle(async (request, user, options) =>

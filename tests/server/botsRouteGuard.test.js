@@ -157,10 +157,11 @@ test("an archived bot is read-only: its reads answer, and only the routes that t
   assert.equal(ran.length, writes.length);
 });
 
-test("an archived chat is read-only: it reads, and only leaving, its place, unarchiving and deleting it change anything", async () => {
+test("an archived chat is read-only: it reads, and only leaving, its place, unarchiving, deleting it and stopping a discussion change anything", async () => {
   const ran = [];
-  const service = recording(ran, ["chat.sendMessage", "chat.reply", "chats.addPerson", "chats.rename", "chats.archive", "handOverNote",
-    "chat.messages", "chats.leave", "chats.changePlace", "chats.markRead", "chats.unarchive", "chats.remove"]);
+  const service = recording(ran, ["chat.sendMessage", "chat.reply", "chats.addPerson", "chats.change", "chats.archive", "handOverNote",
+    "chat.discuss", "chat.startDiscussion", "chat.discussMore", "chat.wrapUpDiscussion", "chat.cancelDiscussion",
+    "chat.messages", "chats.leave", "chats.changePlace", "chats.markRead", "chats.unarchive", "chats.remove", "chat.stopDiscussion"]);
   const params = { workspaceSlug: "home-3", chatId: "40", messageId: "5" };
   const writes = [
     "POST /api/w/:workspaceSlug/chats/:chatId/messages",
@@ -168,7 +169,12 @@ test("an archived chat is read-only: it reads, and only leaving, its place, unar
     "POST /api/w/:workspaceSlug/chats/:chatId/people",
     "PATCH /api/w/:workspaceSlug/chats/:chatId",
     "POST /api/w/:workspaceSlug/chats/:chatId/archive",
-    "POST /api/w/:workspaceSlug/chats/:chatId/hand-over-note"
+    "POST /api/w/:workspaceSlug/chats/:chatId/hand-over-note",
+    "POST /api/w/:workspaceSlug/chats/:chatId/discussions",
+    "POST /api/w/:workspaceSlug/chats/:chatId/discussions/:messageId/start",
+    "POST /api/w/:workspaceSlug/chats/:chatId/discussions/:messageId/round",
+    "POST /api/w/:workspaceSlug/chats/:chatId/discussions/:messageId/wrap",
+    "POST /api/w/:workspaceSlug/chats/:chatId/discussions/:messageId/cancel"
   ];
   const taking = [
     "GET /api/w/:workspaceSlug/chats/:chatId/messages",
@@ -176,7 +182,8 @@ test("an archived chat is read-only: it reads, and only leaving, its place, unar
     "PATCH /api/w/:workspaceSlug/chats/:chatId/place",
     "POST /api/w/:workspaceSlug/chats/:chatId/read",
     "POST /api/w/:workspaceSlug/chats/:chatId/unarchive",
-    "DELETE /api/w/:workspaceSlug/chats/:chatId"
+    "DELETE /api/w/:workspaceSlug/chats/:chatId",
+    "POST /api/w/:workspaceSlug/chats/:chatId/discussions/:messageId/stop"
   ];
   const archived = routesWith(() => null, service, (chatId) => ({ id: chatId, archived_at: "2026-11-21T10:00:00.000Z" }));
   for (const key of writes) {
@@ -185,7 +192,7 @@ test("an archived chat is read-only: it reads, and only leaving, its place, unar
   }
   assert.deepEqual(ran, [], "none of their work ran");
   for (const key of taking) assert.equal((await archived.call(key, params, {})).status, 200, key);
-  assert.deepEqual(ran, ["chat.messages", "chats.leave", "chats.changePlace", "chats.markRead", "chats.unarchive", "chats.remove"]);
+  assert.deepEqual(ran, ["chat.messages", "chats.leave", "chats.changePlace", "chats.markRead", "chats.unarchive", "chats.remove", "chat.stopDiscussion"]);
 
   ran.length = 0;
   const open = routesWith(() => null, service);

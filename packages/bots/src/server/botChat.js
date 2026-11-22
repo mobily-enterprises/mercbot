@@ -26,7 +26,7 @@ const FIND_LIMIT = 200;
  * @param {import("./types.js").ChatModel} dependencies.model
  * @param {import("@local/integrations/server/types").Integrations} dependencies.integrations
  * @param {import("./types.js").Goals} dependencies.goals
- * @param {ReturnType<typeof import("./botReplies.js").createBotReplies>} dependencies.replies
+ * @param {import("./types.js").BotReplies} dependencies.replies
  * @param {import("./chatSeats.js").ChatSeats} dependencies.seats
  * @param {{ get: (chatId: string, options: object) => Promise<{ chat: object }> }} dependencies.chats chatMembers, for the chat's row
  * @param {(bot: object, userMessage: object) => Promise<{ status: string, emoji: string | null }>} dependencies.activity

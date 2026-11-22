@@ -47,6 +47,7 @@ export function useSidebarCommands({ sections, editingSectionId, store, team, dr
     moveChat: ({ chatId, sectionId }) => place(chatId, { sectionId }),
     copyId: ({ chatId }) => copy(`mbc-${chatId}`, "Chat ID copied"),
     renameChat: ({ chatId, title }) => chatsApi.rename(chatId, title).then(({ chat }) => store.updateChat(chat)),
+    setJoinIn: ({ chatId, on }) => chatsApi.setJoinIn(chatId, on).then(({ chat }) => store.updateChat(chat)),
     archiveChat: ({ chatId }) => chatsApi.archive(chatId).then(({ chat }) => store.updateChat(chat)),
     unarchiveChat: ({ chatId }) => chatsApi.unarchive(chatId).then(({ chat }) => store.updateChat(chat)),
     joinChat: ({ chatId }) => chatsApi.join(chatId).then(({ chat }) => store.updateChat(chat)),

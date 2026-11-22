@@ -47,6 +47,7 @@ Chats you don't make with New chat are Public too: your chat with a bot, a new b
 
 - **When you're the only person in the chat,** every bot in it answers, in turn. Type **@** and pick a bot to ask only that one.
 - **When several people are in the chat,** a bot answers only when it's called: by its name, with **@**, when you reply to one of its messages, or with **@everyone**.
+- **Bots join in when useful.** In a chat with several people, the chat's maker and the home's owners and admins can switch this on in **Chat details**, under **Bots**. Then, when someone writes without calling a bot, Mercbot checks whether one of the chat's bots can help, and at most one answers. People talking to each other are left alone. It's off unless someone switches it on, and others see the switch but can't change it.
 - After the bots answer, a bot another bot mentioned may answer once more. Bots stay quiet when they have nothing new to add.
 - A chat with people only has no bot answering at all.
 
@@ -57,6 +58,22 @@ Approval cards are always for the person whose message started the work. Only th
 - **Mention someone.** In a chat with other people, type **@** and pick a person from the list (it offers everyone, the chat's people and its bots). Their name shows in your message, and their chat list shows **@** on the chat until they read it. Mentioning a person doesn't make a bot answer. You can only mention people who are in the chat.
 - **React to a message.** Point at another person's message or a bot's and select **React**, or right-click it, then pick a reaction. Pick it again to take it away. Each message shows everyone's reactions, with how many chose each one, and yours ringed. You can't react to your own messages.
 - **Attach files.** A file you attach goes in the chat's folder, where everyone who can open the chat finds it. See [Attach files to a message](/help/files#attach-files-to-a-message).
+
+## Discuss with the bots
+
+In a chat with two or more bots, the bots can talk a question over together.
+
+1. Write the question in the message box.
+2. Select **+** next to it, then **Discuss with the bots**. A **Discussion** card appears in the chat with your question.
+3. Choose **1 round**, **2 rounds** or **3 rounds**. The card says what it may cost at most, "Up to about $0.12, as your work in this home", and the most a discussion can spend is that amount: it stops by itself before it would spend more.
+4. Select **Start**. Each bot takes one turn: it adds something new, or passes when it has nothing to add.
+5. After each round, the card waits for you. Select **One more round** (while you have rounds left), **Wrap up** to have one bot sum the discussion up, or **Stop**.
+
+- A round in which every bot passes ends the discussion.
+- Nothing runs without your press: no round starts by itself.
+- What you write while the bots are discussing waits, and the bots answer it once the round ends or you stop it.
+- Only the person who started a discussion can start it, ask for another round or wrap it up. They, the chat's maker and the home's owners and admins can stop it.
+- What it cost so far is on the card. In **Spending** it counts as your use of each bot that spoke.
 
 ## What belongs to a chat
 

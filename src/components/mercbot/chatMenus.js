@@ -26,6 +26,8 @@ export function chatRights(chat, { me, manages }) {
     // Take people and bots out of it (no one leaves the everyone chat but by leaving the home).
     removeMembers: manager,
     rename: manager && !chat.directBotId,
+    // Whether its bots join in when useful (D-115); a direct chat has one person, so its bot always answers.
+    joinIn: manager && !chat.directBotId,
     archive: manager && !chat.everyone && chat.kind !== "private",
     unarchive: manager && !chat.everyone,
     remove: manager && !chat.everyone,

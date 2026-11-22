@@ -138,8 +138,8 @@ What these waited for has happened, so nothing stops them now.
   copy can use; neither has been measured on a person's own computer yet.
 - [x] **Switch the default AI provider to DeepInfra** (D-48, D-58): settled by D-72, each kind of AI's provider
   is a setting; chats stay on Together, the rest on DeepInfra.
-- [ ] **Bot-only threads and a company chart** (D-46 step 3, `LATER.md`): bots together in a chat, joining in and
-  Discuss, are B4 of the rebuild (D-115), after D-112's chats.
+- [x] **Bot-only threads and a company chart** (D-46 step 3): closed by D-115. Bots join in when useful, per chat
+  and off by default, and talk together on a Discuss card a person runs, in a chat its people read.
 - [ ] **Mid-turn summaries in the agent loop** (`docs/agent-loop.md`): when a long build shows the need.
 - [ ] **CONTRIBUTING and a CLA** (`docs/architecture.md` §9.1): they wait for a lawyer's advice. With them:
   whether the README's trademark line and a copyright line are right.
