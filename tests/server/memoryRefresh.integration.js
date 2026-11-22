@@ -8,7 +8,8 @@ import { queriesDuring } from "../support/queryCount.mjs";
 // When a bot's digest is refreshed, and how (D-113; B2's test 3): soon once a public chat's new words pass the
 // threshold, else a day after the last; one server at a time, whose lease is renewed while it writes; never over a
 // digest written meanwhile; again later, waiting longer each time, when it fails; and made again from the chats
-// themselves once a public chat is deleted, without it. A stand-in writes every digest; no provider is called.
+// themselves once a public chat is deleted, without it, at once on a serving server. A stand-in writes every digest;
+// no provider is called.
 assert.ok(process.env.TEST_DB_NAME?.trim(), "TEST_DB_NAME must identify a disposable test database.");
 assert.equal(process.env.DB_NAME, process.env.TEST_DB_NAME, "DB_NAME must match the dedicated TEST_DB_NAME.");
 
@@ -127,6 +128,23 @@ test("a deleted public chat is gone from the digest at once, and from the one ma
   assert.match(remade.text, /Tomatoes/u);
   assert.ok(!remade.text.includes("blade"), "nor remembered");
   assert.deepEqual(Object.keys(remade.covers), [String(f.garden.id)], "nor kept as read");
+});
+
+test("on a serving server, a refresh asked for now runs at once, not at its loop's next turn", async (context) => {
+  const f = await gardenHome(context, async (_system, content) => content.split("\n").filter((line) => line.startsWith("[")).join("\n"));
+  const loop = f.kit.memory.runner.start({ everyMs: 60 * 60 * 1000 });
+  try {
+    await f.kit.memory.runner.runDue();
+    const shed = await seedChat(f.kit.knex, { homeId: f.homeId, title: "Shed", people: [f.anna], bots: [f.chef], madeBy: f.anna });
+    await seedMessage(f.kit.knex, { homeId: f.homeId, chatId: f.garden.id, userId: f.anna, body: { text: "Tomatoes on the fourteenth", authorName: "Anna" } });
+    await f.kit.chats.remove(shed.id, f.kit.as(f.anna, f.homeId));
+    await f.kit.drain();
+    const remade = await f.digest();
+    assert.match(remade.text, /Tomatoes/u, "made again now, an hour before the loop's next turn");
+    assert.deepEqual(Object.keys(remade.covers), [String(f.garden.id)]);
+  } finally {
+    await loop.drain(10000);
+  }
 });
 
 test("a slow write keeps its lease, renewed past its first end, so no other server takes it over", async (context) => {

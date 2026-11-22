@@ -131,12 +131,13 @@ turn's chat (`readable_from`, D12), so a private chat never reaches a chat with 
   is still the one it read.
 - **Refreshes** (`bot_memory_queue`, one a bot): asked after a person's message and a bot's reply in a public chat
   (`noticedLater`), due when the bot's new words pass 4,000 tokens or 400 lines (but 30 minutes after the last at the
-  soonest), else 24 hours after the last. Every serving server runs the loop (`botLoops.js`, every minute); a run
+  soonest), else 24 hours after the last. Every serving server runs the loop (`botLoops.js`, every minute), and
+  starts it at once when a refresh is asked for now (`runner.wake`: a rebuild, or words past the threshold); a run
   claims one due refresh (SKIP LOCKED) under a 180 s lease renewed every 30 s while it writes; one asked meanwhile
   stays (`asks`); a refused save is due again at once; a failure waits 1, 2, 4… up to 60 minutes (`attempts`,
   `last_error`).
 - **Forgetting** (O23): deleting a public chat empties its bots' digests at once (no turn reads them) and asks for a
-  rebuild from the chats themselves (`rebuild`), without it. Leaving or archiving a chat, or archiving a bot, keeps
+  rebuild from the chats themselves (`rebuild`), without it, which the serving server starts at once. Leaving or archiving a chat, or archiving a bot, keeps
   what it remembers; an archived bot's refreshes write nothing until it's back, and the composer doesn't name it.
 - **The card** (Details, under Knowledge, `MercbotMemorySection.vue`): Memory (made when, Show all) and Notes for
   everyone (who asked, through which bot, Remove for those who may, Show older notes). The composer of a public chat

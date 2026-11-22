@@ -218,6 +218,7 @@ export function createBotMemory({ records, systemContext, workspaces, model, met
       asked.push({ botId, minutes: Math.ceil(due) });
     }
     await records.memory.ask(asked, {}, home);
+    if (asked.some((one) => one.minutes === 0)) runner.wake();
   }
 
   /** noticed, in the background: a message is never held up by its bots' memories. */
@@ -241,6 +242,7 @@ export function createBotMemory({ records, systemContext, workspaces, model, met
     if (!all.length) return;
     await records.memory.emptyDigests(all, home);
     await records.memory.ask(all.map((botId) => ({ botId, minutes: 0 })), { rebuild: true }, home);
+    runner.wake();
   }
 
   // --- A refresh ----------------------------------------------------------------------------------------------------
@@ -408,10 +410,20 @@ export function createBotMemory({ records, systemContext, workspaces, model, met
       return Object.freeze({ drain });
     }
 
+    /**
+     * A refresh asked for now (a rebuild after a forgetting, or new words past the threshold) runs at once on a serving
+     * server, not at its loop's next turn: a forgotten digest stays empty for as short a time as its write takes. The
+     * service's background work carries it, so a stopping server waits for it. A server not serving does nothing.
+     */
+    function wake() {
+      if (timer && !stopped) background.add(runDue());
+    }
+
     return Object.freeze({
       runOne,
       runDue,
-      start
+      start,
+      wake
     });
   }
 
@@ -464,6 +476,8 @@ export function createBotMemory({ records, systemContext, workspaces, model, met
     return { removed: await records.homeNotes.remove(note.id, options) };
   }
 
+  const runner = createRunner();
+
   return Object.freeze({
     limits,
     homeName,
@@ -474,7 +488,7 @@ export function createBotMemory({ records, systemContext, workspaces, model, met
     noticed,
     noticedLater,
     forget,
-    runner: createRunner(),
+    runner,
     memoryOf,
     listNotes,
     removeNote
