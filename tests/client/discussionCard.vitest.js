@@ -2,16 +2,18 @@ import { createSSRApp, h } from "vue";
 import { renderToString } from "vue/server-renderer";
 import { createVuetify } from "vuetify";
 import { createMaterialVuetifyOptions } from "@jskit-ai/material-web/client";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { theme } from "../../src/theme/index.js";
 
 // The Discussion card (D-115): what it says and offers as a round runs, waits or was interrupted. A round's card is
 // leased while it runs; once the lease lapses (the server running it stopped) it reads as interrupted, as the server
 // reads it, and waits for a press: One more round (unless it was wrapping up), Wrap up or Stop for its person, Stop for
-// the chat's managers. No press is made here.
+// the chat's managers. The page counts what the server said was left of the lease on its own clock, so a browser clock
+// ahead of the server's never makes a running round look interrupted. No press is made here.
 vi.mock("../../src/components/mercbot/chatsApi.js", () => ({ chatsApi: { discussion: async () => ({}) } }));
 const { default: MercbotDiscussionCard } = await import("../../src/components/mercbot/MercbotDiscussionCard.vue");
 const { nanoMoney } = await import("../../src/components/mercbot/accountApi.js");
+const { discussionState } = await import("../../src/components/mercbot/chatView.js");
 // What the card has cost, as this machine's locale writes money ("$0.002" in English, "USD 0.002" in some others).
 const spent = nanoMoney(2000000);
 
@@ -47,16 +49,20 @@ async function shown(message, { me = "2", manages = false } = {}) {
   };
 }
 
+afterEach(() => {
+  vi.useRealTimers();
+});
+
 describe("Discussion card", () => {
   it("while its round's lease holds, it's talking: its person can only stop it", async () => {
-    const running = await shown(card({ leaseUntil: later(60) }));
+    const running = await shown(card({ leaseUntil: later(60), leaseLeftMs: 60000 }));
     expect(running.status).toBe("Talking");
     expect(running.line).toBe(`Round 1 of 2 · ${spent} so far`);
     expect(running.buttons).toEqual(["Stop"]);
   });
 
   it("once the lease has lapsed, it reads as interrupted and waits for its person's press", async () => {
-    const lapsed = await shown(card({ leaseUntil: later(-1) }));
+    const lapsed = await shown(card({ status: "interrupted", leaseUntil: later(-1) }));
     expect(lapsed.status).toBe("Interrupted");
     expect(lapsed.line).toBe(`Round 1 of 2 was interrupted · ${spent} so far`);
     expect(lapsed.buttons).toEqual(["Stop", "One more round", "Wrap up"]);
@@ -68,10 +74,28 @@ describe("Discussion card", () => {
   });
 
   it("for anyone else in the chat it waits for its person; a manager can stop it", async () => {
-    const lapsed = card({ leaseUntil: later(-1) });
+    const lapsed = card({ status: "interrupted", leaseUntil: later(-1) });
     const other = await shown(lapsed, { me: "3" });
     expect(other.line).toBe(`Round 1 of 2 was interrupted · ${spent} so far · waiting for Kim`);
     expect(other.buttons).toEqual([]);
     expect((await shown(lapsed, { me: "3", manages: true })).buttons).toEqual(["Stop"]);
+  });
+
+  it("a browser clock ahead of the server's doesn't make a running round look interrupted", async () => {
+    // The server answered with 60 seconds of its lease left; this browser's clock says it's 10 minutes later.
+    const card60 = card({ leaseUntil: later(60), leaseLeftMs: 60000 });
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(Date.now() + 10 * 60 * 1000);
+    const ahead = await shown(card60);
+    expect([ahead.status, ahead.buttons]).toEqual(["Talking", ["Stop"]]);
+    expect((await shown(card({ leaseUntil: later(-60) }))).status, "a read that doesn't say what's left: as the server said").toBe("Talking");
+  });
+
+  it("counts the lease left on the page's own clock from when the card came", () => {
+    const arrived = 1_000_000;
+    const running = card({ leaseLeftMs: 60000 }).body;
+    expect(discussionState(running, arrived, arrived + 59999)).toBe("running");
+    expect(discussionState(running, arrived, arrived + 60000)).toBe("interrupted");
+    expect(discussionState({ ...running, status: "waiting" }, arrived, arrived + 600000)).toBe("waiting");
   });
 });

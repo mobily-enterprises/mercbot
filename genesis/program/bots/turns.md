@@ -132,9 +132,11 @@ spending is the discussion's own turns' AI calls only, heard through `meter.coun
 passes ends it (`passed`); Stop ends the card at once and the round sees it at its next heartbeat or turn. A running
 card is leased (`leaseUntil`, renewed at each heartbeat while the card says that round runs, a heartbeat past the
 runs' stale time): once it lapses, every read (`botRows.js` `discussionNow`, through `toMessage`) and every press
-takes it as `interrupted`, which waits for One more round (not after a wrap-up was interrupted), Wrap up or Stop like
-a finished round, on runs that are stale by then. Each turn is metered to the starter and the bot
-that speaks (R8). The chat list shows the card as "Discussion: <question>".
+takes it as `interrupted`; a page's read of a running card says what's left of the lease by the server's clock
+(`leaseLeftMs`), which the card counts on the page's own clock (`chatView.js` `discussionState`), never against the
+server's time. An interrupted card waits for One more round (not after a wrap-up was interrupted), Wrap up or Stop
+like a finished round, on runs that are stale by then. Each turn is metered to the starter and the bot that speaks
+(R8). The chat list shows the card as "Discussion: <question>".
 
 **A reply** (`POST …/reply {timeZone?, language?, afterMessageId?, afterCard?}`): each speaking bot runs its own reply
 in this chat, claimed in `agent_runs` under its seat (`chat_bots.id`) with a heartbeat, so a retried request or

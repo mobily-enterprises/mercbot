@@ -317,7 +317,9 @@ test("a round whose server stopped reads as interrupted once its lease lapses, a
   });
 
   await leased(60);
-  assert.equal((await shown(kitchen, card.id, lee)).status, "running", "while its lease holds, it runs");
+  const holding = await shown(kitchen, card.id, lee);
+  assert.equal(holding.status, "running", "while its lease holds, it runs");
+  assert.ok(holding.leaseLeftMs > 50000 && holding.leaseLeftMs <= 60000, "and the page is told what's left of it by the server's clock");
   await assert.rejects(press("round", kitchen, card.id, kim), { statusCode: 409, code: "bots_discussion_not_waiting" });
 
   await leased(-1);

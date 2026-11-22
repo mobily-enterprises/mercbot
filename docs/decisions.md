@@ -3731,7 +3731,10 @@ talks, and approvals stay with people.
   - **A round's card is leased.** Starting a round sets `leaseUntil`, and each heartbeat renews it while the card says
     that round runs: 75 seconds, a heartbeat past the 60 seconds after which its runs are stale. If the server running
     it stops, the lease lapses and the card reads as `interrupted` (`botRows.js` `discussionNow`, for every page's read
-    and every press; the card itself also checks the time), never as running: by then its runs are stale, so any server
+    and every press), never as running. A page's read of a running card also says how much of the lease is left by
+    the server's clock (`leaseLeftMs`), which the card counts down on the page's own clock from when it came
+    (`chatView.js` `discussionState`), so a browser clock ahead of the server's never shows a running round as
+    interrupted: by then its runs are stale, so any server
     takes them over. Its person may press **One more round** (unless it was wrapping up, and while rounds are left),
     **Wrap up** or **Stop**, as after a round; only the rest of the interrupted round is lost. A round that was only
     slow, not stopped, finds its card no longer its own at its next heartbeat and stops.
