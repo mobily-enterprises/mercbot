@@ -1,6 +1,6 @@
 import path from "node:path";
 import type { TestInfo } from "@playwright/test";
-import { connectTestDb, directChat, expect, homeApi, openShell, shell, test, type Page } from "./harness";
+import { connectTestDb, directChat, expect, homeApi, makeChat, openShell, shell, test, type Page } from "./harness";
 
 // What a bot knows (D-107): the Knowledge section of its card's Details tab (Team's, or beside its direct chat,
 // D-112), under its Instructions. Each test makes its own bot in the owner's fixture home, its direct chat with no
@@ -118,6 +118,57 @@ test("Knowledge: short text is always in mind, a long guide is searched first, a
     await say(page, bot, "What do you know about Fremantle?");
     await expect(shell.chat(page).getByText("My knowledge doesn't say anything about Fremantle.")).toBeVisible();
   } finally {
+    await deleteBot(page, bot);
+  }
+});
+
+test("Memory: a bot's card shows what it remembers of its public chats, and a note's author removes it", async ({ page }) => {
+  const bot = await makeBot(page);
+  const stamp = Date.now().toString(36);
+  const said = `The tomatoes go in on the fourteenth (${stamp}).`;
+  const knex = connectTestDb();
+  let noteId: string | null = null;
+  let gardenId: string | null = null;
+  try {
+    const api = await homeApi(page);
+    const garden = await makeChat(page, { title: `Garden ${stamp}`, bots: [bot.id] });
+    gardenId = String(garden.id);
+    await api.post(`/chats/${garden.id}/messages`, { text: said });
+    // Another public chat of the bot's, deleted: it forgets it at once and its memory is made again from its other
+    // chats, by the serving server straight away (D-113), the target's stand-in model writing it.
+    const shed = await makeChat(page, { title: `Shed ${stamp}`, bots: [bot.id] });
+    await api.post(`/chats/${shed.id}/messages`, { text: `The mower's blade is blunt (${stamp}).` });
+    await api.del(`/chats/${shed.id}`);
+    await expect.poll(async () => (await api.get(`/bots/${bot.id}/memory`)).memory?.text || "", { timeout: 20000 }).toContain(said);
+    // A note for everyone, as a yes on its card writes one: asked for by the bot's maker, through the bot.
+    const made = await knex("bots").where({ id: bot.id }).first();
+    expect(made.made_by, "the bot's maker").toBeTruthy();
+    const text = `Bins go out on Tuesdays ${stamp}`;
+    const [note] = await knex("home_notes")
+      .insert({ workspace_id: made.workspace_id, text, by_user_id: made.made_by, via_bot_id: bot.id, from_conversation_id: garden.id })
+      .returning("id");
+    noteId = String(note.id);
+
+    await openKnowledge(page, bot);
+    const memory = card(page, bot).getByRole("region", { name: "Memory" });
+    await expect(memory.locator(".mb-memory__sentence").first()).toContainText(`What ${bot.name} remembers of the public chats it's in, made `);
+    await expect(memory.locator("[data-memory]")).toContainText(said);
+    await expect(memory.locator("[data-memory]"), "the deleted chat is forgotten").not.toContainText("blade");
+    const listed = memory.locator(`[data-note="${text}"]`);
+    await expect(listed).toContainText(`via ${bot.name}`);
+
+    await listed.getByRole("button", { name: `Remove the note: ${text}` }).click();
+    const dialog = page.getByRole("dialog").filter({ hasText: "Remove this note?" });
+    await expect(dialog).toContainText(`Every bot stops reading it from its next reply: “${text}”`);
+    await dialog.getByRole("button", { name: "Remove" }).click();
+    await expect(listed).toHaveCount(0);
+    const kept = await knex("home_notes").where({ id: noteId }).first();
+    expect(kept.removed_at, "kept, as removed").toBeTruthy();
+    expect(String(kept.removed_by), "by its author").toBe(String(made.made_by));
+  } finally {
+    if (noteId) await knex("home_notes").where({ id: noteId }).del();
+    await knex.destroy();
+    if (gardenId) await (await homeApi(page)).del(`/chats/${gardenId}`);
     await deleteBot(page, bot);
   }
 });

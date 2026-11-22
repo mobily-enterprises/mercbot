@@ -3540,11 +3540,14 @@ The owner's decisions of 21 November, in the owner's words:
   reply in a public chat ask for it; a private chat's words ask for nothing. The queue (`bot_memory_queue`, one row a
   bot) is claimed with SKIP LOCKED on every server (D-15), under a 180-second lease renewed every 30 seconds while it
   writes (20,000 tokens at 80–150 tokens a second can outlast three minutes). An ask during a run stays for its own
-  time (`asks`); a refused save is due again at once; a failure waits 1, 2, 4… up to 60 minutes.
+  time (`asks`); a refused save is due again at once; a failure waits 1, 2, 4… up to 60 minutes. A refresh asked for
+  now starts at once on the serving server that asked, not at its loop's next turn, so a forgotten digest stays empty
+  only as long as its write takes.
 - **Forgetting (O23).** Deleting a public chat empties its bots' digests at once, so no turn reads them, and rebuilds
   them from the chats that are left (`rebuild`). Leaving a chat, archiving it or archiving a bot keeps what it
-  remembers, as a person would; an archived bot remembers nothing new until it's back. Removing messages, or an operator's safety removal, calls the same forgetting
-  (`bots.memory.forget`) where it exists; Mercbot has no route that removes a message.
+  remembers, as a person would; an archived bot remembers nothing new until it's back. Removing messages, or an
+  operator's safety removal, calls the same forgetting (`bots.memory.forget`) where it exists; Mercbot has no route
+  that removes a message.
 
 ### What a turn reads, and where
 
