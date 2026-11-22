@@ -14,7 +14,7 @@ assert.equal(process.env.DB_NAME, process.env.TEST_DB_NAME, "DB_NAME must match 
 test("people react to each other's messages, one reaction each, and none is lost when they react at once", async (context) => {
   const kit = await startChatTurns(context);
   const { knex, turns } = kit;
-  const { homeId, people } = await homeOfPeople(kit, ["Anna", "Ben", "Carla", "Dario", "Eva", "Fede"]);
+  const { homeId, people } = await homeOfPeople(kit, ["Anna", "Ben", "Carla", "Dario", "Eva", "Finn"]);
   const [anna, ben, carla, dario, eva] = people;
   const [chef] = await botsOf(kit, homeId, anna, ["Chef"]);
   const as = (person) => kit.as(person, homeId);

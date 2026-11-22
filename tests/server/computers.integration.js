@@ -346,24 +346,24 @@ test("a person who takes over a chat's computer holds its bot off until it's han
   const log = [];
   const { store } = await volumeFor(context);
   const server = await startServer(knex, context, "control-A", log, store);
-  const tony = await person(knex, "Tony");
-  const chiara = await person(knex, "Chiara");
-  const homeId = await separateHome(knex, tony, [chiara]);
-  const [bot] = await knex("bots").insert({ made_by: tony, workspace_id: homeId, name: "Tripbot", color: "#1E86FC" }).returning("id");
+  const sam = await person(knex, "Sam");
+  const priya = await person(knex, "Priya");
+  const homeId = await separateHome(knex, sam, [priya]);
+  const [bot] = await knex("bots").insert({ made_by: sam, workspace_id: homeId, name: "Tripbot", color: "#1E86FC" }).returning("id");
   const botId = String(bot.id);
-  const chat = await seedChat(knex, { homeId, title: "Lisbon", people: [tony, chiara], bots: [botId] });
+  const chat = await seedChat(knex, { homeId, title: "Lisbon", people: [sam, priya], bots: [botId] });
   const computerId = chat.chatBotIds.get(botId);
   context.after(async () => {
     await server.stop().catch(() => {});
     await knex("workspaces").where({ id: homeId }).del();
-    await knex("users").whereIn("id", [tony, chiara]).del();
+    await knex("users").whereIn("id", [sam, priya]).del();
     await knex("mercbot_servers").where({ id: "control-A" }).del();
     await knex.destroy();
   });
   const as = (userId) => requestContextOptions({ user: { id: userId }, workspace: { id: homeId, slug: `home-${homeId}` }, membership: { roleSid: "member" } });
   const computers = server.computers;
   const heard = [];
-  server.notices.subscribe("bots", chiara, (event) => heard.push(event));
+  server.notices.subscribe("bots", priya, (event) => heard.push(event));
   await listening(server.notices);
   // The lines in the chat, as records.messages wrote them.
   const lines = () => knex("messages").where({ conversation_id: chat.id }).orderBy("id").select("role", "kind", "author_user_id", "body");
@@ -375,39 +375,39 @@ test("a person who takes over a chat's computer holds its bot off until it's han
 
   // Taking over is a person's, of a computer that's there.
   await assert.rejects(computers.takeOver(computerId, server.system("a call with no person")), TypeError);
-  await assert.rejects(computers.takeOver(String(Number(computerId) + 1_000_000), as(tony)), (error) => error.statusCode === 404 && error.code === "computer_not_found");
+  await assert.rejects(computers.takeOver(String(Number(computerId) + 1_000_000), as(sam)), (error) => error.statusCode === 404 && error.code === "computer_not_found");
   assert.deepEqual(await lines(), []);
 
-  // Tony takes over: the computer wakes for him, a line in the chat says so, and the chat's people hear of both.
-  const taken = await computers.takeOver(computerId, as(tony));
-  assert.deepEqual([taken.control.userId, taken.control.name], [tony, "Tony"]);
+  // Sam takes over: the computer wakes for him, a line in the chat says so, and the chat's people hear of both.
+  const taken = await computers.takeOver(computerId, as(sam));
+  assert.deepEqual([taken.control.userId, taken.control.name], [sam, "Sam"]);
   assert.ok(!Number.isNaN(Date.parse(taken.control.since)));
-  assert.deepEqual(taken.messages.map((message) => message.body.text), ["Tony took over Tripbot's computer."]);
+  assert.deepEqual(taken.messages.map((message) => message.body.text), ["Sam took over Tripbot's computer."]);
   assert.deepEqual(
     (await lines()).map(({ role, kind, author_user_id: author, body }) => [role, kind, author, body.icon, body.computer]),
-    [["system", "event", null, "computer", { chatBotId: computerId, botId, control: tony }]],
+    [["system", "event", null, "computer", { chatBotId: computerId, botId, control: sam }]],
     "Mercbot's own line, no one's unread"
   );
   const status = await computers.status(computerId);
   assert.deepEqual(
     [status.state, status.control.userId, status.control.name, Date.parse(status.control.since)],
-    ["awake", tony, "Tony", Date.parse(taken.control.since)]
+    ["awake", sam, "Sam", Date.parse(taken.control.since)]
   );
-  assert.equal(String((await controlled()).controlled_by), tony, "every server sees who has control");
-  await until(() => heard.some((event) => event.type === "messages" && event.chatId === chat.id), "Chiara hearing of the line");
-  await until(() => heard.some((event) => event.type === "computer" && event.botId === botId && event.control?.userId === tony), "Chiara hearing who has control");
+  assert.equal(String((await controlled()).controlled_by), sam, "every server sees who has control");
+  await until(() => heard.some((event) => event.type === "messages" && event.chatId === chat.id), "Priya hearing of the line");
+  await until(() => heard.some((event) => event.type === "computer" && event.botId === botId && event.control?.userId === sam), "Priya hearing who has control");
   // Taking it again changes nothing.
-  assert.deepEqual((await computers.takeOver(computerId, as(tony))).messages, []);
+  assert.deepEqual((await computers.takeOver(computerId, as(sam))).messages, []);
   assert.equal((await lines()).length, 1);
 
-  // While Tony has control, each thing the bot would do on the computer waits, naming him, and none reaches it.
+  // While Sam has control, each thing the bot would do on the computer waits, naming him, and none reaches it.
   const heldOff = (error) => error.statusCode === 409 && error.code === "computer_person_in_control"
-    && error.message === "Tony has control of Tripbot's computer. Wait until they hand it back.";
+    && error.message === "Sam has control of Tripbot's computer. Wait until they hand it back.";
   const reached = log.length;
   for (const [what, work] of [
     ["browse", () => computers.browse(computerId, "example.com")],
     ["act", () => computers.act(computerId, "Click Sign in")],
-    ["fill", () => computers.fill(computerId, { site: "mail.example.com", username: "tony", password: "secret" })],
+    ["fill", () => computers.fill(computerId, { site: "mail.example.com", username: "sam", password: "secret" })],
     ["screenshot", () => computers.screenshot(computerId)],
     ["startSignIn", () => computers.startSignIn(computerId, "https://example.com/sign-in")],
     ["a coding tool's sign-in", () => computers.code(computerId, { action: "signIn", tool: "codex" })],
@@ -421,28 +421,28 @@ test("a person who takes over a chat's computer holds its bot off until it's han
   assert.deepEqual(await computers.open(computerId, "/files/chat/notes.docx"), { opened: "/files/chat/notes.docx" });
   assert.ok(Array.isArray((await computers.code(computerId, { action: "status" })).tools));
 
-  // Chiara takes it from Tony, then hands it back to the bot, which acts on it again.
-  const fromTony = await computers.takeOver(computerId, as(chiara));
-  assert.deepEqual([fromTony.control.userId, fromTony.control.name], [chiara, "Chiara"]);
-  const back = await computers.handBack(computerId, as(chiara));
-  assert.deepEqual([back.messages.map((message) => message.body.text), back.control], [["Chiara handed Tripbot's computer back."], null]);
-  assert.deepEqual((await texts()).slice(1), ["Chiara took over Tripbot's computer from Tony.", "Chiara handed Tripbot's computer back."]);
+  // Priya takes it from Sam, then hands it back to the bot, which acts on it again.
+  const fromSam = await computers.takeOver(computerId, as(priya));
+  assert.deepEqual([fromSam.control.userId, fromSam.control.name], [priya, "Priya"]);
+  const back = await computers.handBack(computerId, as(priya));
+  assert.deepEqual([back.messages.map((message) => message.body.text), back.control], [["Priya handed Tripbot's computer back."], null]);
+  assert.deepEqual((await texts()).slice(1), ["Priya took over Tripbot's computer from Sam.", "Priya handed Tripbot's computer back."]);
   assert.equal((await lines()).at(-1).body.computer.control, null);
   assert.equal((await computers.status(computerId)).control, null);
   assert.deepEqual(await controlled(), { controlled_by: null, controlled_at: null });
-  await until(() => heard.some((event) => event.type === "computer" && event.control === null), "Chiara hearing the bot has it back");
+  await until(() => heard.some((event) => event.type === "computer" && event.control === null), "Priya hearing the bot has it back");
   // With nobody in control, handing it back posts nothing.
-  assert.deepEqual(await computers.handBack(computerId, as(tony)), { messages: [], control: null });
+  assert.deepEqual(await computers.handBack(computerId, as(sam)), { messages: [], control: null });
   assert.equal((await lines()).length, 3);
   await computers.browse(computerId, "example.com");
   assert.ok(log.includes("control-A browsed example.com"));
 
   // A computer that goes to sleep is the bot's again, without a line.
-  await computers.takeOver(computerId, as(tony));
+  await computers.takeOver(computerId, as(sam));
   await computers.sleep(computerId);
   assert.deepEqual(await computers.status(computerId), { state: "asleep", url: "", error: "", control: null, signIns: [] });
   assert.deepEqual(await controlled(), { controlled_by: null, controlled_at: null });
-  assert.deepEqual((await texts()).slice(3), ["Tony took over Tripbot's computer."]);
+  assert.deepEqual((await texts()).slice(3), ["Sam took over Tripbot's computer."]);
   assert.equal((await computers.browse(computerId, "example.org")).url, "example.org");
 });
 
@@ -469,10 +469,10 @@ test("what signs in on a computer is listed with it, newest first: a site a pass
   const listed = async () => (await computers.status(computerId)).signIns.map(({ label, kind }) => [label, kind]);
 
   // A fill that typed no password signed in to nothing.
-  await computers.fill(computerId, { site: "mail.example.com", username: "tony" });
+  await computers.fill(computerId, { site: "mail.example.com", username: "sam" });
   assert.deepEqual(await listed(), []);
   // One that typed a password signed in to the site it named, else to the page's host.
-  await computers.fill(computerId, { site: "mail.example.com", username: "tony", password: "secret" });
+  await computers.fill(computerId, { site: "mail.example.com", username: "sam", password: "secret" });
   await computers.fill(computerId, { url: "https://www.login.example.org/sign-in", password: "secret" });
   assert.deepEqual(await listed(), [["login.example.org", "site"], ["mail.example.com", "site"]]);
   // Signing in to a site again lists it once, as the newest.

@@ -3357,7 +3357,7 @@ The owner's decisions of 21 November, in the owner's words where there are some:
    - So in a Public chat a bot uses every Public chat of the home and the home-wide things, and never a Private chat,
      even when all of the Public chat's current people are in it (someone who joins the home later can open the Public
      chat). In a Private chat it uses every Public chat, the chat itself, and every Private chat whose people include
-     all of this chat's people: Tony alone with Tripbot gets every Public chat and every Private chat Tony is in.
+     all of this chat's people: Sam alone with Tripbot gets every Public chat and every Private chat Sam is in.
    - Requests between bots follow it too: the asked bot works under the asking chat's openers, on the brief alone (no
      chat history), and its answer and cards go to the asking chat; if it needs its computer, it joins the asking chat
      as a member, with a line.
@@ -3513,10 +3513,10 @@ When the Builder changes, the new one joins every app chat and the old one stays
 replacement of D-36's notebook and memories: what a bot remembers is the home's public chats and the home's notes,
 nothing personal kept per person. Amends D-57 (the state note ends with the memory) and D-112's composer words.*
 
-The owner's decisions of 21 November, in the owner's words:
+The owner's decisions of 21 November, in the owner's words (the example's names changed):
 - **Person-like memory (D9).** "I want to make the bots REALLY, REALLY person-like… the *public* conversations are
-  *public*. In a public room, there are no secrets. If tony has a group conversation with tripbot in Public Chat A, and
-  chiara has a group conversation with tripbot on Public Chat B… the bot should be aware completely of both
+  *public*. In a public room, there are no secrets. If sam has a group conversation with tripbot in Public Chat A, and
+  priya has a group conversation with tripbot on Public Chat B… the bot should be aware completely of both
   conversations. We should be able to engineer a good way to make sure that the cache doesn't bust." And: "private
   chats with a bot are private."
 - **One-way glass, a hard wall (D10).** "ideally the private conversations are aware of what has been said in groups,
@@ -3571,7 +3571,7 @@ that failure):
   bot's chats, one chat, or with `everywhere` every chat the turn's chat may read, the home's public chats the bot
   isn't in too; 10 lines, each with its chat, speaker, time and line number. `read_chat` reads a window of one chat in
   reach, around a line or its newest. Both answer chat lines as information, never instructions.
-- **Manners** (in the instructions, the same in every chat): say where something came from ("Chiara said in Trip B
+- **Manners** (in the instructions, the same in every chat): say where something came from ("Priya said in Trip B
   that…"), bring up another chat only when it helps now, never quote or describe a private chat outside it, offer to
   tell everyone what everyone should know.
 

@@ -94,7 +94,7 @@ const CHAT_RULES = [
 const MEMORY_RULES = [
   "You remember, like a person in this home: the Current state note has the notes everyone here was told, your memory of the home's public chats you're in, and what was said since then in your other chats that everyone here may read. " +
     "Search what was said with recall, and read more of a chat with read_chat.",
-  "Say where something came from (\"Chiara said in Trip B that…\"). Bring up another chat only when it helps now. Never quote or describe a private chat outside it.",
+  "Say where something came from (\"Priya said in Trip B that…\"). Bring up another chat only when it helps now. Never quote or describe a private chat outside it.",
   "When someone shares something everyone in the home should know from now on (a date, a decision, an allergy), offer to tell everyone; when they ask you to tell everyone, do it with tell_everyone, which asks them on a card first. Never put email addresses, phone or card numbers, or passwords in it."
 ];
 

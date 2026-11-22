@@ -21,7 +21,7 @@ When you ask a bot something, it reads, besides the chat you're in:
 
 It can also search what was said with **recall**, in its own chats, in one chat by name, or in every chat this chat may read, the home's Public chats it isn't in too, and read more of one chat around a line it found.
 
-A bot says where something came from ("Chiara said in Trip planning that…"), and brings up another chat only when it helps.
+A bot says where something came from ("Priya said in Trip planning that…"), and brings up another chat only when it helps.
 
 ## Which chats a bot may read from here
 
