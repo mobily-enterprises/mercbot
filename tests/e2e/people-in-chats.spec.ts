@@ -59,6 +59,7 @@ async function shots(page: Page, testInfo: TestInfo, name: string, atPhone?: () 
     await page.screenshot({ path: testInfo.outputPath(`${name}-${scheme}.png`), animations: "disabled" });
   }
   await page.emulateMedia({ colorScheme: "light", reducedMotion: "reduce" });
+  await expect(page.locator(".v-application")).toHaveClass(/\bv-theme--(workspace-)?light\b/u);
   const size = page.viewportSize();
   await page.setViewportSize({ width: 390, height: 844 });
   await atPhone?.();
@@ -71,14 +72,19 @@ const answered = (page: Page, method: string, path: RegExp) =>
   page.waitForResponse((response) => response.request().method() === method && path.test(new URL(response.url()).pathname));
 /**
  * Whether the composer is as tall as its text needs, as useComposerLines counts it: one line (22 px) while the text fits
- * beside its buttons, else 20 px a line, 2 to 6 lines, measured here from the field's own text at its own width.
+ * beside its buttons, else 20 px a line, 2 to 6 lines, measured here from the field's own text at its own width. It is
+ * measured with transitions off: the specs' reduced motion gives every element a 1 ms one, which would keep the field
+ * at its old height as it is read.
  */
 const composerFits = (page: Page) => shell.composer(page).evaluate((field: HTMLTextAreaElement) => {
   const height = field.offsetHeight;
-  const set = field.style.height;
+  const { height: set, transition } = field.style;
+  field.style.transition = "none";
   field.style.height = "0px";
   const needs = field.scrollHeight;
   field.style.height = set;
+  void field.offsetHeight;
+  field.style.transition = transition;
   return height === 22 ? needs <= 22 : height === Math.min(6, Math.max(2, Math.round(needs / 20))) * 20;
 });
 /**
