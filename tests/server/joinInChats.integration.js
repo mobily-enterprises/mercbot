@@ -254,7 +254,7 @@ test("two pages asking at once: of two judgements the first kept stands, so only
 });
 
 test("the reply path's statements are the same for a chat of 4 messages as for one of 40", async (context) => {
-  const { knex, homeId, pat, kim, judging, chatOf, send, ask } = await setup(context);
+  const { knex, homeId, pat, kim, judging, chatOf, send, ask, drain } = await setup(context);
   const chatWith = async (count) => {
     const chat = await chatOf([pat, kim]);
     await seedMessages(knex, {
@@ -264,8 +264,10 @@ test("the reply path's statements are the same for a chat of 4 messages as for o
     });
     return chat;
   };
+  // Only the reply's statements: what the message itself left running (its bots' memories noticing it, D-113) ends first.
   const counted = async (chat) => {
     const message = await send(chat, pat, "Sounds good to me");
+    await drain();
     return queriesDuring(knex, () => ask(chat, pat, message.id));
   };
   const short = await counted(await chatWith(3));

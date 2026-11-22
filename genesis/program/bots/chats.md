@@ -17,6 +17,7 @@ person can open.
 - `packages/bots/src/server/botsError.js`
 - `packages/bots/src/server/botLibrary.js`
 - `packages/bots/src/server/records/chatRepository.js`
+- `packages/bots/src/server/records/sectionRepository.js`
 - `packages/bots/src/server/records/rowPolicies.js`
 - `packages/bots/src/server/records/directory.js`
 - `packages/bots/src/server/records/recordRows.js`

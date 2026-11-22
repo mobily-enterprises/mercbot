@@ -14,6 +14,9 @@ export function rowOf(record, home) {
   return { ...Object.fromEntries(Object.entries(record).map(([field, value]) => [toSnakeCase(field), value])), workspace_id: home };
 }
 
+/** Whether a value is a row's id as the bots' tables take it: digits only. @param {unknown} value */
+export const isId = (value) => /^\d+$/u.test(String(value ?? ""));
+
 /**
  * Columns as a record's fields, for what callers give in the rows' own names.
  * @param {Record<string, unknown>} columns
