@@ -67,7 +67,7 @@ const emit = defineEmits([
   "open-details", "close-find", "voice-ended", "send", "choose", "connect",
   "react", "copy", "copy-image", "retry", "teach", "update:draft", "answer",
   "take-over", "use-computer", "secure-form", "settle-draft", "manage-rules", "settle-handover", "open-skill", "cancel-request", "discuss",
-  "failure", "open-page", "close-page", "open-direct",
+  "failure", "open-page", "close-page", "open-direct", "open-chat",
   "new-chat", "new-bot", "menu", "unarchive-bot", "unarchive-chat", "invite", "continue-with-others"
 ]);
 
@@ -355,6 +355,7 @@ defineExpose({ focusComposer, addSelection, startReply, toggleDictation, dictati
           @retry="emit('retry', $event)"
           @open-page="emit('open-page', $event)"
           @open-direct="emit('open-direct', $event)"
+          @open-chat="emit('open-chat', $event)"
         />
       </div>
     </div>

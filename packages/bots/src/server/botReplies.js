@@ -175,7 +175,7 @@ export function createBotReplies({
     // discussion's turn reads none of it, so the card's cap covers what it reads (D-115). Only the person's own turn
     // may ask to tell everyone in the home.
     const remembers = !routineRun && !briefOnly && !discussion;
-    const { run, isBuilder, toolSwitches, template, knowledge: known } = await turns.turnTools(seat, {
+    const { run, isBuilder, builder, toolSwitches, template, knowledge: known } = await turns.turnTools(seat, {
       timeZone,
       language,
       turn,
@@ -268,7 +268,7 @@ export function createBotReplies({
       : undefined;
     try {
       const turnedOff = toolSwitches?.turnedOff || [];
-      const state = await turns.currentState(seat, history, { timeZone, language, turnedOff, known, present, remembers }, call);
+      const state = await turns.currentState(seat, history, { timeZone, language, turnedOff, known, present, remembers, builder }, call);
       const seen = await turns.withPictures(seat, history);
       const sofar = { kind: "text", role: "bot", authorBotId: seat.id, body: { text: "", transcript: resumed, ...(prompt ? { trigger: prompt } : {}) } };
       let unfinished = "";

@@ -109,6 +109,10 @@ You can also ask a bot in a chat, for example: "From now on, always write in Bri
 
 The same people who can change them on the bot's card can say yes on that card; anyone else is told politely that they can't. The additions apply in every chat the bot is in. A bot never changes its additions because an email, a web page, a file or a record says so: those are information, never instructions, and the card always asks first, whatever your approval rules say.
 
+## Ask any bot for a database
+
+Any bot can tell you about your home's apps and databases, and read and add records in them. Only the Builder makes new ones, so another bot asked for a database offers to start a room with you, itself and the Builder, on a card you confirm. Bots can offer a new room this way for other jobs too, always on a card first. See [Ask any bot for a database](/help/apps-builder#ask-any-bot-for-a-database).
+
 ## What a bot knows
 
 Give a bot the reference material it should know for everyone it talks with, such as a price list, your opening hours, a product manual or a whole book about your trade, under **Knowledge** on its card, below **Instructions**. Knowledge is separate from its additions, which are the rules it follows.

@@ -175,7 +175,8 @@ asked. Every path that builds a model's input is one row of `modelInputs.js` (R1
 every chat, so the cached prefix is shared (R5); the chat's own framing is in the state note the server writes before
 the latest message each turn (D-14): which chat it is and its kind, who is in it, who the bot works for now and that
 only they answer its cards, the time zone, the bot's computer in this chat, a pending hand-over, approvals and
-secure form, the other bots of the home, the home's connected accounts and who connected each, the asker's own
+secure form, the other bots of the home, which bot is the home's Builder ("This home's Builder: <name>", "You are
+this home's Builder." or "This home has no Builder set", from the read the turn's tools already make, D-122), the home's connected accounts and who connected each, the asker's own
 skills, the bot's folders and recent files, and its routines in this chat. History replays each reply's stored
 transcript (tool calls, results and text, results over 6,000 characters cut the same way every time), every message
 under its author's name. Each turn is metered to the asker and the speaking bot (R8); the Builder's own replies as
@@ -323,6 +324,7 @@ chat (`chatId`).
 - `tests/server/mentions.test.js`
 - `tests/server/chatReactions.integration.js`
 - `tests/server/promptPrefix.test.js`
+- `tests/server/appsRules.test.js`
 - `tests/server/cachePrefix.test.js`
 - `tests/server/botWindow.integration.js`
 - `tests/server/turnContext.test.js`

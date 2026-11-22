@@ -12,6 +12,7 @@ import { buildCommandTools } from "./commandTools.js";
 import { buildConnectorTools } from "./connectorTools.js";
 import { buildDraftTools } from "./draftTools.js";
 import { buildFileTools } from "./fileTools.js";
+import { buildRoomTools } from "./roomTools.js";
 import { canMakePictures } from "./pictureMaker.js";
 import { buildSkillTools } from "./skillTools.js";
 import { buildRoutineTools } from "./routineTools.js";
@@ -414,6 +415,8 @@ export function buildTools({
     : null;
   if (signIns) Object.assign(tools, signIns.tools);
   if (theirOwnTurn) Object.assign(tools, buildCodingTools({ computer, computerId, before, inTime, untrusted, signedIn, userId }));
+  // A room with others the bot proposes on a card (D-122): only in the person's own turn, who answers it.
+  if (theirOwnTurn) Object.assign(tools, buildRoomTools({ records, seat, call, attempt }));
   Object.assign(
     tools,
     buildFileTools({

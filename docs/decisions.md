@@ -3915,3 +3915,28 @@ Decided:
   template and its one-line description, while the row's name stays the bot's.
 - **Proof:** `tests/client/fileBrowser.vitest.js`, `tests/client/chatDirectory.vitest.js`, `tests/client/chatList.vitest.js`.
 
+
+## D-122 — Every bot knows about apps; cards that start rooms (2026-11-23)
+
+Amends D-35 and D-113. The owner, 23 November, after a bot with a cats template answered "make a database of animals"
+with a spreadsheet: every bot should know about Mercbot's apps and databases and that only the home's Builder makes
+them; a requested database or app is never replaced by a spreadsheet unless the person directly asks for one; a bot
+that isn't the Builder offers to start a room with the person, itself and the Builder; and "make sure that the
+software has the capability of allowing cards that create rooms".
+
+Decided:
+- **Apps rules for every bot**, in its instructions after its template and additions (which they win over), before the
+  Builder's own rules: what an app and its tables are; only the Builder makes and changes them; a request for a
+  database, a table, an app or a tracker that should stay up to date goes to the Builder, never into a spreadsheet or a
+  document unless the person directly asks for one; with no Builder, say so and point to Settings → Main bot and
+  Builder. The instructions name no Builder, so they stay the same in every chat (R5); the state note says "This
+  home's Builder: <name>", "You are this home's Builder." or that none is set, from the read the turn already makes.
+- **start_room**, a card that starts a room: a bot proposes a title, Private (the default) or Public, the home's bots
+  and people by name (resolved and checked when proposed; the bot and the person always in it) and a brief. It always
+  asks, whatever the person's rules, and only the person it's for answers. Their yes makes the room as them through
+  New room's own create, with exactly those members, the start line and then the brief as the proposing bot's message
+  in one transaction; the card then opens the room. The brief is on the card in full, so a private chat's words leave
+  it only once its person has seen them there. Only the person's own turn has the tool, never a routine, a request or
+  an Apps task. The Builder doesn't start working by itself in the new room: the person carries on there.
+- **Proof:** `tests/server/appsRules.test.js`, `tests/server/startRoomCard.integration.js`,
+  `tests/server/standInRooms.test.js`, `tests/client/chatTimeline.vitest.js`.

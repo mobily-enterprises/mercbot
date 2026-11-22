@@ -166,7 +166,7 @@ export function useFolderListing() {
     if (!at.value) return [];
     const { item, folder } = at.value;
     const parts = folder.slice(item.root.length).split("/").filter(Boolean);
-    return [{ label: item.label, path: item.root }, ...parts.map((part, index) => ({ label: part, path: `${item.root}/${parts.slice(0, index + 1).join("/")}` }))];
+    return [{ label: pickerLabel(item), path: item.root }, ...parts.map((part, index) => ({ label: part, path: `${item.root}/${parts.slice(0, index + 1).join("/")}` }))];
   });
   return { at, current, failure, crumbs, go, reload };
 }

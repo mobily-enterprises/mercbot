@@ -585,6 +585,7 @@ watch(() => currentHomeEntry.value?.slug, () => loadBuilderBot(), { immediate: t
         @invite="inviteOpen = true"
         @continue-with-others="continueWithOthers(currentChat)"
         @open-direct="openDirect"
+        @open-chat="selectChat"
         @open-details="showDetails"
         @close-find="findOpen = false"
         @voice-ended="endVoiceConversation"

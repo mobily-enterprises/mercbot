@@ -16,6 +16,7 @@ import MercbotDraftCard from "./MercbotDraftCard.vue";
 import MercbotAppDraftCard from "../apps/MercbotAppDraftCard.vue";
 import MercbotFieldRemovalCard from "../apps/MercbotFieldRemovalCard.vue";
 import MercbotSecureForm from "./MercbotSecureForm.vue";
+import MercbotRoomProposal from "./MercbotRoomProposal.vue";
 import MercbotLightbox from "./MercbotLightbox.vue";
 import MercbotContextMenu from "./MercbotContextMenu.vue";
 import extensions from "./extensions.js";
@@ -105,7 +106,7 @@ function toggleCommand(id) {
   openCommands.value = next;
 }
 
-const emit = defineEmits(["take-over", "use-computer", "secure-form", "settle-draft", "manage-rules", "settle-handover", "choose", "answer", "focus-composer", "connect", "react", "reply", "copy", "copy-image", "retry", "open-skill", "cancel-request", "open-page", "open-direct"]);
+const emit = defineEmits(["take-over", "use-computer", "secure-form", "settle-draft", "manage-rules", "settle-handover", "choose", "answer", "focus-composer", "connect", "react", "reply", "copy", "copy-image", "retry", "open-skill", "cancel-request", "open-page", "open-direct", "open-chat"]);
 
 // Right-click menus: on a message, Reply, Copy and Copy request ID, with a bot's or another person's adding a row of
 // reactions (D-114); on a picture, copy or save it. Selected words and links keep the browser's own menu, so a part of a
@@ -493,6 +494,8 @@ const fileDate = (iso) => (iso ? fileDay.format(new Date(iso)) : "");
           <p class="mb-choice__change-label">After</p>
           <p class="mb-choice__change-text" :class="{ 'mb-choice__change-text--none': !message.body.change.after }">{{ message.body.change.after || "None" }}</p>
         </div>
+        <!-- A room a bot proposes (start_room, D-122): who is in it and its brief; once started, the room to open. -->
+        <MercbotRoomProposal v-if="message.body.action?.id === 'start_room'" :room="message.body.action.args" :done="message.body.done" :bots="bots" @open-chat="emit('open-chat', $event)" />
         <p v-if="waitingFor(message) && isOpen(message)" class="mb-choice__subline">Waiting for {{ waitingFor(message) }}'s OK</p>
         <div v-if="!waitingFor(message) || !isOpen(message)" class="mb-choice__options">
           <button

@@ -94,6 +94,7 @@ export function createBotCards({ records, account, env, computer, integrations, 
       return { chat, choice, picks, updated, extra: extra || {} };
     });
     const results = [];
+    let answered = updated;
     const approved = choice.body.purpose === "approval" && picks[0] === APPROVAL_OPTIONS[0] && ACTIONS[choice.body.action?.id];
     const shared = choice.body.purpose === "share-file" && picks[0] === SHARE_YES && choice.body.share;
     if (approved || shared) {
@@ -120,7 +121,9 @@ export function createBotCards({ records, account, env, computer, integrations, 
               chatBotId: seat.chat_bot_id,
               computerId: seat.chat_bot_id,
               files,
-              place
+              place,
+              // Rooms (chatMembers.js): start_room makes one as the person who said yes (D-122).
+              chats
             },
             choice.body.action.args
           )
@@ -134,13 +137,15 @@ export function createBotCards({ records, account, env, computer, integrations, 
         const held = error?.code === "computer_person_in_control" ? { detail: error.message } : {};
         outcome = { kind: "event", role: "system", body: { text: "That didn't work", ...held } };
       }
-      const { result: _result, ...message } = outcome;
+      // What the card itself shows once done (start_room's room, to open from it, D-122) goes on the card.
+      const { result: _result, card: done = null, ...message } = outcome;
+      if (done) answered = await messages.setBody(choice.id, { ...updated.body, done }, options);
       results.push(...await seats.say(seat, [message], options));
     }
     // An approval asked during a request (D-46): the bot carries on with it either way.
     if (choice.body.purpose === "approval" && choice.body.requestId) await requests.approvalAnswered(choice.body.requestId, options);
     await seats.tell(chat.id, { type: "messages" }, options);
-    return { messages: [updated, ...results], chat: await chatOf(chat.id, options), ...extra };
+    return { messages: [answered, ...results], chat: await chatOf(chat.id, options), ...extra };
   }
 
   /** The person finishes or skips a handover on the chat's computer. */

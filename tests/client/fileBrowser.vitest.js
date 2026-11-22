@@ -31,7 +31,7 @@ vi.mock("../../src/components/mercbot/filesApi.js", async (original) => ({
   }
 }));
 
-const { dropLabel, dropMode, orderPlaces, pickerAction, pickerLabel, pickerRefusal, startKey } = await import("../../src/components/files/filePlaces.js");
+const { dropLabel, dropMode, orderPlaces, pickerAction, pickerLabel, pickerRefusal, startKey, useFolderListing } = await import("../../src/components/files/filePlaces.js");
 const { useFileTransfer } = await import("../../src/components/files/useFileTransfer.js");
 const { useComposerFiles } = await import("../../src/components/mercbot/useComposerFiles.js");
 const { default: FileBrowser } = await import("../../src/components/files/FileBrowser.vue");
@@ -85,6 +85,13 @@ describe("the browser's places", () => {
 
   it("names each place on its own in the picker: a bot's files as its files", () => {
     expect(orderPlaces(PLACES).map(pickerLabel)).toEqual(["Home files", "Chef's files", "Ledger's files", "Garden", "Kitchen reno", "Old trip"]);
+  });
+
+  it("starts a bot's breadcrumbs with its files, not its bare name, which a chat with it would also have", async () => {
+    const chef = orderPlaces(PLACES).find((item) => item.kind === "bot" && item.label === "Chef");
+    const listing = useFolderListing();
+    await listing.go(chef);
+    expect(listing.crumbs.value[0]).toEqual({ label: "Chef's files", path: chef.root });
   });
 
   it("opens at the bot's files on its card, at the chat's in its details, else at Home files", () => {

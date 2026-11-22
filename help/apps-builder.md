@@ -37,6 +37,12 @@ To give the role to another bot, pick it under **Builder** in **Settings** > **M
 
 You can also ask any other bot for an app: "Get the Builder to make a plant watering tracker." That bot asks the Builder and waits. The Builder works from that request alone, its **App draft** card waits for you in the chat where you asked, and the first bot tells you when it's ready. See [Hand work from one bot to another](/help/messaging#hand-work-from-one-bot-to-another).
 
+### Ask any bot for a database
+
+Every bot knows what apps and databases are, and that only the Builder makes them. Ask another bot for "a database of my cats" and it won't quietly make a spreadsheet instead. It says the Builder (by name) makes databases, and offers a card to start a room with you, itself and the Builder. The card shows the room's name, whether it's **Private** (the default) or **Public**, who will be in it, and a short brief the bot wrote from your conversation. Nothing happens until you select **Go ahead**. Then the room is made with exactly those people and bots, the brief is its first message, and **Open the room** on the card takes you there to carry on with the Builder. **Don't do it** makes nothing, and only you can answer your card. Once the database exists, the bot uses its tables like any other bot.
+
+If you want a spreadsheet, say so ("put it in a spreadsheet"): the bot makes one, with no room. If your home has no Builder yet, the bot says so: an owner or admin chooses one in **Settings** > **Main bot and Builder**.
+
 You don't need to know which parts an app is made of. Say what you want to see and do, and let the Builder decide. If something you want needs more than screens and formulas, such as a rule checked on every save or a nightly job, the Builder writes a script for it by itself.
 
 ## Preview, then publish

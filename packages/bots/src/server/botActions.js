@@ -13,6 +13,7 @@ import { CONNECTOR_ACTIONS } from "./connectorTools.js";
 import { SIGN_IN_CODE_ACTIONS } from "./signInCodes.js";
 import { SEDNA_ACTIONS } from "./sednaActions.js";
 import { FILE_ACTIONS } from "./fileTools.js";
+import { ROOM_ACTIONS } from "./roomTools.js";
 import { additionsChange, changeRefusal, mayChangeBot } from "./botAdditions.js";
 
 export const EMAIL_ADDRESS = /[^\s<>,;"]+@[^\s<>,;"]+\.[a-z]{2,}/iu;
@@ -344,7 +345,9 @@ export const ACTIONS = {
   // The home's Sedna, changed as the person's own Sedna user (D-94).
   ...SEDNA_ACTIONS,
   // A file copied or moved to another place, only once its person said yes on its card (D-120).
-  ...FILE_ACTIONS
+  ...FILE_ACTIONS,
+  // A room a bot proposed, started only once its person said yes on its card (D-122).
+  ...ROOM_ACTIONS
 };
 
 /** What update_routine changes of a routine besides whether it runs. */

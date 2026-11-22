@@ -29,7 +29,9 @@
 // then one new bot for the request's last long word that names none, and one more for a change's; a request of fewer
 // than three words gets a question instead. It writes Continue with others' hand-over note (D-114) as "Continuing from
 // my chat with <bot>: we were on "<what the person said last>"...". Otherwise any other bot says the copy runs on
-// a stand-in model. `misbehave` makes a template's bot break a rule on purpose, to prove the check catches it:
+// a stand-in model. Asked to make a database or an app, a bot that isn't the home's Builder proposes a private room with
+// the person, itself and the Builder (start_room, D-122); asked for a spreadsheet, it starts one with no room.
+// `misbehave` makes a template's bot break a rule on purpose, to prove the check catches it:
 // "skip-question" leaves out its second question, "routine-running" creates its routines running, and "send" has
 // something sent as the setup ends (the test copy's line for it, D-69, written by the stand-in itself as JSKIT writes
 // it for this process's APP_ENV, since the check's home has no app to send through).
@@ -184,6 +186,44 @@ function ownAdditionsStep(system, request) {
   if (!wanted) return null;
   const called = conversation.slice(lastPerson + 1).some((message) => message.role === "assistant" && message.tool_calls?.length);
   return called ? say("Here's the change: it's waiting for your OK on the card below.") : call("change_additions", { additions: wanted });
+}
+
+// Apps and databases (D-122): which bot is the home's Builder, as the current state note says it.
+const BUILDER_NAMED = /^- This home's Builder: (.+)\.$/mu;
+const IS_BUILDER = "- You are this home's Builder.";
+
+/**
+ * A bot asked to make a database or an app, or a spreadsheet: one that isn't the Builder proposes a private room with
+ * the person, itself and the Builder (start_room), and says so once the card is up; with no Builder it says so; the
+ * Builder says it would build it. A request that names a spreadsheet gets one (app_help for the sheet app, as a real
+ * bot starts one) and no room. Null for anything else.
+ */
+function appsStep(request) {
+  if (!request.tools?.length) return null;
+  const notes = request.messages.filter((message) => message.role === "user" && textOf(message.content).startsWith(STATE_NOTE));
+  const conversation = request.messages.filter((message) => message.role !== "system" && !notes.includes(message));
+  const lastPerson = conversation.findLastIndex((message) => message.role === "user");
+  const words = textOf(conversation[lastPerson]?.content);
+  const spreadsheet = /\bspreadsheet\b/iu.test(words);
+  if (!spreadsheet && !/\b(?:make|create|build|set up|start)\b.*\b(?:database|app)\b/iu.test(words)) return null;
+  const called = conversation.slice(lastPerson + 1).some((message) => message.role === "assistant" && message.tool_calls?.length);
+  if (spreadsheet) return called ? say("I'm making it as a spreadsheet, as you asked.") : call("app_help", { app: "sheet" });
+  const note = textOf(notes.at(-1)?.content);
+  if (note.includes(IS_BUILDER)) return say("I'm this home's Builder, so I'd build it as an app here. This copy runs on a stand-in model, so I can't build it for real.");
+  const builder = BUILDER_NAMED.exec(note)?.[1];
+  if (!builder) {
+    return say("This home has no Builder yet, the bot that makes databases and apps. The home's owners and admins choose one in Settings, under Main bot and Builder.");
+  }
+  if (called) {
+    return say(`${builder}, this home's Builder, makes databases and apps. I've proposed a private room with you, me and ${builder}: it's waiting for your OK on the card below.`);
+  }
+  const topic = /\b(?:database|app) (?:of|for) (?:my |our |the )?(.+?)[.!?]*$/iu.exec(words)?.[1] || "your records";
+  return call("start_room", {
+    title: `${topic.charAt(0).toUpperCase()}${topic.slice(1)} database`.slice(0, 80),
+    kind: "private",
+    bots: [builder],
+    brief: `${builder}, please build a database of ${topic}: the person asked me "${words.trim().slice(0, 500)}". Ask them which fields to keep.`
+  });
 }
 
 // What a bot knows (D-107): its in-mind pieces in its system prompt (knowledgePrompt.js), and the parts of its searched
@@ -359,6 +399,8 @@ function answerFor(request, misbehave) {
   if (discussed) {
     return say(Number(DISCUSSION_ROUND.exec(discussed)[1]) > 1 ? "PASS" : "One placeholder point: this copy runs on a stand-in model, so a real discussion needs a real one.");
   }
+  const apps = appsStep(request);
+  if (apps) return apps;
   const own = ownAdditionsStep(system, request);
   if (own) return own;
   const knows = knowledgeStep(system, request);

@@ -283,3 +283,43 @@ describe("a team's introduction (D-109)", () => {
     expect(part.match(/class="mb-bubble__team-member"/gu)).toHaveLength(2);
   });
 });
+
+describe("a bot's start_room card (D-122)", () => {
+  const room = {
+    title: "Cats database",
+    kind: "private",
+    bots: [{ id: "7", name: "Chef" }, { id: "8", name: "Shopper" }],
+    people: [{ id: "1", name: "Anna Rossi" }, { id: "2", name: "Ben Rossi" }],
+    brief: "Shopper, please build a database of Anna's cats."
+  };
+  const proposal = (extra = {}) => card("choice", "7", {
+    purpose: "approval",
+    question: "Start the private room \"Cats database\" with you, Ben Rossi, Chef and Shopper?",
+    options: ["Go ahead", "Don't do it"],
+    multi: false,
+    chosen: null,
+    for: { id: "1", name: "Anna Rossi" },
+    action: { id: "start_room", args: room },
+    ...extra
+  });
+
+  it("shows the room's name, Private, everyone in it with their face or initials, the brief and the answers", async () => {
+    const open = proposal();
+    const part = item(await timeline({ chat: KITCHEN, messages: [open], bots: [CHEF, SHOPPER].map((bot) => ({ id: bot.botId, name: bot.name, color: bot.color, shape: bot.shape })) }), open);
+    expect(part).toContain("Cats database");
+    expect(part).toMatch(/mb-room-card__kind[^>]*>[\s\S]*?Private/u);
+    expect(part).toMatch(/mb-room-card__initials[^>]*>AR</u);
+    expect(part).toMatch(/mb-room-card__initials[^>]*>BR</u);
+    expect(part).toContain("Shopper");
+    expect(part).toContain("Shopper, please build a database of Anna's cats.");
+    expect(part).toContain("Go ahead");
+    expect(part).not.toContain("Open the room");
+  });
+
+  it("once started, links to the room; a public one says Public", async () => {
+    const started = proposal({ chosen: "Go ahead", done: { chatId: "42" }, action: { id: "start_room", args: { ...room, kind: "public" } } });
+    const part = item(await timeline({ chat: KITCHEN, messages: [started] }), started);
+    expect(part).toMatch(/mb-room-card__kind[^>]*>[\s\S]*?Public/u);
+    expect(part).toContain("Open the room");
+  });
+});

@@ -12,6 +12,16 @@ import { commonKnowledgeToolsFor } from "./commonKnowledge.js";
 import { roomsMemoryToolsFor } from "./roomsMemoryTools.js";
 
 /**
+ * The state note's line naming the home's Builder (D-122): the bot itself, another bot by name, or none set.
+ * @param {{ id: string, name: string } | null} builder
+ * @param {{ id: string }} seat
+ */
+function builderLine(builder, seat) {
+  if (!builder) return "- This home has no Builder set: the home's owners and admins choose one in Settings, under Main bot and Builder.";
+  return String(builder.id) === String(seat.id) ? "- You are this home's Builder." : `- This home's Builder: ${builder.name}.`;
+}
+
+/**
  * What a bot is told and given for one turn (D-14): the current state the server writes for the model, the pictures
  * it sees, its tools, and the vault passwords blanked from what it says. Each takes the turn's call
  * options (`call`) last: the model's reader (records.readers.forBot) for the bot in its chat and the person it works for.
@@ -159,10 +169,12 @@ export function createBotTurns({
    * request's run) its digest of its public chats and "since then", so the chat before it stays cached.
    * @param {object} seat the bot in the chat, for its asker (chatTurns.js)
    * @param {Array<object>} history
-   * @param {{ timeZone: string, language?: string, turnedOff?: string[], known?: object | null, present?: object, remembers?: boolean }} turn
+   * @param {{ timeZone: string, language?: string, turnedOff?: string[], known?: object | null, present?: object, remembers?: boolean,
+   *   builder?: { id: string, name: string } | null }} turn `builder`: the home's Builder as the turn's tools read it
+   *   (turnTools), so the turn reads it once; read here when it isn't given
    * @param {object} call the model's reader
    */
-  async function currentState(seat, history, { timeZone, language = "", turnedOff = [], known = null, present = null, remembers = false }, call) {
+  async function currentState(seat, history, { timeZone, language = "", turnedOff = [], known = null, present = null, remembers = false, builder }, call) {
     const latest = [...history].reverse().find((message) => message.role === "user" && message.kind === "text")?.body?.text || "";
     const status = seat.chat_bot_id ? await computer.status(String(seat.chat_bot_id)) : null;
     const routines = seat.chat_bot_id ? await records.work.routinesOf(seat.chat_bot_id, call) : [];
@@ -171,6 +183,8 @@ export function createBotTurns({
     const chatApp = seat.chat.app_id ? await apps.apps.findApp(String(seat.chat.app_id), call) : null;
     // An archived bot (D-108) isn't offered: it takes no requests.
     const otherBots = (await records.directory.listHomeBots(call)).filter((bot) => String(bot.id) !== String(seat.id) && !bot.archived);
+    // Which bot makes the home's apps (D-35, D-122): named here, never in the instructions, which stay the same in every chat.
+    const homeBuilder = builder === undefined ? await apps.apps.builder(call) : builder;
     const approvals = history
       .filter(
         (message) => message.kind === "choice" && message.body.purpose === "approval" && !message.body.chosen && !message.body.inactive &&
@@ -207,6 +221,7 @@ export function createBotTurns({
           : "none open"
       }.`,
       `- The other bots in this home (ask_bot, message_bot): ${otherBots.map((bot) => bot.name).join(", ") || "none"}.`,
+      builderLine(homeBuilder, seat),
       `- The home's connected accounts, which you use for the person you're working for: ${await connectedAccounts(seat, call)}`,
       ...(turnedOff.length
         ? [
@@ -313,7 +328,8 @@ export function createBotTurns({
     // Actions switched off for an app in Connect apps: the home's (plugin_actions_off).
     const toolSwitches = await integrations.toolSwitches(call);
     /** The home's Builder gets the Apps tools and, in its instructions, what scripts can do. */
-    const isBuilder = (await apps.apps.builder(call))?.id === String(seat.id);
+    const builder = await apps.apps.builder(call);
+    const isBuilder = builder?.id === String(seat.id);
     // The template it points at (D-98), whose skills it reads with read_skill.
     const template = await templateOf(seat, records.homeTemplates, call);
     // What it knows (D-107): in its instructions, and searched with its tools and in the current state.
@@ -355,7 +371,7 @@ export function createBotTurns({
         withoutSecrets: (text) => withoutSecrets(text, call)
       })
     });
-    return { run, isBuilder, toolSwitches, template, knowledge: known };
+    return { run, isBuilder, builder, toolSwitches, template, knowledge: known };
   }
 
   /**

@@ -9,6 +9,7 @@ that chat may not read (D12, D13, D14).
 
 - Main: `packages/bots/src/server/botTools.js`
 - `packages/bots/src/server/fileTools.js`
+- `packages/bots/src/server/roomTools.js`
 - `packages/bots/src/server/commandTools.js`
 - `packages/bots/src/server/webTools.js`
 - `packages/bots/src/server/vaultLogins.js`
@@ -73,7 +74,22 @@ this chat to Home files?", "my files" for `/files/bot`, a room by its quoted nam
 `bots_waiting_for_other` for anyone else); their Go ahead runs the files' transfer (`files.transfer.transfer`,
 `genesis/program/files/files.md`) as them with `confirmed: true`, a room resolved among the chats they can open
 (`chatNamed`), and posts "Moved" or "Copied" with where it went, or "That didn't work" with the refusal's sentence.
-Cards from before it (`share-file`, "Share it") still copy on their Yes. Files saved during a reply become a
+Cards from before it (`share-file`, "Share it") still copy on their Yes.
+
+**Rooms a bot starts** (D-122). In the person's own turn (not a routine's, a request's or an Apps task's run) a bot has
+`start_room {title (1–80), kind: "private" | "public" (default private), bots: [name], people: [name], brief (up to
+8,000 characters)}`, for a job that needs others, above all bringing in the home's Builder for a database or an app.
+Names are resolved when it's called, as the model knows them: bots among the home's (case aside; an unknown or archived
+one is a tool error the model sees), people among the home's active members (one read of them and their names; an
+unknown or ambiguous name is a tool error). The proposing bot and the person are always members. It always asks on an
+approval card for the person (`ACTIONS.start_room`, `alwaysAsks`: "Start the private room "<title>" with you, <people>
+and <bots>?"), whose args carry the title, kind, `bots` and `people` as `{id, name}` and the brief, which the card shows
+in full: until the yes the brief, which may carry the chat's own words, is nowhere but on that card. Only that person
+answers it (403 `bots_waiting_for_other`); "Don't do it" makes nothing. Their Go ahead makes the room as them through the
+chats' create (`chatMembers.create`, the same as New room's), with exactly the card's members, in one transaction with
+its two first messages: "<Person> started this room." and then the brief as the proposing bot's message (`body.brief`).
+The card gets `done: {chatId}` and shows "Open the room"; the chat gets "Started the room <title>". A bot archived or a
+person who left the home since the card is refused by the create, and the chat gets "The room wasn't started" with why. Files saved during a reply become a
 `files` card after its text and come back to the model as a note of their paths; the state note lists the 12 newest.
 An attached file is uploaded to `/files/chat/Uploads` and the message keeps its `path`; pictures (PNG, JPEG, GIF,
 WebP, up to 10 MB) attached to the message being answered reach the model as images; HEIC is refused with a request
@@ -179,6 +195,8 @@ offer to try it. A recording it can't learn from gets a short explanation and no
 ## Proved by
 
 - `tests/server/transferFileCard.integration.js`
+- `tests/server/startRoomCard.integration.js`
+- `tests/server/standInRooms.test.js`
 - `tests/server/truthfulFiles.test.js`
 - `tests/server/readFileParts.test.js`
 - `tests/server/commandOutput.integration.js`

@@ -226,9 +226,13 @@ export function createChatMembers({ records, notices, computer, systemContext, p
    * A new room (New room's [Create]): Public unless `kind` is "private" (D15), named (400 `bots_chat_needs_title`), the
    * person who makes it among its people with any people and bots named, and its first line, by its maker, written in
    * the same transaction: "<Name> started this room.", an event line that counts as its activity and that no bot
-   * answers or judges (only a person's text message starts a reply).
+   * answers or judges (only a person's text message starts a reply). A room a bot's card starts (start_room, D-122) has
+   * that bot's brief (`opening`) as its next message, in the same transaction; the route never passes one.
+   * @param {{ kind?: string, title?: string, people?: string[], bots?: string[] }} room
+   * @param {object} options
+   * @param {{ opening?: { botId: string, botName: string, text: string } | null }} [made]
    */
-  async function create({ kind, title, people = [], bots = [] } = {}, options) {
+  async function create({ kind, title, people = [], bots = [] } = {}, options, { opening = null } = {}) {
     const name = String(title ?? "").trim().slice(0, 80);
     if (!name) throw new BotsError(400, "Give the room a name.", { code: "bots_chat_needs_title" });
     const chat = await chats.withTransaction(options, async (txOptions) => {
@@ -236,7 +240,11 @@ export function createChatMembers({ records, notices, computer, systemContext, p
       const maker = personOf(txOptions);
       const makerName = (await chats.names([maker], txOptions)).get(String(maker)) || "Someone";
       const text = `${makerName} started this room.`;
-      await messages.append(made.id, [{ kind: "event", role: "user", body: { event: "room_started", text, authorName: makerName } }], txOptions);
+      const started = { kind: "event", role: "user", body: { event: "room_started", text, authorName: makerName } };
+      const brief = opening
+        ? [{ kind: "text", role: "bot", authorBotId: String(opening.botId), body: { text: opening.text, authorName: opening.botName, brief: true } }]
+        : [];
+      await messages.append(made.id, [started, ...brief], txOptions);
       return made;
     });
     await toldWhoCanOpen(chat, "created", options);

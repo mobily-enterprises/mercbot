@@ -9,7 +9,7 @@ import MercbotConfirmDialog from "@/components/mercbot/MercbotConfirmDialog.vue"
 import MercbotFileViewer from "@/components/mercbot/MercbotFileViewer.vue";
 import { fileKind, fileUrl, filesApi, formatSize, storageApi, uploadFile } from "@/components/mercbot/filesApi.js";
 import MercbotPlacePicker from "./MercbotPlacePicker.vue";
-import { dropLabel, dropMode, nameOf, onMac, parentOf, startKey, useFilePlaces, useFolderListing } from "./filePlaces.js";
+import { dropLabel, dropMode, nameOf, onMac, parentOf, pickerLabel, startKey, useFilePlaces, useFolderListing } from "./filePlaces.js";
 import { useFileTransfer } from "./useFileTransfer.js";
 
 // The one file browser (D-47, D-112 R6): on the left every place the person can open (the chat it was opened from,
@@ -224,7 +224,7 @@ function endDrag() {
         v-if="narrow"
         :model-value="place?.key"
         :items="places"
-        item-title="label"
+        :item-title="pickerLabel"
         item-value="key"
         label="Place"
         variant="outlined"
@@ -256,16 +256,16 @@ function endDrag() {
         </div>
       </nav>
 
-      <section v-if="place" class="mb-files__section" :aria-label="place.label">
+      <section v-if="place" class="mb-files__section" :aria-label="pickerLabel(place)">
         <div class="mb-files__head">
-          <nav class="mb-files__crumbs" :aria-label="`${place.label} folders`">
+          <nav class="mb-files__crumbs" :aria-label="`${pickerLabel(place)} folders`">
             <template v-for="(crumb, index) in crumbs" :key="crumb.path">
               <v-icon v-if="index" icon="$chevronRight" size="14" class="mb-files__crumb-sep" />
               <button type="button" class="mb-files__crumb" :class="{ 'mb-files__crumb--here': crumb.path === at.folder }" @click="go(place, crumb.path)">{{ crumb.label }}</button>
             </template>
           </nav>
-          <v-btn icon="$createNewFolder" size="x-small" variant="text" :disabled="place.archived" :loading="busy" :aria-label="`New folder in ${place.label}`" @click="startDialog('folder')" />
-          <v-btn icon="$uploadArrow" size="x-small" variant="text" :disabled="place.archived" :loading="busy" :aria-label="`Upload to ${place.label}`" @click="uploadInput.click()" />
+          <v-btn icon="$createNewFolder" size="x-small" variant="text" :disabled="place.archived" :loading="busy" :aria-label="`New folder in ${pickerLabel(place)}`" @click="startDialog('folder')" />
+          <v-btn icon="$uploadArrow" size="x-small" variant="text" :disabled="place.archived" :loading="busy" :aria-label="`Upload to ${pickerLabel(place)}`" @click="uploadInput.click()" />
         </div>
         <p v-if="failure" class="mb-files__problem" role="alert">
           {{ failure.message || "The files couldn't load." }}
