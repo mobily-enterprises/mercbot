@@ -105,6 +105,68 @@ describe("a person's card", () => {
     expect(calls).toEqual([]);
   });
 
+  it("leaves out the chats you've hidden or archived until you ask for them", async () => {
+    const hiddenRoom = chatRow("58", "Old plans", [ben, anna], [], { hidden: true });
+    const archivedRoom = chatRow("59", "Last year", [ben, anna], [], { archivedAt: "2026-01-01T00:00:00Z" });
+    const html = await card(anna, { chats: [kitchen, party, direct, hiddenRoom, archivedRoom] });
+    expect(html).toContain("aria-label=\"Kitchen reno, Public\"");
+    expect(html, "a hidden chat").not.toContain("Old plans");
+    expect(html, "an archived chat").not.toContain("Last year");
+    expect(html).toContain("Show hidden and archived");
+  });
+
+  // The card as it is once "Show hidden and archived" (then "Show more", each a press of the button it shows) was
+  // pressed `presses` times, each read answered before the next press.
+  async function pressed(person, presses, props = {}) {
+    const app = createSSRApp({
+      render: () => h(MercbotMemberCard, { member: { kind: "person", person }, chats: [kitchen, party, direct], me: "2", homeName: "Casa", ...props })
+    });
+    app.use(createVuetify({ ...createMaterialVuetifyOptions(theme), ssr: true }));
+    app.mixin({
+      async serverPrefetch() {
+        if (this.$.type !== MercbotMemberCard) return;
+        for (let press = 0; press < presses; press += 1) await this.$.setupState.showTuckedAway();
+      }
+    });
+    return (await renderToString(app)).replaceAll("&#39;", "'").replaceAll("&quot;", "\"").replace(/ data-v-[0-9a-f]+/gu, "");
+  }
+  const sharedLabels = (html) => [...html.matchAll(/class="mb-card__chat" aria-label="([^"]*)"/gu)].map(([, label]) => label);
+
+  it("reads only the hidden and archived chats you share, a page at a time, below the others, with Show more while there are more", async () => {
+    const oldPlans = chatRow("58", "Old plans", [ben, anna], [], { place: { hidden: true } });
+    const lastYear = chatRow("59", "Last year", [ben, anna], [], { archivedAt: "2026-01-01T00:00:00Z" });
+    const longAgo = chatRow("50", "Long ago", [ben, anna], [], { archivedAt: "2025-01-01T00:00:00Z" });
+    answers.byUrl.set("GET /api/w/casa/chats/shared?withPerson=1", { chats: [lastYear, oldPlans], next: "58" });
+    answers.byUrl.set("GET /api/w/casa/chats/shared?withPerson=1&after=58", { chats: [longAgo], next: null });
+
+    const first = await pressed(anna, 1);
+    expect(calls, "only the chats shared with her, never the whole list").toEqual([["GET", "/api/w/casa/chats/shared?withPerson=1"]]);
+    expect(sharedLabels(first)).toEqual(["Kitchen reno, Public", "Saturday party, Private", "Last year, Public", "Old plans, Public"]);
+    expect(first).toContain("Show more");
+    expect(first).not.toContain("Show hidden and archived");
+
+    calls.length = 0;
+    const both = await pressed(anna, 2);
+    expect(calls).toEqual([["GET", "/api/w/casa/chats/shared?withPerson=1"], ["GET", "/api/w/casa/chats/shared?withPerson=1&after=58"]]);
+    expect(sharedLabels(both)).toEqual(["Kitchen reno, Public", "Saturday party, Private", "Last year, Public", "Old plans, Public", "Long ago, Public"]);
+    expect(both, "the last page").not.toContain("Show more");
+  });
+
+  it("asks for a bot's by the bot, and its Computer tab lists them too", async () => {
+    shellPreferences.detailsTab = "computer";
+    const oldPlans = chatRow("58", "Old plans", [ben], [chef], { place: { hidden: true } });
+    answers.byUrl.set("GET /api/w/casa/chats/shared?withBot=7", { chats: [oldPlans], next: null });
+    const app = createSSRApp({ render: () => h(MercbotMemberCard, { member: { kind: "bot", bot: chef }, chats: [kitchen], me: "2", allBots: [chef] }) });
+    app.use(createVuetify({ ...createMaterialVuetifyOptions(theme), ssr: true }));
+    app.mixin({ serverPrefetch() { return this.$.type === MercbotMemberCard ? this.$.setupState.showTuckedAway() : undefined; } });
+    const html = await renderToString(app);
+    expect(calls.filter(([, url]) => url.includes("/chats"))).toEqual([["GET", "/api/w/casa/chats/shared?withBot=7"]]);
+    expect(html).toContain("aria-label=\"Old plans, Public\"");
+    expect(html).toContain("aria-label=\"Open Old plans\"");
+    expect(html).not.toContain("Show more");
+    expect(html).not.toContain("Show hidden and archived");
+  });
+
   it("is yours without [Message] or chats to share", async () => {
     const html = await card(ben);
     expect(html).toContain("Ben Rossi<span class=\"mb-card__you\"> (you)</span>");

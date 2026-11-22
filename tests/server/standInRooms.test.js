@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test, { after, before } from "node:test";
 import { instructionsFor } from "../../packages/bots/src/server/botAgent.js";
+import { askedByBotPrompt } from "../../packages/bots/src/server/botTalk.js";
 import { startStandInModel } from "../../tools/standInModel.mjs";
 
 // The stand-in model plays a bot asked for a database or a spreadsheet (D-122), so the flow can be tried in a Preview:
@@ -49,6 +50,12 @@ test("with no Builder, the bot says so and where one is chosen; the Builder itse
   const builder = await step("Make a database of my cats.", "- You are this home's Builder.");
   assert.deepEqual(called(builder), []);
   assert.match(builder.content, /I'm this home's Builder/u);
+});
+
+test("in the new room, the bot the brief is for answers it by itself", async () => {
+  const answer = await step(askedByBotPrompt({ brief: true, botAsked: { name: "Whiskers" } }), "- You are this home's Builder.");
+  assert.deepEqual(called(answer), []);
+  assert.match(answer.content, /^Thanks, Whiskers\. I'm on it here\. Which fields should each record keep/u);
 });
 
 test("a request that names a spreadsheet gets a spreadsheet, and no room", async () => {

@@ -956,7 +956,8 @@ earlier hand-matched colours and sizes where they differ.
   replaces "← Chats", "← Apps", "← Data" and "← All templates". Steps inside a window name where they go instead of a
   back arrow: **Connect apps**, **Your apps and skills**, **All settings** (phones), **Overview**, and **Previous** in
   the first-run slides. Links are built by JSKIT's paths, never by hand. *D-106 changes it for an app: the button is
-  the app's close, named for where it goes, which leaves in one click.*
+  the app's close, named for where it goes, which leaves in one click; D-123 makes that close the Apps page's too, and
+  has it leave the whole apps area.*
 - **Back and forward are the browser's own.** Mercbot binds no key for them; the shortcuts sheet lists the
   browser's Alt+← and Alt+→, as it lists the browser's zoom and full screen. Ctrl+[ is now the Up arrow's key: on the
   pages that show it, it does what the arrow does, through JSKIT's navigation rather than the history. Ctrl+] is free.
@@ -2914,7 +2915,9 @@ clicked!!!!"
   `history.*`; `nav/back-control`: a "Back to X" button; `nav/allow`: nothing excuses a navigation rule), and `jskit
   check` enforces them: a first build with a "Back to <name>" button and `router.go(-n)` past the app's entries failed
   it (two `nav/history`, two `nav/missing-shell-layout` findings). Decided for the 20 November release: this close
-  now, the rest in JSKIT's next release (Later).
+  now, the rest in JSKIT's next release (Later). *Amended by D-123: an app's own places now replace its one entry
+  instead of adding one, and the close of the whole apps area (an app's and Apps') finishes on the place the area
+  was entered from, with no history walking.*
 - **Not an embedded frame.** An app is drawn by Mercbot's own page, never in a frame, so nothing an app navigates can
   add entries Mercbot doesn't know of.
 - **Tests.** `tests/e2e/app-exit.spec.ts`: from Vera's chat, 16 places with a reload among them, then one click on the
@@ -3937,6 +3940,87 @@ Decided:
   New room's own create, with exactly those members, the start line and then the brief as the proposing bot's message
   in one transaction; the card then opens the room. The brief is on the card in full, so a private chat's words leave
   it only once its person has seen them there. Only the person's own turn has the tool, never a routine, a request or
-  an Apps task. The Builder doesn't start working by itself in the new room: the person carries on there.
+  an Apps task. The Builder doesn't start working by itself in the new room: the person carries on there. *Amended by
+  D-124: the bot the brief is for (the Builder, for a database) answers it there by itself, once.*
 - **Proof:** `tests/server/appsRules.test.js`, `tests/server/startRoomCard.integration.js`,
   `tests/server/standInRooms.test.js`, `tests/client/chatTimeline.vitest.js`.
+- **The first bot builds by default** (the owner, 23 Nov: "The first bot should automatically be the builder when opening
+  a workspace"): a home whose owners haven't chosen a Builder has its main bot, its first, as the Builder
+  (`apps.builder`), so asking any bot for a database works in a new home; one chosen in Settings → Main bot and Builder
+  wins. Proof: `tests/server/appChats.integration.js` ("a home's main bot is its Builder until another is chosen").
+
+## D-123 — One close for the whole apps area (2026-11-23)
+
+Amends D-106. The owner, after opening the Cats app's draft preview from Apps and moving between its screens (Cats,
+then Next due): its X ("Back to Apps") went to Apps; Apps' arrow went back into the app at Next due; X again went to
+Apps; the arrow went into the app at Cats; only then did it get out. "There MUST be a way to just close the whole "app"
+thing, like close it close it, no 3/4 backs." "The draft does it."
+- **The cause.** D-106's close left through JSKIT's `finish()`, which replaces only the entry it's on, and every
+  screen opened in an app pushed an entry and a step of the trail. So the app's earlier screens stayed behind Apps,
+  and Apps' arrow (JSKIT's Up, which pushes the trail's top) and the browser's Back walked back into them. From the
+  Apps list with a published app and no screens moved between, it left in one step; a full page load starts the trail
+  again, so only in-app moves showed it.
+- **An app never stacks entries.** Moving between an app's own places replaces the open history entry instead of
+  adding one (`AppFrame.vue`): its navigation (rail, tabs, bottom bar), a button's `go`, the live app's "update your
+  copy" into its draft, and the details panel's Preview the draft. JSKIT keeps the trail of a replaced entry, so the
+  app's trail stays the steps before it. Opening an app (from Apps, a chat, Files or a link) still adds one entry.
+  This changes D-106's "each place opened in the app adds a history entry": the browser's Back no longer steps
+  through an app's screens.
+- **The close.** The apps area is `/w/<home>/apps` and everything under it: Apps, every app, live or `?version=draft`,
+  and every table. The shell's button first in an app's bar, and now in Apps' own bar (`useShellPageClose`, so an X
+  there too, with Ctrl+[), is the close of the area (`useAppExit.js`): it leaves through JSKIT's `finish()`, which
+  replaces the open entry, for the place the area was entered from, the nearest step of JSKIT's trail outside the area
+  (`appExit.js` `openerOf` over `appsAreaOf`), with its query; entered directly (a new tab, a pasted address), the
+  home's chat. From a room, Apps and an app with any number of screens, it's one press to the room, and the browser's
+  Back from there goes at most to Apps, one entry, never into the app's screens; Apps' own close is one press to the
+  room again.
+- **No history walking.** Nothing in the apps area calls the browser's or the router's history (`go`, `back`): JSKIT's
+  Material 3 rule `nav/history` keeps that for the shell, and no comment excuses it. Going back past Apps' own entry,
+  so that Back from the room skips Apps too, waits for JSKIT's `leave()` (D-106, Later).
+- **Its words.** The X's tooltip and accessible name say where it goes, worded by D-106's `exitLabel`: "Back to <room
+  or bot>", "Back to Files", else "Back to Mercbot". An app opened from Apps no longer says "Back to Apps": its close
+  goes past Apps.
+- **Unchanged.** A table's arrow is still JSKIT's Up to Apps.
+- **Tests.** `tests/client/appExit.vitest.js`: the place the area was entered is found past Apps, every app and every
+  table; on a stand-in of the tab's history and JSKIT's trail, a room, Apps, the Cats draft and two screens (Next due,
+  Vet visits) replacing its entry, the close finishes on the room named "Back to Vera", Back goes to Apps, and Apps'
+  close finishes on the room; entered directly, the home's chats. `tests/e2e/app-exit.spec.ts`: a room, Apps, a Stock
+  draft's preview, By location and Items, one X back in the room, Back to Apps, Apps' X back in the room; from Vera's
+  chat through Apps to Contacts, the close and Ctrl+[ to Vera's chat; 16 places in an app opened from a chat keep one
+  entry, one click back to the chat, and Back from it to the chat as it was opened.
+
+## D-124 — Bots talk to each other in the chat, up to 5 replies in a row (2026-11-23)
+
+Amends R3, D-46 and D-122. In Preview, the room "Cats database" that Whiskers' card started had the person, Whiskers
+and Mercbot. Whiskers answered the person, then handed the spec to Mercbot through a private request (a `pass`) instead
+of @-mentioning it; Mercbot started building through that request, never spoke in the room, and didn't answer "@Mercbot
+Are you here?" while busy. The owner, 23 November: "I do want bots to talk to each other. Just have a limit of 5
+interactions before a human is necessary -- and when a human is, they say it plainly", and "The human can just *talk*
+and that unblocks them - even if they talked to the other human".
+
+Decided:
+- **A bot that's present is mentioned, never asked privately.** `ask_bot`, `message_bot` (the pass) refuse a bot seated
+  in the asking chat with a tool error, "<Bot> is in this chat: mention it (@<Bot>) so it answers here"; no request and
+  no card are made. Every bot's chat rules say so. Bots elsewhere are asked as before, with the requests' own limits.
+- **A mention gets an answer in the chat.** R3's single follow-up round becomes rounds: each bot another bot just
+  mentioned answers it there (or PASSes), its reply marked as answering that bot (`body.answersBot`), and the bots its
+  reply mentions answer in the next round. A bot already speaking after the mention, the author itself and archived
+  bots don't.
+- **The limit.** A reply from one bot to another (`answersBot`) counts; a bot's reply to a person doesn't, even when it
+  mentions a bot. After 5 in a row with no person writing, a bot mentioned by another doesn't run: it says once, as its
+  own message and with no model call, "We need you to go on: <the asking bot's last question>" (or "…we've gone back
+  and forth 5 times, so tell us how you'd like to continue."), which mentions no bot; until a person writes, the bots
+  hold back without saying it again. Any person's text message in the chat resets it, to anyone. It is read from the
+  chat's newest 6 text messages in one query, with no stored counter that can drift (`botTalk.js`).
+- **The brief is answered.** A room a `start_room` card starts has its brief @-mention the bot it's for (the Builder
+  when the card names it, else the first other bot), and that bot answers it there by itself, once, through the same
+  turns as a mention; it counts toward the limit, and the proposing bot doesn't answer its own brief.
+- **Preview's recurring "Error in POST method".** It was json-rest-api's log of a refused insert: agent-runtime claims a
+  bot's reply slot by inserting its `agent_runs` row and reads the duplicate as "busy", but json-rest-api's POST logs
+  every failed insert at level 50 first. A request's step (retried 5 s later, on the 5 s loop) and a goal round retry a
+  busy bot, so a bot working for minutes logged one about every 10 s. The bots' runs now look first: a run that's there
+  and still beating is busy with no insert (`agentTables.js` `lookingRuns`); a stale one is taken over and a free one
+  claimed by agent-runtime as before. The claim itself inserting is JSKIT's, and is the follow-up there.
+- **Proof:** `tests/server/botTalk.integration.js`, `tests/server/botTalk.test.js`,
+  `tests/server/startRoomCard.integration.js`, `tests/server/standInRooms.test.js`, `tests/server/runClaims.integration.js`,
+  `tests/server/chatSpeaking.integration.js`.

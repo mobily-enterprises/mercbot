@@ -18,6 +18,8 @@ render across compact, medium, and expanded layouts.
 - `src/components/mercbot/MercbotSidebarRow.vue`
 - `src/components/files/MercbotFilesEntry.vue`
 - `src/components/apps/MercbotAppsEntry.vue`
+- `src/components/apps/useAppExit.js`
+- `src/components/apps/appExit.js`
 - `src/components/mercbot/chatMenus.js`
 - `src/components/mercbot/useChatDrag.js`
 - `src/components/mercbot/chatDirectory.js`
@@ -92,7 +94,15 @@ render across compact, medium, and expanded layouts.
   key for itself, Mercbot uses its own replacement (D-2). Back and forward are the
   browser's own (D-64): Mercbot binds no key for them. Ctrl+[ is the Up
   arrow's key: on Apps, an app, a table and Files the home layout
-  (`src/pages/w/[workspaceSlug].vue`) runs JSKIT's Up for it.
+  (`src/pages/w/[workspaceSlug].vue`) runs JSKIT's Up for it, or the page's close where it has one (Apps and an app).
+- One close for the whole apps area (D-106, D-123). The apps area is `/w/<home>/apps` and everything under it (Apps,
+  every app, live or `?version=draft`, every table). Moving between an app's own places replaces the open history
+  entry (`AppFrame.vue`), so an app never stacks entries; opening one adds one. The shell's button first in an app's
+  bar and in Apps' bar is a close (`useShellPageClose`, an X, with Ctrl+[), named for where it goes ("Back to <room or
+  bot>", "Back to Files", "Back to Mercbot", `exitLabel`). It leaves through JSKIT's `finish()` for the nearest trail
+  step outside the area (`appExit.js` `openerOf` over `appsAreaOf`), else the home's chat, so the browser's Back from
+  where it lands goes at most to Apps, never into an app's screens. Nothing in the area walks the history
+  (`nav/history`); skipping Apps too waits for JSKIT's `leave()` (D-106, Later).
 - The Follow System / Light / Dark theme preference applies at startup and
   tracks live system changes.
 - The sidebar (`MercbotSidebar.vue`) is dense (D-117). Its top row is the home switcher, then icon buttons Search,
@@ -235,6 +245,8 @@ folder is a "Home files →" link to the Files page, and Move to… still offers
 
 ## Proved by
 
+- `tests/client/appExit.vitest.js`
+- `tests/e2e/app-exit.spec.ts`
 - `tests/e2e/startup.spec.ts`
 - `tests/client/commonKnowledgeSettings.vitest.js`
 - `tests/e2e/instructions.spec.ts`

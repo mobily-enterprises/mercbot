@@ -1,6 +1,6 @@
 import { defineFeature } from "@jskit-ai/kernel/server/features";
 import { createRuns, createGoals, createSummaries } from "@jskit-ai/agent-runtime/server";
-import { AGENT_TABLE_RESOURCES } from "./agentTables.js";
+import { AGENT_TABLE_RESOURCES, lookingRuns } from "./agentTables.js";
 import { createArchiveRepository } from "./archiveRepository.js";
 import { createBotRepository } from "./botRepository.js";
 import { createChatRepository } from "./chatRepository.js";
@@ -163,7 +163,12 @@ const BotRecordsFeature = defineFeature({
       // The chat rules other features' row policies apply to their rows of a bot in a chat and a person's own rows.
       rules: createChatRules(resources),
       agent: Object.freeze({
-        createRuns: (dependencies = {}) => createRuns({ ...dependencies, resources, systemContext }),
+        // A busy run is answered busy without a refused insert (agentTables.js lookingRuns).
+        createRuns: (dependencies = {}) => lookingRuns(
+          createRuns({ ...dependencies, resources, systemContext }),
+          resources.agentRuns,
+          { context: systemContext("a bot's reply slot in a chat is looked at before it's claimed, in any home") }
+        ),
         createSummaries: (dependencies) => createSummaries({ ...dependencies, resources, systemContext }),
         createGoals: (dependencies) => createGoals({ ...dependencies, resources, systemContext })
       })

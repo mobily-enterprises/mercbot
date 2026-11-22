@@ -124,7 +124,7 @@ async function restore() {
         <div class="text-body-1 mb-3">{{ loaded.version && !loaded.version.draft ? `Version ${loaded.version.number}${loaded.version.summary ? ` · ${loaded.version.summary}` : ""}` : "Not published yet" }}</div>
         <template v-if="app.draftVersionId">
           <div class="text-body-2 text-medium-emphasis">Draft</div>
-          <div class="text-body-1 mb-3"><router-link :to="paths.page(`/apps/${app.slug}?version=draft`)">Preview the draft</router-link></div>
+          <div class="text-body-1 mb-3"><router-link :to="paths.page(`/apps/${app.slug}?version=draft`)" replace>Preview the draft</router-link></div>
         </template>
         <div class="text-body-2 text-medium-emphasis">Screens</div>
         <div class="text-body-1 mb-4">{{ screens.length }}</div>

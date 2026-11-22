@@ -97,7 +97,8 @@ A room can have several bots and several people in it, so they can work on somet
 - **When you're the only person in the chat,** every bot in it answers in turn, each seeing what the others said.
 - **When several people are in the chat,** a bot answers only when it's called: by its name, with **@**, when you reply to one of its messages, or with **@everyone**.
 - **To address one bot,** type **@** and choose it from the list. Only the bots you mention answer.
-- When a bot mentions another bot, that bot may answer once more, then the round ends. Bots stay quiet when they've nothing new to add, so they don't chatter among themselves.
+- **Bots talk to each other here, where you can see it.** When a bot mentions another bot in the chat with **@**, that bot answers it in the chat, and they can carry on back and forth. A bot stays quiet when it has nothing new to add.
+- **After 5 replies between bots in a row, they wait for you.** The bot that would have answered says plainly what's needed, once, for example "We need you to go on: should the table keep vet visits?". Anything anyone writes in the chat lets them carry on, even a message to another person.
 
 The @ list offers **everyone**, the chat's bots and your connected apps, showing whether each app still needs signing in.
 
@@ -111,7 +112,7 @@ A status line shows which bots are working, and each bot's name appears above it
 
 ## Hand work from one bot to another
 
-A bot can get another bot in your home to do part of a job, in two ways.
+A bot that's in the chat with you is asked right there: the other bot mentions it with **@**, and it answers in the chat, so you see the whole conversation. For a bot that isn't in the chat, a bot can get it to do part of a job in two ways.
 
 **Ask and wait.** When the bot needs the other bot's result to finish what you asked ("Get Otto to make an app for our plant watering, then tell me how to open it"):
 

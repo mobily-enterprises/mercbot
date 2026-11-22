@@ -31,7 +31,8 @@ publishes and can restore, and fields removed from every app in one save (D-35).
   suggestion, or stores the draft. `publish` and `restore` are people's actions: the draft (or an
   old version) becomes the next numbered live version, and publishing clears the draft's practice
   copy in the same transaction (practice.md). Creation and publishing are audited.
-- One Builder bot per home (`app_settings.builder_bot_id`); each person pins up to 8 apps.
+- One Builder bot per home (`app_settings.builder_bot_id`), else its main bot, the home's first (`apps.builder`, D-122); each
+  person pins up to 8 apps.
   The home's owners and admins choose it in Settings → Main bot and Builder (`MercbotSettingsMainBot.vue`, D-119);
   a bot's card shows a Builder chip, and its Apps section lists only its watches.
 - Every bot knows what apps and their tables are and that only the Builder makes them (D-122): its instructions say,

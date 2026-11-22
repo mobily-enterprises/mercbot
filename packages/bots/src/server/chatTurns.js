@@ -141,7 +141,20 @@ export function createChatTurns({
     ...(goalLimits ? { limits: { ...GOAL_LIMITS, ...goalLimits } } : {})
   });
 
-  const cards = createBotCards({ records, account, env, computer, integrations, requests, files, seats, chats, onboarding });
+  const cards = createBotCards({
+    records,
+    account,
+    env,
+    computer,
+    integrations,
+    requests,
+    files,
+    seats,
+    chats,
+    onboarding,
+    // Late-bound, a cycle: a room's brief is answered through the replies below, which read the cards' turns.
+    answerBrief: (chatId, brief, options) => replies.answerBrief(chatId, brief, options)
+  });
   const turns = createBotTurns({
     records,
     knowledge,

@@ -32,7 +32,7 @@ Each bot browses in its own browser, on its own computer. It can read pages, fil
 
 ## Can bots work together?
 
-Yes. A chat can have several bots in it, and people too: each bot answers in turn, or only the ones you mention with @. A bot can also ask another bot for something and wait for its answer, or pass a task on; the answer comes back to the chat you asked in, with a card. See [Messaging and working together](/help/messaging).
+Yes. A chat can have several bots in it, and people too: each bot answers in turn, or only the ones you mention with @. Bots in the same chat talk to each other there with @, where you can see it, and wait for you after 5 replies in a row. A bot can also ask a bot that isn't in the chat for something and wait for its answer, or pass a task on; the answer comes back to the chat you asked in, with a card. See [Messaging and working together](/help/messaging).
 
 ## Will a bot do anything without asking me?
 

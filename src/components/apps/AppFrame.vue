@@ -24,8 +24,10 @@ import { useSnackbar } from "@/components/apps/useSnackbar.js";
 // the app's own (rail, tabs, or a bottom bar on phones). ?version=draft previews the draft on its
 // practice data (D-71): a copy of the live records where its buttons save and change things as the
 // live app would, with Reset to start again from the live records and Publish for the person to decide. The shell's
-// button first in its bar is the app's close, named for where it goes: one step out, back to where the person opened
-// it from, however many of its places they opened (D-106).
+// button first in its bar is the app's close, named for where it goes: one step out of the whole apps area, back to
+// where the person entered it from (D-106, D-123). Moving between the app's own places (its screens, records and
+// navigation, live and draft) replaces the open history entry, so an app never stacks entries: Back from where its
+// close lands goes at most to Apps, never into the app.
 const route = useRoute();
 const router = useRouter();
 const { smAndDown } = useDisplay();
@@ -39,7 +41,7 @@ const functions = shallowRef(null);
 const problem = ref("");
 const runtime = shallowRef(null);
 const { snackbar, notify } = useSnackbar();
-useAppExit(slug);
+useAppExit();
 const publishing = ref(false);
 const resetting = ref(false);
 const details = ref(false);
@@ -71,7 +73,7 @@ if (window.history.state?.notice?.text) notify(window.history.state.notice.text,
 
 function onEffects(result) {
   for (const effect of result.effects || []) {
-    if (effect.go) router.push(screenLocation(effect.go.screen, effect.go.params));
+    if (effect.go) router.replace(screenLocation(effect.go.screen, effect.go.params));
     else if (effect.notify) notify(effect.notify);
     else if (effect.openDialog) runtime.value.dialogs[`dialog:${effect.openDialog}`] = true;
     else if (effect.closeDialog) runtime.value.dialogs[`dialog:${effect.closeDialog}`] = false;
@@ -154,7 +156,7 @@ async function updateCopy(update) {
   updatingCopy.value = true;
   try {
     await appsApi.updateCopy(slug.value, update.screen);
-    await router.push({ path: route.path, query: { version: "draft" } });
+    await router.replace({ path: route.path, query: { version: "draft" } });
   } catch (error) {
     onError(error);
   } finally {
@@ -284,7 +286,7 @@ async function publish() {
             <v-list-item
               v-for="item in navItems"
               :key="item.screen"
-              :to="screenLocation(item.screen)"
+              :to="screenLocation(item.screen)" replace
               :active="item.screen === screenKey"
               :prepend-icon="ICON_PATHS[item.icon]"
               :title="item.label"
@@ -297,7 +299,7 @@ async function publish() {
           <v-alert v-if="pointing" type="info" variant="tonal" density="compact" class="mb-4">Click the part of the screen you want to ask the Builder about.</v-alert>
           <div v-if="pointing && highlight" class="app-frame__highlight" :style="highlight" />
           <v-tabs v-if="navItems.length && navStyle === 'tabs'" :model-value="screenKey" color="primary" class="mb-4">
-            <v-tab v-for="item in navItems" :key="item.screen" :value="item.screen" :to="screenLocation(item.screen)" :prepend-icon="ICON_PATHS[item.icon]">{{ item.label }}</v-tab>
+            <v-tab v-for="item in navItems" :key="item.screen" :value="item.screen" :to="screenLocation(item.screen)" replace :prepend-icon="ICON_PATHS[item.icon]">{{ item.label }}</v-tab>
           </v-tabs>
 
           <v-card v-if="problem" flat class="pa-6 text-body-1">{{ problem }}</v-card>
@@ -313,7 +315,7 @@ async function publish() {
       </div>
 
       <v-bottom-navigation v-if="navItems.length && navStyle === 'bottom'" :model-value="screenKey" grow>
-        <v-btn v-for="item in navItems.slice(0, 5)" :key="item.screen" :value="item.screen" :to="screenLocation(item.screen)">
+        <v-btn v-for="item in navItems.slice(0, 5)" :key="item.screen" :value="item.screen" :to="screenLocation(item.screen)" replace>
           <v-icon :icon="ICON_PATHS[item.icon] || ICON_PATHS.apps" />
           <span>{{ item.label }}</span>
         </v-btn>

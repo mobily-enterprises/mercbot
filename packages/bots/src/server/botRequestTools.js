@@ -25,8 +25,9 @@ export function buildBotRequestTools({ requestTools, goalOperations }) {
     Object.freeze({
       id: "message_bot",
       description:
-        'Pass a task to another bot of this home, by its name, when the person asks you to ("ask Ledger to work out…"). That bot ' +
-        "does the work and answers them here. It can't see this chat: pass the task itself with every detail it needs, and don't work it out or answer it yourself.",
+        'Pass a task to another bot of this home that isn\'t in this chat, by its name, when the person asks you to ("ask Ledger to work out…"). That bot ' +
+        "does the work and answers them here. It can't see this chat: pass the task itself with every detail it needs, and don't work it out or answer it yourself. " +
+        "A bot that's in this chat isn't passed tasks: mention it (@Name) and it answers here.",
       inputSchema: z.object({
         bot: z.string().min(1).max(60).describe("The other bot's name"),
         task: z.string().min(5).max(2000)
@@ -56,7 +57,7 @@ export function buildBotRequestTools({ requestTools, goalOperations }) {
     Object.freeze({
       id: "ask_bot",
       description:
-        "Ask another bot in this home to do something for the person and wait for its answer, when you need its result to finish the person's request (\"get Otto to build an app for…\", \"ask Ledger for the totals and put them in my report\"). Give a clear, complete brief with every detail it needs: it can't see this chat. Then stop: its answer comes back to you here, and you carry on. Use message_bot instead when the person just wants the other bot to deal with it and answer them itself.",
+        "Ask another bot in this home to do something for the person and wait for its answer, when you need its result to finish the person's request (\"get Otto to build an app for…\", \"ask Ledger for the totals and put them in my report\"). Give a clear, complete brief with every detail it needs: it can't see this chat. Then stop: its answer comes back to you here, and you carry on. Use message_bot instead when the person just wants the other bot to deal with it and answer them itself. Never for a bot that's in this chat: mention it (@Name) and it answers here.",
       inputSchema: z.object({
         bot: z.string().min(1).max(60).describe("The other bot's name"),
         brief: z.string().min(5).max(2000).describe("What you need from it, with every detail it needs")

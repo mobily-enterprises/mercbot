@@ -217,6 +217,30 @@ export function createChatMembers({ records, notices, computer, systemContext, p
     return { chats: await viewsOf(page.chats, options), next: page.next };
   }
 
+  /**
+   * A page of the person's hidden and archived chats that one bot (`withBot`) or one person (`withPerson`) is in too,
+   * newest chat first, 20 at a time (`after`: the page before's `next`, null on the last): what a card adds under "Show
+   * hidden and archived". 400 unless exactly one is named; 404 for a bot or person who isn't the home's. The same reads
+   * for every page, whatever its chats.
+   */
+  async function sharedTuckedAway({ withBot = null, withPerson = null, after = null } = {}, options) {
+    if (Boolean(withBot) === Boolean(withPerson)) {
+      throw new BotsError(400, "Name one bot or one person.", { code: "bots_shared_needs_one" });
+    }
+    if (withBot && !(await records.directory.findBot(String(withBot), options))) {
+      throw new BotsError(404, "Bot not found.", { code: "bots_bot_not_found" });
+    }
+    if (withPerson && !(await chats.isHomeMember(withPerson, options))) {
+      throw new BotsError(404, "Person not found.", { code: "bots_person_not_found" });
+    }
+    const page = await chats.tuckedAwayWith(options, {
+      botId: withBot ? String(withBot) : null,
+      userId: withPerson ? String(withPerson) : null,
+      after: isId(after) ? String(after) : null
+    });
+    return { chats: await viewsOf(page.chats, options), next: page.next };
+  }
+
   /** One chat the person can open. */
   async function get(chatId, options) {
     return { chat: await viewOf(await openChat(chatId, options), options) };
@@ -230,7 +254,7 @@ export function createChatMembers({ records, notices, computer, systemContext, p
    * that bot's brief (`opening`) as its next message, in the same transaction; the route never passes one.
    * @param {{ kind?: string, title?: string, people?: string[], bots?: string[] }} room
    * @param {object} options
-   * @param {{ opening?: { botId: string, botName: string, text: string } | null }} [made]
+   * @param {{ opening?: { botId: string, botName: string, text: string, mentions?: Array<{ id: string, name: string }> } | null }} [made]
    */
   async function create({ kind, title, people = [], bots = [] } = {}, options, { opening = null } = {}) {
     const name = String(title ?? "").trim().slice(0, 80);
@@ -242,7 +266,17 @@ export function createChatMembers({ records, notices, computer, systemContext, p
       const text = `${makerName} started this room.`;
       const started = { kind: "event", role: "user", body: { event: "room_started", text, authorName: makerName } };
       const brief = opening
-        ? [{ kind: "text", role: "bot", authorBotId: String(opening.botId), body: { text: opening.text, authorName: opening.botName, brief: true } }]
+        ? [{
+            kind: "text",
+            role: "bot",
+            authorBotId: String(opening.botId),
+            body: {
+              text: opening.text,
+              authorName: opening.botName,
+              brief: true,
+              ...(opening.mentions?.length ? { mentions: opening.mentions } : {})
+            }
+          }]
         : [];
       await messages.append(made.id, [started, ...brief], txOptions);
       return made;
@@ -539,6 +573,7 @@ export function createChatMembers({ records, notices, computer, systemContext, p
     homeChanged,
     list,
     publicRooms,
+    sharedTuckedAway,
     get,
     create,
     direct,

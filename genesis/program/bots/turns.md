@@ -9,6 +9,7 @@ follow-ups after a sign-in, summaries of long chats, and the news every open pag
 - Main: `packages/bots/src/server/chatTurns.js`
 - `packages/bots/src/server/botChat.js`
 - `packages/bots/src/server/botReplies.js`
+- `packages/bots/src/server/botTalk.js`
 - `packages/bots/src/server/chatSeats.js`
 - `packages/bots/src/server/botHistory.js`
 - `packages/bots/src/server/records/seatWindows.js`
@@ -101,8 +102,16 @@ archived chats refuse every write, `genesis/program/bots/chats.md`):
 **Who speaks (R3, `addressedBots` in `botReplies.js`).** With one person in the chat, every live bot answers in
 order, or only those @-mentioned. With several people, a bot answers only when named as a word, @-mentioned, replied
 to (`replyTo` its message) or called with `<@everyone>`, or when the join-in judge named it (below). After a card is
-answered, its bot speaks. Then one follow-up
-round lets each bot another bot just mentioned answer once (`PASS` stays quiet: nothing is posted). Archived bots
+answered, its bot speaks. Then each bot another bot just mentioned answers it there, in the chat, round after round
+(D-124, `botTalk.js`): a live bot of the chat, never the message's own author nor one that spoke after the mention,
+once a round, prompted "<Bot> just mentioned you here…" (`PASS` stays quiet: nothing is posted), its reply marked
+`body.answersBot` with the bot it answers. **The bot-to-bot limit:** after 5 such replies in a row with no person
+writing, a bot mentioned by another doesn't run a turn; it posts, as its own message and with no model call, "We need
+you to go on: <the asking bot's last question, its leading mention dropped>" or "…we've gone back and forth 5 times, so
+tell us how you'd like to continue." (`body.handBack`, mentioning no bot), once; until a person writes, every bot
+mentioned by another holds back without saying it again. Any person's text message resets it, whoever it's for, even
+another person. It's read, with no stored counter, from the chat's newest 6 text messages in one bounded query
+(`pastTalkLimit`), only for a turn another bot asked for. Archived bots
 never speak; a chat with only people makes no model call. The page decides how to wait (`useChatActions.js`
 `answering`): no live bot, no reply asked; several people, it asks and shows a bot working only once the server says
 one started (`untilStarted`, the `working` event); otherwise it waits for the reply.
@@ -147,7 +156,9 @@ like a finished round, on runs that are stale by then. Each turn is metered to t
 **A reply** (`POST …/reply {timeZone?, language?, afterMessageId?, afterCard?}`): each speaking bot runs its own reply
 in this chat, claimed in `agent_runs` under its seat (`chat_bots.id`) with a heartbeat, so a retried request or
 another page never starts a second one and a reply whose server stopped beating for a minute is taken over (D-15,
-D-19). The request waits up to 20 seconds, then answers `{ pending: true }`; the reply finishes as background work and
+D-19). A claim first looks: a run there and still beating is busy without an insert (`records.agent.createRuns`,
+`agentTables.js` `lookingRuns`, D-124), since json-rest-api logs every refused insert as "Error in POST method" and a
+request's step or a goal round tries a busy bot again every few seconds. The request waits up to 20 seconds, then answers `{ pending: true }`; the reply finishes as background work and
 tells pages through bot events; it also answers `{ pending: true }` when the bots it would ask were all still busy
 with an earlier reply in the chat, as each answers once it's free (`answerWaiting`). Only those four fields come from
 the page: a turn's prompt is the server's own. A message that arrived while its bot was busy is named in the turn's
@@ -230,7 +241,9 @@ task:
 
 **Requests between bots** (D-46, O22, `botRequests.js`): `ask_bot` sends another bot of the home a brief for the
 person the asking bot works for and waits; `message_bot` passes the task on for the other bot to answer the person
-itself, in the asking chat. Each is a `bot_requests` row (its asking seat, chat, steps and card) with one
+itself, in the asking chat. Neither reaches a bot seated in the asking chat (D-124): that is a tool error, "<Bot> is in
+this chat: mention it (@<Bot>) so it answers here", and no request or card is made; every bot's rules say to @-mention
+a bot that's present instead. Requests keep their own limits below, apart from the chat's bot-to-bot limit. Each is a `bot_requests` row (its asking seat, chat, steps and card) with one
 `bot_request` card in the asking chat showing Starting, Working, Has a question, Waiting for your OK, Done, Couldn't
 finish or Cancelled (`MercbotRequestCard.vue`). The asked bot works on the brief alone, with its own steps on the
 request, and never reads the asking chat; what it posts, its cards and its answer go to the asking chat, under that
@@ -296,6 +309,9 @@ chat (`chatId`).
 ## Proved by
 
 - `tests/server/chatSpeaking.integration.js`
+- `tests/server/botTalk.integration.js`
+- `tests/server/botTalk.test.js`
+- `tests/server/runClaims.integration.js`
 - `tests/server/chatReach.integration.js`
 - `tests/server/glassWall.integration.js`
 - `tests/server/glassWallPrompts.integration.js`

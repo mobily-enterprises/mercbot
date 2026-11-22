@@ -1,10 +1,13 @@
 import { createTool } from "@jskit-ai/agent/server";
 import { z } from "zod";
+import { escape, mentionMarkers, withMentions } from "./mentions.js";
 
 // Rooms a bot starts (D-122): start_room proposes one, with its name, Private or Public, the home's bots and people in
 // it and a first message (a brief), always on a card for the person the bot works for. Only their yes makes it, as
 // them, through the same create as New room's (chatMembers.js), so the brief, which may carry this chat's words,
-// leaves the chat only once they've seen it on the card.
+// leaves the chat only once they've seen it on the card. The brief is for one bot of the room, which answers it there
+// by itself once the room is made: the Builder when it's among them (a database or an app), else the first other bot
+// the card names. The brief @-mentions it, and the bot that wrote it doesn't answer its own brief.
 
 /** The most a brief may be: a message's length (botRows.js messageBody). */
 export const BRIEF_LIMIT = 8000;
@@ -22,6 +25,24 @@ const GONE = Object.freeze({
   bots_person_not_found: "Someone on the card isn't in this home any more.",
   bots_bot_not_found: "A bot on the card isn't in this home any more."
 });
+
+/**
+ * The bot a brief is for: the home's Builder when the card names it, else the first bot it names other than the
+ * proposer; null for a room with no other bot.
+ * @param {Array<{ id: string, name: string }>} bots the card's bots, the proposer first
+ * @param {string | null} builderId
+ */
+export function briefFor(bots, builderId) {
+  const others = bots.slice(1);
+  return others.find((bot) => bot.id === String(builderId)) || others[0] || null;
+}
+
+/** The brief, @-mentioning the bot it's for: "Mercbot, …" becomes "@Mercbot, …", and one that never names it starts so. */
+function addressed(brief, to) {
+  if (!to || new RegExp(`@${escape(to.name)}(?![\\p{L}\\p{N}_])`, "u").test(brief)) return brief;
+  if (new RegExp(`^${escape(to.name)}(?![\\p{L}\\p{N}_])`, "u").test(brief)) return `@${brief}`;
+  return `@${to.name} ${brief}`;
+}
 
 /**
  * The bots and people a card names, from what the model gave: the home's bots by name (none archived) and its active
@@ -62,8 +83,9 @@ async function membersNamed({ records, seat, call }, named) {
  * @param {object} shared.call the model's reader
  * @param {(actionId: string, input: object) => Promise<object>} shared.attempt the turn's way to an action (botTools.js),
  *   which parks start_room on its card
+ * @param {string | null} [shared.builderId] the home's Builder, whom a brief is for when the card names it
  */
-export function buildRoomTools({ records, seat, call, attempt }) {
+export function buildRoomTools({ records, seat, call, attempt, builderId = null }) {
   async function startRoom({ title, kind = "private", bots = [], people = [], brief }) {
     const name = String(title).trim();
     const words = String(brief).trim();
@@ -71,7 +93,15 @@ export function buildRoomTools({ records, seat, call, attempt }) {
     if (!words) return { error: "Write the brief: what the room is for, from this conversation." };
     const members = await membersNamed({ records, seat, call }, { bots, people });
     if (members.error) return members;
-    return attempt("start_room", { title: name, kind, bots: members.bots, people: members.people, brief: words });
+    const to = briefFor(members.bots, builderId);
+    return attempt("start_room", {
+      title: name,
+      kind,
+      bots: members.bots,
+      people: members.people,
+      brief: addressed(words, to),
+      ...(to ? { to: to.id } : {})
+    });
   }
   return {
     startRoom: createTool(Object.freeze({
@@ -95,8 +125,9 @@ export function buildRoomTools({ records, seat, call, attempt }) {
 /**
  * start_room (D-122): an action that always asks, on a card for the person the bot works for. Their yes makes the room
  * as them, with exactly the card's bots and people (the bot and the person among them) and the bot's brief as its first
- * message after the start line; the card then opens it. A bot archived, or a person who left the home, since the card
- * was made is said, and nothing is made.
+ * message after the start line, its "@Name" for the room's bots kept as their mentions; the card then opens it, and the
+ * bot the brief is for (`to`) answers it there by itself, once (botReplies.js answerBrief). A bot archived, or a person
+ * who left the home, since the card was made is said, and nothing is made.
  */
 export const ROOM_ACTIONS = Object.freeze({
   start_room: {
@@ -105,15 +136,18 @@ export const ROOM_ACTIONS = Object.freeze({
     describe: ({ title }) => `start the room "${title}"`,
     question: ({ title, kind, bots, people }) =>
       `Start the ${kind === "public" ? "public" : "private"} room "${title}" with ${withWhom(people, bots)}?`,
-    async run({ chats, call, userId, botId }, { title, kind, bots, people, brief }) {
+    async run({ chats, call, userId, botId, answerBrief }, { title, kind, bots, people, brief, to = null }) {
       const proposer = bots.find((bot) => bot.id === String(botId));
+      const said = withMentions({ text: mentionMarkers(String(brief).slice(0, BRIEF_LIMIT), bots) }, bots);
       try {
         const { chat } = await chats.create({
           kind,
           title,
           people: [...new Set([String(userId), ...people.map((person) => person.id)])],
           bots: [...new Set([String(botId), ...bots.map((bot) => bot.id)])]
-        }, call, { opening: { botId: String(botId), botName: proposer?.name || "", text: String(brief).slice(0, BRIEF_LIMIT) } });
+        }, call, { opening: { botId: String(botId), botName: proposer?.name || "", text: said.text, mentions: said.mentions } });
+        const answerer = bots.find((bot) => bot.id === String(to) && bot.id !== String(botId));
+        if (answerer) answerBrief(String(chat.id), { botId: answerer.id, by: String(botId), userId: String(userId) }, call);
         return {
           kind: "event",
           role: "bot",

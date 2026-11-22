@@ -30,7 +30,8 @@
 // than three words gets a question instead. It writes Continue with others' hand-over note (D-114) as "Continuing from
 // my chat with <bot>: we were on "<what the person said last>"...". Otherwise any other bot says the copy runs on
 // a stand-in model. Asked to make a database or an app, a bot that isn't the home's Builder proposes a private room with
-// the person, itself and the Builder (start_room, D-122); asked for a spreadsheet, it starts one with no room.
+// the person, itself and the Builder (start_room, D-122); asked for a spreadsheet, it starts one with no room. In the
+// room, the bot the brief is for answers it by itself (D-124).
 // `misbehave` makes a template's bot break a rule on purpose, to prove the check catches it:
 // "skip-question" leaves out its second question, "routine-running" creates its routines running, and "send" has
 // something sent as the setup ends (the test copy's line for it, D-69, written by the stand-in itself as JSKIT writes
@@ -191,12 +192,13 @@ function ownAdditionsStep(system, request) {
 // Apps and databases (D-122): which bot is the home's Builder, as the current state note says it.
 const BUILDER_NAMED = /^- This home's Builder: (.+)\.$/mu;
 const IS_BUILDER = "- You are this home's Builder.";
+const BRIEF_FOR_YOU = /^\((.+?) started this room with the person, and its brief above is for you/u;
 
 /**
  * A bot asked to make a database or an app, or a spreadsheet: one that isn't the Builder proposes a private room with
  * the person, itself and the Builder (start_room), and says so once the card is up; with no Builder it says so; the
  * Builder says it would build it. A request that names a spreadsheet gets one (app_help for the sheet app, as a real
- * bot starts one) and no room. Null for anything else.
+ * bot starts one) and no room. The bot a new room's brief is for answers it, asking what to keep. Null for anything else.
  */
 function appsStep(request) {
   if (!request.tools?.length) return null;
@@ -204,6 +206,9 @@ function appsStep(request) {
   const conversation = request.messages.filter((message) => message.role !== "system" && !notes.includes(message));
   const lastPerson = conversation.findLastIndex((message) => message.role === "user");
   const words = textOf(conversation[lastPerson]?.content);
+  // The bot a room's brief is for answers it by itself, once the room is made (botTalk.js briefPrompt).
+  const brief = BRIEF_FOR_YOU.exec(words);
+  if (brief) return say(`Thanks, ${brief[1]}. I'm on it here. Which fields should each record keep, beyond its name? This copy runs on a stand-in model, so it can't build it for real.`);
   const spreadsheet = /\bspreadsheet\b/iu.test(words);
   if (!spreadsheet && !/\b(?:make|create|build|set up|start)\b.*\b(?:database|app)\b/iu.test(words)) return null;
   const called = conversation.slice(lastPerson + 1).some((message) => message.role === "assistant" && message.tool_calls?.length);

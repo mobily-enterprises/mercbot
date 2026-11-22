@@ -1,25 +1,29 @@
-// Leaving an app (D-106). An app's own navigation adds a history entry and a step of JSKIT's navigation trail for each
-// place opened in it, as before; leaving goes at once to the Mercbot place the app was opened from: the nearest step of
-// the trail outside the app.
+// Leaving an app or the Apps page (D-106, D-123). Moving between an app's own places replaces the open history entry
+// (AppFrame.vue), so an app never stacks entries. One close leaves the whole apps area (/w/<home>/apps and everything
+// under it) for the place it was entered from: the nearest step of JSKIT's trail outside the area.
 
 const pathOf = (location) => String(location || "").split(/[?#]/u)[0];
 
-/** Whether `location` (a path with its query) is in the app whose address is `base`. */
+/** Whether `location` (a path with its query) is at `base` or under it: in an app, or in the apps area. */
 export function insideApp(location, base) {
   const path = pathOf(location);
   return path === base || path.startsWith(`${base}/`);
 }
 
 /**
- * The Mercbot place the app was opened from: the nearest step of JSKIT's trail (`{ path }`, oldest first) that isn't in
- * the app, with its query, or null when the app was entered directly (a link opened in a new tab, a pasted address).
+ * The place the apps area was entered from: the nearest step of JSKIT's trail (`{ path }`, oldest first) that isn't in
+ * the area (Apps, an app, a table), with its query, or null when the area was entered directly (a link opened in a new
+ * tab, a pasted address).
  * @param {ReadonlyArray<{ path: string }>} trail
- * @param {string} base The app's address in the home.
+ * @param {string} base The apps area's address in the home (`appsAreaOf`).
  * @returns {string | null}
  */
 export function openerOf(trail, base) {
   return [...(trail || [])].reverse().find((step) => !insideApp(step.path, base))?.path ?? null;
 }
+
+/** The apps area's address in a home: the Apps page, every app and every table are under it. */
+export const appsAreaOf = (homeBase) => `${String(homeBase || "").replace(/\/+$/u, "")}/apps`;
 
 /**
  * Where leaving lands: a chat (`chatId`), Apps, Files, or Mercbot (the home's own address, or any other Mercbot place).

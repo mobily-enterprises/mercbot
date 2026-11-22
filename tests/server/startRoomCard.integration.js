@@ -17,11 +17,14 @@ test("start_room asks on a card, makes the room with exactly its members and bri
   let calls = [];
   const answers = [];
   const states = [];
+  // Which bot each turn was, and its prompt.
+  const turns = [];
   const home = { builder: null };
   const kit = await startChatTurns(context, {
     apps: { apps: { builder: async () => home.builder } },
-    reply: async (_bot, _history, tools, state) => {
+    reply: async (bot, _history, tools, state, prompt) => {
       states.push(state);
+      turns.push({ bot: bot.name, prompt });
       for (const [tool, input] of calls) answers.push(tools[tool] ? await tools[tool].execute(input) : { missing: tool });
       calls = [];
       return { text: "Asked.", transcript: [] };
@@ -65,6 +68,7 @@ test("start_room asks on a card, makes the room with exactly its members and bri
 
   // A card for Anna: private by default, Whiskers and Anna always in it, and nothing made yet.
   const card = await ask([["startRoom", { title: "Cats database", bots: ["mercbot"], people: ["Cleo"], brief }]]);
+  const addressed = `@${brief}`;
   assert.equal(answers.at(-1).status, "waiting_for_approval");
   assert.equal(card.body.for.id, anna);
   assert.equal(card.body.action.id, "start_room");
@@ -73,7 +77,9 @@ test("start_room asks on a card, makes the room with exactly its members and bri
     kind: "private",
     bots: [{ id: whiskers, name: "Whiskers" }, { id: mercbot, name: "Mercbot" }],
     people: [{ id: anna, name: "Anna" }, { id: cleo, name: "Cleo" }],
-    brief
+    // The brief is for the Builder, which it @-mentions: "Mercbot, …" reads "@Mercbot, …".
+    brief: addressed,
+    to: mercbot
   });
   assert.equal(card.body.question, "Start the private room \"Cats database\" with you, Cleo, Whiskers and Mercbot?");
   assert.deepEqual(await rooms(), [], "nothing is made until the yes");
@@ -85,8 +91,11 @@ test("start_room asks on a card, makes the room with exactly its members and bri
   await assert.rejects(kit.turns.chat.answerChoice(plans.id, String(card.id), ["Go ahead"], as(ben)), { statusCode: 403, code: "bots_waiting_for_other" });
   assert.deepEqual(await rooms(), []);
 
-  // Anna's yes: the room, its people and bots exactly the card's, the start line by Anna, then Whiskers' brief.
+  // Anna's yes: the room, its people and bots exactly the card's, the start line by Anna, then Whiskers' brief, then
+  // the Builder's own answer to it, once, with no word from Anna and none from Whiskers.
+  const before = turns.length;
   const answered = await kit.turns.chat.answerChoice(plans.id, String(card.id), ["Go ahead"], as(anna));
+  await kit.drain();
   const [room] = await rooms();
   assert.deepEqual([room.kind, room.title, String(room.made_by)], ["private", "Cats database", anna]);
   const seated = await kit.knex("chat_people").where({ conversation_id: room.id }).pluck("user_id");
@@ -94,8 +103,17 @@ test("start_room asks on a card, makes the room with exactly its members and bri
   const bots = await kit.knex("chat_bots").where({ conversation_id: room.id }).pluck("bot_id");
   assert.deepEqual(bots.map(String).sort(), [whiskers, mercbot].sort());
   const lines = await kit.knex("messages").where({ conversation_id: room.id }).orderBy("id");
-  assert.deepEqual(lines.map((line) => [line.kind, line.role, line.body.text]), [["event", "user", "Anna started this room."], ["text", "bot", brief]]);
-  assert.equal(String(lines[1].author_bot_id), whiskers);
+  const briefText = brief.replace(/^Mercbot/u, `<@bot:${mercbot}>`);
+  assert.deepEqual(lines.map((line) => [line.kind, line.role, line.body.text]), [
+    ["event", "user", "Anna started this room."],
+    ["text", "bot", briefText],
+    ["text", "bot", "Asked."]
+  ]);
+  assert.deepEqual(lines.slice(1).map((line) => String(line.author_bot_id)), [whiskers, mercbot]);
+  assert.deepEqual(lines[1].body.mentions, [{ id: mercbot, name: "Mercbot" }]);
+  assert.equal(lines[2].body.answersBot, whiskers, "a reply to Whiskers' brief, which counts toward the bots' limit");
+  assert.deepEqual(turns.slice(before).map((turn) => turn.bot), ["Mercbot"], "one turn, the Builder's; none from Whiskers");
+  assert.match(turns.at(-1).prompt, /^\(Whiskers started this room with the person, and its brief above is for you/u);
   // The card names the room, and the chat hears it was started.
   assert.deepEqual(answered.messages[0].body.done, { chatId: String(room.id) });
   const said = await kit.knex("messages").where({ conversation_id: plans.id, kind: "event" }).orderBy("id", "desc").first();

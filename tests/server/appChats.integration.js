@@ -90,3 +90,23 @@ test("Ask Builder opens the app's one chat with the Builder, made the first time
   assert.equal((await lines()).length, 1, "the same Builder again: no line");
   assert.equal((await ask(app.slug)).body.chat.id, chat.id, "Ask Builder still opens the app's one chat");
 });
+
+// A home whose owners haven't chosen a Builder has its main bot, its first, as the Builder (the owner, 23 Nov: "The first
+// bot should automatically be the builder"); a Builder chosen in Settings wins over it, and a home without a main bot has
+// none.
+test("a home's main bot is its Builder until another is chosen", async (context) => {
+  const knex = await connectTestDatabase();
+  const cleanup = cleanupStack(context);
+  cleanup.after(() => knex.destroy());
+  const records = await startBotRecords(knex, cleanup);
+  const home = await appsHome(cleanup, { slug: "apps-main-builder", knex, records });
+  const { workspaceId, userId, options, apps: { apps } } = home;
+  const person = { type: "person", id: userId, name: "Pat" };
+  assert.equal(await apps.builder(options), null, "no main bot, no Builder");
+  const [main] = await knex("bots").insert({ workspace_id: workspaceId, made_by: userId, name: "Mercbot", color: "#1C1C1C", is_main: true }).returning("id");
+  const [other] = await knex("bots").insert({ workspace_id: workspaceId, made_by: userId, name: "Bea", color: "#1E86FC" }).returning("id");
+  assert.deepEqual(await apps.builder(options), { id: String(main.id ?? main), name: "Mercbot", color: "#1C1C1C" }, "the main bot builds");
+  await apps.setBuilder(person, String(other.id ?? other), options);
+  assert.equal((await apps.builder(options)).name, "Bea", "a chosen Builder wins");
+});
+

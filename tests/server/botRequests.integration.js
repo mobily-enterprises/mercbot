@@ -16,8 +16,9 @@ const FAST = { retryMs: 200, resumeMs: 200, nextTurnMs: 200 };
 
 /**
  * Pat's home with Pat's bots of `names` (`${name} ${tag}`), and the turns, whose model is `options.reply`. The asking
- * chat is Pat's direct chat with the first bot, or, with `together`, a chat of Pat and every bot, where Pat names the
- * first: an asked bot in it has a seat there, so it can pass the job on.
+ * chat is Pat's direct chat with the first bot, or, with `together`, a room of Pat and the first bot, where Pat names
+ * it. A bot in the chat is mentioned, never asked (D-124), so in the room each bot asked with `askBot` takes a seat
+ * there once asked, as an asked bot joins to use its computer: then it can pass the job on.
  */
 async function setup(context, names, { together = false, ...options }) {
   const kit = await startChatTurns(context, { requestLimits: FAST, ...options });
@@ -26,7 +27,7 @@ async function setup(context, names, { together = false, ...options }) {
   const ids = await botsOf(kit, homeId, pat, names.map((key) => `${key} ${tag}`));
   const bots = Object.fromEntries(names.map((key, index) => [key, { id: ids[index] }]));
   const { id: chat, chatBotIds } = together
-    ? await seedChat(kit.knex, { homeId, people: [pat], bots: ids })
+    ? await seedChat(kit.knex, { homeId, people: [pat], bots: ids.slice(0, 1) })
     : await seedChat(kit.knex, { homeId, direct: { userId: pat, botId: ids[0] } });
   const seats = [...chatBotIds.values()];
   /** Pat says `text` to the first bot in the asking chat, and it answers. */
@@ -35,7 +36,18 @@ async function setup(context, names, { together = false, ...options }) {
     const sent = await kit.turns.chat.sendMessage(chat, { text: together ? `<@bot:${ids[0]}> ${text}` : text, clientId: `r-${Date.now()}-${Math.random()}` }, options);
     await kit.turns.chat.reply(chat, { afterMessageId: sent.messages.at(-1).id }, undefined, options);
   }
-  return { ...kit, homeId, pat, bots, chat, seats, ask, as: kit.as(pat, homeId), name: (key) => `${key} ${tag}` };
+  /** A turn's ask_bot of the bot `key`; in the room, the bot asked then takes its seat there (added to `seats`). */
+  async function askBot(tools, key, brief) {
+    const result = await tools.askBot.execute({ bot: `${key} ${tag}`, brief });
+    if (together && result.status === "asked") {
+      const [seat] = await kit.knex("chat_bots")
+        .insert({ conversation_id: chat, workspace_id: homeId, bot_id: bots[key].id, position: seats.length })
+        .returning("id");
+      seats.push(String(seat.id));
+    }
+    return result;
+  }
+  return { ...kit, homeId, pat, bots, chat, seats, ask, askBot, as: kit.as(pat, homeId), name: (key) => `${key} ${tag}` };
 }
 
 // Every due step runs until nothing is left to do. A step due later (a short retry, the pause
@@ -171,7 +183,7 @@ test("an approval asked during a request waits for the person, then the work car
     approvals: { decide: async () => "ask" },
     reply: async (current, _history, tools, _state, prompt) => {
       if (String(current.id) === String(f.bots.Asker.id)) {
-        if (!prompt) await tools.askBot.execute({ bot: f.name("Builder"), brief: "Set up a daily 9am check of the plants." });
+        if (!prompt) await f.askBot(tools, "Builder", "Set up a daily 9am check of the plants.");
         return { text: "OK.", transcript: [] };
       }
       builderTurns += 1;
@@ -207,15 +219,15 @@ test("limits: no asking a bot already in the job, no second open request, and tu
     reply: async (current, _history, tools, _state, prompt) => {
       if (String(current.id) === String(f.bots.Asker.id)) {
         if (!prompt) {
-          results.first = await tools.askBot.execute({ bot: f.name("Middle"), brief: "Find out the plan." });
-          results.second = await tools.askBot.execute({ bot: f.name("Middle"), brief: "And another thing." });
+          results.first = await f.askBot(tools, "Middle", "Find out the plan.");
+          results.second = await f.askBot(tools, "Middle", "And another thing.");
         }
         return { text: "OK.", transcript: [] };
       }
       if (String(current.id) === String(f.bots.Middle.id)) {
         if (!results.back) {
-          results.back = await tools.askBot.execute({ bot: f.name("Asker"), brief: "Ask the asker back." });
-          results.onward = await tools.askBot.execute({ bot: f.name("Last"), brief: "Help with the plan." });
+          results.back = await f.askBot(tools, "Asker", "Ask the asker back.");
+          results.onward = await f.askBot(tools, "Last", "Help with the plan.");
         }
         return { text: "Still thinking.", transcript: [] };
       }
@@ -316,9 +328,9 @@ test("a job is passed on at most twice, and a request past its time stops", asyn
     requestLimits: { ...FAST, turns: 1 },
     reply: async (current, _history, tools, _state, prompt) => {
       const is = (key) => String(current.id) === String(f.bots[key].id);
-      if (is("Asker") && !prompt) results.first = await tools.askBot.execute({ bot: f.name("Middle"), brief: "Plan the week." });
-      if (is("Middle") && !results.second) results.second = await tools.askBot.execute({ bot: f.name("Last"), brief: "Check the diary." });
-      if (is("Last") && !results.third) results.third = await tools.askBot.execute({ bot: f.name("Extra"), brief: "And one more." });
+      if (is("Asker") && !prompt) results.first = await f.askBot(tools, "Middle", "Plan the week.");
+      if (is("Middle") && !results.second) results.second = await f.askBot(tools, "Last", "Check the diary.");
+      if (is("Last") && !results.third) results.third = await f.askBot(tools, "Extra", "And one more.");
       return { text: "Thinking.", transcript: [] };
     }
   });

@@ -64,6 +64,13 @@ export const chatsApi = {
     } while (page.next);
     return { chats };
   },
+  // A card's "Show hidden and archived": a page of the person's hidden and archived chats one bot (`withBot`) or one
+  // person (`withPerson`) is in too, newest chat first, 20 at a time: { chats, next }, `after` the page before's `next`.
+  sharedTuckedAway: ({ withBot = null, withPerson = null, after = null }) => request(`/chats/shared?${new URLSearchParams({
+    ...(withBot ? { withBot: String(withBot) } : {}),
+    ...(withPerson ? { withPerson: String(withPerson) } : {}),
+    ...(after ? { after: String(after) } : {})
+  })}`),
   // Continue with others (D-114): the hand-over note the direct chat's bot writes for a new chat, { note }; nothing kept.
   handOverNote: (chatId) => post(chat(chatId, "/hand-over-note")),
   // A bot's [Message]: the person's direct chat with it, made on first use: { chat }.

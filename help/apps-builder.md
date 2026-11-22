@@ -17,7 +17,7 @@ Every other bot, and every person, works with the records inside the tables. Onl
 
 There are two ways:
 
-1. In **Apps**, press **New app**. If your home has no Builder yet, Mercbot asks you to **Choose a Builder**. Pick a bot and press **Make Builder**.
+1. In **Apps**, press **New app**. Your home's main bot is its Builder unless an owner or admin picks another in **Settings** > **Main bot and Builder**.
 2. Open **Settings** > **Main bot and Builder** and pick a bot under **Builder**.
 
 Choosing the Builder is for the home's owners and admins. Anyone else who presses **New app** before there's a Builder is asked to get an owner or admin to choose one. An archived bot can't be the Builder.
@@ -39,9 +39,9 @@ You can also ask any other bot for an app: "Get the Builder to make a plant wate
 
 ### Ask any bot for a database
 
-Every bot knows what apps and databases are, and that only the Builder makes them. Ask another bot for "a database of my cats" and it won't quietly make a spreadsheet instead. It says the Builder (by name) makes databases, and offers a card to start a room with you, itself and the Builder. The card shows the room's name, whether it's **Private** (the default) or **Public**, who will be in it, and a short brief the bot wrote from your conversation. Nothing happens until you select **Go ahead**. Then the room is made with exactly those people and bots, the brief is its first message, and **Open the room** on the card takes you there to carry on with the Builder. **Don't do it** makes nothing, and only you can answer your card. Once the database exists, the bot uses its tables like any other bot.
+Every bot knows what apps and databases are, and that only the Builder makes them. Ask another bot for "a database of my cats" and it won't quietly make a spreadsheet instead. It says the Builder (by name) makes databases, and offers a card to start a room with you, itself and the Builder. The card shows the room's name, whether it's **Private** (the default) or **Public**, who will be in it, and a short brief the bot wrote from your conversation. Nothing happens until you select **Go ahead**. Then the room is made with exactly those people and bots, the brief is its first message, addressed to the Builder with **@**, and the Builder answers it there by itself. **Open the room** on the card takes you there to carry on with the Builder. **Don't do it** makes nothing, and only you can answer your card. Once the database exists, the bot uses its tables like any other bot.
 
-If you want a spreadsheet, say so ("put it in a spreadsheet"): the bot makes one, with no room. If your home has no Builder yet, the bot says so: an owner or admin chooses one in **Settings** > **Main bot and Builder**.
+If you want a spreadsheet, say so ("put it in a spreadsheet"): the bot makes one, with no room. Your home's main bot is the Builder unless an owner or admin chooses another in **Settings** > **Main bot and Builder**.
 
 You don't need to know which parts an app is made of. Say what you want to see and do, and let the Builder decide. If something you want needs more than screens and formulas, such as a rule checked on every save or a nightly job, the Builder writes a script for it by itself.
 
@@ -139,7 +139,7 @@ The Builder checks every draft before saving it. If something is wrong, such as 
 
 ## If it doesn't work
 
-- **"Choose a Builder first"** when you press **Ask Builder**: your home has no Builder. An owner or admin presses **New app** in Apps, or picks one in **Settings** > **Main bot and Builder**.
+- **"Choose a Builder first"** when you press **Ask Builder**: your home has no Builder, which happens only when it has no main bot. An owner or admin picks one in **Settings** > **Main bot and Builder**.
 - **"This app hasn't been published yet."**: the app only has a draft. Open it with **Preview the draft** and publish it.
 - **"This app has no draft."**: the draft was already published, or there wasn't one. You're looking at the live app.
 - **"This practice data was just reset or cleared. Reload the preview to start again."**: someone pressed **Reset**, or the practice data was cleared after a week unused. Reload the page.

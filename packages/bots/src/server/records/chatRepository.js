@@ -6,6 +6,7 @@ import { createCallerReaders, fieldsOf, isId } from "./recordRows.js";
 import { builderChanger } from "./builderSeats.js";
 import { createSeatWindows } from "./seatWindows.js";
 import { createSectionRecords } from "./sectionRepository.js";
+import { createSharedChatRepository } from "./sharedChatRepository.js";
 
 /** @typedef {import("@jskit-ai/resource-runtime/server/types").ResourceCallOptions} CallOptions */
 /** @typedef {import("@jskit-ai/resource-runtime/server/types").ResourceHandle} ResourceHandle */
@@ -704,6 +705,7 @@ export function createChatRepository({ resources, systemContext, profiles, membe
     botsOf,
     ofPerson,
     publicRooms: roomsToVisit(conversations, chatPeople),
+    tuckedAwayWith: createSharedChatRepository(resources).tuckedAwayWith,
     place,
     isPerson,
     create,

@@ -376,12 +376,16 @@ export function createApps({ resources, records, registry, anyapi, practices, no
     return wanted;
   }
 
-  /** The Builder is one bot of the home at a time (D-35). */
+  /**
+   * The Builder is one bot of the home at a time (D-35): the one an owner or admin chose, else the home's main bot, its
+   * first (the owner, 23 Nov: "The first bot should automatically be the builder"), so a new home can build apps at once.
+   */
   async function builder(options) {
     const { records: [settings] } = await appSettings.query({ page: { size: 1 } }, passedOn(options));
-    if (!settings?.builderBotId) return null;
-    const bot = await records.directory.findBot(String(settings.builderBotId), passedOn(options));
-    return bot ? { id: String(bot.id), name: bot.name, color: bot.color } : null;
+    const chosen = settings?.builderBotId ? await records.directory.findBot(String(settings.builderBotId), passedOn(options)) : null;
+    if (chosen) return { id: String(chosen.id), name: chosen.name, color: chosen.color };
+    const main = (await records.directory.homeBotFaces(passedOn(options))).find((bot) => bot.main && !bot.archived);
+    return main ? { id: main.id, name: main.name, color: main.color } : null;
   }
 
   /**

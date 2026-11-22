@@ -130,6 +130,12 @@ export function registerRoutes(http, { bots, approvals, notices, meter, records,
   router.register("POST", `${home}/chats`, auth, handle(async (request, _user, options) => chats.create(body(request), options)));
   router.register("GET", `${home}/chats/public`, auth, handle(async (request, _user, options) =>
     chats.publicRooms({ after: typeof request.query?.after === "string" ? request.query.after : null }, options)));
+  // A card's "Show hidden and archived": the person's hidden and archived chats a bot or a person shares, a page at a time.
+  router.register("GET", `${home}/chats/shared`, auth, handle(async (request, _user, options) => {
+    const { withBot, withPerson, after } = request.query || {};
+    const text = (value) => (typeof value === "string" && value ? value : null);
+    return chats.sharedTuckedAway({ withBot: text(withBot), withPerson: text(withPerson), after: text(after) }, options);
+  }));
   router.register("GET", chat, auth, handle(async (request, _user, options) => chats.get(request.params.chatId, options)));
   // A chat's settings: its title, and whether its bots join in when useful (D-115), each written only when given.
   router.register("PATCH", chat, auth, handle(async (request, _user, options) =>

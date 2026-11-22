@@ -5,7 +5,7 @@ import { botsOf, homeOfPeople, startChatTurns } from "../support/botDoubles.mjs"
 
 // Who speaks in a chat (D-112, R3): with one person every bot answers in order, or only those @-mentioned; with
 // several people a bot speaks only when it's named, @-mentioned, replied to or everyone is; a bot another bot mentions
-// gets one follow-up turn, where PASS stays quiet; a chat with no bot makes no model call. Each bot reads the others'
+// answers it there, where PASS stays quiet (botTalk.integration.js has the rounds and their limit); a chat with no bot makes no model call. Each bot reads the others'
 // messages under their names (R5). Against the disposable test database, a scripted reply in place of the model.
 assert.ok(process.env.TEST_DB_NAME?.trim(), "TEST_DB_NAME must identify a disposable test database.");
 assert.equal(process.env.DB_NAME, process.env.TEST_DB_NAME, "DB_NAME must match the dedicated TEST_DB_NAME.");
@@ -89,7 +89,7 @@ test("with several people a bot speaks only when named, mentioned, replied to or
   assert.deepEqual(spoke(calls, at), ["Ada", "Bo"], "everyone");
 });
 
-test("a bot another bot mentions gets one follow-up turn, and PASS posts nothing", async (context) => {
+test("a bot another bot mentions gets a follow-up turn, and PASS posts nothing", async (context) => {
   let boAnswer = { text: "PASS", passed: true };
   const { pat, ada, bo, chatWith, say, calls } = await setup(context, (bot, _timeline, _prompt, options) => {
     // Not "I'll…": a reply that stops at what it will do is sent back once (D-47), a model call of its own.
@@ -101,14 +101,14 @@ test("a bot another bot mentions gets one follow-up turn, and PASS posts nothing
 
   const quiet = await say(chat, pat, `<@bot:${ada}> plan the picnic`);
   assert.deepEqual(calls.map((call) => [call.bot, call.followUp]), [["Ada", false], ["Bo", true]]);
-  assert.match(calls[1].prompt, /Another bot just mentioned you/u);
+  assert.match(calls[1].prompt, /^\(Ada just mentioned you here\./u);
   assert.deepEqual(quiet.map((message) => message.authorBotId), [ada], "Bo passed: nothing of his");
   assert.equal(quiet[0].body.text, `The forecast is for <@bot:${bo}>.`, "Ada's @Bo is stored as his mention");
 
   boAnswer = { text: "Sunny all afternoon." };
   const spoken = await say(chat, pat, `<@bot:${ada}> and the drinks?`);
   assert.deepEqual(spoken.map((message) => [message.authorBotId, message.body.text]).at(-1), [bo, "Sunny all afternoon."]);
-  assert.equal(calls.length, 4, "one follow-up round, not a loop");
+  assert.equal(calls.length, 4, "an answer that mentions no bot ends the rounds");
 });
 
 test("an archived bot never speaks, even to everyone or by name", async (context) => {

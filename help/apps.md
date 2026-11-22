@@ -52,9 +52,9 @@ Opening Apps shows these tabs:
 
 The **New app** button opens your chat with the Builder, the one **Message** opens on its card.
 
-### Leaving an app
+### Closing an app
 
-The **X** at the top left of an app closes it in one click, however many screens and records you've opened in it. Point at it to see where it goes: **Back to** and the chat's title when you opened the app from a chat (**Back to chat** when the chat has no title), **Back to Apps** or **Back to Files**, or **Back to Mercbot** when you opened the app from a link. You land where you were, in the same chat. **Ctrl+[** does the same. Your browser's Back button still steps through the screens and records you opened, one at a time.
+The **X** at the top left of an app closes it in one click, whichever of its screens and records you're on, and takes you out of Apps too, back to where you were before you opened Apps or the app: the same room or chat, Files, or Mercbot. Apps has the same **X**. Point at the X to see where it goes: **Back to** and the chat's title (**Back to chat** when the chat has no title), **Back to Files**, or **Back to Mercbot** when you opened the app from a link. **Ctrl+[** does the same. Moving between an app's screens doesn't add to your browser's history, so your browser's Back button never steps through them: from where the X took you, Back goes at most to Apps.
 
 ## Apps and Connect apps
 

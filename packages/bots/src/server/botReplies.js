@@ -8,6 +8,7 @@ import { settledWithin } from "./backgroundWork.js";
 import { isModelFailure, modelFailure } from "./modelFailures.js";
 import { RUN_LEASE, RunTakenOver } from "./runLease.js";
 import { escape, mentionMarkers, mentionsIn, peopleNamed, withMentions } from "./mentions.js";
+import { askedByBotPrompt, briefAnswerer, mentionedNext, pastTalkLimit } from "./botTalk.js";
 import { CHECKS, CLAIM_CHECKS, claimsFiles, FILES_CHECK, ONLY_WHAT_WAS_ASKED, turnAbout, withoutRepeat } from "./replyChecks.js";
 
 // Cards a person answers: only the one the bot worked for may (R4), and right after one is answered its bot speaks.
@@ -145,6 +146,7 @@ export function createBotReplies({
       human = false,
       goalTurn = false,
       followUp = false,
+      answersBot = null,
       present = null,
       checkpoint = null,
       discussion = null,
@@ -385,6 +387,7 @@ export function createBotReplies({
       // A discussion's turn answers no person's message: one written meanwhile is still taken up after it (D-115).
       answers: discussion ? 0 : answers,
       ...(prompt ? { trigger: prompt } : {}),
+      ...(answersBot ? { answersBot: String(answersBot) } : {}),
       ...(routine ? { routine: String(routine.id) } : {}),
       ...(discussion ? { discussion: String(discussion.id), round: discussion.round } : {})
     }, members);
@@ -466,34 +469,36 @@ export function createBotReplies({
   const inHome = (chat) => ({ context: systemContext("a bot's seat in a chat is read to start its turn").forWorkspace(String(chat.workspace_id)) });
 
   /**
-   * The bots speak one after another, then the follow-up round. A paused home's line stops them all (D-73). Answers
-   * everything they posted; a bot whose run in the chat was still going is added to `busy`. A message that arrived while
-   * the bot was busy is named, as answerWaiting names it: once that reply has posted, the bot's own words come after it.
+   * The bots speak one after another, then the bots they mentioned answer them in the chat, round after round (R3),
+   * until none is mentioned or the bot-to-bot limit stops them. A paused home's line stops them all (D-73). Answers what
+   * they posted; a bot whose run in the chat was still going is added to `busy`. A message that arrived while the bot
+   * was busy is named, as answerWaiting names it. An entry with `botAsked` answers that bot (its mention, or a brief).
    */
   async function speakInTurn(chat, speaking, input, askerId, present, { followUp = false, busy = new Set() } = {}) {
     const posted = [];
     for (const entry of speaking) {
       const seat = await seats.seatIn(chat.id, entry.bot_id, askerId, inHome(chat));
       if (!seat?.chat_bot_id) continue;
+      const call = seats.readerOf(seat);
+      if (entry.botAsked && await pastTalkLimit({ turns: records.turns, seats }, seat, entry.botAsked, present.bots, posted)) continue;
       if (!(await chatHistory.claimReply(seat))) {
         busy.add(String(entry.bot_id));
         continue;
       }
-      const call = seats.readerOf(seat);
       const waiting = input.afterCard || followUp ? "" : await arrivedWhileBusy(records.turns, seat, input.asked, call);
+      const asked = { followUp, botAsked: entry.botAsked ?? null, brief: Boolean(entry.brief) };
       const out = await meter.track(meteredAs(seat), () =>
-        runReply(seat, { ...input, followUp, ...(waiting ? { waiting } : {}) }, call, null, present));
+        runReply(seat, { ...input, ...asked, ...(waiting ? { waiting } : {}) }, call, null, present));
       posted.push(...out.messages);
       if (out.paused) return posted;
     }
-    if (followUp) return posted;
-    // R3's one follow-up round: the bots another bot just mentioned, each once.
-    const spoke = new Set(speaking.map((bot) => String(bot.bot_id)));
-    const mentioned = new Set(posted.filter((message) => message.role === "bot").flatMap((message) => mentionsIn(message.body?.text)));
-    const next = present.bots.filter((bot) => !bot.archived_at && mentioned.has(String(bot.bot_id)) && !spoke.has(String(bot.bot_id)));
+    // The bots just mentioned by another bot answer it here, each once a round (PASS stays quiet).
+    const next = mentionedNext(posted, present.bots);
     if (next.length) posted.push(...await speakInTurn(chat, next, { ...input, afterCard: false }, askerId, present, { followUp: true }));
     return posted;
   }
+
+  const answerBrief = briefAnswerer({ records, background, speak: speakInTurn });
 
   /**
    * Replies a stopped server left part-way (D-48, D-19): any server finds them by their stale heartbeat, takes one over
@@ -551,9 +556,7 @@ export function createBotReplies({
             : input.waiting
               ? `(The message "${input.waiting}" arrived while you were busy with the one ` +
                 `before, so it hasn't been answered yet. Answer it now.)`
-              : input.followUp
-                ? FOLLOW_UP_PROMPT
-                : "";
+              : askedByBotPrompt(input);
         // A reply carried on after its server stopped keeps the settings it started with (D-48).
         appended = input.resume
           ? await respond(seat, {
@@ -569,6 +572,7 @@ export function createBotReplies({
             prompt,
             human: true,
             followUp: Boolean(input.followUp),
+            answersBot: input.botAsked?.id ?? null,
             present,
             checkpoint: held,
             call
@@ -650,6 +654,7 @@ export function createBotReplies({
     respond,
     pausedLine,
     replyIn,
+    answerBrief,
     runReply,
     takeUpWaiting,
     resumeStalled,
@@ -715,9 +720,6 @@ async function arrivedWhileBusy(turns, seat, asked, call) {
 
 /** Who pays for a seat's turn (R8): the person it works for, in its home. */
 const meteredAs = (seat) => ({ userId: seat.user_id, botId: seat.id, workspaceId: seat.workspace_id });
-
-/** R3's follow-up round: another bot mentioned this one. */
-const FOLLOW_UP_PROMPT = "(Another bot just mentioned you. Reply only if you have something useful to add; otherwise reply with exactly PASS.)";
 
 /** What the bot is told when the app it was waiting for is connected. */
 const connectedPrompt = ({ app, task }) =>

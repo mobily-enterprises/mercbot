@@ -47,12 +47,13 @@ definition contains, so an app can't do anything it wasn't saved to do (D-35).
   on it (`appRuntime.js` `stop()` and `signal`, an aborted fetch), when another screen opens and before Reset or
   Publish, which clear the practice copy they read. Each new screen runtime starts the screen's parts again (after
   Reset, a view copy reads the new practice copy), and Publish that fails reads the draft again.
-- Leaving (D-106): each place opened in the app adds a history entry and a step of JSKIT's trail, as before. The
-  shell's button first in the frame's bar (Mercbot's, outside the app's area) is the app's close (`useShellPageClose`):
-  an X named for where it goes (Back to <bot>, Back to Apps, Back to Files, Back to Mercbot). One click, or Ctrl+[,
-  goes to the nearest trail step outside the app (`openerOf`), with its query, else the home's chat, through JSKIT's
-  `finish()`, which replaces the open entry. Going back past the app's entries, and the name as text in the bar, wait
-  for JSKIT's `leave()` (D-106, Later).
+- Leaving (D-106, D-123): moving between the app's own places (its navigation, a button's `go`, live to draft)
+  replaces the open history entry, so the app keeps one entry and the trail steps before it. The shell's button first
+  in the frame's bar (Mercbot's, outside the app's area) is the close of the whole apps area (`useShellPageClose`,
+  `useAppExit.js`), as Apps' is: an X named for where it goes (Back to <room or bot>, Back to Files, Back to Mercbot).
+  One click, or Ctrl+[, goes through JSKIT's `finish()` to the nearest trail step outside the apps area (`openerOf`),
+  with its query, else the home's chat; Back from there goes at most to Apps. The name as text in the bar, and
+  skipping Apps' entry too, wait for JSKIT's `leave()` (D-106, Later).
 - Ask Builder opens the app's chat with the Builder with a first line naming the app, screen and part
   (`askInChat.js`, `POST /api/w/:slug/apps/:slug/chat`, `apps.appChat`): one per app, made the first time anyone asks
   (two asks at once make one), Public (D15), named after the app, with the Builder and the person who asked; anyone in

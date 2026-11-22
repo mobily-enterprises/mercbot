@@ -9,6 +9,8 @@ import MercbotBotArchive from "./MercbotBotArchive.vue";
 import MercbotBotMain from "./MercbotBotMain.vue";
 import MercbotChangeTemplateDialog from "./MercbotChangeTemplateDialog.vue";
 import MercbotChatComputers from "./MercbotChatComputers.vue";
+import { chatsApi } from "./chatsApi.js";
+import { toChatRow } from "./chatDirectory.js";
 import MercbotConfirmDialog from "./MercbotConfirmDialog.vue";
 import MercbotContextMenu from "./MercbotContextMenu.vue";
 import MercbotFileViewer from "./MercbotFileViewer.vue";
@@ -90,18 +92,41 @@ const canMessage = computed(() => {
   return !(isDirect(props.chat) && String(props.chat.directBotId) === String(bot.value.id));
 });
 
-// The chats you share with the member, newest first: those of yours they're in.
+// The chats you share with the member, newest first: those of yours they're in. A chat you've hidden or archived shows
+// only once you ask for them (the owner, 23 Nov: "If a chat is hidden, do NOT show it in chats you share"; "have a
+// button that will LOAD all of the archived ones"). Asked, the server reads only those the member is in, a page at a
+// time (`chatsApi.sharedTuckedAway`), which go below the others, with "Show more" while there are more.
+const tuckedAway = (entry) => Boolean(entry.archivedAt || entry.hidden || entry.place?.hidden);
+const tucked = ref({ asked: false, loading: false, chats: [], next: null });
+const memberKey = () => `${props.member.kind}:${props.member.bot?.id ?? props.member.person?.id}`;
+async function showTuckedAway() {
+  const key = memberKey();
+  const after = tucked.value.next;
+  tucked.value = { ...tucked.value, asked: true, loading: true };
+  const shared = bot.value ? { withBot: String(bot.value.id) } : { withPerson: String(person.value.id) };
+  try {
+    const answer = await chatsApi.sharedTuckedAway({ ...shared, after });
+    if (key !== memberKey()) return;
+    tucked.value = { asked: true, loading: false, chats: [...tucked.value.chats, ...answer.chats.map(toChatRow)], next: answer.next ?? null };
+  } catch (error) {
+    if (key !== memberKey()) return;
+    tucked.value = { ...tucked.value, asked: Boolean(tucked.value.chats.length), loading: false };
+    emit("failure", error);
+  }
+}
 const sharedChats = computed(() => {
   if (isMe.value) return [];
   const has = bot.value
     ? (entry) => (entry.bots || []).some((member) => String(member.botId) === String(bot.value.id))
     : (entry) => (entry.people || []).some((member) => String(member.userId) === String(person.value.id));
   return props.chats
-    .filter((entry) => !entry.archivedAt && has(entry))
+    .filter((entry) => !tuckedAway(entry) && has(entry))
     .sort((a, b) => String(b.lastActivityAt || "").localeCompare(String(a.lastActivityAt || "")));
 });
+// The hidden and archived ones read so far, below the others.
+const tuckedChats = computed(() => (isMe.value ? [] : tucked.value.chats));
 const allChatsShown = ref(false);
-const chatsShown = computed(() => (allChatsShown.value ? sharedChats.value : sharedChats.value.slice(0, 5)));
+const chatsShown = computed(() => [...(allChatsShown.value ? sharedChats.value : sharedChats.value.slice(0, 5)), ...tuckedChats.value]);
 const nameOfChat = (entry) => chatTitle(entry, props.me);
 
 // Inline editing of a bot's name, for its maker and the home's owners and admins: Enter or leaving the field saves,
@@ -138,9 +163,10 @@ function onEditKeydown(event) {
   }
 }
 
-watch(() => `${props.member.kind}:${props.member.bot?.id ?? props.member.person?.id}`, () => {
+watch(memberKey, () => {
   editing.value = false;
   allChatsShown.value = false;
+  tucked.value = { asked: false, loading: false, chats: [], next: null };
 });
 
 // Its Library (R11): what it made in the chats the person can open; a page opens in place of the chat (D-74).
@@ -276,7 +302,7 @@ async function openInstructions() {
 
     <section v-if="!isMe" class="mb-card__shared" aria-labelledby="mb-card-shared-title">
       <p id="mb-card-shared-title" class="mb-card__section">Chats you share</p>
-      <p v-if="!sharedChats.length" class="mb-card__quiet">No chats with {{ name }} yet.</p>
+      <p v-if="!chatsShown.length" class="mb-card__quiet">No chats with {{ name }} yet.</p>
       <ul v-else class="mb-card__chats">
         <li v-for="entry in chatsShown" :key="entry.id">
           <button type="button" class="mb-card__chat" :aria-label="`${nameOfChat(entry)}, ${kindLabel(entry)}`" @click="emit('open-chat', entry.id)">
@@ -288,6 +314,9 @@ async function openInstructions() {
       </ul>
       <button v-if="sharedChats.length > 5" type="button" class="mb-card__more" @click="allChatsShown = !allChatsShown">
         {{ allChatsShown ? "Show fewer" : `Show all ${sharedChats.length}` }}
+      </button>
+      <button v-if="!tucked.asked || tucked.next" type="button" class="mb-card__more" :disabled="tucked.loading" @click="showTuckedAway">
+        {{ tucked.asked ? "Show more" : "Show hidden and archived" }}
       </button>
     </section>
 
@@ -545,9 +574,9 @@ async function openInstructions() {
         <section v-else class="mb-card__computers" aria-label="Computer">
           <p class="mb-card__plain">{{ bot.name }} has its own computer in each chat it's in. Open one from that chat's details.</p>
           <p class="mb-card__section">Chats you share</p>
-          <p v-if="!sharedChats.length" class="mb-card__quiet">No chats with {{ bot.name }} yet.</p>
+          <p v-if="!sharedChats.length && !tuckedChats.length" class="mb-card__quiet">No chats with {{ bot.name }} yet.</p>
           <ul v-else class="mb-card__chats">
-            <li v-for="entry in sharedChats" :key="entry.id" class="mb-card__chat mb-card__chat--row">
+            <li v-for="entry in [...sharedChats, ...tuckedChats]" :key="entry.id" class="mb-card__chat mb-card__chat--row">
               <v-icon :icon="kindIcon(entry)" size="16" />
               <span class="mb-card__chat-name">{{ nameOfChat(entry) }}<span class="mb-card__kind"> · {{ kindLabel(entry) }}</span></span>
               <button type="button" class="mb-set-pill" :aria-label="`Open ${nameOfChat(entry)}`" @click="emit('open-chat', entry.id)">Open</button>

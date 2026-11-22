@@ -10,6 +10,7 @@ that chat may not read (D12, D13, D14).
 - Main: `packages/bots/src/server/botTools.js`
 - `packages/bots/src/server/fileTools.js`
 - `packages/bots/src/server/roomTools.js`
+- `packages/bots/src/server/botTalk.js`
 - `packages/bots/src/server/commandTools.js`
 - `packages/bots/src/server/webTools.js`
 - `packages/bots/src/server/vaultLogins.js`
@@ -88,6 +89,12 @@ in full: until the yes the brief, which may carry the chat's own words, is nowhe
 answers it (403 `bots_waiting_for_other`); "Don't do it" makes nothing. Their Go ahead makes the room as them through the
 chats' create (`chatMembers.create`, the same as New room's), with exactly the card's members, in one transaction with
 its two first messages: "<Person> started this room." and then the brief as the proposing bot's message (`body.brief`).
+The brief is for one bot of the room (D-124, `briefFor`): the home's Builder when the card names it, else the first other
+bot it names, kept on the card as `to`; the brief @-mentions it ("Mercbot, …" reads "@Mercbot, …", and a brief that
+never names it starts with the mention) and is stored with its mention markers (`body.mentions`). Once the room is
+made, that bot answers the brief there by itself, once, in the background (`botTalk.js` `briefAnswerer`, through the
+replies' own turns, as a reply to the proposing bot that counts toward the bot-to-bot limit, turns.md); the proposing
+bot doesn't answer its own brief, and a room with no other bot gets no reply.
 The card gets `done: {chatId}` and shows "Open the room"; the chat gets "Started the room <title>". A bot archived or a
 person who left the home since the card is refused by the create, and the chat gets "The room wasn't started" with why. Files saved during a reply become a
 `files` card after its text and come back to the model as a note of their paths; the state note lists the 12 newest.
@@ -196,6 +203,8 @@ offer to try it. A recording it can't learn from gets a short explanation and no
 
 - `tests/server/transferFileCard.integration.js`
 - `tests/server/startRoomCard.integration.js`
+- `tests/server/botTalk.integration.js`
+- `tests/server/botTalk.test.js`
 - `tests/server/standInRooms.test.js`
 - `tests/server/truthfulFiles.test.js`
 - `tests/server/readFileParts.test.js`

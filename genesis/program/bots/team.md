@@ -97,7 +97,10 @@ page of 100 at a time; its bots from `GET …/bots`.
 **A member's card** (`MercbotMemberCard.vue`, opened from a chat's people and bots, from Archived bots, the palette
 and a link beside the chat shown (`&member=bot:<id>` or `person:<id>`), and as a direct chat's details): a person's
 name, role, Message (which opens the person's private chat with them, not shown in that chat itself) and "Chats you
-share" ("No chats with <name> yet."). A bot's name (editable by whoever may), template tag and Message, with tabs "Details"
+share" ("No chats with <name> yet."): the person's chats the member is in, leaving out the ones they've hidden or that
+are archived until they press "Show hidden and archived", which reads those the member is in from the server, 20 at a
+time (`chatsApi.sharedTuckedAway`, `GET …/chats/shared`, `genesis/program/bots/chats.md`), below the others, with "Show
+more" while there are more. A bot's name (editable by whoever may), template tag and Message, with tabs "Details"
 (Instructions, Knowledge, Rooms memory with its link to the home's common knowledge, Watches when it has some,
 Routines when it has some, each naming its chat, a "Main bot" or "Builder" chip with a link to Settings for the home's
 owners and admins, `MercbotBotMain.vue`, D-119, and Archive, `MercbotBotArchive.vue`), each terse: an empty one is

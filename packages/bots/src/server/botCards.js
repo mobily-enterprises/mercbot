@@ -30,8 +30,10 @@ import { SIGN_IN_LINE } from "./signInCodes.js";
  * @param {{ choiceAnswered: (chat: object, choice: object, picks: string[], txOptions: object) => Promise<object> }} dependencies.onboarding
  *   the welcome chat's steps (B), told of an answer in a chat with an onboarding step
  *   the welcome chat's steps (B), for its own cards
+ * @param {(chatId: string, brief: { botId: string, by: string, userId: string }, options: object) => void} dependencies.answerBrief
+ *   the bot a room's brief is for answers it there (botReplies.js), once start_room made the room (D-122)
  */
-export function createBotCards({ records, account, env, computer, integrations, requests, files, seats, chats, onboarding }) {
+export function createBotCards({ records, account, env, computer, integrations, requests, files, seats, chats, onboarding, answerBrief }) {
   const { messages, work } = records;
   const chatOf = async (chatId, options) => (await chats.get(String(chatId), options)).chat;
   const placeOf = (seat) => files.store.placeFor({
@@ -122,8 +124,10 @@ export function createBotCards({ records, account, env, computer, integrations, 
               computerId: seat.chat_bot_id,
               files,
               place,
-              // Rooms (chatMembers.js): start_room makes one as the person who said yes (D-122).
-              chats
+              // Rooms (chatMembers.js): start_room makes one as the person who said yes (D-122), and the bot its brief is
+              // for answers it there.
+              chats,
+              answerBrief
             },
             choice.body.action.args
           )

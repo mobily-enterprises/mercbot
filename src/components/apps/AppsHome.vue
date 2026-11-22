@@ -11,13 +11,17 @@ import AppsScripts from "./AppsScripts.vue";
 import AppsTemplates from "./AppsTemplates.vue";
 import { appsApi } from "./appsApi.js";
 import { ICON_PATHS } from "./appRuntime.js";
+import { useAppExit } from "./useAppExit.js";
 import { useSnackbar } from "./useSnackbar.js";
 
 // The Apps area of a home (D-35): its apps, its tables and everything that changed.
 // New app opens the person's direct chat with the Builder; if there's no Builder yet, an owner or admin picks one.
+// The shell's button first in its bar is the apps area's close, as an app's is: back to where the area was entered
+// from in one step (D-123).
 const route = useRoute();
 const router = useRouter();
 const paths = usePaths();
+useAppExit();
 const tab = computed({
   get: () => (["apps", "data", "activity", "templates", "scripts", "look"].includes(route.query.tab) ? route.query.tab : "apps"),
   set: (value) => router.replace({ query: { ...route.query, tab: value === "apps" ? undefined : value } })

@@ -352,6 +352,7 @@ export function createBotTurns({
       apps,
       appsVia,
       isBuilder,
+      builderId: builder?.id ?? null,
       integrations,
       place: place || filePlace(seat),
       toolSwitches,

@@ -99,6 +99,10 @@ export function createBotRequests({
     const between = { fromChatBotId: fromSeat.chat_bot_id, toBotId: String(target.id), userId: fromSeat.user_id };
     const open = await work.openRequestBetween(between, options);
     if (open) return { error: `You've already asked ${target.name} something that isn't finished yet. Wait for that answer first.` };
+    // A bot that's in this chat (D-124) is asked here, where everyone sees it (R3): a mention makes it answer in the chat.
+    if (await directory.chatBotOf(target.id, fromSeat.chat_id, options)) {
+      return { error: `${target.name} is in this chat: mention it (@${target.name}) so it answers here.` };
+    }
     const person = await personName(fromSeat.user_id, options);
     const request = await work.withTransaction(options, async (txOptions) => {
       const created = await work.createRequest({

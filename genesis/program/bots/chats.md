@@ -18,6 +18,7 @@ opens, the home's everyone chat, and search across the chats a person can open.
 - `packages/bots/src/server/botsError.js`
 - `packages/bots/src/server/botLibrary.js`
 - `packages/bots/src/server/records/chatRepository.js`
+- `packages/bots/src/server/records/sharedChatRepository.js`
 - `packages/bots/src/server/records/builderSeats.js`
 - `packages/bots/src/server/botChat.js`
 - `packages/bots/src/server/records/sectionRepository.js`
@@ -98,6 +99,14 @@ without a reload):
 - `GET …/chats/public` (`?after=` the page before's `next`): `{ chats, next }`, a page of the home's Public rooms the
   person isn't in (no direct chat, none archived), 100 at a time, newest made first, an order no room moves in while
   the pages are read: the rooms the sidebar lists faded. The same reads for every page.
+- `GET …/chats/shared?withBot=<botId>` or `?withPerson=<userId>` (exactly one, else 400 `bots_shared_needs_one`;
+  `&after=` the page before's `next`): `{ chats, next }`, a page of the person's own hidden or archived chats (their
+  place `hidden`, or the chat archived) that bot (a seat of it) or person (a place of theirs) is in too, 20 at a time,
+  newest chat first, an order no chat moves in while the pages are read: what a member's card adds under "Show hidden
+  and archived" (`genesis/program/bots/team.md`). Narrowed in one statement (`records/sharedChatRepository.js`), then
+  the page's chats and the person's places in them, each a `ChatView` as the list's, the same reads for every page. A
+  bot that isn't the home's answers 404 `bots_bot_not_found`, a person who isn't an active member of it 404
+  `bots_person_not_found`.
 - `POST …/chats {kind?, title, people?, bots?}`: a new room (New room's Create), Public unless `kind` is `private`
   (D15), named (trimmed, up to 80 characters; 400 `bots_chat_needs_title` "Give the room a name."), its maker among its
   people, with the people (active members of the home, else 404 `bots_person_not_found`) and bots named, up to 200 of
@@ -222,6 +231,7 @@ the person who started this chat and the home's owners and admins can change thi
 ## Proved by
 
 - `tests/server/chatMembers.integration.js`
+- `tests/server/sharedTuckedAway.integration.js`
 - `tests/server/rooms.integration.js`
 - `tests/server/chatVisibility.integration.js`
 - `tests/server/chatsSchema.integration.js`

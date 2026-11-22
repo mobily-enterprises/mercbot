@@ -102,6 +102,7 @@ function inTime(work, what) {
  * @param {string | null} options.workingRequestId
  * @param {boolean} [options.viaBot] work another bot asked for (D-46)
  * @param {boolean} [options.isBuilder]
+ * @param {string | null | undefined} options.builderId the home's Builder, whom a start_room brief is for when the card names it
  * @param {boolean} [options.routineRun]
  * @param {{ id: string, runId?: string | null, createdAt?: string, feeds?: object | null } | null} [options.routine] the
  *   routine this run is for, whose events-feed positions it reads and moves on (D-94)
@@ -133,6 +134,7 @@ export function buildTools({
   workingRequestId,
   viaBot = false,
   isBuilder = false,
+  builderId,
   routineRun = false,
   routine = null,
   place,
@@ -416,7 +418,7 @@ export function buildTools({
   if (signIns) Object.assign(tools, signIns.tools);
   if (theirOwnTurn) Object.assign(tools, buildCodingTools({ computer, computerId, before, inTime, untrusted, signedIn, userId }));
   // A room with others the bot proposes on a card (D-122): only in the person's own turn, who answers it.
-  if (theirOwnTurn) Object.assign(tools, buildRoomTools({ records, seat, call, attempt }));
+  if (theirOwnTurn) Object.assign(tools, buildRoomTools({ records, seat, call, attempt, builderId }));
   Object.assign(
     tools,
     buildFileTools({
