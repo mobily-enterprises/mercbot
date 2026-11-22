@@ -123,9 +123,14 @@ while one is still answering) and holds them, on their heartbeat, until the roun
 waits and is answered after (`replies.takeUpWaiting`, `answerWaiting`). A turn is `replyTurn` with its `discussion`
 option: the round's prompt, no tools, no reasoning, no checks that send it back, the turn's output limit and the
 round's abort signal; it may PASS, and its message carries `body.discussion` and `body.round` and answers nobody's
-message. Before each turn the spending so far (`meter.spentSince` per bot, as the starter, since it started) plus that
-turn's estimate must fit the cap, or it ends (`cap`). A round where every bot passes ends it (`passed`); Stop ends the
-card at once and the round sees it at its next heartbeat or turn. Each turn is metered to the starter and the bot
+message. Before each turn the spending so far plus that turn's estimate must fit the cap, or it ends (`cap`); the
+spending is the discussion's own turns' AI calls only, heard through `meter.counting` and each priced by
+`meter.estimateNano` on the call's figures, never the person's other work with those bots. A round where every bot
+passes ends it (`passed`); Stop ends the card at once and the round sees it at its next heartbeat or turn. A running
+card is leased (`leaseUntil`, renewed at each heartbeat while the card says that round runs, a heartbeat past the
+runs' stale time): once it lapses, every read (`botRows.js` `discussionNow`, through `toMessage`) and every press
+takes it as `interrupted`, which waits for One more round (not after a wrap-up was interrupted), Wrap up or Stop like
+a finished round, on runs that are stale by then. Each turn is metered to the starter and the bot
 that speaks (R8). The chat list shows the card as "Discussion: <question>".
 
 **A reply** (`POST …/reply {timeZone?, language?, afterMessageId?, afterCard?}`): each speaking bot runs its own reply
@@ -274,6 +279,7 @@ chat (`chatId`).
 - `tests/server/discuss.integration.js`
 - `tests/server/botsTogether.test.js`
 - `tests/e2e/chats-together.spec.ts`
+- `tests/client/discussionCard.vitest.js`
 - `tests/server/findInChat.integration.js`
 - `tests/server/botRequests.integration.js`
 - `tests/server/botRequestsBrief.integration.js`

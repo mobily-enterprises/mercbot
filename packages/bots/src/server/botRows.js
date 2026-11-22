@@ -49,9 +49,20 @@ export function cleanName(value) {
 /** Whether a value is a record id as an address names one: anything else is no bot, chat or message. */
 export const isId = (value) => /^[1-9]\d{0,18}$/u.test(String(value ?? ""));
 
+/**
+ * A discussion card's body as it stands now (D-115): a round whose lease has lapsed, because the server running it
+ * stopped, reads as interrupted, whatever the card last said.
+ * @param {{ status?: string, leaseUntil?: string } & Record<string, unknown>} body
+ * @param {number} [now]
+ */
+export function discussionNow(body, now = Date.now()) {
+  return body?.status === "running" && Date.parse(String(body.leaseUntil)) <= now ? { ...body, status: "interrupted" } : body;
+}
+
 export function toMessage(row) {
   // The model transcript and a routine run's prompt stay on the server; the page only needs what's shown.
-  const { transcript, trigger, recording, ...body } = row.body || {};
+  const { transcript, trigger, recording, ...kept } = row.body || {};
+  const body = row.kind === "discussion" ? discussionNow(kept) : kept;
   return {
     id: String(row.id),
     kind: row.kind,

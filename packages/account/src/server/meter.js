@@ -14,6 +14,28 @@ export const COMPUTATION_BLOCK_SECONDS = 600;
 
 /** The status of work a recorder refused before it started. */
 const REFUSED = 402;
+/** A model's text is about four characters a token: what an estimate counts by. */
+const CHARS_PER_TOKEN = 4;
+
+/**
+ * What an AI call used, from how it ended (D-73): the provider's own figures (with the cost it reported, if it did),
+ * nothing for a failed call, and for a call that gave none, an estimate from its request's and answer's size.
+ * @param {number | undefined} requestChars
+ * @param {{ state?: string, cacheHit?: number, cacheMiss?: number, output?: number, images?: number, reportedCost?: number, outputChars?: number }} outcome
+ */
+export function callFigures(requestChars, outcome) {
+  const state = outcome.state || "no_usage";
+  const tokens = (chars) => Math.round((chars || 0) / CHARS_PER_TOKEN);
+  const usage = state === "done" ? outcome : state === "failed" ? {} : { cacheMiss: tokens(requestChars), output: tokens(outcome.outputChars) };
+  return {
+    state,
+    cacheHit: usage.cacheHit || 0,
+    cacheMiss: usage.cacheMiss || 0,
+    output: usage.output || 0,
+    images: usage.images || 0,
+    ...(Number.isFinite(usage.reportedCost) ? { reportedCost: usage.reportedCost } : {})
+  };
+}
 
 /**
  * The refusal of work before it starts, for a recorder a copy provides: 402, its code, the sentence the person sees,
@@ -40,7 +62,8 @@ export function refusalOf(error) {
 
 // The process's one carrier of who the work in progress is for, and where it's recorded: each meter's track() puts
 // its own `recorder` there with the person, bot and home, and `recordError`, where the AI providers' failures go
-// (AccountFeature: `mercbot.provider-failures` when a feature provides it, else the server log).
+// (AccountFeature: `mercbot.provider-failures` when a feature provides it, else the server log). Work run with
+// counting() also has `calls` there, where each AI call made inside it adds what it used.
 const context = new AsyncLocalStorage();
 
 /**
@@ -50,7 +73,7 @@ const context = new AsyncLocalStorage();
 function currentWho() {
   const store = context.getStore();
   if (!store) return null;
-  const { recorder: _recorder, recordError: _recordError, ...who } = store;
+  const { recorder: _recorder, recordError: _recordError, calls: _calls, ...who } = store;
   return who;
 }
 
@@ -86,6 +109,20 @@ export function createMeter({ recorder, recordError }) {
   /** Who the work in progress is for, to carry to another server (null outside tracked work). */
   function currentMeter() {
     return currentWho();
+  }
+
+  /**
+   * Runs work, with `calls` collecting what each AI call made inside it uses, however it is recorded: a promise per
+   * call, settled once the call has ended, of its provider, its kind of AI (when its client names one) and its figures
+   * (callFigures). What a caller that answers for its own work's cost counts, and nothing else the same person or bot
+   * does meanwhile (a discussion's cap, D-115).
+   * @template T
+   * @param {Array<Promise<{ provider?: string, kind?: string } & ReturnType<typeof callFigures>>>} calls
+   * @param {() => T} work
+   * @returns {T}
+   */
+  function counting(calls, work) {
+    return context.run({ ...context.getStore(), calls }, work);
   }
 
   /**
@@ -126,6 +163,7 @@ export function createMeter({ recorder, recordError }) {
   return Object.freeze({
     track,
     currentMeter,
+    counting,
     startComputerDay,
     computerDay,
     startComputation
@@ -315,9 +353,10 @@ export function streamedUsageOf(text) {
 }
 
 /** Records how a call ended, never failing it: a call that can't be recorded is left to its recorder. */
-function settle(recorder, ticket, outcome) {
+function settle(recorder, { opened, heard }, outcome) {
+  heard(outcome);
   return Promise.resolve()
-    .then(() => recorder.finish(ticket, outcome))
+    .then(() => recorder.finish(opened, outcome))
     .catch((error) => console.warn("Recording an AI call failed; the call carries on.", error));
 }
 
@@ -353,10 +392,10 @@ async function meteredFetch(traceDir, provider, recorded, input, init) {
     await trace(traceDir, init, response).catch((error) => console.warn("Tracing a model request failed; the request carries on.", error));
     return response;
   }
-  const { recorder, ...who } = store;
+  const { recorder, calls, ...who } = store;
   const body = typeof init?.body === "string" ? init.body : "";
   // Opened first: if the recorder refuses it, or can't open it, the call doesn't go out.
-  const ticket = await recorder.open({
+  const opened = await recorder.open({
     userId: who.userId,
     botId: who.botId,
     workspaceId: who.workspaceId,
@@ -367,6 +406,14 @@ async function meteredFetch(traceDir, provider, recorded, input, init) {
     mostOutput: Number(MOST_OUTPUT.exec(body)?.[1]) || undefined,
     pictures: ASKS_FOR_PICTURES.test(body) ? Number(PICTURES.exec(body)?.[1]) || 1 : 0
   });
+  // Work that counts its own calls (counting) hears how this one ended, as the recorder does.
+  let heard = () => {};
+  if (calls) {
+    calls.push(new Promise((resolve) => {
+      heard = (outcome) => resolve({ provider, kind: recorded.kind, ...callFigures(body.length, outcome) });
+    }));
+  }
+  const ticket = { opened, heard };
   let response;
   try {
     response = await fetch(input, init);
