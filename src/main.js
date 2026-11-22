@@ -63,6 +63,17 @@ applyThemePreference();
 // readable-check: allow released-listeners - shared resource: the page follows the system theme for its whole life
 systemDark.addEventListener("change", applyThemePreference);
 
+// No form offers the browser's memory of what was typed elsewhere (the owner, 22 Nov: "Disable browser autocomplete ...
+// for EVERY FORM"): a text field or text area with no autocomplete of its own gets "off" as it's focused, before the
+// browser offers anything. A field that names its own (an email, a password, a one-time code) keeps it, so password
+// managers still fill sign-in.
+// readable-check: allow released-listeners - shared resource: every form on the page, for its whole life
+document.addEventListener("focusin", (event) => {
+  const field = event.target;
+  if (!(field instanceof HTMLInputElement || field instanceof HTMLTextAreaElement)) return;
+  if (!field.hasAttribute("autocomplete")) field.setAttribute("autocomplete", "off");
+}, true);
+
 const pinia = createPinia();
 const queryClient = new QueryClient({
   defaultOptions: {
