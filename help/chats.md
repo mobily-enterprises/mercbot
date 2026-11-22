@@ -70,6 +70,7 @@ In a chat with two or more bots, the bots can talk a question over together.
 5. After each round, the card waits for you. Select **One more round** (while you have rounds left), **Wrap up** to have one bot sum the discussion up, or **Stop**.
 
 - A round in which every bot passes ends the discussion.
+- The bots discuss from this chat alone: in a discussion they don't bring in what they [remember](/help/memory) of other chats.
 - Nothing runs without your press: no round starts by itself.
 - What you write while the bots are discussing waits, and the bots answer it once the round ends or you stop it.
 - If a round can't finish (for example, Mercbot restarted while the bots were talking), the card says the round **was

@@ -1,4 +1,5 @@
 import { passedOn } from "@jskit-ai/resource-core/shared/callOptions";
+import { peopleNamed } from "../mentions.js";
 
 /** @typedef {import("@jskit-ai/resource-runtime/server/types").ResourceCallOptions} CallOptions */
 
@@ -265,11 +266,12 @@ export function createMemoryRepository(resources) {
   }
 
   // A line's words and who said them, as the memory reads every line: a person's or a bot's words (no status lines,
-  // no Mercbot lines), under the name kept on the message.
+  // no Mercbot lines), under the name kept on the message, with the people it mentions (D-114) to read them by name.
   const lineFields = (query, alias) => query
     .select({ id: messages.column("id", alias), chat_id: messages.column("conversationId", alias), at: messages.column("createdAt", alias) })
     .select(messages.raw("?? ->> 'text' as text", [messages.column("body", alias)]))
-    .select(messages.raw("?? ->> 'authorName' as speaker", [messages.column("body", alias)]));
+    .select(messages.raw("?? ->> 'authorName' as speaker", [messages.column("body", alias)]))
+    .select(messages.raw("?? -> 'mentionedPeople' as people", [messages.column("body", alias)]));
   const wordsOnly = (query, alias) => query
     .where(messages.column("kind", alias), "text")
     .whereNot(messages.column("role", alias), "system")
@@ -280,8 +282,8 @@ export function createMemoryRepository(resources) {
     "?? > coalesce((?::jsonb ->> ??::text)::bigint, ?::bigint, 0)",
     [messages.column("id", alias), JSON.stringify(covers), messages.column("conversationId", alias), upTo == null ? null : String(upTo)]
   );
-  /** @returns {Line} */
-  const asLine = (row) => ({ id: String(row.id), chatId: String(row.chat_id), speaker: row.speaker || "Someone", text: String(row.text || ""), at: row.at });
+  /** A line as the model reads it, a person's mention as "@Name" as in the bots' turns (botAgent.contentOf). @returns {Line} */
+  const asLine = (row) => ({ id: String(row.id), chatId: String(row.chat_id), speaker: row.speaker || "Someone", text: peopleNamed(row.text, row.people), at: row.at });
 
   /**
    * A chat's newest `cap` lines past where its digest read it, oldest first, as one JSON array: a subquery of the
@@ -303,8 +305,8 @@ export function createMemoryRepository(resources) {
     const { query } = await messages.scopedQuery({ alias: "o" }, passedOn(options));
     const [id, chat, body, at] = ["id", "conversationId", "body", "createdAt"].map((field) => messages.column(field, "o"));
     query.join(newest.as("x"), "x.id", id).select(messages.raw(
-      "coalesce(json_agg(json_build_object('id', ??, 'chat_id', ??, 'text', ?? ->> 'text', 'speaker', ?? ->> 'authorName', 'at', ??) order by ??), '[]'::json)",
-      [id, chat, body, body, at, id]
+      "coalesce(json_agg(json_build_object('id', ??, 'chat_id', ??, 'text', ?? ->> 'text', 'speaker', ?? ->> 'authorName', 'people', ?? -> 'mentionedPeople', 'at', ??) order by ??), '[]'::json)",
+      [id, chat, body, body, body, at, id]
     ));
     return { query };
   }
@@ -512,6 +514,7 @@ export function createMemoryRepository(resources) {
         id: record.id,
         chat_id: record.conversationId,
         text: record.body.text,
+        people: record.body.mentionedPeople,
         speaker: record.body.authorName,
         at: record.createdAt
       }));

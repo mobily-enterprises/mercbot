@@ -6,6 +6,7 @@ import { mayChangeBot } from "./botAdditions.js";
 import { BotsError } from "./botsError.js";
 import { discussionNow, toMessage } from "./botRows.js";
 import { languageName } from "./botWriting.js";
+import { plainMentions } from "./mentions.js";
 import { validTimeZone } from "./routineSchedule.js";
 
 // Discuss (D-115, plan 4.5): the bots of a chat with two or more of them talk a question over, in rounds, as the person
@@ -143,20 +144,28 @@ export function createDiscussions({ records, systemContext, meter, env, seats, c
 
   /**
    * A discussion card in a chat with two or more live bots, for the person who writes the question (one of the chat's
-   * people): proposed, with its estimate, waiting for their Start. Everyone in the chat sees it.
+   * people): proposed, with its estimate, waiting for their Start. Everyone in the chat sees it. The question is kept in
+   * the words everyone reads: the composer's mentions of the chat's bots and of its other people as "@Name" (D-114),
+   * as the card, the chat list and each turn's prompt show it.
    * @returns {Promise<{ messages: object[] }>}
    */
   async function propose(chatId, { question } = {}, options) {
     const chat = await records.chats.get(String(chatId), options);
     const me = await person(chat, options);
-    const asked = String(question ?? "").replace(/\s+/gu, " ").trim();
+    const [chatBots, people] = await Promise.all([records.chats.bots(chat.id, options), records.chats.people(chat.id, options)]);
+    const named = plainMentions(
+      String(question ?? ""),
+      chatBots.map((bot) => ({ id: String(bot.bot_id), name: bot.name })),
+      people.filter((one) => String(one.user_id) !== me).map((one) => ({ id: String(one.user_id), name: one.name }))
+    );
+    const asked = named.replace(/\s+/gu, " ").trim();
     if (!asked) throw refused(400, "Write what the bots should discuss first.", "bots_discussion_empty");
     if (asked.length > LIMITS.questionChars) {
       throw new BotsError(400, `A discussion's question can be up to ${LIMITS.questionChars} characters.`, {
         code: "bots_discussion_too_long", params: { limit: LIMITS.questionChars }
       });
     }
-    const bots = live({ bots: await records.chats.bots(chat.id, options) });
+    const bots = live({ bots: chatBots });
     if (bots.length < 2) throw refused(409, "A discussion needs two or more bots in the chat.", "bots_discussion_needs_bots");
     const name = (await records.chats.names([me], options)).get(me) || "Someone";
     const body = {

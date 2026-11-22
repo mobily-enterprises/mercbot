@@ -114,9 +114,11 @@ turn's chat (`readable_from`, D12), so a private chat never reaches a chat with 
   it helps, never quote a private chat outside it, offer tell_everyone, never contact details or passwords). The
   memory is the last part of the Current state note (`botMemory.stateLines`, after `knowledge.stateLines`), so
   everything before it stays a cached prefix: every turn has the home's newest 30 notes; a turn of a person's chat
-  (not a routine's or a request's run) also has the bot's digest between `<<memory>>` and `<<end of memory>>`, and
-  "since then": its other chats the turn's chat may read with lines past where the digest read them, newest activity
-  first, 12 chats, 8 lines each (300 characters a line, 3,000 tokens in all), then counts of the rest (to 1,000+).
+  (not a routine's, a request's run or a discussion's turn, D-115) also has the bot's digest between `<<memory>>` and
+  `<<end of memory>>`, and "since then": its other chats the turn's chat may read with lines past where the digest read
+  them, newest activity first, 12 chats, 8 lines each (300 characters a line, 3,000 tokens in all), then counts of the
+  rest (to 1,000+). Every line the memory reads (digest input, "since then", recall, read_chat) names the people a
+  message mentions as "@Name", as the turns' chat lines do (`mentions.peopleNamed`, D-114).
 - **Tools** (`memoryTools.js`, a person's turn): `recall` (`words`, `chat`, `everywhere`; full-text search, any of the
   words, through `ix_messages_recall`; the bot's chats, one chat, or every chat the turn's chat may read; 10 lines,
   each `[chat · speaker · time · line N]`), `read_chat` (`chat` by name or number, `around` a line, `lines` up to 40),

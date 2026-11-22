@@ -3634,10 +3634,10 @@ What people do in chats with other people, beside what the bots do there:
   made, then goes in its folder before the first message is sent; one refused is left out, saying why.
 - **@-mentioning people.** In a chat of several, @ offers everyone, the chat's other people (never the person writing),
   its bots and the person's apps. A person chosen is sent as `<@person:ID>` and kept on the message by name
-  (`body.mentionedPeople`, apart from the bots in `body.mentions`); the model and previews read it as "@Name". Only the
-  chat's other people are mentioned: a marker naming anyone else (the author, someone not in the chat, another home's
-  person, no one) marks nobody and reads "@someone". Bots never write a person's marker. A mention of a person makes no
-  bot speak (R3 is unchanged).
+  (`body.mentionedPeople`, apart from the bots in `body.mentions`); the model, what the bots remember (D-113: digest,
+  "since then", recall and read_chat) and previews read it as "@Name". Only the chat's other people are mentioned: a
+  marker naming anyone else (the author, someone not in the chat, another home's person, no one) marks nobody and reads
+  "@someone". Bots never write a person's marker. A mention of a person makes no bot speak (R3 is unchanged).
 - **The "@" in the chat list.** A person mentioned has it waiting in their place in the chat (`chat_people.mentioned_at`,
   migration `20261122150000_chat_mentions.cjs`): set by the message, in its transaction, for every person it names in
   one UPDATE, and kept at the first mention's time while they haven't read the chat; reading the chat, or marking it
@@ -3687,15 +3687,18 @@ talks, and approvals stay with people.
   for `{"bot": "<its name>"}` or `{"bot": null}`: a bot when the message asks it something, asks for something its job
   covers, asks everyone a question it can usefully answer or carries on a conversation with it; null for people
   talking to each other, chatting, thanking, agreeing, saying goodbye, when an answer would interrupt, and when
-  unsure. It reads the chat's last 12 text messages, oldest first, one line each, `[Author]: text`, mentions as names,
-  each clipped to 400 characters, through the chat's own reader (R1). A failure, or an answer in another shape (a
+  unsure. It reads the chat's last 12 text messages, oldest first, one line each, `[Author]: text`, mentions as names
+  (the chat's bots, and the people a message mentions, D-114), each clipped to 400 characters, through the chat's own
+  reader (R1). A failure, or an answer in another shape (a
   code fence around it is read; a name that isn't one of the chat's bots isn't), leaves the chat quiet, logged without
   the conversation. It runs in the background with the reply it starts, so a page's request never waits on the judge
   alone. Its statements are the same for a chat of 4 messages and one of 40
   (`tests/server/joinInChats.integration.js`).
 - **Discuss** (O18, plan 4.5): in a chat with two or more live bots, a person writes a question and chooses **+** →
   **Discuss with the bots**. The server writes a card, a message of kind `discussion` by that person, whose body it
-  alone keeps (`packages/bots/src/server/discussions.js`):
+  alone keeps (`packages/bots/src/server/discussions.js`). Its question is kept in the words everyone reads: the
+  composer's mentions of the chat's bots and of its other people as "@Name" (D-114), on the card, in the chat list and
+  in each turn's prompt.
   - **Before it starts**, the card offers 1, 2 or 3 rounds (2 first) and what each may cost at most, "Up to about $X,
     as your work in this home", from the meter's estimate at the home's prices (`meter.estimateNano`: Mercbot's list
     prices, or a copy's own). The estimate counts every turn reading the chat (its summary and what's after, at about
@@ -3713,6 +3716,9 @@ talks, and approvals stay with people.
     it back and no reasoning, asked to add something new (a point, a fact, a risk, a disagreement or a question) or
     reply exactly PASS; a PASS posts nothing. A round in which every bot passes ends the discussion. Its messages carry
     `body.discussion` (the card's id) and `body.round` (a number, or `"wrap"`), and answer no person's message.
+  - **A turn reads none of what the bot remembers** (D-113): its state note has the home's notes, as every turn's does,
+    but not the bot's digest or "since then", and it has no recall or read_chat; so the estimate above is what it
+    reads. Nor does it ask for a refresh: what it said is read by the next refresh another message asks for.
   - **No round runs by itself.** After each round the card waits: **One more round** (while rounds are left), **Wrap
     up** (the chat's first bot that took part sums it up: where they agreed and differed, and what is left to decide)
     or **Stop**. Only the person who started it presses Start, One more round and Wrap up; Stop is theirs and the chat's

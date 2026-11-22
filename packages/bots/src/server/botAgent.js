@@ -1,6 +1,7 @@
 import { REASONING, clipOldResult, generateOnce, runLoop, stripNotes as withoutBracketNotes, withinBudget } from "@jskit-ai/agent/server";
 import { currentWork, refusalOf } from "@local/account/meter";
 import { knowledgeInstructions } from "./knowledgePrompt.js";
+import { peopleNamed } from "./mentions.js";
 import { catalogue } from "./skills.js";
 
 // What makes a reply a Mercbot bot's reply: its instructions and how Mercbot's messages and cards
@@ -175,10 +176,10 @@ export function contentOf(message) {
     }
   }
   // A skill the person picked with "/" reads as an instruction to use it; a person mentioned as "@Name" (D-114).
-  const text = String(body.text || "").replace(/<@skill:([\w-]+)>/gu, (marker, id) => {
+  const text = peopleNamed(String(body.text || "").replace(/<@skill:([\w-]+)>/gu, (marker, id) => {
     const skill = (body.skills || []).find((entry) => entry.id === id);
     return skill ? `(Use the skill "${skill.name}" for this.)` : "";
-  }).replace(/<@person:(\d+)>/gu, (marker, id) => `@${(body.mentionedPeople || []).find((entry) => entry.id === id)?.name || "someone"}`);
+  }), body.mentionedPeople);
   parts.push(text || [body.heading, ...(body.bullets || [])].filter(Boolean).join("\n"));
   return parts.filter(Boolean).join("\n");
 }

@@ -7,7 +7,7 @@ import { refusalOf } from "@local/account/meter";
 import { settledWithin } from "./backgroundWork.js";
 import { isModelFailure, modelFailure } from "./modelFailures.js";
 import { RUN_LEASE, RunTakenOver } from "./runLease.js";
-import { escape, mentionMarkers, mentionsIn, withMentions } from "./mentions.js";
+import { escape, mentionMarkers, mentionsIn, peopleNamed, withMentions } from "./mentions.js";
 import { CHECKS, CLAIM_CHECKS, claimsFiles, FILES_CHECK, ONLY_WHAT_WAS_ASKED, turnAbout, withoutRepeat } from "./replyChecks.js";
 
 // Cards a person answers: only the one the bot worked for may (R4), and right after one is answered its bot speaks.
@@ -168,12 +168,13 @@ export function createBotReplies({
           const people = present?.people ?? await records.chats.people(seat.chat_id, call);
           return fresh
             .filter((message) => addressedBots(message, { people, bots: chatBots }).some((bot) => String(bot.bot_id) === seat.id))
-            .map((message) => String(message.body.text || "").slice(0, 2000));
+            .map((message) => peopleNamed(message.body.text, message.body.mentionedPeople).slice(0, 2000));
         }
         : null;
-    // A person's chat remembers the bot's other chats; a routine's or a request's run reads less (R5, D-113). Only the
-    // person's own turn may ask to tell everyone in the home.
-    const remembers = !routineRun && !briefOnly;
+    // A person's chat remembers the bot's other chats; a routine's or a request's run reads less (R5, D-113), and a
+    // discussion's turn reads none of it, so the card's cap covers what it reads (D-115). Only the person's own turn
+    // may ask to tell everyone in the home.
+    const remembers = !routineRun && !briefOnly && !discussion;
     const { run, isBuilder, toolSwitches, template, knowledge: known } = await turns.turnTools(seat, {
       timeZone,
       language,
@@ -411,8 +412,9 @@ export function createBotReplies({
         .catch((error) => console.warn("Holding the bot's computer awake for a hand-over failed.", error));
     }
     chatHistory.compactLater(seat.chat_id);
-    // What it said in a public chat is for its memory, and its chat's other bots' (D-113).
-    turns.remembered(seat);
+    // What it said in a public chat is for its memory, and its chat's other bots' (D-113). A discussion's turn asks for
+    // no refresh: the next one another message asks for reads what it said (D-115).
+    if (!discussion) turns.remembered(seat);
     return appended;
   }
 
@@ -421,19 +423,6 @@ export function createBotReplies({
   // agent_runs, so a retried request or another page doesn't start a second one; a reply whose server stopped beating
   // for a minute is taken over by the next request (D-15, D-19). Every reply ends with a message.
   const REPLY_WAIT_MS = 20000;
-
-  /**
-   * The bots of `botIds` that already answered the person's message `asked` (body.answers, the newest person's message
-   * a reply read): one that started before a message arrived mid-reply didn't, so that message still gets its reply.
-   */
-  async function answeredBy(chatId, asked, botIds, call, since = asked - 1) {
-    if (!asked) return new Set();
-    const found = await Promise.all(botIds.map(async (botId) =>
-      (await records.turns.latestMessage(chatId, { role: "bot", kind: "text", authorBotId: String(botId), ...newerThan(since), answersFrom: asked }, call))
-        ? String(botId)
-        : null));
-    return new Set(found.filter(Boolean));
-  }
 
   /**
    * The chat's bots answer (R3): those the latest message is for, each its own run in order, then one follow-up round
@@ -461,7 +450,8 @@ export function createBotReplies({
     const busy = new Set();
     const job = (async () => {
       const chosen = judging ? await joiningIn.joining(chat, latest, present, options) : bots;
-      const done = await answeredBy(chat.id, asked, chosen.map((bot) => bot.bot_id), options, cardId ? Math.max(cardId, after) : asked - 1);
+      const since = cardId ? Math.max(cardId, after) : asked - 1;
+      const done = await answeredBy(records.turns, chat.id, asked, chosen.map((bot) => bot.bot_id), options, since);
       const speaking = chosen.filter((bot) => !done.has(String(bot.bot_id)));
       if (!speaking.length) return null;
       return speakInTurn(chat, speaking, { timeZone, language, afterCard: Boolean(cardId), asked }, askerId, present, { busy });
@@ -642,7 +632,7 @@ export function createBotReplies({
     if (!latest) return;
     const present = { people: await records.chats.people(seat.chat_id, call), bots: await records.chats.bots(seat.chat_id, call) };
     if (!addressedBots(latest, present).some((bot) => String(bot.bot_id) === seat.id)) return;
-    if ((await answeredBy(seat.chat_id, Number(latest.id), [seat.id], call)).size) return;
+    if ((await answeredBy(records.turns, seat.chat_id, Number(latest.id), [seat.id], call)).size) return;
     // A chat or bot archived meanwhile (D-101, D-108) leaves it unanswered: nothing runs where nobody may write.
     const fresh = await seats.seatIn(seat.chat_id, seat.id, String(latest.authorUserId), call);
     if (!fresh?.chat_bot_id || fresh.chat.archived_at || fresh.archived_at) return;
@@ -673,8 +663,8 @@ const PAUSED_LINES_READ = 10;
 /** The messages after a message id; every one when there is none yet (0: nothing read or answered). */
 const newerThan = (id) => (Number(id) > 0 ? { afterId: String(id) } : {});
 
-/** A waiting message's words, as the prompt that names it quotes them. */
-const waitingWords = (message) => String(message.body.text || "").slice(0, 1500);
+/** A waiting message's words, as the prompt that names it quotes them, the people it mentions by name (D-114). */
+const waitingWords = (message) => peopleNamed(message.body.text, message.body.mentionedPeople).slice(0, 1500);
 
 /**
  * Who speaks now (R3), for the chat's latest person's message or, after a card was answered, for that card's bot: the
@@ -696,6 +686,19 @@ async function whoSpeaks(turns, chatId, { afterCard = false }, present, call) {
   if (!latestText) return { bots: [], asked: 0, askerId: null, cardId: 0 };
   const asked = Number(latestText.id);
   return { bots: addressedBots(latestText, present), asked, askerId: String(latestText.authorUserId), cardId: 0, latest: latestText };
+}
+
+/**
+ * The bots of `botIds` that already answered the person's message `asked` (body.answers, the newest person's message
+ * a reply read): one that started before a message arrived mid-reply didn't, so that message still gets its reply.
+ */
+async function answeredBy(turns, chatId, asked, botIds, call, since = asked - 1) {
+  if (!asked) return new Set();
+  const found = await Promise.all(botIds.map(async (botId) =>
+    (await turns.latestMessage(chatId, { role: "bot", kind: "text", authorBotId: String(botId), ...newerThan(since), answersFrom: asked }, call))
+      ? String(botId)
+      : null));
+  return new Set(found.filter(Boolean));
 }
 
 /**

@@ -41,12 +41,13 @@ export function judgingInstructions(bots) {
 /**
  * What the judge reads: the chat's latest text messages, oldest first, the one decided on last, each on one line named
  * by its author as the chat keeps it (`body.authorName`) and clipped to JUDGED_CHARACTERS.
- * @param {Array<{ id: string, name: string }>} bots the chat's bots, whose mentions read as "@Name"
- * @param {Array<{ body: { text?: string, authorName?: string } }>} messages oldest first
+ * @param {Array<{ id: string, name: string }>} bots the chat's bots, whose mentions read as "@Name", as the people a
+ *   message mentions do from the names kept on it (`body.mentionedPeople`, D-114)
+ * @param {Array<{ body: { text?: string, authorName?: string, mentionedPeople?: Array<{ id: string, name: string }> } }>} messages oldest first
  */
 export function judgedConversation(bots, messages) {
   const lines = messages.slice(-JUDGED_MESSAGES).map((message) => {
-    const text = plainMentions(message.body.text, bots).replace(/\s+/gu, " ").trim().slice(0, JUDGED_CHARACTERS);
+    const text = plainMentions(message.body.text, bots, message.body.mentionedPeople).replace(/\s+/gu, " ").trim().slice(0, JUDGED_CHARACTERS);
     return `[${message.body.authorName || "Someone"}]: ${text}`;
   });
   return ["The conversation, oldest first; decide on the last message:", ...lines].join("\n");

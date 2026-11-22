@@ -29,6 +29,17 @@ export function withMentions(body, members = [], people = []) {
   return { ...body, ...(mentions.length ? { mentions } : {}), ...(mentionedPeople.length ? { mentionedPeople } : {}) };
 }
 
+/**
+ * A message's people's markers as the model reads them (D-114): "@Name" from the names kept on the message
+ * (`body.mentionedPeople`), "@someone" for any other; the other markers stay. The bots' turns (botAgent.contentOf) and
+ * what the bots remember (records/memoryRepository.js) read a person's words through it.
+ * @param {unknown} text
+ * @param {Array<{ id: string, name: string }> | null | undefined} people
+ */
+export function peopleNamed(text, people) {
+  return String(text || "").replace(/<@person:(\d+)>/gu, (marker, id) => `@${(people || []).find((entry) => entry.id === id)?.name || "someone"}`);
+}
+
 /** Markers as plain words for the model: bots named from `members`, people from `people` (each { id, name }). */
 export function plainMentions(text, members = [], people = []) {
   return String(text || "").replace(MARKER, (marker, kind, id) => {

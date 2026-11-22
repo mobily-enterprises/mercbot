@@ -104,7 +104,8 @@ one started (`untilStarted`, the `working` event); otherwise it waits for the re
 **Bots join in when useful (D-115, `joiningIn.js`).** With the chat's `bots_join_in` on and several people, a
 person's message that calls no bot goes through one judging call, in the background job the reply request starts:
 one `generateOnce` on the chat kind of work, at most 40 tokens out, metered to the message's person and no bot, which
-reads the chat's last 12 text messages (each clipped to 400 characters) through the chat's own reader and answers
+reads the chat's last 12 text messages (each clipped to 400 characters, mentions of bots and people as "@Name")
+through the chat's own reader and answers
 `{"bot": "<name>"}` or `{"bot": null}`. Its answer is kept on the message, `body.judged` (the bot's id, or `"quiet"`),
 under the message's lock, the first kept standing, so at most one bot joins per message and nothing is judged twice;
 `addressedBots` counts the judged bot as called, so one busy at the time answers once it's free. Off, alone in the
@@ -112,7 +113,8 @@ chat, for a call, or in a paused home, nothing is judged. A failure or an answer
 
 **Discuss (D-115, `discussions.js`, `MercbotDiscussionCard.vue`).** In a chat with two or more live bots, `POST
 …/chats/:chatId/discussions {question}` (one of its people; at most 500 characters) writes a `discussion` card by
-that person, whose body only the server changes, under the card's lock: the question, its bots, 1–3 rounds (2 first)
+that person, whose body only the server changes, under the card's lock: the question (its mentions as "@Name"), its
+bots, 1–3 rounds (2 first)
 with what each may cost from `meter.estimateNano` (every turn reading the chat, a 24,000-token prefix and all said
 before it, writing at most 1,200 tokens; the wrap-up 2,000), and later the cap, rounds run, spending (`spentNano`,
 `spentByBot`), who passed and how it ended. `POST …/discussions/:messageId/start {rounds}` (its starter, while
@@ -121,8 +123,9 @@ the wrap-up, each only on a press; `/cancel` (its starter, while proposed) and `
 managers, at any time) end it. A press claims each of its bots' reply runs (`claimReply`; 409 `bots_discussion_busy`
 while one is still answering) and holds them, on their heartbeat, until the round ends, so a message written meanwhile
 waits and is answered after (`replies.takeUpWaiting`, `answerWaiting`). A turn is `replyTurn` with its `discussion`
-option: the round's prompt, no tools, no reasoning, no checks that send it back, the turn's output limit and the
-round's abort signal; it may PASS, and its message carries `body.discussion` and `body.round` and answers nobody's
+option: the round's prompt, no tools, no reasoning, no checks that send it back, none of the bot's memory (D-113:
+its state note has the home's notes only, and it asks for no refresh), the turn's output limit and the round's abort
+signal; it may PASS, and its message carries `body.discussion` and `body.round` and answers nobody's
 message. Before each turn the spending so far plus that turn's estimate must fit the cap, or it ends (`cap`); the
 spending is the discussion's own turns' AI calls only, heard through `meter.counting` and each priced by
 `meter.estimateNano` on the call's figures, never the person's other work with those bots. A round where every bot
