@@ -81,17 +81,17 @@ function add() {
             <template #chip="{ props: chipProps, item }">
               <v-chip v-bind="chipProps" size="small">
                 <template #prepend>
-                  <MercbotAvatar v-if="item.raw.bot" :bot="item.raw.bot" :size="16" still class="mb-invite__face" />
-                  <span v-else class="mb-invite__initials">{{ initialsOf(item.raw.title) }}</span>
+                  <MercbotAvatar v-if="item.bot" :bot="item.bot" :size="16" still class="mb-invite__face" />
+                  <span v-else class="mb-invite__initials">{{ initialsOf(item.title) }}</span>
                 </template>
-                {{ item.raw.title }}
+                {{ item.title }}
               </v-chip>
             </template>
             <template #item="{ props: itemProps, item }">
-              <v-list-item v-bind="itemProps" :subtitle="item.raw.kind === 'bot' ? 'Bot' : 'Person'">
+              <v-list-item v-bind="itemProps" :subtitle="item.kind === 'bot' ? 'Bot' : 'Person'">
                 <template #prepend>
-                  <MercbotAvatar v-if="item.raw.bot" :bot="item.raw.bot" :size="24" still class="mb-invite__face" />
-                  <span v-else class="mb-invite__initials mb-invite__initials--row">{{ initialsOf(item.raw.title) }}</span>
+                  <MercbotAvatar v-if="item.bot" :bot="item.bot" :size="24" still class="mb-invite__face" />
+                  <span v-else class="mb-invite__initials mb-invite__initials--row">{{ initialsOf(item.title) }}</span>
                 </template>
               </v-list-item>
             </template>
