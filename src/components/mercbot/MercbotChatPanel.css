@@ -558,6 +558,20 @@
   line-height: 20px;
 }
 
+/*
+ * useComposerLines.js counts the text's lines from the layout right after it changes, so the parts that size the text
+ * never transition, not even by the 1 ms every element gets under reduced motion: mid-transition the field would still
+ * be as narrow, or as tall, as before.
+ */
+.mb-composer,
+.mb-composer__main,
+.mb-composer__field,
+.mb-composer__input,
+.mb-composer__mirror,
+.mb-composer__measure {
+  transition: none;
+}
+
 .mb-composer__mirror {
   position: absolute;
   inset: 0 auto auto 0;
