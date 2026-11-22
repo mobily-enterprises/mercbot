@@ -36,7 +36,7 @@ Some bots ask a question and wait, sometimes with suggested answers to tap. Answ
 
 ### A bot didn't answer
 
-If you mention bots with @, only those bots answer. When other people are in the chat, a bot answers only when it's called: by its name, with @, when you reply to one of its messages, or with @everyone. An archived bot never answers. See [Chats and your team](/help/chats#who-answers).
+If you mention bots with @, only those bots answer. When other people are in the chat, a bot answers only when it's called: by its name, with @, when you reply to one of its messages, or with @everyone. An archived bot never answers. See [Rooms, people and bots](/help/chats#who-answers).
 
 ### Replies come in the wrong language or time zone
 
@@ -143,14 +143,14 @@ Open **Settings** → **Permissions**. **Auto-review** makes your bots look over
 
 ## A routine didn't run
 
-Open the chat's **Chat details** and look under **Routines**, or open the bot's card in **Team**. Then check:
+Open the chat's **Chat details** and look under **Routines**, or open the bot's card. Then check:
 
 - **Is it paused?** It says **Paused** and its switch is off. Anyone who can open the chat can pause a routine, but only the person who set it up can turn it back on. The next run is counted from then.
 - **Is the time right?** When a bot sets up a routine, it tells you the schedule with its time zone. If the zone is wrong, ask the bot to change it.
 - **Was there anything to report?** A routine told to report only news posts nothing when there's nothing new.
 - **Was it a one-off?** A one-off reminder runs once, then is removed, with a line in the chat saying so.
 - **Did it come from a template?** Routines from a bot template start paused until you say yes.
-- **Was its bot archived?** Its routines pause, with a line in the chat. Resume the bot from **Team**, then whoever set the routine up switches it on again.
+- **Was its bot archived?** Its routines pause, with a line in the chat. Resume the bot from its card (under **Archived bots** in the sidebar), then whoever set the routine up switches it on again.
 - **Did the person who set it up leave the home?** Their routines pause, with a line in the chat, and no one else can resume them. Ask a bot to set up a new one.
 
 Routines run at most every 10 minutes. If Mercbot was briefly unavailable, runs missed in that time happen once when it's back. If a run couldn't finish, the bot posts a short message saying so.
@@ -169,7 +169,7 @@ The viewer shows pictures of up to the first 20 pages of a document, spreadsheet
 
 ### You can't find a file
 
-- Open the bot's card in **Team** and choose **Library**. It lists everything that bot made, by day, in chats you can open.
+- Open the bot's card and choose **Library**. It lists everything that bot made, by day, in chats you can open.
 - Press Ctrl+K and type part of the file's name. Search finds files bots made.
 - What a bot makes in a chat is in that chat's folder: open **Chat details** → **Files**. If a bot in another chat can't see a file, ask a bot in the first chat to put it in the home's folder.
 - If your home keeps its files in its own storage, files made before the change stay where they were.
@@ -210,7 +210,7 @@ Then send them to whoever runs your copy of Mercbot. Never include passwords, ca
 ## Related pages
 
 - [General questions and answers](/help/faq)
-- [Chats and your team](/help/chats)
+- [Rooms, people and bots](/help/chats)
 - [The bots' computer and connected apps](/help/computer-and-apps)
 - [The vault: saved logins and secrets](/help/vault)
 - [Skills, routines and watches](/help/skills-and-routines)

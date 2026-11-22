@@ -5,13 +5,14 @@ import MercbotIconButton from "./MercbotIconButton.vue";
 import MercbotMemberCard from "./MercbotMemberCard.vue";
 import { emitResizeDrag } from "./pointerDrag.js";
 
-// The details beside what's shown (D-112, plan 4.2, 4.4): a member's card (on Team, and a direct chat's bot with this
-// chat's computer), or Chat details for any other chat. It carries the panel's frame: its width, Close and resizing.
+// The details beside what's shown (D-112, plan 4.2, 4.4): a member's card (one opened beside the chat, a direct chat's
+// bot with this chat's computer, or the other person of a chat between two), or Chat details for a room. It carries the
+// panel's frame: its width, Close and resizing.
 const props = defineProps({
   width: { type: Number, required: true },
   // { kind: "bot", bot } or { kind: "person", person } for a member's card; null for Chat details.
   member: { type: Object, default: null },
-  // The chat it's shown from, or null on Team.
+  // The direct chat it's shown from, or null for a card opened beside the chat.
   chat: { type: Object, default: null },
   chats: { type: Array, default: () => [] },
   me: { type: String, default: "" },

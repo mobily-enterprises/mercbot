@@ -1,7 +1,8 @@
 import { reactive, watch } from "vue";
 
 // Per-device shell choices that survive reloads: the sidebar, the details panel, the accent, the microphone, the
-// language, the time zone, the voice, and whether the first-time notice about public chats was dismissed here.
+// language, the time zone, the voice, the sidebar's sections folded in each home, and whether the first-time notice
+// about public rooms was dismissed here.
 const STORAGE_KEY = "mercbot.shell";
 const DEFAULTS = Object.freeze({
   compact: false,
@@ -11,6 +12,8 @@ const DEFAULTS = Object.freeze({
   accent: "bot",
   hiddenExpanded: false,
   archivedExpanded: false,
+  // Each home's folded sidebar sections, by the home's slug: { rooms, people, bots }, each true while folded.
+  folded: {},
   detailsTab: "details",
   // Settings: kept on this device and sent with each request that needs them.
   spellcheck: true,
@@ -43,6 +46,7 @@ export const shellPreferences = reactive({
   accent: stored.accent === "black" ? "black" : DEFAULTS.accent,
   hiddenExpanded: stored.hiddenExpanded === true,
   archivedExpanded: stored.archivedExpanded === true,
+  folded: stored.folded && typeof stored.folded === "object" && !Array.isArray(stored.folded) ? stored.folded : {},
   detailsTab: ["details", "files", "library", "computer"].includes(stored.detailsTab) ? stored.detailsTab : DEFAULTS.detailsTab,
   spellcheck: stored.spellcheck !== false,
   microphoneId: typeof stored.microphoneId === "string" ? stored.microphoneId : DEFAULTS.microphoneId,

@@ -4,12 +4,12 @@ Your bots remember, the way a person in your home would. What's said in a Public
 
 ## What a bot remembers
 
-Each bot keeps a memory of the **Public chats it's in**: what was decided, what people said about themselves, promises made and threads still open, each with the chat it came from and who said it. Mercbot writes it in the background, from the chats themselves, and keeps it up to date:
+Each bot keeps a memory of the **Public rooms it's in**: what was decided, what people said about themselves, promises made and threads still open, each with the chat it came from and who said it. Mercbot writes it in the background, from the chats themselves, and keeps it up to date:
 
 - soon after a lot has been said in the bot's Public chats since its memory was last made, but never more than every half an hour;
 - otherwise once a day, if anything was said at all.
 
-A bot's memory never holds a Private chat. It's the same in every chat the bot is in.
+A bot's memory never holds a Private room, or anyone's private chat with a bot or with another person. It's the same in every chat the bot is in. A bot invited into a room after it started remembers it from the last 30 messages it read when it joined, not from the room's beginning.
 
 ## What a bot reads when it answers
 
@@ -31,7 +31,9 @@ The rule is the one every chat follows: **a bot in a chat uses only what everyon
 |---|---|
 | A Public chat | Every Public chat in the home, never a Private one |
 | A Private chat | Every Public chat, this chat, and other Private chats that all of this chat's members are in |
-| A Private chat of just you and a bot | Every Public chat, and every Private chat you're in |
+| Your chat with a bot | Every Public room, and every Private room you're in |
+
+No chat reads your chat with a bot, or a chat between two people, except that chat itself.
 
 So in a Private chat with Ben, a bot can mention something from a Private chat of you, Ben and Carla, but never something from your Private chat with Carla, and never anything Private in a Public chat. This is enforced when Mercbot reads the chats, not by asking the bot to be careful.
 
@@ -47,7 +49,7 @@ A note is the home's, even when you asked from a Private chat, so word it for ev
 
 ## See and remove what's remembered
 
-Open a bot's card (select it in **Team**, or under **Bots** in **Chat details**) and its **Details** tab. Under **Knowledge**:
+Open a bot's card (select it under **Bots** in the sidebar, then the chat's name at the top, or select it under **Bots** in a room's **Chat details**) and its **Details** tab. Under **Knowledge**:
 
 - **Memory** shows what the bot remembers and when it was made. Select **Show all** to read all of it. Everyone in the home can read it, as everyone can open the Public chats it comes from.
 - **Notes for everyone** lists the home's notes, newest first, each with who asked for it and through which bot. **Show older notes** reads further back.
@@ -59,7 +61,7 @@ The person who asked for a note, and the home's owners and admins, can remove it
 - **Delete a Public chat** (its maker, or an owner or admin, in **Chat details**): its bots forget it at once, and what they remember is made again from the chats that are left.
 - **Leaving a chat, archiving it, or archiving a bot** keeps what the bots remember: like a person, a bot still knows what was said in a chat it has left. An archived bot remembers nothing new until it's back.
 
-For something you don't want any bot to remember, start a **Private** chat. See [Chats and your team](/help/chats#public-and-private-chats).
+For something you don't want any bot to remember, use your chat with the bot, or start a **Private** room. See [Rooms, people and bots](/help/chats#public-and-private-rooms).
 
 ## Questions
 
@@ -77,7 +79,7 @@ Making a bot's memory is AI work, counted in **Spending** as the bot's, for the 
 
 ## Related pages
 
-- [Chats and your team](/help/chats)
+- [Rooms, people and bots](/help/chats)
 - [Bots: add, shape and archive](/help/bots)
 - [Approvals, safety and privacy](/help/approvals-and-privacy)
 - [Settings and notifications](/help/settings)

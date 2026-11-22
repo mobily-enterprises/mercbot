@@ -373,8 +373,13 @@ test("a cancelled sign-in leaves the card as it is, one never finished goes afte
 
 test("only the card's person can start its follow-up, from a connect card still waiting", async (context) => {
   const { knex, b, card, bot, as, kim, homeId, followUp } = await setup(context);
-  // Kim is in the home and may open Pat's chat with the bot (D15), but the card is Pat's (R4).
-  await assert.rejects(b.turns.chat.connectFromCard(bot.chat_id, card.id, {}, b.as(kim, homeId)), { statusCode: 403, code: "bots_waiting_for_other" });
+  // Pat's chat with the bot is Private, his alone: Kim, in the home, can't read its card (the route answers 404 for the
+  // chat before this).
+  await assert.rejects(b.turns.chat.connectFromCard(bot.chat_id, card.id, {}, b.as(kim, homeId)), { statusCode: 409, code: "bots_connect_card_closed" });
+  // In a room of both of them, Kim may open the chat, but a card for Pat is Pat's (R4).
+  const { id: room } = await seedChat(knex, { homeId, title: "Receipts", people: [bot.person.id, kim], bots: [bot.id] });
+  const [shared] = await knex("messages").insert({ ...connectCard(bot), conversation_id: room }).returning("*");
+  await assert.rejects(b.turns.chat.connectFromCard(room, shared.id, {}, b.as(kim, homeId)), { statusCode: 403, code: "bots_waiting_for_other" });
   const [text] = await knex("messages").insert({ ...connectCard(bot), kind: "text", body: { text: "Hello." } }).returning("*");
   await assert.rejects(b.turns.chat.connectFromCard(bot.chat_id, text.id, {}, as), { code: "bots_connect_card_closed" });
   await knex("messages").where({ id: card.id }).update({ body: { ...connectCard(bot).body, status: "connected" } });

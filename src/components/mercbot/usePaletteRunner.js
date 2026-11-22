@@ -1,7 +1,7 @@
 import { nextTick, ref } from "vue";
 
 /**
- * Runs a search palette row: opens its chat, a bot's direct chat, a person's card on Team, a message, app, routine or
+ * Runs a search palette row: opens its chat, a bot's direct chat, a person's card beside the chat, a message, app, routine or
  * made file, or runs its command. A made file found in search opens in its viewer, a page in place of its chat (D-74);
  * each opens over the chat it's in (`chatId`).
  * @param {{

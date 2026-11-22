@@ -39,7 +39,7 @@ See [Your data: tables, fields and records](/help/apps-data) and [Versions, acti
 
 ## Where to find Apps
 
-**Apps** sits near the top of the sidebar, under **Team** and **Files** and above your chats. Under it you'll see any apps you've pinned, each with its icon, so you can open them in one click. You can pin up to eight; your pins are your own.
+**Apps** is a button at the top of the sidebar, beside **Search** and **Files**. Beside it you'll see any apps you've pinned, each with its icon, so you can open them in one click. You can pin up to eight; your pins are your own.
 
 Opening Apps shows these tabs:
 

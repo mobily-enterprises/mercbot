@@ -25,7 +25,7 @@ const BOTS_TABLES = ["conversations", "chatPeople", "chatBots", "messages", "bot
 
 /**
  * The Rossi home: Anna, Ben and Carla, Chef and Shopper, and its chats, each with both bots and a canary in every
- * carrier. Family is public, and so is Anna's direct chat with Chef (D15); the rest are private.
+ * carrier. Family is public; the rest are private, Anna's direct chat with Chef too, which is read only from itself.
  */
 async function rossiHome(knex, context) {
   const [anna, ben, carla] = (await knex("users").orderBy("id").limit(3).pluck("id")).map(String);
@@ -59,16 +59,20 @@ async function rossiHome(knex, context) {
     await knex("connect_follow_ups").insert({ workspace_id: homeId, message_id: todo, chat_bot_id: seat, user_id: people[0], plugin_id: said("followup") });
     await knex("bot_computers").insert({ workspace_id: homeId, chat_bot_id: seat, server_id: "s1", url: `https://example.test/${said("computer")}` });
     await knex("shell_runs").insert({ workspace_id: homeId, chat_bot_id: seat, user_id: people[0], script: `echo ${said("shell")}`, server: "s1" });
-    chats[name] = { id: chat.id, seat, people, kind: shape.kind ?? "public" };
+    chats[name] = { id: chat.id, seat, people, kind: shape.kind ?? (shape.direct ? "private" : "public"), direct: Boolean(shape.direct) };
   }
   await knex("user_skills").insert({ workspace_id: homeId, user_id: anna, name: "CANARY-anna-skill", instructions: "x" });
   return { homeId, anna, ben, carla, chef, chats };
 }
 
-/** The canaries D12 grants a bot in `reading`: public chats', its own, and for a private chat the private chats whose people include all of its people; Anna's skill only in her own private chat. */
+/**
+ * The canaries D12 grants a bot in `reading`: its own chat's, public chats', and for a private chat that isn't a direct
+ * one the private chats whose people include all of its people, never a direct chat but its own; Anna's skill only in
+ * her own private chat.
+ */
 function granted(chats, reading) {
-  const names = Object.entries(chats).filter(([, chat]) => chat.kind === "public" || chat === reading ||
-    (reading.kind === "private" && chat.kind === "private" && reading.people.every((person) => chat.people.includes(person))));
+  const names = Object.entries(chats).filter(([, chat]) => chat === reading || (!chat.direct && (chat.kind === "public" ||
+    (reading.kind === "private" && !reading.direct && chat.kind === "private" && reading.people.every((person) => chat.people.includes(person))))));
   const strings = new Set();
   for (const [name] of names) for (const carrier of ["message", "todo", "notes", "waiting", "routine", "instructions", "request", "followup", "computer", "shell"]) strings.add(`CANARY-${name}-${carrier}`);
   if (reading.kind === "private" && reading.people.length === 1) strings.add("CANARY-anna-skill");
@@ -114,8 +118,12 @@ test("the model's reader reaches exactly what D12 grants, from a public chat, a 
   // Background work runs as the person who set it up, and reads what its chat may: Ben's routines in Family and Plans.
   assert.deepEqual(await reached(parts, chats, reader(chats.family, ben)), granted(chats, chats.family));
   assert.deepEqual(await reached(parts, chats, reader(chats.plans, ben)), granted(chats, chats.plans));
-  // Anna's own private chat with Chef reads everything Anna can open, and her skill: no one else can open it.
+  // Anna's own private chat with Chef reads everything Anna can open, and her skill: no one else can open it. Never her
+  // direct chat with Chef, which is read only from itself.
   assert.deepEqual(await reached(parts, chats, reader(chats.diary, anna)), granted(chats, chats.diary));
+  assert.ok(!(await reached(parts, chats, reader(chats.diary, anna))).includes("CANARY-direct-message"));
+  // Her direct chat itself reads itself and the public chats, never her private rooms, and her skill.
+  assert.deepEqual(await reached(parts, chats, reader(chats.direct, anna)), granted(chats, chats.direct));
   // A sanity check on the fixture: the canaries are there to leak (the whole home's, read as the home's own work).
   const homeJob = { context: parts.systemContext("the canary's own check").forWorkspace(homeId) };
   assert.ok((await reached(parts, chats, homeJob)).includes("CANARY-diary-message"));
@@ -147,4 +155,23 @@ test("mutation: readable_from without \"every person of the chat is in it\" fail
     await knex.raw(definition);
   }
   assert.deepEqual(await reached(parts, chats, fromPlans), granted(chats, chats.plans), "restored, the wall holds");
+});
+
+test("mutation: readable_from without \"never a direct chat but its own\" fails the wall", async (context) => {
+  const parts = await startChatRecords(knex, context);
+  const { homeId, anna, chef, chats } = await rossiHome(knex, context);
+  const fromDiary = { context: parts.records.readers.forBot({ homeId, botId: chef, chatId: chats.diary.id, askerId: anna }) };
+  // This file's own copy of the test database: the function is replaced here, and restored before the test ends.
+  const { rows: [{ definition }] } = await knex.raw("select pg_get_functiondef('readable_from(bigint)'::regprocedure) as definition");
+  const directOnlyFromItself = /x\.direct_bot_id IS NULL AND x\.direct_person_id IS NULL\s+AND/u;
+  assert.match(definition, directOnlyFromItself, "the reading rule's direct-chat condition, as the migration wrote it");
+  try {
+    await knex.raw(definition.replace(directOnlyFromItself, ""));
+    const leaked = await reached(parts, chats, fromDiary);
+    assert.notDeepEqual(leaked, granted(chats, chats.diary));
+    assert.ok(leaked.includes("CANARY-direct-message"), "Anna's chat with Chef leaks into her private chat");
+  } finally {
+    await knex.raw(definition);
+  }
+  assert.deepEqual(await reached(parts, chats, fromDiary), granted(chats, chats.diary), "restored, the wall holds");
 });

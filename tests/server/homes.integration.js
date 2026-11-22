@@ -66,9 +66,9 @@ async function setup(context) {
   return { knex, records, bots, as, homeId, accountsHome, elsewhere: elsewhere.id, pat, kim: kim.id, outside: outside.id, bot, chatOf, made };
 }
 
-// A direct chat is the chat a bot's [Message] reopens, one per person and bot, and Public like any other (D15): everyone
-// in the home may open it and find its words, though only its person is in it.
-test("two people in a home share its bots, and each has their own direct chat with one, Public like any chat", async (context) => {
+// A direct chat is the chat a bot's [Message] reopens, one per person and bot, and Private: only its person opens it
+// and finds its words.
+test("two people in a home share its bots, and each has their own direct chat with one, Private, theirs alone", async (context) => {
   const { knex, bots, as, pat, kim, bot, chatOf } = await setup(context);
   const tag = `words-${Date.now()}`;
   // testBot's chat is Pat's direct chat with the bot.
@@ -84,13 +84,13 @@ test("two people in a home share its bots, and each has their own direct chat wi
   const directs = (await knex("conversations").where({ direct_bot_id: bot.id }).pluck("direct_user_id")).map(String).sort();
   assert.deepEqual(directs, [pat, kim].map(String).sort(), "one direct chat each");
 
-  // Pat's is Public: Kim opens it and finds its words, without being in it, and it isn't in her list nor offered to join.
-  const opened = (await bots.chats.get(patsChat, as(kim))).chat;
-  assert.equal(opened.place, null, "Kim isn't in Pat's direct chat");
-  assert.deepEqual((await bots.chat.messages(patsChat, {}, as(kim))).messages.filter((message) => message.kind === "text").map((message) => message.body.text), [`Pat's ${tag}`]);
-  assert.equal((await bots.search(tag, as(kim))).messages.length, 1, "search finds the home's Public chats");
+  // Pat's is Private: Kim can't open it nor find its words, and it isn't in her list nor among the rooms she isn't in.
+  await assert.rejects(bots.chats.get(patsChat, as(kim)), { statusCode: 404 }, "Kim can't open Pat's direct chat");
+  await assert.rejects(bots.chat.messages(patsChat, {}, as(kim)), { statusCode: 404 });
+  assert.equal((await bots.search(tag, as(kim))).messages.length, 0, "search never finds it for her");
+  assert.equal((await bots.search(tag, as(pat))).messages.length, 1, "Pat finds his own words");
   assert.ok(!(await bots.chats.list({}, as(kim))).chats.some((entry) => entry.id === patsChat));
-  assert.ok(!(await bots.chats.publicChats(as(kim))).chats.some((entry) => entry.id === patsChat), "a direct chat is never offered to join");
+  assert.ok(!(await bots.chats.publicRooms({}, as(kim))).chats.some((entry) => entry.id === patsChat), "a direct chat is never a room to visit");
 
   // In a chat of both, each one's place is their own: Kim's pin isn't Pat's.
   const both = await chatOf({ title: "Both", people: [pat, kim], bots: [bot.id] });
@@ -106,7 +106,7 @@ test("someone outside the home can't reach its chats, and a private chat is its 
   made.push(weekend.id);
   assert.ok((await bots.chats.list({}, as(pat))).chats.some((entry) => entry.id === weekend.id));
   assert.ok(!(await bots.chats.list({}, as(kim))).chats.some((entry) => entry.id === weekend.id), "Kim isn't in Pat's private chat");
-  assert.ok(!(await bots.chats.publicChats(as(kim))).chats.some((entry) => entry.id === weekend.id), "nor is it offered to join");
+  assert.ok(!(await bots.chats.publicRooms({}, as(kim))).chats.some((entry) => entry.id === weekend.id), "nor is it among the rooms she isn't in");
   await assert.rejects(bots.chat.messages(weekend.id, {}, as(kim)), (error) => error.statusCode === 404);
 });
 

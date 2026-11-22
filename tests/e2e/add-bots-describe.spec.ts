@@ -6,8 +6,8 @@ import { connectTestDb, expect, homeApi, openShell, shell, test } from "./harnes
 // whose tag the request names, plus a new bot for its last word that names none, and writes a new bot's template on the
 // name, tag and job it was given. A shop's request shows Kindly and Restock from the library, each with why, and a new
 // Rota, its template written meanwhile, with what it asks first and all of it on Read it all; Not quite right? adds a
-// Payroll, keeping Rota's template; Add 3 bots makes Restock, Rota and Payroll, new templates with them, on Team in the
-// order suggested, with no chats of their own (D-112): the welcome chat introduces them. Opened again, the home is asked
+// Payroll, keeping Rota's template; Add 3 bots makes Restock, Rota and Payroll, in the order suggested, new templates
+// with them, listed in the sidebar's Bots, with no chats of their own (D-112): the welcome chat introduces them. Opened again, the home is asked
 // what's missing and Restock says it's already there. A request too short to plan from gets a question. Screenshots
 // light, dark and phone. The test deletes the home it makes.
 // Run with: vibe64-helper playwright --target test-app test tests/e2e/add-bots-describe.spec.ts
@@ -15,7 +15,6 @@ test.use({ apiGuard: true });
 
 const REQUEST = "I run a small shop and need help with stock, reviews and the staff rota";
 
-const teamBots = (page: Page) => shell.team(page).getByRole("list", { name: "Members" }).locator('li[data-member="bot"]');
 const posted = (page: Page, path: RegExp) =>
   page.waitForResponse((response) => response.request().method() === "POST" && path.test(new URL(response.url()).pathname));
 
@@ -33,10 +32,9 @@ async function shots(page: Page, testInfo: TestInfo, name: string) {
   if (size) await page.setViewportSize(size);
 }
 
-/** Team → Add bots, which opens on Describe what you need. */
+/** Bots' + (Add bots), which opens on Describe what you need. */
 async function openAddBots(page: Page) {
-  await shell.sidebar(page).getByRole("button", { name: "Team", exact: true }).click();
-  await shell.team(page).getByRole("button", { name: "Add bots" }).click();
+  await shell.section(page, "Bots").getByRole("button", { name: "Add bots", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "Add bots" });
   await expect(dialog.getByRole("textbox", { name: "Describe what you need" })).toBeVisible();
   return dialog;
@@ -88,7 +86,7 @@ test("Describe what you need suggests library and new bots, checked before Add m
     await expect(fresh.getByRole("checkbox", { name: "Add Rota" })).toBeChecked();
     await expect(fresh.getByText("Asks first: What matters most to them in this job; How often they want to hear from you")).toBeVisible();
     expect(drafts.map((draft) => draft.bot.name), "one call per new bot, as soon as the plan shows").toEqual(["Rota"]);
-    await expect(dialog.getByRole("textbox", { name: "Section in your sidebar" }), "bots go on Team, never in a section").toHaveCount(0);
+    await expect(dialog.getByRole("textbox", { name: "Section in your sidebar" }), "bots go in Bots, never in a section").toHaveCount(0);
     await fresh.getByRole("button", { name: "Read it all" }).click();
     await expect(fresh.getByText("You are Rota. Your job: Helps with rota. Ask before anything leaves this chat, and say what you did.")).toBeVisible();
     await shots(page, testInfo, "suggested-bots");
@@ -115,13 +113,15 @@ test("Describe what you need suggests library and new bots, checked before Add m
     const answer = await (await added).json();
     expect([answer.added.length, answer.skipped]).toEqual([3, []]);
     await expect(dialog).toBeHidden();
-    await expect(page.getByText("Added 3 bots to your team.")).toBeVisible();
-    await expect(teamBots(page).locator(".mb-team-row__name"), "in the order suggested").toContainText(["Restock", "Rota", "Payroll"]);
-    await expect(shell.team(page), "no chat opens").toBeVisible();
+    await expect(page.getByText("Added 3 bots to your home.")).toBeVisible();
+    const bots = shell.section(page, "Bots");
+    await bots.getByRole("button", { name: "3 more" }).click();
+    await expect(bots.locator(".mb-row__name"), "Mercbot, then the three by name").toHaveText(["Mercbot", "Payroll", "Restock", "Rota"]);
+    await expect(shell.chat(page), "no chat opens: the welcome chat stays").toHaveAttribute("aria-label", "Mercbot");
     expect((await api.get("/chats?hidden=1&archived=1")).chats.map((chat: { id: string }) => String(chat.id)), "they make no chats")
       .toEqual([String(welcome.id)]);
     await shell.chatRow(page, "Mercbot").click();
-    await expect(shell.chat(page).getByText("Your team's here: Restock, Rota and Payroll. Start a chat with one of them whenever you like."))
+    await expect(shell.chat(page).getByText("Your home's new bots are here: Restock, Rota and Payroll. Start a chat with one of them whenever you like."))
       .toBeVisible();
     const templates = await knex("home_templates").where({ workspace_id: homeId }).orderBy("tag").select("id", "tag");
     expect(templates.map((row) => row.tag)).toEqual(["payroll", "rota"]);

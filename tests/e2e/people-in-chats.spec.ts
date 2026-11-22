@@ -5,13 +5,13 @@ import { connectTestDb, expect, homeApi, openShell, seedChat, seedMessages, shel
 // People in chats (D-114, B3), on the Test Preview target, in a home of each test's own with a second person, Ben
 // Rossi, and the owner's bot Chef. A person's own copy has one person who signs in (D-81), so what Ben writes is seeded
 // as the server writes it, and what he sees is read from the server. @ in a chat with people offers them, a mention
-// shows by name and waits for its person as the chat list's "@" until they read the chat; a file attached in a chat
-// with others, or in New chat before it starts, goes in the chat's folder; the owner reacts to Ben's message as to a
-// bot's, never to their own; and "Continue with others…" takes the owner's direct chat with Chef on into a new Public
-// chat with Ben, starting from Chef's note (the stand-in model's), which the owner changes and sends, the direct chat
-// left as it was. Screenshots light, dark and phone (390 by 844) are the output: the "@" in the list, a mention in a
-// chat, a reaction on Ben's message, and Continue with others with its note. Each test deletes the home and the person
-// it makes.
+// shows by name and waits for its person as the chat list's "@" until they read the chat; a file attached in a room
+// with others, or in a room just made with New room, goes in the room's folder; the owner reacts to Ben's message as to
+// a bot's, never to their own; and "Continue with others…" takes the owner's direct chat with Chef on into a new Public
+// room, Chef coming along, starting from Chef's note (the stand-in model's) in its composer, which the owner changes and
+// sends, the direct chat left as it was; on a phone the composer is as tall as the note needs. Screenshots light, dark
+// and phone (390 by 844) are the output: the "@" in the list, a mention in a chat, a reaction on Ben's message, and
+// Continue with others with its note. Each test deletes the home and the person it makes.
 // Run with: vibe64-helper playwright --target test-app test tests/e2e/people-in-chats.spec.ts
 // Any refused API call from the page, one with no answer, or JSKIT's error dialog, fails the test (harness.ts).
 test.use({ apiGuard: true });
@@ -87,28 +87,6 @@ const composerFits = (page: Page) => shell.composer(page).evaluate((field: HTMLT
   field.style.transition = transition;
   return height === 22 ? needs <= 22 : height === Math.min(6, Math.max(2, Math.round(needs / 20))) * 20;
 });
-/**
- * What hides New chat's Start line: "" when its hint (at its left, middle and right) and its Start button are what the
- * page shows there, else the class of whatever is on top of them (the message box, a button) or "nothing" off screen.
- */
-const startLineHidden = (page: Page) => page.evaluate(() => {
-  const hint = document.querySelector(".mb-new-chat__hint");
-  const start = document.querySelector(".mb-new-chat__start .v-btn");
-  if (!hint || !start) return "no Start line";
-  const line = hint.getBoundingClientRect();
-  const button = start.getBoundingClientRect();
-  const points: Array<[Element, number, number]> = [
-    ...[0.1, 0.5, 0.9].map((at): [Element, number, number] => [hint, line.left + line.width * at, line.top + line.height / 2]),
-    [start, button.left + button.width / 2, button.top + button.height / 2]
-  ];
-  // A disabled Start takes no pointer, so the page would answer what's under it: it's asked as one that takes them.
-  const given = (start as HTMLElement).style.pointerEvents;
-  (start as HTMLElement).style.pointerEvents = "auto";
-  const found = points.map(([, x, y]) => document.elementFromPoint(x, y));
-  (start as HTMLElement).style.pointerEvents = given;
-  return found.filter((element, index) => !element || !points[index][0].contains(element))
-    .map((element) => (element ? String(element.getAttribute("class") || element.tagName) : "nothing")).join(", ");
-});
 const message = (page: Page, text: string) => shell.chat(page).locator("[data-message-id]").filter({ hasText: text }).last();
 const mentionedAt = async (knex: Knex, chatId: string, userId: string) =>
   (await knex("chat_people").where({ conversation_id: chatId, user_id: userId }).first("mentioned_at"))?.mentioned_at ?? null;
@@ -167,7 +145,7 @@ test("@ offers the chat's people; a mention shows by name and waits as the chat 
   }
 });
 
-test("a file attached in a chat with people, or in New chat before it starts, goes in the chat's folder", async ({ page }) => {
+test("a file attached in a room with people, or in a room just made, goes in the room's folder", async ({ page }) => {
   const knex = connectTestDb();
   let home: Home | null = null;
   try {
@@ -188,28 +166,23 @@ test("a file attached in a chat with people, or in New chat before it starts, go
     expect((await api.get(`/files?chat=${garden.id}&folder=${encodeURIComponent("/files/chat/Uploads")}`)).entries.map((entry: { path: string }) => entry.path))
       .toEqual(["/files/chat/Uploads/beds.md"]);
 
-    // In New chat, the file waits until the chat is made, then goes in its folder with the first message.
-    await shell.sidebar(page).getByRole("button", { name: "New chat or bots" }).click();
-    await shell.menuItems(page).filter({ hasText: /^New chat$/u }).click();
-    const newChat = page.getByRole("region", { name: "New chat" });
-    await newChat.getByRole("textbox", { name: "Add people and bots" }).fill("Ben");
-    await newChat.getByRole("listbox", { name: "People and bots" }).getByRole("option", { name: /Ben Rossi/u }).click();
-    await newChat.getByLabel("Title (optional)").fill(`Shed ${home.stamp}`);
-    await shell.chat(page).locator("input[type=file]").setInputFiles({ name: "shed.md", mimeType: "text/markdown", buffer: Buffer.from("# Shed\n") });
-    await expect(shell.chat(page).locator(".mb-file-card__name")).toHaveText("shed.md");
+    // A room made with New room (it needs a name): a file attached there goes in its own folder, with the message.
+    await shell.section(page, "Rooms").getByRole("button", { name: "New room", exact: true }).click();
+    const newRoom = page.getByRole("dialog", { name: "New room" });
+    await newRoom.getByRole("textbox", { name: "Name" }).fill(`Shed ${home.stamp}`);
     const started = page.waitForResponse((response) => response.request().method() === "POST" && new URL(response.url()).pathname === `/api${home!.path}/chats`);
-    const later = page.waitForResponse((response) => response.request().method() === "POST" &&
-      new URL(response.url()).pathname === `/api${home!.path}/files/upload` && new URL(response.url()).searchParams.get("chat") !== garden.id);
-    const firstSent = answered(page, "POST", /\/chats\/\d+\/messages$/u);
+    await newRoom.getByRole("button", { name: "Create", exact: true }).click();
+    const { chat } = await (await started).json();
+    await expect(page).toHaveURL(new RegExp(`[?&]chat=${chat.id}\\b`, "u"));
+    const later = uploads(String(chat.id));
+    await shell.chat(page).locator("input[type=file]").setInputFiles({ name: "shed.md", mimeType: "text/markdown", buffer: Buffer.from("# Shed\n") });
+    expect(await (await later).json()).toMatchObject({ path: "/files/chat/Uploads/shed.md" });
+    const firstSent = answered(page, "POST", new RegExp(`/chats/${chat.id}/messages$`, "u"));
     await shell.composer(page).fill("the shed's list");
     await shell.composer(page).press("Enter");
-    const { chat } = await (await started).json();
-    const upload = await later;
-    expect(new URL(upload.url()).searchParams.get("chat"), "into the new chat, once it's made").toBe(String(chat.id));
-    expect(await upload.json()).toMatchObject({ path: "/files/chat/Uploads/shed.md" });
     await expect(message(page, "the shed's list").locator(".mb-bubble__file-name")).toHaveText("shed.md");
     expect((await firstSent).ok()).toBe(true);
-    const [first] = await knex("messages").where({ conversation_id: chat.id, role: "user" }).orderBy("id");
+    const [first] = await knex("messages").where({ conversation_id: chat.id, role: "user", kind: "text" }).orderBy("id");
     expect(first.body.attachments.map((file: { path: string }) => file.path)).toEqual(["/files/chat/Uploads/shed.md"]);
   } finally {
     await home?.remove();
@@ -254,7 +227,7 @@ test("the owner reacts to Ben's message as to a bot's, and never to their own", 
   }
 });
 
-test("Continue with others takes a direct chat on into a new Public chat, starting from the bot's note", async ({ page }, testInfo) => {
+test("Continue with others takes a direct chat on into a new Public room, the bot coming along, starting from its note", async ({ page }, testInfo) => {
   const knex = connectTestDb();
   let home: Home | null = null;
   try {
@@ -266,37 +239,38 @@ test("Continue with others takes a direct chat on into a new Public chat, starti
     ] });
     await openShell(page, `?chat=${direct.id}`, home.path);
 
-    // A direct chat has no + Add: it goes on with others instead.
-    await expect(shell.chat(page).getByRole("button", { name: "Add people or bots" })).toHaveCount(0);
+    // A direct chat has no Invite: it goes on with others instead.
+    await expect(shell.chat(page).getByRole("button", { name: /^Invite/u })).toHaveCount(0);
     const noted = page.waitForResponse((response) => new URL(response.url()).pathname === `/api${home!.path}/chats/${direct.id}/hand-over-note`);
     await shell.chat(page).getByRole("button", { name: "Continue with others…" }).click();
     expect((await noted).status()).toBe(200);
-    const newChat = page.getByRole("region", { name: "New chat" });
-    await expect(newChat.getByRole("heading", { name: "Continue with others" })).toBeVisible();
-    await expect(newChat.getByText("Your chat with Chef stays as it is.", { exact: false })).toBeVisible();
+    // New room, Public, saying Chef comes along with its note; the room needs a name.
+    const newRoom = page.getByRole("dialog", { name: "New room" });
+    await expect(newRoom.getByRole("status")).toHaveText("Chef comes along, and its note for the others is ready to send.");
+    await expect(newRoom.getByRole("radio", { name: /^Public/u })).toBeChecked();
+    await newRoom.getByRole("textbox", { name: "Name" }).fill(`Dinner ${home.stamp}`);
+    await shots(page, testInfo, "continue-with-others", () => expect(newRoom.getByRole("status")).toBeVisible());
+
+    // Create: the room, with its maker and Chef, opens with the note in its composer, which the owner adds a line to
+    // and sends as their own message after the start line.
+    const started = page.waitForResponse((response) => response.request().method() === "POST" && new URL(response.url()).pathname === `/api${home!.path}/chats`);
+    await newRoom.getByRole("button", { name: "Create", exact: true }).click();
+    const { chat } = await (await started).json();
+    expect([chat.kind, chat.title]).toEqual(["public", `Dinner ${home.stamp}`]);
+    expect(chat.people.map((person: { userId: string }) => String(person.userId))).toEqual([home.owner]);
+    expect(chat.bots.map((bot: { botId: string }) => String(bot.botId))).toEqual([home.chef]);
+    await expect(page).toHaveURL(new RegExp(`[?&]chat=${chat.id}\\b`, "u"));
     const note = "Continuing from my chat with Chef: we were on \"Dinner for six on Saturday\". Can you all help from here?";
     await expect(shell.composer(page)).toHaveValue(note);
-    await expect(newChat.getByRole("button", { name: "Start", exact: true })).toBeDisabled();
-    await expect(newChat.locator(".mb-new-chat__chip")).toHaveText([/Chef/u]);
-    await expect(newChat.getByRole("radio", { name: /^Public/u })).toBeChecked();
-
-    // Ben joins the To: line; the owner adds a line to the note and sends it as their own first message.
-    await newChat.getByRole("textbox", { name: "Add people and bots" }).fill("Ben");
-    await newChat.getByRole("listbox", { name: "People and bots" }).getByRole("option", { name: /Ben Rossi/u }).click();
-    await expect(newChat.getByRole("button", { name: "Start", exact: true })).toBeEnabled();
-    await shots(page, testInfo, "continue-with-others", () => expect.poll(() => composerFits(page)).toBe(true));
+    await expect.poll(() => composerFits(page)).toBe(true);
     await shell.composer(page).fill(`${note} Ben, can you bring wine?`);
-    const started = page.waitForResponse((response) => response.request().method() === "POST" && new URL(response.url()).pathname === `/api${home!.path}/chats`);
-    const noteSent = answered(page, "POST", /\/chats\/\d+\/messages$/u);
+    const noteSent = answered(page, "POST", new RegExp(`/chats/${chat.id}/messages$`, "u"));
     await shell.composer(page).press("Enter");
-    const { chat } = await (await started).json();
-    expect(chat.kind).toBe("public");
-    expect(chat.people.map((person: { userId: string }) => String(person.userId)).sort()).toEqual([home.owner, home.ben].sort());
-    expect(chat.bots.map((bot: { botId: string }) => String(bot.botId))).toEqual([home.chef]);
     await expect(message(page, "Ben, can you bring wine?")).toBeVisible();
     expect((await noteSent).ok()).toBe(true);
-    const [first] = await knex("messages").where({ conversation_id: chat.id, role: "user" }).orderBy("id");
-    expect([String(first.author_user_id), first.body.text]).toEqual([home.owner, `${note} Ben, can you bring wine?`]);
+    const said = await knex("messages").where({ conversation_id: chat.id, role: "user" }).orderBy("id");
+    expect(said.map((row) => [String(row.author_user_id), row.kind, row.body.text]).slice(0, 2), "the start line, then the note")
+      .toEqual([[home.owner, "event", expect.stringMatching(/ started this room\.$/u)], [home.owner, "text", `${note} Ben, can you bring wine?`]]);
 
     // The direct chat is as it was: the owner's with Chef alone.
     expect(await knex("chat_people").where({ conversation_id: direct.id }).pluck("user_id").then((ids) => ids.map(String))).toEqual([home.owner]);
@@ -307,7 +281,7 @@ test("Continue with others takes a direct chat on into a new Public chat, starti
   }
 });
 
-test("on a phone, New chat's message box is as tall as the note needs, and New chat's Start line stays above it", async ({ page }, testInfo) => {
+test("on a phone, the composer is as tall as Continue with others' note needs", async ({ page }, testInfo) => {
   const knex = connectTestDb();
   let home: Home | null = null;
   try {
@@ -319,29 +293,30 @@ test("on a phone, New chat's message box is as tall as the note needs, and New c
     ] });
     await openShell(page, `?chat=${direct.id}`, home.path);
     await shell.chat(page).getByRole("button", { name: "Continue with others…" }).click();
+    const newRoom = page.getByRole("dialog", { name: "New room" });
+    await newRoom.getByRole("textbox", { name: "Name" }).fill(`Dinner ${home.stamp}`);
+    await newRoom.getByRole("button", { name: "Create", exact: true }).click();
     await expect(shell.composer(page)).toHaveValue(/^Continuing from my chat with Chef:/u);
-    // On a wide window the note fits on one line beside the buttons.
-    await expect.poll(() => shell.composer(page).evaluate((field) => field.offsetHeight)).toBe(22);
-    expect(await composerFits(page)).toBe(true);
+    // On a wide window the box is as tall as the note needs there.
+    await expect.poll(() => composerFits(page)).toBe(true);
+    const wide = await shell.composer(page).evaluate((field: HTMLTextAreaElement) => field.offsetHeight);
 
-    // The window narrowed to a phone's: the box takes the lines the note needs there, no more, and the Start line
-    // (its hint and Start) stays above it; widened again, it's one line again.
+    // The window narrowed to a phone's: the box takes the lines the note needs there, more than on the wide window, no
+    // more; widened again, it's as it was.
     const size = page.viewportSize();
     await page.setViewportSize({ width: 390, height: 844 });
-    await expect.poll(() => shell.composer(page).evaluate((field) => field.offsetHeight)).toBeGreaterThan(22);
+    await expect.poll(() => shell.composer(page).evaluate((field: HTMLTextAreaElement) => field.offsetHeight)).toBeGreaterThan(wide);
     await expect.poll(() => composerFits(page), "as tall as the note needs at a phone's width").toBe(true);
-    await expect.poll(() => startLineHidden(page), "the Start line shows above the message box").toBe("");
     if (size) await page.setViewportSize(size);
-    await expect.poll(() => shell.composer(page).evaluate((field) => field.offsetHeight)).toBe(22);
+    await expect.poll(() => shell.composer(page).evaluate((field: HTMLTextAreaElement) => field.offsetHeight)).toBe(wide);
 
-    // On the phone, the person makes the note longer: six lines, and the Start line still above the box.
+    // On the phone, the person makes the note longer: as tall as it needs, up to six lines, and in view.
     await page.setViewportSize({ width: 390, height: 844 });
     const longer = `${await shell.composer(page).inputValue()} Ben, can you bring the wine and the bread? Carla said she'd do a salad, ` +
       "and I'll ask Chef for a shopping list for the risotto and the tart once we know who's coming. Starts at eight.";
     await shell.composer(page).fill(longer);
     await expect.poll(() => composerFits(page), "as tall as the longer note needs").toBe(true);
-    await expect.poll(() => startLineHidden(page), "the Start line shows above the taller message box").toBe("");
-    await expect(page.getByRole("region", { name: "New chat" }).locator(".mb-new-chat__hint")).toBeInViewport();
+    await expect(shell.composer(page)).toBeInViewport();
     for (const scheme of ["light", "dark"] as const) {
       await page.emulateMedia({ colorScheme: scheme, reducedMotion: "reduce" });
       await expect(page.locator(".v-application")).toHaveClass(new RegExp(`\\bv-theme--(workspace-)?${scheme}\\b`, "u"));

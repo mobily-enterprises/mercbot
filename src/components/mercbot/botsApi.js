@@ -2,7 +2,7 @@ import { createHttpClient } from "@jskit-ai/http-runtime/client";
 import { AUTH_PATHS } from "@jskit-ai/auth-core/shared/authPaths";
 import { homeRoutes } from "./homeApi.js";
 
-// Client for the home's bots (D-112: members of the home, like people, in any number of chats): the Team page's list,
+// Client for the home's bots (D-112: members of the home, like people, in any number of chats): the sidebar's Bots,
 // one bot, Add bots, templates and teams, and a bot's own Details (instructions, knowledge, memory, template, library),
 // and the home's notes. What is said in chats, and a chat's members, are chatsApi.js's.
 const client = createHttpClient({ credentials: "include", csrf: { sessionPath: AUTH_PATHS.SESSION } });
@@ -11,9 +11,9 @@ const client = createHttpClient({ credentials: "include", csrf: { sessionPath: A
 const { request, post, patch, remove } = homeRoutes(client);
 
 export const botsApi = {
-  // The home's bots as Team lists them ({ bots }), archived ones too (D-108).
+  // The home's bots as Bots lists them ({ bots }), archived ones too (D-108).
   list: () => request("/bots"),
-  // One bot as Team lists it: { bot }.
+  // One bot as Bots lists it: { bot }.
   bot: (botId) => request(`/bots/${botId}`),
   search: (query) => request(`/search?q=${encodeURIComponent(query)}`),
   // The "/" picker's skills in a chat: Mercbot's pickable ones, and the person's own only in a Private chat whose one

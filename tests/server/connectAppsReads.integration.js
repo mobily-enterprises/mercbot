@@ -203,10 +203,13 @@ test("a turn and the \"/\" picker list the person's skills without their instruc
   cleanup.push(() => knex("user_skills").whereIn("id", skills.map((row) => row.id)).del());
   const instructionsRead = (statements) => statements.filter((statement) => /"instructions"|user_skills"?\.\*|select \*/iu.test(statement.sql));
 
-  // A person's own skills are used only in a Private chat whose only member is them (D15, O24), never in their direct
-  // chat, which is Public.
-  await replyTo("What can you do?");
+  // A person's own skills are used only in a Private chat whose only member is them (D15, O24): their direct chat with a
+  // bot, which is Private, or a room of theirs alone; never in a Public chat.
+  const { id: kitchen } = await seedChat(knex, { homeId, title: "Kitchen", people: [pat], bots: [bot.id] });
+  await replyTo("What can you do?", /^$/u, kitchen);
   assert.doesNotMatch(turn.state, /Skill 01/u, "not in a Public chat");
+  await replyTo("What can you do?");
+  assert.match(turn.state, /The person's own skills \(use read_skill\): Skill 01 /u, "in their direct chat, theirs alone");
   const { id: alone } = await seedChat(knex, { homeId, kind: "private", title: "Just me", people: [pat], bots: [bot.id] });
   const turnReads = await replyTo("What can you do?", /user_skills/u, alone);
   assert.match(turn.state, /The person's own skills \(use read_skill\): Skill 01 \(Does job 1\); [^\n]*Skill 30 \(Does job 30\)\./u);
@@ -214,18 +217,19 @@ test("a turn and the \"/\" picker list the person's skills without their instruc
   assert.deepEqual(instructionsRead(turnReads), [], "a turn lists skills without their instructions");
   assert.equal(turnReads.length, 1, "in one read of the first 30");
 
-  // The "/" picker offers them by the same rule: in that Private chat, never in their direct chat, a Private chat with
-  // someone else, or without a chat; and a message that picks one keeps it only where it's offered.
+  // The "/" picker offers them by the same rule: in that Private chat and their direct chat, never in a Public chat, a
+  // Private chat with someone else, or without a chat; and a message that picks one keeps it only where it's offered.
   const ownIn = async (chatId) => (await bots.skillsFor(chatId, as)).skills.filter((skill) => skill.own).map((skill) => skill.name);
   const { id: withLee } = await seedChat(knex, { homeId, kind: "private", title: "Pat and Lee", people: [pat, lee], bots: [bot.id] });
-  assert.deepEqual([await ownIn(bot.conversation_id), await ownIn(withLee), await ownIn(undefined)], [[], [], []]);
+  assert.deepEqual([await ownIn(kitchen), await ownIn(withLee), await ownIn(undefined)], [[], [], []]);
+  assert.ok((await ownIn(bot.conversation_id)).includes("Skill 01"), "their direct chat offers them");
   assert.ok((await ownIn(withLee)).length === 0 && (await bots.skillsFor(withLee, as)).skills.length > 0, "Mercbot's skills are still offered");
   let offered = null;
   const pickerReads = await statementsDuring(knex, async () => { offered = await bots.skillsFor(alone, as); }, /user_skills/u);
   const own = offered.skills.filter((skill) => skill.own).map((skill) => skill.name);
   assert.ok(own.includes("Skill 01") && own.includes("Skill 35"), "the picker offers every skill of theirs");
-  const elsewhere = await bots.chat.sendMessage(bot.conversation_id, { text: `Please <@skill:u-${skills[0].id}>` }, as);
-  assert.deepEqual(elsewhere.messages.at(-1).body.skills, [], "not kept in their direct chat, which is Public");
+  const elsewhere = await bots.chat.sendMessage(kitchen, { text: `Please <@skill:u-${skills[0].id}>` }, as);
+  assert.deepEqual(elsewhere.messages.at(-1).body.skills, [], "not kept in a Public chat");
   const picked = String(skills[2].id);
   let message = null;
   const sendReads = await statementsDuring(knex, async () => { message = await bots.chat.sendMessage(alone, { text: `Please <@skill:u-${picked}>` }, as); }, /user_skills/u);

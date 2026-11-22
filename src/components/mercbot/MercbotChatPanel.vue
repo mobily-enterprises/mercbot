@@ -2,15 +2,13 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import MercbotAvatar from "./MercbotAvatar.vue";
 import MercbotChatAvatar from "./MercbotChatAvatar.vue";
-import MercbotNewChat from "./MercbotNewChat.vue";
 import MercbotCallBar from "./MercbotCallBar.vue";
-import MercbotContextMenu from "./MercbotContextMenu.vue";
-import MercbotConfirmDialog from "./MercbotConfirmDialog.vue";
 import MercbotTooltip from "./MercbotTooltip.vue";
 import { mentionBotsOf, mentionPeopleOf, soleBotOf, useComposerTokens } from "./useComposerTokens.js";
 import { hasSeveral, initialsOf } from "./messageAuthors.js";
-import { chatSubtitle, chatTitle, directBotOf, isDirect, kindIcon, kindLabel, kindMeaning, publicNotice } from "./chatView.js";
-import { addPersonQuestion, chatRights } from "./chatMenus.js";
+import { chatSubtitle, chatTitle, directBotOf, directLine, isDirect, kindIcon, kindLabel, kindMeaning, publicNotice } from "./chatView.js";
+import { isRoom } from "./chatDirectory.js";
+import { chatRights } from "./chatMenus.js";
 import { useDictation } from "./useDictation.js";
 import { useFindInChat } from "./useFindInChat.js";
 import { formatSize } from "./filesApi.js";
@@ -25,14 +23,15 @@ import MercbotTimeline from "./MercbotTimeline.vue";
 import MercbotArchivedBotBanner from "./MercbotArchivedBotBanner.vue";
 import MercbotPageView from "./MercbotPageView.vue";
 
-// Chat panel (D-112, plan 4.4, 4.6): the open chat's header (who's in it and whether it's Public or Private), timeline
-// and composer, whose line says who can read what's written; New chat in its place while it's open; and with no chat
-// open, where to start (D4). Also find in chat, add selection and mic errors.
+// Chat panel (D-112, plan 4.4, 4.6): the open chat's header (who's in it, whether it's Public or Private, and a room's
+// Invite), timeline and composer, whose line says who can read what's written; and with no chat open, where to start
+// (D4). Also find in chat, add selection and mic errors. A public room the person isn't in opens to read and write:
+// their first message puts them in it.
 const props = defineProps({
   // The open chat's row, or null.
   chat: { type: Object, default: null },
   messages: { type: Array, required: true },
-  // The home's people and bots (useTeam), null while they load: New chat's choices, the Add menu, and authors.
+  // The home's people and bots (useTeam), null while they load: the timeline's authors and cards.
   people: { type: Array, default: null },
   teamBots: { type: Array, default: () => [] },
   homeName: { type: String, default: "this home" },
@@ -46,9 +45,6 @@ const props = defineProps({
   draft: { type: String, default: "" },
   columnWidth: { type: Number, required: true },
   findOpen: { type: Boolean, default: false },
-  // New chat's choices while it's open ({ kind, people, bots, title }), otherwise null.
-  newChat: { type: Object, default: null },
-  starting: { type: Boolean, default: false },
   statusBots: { type: Array, default: () => [] },
   unreadAfter: { type: String, default: null },
   // The signed-in person: their own messages are on the right.
@@ -68,72 +64,48 @@ const emit = defineEmits([
   "react", "copy", "copy-image", "retry", "teach", "update:draft", "answer",
   "take-over", "use-computer", "secure-form", "settle-draft", "manage-rules", "settle-handover", "open-skill", "cancel-request", "discuss",
   "failure", "open-page", "close-page", "open-direct",
-  "new-chat-change", "new-chat-close", "new-chat-start", "new-chat-join", "new-chat", "new-bot", "team", "menu",
-  "unarchive-bot", "unarchive-chat", "join", "add-member", "continue-with-others"
+  "new-chat", "new-bot", "menu", "unarchive-bot", "unarchive-chat", "invite", "continue-with-others"
 ]);
 
 const chatId = computed(() => props.chat?.id || "");
 const title = computed(() => (props.chat ? chatTitle(props.chat, props.me) : ""));
-const writing = computed(() => Boolean(props.newChat) || Boolean(props.chat));
+const writing = computed(() => Boolean(props.chat));
 // A chat's one bot: its colour, its "/" skills, teaching it a task.
-const soleBot = computed(() => (props.newChat ? null : soleBotOf(props.chat)));
-const liveBots = computed(() => (props.newChat || !props.chat ? 0 : props.chat.bots.filter((bot) => !bot.archived).length));
-const directBot = computed(() => (props.newChat ? null : directBotOf(props.chat)));
+const soleBot = computed(() => soleBotOf(props.chat));
+const liveBots = computed(() => (props.chat ? props.chat.bots.filter((bot) => !bot.archived).length : 0));
+const directBot = computed(() => directBotOf(props.chat));
 // A direct chat with a bot that's archived (D-108) is read-only until it's back.
 const archivedBot = computed(() => {
-  if (!isDirect(props.chat) || props.newChat) return null;
+  if (!isDirect(props.chat)) return null;
   return props.teamBots.find((bot) => String(bot.id) === String(props.chat.directBotId) && bot.archivedAt) || null;
 });
 const may = computed(() => (props.chat ? chatRights(props.chat, { me: props.me, manages: props.manages }) : {}));
 
 // Where the composer stands: a banner in its place for a chat that can't be written in now.
 const blocked = computed(() => {
-  if (props.newChat || !props.chat) return "";
+  if (!props.chat) return "";
   if (props.chat.archivedAt) return "archived";
   if (archivedBot.value) return "bot-archived";
-  if (props.chat.visiting) return "visiting";
   return "";
 });
 
-// The first-time notice above a public chat's composer (plan 8): once per device, until dismissed.
+// The first-time notice above a public room's composer (plan 8): once per device, until dismissed. A direct chat is
+// private.
 const notice = computed(() => (
-  props.chat && !props.newChat && !blocked.value && props.chat.kind !== "private" && !shellPreferences.publicNoticeSeen
+  props.chat && !blocked.value && isRoom(props.chat) && props.chat.kind !== "private" && !shellPreferences.publicNoticeSeen
     ? publicNotice(props.homeName, props.chat)
     : null
 ));
 
-// + Add (plan 4.4): the home's people and active bots not in the chat yet. A direct chat takes no one else, the
-// everyone chat has everyone already, and only the chat's people add to it.
-const canAdd = computed(() => Boolean(props.chat) && !props.newChat && !isDirect(props.chat) && !blocked.value);
-// A direct chat goes on with others in a new chat instead (D-114), its person's alone.
-const canContinue = computed(() => Boolean(props.chat) && !props.newChat && isDirect(props.chat) && !blocked.value);
-const addMenu = ref({ open: false, target: [0, 0] });
-const addItems = computed(() => {
-  if (!props.chat) return [];
-  const peopleIn = new Set(props.chat.people.map((person) => String(person.userId)));
-  const botsIn = new Set(props.chat.bots.map((bot) => String(bot.botId)));
-  const people = (props.people || []).filter((person) => !peopleIn.has(String(person.id)))
-    .map((person) => ({ title: person.name, icon: "$person", run: () => addPerson(person) }));
-  const bots = props.teamBots.filter((bot) => !bot.archivedAt && !botsIn.has(String(bot.id)))
-    .map((bot) => ({ title: bot.name, icon: "$smartToy", run: () => emit("add-member", { kind: "bot", id: String(bot.id) }) }));
-  const items = [...people, ...(people.length && bots.length ? [{ divider: true }] : []), ...bots];
-  return items.length ? items : [{ title: "Everyone's in this chat already", disabled: true, run: () => {} }];
+// Invite (plan 4.6): a private room's people bring people and bots in; anyone brings a bot into a public room. A direct
+// chat, with a bot or with a person, takes no one else.
+const inviteLabel = computed(() => {
+  if (!props.chat || blocked.value || !isRoom(props.chat)) return "";
+  if (props.chat.kind === "private") return may.value.addPeople ? "Invite" : "";
+  return may.value.addBots ? "Invite a bot" : "";
 });
-// A person into a private chat is asked about first (they'll read all of it); into a public one, at once.
-const addingPerson = ref(null);
-const addQuestion = computed(() => (addingPerson.value && props.chat ? addPersonQuestion(props.chat, title.value, addingPerson.value.name) : null));
-function addPerson(person) {
-  if (props.chat && addPersonQuestion(props.chat, title.value, person.name)) addingPerson.value = person;
-  else emit("add-member", { kind: "person", id: String(person.id) });
-}
-function confirmAddPerson() {
-  emit("add-member", { kind: "person", id: String(addingPerson.value.id) });
-  addingPerson.value = null;
-}
-function openAddMenu(event) {
-  const box = event.currentTarget.getBoundingClientRect();
-  addMenu.value = { open: true, target: [box.left, box.bottom + 4] };
-}
+// A direct chat with a bot goes on with others in a new room instead (D-114), its person's alone.
+const canContinue = computed(() => Boolean(props.chat) && isDirect(props.chat) && !blocked.value);
 
 // A short confirmation pill at the bottom right of the chat panel.
 const toast = ref("");
@@ -169,7 +141,6 @@ const composerPlaceholder = computed(() => {
   if (dictating.value) return "Listening…";
   if (replyTarget.value) return "Write your reply";
   if (attachments.value.length) return "Add a note, or just send";
-  if (props.newChat) return "Write the first message";
   return props.placeholder || "Write a message";
 });
 
@@ -178,18 +149,6 @@ const { measureLines, inputHeight } =
 
 const { awayFromBottom, unseen, dockHeight, updateScrollState, scrollToBottom, showMessage } =
   useChatScroll({ scroller, column, dock, messages: () => props.messages, status: () => props.status, me: () => props.me });
-
-// New chat's Start line (its hint and Start) stays above the message box as the box grows, as a long first message
-// makes it on a phone: the column leaves room under it for the box (dockHeight), and the line is scrolled into it.
-watch(dockHeight, () => {
-  if (props.newChat) nextTick(keepStartLineClear);
-});
-function keepStartLineClear() {
-  const start = column.value?.querySelector(".mb-new-chat__start");
-  if (!start || !dock.value || !scroller.value) return;
-  const covered = start.getBoundingClientRect().bottom - dock.value.getBoundingClientRect().top;
-  if (covered > 0) scroller.value.scrollBy({ top: Math.ceil(covered) + 8 });
-}
 
 // A chat opens on its newest page: scrolling near the top reads the page before and puts
 // it above, and the reader stays on the message they were reading.
@@ -226,21 +185,15 @@ watch(chatId, () => {
 });
 
 // Mentions and skills in the composer are tokens (useComposerTokens): @ in a chat of several, "/" with one bot.
-const newChatBots = computed(() => (props.newChat?.bots || [])
-  .map((id) => props.teamBots.find((bot) => String(bot.id) === id))
-  .filter(Boolean)
-  .map((bot) => ({ id: String(bot.id), name: bot.name, color: bot.color, shape: bot.shape, archivedAt: null })));
-const several = computed(() => (props.newChat ? props.newChat.people.length + props.newChat.bots.length > 1 : hasSeveral(props.chat)));
-const mentionBots = computed(() => (props.newChat ? newChatBots.value : mentionBotsOf(props.chat)));
-// The people @ offers (D-114): the chat's others, or New chat's To: line.
-const mentionPeople = computed(() => (props.newChat
-  ? props.newChat.people.map((id) => (props.people || []).find((person) => String(person.id) === id)).filter(Boolean).map((person) => ({ id: String(person.id), name: person.name }))
-  : mentionPeopleOf(props.chat, props.me)));
+const several = computed(() => hasSeveral(props.chat));
+const mentionBots = computed(() => mentionBotsOf(props.chat));
+// The people @ offers (D-114): the chat's others.
+const mentionPeople = computed(() => mentionPeopleOf(props.chat, props.me));
 // In a chat of several, the mic is the round accent button.
 const filledMic = computed(() => several.value && !hasContent.value);
 const composerTokens = useComposerTokens({ draft, input, several, mentionBots, mentionPeople, chatId: () => chatId.value || null });
 const { tokens, mention, slash, skillRows, mentionRows, updateMention, insertSkill, insertMention, snapCaret, mirrorParts, withMarkers } = composerTokens;
-const tokenColor = computed(() => soleBot.value?.color || newChatBots.value[0]?.color || undefined);
+const tokenColor = computed(() => soleBot.value?.color || undefined);
 
 const mirror = ref(null);
 function syncMirror() {
@@ -248,18 +201,13 @@ function syncMirror() {
 }
 
 function send() {
-  // Enter on an empty composer starts New chat empty.
-  if (!hasContent.value) {
-    if (props.newChat) emit("new-chat-start");
-    return;
-  }
+  if (!hasContent.value) return;
   // Sending always goes to the bottom, wherever the reader was.
   scrollToBottom();
   emit("send", {
     text: withMarkers(draft.value.trim()),
     quotes: [...quotes.value],
-    // New chat's files wait on their `file` until the chat is made (useNewChat).
-    attachments: attachments.value.map(({ name, size, type, text, path, file }) => ({ name, size, type, ...(text ? { text } : {}), ...(path ? { path } : file ? { file } : {}) })),
+    attachments: attachments.value.map(({ name, size, type, text, path }) => ({ name, size, type, ...(text ? { text } : {}), path })),
     replyTo: replyTarget.value ? { id: replyTarget.value.id, text: replyTarget.value.text } : null
   });
   draft.value = "";
@@ -279,7 +227,7 @@ function focusComposer() {
 
 const { addFiles } = useComposerFiles({
   attachments,
-  chat: () => (props.newChat ? null : props.chat),
+  chat: () => props.chat,
   focusComposer,
   onFailure: (error) => emit("failure", error)
 });
@@ -302,7 +250,7 @@ const { findQuery, findTotal, findPosition, stepFind, onFindKeydown } = useFindI
 // A voice conversation is with one bot: a direct chat's.
 const { micError, dictating, calling, canCall, dictationPress, dictationRelease, toggleDictation, startCall, callFailed, callEnded } = useDictation({
   draft,
-  chatId: () => (props.newChat ? null : chatId.value || null),
+  chatId: () => chatId.value || null,
   botId: () => directBot.value?.id ?? null,
   focusComposer,
   voiceEnded: (call) => emit("voice-ended", call)
@@ -322,9 +270,9 @@ defineExpose({ focusComposer, addSelection, startReply, toggleDictation, dictati
 </script>
 
 <template>
-  <main class="mb-chat" :aria-label="chat && !newChat ? title : 'Chat'">
+  <main class="mb-chat" :aria-label="chat ? title : 'Chat'">
     <!-- A phone's chat header (plan 4.6): the drawer, the chat's name and who's in it, and its details. -->
-    <header v-if="phone && chat && !newChat && !page" class="mb-chat__phone-head">
+    <header v-if="phone && chat && !page" class="mb-chat__phone-head">
       <span class="mb-chat__menu">
         <MercbotIconButton icon="$menu" label="Your chats" tone="surface" @click="emit('menu')" />
         <span v-if="otherNews" class="mb-chat__menu-dot" aria-hidden="true" />
@@ -333,17 +281,17 @@ defineExpose({ focusComposer, addSelection, startReply, toggleDictation, dictati
         <span class="mb-chat__phone-name">{{ title }}</span>
         <span class="mb-chat__phone-sub">{{ chatSubtitle(chat, me) }}</span>
       </button>
-      <MercbotIconButton v-if="canContinue" icon="$forkRight" label="Continue with others…" tone="surface" @click="emit('continue-with-others')" />
+      <MercbotIconButton v-if="inviteLabel" icon="$personAdd" :label="inviteLabel" tone="surface" @click="emit('invite')" />
+      <MercbotIconButton v-else-if="canContinue" icon="$forkRight" label="Continue with others…" tone="surface" @click="emit('continue-with-others')" />
       <MercbotIconButton icon="$info" label="Chat details" tone="surface" @click="emit('open-details')" />
     </header>
 
     <!-- With no chat open: where to start (D4). -->
-    <div v-if="!chat && !newChat" class="mb-chat__start" :style="columnStyle">
+    <div v-if="!chat" class="mb-chat__start" :style="columnStyle">
       <h2 class="mb-chat__start-title">No chats yet</h2>
-      <p class="mb-chat__start-text">Start a chat with people and bots in {{ homeName }}, or message someone on your team.</p>
+      <p class="mb-chat__start-text">Start a room in {{ homeName }}, or open a person or a bot in the sidebar to talk with them.</p>
       <div class="mb-chat__start-actions">
-        <v-btn color="primary" variant="flat" prepend-icon="$chat" @click="emit('new-chat')">New chat</v-btn>
-        <v-btn variant="text" prepend-icon="$group" @click="emit('team')">Team</v-btn>
+        <v-btn color="primary" variant="flat" prepend-icon="$chat" @click="emit('new-chat')">New room</v-btn>
         <v-btn variant="text" prepend-icon="$smartToy" @click="emit('new-bot')">Add bots</v-btn>
       </div>
     </div>
@@ -353,25 +301,11 @@ defineExpose({ focusComposer, addSelection, startReply, toggleDictation, dictati
       v-else
       ref="scroller"
       class="mb-chat__scroller"
-      :class="{ 'mb-chat__scroller--covered': page, 'mb-chat__scroller--headed': phone && chat && !newChat }"
+      :class="{ 'mb-chat__scroller--covered': page, 'mb-chat__scroller--headed': phone && chat }"
       @scroll.passive="onScroll"
     >
       <div ref="column" class="mb-chat__column" :style="{ ...columnStyle, paddingBottom: `${dockHeight + 40}px` }">
-        <MercbotNewChat
-          v-if="newChat"
-          :choice="newChat"
-          :people="people || []"
-          :bots="teamBots.filter((bot) => !bot.archivedAt)"
-          :me="me"
-          :home-name="homeName"
-          :starting="starting"
-          @change="emit('new-chat-change', $event)"
-          @close="emit('new-chat-close')"
-          @start="emit('new-chat-start')"
-          @join="emit('new-chat-join', $event)"
-        />
         <MercbotTimeline
-          v-else
           :chat="chat"
           :home-name="homeName"
           :messages="messages"
@@ -425,31 +359,22 @@ defineExpose({ focusComposer, addSelection, startReply, toggleDictation, dictati
 
     <div v-if="!page && writing" class="mb-chat__fade" aria-hidden="true" />
 
-    <!-- The chat's header (plan 4.4): who's in it, Public or Private, + Add, and its details. -->
-    <div v-if="chat && !newChat && !page && !phone" class="mb-chat__head">
+    <!-- The chat's header (plan 4.4): who's in it, Public or Private, a room's Invite, and its details. -->
+    <div v-if="chat && !page && !phone" class="mb-chat__head">
       <button type="button" class="mb-chip" :aria-label="`${title} details`" @click="emit('open-details')">
         <MercbotChatAvatar :chat="chat" :me="me" :size="22" still />
         <span class="mb-chip__text">
           <span class="mb-chip__name">{{ title }}</span>
           <span class="mb-chip__tag">
             <v-icon :icon="kindIcon(chat)" size="11" />
-            {{ kindLabel(chat) }}<template v-if="!isDirect(chat)"> · {{ chatSubtitle(chat, me).split(" · ")[0] }}</template>
+            <template v-if="directLine(chat)">{{ directLine(chat) }}</template>
+            <template v-else>{{ kindLabel(chat) }} · {{ chatSubtitle(chat, me).split(" · ")[0] }}</template>
           </span>
         </span>
         <v-icon icon="$info" size="16" class="mb-chip__info" />
       </button>
-      <MercbotIconButton v-if="canAdd" icon="$personAdd" label="Add people or bots" tone="surface" @click="openAddMenu" />
+      <MercbotIconButton v-if="inviteLabel" icon="$personAdd" :label="inviteLabel" tone="surface" @click="emit('invite')" />
       <MercbotIconButton v-else-if="canContinue" icon="$forkRight" label="Continue with others…" tone="surface" @click="emit('continue-with-others')" />
-      <MercbotContextMenu v-model="addMenu.open" :target="addMenu.target" :items="addItems" />
-      <MercbotConfirmDialog
-        :model-value="Boolean(addQuestion)"
-        :title="addQuestion?.title || ''"
-        :text="addQuestion?.text || ''"
-        :confirm-label="addQuestion?.confirmLabel"
-        :danger="false"
-        @update:model-value="!$event && (addingPerson = null)"
-        @confirm="confirmAddPerson"
-      />
     </div>
 
     <MercbotCallBar
@@ -511,9 +436,8 @@ defineExpose({ focusComposer, addSelection, startReply, toggleDictation, dictati
     </Transition>
 
     <div ref="dock" class="mb-chat__dock" :style="columnStyle">
-      <!-- Scrolled up, a reply that arrives leaves the view where it is and shows in a pill instead. New chat has no
-           latest message to go to, so neither shows over it. -->
-      <div v-if="awayFromBottom && unseen && !page && !newChat" class="mb-chat__to-bottom mb-new-pill" role="status">
+      <!-- Scrolled up, a reply that arrives leaves the view where it is and shows in a pill instead. -->
+      <div v-if="awayFromBottom && unseen && !page" class="mb-chat__to-bottom mb-new-pill" role="status">
         <button type="button" class="mb-new-pill__jump" @click="scrollToBottom('auto')">
           <v-icon icon="$arrowdown" size="16" />
           {{ unseen === 1 ? "1 new message" : `${unseen} new messages` }}
@@ -522,7 +446,7 @@ defineExpose({ focusComposer, addSelection, startReply, toggleDictation, dictati
           <v-icon icon="$close" size="14" />
         </button>
       </div>
-      <div v-else-if="awayFromBottom && !page && !newChat" class="mb-chat__to-bottom">
+      <div v-else-if="awayFromBottom && !page" class="mb-chat__to-bottom">
         <MercbotIconButton
           icon="$arrowdown"
           label="Scroll to the latest message"
@@ -553,11 +477,6 @@ defineExpose({ focusComposer, addSelection, startReply, toggleDictation, dictati
         :home-name="homeName"
         @unarchive="emit('unarchive-bot', archivedBot.id)"
       />
-      <div v-else-if="blocked === 'visiting'" class="mb-chat-banner" role="status">
-        <v-icon icon="$language" size="18" />
-        <span class="mb-chat-banner__text">You're reading a public chat you're not in. Join it to write here.</span>
-        <button type="button" class="mb-chat-banner__action" @click="emit('join')">Join</button>
-      </div>
       <div v-else-if="writing" class="mb-composer" :class="{ 'mb-composer--focused': composerFocused, 'mb-composer--stacked': stacked }">
         <div v-if="replyTarget" class="mb-composer__reply">
           <span class="mb-composer__reply-text">{{ replyTarget.text }}</span>
@@ -644,7 +563,7 @@ defineExpose({ focusComposer, addSelection, startReply, toggleDictation, dictati
               :style="{ height: inputHeight }"
               rows="1"
               :spellcheck="shellPreferences.spellcheck"
-              :aria-label="newChat ? 'First message' : `Message ${title}`"
+              :aria-label="`Message ${title}`"
               :placeholder="composerPlaceholder"
               @keydown="onComposerKeydown"
               @input="updateMention"
@@ -693,7 +612,7 @@ defineExpose({ focusComposer, addSelection, startReply, toggleDictation, dictati
           <textarea ref="measure" class="mb-composer__measure" rows="1" tabindex="-1" aria-hidden="true" />
           <span class="mb-composer__spacer" />
           <!-- The globe or the lock (plan 8): what this chat's kind means, on hover or focus. -->
-          <MercbotTooltip v-if="chat && !newChat" :text="kindMeaning(chat, homeName)" location="top">
+          <MercbotTooltip v-if="chat" :text="kindMeaning(chat, homeName)" location="top">
             <template #default="{ props: tooltipProps }">
               <span v-bind="tooltipProps" class="mb-composer__kind" tabindex="0" :aria-label="`${kindLabel(chat)}: ${kindMeaning(chat, homeName)}`">
                 <v-icon :icon="kindIcon(chat)" size="16" />

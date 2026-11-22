@@ -1,19 +1,20 @@
 import type { Knex } from "knex";
 import type { TestInfo } from "@playwright/test";
-import { connectTestDb, expect, expectRefusal, homeApi, openShell, seedChat, seedMessages, shell, test, type Page } from "./harness";
+import { connectTestDb, expect, expectRefusal, homeApi, openShell, seedChat, seedMessages, shell, sidebarEntry, test, type Page } from "./harness";
 
 // Chats with people in them (D-112), on the Test Preview target, in a home of each test's own with a second person, Ben
 // Rossi, and two bots, Chef and Shopper. A person's own copy has one person who signs in (D-81), so Ben is a member of the
 // home who never opens a page here: what he may open is checked from the owner's side, as the person a chat of his
 // isn't shared with, and through the server (the server's tests read it as him, chatMembers.integration.js and
 // chatVisibility.integration.js). The home's everyone chat is the first tile for everyone in it, and no one leaves it; a
-// public chat of Ben's opens for the owner to read and join, and a private one is a 404 and never listed; New chat is
-// Public unless Private is picked, and the chat's header, composer and details say who can read it; + Add puts a person
-// and a bot in a chat; Team lists people and bots alike, each with a card and [Message]; leaving a public chat keeps it
-// readable, and deleting the last chat leaves the list empty, with Start a chat. Screenshots light, dark and phone (390
-// by 844) are the output: the list with the everyone chat, New chat, a private chat of people and a bot with their
-// messages under their names, its header and composer, Chat details' three tabs, Team, a member's card and the empty
-// list. Each test deletes the home and the person it makes.
+// public room of Ben's is listed faded in the owner's Rooms, opens for them to read, and writing there joins them, and a
+// private one is a 404 and never listed; New room is Public unless Private is picked, needs a name, and a private room
+// opens Invite at once; its header, composer and details say who can read it; Invite a bot puts a bot in a public room;
+// People and Bots list the home's other people and its bots, each opening the person's private chat with them, with
+// their card in the details; leaving a public room leaves it faded, and deleting the last room leaves Rooms empty, with
+// + New room. Screenshots light, dark and phone (390 by 844) are the output: the list with the everyone chat, New room,
+// a private room of people and a bot with their messages under their names, its header and composer, Chat details'
+// three tabs, People and Bots, a member's card and the empty list. Each test deletes the home and the person it makes.
 // Run with: vibe64-helper playwright --target test-app test tests/e2e/chats-people.spec.ts
 // Any refused API call from the page, one with no answer, or JSKIT's error dialog, fails the test (harness.ts).
 test.use({ apiGuard: true });
@@ -81,19 +82,30 @@ const kindLine = {
   public: (home: Home) => `Everyone in ${home.name} can open it, and its bots remember what's said here in their other chats.`,
   private: "Only its members can open it, and nothing in it reaches other chats."
 };
-const addMenu = (page: Page) => shell.chat(page).getByRole("button", { name: "Add people or bots" });
+const inviteButton = (page: Page) => shell.chat(page).getByRole("button", { name: /^Invite/u });
 const chip = (page: Page, title: string) => shell.chat(page).getByRole("button", { name: `${title} details`, exact: true });
 /** The names Chat details lists under People or Bots, the person looking first as "<name> (you)". */
 const memberNames = (details: ReturnType<typeof shell.details>, group: "People" | "Bots") =>
   details.getByRole("region", { name: group }).locator(".mb-chat-details__member-name");
 
-/** New chat, from the sidebar's (+). */
-async function openNewChat(page: Page) {
-  await shell.sidebar(page).getByRole("button", { name: "New chat or bots" }).click();
-  await shell.menuItems(page).filter({ hasText: /^New chat$/u }).click();
-  const newChat = page.getByRole("region", { name: "New chat" });
-  await expect(newChat).toBeVisible();
-  return newChat;
+/** New room, from Rooms' +. */
+async function openNewRoom(page: Page) {
+  await shell.section(page, "Rooms").getByRole("button", { name: "New room", exact: true }).click();
+  const newRoom = page.getByRole("dialog", { name: "New room" });
+  await expect(newRoom.getByRole("heading", { name: "New room" })).toBeVisible();
+  return newRoom;
+}
+
+/** Picks `names` in an open Invite dialog's field, then Add. */
+async function invite(page: Page, dialog: ReturnType<Page["getByRole"]>, field: string, names: string[]) {
+  for (const name of names) {
+    await dialog.getByLabel(field).fill(name);
+    await page.getByRole("option", { name: new RegExp(name, "u") }).click();
+  }
+  // The field's menu closes, so it covers nothing, then Add.
+  await dialog.locator(".mb-invite__note").click();
+  await dialog.getByRole("button", { name: "Add", exact: true }).click();
+  await expect(dialog).toBeHidden();
 }
 
 test("the home's everyone chat is the first tile for everyone in it, and no one leaves it", async ({ page }, testInfo) => {
@@ -143,7 +155,7 @@ test("the home's everyone chat is the first tile for everyone in it, and no one 
   }
 });
 
-test("a public chat is anyone's in the home to read and join; a private one is only its members'", async ({ page }) => {
+test("a public room is anyone's in the home to read, faded until they write there; a private one is only its members'", async ({ page }) => {
   const knex = connectTestDb();
   let home: Home | null = null;
   try {
@@ -159,28 +171,30 @@ test("a public chat is anyone's in the home to read and join; a private one is o
     const listed = (await api.get("/chats")).chats.map((chat: { id: string }) => chat.id);
     expect(listed).not.toContain(garden.id);
     expect(listed).not.toContain(surprise.id);
-    expect((await api.get("/chats/public")).chats.map((chat: { id: string }) => chat.id)).toEqual([garden.id]);
+    const unjoined = await api.get("/chats/public");
+    expect([unjoined.chats.map((chat: { id: string }) => chat.id), unjoined.next ?? null]).toEqual([[garden.id], null]);
 
-    // Neither is in the owner's list; New chat offers the public one to join, never the private one.
+    // In the owner's Rooms the public one is listed faded, saying writing there joins them; the private one isn't there.
     await openShell(page, "", home.path);
-    await expect(shell.chatRow(page, `Garden ${home.stamp}`)).toHaveCount(0);
+    const gardenRow = shell.chatRow(page, `Garden ${home.stamp}`);
+    await expect(gardenRow).toHaveClass(/\bmb-row--faded\b/u);
+    await expect(gardenRow).toHaveAttribute("title", /You're not in it yet: writing there joins you\.$/u);
     await expect(shell.chatRow(page, `Surprise ${home.stamp}, private`)).toHaveCount(0);
-    const newChat = await openNewChat(page);
-    await expect(newChat.getByRole("button", { name: `Join Garden ${home.stamp}` })).toBeVisible();
-    await expect(newChat.getByText(`Surprise ${home.stamp}`)).toHaveCount(0);
-    await newChat.getByRole("button", { name: "Close New chat" }).click();
+    await expect(shell.section(page, "Rooms").getByText(`Surprise ${home.stamp}`)).toHaveCount(0);
 
-    // Opened by its address, the public chat reads, with Join where the composer would be.
-    await page.goto(`${home.path}?chat=${garden.id}`);
+    // Opened, it reads with the composer as usual: no Join step. Writing there joins them, and the row isn't faded.
+    await gardenRow.click();
+    await expect(page).toHaveURL(new RegExp(`[?&]chat=${garden.id}\\b`, "u"));
     await expect(chip(page, `Garden ${home.stamp}`)).toBeVisible();
-    const banner = shell.chat(page).getByRole("status").filter({ hasText: "You're reading a public chat you're not in. Join it to write here." });
-    await expect(banner).toBeVisible();
-    await expect(shell.composer(page)).toHaveCount(0);
-    await banner.getByRole("button", { name: "Join" }).click();
-    await expect(shell.composer(page)).toBeVisible();
-    await expect(shell.chatRow(page, `Garden ${home.stamp}`)).toBeVisible();
+    await expect(shell.chat(page).getByRole("button", { name: "Join", exact: true })).toHaveCount(0);
+    const sent = page.waitForResponse((response) => response.request().method() === "POST" && new URL(response.url()).pathname === `/api${home!.path}/chats/${garden.id}/messages`);
+    await shell.composer(page).fill("Count me in for the weeding.");
+    await shell.composer(page).press("Enter");
+    expect((await sent).ok()).toBe(true);
+    await expect(gardenRow).not.toHaveClass(/\bmb-row--faded\b/u);
     expect(await knex("chat_people").where({ conversation_id: garden.id }).pluck("user_id").then((ids) => ids.map(String).sort()))
       .toEqual([home.owner, home.ben].sort());
+    expect((await api.get("/chats/public")).chats).toEqual([]);
 
     // The private one, by its address: it isn't there for them, and the first chat opens instead.
     expectRefusal(`404 GET /api${home.path}/chats/${surprise.id}`);
@@ -194,7 +208,7 @@ test("a public chat is anyone's in the home to read and join; a private one is o
   }
 });
 
-test("New chat is Public unless Private is picked; a private chat's header, composer and details say who can read it", async ({ page }, testInfo) => {
+test("New room is Public unless Private is picked and needs a name; a private room opens Invite, and its header, composer and details say who can read it", async ({ page }, testInfo) => {
   const knex = connectTestDb();
   let home: Home | null = null;
   try {
@@ -202,41 +216,56 @@ test("New chat is Public unless Private is picked; a private chat's header, comp
     await everyoneChat(knex, home);
     await openShell(page, "", home.path);
 
-    // New chat: Public is chosen, each kind says what it means, and the kind is for good.
-    const newChat = await openNewChat(page);
-    const kinds = newChat.getByRole("radiogroup", { name: "Who can open it" });
+    // New room: Public is chosen, each kind says what it means, and the kind is for good; no To: and no bots.
+    const newRoom = await openNewRoom(page);
+    const kinds = newRoom.getByRole("radiogroup", { name: "Who can open it" });
     await expect(kinds.getByRole("radio", { name: /^Public/u })).toBeChecked();
     await expect(kinds.getByRole("radio", { name: /^Private/u })).not.toBeChecked();
     await expect(kinds.getByText(kindLine.public(home))).toBeVisible();
     await expect(kinds.getByText(kindLine.private)).toBeVisible();
-    await expect(newChat.getByText("You can't change this once the chat has started.")).toBeVisible();
-    await expect(newChat.getByRole("button", { name: "Start", exact: true })).toBeDisabled();
-    await shots(page, testInfo, "new-chat");
+    await expect(newRoom.getByText("You can't change this once the room has started.")).toBeVisible();
+    await expect(newRoom.getByRole("textbox", { name: "Add people and bots" })).toHaveCount(0);
+    await shots(page, testInfo, "new-room");
 
-    // Private, with Ben and Chef, called Kitchen reno.
+    // A room needs a name: said under the field, and nothing is made; the server refuses one without a name too.
+    const making = () => page.waitForResponse((response) => response.request().method() === "POST" && new URL(response.url()).pathname === `/api${home!.path}/chats`);
+    await newRoom.getByRole("button", { name: "Create", exact: true }).click();
+    await expect(newRoom.getByRole("alert")).toHaveText("Give the room a name.");
+    await expect(newRoom.getByRole("textbox", { name: "Name" })).toHaveAttribute("aria-invalid", "true");
+    const unnamed = await (await homeApi(page, home.path)).answer("POST", "/chats", { kind: "public", title: "  ", people: [], bots: [] });
+    expect([unnamed.status(), (await unnamed.json()).code]).toEqual([400, "bots_chat_needs_title"]);
+    expect(await knex("conversations").where({ workspace_id: home.homeId }).count({ count: "*" }).first(), "only the everyone chat").toEqual({ count: "1" });
+
+    // Private, called Kitchen reno: made with its maker alone and its start line, then Invite opens by itself.
     await kinds.locator("label").filter({ hasText: "Private" }).click();
     await expect(kinds.getByRole("radio", { name: /^Private/u })).toBeChecked();
-    const to = newChat.getByRole("textbox", { name: "Add people and bots" });
-    await to.fill("Ben");
-    await newChat.getByRole("listbox", { name: "People and bots" }).getByRole("option", { name: /Ben Rossi/u }).click();
-    await to.fill("Chef");
-    await newChat.getByRole("listbox", { name: "People and bots" }).getByRole("option", { name: /Chef/u }).click();
-    await newChat.getByLabel("Title (optional)").fill("Kitchen reno");
-    const started = page.waitForResponse((response) => response.request().method() === "POST" && new URL(response.url()).pathname === `/api${home!.path}/chats`);
-    await newChat.getByRole("button", { name: "Start", exact: true }).click();
+    await newRoom.getByRole("textbox", { name: "Name" }).fill("Kitchen reno");
+    const started = making();
+    await newRoom.getByRole("button", { name: "Create", exact: true }).click();
     const { chat } = await (await started).json();
-    expect([chat.kind, chat.title]).toEqual(["private", "Kitchen reno"]);
-    expect(chat.people.map((person: { userId: string }) => String(person.userId)).sort()).toEqual([home.owner, home.ben].sort());
-    expect(chat.bots.map((bot: { botId: string }) => String(bot.botId))).toEqual([home.chef]);
+    expect([chat.kind, chat.title, chat.people.map((person: { userId: string }) => String(person.userId)), chat.bots])
+      .toEqual(["private", "Kitchen reno", [home.owner], []]);
     const row = await knex("conversations").where({ id: chat.id }).first();
     expect([row.kind, row.title, String(row.made_by)]).toEqual(["private", "Kitchen reno", home.owner]);
-
-    // Its header and composer: Private, and who exactly can read it; its row has the lock.
+    await expect(newRoom).toBeHidden();
     await expect(page).toHaveURL(new RegExp(`[?&]chat=${chat.id}\\b`, "u"));
+    await expect(shell.chat(page).getByText(/ started this room\.$/u)).toBeVisible();
+
+    // Invite: the home's people and bots not in it yet; Ben and Chef.
+    const inviting = page.getByRole("dialog", { name: "Invite", exact: true });
+    await expect(inviting.getByRole("heading", { name: "Invite", exact: true })).toBeVisible();
+    await expect(inviting.getByText("Whoever you invite to “Kitchen reno” sees everything said here, from its start.")).toBeVisible();
+    await invite(page, inviting, "People and bots", ["Ben Rossi", "Chef"]);
+    await expect.poll(async () => (await knex("chat_people").where({ conversation_id: chat.id }).pluck("user_id")).map(String).sort())
+      .toEqual([home.owner, home.ben].sort());
+    await expect.poll(async () => (await knex("chat_bots").where({ conversation_id: chat.id }).pluck("bot_id")).map(String)).toEqual([home.chef]);
+
+    // Its header and composer: Private, and who exactly can read it; its row has the lock; Invite stays in its header.
     await expect(chip(page, "Kitchen reno")).toContainText("Private · You, Ben and Chef");
     await expect(shell.composer(page)).toHaveAttribute("placeholder", "Only you, Ben and Chef can read this");
     await expect(shell.chat(page).getByLabel(`Private: ${kindLine.private}`)).toBeVisible();
     await expect(shell.chatRow(page, "Kitchen reno, private")).toBeVisible();
+    await expect(inviteButton(page)).toHaveAccessibleName("Invite");
     await expect(shell.chat(page).getByRole("note")).toHaveCount(0);
 
     // Said in it by Ben, the person and Chef: each other member's words under their name, the person's own unlabelled.
@@ -285,7 +314,7 @@ test("New chat is Public unless Private is picked; a private chat's header, comp
   }
 });
 
-test("+ Add puts a person and a bot of the home into a public chat", async ({ page }) => {
+test("Invite a bot puts the home's bots into a public room, never a person", async ({ page }) => {
   const knex = connectTestDb();
   let home: Home | null = null;
   try {
@@ -294,29 +323,33 @@ test("+ Add puts a person and a bot of the home into a public chat", async ({ pa
     await openShell(page, `?chat=${plans.id}`, home.path);
     const title = `Plans ${home.stamp}`;
 
-    // A public chat says so once above its composer, and the composer says who reads it.
+    // A public room says so once above its composer, and the composer says who reads it.
     const notice = shell.chat(page).getByRole("note");
-    await expect(notice).toContainText(`This chat is public. Everyone in ${home.name} can read this · Chef remembers it. Its bots remember what's said here in every chat they're in.`);
+    await expect(notice).toContainText(`This room is public. Everyone in ${home.name} can read this · Chef remembers it. Its bots remember what's said here in every chat they're in.`);
     await notice.getByRole("button", { name: "Got it" }).click();
     await expect(notice).toHaveCount(0);
     await expect(shell.composer(page)).toHaveAttribute("placeholder", `Everyone in ${home.name} can read this · Chef remembers it`);
     await expect(chip(page, title)).toContainText("Public · You and Chef");
 
-    // + Add offers the home's people and bots not in it yet: Ben, then Shopper.
-    await addMenu(page).click();
-    await expect(shell.menuItems(page)).toHaveText(["Ben Rossi", "Shopper"]);
-    await shell.menuItems(page).filter({ hasText: "Ben Rossi" }).click();
-    await expect(chip(page, title)).toContainText("Public · You, Ben and Chef");
-    await addMenu(page).click();
-    await expect(shell.menuItems(page)).toHaveText(["Shopper"]);
-    await shell.menuItems(page).filter({ hasText: "Shopper" }).click();
-    await expect(chip(page, title)).toContainText("Public · You, Ben, Chef and Shopper");
-    await addMenu(page).click();
-    await expect(shell.menuItems(page)).toHaveText(["Everyone's in this chat already"]);
-    await page.keyboard.press("Escape");
+    // Invite a bot: everyone in the home can open the room already, so it offers the home's bots not in it: Shopper.
+    await expect(inviteButton(page)).toHaveAccessibleName("Invite a bot");
+    await inviteButton(page).click();
+    const inviting = page.getByRole("dialog", { name: "Invite a bot" });
+    await expect(inviting.getByText(`Everyone in the home can open “${title}” already. A bot you invite answers here, and can be taken out again.`)).toBeVisible();
+    await inviting.getByLabel("Bots").click();
+    await expect(page.getByRole("option")).toHaveText([/Shopper/u]);
+    await invite(page, inviting, "Bots", ["Shopper"]);
+    await expect(chip(page, title)).toContainText("Public · You, Chef and Shopper");
 
-    expect(await knex("chat_people").where({ conversation_id: plans.id }).pluck("user_id").then((ids) => ids.map(String).sort()))
-      .toEqual([home.owner, home.ben].sort());
+    // Again: every bot is in it already.
+    await inviteButton(page).click();
+    await inviting.getByLabel("Bots").click();
+    await expect(page.getByText("Every bot is in this room already.")).toBeVisible();
+    await page.keyboard.press("Escape");
+    if (await inviting.isVisible()) await inviting.getByRole("button", { name: "Cancel" }).click();
+    await expect(inviting).toBeHidden();
+
+    expect(await knex("chat_people").where({ conversation_id: plans.id }).pluck("user_id").then((ids) => ids.map(String))).toEqual([home.owner]);
     expect(await knex("chat_bots").where({ conversation_id: plans.id }).orderBy("position").pluck("bot_id").then((ids) => ids.map(String)))
       .toEqual([home.chef, home.shopper]);
   } finally {
@@ -325,142 +358,145 @@ test("+ Add puts a person and a bot of the home into a public chat", async ({ pa
   }
 });
 
-test("Team lists the home's people and bots alike, each with a card; a bot's Message opens its direct chat", async ({ page }, testInfo) => {
+test("People and Bots list the home's other people and its bots; each opens the person's private chat with them, with their card", async ({ page }, testInfo) => {
   const knex = connectTestDb();
   let home: Home | null = null;
   try {
     home = await homeWithBen(page, knex);
-    await everyoneChat(knex, home);
+    const everyone = await everyoneChat(knex, home);
     await openShell(page, "", home.path);
-    await shell.sidebar(page).getByRole("button", { name: "Team", exact: true }).click();
-    await expect(page).toHaveURL(/[?&]team=1\b/u);
 
-    // People first, then bots, each with Message but the person themselves.
-    const team = shell.team(page);
-    await expect(team.getByRole("heading", { name: `Team · ${home.name}` })).toBeVisible();
-    const members = team.getByRole("list", { name: "Members" });
-    await expect(members.locator("[data-member]")).toHaveCount(4);
-    await expect(members.locator("[data-member]").first()).toHaveAttribute("data-member", "person");
-    await expect(members.getByRole("button", { name: /\(you\), Owner$/u })).toBeVisible();
-    await expect(members.getByRole("button", { name: "Ben Rossi, Member" })).toBeVisible();
-    await expect(members.getByRole("button", { name: "Chef, Bot · made by you" })).toBeVisible();
-    await expect(members.getByRole("button", { name: "Shopper, Bot · made by you" })).toBeVisible();
-    for (const name of ["Ben Rossi", "Chef", "Shopper"]) await expect(members.getByRole("button", { name: `Message ${name}` })).toBeVisible();
-    await expect(members.getByRole("button", { name: /^Message .+ \(you\)/u })).toHaveCount(0);
-    await shots(page, testInfo, "team");
+    // People: Ben, under "1 more" as the two haven't talked; Bots: Chef and Shopper, by name, under "2 more". The person
+    // themselves isn't listed.
+    const people = shell.section(page, "People");
+    await people.getByRole("button", { name: "1 more" }).click();
+    await expect(people.locator(".mb-row__name")).toHaveText(["Ben Rossi"]);
+    const bots = shell.section(page, "Bots");
+    await bots.getByRole("button", { name: "2 more" }).click();
+    await expect(bots.locator(".mb-row__name")).toHaveText(["Chef", "Shopper"]);
+    await expect(shell.section(page, "Bots").getByRole("button", { name: "Add bots", exact: true })).toBeVisible();
+    await shots(page, testInfo, "people-and-bots", async () => {
+      await shell.chat(page).getByRole("button", { name: "Your chats" }).click();
+      await expect(shell.section(page, "Bots")).toBeVisible();
+    });
+    await openShell(page, "", home.path);
 
-    // A person's card: their role, Message, and the chats you share.
-    await members.getByRole("button", { name: "Ben Rossi, Member" }).click();
-    await expect(page).toHaveURL(new RegExp(`[?&]member=person(%3A|:)${home.ben}\\b`, "u"));
-    const benCard = shell.details(page, "Ben Rossi's card");
-    await expect(benCard.getByRole("heading", { name: "Ben Rossi" })).toBeVisible();
-    await expect(benCard.getByText("Member", { exact: true })).toBeVisible();
-    await expect(benCard.getByRole("button", { name: "Message Ben Rossi" })).toBeVisible();
-    await expect(benCard.getByRole("button", { name: `${home.name}, Public` })).toBeVisible();
+    // Chef's row: the person's direct chat with Chef, made the first time, Private, named after it, taking no one else.
+    const direct = page.waitForResponse((response) => response.request().method() === "POST" && new URL(response.url()).pathname === `/api${home!.path}/bots/${home!.chef}/direct`);
+    await (await sidebarEntry(page, "Bots", "Chef")).click();
+    const { chat } = await (await direct).json();
+    expect([chat.directBotId, chat.kind, chat.title]).toEqual([home.chef, "private", null]);
+    await expect(page).toHaveURL(new RegExp(`[?&]chat=${chat.id}\\b`, "u"));
+    await expect(chip(page, "Chef")).toContainText("Private · only you and Chef");
+    await expect(shell.chatRow(page, "Chef")).toHaveAttribute("aria-current", "page");
+    await expect(inviteButton(page), "a direct chat takes no one else").toHaveCount(0);
 
-    // A bot's card: who made it, Message, the chats you share, and its sections.
-    await members.getByRole("button", { name: "Chef, Bot · made by you" }).click();
+    // Its details are Chef's card: who made it, the chats you share, and its sections; no Message, as its chat is open.
+    await chip(page, "Chef").click();
     const chefCard = shell.details(page, "Chef's card");
     await expect(chefCard.getByText("Bot · made by you")).toBeVisible();
     await expect(chefCard.getByRole("tablist", { name: "Chef's sections" }).getByRole("tab")).toHaveText(["Details", "Files", "Library", "Computer"]);
     await expect(chefCard.getByRole("button", { name: `${home.name}, Public` })).toBeVisible();
-    // At a phone's width the card isn't docked beside Team: it slides over it when a member is tapped.
+    await expect(chefCard.getByRole("button", { name: "Message Chef" })).toHaveCount(0);
     await shots(page, testInfo, "member-card", async () => {
-      await members.getByRole("button", { name: "Chef, Bot · made by you" }).click();
+      if (!(await shell.details(page, "Chef's card").isVisible())) await shell.chat(page).getByRole("button", { name: "Chef details" }).click();
       await expect(shell.details(page, "Chef's card")).toBeVisible();
     });
 
-    // Chef's Message: the person's direct chat with Chef, made the first time, named after it.
-    const direct = page.waitForResponse((response) => response.request().method() === "POST" && new URL(response.url()).pathname === `/api${home!.path}/bots/${home!.chef}/direct`);
-    await page.goto(`${home.path}?team=1`);
-    await shell.team(page).getByRole("button", { name: "Message Chef" }).click();
-    const { chat } = await (await direct).json();
-    expect([chat.directBotId, chat.kind, chat.title]).toEqual([home.chef, "public", null]);
-    await expect(page).toHaveURL(new RegExp(`[?&]chat=${chat.id}\\b`, "u"));
-    await expect(chip(page, "Chef")).toContainText("Public");
-    await expect(shell.chatRow(page, "Chef")).toBeVisible();
-    await expect(shell.chat(page).getByRole("button", { name: "Add people or bots" }), "a direct chat takes no one else").toHaveCount(0);
-
-    // Ben's Message (plan 4.2): the private chat of just the two of them, made the first time, opened again after.
-    const making = (request: { method: () => string, url: () => string }) => request.method() === "POST" && new URL(request.url()).pathname === `/api${home!.path}/chats`;
-    const made = page.waitForResponse((response) => making(response.request()));
-    await page.goto(`${home.path}?team=1`);
-    await shell.team(page).getByRole("button", { name: "Message Ben Rossi" }).click();
-    const { chat: withBen } = await (await made).json();
-    expect([withBen.kind, withBen.directBotId ?? null, withBen.people.map((person: { userId: string }) => String(person.userId)).sort(), withBen.bots])
-      .toEqual(["private", null, [String(home.owner), String(home.ben)].sort(), []]);
+    // Ben's row (plan 4.2): the private chat of just the two of them, made the first time, with his card.
+    const personDirect = `/api${home.path}/people/${home.ben}/direct`;
+    const madeWithBen = page.waitForResponse((response) => response.request().method() === "POST" && new URL(response.url()).pathname === personDirect);
+    await (await sidebarEntry(page, "People", "Ben Rossi")).click();
+    const { chat: withBen } = await (await madeWithBen).json();
+    expect([withBen.kind, withBen.directBotId ?? null, String(withBen.directPerson?.userId), withBen.people.map((person: { userId: string }) => String(person.userId)).sort(), withBen.bots])
+      .toEqual(["private", null, home.ben, [String(home.owner), String(home.ben)].sort(), []]);
     await expect(page).toHaveURL(new RegExp(`[?&]chat=${withBen.id}\\b`, "u"));
-    await expect(chip(page, "Ben")).toContainText("Private");
+    await expect(chip(page, "Ben Rossi")).toContainText("Private · only you and Ben Rossi");
+    await expect(inviteButton(page), "a chat between two people takes no one else").toHaveCount(0);
+    await chip(page, "Ben Rossi").click();
+    const benCard = shell.details(page, "Ben Rossi's card");
+    await expect(benCard.getByRole("heading", { name: "Ben Rossi" })).toBeVisible();
+    await expect(benCard.getByText("Member", { exact: true })).toBeVisible();
+    await expect(benCard.getByRole("button", { name: `${home.name}, Public` })).toBeVisible();
+
+    // His card beside another chat has Message, which opens the same chat again: none is made.
     let madeAgain = 0;
     page.on("request", (request) => {
-      if (making(request)) madeAgain += 1;
+      if (request.method() === "POST" && new URL(request.url()).pathname === personDirect) madeAgain += 1;
     });
-    await page.goto(`${home.path}?team=1`);
-    await shell.team(page).getByRole("button", { name: "Message Ben Rossi" }).click();
+    await page.goto(`${home.path}?chat=${everyone.id}&member=person:${home.ben}`);
+    await shell.details(page, "Ben Rossi's card").getByRole("button", { name: "Message Ben Rossi" }).click();
     await expect(page).toHaveURL(new RegExp(`[?&]chat=${withBen.id}\\b`, "u"));
-    expect(madeAgain, "the same chat, none made").toBe(0);
+    await shell.chatRow(page, "Ben Rossi").click();
+    await expect(shell.chatRow(page, "Ben Rossi")).toHaveAttribute("aria-current", "page");
+    expect(await knex("conversations").where({ workspace_id: home.homeId, direct_person_id: home.ben }).orWhere({ workspace_id: home.homeId, direct_user_id: home.ben }).count({ count: "*" }).first(), "one chat of the two")
+      .toEqual({ count: "1" });
+    expect(madeAgain, "Message asks for the chat, which is there already; its row, once made, asks for nothing").toBe(1);
   } finally {
     await home?.remove();
     await knex.destroy();
   }
 });
 
-test("leaving a public chat keeps it readable; deleting the last chat leaves the list empty, with Start a chat", async ({ page }, testInfo) => {
+test("leaving a public room leaves it faded, and writing there brings you back; deleting the last room leaves Rooms empty, with + New room", async ({ page }, testInfo) => {
   const knex = connectTestDb();
   let home: Home | null = null;
   try {
     home = await homeWithBen(page, knex);
     const title = `Hello ${home.stamp}`;
-    const hello = await seedChat(knex, { homeId: home.homeId, title, people: [home.owner, home.ben], bots: [home.chef], madeBy: home.owner });
+    const hello = await seedChat(knex, { homeId: home.homeId, title, people: [home.owner, home.ben], madeBy: home.owner });
     await openShell(page, `?chat=${hello.id}`, home.path);
     const details = shell.details(page, "Chat details");
     const question = shell.question(page);
+    const row = shell.chatRow(page, title);
 
-    // Leave, asked first: a public chat stays open to them, read-only with Join, and off their list.
+    // Leave, asked first: a public room stays in Rooms, faded, and still open, with its composer.
     await chip(page, title).click();
     await details.getByRole("button", { name: "Leave chat", exact: true }).click();
     await expect(question.locator(".mb-confirm__title")).toHaveText(`Leave “${title}”?`);
-    await expect(question.locator(".mb-confirm__text")).toHaveText("It's public, so you can still open it from New chat and join it again.");
+    await expect(question.locator(".mb-confirm__text")).toHaveText("It's public, so it stays in Rooms, faded, and writing there again brings you back.");
     const left = page.waitForResponse((response) => response.request().method() === "POST" && new URL(response.url()).pathname === `/api${home!.path}/chats/${hello.id}/leave`);
     await question.getByRole("button", { name: "Leave", exact: true }).click();
     expect((await left).ok()).toBe(true);
     expect(await knex("chat_people").where({ conversation_id: hello.id }).pluck("user_id").then((ids) => ids.map(String))).toEqual([home.ben]);
-    await expect(shell.chatRow(page, title)).toHaveCount(0);
-    await expect(shell.sidebar(page).getByText("No chats yet.")).toBeVisible();
-    const visiting = shell.chat(page).getByRole("status").filter({ hasText: "You're reading a public chat you're not in. Join it to write here." });
-    await expect(visiting).toBeVisible();
-    await expect(shell.composer(page)).toHaveCount(0);
+    await expect(row).toHaveClass(/\bmb-row--faded\b/u);
+    await expect(shell.composer(page)).toBeVisible();
+    await expect(shell.chat(page).getByRole("button", { name: "Join", exact: true })).toHaveCount(0);
 
-    // Join again, then Delete, asked first: the chat goes for everyone in it, and nothing is left open.
-    await visiting.getByRole("button", { name: "Join", exact: true }).click();
-    await expect(shell.chatRow(page, title)).toBeVisible();
+    // Writing there brings them back, then Delete, asked first: the room goes for everyone in it.
+    await shell.composer(page).fill("Back again.");
+    await shell.composer(page).press("Enter");
+    await expect(row).not.toHaveClass(/\bmb-row--faded\b/u);
+    await expect.poll(async () => (await knex("chat_people").where({ conversation_id: hello.id }).pluck("user_id")).map(String).sort())
+      .toEqual([home.owner, home.ben].sort());
     if (!(await details.isVisible())) await chip(page, title).click();
     await details.getByRole("button", { name: "Delete chat", exact: true }).click();
     await expect(question.locator(".mb-confirm__title")).toHaveText(`Delete “${title}”?`);
+    await expect(question.locator(".mb-confirm__text")).toHaveText("This chat goes for everyone in it, with its whole history, its files and its bots' computers. Its bots stay in the home. This can't be undone.");
     const deleted = page.waitForResponse((response) => response.request().method() === "DELETE" && new URL(response.url()).pathname === `/api${home!.path}/chats/${hello.id}`);
     await question.getByRole("button", { name: "Delete", exact: true }).click();
     expect((await deleted).ok()).toBe(true);
     expect(await knex("conversations").where({ id: hello.id }).first()).toBeUndefined();
 
-    // The list is empty, saying where to start, and so is the chat panel (D4). No reload: a person with no chats at all
-    // is given their welcome chat when the page next opens (index.vue).
-    await expect(shell.chatRow(page, title)).toHaveCount(0);
-    await expect(shell.sidebar(page).getByText("No chats yet.")).toBeVisible();
-    await expect(shell.sidebar(page).getByRole("button", { name: "Start a chat", exact: true })).toBeVisible();
+    // Rooms is empty, with + New room at its foot, and the chat panel says where to start (D4). No reload: a person with
+    // no chats at all is given their welcome chat when the page next opens (index.vue).
+    await expect(row).toHaveCount(0);
+    const rooms = shell.section(page, "Rooms");
+    await expect(rooms.getByRole("button", { name: "+ New room", exact: true })).toBeVisible();
     const start = shell.chat(page).locator(".mb-chat__start");
     await expect(start.getByRole("heading", { name: "No chats yet" })).toBeVisible();
-    await expect(start).toContainText(`Start a chat with people and bots in ${home.name}, or message someone on your team.`);
-    for (const action of ["New chat", "Team", "Add bots"]) await expect(start.getByRole("button", { name: action, exact: true })).toBeVisible();
+    await expect(start).toContainText(`Start a room in ${home.name}, or open a person or a bot in the sidebar to talk with them.`);
+    for (const action of ["New room", "Add bots"]) await expect(start.getByRole("button", { name: action, exact: true })).toBeVisible();
     // At a phone's width the sidebar is a closed drawer, so the chat panel's start is what shows.
     await shots(page, testInfo, "empty-list", async () => {
       await expect(start.getByRole("heading", { name: "No chats yet" })).toBeVisible();
     });
 
-    // Start a chat: New chat, Public to begin with.
-    await shell.sidebar(page).getByRole("button", { name: "Start a chat", exact: true }).click();
-    const newChat = page.getByRole("region", { name: "New chat" });
-    await expect(newChat.getByRole("radio", { name: /^Public/u })).toBeChecked();
-    await expect(newChat.getByRole("button", { name: `Join ${title}` })).toHaveCount(0);
+    // + New room: New room, Public to begin with.
+    await rooms.getByRole("button", { name: "+ New room", exact: true }).click();
+    const newRoom = page.getByRole("dialog", { name: "New room" });
+    await expect(newRoom.getByRole("radio", { name: /^Public/u })).toBeChecked();
+    await expect(newRoom.getByRole("textbox", { name: "Name" })).toHaveValue("");
   } finally {
     await home?.remove();
     await knex.destroy();

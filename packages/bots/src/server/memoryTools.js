@@ -4,9 +4,12 @@ import { noteRefusal } from "./botActions.js";
 
 // A bot's tools for what it remembers (D-113): recall and read_chat search and read what was said in the chats its
 // turn may read, through the model's reader for the bot in its chat (R1: readable_from, D12), so no tool reaches a
-// chat someone here can't open; tell_everyone asks the person, on a card, to tell everyone in the home something.
+// chat someone here can't open; tell_everyone asks the person, on a card, to tell everyone in the home something;
+// read_further_back moves where the bot reads its own chat from, for a bot invited into a room with a long history.
 
 const PASSWORD_REFUSAL = "That has a password in it, which never goes in a note for everyone. Leave it out.";
+// How many earlier messages read_further_back adds when it isn't told, and the most one call adds.
+export const FURTHER_BACK = Object.freeze({ messages: 100, most: 200 });
 
 /**
  * @param {object} shared
@@ -15,7 +18,7 @@ const PASSWORD_REFUSAL = "That has a password in it, which never goes in a note 
  * @param {object} shared.seat the bot in its chat
  * @param {{ remembers: boolean, tells: boolean, timeZone: string, home: string }} shared.turn whether the turn searches
  *   and reads other chats (a person's chat, not a routine's or a request's run), whether it may ask to tell everyone
- *   (the person's own turn), the person's time zone, and the home's name
+ *   and read its chat further back (the person's own turn), the person's time zone, and the home's name
  * @param {(text: string) => Promise<string>} shared.withoutSecrets the text with the vault's passwords blanked
  * @param {object} shared.call the model's reader
  * @returns {(attempt: (actionId: string, input: object) => Promise<object>) => Record<string, object>} the tools, given
@@ -77,6 +80,23 @@ export function memoryToolsFor({ records, memory, seat, turn, withoutSecrets, ca
     return { found: untrusted(await shown(window)) };
   }
 
+  /**
+   * read_further_back: the bot's seat in this chat reads `messages` more of its earlier messages from its next turn on
+   * (its history, its summary's start and its memory read from there), or says it already reads the whole chat.
+   */
+  async function readFurtherBack({ messages }) {
+    const count = Math.min(FURTHER_BACK.most, Math.max(1, Number(messages) || FURTHER_BACK.messages));
+    const own = seat.chat_bot_id ? await records.chats.chatBot(seat.chat_bot_id, call) : null;
+    if (!own) return { error: "You aren't in this chat, so there's nothing of yours to read further back." };
+    const { whole, moved, left } = await records.chats.readFurtherBack(own, count, call);
+    if (whole) return { read: "You already read this whole chat." };
+    const more = left ? ` ${left} earlier ${left === 1 ? "message is" : "messages are"} still before them: call read_further_back again to read those.` : " That's the whole chat now.";
+    return {
+      read: `From your next turn on, you read ${moved} earlier ${moved === 1 ? "message" : "messages"} of this chat too ` +
+        `(read_chat with this chat shows them now).${more}`
+    };
+  }
+
   /** tell_everyone: a card for the person, asking to tell everyone in the home; never contact details or passwords. */
   async function tellEveryone(attempt, { text }) {
     const note = String(text || "").replace(/\s+/gu, " ").trim();
@@ -121,6 +141,17 @@ export function memoryToolsFor({ records, memory, seat, turn, withoutSecrets, ca
               "It asks the person on a card first; nothing is told until they say yes. Never contact details, numbers or passwords.",
             inputSchema: z.object({ text: z.string().min(3).max(500).describe("What everyone should know, worded for everyone") }),
             execute: (input) => tellEveryone(attempt, input)
+          })),
+          // The same in every chat, so the cached prefix is too (R5): a bot reading its chat whole is told so.
+          readFurtherBack: createTool(Object.freeze({
+            id: "read_further_back",
+            description:
+              "Read further back in this chat: when you joined it after it had started, you read only its latest messages. " +
+              `This adds earlier ones (${FURTHER_BACK.messages} if left out) to what you read from your next turn on. Call it when someone asks you to read further back.`,
+            inputSchema: z.object({
+              messages: z.number().int().min(1).max(FURTHER_BACK.most).optional().describe(`How many earlier messages (${FURTHER_BACK.messages} if left out)`)
+            }),
+            execute: (input) => readFurtherBack(input)
           }))
         }
       : {})

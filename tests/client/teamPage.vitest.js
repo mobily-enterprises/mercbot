@@ -4,19 +4,16 @@ import { createVuetify } from "vuetify";
 import { createMaterialVuetifyOptions } from "@jskit-ai/material-web/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import MercbotMemberCard from "../../src/components/mercbot/MercbotMemberCard.vue";
-import MercbotTeamPage from "../../src/components/mercbot/MercbotTeamPage.vue";
-import extensions from "../../src/components/mercbot/extensions.js";
 import { setCurrentHome } from "../../src/components/mercbot/homeApi.js";
 import { shellPreferences } from "../../src/components/mercbot/shellPreferences.js";
 import { pageAccess } from "../../src/components/mercbot/useBotLibrary.js";
 import { canSwitchRoutine, routineMenuItems, useBotRoutines } from "../../src/components/mercbot/useBotRoutines.js";
 import { theme } from "../../src/theme/index.js";
 
-// Team (D3, plan 4.2) and a member's card: the home's people and bots alike, in every state the page has (loading,
-// failed, just you, people and bots, archived bots with Resume for whoever may), and the card of a person and of a
-// bot, with a bot's sections as they are now: no sharing, notebook, rooms or groups; its files by chat; its computer
-// in the chat, or on Team where to find one; its routines by chat. The routes are a stand-in that records each call
-// and answers what the server would; the parts other screens own are stand-ins that show what they were given.
+// A member's card (D3, plan 4.2): the card of a person and of a bot, with a bot's sections as they are now: no sharing,
+// notebook, rooms or groups; its files by chat; its computer in the chat, or beside another chat where to find one; its
+// routines by chat. The routes are a stand-in that records each call and answers what the server would; the parts other
+// screens own are stand-ins that show what they were given.
 const calls = vi.hoisted(() => []);
 const answers = vi.hoisted(() => ({ byUrl: new Map() }));
 vi.mock("@jskit-ai/http-runtime/client", () => ({
@@ -55,7 +52,6 @@ async function rendered(component, props) {
   return (await renderToString(app)).replaceAll("&#39;", "'").replaceAll("&quot;", "\"").replace(/ data-v-[0-9a-f]+/gu, "");
 }
 const settled = () => new Promise((resolve) => setTimeout(resolve, 0));
-const count = (html, text) => html.split(text).length - 1;
 
 const thisYear = new Date().getFullYear();
 const anna = { id: "1", name: "Anna Rossi", role: "owner", roleLabel: "Owner" };
@@ -68,7 +64,6 @@ const bot = (id, name, extra = {}) => ({
 const chef = bot("7", "Chef");
 const shopper = bot("8", "Shopper", { madeBy: "2", madeByName: "Ben Rossi", template: { tag: "shop", source: "library", description: "does the shopping" } });
 const pulse = bot("9", "Pulse", { archivedAt: `${thisYear}-11-20T10:00:00.000Z`, archivedBy: "Anna Rossi" });
-const theirs = bot("10", "Ledger", { archivedAt: `${thisYear}-11-19T10:00:00.000Z`, canArchive: false });
 const chatRow = (id, title, people, bots, extra = {}) => ({
   id, kind: "public", title, everyone: false, directBotId: null, archivedAt: null, lastActivityAt: `2026-11-2${id.length}T10:00:00Z`,
   people: people.map((person) => ({ userId: person.id, name: person.name })),
@@ -85,78 +80,6 @@ beforeEach(() => {
   setCurrentHome("casa");
   shellPreferences.language = "en-GB";
   shellPreferences.detailsTab = "details";
-});
-
-describe("the Team page", () => {
-  const page = (props) => rendered(MercbotTeamPage, { me: "2", homeName: "Casa", ...props });
-
-  it("shows the rows' shapes while it loads, and no empty words", async () => {
-    const html = await page({ bots: null, people: [ben] });
-    expect(html).toContain("aria-busy=\"true\"");
-    expect(count(html, "mb-team-row--skeleton")).toBe(4);
-    expect(html).not.toContain("Just you");
-    expect(html).not.toContain("didn't load");
-    expect(html, "nobody listed yet").not.toContain("Ben Rossi");
-    expect(html).toContain("Team<span class=\"mb-team-page__home\"> · Casa</span>");
-    expect(html).toMatch(/<button[^>]*mb-team-page__add[^>]*>[\s\S]*Add bots <\/button>/u);
-  });
-
-  it("says when the team didn't load, with Try again", async () => {
-    const html = await page({ bots: null, people: null, failed: true });
-    expect(html).toContain("role=\"alert\"");
-    expect(html).toMatch(/Your team didn't load\.\s*<button[^>]*>Try again<\/button>/u);
-    expect(html).not.toContain("aria-busy");
-    expect(html).not.toContain("Just you");
-  });
-
-  it("lists a home of just you, with nobody to message, and asks for bots", async () => {
-    const html = await page({ bots: [], people: [ben] });
-    expect(html).toContain("Ben Rossi<span class=\"mb-team-row__you\"> (you)</span>");
-    expect(html).toContain("Member");
-    expect(html).not.toContain("aria-label=\"Message");
-    expect(html).toContain("Just you here so far. Add bots to start your team.");
-    expect(html).not.toContain(">Archived<");
-  });
-
-  it("lists people, then bots, alike: [Message] on each but yourself, a bot's maker and what it does", async () => {
-    const html = await page({ bots: [chef, shopper], people: [anna, ben], selected: "bot:7" });
-    const order = ["Anna Rossi", "Ben Rossi", "Chef", "Shopper"].map((name) => html.indexOf(`aria-label="${name}`));
-    expect(order.every((at, index) => at > 0 && (index === 0 || at > order[index - 1])), "people first, then bots").toBe(true);
-    expect(html).toContain("aria-label=\"Anna Rossi, Owner\"");
-    expect(html).toContain("aria-label=\"Message Anna Rossi\"");
-    expect(html, "never yourself").not.toContain("aria-label=\"Message Ben Rossi\"");
-    expect(html).toContain("aria-label=\"Message Chef\"");
-    expect(html).toContain("aria-label=\"Message Shopper\"");
-    expect(html).toContain("Bot · made by Anna Rossi<span class=\"mb-team-row__does\"> · plans our meals</span>");
-    expect(html, "made by the person looking").toContain("Bot · made by you<span class=\"mb-team-row__does\"> · does the shopping</span>");
-    expect(html).toContain("mb-ttag");
-    expect(html).toMatch(/aria-label="Chef, Bot · made by Anna Rossi" aria-current="true"/u);
-    expect(count(html, "aria-current"), "only the open card's row").toBe(1);
-    expect(html).not.toContain("Just you");
-  });
-
-  it("lists the bots that have left under Archived, with Resume only for whoever may, and no [Message]", async () => {
-    const html = await page({ bots: [chef, pulse, theirs], people: [anna, ben] });
-    const archived = html.slice(html.indexOf(">Archived<"));
-    expect(archived).toContain("Pulse");
-    expect(archived).toContain("Bot · left 20 Nov");
-    expect(archived).toContain("Bot · left 19 Nov");
-    expect(archived).toContain("aria-label=\"Resume Pulse\"");
-    expect(archived, "someone else's, for a member").not.toContain("aria-label=\"Resume Ledger\"");
-    expect(html).not.toContain("aria-label=\"Message Pulse\"");
-    expect(html).not.toContain("aria-label=\"Message Ledger\"");
-    expect(html.indexOf("Pulse"), "after the active bots").toBeGreaterThan(html.indexOf("aria-label=\"Message Chef\""));
-  });
-
-  it("shows what a copy built on Mercbot adds beside Add bots, given the home's name", async () => {
-    extensions.teamActions.push({ component: { props: { homeName: String }, render() { return h("button", { "data-invite": this.homeName }, "Invite a person"); } } });
-    try {
-      const html = await page({ bots: [chef], people: [anna, ben] });
-      expect(html).toMatch(/<button data-invite="Casa">Invite a person<\/button>[\s\S]*Add bots/u);
-    } finally {
-      extensions.teamActions.pop();
-    }
-  });
 });
 
 describe("a person's card", () => {
@@ -205,7 +128,7 @@ describe("a bot's card", () => {
     for (const word of FORMER) expect(html, word).not.toContain(word);
   });
 
-  it("reads its routines in every chat on Team, and this chat's from a chat", async () => {
+  it("reads its routines in every chat beside another chat, and this chat's from a chat", async () => {
     await card();
     await settled();
     expect(calls).toContainEqual(["GET", "/api/w/casa/bots/7/routines"]);
@@ -236,7 +159,7 @@ describe("a bot's card", () => {
     expect(await card({ member: { kind: "bot", bot: { ...chef, canArchive: false } }, allBots: [], manages: true })).toContain("Rename Chef");
   });
 
-  it("has its own files and the home's on Team, and this chat's first from a chat", async () => {
+  it("has its own files and the home's beside another chat, and this chat's first from a chat", async () => {
     shellPreferences.detailsTab = "files";
     const team = await card();
     expect(team).toContain("data-chat=\"null\"");
@@ -247,7 +170,7 @@ describe("a bot's card", () => {
     expect(inChat).toContain("data-sections=\"[{\"key\":\"chat\",\"label\":\"This chat\",\"root\":\"/files/chat\"},{\"key\":\"bot\"");
   });
 
-  it("says on Team where its computers are, with the chats to open; from a chat, its computer there", async () => {
+  it("says beside another chat where its computers are, with the chats to open; from a chat, its computer there", async () => {
     shellPreferences.detailsTab = "computer";
     const team = await card();
     expect(team).toContain("Chef has its own computer in each chat it's in. Open one from that chat's details.");
@@ -277,7 +200,7 @@ describe("a bot's routines on its card", () => {
     expect(titles(routine("1", { canResume: true, madeBy: "2" }))).toEqual(["Pause", "Edit", "Delete"]);
   });
 
-  it("are the bot's in every chat on Team, and only this bot's in a chat", async () => {
+  it("are the bot's in every chat beside another chat, and only this bot's in a chat", async () => {
     answers.byUrl.set("GET /api/w/casa/bots/7/routines", { routines: [routine("1"), routine("2", { chatId: "56", chatTitle: "Saturday party" })] });
     answers.byUrl.set("GET /api/w/casa/chats/55/routines", { routines: [routine("1"), routine("3", { botId: "8" })] });
     const failures = [];

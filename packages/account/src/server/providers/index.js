@@ -98,8 +98,9 @@ function standInLayer(layer, baseURL) {
 
 /**
  * A kind of AI as the env sets it up: its provider's layer and key, or null while its type is unset or one it doesn't
- * accept. The key is "" when it's missing. In a test copy with a stand-in model (standInAddress), every kind's layer
- * sends to the stand-in, under /<kind>, with no key of the provider's, and `standIn` is true.
+ * accept. The key is "" when it's missing. In a test copy with a stand-in model (standInAddress), a kind with no key of
+ * its own sends to the stand-in, under /<kind>, and `standIn` is true; a kind given its key (a Preview's, D-118) uses
+ * its provider.
  * @param {import("@jskit-ai/kernel/server/types").RuntimeEnv} env
  * @param {keyof typeof AI_KINDS} kindId
  */
@@ -108,7 +109,7 @@ export function aiKind(env, kindId) {
   const type = settingOf(env, found.providerSetting);
   if (!Object.hasOwn(found.types, type)) return null;
   const standIn = standInAddress(env);
-  if (standIn) {
+  if (standIn && !settingOf(env, found.keySetting)) {
     return { kind: found, layer: standInLayer(found.types[type], `${standIn}/${kindId}`), apiKey: STAND_IN_KEY, standIn: true };
   }
   return { kind: found, layer: found.types[type], apiKey: settingOf(env, found.keySetting), standIn: false };

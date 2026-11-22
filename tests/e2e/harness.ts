@@ -268,7 +268,7 @@ export async function homeApi(page: Page, home = HOME) {
   };
 }
 
-/** The home's bot named `name` (GET /bots, the Team page's list), or a failed expectation naming it. */
+/** The home's bot named `name` (GET /bots, the sidebar's Bots), or a failed expectation naming it. */
 export async function botNamed(page: Page, name: string, home = HOME): Promise<Json> {
   const { bots } = await (await homeApi(page, home)).get("/bots");
   const bot = bots.find((entry: { name: string }) => entry.name === name);
@@ -277,22 +277,23 @@ export async function botNamed(page: Page, name: string, home = HOME): Promise<J
 }
 
 /**
- * A chat made as New chat's [Start] makes it (D-112, D15): Public unless `kind` is "private", the person who asks among
- * its people. Resolves with the chat (the ChatView).
+ * A room made as New room's [Create] makes it (D-112, D15): Public unless `kind` is "private", named `title` (a room
+ * needs one), its maker in it with its start line ("<Name> started this room."), and the people and bots named.
+ * Resolves with the chat (the ChatView).
  */
 export async function makeChat(page: Page, choice: { kind?: "public" | "private"; title?: string | null; people?: string[]; bots?: string[] }, home = HOME): Promise<Json> {
   const { chat } = await (await homeApi(page, home)).post("/chats", { kind: "public", title: null, people: [], bots: [], ...choice });
   return chat;
 }
 
-/** The person's direct chat with a bot, as its [Message] opens it (made on first use). */
+/** The person's direct chat with a bot, as its row in Bots or its card's [Message] opens it (made on first use). */
 export async function directChat(page: Page, botId: string, home = HOME): Promise<Json> {
   const { chat } = await (await homeApi(page, home)).post(`/bots/${botId}/direct`);
   return chat;
 }
 
 /**
- * A home's shell at `query` (?chat=<id>, ?team=1, ?bot=<id>…), past the intro slides a person sees in their first home
+ * A home's shell at `query` (?chat=<id>, ?bot=<id>, &member=bot:<id>…), past the intro slides a person sees in their first home
  * when its welcome chat is made, once the shell shows.
  */
 export async function openShell(page: Page, query = "", home = HOME) {
@@ -306,18 +307,18 @@ export async function openShell(page: Page, query = "", home = HOME) {
   await expect(shown).toBeVisible();
 }
 
-/** The shell's parts as a person finds them (D-112): the chat list, a chat's row, the open chat, Team and Details. */
+/** The shell's parts as a person finds them (D-112): the sidebar, a chat's row, the open chat and Details. */
 export const shell = {
-  /** The sidebar: Team, Files, Apps and the person's chats. */
+  /** The sidebar: Search, Files and Apps, pinned tiles, then Rooms, People and Bots. */
   sidebar: (page: Page) => page.getByRole("navigation", { name: "Chats" }),
+  /** One of the sidebar's sections, each folding by its title and with its +. */
+  section: (page: Page, name: "Rooms" | "People" | "Bots") => shell.sidebar(page).getByRole("region", { name, exact: true }),
   /** A chat's row or pinned tile in the sidebar, by the name it shows ("<title>, private" for a private chat). */
   chatRow: (page: Page, name: string) => shell.sidebar(page).getByRole("button", { name, exact: true }),
-  /** The chat panel: the open chat, New chat, or where to start. */
+  /** The chat panel: the open chat, or where to start. */
   chat: (page: Page) => page.locator("main.mb-chat"),
   /** The open chat's composer. */
   composer: (page: Page) => page.locator("textarea.mb-composer__input"),
-  /** The Team page (D3): the home's people and bots alike. */
-  team: (page: Page) => page.getByRole("region", { name: /^Team/u }),
   /** Details beside what's shown: "Chat details", or "<Name>'s card". */
   details: (page: Page, name: string | RegExp) => page.getByRole("complementary", { name }),
   /** The open context menu's items. */
@@ -325,6 +326,20 @@ export const shell = {
   /** The open question (Archive, Leave, Delete…). */
   question: (page: Page) => page.locator(".v-overlay--active .mb-confirm")
 };
+
+/**
+ * A person's or a bot's row in People or Bots, by their name: one not talked with in the last 14 days is under the
+ * section's "N more", which this opens first.
+ */
+export async function sidebarEntry(page: Page, section: "People" | "Bots", name: string) {
+  const part = shell.section(page, section);
+  const row = part.getByRole("button", { name, exact: true });
+  const more = part.locator("button.mb-more", { hasText: /\d+ more/u });
+  await expect(row.or(more).first()).toBeVisible();
+  if (!(await row.isVisible())) await more.click();
+  await expect(row).toBeVisible();
+  return row;
+}
 
 export { seedChat, seedMessage, seedMessages } from "../support/chatFixtures.mjs";
 export { expect };

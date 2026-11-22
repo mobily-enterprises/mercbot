@@ -1,31 +1,42 @@
-# Chats and your team
+# Rooms, people and bots
 
-Everything you do in Mercbot happens in chats. A home's people and its bots are its members, side by side on the **Team** page, and a chat can have any of them in it: you and one bot, several bots, several people, or people only. This page explains the Team page, starting a chat, Public and Private chats, who answers, mentioning people and reacting, what belongs to a chat, the bots' computers in a chat, members, continuing a chat with others, the everyone chat, organising your chat list, and archiving.
+Everything you do in Mercbot happens in chats. A home's people and its bots are its members, and the sidebar lists them in three sections: **Rooms**, shared places to talk, **People**, everyone else in the home, and **Bots**, the home's bots. This page explains the sidebar, rooms, your private chats with a person or a bot, Public and Private rooms, who answers, mentioning people and reacting, what belongs to a chat, the bots' computers, inviting people and bots, continuing a chat with others, the everyone chat, organising the sidebar, and archiving.
 
-## Your team
+## The sidebar
 
-Select **Team** in the sidebar, above your chats with **Files** and **Apps**. It lists everyone in the home: each person with their role, then each bot with its tag, who made it and what it does.
+At the top of the sidebar are your home, then **Search**, **Files** and **Apps** as small buttons. Below them are your pinned chats, then the three sections:
 
-- **Message** beside a bot opens your chat with it. Beside a person, it opens your private chat with just the two of you, and starts it the first time.
-- Select a person or a bot to open their card beside the list. A person's card shows their role and the **Chats you share**. A bot's card has the same, and its tabs: **Details** (its instructions, Knowledge, apps, routines and archiving), **Files**, **Library** and **Computer**.
-- **Add bots** adds bots to the home. A bot you make on its own greets you in your new chat with it. Bots you add together appear here, and Mercbot's chat with you introduces them, each with **Message**, so you can start a chat with each when you're ready.
-- Bots that have left the home are listed under **Archived**, with **Resume** for the people who can bring them back.
+- **Rooms**: the rooms you're in, then the home's Public rooms you aren't in, faded. **+** beside **Rooms** makes a new room.
+- **People**: everyone else in the home. Select someone to open your private chat with just them.
+- **Bots**: the home's bots, the main bot first. Select one to open your chat with it. **+** beside **Bots** opens **Add bots**. Bots that have left the home are under **Archived bots** at the end.
 
-Your chat list starts empty. A chat appears when you start one, or when a bot writes to you.
+Each row is one line: a face, a name, and small marks. A dot marks something you haven't read, **@** a chat where someone mentioned you since you last read it, a pencil an unsent draft, and **Waiting for you** a chat where a bot needs you. A room shows a globe if it's Public or a lock if it's Private. Point at a row to see its latest message.
 
-## Start a chat
+Select a section's title to fold it away, and again to open it. A folded section still shows what needs you: anything unread, mentioning you, or open. Your device remembers which sections you folded, for each home. People and bots you haven't talked with in the last 14 days are tucked under **N more**; select it to show them.
 
-1. Select **New chat or bots** at the top of the sidebar and choose **New chat**, or press **Ctrl+Alt+G**.
-2. In **To:**, add the people and bots you want. Start typing a name to find one.
-3. Leave it **Public**, or choose **Private** (see below). Under the two choices, New chat says: "You can't change this once the chat has started."
-4. Give it a **Title (optional)** if you like. Without one, it's named after who's in it.
-5. Write your first message in the message box and send it, or select **Start**. Pressing **Enter** with nothing typed starts it empty.
+## Rooms
 
-Below, **Or join a public chat** lists the home's Public chats you aren't in, each with how many people are in it and **Join**.
+A room is a shared place to talk, with any of the home's people and bots in it.
 
-## Public and Private chats
+1. Select **+** beside **Rooms**, or press **Ctrl+Alt+G**. **New room** opens.
+2. Leave it **Public**, or choose **Private** (see below). Under the two choices it says: "You can't change this once the room has started."
+3. Give it a **Name**. A room needs one.
+4. Select **Create**.
 
-Every new chat is **Public** unless you choose **Private** when you start it. New chat says what each means:
+The room opens with you in it and a first line, for example "Anna started this room." Nobody else is in it and no bot answers until you invite them (see [Invite people and bots](#invite-people-and-bots)). A Private room opens **Invite** straight away.
+
+**Writing in a Public room joins it.** A Public room you aren't in is listed faded in **Rooms** (when there are more than three, under **N more public rooms**). Open it to read it; when you write in it, you're in it, and it stops being faded. There's no Join step.
+
+## Your private chats with a person or a bot
+
+- **With a person:** select them under **People**, or **Message** on their card. Your chat with them opens, and starts the first time. Nobody else can be added to it, and no bot is in it.
+- **With a bot:** select it under **Bots**, or **Message** on its card. Your chat with it opens, where it greets you the first time. Nobody else can be added to it. To bring others in, continue it with them (see [Continue with others](#continue-with-others)).
+
+These chats are **private, completely**. The header says, for example, "Private · only you and Chef". Nobody else can open them, find them in search or follow a link to them. A bot never carries what's said there into any other chat, and no bot ever reads a chat between two people. Mercbot's welcome chat and a new bot's greeting are chats with a bot, so they're private too.
+
+## Public and Private rooms
+
+Every new room is **Public** unless you choose **Private** when you make it. New room says what each means:
 
 - **Public:** "Everyone in *your home* can open it, and its bots remember what's said here in their other chats."
 - **Private:** "Only its members can open it, and nothing in it reaches other chats."
@@ -33,15 +44,15 @@ Every new chat is **Public** unless you choose **Private** when you start it. Ne
 | | Public | Private |
 |---|---|---|
 | Who can open it | Everyone in the home, including people who join later | Only its members |
-| What its bots can use | Every Public chat in the home | Every Public chat, this chat, and other Private chats that all of this chat's members are in |
+| What its bots can use | Every Public room in the home | Every Public room, this room, and other Private rooms that all of this room's members are in |
 | Does it reach other chats? | Yes: its bots remember it, and use it in any chat of the home | No: nothing in it reaches a chat someone else can open |
 | Putting it away | Archived, for everyone in it | Hidden, by each member for themselves |
 
-The rule behind this is simple: **a bot in a chat uses only what everyone who can open that chat can also open.** It doesn't matter who has actually looked.
+The rule behind this is simple: **a bot in a chat uses only what everyone who can open that chat can also open.** It doesn't matter who has actually looked. Your private chats with a person or a bot are reached from no other chat at all.
 
-The chat's header shows a globe and **Public**, or a lock and **Private**. The message box says who can read what you write: "Everyone in Rossi family can read this · Chef remembers it" in a Public chat, naming the bots in it, or "Only you and Chef can read this" in a Private one. What the bots remember, and the notes everyone in the home is told, are in [What bots remember](/help/memory). The first time you write in a Public chat, a note above the message box explains what Public means; select **Got it** to dismiss it.
+The room's header shows a globe and **Public**, or a lock and **Private**. The message box says who can read what you write: "Everyone in Rossi family can read this · Chef remembers it" in a Public room, naming the bots in it, or "Only you and Ben can read this" in a Private one. What the bots remember, and the notes everyone in the home is told, are in [What bots remember](/help/memory). The first time you write in a Public room, a note above the message box explains what Public means; select **Got it** to dismiss it.
 
-Chats you don't make with New chat are Public too: your chat with a bot, a new bot's greeting, Mercbot's welcome chat, an app's chat with the Builder and the home's everyone chat. Everyone in the home can open them. For something only you should see, start a Private chat with just you and the bot.
+An app's chat with the Builder and the home's everyone chat are Public rooms too.
 
 ## Who answers
 
@@ -96,20 +107,22 @@ In a chat, each bot has its own computer. Select the chat's name at the top of t
 - **When someone else has control,** the computer says so, for example "Anna has control of Chef's computer. You can still take it over, or hand it back to Chef." Anyone who can open the chat can take it over from them or hand it back to the bot, and the chat's line names who it was taken from ("Ben took over Chef's computer from Anna."). You can also just watch.
 - **Reset** starts that computer afresh, after asking: its browser closes, and what's signed in on it and its website data are cleared. The chat and its files stay. The chat's maker and the home's owners and admins can reset a chat's computers, and in your chat with one bot, you can.
 
-In your chat with one bot, the bot's card has the same on its **Computer** tab. On **Team**, a bot's card says it has its own computer in each chat it's in, and lists the chats you share with it. See [The bots' computer and connected apps](/help/computer-and-apps).
+In your chat with one bot, the bot's card has the same on its **Computer** tab. A bot's card opened from another chat says it has its own computer in each chat it's in, and lists the chats you share with it. See [The bots' computer and connected apps](/help/computer-and-apps).
 
-## Members
+## Invite people and bots
 
-Open **Chat details** to see who's in a chat: **People** and **Bots**, each opening their card.
+Open **Chat details** to see who's in a room: **People** and **Bots**, each opening their card.
 
-- Anyone in a chat can add people and bots of the home with the **Add people or bots** button in its header. Adding someone to a Private chat asks first, for example "Ben Rossi will see everything said here."
-- The person who started the chat, and the home's owners and admins, can take people and bots out of it, rename it and delete it, and archive it when it's Public.
-- Anyone can **Leave chat**. You can open a Public chat you left again from New chat and join it. A Private chat you leave is gone from your list unless someone adds you back, and a Private chat is deleted when its last person leaves.
-- Your chat with a bot takes no other members. To bring others in, continue it with them (below).
+- **In a Private room,** select **Invite** in its header to add people and bots of the home. Pick them in the list (type to find one), then select **Add**. "Whoever you invite to “*the room*” sees everything said here, from its start." Any of the room's people can invite.
+- **In a Public room,** everyone in the home can open it already, so its header has **Invite a bot**. Anyone in the home can invite a bot into a Public room, or take one out again in **Chat details**.
+- **A bot invited into a room with a long history** reads only its last 30 messages and what's said after, so it stays quick. A line in the room says so: "Chef joined. It reads the last 30 messages; ask it to read further back." Ask it to read further back, and it reads up to 100 more messages each time.
+- The person who started the room, and the home's owners and admins, can take people out of it, rename it and delete it, and archive it when it's Public.
+- Anyone can **Leave chat**. A Public room you leave stays in **Rooms**, faded, and writing there again brings you back. A Private room you leave is gone from your list unless someone invites you back. When the last person leaves a Private room, it's deleted, and Mercbot says so first: "You're the last one here, so this room and everything in it will be deleted." A Public room stays even with nobody in it.
+- Your private chats with a person or a bot take nobody else, so they have no **Invite**.
 
 ### Continue with others
 
-In your chat with one bot, select **Continue with others…** at the top of the chat. New chat opens as **Continue with others**, Public, with the bot already in **To:**, and the bot writes a short note of your chat for the others as the first message ("Continuing from my chat with Chef: …"). Add the people and bots to continue with (**Start** waits until someone besides the bot is there), read the note and change anything you like, then send it as your own first message. Your chat with the bot stays as it was. The note uses only what was said in that chat, never what the bot looked up for it.
+In your chat with a bot, select **Continue with others…** at the top of the chat. **New room** opens, Public, and says: "Chef comes along, and its note for the others is ready to send." Give the room a name and select **Create**. The room opens with the bot in it, and the bot's short note of your chat ("Continuing from my chat with Chef: …") is in the message box. Read it, change anything you like, invite who you need, and send it as your own message. Your chat with the bot stays as it was. The note uses only what was said in that chat, never what the bot looked up for it.
 
 ## The everyone chat
 
@@ -119,32 +132,32 @@ When a home's owner or admin answers **Me and other people** to Mercbot's "Will 
 - Everyone in the home is in it, people who join later too. You leave it only by leaving the home, and nobody can take a person out of it. Chat details says: "Everyone in *your home* is in this chat, for as long as they're in the home."
 - The person who started it, and the home's owners and admins, can take a bot out of it, as in any chat.
 
-## Organise your chat list
+## Organise your sidebar
 
-The sidebar lists your chats: pinned ones at the top, then the rest (in your own sections if you have any, then **Unassigned**), then **Hidden chats** and **Archived chats**. Rows are sorted by latest activity. A dot marks a chat with something you haven't read, **@** a chat where someone mentioned you since you last read it, and **Waiting for you** a chat where a bot needs you. An unsent draft stays with each chat on your device.
+Pinned chats are at the top. **Rooms** lists your rooms in your own sections if you have any, then **Unassigned**, sorted by latest activity, and **Hidden chats** and **Archived chats** come last. An unsent draft stays with each chat on your device.
 
-Right-click a chat for **Pin** or **Unpin**, **Move to** one of your sections (or **Move to new section**), **Mark as read** or **Mark as unread**, **Hide from sidebar** (**Show in sidebar** brings it back), and **Copy chat ID**, plus **Rename chat**, **Leave chat**, **Archive** (on a Public chat) and **Delete** where you may. Pins, sections, hidden chats and unread marks are yours alone: other people organise their own lists.
+Right-click a room for **Pin** or **Unpin**, **Move to** one of your sections (or **Move to new section**), **Mark as read** or **Mark as unread**, **Hide from sidebar** (**Show in sidebar** brings it back), and **Copy chat ID**, plus **Rename chat**, **Leave chat**, **Archive** (on a Public room) and **Delete** where you may. Drag a room to another section, or a pinned chat to reorder your pins. Right-click a person or a bot you've chatted with for **Pin**, **Mark as read** or **Mark as unread** and **Copy chat ID**. Pins, sections, folded sections, hidden chats and unread marks are yours alone: other people organise their own sidebars.
 
-To jump between chats, press **Ctrl+Alt+1** to **9** for the chats in sidebar order, **Alt+↑** and **Alt+↓** for the previous or next one, or **Ctrl+K** to search.
+To jump between chats, press **Ctrl+Alt+1** to **9** for the chats in sidebar order (only what's shown counts), **Alt+↑** and **Alt+↓** for the previous or next one, or **Ctrl+K** to search.
 
 ## Archive and delete
 
-- **Archive** a Public chat to put it away for everyone in it. Mercbot asks first: "It stays readable for everyone in it, and no one can write in it until it's unarchived." The chat moves to **Archived chats**, marked read-only.
+- **Archive** a Public room to put it away for everyone in it. Mercbot asks first: "It stays readable for everyone in it, and no one can write in it until it's unarchived." The chat moves to **Archived chats**, marked read-only.
 - Archiving pauses the routines and watches its bots run there, and the chat gets a line, **Paused while archived**: "This chat was archived, so its … paused. They stay paused when it's unarchived: resume them here." They can be resumed there once the chat is back in use; a routine only by whoever set it up.
 - **Unarchive**, from the chat's row under **Archived chats** or its **Chat details**, brings it back.
-- **A Private chat isn't archived.** Each of its members puts it away for themselves with **Hide from sidebar**, on the chat's row or in its **Chat details**, and it moves to their **Hidden chats**; the others' lists don't change. Mercbot offers no **Archive** there, and asked to archive one, it answers: "A private chat is hidden for yourself, not archived for everyone."
+- **A Private room isn't archived,** and neither is a private chat with a person or a bot. Each of its members puts it away for themselves with **Hide from sidebar**, on the chat's row or in its **Chat details**, and it moves to their **Hidden chats**; the others' lists don't change. Mercbot offers no **Archive** there, and asked to archive one, it answers: "A private chat is hidden for yourself, not archived for everyone."
 - **The everyone chat** can't be archived at all.
-- **Delete** a chat to remove it for good: "This chat goes for everyone in it, with its whole history, its files and its bots' computers. Its bots stay on your team. This can't be undone."
+- **Delete** a chat to remove it for good: "This chat goes for everyone in it, with its whole history, its files and its bots' computers. Its bots stay in the home. This can't be undone."
 
-The person who started a chat, and the home's owners and admins, can archive a Public chat, unarchive a chat and delete one. To put any chat away only for yourself, hide it from your sidebar.
+The person who started a room, and the home's owners and admins, can archive a Public room, unarchive a chat and delete one. To put any chat away only for yourself, hide it from your sidebar.
 
-When a bot is archived, it has left the home: it stays in its chats, greyed out, and never answers. Its routines and watches pause. Your chat with it says it has left, and whoever made it, or an owner or admin, can resume it from **Team**. See [Archive a bot](/help/bots#archive-a-bot).
+When a bot is archived, it has left the home: it stays in its chats, greyed out, and never answers. Its routines and watches pause. Your chat with it says it has left, and whoever made it, or an owner or admin, can resume it from its card: select it under **Archived bots** in the sidebar. See [Archive a bot](/help/bots#archive-a-bot).
 
 ## Questions
 
 ### Can other people read my chats?
 
-Everyone in the home can open a Public chat, your chat with a bot included. Only the members of a Private chat can open it.
+Everyone in the home can open a Public room. Only the members of a Private room can open it. Your chat with a bot, and your chat with another person, are opened only by the two of you.
 
 ### Does a bot tell other chats what I said in a Private chat?
 
@@ -154,17 +167,25 @@ No. Nothing in a Private chat reaches a chat that someone else can open.
 
 No. A Private chat is put away by each of its members for themselves, with **Hide from sidebar**. Only a Public chat is archived, for everyone in it.
 
-### Can I make a Public chat Private later?
+### Can I make a Public room Private later?
 
-No. A chat stays the kind it started as. Start a new Private chat instead.
+No. A room stays the kind it started as. Start a new Private room instead.
 
 ### Does the note for Continue with others include everything the bot did?
 
 No. The bot writes it from what was said in your chat with it, as you saw it. What it looked up, read or did with its tools stays out of the note, and you read and change the note before anyone else sees it.
 
-### Can I read a Public chat without joining it?
+### Can I read a Public room without joining it?
 
-Yes. When you open a Public chat you aren't in, you can read it, and in place of the message box it says "You're reading a public chat you're not in. Join it to write here." Select **Join** to write in it.
+Yes. Open it from **Rooms**, where it's faded. You're in it only once you write there.
+
+### Where did Team go?
+
+The sidebar has it all now: people under **People**, bots under **Bots**, archived bots under **Archived bots**, and **Add bots** on the **+** beside **Bots**. Select a person or a bot, then the name at the top of your chat with them, to open their card.
+
+### A bot I invited doesn't know what was said earlier
+
+A bot invited into a room reads only its last 30 messages. Ask it to read further back, for example "read further back and catch up", and it reads up to 100 more each time.
 
 ## Related pages
 

@@ -2,7 +2,7 @@ import { computed, ref } from "vue";
 import { botsApi } from "./botsApi.js";
 import { peopleApi, roleLabel } from "./homesApi.js";
 
-/** A person of the home as the Team page, New chat and Chat details show them. */
+/** A person of the home as People, Invite and Chat details show them. */
 export const toPerson = (member) => ({
   id: String(member.userId),
   name: member.displayName || String(member.email || "").split("@")[0] || "Someone",
@@ -12,8 +12,8 @@ export const toPerson = (member) => ({
 
 /**
  * The home's members (D3: people and bots alike): its people, from JSKIT's members list, and its bots, from the bots'
- * list, read when the shell opens and again when news says they changed. Every screen that lists members (Team, New
- * chat, Chat details, the composer's @) reads these.
+ * list, read when the shell opens and again when news says they changed. Every screen that lists members (People,
+ * Bots, Invite, Chat details, the composer's @) reads these.
  * @param {{ homeSlug: () => string, reportFailure: import("../../types.js").ReportFailure }} options
  */
 export function useTeam({ homeSlug, reportFailure }) {
@@ -32,7 +32,7 @@ export function useTeam({ homeSlug, reportFailure }) {
       if (read === botsRead) bots.value = answer;
     } catch (error) {
       failed.value = true;
-      reportFailure("Your team didn't load. Try again in a moment.", error);
+      reportFailure("Your home's people and bots didn't load. Try again in a moment.", error);
     }
   }
 
@@ -43,7 +43,7 @@ export function useTeam({ homeSlug, reportFailure }) {
       if (read === peopleRead) people.value = answer;
     } catch (error) {
       failed.value = true;
-      reportFailure("Your team didn't load. Try again in a moment.", error);
+      reportFailure("Your home's people and bots didn't load. Try again in a moment.", error);
     }
   }
 

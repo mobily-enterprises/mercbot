@@ -1,16 +1,16 @@
 import { computed, watch } from "vue";
 import { shellPreferences } from "./shellPreferences.js";
 
-// The address's keys the shell reads: the open chat, Team and its open member, and an open page (useOpenPage).
+// The address's keys the shell reads: the open chat, a member's card beside it, and an open page (useOpenPage).
 const PAGE_KEYS = new Set(["page", "pageBot", "pageChat"]);
 
 /**
- * What the shell shows, named in the address so a reload or a shared link keeps it (D-112): ?chat=<id> for a chat,
- * ?team=1 for the Team page, and &member=bot:<id> or person:<id> for a member's card beside it. Links from elsewhere
- * name a bot: ?bot=<id> opens the person's direct chat with it (Ask Builder, a view's Ask, a template), and
- * ?bot=<id>&files=1 its card on Team at its Files (the home's Files page). A member the address names opens their card
- * in Details (`showDetails`), from a reload or a link as from a tap; `shownChatId` is the chat shown, which an address
- * without ?chat= shows too (the list's first).
+ * What the shell shows, named in the address so a reload or a shared link keeps it (D-112): ?chat=<id> for a chat, and
+ * &member=bot:<id> or person:<id> for a member's card beside it. Links from elsewhere name a bot: ?bot=<id> opens the
+ * person's direct chat with it (Ask Builder, a view's Ask, a template), and ?bot=<id>&files=1 that chat with the bot's
+ * card at its Files (the home's Files page). An old ?team=1 is ignored: the chat opens as without it. A member the
+ * address names opens their card in Details (`showDetails`), from a reload or a link as from a tap; `shownChatId` is the
+ * chat shown, which an address without ?chat= shows too (the list's first).
  * @param {{
  *   route: import("vue-router").RouteLocationNormalizedLoaded,
  *   router: import("vue-router").Router,
@@ -26,7 +26,6 @@ export function useShellAddress({ route, router, openDirect, showDetails, shownC
     ...extra
   });
 
-  const view = computed(() => (route.query.team ? "team" : "chat"));
   const addressedChatId = computed(() => (typeof route.query.chat === "string" ? route.query.chat : ""));
   const memberKey = computed(() => (typeof route.query.member === "string" ? route.query.member : ""));
 
@@ -36,35 +35,29 @@ export function useShellAddress({ route, router, openDirect, showDetails, shownC
    */
   function showChat(chatId, { replace = false } = {}) {
     const query = { chat: chatId };
-    const shown = !route.query.team && (route.query.chat || shownChatId()) === chatId;
+    const shown = (route.query.chat || shownChatId()) === chatId;
     return replace || shown ? router.replace({ query }) : router.push({ query });
   }
 
-  /** The Team page, with a member's card open when `member` names one. */
-  function showTeam(member = "") {
-    router.push({ query: { team: "1", ...(member ? { member } : {}) } });
-  }
-
-  /** A member's card on Team: shown beside the list, in place of the one open. */
+  /** A member's card beside the chat shown, in place of the one open. */
   function showMember(member) {
-    router.replace({ query: { team: "1", member } });
+    const chat = addressedChatId.value || shownChatId();
+    router.replace({ query: { ...(chat ? { chat } : {}), member } });
   }
 
   watch(memberKey, (member) => {
     if (member) showDetails();
   }, { immediate: true });
 
-  // A link naming a bot opens its direct chat, or its card at its Files, and leaves the address.
+  // A link naming a bot opens its direct chat, with its card at its Files when it asks, and leaves the address.
   watch(() => [route.query.bot, route.query.files], ([botId, files]) => {
     if (!botId) return;
     if (files) {
-      // Its card opens in Details as the address names it (above), at its Files.
       shellPreferences.detailsTab = "files";
-      router.replace({ query: { team: "1", member: `bot:${botId}` } });
-      return;
+      showDetails();
     }
     openDirect(String(botId), true);
   }, { immediate: true });
 
-  return { view, addressedChatId, memberKey, chatQuery, showChat, showTeam, showMember };
+  return { addressedChatId, memberKey, chatQuery, showChat, showMember };
 }

@@ -190,7 +190,7 @@ or `missing`, for a screen that lists them. Both take a list of entries in `KEYS
 for a copy built on Mercbot that lists and checks its own keys the same way.
 
 A test copy's stand-in model (D-83): with `MERCBOT_TEST_AI_URL` set, outside staging and production (`APP_ENV`, D-87;
-`standInAddress`), `aiKind` gives every kind its provider's layer with the stand-in's address (`<url>/<kind>`) in
+`standInAddress`), `aiKind` gives every kind without its own key its provider's layer with the stand-in's address (`<url>/<kind>`) in
 place of the provider's, no balance or billing page, the name "Stand-in model, in place of <provider>" and
 `standIn: true`; no key is needed (startup's check skips it) and none of the provider's is sent. `aiFetch` then sends
 only under that address and refuses any other before it goes out, and Gemini's layer is called with the layer's
@@ -199,7 +199,8 @@ isn't needed. Every
 Preview (`bin/develop.js`) and Test Preview (`start-test-app.mjs`) empties every credential-shaped setting (but a
 payment provider's test-mode key, `sk_test_…` or `rk_test_…`, which can't move money, D-116) and serves
 Mercbot's stand-in model (`tools/standInModel.mjs`, through `tools/previewAi.mjs`, in tools/ so a composition keeps it)
-on a local port and sets it, with each kind's type and no key, so nothing it asks of its AI reaches a provider;
+on a local port and sets it, with each kind's type and no key, so nothing it asks of its AI reaches a provider. A
+Preview gives its AI keys back first (`aiKeysOf`, D-118): a kind with its key uses its provider, the rest the stand-in;
 staging and production ignore the setting and behave as before.
 
 What each kind of work runs on (D-59, D-72) is one table, `WORK` in `packages/account/src/server/providers/index.js`: people's chats

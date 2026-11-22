@@ -5,7 +5,7 @@
 // readable-check: allow module-state - shared resource: the shell says once which chat is open; every file and computer address reads it
 let openChat = () => null;
 
-/** @param {() => string | null} chatOf the chat open on this page, or null on Team and New chat */
+/** @param {() => string | null} chatOf the chat open on this page, or null while none is */
 export function followOpenChat(chatOf) {
   openChat = chatOf;
 }

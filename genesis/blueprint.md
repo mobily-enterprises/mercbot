@@ -33,14 +33,15 @@ more, and switches between them from the top of the sidebar. A home has one pers
 owner; nobody is invited in. A copy built on Mercbot that serves many people can
 add invitations, roles and removals, and the rest of Mercbot already works for a
 home with several people. A home's bots are its members exactly as its people are,
-listed side by side on its Team page; a bot differs in what it knows, and it is not a
+listed in the sidebar beside them; a bot differs in what it knows, and it is not a
 sign-in account and holds no permission: approvals, settings and membership stay with
 people, and a card is answered only by the person whose message started the work.
-Everything happens in chats, which hold any of the home's people and bots. A person's
-chat list starts empty; a chat appears when they start one or a bot writes to them.
-Every new chat is Public, opened by everyone in the home now and later; whoever starts
-a chat can choose Private instead, which only its members open, and a chat never
-changes kind. One rule decides what a bot may use: in a chat, only what everyone who
+Everything happens in chats, which hold any of the home's people and bots: rooms, Public
+or Private, that start with their maker and that people and bots are invited into, and
+each person's private chats with one bot or one other person, which nothing else reads.
+Every new room is Public, opened by everyone in the home now and later, and writing in
+it joins it; whoever starts a room can choose Private instead, which only its members
+open, and a chat never changes kind. One rule decides what a bot may use: in a chat, only what everyone who
 can open that chat can also open, whether or not they have looked. What a bot makes in
 a chat (files, pages, notes, routines, watches) belongs to that chat; putting it where
 more people can open it takes a person's yes. Each bot has its own computer in each
@@ -64,10 +65,11 @@ only reported: nothing is ever paused or refused because of it.
 
 ## Bots and chat
 
-An open home is the Mercbot shell: a resizable sidebar (or compact rail)
-listing the person's chats — pinned ones, rows grouped into the person's own
-sections and sorted by latest activity, and hidden chats — with live previews,
-unread markers, drafts, right-click menus and drag and drop; the Team page; and the
+An open home is the Mercbot shell: a dense, resizable sidebar (or compact rail)
+with pinned chats, then Rooms (the person's own, grouped into their sections and
+sorted by latest activity, then the public rooms they aren't in, faded), People and
+Bots, each section folding away and each with its + — with unread and mention marks,
+drafts, right-click menus and drag and drop; and the
 chat with a header showing its members and whether it is Public or Private, a
 composer that says who can read it, and its details. Chats persist. Anything
 the person types gets a reply from the chat's bots: a status line
@@ -79,10 +81,10 @@ chat that opens a viewer with a download. Bots also write pages (an invitation,
 a plan, a guide) that open in place of the chat; the person can publish a
 page to their own website, a folder a web server already serves or
 S3-compatible storage, set up once in Settings → Website, which shows the page without its scripts. What a bot saves in a chat is in that
-chat's folder; the bot's own folder and the home's folder hold what is meant to reach further. Each bot has its own expressive avatar. People add more bots with Add bots: they describe what they need and check the bots Mercbot suggests, or choose one bot, with a name, shape and colour, or a ready-made team; new
-bots appear on Team, and each greets the person in their chat with it and asks what to help with first. Connect apps lists the integrations Mercbot offers by category, with search;
+chat's folder; the bot's own folder and the home's folder hold what is meant to reach further. Each bot has its own expressive avatar. People add more bots with Add bots: they describe what they need and check the bots Mercbot suggests, or choose one bot, with a name, shape and colour, or a ready-made set; new
+bots appear under Bots, and each greets the person in their chat with it and asks what to help with first. Connect apps lists the integrations Mercbot offers by category, with search;
 people can add or remove them and see which still need signing in, and manage
-their own skills. A bot's card on Team
+their own skills. A bot's card (the details of a person's chat with it)
 lets people rename a
 bot, read the template it follows (from Mercbot's library or the home's own, shown as a tag beside its
 name everywhere) and change it, write its additions, the rules for that bot alone on top of its template

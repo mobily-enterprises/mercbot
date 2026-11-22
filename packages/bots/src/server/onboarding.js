@@ -33,11 +33,11 @@ export function firstNameOf(displayName) {
 const text = (body) => ({ kind: "text", role: "bot", body });
 
 // Phase 3 of a new home's welcome chat (D-109, D-112): once the main bot is named, while the home has no bot but it, it
-// asks what the home is for. DESCRIBE opens Add bots on Describe what you need, SHOW_TEAMS on its ready-made teams;
+// asks what the home is for. DESCRIBE opens Add bots on Describe what you need, SHOW_TEAMS on its ready-made sets;
 // nothing is added until the person says so there. NO_BOTS, or typing instead, skips it. The teams themselves are never
 // listed in the chat.
 export const DESCRIBE = "Describe what I need";
-export const SHOW_TEAMS = "Show me ready-made teams";
+export const SHOW_TEAMS = "Show me ready-made sets";
 export const NO_BOTS = "Not now";
 const ADD_BOTS = Object.freeze({ [DESCRIBE]: "describe", [SHOW_TEAMS]: "teams" });
 const homeForCard = () => ({
@@ -393,7 +393,7 @@ export function createOnboarding({ records, chats, model, meter, notices, worksp
       role: "bot",
       authorBotId: String(main.id),
       body: {
-        text: `Your team's here: ${list}. Start a chat with ${added.length === 1 ? "it" : "one of them"} whenever you like.`,
+        text: `Your home's new bots are here: ${list}. Start a chat with ${added.length === 1 ? "it" : "one of them"} whenever you like.`,
         team: added.map((bot) => ({ botId: String(bot.id), name: bot.name, color: bot.color, shape: cloudShape(bot.shape) }))
       }
     }], txOptions);

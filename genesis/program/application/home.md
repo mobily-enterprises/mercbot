@@ -90,22 +90,23 @@ a bot answers only when called (R3), the sender's page shows a bot working only 
 (`chatView.js` `readersLine`): "Everyone in <home> can read this · Chef remembers it" in a Public chat, naming its
 bots, which remember it (D-113; "Chef, Ada and 2 more remember it" past three, no second part with no bots; "Everyone
 can read this" on a phone), "Only <names> can read this" in a Private one ("Only this chat's members
-can read this" past four). The first time a person is in a Public chat a notice says "This chat is public. …" with
-Got it. While a question card waits for the person looking, the composer's placeholder invites an answer.
+can read this" past four); a direct chat is Private, its line naming the two of them. The first time a person is in a
+Public room a notice says "This room is public. …" ("… For something only some of you should see, start a private
+room.") with Got it. While a question card waits for the person looking, the composer's placeholder invites an answer.
 Avatars (D-44) are clouds, never balls, each shape with its own kind of manga
 eyes; the cloud never moves and the eyes never blink: only the irises glance
 around inside them. The home's Builder alone wears a propeller beanie. The
 favicon, Mercbot's logo, is its own orange cloud.
 
-Add bots (D-109, which was New bot) opens from the sidebar's "New chat or bots" menu, Team, Ctrl+Alt+N or the search
+Add bots (D-109, which was New bot) opens from the sidebar's Bots + ("Add bots"), Ctrl+Alt+N or the search
 palette, or from a template's link (`?template=`, with that template chosen): Describe what you need (Suggested bots,
-Bot templates), or choose yourself, One bot or A ready-made team. One bot asks "What will it do?" (the General
+Bot templates), or choose yourself, One bot or A ready-made set. One bot asks "What will it do?" (the General
 helper, the home's templates, Mercbot's library with an Area menu, and Describe the bot you need when nothing fits;
 D-98), a chosen template shown whole, then a live preview, a name, 28 clouds plus Mercbot's own
 fixed-orange cloud and the 11-colour palette (random on open, preferring a
-colour and cloud no bot in the home has; a library template's own to start). One bot joins the team and opens the
-person's direct chat with it, where it has said hello; a ready-made team or Suggested bots join the team and make no
-chats (`useNewBot.js`). Question cards can be multi-select with
+colour and cloud no bot in the home has; a library template's own to start). One bot joins the home and opens the
+person's direct chat with it, where it has said hello; a ready-made set or Suggested bots join the home, under Bots,
+and make no chats (`useNewBot.js`). Question cards can be multi-select with
 Done; picks take the bot's colour (blue for black bots).
 
 Voice uses the browser's own speech

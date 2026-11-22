@@ -5,11 +5,13 @@ import { createMaterialVuetifyOptions } from "@jskit-ai/material-web/client";
 import { describe, expect, it, vi } from "vitest";
 import { theme } from "../../src/theme/index.js";
 import { buildSidebarModel, toChatRow } from "../../src/components/mercbot/chatDirectory.js";
+import { shellPreferences } from "../../src/components/mercbot/shellPreferences.js";
 
-// The sidebar's chats as they render (D-112, plan 4.1): the everyone chat first among the pinned tiles and never
-// dragged, then the other pinned chats, then each section's rows; each row's preview line, saying who wrote the latest
-// message but in a direct chat; archived chats under Archived chats, read-only, and hidden ones under Hidden chats,
-// each listed once opened; and, for someone with no chats yet, where to start, under the Team entry. The sidebar's
+// The sidebar as it renders (D-112, plan 4.1): the everyone chat first among the pinned tiles and never dragged, then
+// the other pinned chats; then Rooms (each section's rows, then the public rooms the person isn't in, faded), People and
+// Bots, each with its + and folding by its title; every row one line, its latest message in its description; archived
+// bots under Archived bots, archived rooms under Archived chats, read-only, and hidden ones under Hidden chats, each
+// listed once opened; and the top row of Search, Files and Apps with no Team and no "New chat or bots". The sidebar's
 // own entries (home switcher, Files, Apps, the account) are stand-ins; what the menus offer is shellParts' to test.
 const stub = vi.hoisted(() => (vue, name) => ({ default: vue.defineComponent({ name, inheritAttrs: false, setup: () => () => vue.h("div", { "data-stub": name }) }) }));
 vi.mock("../../src/components/mercbot/MercbotHomeSwitcher.vue", async () => stub(await import("vue"), "MercbotHomeSwitcher"));
@@ -35,18 +37,23 @@ const buttons = (html) => [...html.matchAll(/<button([^>]*)>([\s\S]*?)<\/button>
   label: /aria-label="([^"]*)"/u.exec(attributes)?.[1] ?? null,
   classes: (/class="([^"]*)"/u.exec(attributes)?.[1] ?? "").split(" ")
 }));
-/** The list from the top, in order: each tile, section heading and row, as "tile <name>", "heading <name>", "row <name>". */
+/** The list from the top, in order: each tile, section, heading and row, as "tile <name>", "section <name>", "heading
+ * <name>", "row <name>", and the "N more" and "+ …" buttons as "more <words>". */
 const outline = (html) => [...html.matchAll(/<button([^>]*)>([\s\S]*?)<\/button>|<span class="mb-header__label">([^<]*)</gu)].flatMap(([, attributes, inside, heading]) => {
   if (heading !== undefined) return [`heading ${heading}`];
   const [entry] = buttons(`<button${attributes}>${inside}</button>`);
+  if (entry.classes.includes("mb-section__title")) return [`section ${/mb-section__label">([^<]*)</u.exec(inside)?.[1]}`];
   if (entry.classes.includes("mb-header")) return [`heading ${/mb-header__label">([^<]*)</u.exec(inside)?.[1]}`];
   if (entry.classes.includes("mb-tile")) return [`tile ${entry.label}`];
-  if (entry.classes.includes("mb-row")) return [`row ${entry.label}`];
+  if (entry.classes.includes("mb-row")) return [`row ${entry.label}${entry.classes.includes("mb-row--faded") ? " (faded)" : ""}`];
+  if (entry.classes.includes("mb-more") || entry.classes.includes("mb-foot")) return [`more ${entry.text}`];
   return [];
 });
-/** Each row's name and preview line. */
-const previews = (html) => buttons(html).filter((entry) => entry.classes.includes("mb-row"))
-  .map((entry) => [entry.label, text(/class="mb-row__preview[^"]*">([\s\S]*?)<\/span>/u.exec(entry.inside)?.[1] ?? "")]);
+/** Each row's name and its description (what it says on hover): its full name, then its latest message. */
+const tips = (html) => buttons(html).filter((entry) => entry.classes.includes("mb-row"))
+  .map((entry) => [entry.label, /title="([^"]*)"/u.exec(entry.attributes)?.[1] ?? ""]);
+/** Each section's + by its label. */
+const pluses = (html) => buttons(html).filter((entry) => ["New room", "Add bots", "Invite people"].includes(entry.label)).map((entry) => entry.label);
 
 const ANNA = { userId: "1", name: "Anna Rossi" };
 const BEN = { userId: "2", name: "Ben Rossi" };
@@ -69,22 +76,30 @@ const DIRECT = listed("7", null, { directBotId: "7", people: [ANNA], ...said(CHE
 const BOILER = listed("8", "Boiler", { place: { hidden: true } });
 const OLD_FLAT = listed("9", "Old flat", { archivedAt: "2026-11-20T10:00:00.000Z" });
 
-/** The chat list, as the sidebar shows it for `chats`. */
-function list(chats, { sections = [], hiddenExpanded = false, archivedExpanded = false } = {}) {
-  const model = buildSidebarModel({ chats, sections, hiddenExpanded, archivedExpanded });
-  return rendered(MercbotChatList, { model, sections, me: "1", hiddenExpanded, archivedExpanded });
+const PEOPLE = [{ id: "1", name: "Anna Rossi" }, { id: "2", name: "Ben Rossi" }];
+const BOTS = [{ id: "7", name: "Chef", color: "#E65100", shape: "cloud", isMain: true, archivedAt: null }];
+const PULSE = { id: "9", name: "Pulse", color: "#1E86FC", shape: "cloud", isMain: false, archivedAt: `${new Date().getFullYear()}-11-20T10:00:00.000Z` };
+
+/** The list, as the sidebar shows it for `chats` in a home of Anna (looking) and Ben, with Chef. */
+function list(chats, { sections = [], hiddenExpanded = false, archivedExpanded = false, people = PEOPLE, bots = BOTS, publicRooms = [], folded = {}, more = {}, ...props } = {}) {
+  const model = buildSidebarModel({ chats, sections, publicRooms, people, bots, me: "1", folded, more, hiddenExpanded, archivedExpanded });
+  return rendered(MercbotChatList, { model, sections, me: "1", hiddenExpanded, archivedExpanded, folded, homeName: "Rossi family", ...props });
 }
 
 describe("the chat list", () => {
-  it("shows the everyone chat as the first tile, which can't be dragged, then the other pinned chats, then each section", async () => {
+  it("shows the everyone chat as the first tile, which can't be dragged, then the other pinned chats, then Rooms, People and Bots", async () => {
     const html = await list([DIRECT, BATHROOM, PARTY, KITCHEN, EVERYONE], { sections: SECTIONS });
     expect(outline(html)).toEqual([
       "tile Rossi family",
       "tile Kitchen reno",
       "tile Saturday party, private",
+      "section Rooms",
       "heading Renovations",
       "row Bathroom",
       "heading Unassigned",
+      "section People",
+      "more 1 more",
+      "section Bots",
       "row Chef"
     ]);
     const draggable = Object.fromEntries(buttons(html).filter((entry) => entry.classes.includes("mb-tile"))
@@ -92,49 +107,102 @@ describe("the chat list", () => {
     expect(draggable).toEqual({ "Rossi family": "false", "Kitchen reno": "true", "Saturday party, private": "true" });
   });
 
-  it("previews each chat's latest message with who wrote it, but in a direct chat", async () => {
-    expect(previews(await list([BATHROOM, GARDEN, QUOTES, DIRECT]))).toEqual([
-      ["Chef", "here's the plan"],
-      ["Quotes", "Chef: three quotes in"],
-      ["Garden", "Ben: oak it is"],
-      ["Bathroom", "You: see you there"]
+  it("draws each row on one line, its latest message with who wrote it in its description, but in a direct chat", async () => {
+    const html = await list([BATHROOM, GARDEN, QUOTES, DIRECT]);
+    expect(tips(html)).toEqual([
+      ["Quotes", "Quotes\nChef: three quotes in"],
+      ["Garden", "Garden\nBen: oak it is"],
+      ["Bathroom", "Bathroom\nYou: see you there"],
+      ["Chef", "Chef\nhere's the plan"]
+    ]);
+    expect(html, "no preview line").not.toContain("mb-row__preview");
+  });
+
+  it("gives Rooms its New room and Bots its Add bots, with a + … row while each is empty, and People the + a copy gives", async () => {
+    const empty = await list([], { bots: [] });
+    expect(pluses(empty)).toEqual(["New room", "Add bots"]);
+    expect(outline(empty)).toEqual(["section Rooms", "more + New room", "section People", "more 1 more", "section Bots", "more + Add bots"]);
+    const invite = { component: { props: { homeName: String }, render() { return h("button", { "aria-label": "Invite people", "data-home": this.homeName }); } } };
+    const withInvite = await list([KITCHEN], { peopleActions: [invite] });
+    expect(pluses(withInvite)).toEqual(["New room", "Invite people", "Add bots"]);
+    expect(withInvite).toContain("data-home=\"Rossi family\"");
+  });
+
+  it("has no People when the person is the home's only one, unless a copy's + lets them invite someone", async () => {
+    const alone = await list([KITCHEN], { people: [PEOPLE[0]] });
+    expect(outline(alone)).not.toContain("section People");
+    const invite = { component: { render: () => h("button", { "aria-label": "Invite people" }) } };
+    expect(outline(await list([KITCHEN], { people: [PEOPLE[0]], peopleActions: [invite] }))).toContain("section People");
+  });
+
+  it("lists the public rooms the person isn't in after their own, faded, and more than three under N more public rooms", async () => {
+    const rooms = ["21", "22", "23", "24"].map((id) => listed(id, `Room ${id}`, { place: null }));
+    expect(outline(await list([GARDEN], { publicRooms: rooms.slice(0, 2), bots: [] })).slice(0, 4))
+      .toEqual(["section Rooms", "row Garden", "row Room 22 (faded)", "row Room 21 (faded)"]);
+    const four = outline(await list([GARDEN], { publicRooms: rooms, bots: [] }));
+    expect(four.slice(0, 3)).toEqual(["section Rooms", "row Garden", "more 4 more public rooms"]);
+    const opened = outline(await list([GARDEN], { publicRooms: rooms, bots: [], more: { rooms: true } }));
+    expect(opened.slice(0, 7)).toEqual(["section Rooms", "row Garden", "row Room 24 (faded)", "row Room 23 (faded)", "row Room 22 (faded)", "row Room 21 (faded)", "more Show fewer"]);
+  });
+
+  it("folds a section by its title, keeping what needs the person and counting the rest", async () => {
+    const news = listed("10", "News", { place: { unread: true } });
+    const html = await list([GARDEN, QUOTES, news], { folded: { rooms: true, bots: true } });
+    expect(outline(html)).toEqual(["section Rooms", "row News", "section People", "more 1 more", "section Bots"]);
+    const titles = buttons(html).filter((entry) => entry.classes.includes("mb-section__title"));
+    expect(titles.map((entry) => [entry.text, /aria-expanded="([^"]*)"/u.exec(entry.attributes)?.[1]])).toEqual([
+      ["Rooms 2", "false"], ["People", "true"], ["Bots 1", "false"]
     ]);
   });
 
+  it("keeps the bots that have left under Archived bots, closed until opened, each opening its card", async () => {
+    shellPreferences.language = "en-GB";
+    const closed = await list([KITCHEN], { bots: [...BOTS, PULSE] });
+    expect(outline(closed).slice(-2)).toEqual(["row Chef", "more Archived bots 1"]);
+    const opened = await list([KITCHEN], { bots: [...BOTS, PULSE], more: { archivedBots: true } });
+    expect(outline(opened).slice(-2)).toEqual(["more Archived bots", "row Pulse, archived (faded)"]);
+    expect(tips(opened).at(-1)).toEqual(["Pulse, archived", "Pulse\nBot · left 20 Nov"]);
+  });
+
+  // A home of just Anna and no bots: the tiles and what's after the three sections.
+  const apart = (html) => outline(html).filter((entry) => !/^(section|more) /u.test(entry));
+
   it("lists archived chats under Archived chats once it's opened, each read-only", async () => {
-    const closed = await list([KITCHEN, OLD_FLAT]);
-    expect(outline(closed)).toEqual(["tile Kitchen reno", "heading Archived chats"]);
+    const closed = await list([KITCHEN, OLD_FLAT], { people: [PEOPLE[0]], bots: [] });
+    expect(apart(closed)).toEqual(["tile Kitchen reno", "heading Archived chats"]);
     expect(text(closed)).toContain("Archived chats 1");
-    const opened = await list([KITCHEN, OLD_FLAT], { archivedExpanded: true });
-    expect(outline(opened)).toEqual(["tile Kitchen reno", "heading Archived chats", "row Old flat, archived"]);
-    expect(previews(opened)).toEqual([["Old flat, archived", "Archived · read-only"]]);
+    const opened = await list([KITCHEN, OLD_FLAT], { people: [PEOPLE[0]], bots: [], archivedExpanded: true });
+    expect(apart(opened)).toEqual(["tile Kitchen reno", "heading Archived chats", "row Old flat, archived (faded)"]);
+    expect(tips(opened)).toEqual([["Old flat, archived", "Old flat\nArchived · read-only"]]);
   });
 
   it("lists hidden chats under Hidden chats once it's opened", async () => {
-    const closed = await list([KITCHEN, BOILER]);
-    expect(outline(closed)).toEqual(["tile Kitchen reno", "heading Hidden chats"]);
+    const closed = await list([KITCHEN, BOILER], { people: [PEOPLE[0]], bots: [] });
+    expect(apart(closed)).toEqual(["tile Kitchen reno", "heading Hidden chats"]);
     expect(text(closed)).toContain("Hidden chats 1");
-    expect(outline(await list([KITCHEN, BOILER], { hiddenExpanded: true }))).toEqual(["tile Kitchen reno", "heading Hidden chats", "row Boiler"]);
+    expect(apart(await list([KITCHEN, BOILER], { people: [PEOPLE[0]], bots: [], hiddenExpanded: true })))
+      .toEqual(["tile Kitchen reno", "heading Hidden chats", "row Boiler"]);
   });
 });
 
 describe("the sidebar", () => {
   const sidebar = (chats, props = {}) => rendered(MercbotSidebar, {
-    model: buildSidebarModel({ chats, sections: [] }), sections: [], me: "1", width: 280, displayName: "Anna Rossi", initials: "AR", ...props
+    model: buildSidebarModel({ publicRooms: [], chats, sections: [], people: PEOPLE, bots: BOTS, me: "1" }), sections: [], me: "1", width: 280,
+    displayName: "Anna Rossi", initials: "AR", ...props
   });
 
-  it("says No chats yet. and offers Start a chat only while the person has no chats", async () => {
-    const empty = await sidebar([]);
-    expect(text(/<div class="mb-sidebar__empty">[\s\S]*?<\/div>/u.exec(empty)?.[0] ?? "")).toBe("No chats yet. Start a chat");
-    expect(buttons(empty).filter((entry) => entry.text === "Start a chat")).toHaveLength(1);
-    for (const chats of [[KITCHEN], [BOILER], [OLD_FLAT]]) {
-      expect(await sidebar(chats), chats[0].title).not.toContain("No chats yet.");
-    }
+  it("has the home switcher, Search, Files and Apps in its top row, and no Team or New chat or bots", async () => {
+    const html = await sidebar([KITCHEN]);
+    const top = /<div class="mb-sidebar__actions">([\s\S]*?)<div class="mb-sidebar__bots">/u.exec(html)?.[1] ?? "";
+    expect([...top.matchAll(/data-stub="([^"]*)"|aria-label="([^"]*)"/gu)].map(([, stub, label]) => stub || label))
+      .toEqual(["MercbotHomeSwitcher", "Search", "MercbotFilesEntry", "MercbotAppsEntry"]);
+    for (const gone of ["Team", "New chat or bots", "No chats yet."]) expect(html).not.toContain(gone);
   });
 
-  it("has a Team entry, marked as the page while Team is open", async () => {
-    const team = (html) => buttons(html).filter((entry) => entry.label === "Team").map((entry) => [entry.text, /aria-current="([^"]*)"/u.exec(entry.attributes)?.[1] ?? null]);
-    expect(team(await sidebar([]))).toEqual([["Team", null]]);
-    expect(team(await sidebar([], { teamOpen: true }))).toEqual([["Team", "page"]]);
+  it("keeps a face for each room, person and bot shown in the compact rail, with no + of its own", async () => {
+    const html = await sidebar([KITCHEN, GARDEN], { compact: true });
+    const rail = [...html.matchAll(/<button type="button" class="mb-bot[^"]*"[^>]*aria-label="([^"]*)"/gu)].map(([, label]) => label);
+    expect(rail, "Ben, not talked with lately, is under People's N more").toEqual(["Kitchen reno", "Garden", "Chef"]);
+    expect(html).not.toContain("New chat or bots");
   });
 });

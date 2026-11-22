@@ -315,7 +315,7 @@ download, upload, new folder, Move to…, rename and delete. It reads each folde
 so a folder's older files and folders that hold only old files are reached however many newer
 files the rest of the place has. Chat details has a Files tab (the chat's folder, "This chat"), and a bot's card a
 Files tab ("This chat" when opened from a chat, "<Bot>'s files" and the home's); the viewer offers Edit on computer
-for a file of the chat open; the sidebar's Files entry, above Apps, opens `/w/<home>/files`, with the home's folder and
+for a file of the chat open; the sidebar's Files button, beside Search and before Apps, opens `/w/<home>/files`, with the home's folder and
 the home's bots (`GET …/files/bots`: `{bots: [{id, name, color, shape}]}`), each leading to `?bot=<id>&files=1` (that
 bot's card on Files).
 

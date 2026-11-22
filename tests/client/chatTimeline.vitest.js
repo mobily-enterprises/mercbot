@@ -195,6 +195,22 @@ describe("reactions, one per person and per bot (user:<id>, bot:<id>)", () => {
   });
 });
 
+describe("a room's start line and a bot's window line", () => {
+  it("draws each as a small centred line, the start line's author's own (room_started) and the window's Mercbot's (bot_window)", async () => {
+    const started = said({ userId: "1" }, "", { kind: "event", role: "user", body: { event: "room_started", text: "Anna Rossi started this room." } });
+    const windowLine = said({ role: "system" }, "", {
+      kind: "event", body: { event: "bot_window", text: "Chef joined. It reads the last 30 messages; ask it to read further back." }
+    });
+    const html = await timeline({ chat: KITCHEN, messages: [started, windowLine] });
+    for (const [message, words] of [[started, "Anna Rossi started this room."], [windowLine, "Chef joined. It reads the last 30 messages; ask it to read further back."]]) {
+      const part = item(html, message);
+      const centred = /<p class="mb-timeline__centred"[^>]*>([\s\S]*?)<\/p>/u.exec(part)?.[1] ?? "";
+      expect(centred.replace(/<!--[\s\S]*?-->/gu, "").trim()).toBe(words);
+      expect(sideIn(part), "not a message on either side").toBeUndefined();
+    }
+  });
+});
+
 describe("a card waiting for someone else", () => {
   const forBen = { for: { id: "2", name: "Ben" } };
 

@@ -26,7 +26,7 @@ Brief for the writers of `help/*.md`. The page set, order and target lengths are
   tables for limits and states.
 - Most pages end with `## Questions` (each question a `### ` heading with a short answer), then
   `## Related pages`, a bullet list of links like `[Bots](/help/bots)` using slugs from `help/index.json`.
-- Name things the way the app does (Team, a bot's card, Chat details, Public and Private chats, Connect
+- Name things the way the app does (Rooms, People and Bots, a bot's card, Chat details, Public and Private rooms, Connect
   apps, Settings, the vault, Apps, the Builder, homes). Bold a button or menu item the first time it's
   mentioned, and quote its words exactly as the app has them.
 - Links between pages are `/help/<slug>` or `/help/<slug>#<heading id>` (the heading lower-cased, each run

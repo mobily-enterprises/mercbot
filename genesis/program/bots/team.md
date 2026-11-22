@@ -1,8 +1,8 @@
-# The home's team: its bots and their cards
+# The home's bots and their cards
 
 Bots are members of the home, as people are (D-112): everyone in the home sees every bot and can bring it into a
-chat. This boundary owns Team, a bot's card, renaming, archiving and deleting a bot, the main bot, and a bot's Library
-of what it made in the chats the person can open. Making bots is the bot templates module
+room. This boundary owns the sidebar's People and Bots as the home lists them, a member's card, renaming, archiving
+and deleting a bot, the main bot, and a bot's Library of what it made in the chats the person can open. Making bots is the bot templates module
 (`genesis/program/bots/templates.md`).
 
 ## Sources
@@ -22,7 +22,6 @@ of what it made in the chats the person can open. Making bots is the bot templat
 - `packages/bots/src/server/records/messageRepository.js`
 - `migrations/20261122120000_chats_core.cjs`
 - `migrations/20261121220000_archived_bots.cjs`
-- `src/components/mercbot/MercbotTeamPage.vue`
 - `src/components/mercbot/MercbotMemberCard.vue`
 - `src/components/mercbot/MercbotDetailsPanel.vue`
 - `src/components/mercbot/useTeam.js`
@@ -40,7 +39,8 @@ template and additions (D-98) and since when it's archived (`archived_at`, `arch
 no person of its own: what it sees is decided by the chat it's in (`genesis/program/bots/chats.md`). Every route is
 under `/api/w/:workspaceSlug`, for a member of the home; a bot of another home answers 404.
 
-**Reading the team** (`botList.js`): `GET …/bots` lists the home's bots, archived ones too, each as Team shows it
+**Reading the home's bots** (`botList.js`): `GET …/bots` lists the home's bots, archived ones too, each as the sidebar's
+Bots and a bot's card show it
 (`toBot`: its look, `isMain`, `madeBy`, its template's chip, whether it has additions and their first line,
 `archivedAt`), with who made it (`madeByName`, "you" for the person), who archived it, whether it builds the home's
 apps (`isBuilder`) and whether the person may archive and unarchive it (`canArchive`): three reads whatever the
@@ -67,7 +67,7 @@ Archiving pauses its routines and watches in every chat it's in, the Private one
 An archived bot never speaks, takes no requests, isn't added to chats and isn't offered in pickers; its direct chat
 shows "<Bot> has left <home>" with who archived it and Resume for whoever may (`MercbotArchivedBotBanner.vue`).
 Unarchiving brings it back in every chat it was in, as it was; its paused routines and watches wait for someone to
-resume them. Each answers the bot as Team lists it; everyone in the home hears it.
+resume them. Each answers the bot as the home lists it; everyone in the home hears it.
 
 **Library** (`botLibrary.js`): `GET …/bots/:botId/library` lists what the bot made (files, charts, pictures, pages and
 views, one entry per path) in every chat the person can open, and nothing from the others: the newest 400, then every
@@ -85,16 +85,18 @@ made, newest first, with their homes, and `makers.chatsOf(userId, workspaceIds, 
 in, latest activity first (only which chat, its kind, where and when, never a title or a message), in every home the
 options reach (a system context's every home; a request's its own).
 
-**Team** (`MercbotTeamPage.vue`, `useTeam.js`; the sidebar's Team entry, the palette): "Team · <home>" with Add bots
-(and what a copy adds beside it, such as an invite). People: name ("(you)"), role and Message, which opens New chat
-with them on To:. Bots: name with its template's tag, "Bot · made by you" or "Bot · made by <name>" with its
-description, and Message, which opens the person's direct chat with it. Under "Archived", each archived bot with when
-it left and Resume for whoever may. A home with no one else says "Just you here so far. Add bots to start your
-team." The home's people come from JSKIT's members list, a page of 100 at a time.
+**People and Bots** (`useTeam.js`, the sidebar's sections, `genesis/program/application/shell-navigation.md`; D-117).
+There is no Team page: the home's people and bots are listed in the sidebar. People: the home's other people, each
+opening the person's private chat with them; its + is a copy's own invitation (`extensions.js` `peopleActions`),
+and without one People shows only while the home has someone else. Bots: the active bots, the main bot first, each
+opening the person's direct chat with it, whose details are its card; its + opens Add bots; under "Archived bots"
+each archived bot opens its card, where whoever may resumes it. The home's people come from JSKIT's members list, a
+page of 100 at a time; its bots from `GET …/bots`.
 
-**A member's card** (`MercbotMemberCard.vue`, opened from Team, from a chat's people and bots, and as a direct chat's
-details; `?team=1&member=bot:<id>` or `person:<id>`): a person's name, role, Message and "Chats you share" ("No chats
-with <name> yet."). A bot's name (editable by whoever may), template tag and Message, with tabs "Details"
+**A member's card** (`MercbotMemberCard.vue`, opened from a chat's people and bots, from Archived bots, the palette
+and a link beside the chat shown (`&member=bot:<id>` or `person:<id>`), and as a direct chat's details): a person's
+name, role, Message (which opens the person's private chat with them, not shown in that chat itself) and "Chats you
+share" ("No chats with <name> yet."). A bot's name (editable by whoever may), template tag and Message, with tabs "Details"
 (Instructions, Knowledge, the apps it uses, Routines, each naming its chat, and Archive, `MercbotBotArchive.vue`),
 "Files" ("This chat" when opened from a chat, "<Bot>'s files" and the home's), "Library" (Pinned, then each day, each
 item with Pin, and Open, Share… and Delete for a page; empty: "Anything <Bot> makes in the chats you can open, like
@@ -108,6 +110,7 @@ why not where the bot can't be archived.
 - `tests/server/botLibrary.integration.js`
 - `tests/server/botAdditions.test.js`
 - `tests/client/teamPage.vitest.js`
+- `tests/client/chatDirectory.vitest.js`
 - `tests/client/teamReads.vitest.js`
 - `tests/client/archiveBots.vitest.js`
 - `tests/e2e/archive-bots.spec.ts`

@@ -13,38 +13,14 @@ async function uploadTo(chat, file) {
 }
 
 /**
- * New chat's attachments once its chat is made (useNewChat): each file still to keep (`file`, no `path`) goes in the
- * chat's folder as one attached in the chat does, and one the server refuses is left out, `onFailure` told.
- * @param {Array<Record<string, any>>} attachments
- * @param {import("../../types.js").Chat} chat
- * @param {(error: unknown) => void} onFailure
- */
-export async function uploadAttached(attachments, chat, onFailure) {
-  const kept = [];
-  for (const { file, ...entry } of attachments) {
-    if (file && !entry.path) {
-      try {
-        entry.path = await uploadTo(chat, file);
-      } catch (error) {
-        onFailure(error);
-        continue;
-      }
-    }
-    kept.push(entry);
-  }
-  return kept;
-}
-
-/**
- * Attach files. In a chat each file is kept in the chat's folder, so its bots can read any kind and come back to it
- * later; a file the server refuses is left out, and the refusal reported in its own words. In New chat, with no chat
- * yet, each file waits on its attachment (`file`) until the chat is made (uploadAttached).
+ * Attach files. Each file is kept in the open chat's folder, so its bots can read any kind and come back to it later; a
+ * file the server refuses is left out, and the refusal reported in its own words.
  * @param {{
  *   attachments: import("vue").Ref<Array<Record<string, any>>>,
  *   chat: () => import("../../types.js").Chat | null,
  *   focusComposer: () => void,
  *   onFailure: (error: unknown) => void
- * }} options `chat` is the open chat, or null where there's none yet.
+ * }} options `chat` is the open chat (the composer shows only in one)
  */
 export function useComposerFiles({ attachments, chat, focusComposer, onFailure }) {
   async function addFiles(event) {
@@ -53,15 +29,12 @@ export function useComposerFiles({ attachments, chat, focusComposer, onFailure }
       if ((TEXT_TYPES.test(file.type) || /\.(md|txt|csv|json|ya?ml)$/iu.test(file.name)) && file.size <= 200000) {
         entry.text = await file.text();
       }
-      const open = chat();
-      if (open) {
-        try {
-          entry.path = await uploadTo(open, file);
-        } catch (error) {
-          onFailure(error);
-          continue;
-        }
-      } else entry.file = file;
+      try {
+        entry.path = await uploadTo(chat(), file);
+      } catch (error) {
+        onFailure(error);
+        continue;
+      }
       attachments.value = [...attachments.value, entry];
     }
     event.target.value = "";

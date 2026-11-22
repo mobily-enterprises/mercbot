@@ -136,7 +136,7 @@ Approvals are the safety net behind this. Text on a page can't press Go ahead fo
 
 | What you share | Who sees it | What stays private |
 |---|---|---|
-| A Public chat, and what its bots make there | Everyone in the home, now and later, and the bots in every chat of the home, which remember it | Private chats: a bot in a Public chat never uses one, and no bot's memory holds one |
+| A Public room, and what its bots make there | Everyone in the home, now and later, and the bots in every chat of the home, which remember it | Private rooms, and your chats with a bot or with another person: a bot in a Public room never uses one, and no bot's memory holds one |
 | A note you ask a bot to tell everyone | Everyone in the home and every bot, in every chat, once you say **Go ahead** on its card | Email addresses, phone and card numbers and passwords: a note never holds them |
 | A Private chat, and what its bots make there | Its members, and bots in Private chats whose people are all its members | Everything else: nothing in it reaches a chat someone else can open |
 | A sign-in on a bot's computer in a chat | Everyone who can open that chat | Other chats' computers |
@@ -158,7 +158,7 @@ Approvals are the safety net behind this. Text on a page can't press Go ahead fo
 | A routine | The chat's details | Pause it, or delete it |
 | A chat | The chat's details, **Delete chat** (its maker, owners and admins) | The chat, its files and its bots' computers are gone for good, and its bots forget a Public chat at once |
 | A note for everyone | A bot's card, **Details**, **Notes for everyone**, its bin (the person who asked for it, owners and admins) | Every bot stops reading it from its next reply |
-| A bot | Its card on **Team**, **Archive** (its maker, owners and admins) | It leaves the home: it stays in its chats without answering, and nothing it has runs |
+| A bot | Its card, **Archive** (its maker, owners and admins) | It leaves the home: it stays in its chats without answering, and nothing it has runs |
 
 Records in Apps are never deleted: they're marked obsolete and can come back.
 
@@ -170,7 +170,7 @@ Records in Apps are never deleted: they're marked obsolete and can come back.
 - For Sedna, make API credentials that may only read, if Sedna lets you choose, and confirm only people's own Sedna users under **People**.
 - In each app's **Tools**, switch off actions you never want bots to take, such as sending or deleting.
 - Use the vault and secure forms for logins. Never paste a password into the chat.
-- Use a Private chat for personal matters. Everyone in the home can open a Public chat.
+- Use your chat with a bot, or a Private room, for personal matters. Everyone in the home can open a Public room.
 - Keep personal files out of the shared folder.
 - Read a template's instructions and skills before you add it.
 - Review routines from time to time in each chat's details, and pause the ones you don't need.
@@ -200,7 +200,7 @@ No. A card is answered only by the person whose message started the work, in any
 
 - [The vault: saved logins and secrets](/help/vault)
 - [The bots' computer and connected apps](/help/computer-and-apps)
-- [Chats and your team](/help/chats)
+- [Rooms, people and bots](/help/chats)
 - [Homes: Mercbot for families and businesses](/help/homes)
 - [Settings and notifications](/help/settings)
 - [Security overview](/help/security)

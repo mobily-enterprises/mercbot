@@ -36,7 +36,7 @@ test("Add a team makes its bots together, in no chat, and the main bot introduce
 
   const [intro] = await knex("messages").where({ conversation_id: welcome.id, kind: "text" }).orderBy("id", "desc").limit(1);
   assert.equal(String(intro.author_bot_id), welcome.directBotId, "Mercbot says it");
-  assert.match(intro.body.text, new RegExp(`^Your team's here: ${bots[0].name}, ${bots[1].name} and ${bots[2].name}\\.`, "u"));
+  assert.match(intro.body.text, new RegExp(`^Your home's new bots are here: ${bots[0].name}, ${bots[1].name} and ${bots[2].name}\\.`, "u"));
   assert.deepEqual(intro.body.team.map((entry) => entry.botId), added.added, "with a [Message] for each");
   assert.deepEqual(Object.keys(intro.body.team[0]).sort(), ["botId", "color", "name", "shape"]);
 

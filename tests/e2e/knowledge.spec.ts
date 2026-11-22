@@ -2,7 +2,7 @@ import path from "node:path";
 import type { TestInfo } from "@playwright/test";
 import { connectTestDb, directChat, expect, homeApi, makeChat, openShell, shell, test, type Page } from "./harness";
 
-// What a bot knows (D-107): the Knowledge section of its card's Details tab (Team's, or beside its direct chat,
+// What a bot knows (D-107): the Knowledge section of its card's Details tab (beside its direct chat,
 // D-112), under its Instructions. Each test makes its own bot in the owner's fixture home, its direct chat with no
 // introduction to sit through, and deletes it. The target's AI is the stand-in model (tools/standInModel.mjs), which,
 // asked "What do you know about …?", answers with the first line of its knowledge naming it and where that's from: its

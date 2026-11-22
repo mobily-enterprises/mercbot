@@ -6,7 +6,7 @@ import { chatTitle, memberNames, joinNames } from "./chatView.js";
 const GENERAL_KEYWORDS = ["theme appearance accent language spell microphone timezone", ...extensions.generalActions.map((action) => action.title.toLowerCase())].join(" ");
 
 /**
- * The search palette's commands: Add bots, New chat, Team, shortcuts, each settings section, Connect Apps, Skills and the
+ * The search palette's commands: Add bots, New room, shortcuts, each settings section, Connect Apps, Skills and the
  * three themes, the current one checked.
  * @param {{
  *   settingsSections: Array<{ value: string, title: string }>,
@@ -16,9 +16,8 @@ const GENERAL_KEYWORDS = ["theme appearance accent language spell microphone tim
 export function paletteCommands({ settingsSections, theme: currentTheme }) {
   return [
     // Add bots (D-109), which was New bot: found by either.
-    { id: "newBot", title: "Add bots", icon: "$editSquare", keywords: "new bot team" },
-    { id: "newChat", title: "New chat", icon: "$chat", keywords: "start public private" },
-    { id: "team", title: "Team", icon: "$group", keywords: "people bots members invite" },
+    { id: "newBot", title: "Add bots", icon: "$editSquare", keywords: "new bot set" },
+    { id: "newChat", title: "New room", icon: "$chat", keywords: "new chat start public private" },
     { id: "shortcuts", title: "Keyboard shortcuts", category: "Help", icon: "$keyboard" },
     ...settingsSections.map((section) => ({
       id: `settings:${section.value}`,
@@ -83,7 +82,7 @@ function chatRow(chat, me) {
   };
 }
 
-// The home's people and bots (D3), as Team has them: a bot opens the person's direct chat with it, a person their card.
+// The home's people and bots (D3), as People and Bots have them: a bot opens the person's direct chat with it, a person their card.
 const botRow = (bot) => ({ key: `bot-${bot.id}`, kind: "bot", bot, title: bot.name, secondary: "Bot" });
 const personRow = (person) => ({ key: `person-${person.id}`, kind: "person", person, title: person.name, secondary: person.roleLabel || "Person" });
 

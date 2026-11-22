@@ -86,9 +86,12 @@ test("only the chat's other people are mentioned: no one else is marked, or name
   await assert.rejects(chats.get(secret, as(carla)), { statusCode: 404 });
   assert.deepEqual((await chats.list({}, as(carla))).chats.map((chat) => chat.id), []);
 
-  // Someone reading a public chat they aren't in writes nothing there, mentions included (403 join first).
-  await assert.rejects(say(kitchen, dario, `<@person:${anna}> hi`), { statusCode: 403, code: "bots_chat_join_first" });
+  // Someone reading a public chat they aren't in joins it by writing there, and their mention of its people marks them.
   assert.equal((await place(kitchen, anna)).mentioned, false);
+  const joined = await say(kitchen, dario, `<@person:${anna}> hi`);
+  assert.deepEqual(joined.body.mentionedPeople.map((person) => String(person.id)), [anna]);
+  assert.ok(await place(kitchen, dario), "Dario is in Kitchen now");
+  assert.equal((await place(kitchen, anna)).mentioned, true);
 });
 
 test("a mention's writes are one statement whoever is named, and the list reads the \"@\" with its places", async (context) => {

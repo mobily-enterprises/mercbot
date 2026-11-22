@@ -33,7 +33,8 @@ export const botResource = defineTableResource({
 
 /** conversations
  * a chat (D-112): public (everyone in the home can open it) or private (its people only); a direct chat is one
- * person's own with one bot; the everyone chat has every active member of the home; an app's chat is its Builder's
+ * person's own with one bot (directBotId), or two people's (directPersonId, the pair kept with directUserId the lower
+ * id), private either way; the everyone chat has every active member of the home; an app's chat is its Builder's
  */
 export const conversationResource = defineTableResource({
   name: "conversations",
@@ -47,6 +48,7 @@ export const conversationResource = defineTableResource({
     botsJoinIn: { type: "boolean" },
     createdAt: { type: "dateTime" },
     directBotId: { type: "id", nullable: true, search: true },
+    directPersonId: { type: "id", nullable: true, search: true },
     directUserId: { type: "id", nullable: true, search: true },
     everyone: { type: "boolean", search: true },
     kind: { type: "string", maxLength: 8, noTrim: true, required: true, search: true },
@@ -84,7 +86,8 @@ export const chatPersonResource = defineTableResource({
 
 /** chat_bots
  * a bot in a chat: its id is "this bot in this chat", which its runs, goal, to-do list, job notes, computer, commands,
- * routines, watches, app jobs and follow-ups hang off
+ * routines, watches, app jobs and follow-ups hang off; readsFromMessageId is where it reads its chat from (null: from
+ * the beginning)
  */
 export const chatBotResource = defineTableResource({
   name: "chatBots",
@@ -97,6 +100,7 @@ export const chatBotResource = defineTableResource({
     jobNotes: { type: "array" },
     joinedAt: { type: "dateTime" },
     position: { type: "integer", required: true },
+    readsFromMessageId: { type: "id", nullable: true },
     waitingTask: { type: "string", maxLength: 200, noTrim: true, nullable: true },
     workspaceId: { type: "id", hidden: true, search: true }
   }

@@ -361,6 +361,6 @@ Someone reset it: **Reset** in **Settings** > **Computer** clears the saved sign
 - [Approvals, safety and privacy](/help/approvals-and-privacy)
 - [Files, documents and pictures](/help/files)
 - [Skills, routines and watches](/help/skills-and-routines)
-- [Chats and your team](/help/chats)
+- [Rooms, people and bots](/help/chats)
 - [Settings and notifications](/help/settings)
 - [Fixing common problems](/help/troubleshooting)

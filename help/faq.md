@@ -24,7 +24,7 @@ Yes. A job you've started carries on in the background, and routines run at thei
 
 ## What do bots remember?
 
-Within a chat, a bot keeps the thread however long it gets: it summarises the older part in the background and reads the recent part word for word. Across chats, each bot remembers the Public chats it's in, and reads the notes everyone in the home was told; a Private chat reaches only chats whose people are all in it. See [What bots remember](/help/memory). Bots made from a template keep what they learn about your job in a notes document in the chat's folder, which anyone who can open the chat can open and correct. What a bot should always do goes in its additions, on its card in **Team**. See [Bots](/help/bots).
+Within a chat, a bot keeps the thread however long it gets: it summarises the older part in the background and reads the recent part word for word. Across chats, each bot remembers the Public rooms it's in, and reads the notes everyone in the home was told; a Private chat reaches only chats whose people are all in it. See [What bots remember](/help/memory). Bots made from a template keep what they learn about your job in a notes document in the chat's folder, which anyone who can open the chat can open and correct. What a bot should always do goes in its additions, on its card. See [Bots](/help/bots).
 
 ## How do bots use websites?
 
@@ -44,7 +44,7 @@ Mercbot's own. You don't need to choose a model or enter any keys. There are two
 
 ## Who can see my chats?
 
-Everyone in the home can open a **Public** chat, and every new chat is Public unless you choose **Private** when you start it. Only the members of a Private chat can open it, and nothing in it reaches other chats. A bot in a chat uses only what everyone who can open that chat can also open. See [Chats and your team](/help/chats).
+Everyone in the home can open a **Public** room, and every new room is Public unless you choose **Private** when you make it. Only the members of a Private room can open it, and nothing in it reaches other chats. Your chat with a bot, and your chat with another person, are private to the two of you. A bot in a chat uses only what everyone who can open that chat can also open. See [Rooms, people and bots](/help/chats).
 
 ## Do bots see my passwords?
 
@@ -108,17 +108,17 @@ For a skill, ask the bot to save what it just did as a skill, or teach it by rec
 
 ## Can I share a bot with someone?
 
-Inside a home, every bot is already everyone's: it's a member of the home, on the **Team** page, and anyone can start a chat with it or add it to one. See [Chats and your team](/help/chats).
+Inside a home, every bot is already everyone's: it's a member of the home, under **Bots** in the sidebar, and anyone can start a chat with it or invite it into a room. See [Rooms, people and bots](/help/chats).
 
 Outside your home, you can share one of the ready-made bots in the [template gallery](/templates). A template's **Add to Mercbot** opens its share page: send someone that link, and its **Add to Mercbot** shows them everything the bot would be given before they add it to their own home. The gallery is curated by the Mercbot team, who alone add templates to it, so a bot you've made yourself can't go there, and Mercbot has no way to send your own bot to someone outside your home.
 
 ## Can I take a bot off my team?
 
-Yes: archive it. Open its card in **Team** and, on its **Details** tab, select **Archive** and its name, such as **Archive Ledger**. It leaves the team for everyone in the home and stays in its chats without answering, and its routines and watches pause. Nothing is deleted, and its maker or the home's owners and admins can resume it. Only they can archive it, and the home's main bot and the bot that builds the home's apps can't be archived. See [Archive a bot](/help/bots#archive-a-bot).
+Yes: archive it. Open its card and, on its **Details** tab, select **Archive** and its name, such as **Archive Ledger**. It leaves the team for everyone in the home and stays in its chats without answering, and its routines and watches pause. Nothing is deleted, and its maker or the home's owners and admins can resume it. Only they can archive it, and the home's main bot and the bot that builds the home's apps can't be archived. See [Archive a bot](/help/bots#archive-a-bot).
 
 ## How do I delete a chat?
 
-Right-click the chat in the sidebar, or open its **Chat details**, and choose **Delete** (in Chat details, **Delete chat**). It goes for everyone in it, with its whole history, its files and its bots' computers; its bots stay on your team. This can't be undone. The chat's maker and the home's owners and admins can delete it. To keep a Public chat readable for everyone instead, choose **Archive**. To take any chat out of your own list, a Private chat included, choose **Hide from sidebar**.
+Right-click the chat in the sidebar, or open its **Chat details**, and choose **Delete** (in Chat details, **Delete chat**). It goes for everyone in it, with its whole history, its files and its bots' computers; its bots stay in the home. This can't be undone. The chat's maker and the home's owners and admins can delete it. To keep a Public room readable for everyone instead, choose **Archive**. To take any chat out of your own list, a Private chat included, choose **Hide from sidebar**.
 
 ## How do I delete my account?
 

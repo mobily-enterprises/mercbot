@@ -7,8 +7,8 @@ import { bootServer, signUp } from "./http.mjs";
 import { forget, seedHome } from "./seed.mjs";
 
 // Search (D-36, D-46) on chats (D-112), over HTTP: a person finds messages in the home's chats they can open: every
-// Public one (a direct chat starts Public, D15) and a Private one only while they are in it; never an archived chat
-// or anything of another home, and someone outside the home is answered as a home that isn't there.
+// Public one and a Private one only while they are in it (a person's chat with a bot is Private, theirs alone); never
+// an archived chat or anything of another home, and someone outside the home is answered as a home that isn't there.
 
 let app;
 let knex;
@@ -63,9 +63,9 @@ async function search(person, home) {
 const hits = (result) => result.messages.map((message) => message.id).sort();
 const expected = (...names) => names.map((name) => found[name]).sort();
 
-test("a person finds the home's Public chats, a direct chat among them, and their own Private one, never an archived one", async () => {
+test("a person finds the home's Public chats and their own Private one, never someone else's chat with a bot or an archived one", async () => {
   const result = await search(pat, homeA);
-  assert.deepEqual(hits(result), expected("kitchen", "plans", "kims"));
+  assert.deepEqual(hits(result), expected("kitchen", "plans"));
   const kitchen = result.messages.find((message) => message.id === found.kitchen);
   assert.deepEqual([kitchen.chatName, kitchen.chatKind, kitchen.authorName, kitchen.text], ["Kitchen", "public", "you", `The kitchen's ${word}`]);
   assert.ok(Array.isArray(result.routines) && Array.isArray(result.files));
@@ -84,7 +84,7 @@ test("another member finds the Public chats, never a Private chat they aren't in
 
 test("each home's search finds only that home's messages", async () => {
   assert.deepEqual(hits(await search(kim, homeB)), expected("kimsInB"), "Kim in B finds only her chat in B");
-  assert.deepEqual(hits(await search(sam, homeB)), expected("kimsInB"), "it's Public, so Sam finds it too");
+  assert.deepEqual(hits(await search(sam, homeB)), [], "it's Kim's own chat with a bot, so Sam finds nothing");
   const outside = await sam.get(`${homeA.url}/search?q=${encodeURIComponent(word)}`);
   assert.equal(outside.status, 404, `someone outside A is answered as a home that isn't there: ${JSON.stringify(outside.body)}`);
 });

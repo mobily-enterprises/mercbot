@@ -13,11 +13,13 @@ import { homeChanges, useHomes } from "./homesApi.js";
  *   work: import("../../types.js").ChatWork,
  *   team: ReturnType<typeof import("./useTeam.js").useTeam>,
  *   onDropped: (chatId: string) => void,
- *   onComputer: (news: { chatId: string, botId: string, control: string | null }) => void
+ *   onComputer: (news: { chatId: string, botId: string, control: string | null }) => void,
+ *   onRooms: () => void
  * }} options `onDropped` hears of a chat gone for this person, after it's off the list; `onComputer` of who has a
- *   bot's computer in a chat now (a person's id, or null for its bot)
+ *   bot's computer in a chat now (a person's id, or null for its bot); `onRooms` of any chat's change, and of a
+ *   reconnect, so the public rooms the person isn't in are read again
  */
-export function useChatEvents({ store, work, team, onDropped, onComputer }) {
+export function useChatEvents({ store, work, team, onDropped, onComputer, onRooms }) {
   let events = null;
   const { current: here, load: loadHomes } = useHomes();
   // Counts each bot's computer news in each chat ("<chatId> <botId>" → n), so an open computer panel reads it again.
@@ -58,6 +60,7 @@ export function useChatEvents({ store, work, team, onDropped, onComputer }) {
       team.load()
     ]);
     store.mergeChats(chats, startedAt);
+    onRooms();
   }
 
   function onWorking(event) {
@@ -87,9 +90,10 @@ export function useChatEvents({ store, work, team, onDropped, onComputer }) {
       work.replyNews(String(chatId));
     });
     // A chat made, renamed, archived, unarchived or deleted, or its members changed: told to its people and to anyone
-    // just taken out of it.
+    // just taken out of it, and a public room's to everyone in the home, whose faded rooms change with it.
     events.addEventListener("chat", (event) => {
       const { chatId, change } = JSON.parse(event.data);
+      onRooms();
       if (change === "deleted") drop(String(chatId));
       else if (change === "created" && !store.knowsChat(String(chatId))) chatNews(String(chatId)).catch(() => {});
       else readChat(String(chatId));

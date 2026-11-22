@@ -1,8 +1,10 @@
 import { passedOn } from "@jskit-ai/resource-core/shared/callOptions";
 import { personName } from "@local/homes/server/personName";
-import { BotsError, archivedBotRefusal } from "../botsError.js";
+import { BotsError, archivedBotRefusal, directChatRefusal } from "../botsError.js";
 import { cloudShape } from "../botRows.js";
 import { createCallerReaders, fieldsOf, isId } from "./recordRows.js";
+import { builderChanger } from "./builderSeats.js";
+import { createSeatWindows } from "./seatWindows.js";
 import { createSectionRecords } from "./sectionRepository.js";
 
 /** @typedef {import("@jskit-ai/resource-runtime/server/types").ResourceCallOptions} CallOptions */
@@ -11,8 +13,9 @@ import { createSectionRecords } from "./sectionRepository.js";
 // Chats are the core (D-112): a chat is a row of conversations, Public (everyone in the home can open it) or Private
 // (its people only), chosen when it's made and fixed from then on; a new chat is Public unless Private was chosen.
 // Its members are people (chat_people, each with their own place in it) and bots (chat_bots, "this bot in this
-// chat"). A direct chat is the one chat a person's [Message] to a bot reopens: Public like any other, it takes no
-// more members. The everyone chat has every active member of the home. An app's chat is its Builder's.
+// chat"). A direct chat is the one chat a person's [Message] to a bot reopens, or the one chat between two people:
+// Private, readable only from itself (readable_from), it takes no more members. A room is any other chat. The
+// everyone chat has every active member of the home. An app's chat is its Builder's.
 
 const KINDS = new Set(["public", "private"]);
 // A person's own place in a chat, as its chat_people row names it: since when someone mentioned them there unread too
@@ -24,12 +27,15 @@ const PLACE_CHANGES = new Set(PLACE.filter((field) => field !== "mentionedAt"));
 const ADD_LIMIT = 200;
 // A page of a person's chat list (their places, at most the resource's page limit): the page reads on while `next`.
 const LIST_PAGE = 100;
+// A page of the home's public rooms a person isn't in.
+const ROOMS_PAGE = 100;
 
 const notFound = () => new BotsError(404, "Chat not found.", { code: "bots_chat_not_found" });
 const archivedRefusal = () =>
   new BotsError(409, "This chat is archived. Unarchive it to continue.", { code: "bots_chat_archived" });
-const directRefusal = () =>
-  new BotsError(409, "A direct chat is one person's with one bot. Continue with others to bring others in.", { code: "bots_chat_direct" });
+const personNotFound = () => new BotsError(404, "Person not found.", { code: "bots_person_not_found" });
+/** Whether a chat is a direct one: a person's with a bot, or two people's. */
+export const isDirect = (chat) => Boolean(chat.direct_bot_id || chat.direct_person_id);
 
 /**
  * The chats among `ids` the caller may read, in id order: what routines and search results name as their chat.
@@ -43,6 +49,55 @@ function chatsByIds(conversations) {
     const records = await conversations.queryAll({ filters: { id: wanted }, sort: ["id"] }, passedOn(options));
     return records.map((record) => asRow(record, options));
   };
+}
+
+/**
+ * The home's public rooms a person isn't in, a page at a time (chatRepository.js publicRooms).
+ * @param {ResourceHandle} conversations
+ * @param {ResourceHandle} chatPeople
+ */
+function roomsToVisit(conversations, chatPeople) {
+  const { personOf, asRow } = createCallerReaders();
+  /**
+   * A page of the home's public rooms the person isn't in (not a direct chat, not archived), newest made first, an order
+   * no room moves in while the pages are read (`after`: the page before's `next`, its last room's id; null after the
+   * last page): what the list shows faded. One read of the person's places and one of the page.
+   * @param {CallOptions} options
+   * @param {{ after?: string | null }} [page]
+   * @returns {Promise<{ chats: object[], next: string | null }>}
+   */
+  return async function publicRooms(options, { after = null } = {}) {
+    const mine = await chatPeople.queryAll({ filters: { userId: personOf(options) }, fields: ["conversationId"] }, passedOn(options));
+    const { records, page } = await conversations.query({
+      filters: {
+        kind: "public",
+        archived: false,
+        direct: false,
+        directPerson: false,
+        ...(after ? { beforeId: String(after) } : {}),
+        ...(mine.length ? { notIds: mine.map((place) => String(place.conversationId)) } : {})
+      },
+      sort: ["-id"],
+      page: { size: ROOMS_PAGE }
+    }, passedOn(options));
+    return { chats: records.map((record) => asRow(record, options)), next: page.hasMore ? String(records.at(-1).id) : null };
+  };
+}
+
+/**
+ * A chat made once on its unique key (`find` finds it), else made by `make`: two first uses at once make one, the
+ * second waiting on the first's unique index and then finding it.
+ */
+async function madeOnce(find, make, options) {
+  const found = await find(options);
+  if (found) return found;
+  try {
+    return await make();
+  } catch (error) {
+    const again = await find(options);
+    if (again) return again;
+    throw error;
+  }
 }
 
 /**
@@ -81,8 +136,8 @@ function messageMarks(chatPeople, homeWide, systemContext) {
 }
 
 /**
- * A change to a chat the caller may read (`get`), never a direct chat's: its title shows its bot's name, and it has one
- * person, so its bot always answers. Answers the chat's row.
+ * A change to a chat the caller may read (`get`), never a direct chat's: its title shows its bot's or the other person's
+ * name, and a chat with a bot has one person, so its bot always answers. Answers the chat's row.
  * @param {(chatId: string, options: object) => Promise<object>} get
  * @param {ResourceHandle} conversations
  * @param {(record: object, options: object) => object} asRow
@@ -90,7 +145,7 @@ function messageMarks(chatPeople, homeWide, systemContext) {
 function chatChanger(get, conversations, asRow) {
   return async function changeChat(chatId, changes, options) {
     const chat = await get(chatId, options);
-    if (chat.direct_bot_id) throw directRefusal();
+    if (isDirect(chat)) throw directChatRefusal(chat);
     return asRow(await conversations.patch(String(chat.id), changes, passedOn(options)), options);
   };
 }
@@ -109,8 +164,8 @@ function chatChanger(get, conversations, asRow) {
  */
 export function createChatRepository({ resources, systemContext, profiles, memberships }) {
   const { bots, conversations, chatPeople, chatBots, conversationSections: sections } = resources;
+  const windows = createSeatWindows(resources);
   const { homeOf, personOf, asRow } = createCallerReaders();
-  const rowsOf = (records, options) => records.map((record) => asRow(record, options));
   /** The first record of `handle` matching `filters` the caller may read, or null. */
   const firstOf = async (handle, filters, options) =>
     (await handle.query({ filters, page: { size: 1 } }, passedOn(options))).records[0] ?? null;
@@ -246,17 +301,6 @@ export function createChatRepository({ resources, systemContext, profiles, membe
     return { chats, next: page.next };
   }
 
-  /** Public chats of the home the person isn't in, newest activity first, up to `limit`: what they may join. */
-  async function publicChats(options, { limit = 50 } = {}) {
-    const mine = await chatPeople.queryAll({ filters: { userId: personOf(options) }, fields: ["conversationId"] }, passedOn(options));
-    const { records } = await conversations.query({
-      filters: { kind: "public", archived: false, direct: false, ...(mine.length ? { notIds: mine.map((place) => String(place.conversationId)) } : {}) },
-      sort: ["-lastActivityAt", "-id"],
-      page: { size: limit }
-    }, passedOn(options));
-    return rowsOf(records, options);
-  }
-
   /** The caller's own place in a chat (their chat_people row), or null when they aren't in it. */
   async function place(chatId, options) {
     if (!isId(chatId)) return null;
@@ -288,8 +332,11 @@ export function createChatRepository({ resources, systemContext, profiles, membe
     }
   }
 
-  /** Bot rows added to a chat after the ones it has, skipping a bot already in it. */
-  async function seatBots(chatId, botIds, addedBy, txOptions) {
+  /**
+   * Bot rows added to a chat after the ones it has, skipping a bot already in it, each reading the chat from
+   * `readsFrom` (a message id; null for its beginning).
+   */
+  async function seatBots(chatId, botIds, addedBy, txOptions, readsFrom = null) {
     const wanted = [...new Set(botIds.map(String))];
     if (!wanted.length) return;
     const found = await bots.queryAll({ filters: { id: wanted }, fields: ["name", "archivedAt"] }, passedOn(txOptions));
@@ -300,7 +347,9 @@ export function createChatRepository({ resources, systemContext, profiles, membe
       if (bot.archivedAt) throw archivedBotRefusal({ name: bot.name });
     }
     const start = await nextBotPosition(chatId, txOptions);
-    await chatBots.createMany(wanted.map((botId, index) => ({ conversationId: String(chatId), botId, addedBy, position: start + index })), {
+    const at = (index) => ({ addedBy, position: start + index, readsFromMessageId: readsFrom });
+    const seat = (botId, index) => ({ conversationId: String(chatId), botId, ...at(index) });
+    await chatBots.createMany(wanted.map(seat), {
       ...passedOn(txOptions),
       onConflict: { keys: ["conversationId", "workspaceId", "botId"], action: "ignore" },
       returning: "none"
@@ -310,18 +359,15 @@ export function createChatRepository({ resources, systemContext, profiles, membe
   /** Refuses people who aren't active members of the home: one read of those people's memberships in it. */
   async function requireHomeMembers(userIds, options) {
     if (!userIds.length) return;
-    if (userIds.some((id) => !isId(id))) throw new BotsError(404, "Person not found.", { code: "bots_person_not_found" });
+    if (userIds.some((id) => !isId(id))) throw personNotFound();
     const home = String(homeOf(options));
     const homesOf = await memberships.listActiveWorkspaceIdsByUserIdsAmong(userIds.map(String), [home], passedOn(options));
-    if (userIds.some((id) => !(homesOf.get(String(id)) ?? []).map(String).includes(home))) {
-      throw new BotsError(404, "Person not found.", { code: "bots_person_not_found" });
-    }
+    if (userIds.some((id) => !(homesOf.get(String(id)) ?? []).map(String).includes(home))) throw personNotFound();
   }
 
   /**
-   * A new chat, with its first people and bots, read back. Public unless `kind` is "private" (D15); a private chat
-   * needs at least one person. The maker (the caller's person, when there is one) is one of its people. In the
-   * caller's transaction, or one of its own.
+   * A new chat, with its first people and bots, read back. Public unless `kind` is "private" (D15). The maker (the
+   * caller's person, when there is one) is one of its people. In the caller's transaction, or one of its own.
    * @param {{ kind?: string, title?: string | null, people?: string[], bots?: string[], appId?: string | null, everyone?: boolean, onboardingStep?: string | null, directBotId?: string | null }} chat
    * @param {CallOptions} options
    */
@@ -330,7 +376,6 @@ export function createChatRepository({ resources, systemContext, profiles, membe
     if (!KINDS.has(kind)) throw new BotsError(400, "A chat is Public or Private.", { code: "bots_chat_kind" });
     const maker = personOrNull(options);
     const peopleIds = [...new Set([...(maker ? [maker] : []), ...(chat.people ?? []).map(String)])];
-    if (kind === "private" && !peopleIds.length) throw new BotsError(400, "A private chat needs a person in it.", { code: "bots_chat_needs_person" });
     if (peopleIds.length > ADD_LIMIT || (chat.bots ?? []).length > ADD_LIMIT) {
       throw new BotsError(400, `A chat starts with up to ${ADD_LIMIT} people and ${ADD_LIMIT} bots.`, { code: "bots_chat_too_many" });
     }
@@ -362,33 +407,46 @@ export function createChatRepository({ resources, systemContext, profiles, membe
   }
 
   /**
-   * A chat made once on its unique key (`find` finds it), else made by `make`: two first uses at once make one, the
-   * second waiting on the first's unique index and then finding it.
-   */
-  async function madeOnce(find, make, options) {
-    const found = await find(options);
-    if (found) return found;
-    try {
-      return await make();
-    } catch (error) {
-      const again = await find(options);
-      if (again) return again;
-      throw error;
-    }
-  }
-
-  /**
-   * The person's direct chat with a bot, made on their first [Message]: Public (D15), the person and the bot its
-   * members, one per person and bot (ux_conversations_direct).
+   * The person's direct chat with a bot, made on their first [Message]: Private, readable only from itself, the person
+   * and the bot its members, one per person and bot (ux_conversations_direct).
    */
   async function direct(botId, options, { onboardingStep = null } = {}) {
-    const make = () => create({ kind: "public", directBotId: String(botId), bots: [String(botId)], onboardingStep }, options);
+    const make = () => create({ kind: "private", directBotId: String(botId), bots: [String(botId)], onboardingStep }, options);
     return madeOnce((callOptions) => directWith(botId, callOptions), make, options);
   }
 
   /** The person's direct chat with a bot, or null: read only, never made (a template drafted from the bot). */
   async function directWith(botId, options) {
     return asRow(await firstOf(conversations, { directUserId: personOf(options), directBotId: String(botId) }, options), options);
+  }
+
+  /**
+   * The person's chat with another person of the home, made on first use: Private, readable only from itself, the two
+   * of them its people, one per pair in the home, kept with the lower id first (ux_conversations_person_direct). An
+   * insert that skips the pair when it's there, then a read of it, so two first uses at once make one; a new chat seats
+   * them both, and an old one seats the caller again if they had left it. In the caller's transaction, or one of its own.
+   * @param {string} userId the other person: an active member of the home, not the caller
+   * @param {CallOptions} options
+   */
+  async function personDirect(userId, options) {
+    const me = personOf(options);
+    const other = String(userId ?? "");
+    if (other === String(me)) throw new BotsError(400, "That's you.", { code: "bots_direct_self" });
+    if (!isId(other)) throw personNotFound();
+    const [low, high] = BigInt(me) < BigInt(other) ? [String(me), other] : [other, String(me)];
+    // Read before the transaction, whose insert may wait on another first use of the same pair.
+    if (!(await isHomeMember(other, options))) throw personNotFound();
+    return conversations.withTransaction(passedOn(options), async (txOptions) => {
+      const home = homeWide(txOptions, systemContext("a chat between two people is made once, before they're in it"));
+      const made = await conversations.createMany([{ kind: "private", directUserId: low, directPersonId: high, madeBy: String(me) }], {
+        ...home,
+        onConflict: { keys: ["directUserId", "directPersonId", "workspaceId"], action: "ignore" },
+        returning: "count"
+      });
+      const pair = await firstOf(conversations, { directUserId: low, directPersonId: high }, home);
+      await seatPeople(pair.id, made ? [low, high] : [String(me)], String(me), txOptions);
+      return get(pair.id, txOptions);
+    });
   }
 
   /** The home's everyone chat, or null. */
@@ -411,41 +469,10 @@ export function createChatRepository({ resources, systemContext, profiles, membe
     return madeOnce(findIt, () => create({ kind: "public", appId: String(appId), title, bots: [String(botId)] }, options), options);
   }
 
-  /**
-   * The home's Builder changed (O26, D-112): in every app's chat the new Builder (`toBotId`) is seated after the bots
-   * there, where it isn't already; the old one stays a member until someone removes it. Answers the ids of every app's
-   * chat, whose Builder each changed, for their lines. Three statements, however many apps.
-   * @param {{ toBotId: string }} change
-   */
-  async function changeAppBuilder({ toBotId }, txOptions) {
-    const ids = (await conversations.queryAll({ filters: { app: true }, fields: ["appId"] }, passedOn(txOptions))).map((chat) => String(chat.id));
-    if (!ids.length) return [];
-    const seats = await chatBots.queryAll({ filters: { conversationIds: ids }, fields: ["conversationId", "botId", "position"] }, passedOn(txOptions));
-    const last = new Map();
-    const seated = new Set();
-    for (const seat of seats) {
-      const chatId = String(seat.conversationId);
-      last.set(chatId, Math.max(last.get(chatId) ?? -1, Number(seat.position)));
-      if (String(seat.botId) === String(toBotId)) seated.add(chatId);
-    }
-    const joining = ids.filter((id) => !seated.has(id));
-    if (joining.length) {
-      const addedBy = personOrNull(txOptions);
-      const seat = (chatId) => ({ conversationId: chatId, botId: String(toBotId), addedBy, position: (last.get(chatId) ?? -1) + 1 });
-      const rows = joining.map(seat);
-      await chatBots.createMany(rows, {
-        ...passedOn(txOptions),
-        onConflict: { keys: ["conversationId", "workspaceId", "botId"], action: "ignore" },
-        returning: "none"
-      });
-    }
-    return ids;
-  }
-
   /** A chat that takes members: one the caller may read, not archived, not a direct chat. */
   async function openForMembers(chatId, txOptions) {
     const chat = await lock(chatId, txOptions, { writing: true });
-    if (chat.direct_bot_id) throw directRefusal();
+    if (isDirect(chat)) throw directChatRefusal(chat);
     return chat;
   }
 
@@ -453,19 +480,32 @@ export function createChatRepository({ resources, systemContext, profiles, membe
   async function addPerson(chatId, userId, options) {
     return conversations.withTransaction(passedOn(options), async (txOptions) => {
       await openForMembers(chatId, txOptions);
-      if (!(await isHomeMember(userId, txOptions))) throw new BotsError(404, "Person not found.", { code: "bots_person_not_found" });
+      if (!(await isHomeMember(userId, txOptions))) throw personNotFound();
       const before = await isPerson(chatId, userId, homeWide(txOptions, systemContext("whether someone is already in a chat")));
       await seatPeople(chatId, [String(userId)], personOrNull(txOptions), txOptions);
       return !before;
     });
   }
 
-  /** A bot added to a chat by the caller; answers its seat there (its chat_bots row). */
+  /** The caller seated in a public room by writing in it, in the message's transaction (none when there already). */
+  async function joinByWriting(chatId, txOptions) {
+    await seatPeople(chatId, [String(personOf(txOptions))], String(personOf(txOptions)), txOptions);
+  }
+
+  /**
+   * A bot added to a chat by the caller, reading only the chat's latest messages and what is said after (its window,
+   * seatWindows.js). Answers its seat there (its chat_bots row; the one it has when it was already in the chat) and
+   * whether the chat had more before it (`windowed`), for the line that says so.
+   * @returns {Promise<{ seat: object | null, windowed: boolean }>}
+   */
   async function addBot(chatId, botId, options) {
     return conversations.withTransaction(passedOn(options), async (txOptions) => {
       await openForMembers(chatId, txOptions);
-      await seatBots(chatId, [String(botId)], personOrNull(txOptions), txOptions);
-      return chatBotOf(botId, chatId, txOptions);
+      const already = await chatBotOf(botId, chatId, txOptions);
+      if (already) return { seat: already, windowed: false };
+      const readsFrom = await windows.startFor(chatId, txOptions);
+      await seatBots(chatId, [String(botId)], personOrNull(txOptions), txOptions, readsFrom);
+      return { seat: await chatBotOf(botId, chatId, txOptions), windowed: readsFrom !== null };
     });
   }
 
@@ -663,18 +703,22 @@ export function createChatRepository({ resources, systemContext, profiles, membe
     bots: botsIn,
     botsOf,
     ofPerson,
-    publicChats,
+    publicRooms: roomsToVisit(conversations, chatPeople),
     place,
     isPerson,
     create,
     direct,
     directWith,
+    personDirect,
     everyoneChat,
     makeEveryoneChat,
     appChat,
-    changeAppBuilder,
+    changeAppBuilder: builderChanger(conversations, chatBots, personOrNull),
     addPerson,
+    joinByWriting,
     addBot,
+    readFurtherBack: windows.readFurtherBack,
+    windowOf: windows.windowOf,
     removePerson,
     removeBot,
     rename,

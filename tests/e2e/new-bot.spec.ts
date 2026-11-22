@@ -1,8 +1,8 @@
 import { HOME, connectTestDb, expect, homeApi, openShell, shell, test, type Page } from "./harness";
 
-// Add bots (D-109, which was New bot) as a person first meets it (D-112): from the sidebar's New chat or bots menu, it
+// Add bots (D-109, which was New bot) as a person first meets it (D-112): from the + of the sidebar's Bots, it
 // opens on two ways to choose, and One bot's templates are calm: an area menu, no featured cards, no byline, and no
-// "Not tested yet". A bot made there joins the home's team, and the person's direct chat with it opens, where it greets
+// "Not tested yet". A bot made there joins the home's bots, and the person's direct chat with it opens, where it greets
 // them. The fixtures give the owner's home Otto and Vera; each test deletes the bots it makes, and their chats with them.
 // Run with: vibe64-helper playwright --target test-app test tests/e2e/new-bot.spec.ts
 // Any refused API call from the page, one with no answer, or JSKIT's error dialog, fails the test (harness.ts).
@@ -16,10 +16,9 @@ const directOpened = (page: Page) => page.waitForResponse((response) =>
 const teamRead = (page: Page) => page.waitForResponse((response) => response.request().method() === "GET" && new URL(response.url()).pathname === `/api${HOME}/bots`);
 const chatNamed = (chatId: string) => new RegExp(`[?&]chat=${chatId}(&|$)`, "u");
 
-// Add bots, from the sidebar's New chat or bots menu.
+// Add bots, from the + of the sidebar's Bots.
 async function openAddBots(page: Page) {
-  await shell.sidebar(page).getByRole("button", { name: "New chat or bots", exact: true }).click();
-  await shell.menuItems(page).filter({ hasText: /^Add bots$/u }).click();
+  await shell.section(page, "Bots").getByRole("button", { name: "Add bots", exact: true }).click();
   await expect(newBotDialog(page)).toBeVisible();
 }
 
@@ -68,7 +67,7 @@ async function serveMultiSelect(page: Page) {
   return () => knex.destroy();
 }
 
-// 21 November (D-109): the screen was too busy. It opens on One bot and A ready-made team; One bot has the search and
+// 21 November (D-109): the screen was too busy. It opens on One bot and A ready-made set; One bot has the search and
 // an area menu, General helper first, no featured cards, no "by the Mercbot team" and no "Not tested yet" (every
 // template is the team's, and the check results are empty); Back returns to the two ways.
 test("Add bots opens on two ways to choose, and One bot's templates are calm", async ({ page }) => {
@@ -77,7 +76,7 @@ test("Add bots opens on two ways to choose, and One bot's templates are calm", a
   const dialog = newBotDialog(page);
   await expect(dialog.getByRole("heading", { name: "Add bots" })).toBeVisible();
   await expect(dialog.getByRole("button", { name: /^One bot/u })).toBeVisible();
-  await expect(dialog.getByRole("button", { name: /^A ready-made team/u })).toBeVisible();
+  await expect(dialog.getByRole("button", { name: /^A ready-made set/u })).toBeVisible();
   await dialog.getByRole("button", { name: /^One bot/u }).click();
   await expect(dialog.getByRole("heading", { name: "One bot" })).toBeVisible();
   await expect(dialog.getByRole("searchbox", { name: "Search templates" })).toBeFocused();
@@ -162,7 +161,7 @@ test("on a phone, a new bot's multi-select question takes picks, and Done answer
 });
 
 // Another bot of the home, made through the API, which this page doesn't make: the home hears of it ("bot",
-// created), so the page reads its team again (useChatEvents).
+// created), so the page reads the home's bots again (useChatEvents).
 async function anotherBot(page: Page) {
   const name = `Elsewhere ${Date.now().toString(36)}`;
   const { bot } = await (await homeApi(page)).post("/bots", { name, color: "#1E86FC" });
@@ -178,11 +177,11 @@ function gate() {
   return { opened, open };
 }
 
-// News can read the team again while a bot is being made: here another bot of the home, one this page hasn't seen,
-// is made meanwhile. The new bot still joins the team, its chat is listed once and opens, and its details are its card.
-test("a new bot joins the team and its chat opens when news reads the team again while it's being made", async ({ page }) => {
+// News can read the home's bots again while a bot is being made: here another bot of the home, one this page hasn't seen,
+// is made meanwhile. The new bot still joins them, its chat is listed once and opens, and its details are its card.
+test("a new bot joins the home's bots and its chat opens when news reads them again while it's being made", async ({ page }) => {
   await openShell(page);
-  // The page's own create waits until the team has been read again.
+  // The page's own create waits until the home's bots have been read again.
   const create = gate();
   await page.route(`**/api${HOME}/bots`, async (route) => {
     if (route.request().method() !== "POST") return route.fallback();
@@ -208,7 +207,7 @@ test("a new bot joins the team and its chat opens when news reads the team again
     await expect(shell.chatRow(page, name)).toHaveAttribute("aria-current", "page");
     await expect(page).toHaveURL(chatNamed(String(chat.id)));
     await shell.chat(page).getByRole("button", { name: `${name} details` }).click();
-    await expect(shell.details(page, `${name}'s card`), "the team as read has the new bot").toBeVisible();
+    await expect(shell.details(page, `${name}'s card`), "the bots as read have the new bot").toBeVisible();
   } finally {
     create.open();
     if (made) await deleteBot(page, made.id);
@@ -216,12 +215,12 @@ test("a new bot joins the team and its chat opens when news reads the team again
   }
 });
 
-// The other order: a team read that began before the new bot existed answers only after the bot has joined the team.
-// That read doesn't have it, and the bot stays on the team, its chat listed and open; before, it left the list while
+// The other order: a read of the bots that began before the new bot existed answers only after the bot has joined.
+// That read doesn't have it, and the bot stays, its chat listed and open; before, it left the list while
 // the address still named it.
-test("a new bot stays on the team, its chat open, when a team read begun before it existed answers after it", async ({ page }) => {
+test("a new bot stays in the home's bots, its chat open, when a read of them begun before it existed answers after it", async ({ page }) => {
   await openShell(page);
-  // The page's create waits until the team has been read; that read's answer waits until the bot has joined.
+  // The page's create waits until the bots have been read; that read's answer waits until the bot has joined.
   const create = gate();
   const teamReadStarted = gate();
   const teamAnswer = gate();
@@ -259,7 +258,7 @@ test("a new bot stays on the team, its chat open, when a team read begun before 
     await expect(shell.chatRow(page, name), "the new bot's chat stays listed and open").toHaveAttribute("aria-current", "page");
     await expect(page).toHaveURL(chatNamed(String(chat.id)));
     await shell.chat(page).getByRole("button", { name: `${name} details` }).click();
-    await expect(shell.details(page, `${name}'s card`), "the new bot stays on the team").toBeVisible();
+    await expect(shell.details(page, `${name}'s card`), "the new bot stays in the home's bots").toBeVisible();
   } finally {
     create.open();
     teamAnswer.open();

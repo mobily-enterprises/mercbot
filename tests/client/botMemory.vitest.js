@@ -40,9 +40,9 @@ describe("who reads a chat, and which bots remember it", () => {
 
   it("says so once above a public chat's composer, and where a chat's kind is chosen", () => {
     expect(publicNotice("Rossi family", chat("public", [bot("Chef", "1")]))).toEqual({
-      title: "This chat is public",
+      title: "This room is public",
       text: "Everyone in Rossi family can read this · Chef remembers it. Its bots remember what's said here in every chat they're in. " +
-        "For something only some of you should see, start a private chat."
+        "For something only some of you should see, start a private room."
     });
     expect(KIND_MEANS.public("Rossi family")).toBe("Everyone in Rossi family can open it, and its bots remember what's said here in their other chats.");
   });

@@ -135,8 +135,14 @@ test("a chat opens on its newest 100 messages and older ones come a page at a ti
 });
 
 test("opening a chat costs the same at 10 messages as at 300, and reads only its newest page", async (context) => {
-  const { knex, as, owner, service, bot } = await setup(context);
-  const row = await bot("Opener");
+  const { knex, homeId, as, owner, service, bot, chats } = await setup(context);
+  // A public room of the owner's with the bot, the home's only chat: its visibility is the chat's own row (a private
+  // chat's, the person's places).
+  const opener = await bot("Opener");
+  await knex("conversations").where({ id: opener.conversation_id }).del();
+  const room = await seedChat(knex, { homeId, title: "Opener", people: [owner], bots: [opener.id] });
+  chats.push(room.id);
+  const row = { ...opener, conversation_id: room.id };
   const measured = async (total) => {
     await fill(knex, inChat(row, owner), total);
     // The planner sees the chat at its size, as a server's statistics would show it.

@@ -19,14 +19,14 @@ import { botsApi } from "./botsApi.js";
 import { useBotPlan } from "./useBotPlan.js";
 
 // Add bots (D-109), which was New bot (D-98, amended 20 November): it opens on Describe what you need, and two ways to
-// choose yourself, One bot and A ready-made team. Describing asks Mercbot for a plan (useBotPlan.js), shown on Suggested
+// choose yourself, One bot and A ready-made set. Describing asks Mercbot for a plan (useBotPlan.js), shown on Suggested
 // bots (MercbotPlanReview.vue) before anything is added: library bots, the home's templates and new ones written for it,
 // made together by Add N bots. One bot is what it will do: Mercbot's all-round General helper, one of the home's own
 // templates (listed first) or one of Mercbot's library (search, an area menu and passed checks' badges); when nothing
 // fits, Describe the bot you need takes the search's words to the Describe box. A template chosen is shown whole before
 // Next. Then its name, cloud and colour, and Create: the shell creates it (useNewBot.js) and opens its chat. A template a
 // link opens (?template=) starts on it chosen, and a name typed in New chat on One bot; a bot a person shared keeps its
-// own name and look, so it's added from there. A ready-made team adds a few bots at once (D-105: MercbotTeamScreen.vue);
+// own name and look, so it's added from there. A ready-made set adds a few bots at once (D-105: MercbotTeamScreen.vue);
 // the welcome chat opens there. On a phone it fills the screen.
 const props = defineProps({
   busy: { type: Boolean, default: false },
@@ -44,7 +44,7 @@ const emit = defineEmits(["create", "addTeam", "addBots"]);
 const display = useDisplay();
 const phone = computed(() => display.width.value < 600);
 // start (Describe, and the two ways), plan (Suggested bots), pick (One bot), preview (a template chosen), look (name,
-// cloud and colour) or team (A ready-made team).
+// cloud and colour) or team (A ready-made set).
 const step = ref("start");
 // The team on the team screen, "" for the list of teams.
 const team = ref("");
@@ -80,8 +80,8 @@ function pickFresh(list, taken) {
 // Every cloud, Mercbot's own last, ten to a row (D-44).
 const rows = Array.from({ length: Math.ceil((SHAPES.length + 1) / 10) }, (_, index) => [...SHAPES, SPECIAL_SHAPE].slice(index * 10, index * 10 + 10));
 const colourRows = [BOT_PALETTE.slice(0, 6), BOT_PALETTE.slice(6)];
-// A ready-made team's card: three faces, each its own cloud and colour.
-const TEAM_FACES = [1, 2, 3].map((index) => ({ id: `way-team-${index}`, name: "A team's bot", shape: SHAPES[index].id, color: BOT_PALETTE[index * 2].color }));
+// A ready-made set's card: three faces, each its own cloud and colour.
+const TEAM_FACES = [1, 2, 3].map((index) => ({ id: `way-team-${index}`, name: "A set's bot", shape: SHAPES[index].id, color: BOT_PALETTE[index * 2].color }));
 
 // A template of Mercbot's library is the team's; one a link opens that isn't is a bot a person shared.
 const library = computed(() => Boolean(detail.value?.team));
@@ -94,7 +94,7 @@ const title = computed(() => ({
   pick: "One bot",
   preview: "One bot",
   look: "Name your bot",
-  team: "A ready-made team"
+  team: "A ready-made set"
 })[step.value]);
 
 watch(open, (value) => {
@@ -164,7 +164,7 @@ async function toDescribe() {
   describeBox.value?.focus();
 }
 
-/** A ready-made team: the list of teams, or the one chosen. */
+/** A ready-made set: the list of teams, or the one chosen. */
 function toTeams() {
   step.value = "team";
 }
@@ -252,7 +252,7 @@ function onKeydown(event) {
                 <span class="mb-newbot__way-faces" aria-hidden="true">
                   <MercbotAvatar v-for="face in TEAM_FACES" :key="face.id" :bot="face" :size="28" still />
                 </span>
-                <strong>A ready-made team</strong>
+                <strong>A ready-made set</strong>
                 <span>A salon, a shop, a busy household…: a few bots that work well together</span>
               </button>
             </div>

@@ -265,7 +265,8 @@ export function toModelHistory(timeline, { botId = null } = {}) {
     .flatMap((message) => {
       const author = authorOf(message, botId);
       if (author === "bot") return otherBotSaid(message);
-      if (author === "mercbot") {
+      // Mercbot's lines, and a person's own line Mercbot wrote for them (a room's "<Name> started this room.").
+      if (author === "mercbot" || (author === "person" && message.kind === "event")) {
         return message.kind === "event" ? [{ role: "user", content: `(Mercbot: ${message.body.detail || message.body.text})` }] : [];
       }
       return ownOrPerson(message);

@@ -1,11 +1,12 @@
 import type { Locator, Page, TestInfo } from "@playwright/test";
 import { connectTestDb, expect, homeApi, openShell, shell, test } from "./harness";
 
-// Add bots' A ready-made team (D-105, D-109) as a person meets it, on the Test Preview target, in a home of the test's
-// own. Team's Add bots opens on its two ways to choose; A ready-made team lists the teams under For home and life and
-// For work; Small shop shows its five bots, all ticked, and adds the three left ticked to Team, in the team's order.
-// They make no chats of their own (D-112): the welcome chat introduces them, and a [Message] there opens a bot's direct
-// chat. Opened again, Small shop says which three are already in this home and adds only the other two. Screenshots
+// Add bots' A ready-made set (D-105, D-109) as a person meets it, on the Test Preview target, in a home of the test's
+// own. Bots' + (Add bots) opens on its two ways to choose; A ready-made set lists the sets under For home and life and
+// For work; Small shop shows its five bots, all ticked, and adds the three left ticked to the home, in the set's order,
+// listed in the sidebar's Bots (under "3 more", with no chat yet). They make no chats of their own (D-112): the welcome
+// chat introduces them, and a [Message] there opens a bot's direct chat. Opened again, Small shop says which three are
+// already in this home and adds only the other two. Screenshots
 // light, dark and phone. The test deletes the home it makes.
 // Run with: vibe64-helper playwright --target test-app test tests/e2e/team-add.spec.ts
 const SHOP = ["Restock", "Chorus", "Kindly", "Docket", "Rapport"];
@@ -13,7 +14,13 @@ const SHOP = ["Restock", "Chorus", "Kindly", "Docket", "Rapport"];
 test.use({ apiGuard: true });
 
 const addBotsDialog = (page: Page) => page.getByRole("dialog", { name: "Add bots" });
-const teamBots = (page: Page) => shell.team(page).getByRole("list", { name: "Members" }).locator('li[data-member="bot"]');
+/** The names in the sidebar's Bots, its "N more" opened. */
+async function botNames(page: Page) {
+  const bots = shell.section(page, "Bots");
+  const more = bots.locator("button.mb-more", { hasText: /\d+ more/u });
+  if (await more.isVisible()) await more.click();
+  return bots.locator(".mb-row__name");
+}
 const appsRead = (page: Page) => page.waitForResponse((response) => new URL(response.url()).pathname.endsWith("/apps-templates"));
 const teamAdded = (page: Page) =>
   page.waitForResponse((response) => response.request().method() === "POST" && /\/teams\/shop$/u.test(new URL(response.url()).pathname));
@@ -39,17 +46,16 @@ async function noApps(dialog: Locator, read: Promise<unknown>) {
   for (const box of await dialog.getByRole("checkbox", { name: /^Also set up its .+ app/u }).all()) await box.uncheck();
 }
 
-/** Team → Add bots → A ready-made team: the list of teams. */
+/** Bots' + (Add bots) → A ready-made set: the list of sets. */
 async function openTeams(page: Page) {
-  await shell.sidebar(page).getByRole("button", { name: "Team", exact: true }).click();
-  await shell.team(page).getByRole("button", { name: "Add bots" }).click();
+  await shell.section(page, "Bots").getByRole("button", { name: "Add bots", exact: true }).click();
   const dialog = addBotsDialog(page);
-  await dialog.getByRole("button", { name: /^A ready-made team/u }).click();
-  await expect(dialog.getByRole("heading", { name: "A ready-made team" })).toBeVisible();
+  await dialog.getByRole("button", { name: /^A ready-made set/u }).click();
+  await expect(dialog.getByRole("heading", { name: "A ready-made set" })).toBeVisible();
   return dialog;
 }
 
-test("A ready-made team adds the bots ticked to Team in the team's order, introduced in the welcome chat, and only the bots the home hasn't got", async ({ page }, testInfo) => {
+test("A ready-made set adds the bots ticked to the home in the set's order, introduced in the welcome chat, and only the bots the home hasn't got", async ({ page }, testInfo) => {
   const knex = connectTestDb();
   let homeId = "";
   try {
@@ -100,16 +106,18 @@ test("A ready-made team adds the bots ticked to Team in the team's order, introd
     expect([shopBody.added.length, shopBody.skipped]).toEqual([3, []]);
     expect(shopBody).not.toHaveProperty("section");
     await expect(dialog).toBeHidden();
-    await expect(page.getByText("Added 3 bots to your team.")).toBeVisible();
-    await expect(teamBots(page), "Mercbot and the three").toHaveCount(4);
-    await expect(teamBots(page).locator(".mb-team-row__name"), "in the team's order").toContainText(["Restock", "Chorus", "Docket"]);
-    await expect(shell.team(page), "no chat opens").toBeVisible();
+    const nameOf = (id: string) => shopBody.bots.find((bot: { id: string }) => String(bot.id) === String(id))?.name;
+    expect(shopBody.added.map(nameOf), "in the set's order").toEqual(["Restock", "Chorus", "Docket"]);
+    await expect(page.getByText("Added 3 bots to your home.")).toBeVisible();
+    await expect(shell.section(page, "Bots").getByRole("button", { name: "3 more" }), "no chat with them yet").toBeVisible();
+    await expect(await botNames(page), "Mercbot, then the three by name").toHaveText(["Mercbot", "Chorus", "Docket", "Restock"]);
+    await expect(shell.chat(page), "no chat opens: the welcome chat stays").toHaveAttribute("aria-label", "Mercbot");
     const chatsNow = async () => (await api.get("/chats?hidden=1&archived=1")).chats.map((chat: { id: string }) => String(chat.id));
     expect(await chatsNow(), "they make no chats: only the welcome chat").toEqual([String(welcome.id)]);
 
     // The welcome chat introduces them, a [Message] for each; Restock's opens its direct chat.
     await shell.chatRow(page, "Mercbot").click();
-    await expect(shell.chat(page).getByText("Your team's here: Restock, Chorus and Docket. Start a chat with one of them whenever you like."))
+    await expect(shell.chat(page).getByText("Your home's new bots are here: Restock, Chorus and Docket. Start a chat with one of them whenever you like."))
       .toBeVisible();
     await expect.poll(() => shell.chat(page).locator(".mb-bubble__team-member").evaluateAll((all) => all.map((one) => one.getAttribute("aria-label"))))
       .toEqual(["Message Restock", "Message Chorus", "Message Docket"]);
@@ -135,9 +143,9 @@ test("A ready-made team adds the bots ticked to Team in the team's order, introd
     await again.getByRole("button", { name: "Add 2 bots" }).click();
     const restBody = await (await rest).json();
     expect([restBody.added.length, restBody.skipped]).toEqual([2, []]);
-    await expect(page.getByText("Added 2 bots to your team.")).toBeVisible();
-    await expect(teamBots(page)).toHaveCount(6);
-    for (const botName of SHOP) await expect(teamBots(page).locator(".mb-team-row__name").filter({ hasText: new RegExp(`^${botName}`, "u") })).toHaveCount(1);
+    await expect(page.getByText("Added 2 bots to your home.")).toBeVisible();
+    await expect(await botNames(page)).toHaveCount(6);
+    for (const botName of SHOP) await expect((await botNames(page)).filter({ hasText: new RegExp(`^${botName}$`, "u") })).toHaveCount(1);
 
     const kept = await knex("bots").where({ workspace_id: homeId, is_main: false }).select("id", "library_template");
     expect(kept).toHaveLength(5);

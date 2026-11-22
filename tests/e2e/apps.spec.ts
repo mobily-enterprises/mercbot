@@ -34,7 +34,7 @@ async function contacts(page: Page) {
 
 test("a pinned app opens, a record is edited, and Activity shows the change", async ({ page }) => {
   await openShell(page);
-  await page.locator(".mb-apps-entry__app").filter({ hasText: "Contacts" }).click();
+  await shell.sidebar(page).getByRole("link", { name: "Contacts", exact: true }).click();
   await expect(page).toHaveURL(/\/apps\/contacts/u);
   await expect(page.locator("thead th:not(.app-actions-column)")).toHaveText(["Name", "Email", "Stage"]);
 

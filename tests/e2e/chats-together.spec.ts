@@ -96,7 +96,7 @@ test("Chat details' switch lets bots join in when useful: one bot answers a ques
     const joinIn = details.getByRole("switch", { name: "Bots join in when useful" }).or(details.getByRole("checkbox", { name: "Bots join in when useful" }));
     await expect(joinIn).not.toBeChecked();
     await expect(joinIn).toBeEnabled();
-    await expect(details.getByText("When someone writes without calling a bot, one bot may answer if it can help. Off, bots answer only when called.")).toBeVisible();
+    await expect(details.getByText("On: a bot may reply without being called. Off: only when called.")).toBeVisible();
 
     await joinIn.click();
     await expect(joinIn).toBeChecked();

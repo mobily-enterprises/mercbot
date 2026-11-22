@@ -4,10 +4,12 @@ Each bot's Knowledge (D-107): text and files its maker and the home's owners and
 talks with. Short knowledge is always in the bot's mind; long knowledge (a manual, a book) is split once into parts
 that every turn searches first, so a turn's prompt stays bounded whatever the bot knows.
 
-What each bot remembers (D-113), like a person in the home: a digest of the home's public chats it's in, made in the
+What each bot remembers (D-113), like a person in the home: a digest of the home's public rooms it's in, made in the
 background; what was said since in its other chats the turn's chat may read; recall and read_chat over those chats;
 and the home's notes, which people ask a bot to tell everyone. Every read goes through the model's reader of the
-turn's chat (`readable_from`, D12), so a private chat never reaches a chat with anyone else in it.
+turn's chat (`readable_from`, D12), so a private chat never reaches a chat with anyone else in it, and a direct chat
+(a person's with a bot, or two people's) is reached from no chat but itself (D-117): what is said there is never in
+any bot's memory.
 
 ## Sources
 
@@ -37,6 +39,7 @@ turn's chat (`readable_from`, D12), so a private chat never reaches a chat with 
 - `tools/standInModel.mjs`
 - Memory: `packages/bots/src/server/botMemory.js`
 - `packages/bots/src/server/memoryTools.js`
+- `packages/bots/src/server/records/seatWindows.js`
 - `packages/bots/src/server/records/memoryRepository.js`
 - `packages/bots/src/server/records/homeNoteRepository.js`
 - `packages/bots/src/server/records/rowPolicies.js`
@@ -122,16 +125,19 @@ turn's chat (`readable_from`, D12), so a private chat never reaches a chat with 
 - **Tools** (`memoryTools.js`, a person's turn): `recall` (`words`, `chat`, `everywhere`; full-text search, any of the
   words, through `ix_messages_recall`; the bot's chats, one chat, or every chat the turn's chat may read; 10 lines,
   each `[chat · speaker · time · line N]`), `read_chat` (`chat` by name or number, `around` a line, `lines` up to 40),
+  `read_further_back` (a person's turn: the bot's start in a room it joined late moves back, `genesis/program/bots/turns.md`),
   and, in the person's own turn, `tell_everyone` (`text`): refused with an email address, nine or more digits (a date
   isn't), or a password (`blankPasswords` and the vault's passwords), else an always-ask card (`ACTIONS.tell_everyone`)
   that writes the note from the card's own words once its person says Go ahead (`homeNotes.addFromCard`: the card must
   be a tell_everyone approval for the caller, said yes to; one note a card).
 - **Digests** (`bot_memories`, one a bot): written by the background model (`work: "background"`, metered to the home
-  and bot, no person, R8) from the bot's public chats only (the memory's reader, `readers.forHome`: public chats), the
-  earlier digest and each chat's new lines (200 a chat, 48,000 tokens shared), within 20,000 tokens (12,000 asked
+  and bot, no person, R8) from the bot's public rooms only (the memory's reader, `readers.forHome`: public rooms, never
+  a direct chat), the earlier digest and each chat's new lines (200 a chat, 48,000 tokens shared; a room not yet in
+  `covers` is read from the bot's seat's start, so a room it joined late is read from its last 30 messages then,
+  never its whole history), within 20,000 tokens (12,000 asked
   for), with `covers` (where it read each chat), `version` and `follows`. A save is refused unless the stored version
   is still the one it read.
-- **Refreshes** (`bot_memory_queue`, one a bot): asked after a person's message and a bot's reply in a public chat
+- **Refreshes** (`bot_memory_queue`, one a bot): asked after a person's message and a bot's reply in a public room
   (`noticedLater`), due when the bot's new words pass 4,000 tokens or 400 lines (but 30 minutes after the last at the
   soonest), else 24 hours after the last. Every serving server runs the loop (`botLoops.js`, every minute), and
   starts it at once when a refresh is asked for now (`runner.wake`: a rebuild, or words past the threshold); a run
@@ -142,13 +148,14 @@ turn's chat (`readable_from`, D12), so a private chat never reaches a chat with 
   rebuild from the chats themselves (`rebuild`), without it, which the serving server starts at once. Leaving or archiving a chat, or archiving a bot, keeps
   what it remembers; an archived bot's refreshes write nothing until it's back, and the composer doesn't name it.
 - **The card** (Details, under Knowledge, `MercbotMemorySection.vue`): Memory (made when, Show all) and Notes for
-  everyone (who asked, through which bot, Remove for those who may, Show older notes). The composer of a public chat
+  everyone (who asked, through which bot, Remove for those who may, Show older notes). The composer of a public room
   says "Everyone in <home> can read this · <bots> remember it" (`readersLine`), and so does its first-time notice.
 
 ## Proved by
 
 - `tests/server/memoryWall.integration.js`
 - `tests/server/memoryReach.integration.js`
+- `tests/server/botWindow.integration.js`
 - `tests/server/memoryRefresh.integration.js`
 - `tests/server/homeNotes.integration.js`
 - `tests/server/promptPrefix.test.js`

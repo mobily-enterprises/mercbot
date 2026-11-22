@@ -34,7 +34,7 @@ A view only shows figures that everyone in the home can already see in the Data 
 
 ## Find a view again
 
-- the **Library** tab on the bot's card in **Team**, where you can also pin it
+- the **Library** tab on the bot's card, where you can also pin it
 - the **Apps** area, marked **View**, with a filter for apps or views
 - the search palette (**Ctrl+K**), by its title
 - the sidebar, once you pin it from the Apps area; views and apps share the same 8 pins

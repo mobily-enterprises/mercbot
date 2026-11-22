@@ -27,6 +27,10 @@ export const CHAT_SEARCH = Object.freeze({
   archived: isSet("archivedAt"),
   // A direct chat (one person's with one bot), or any other.
   direct: isSet("directBotId"),
+  // A chat between two people, or any other.
+  directPerson: isSet("directPersonId"),
+  // The chats made before one: the next page of a list read newest first.
+  beforeId: idBound("<"),
   // Every chat but these: the public chats a person isn't in yet.
   notIds: Object.freeze({
     type: "array",

@@ -59,7 +59,8 @@ const OLD_MODEL = [
   [/\bmemories\b|\bSettings\W+Memory\b/iu, "memories (Settings → Memory)"],
   [/\b(?:Private|Mixed|Shared) (?:bots?|modes?)\b|\bMixed\b|\bWho sees what\b|\bmodes? for new bots\b/u, "a bot's mode, and the home's mode for new bots"],
   [/\bShared tabs?\b|\bYou only\b/u, "Shared tabs and You only"],
-  [/\bgroup chats?\b|\brooms\b|\b(?:a|the|this|its|an app's) room\b/iu, "rooms and group chats"],
+  // Rooms are the new model's shared chats (D-117: Rooms, People and Bots), so only the old group chats are refused here.
+  [/\bgroup chats?\b/iu, "group chats"],
   [/\b(?:your|their|my) own chats?\b/iu, "a person's own chat"],
   [/\bprivate connectors?\b/iu, "private connectors"],
   [/\bDetails panel\b/u, "a bot's Details panel (its card on Team, or Chat details)"]

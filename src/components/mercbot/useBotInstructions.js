@@ -12,7 +12,7 @@ import { botsApi } from "./botsApi.js";
  *   activity: () => string | null,
  *   onSaved: (bot: import("../../types.js").Bot) => void,
  *   onFailure: (error: unknown) => void
- * }} options `activity` is the open chat's last activity, or nothing on Team
+ * }} options `activity` is the open chat's last activity, or nothing beside another chat
  */
 export function useBotInstructions({ bot, tab, activity, onSaved, onFailure }) {
   const instructions = ref(null);

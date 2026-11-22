@@ -7,7 +7,7 @@ import MercbotTemplateTag from "./MercbotTemplateTag.vue";
 import { botsApi } from "./botsApi.js";
 import { TEAM_INTRO, addLabel, appsFor, botsToAdd, teamGroups } from "./teamChoice.js";
 
-// Teams (D-105), as Add bots' A ready-made team shows them (D-109): first Mercbot's teams as cards under For home and
+// Teams (D-105), as Add bots' A ready-made set shows them (D-109): first Mercbot's teams as cards under For home and
 // life and For work, each a situation with its line, its bots' faces and how many, and "Want one made to fit?", which
 // goes to Describe what you need; then the team chosen, its bots each
 // with its name, look, tag and line, all ticked. A bot the home already has on the same template says "Already in this
@@ -106,19 +106,19 @@ defineExpose({ back, add });
 <template>
   <div class="mb-ctemp__scroll">
     <button type="button" class="mb-ctemp__step-link" :disabled="busy" @click="back">
-      <v-icon icon="$chevronLeft" size="16" /> {{ teamId ? "All teams" : "Add bots" }}
+      <v-icon icon="$chevronLeft" size="16" /> {{ teamId ? "All sets" : "Add bots" }}
     </button>
 
     <template v-if="!teamId">
       <p class="mb-team__intro">{{ TEAM_INTRO }}</p>
       <button type="button" class="mb-team__describe" @click="emit('describe')">
-        Want one made to fit? Describe your team <v-icon icon="$chevronRight" size="16" />
+        Want one made to fit? Describe what you need <v-icon icon="$chevronRight" size="16" />
       </button>
       <div v-if="listFailed" class="mb-ctemp__state" role="alert">
-        <p>The teams couldn't be loaded.</p>
+        <p>The sets couldn't be loaded.</p>
         <button type="button" class="mb-set-pill" @click="loadTeams">Try again</button>
       </div>
-      <div v-else-if="!gallery" class="mb-ctemp__state" role="status" aria-label="Loading the teams" />
+      <div v-else-if="!gallery" class="mb-ctemp__state" role="status" aria-label="Loading the sets" />
       <template v-else>
         <section v-for="group in groups" :key="group.for" class="mb-team__group" :aria-label="group.name">
           <h3 class="mb-team__group-name">{{ group.name }}</h3>
@@ -141,10 +141,10 @@ defineExpose({ back, add });
 
     <template v-else>
       <div v-if="teamFailed" class="mb-ctemp__state" role="alert">
-        <p>That team couldn't be loaded.</p>
+        <p>That set couldn't be loaded.</p>
         <button type="button" class="mb-set-pill" @click="loadTeam(teamId)">Try again</button>
       </div>
-      <div v-else-if="!team" class="mb-ctemp__state" role="status" aria-label="Loading the team" />
+      <div v-else-if="!team" class="mb-ctemp__state" role="status" aria-label="Loading the set" />
       <template v-else>
         <h3 class="mb-team__name">{{ team.name }}</h3>
         <p class="mb-team__intro">{{ team.description }}</p>
@@ -176,7 +176,7 @@ defineExpose({ back, add });
           </li>
         </ul>
         <p class="mb-ctemp__note">
-          They join your team, on Team. None does any work until you message it.
+          They join your home, under Bots. None does any work until you message it.
         </p>
       </template>
     </template>

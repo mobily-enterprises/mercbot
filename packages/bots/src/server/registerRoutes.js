@@ -120,14 +120,16 @@ export function registerRoutes(http, { bots, approvals, notices, meter, records,
   const body = (request) => request.body || {};
   const { chats } = bots;
 
-  // Chats (D-112, R2): the person's chat list, New chat, the public chats to join, one chat, and its members. Each
-  // change answers the chat as the page shows it (or the list), and tells everyone in it (a `chat` event).
+  // Chats (D-112, R2): the person's chat list, New room, the public rooms they aren't in (a page at a time, ?after= the
+  // page before's next), one chat, and its members. Each change answers the chat as the page shows it (or the list),
+  // and tells everyone in it, or everyone in the home for a public room (a `chat` event).
   router.register("GET", `${home}/chats`, auth, handle(async (request, _user, options) => {
     const { hidden, archived, after } = request.query || {};
     return chats.list({ hidden: hidden === "1", archived: archived === "1", after: after || null }, options);
   }));
   router.register("POST", `${home}/chats`, auth, handle(async (request, _user, options) => chats.create(body(request), options)));
-  router.register("GET", `${home}/chats/public`, auth, handle(async (_request, _user, options) => chats.publicChats(options)));
+  router.register("GET", `${home}/chats/public`, auth, handle(async (request, _user, options) =>
+    chats.publicRooms({ after: typeof request.query?.after === "string" ? request.query.after : null }, options)));
   router.register("GET", chat, auth, handle(async (request, _user, options) => chats.get(request.params.chatId, options)));
   // A chat's settings: its title, and whether its bots join in when useful (D-115), each written only when given.
   router.register("PATCH", chat, auth, handle(async (request, _user, options) =>
@@ -174,6 +176,9 @@ export function registerRoutes(http, { bots, approvals, notices, meter, records,
   // A bot's [Message] (Team, its card): the person's direct chat with it, made on first use.
   router.register("POST", `${home}/bots/:botId/direct`, auth, handle(async (request, _user, options) =>
     chats.direct(request.params.botId, options)));
+  // A person's [Message] (People, their card): the private chat between the two of them, made on first use.
+  router.register("POST", `${home}/people/:userId/direct`, auth, handle(async (request, _user, options) =>
+    chats.personDirect(request.params.userId, options)));
 
   // What is said in a chat (D-112; the turns, step 2's A, and onboarding, B): its messages a page at a time (`before`,
   // a message id) or what changed since a cursor (`since`), Find in chat, a person's message, the bots' reply to it

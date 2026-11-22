@@ -13,7 +13,8 @@ const TEST_MODE_PAYMENT_KEY = /^(sk|rk)_test_/u;
 
 /**
  * Empties every setting of `env` shaped like an outside service's credential, so a Preview or Test Preview reaches no
- * outside service with one: a feature without its key is off there, or has its stand-in. The one exception is a payment
+ * outside service with one: a feature without its key is off there, or has its stand-in. A Preview then gives its AI
+ * keys back (aiKeysOf, D-118). The one exception is a payment
  * provider's test-mode key (Stripe's `sk_test_…` and `rk_test_…`), kept so a copy built on Mercbot that takes payments
  * can try them in its Preview (D-116). Run it after .env is loaded, which never replaces a variable that is set, even
  * to "".
@@ -26,16 +27,35 @@ export function withoutCredentials(env) {
 }
 
 /**
+ * The AI keys `env` gives, with their providers (AI_PREMIUM_API_KEY and AI_PREMIUM_PROVIDER, ...): what a Preview keeps
+ * of its credentials, so its bots work as they do anywhere (D-118). Read it before withoutCredentials empties them.
+ * @param {Record<string, string | undefined>} env
+ * @returns {Record<string, string>}
+ */
+export function aiKeysOf(env) {
+  const kept = {};
+  for (const kind of Object.values(AI_KINDS)) {
+    if (!String(env[kind.keySetting] ?? "").trim()) continue;
+    kept[kind.keySetting] = String(env[kind.keySetting]);
+    kept[kind.providerSetting] = String(env[kind.providerSetting] ?? "");
+  }
+  return kept;
+}
+
+/**
  * A Preview's and a Test Preview's AI (bin/develop.js, tests/support/start-test-app.mjs, D-83): Mercbot's stand-in
- * model (standInModel.mjs) on a local port for every kind, which the app is sent to with MERCBOT_TEST_AI_URL. Each kind
- * names its provider, as it would with a key, and has none: nothing the copy asks of its AI reaches a provider, and
- * nothing waits on a real call failing.
+ * model (standInModel.mjs) on a local port, which the app is sent to with MERCBOT_TEST_AI_URL, for every kind `kept`
+ * gives no key (aiKeysOf): such a kind names its provider, as it would with a key, and has none, so nothing it asks
+ * reaches a provider and nothing waits on a real call failing. A Test Preview keeps no key, so all its AI is the
+ * stand-in; a Preview's kinds with their keys use their providers (D-118).
+ * @param {Record<string, string>} [kept]
  * @returns {Promise<{ env: Record<string, string>, standIn: Awaited<ReturnType<typeof startStandInModel>>, stop: () => Promise<void> }>}
  */
-export async function startPreviewAi() {
+export async function startPreviewAi(kept = {}) {
   const standIn = await startStandInModel();
-  const env = { MERCBOT_TEST_AI_URL: standIn.url };
+  const env = { MERCBOT_TEST_AI_URL: standIn.url, ...kept };
   for (const kind of Object.values(AI_KINDS)) {
+    if (kept[kind.keySetting]) continue;
     env[kind.providerSetting] = Object.keys(kind.types)[0];
     env[kind.keySetting] = "";
   }

@@ -5,13 +5,12 @@ import { createMaterialVuetifyOptions } from "@jskit-ai/material-web/client";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import MercbotArchivedBotBanner from "../../src/components/mercbot/MercbotArchivedBotBanner.vue";
 import MercbotBotMain from "../../src/components/mercbot/MercbotBotMain.vue";
-import MercbotTeamPage from "../../src/components/mercbot/MercbotTeamPage.vue";
 import { archiveBotQuestion, archiveRefusal, archivedBotLine, leftLine } from "../../src/components/mercbot/archiveBot.js";
 import { shellPreferences } from "../../src/components/mercbot/shellPreferences.js";
 import { theme } from "../../src/theme/index.js";
 
-// Archiving a whole bot (D-108, plan 5.1): a member of the home that has left. Team lists it under Archived with Resume
-// for whoever may; who may archive it and why not; the question first; the lines it shows; and its direct chat's banner
+// Archiving a whole bot (D-108, plan 5.1): a member of the home that has left. Bots lists it under Archived bots
+// (chatList.vitest.js), its card has Resume for whoever may; who may archive it and why not; the question first; the lines it shows; and its direct chat's banner
 // in place of the composer. No route is called here.
 vi.mock("@jskit-ai/http-runtime/client", () => ({ createHttpClient: () => ({ request: async () => ({}) }) }));
 
@@ -22,7 +21,6 @@ async function rendered(component, props) {
   return (await renderToString(app)).replaceAll("&#39;", "'");
 }
 
-const thisYear = new Date().getFullYear();
 const bot = (id, extra = {}) => ({
   id, name: `Bot ${id}`, color: "#1E86FC", shape: "cloud", isMain: false, madeBy: "1", madeByName: "Kim", template: null,
   archivedAt: null, archivedBy: null, canArchive: true, ...extra
@@ -32,47 +30,8 @@ beforeEach(() => {
   shellPreferences.language = "en-GB";
 });
 
-describe("Team's Archived", () => {
-  const people = [{ id: "1", name: "Kim Lee", role: "owner", roleLabel: "Owner" }];
-
-  it("lists the bots that have left, after the team, each with when it left and Resume for whoever may", async () => {
-    const html = await rendered(MercbotTeamPage, {
-      me: "1",
-      homeName: "Casa",
-      people,
-      bots: [
-        bot("1"),
-        bot("2", { archivedAt: `${thisYear}-11-20T10:00:00.000Z`, archivedBy: "Kim" }),
-        bot("3", { archivedAt: `${thisYear}-11-21T10:00:00.000Z`, canArchive: false })
-      ]
-    });
-    const [team, archived] = html.split(">Archived<");
-    expect(team).toContain("aria-label=\"Message Bot 1\"");
-    expect(team).not.toContain("Bot 2");
-    expect(archived).toContain("aria-label=\"Bot 2, Bot · left 20 Nov\"");
-    expect(archived).toContain("aria-label=\"Resume Bot 2\"");
-    expect(archived).toContain("aria-label=\"Bot 3, Bot · left 21 Nov\"");
-    expect(archived, "not theirs to resume").not.toContain("aria-label=\"Resume Bot 3\"");
-    expect(archived, "a bot that has left takes no messages").not.toContain("aria-label=\"Message");
-  });
-
-  it("isn't there when nobody has left", async () => {
-    const html = await rendered(MercbotTeamPage, { me: "1", homeName: "Casa", people, bots: [bot("1")] });
-    expect(html).not.toContain(">Archived<");
-    expect(html).not.toContain("Resume");
-  });
-});
-
 describe("the home's main bot", () => {
-  const people = [{ id: "1", name: "Kim Lee", role: "owner", roleLabel: "Owner" }];
   const buttons = (html) => [...html.matchAll(/<button[^>]*>([\s\S]*?)<\/button>/gu)].map(([, inside]) => inside.replace(/<[^>]*>/gu, " ").replace(/\s+/gu, " ").trim());
-
-  it("is marked Main bot on Team, and no other bot is", async () => {
-    const html = await rendered(MercbotTeamPage, { me: "1", homeName: "Casa", people, bots: [bot("1", { isMain: true }), bot("2")] });
-    expect([...html.matchAll(/class="mb-team-row__main"[^>]*>Main bot</gu)].length).toBe(1);
-    expect(html.indexOf("Main bot<")).toBeGreaterThan(html.indexOf("Bot 1"));
-    expect(html.indexOf("Main bot<")).toBeLessThan(html.indexOf("Bot 2"));
-  });
 
   it("can be made of another bot by the home's owners and admins only, from that bot's card", async () => {
     expect(buttons(await rendered(MercbotBotMain, { bot: bot("2"), manages: true }))).toEqual(["Make Bot 2 the main bot"]);
@@ -93,10 +52,10 @@ describe("who may archive a bot, and why not", () => {
     expect(archiveRefusal(bot("1"), "2")).toBe("");
   });
 
-  it("asks first, saying it leaves the team for everyone and comes back", () => {
+  it("asks first, saying it leaves the home's bots for everyone and comes back", () => {
     expect(archiveBotQuestion(bot("1"))).toEqual({
       title: "Archive Bot 1?",
-      text: "It leaves the team for everyone in this home. It stays in its chats but no longer answers there, and its routines " +
+      text: "It leaves the home's bots for everyone in this home. It stays in its chats but no longer answers there, and its routines " +
         "and watches pause. Nothing is deleted. Whoever made it, or an owner or admin, can resume it.",
       confirmLabel: "Archive"
     });

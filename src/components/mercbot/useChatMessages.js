@@ -156,7 +156,7 @@ export function useChatMessages({ chats, currentChatId }) {
     await reloadMessages(chatId);
   }
 
-  // When this page added each chat it made or opened itself (New chat, [Message]), for mergeChats.
+  // When this page added each chat it made or opened itself (New room, [Message]), for mergeChats.
   const addedAt = new Map();
   function addChat(view) {
     const row = toChatRow(view);

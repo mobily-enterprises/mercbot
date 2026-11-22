@@ -36,10 +36,12 @@ before(async () => {
   chats.kitchen = await seedChat(knex, { homeId: homeA.id, title: "Kitchen", people: [pat.id], bots: [bots.mine] });
   chats.plans = await seedChat(knex, { homeId: homeA.id, kind: "private", title: "Plans", people: [pat.id], bots: [bots.mine] });
   chats.samsDirect = await seedChat(knex, { homeId: homeB.id, direct: { userId: sam.id, botId: bots.other } });
+  chats.lounge = await seedChat(knex, { homeId: homeB.id, title: "Lounge", people: [sam.id], bots: [bots.other] });
   const say = (home, chat, text) => seedMessage(knex, { homeId: home.id, chatId: chat.id, body: { text }, userId: home === homeA ? pat.id : sam.id });
   notes.kitchen = await say(homeA, chats.kitchen, "In the kitchen");
   notes.plans = await say(homeA, chats.plans, "Pat's plans");
   notes.samsDirect = await say(homeB, chats.samsDirect, "Sam's own chat");
+  notes.lounge = await say(homeB, chats.lounge, "In the lounge");
 });
 
 after(async () => {
@@ -111,8 +113,8 @@ test("someone outside the home is answered as a home that isn't there", async ()
 test("a home's address reaches only its own chats, even for someone in both homes", async () => {
   // There is no cross-home path: another home's chat answers 404 bots_chat_not_found, as one nobody made does.
   const paths = [
-    `${homeA.url}/chats/${chats.samsDirect.id}`,
-    `${homeA.url}/chats/${chats.samsDirect.id}/messages`,
+    `${homeA.url}/chats/${chats.lounge.id}`,
+    `${homeA.url}/chats/${chats.lounge.id}/messages`,
     `${homeB.url}/chats/${chats.kitchen.id}`,
     `${homeB.url}/chats/${chats.kitchen.id}/messages`
   ];
@@ -121,5 +123,10 @@ test("a home's address reaches only its own chats, even for someone in both home
     assert.equal(answer.status, 404, `${path}: ${JSON.stringify(answer.body)}`);
     assert.equal(answer.body?.code, "bots_chat_not_found", path);
   }
-  assert.deepEqual(await messageIds(kim, homeB, chats.samsDirect), [notes.samsDirect], "through B's own address, Sam's Public direct chat opens");
+  assert.deepEqual(await messageIds(kim, homeB, chats.lounge), [notes.lounge], "through B's own address, B's Public chat opens");
+  // Sam's chat with a bot is Private, his alone, through any address.
+  for (const home of [homeA, homeB]) {
+    const answer = await kim.get(`${home.url}/chats/${chats.samsDirect.id}/messages`);
+    assert.deepEqual([answer.status, answer.body?.code], [404, "bots_chat_not_found"]);
+  }
 });

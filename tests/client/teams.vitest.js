@@ -107,7 +107,7 @@ describe("One bot", () => {
 });
 
 describe("Add N bots", () => {
-  it("puts a team's bots on Team as the server has them, opens no chat, says how many, then sets up the apps asked for", async () => {
+  it("puts a set's bots among the home's as the server has them, opens no chat, says how many, then sets up the apps asked for", async () => {
     const listed = { bots: [{ id: "1" }, { id: "8" }, { id: "9" }], added: ["8", "9"], skipped: ["social-post-calendar"] };
     answers.byUrl.set("POST /api/w/casa/teams/shop", listed);
     const { made, done } = newBot();
@@ -120,7 +120,7 @@ describe("Add N bots", () => {
     ]);
     expect([done.updated, done.opened, made.newBotOpen.value]).toEqual([["1", "8", "9"], [], false]);
     expect(done.notes).toEqual([
-      "Added 2 bots to your team. 1 already in this home was left out.",
+      "Added 2 bots to your home. 1 already in this home was left out.",
       "The Stock app is set up as a draft in Apps for you to review and publish."
     ]);
   });
@@ -132,7 +132,7 @@ describe("Add N bots", () => {
     const chosen = [{ library: "shop-stock-keeper" }, { draft: { tag: "rota" }, name: "Rota", shape: "storm", color: "#F59312" }];
     await made.addBots({ bots: chosen, apps: [] });
     expect(calls).toEqual([["POST", "/api/w/casa/bots/batch", { bots: chosen }]]);
-    expect([made.newBotOpen.value, done.opened, done.notes]).toEqual([false, [], ["Added 1 bot to your team."]]);
+    expect([made.newBotOpen.value, done.opened, done.notes]).toEqual([false, [], ["Added 1 bot to your home."]]);
 
     made.openNewBot();
     answers.fail = Object.assign(new Error("The template isn't ready to save: tag: Another template already has this tag."), { status: 422 });
@@ -151,7 +151,7 @@ describe("Add N bots", () => {
     expect([made.newBotOpen.value, made.createError.value, made.creating.value]).toEqual([true, "Every bot you chose is already in this home.", false]);
     answers.fail = Object.assign(new Error("Network request failed."), { status: 0 });
     await made.addTeam({ teamId: "shop", templates: ["review-replies"] });
-    expect(made.createError.value).toBe("The team couldn't be added. Try again.");
+    expect(made.createError.value).toBe("The set couldn't be added. Try again.");
     expect([done.updated, done.opened, done.notes]).toEqual([[], [], []]);
   });
 });

@@ -57,10 +57,12 @@
  * A chat as every chat route answers it (`{ chat }`, and each of `{ chats }`), the page's one shape for a chat. The
  * everyone chat (`everyone`) counts as pinned for everyone in it, first in the list, with no `pinPosition` (O9). The
  * place's `mentioned` is the chat list's "@": someone's message there mentions the person and they haven't read it since
- * (D-114).
+ * (D-114). A direct chat names its bot (`directBotId`), or the other person of a chat between two people
+ * (`directPerson`, as the caller sees it: the one of the two who isn't them); a room has neither.
  * @typedef {{
  *   id: string, kind: "public" | "private", title: string | null, everyone: boolean, directBotId: string | null,
- *   appId: string | null, madeBy: string | null, onboardingStep: string | null, archivedAt: string | null,
+ *   directPerson: { userId: string, name: string } | null, appId: string | null, madeBy: string | null,
+ *   onboardingStep: string | null, archivedAt: string | null,
  *   lastActivityAt: string, people: Array<{ userId: string, name: string }>,
  *   bots: Array<{
  *     chatBotId: string, botId: string, name: string, color: string, shape: string, archived: boolean,
@@ -77,7 +79,8 @@
  * }} ChatView
  */
 /**
- * A chat event (`bot-events`, event name `chat`), told to everyone in the chat and to anyone a change took out of it.
+ * A chat event (`bot-events`, event name `chat`), told to everyone in the chat and to anyone a change took out of it; a
+ * public room's created, renamed, archived, unarchived and deleted to every active member of its home.
  * @typedef {{ chatId: string, change: "created" | "members" | "renamed" | "archived" | "unarchived" | "deleted" }} ChatEvent
  */
 /**

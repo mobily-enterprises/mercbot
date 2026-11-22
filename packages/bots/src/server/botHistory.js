@@ -38,11 +38,18 @@ export function createBotHistory({ records, systemContext, model, meter, notices
     });
   }
 
-  /** The chat after its latest summary, as a turn reads it; summarised first if it has outgrown a reply (D-48). */
+  /**
+   * The chat after its latest summary, as a turn reads it; summarised first if it has outgrown a reply (D-48). A bot
+   * invited into a room with a long history reads it from its seat's start (`reads_from_message_id`): the summary only
+   * when it was written up to its start or past it, and otherwise the chat from its start with none.
+   */
   async function chatHistory(seat, reader) {
     await compaction.ensureWithin(seat.chat_id);
     const { summary, after } = await compaction.current(seat.chat_id);
-    return { summary, history: await named(await messages.messagesAfter(seat.chat_id, after, reader), reader) };
+    const start = Number(seat.reads_from_message_id) || 0;
+    const kept = !start || after >= start;
+    const from = kept ? after : start - 1;
+    return { summary: kept ? summary : "", history: await named(await messages.messagesAfter(seat.chat_id, from, reader), reader) };
   }
 
   // What a routine run reads (D-57): its own last few runs, not the whole chat. Its instructions come
@@ -69,7 +76,9 @@ export function createBotHistory({ records, systemContext, model, meter, notices
    * The chat a summary is for, in its home: found through one of its bots (a chat with no bot left makes no model call,
    * so it has nothing to summarise). Its messages are read through the chat's own reader (records.readers.forChat, R1,
    * D12), which acts for no one: what the chat may read decides it, so no read can reach past the chat, and no person's
-   * reach is borrowed.
+   * reach is borrowed. `before` is where its bots read it from together, the earliest of their seats' starts (0: one of
+   * them reads it from its beginning): nothing before it is measured or summarised, so a bot joining a long room makes
+   * no model call over the history it doesn't read.
    */
   async function summarised(chatId) {
     const across = { context: systemContext(SUMMARY_REASON) };
@@ -79,7 +88,8 @@ export function createBotHistory({ records, systemContext, model, meter, notices
     // A chat's only bot reads the summary alone, so it keeps what that bot did with its tools; with several, each reads
     // the others' words and records only (R5), so the summary holds no bot's tool calls.
     const reader = seats.length === 1 ? place.botId : null;
-    return { place, reader, options: { context: records.readers.forChat({ homeId: place.workspaceId, chatId: String(chatId) }) } };
+    const before = seats.some((seat) => seat.readsFrom == null) ? 0 : Math.min(...seats.map((seat) => Number(seat.readsFrom)));
+    return { place, reader, before, options: { context: records.readers.forChat({ homeId: place.workspaceId, chatId: String(chatId) }) } };
   }
 
   // Summaries between turns (@jskit-ai/agent-runtime), one per chat: every message under its author's name, as the
@@ -92,7 +102,8 @@ export function createBotHistory({ records, systemContext, model, meter, notices
     limits: compactionLimits,
     async history(chatId, { after }) {
       const found = await summarised(chatId);
-      const list = found ? await named(await messages.messagesAfter(String(chatId), after, found.options), found.options) : [];
+      const from = found ? Math.max(Number(after) || 0, found.before - 1) : 0;
+      const list = found ? await named(await messages.messagesAfter(String(chatId), from, found.options), found.options) : [];
       const toModel = async (given) => toModelHistory(given, { botId: found?.reader ?? null });
       return { messages: list, inherited: [], named: true, toModel };
     },

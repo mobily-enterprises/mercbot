@@ -68,15 +68,15 @@ test("people and bots are added and removed; a direct chat takes no one else; th
   assert.equal(await records.chats.addPerson(plans.id, ben, asAnna), false, "adding someone twice adds them once");
   await assert.rejects(records.chats.addPerson(plans.id, carla, asAnna), { statusCode: 404 });
   await assert.rejects(records.chats.addBot(plans.id, pulse, asAnna), { statusCode: 409 });
-  const seat = await records.chats.addBot(plans.id, chef, asAnna);
+  const { seat } = await records.chats.addBot(plans.id, chef, asAnna);
   assert.equal(seat.bot_id, chef, "adding a bot that's in it answers its seat");
 
-  // A direct chat is one person's with one bot, Public (D15), made once; looking for it makes nothing.
+  // A direct chat is one person's with one bot, Private, made once; looking for it makes nothing.
   const chatsBefore = Number((await knex("conversations").where({ workspace_id: homeId }).count("id as n").first()).n);
   assert.equal(await records.chats.directWith(chef, asAnna), null);
   assert.equal(Number((await knex("conversations").where({ workspace_id: homeId }).count("id as n").first()).n), chatsBefore, "looking made nothing");
   const direct = await records.chats.direct(chef, asAnna);
-  assert.equal(direct.kind, "public");
+  assert.equal(direct.kind, "private");
   assert.equal((await records.chats.direct(chef, asAnna)).id, direct.id);
   assert.equal((await records.chats.directWith(chef, asAnna)).id, direct.id);
   assert.equal(await records.chats.directWith(chef, asBen), null, "Anna's, not Ben's");
@@ -165,12 +165,12 @@ test("the chat routes' service: anyone in a chat adds, its maker and the home's 
   const asCarla = memberOptions({ userId: carla, homeId });
   const both = [anna, ben].sort((a, b) => a - b);
 
-  // Ben starts Kitchen with Anna: Public (D15), and both hear of it.
+  // Ben starts Kitchen with Anna: Public (D15), and everyone in the home hears of it, Carla too (a public room).
   const { chat: kitchen } = await chats.create({ title: "Kitchen", people: [anna], bots: [chef] }, asBen);
   assert.equal(kitchen.kind, "public");
   assert.deepEqual(kitchen.people.map((person) => person.userId).sort((a, b) => a - b), both);
   assert.deepEqual(kitchen.bots.map((bot) => bot.botId), [chef]);
-  assert.deepEqual(heard.pop(), { keys: both, type: "chat", chatId: kitchen.id, change: "created" });
+  assert.deepEqual(heard.pop(), { keys: [anna, ben, carla].sort((a, b) => a - b), type: "chat", chatId: kitchen.id, change: "created" });
 
   // Carla isn't in it: she reads it (public) but adds no one until she joins.
   assert.equal((await chats.get(kitchen.id, asCarla)).chat.place, null);
@@ -227,7 +227,10 @@ test("the chat routes' service: anyone in a chat adds, its maker and the home's 
   heard.length = heardBefore;
   removed.length = removedBefore;
 
-  // The list: the chats Ben is in, each with its people, bots, latest message and his place; and a direct chat.
+  // The list: the chats Ben is in, each with its people, bots, latest message and his place; and a direct chat. Ben's
+  // start line was news for Anna until she read it; her own message is none.
+  assert.equal((await chats.get(kitchen.id, asAnna)).chat.place.unread, true, "the room Ben started with her is unread for Anna");
+  await chats.markRead(kitchen.id, null, asAnna);
   await records.messages.append(kitchen.id, [{ role: "user", kind: "text", body: { text: "oak it is" } }], asAnna);
   const { chat: withChef } = await chats.direct(chef, asBen);
   assert.equal(withChef.directBotId, chef);

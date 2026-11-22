@@ -21,7 +21,7 @@ describe("Settings' sections", () => {
       pageShareParts: [],
       botActions: [],
       messageCards: [],
-      teamActions: []
+      peopleActions: []
     });
     expect(listedSections(extensions.settingsSections, new Set()).map((entry) => entry.title)).toEqual([
       "General",

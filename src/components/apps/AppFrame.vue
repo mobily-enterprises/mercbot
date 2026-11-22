@@ -171,7 +171,7 @@ provide(APP_AREA_KEY, computed(() => (loaded.value?.app ? `[data-app-style="${lo
 async function askBuilder(part = null, about = "") {
   pointing.value = false;
   highlight.value = null;
-  if (!builder.value) return notify("Choose a Builder first: New app in Apps, or Make this the Builder on a bot's card in Team.", "error");
+  if (!builder.value) return notify("Choose a Builder first: New app in Apps, or Make this the Builder on a bot's card (open it from Bots).", "error");
   const where = part ? `, the ${part.type}${part.label ? ` "${part.label}"` : ""} (${part.path})` : "";
   const line = about ? `About the app "${loaded.value.app.name}" (${slug.value}), ${about}` : `About the app "${loaded.value.app.name}" (${slug.value}), screen "${screenKey.value}"${where}: `;
   await openBuilderChat(router, { chat: paths.page("/"), appSlug: slug.value, line })

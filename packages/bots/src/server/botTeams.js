@@ -31,7 +31,7 @@ export function createBotTeams({ records, botList, templates, onboarding, notice
   /** A team by the id a request names, or 400. */
   function knownTeam(teamId) {
     const team = teamById(String(teamId ?? ""));
-    if (!team) throw new BotsError(400, "There's no team by that name.", { code: "bots_team_unknown" });
+    if (!team) throw new BotsError(400, "There's no ready-made set by that name.", { code: "bots_team_unknown" });
     return team;
   }
 

@@ -56,7 +56,7 @@ test("opened from a chat, an app is left for that chat in one click after 16 pla
   expect(new URL(chatUrl).searchParams.get("chat")).toBeTruthy();
   const atChat = await position(page);
 
-  await page.locator(".mb-apps-entry__app").filter({ hasText: "Contacts" }).click();
+  await shell.sidebar(page).getByRole("link", { name: "Contacts", exact: true }).click();
   await expect(page).toHaveURL(/\/apps\/contacts$/u);
   await expectClose(page, "Back to Vera");
   await useTheApp(page, 8);

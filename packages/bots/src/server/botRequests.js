@@ -88,7 +88,7 @@ export function createBotRequests({
     if (!target) return { error: `There's no other bot called "${name}" in this home.` };
     // An archived bot takes no requests (D-108) until someone resumes it.
     if (target.archivedAt) {
-      return { error: `${target.name} is archived, so it can't be asked. Whoever made it, or an owner or admin, can resume it from Archived on Team.` };
+      return { error: `${target.name} is archived, so it can't be asked. Whoever made it, or an owner or admin, can resume it under Archived bots in Bots.` };
     }
     const depth = parent ? parent.depth + 1 : 0;
     if (depth > limits.depth) {
@@ -280,7 +280,7 @@ export function createBotRequests({
             "can without your computer, and suggest a chat with both bots for the rest."
         );
       }
-      const joined = await records.chats.addBot(seat.chat_id, seat.id, options);
+      const { seat: joined } = await records.chats.addBot(seat.chat_id, seat.id, options);
       await seats.say(seat, [{
         kind: "event",
         role: "system",

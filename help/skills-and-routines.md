@@ -21,7 +21,7 @@ Your own skills sit beside Mercbot's. A bot makes one in two ways:
 
 Skills never contain passwords or codes. Your skills are yours, in this home. A bot in a chat uses only what everyone who can open that chat can also open, so it uses your skills only in a Private chat where you're the only person. In any other chat it works from Mercbot's skills and its template's.
 
-A skill isn't a bot's **Instructions**. A bot's instructions, on its card in **Team**, are its template and its own additions, the rules it follows in every reply, so keep the additions short; a skill is read only when its kind of job comes up, so it can hold long steps and reference material. A template can bring skills of its own, listed under its instructions. You can ask a bot to change its additions too: like a skill, it changes them only when you agree, on a card that shows the change. See [Bots](/help/bots).
+A skill isn't a bot's **Instructions**. A bot's instructions, on its card, are its template and its own additions, the rules it follows in every reply, so keep the additions short; a skill is read only when its kind of job comes up, so it can hold long steps and reference material. A template can bring skills of its own, listed under its instructions. You can ask a bot to change its additions too: like a skill, it changes them only when you agree, on a card that shows the change. See [Bots](/help/bots).
 
 A bot never runs a new skill until you ask. After saving one, it offers a test run.
 
@@ -105,7 +105,7 @@ To watch a price, stock or a page for changes, ask for a routine that checks it.
 
 A chat's routines are listed in **Chat details**, the **ⓘ** button in the chat's header (**Ctrl+Alt+B**), under **Routines**. Each shows its name, its schedule (or **Paused**) and its bot, with a switch, a delete button, and an edit button on the routines you set up. In your chat with a bot, the one you open with **Message**, the **ⓘ** button opens that bot's card instead, and its **Details** tab lists the bot's routines in that chat.
 
-A bot's card in **Team** lists its routines in every chat you can open, each naming its chat. Right-click one there for **Pause** and **Delete**, and on the ones you set up, **Resume** and **Edit**. You can also find a routine by name in the search palette (**Ctrl+K**), which opens its chat and the chat's details.
+A bot's card lists its routines in every chat you can open, each naming its chat. Right-click one there for **Pause** and **Delete**, and on the ones you set up, **Resume** and **Edit**. You can also find a routine by name in the search palette (**Ctrl+K**), which opens its chat and the chat's details.
 
 - **Pause or resume:** use the switch. Anyone who can open the chat can pause a routine; only the person who set it up can resume it, because it runs as them. A paused routine shows **Paused**. When it's resumed, the next run is counted from now; it doesn't catch up on runs it missed while paused.
 - **Edit:** only the person who set the routine up can change it. The message box of the routine's chat fills with **Edit your routine "<name>":**. Type the change in plain words and send it. The bot confirms the new schedule.
@@ -126,7 +126,7 @@ A watch tells a bot to act by itself when records in one of your home's tables c
 
 A watch can look for **new records**, **changes**, or both, and can have a condition, such as a total over 500 or a status of Won. Each time it fires, the chat where you set it up shows **Watch:** with its name, followed by the bot's reply. One run covers up to 20 records and counts the rest.
 
-Watches are listed on the bot's card in **Team**: open its **Details** tab, and the **Apps** section lists each of its watches in the chats you can open, such as "Watches new records in Orders". Use the switch to pause one, or to resume it if you set it up (it runs as you), or **Remove** to delete it. In a chat, you can also ask the bot "What are you watching here?": it knows its watches in that chat.
+Watches are listed on the bot's card: open its **Details** tab, and the **Apps** section lists each of its watches in the chats you can open, such as "Watches new records in Orders". Use the switch to pause one, or to resume it if you set it up (it runs as you), or **Remove** to delete it. In a chat, you can also ask the bot "What are you watching here?": it knows its watches in that chat.
 
 - A new or resumed watch only sees changes from that moment on.
 - Changes the watch's own run makes never set it off again.

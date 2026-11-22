@@ -2,8 +2,8 @@ import { HOME, botNamed, directChat, expect, openShell, shell, test, type Page }
 
 // The file browsers (D-47, D-112 R6), on the Test Preview target: in Otto's direct chat, his card's Files shows the
 // chat's own folder (This chat), his own and the home's; a file uploaded into This chat is moved to the whole home, seen
-// on the home's Files page, renamed and deleted there; the Files page's Otto opens his card on Team at its Files, where
-// there's no chat's folder, only his own and the home's. Run with:
+// on the home's Files page, renamed and deleted there; the Files page's Otto (?bot=<id>&files=1) opens his direct chat
+// with his card at its Files. Run with:
 // vibe64-helper playwright --target test-app test tests/e2e/files.spec.ts
 test.describe.configure({ mode: "serial" });
 // Any refused API call from the page, one with no answer, or JSKIT's error dialog, fails the test (harness.ts).
@@ -48,7 +48,9 @@ test("a file moves from a chat's folder to the whole home, is renamed there and 
   await page.locator(".v-dialog").getByRole("button", { name: "Move" }).click();
   await expect(here.locator(".mb-files__row").filter({ hasText: name })).toHaveCount(0);
 
-  // The home's Files page, from the sidebar: there, renamed, then deleted.
+  // The home's Files page, from the sidebar's Files button: there, renamed, then deleted. The card is left on Details,
+  // so the Files page's Otto is what opens it at Files.
+  await card.getByRole("tab", { name: "Details" }).click();
   await page.locator(".mb-files-entry__link").click();
   await expect(page).toHaveURL(new RegExp(`${HOME}/files$`, "u"));
   await expect(row(page, name)).toBeVisible();
@@ -70,14 +72,13 @@ test("a file moves from a chat's folder to the whole home, is renamed there and 
   await page.screenshot({ path: info.outputPath("home-files-phone.png") });
   if (desk) await page.setViewportSize(desk);
 
-  // Otto on the Files page opens his card on Team at its Files: his own folder and the home's, no chat's.
+  // Otto on the Files page opens his direct chat with his card at its Files: the chat's folder, his own and the home's.
   await ottoLink.click();
-  await expect(page).toHaveURL(new RegExp(`team=1&member=bot(%3A|:)${otto.id}$`, "u"));
-  await expect(shell.team(page)).toBeVisible();
-  const teamCard = shell.details(page, "Otto's card");
-  await expect(teamCard.getByRole("tab", { name: "Files" })).toHaveAttribute("aria-selected", "true");
+  await expect(page).toHaveURL(new RegExp(`[?&]chat=${chat.id}$`, "u"));
+  await expect(shell.chat(page)).toHaveAttribute("aria-label", "Otto");
+  await expect(card.getByRole("tab", { name: "Files" })).toHaveAttribute("aria-selected", "true");
+  await expect(section(page, "This chat")).toBeVisible();
   await expect(section(page, "Otto's files")).toBeVisible();
-  await expect(teamCard.locator(".mb-files__section")).toHaveCount(2);
-  await expect(section(page, "This chat")).toHaveCount(0);
-  await page.screenshot({ path: info.outputPath("team-card-files.png") });
+  await expect(card.locator(".mb-files__section")).toHaveCount(3);
+  await page.screenshot({ path: info.outputPath("bot-card-files.png") });
 });

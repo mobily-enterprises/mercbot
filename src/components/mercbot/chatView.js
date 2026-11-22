@@ -4,6 +4,18 @@
 /** Whether a chat is a person's direct chat with one bot: the chat a bot's [Message] reopens. */
 export const isDirect = (chat) => Boolean(chat?.directBotId);
 
+/** Whether a chat is the private chat of two people, which a person's [Message] reopens: `directPerson` is the other. */
+export const isPersonDirect = (chat) => Boolean(chat?.directPerson);
+
+/**
+ * A direct chat's tag in its header: "Private · only you and Chef". A direct chat, with a bot or with a person, is
+ * private and takes no one else; "" for a room.
+ */
+export function directLine(chat) {
+  const other = chat?.directPerson?.name || directBotOf(chat)?.name;
+  return isDirect(chat) || isPersonDirect(chat) ? `Private · only you and ${other || "them"}` : "";
+}
+
 /** A chat member bot as the avatars draw it: { id, name, color, shape }, archived ones marked. */
 export const botFace = (member) => ({
   id: String(member.botId),
@@ -42,29 +54,16 @@ export function memberNames(chat, me = "") {
 }
 
 /**
- * The person's private chat with just one other person, which [Message] on that person opens (plan 4.2): the two of
- * them, no bots, not an app's; the one with the newest activity when there are several, or null.
- * @param {Array<{ kind: string, appId?: string | null, people?: Array<{ userId: string }>, bots?: unknown[], lastActivityAt?: string }>} chats
- * @param {string} me
- * @param {string} personId
- */
-export function privateChatWith(chats, me, personId) {
-  const pair = [String(me), String(personId)].sort().join(" ");
-  const theirs = (chats || []).filter((chat) => chat.kind === "private" && !chat.appId && !(chat.bots || []).length
-    && (chat.people || []).map((person) => String(person.userId)).sort().join(" ") === pair);
-  return theirs.sort((a, b) => String(b.lastActivityAt || "").localeCompare(String(a.lastActivityAt || "")))[0] || null;
-}
-
-/**
- * A chat's name: its title; a direct chat's bot; otherwise who's in it besides the person looking; "New chat" for a
- * chat of no one else yet.
+ * A chat's name: its title; a direct chat's bot or other person; otherwise who's in it besides the person looking;
+ * "New room" for a room of no one else yet.
  */
 export function chatTitle(chat, me = "") {
   if (chat?.title) return chat.title;
+  if (chat?.directPerson) return chat.directPerson.name;
   const bot = directBotOf(chat);
   if (bot) return bot.name;
   const others = memberNames(chat, me).filter((name) => name !== "you");
-  return others.length ? joinNames(others) : "New chat";
+  return others.length ? joinNames(others) : "New room";
 }
 
 /** "Public" or "Private". */
@@ -73,7 +72,7 @@ export const kindLabel = (chat) => (chat?.kind === "private" ? "Private" : "Publ
 /** The kind's sign: a globe for Public, a lock for Private. */
 export const kindIcon = (chat) => (chat?.kind === "private" ? "$lock" : "$language");
 
-/** What each kind means, as New chat offers it (D15) and Chat details says it. */
+/** What each kind means, as New room offers it (D15) and Chat details says it. */
 export const KIND_MEANS = Object.freeze({
   public: (homeName) => `Everyone in ${homeName} can open it, and its bots remember what's said here in their other chats.`,
   private: () => "Only its members can open it, and nothing in it reaches other chats."
@@ -129,11 +128,11 @@ export function readersLine(chat, { me = "", homeName, short = false }) {
   return `Everyone in ${homeName} can read this${remembers ? ` · ${remembers}` : ""}`;
 }
 
-/** The first-time notice above a public chat's composer (plan 8): what public means, once per person. */
+/** The first-time notice above a public room's composer (plan 8): what public means, once per person. */
 export const publicNotice = (homeName, chat) => ({
-  title: "This chat is public",
+  title: "This room is public",
   text: `${readersLine(chat, { homeName })}. Its bots remember what's said here in every chat they're in. ` +
-    "For something only some of you should see, start a private chat."
+    "For something only some of you should see, start a private room."
 });
 
 /**

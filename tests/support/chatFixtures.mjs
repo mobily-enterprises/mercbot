@@ -4,17 +4,17 @@
 
 /**
  * A chat in a home: Public unless `kind` is "private" (D15), with its people and bots in the order given. A direct
- * chat names `direct` (the person and the bot); it has no title.
+ * chat names `direct` (the person and the bot); it has no title and is Private.
  * @param {import("knex").Knex} knex
  * @param {{ homeId: string | number, kind?: "public" | "private", title?: string | null, people?: Array<string | number>,
  *   bots?: Array<string | number>, direct?: { userId: string | number, botId: string | number }, everyone?: boolean,
  *   appId?: string | null, onboardingStep?: string | null, madeBy?: string | number | null, botsJoinIn?: boolean }} chat
  * @returns {Promise<{ id: string, chatBotIds: Map<string, string> }>} the chat's id and each bot's seat in it, by bot id
  */
-export async function seedChat(knex, { homeId, kind = "public", title = null, people = [], bots = [], direct = null, everyone = false, appId = null, onboardingStep = null, madeBy = null, botsJoinIn = false }) {
+export async function seedChat(knex, { homeId, kind = null, title = null, people = [], bots = [], direct = null, everyone = false, appId = null, onboardingStep = null, madeBy = null, botsJoinIn = false }) {
   const [chat] = await knex("conversations").insert({
     workspace_id: homeId,
-    kind,
+    kind: kind ?? (direct ? "private" : "public"),
     title: direct ? null : title,
     everyone,
     bots_join_in: botsJoinIn,

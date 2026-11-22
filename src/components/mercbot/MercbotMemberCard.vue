@@ -29,11 +29,11 @@ import { canSwitchRoutine, useBotRoutines } from "./useBotRoutines.js";
 // name and role, [Message], and the chats you share. A bot: the same, with its editable name, its template and who made
 // it, then its sections as tabs: Details (its Instructions, Knowledge, Memory, apps, Routines and Archive), Files (its own folder
 // and the home's, and this chat's when the card is opened from one), Library (what it made in the chats you can open)
-// and Computer (its computer in this chat, D14 and D16; on Team, where to find one).
+// and Computer (its computer in this chat, D14 and D16; opened beside another chat, where to find one).
 const props = defineProps({
   // { kind: "bot", bot } or { kind: "person", person }.
   member: { type: Object, required: true },
-  // The open chat's row when the card is shown from it, else null (Team).
+  // The direct chat's row when the card is shown for it, else null (a card opened beside the chat).
   chat: { type: Object, default: null },
   // The person's chat rows, for the chats you share.
   chats: { type: Array, default: () => [] },
@@ -85,7 +85,7 @@ const line = computed(() => {
 });
 // [Message] opens the chat with the member: never for yourself, a bot that has left, or the direct chat already open.
 const canMessage = computed(() => {
-  if (person.value) return !isMe.value;
+  if (person.value) return !isMe.value && String(props.chat?.directPerson?.userId ?? "") !== person.value.id;
   if (bot.value.archivedAt) return false;
   return !(isDirect(props.chat) && String(props.chat.directBotId) === String(bot.value.id));
 });
@@ -178,7 +178,7 @@ const fileSections = computed(() => [
   { key: "shared", label: props.homeName || "Whole home", root: "/files/shared" }
 ]);
 
-// Its routines: in this chat, or on Team in every chat the person can open, each naming its chat.
+// Its routines: in this chat, or, beside another chat, in every chat the person can open, each naming its chat.
 const { routines, routinesLoaded, toggleRoutine, highlightedRoutineId, routineMenu, pendingRoutineDelete, openRoutineMenu, deleteRoutine } =
   useBotRoutines({
     bot: shown,

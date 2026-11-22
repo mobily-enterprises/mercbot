@@ -1,6 +1,8 @@
 import { mayChangeBot } from "./botAdditions.js";
-import { BotsError } from "./botsError.js";
+import { BotsError, directChatRefusal } from "./botsError.js";
 import { cleanName, cloudShape, isId, previewOf, toMessage, toSection } from "./botRows.js";
+import { isDirect } from "./records/chatRepository.js";
+import { BOT_WINDOW } from "./records/seatWindows.js";
 import { createCallerReaders } from "./records/recordRows.js";
 
 // The line in an archived chat naming the routines and watches its archiving paused.
@@ -10,13 +12,16 @@ const ARCHIVED_LINE = Object.freeze({
 });
 
 /**
- * Chats and their members (D-112, R2), as the chat routes answer them: the person's chat list, one chat, making one,
- * joining and leaving, adding and removing people and bots, renaming, archiving and deleting, the person's own place in
- * each (pins, sections, hidden, muted, read), and the direct chat a bot's [Message] opens.
+ * Chats and their members (D-112, R2), as the chat routes answer them: the person's chat list, the public rooms they
+ * aren't in, one chat, making a room, joining and leaving, adding and removing people and bots, renaming, archiving and
+ * deleting, the person's own place in each (pins, sections, hidden, muted, read), the direct chat a bot's [Message]
+ * opens and the chat with another person.
  *
- * Who may: anyone in the home makes a chat and joins a public one; anyone in a chat adds people of the home and bots
- * of the home; the chat's maker and the home's owners and admins remove members, rename, switch whether its bots join
- * in (D-115), archive and delete; anyone leaves. A Public chat is archived for everyone (plan 5.1), never the everyone
+ * Who may: anyone in the home makes a room (named, with a first line from its maker) and joins a public one; anyone in
+ * a chat adds people of the home; bots of the home are invited into a public room, and taken out, by anyone in the home,
+ * and into a private one by its people; the chat's maker and the home's owners and admins remove people, rename,
+ * switch whether its bots join in (D-115), archive and delete; anyone leaves. A direct chat (with a bot, or between two
+ * people) takes nobody else and no title. A Public chat is archived for everyone (plan 5.1), never the everyone
  * chat: its bots' routines and watches there pause, with a line naming them, and stay paused when it's unarchived
  * (D-101). A Private chat isn't archived: each of
  * its people hides it for themselves (their place's `hidden`). What a caller may read is the records' (rowPolicies.js):
@@ -51,6 +56,15 @@ export function createChatMembers({ records, notices, computer, systemContext, p
   }
 
   /**
+   * A room's change everyone who can open it hears: a public room's every active member of the home (one read of them),
+   * so a room they aren't in appears, changes and goes in their list without a reload; any other chat's own people.
+   */
+  async function toldWhoCanOpen(chat, change, options) {
+    if (chat.kind !== "public" || isDirect(chat)) return told(chat.id, change, options);
+    return tell((await chats.everyoneIn(options)).map(String), chat.id, change);
+  }
+
+  /**
    * A deleted chat's computers put to sleep and its files and its computers' files removed from the bucket, after the
    * chat itself is gone; a failure leaves them to the computers' hourly sweep.
    */
@@ -78,6 +92,12 @@ export function createChatMembers({ records, notices, computer, systemContext, p
     }
   }
 
+  /** Who invites a bot into a chat and takes one out: in a public room anyone in the home, else one of its people. */
+  async function requireMayInviteBots(chat, options) {
+    if (isDirect(chat)) throw directChatRefusal(chat);
+    if (chat.kind !== "public") await requireInChat(chat, options);
+  }
+
   /** Refused unless the caller made the chat or is one of the home's owners and admins. */
   function requireManager(chat, options, verb) {
     if (!mayChangeBot(chat.made_by, personOf(options), options)) {
@@ -88,16 +108,30 @@ export function createChatMembers({ records, notices, computer, systemContext, p
   }
 
   /**
+   * The other person of each chat between two people among `rows`, as the caller sees it: the one of the pair who
+   * isn't them. One read of their names, for any number of chats, and none without such a chat.
+   * @returns {Promise<(row: object) => { userId: string, name: string } | null>}
+   */
+  async function otherPeople(rows, options) {
+    const me = String(personOf(options));
+    const otherOf = (row) => (String(row.direct_user_id) === me ? String(row.direct_person_id) : String(row.direct_user_id));
+    const pairs = rows.filter((row) => row.direct_person_id != null);
+    const named = pairs.length ? await chats.names(pairs.map(otherOf), options) : new Map();
+    return (row) => (row.direct_person_id == null ? null : { userId: otherOf(row), name: named.get(otherOf(row)) || "Someone" });
+  }
+
+  /**
    * Chats as the page shows them, with their people, bots, latest message and the caller's place: four reads for any
-   * number of chats.
+   * number of chats, and one more for the names of the other people of chats between two people.
    * @param {object[]} rows chat rows, each with its `place` when the caller is in it
    */
   async function viewsOf(rows, options) {
     const ids = rows.map((row) => String(row.id));
-    const [people, bots, latest] = await Promise.all([
+    const [people, bots, latest, directPerson] = await Promise.all([
       chats.peopleOf(ids, options),
       chats.botsOf(ids, options),
-      messages.latestPerConversation(ids, options)
+      messages.latestPerConversation(ids, options),
+      otherPeople(rows, options)
     ]);
     const latestOf = new Map(latest.map((row) => [String(row.conversation_id), row]));
     return rows.map((row) => {
@@ -108,6 +142,7 @@ export function createChatMembers({ records, notices, computer, systemContext, p
         title: row.title ?? null,
         everyone: Boolean(row.everyone),
         directBotId: row.direct_bot_id == null ? null : String(row.direct_bot_id),
+        directPerson: directPerson(row),
         appId: row.app_id ?? null,
         madeBy: row.made_by == null ? null : String(row.made_by),
         botsJoinIn: Boolean(row.bots_join_in),
@@ -173,9 +208,13 @@ export function createChatMembers({ records, notices, computer, systemContext, p
     return { chats: views, sections: sections.map(toSection), next: page.next };
   }
 
-  /** The public chats of the home the person isn't in, for New chat's "or join a public chat". */
-  async function publicChats(options) {
-    return { chats: await viewsOf(await chats.publicChats(options), options) };
+  /**
+   * A page of the home's public rooms the person isn't in, newest made first (`after`: the page before's `next`, null on
+   * the last): what the list shows faded. The same reads for every page, whatever its rooms.
+   */
+  async function publicRooms({ after = null } = {}, options) {
+    const page = await chats.publicRooms(options, { after: isId(after) ? String(after) : null });
+    return { chats: await viewsOf(page.chats, options), next: page.next };
   }
 
   /** One chat the person can open. */
@@ -184,12 +223,23 @@ export function createChatMembers({ records, notices, computer, systemContext, p
   }
 
   /**
-   * A new chat (New chat's [Start]): Public unless `kind` is "private" (D15), with the people and bots named, the
-   * person who makes it among its people.
+   * A new room (New room's [Create]): Public unless `kind` is "private" (D15), named (400 `bots_chat_needs_title`), the
+   * person who makes it among its people with any people and bots named, and its first line, by its maker, written in
+   * the same transaction: "<Name> started this room.", an event line that counts as its activity and that no bot
+   * answers or judges (only a person's text message starts a reply).
    */
   async function create({ kind, title, people = [], bots = [] } = {}, options) {
-    const chat = await chats.create({ kind, title, people: [...people].map(String), bots: [...bots].map(String) }, options);
-    await told(chat.id, "created", options);
+    const name = String(title ?? "").trim().slice(0, 80);
+    if (!name) throw new BotsError(400, "Give the room a name.", { code: "bots_chat_needs_title" });
+    const chat = await chats.withTransaction(options, async (txOptions) => {
+      const made = await chats.create({ kind, title: name, people: [...people].map(String), bots: [...bots].map(String) }, txOptions);
+      const maker = personOf(txOptions);
+      const makerName = (await chats.names([maker], txOptions)).get(String(maker)) || "Someone";
+      const text = `${makerName} started this room.`;
+      await messages.append(made.id, [{ kind: "event", role: "user", body: { event: "room_started", text, authorName: makerName } }], txOptions);
+      return made;
+    });
+    await toldWhoCanOpen(chat, "created", options);
     return get(chat.id, options);
   }
 
@@ -199,6 +249,17 @@ export function createChatMembers({ records, notices, computer, systemContext, p
    */
   async function direct(botId, options) {
     const chat = await chats.direct(String(botId), options, { onboardingStep: "intro-greet" });
+    return get(chat.id, options);
+  }
+
+  /**
+   * The person's chat with another person of the home (People), made on first use: private, the two of them in it, no
+   * bot. 404 `bots_person_not_found` for someone who isn't an active member of the home, 400 `bots_direct_self` for
+   * themselves. Both of them hear of it.
+   */
+  async function personDirect(userId, options) {
+    const chat = await chats.personDirect(String(userId ?? ""), options);
+    await told(chat.id, "members", options);
     return get(chat.id, options);
   }
 
@@ -227,6 +288,8 @@ export function createChatMembers({ records, notices, computer, systemContext, p
     const chat = await openChat(chatId, options);
     requireNotEveryone(chat);
     const leaving = String(userId) === personOf(options);
+    // A chat between two people is theirs: each may leave it, and neither takes the other out.
+    if (!leaving && chat.direct_person_id) throw directChatRefusal(chat);
     if (!leaving) requireManager(chat, options, "remove people from");
     const seats = chat.kind === "private" ? await seatsIn(chat.id, options) : [];
     if (await chats.removePerson(chat.id, String(userId), options)) {
@@ -244,19 +307,36 @@ export function createChatMembers({ records, notices, computer, systemContext, p
   /** The person leaves a chat. */
   const leave = (chatId, options) => removePerson(chatId, personOf(options), options);
 
-  /** A bot of the home added to a chat by someone in it (not an archived bot, D-108). */
+  /**
+   * A bot of the home invited into a room (not an archived bot, D-108): a public room by anyone in the home, a private
+   * one by its people. It reads the room's last BOT_WINDOW messages and what's said after; when there were more, a line
+   * of Mercbot's own (no one's, so it marks nothing unread) says so, in the same transaction.
+   */
   async function addBot(chatId, botId, options) {
     const chat = await openChat(chatId, options);
-    await requireInChat(chat, options);
-    await chats.addBot(chat.id, String(botId ?? ""), options);
-    await told(chat.id, "members", options);
+    await requireMayInviteBots(chat, options);
+    await chats.withTransaction(options, async (txOptions) => {
+      const { seat, windowed } = await chats.addBot(chat.id, String(botId ?? ""), txOptions);
+      if (!windowed) return;
+      const [bot] = (await chats.bots(chat.id, txOptions)).filter((entry) => String(entry.chat_bot_id) === String(seat.id));
+      const text = `${bot?.name || "The bot"} joined. It reads the last ${BOT_WINDOW} messages; ask it to read further back.`;
+      await messages.append(chat.id, [{ kind: "event", role: "system", body: { event: "bot_window", text } }], txOptions);
+    });
+    const people = (await chats.people(chat.id, options)).map((person) => person.user_id);
+    await tell(people, chat.id, "members");
+    // Its people's open pages read the joined line.
+    await notices.publishEach("bots", people, { type: "messages", chatId: String(chat.id) })
+      .catch((error) => console.warn("Telling people about a chat's new line failed; they see it on their next read.", error));
     return get(chat.id, options);
   }
 
-  /** A bot out of a chat, with its computer, routines and runs there, by the chat's maker or an owner or admin. */
+  /**
+   * A bot out of a room, with its computer, routines and runs there: a public room's by anyone in the home, a private
+   * one's by its people.
+   */
   async function removeBot(chatId, botId, options) {
     const chat = await openChat(chatId, options);
-    requireManager(chat, options, "remove bots from");
+    await requireMayInviteBots(chat, options);
     if (await chats.removeBot(chat.id, String(botId), options)) await told(chat.id, "members", options);
     return get(chat.id, options);
   }
@@ -264,9 +344,10 @@ export function createChatMembers({ records, notices, computer, systemContext, p
   /** A chat's new title, by its maker or an owner or admin. */
   async function rename(chatId, title, options) {
     const chat = await openChat(chatId, options);
+    if (isDirect(chat)) throw directChatRefusal(chat);
     requireManager(chat, options, "rename");
     await chats.rename(chat.id, title, options);
-    await told(chat.id, "renamed", options);
+    await toldWhoCanOpen(chat, "renamed", options);
     return get(chat.id, options);
   }
 
@@ -312,7 +393,7 @@ export function createChatMembers({ records, notices, computer, systemContext, p
       await pauseWork(seats, ARCHIVED_LINE, txOptions);
       return chats.archive(chat.id, txOptions);
     });
-    await told(chat.id, archived ? "archived" : "unarchived", options);
+    await toldWhoCanOpen(chat, archived ? "archived" : "unarchived", options);
     return get(chat.id, options);
   }
 
@@ -330,12 +411,17 @@ export function createChatMembers({ records, notices, computer, systemContext, p
     const chat = await openChat(chatId, options);
     requireManager(chat, options, "delete");
     requireNotEveryone(chat);
-    const [people, bots] = await Promise.all([chats.people(chat.id, options), chats.bots(chat.id, options)]);
+    const publicRoom = chat.kind === "public" && !isDirect(chat);
+    const [people, bots] = await Promise.all([
+      publicRoom ? chats.everyoneIn(options) : chats.people(chat.id, options),
+      chats.bots(chat.id, options)
+    ]);
     await chats.remove(chat.id, options);
     // What was said in a public chat is in its bots' memories: they forget it at once (D-113, O23).
     if (chat.kind === "public") await forget(bots.map((bot) => String(bot.bot_id)), options);
     await chatRemoved(homeOf(options), chat.id, bots.map((bot) => String(bot.chat_bot_id)));
-    await tell(people.map((person) => person.user_id), chat.id, "deleted");
+    // A public room's deletion reaches everyone in the home, who may list it faded; another chat's, its people.
+    await tell(publicRoom ? people.map(String) : people.map((person) => person.user_id), chat.id, "deleted");
     return { deleted: true };
   }
 
@@ -444,10 +530,11 @@ export function createChatMembers({ records, notices, computer, systemContext, p
   return Object.freeze({
     homeChanged,
     list,
-    publicChats,
+    publicRooms,
     get,
     create,
     direct,
+    personDirect,
     addPerson,
     join,
     removePerson,

@@ -46,14 +46,13 @@ test("a chat lists its routines; a bot's card lists them in the chats the viewer
   await assert.rejects(kit.routines.routinesIn(secret.id, as("ben")), { statusCode: 404 }, "a private chat he can't open");
 
   const forAnna = (await kit.routines.routinesOf(chef, as("anna"))).routines;
-  assert.deepEqual(forAnna.map((routine) => routine.id), [menu, party, shopping]);
-  assert.deepEqual(forAnna.slice(0, 2).map((routine) => routine.chatTitle), ["Kitchen", "Surprise"]);
-  assert.match(forAnna[2].chatTitle, /^Chef and (?!you$)./u, "Ben's direct chat, named by its person");
+  assert.deepEqual(forAnna.map((routine) => routine.id), [menu, party], "never Ben's direct chat's: it's Private, his alone");
+  assert.deepEqual(forAnna.map((routine) => routine.chatTitle), ["Kitchen", "Surprise"]);
   const forBen = (await kit.routines.routinesOf(chef, as("ben"))).routines;
   assert.deepEqual(forBen.map((routine) => routine.id), [menu, shopping], "never Anna's private chat's");
   assert.equal(forBen[1].chatTitle, "Chef and you", "his own direct chat");
   assert.equal(forBen[1].canResume, true);
-  assert.equal(forAnna.find((routine) => routine.id === shopping).chatId, bens.id, "Ben's direct chat is Public (D15), so Anna sees its routine");
+  assert.equal(forBen[1].chatId, bens.id);
   assert.equal(ben, forBen[1].madeBy);
 });
 
@@ -71,14 +70,18 @@ test("anyone who can open its chat pauses or deletes a routine; only the person 
   assert.equal(row.failures, 0, "its count of failures in a row starts again");
   assert.ok(row.next_run_at && new Date(row.next_run_at) > new Date(), "and its next run is from now");
 
-  assert.equal((await kit.routines.switchRoutine(shopping, false, as("anna"))).routine.enabled, false, "Anna pauses Ben's");
+  await assert.rejects(kit.routines.switchRoutine(shopping, false, as("anna")), { statusCode: 404 }, "a direct chat's routine is its person's alone");
+  assert.equal((await kit.routines.switchRoutine(menu, false, as("ben"))).routine.enabled, false, "Ben pauses Anna's");
+  assert.equal((await kit.routines.switchRoutine(shopping, false, as("ben"))).routine.enabled, false, "and his own");
   // Not while its bot is archived.
   await knex("bots").where({ id: chef }).update({ archived_at: new Date() });
   await assert.rejects(kit.routines.switchRoutine(shopping, true, as("ben")), { statusCode: 409, code: "bots_bot_archived" });
   await knex("bots").where({ id: chef }).update({ archived_at: null });
 
   await assert.rejects(kit.routines.deleteRoutine(party, as("ben")), { statusCode: 404 });
-  assert.deepEqual(await kit.routines.deleteRoutine(shopping, as("anna")), { deleted: shopping });
+  await assert.rejects(kit.routines.deleteRoutine(shopping, as("anna")), { statusCode: 404 });
+  assert.deepEqual(await kit.routines.deleteRoutine(menu, as("ben")), { deleted: menu }, "anyone who can open its chat deletes it");
+  assert.deepEqual(await kit.routines.deleteRoutine(shopping, as("ben")), { deleted: shopping });
   assert.equal(await knex("bot_routines").where({ id: shopping }).first(), undefined);
 });
 

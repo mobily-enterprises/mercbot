@@ -59,7 +59,7 @@ test("adding from a template makes a member of the home pointing at it, greeting
   assert.ok((await templateOf(row, kit.records.homeTemplates, as("anna"))).skills.length >= 2);
 
   const { chat, messages } = await directOf(anna, bot.id);
-  assert.deepEqual([chat.kind, chat.onboarding_step, String(chat.workspace_id)], ["public", null, homeId], "its direct chat: Public (D15), no generic script");
+  assert.deepEqual([chat.kind, chat.onboarding_step, String(chat.workspace_id)], ["private", null, homeId], "its direct chat: Private, no generic script");
   assert.deepEqual(messages.map((message) => message.kind), ["timestamp", "text"]);
   assert.match(messages[1].body.text, /^Hi(?: [^,]+)?, I'm Pantry\./u, "the template's greeting, with a first name or none");
   assert.doesNotMatch(messages[1].body.text, /\{firstName\}/u);

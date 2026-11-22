@@ -92,7 +92,7 @@ See [The bots' computer and connected apps](/help/computer-and-apps).
 - **Edit** opens the template on the same screen it was made on: change any part by typing, or under **Ask for changes** ask the bot to change it, with **Undo**. See [Make your home's own template](/help/bots#make-your-home-s-own-template).
 - **Save** first says what it reaches, such as **Changes reach 2 bots from their next reply**, then saves. Each of those bots' **Instructions** then shows what changed and who changed it, for example "Instructions and setup questions changed by Ada".
 - If someone else saved the template after you opened it, your save is refused with "Someone saved *tag* since you opened it. Open it again to see their changes." Close it and open it again.
-- **Delete** works only for a template no bot uses, and asks first. For one in use, change those bots' template first, with **Change template** on each bot's card in **Team**.
+- **Delete** works only for a template no bot uses, and asks first. For one in use, change those bots' template first, with **Change template** on each bot's card.
 
 ### Vault
 
@@ -147,19 +147,19 @@ The bar at the top says **Account settings**. Its back arrow returns to where yo
 
 ## Each bot's own settings
 
-A bot's own options are on its card: select the bot in **Team**, or under **Bots** in a chat's **Chat details**. In your direct chat with a bot, **Chat details** shows its card.
+A bot's own options are on its card: select the bot under **Bots** in the sidebar, then the chat's name at the top (your chat with a bot shows its card as its **Chat details**), or select it under **Bots** in a room's **Chat details**.
 
 - **Name:** its maker and the home's owners and admins edit it in place. The tag under it is the bot's template; select it to go to **Instructions**.
 - **Details** tab:
   - **Instructions:** the template the bot follows, read-only, with **Change template**, and its own **Additions**, which its maker and the home's owners and admins edit. See [Bots](/help/bots).
   - **Knowledge:** what the bot knows in every chat it's in. See [What a bot knows](/help/bots#what-a-bot-knows).
-  - **Memory:** what the bot remembers of the Public chats it's in, and **Notes for everyone**, the home's notes, which their authors and the home's owners and admins remove. See [What bots remember](/help/memory).
+  - **Memory:** what the bot remembers of the Public rooms it's in, and **Notes for everyone**, the home's notes, which their authors and the home's owners and admins remove. See [What bots remember](/help/memory).
   - **Apps:** whether the bot builds the home's apps.
   - **Routines:** the bot's routines, each with its schedule, its chat and a switch.
   - **Archive**, for the bot's maker and the home's owners and admins.
 - **Files**, **Library** and **Computer** tabs.
 
-A chat's own options are in its **Chat details**: its people and bots, whether it's Public or Private, its files, its bots' computers and its routines, and **Leave chat**, **Archive** (a Public chat) or **Hide from sidebar** (a Private one), and **Delete chat**. See [Chats and your team](/help/chats).
+A room's own options are in its **Chat details**: its people and bots, whether it's Public or Private, its files, its bots' computers and its routines, and **Leave chat**, **Archive** (a Public room) or **Hide from sidebar** (a Private one), and **Delete chat**. See [Rooms, people and bots](/help/chats).
 
 Connected apps, their accounts and their tool switches are in **Connect apps**, in the sidebar.
 
@@ -210,7 +210,7 @@ No. It clears the bots' browsers only, in the chats only you are in: open pages,
 
 ## Related pages
 
-- [Chats and your team](/help/chats)
+- [Rooms, people and bots](/help/chats)
 - [Approvals, safety and privacy](/help/approvals-and-privacy)
 - [The vault: saved logins and secrets](/help/vault)
 - [The bots' computer and connected apps](/help/computer-and-apps)

@@ -3,7 +3,7 @@ import { connectTestDb, expect, HOME, homeApi, openShell, seedChat, shell, test,
 
 // Archiving a chat (D-112), on the Test Preview target, with a chat of the test's own in the fixture home, made by the
 // person, with Otto in it. Archive, from the chat's row, asks first; the chat is then read-only for everyone in it: a
-// banner where the composer was ("This chat is archived, so it's read-only.", with Unarchive), no + Add, and the server
+// banner where the composer was ("This chat is archived, so it's read-only.", with Unarchive), no Invite a bot, and the server
 // refuses anything written to it. It moves to the list's Archived chats, collapsed with its count until opened, and
 // Chat details says Public · Archived. Another page of the person's sees it at once. Unarchive, from the banner or the
 // archived row's menu, makes it a chat to write in again. Screenshots light, dark and phone of the archived chat are the
@@ -45,7 +45,7 @@ test("an archived chat is read-only for everyone in it, sits in Archived chats, 
     const path = `/api${HOME}/chats/${chatId}`;
     await openShell(page, `?chat=${chatId}`);
     await expect(shell.composer(page)).toBeVisible();
-    await expect(shell.chat(page).getByRole("button", { name: "Add people or bots" })).toBeVisible();
+    await expect(shell.chat(page).getByRole("button", { name: "Invite a bot", exact: true })).toBeVisible();
 
     // Another page of the person's, with the same chat open.
     const other = await context.newPage();
@@ -70,7 +70,7 @@ test("an archived chat is read-only for everyone in it, sits in Archived chats, 
       await expect(banner(shown)).toBeVisible();
       await expect(banner(shown).getByRole("button", { name: "Unarchive", exact: true })).toBeVisible();
       await expect(shell.composer(shown)).toHaveCount(0);
-      await expect(shell.chat(shown).getByRole("button", { name: "Add people or bots" })).toHaveCount(0);
+      await expect(shell.chat(shown).getByRole("button", { name: /^Invite/u })).toHaveCount(0);
     }
     await shots(page, testInfo, "archived-banner", () => expect(banner(page)).toBeVisible());
 
@@ -94,7 +94,7 @@ test("an archived chat is read-only for everyone in it, sits in Archived chats, 
     await expect(section.locator(".mb-header__count")).toHaveText("1");
     await toggle.click();
     const archivedRow = section.getByRole("button", { name: `${title}, archived`, exact: true });
-    await expect(archivedRow).toContainText("Archived · read-only");
+    await expect(archivedRow, "its tooltip").toHaveAttribute("title", `${title}\nArchived · read-only`);
     await expect(archivedChats(other).getByRole("button", { name: /^Archived chats/u })).toBeVisible();
 
     // Chat details: Public · Archived, and Unarchive in place of Archive.

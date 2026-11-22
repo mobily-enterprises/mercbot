@@ -128,10 +128,14 @@ export function createBotDirectory(resources) {
     return new Set(records.map((record) => String(record.id)));
   }
 
-  /** The bots in one chat the caller may read, in their order: { id (the chat_bots id), botId }. */
+  /** The bots in one chat the caller may read, in their order: { id (the chat_bots id), botId, readsFrom (its seat's start) }. */
   async function botsInChat(chatId, options) {
-    const records = await chatBots.queryAll({ filters: { conversationId: String(chatId) }, sort: ["position", "id"], fields: ["botId"] }, passedOn(options));
-    return records.map((record) => ({ id: String(record.id), botId: String(record.botId) }));
+    const records = await chatBots.queryAll({ filters: { conversationId: String(chatId) }, sort: ["position", "id"], fields: ["botId", "readsFromMessageId"] }, passedOn(options));
+    return records.map((record) => ({
+      id: String(record.id),
+      botId: String(record.botId),
+      readsFrom: record.readsFromMessageId == null ? null : String(record.readsFromMessageId)
+    }));
   }
 
   /**

@@ -47,7 +47,7 @@ An operations manager asks a bot to put together the same report every Friday: f
 A good scenario becomes a reliable bot when its job is clear and stays clear. To set one up:
 
 1. **Give it one job.** Create a separate bot for each role with **Add bots**, and give it a name that says what it does. A bot that does one thing well is easier to trust than one that does everything.
-2. **Tell it the specifics once.** Explain who's involved, which accounts to use, what to avoid and how you like results presented. Rules it should always follow go in its **Additions**, and reference material, such as a price list, in its **Knowledge**, both on its card in **Team**.
+2. **Tell it the specifics once.** Explain who's involved, which accounts to use, what to avoid and how you like results presented. Rules it should always follow go in its **Additions**, and reference material, such as a price list, in its **Knowledge**, both on its card.
 3. **Run the job by hand first.** Ask for it a few times in the chat and correct anything that's off, until the result is what you want.
 4. **Save the method.** Ask the bot to save what it did as a skill, or teach it by recording yourself doing the task on its computer.
 5. **Then make it repeat.** Ask for a routine, such as "every Friday at 4", in the chat where the results should go. The bot tells you when it will run, with your time zone, and you can pause or edit it under **Routines** in **Chat details**, or on the bot's card.

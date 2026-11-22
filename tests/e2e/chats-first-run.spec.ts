@@ -1,13 +1,14 @@
 import type { Knex } from "knex";
 import type { Locator, TestInfo } from "@playwright/test";
-import { connectTestDb, expect, homeApi, openShell, shell, test, type Page } from "./harness";
+import { connectTestDb, expect, homeApi, openShell, shell, sidebarEntry, test, type Page } from "./harness";
 
 // A person's first visit to a new home (plan 4.1, D4, D-109, D-112), on the Test Preview target, in a home of the test's
-// own. Their welcome chat is made at once: their direct chat with the home's main bot, Mercbot, made with it, and
-// nothing else in the list. Mercbot greets them, asks to be named and is renamed, then asks what the home is for: Show me
-// ready-made teams opens Add bots on its teams, and Small shop's three bots ticked join the home, introduced in the
+// own. Their welcome chat is made at once: their direct chat with the home's main bot, Mercbot, made with it, Private,
+// and nothing else in the list. Mercbot greets them, asks to be named and is renamed, then asks what the home is for:
+// Show me ready-made sets opens Add bots on its sets, and Small shop's three bots ticked join the home, introduced in the
 // welcome chat, with no chats of their own; then whether anyone else will use the home: Just me makes no everyone chat.
-// Team lists the person and the four bots, and a bot's [Message] there opens the person's direct chat with it. The
+// The sidebar's Bots lists the main bot, then the three under "3 more" (no chat with them yet), and People isn't there
+// (the person is the home's only one); a bot's row there opens the person's direct chat with it, Private. The
 // test deletes the home it makes. Screenshots light, dark and phone of the welcome, Mercbot asking to be named, are the
 // output.
 // Not covered here: the intro slides of a person's very first home, as the Test Preview's one person has a home already
@@ -68,7 +69,7 @@ async function noApps(dialog: Locator) {
   for (const box of await dialog.getByRole("checkbox", { name: /^Also set up its .+ app/u }).all()) await box.uncheck();
 }
 
-test("a new home's welcome chat names its main bot, picks a ready-made team for Team, and a bot's Message opens its direct chat", async ({ page }, testInfo) => {
+test("a new home's welcome chat names its main bot, picks a ready-made set, and a bot's row in Bots opens its direct chat", async ({ page }, testInfo) => {
   // The welcome chat's steps come at the pace a person reads them (ONBOARDING_TIMING, about 20 seconds in all).
   test.setTimeout(150_000);
   const knex = connectTestDb();
@@ -82,7 +83,7 @@ test("a new home's welcome chat names its main bot, picks a ready-made team for 
     await openShell(page, "", home.path);
     const { chat: welcome } = await (await welcomed).json();
     expect([welcome.kind, welcome.onboardingStep, welcome.title, welcome.people.map((person: { userId: string }) => String(person.userId))])
-      .toEqual(["public", "start", null, [home.owner]]);
+      .toEqual(["private", "start", null, [home.owner]]);
     const main = await knex("bots").where({ workspace_id: home.homeId }).select("id", "name", "is_main");
     expect(main.map((bot) => [bot.name, bot.is_main])).toEqual([["Mercbot", true]]);
     const mainId = String(main[0].id);
@@ -108,13 +109,13 @@ test("a new home's welcome chat names its main bot, picks a ready-made team for 
     await expect(shell.chatRow(page, name)).toBeVisible();
     expect((await knex("bots").where({ id: mainId }).first()).name).toBe(name);
     const homeFor = card(page, "What's this home for? I can suggest a few bots to help with it.");
-    await expect(homeFor.options).toHaveText([/Describe what I need$/u, /Show me ready-made teams$/u, /Not now$/u], { timeout: 20_000 });
+    await expect(homeFor.options).toHaveText([/Describe what I need$/u, /Show me ready-made sets$/u, /Not now$/u], { timeout: 20_000 });
     await expect(homeFor.card.locator(".mb-choice__subline")).toHaveText("You see them before anything is added, or just type to skip.");
 
-    // Show me ready-made teams: Add bots on its teams, where nothing is added until Add.
-    await homeFor.options.filter({ hasText: "Show me ready-made teams" }).click();
+    // Show me ready-made sets: Add bots on its sets, where nothing is added until Add.
+    await homeFor.options.filter({ hasText: "Show me ready-made sets" }).click();
     const dialog = page.getByRole("dialog", { name: "Add bots" });
-    await expect(dialog.getByRole("heading", { name: "A ready-made team" })).toBeVisible();
+    await expect(dialog.getByRole("heading", { name: "A ready-made set" })).toBeVisible();
     expect(await knex("bots").where({ workspace_id: home.homeId }).count({ count: "*" }).first()).toEqual({ count: "1" });
     const appsRead = page.waitForResponse((response) => new URL(response.url()).pathname.endsWith("/apps-templates"));
     await dialog.getByRole("button", { name: /^Small shop/u }).click();
@@ -127,10 +128,10 @@ test("a new home's welcome chat names its main bot, picks a ready-made team for 
     const added = await (await teamAdded).json();
     expect([added.added.length, added.skipped, String(added.chatId)]).toEqual([3, [], String(welcome.id)]);
     await expect(dialog).toBeHidden();
-    await expect(page.getByText("Added 3 bots to your team.")).toBeVisible();
+    await expect(page.getByText("Added 3 bots to your home.")).toBeVisible();
 
     // The welcome chat introduces them, a [Message] for each, and they make no chats of their own.
-    await expect(shell.chat(page).getByText("Your team's here: Restock, Chorus and Docket. Start a chat with one of them whenever you like."))
+    await expect(shell.chat(page).getByText("Your home's new bots are here: Restock, Chorus and Docket. Start a chat with one of them whenever you like."))
       .toBeVisible();
     await expect(shell.chat(page).locator(".mb-bubble__team-member")).toHaveText([/Restock/u, /Chorus/u, /Docket/u]);
     expect((await api.get("/chats?hidden=1&archived=1")).chats.map((chat: { id: string }) => String(chat.id))).toEqual([String(welcome.id)]);
@@ -142,23 +143,24 @@ test("a new home's welcome chat names its main bot, picks a ready-made team for 
     await expect(shell.chat(page).getByText("A bit about how I work:")).toBeVisible({ timeout: 20_000 });
     expect(await knex("conversations").where({ workspace_id: home.homeId, everyone: true }).first()).toBeUndefined();
 
-    // Team: the person, then the main bot and the three, each bot with Message.
-    await shell.sidebar(page).getByRole("button", { name: "Team", exact: true }).click();
-    const members = shell.team(page).getByRole("list", { name: "Members" });
-    await expect(members.locator('li[data-member="person"]')).toHaveCount(1);
-    await expect(members.locator('li[data-member="bot"] .mb-team-row__name')).toHaveText([new RegExp(`^${name}`, "u"), /^Restock/u, /^Chorus/u, /^Docket/u]);
-    for (const bot of [name, "Restock", "Chorus", "Docket"]) await expect(members.getByRole("button", { name: `Message ${bot}` })).toBeVisible();
+    // Bots: the main bot, then the three by name under "3 more", as there's no chat with them yet; no People, as the
+    // person is the home's only one.
+    await expect(shell.section(page, "People")).toHaveCount(0);
+    const bots = shell.section(page, "Bots");
+    await expect(bots.locator(".mb-row__name")).toHaveText([name]);
+    await bots.getByRole("button", { name: "3 more" }).click();
+    await expect(bots.locator(".mb-row__name")).toHaveText([name, "Chorus", "Docket", "Restock"]);
 
-    // Restock's Message: the person's direct chat with it, made now, open and listed.
+    // Restock's row: the person's direct chat with it, made now, Private, open and listed.
     const restock = String((await knex("bots").where({ workspace_id: home.homeId, name: "Restock" }).first()).id);
     const direct = answered(page, "POST", new RegExp(`^/api${home.path}/bots/${restock}/direct$`, "u"));
-    await members.getByRole("button", { name: "Message Restock" }).click();
+    await (await sidebarEntry(page, "Bots", "Restock")).click();
     const { chat } = await (await direct).json();
     expect([String(chat.directBotId), chat.kind, chat.people.map((person: { userId: string }) => String(person.userId))])
-      .toEqual([restock, "public", [home.owner]]);
+      .toEqual([restock, "private", [home.owner]]);
     await expect(page).toHaveURL(new RegExp(`[?&]chat=${chat.id}\\b`, "u"));
     await expect(shell.chat(page)).toHaveAttribute("aria-label", "Restock");
-    await expect(shell.chatRow(page, "Restock")).toBeVisible();
+    await expect(shell.chatRow(page, "Restock")).toHaveAttribute("aria-current", "page");
     const row = await knex("conversations").where({ id: chat.id }).first();
     expect([String(row.direct_bot_id), String(row.direct_user_id)]).toEqual([restock, home.owner]);
   } finally {

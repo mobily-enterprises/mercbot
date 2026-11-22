@@ -4,7 +4,7 @@ You work with Mercbot's bots by chatting with them. You write what you need in p
 
 ## Send a message
 
-Open a chat in the sidebar, or start one with **New chat**, and type in the message box at the bottom of the chat.
+Open a room, a person or a bot in the sidebar, or start a room with **+** beside **Rooms**, and type in the message box at the bottom of the chat.
 
 - Press **Enter** to send. **Shift+Enter** starts a new line.
 - The message box grows as you type, and **Ctrl+I** puts the cursor back in it from anywhere.
@@ -90,7 +90,7 @@ Bots also use cards to ask you to connect an app, to sign in to a site securely,
 
 ## Chats with several bots or people
 
-A chat can have several bots and several people in it, so they can work on something together. Start one with **New chat** (**Ctrl+Alt+G**) and add who you need in **To:**. [Chats and your team](/help/chats) explains Public and Private chats, members and archiving.
+A room can have several bots and several people in it, so they can work on something together. Start one with **+** beside **Rooms** (**Ctrl+Alt+G**), then invite who you need: **Invite** in a Private room, **Invite a bot** in a Public one, which everyone in the home can open already. [Rooms, people and bots](/help/chats) explains Public and Private rooms, inviting and archiving.
 
 ### Who answers
 
@@ -156,11 +156,11 @@ Press **Ctrl+F** to search the open chat. Matches are highlighted as you type.
 
 Press **Ctrl+K** (or **Ctrl+Shift+F**, or the search button at the top of the sidebar) to open the search palette.
 
-- With nothing typed, it lists your chats (unread first, then pinned, then by latest activity), followed by commands such as **New chat**, **Add bots**, **Team**, **Keyboard shortcuts**, Settings sections, **Connect Apps**, **Skills** and the theme.
+- With nothing typed, it lists your chats (unread first, then pinned, then by latest activity), followed by commands such as **New room**, **Add bots**, **Keyboard shortcuts**, Settings sections, **Connect Apps**, **Skills** and the theme.
 - As you type, it finds chats by their name or who's in them, bots (by name or tag) and people, apps, hidden and archived chats, commands, routines, files your bots made, and up to five messages from your chats. A bot opens your chat with it.
 - Use the arrow keys and Enter to open a result. A message opens its chat with that message at the top, ringed so you can spot it.
 
-Files a bot made are also listed in its **Library**, on its card in **Team**. See [Files, documents and pictures](/help/files).
+Files a bot made are also listed in its **Library**, on its card. See [Files, documents and pictures](/help/files).
 
 ## Keyboard shortcuts
 
@@ -170,7 +170,7 @@ Press **Ctrl+/** to see this list in Mercbot. On a Mac, Cmd works in place of Ct
 | --- | --- |
 | Search | Ctrl+K or Ctrl+Shift+F |
 | Add bots | Ctrl+Alt+N |
-| New chat | Ctrl+Alt+G |
+| New room | Ctrl+Alt+G |
 | Send message | Enter (Shift+Enter adds a new line) |
 | Go to a chat by its place in the sidebar | Ctrl+Alt+1 to 9 |
 | Compact sidebar | Ctrl+B |
@@ -219,11 +219,11 @@ You mentioned it with @, and only mentioned bots answer. Or other people are in 
 
 ### Can other people see my chats?
 
-Everyone in the home can open a Public chat, your chat with a bot included. Only the members of a Private chat can open it. See [Chats and your team](/help/chats).
+Everyone in the home can open a Public room. Only the members of a Private room can open it, and your chat with a bot or with another person only the two of you. See [Rooms, people and bots](/help/chats).
 
 ## Related pages
 
-- [Chats and your team](/help/chats)
+- [Rooms, people and bots](/help/chats)
 - [Bots: add, shape and archive](/help/bots)
 - [Files, documents and pictures](/help/files)
 - [Skills, routines and watches](/help/skills-and-routines)

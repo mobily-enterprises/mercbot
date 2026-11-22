@@ -44,7 +44,7 @@ export function createBotArchive({ records, apps, computer, pauseWork, tellHome,
       });
     }
     if (String((await apps.apps.builder(options))?.id) === String(bot.id)) {
-      throw new BotsError(409, `${bot.name} builds this home's apps, so it can't be archived. Make another bot the Builder from its card in Team first.`, {
+      throw new BotsError(409, `${bot.name} builds this home's apps, so it can't be archived. Make another bot the Builder from its card in Bots first.`, {
         code: "bots_archive_builder"
       });
     }

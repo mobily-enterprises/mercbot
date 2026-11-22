@@ -54,15 +54,17 @@ function listening(chatIds, rows) {
   const store = storeWith(chatIds, rows);
   const dropped = [];
   const computers = [];
+  const rooms = [];
   const page = {
     store,
     work: { replyNews: vi.fn() },
     team: { load: vi.fn(async () => {}), loadBots: vi.fn(), loadPeople: vi.fn(), dropBot: vi.fn() },
     onDropped: (chatId) => dropped.push(chatId),
-    onComputer: (news) => computers.push(news)
+    onComputer: (news) => computers.push(news),
+    onRooms: () => rooms.push("read")
   };
   const { computerNews } = useChatEvents(page);
-  return { ...page, dropped, computers, computerNews, events: FakeEvents.opened.at(-1) };
+  return { ...page, dropped, computers, rooms, computerNews, events: FakeEvents.opened.at(-1) };
 }
 
 /** What the news started finishes. */
@@ -131,6 +133,14 @@ describe("news that a chat changed (D-112)", () => {
     await settled();
     expect(chatsApi.get).not.toHaveBeenCalled();
     expect(store.mergeChats).toHaveBeenCalledWith([{ id: "8" }], 30);
+  });
+
+  it("reads the public rooms the person isn't in again on every chat's news, a room they aren't in included", () => {
+    const { rooms, events } = listening(["4"]);
+    events.send("chat", { chatId: "4", change: "renamed" });
+    events.send("chat", { chatId: "60", change: "created" });
+    events.send("chat", { chatId: "61", change: "deleted" });
+    expect(rooms).toEqual(["read", "read", "read"]);
   });
 });
 

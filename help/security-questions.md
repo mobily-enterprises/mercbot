@@ -10,7 +10,7 @@ No. Chats, bots, files, computers, Apps and usage all belong to a home, and a re
 
 ### Can owners and admins read members' chats?
 
-They can read Public chats, as everyone in the home can: every new chat is Public unless its maker chooses Private. A Private chat is opened only by its members, owners and admins included only if they're in it. A bot in a chat uses only what everyone who can open that chat can also open, so nothing in a Private chat reaches a chat someone else can open.
+They can read Public rooms, as everyone in the home can: every new room is Public unless its maker chooses Private. A Private room is opened only by its members, owners and admins included only if they're in it, and a member's chat with a bot or with another person only by those two. A bot in a chat uses only what everyone who can open that chat can also open, so nothing in a Private chat reaches a chat someone else can open.
 
 ### Does a bot ever work on my own computer?
 

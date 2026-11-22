@@ -107,7 +107,7 @@ test("only the direct chat's own person asks for its note; any other chat or an 
   const as = (person) => kit.as(person, homeId);
 
   const refused = [
-    [() => notes.handOverNote(chats.direct, as(ben)), { statusCode: 403, code: "bots_chat_not_yours" }, "Ben opens Anna's direct chat (Public), but it's hers"],
+    [() => notes.handOverNote(chats.direct, as(ben)), { statusCode: 404, code: "bots_chat_not_found" }, "Ben can't open Anna's direct chat: it's Private, hers"],
     [() => notes.handOverNote(chats.family, as(anna)), { statusCode: 409, code: "bots_chat_not_direct" }, "a chat that isn't a direct one"],
     [() => notes.handOverNote(chats.secret, as(ben)), { statusCode: 404, code: "bots_chat_not_found" }, "a private chat Ben can't open"],
     [() => notes.handOverNote("x1", as(anna)), { statusCode: 404, code: "bots_chat_not_found" }, "an id that isn't one"]

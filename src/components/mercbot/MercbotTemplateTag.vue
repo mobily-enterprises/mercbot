@@ -2,7 +2,7 @@
 // A bot's template tag (D-98), wherever its name shows: the tag of the template it points at, "+" when it has additions
 // of its own, and the small Mercbot cloud when the template is from Mercbot's library, so a home's own is the plain one;
 // "setting up" until it has a template. Hovering shows the template's line and the additions' first line. With
-// `action` it's a button that opens the bot's Instructions; inside another button (a Team row, the chat header) it's
+// `action` it's a button that opens the bot's Instructions; inside another button (a card's name, the chat header) it's
 // part of that button.
 import { computed } from "vue";
 import MercbotTooltip from "./MercbotTooltip.vue";

@@ -18,13 +18,13 @@ Every other bot, and every person, works with the records inside the tables. Onl
 There are two ways:
 
 1. In **Apps**, press **New app**. If your home has no Builder yet, Mercbot asks you to **Choose a Builder**. Pick a bot and press **Make Builder**.
-2. Open a bot's card in **Team**. On its **Details** tab, in the **Apps** section, press **Make this the Builder**.
+2. Open a bot's card. On its **Details** tab, in the **Apps** section, press **Make this the Builder**.
 
 Choosing the Builder is for the home's owners and admins. Anyone else who presses **New app** before there's a Builder is asked to get an owner or admin to choose one. An archived bot can't be the Builder.
 
 ### Move the role
 
-To give the role to another bot, open that bot's card in **Team** and press **Make this the Builder**. Every app, table and record stays exactly where it is. Only the bot that makes changes is different. The Builder's own card says that it's the home's Builder, with an **Open Apps** button, and every other bot's card names the bot that builds the home's apps. The Builder can't be archived until another bot takes the role.
+To give the role to another bot, open that bot's card and press **Make this the Builder**. Every app, table and record stays exactly where it is. Only the bot that makes changes is different. The Builder's own card says that it's the home's Builder, with an **Open Apps** button, and every other bot's card names the bot that builds the home's apps. The Builder can't be archived until another bot takes the role.
 
 ## Ask for a new app
 
@@ -80,9 +80,9 @@ The **ⓘ** button opens the app's details panel. It has six tabs: **Overview**,
 
 ## One chat per app
 
-If several apps are being built at once, talking about all of them in one chat gets confusing. So each app has its own chat with the Builder: **Ask Builder** in an app opens it. It's made the first time anyone asks, named after the app, with the Builder and the person who asked in it. It's a Public chat, so everyone in the home can read it. If someone else started it, select **Join** to write in it.
+If several apps are being built at once, talking about all of them in one chat gets confusing. So each app has its own chat with the Builder: **Ask Builder** in an app opens it. It's made the first time anyone asks, named after the app, with the Builder and the person who asked in it. It's a Public room, so everyone in the home can read it. If someone else started it, just write in it: writing joins you.
 
-If the home picks another Builder later, the new one joins every app's chat by itself, and each chat shows a line saying so, for example "Chef is the Builder now, in place of Vera." The old Builder stays in the chat until someone removes it. See [Chats and your team](/help/chats).
+If the home picks another Builder later, the new one joins every app's chat by itself, and each chat shows a line saying so, for example "Chef is the Builder now, in place of Vera." The old Builder stays in the chat until someone removes it. See [Rooms, people and bots](/help/chats).
 
 ## What you can change yourself
 
@@ -92,7 +92,7 @@ You never edit an app's screens, formulas or scripts by hand. You can:
 - publish a draft, and restore an earlier version
 - remove a field, after seeing what uses it (see [Your data](/help/apps-data))
 - pin apps to your sidebar
-- pause or remove a bot's watches, on that bot's card in **Team**
+- pause or remove a bot's watches, on that bot's card
 
 Everyone in the home can do all of this in every app and table: apps and their data belong to the whole home. The home's owners and admins also choose its settings:
 
@@ -133,7 +133,7 @@ The Builder checks every draft before saving it. If something is wrong, such as 
 
 ## If it doesn't work
 
-- **"Choose a Builder first"** when you press **Ask Builder**: your home has no Builder. An owner or admin presses **New app** in Apps, or **Make this the Builder** on a bot's card in **Team**.
+- **"Choose a Builder first"** when you press **Ask Builder**: your home has no Builder. An owner or admin presses **New app** in Apps, or **Make this the Builder** on a bot's card.
 - **"This app hasn't been published yet."**: the app only has a draft. Open it with **Preview the draft** and publish it.
 - **"This app has no draft."**: the draft was already published, or there wasn't one. You're looking at the live app.
 - **"This practice data was just reset or cleared. Reload the preview to start again."**: someone pressed **Reset**, or the practice data was cleared after a week unused. Reload the page.
@@ -162,4 +162,4 @@ Yes, but every change goes into the app's one draft, so check the preview before
 - [Versions, activity and undoing changes](/help/apps-versions)
 - [App templates](/help/apps-templates)
 - [Bots: add, shape and archive](/help/bots)
-- [Chats and your team](/help/chats)
+- [Rooms, people and bots](/help/chats)

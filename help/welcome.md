@@ -25,7 +25,7 @@ Because the computer lives in the cloud, the bot keeps going when you close the 
 
 ### Homes
 
-Everything in Mercbot lives in a **home**: its people and bots, their chats, files and computers. You get your own home to start with, and can create more homes for different parts of your life, such as one for the family and one for a small business. A new chat is **Public**, so everyone in the home can open it; choose **Private** to keep a chat to its members. See [Chats and your team](/help/chats) and [Homes](/help/homes).
+Everything in Mercbot lives in a **home**: its people and bots, their chats, files and computers. You get your own home to start with, and can create more homes for different parts of your life, such as one for the family and one for a small business. A new room is **Public**, so everyone in the home can open it; choose **Private** to keep a room to its members. Your chat with a bot or with another person is private to the two of you. See [Rooms, people and bots](/help/chats) and [Homes](/help/homes).
 
 ### Apps
 
@@ -71,7 +71,7 @@ There are no plans. What your bots' work costs is what the AI providers bill for
 - [Quick start: your first finished job](/help/quick-start) walks you through your first session.
 - [Example jobs for a bot](/help/example-jobs) has ideas for families, small businesses and companies.
 - [Bots: add, shape and archive](/help/bots) covers everything about your bots.
-- [Chats and your team](/help/chats) explains chats, Public and Private, and your team.
+- [Rooms, people and bots](/help/chats) explains the sidebar's rooms, people and bots, and Public and Private rooms.
 - [The bots' computer and connected apps](/help/computer-and-apps) explains the computer and Connect apps.
 - [Skills, routines and watches](/help/skills-and-routines) shows how to make work repeat.
 - [Fixing common problems](/help/troubleshooting) helps when something doesn't work.

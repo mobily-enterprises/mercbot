@@ -26,8 +26,8 @@ const NOTE = "CANARY-note-everyone";
 
 /**
  * The Rossi home: Anna, Ben and Carla, Anna's bot Chef, and its chats, each with Chef and a canary in every carrier.
- * Family is public, and so is Anna's direct chat with Chef (D15); Plans (Anna and Ben), Diary (Anna alone), Secret
- * (Anna and Carla) and Trio (all three) are private. `together`: Anna's bot Pulse is in every chat but the direct one
+ * Family is public; Anna's direct chat with Chef is private and read only from itself; Plans (Anna and Ben), Diary
+ * (Anna alone), Secret (Anna and Carla) and Trio (all three) are private. `together`: Anna's bot Pulse is in every chat but the direct one
  * too, and a chat of several people has its bots join in when useful (D-115).
  */
 async function rossiHome(kit, { together = false } = {}) {
@@ -57,14 +57,17 @@ async function rossiHome(kit, { together = false } = {}) {
       workspace_id: homeId, chat_bot_id: seat, made_by: people[0], name: said("routine"), schedule: "Every day at 9:00", cron: "0 9 * * *", timezone: "UTC",
       instructions: said("instructions"), enabled: false
     });
-    chats[name] = { name, id: chat.id, seat, people, kind: shape.kind ?? "public" };
+    chats[name] = { name, id: chat.id, seat, people, kind: shape.kind ?? (shape.direct ? "private" : "public"), direct: Boolean(shape.direct) };
   }
   return { homeId, anna, ben, carla, chef, pulse, chats };
 }
 
-/** The chats D12 lets `reading` read: public chats, itself, and for a private chat the private chats with all its people. */
-const readable = (chats, reading) => Object.values(chats).filter((chat) => chat.kind === "public" || chat === reading ||
-  (reading.kind === "private" && chat.kind === "private" && reading.people.every((person) => chat.people.includes(person))));
+/**
+ * The chats D12 lets `reading` read: itself, public chats, and for a private chat that isn't a direct one the private
+ * chats with all its people; never a direct chat but its own.
+ */
+const readable = (chats, reading) => Object.values(chats).filter((chat) => chat === reading || (!chat.direct && (chat.kind === "public" ||
+  (reading.kind === "private" && !reading.direct && chat.kind === "private" && reading.people.every((person) => chat.people.includes(person))))));
 /** Their canaries (and a line written later in one), with the home's note, which everyone in the home is told. */
 const granted = (chats, reading) => new Set([NOTE, ...readable(chats, reading).flatMap((chat) => [...CARRIERS, "later"].map((carrier) => `CANARY-${chat.name}-${carrier}`))]);
 const canaries = (text) => [...new Set(String(text).match(CANARY) ?? [])].sort();
@@ -149,8 +152,8 @@ test("every path the memory adds holds only what D12 grants the chat it reads fr
   // Chef's digest is made from the public chats it's in, and only them: it's read in every chat of the bot.
   await refresh();
   const digest = inputs.find((input) => input.path === "digest");
-  assert.deepEqual(messagesOf(canaries(digest.text)), ["CANARY-direct-message", "CANARY-family-message"], "its public chats' lines, never a private one's");
-  assert.deepEqual(canaries(digest.text).filter((canary) => !canary.startsWith("CANARY-family-") && !canary.startsWith("CANARY-direct-")), [], "nothing of a private chat");
+  assert.deepEqual(messagesOf(canaries(digest.text)), ["CANARY-family-message"], "its public chats' lines, never a private one's, nor Anna's chat with it");
+  assert.deepEqual(canaries(digest.text).filter((canary) => !canary.startsWith("CANARY-family-")), [], "nothing of a private chat");
 
   // Anna asks Chef, in her own private chat, to tell everyone something: a card, and once she says yes, a note.
   await ask(chats.diary, { tools: false, tell: NOTE });
@@ -183,10 +186,12 @@ test("every path the memory adds holds only what D12 grants the chat it reads fr
   // A chat of one person reads every chat that person is in (R10): Diary reads Plans, Secret and Trio.
   const diary = inputs.filter((input) => input.path === "turn" && input.chatId === chats.diary.id).at(-1);
   for (const name of ["plans", "secret", "trio"]) assert.ok(diary.text.includes(`CANARY-${name}-message`), `Diary reads ${name}`);
-  // And the public chats read no private chat at all.
-  for (const name of ["family", "direct"]) {
-    const reading = inputs.filter((input) => input.path === "turn" && input.chatId === chats[name].id).at(-1);
-    assert.deepEqual(canaries(reading.text).filter((canary) => /CANARY-(plans|diary|secret|trio)-/u.test(canary)), [], `${name} reads no private chat`);
+  // And the public chat reads no private chat at all; no chat but itself reads Anna's chat with Chef.
+  const family = inputs.filter((input) => input.path === "turn" && input.chatId === chats.family.id).at(-1);
+  assert.deepEqual(canaries(family.text).filter((canary) => /CANARY-(plans|diary|secret|trio|direct)-/u.test(canary)), [], "family reads no private chat");
+  for (const chat of Object.values(chats).filter((other) => other !== chats.direct)) {
+    const reading = inputs.filter((input) => input.path === "turn" && input.chatId === chat.id).at(-1);
+    assert.deepEqual(canaries(reading.text).filter((canary) => canary.startsWith("CANARY-direct-")), [], `${chat.name} never reads Anna's chat with Chef`);
   }
 });
 

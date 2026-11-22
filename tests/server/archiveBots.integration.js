@@ -54,7 +54,7 @@ test("the home's main bot and its Builder aren't archived, each saying what to d
   const builder = await bot("Builder");
   kit.builder.id = builder;
   await assert.rejects(kit.archive.archiveBot(main, as("anna")), { statusCode: 409, code: "bots_archive_main", message: /Make another bot the main bot first/u });
-  await assert.rejects(kit.archive.archiveBot(builder, as("anna")), { statusCode: 409, code: "bots_archive_builder", message: /Make another bot the Builder from its card in Team first\./u });
+  await assert.rejects(kit.archive.archiveBot(builder, as("anna")), { statusCode: 409, code: "bots_archive_builder", message: /Make another bot the Builder from its card in Bots first\./u });
   assert.equal((await kit.botList.listedBot(builder, as("anna"))).isBuilder, true);
 });
 

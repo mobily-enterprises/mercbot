@@ -22,8 +22,6 @@ function actions() {
   const chat = ref({ id: "9", kind: "private", directBotId: "1", onboardingStep: "home-for", people: [{ userId: "2", name: "Anna" }], bots: [] });
   const made = useChatActions({
     currentChat: chat,
-    newChat: ref(null),
-    startNewChat: async () => {},
     store: { messagesByChat: ref({}), updateChat: () => {}, appendMessages: () => {}, replaceMessage: () => {}, removeMessage: () => {} },
     work: { playMood: () => {}, requestReply: async () => { answered.replies += 1; }, describeWork: () => {} },
     reportFailure: (text, error) => { throw error || new Error(text); },

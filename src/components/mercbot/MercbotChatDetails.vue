@@ -54,12 +54,13 @@ function commitRename() {
 
 const people = computed(() => [...props.chat.people].sort((a, b) =>
   Number(String(b.userId) === String(props.me)) - Number(String(a.userId) === String(props.me))));
-// Its maker and the home's owners and admins take people and bots out; the everyone chat has everyone in the home.
+// Its maker and the home's owners and admins take people out; the everyone chat has everyone in the home. A bot is
+// taken out by anyone in the home from a public room, by its people from a private one.
 const mayRemovePerson = (person) => may.value.removeMembers && !props.chat.everyone && String(person.userId) !== String(props.me);
-const mayRemoveBot = computed(() => may.value.removeMembers);
+const mayRemoveBot = computed(() => may.value.removeBots);
 // Whether its bots join in when useful (D-115): they and everyone else see it; they switch it.
 const joinInNote = computed(() => (may.value.joinIn
-  ? "When someone writes without calling a bot, one bot may answer if it can help. Off, bots answer only when called."
+  ? "On: a bot may reply without being called. Off: only when called."
   : "Only the person who started this chat and the home's owners and admins can change this."));
 
 // Routines that run in this chat (B): each one's bot, schedule, a switch (anyone pauses one; only its maker resumes it,
@@ -193,6 +194,7 @@ const folderBot = computed(() => (props.chat.bots[0] ? String(props.chat.bots[0]
           <v-switch
             :model-value="Boolean(chat.botsJoinIn)"
             :disabled="!may.joinIn"
+            color="primary"
             density="compact"
             hide-details
             inset
@@ -215,6 +217,7 @@ const folderBot = computed(() => (props.chat.bots[0] ? String(props.chat.bots[0]
             <v-switch
               :model-value="routine.enabled"
               :disabled="!routine.enabled && !routine.canResume"
+              color="primary"
               density="compact"
               hide-details
               inset
@@ -392,6 +395,18 @@ const folderBot = computed(() => (props.chat.bots[0] ? String(props.chat.bots[0]
 
 .mb-chat-details__setting {
   margin-top: 6px;
+}
+
+/* Material 3's switch when off: an outlined track and an outline-coloured thumb, so it reads as a switch on any surface. */
+.mb-chat-details :deep(.v-switch .v-selection-control:not(.v-selection-control--dirty) .v-switch__track) {
+  background: rgb(var(--v-theme-surface-container-highest));
+  border: 2px solid rgb(var(--v-theme-outline));
+  opacity: 1;
+}
+
+.mb-chat-details :deep(.v-switch .v-selection-control:not(.v-selection-control--dirty) .v-switch__thumb) {
+  background: rgb(var(--v-theme-outline));
+  color: rgb(var(--v-theme-outline));
 }
 
 .mb-chat-details__member {

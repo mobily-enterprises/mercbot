@@ -21,7 +21,7 @@ export function routineMenuItems(routine, { toggle, edit, remove }) {
 
 /**
  * A bot card's routines (D-112: a routine belongs to a bot in a chat), with on/off switches. From a chat, this bot's
- * routines in that chat; on Team, its routines in every chat the person can open, each naming its chat. A click only
+ * routines in that chat; beside another chat, its routines in every chat the person can open, each naming its chat. A click only
  * highlights a row; right-click offers what routineMenuItems allows. Edit goes through the routine's chat, so the
  * composer gets a request naming it. Routines are made and changed in chats, so they're read again as the open chat's
  * activity changes.

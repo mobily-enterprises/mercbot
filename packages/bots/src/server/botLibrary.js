@@ -127,7 +127,8 @@ export function createBotLibrary({ records, apps, files }) {
   }
 
   /**
-   * How search names a chat: its title, or a direct chat by its bot, with the person's name when it's someone else's.
+   * How search names a chat: its title, a chat between two people by the other person, or a direct chat by its bot, with
+   * the person's name when it's someone else's.
    * @param {Map<string, object>} chatOf chat rows by id
    */
   function chatNames(chatOf, botNames, peopleNames, person) {
@@ -135,6 +136,10 @@ export function createBotLibrary({ records, apps, files }) {
       const chat = chatOf.get(String(chatId));
       if (!chat) return null;
       if (chat.title) return chat.title;
+      if (chat.direct_person_id != null) {
+        const other = String(chat.direct_user_id) === person ? chat.direct_person_id : chat.direct_user_id;
+        return peopleNames.get(String(other)) || "Someone";
+      }
       const bot = botNames.get(String(chat.direct_bot_id)) || "A bot";
       if (chat.direct_user_id == null || String(chat.direct_user_id) === person) return bot;
       return `${bot} and ${peopleNames.get(String(chat.direct_user_id)) || "Someone"}`;
@@ -164,7 +169,7 @@ export function createBotLibrary({ records, apps, files }) {
       ...made.map((row) => row.author_bot_id),
       ...chatRows.map((row) => row.direct_bot_id)
     ].filter((id) => id != null);
-    const userIds = [...found.map((row) => row.author_user_id), ...chatRows.map((row) => row.direct_user_id)]
+    const userIds = [...found.map((row) => row.author_user_id), ...chatRows.flatMap((row) => [row.direct_user_id, row.direct_person_id])]
       .filter((id) => id != null && String(id) !== person);
     const [botRows, peopleNames] = await Promise.all([bots.byIds(botIds, options), chats.names(userIds, options)]);
     const botNames = new Map(botRows.map((bot) => [String(bot.id), bot.name]));

@@ -61,7 +61,7 @@ export function planSystem() {
     "Mercbot's library, one bot per line (slug | tag | name | area | what it does | skills | routines | apps it can use):",
     ...GALLERY.map(catalogueLine),
     `Every home already has a ${GENERAL.name} (${GENERAL.description}); never suggest it.`,
-    "Mercbot's ready-made teams, combinations known to work well (name: slugs):",
+    "Mercbot's ready-made sets, combinations known to work well (name: slugs):",
     ...TEAMS.map((team) => `${team.name}: ${team.templates.join(", ")}`),
     "Rules:",
     "- Prefer a library bot, even when it fits only roughly: each bot can be given its own additions later.",

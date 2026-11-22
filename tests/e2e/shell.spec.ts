@@ -1,5 +1,5 @@
 import type { Knex } from "knex";
-import { HOME, MADE_UP, botNamed, connectTestDb, directChat, expect, homeApi, makeChat, openShell, seedMessage, seedMessages, shell, test, type Page, type Route } from "./harness";
+import { HOME, MADE_UP, botNamed, connectTestDb, directChat, expect, homeApi, makeChat, openShell, seedMessage, seedMessages, shell, sidebarEntry, test, type Page, type Route } from "./harness";
 
 // The signed-in shell around a chat (D-112), on the Test Preview target: what it shows, the actions it offers and the
 // calls they make. The fixtures give the owner's home the bots Otto and Vera; most tests use the person's direct chat
@@ -186,20 +186,19 @@ test("a sent message and its answer can be acted on as soon as they show", async
   await expect.poll(() => standInReplies(page)).toBe(repliedBefore + 2);
 });
 
-// A direct chat takes no title (its bot's name is its name) and can't be left; its maker, as the home's owner too,
-// archives and deletes it (chatMenus.js). "Move to" lists the person's sections once they have one.
+// A direct chat, a bot's row in Bots, takes no title (its bot's name is its name), no section and no archive, and can't
+// be left; its maker, as the home's owner too, deletes it (chatMenus.js). Pinned, it's a tile too.
 test("a chat's menu offers its actions, and Pin pins it until Unpin", async ({ page }) => {
   const calls = homeCalls(page);
-  const { sections } = await (await homeApi(page)).get("/chats");
-  const move = sections.length ? "Move to" : "Move to new section";
+  await ottoChat(page);
   await openShell(page);
-  await shell.chatRow(page, "Otto").click({ button: "right" });
-  await expect(shell.menuItems(page)).toHaveText(["Pin", move, "Mark as unread", "Copy chat ID", "Hide from sidebar", "Archive", "Delete"]);
+  await (await sidebarEntry(page, "Bots", "Otto")).click({ button: "right" });
+  await expect(shell.menuItems(page)).toHaveText(["Pin", "Mark as unread", "Copy chat ID", "Delete"]);
   await shell.menuItems(page).filter({ hasText: /^Pin$/u }).click();
   const tile = shell.sidebar(page).getByRole("region", { name: "Pinned chats" }).getByRole("button", { name: "Otto", exact: true });
   await expect(tile).toBeVisible();
   await tile.click({ button: "right" });
-  await expect(shell.menuItems(page)).toHaveText(["Unpin", "Mark as unread", "Copy chat ID", "Hide from sidebar", "Archive", "Delete"]);
+  await expect(shell.menuItems(page)).toHaveText(["Unpin", "Mark as unread", "Copy chat ID", "Hide from sidebar", "Delete"]);
   await shell.menuItems(page).filter({ hasText: "Unpin" }).click();
   await expect(tile).toHaveCount(0);
   await expect(shell.chatRow(page, "Otto")).toBeVisible();
@@ -261,7 +260,7 @@ test("the search palette lists chats then commands, and runs what is chosen", as
   const palette = page.getByRole("dialog", { name: "Search" });
   const options = palette.getByRole("listbox", { name: "Results" }).getByRole("option");
   const commands = [
-    "Add bots", "New chat", "Team", "Keyboard shortcuts", "Settings: General", "Settings: Computer",
+    "Add bots", "New room", "Keyboard shortcuts", "Settings: General", "Settings: Computer",
     "Settings: Permissions", "Settings: Files", "Settings: Website", "Settings: Templates", "Settings: Vault",
     "Settings: Spending", "Settings: Mercbot account", "Settings: About", "Connect Apps", "Skills",
     "Theme: System", "Theme: Light", "Theme: Dark"
@@ -362,30 +361,24 @@ test("Skills opens Your apps and skills at Private skills, from its shortcut, th
   await close();
 });
 
-// New chat (D15), which took the group picker's place: Public unless the person picks Private, its To: line takes the
-// home's people and bots by name, and nothing is made until the first message is sent.
-test("New chat starts Public, names the chosen bots on its To: line, and says when no one has that name", async ({ page }) => {
+// New room (D15), which took New chat's place, from its shortcut: Public unless the person picks Private, a name and
+// Create, with no To: line and no bots; nothing is made until Create.
+test("New room starts Public, asks for a name, and makes nothing when it's closed", async ({ page }) => {
   const calls = homeCalls(page);
   await openShell(page);
   await page.keyboard.press("Control+Alt+g");
-  const newChat = shell.chat(page).getByRole("region", { name: "New chat" });
-  await expect(newChat.getByRole("heading", { name: "New chat" })).toBeVisible();
-  await expect(newChat.getByRole("radiogroup", { name: "Who can open it" }).getByRole("radio", { name: /^Public/u })).toBeChecked();
-  const field = newChat.getByRole("textbox", { name: "Add people and bots" });
-  await expect(field).toBeFocused();
-  await expect(field).toHaveAttribute("placeholder", "Type a name…");
-  await expect(shell.chat(page).getByRole("textbox", { name: "First message" })).toHaveAttribute("placeholder", "Write the first message");
-  const rows = newChat.getByRole("listbox", { name: "People and bots" }).getByRole("option");
-  await field.fill("Ott");
-  await expect(rows).toHaveText(["Otto"]);
-  await rows.filter({ hasText: "Otto" }).click();
-  await expect(newChat.getByRole("button", { name: "Remove Otto" })).toBeVisible();
-  await expect(field).toHaveAttribute("placeholder", "");
-  await field.fill("Pinned nobody");
-  await expect(newChat.getByText(/^No one in .+ by that name\.$/u)).toBeVisible();
-  await newChat.getByRole("button", { name: "Close New chat" }).click();
-  await expect(newChat).toBeHidden();
-  expect(calls.filter((call) => call === "POST /chats"), "closed before its first message, no chat is made").toEqual([]);
+  const newRoom = page.getByRole("dialog", { name: "New room" });
+  await expect(newRoom.getByRole("heading", { name: "New room" })).toBeVisible();
+  await expect(newRoom.getByRole("radiogroup", { name: "Who can open it" }).getByRole("radio", { name: /^Public/u })).toBeChecked();
+  const name = newRoom.getByRole("textbox", { name: "Name" });
+  await expect(name).toBeFocused();
+  await expect(name).toHaveAttribute("placeholder", "For example, Kitchen renovation");
+  await expect(newRoom.getByRole("textbox", { name: "Add people and bots" })).toHaveCount(0);
+  await expect(newRoom.getByRole("button", { name: "Create", exact: true })).toBeVisible();
+  await name.fill("Pinned nobody");
+  await newRoom.getByRole("button", { name: "Close", exact: true }).click();
+  await expect(newRoom).toBeHidden();
+  expect(calls.filter((call) => call === "POST /chats"), "closed before Create, no room is made").toEqual([]);
 });
 
 // Two chats made for one test through the API, of the person alone (no bot answers what's written there), the second

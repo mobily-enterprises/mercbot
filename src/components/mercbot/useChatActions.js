@@ -19,17 +19,15 @@ const answering = (chat) => {
  * for their reply where the chat goes on.
  * @param {{
  *   currentChat: import("vue").ComputedRef<import("../../types.js").Chat | null>,
- *   newChat: import("vue").Ref<object | null>,
- *   startNewChat: (payload: Record<string, any>) => Promise<void>,
  *   store: import("../../types.js").ChatMessages,
  *   work: import("../../types.js").ChatWork,
  *   reportFailure: import("../../types.js").ReportFailure,
  *   notify: (message: string) => void,
  *   openAddBots: (screen: "describe" | "teams") => void,
  *   me: () => string
- * }} options `openAddBots` opens Add bots on Describe what you need or its ready-made teams (D-105, D-109); `me` is the person
+ * }} options `openAddBots` opens Add bots on Describe what you need or its ready-made sets (D-105, D-109); `me` is the person
  */
-export function useChatActions({ currentChat, newChat, startNewChat, store, work, reportFailure, notify, openAddBots, me }) {
+export function useChatActions({ currentChat, store, work, reportFailure, notify, openAddBots, me }) {
   const { messagesByChat, updateChat, appendMessages, replaceMessage, removeMessage } = store;
   const { playMood, requestReply, describeWork } = work;
 
@@ -43,10 +41,6 @@ export function useChatActions({ currentChat, newChat, startNewChat, store, work
   }
 
   async function send(payload, retryOf = null) {
-    if (newChat.value) {
-      await startNewChat(payload);
-      return;
-    }
     const chat = currentChat.value;
     if (!chat) return;
     const pending = retryOf || { id: `pending-${Date.now()}`, kind: "text", role: "user", authorUserId: me(), authorBotId: null, body: { ...payload, text: payload.text } };
@@ -104,7 +98,7 @@ export function useChatActions({ currentChat, newChat, startNewChat, store, work
       appendMessages(chatId, result.messages);
       if (result.chat) updateChat(result.chat);
       // What the home is for (D-109): the welcome chat carries on by itself, and Add bots opens on Describe what you need
-      // ("describe") or its ready-made teams ("teams"), where nothing is added until Add; null is Not now.
+      // ("describe") or its ready-made sets ("teams"), where nothing is added until Add; null is Not now.
       if ("addBots" in result) {
         if (result.addBots) openAddBots(result.addBots);
         return;

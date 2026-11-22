@@ -23,10 +23,10 @@ export function appsFor(adding, apps, withoutApp) {
   return [...new Map(wanted.map((app) => [app.key, app])).values()];
 }
 
-/** The list of teams' first words, in Add bots' ready-made teams. */
-export const TEAM_INTRO = "Pick what you need help with. Mercbot adds a few bots that work well together to your team.";
+/** The list of sets' first words, in Add bots' ready-made sets. */
+export const TEAM_INTRO = "Pick what you need help with. Mercbot adds a few bots that work well together to your home.";
 
-/** The headings Add bots lists the teams under (D-109), by what each team is for. */
+/** The headings Add bots lists the ready-made sets under (D-109), by what each set is for. */
 const TEAM_GROUPS = Object.freeze([
   { for: "home", name: "For home and life" },
   { for: "work", name: "For work" }

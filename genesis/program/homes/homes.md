@@ -45,7 +45,7 @@ routes (`config/public.js`), and a copy built on Mercbot that serves many people
 - **Configuration extension:** `config/extensions.js`, empty here, is merged last into `config/public.js`,
   objects key by key, anything else replaced. A copy built on Mercbot replaces it whole.
 - **People in a home:** `homesApi.js` reads a home's whole list of people (JSKIT answers a page at a time; the page
-  reads every page, 100 at a time, `peopleApi.members`) for Team, New chat's To: and a chat's Add people
+  reads every page, 100 at a time, `peopleApi.members`) for the sidebar's People, Invite and Chat details
   (`useTeam.js`), read again when its people change (`homeChanges`), and offers the parts a copy's own people screen
   builds on (`homeRoute`, `homeList`, `sendJsonApi`, `readJsonApi`, `attributesOf`). When a home's people change, the
   bots seat whoever joined in the home's everyone chat and take whoever left out of every chat

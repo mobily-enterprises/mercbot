@@ -25,9 +25,9 @@ The first time you open Mercbot, three short slides introduce it. Then your firs
 4. It asks "Will anyone else use this home?" **Just me** changes nothing. **Me and other people** makes a chat for everyone in the home, with the bot in it.
 5. It explains how it works and offers to connect your email. You can do that now with the card in the chat, or skip it and just tell the bot what you need.
 
-This first bot is your main bot, and a member of your home: you'll find it on **Team**. You can add more later with **Add bots** there: describe what you need, or choose a bot or a ready-made team yourself.
+This first bot is your main bot, and a member of your home: you'll find it first under **Bots** in the sidebar. You can add more later with the **+** beside **Bots**: describe what you need, or choose a bot or a ready-made set yourself.
 
-Your chat with a bot is **Public**, like every new chat, so everyone else in the home can open it. For something only you should see, start a **Private** chat with **New chat**. See [Chats and your team](/help/chats).
+Your chat with a bot is **private**: nobody else in the home can open it, and the bot never carries what's said there into other chats. To work with others, start a room with **+** beside **Rooms**. See [Rooms, people and bots](/help/chats).
 
 ## 3. Give it a first job
 
@@ -98,5 +98,5 @@ Mercbot also works in your phone's browser, with a layout made for small screens
 - [Example jobs for a bot](/help/example-jobs)
 - [Bots: add, shape and archive](/help/bots)
 - [Messaging and working together](/help/messaging)
-- [Chats and your team](/help/chats)
+- [Rooms, people and bots](/help/chats)
 - [The vault: saved logins and secrets](/help/vault)

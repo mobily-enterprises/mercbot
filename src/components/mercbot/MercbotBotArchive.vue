@@ -22,7 +22,7 @@ const question = computed(() => archiveBotQuestion(props.bot));
     <p class="mb-bot-archive__label">Archive</p>
     <template v-if="bot.archivedAt">
       <p class="mb-bot-archive__text">
-        {{ archivedBotLine(bot) }}. It's under Archived on Team, and its chats are kept. Its routines and watches stay paused
+        {{ archivedBotLine(bot) }}. It's under Archived bots in Bots, and its chats are kept. Its routines and watches stay paused
         when it's resumed: switch them back on under Routines.
       </p>
       <button v-if="bot.canArchive" type="button" class="mb-set-pill" @click="emit('unarchive')">
@@ -32,7 +32,7 @@ const question = computed(() => archiveBotQuestion(props.bot));
     </template>
     <template v-else>
       <p class="mb-bot-archive__text">
-        Archiving {{ bot.name }} takes it off the team for everyone in this home. Its chats are kept, and it stays in them
+        Archiving {{ bot.name }} takes it out of the home's bots for everyone in this home. Its chats are kept, and it stays in them
         without answering.
       </p>
       <p v-if="refusal" class="mb-bot-archive__text mb-bot-archive__refusal">{{ refusal }}</p>

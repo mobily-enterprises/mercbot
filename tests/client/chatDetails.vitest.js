@@ -119,7 +119,14 @@ describe("Chat details", () => {
       "Take Cara Bianchi out of this chat",
       "Take Chef out of this chat"
     ]);
-    expect(takeOuts(await details({ chat: KITCHEN, me: "2" }))).toEqual([]);
+    expect(takeOuts(await details({ chat: KITCHEN, me: "2" })).filter((label) => !label.includes("Chef"))).toEqual([]);
+  });
+
+  it("lets anyone take a bot out of a public room, and anyone in a private room take one out of it", async () => {
+    expect(takeOuts(await details({ chat: KITCHEN, me: "2" })), "a public room, not its maker").toEqual(["Take Chef out of this chat"]);
+    expect(takeOuts(await details({ chat: { ...KITCHEN, visiting: true, people: [ANNA, CARA] }, me: "2" })), "a public room they aren't in yet")
+      .toEqual(["Take Chef out of this chat"]);
+    expect(takeOuts(await details({ chat: { ...KITCHEN, kind: "private" }, me: "2" })), "a private room they're in").toEqual(["Take Chef out of this chat"]);
   });
 
   it("takes no one out of the everyone chat, whoever is looking", async () => {
@@ -201,7 +208,7 @@ describe("Chat details", () => {
       return row ? { words: text(/mb-chat-details__routine-text">([\s\S]*?)<\/span><\/span>/u.exec(row)?.[1] ?? ""), on: /\schecked(?=[\s>=]|$)/u.test(input), held: /\sdisabled(?=[\s>=]|$)/u.test(input) } : null;
     };
     expect(joinIn(await details({ chat: KITCHEN, me: "1" }))).toEqual({
-      words: "Bots join in when useful When someone writes without calling a bot, one bot may answer if it can help. Off, bots answer only when called.",
+      words: "Bots join in when useful On: a bot may reply without being called. Off: only when called.",
       on: false,
       held: false
     });

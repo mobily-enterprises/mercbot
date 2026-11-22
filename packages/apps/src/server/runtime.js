@@ -420,7 +420,7 @@ export function createRuntime({ apps, gate, scripts, practices }) {
         if (!bot) throw new GateError(409, "That bot no longer exists.", { code: "apps_bot_gone" });
         // An archived bot takes no tasks (D-108) until someone resumes it.
         if (bot.archivedAt) {
-          throw new GateError(409, `${bot.name} is archived, so it can't take this task. Whoever made it, or an owner or admin, can resume it from Archived on Team.`, {
+          throw new GateError(409, `${bot.name} is archived, so it can't take this task. Whoever made it, or an owner or admin, can resume it under Archived bots in Bots.`, {
             code: "apps_bot_archived",
             params: { name: bot.name }
           });

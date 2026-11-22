@@ -5,7 +5,8 @@
 /**
  * A turn's seat: the bot's row (`id` is the bot's id, so what reads a bot row reads it), its chat (`chat`, `chat_id`),
  * its chat_bots id (`chat_bot_id`, and as agent-runtime's conversation `conversation_id`), its waiting hand-over and job
- * notes, and the person the turn works for (`user_id`). A request's bot not in the asking chat (O22) has no chat_bots
+ * notes, where it reads the chat from (`reads_from_message_id`, null for its beginning), and the person the turn works
+ * for (`user_id`). A request's bot not in the asking chat (O22) has no chat_bots
  * row: its `chat_bot_id` is null until it joins.
  * @param {object} bot records.bots row
  * @param {object} chat records.chats row
@@ -24,6 +25,7 @@ export function seatOf(bot, chat, chatBot, askerId) {
     conversation_id: seated,
     waiting_task: chatBot?.waiting_task ?? null,
     job_notes: chatBot?.job_notes ?? null,
+    reads_from_message_id: chatBot?.reads_from_message_id == null ? null : String(chatBot.reads_from_message_id),
     user_id: String(askerId)
   });
 }

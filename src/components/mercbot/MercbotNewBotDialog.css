@@ -32,7 +32,7 @@
   margin: 0 var(--mb-tbrowse-gutter) 8px;
 }
 
-/* One bot and A ready-made team, side by side; stacked on a phone. */
+/* One bot and A ready-made set, side by side; stacked on a phone. */
 .mb-newbot__ways {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));

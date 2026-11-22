@@ -1,11 +1,12 @@
 <script setup>
 import { computed, ref } from "vue";
 import MercbotAccountMenu from "./MercbotAccountMenu.vue";
+import MercbotAvatar from "./MercbotAvatar.vue";
 import MercbotChatAvatar from "./MercbotChatAvatar.vue";
 import MercbotChatList from "./MercbotChatList.vue";
-import MercbotContextMenu from "./MercbotContextMenu.vue";
 import { buildRailModel } from "./chatDirectory.js";
 import { chatTitle } from "./chatView.js";
+import { initialsOf } from "./messageAuthors.js";
 import MercbotHomeSwitcher from "./MercbotHomeSwitcher.vue";
 import MercbotAppsEntry from "../apps/MercbotAppsEntry.vue";
 import MercbotFilesEntry from "../files/MercbotFilesEntry.vue";
@@ -13,13 +14,12 @@ import MercbotIconButton from "./MercbotIconButton.vue";
 import MercbotTooltip from "./MercbotTooltip.vue";
 import { emitResizeDrag } from "./pointerDrag.js";
 
-// Sidebar shell (plan 4.1): expanded or the compact rail, with Team, Files and Apps above the person's chats; the chat
-// list itself is MercbotChatList. (+) offers New chat and Add bots.
+// Sidebar shell (plan 4.1): expanded, its top row the home switcher with Search, Files and Apps as icon buttons above
+// Rooms, People and Bots (MercbotChatList, each section with its own +); or the compact rail of faces.
 const props = defineProps({
   model: { type: Object, required: true },
   sections: { type: Array, required: true },
   currentChatId: { type: String, default: "" },
-  teamOpen: { type: Boolean, default: false },
   me: { type: String, default: "" },
   manages: { type: Boolean, default: false },
   compact: { type: Boolean, default: false },
@@ -31,24 +31,18 @@ const props = defineProps({
   hiddenExpanded: { type: Boolean, default: false },
   archivedExpanded: { type: Boolean, default: false },
   editingSectionId: { type: String, default: "" },
+  folded: { type: Object, default: () => ({}) },
+  peopleActions: { type: Array, default: () => [] },
+  homeName: { type: String, default: "" },
   displayName: { type: String, required: true },
   initials: { type: String, required: true },
   // The person's own picture, shown on the account button in place of their initials ("" when they have none).
   picture: { type: String, default: "" }
 });
-const emit = defineEmits(["select", "command", "search", "new-chat", "new-bot", "team", "connect-apps", "skills", "resize"]);
+const emit = defineEmits(["select", "command", "search", "new-chat", "new-bot", "open-member", "connect-apps", "skills", "resize"]);
+// The rail's faces: pinned chats, rooms, people and bots, each a chat row or a person's or bot's entry (chatDirectory.js).
 const rail = computed(() => buildRailModel(props.model));
-
-// (+): New chat, or Add bots, under the button.
-const addMenu = ref({ open: false, target: [0, 0] });
-const addItems = [
-  { title: "New chat", icon: "$chat", run: () => emit("new-chat") },
-  { title: "Add bots", icon: "$smartToy", run: () => emit("new-bot") }
-];
-function openAddMenu(event) {
-  const box = event.currentTarget.getBoundingClientRect();
-  addMenu.value = { open: true, target: [box.left, box.bottom + 4] };
-}
+const railName = (item) => (item.entry === "bot" ? item.bot.name : item.entry === "person" ? item.person.name : chatTitle(item, props.me));
 
 // The footer: at rest the account's name and square Skills and Connect apps buttons; while
 // the footer is hovered, or Connect apps has focus, the avatar, Skills and a wide Connect apps pill with app icons.
@@ -63,37 +57,21 @@ const appIcons = ["$calendarToday", "$mail", "$description"];
   <nav class="mb-sidebar" :class="{ 'mb-sidebar--rail': compact }" :style="{ width: `${width}px` }" aria-label="Chats">
     <div v-if="!compact" class="mb-sidebar__actions">
       <div class="mb-sidebar__home"><MercbotHomeSwitcher /></div>
-      <MercbotIconButton icon="$search" label="Search" @click="emit('search')" />
-      <MercbotIconButton icon="$editSquare" label="New chat or bots" @click="openAddMenu" />
+      <MercbotIconButton icon="$search" label="Search" tone="bare" @click="emit('search')" />
+      <MercbotFilesEntry icon />
+      <MercbotAppsEntry icon />
     </div>
-    <div v-else class="mb-sidebar__rail-top">
-      <MercbotHomeSwitcher rail />
-    </div>
-
-    <div class="mb-team-entry" :class="{ 'mb-team-entry--rail': compact }">
-      <v-btn
-        variant="text"
-        :prepend-icon="compact ? undefined : '$group'"
-        :icon="compact ? '$group' : undefined"
-        :block="!compact"
-        :active="teamOpen"
-        class="mb-team-entry__link"
-        aria-label="Team"
-        :aria-current="teamOpen ? 'page' : undefined"
-        @click="emit('team')"
-      >
-        <template v-if="!compact">Team</template>
-      </v-btn>
-    </div>
-    <MercbotFilesEntry :rail="compact" />
-    <MercbotAppsEntry :rail="compact" />
+    <template v-else>
+      <div class="mb-sidebar__rail-top">
+        <MercbotHomeSwitcher rail />
+      </div>
+      <div class="mb-sidebar__rail-entries">
+        <MercbotFilesEntry rail />
+        <MercbotAppsEntry rail />
+      </div>
+    </template>
 
     <div class="mb-sidebar__bots">
-      <!-- A person with no chats yet (D4): where to start. -->
-      <div v-if="!compact && !model.visualOrder.length && !model.hidden.length && !model.archived.length" class="mb-sidebar__empty">
-        <p>No chats yet.</p>
-        <button type="button" class="mb-sidebar__start" @click="emit('new-chat')">Start a chat</button>
-      </div>
       <MercbotChatList
         v-if="!compact"
         :model="model"
@@ -108,24 +86,32 @@ const appIcons = ["$calendarToday", "$mail", "$description"];
         :hidden-expanded="hiddenExpanded"
         :archived-expanded="archivedExpanded"
         :editing-section-id="editingSectionId"
+        :folded="folded"
+        :people-actions="peopleActions"
+        :home-name="homeName"
         @select="emit('select', $event)"
         @command="emit('command', $event)"
+        @new-room="emit('new-chat')"
+        @add-bots="emit('new-bot')"
+        @open-member="emit('open-member', $event)"
       />
       <ul v-else class="mb-rail-list">
         <template v-for="(group, groupIndex) in rail" :key="groupIndex">
           <li v-if="groupIndex > 0" class="mb-rail-list__divider" aria-hidden="true" />
-          <li v-for="chat in group" :key="chat.id">
+          <li v-for="item in group" :key="item.id">
             <button
               type="button"
               class="mb-bot"
-              :class="{ 'mb-bot--selected': chat.id === currentChatId, 'mb-bot--switching': chat.id === switchHighlightId }"
-              :aria-current="chat.id === currentChatId ? 'page' : undefined"
-              :aria-label="chatTitle(chat, me)"
-              @click="emit('select', chat.id)"
+              :class="{ 'mb-bot--selected': item.id === currentChatId, 'mb-bot--switching': item.id === switchHighlightId, 'mb-bot--faded': item.visiting }"
+              :aria-current="item.id === currentChatId ? 'page' : undefined"
+              :aria-label="railName(item)"
+              @click="emit('select', item.id)"
             >
-              <MercbotChatAvatar :chat="chat" :me="me" :size="36" :state="moods[chat.id] || 'idle'" />
-              <span v-if="chat.unread" class="mb-bot__unread" aria-label="Unread" />
-              <kbd v-if="hints[chat.id]" class="mb-bot__hint">{{ hints[chat.id] }}</kbd>
+              <MercbotAvatar v-if="item.entry === 'bot'" :bot="item.bot" :size="36" :state="(item.chat && moods[item.chat.id]) || 'idle'" />
+              <span v-else-if="item.entry === 'person'" class="mb-bot__initials" aria-hidden="true">{{ initialsOf(item.person.name) }}</span>
+              <MercbotChatAvatar v-else :chat="item" :me="me" :size="36" :state="moods[item.id] || 'idle'" />
+              <span v-if="item.unread" class="mb-bot__unread" aria-label="Unread" />
+              <kbd v-if="hints[item.id]" class="mb-bot__hint">{{ hints[item.id] }}</kbd>
             </button>
           </li>
         </template>
@@ -176,14 +162,6 @@ const appIcons = ["$calendarToday", "$mail", "$description"];
 
     <div v-else class="mb-sidebar__rail-bottom">
       <MercbotIconButton
-        icon="$add"
-        label="New chat or bots"
-        tone="bare"
-        size="small"
-        :icon-size="14"
-        @click="openAddMenu"
-      />
-      <MercbotIconButton
         icon="$dashboardCustomize"
         label="Connect apps"
         tone="bare"
@@ -218,48 +196,10 @@ const appIcons = ["$calendarToday", "$mail", "$description"];
       aria-label="Resize sidebar"
       @pointerdown.prevent="emitResizeDrag($event, emit)"
     />
-    <MercbotContextMenu v-model="addMenu.open" :target="addMenu.target" :items="addItems" />
   </nav>
 </template>
 
 <style scoped>
-.mb-team-entry {
-  display: flex;
-  flex-direction: column;
-  padding: 8px 8px 0;
-}
-
-.mb-team-entry--rail {
-  align-items: center;
-}
-
-.mb-team-entry__link {
-  justify-content: flex-start;
-  text-transform: none;
-  letter-spacing: normal;
-}
-
-.mb-sidebar__empty {
-  padding: 24px 18px 0;
-  font-size: 13px;
-  line-height: 18px;
-  color: rgb(var(--v-theme-on-surface-variant));
-}
-
-.mb-sidebar__empty p {
-  margin: 0 0 6px;
-}
-
-.mb-sidebar__start {
-  padding: 0;
-  border: 0;
-  background: none;
-  font: inherit;
-  font-weight: 600;
-  color: rgb(var(--v-theme-link));
-  cursor: pointer;
-}
-
 .mb-sidebar {
   position: relative;
   display: flex;
@@ -274,11 +214,11 @@ const appIcons = ["$calendarToday", "$mail", "$description"];
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 6px;
-  padding: 12px 16px 0 10px;
+  gap: 2px;
+  padding: 12px 12px 0 10px;
 }
 
-/* The home switcher takes the room left of Search and Add bots (D-36). */
+/* The home switcher takes the room left of Search, Files and Apps (D-36). */
 .mb-sidebar__home {
   display: flex;
   flex: 0 1 auto;
@@ -296,16 +236,21 @@ const appIcons = ["$calendarToday", "$mail", "$description"];
   z-index: 1;
 }
 
+/* The rail's Files and Apps, under the home switcher. */
+.mb-sidebar__rail-entries {
+  padding-top: 52px;
+}
+
 /* One scroll region between the top row and the account row, fading at its edges. */
 .mb-sidebar__bots {
   flex: 1;
   overflow-y: auto;
-  padding: 22px 0 24px;
+  padding: 14px 0 24px;
   mask-image: linear-gradient(transparent, black 22px, black calc(100% - 24px), transparent);
 }
 
 .mb-sidebar--rail .mb-sidebar__bots {
-  padding: 56px 16px 24px;
+  padding: 8px 16px 24px;
 }
 
 .mb-rail-list {
@@ -335,6 +280,24 @@ const appIcons = ["$calendarToday", "$mail", "$description"];
   font: inherit;
   color: rgb(var(--v-theme-on-surface));
   cursor: pointer;
+}
+
+/* A public room the person isn't in yet. */
+.mb-bot--faded {
+  opacity: 0.6;
+}
+
+.mb-bot__initials {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgb(var(--v-theme-surface-container-highest));
+  color: rgb(var(--v-theme-on-surface-variant));
+  font-size: 13px;
+  font-weight: 700;
 }
 
 .mb-bot--switching {

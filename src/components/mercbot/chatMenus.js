@@ -13,36 +13,44 @@ function moveToItems(chat, sections, command) {
 }
 
 /**
- * Who may change a chat (D-112): its maker and the home's owners and admins rename, archive and delete it (a direct
- * chat takes no title). Only a public chat is archived, for everyone; a private one is hidden by each person for
- * themselves (plan 5.1), though one archived before still unarchives. The home's everyone chat has everyone in it,
- * pinned for all (O9): no one leaves it, unpins, archives or deletes it.
+ * Who may change a chat (D-112): its maker and the home's owners and admins rename, archive and delete it. A direct
+ * chat, with a bot or between two people, takes no title, no one else and no archive. Only a public room is archived,
+ * for everyone; a private one is hidden by each person for themselves (plan 5.1), though one archived before still
+ * unarchives. Bots come into a room and go: anyone in the home for a public room, its people for a private one. The
+ * home's everyone chat has everyone in it, pinned for all (O9): no one leaves it, unpins, archives or deletes it.
  * @param {import("../../types.js").Chat} chat
  * @param {{ me: string, manages: boolean }} who
  */
 export function chatRights(chat, { me, manages }) {
   const manager = manages || (Boolean(chat.madeBy) && String(chat.madeBy) === String(me));
+  const direct = Boolean(chat.directBotId) || Boolean(chat.directPerson);
+  const inIt = !chat.visiting;
   return {
-    // Take people and bots out of it (no one leaves the everyone chat but by leaving the home).
-    removeMembers: manager,
-    rename: manager && !chat.directBotId,
+    // Take people out of it (no one leaves the everyone chat but by leaving the home).
+    removeMembers: manager && !direct,
+    // Invite (a private room: people and bots) or Invite a bot (a public room), and take a bot out again.
+    addPeople: !direct && chat.kind === "private" && inIt && !chat.everyone,
+    addBots: !direct && (chat.kind !== "private" || inIt),
+    removeBots: !direct && (chat.kind !== "private" || inIt),
+    rename: manager && !direct,
     // Whether its bots join in when useful (D-115); a direct chat has one person, so its bot always answers.
-    joinIn: manager && !chat.directBotId,
-    archive: manager && !chat.everyone && chat.kind !== "private",
+    joinIn: manager && !direct,
+    archive: manager && !chat.everyone && !direct && chat.kind !== "private",
     unarchive: manager && !chat.everyone,
     remove: manager && !chat.everyone,
-    leave: !chat.everyone && !chat.directBotId && !chat.visiting,
+    leave: !chat.everyone && !chat.directBotId && inIt,
     unpin: !chat.everyone
   };
 }
 
 /**
- * A chat's context menu in the chat list: on a pinned tile, a hidden row, a sidebar row or an archived row. Each item's
+ * A chat's context menu in the sidebar: on a pinned tile, a hidden row, a room's row, an archived row, or a person's or
+ * a bot's row in People or Bots (its direct chat). Each item's
  * `run` emits a command for the shell, or starts a rename or the delete, leave or archive question here. What the
  * person may do (chatRights) decides which are offered; the server refuses the rest anyway.
  * @param {{
  *   chat: import("../../types.js").Chat,
- *   place: "tile" | "hidden" | "row" | "archived",
+ *   place: "tile" | "hidden" | "row" | "archived" | "direct",
  *   sections: Array<import("../../types.js").ChatSection>,
  *   me: string,
  *   manages: boolean,
@@ -63,10 +71,23 @@ export function chatMenuItems({ chat, place, sections, me, manages, command, sta
   const leave = may.leave ? [{ title: "Leave chat", icon: "$logout", run: askLeave }] : [];
   const archive = may.archive ? [{ title: "Archive", icon: "$archive", run: askArchive }] : [];
   const remove = may.remove ? [{ title: "Delete", icon: "$delete", danger: true, run: askDelete }] : [];
-  const hide = { title: "Hide from sidebar", icon: "$visibilityOff", run: () => command("hide", { chatId: chat.id }) };
+  // A direct chat isn't hidden: People and Bots list everyone, its person or bot with it.
+  const direct = Boolean(chat.directBotId) || Boolean(chat.directPerson);
+  const hide = direct ? [] : [{ title: "Hide from sidebar", icon: "$visibilityOff", run: () => command("hide", { chatId: chat.id }) }];
   if (place === "archived") {
     return [
       ...(may.unarchive ? [{ title: "Unarchive", icon: "$unarchive", run: () => command("unarchiveChat", { chatId: chat.id }) }, { divider: true }] : []),
+      copy,
+      ...(leave.length || remove.length ? [{ divider: true }, ...leave, ...remove] : [])
+    ];
+  }
+  if (place === "direct") {
+    return [
+      chat.pinned
+        ? { title: "Unpin", icon: "$keepOff", run: () => command("unpin", { chatId: chat.id }) }
+        : { title: "Pin", icon: "$keepFilled", run: () => command("pin", { chatId: chat.id }) },
+      unread,
+      { divider: true },
       copy,
       ...(leave.length || remove.length ? [{ divider: true }, ...leave, ...remove] : [])
     ];
@@ -78,8 +99,8 @@ export function chatMenuItems({ chat, place, sections, me, manages, command, sta
       ...rename,
       { divider: true },
       copy,
-      { divider: true },
-      hide,
+      ...(hide.length || leave.length || archive.length || remove.length ? [{ divider: true }] : []),
+      ...hide,
       ...leave,
       ...archive,
       ...remove
@@ -107,8 +128,8 @@ export function chatMenuItems({ chat, place, sections, me, manages, command, sta
     ...rename,
     { divider: true },
     copy,
-    { divider: true },
-    hide,
+    ...(hide.length || leave.length || archive.length || remove.length ? [{ divider: true }] : []),
+    ...hide,
     ...leave,
     ...archive,
     ...remove
@@ -116,9 +137,9 @@ export function chatMenuItems({ chat, place, sections, me, manages, command, sta
 }
 
 /**
- * What Archive, Leave and Delete ask first: Archive keeps the chat readable for everyone in it; Leave takes a private
- * chat off the person's list (the last person leaving deletes it); Delete takes it from everyone, with its files and
- * its bots' computers in it.
+ * What Archive, Leave and Delete ask first: Archive keeps the room readable for everyone in it; Leave takes a private
+ * chat off the person's list (the last person leaving deletes it) and leaves a public room faded in Rooms; Delete takes
+ * it from everyone, with its files and its bots' computers in it.
  * @param {"archive" | "leave" | "remove"} action
  * @param {import("../../types.js").Chat} chat
  * @param {string} title the chat's name as the list shows it
@@ -135,31 +156,40 @@ export function chatQuestion(action, chat, title) {
   if (action === "leave") {
     const alone = chat.kind === "private" && (chat.people || []).length <= 1;
     const text = chat.kind !== "private"
-      ? "It's public, so you can still open it from New chat and join it again."
+      ? "It's public, so it stays in Rooms, faded, and writing there again brings you back."
       : alone
-        ? "You're the last person in it, so leaving deletes it, with its files and its bots' computers."
+        ? `You're the last one here, so this ${chat.directPerson ? "chat" : "room"} and everything in it will be deleted.`
         : "It's private, so you can't open it again unless someone adds you back.";
     return { title: `Leave “${title}”?`, text, confirmLabel: "Leave", danger: alone };
   }
   return {
     title: `Delete “${title}”?`,
-    text: "This chat goes for everyone in it, with its whole history, its files and its bots' computers. Its bots stay on " +
-      "your team. This can't be undone.",
+    text: "This chat goes for everyone in it, with its whole history, its files and its bots' computers. Its bots stay in " +
+      "the home. This can't be undone.",
     confirmLabel: "Delete",
     danger: true
   };
 }
 
 /**
- * Adding a person to a chat: a private chat asks first, since they'll read all of it; a public one, which everyone in the
- * home can open already, doesn't ask (null).
+ * Who Invite offers for a room (plan 4.6): in a private room, the home's people and active bots not in it yet; in a
+ * public room, which everyone in the home can open already, its active bots not in it. People first, then bots, each by
+ * name, from the lists the shell has already loaded (useTeam), which hold the whole home.
  * @param {import("../../types.js").Chat} chat
- * @param {string} title the chat's name
- * @param {string} name the person's
+ * @param {{ people: Array<{ id: string, name: string }>, bots: Array<{ id: string, name: string, archivedAt?: string | null }>, me: string }} home
  */
-export function addPersonQuestion(chat, title, name) {
-  if (chat.kind !== "private") return null;
-  return { title: `Add ${name} to “${title}”?`, text: `${name} will see everything said here.`, confirmLabel: "Add", danger: false };
+export function inviteChoices(chat, { people, bots, me }) {
+  const peopleIn = new Set((chat.people || []).map((person) => String(person.userId)));
+  const botsIn = new Set((chat.bots || []).map((bot) => String(bot.botId)));
+  const byName = (a, b) => String(a.name).localeCompare(String(b.name));
+  const persons = chat.kind === "private"
+    ? people.filter((person) => String(person.id) !== String(me) && !peopleIn.has(String(person.id))).sort(byName)
+    : [];
+  const robots = bots.filter((bot) => !bot.archivedAt && !botsIn.has(String(bot.id))).sort(byName);
+  return [
+    ...persons.map((person) => ({ value: `person:${person.id}`, kind: "person", id: String(person.id), title: person.name })),
+    ...robots.map((bot) => ({ value: `bot:${bot.id}`, kind: "bot", id: String(bot.id), title: bot.name, bot }))
+  ];
 }
 
 /**

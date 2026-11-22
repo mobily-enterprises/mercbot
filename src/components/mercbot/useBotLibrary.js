@@ -89,7 +89,7 @@ export function itemMeta(item) {
  *   activity: () => string | null,
  *   onFailure: (error: unknown) => void,
  *   onMessages: (changed: { chatId: string | null, messages: object[] }) => void
- * }} options `activity` is the open chat's last activity, or nothing on Team; `onMessages` gets the cards a change
+ * }} options `activity` is the open chat's last activity, or nothing beside another chat; `onMessages` gets the cards a change
  *   rewrote (a deleted page's), with the chat they're in.
  */
 export function useBotLibrary({ bot, tab, activity, onFailure, onMessages }) {

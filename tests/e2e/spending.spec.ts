@@ -1,5 +1,5 @@
 import { readFile } from "node:fs/promises";
-import { connectTestDb, directChat, expect, homeApi, openShell, seedChat, shell, test, type Page } from "./harness";
+import { connectTestDb, directChat, expect, homeApi, openShell, seedChat, shell, sidebarEntry, test, type Page } from "./harness";
 
 // Spending (D-73, D-76) on the Test Preview target: what the home's work cost at its AI providers, by kind, bot and
 // person, for any period and as a CSV; no bot shows a price beside it. Nothing is held and no work is ever refused: a
@@ -113,10 +113,10 @@ test("the person sees what the home's work cost by kind, bot and person, and no 
     await page.emulateMedia({ reducedMotion: "reduce" });
     await openHome(page, use.home);
     // No bot shows what it cost (the owner, 2026-11-20: "unnecessary and inappropriate to see"): nothing beside its chat
-    // in the sidebar with the pointer over it or the keyboard on it, on Team where the bots are (D3), in its chat or on
+    // in the sidebar's Bots with the pointer over it or the keyboard on it (D3), in its chat or on
     // its card, or in search. What Otto cost is in Settings → Spending's totals by bot, below.
     const sidebar = shell.sidebar(page);
-    const otto = shell.chatRow(page, "Otto");
+    const otto = await sidebarEntry(page, "Bots", "Otto");
     await otto.hover();
     await page.screenshot({ path: testInfo.outputPath("sidebar-hover.png") });
     // Onto Otto's chat with the keyboard, from whatever comes before it.
@@ -126,11 +126,6 @@ test("the person sees what the home's work cost by kind, bot and person, and no 
     await expect(otto).toBeFocused();
     await expect(sidebar).not.toContainText(MONEY);
     await expect(sidebar.locator('[title*="this month"], [title*="all time"]')).toHaveCount(0);
-    await sidebar.getByRole("button", { name: "Team", exact: true }).click();
-    const team = shell.team(page);
-    await expect(team.getByRole("button", { name: "Message Otto" })).toBeVisible();
-    await expect(team).not.toContainText(MONEY);
-    await expect(team.locator('[title*="this month"], [title*="all time"]')).toHaveCount(0);
     await otto.click();
     const chat = shell.chat(page);
     await chat.getByRole("button", { name: "Otto details" }).click();

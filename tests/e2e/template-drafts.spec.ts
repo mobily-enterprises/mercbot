@@ -1,8 +1,8 @@
 import type { TestInfo } from "@playwright/test";
-import { connectTestDb, expect, HOME, homeApi, openShell, shell, test, type Page } from "./harness";
+import { connectTestDb, expect, HOME, homeApi, openShell, shell, sidebarEntry, test, type Page } from "./harness";
 
 // A home's templates made and changed by drafting (D-98, amended 20 November; D-109): Add bots' new bot suggested for
-// what One bot's search found nothing for, its template changed on Edit, and added to Team; Change template's Start
+// what One bot's search found nothing for, its template changed on Edit, and added to the home's Bots; Change template's Start
 // from this bot, on the bot's card beside its direct chat; and Settings → Templates' Edit and Delete. The target's AI is
 // the stand-in model (tools/standInModel.mjs), which answers a drafting call with a fixed draft: a suggested bot's from
 // its name, tag and job, one from a bot's own template (its additions folded in when asked), and a change as the
@@ -48,8 +48,7 @@ test("Add bots: Describe the bot you need, then Edit its template: Ask for chang
   let first: Draft | null = null;
   try {
     await openShell(page);
-    await shell.sidebar(page).getByRole("button", { name: "Team", exact: true }).click();
-    await shell.team(page).getByRole("button", { name: "Add bots" }).click();
+    await shell.section(page, "Bots").getByRole("button", { name: "Add bots", exact: true }).click();
     const dialog = page.getByRole("dialog", { name: "Add bots" });
     await dialog.getByRole("button", { name: /^One bot/u }).click();
     await expect(dialog.getByText("What will it do?")).toBeVisible();
@@ -104,10 +103,10 @@ test("Add bots: Describe the bot you need, then Edit its template: Ask for chang
     const bot = result.bots.find((entry: { id: string }) => String(entry.id) === String(result.added[0]));
     expect(bot.template).toEqual({ tag: first.tag, source: "home", description: first.description });
     await expect(dialog).toBeHidden();
-    // It joins Team, on its new template, with no chat of its own (D-112).
-    const row = shell.team(page).getByRole("list", { name: "Members" }).getByRole("button", { name: "Pond, Bot · made by you" });
-    await expect(row).toBeVisible();
-    await expect(row, "what its template says it does").toContainText(first.description);
+    // It joins the sidebar's Bots, on its new template (above), with no chat of its own (D-112).
+    await sidebarEntry(page, "Bots", "Pond");
+    const chats = (await (await homeApi(page)).get("/chats?hidden=1&archived=1")).chats;
+    expect(chats.filter((chat: { directBotId?: string | null }) => String(chat.directBotId) === String(bot.id)), "no chat of its own").toEqual([]);
   } finally {
     await cleanUp(page, botIds, first ? [first.tag] : []);
   }

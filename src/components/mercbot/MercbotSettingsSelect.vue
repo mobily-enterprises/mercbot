@@ -165,14 +165,19 @@ function choose(option) {
 }
 
 .mb-select__label {
-  flex: 1;
+  flex: 1 1 auto;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+/* The hint gives way first, so an option's own name ("Admin") is never cut while its hint has room to lose. */
 .mb-select__hint {
-  flex: none;
+  flex: 0 1000 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 12px;
   color: rgb(var(--v-theme-on-surface-variant));
 }

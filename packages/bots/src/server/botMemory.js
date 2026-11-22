@@ -312,7 +312,12 @@ export function createBotMemory({ records, systemContext, workspaces, model, met
     const covers = previous ? previous.covers : {};
     const chats = await records.memory.chatsOf(run.botId, reader);
     const chatIds = chats.map((chat) => chat.id);
-    const lines = await records.memory.newLines(chatIds, { covers }, limits.readLines, reader);
+    // A chat the digest hasn't read yet is read from where the bot's seat reads it: a room it joined after it started,
+    // from its last messages then (the seat's start), never its whole history.
+    const started = chats.filter((chat) => covers[chat.id] == null && chat.readsFrom != null)
+      .map((chat) => [chat.id, String(Number(chat.readsFrom) - 1)]);
+    const from = { ...Object.fromEntries(started), ...covers };
+    const lines = await records.memory.newLines(chatIds, { covers: from }, limits.readLines, reader);
     if (previous && !lines.length) return "unchanged";
     const follows = digest ? digest.version : null;
     if (!chats.length) {

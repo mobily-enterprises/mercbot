@@ -39,3 +39,13 @@ export function createKeyHolds() {
     held
   });
 }
+
+/**
+ * The shell's check, as it starts, of what a copy built on Mercbot adds (extensions.js): a copy still written for a
+ * shape that's gone stops here, naming the fix, instead of losing its part without a word.
+ * @param {Record<string, unknown>} extensions
+ */
+export function checkExtensions(extensions) {
+  if ("teamActions" in extensions) throw new Error("extensions.teamActions is gone: use peopleActions, the People section's +.");
+  if ((extensions.peopleActions || []).length > 1) throw new Error("extensions.peopleActions takes at most one: the People section's +.");
+}

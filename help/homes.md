@@ -8,15 +8,15 @@ Mercbot makes your first home, called "*your first name*'s home", with you as it
 
 | Belongs to the home | Stays yours alone |
 |---|---|
-| Its people and bots, on **Team** | Your Private chats, shared only with their members |
-| Its Public chats, which everyone in it can open | Your own skills |
+| Its people and bots, under **People** and **Bots** in the sidebar | Your Private rooms, shared only with their members, and your private chats with a person or a bot |
+| Its Public rooms, which everyone in it can open | Your own skills |
 | What each chat's bots make there, with the chat | Your **Auto-review** switch and your rules |
-| The shared files folder | Your pins, sections and unread marks |
+| The shared files folder | Your pins, sections, folded sections and unread marks |
 | Every account connected in the home, and the vault | |
 | Apps, their tables and records | |
 | Where the home keeps its files, and its spending | |
 
-Every new chat is Public, so everyone in the home, owners and admins included, can open it. Choose **Private** when you start a chat to keep it to its members. **Message** beside a person on **Team** opens a private chat with just the two of you. See [Chats and your team](/help/chats).
+Every new room is Public, so everyone in the home, owners and admins included, can open it. Choose **Private** when you make a room to keep it to its members. Select a person under **People** in the sidebar to open your private chat with just the two of you; your chat with a bot is private too. See [Rooms, people and bots](/help/chats).
 
 ## Create and switch homes
 
@@ -34,21 +34,21 @@ To create a home:
 3. Under **Name your home**, type its name (for example, "The Smiths").
 4. Press **Create home**.
 
-The new home opens with Mercbot's welcome chat, which helps you add the bots you need, or use **Add bots** on **Team** (see [Start with a team](#start-with-a-team)).
+The new home opens with Mercbot's welcome chat, which helps you add the bots you need, or use **+** beside **Bots** in the sidebar (see [Start with a ready-made set](#start-with-a-ready-made-set)).
 
-You're the owner of every home you create. The chat list, Team, Connect apps and Apps all change to the home you're in. Each home keeps its own pinned chats, sections and pinned apps for you.
+You're the owner of every home you create. The sidebar's rooms, people and bots, Connect apps and Apps all change to the home you're in. Each home keeps its own pinned chats, sections, folded sections and pinned apps for you.
 
-## Start with a team
+## Start with a ready-made set
 
-Pick what you need help with, and Mercbot adds a few bots that work well together: the six that help run a busy household, say, or the five a small shop needs. Since each home has its own bots, files and Apps, a team usually goes with a home of its own:
+Pick what you need help with, and Mercbot adds a few bots that work well together: the six that help run a busy household, say, or the five a small shop needs. Since each home has its own bots, files and Apps, a set usually goes with a home of its own:
 
-- **A new home's welcome chat:** once you've named Mercbot, while the home has no bot but it, Mercbot asks "What's this home for? I can suggest a few bots to help with it." **Describe what I need** opens **Add bots** on **Describe what you need**, and **Show me ready-made teams** opens it on its teams; nothing is added until you say so there. **Not now**, or typing a message instead, skips the question.
-- **Add bots**, on **Team**, adds a team to the home you're in at any time with **A ready-made team**, for example when a company adds another part of its work. See [A ready-made team](/help/bots#a-ready-made-team).
-- When no team fits, **Describe what you need** in **Add bots**, and Mercbot suggests bots for it, including new ones written for your home. See [Describe what you need](/help/bots#describe-what-you-need).
+- **A new home's welcome chat:** once you've named Mercbot, while the home has no bot but it, Mercbot asks "What's this home for? I can suggest a few bots to help with it." **Describe what I need** opens **Add bots** on **Describe what you need**, and **Show me ready-made teams** opens it on its ready-made sets; nothing is added until you say so there. **Not now**, or typing a message instead, skips the question.
+- **Add bots**, the **+** beside **Bots**, adds a set to the home you're in at any time with **A ready-made set**, for example when a company adds another part of its work. See [A ready-made set](/help/bots#a-ready-made-set).
+- When no set fits, **Describe what you need** in **Add bots**, and Mercbot suggests bots for it, including new ones written for your home. See [Describe what you need](/help/bots#describe-what-you-need).
 
-Each team bot is one of Mercbot's templates and starts as any new bot does: on **Team**, with its template's greeting waiting for you when you start a chat with it. Nothing runs until you answer it, so adding a team costs no AI work. A bot whose template the home already has isn't added twice. Anyone in a home can add a team, as anyone can add a bot.
+Each bot in a set is one of Mercbot's templates and starts as any new bot does: under **Bots**, with its template's greeting waiting for you when you start a chat with it. Nothing runs until you answer it, so adding a set costs no AI work. A bot whose template the home already has isn't added twice. Anyone in a home can add a set, as anyone can add a bot.
 
-The teams and their bots:
+The sets and their bots:
 
 - **Busy household**: Sweep (chores), Pantry (meals), Kitbag (kids), Satchel (school), Billfold (bills), Joist (upkeep)
 - **Personal life**: Streak (habits), Nest Egg (money), Parley (language), Fernhill (plants), Waypoint (job search)
@@ -75,9 +75,9 @@ Everyone in the home sees the new name at once, at the top of the sidebar and in
 
 ## Bots in a home
 
-Every bot is a member of its home, listed on **Team** beside the home's people, and anyone in the home can start a chat with it or add it to one. Anyone can add bots with **Add bots**. Archiving a bot takes it off the team for everyone, so agree on it first. See [Archive a bot](/help/bots#archive-a-bot).
+Every bot is a member of its home, listed under **Bots** in the sidebar, below the home's people, and anyone in the home can start a chat with it or invite it into a room. Anyone can add bots with **Add bots**. Archiving a bot takes it out of the home's bots for everyone, so agree on it first. See [Archive a bot](/help/bots#archive-a-bot).
 
-A bot in a chat uses only what everyone who can open that chat can also open: in any chat, every Public chat of the home; from a Private chat, also the Private chats that all of its members are in; and never a Private chat from a Public one. What it makes in a chat belongs to that chat. See [Chats and your team](/help/chats).
+A bot in a chat uses only what everyone who can open that chat can also open: in any chat, every Public room of the home; from a Private chat, also the Private rooms that all of its members are in; and never a Private room from a Public one. Nothing reaches your private chats with a person or a bot from another chat. What it makes in a chat belongs to that chat. See [Rooms, people and bots](/help/chats).
 
 ### The chat for everyone
 
@@ -139,18 +139,18 @@ Spending is only reported: the home's bots never stop because of it.
 A checklist for a new family or team home:
 
 1. Create the home and give it a name everyone will recognise.
-2. In the welcome chat, answer **Me and other people**, so the home has a chat for everyone. Then invite the people and add the bots you need, from **Team**.
+2. In the welcome chat, answer **Me and other people**, so the home has a chat for everyone. Then invite the people and add the bots you need, with the **+** beside **People** and **Bots** in the sidebar.
 3. Connect the accounts the home will share (the family calendar, the shared inbox). Remind everyone that an account they connect here is used by everyone in the home.
 4. Choose where the home keeps its files, if you'd rather use your own storage.
 5. Pick a Builder for Apps. Everyone in the home sees all of its apps and data, so keep anything some members mustn't read out of them.
 6. Ask everyone to check their own **Auto-review** switch and rules in Settings.
-7. Agree that anything only some of you should read goes in a Private chat, and look at the **Activity** feed from time to time.
+7. Agree that anything only some of you should read goes in a Private room, and look at the **Activity** feed from time to time.
 
 ## Questions
 
 ### Can the owner or admins read my chats?
 
-They can open Public chats, as everyone in the home can, your chat with a bot included. A Private chat is opened only by its members. See [Chats and your team](/help/chats).
+They can open Public rooms, as everyone in the home can. A Private room is opened only by its members, and your chat with a bot or with another person only by the two of you. See [Rooms, people and bots](/help/chats).
 
 ### Whose spending is a bot's work?
 
@@ -158,7 +158,7 @@ The home's: every bot's work counts in the home's spending, whoever it was for. 
 
 ## Related pages
 
-- [Chats and your team](/help/chats)
+- [Rooms, people and bots](/help/chats)
 - [Approvals, safety and privacy](/help/approvals-and-privacy)
 - [The bots' computer and connected apps](/help/computer-and-apps)
 - [Files, documents and pictures](/help/files)

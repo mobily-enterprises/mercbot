@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { runLoop } from "@jskit-ai/agent/server";
+import { modelTools, runLoop } from "@jskit-ai/agent/server";
 import { MockLanguageModelV4 } from "ai/test";
+import { MEMORY_LIMITS } from "../../packages/bots/src/server/botMemory.js";
+import { memoryToolsFor } from "../../packages/bots/src/server/memoryTools.js";
 
 // What keeps replies cheap (D-57): cached input costs a fiftieth of uncached, and a cache reuses only
 // an unchanged start. The state note changes every turn, so nothing that stays the same may follow it.
@@ -41,4 +43,29 @@ test("the summary stays in the system prompt, and no note means no extra message
   await turn(model, [say("user", "Hi")], "");
   assert.match(JSON.stringify(prompts[0].filter((message) => message.role === "system")), /Older things/u);
   assert.equal(prompts[0].filter((message) => message.role === "user").length, 1);
+});
+
+/**
+ * The memory tools a person's own turn is offered (memoryTools.js), as the model is shown them, for a bot's seat: in a
+ * chat it reads whole, or in a room it joined late, reading it from a message on.
+ */
+function shownTools(seat) {
+  const tools = memoryToolsFor({
+    records: {},
+    memory: { limits: MEMORY_LIMITS },
+    seat,
+    turn: { remembers: true, tells: true, timeZone: "Europe/Rome", home: "Rossi" },
+    withoutSecrets: async (text) => text,
+    call: {}
+  })(async () => ({}));
+  return Object.entries(modelTools(tools)).map(([key, tool]) => ({ key, description: tool.description, schema: tool.inputSchema.jsonSchema }));
+}
+
+test("read_further_back is offered the same in every chat, read whole or from a late start, so the tools stay a cached prefix", () => {
+  const whole = shownTools({ id: "7", chat_id: "10", chat_bot_id: "100", reads_from_message_id: null });
+  const late = shownTools({ id: "8", chat_id: "11", chat_bot_id: "101", reads_from_message_id: "5000" });
+  assert.ok(whole.some((tool) => tool.key === "readFurtherBack"), "a person's own turn has it, even where the bot reads the whole chat");
+  assert.equal(JSON.stringify(late), JSON.stringify(whole), "every tool, its words and its input, the same in both chats");
+  const { schema } = whole.find((tool) => tool.key === "readFurtherBack");
+  assert.match(schema.properties.messages.description, /100 if left out.*greater than or equal to 1, lower than or equal to 200/su);
 });

@@ -30,12 +30,14 @@
 // - pageShareParts: parts shown in a web page's Share, under who in the home can open it, each { component, visible }.
 //   The Share asks `visible` each time it opens; the component gets the page's `botId`, `chatId` (the chat whose page it
 //   is, or null) and `path` and may emit `copied` with a short confirmation to show.
-// - botActions: actions at the top of a bot's card (on Team, and in a direct chat's details), each { component }. The
-//   component gets the `bot` as the team has it, and may use the chat (shellChat.js).
+// - botActions: actions at the top of a bot's card (in a direct chat's details, and beside any chat), each
+//   { component }. The component gets the `bot` as the home has it, and may use the chat (shellChat.js).
 // - messageCards: cards for kinds of message Mercbot doesn't show itself, each { kind, component }. The component gets
 //   the `message` and the `chat` that shows it, and may use the chat (shellChat.js).
-// - teamActions: buttons at the top of the Team page beside Add bots, each { component, visible }. The page asks
-//   `visible` once when it opens; the component gets `homeName`.
+// - peopleActions: the People section's + in the sidebar, at most one, { component, visible }. The shell asks
+//   `visible` once when the sidebar opens; the component gets `homeName` and renders the + itself, with its own dialog
+//   (the + is `<v-btn icon="$add" variant="text" size="small" density="comfortable" aria-label="...">`, as Rooms' and
+//   Bots' are). Without one, People has no +.
 export default {
   settingsSections: [],
   templateParts: [],
@@ -48,5 +50,5 @@ export default {
   pageShareParts: [],
   botActions: [],
   messageCards: [],
-  teamActions: []
+  peopleActions: []
 };

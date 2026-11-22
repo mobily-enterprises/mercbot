@@ -6,7 +6,7 @@ export const SHORTCUT_GROUPS = [
     items: [
       { label: "Search", keys: [["Ctrl", "K"], ["Ctrl", "Shift", "F"]] },
       { label: "Add bots", keys: [["Ctrl", "Alt", "N"]] },
-      { label: "New chat", keys: [["Ctrl", "Alt", "G"]] },
+      { label: "New room", keys: [["Ctrl", "Alt", "G"]] },
       { label: "Send message", keys: [["Enter"]], note: "Shift+Enter adds a new line" },
       { label: "Go to chat", keys: [["Ctrl", "Alt", "1…9"]] },
       { label: "Compact sidebar", keys: [["Ctrl", "B"]] },

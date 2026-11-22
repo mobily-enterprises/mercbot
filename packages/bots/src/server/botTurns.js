@@ -115,6 +115,21 @@ export function createBotTurns({
   // The asker's own skills the state names (read_skill opens any of them by name).
   const SKILLS_SHOWN = 30;
 
+  /**
+   * How much of the chat the bot reads, for the state note, when it was invited after the chat had started and reads it
+   * from a message on (its seat's start): from when, and how many earlier messages it doesn't see. None otherwise.
+   */
+  async function windowLines(seat, timeZone, call) {
+    if (!seat.chat_bot_id || seat.reads_from_message_id == null) return [];
+    const window = await records.chats.windowOf({ conversation_id: seat.chat_id, reads_from_message_id: seat.reads_from_message_id }, call);
+    if (!window?.earlier) return [];
+    const earlier = `${window.earlier} earlier ${window.earlier === 1 ? "message isn't" : "messages aren't"} in your view`;
+    return [
+      `- You read this chat from ${describeRun(window.from, timeZone)}: ${earlier}. If someone asks you to read further ` +
+        "back, call read_further_back."
+    ];
+  }
+
   /** What this chat is, for the state note (R5): its name and kind, who's in it, and who asked. */
   async function chatLines(seat, present, call) {
     const { chat } = seat;
@@ -166,6 +181,8 @@ export function createBotTurns({
     return [
       "Current state, from the system. It is the truth; earlier messages may be out of date:",
       ...(await chatLines(seat, present, call)),
+      // A person's chat the bot joined after it started: how much of it it reads.
+      ...(remembers ? await windowLines(seat, timeZone, call) : []),
       `- Their time zone: ${timeZone}. It's now ${describeRun(new Date(), timeZone)} there.`,
       ...(language ? [`- Their language: ${language}. Reply in it unless they write to you in another language.`] : []),
       ...(chatApp ? [`- This chat is for the app "${chatApp.name}" (slug ${chatApp.slug}); work on that app here.`] : []),

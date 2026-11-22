@@ -42,7 +42,7 @@ test("a first visit makes the home's main bot and the person's welcome chat once
     { name: main.name, isMain: main.is_main, madeBy: String(main.made_by), template: main.library_template },
     { name: "Mercbot", isMain: true, madeBy: anna, template: "general" }
   );
-  assert.equal(first.chat.kind, "public", "a welcome chat is Public, as every new chat is (D15)");
+  assert.equal(first.chat.kind, "private", "a welcome chat is the person's chat with the main bot: Private, theirs alone");
   assert.equal(first.chat.directBotId, String(main.id));
   assert.deepEqual(first.chat.people.map((person) => person.userId), [anna], "Anna's own, with no one else");
   assert.equal(first.chat.onboardingStep, "start");

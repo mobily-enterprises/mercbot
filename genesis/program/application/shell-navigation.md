@@ -15,6 +15,9 @@ render across compact, medium, and expanded layouts.
 - `src/components/ShellLayout.vue`
 - `src/components/mercbot/MercbotSidebar.vue`
 - `src/components/mercbot/MercbotChatList.vue`
+- `src/components/mercbot/MercbotSidebarRow.vue`
+- `src/components/files/MercbotFilesEntry.vue`
+- `src/components/apps/MercbotAppsEntry.vue`
 - `src/components/mercbot/chatMenus.js`
 - `src/components/mercbot/useChatDrag.js`
 - `src/components/mercbot/chatDirectory.js`
@@ -27,6 +30,8 @@ render across compact, medium, and expanded layouts.
 - `src/components/mercbot/useBotRoutines.js`
 - `src/components/mercbot/useBotInstructions.js`
 - `src/components/mercbot/useChatEvents.js`
+- `src/components/mercbot/shellChat.js`
+- `src/components/mercbot/extensions.js`
 - `src/components/mercbot/useChatMessages.js`
 - `src/components/mercbot/useFindInChat.js`
 - `src/components/mercbot/MercbotSearchPalette.vue`
@@ -67,13 +72,14 @@ render across compact, medium, and expanded layouts.
 - The page's title, which a browser tab, a bookmark and a phone's home-screen shortcut show, is `Mercbot` from the
   initial document on; the help centre sets its own page's title while it is open and gives it back.
 - The `home` surface uses the app-owned Mercbot shell: sidebar or compact
-  rail, chat panel and the details panel (`MercbotDetailsPanel.vue`: Chat details, or a member's card for a direct
-  chat's bot and on Team), with per-device layout choices (compact, widths, details open, accent). Other surfaces keep the JSKIT shell.
+  rail, chat panel and the details panel (`MercbotDetailsPanel.vue`: Chat details for a room, or a member's card for a
+  direct chat's bot or other person and for a member opened beside the chat), with per-device layout choices (compact,
+  widths, details open, accent, each home's folded sections). Other surfaces keep the JSKIT shell.
 - The account menu offers Settings (the account page); a copy built on Mercbot adds its own entries, such as Sign
   out (`extensions.js` `accountMenu`).
 - The sidebar footer shows the account's name and square Skills (a book) and
   Connect apps buttons at rest; while hovered, the avatar alone, Skills and a wide
-  Connect apps pill with app icons. The rail has both below "New chat or bots". Skills, also
+  Connect apps pill with app icons. The rail has both above the account button. Skills, also
   Ctrl+Alt+W and the palette's Skills, opens Connect apps on Your apps and skills
   (`startPage: "manage"`), scrolled to Private skills. The account button's avatar, there and in
   the rail, is the picture the person uploaded in account settings
@@ -89,35 +95,62 @@ render across compact, medium, and expanded layouts.
   (`src/pages/w/[workspaceSlug].vue`) runs JSKIT's Up for it.
 - The Follow System / Light / Dark theme preference applies at startup and
   tracks live system changes.
-- The sidebar (`MercbotSidebar.vue`) has Search and a "New chat or bots" button (+) whose menu is New chat and Add
-  bots, then Team, Files and Apps above the person's chats (`MercbotChatList.vue`, `chatDirectory.js`): pinned tiles
-  ("Pinned chats", the home's everyone chat first), the person's sections, "Unassigned", "Hidden chats" and
-  "Archived chats" (newest archived first, "Archived · read-only"); rows sort by latest activity. A direct chat shows
-  its bot's face and name; any other its members' faces, its title and a globe (Public) or a lock (Private), with
-  "Waiting for you: <task>" or "Draft:" where so. With no chats: "No chats yet." and Start a chat. Position hints, Go
-  to chat (Ctrl+Alt+1…9), previous/next (Alt+Up/Down) and Switch chats follow that visual order. A row's menu
-  (`chatMenus.js`, on right-click) has Pin, Move to (the sections, Unassigned, Create section) or Move
-  to new section, Mark as read or unread, Rename chat (its maker and the home's owners and admins; not a direct chat),
-  Copy chat ID, Hide from sidebar, Leave chat (not the everyone chat or a direct chat), Archive (a Public chat only)
-  and Delete (its maker and the home's owners and admins; not the everyone chat; `chatMenus.js` `chatRights`), each change on the person's own place or the chat
-  (`genesis/program/bots/chats.md`); Archive ("Archive “<title>”?", "It stays readable for everyone in it, and no one
-  can write in it until it's unarchived."), Leave and Delete ("This chat goes for everyone in it, with its whole
-  history, its files and its bots' computers. Its bots stay on your team. This can't be undone.") ask first. Hidden
-  rows offer Show in sidebar, archived ones Unarchive. Rows and tiles drag to reorder pins and move between sections
-  (`useChatDrag.js`). Drafts are kept per chat on the device.
+- The sidebar (`MercbotSidebar.vue`) is dense (D-117). Its top row is the home switcher, then icon buttons Search,
+  Files and Apps (with the person's pinned apps), each labelled with a tooltip (`MercbotFilesEntry.vue` and
+  `MercbotAppsEntry.vue` `icon`). Below it (`MercbotChatList.vue`, `chatDirectory.js` `buildSidebarModel`): pinned tiles
+  ("Pinned chats", any chat, the home's everyone chat first), then three sections, each with a small header whose title
+  folds and unfolds it (`foldSection`, saved on the device for each home, `shellPreferences.folded`) and a + icon button:
+  - **Rooms** (+ "New room"; "+ New room" at its foot while there are none): every room (a chat that is neither a
+    person's chat with a bot nor a chat between two people) the person is in, in their sections, "Unassigned", rows by
+    latest activity; then the home's Public rooms they aren't in (`chatsApi.publicRooms`, every page read), faded, with
+    "You're not in it yet: writing there joins you." in their tooltip: shown when there are three or fewer, else under
+    "N more public rooms" (and "Show fewer").
+  - **People** (+ only when a copy built on Mercbot gives one, `extensions.js` `peopleActions`): the home's other people
+    by name, each opening the person's private chat with them (`chatsApi.personDirect`, made on first use). Shown while
+    the home has someone else, or while the copy's + lets the person invite. The shell asks the +'s `visible` once as
+    the sidebar opens; at most one is taken, and extensions that still name `teamActions` stop the shell at start-up
+    ("extensions.teamActions is gone: use peopleActions, the People section's +.", `shellChat.js`).
+  - **Bots** (+ "Add bots"; "+ Add bots" at its foot while there are none): the home's active bots, the main bot first,
+    then by name, each opening the person's direct chat with it; under "Archived bots" (folded, with its count), each
+    archived bot, faded, opening its card.
+  People and Bots show those talked with in the last 14 days (the direct chat's latest activity), the open one, the
+  main bot and any unread or mentioning the person; the rest are under "N more", opened for the visit. A folded section
+  shows only its rows that are unread, mention the person or are open, with how many it hides. Rows
+  (`MercbotSidebarRow.vue`) are one line: a 24 px face (a room its members', a person their initials, a bot its live
+  face), the name, and marks for a draft, "Waiting for you", "@" or unread, and a room's globe (Public) or lock
+  (Private); the latest message, the draft or the task waiting is the row's tooltip. "Hidden chats" and "Archived chats"
+  (newest archived first, "Archived · read-only") follow, for rooms. Position hints, Go to chat (Ctrl+Alt+1…9),
+  previous/next (Alt+Up/Down) and Switch chats follow the visual order of what's shown (tiles, rooms, faded rooms,
+  people, bots, then hidden and archived when open); the rail shows the same faces in groups with dividers. A room's
+  menu (`chatMenus.js`, on right-click) has Pin, Move to (the sections, Unassigned, Create section) or Move to new
+  section, Mark as read or unread, Rename chat (its maker and the home's owners and admins), Copy chat ID, Hide from
+  sidebar, Leave chat (not the everyone chat), Archive (a Public room only) and Delete (its maker and the home's owners
+  and admins; not the everyone chat; `chatMenus.js` `chatRights`); a person's or a bot's row, once its chat is made, has
+  Pin, Mark as read or unread, Copy chat ID, Leave (a chat between two people only) and Delete. Each change is on the
+  person's own place or the chat (`genesis/program/bots/chats.md`); Archive ("Archive “<title>”?", "It stays readable
+  for everyone in it, and no one can write in it until it's unarchived."), Leave (a Public room: "It's public, so it
+  stays in Rooms, faded, and writing there again brings you back."; the last person of a private chat: "You're the
+  last one here, so this room and everything in it will be deleted.") and Delete ("This chat goes for everyone in it,
+  with its whole history, its files and its bots' computers. Its bots stay in the home. This can't be undone.") ask
+  first. Hidden rows offer Show in sidebar, archived ones Unarchive. Rooms and tiles drag to reorder pins and move
+  between sections (`useChatDrag.js`). Drafts are kept per chat on the device.
 - The address names what's shown (`useShellAddress.js`): `?chat=<id>` the open chat, which choosing a chat always sets
-  (choosing the one already shown names it in place, adding no history entry), `?team=1` Team, and
-  `&member=bot:<id>` or `person:<id>` a member's card beside it. Links from elsewhere name a bot: `?bot=<id>` opens the
-  person's direct chat with it (made on first use), and `?bot=<id>&files=1` its card on Team at Files. A chat the
-  person can't open is a 404 and the first chat opens; with none named, the chat opens on the first chat in the
-  list's order and keeps it while news reorders the list. A Public chat the person isn't in opens to read, with
-  "You're reading a public chat you're not in. Join it to write here." and Join, and isn't listed.
-- The chat's header (`MercbotChatPanel.vue`) shows its title, "Public" or "Private" with its members, "Add people or
-  bots" (not in a direct chat) and Chat details (i); an archived chat says "This chat is archived, so it's
-  read-only." with Unarchive for whoever may. The composer's + offers Attach files and, in a chat with one bot,
-  "Teach <Bot> a task"; "/" picks skills in a chat with one bot, "@" mentions in a chat of several.
-- The details panel shows Chat details (`genesis/program/bots/chats.md`) or, for a direct chat's bot and on Team, the
-  member's card (`genesis/program/bots/team.md`) with the bot's live avatar, an in-place editable name and its
+  (choosing the one already shown names it in place, adding no history entry), and `&member=bot:<id>` or
+  `person:<id>` a member's card beside it. Links from elsewhere name a bot: `?bot=<id>` opens the person's direct chat
+  with it (made on first use), and `?bot=<id>&files=1` that chat with the bot's card at Files. An old `?team=1` is
+  ignored. A chat the person can't open is a 404 and the first chat opens; with none named, the chat opens on the first
+  chat in the list's order and keeps it while news reorders the list. A Public room the person isn't in opens with the
+  composer as usual: their first message puts them in it, and its row stops being faded.
+- The chat's header (`MercbotChatPanel.vue`) shows its title and, for a room, "Public" or "Private" with its members,
+  for a direct chat "Private · only you and <name>" (`chatView.js` `directLine`); then **Invite** (a Private room, for
+  its people) or **Invite a bot** (a Public room), never in a direct chat, which opens `MercbotInviteDialog.vue`
+  (`genesis/program/bots/chats.md`); in a chat with a bot, "Continue with others…"; and Chat details (i). An archived
+  chat says "This chat is archived, so it's read-only." with Unarchive for whoever may. The composer's + offers Attach
+  files and, in a chat with one bot, "Teach <Bot> a task"; "/" picks skills in a chat with one bot, "@" mentions in a
+  chat of several. With no chat open: "No chats yet", "Start a room in <home>, or open a person or a bot in the sidebar
+  to talk with them." with New room and Add bots.
+- The details panel shows Chat details for a room (`genesis/program/bots/chats.md`) or, for a direct chat's bot or
+  other person and for a member opened beside the chat, the member's card (`genesis/program/bots/team.md`) with the bot's live avatar, an in-place editable name and its
   template's tag (`MercbotTemplateTag.vue`, a button to its Instructions), and Details, Files, Library and Computer
   tabs; the chosen tab is saved on the device. Ctrl+Alt+B opens it; Escape closes it when nothing else is open. Its
   top shows, for a bot, the actions a copy built on Mercbot adds there (`extensions.js` `botActions`), before Close;
@@ -167,11 +200,11 @@ render across compact, medium, and expanded layouts.
 - The search palette opens with Ctrl+K (which also closes
   it), Ctrl+Shift+F or the sidebar's search button, with no motion and nothing
   remembered. It's a fixed 560×453 panel at 20% from the top over a 50% scrim.
-  Empty, it lists the person's chats, then commands: Add bots, New chat, Team,
+  Empty, it lists the person's chats, then commands: Add bots, New room,
   Keyboard shortcuts, Settings: <section>, Connect Apps, Skills, and Theme: System, Light or Dark (ticked, applied
   at once and saved to the account). Typing matches loosely, letters in order,
   ranking by where the first letter falls, and lists chats (by name or who's in them), the home's bots (by name or
-  template tag; opens the direct chat) and people (with their role), apps (by name or description; opens the app's
+  template tag; opens the direct chat) and people (with their role; opens their card), apps (by name or description; opens the app's
   page), hidden and archived chats, commands, routines, made files and up to 5 messages from
   `GET …/search` (each in its chat: "In <chat> · <when>"; opens the chat with the message at the top, ringed;
   `genesis/program/bots/chats.md`). Contiguous
@@ -190,6 +223,8 @@ longer ones the start of the name). Arrow keys, Enter or Tab choose; the chosen 
 - `tests/e2e/instructions.spec.ts`
 - `tests/client/chatList.vitest.js`
 - `tests/client/chatDirectory.vitest.js`
+- `tests/client/chatHeader.vitest.js`
+- `tests/client/shellAddress.vitest.js`
 - `tests/client/chatNews.vitest.js`
 - `tests/client/chatPages.vitest.js`
 - `tests/client/mercbotShell.vitest.js`

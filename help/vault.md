@@ -165,6 +165,6 @@ Check the number is complete and correct, and that the expiry is written as MM/Y
 - [The bots' computer and connected apps](/help/computer-and-apps)
 - [Approvals, safety and privacy](/help/approvals-and-privacy)
 - [Settings and notifications](/help/settings)
-- [Chats and your team](/help/chats)
+- [Rooms, people and bots](/help/chats)
 - [Security overview](/help/security)
 - [Security questions and answers](/help/security-questions)

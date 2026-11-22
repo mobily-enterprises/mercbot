@@ -53,8 +53,7 @@
   background: rgb(var(--v-theme-secondary-container));
 }
 
-.mb-tile__avatar,
-.mb-row__avatar {
+.mb-tile__avatar {
   position: relative;
   display: inline-flex;
   flex: none;
@@ -94,11 +93,7 @@
 }
 
 .mb-header-wrap {
-  padding-top: 26px;
-}
-
-.mb-group:first-child .mb-header-wrap {
-  padding-top: 0;
+  padding-top: 8px;
 }
 
 .mb-header {
@@ -156,105 +151,17 @@
 .mb-rows {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.mb-row {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  height: 54px;
-  padding: 0 8px;
-  border: 0;
-  border-radius: 10px;
-  background: transparent;
-  color: rgb(var(--v-theme-on-surface));
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-.mb-row:hover {
-  background: rgb(var(--v-theme-surface-container-highest));
-}
-
-.mb-row--selected,
-.mb-row--selected:hover {
-  background: rgb(var(--v-theme-secondary-container));
-}
-
-/* An archived chat's row: its name quieter, its line says it's read-only. */
-.mb-row--archived .mb-row__name {
-  color: rgb(var(--v-theme-on-surface-variant));
-}
-
-.mb-row__text {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  min-width: 0;
-}
-
-.mb-row__name,
-.mb-row__preview {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* Its name gives way before its marks: a long name ends in "…", its tag (D-98) always shows whole. */
-.mb-row__name {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 14px;
-  line-height: 18px;
-}
-
-.mb-row__name-text {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.mb-row__name > :not(.mb-row__name-text) {
-  flex: none;
-}
-
-.mb-row__preview {
-  font-size: 13px;
-  line-height: 17px;
-  color: rgb(var(--v-theme-on-surface-variant));
-}
-
-.mb-row__preview--waiting {
-  color: rgb(var(--v-theme-warning));
-}
-
-.mb-row__unread.mb-row__unread--waiting,
 .mb-badge.mb-badge--waiting {
   background: rgb(var(--v-theme-warning));
 }
 
-.mb-row__draft {
-  color: rgb(var(--v-theme-on-surface));
-}
-
-.mb-row__unread {
-  flex: none;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: rgb(var(--v-theme-link));
-}
-
-/* Someone mentioned the person here, unread since (D-114): an "@" where the dot would be. */
-.mb-row__mention,
+/* Someone mentioned the person here, unread since (D-114): an "@" on the tile. */
 .mb-badge--mention {
   flex: none;
   display: inline-flex;
@@ -268,6 +175,101 @@
   font-size: 11px;
   font-weight: 700;
   line-height: 1;
+}
+
+/* Rooms, People and Bots: a small label row with the title, which folds the section, and its +. */
+.mb-section {
+  margin-top: 12px;
+}
+
+.mb-section__head {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 32px;
+}
+
+.mb-section__title {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  height: 28px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: rgb(var(--v-theme-on-surface-variant));
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-align: left;
+  cursor: pointer;
+}
+
+.mb-section__title:hover,
+.mb-section__title:focus-visible {
+  background: rgb(var(--v-theme-surface-container-highest));
+}
+
+.mb-section__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mb-section__head > :not(.mb-section__title) {
+  color: rgb(var(--v-theme-on-surface-variant));
+}
+
+/* "N more", "Show fewer", "Archived bots" and an empty section's "+ New room": quiet one-line buttons. */
+.mb-more,
+.mb-foot {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 28px;
+  padding: 0 8px 0 40px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: rgb(var(--v-theme-on-surface-variant));
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.mb-foot {
+  padding-left: 8px;
+}
+
+.mb-more:hover,
+.mb-foot:hover {
+  background: rgb(var(--v-theme-surface-container-highest));
+}
+
+.mb-more:focus-visible,
+.mb-foot:focus-visible,
+.mb-section__title:focus-visible {
+  outline: 2px solid rgb(var(--v-theme-secondary));
+  outline-offset: -2px;
+}
+
+/* A person's face in People: their initials. */
+.mb-face {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: rgb(var(--v-theme-surface-container-highest));
+  color: rgb(var(--v-theme-on-surface-variant));
+  font-size: 9px;
+  font-weight: 700;
 }
 
 .mb-inline-name {
@@ -310,8 +312,7 @@
   outline-offset: -2px;
 }
 
-.mb-tile:focus-visible,
-.mb-row:focus-visible {
+.mb-tile:focus-visible {
   outline: 2px solid rgb(var(--v-theme-secondary));
   outline-offset: -2px;
 }

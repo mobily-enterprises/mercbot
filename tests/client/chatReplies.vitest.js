@@ -117,7 +117,7 @@ function actionsFor(chat) {
     removeMessage: () => {}
   };
   const actions = useChatActions({
-    currentChat: ref(chat), newChat: ref(null), startNewChat: async () => {}, store, work,
+    currentChat: ref(chat), store, work,
     reportFailure: () => {}, notify: () => {}, openAddBots: () => {}, me: () => "1"
   });
   return { actions, asked, described };

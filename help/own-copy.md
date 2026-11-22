@@ -4,7 +4,7 @@ Mercbot runs on your own Linux computer (Ubuntu 24.04 or Debian 12 on x86_64), f
 
 ## What your copy is
 
-- **Just for you.** It has no sign-in, accounts, members or invitations. It makes one person, you, the first time it starts. You can still have several homes, each with its own chats and bots. Chats are still Public or Private, as in any home: with only you in it, both are yours alone, and the difference is in what the bots may use and save across chats (see [Chats and your team](/help/chats)).
+- **Just for you.** It has no sign-in, accounts, members or invitations. It makes one person, you, the first time it starts. You can still have several homes, each with its own chats and bots. Chats are still Public or Private, as in any home: with only you in it, both are yours alone, and the difference is in what the bots may use and save across chats (see [Rooms, people and bots](/help/chats)).
 - **Opened with its key.** `mercbot open` opens it in your browser. The key is in `mercbot.key` in its data folder, readable only by you. Anything that doesn't carry it, including other people's accounts on the same computer and other websites, gets a page saying to open Mercbot with `mercbot open`. `mercbot new-key` makes a new key and signs every browser out.
 - **Reached only from this computer,** at `localhost`, `127.0.0.1` or `[::1]`. It won't start with any other `HOST`, so shared pages are yours alone.
 - **Run by you.** You may choose a folder on this computer for a home's website (see **Website** in [Settings and notifications](/help/settings)).

@@ -53,7 +53,7 @@ describe("a refused upload", () => {
 });
 
 describe("a file attached in a chat", () => {
-  /** Attaches cat.png in `chat` (null: no chat yet), the upload answering where it kept it. */
+  /** Attaches cat.png in `chat`, the upload answering where it kept it. */
   async function attach(chat) {
     setCurrentHome("home");
     const calls = answering(200, { path: "/files/chat/Uploads/cat.png" });
@@ -69,10 +69,7 @@ describe("a file attached in a chat", () => {
     expect(attachments.map((entry) => entry.path)).toEqual(["/files/chat/Uploads/cat.png"]);
   });
 
-  it("goes into the chat's folder alone in a chat with no bots, and stays unsent where there's no chat", async () => {
+  it("goes into the chat's folder alone in a chat with no bots", async () => {
     expect((await attach({ id: "9", bots: [] })).uploads).toEqual(["/api/w/home/files/upload?folder=%2Ffiles%2Fchat%2FUploads&chat=9"]);
-    const none = await attach(null);
-    expect(none.uploads).toEqual([]);
-    expect(none.attachments.map((entry) => [entry.name, entry.path])).toEqual([["cat.png", undefined]]);
   });
 });

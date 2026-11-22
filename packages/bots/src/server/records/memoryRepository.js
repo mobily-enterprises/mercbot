@@ -242,13 +242,18 @@ export function createMemoryRepository(resources) {
   }
 
   /**
-   * The chats a bot is in that the caller reads, newest activity first: the memory's reader reads its public ones.
+   * The chats a bot is in that the caller reads, newest activity first, each with where the bot's seat reads it from
+   * (`readsFrom`, null for its beginning): the memory's reader reads its public ones.
    * @param {string} botId
    * @param {CallOptions} options
    */
   async function chatsOf(botId, options) {
-    const seats = await chatBots.queryAll({ filters: { botId: String(botId) }, fields: ["conversationId"] }, passedOn(options));
+    const seats = await chatBots.queryAll({ filters: { botId: String(botId) }, fields: ["conversationId", "readsFromMessageId"] }, passedOn(options));
     if (!seats.length) return [];
+    const startOf = new Map(seats.map((seat) => [
+      String(seat.conversationId),
+      seat.readsFromMessageId == null ? null : String(seat.readsFromMessageId)
+    ]));
     const found = await conversations.queryAll({
       filters: { id: ids(seats.map((seat) => seat.conversationId)) },
       sort: ["-lastActivityAt", "-id"],
@@ -261,7 +266,8 @@ export function createMemoryRepository(resources) {
       directUserId: chat.directUserId == null ? null : String(chat.directUserId),
       directBotId: chat.directBotId == null ? null : String(chat.directBotId),
       lastActivityAt: chat.lastActivityAt,
-      archivedAt: chat.archivedAt ?? null
+      archivedAt: chat.archivedAt ?? null,
+      readsFrom: startOf.get(String(chat.id)) ?? null
     }));
   }
 

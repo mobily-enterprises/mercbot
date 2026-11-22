@@ -3,7 +3,7 @@ import { AUTH_PATHS } from "@jskit-ai/auth-core/shared/authPaths";
 import { currentLanguage, currentTimeZone } from "./shellPreferences.js";
 import { homeRoutes } from "./homeApi.js";
 
-// Client for the chat routes (D-112, packages/bots registerRoutes.js): the person's chat list, one chat, New chat, its
+// Client for the chat routes (D-112, packages/bots registerRoutes.js): the person's chat list, one chat, New room, its
 // members, the person's own place in each, and everything said in a chat.
 const client = createHttpClient({ credentials: "include", csrf: { sessionPath: AUTH_PATHS.SESSION } });
 const { request, post, patch, remove } = homeRoutes(client);
@@ -50,14 +50,26 @@ export const chatsApi = {
   },
   // One chat the person can open: { chat }.
   get: (chatId) => request(chat(chatId)),
-  // New chat's [Start]: { kind: "public" | "private", title, people: userIds, bots: botIds } → { chat }.
+  // New room's Create: { kind: "public" | "private", title, people: userIds, bots: botIds } → { chat }; a room needs its
+  // title (400 bots_chat_needs_title).
   create: (choice) => post("/chats", choice),
-  // The home's public chats the person isn't in, for New chat's "or join a public chat": { chats }.
-  publicChats: () => request("/chats/public"),
+  // The home's public rooms the person isn't in, which the sidebar lists faded: { chats }. The server answers a page at
+  // a time, newest first; every page is read.
+  publicRooms: async () => {
+    const chats = [];
+    let page = { next: null };
+    do {
+      page = await request(`/chats/public${page.next ? `?${new URLSearchParams({ after: page.next })}` : ""}`);
+      chats.push(...page.chats);
+    } while (page.next);
+    return { chats };
+  },
   // Continue with others (D-114): the hand-over note the direct chat's bot writes for a new chat, { note }; nothing kept.
   handOverNote: (chatId) => post(chat(chatId, "/hand-over-note")),
   // A bot's [Message]: the person's direct chat with it, made on first use: { chat }.
   direct: (botId) => post(`/bots/${encodeURIComponent(botId)}/direct`),
+  // A person's [Message] and their row in People: the private chat of just the two of them, made on first use: { chat }.
+  personDirect: (userId) => post(`/people/${encodeURIComponent(userId)}/direct`),
   // An app's chat with the Builder (D-41: Ask Builder), public and named after the app, made the first time anyone asks:
   // { chat }; 409 apps_builder_missing while the home has no Builder.
   appChat: (appSlug) => post(`/apps/${encodeURIComponent(appSlug)}/chat`),
@@ -70,7 +82,6 @@ export const chatsApi = {
   archive: (chatId) => post(chat(chatId, "/archive")),
   unarchive: (chatId) => post(chat(chatId, "/unarchive")),
   remove: (chatId) => remove(chat(chatId)),
-  join: (chatId) => post(chat(chatId, "/join")),
   // { chat }, { left: true } out of a private chat, or { deleted: true } when the last person left it.
   leave: (chatId) => post(chat(chatId, "/leave")),
   addPerson: (chatId, userId) => post(chat(chatId, "/people"), { userId }),

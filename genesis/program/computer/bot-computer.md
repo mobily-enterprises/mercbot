@@ -84,8 +84,8 @@ bot, "<Bot>'s computer", with "It belongs to this chat. The chat is public, so e
 what's signed in on it." (or, Private, "Only the chat's members can watch it and use what's signed in on it."), its
 state ("Asleep", "Awake", "Starting up", with " · You have control" or " · <Name> has control"), "Signed in on it" (each
 sign-in, coding ones as "<label> (coding)", or "Nothing yet."), Watch and Take over, or Hand back while the person has
-control; Take over is greyed out while someone else has it. A bot's card on Team says "<Bot> has its own computer in
-each chat it's in. Open one from that chat's details." The live view (`MercbotLiveView.vue`) shows "Watching" with
+control; Take over is greyed out while someone else has it. A bot's card opened beside another chat says "<Bot> has its
+own computer in each chat it's in. Open one from that chat's details." The live view (`MercbotLiveView.vue`) shows "Watching" with
 Take over, or "You have control. <Bot> waits until you hand it back." with Hand back ("I'm done" when the bot asked the
 person to do something there); Escape hands back.
 

@@ -1,7 +1,7 @@
 import { currentLanguage } from "./shellPreferences.js";
 
 // Archiving a whole bot (D-108, plan 5.1): a member of the home that has left, for everyone in it. It's listed under
-// Archived on Team, stays in its chats without answering, its routines and watches paused, until someone resumes it.
+// Under Archived bots in Bots, stays in its chats without answering, its routines and watches paused, until someone resumes it.
 // Who may, the question asked first, and the lines an archived bot shows.
 
 /**
@@ -27,7 +27,7 @@ export function archiveBotQuestion(bot) {
   return {
     title: `Archive ${bot.name}?`,
     text:
-      "It leaves the team for everyone in this home. It stays in its chats but no longer answers there, and its routines " +
+      "It leaves the home's bots for everyone in this home. It stays in its chats but no longer answers there, and its routines " +
       "and watches pause. Nothing is deleted. Whoever made it, or an owner or admin, can resume it.",
     confirmLabel: "Archive"
   };
@@ -45,7 +45,7 @@ export function archivedBotLine(bot, language = currentLanguage()) {
 }
 
 /**
- * An archived bot's line on Team (plan 4.2): "Bot · left 20 Nov", with the year when it isn't this year's.
+ * An archived bot's line on its card and in Archived bots (plan 4.2): "Bot · left 20 Nov", with the year when it isn't this year's.
  * @param {{ archivedAt: string }} bot
  * @param {string} [language] the person's (shellPreferences)
  * @param {Date} [now]

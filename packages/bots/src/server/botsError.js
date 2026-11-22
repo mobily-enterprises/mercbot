@@ -22,4 +22,13 @@ class BotsError extends AppError {
 const archivedBotRefusal = (bot) =>
   new BotsError(409, `${bot.name} is archived. Unarchive it to continue.`, { code: "bots_bot_archived", params: { name: bot.name } });
 
-export { BotsError, archivedBotRefusal };
+/**
+ * What a direct chat answers to anyone added to it, and to a new title: a person's chat with a bot is theirs with that
+ * bot, and a chat between two people is theirs alone.
+ * @param {{ direct_person_id?: string | null }} chat
+ */
+const directChatRefusal = (chat) => (chat.direct_person_id
+  ? new BotsError(409, "A private chat between two people takes nobody else.", { code: "bots_chat_direct" })
+  : new BotsError(409, "A direct chat is one person's with one bot. Continue with others to bring others in.", { code: "bots_chat_direct" }));
+
+export { BotsError, archivedBotRefusal, directChatRefusal };

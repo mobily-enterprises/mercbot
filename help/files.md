@@ -10,8 +10,6 @@ Bots don't just talk: they read the files you send and make real ones for you, s
 
 Each file you attach is kept in the chat's **Uploads** folder, whoever else is in the chat: other people, bots, or people only. Everyone who can open the chat can open it there, and nobody else. The bots in the chat are told where it is and can open it now, or later in the chat when you ask about it again. If a file with the same name is already there, the new one gets a number added.
 
-In **New chat**, the files you attach wait above the message box until the chat starts, then go in its **Uploads** folder with your first message. One that can't be kept is left out, and Mercbot says why.
-
 ### What bots can read
 
 | Kind of file | What the bot does |
@@ -63,8 +61,8 @@ You can ask a bot "What files do you have?" at any time. It lists the chat's fil
 ### See and manage the files yourself
 
 - **A chat's files:** select **Chat details** at the top of the chat and choose **Files**: **This chat**, then the home's folder. In your direct chat with a bot, Chat details shows the bot's card: its **Files** tab starts with **This chat**, then the bot's folder and the home's.
-- **A bot's files:** open its card in **Team** and choose **Files**: the bot's folder and the home's.
-- **The home's files:** choose **Files** in the sidebar, between **Team** and **Apps**. You see the home's folder, then **Bots' files**: select a bot to open its card at its **Files**.
+- **A bot's files:** open its card and choose **Files**: the bot's folder and the home's.
+- **The home's files:** choose **Files**, the folder button beside **Search** at the top of the sidebar. You see the home's folder, then **Bots' files**: select a bot to open its card at its **Files**.
 
 Each folder shows its newest 300 files and says how many older ones it leaves out. A folder with more than 5,000 files shows the newest 300 of the first 5,000 it finds, and says so.
 
@@ -206,7 +204,7 @@ If a file can't be previewed, the viewer offers to download it instead.
 
 ## The Library
 
-Everything a bot made is gathered in its **Library**. Open its card in **Team** and choose the **Library** tab. It lists only what was made in chats you can open.
+Everything a bot made is gathered in its **Library**. Open its card and choose the **Library** tab. It lists only what was made in chats you can open.
 
 - Files, charts, pictures and pages are listed newest first, grouped by day: **Today**, **Yesterday**, then dates. Each shows how long ago it was made, such as **5m**, **3h** or **2d**.
 - Each day shows five items; select **Show more** for the rest.
@@ -278,7 +276,7 @@ Yes. Open it from its file card and select Edit on computer. It opens in its app
 
 - [Messaging and working together](/help/messaging)
 - [The bots' computer and connected apps](/help/computer-and-apps)
-- [Chats and your team](/help/chats)
+- [Rooms, people and bots](/help/chats)
 - [Bots: add, shape and archive](/help/bots)
 - [Apps: what they are and when to use them](/help/apps)
 - [Fixing common problems](/help/troubleshooting)

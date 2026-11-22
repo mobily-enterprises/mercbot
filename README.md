@@ -120,8 +120,9 @@ credential-shaped variable (`*_API_KEY`, `*_CLIENT_ID`, `*_CLIENT_SECRET`, `*_TO
 address, so no real model, mail or sign-in key reaches it; only a payment provider's test-mode key (`sk_test_…`,
 `rk_test_…`) stays, since it can't move money (D-116). Every kind of AI is Mercbot's stand-in model
 (`tools/standInModel.mjs`, D-83), served on a local port, so nothing a Test Preview asks of its AI reaches a
-provider: each kind names its provider, with no key. A Preview (`npm run develop`) does the same, so a key in .env
-reaches no provider from it either, and a test-mode payment key lets payments be tried there. Vibe64's managed run
+provider: each kind names its provider, with no key. A Preview (`npm run develop`) does the same but keeps its AI keys
+(D-118): a kind of AI with its key in .env uses its provider, so its bots work for real; a kind without one is the
+stand-in. A test-mode payment key lets payments be tried there. Vibe64's managed run
 (`vibe64-helper playwright --target test-app`) uses its one Test Preview instead, one spec at a time.
 
 Every suite has coarse time bounds, about five times what the test machines measure when busy, so only something

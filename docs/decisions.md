@@ -3388,6 +3388,10 @@ Nothing else is a privacy rule.
 
 ### Public by default, and the computers clear
 
+*Amended by D-117 (2026-11-22): a person's chat with a bot, the welcome chat and a new bot's greeting among them, and a
+chat between two people are Private, readable only from themselves; a room needs a name and starts with its maker
+alone; New chat is New room. Rooms, an app's Builder chat and the everyone chat are Public by default as before.*
+
 - **Every new chat starts Public** (owner: "just default to PUBLIC, and then you can pick private if you really have
   to"). Whoever is in it, a chat of one person and one bot included. Private is an explicit choice when the chat is
   made, and the kind stays fixed: Public never becomes Private, since what was read can't be unread. New chat shows
@@ -3770,3 +3774,54 @@ end to end.
   to a stand-in of its own there.
 - **Proof:** `tests/server/keys.test.js` (a test-mode key kept; a live key and an AI key emptied; an empty or unrelated
   credential emptied as before).
+
+## D-117 — Rooms, People and Bots (2026-11-22)
+
+*Amends D-112's "Public by default" (chats with a bot are Private) and its Team page, which goes; D-105 and D-109's
+"A ready-made team" is "A ready-made set".*
+
+The sidebar mixed chats, a Team page and a "New chat or bots" menu. The owner's decisions of 22 November:
+- **Three sections: Rooms, People and Bots**, in that order, under the pinned tiles. Each has a **+** in its header
+  (New room; inviting people, where a copy built on Mercbot gives it; Add bots) and a "+ …" row at its foot while it's
+  empty. There is no Team page: what it did is in the sidebar and the cards (a person's and a bot's card, archived
+  bots, Add bots, inviting). The word "Team" goes from the sidebar, the palette and Add bots.
+- **A room starts with its maker in it and a standard first line from them** ("<Name> started this room."), and no
+  bots or other people until someone invites them. It needs a name. Its maker may leave, even leaving it empty: a
+  Public room stays, a Private one with nobody left is deleted.
+- **Writing in a Public room joins it.** Its people are whoever has written there and not left; there is no Join step.
+  The Public rooms a person isn't in are listed faded in Rooms.
+- **A person's chat with a bot, and a chat between two people, are Private, "as private as it can be"**: readable only
+  from themselves. Nobody else opens, searches or links to them; no bot in another chat reads them, and no bot's memory
+  holds them (the reading rule `readable_from` never reaches a direct chat from another chat). A chat with a bot is
+  reached from Bots. A chat between two people has no bot, and nobody can be added to it. There was no data to convert.
+- **Inviting.** A Private room's header has **Invite** (people and bots), a Public room's **Invite a bot**, neither in a
+  direct chat. Anyone in the home invites a bot into a Public room and takes it out; a Private room's people do so for
+  theirs.
+- **A bot's window.** A bot invited into a room reads its last 30 messages and what is said after, so it stays quick
+  and cheap; a line in the room says so when there was more. Asked, it reads further back (`read_further_back`), 100
+  messages at a time unless told otherwise, at most 200 a call. Its summary and its memory start from the same point,
+  and joining a long room makes no model call over the history before it.
+- **Dense, like Discord.** Rows are one line; Files and Apps are icon buttons beside Search; each section folds by its
+  title (kept on the device for each home) and still shows what needs the person; people and bots not talked with in
+  14 days go under "N more". It follows Material 3.
+- **People while alone.** While the person is the home's only one, People shows with only its +, so inviting someone
+  is right there, when a copy offers inviting; with no one else and no +, People is hidden.
+- **A copy's hook.** `extensions.js` `teamActions` (Team's buttons) is replaced by `peopleActions`, the People section's
+  +, at most one, `{ component, visible }`; a copy still naming `teamActions` stops the shell at start-up, naming the
+  fix.
+
+## D-118 — A Preview's bots use the real AI (2026-11-22)
+
+Amends D-83 and D-116. A Preview ran every kind of AI on the stand-in model, which only plays the bot templates' setup
+interviews, so nothing a person tried there with their bots could really be tried. The owner, 22 November: "In preview
+mode, bots work normally. There is no real testing otherwise."
+
+Decided: a **Preview** (`npm run develop`) keeps its AI keys. `aiKeysOf` reads each kind's key and provider before
+`withoutCredentials` empties the credentials, and `startPreviewAi` gives them back. A kind with its key uses its
+provider; a kind without one is still the stand-in model (`aiKind` sends a kind to `MERCBOT_TEST_AI_URL` only when it has
+no key of its own). Its work is metered and charged as anywhere.
+- **A Test Preview is unchanged:** it keeps no AI key, so every kind is the stand-in and no test reaches a provider.
+- **Every other credential is still emptied in a Preview**, as D-83 and D-116 say: sign-in and connection apps' keys,
+  the files bucket's, live payment keys and the rest.
+- **Proof:** `tests/server/aiKinds.test.js` (a kind with its key uses its provider beside the stand-in; one without
+  stays on it).

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test, { after } from "node:test";
 import { createBotLibrary } from "../../packages/bots/src/server/botLibrary.js";
+import { memberOptions } from "../support/botRecords.mjs";
 import { seedChat, seedMessage } from "../support/chatFixtures.mjs";
 import { queriesDuring, statementsDuring } from "../support/queryCount.mjs";
 import { connectTestDatabase } from "../support/testDatabase.mjs";
@@ -51,12 +52,12 @@ test("a bot's Library is what it made in the chats the person can open, one entr
 
   const forAnna = (await kit.library.library(chef, as("anna"))).items;
   assert.deepEqual(forAnna.map((item) => [item.kind, item.name, item.messageId]), [
-    ["chart", "Spend", chart], ["page", "Guide", guide], ["page", "Party plan", party], ["file", "report.xlsx", report]
-  ]);
-  assert.equal(forAnna[1].summary, "New", "an updated page shows once, newest");
-  assert.deepEqual([forAnna[0].botId, forAnna[0].chatId, forAnna[2].chatId], [chef, bens.id, secret.id], "each names its chat, which it opens");
+    ["page", "Guide", guide], ["page", "Party plan", party], ["file", "report.xlsx", report]
+  ], "never Ben's chat with Chef, which is private and his");
+  assert.equal(forAnna[0].summary, "New", "an updated page shows once, newest");
   const forBen = (await kit.library.library(chef, as("ben"))).items;
   assert.deepEqual(forBen.map((item) => item.messageId), [chart, guide, report], "never Anna's private chat's");
+  assert.deepEqual([forBen[0].botId, forBen[0].chatId, forAnna[1].chatId], [chef, bens.id, secret.id], "each names its chat, which it opens");
   await assert.rejects(kit.library.library("999999999", as("anna")), { statusCode: 404 });
 });
 
@@ -171,11 +172,12 @@ test("a pin that lands after a delete keeps the card's Deleted mark", async (con
   assert.deepEqual([body.pinned, body.removed], [true, true]);
 });
 
-// Search (D-36, D-46) on chats: the chats the person can open that aren't archived; a private chat only for its people,
-// never another home's; each hit names its chat (a direct chat by its bot, and its person's name when it's someone else's).
+// Search (D-36, D-46) on chats: the chats the person can open that aren't archived; a private chat only for its people
+// (a chat with a bot and a chat between two people too), never another home's; each hit names its chat (a direct chat by
+// its bot, a chat between two people by the other person).
 test("search finds messages, made things and views in the chats the person can open, each naming its chat", async (context) => {
   const views = [{ name: "zqx tracker", slug: "zqx-tracker" }];
-  const { kit, homeId, anna, ben, as, chef, kitchenChat, secret, bens, made } = await kitchen(context, { views });
+  const { kit, homeId, anna, ben, carla, as, chef, kitchenChat, secret, bens, made } = await kitchen(context, { views });
   const word = "zqx";
   const said = {
     kitchen: await seedMessage(knex, { homeId, chatId: kitchenChat.id, userId: anna, body: { text: `The kitchen's ${word}` } }),
@@ -189,23 +191,33 @@ test("search finds messages, made things and views in the chats the person can o
   const theirs = await seedChat(knex, { homeId: elsewhere.homeId, title: "Theirs", people: [anna], bots: [await elsewhere.bot("Stranger")] });
   await seedMessage(knex, { homeId: elsewhere.homeId, chatId: theirs.id, userId: anna, body: { text: `Another home's ${word}` } });
   const [report] = await made(secret, [["files", { files: [{ path: "/files/chat/zqx-report.xlsx", name: "zqx report.xlsx", size: 4 }] }]]);
+  // Anna and Ben's own chat, the pair kept lower id first.
+  const [low, high] = [anna, ben].sort((a, b) => a - b);
+  const [pair] = await knex("conversations").insert({ workspace_id: homeId, kind: "private", direct_user_id: low, direct_person_id: high, made_by: anna }).returning("id");
+  await knex("chat_people").insert([anna, ben].map((userId) => ({ conversation_id: pair.id, workspace_id: homeId, user_id: userId })));
+  said.pair = await seedMessage(knex, { homeId, chatId: String(pair.id), userId: ben, body: { text: `Between us ${word}` } });
+  const nameOf = async (id) => (await knex("users").where({ id }).first("display_name")).display_name;
 
   const forAnna = await kit.library.search(word, as("anna"));
   const hits = (result) => result.messages.map((message) => message.id).sort();
-  assert.deepEqual(hits(forAnna), [said.kitchen, said.secret, said.bens].sort(), "never an archived chat or another home's");
+  assert.deepEqual(hits(forAnna), [said.kitchen, said.secret, said.pair].sort(), "never Ben's chat with Chef, an archived chat or another home's");
   const kitchenHit = forAnna.messages.find((message) => message.id === said.kitchen);
   assert.deepEqual(kitchenHit, {
     id: said.kitchen, chatId: kitchenChat.id, chatName: "Kitchen", chatKind: "public", role: "user", authorName: "you",
     text: `The kitchen's ${word}`, createdAt: kitchenHit.createdAt
   });
-  assert.match(forAnna.messages.find((message) => message.id === said.bens).chatName, /^Chef and (?!you$)./u, "Ben's direct chat, by its person");
-  assert.equal(forAnna.messages.find((message) => message.id === said.bens).authorName, "Chef");
+  assert.equal(forAnna.messages.find((message) => message.id === said.pair).chatName, await nameOf(ben), "their chat, by the other person");
   assert.deepEqual(forAnna.files.map((file) => [file.kind, file.name]), [["view", "zqx tracker"], ["file", "zqx report.xlsx"]], "views first");
   assert.deepEqual([forAnna.files[1].messageId, forAnna.files[1].botName, forAnna.files[1].chatName], [report, "Chef", "Surprise"]);
 
   const forBen = await kit.library.search(word, as("ben"));
-  assert.deepEqual(hits(forBen), [said.kitchen, said.bens].sort(), "never Anna's private chat's");
+  assert.deepEqual(hits(forBen), [said.kitchen, said.bens, said.pair].sort(), "never Anna's private chat's");
   assert.equal(forBen.messages.find((message) => message.id === said.bens).chatName, "Chef", "his own direct chat, by its bot");
+  assert.equal(forBen.messages.find((message) => message.id === said.bens).authorName, "Chef");
+  assert.equal(forBen.messages.find((message) => message.id === said.pair).chatName, await nameOf(anna), "their chat, by the other person");
+  await knex("workspace_memberships").insert({ workspace_id: homeId, user_id: carla, role_sid: "member", status: "active" });
+  const forCarla = await kit.library.search(word, memberOptions({ userId: carla, homeId }));
+  assert.deepEqual(hits(forCarla), [said.kitchen], "a third person finds neither direct chat");
   assert.notEqual(forBen.messages.find((message) => message.id === said.kitchen).authorName, "you");
   assert.deepEqual(forBen.files.map((file) => file.kind), ["view"], "nor its files");
 });

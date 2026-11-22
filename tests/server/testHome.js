@@ -11,8 +11,7 @@ export async function testHome(knex, userId) {
   return home.id;
 }
 
-// A bot in the test home, made by the test person, with their direct chat with it: Public, as every new chat is
-// (D-112, D15). `conversation_id` is the chat, `chat_bot_id` the bot's seat in it.
+// A bot in the test home, made by the test person, with their direct chat with it: Private, theirs alone (D-112). `conversation_id` is the chat, `chat_bot_id` the bot's seat in it.
 export async function testBot(knex, userId, fields = {}) {
   const workspaceId = await testHome(knex, userId);
   const { onboarding_step: onboarding = null, ...rest } = fields;

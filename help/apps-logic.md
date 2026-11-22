@@ -124,7 +124,7 @@ Each call has 10 seconds and up to 1 MB of answer, and doesn't follow redirects 
 
 ## Watches and routines
 
-Watches and routines belong to a bot in a chat, not to apps. A watch makes a bot act when records change, in the chat where you set it up, as the person who set it up, and you manage it on the bot's card in **Team**. See [Bots working with app data](/help/apps-bots) and [Skills, routines and watches](/help/skills-and-routines).
+Watches and routines belong to a bot in a chat, not to apps. A watch makes a bot act when records change, in the chat where you set it up, as the person who set it up, and you manage it on the bot's card. See [Bots working with app data](/help/apps-bots) and [Skills, routines and watches](/help/skills-and-routines).
 
 ## Questions
 

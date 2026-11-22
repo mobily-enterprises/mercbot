@@ -3,10 +3,10 @@ import { appsApi } from "../apps/appsApi.js";
 import { botsApi } from "./botsApi.js";
 
 /**
- * Add bots (D-109; MercbotNewBotDialog.vue), on Team and in New bot. One bot is made on the template chosen (D-98):
+ * Add bots (D-109; MercbotNewBotDialog.vue), from Bots' + and the palette. One bot is made on the template chosen (D-98):
  * none for the General helper, or one of the library's or the home's; a bot a person shared (`link`) is added as they
  * made it. It joins the team, and its direct chat with the person, where it has said hello, opens. A library
- * template's app is set up after, as a draft, when the dialog asked for it. A ready-made team (D-105) and Suggested bots
+ * template's app is set up after, as a draft, when the dialog asked for it. A ready-made set (D-105) and Suggested bots
  * (D-109) add several bots together: they join the team and make no chats (plan 5.2).
  * @param {{
  *   team: { updateBot: (bot: object) => void, loadBots: () => Promise<void> },
@@ -64,7 +64,7 @@ export function useNewBot({ team, openDirect, notify }) {
    * @param {{ teamId: string, templates: string[], apps?: Array<{ key: string, name: string }> }} choice
    */
   async function addTeam({ teamId, templates, apps = [] }) {
-    await addTogether(() => botsApi.addTeam(teamId, templates), apps, "The team couldn't be added. Try again.");
+    await addTogether(() => botsApi.addTeam(teamId, templates), apps, "The set couldn't be added. Try again.");
   }
 
   /**
@@ -76,7 +76,7 @@ export function useNewBot({ team, openDirect, notify }) {
   }
 
   /**
-   * Bots made together (addTeam, addBots), answered as { bots, added, skipped }: Team takes the bots as the server has
+   * Bots made together (addTeam, addBots), answered as { bots, added, skipped }: Bots takes the bots as the server has
    * them, and the person is told how many joined. No chat opens. Then the apps asked for are set up. A refusal says why:
    * every bot already in the home (409) or a new template's problems (422); anything else, `failed`.
    */
@@ -97,7 +97,7 @@ export function useNewBot({ team, openDirect, notify }) {
     if (!result) return;
     const [count, there] = [result.added?.length || 0, result.skipped?.length || 0];
     const leftOut = there ? ` ${there} already in this home ${there === 1 ? "was" : "were"} left out.` : "";
-    notify(`Added ${count} ${count === 1 ? "bot" : "bots"} to your team.${leftOut}`);
+    notify(`Added ${count} ${count === 1 ? "bot" : "bots"} to your home.${leftOut}`);
     await setUpApps(apps);
   }
 

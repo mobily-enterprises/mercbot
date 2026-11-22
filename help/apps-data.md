@@ -127,7 +127,7 @@ A removed field can't be brought back as it was. If you need it again, ask the B
 
 ## App data is the whole home's
 
-Apps and their data have no private corner. Everyone in a home sees every app and view, reads and changes every table in the Data tab, and every bot in the home can too, in any chat. Anything that some members of the home must not read doesn't belong in the home's apps at all. For something only some of you should see, use a Private chat (see [Chats and your team](/help/chats)).
+Apps and their data have no private corner. Everyone in a home sees every app and view, reads and changes every table in the Data tab, and every bot in the home can too, in any chat. Anything that some members of the home must not read doesn't belong in the home's apps at all. For something only some of you should see, use a Private chat (see [Rooms, people and bots](/help/chats)).
 
 Public screens are different: visitors without a Mercbot account only reach what the app's visitor access lists.
 

@@ -180,11 +180,11 @@ templates a link opens, when a copy built on Mercbot keeps them (D-43).
   person's welcome chat with a Message for each (`genesis/program/bots/onboarding.md`). Templates already followed
   are `skipped` (an archived bot on one says so, `archivedInHome`); only those is 409
   `bots_team_all_in_home`; an unknown team, an empty choice or another team's template is 400; anyone in the home may
-  (JSKIT refuses outsiders: 403 at this pin, 404 from workspaces-core 0.2.58). It answers the Team list, with
+  (JSKIT refuses outsiders: 403 at this pin, 404 from workspaces-core 0.2.58). It answers the home's bot list, with
   `added` (in the team's order), `skipped` and the welcome chat that introduces them (`chatId`). The page shows teams with one component, `MercbotTeamScreen.vue`:
   the cards under For home and life and For work (`teamChoice.js` `teamGroups`: name, line, faces, how many bots),
   with "Want one made to fit?" to Describe, then a team's bots, all ticked, each with its paired app's box for
-  someone who may set it up, and an action that counts the ticks. Add bots' A ready-made team and the welcome
+  someone who may set it up, and an action that counts the ticks ("All sets" back to the list). Add bots' A ready-made set and the welcome
   chat's card (**Show me ready-made teams**, `addBots: "teams"`) open it (`useNewBot.js` `openTeams`,
   `addTeam`), which sets up a ticked bot's paired app afterwards as One bot does, each app once. New home asks only
   the name (D-109).

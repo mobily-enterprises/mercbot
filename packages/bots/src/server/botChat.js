@@ -7,6 +7,7 @@ import { messageBody, toMessage } from "./botRows.js";
 import { answerAsBot } from "./botWriting.js";
 import { isModelFailure, modelFailure } from "./modelFailures.js";
 import { addressedBots } from "./botReplies.js";
+import { isDirect } from "./records/chatRepository.js";
 
 const QUICK_REACTIONS = new Set(["👍", "👎", "❤️", "😂", "🎉", "🙌", "👀", "🔥", "🙏", "😮", "😢", "✅"]);
 // A cursor is a transaction id (xid8): an unsigned 64-bit number in decimal.
@@ -90,23 +91,39 @@ export function createBotChat({ records, model, integrations, goals, replies, se
   }
 
   /**
+   * Who writes a message: the caller, one of the chat's people, or seated in it by this message when it's a public room
+   * they aren't in (`joining`: writing is how a person joins one). Anyone else is refused (a private chat they aren't in
+   * is a 404 before this).
+   */
+  async function messageWriter(chat, options) {
+    const me = String(resolveActorId(options.context) ?? "");
+    if (me && chat.kind === "public" && !isDirect(chat) && !(await records.chats.isPerson(chat.id, me, options))) {
+      return { me, joining: true };
+    }
+    return { me: await writer(chat.id, options), joining: false };
+  }
+
+  /**
    * A person's message (D-19: the same client id is stored once). Mentions of the chat's bots and of its other people
    * are kept on it (a person mentioned has it waiting as the chat list's "@", D-114), a skill picked with "/" by name,
-   * and a reply quotes the message it answers, with that message's bot (R3). Open pages hear of it; the bots answer when
-   * the page asks for their reply (`reply`).
+   * and a reply quotes the message it answers, with that message's bot (R3). A person writing in a public room they
+   * aren't in is seated in it in the message's transaction. Open pages hear of it; the bots answer when the page asks
+   * for their reply (`reply`).
    * @param {string} chatId
    * @param {{ clientId?: string, text?: string, quotes?: string[], attachments?: object[], replyTo?: { id?: string } }} input
    * @returns {Promise<{ messages: object[], chat: object }>}
    */
   async function sendMessage(chatId, input = {}, options) {
     const chat = await records.chats.get(String(chatId), options);
-    const me = await writer(chat.id, options);
+    const { me, joining } = await messageWriter(chat, options);
     const [chatBots, people] = await Promise.all([records.chats.bots(chat.id, options), records.chats.people(chat.id, options)]);
     const others = people.filter((person) => String(person.user_id) !== me)
       .map((person) => ({ id: String(person.user_id), name: person.name }));
     const body = withMentions(messageBody(input), chatBots.map((bot) => ({ id: String(bot.bot_id), name: bot.name })), others);
     // The person's name as they wrote it (R2): the chat still names them once they've left it, or the home.
-    body.authorName = people.find((person) => String(person.user_id) === me)?.name || "Someone";
+    body.authorName = (joining
+      ? (await records.chats.names([me], options)).get(me)
+      : people.find((person) => String(person.user_id) === me)?.name) || "Someone";
     const picked = [...String(body.text || "").matchAll(/<@skill:([\w-]+)>/gu)].map((match) => match[1]);
     if (picked.length) {
       const own = await ownSkillsIn(chat, me, options);
@@ -130,6 +147,7 @@ export function createBotChat({ records, model, integrations, goals, replies, se
       }
     }
     const { sent, changed } = await records.chats.withTransaction(options, async (txOptions) => {
+      if (joining) await records.chats.joinByWriting(chat.id, txOptions);
       const [userMessage] = await history.append(chat.id, [{ kind: "text", role: "user", body }], txOptions);
       if (body.mentionedPeople) await records.chats.markMentioned(chat.id, body.mentionedPeople.map((person) => person.id), txOptions);
       // Typing while one's own choice card is open makes the card inactive; another person's card stays theirs (R4).
@@ -143,8 +161,10 @@ export function createBotChat({ records, model, integrations, goals, replies, se
       return { sent: userMessage, changed: inactive };
     });
     // The person writing again resumes a goal its bot paused to wait for them (D-48), for the bots it's for.
-    const present = { people, bots: chatBots };
+    const present = { people: joining ? [...people, { user_id: me, name: body.authorName }] : people, bots: chatBots };
     for (const bot of addressedBots(sent, present)) await goals.resume(bot.chat_bot_id);
+    // Someone who joined by writing is one of its people now: everyone in it hears, the writer too.
+    if (joining) await seats.tell(chat.id, { type: "chat", change: "members" }, options);
     await seats.tell(chat.id, { type: "messages" }, options);
     // What's said in a public chat is for its bots' memories (D-113).
     if (chat.kind === "public") memory.noticedLater(String(chat.workspace_id), chat.id);

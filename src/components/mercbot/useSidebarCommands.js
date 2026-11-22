@@ -3,16 +3,17 @@ import { chatsApi } from "./chatsApi.js";
 import { shellPreferences } from "./shellPreferences.js";
 
 /**
- * The shell's commands, from the sidebar's menus, Team, a member's card and Chat details. Each one changes the server,
+ * The shell's commands, from the sidebar's menus and sections, a member's card and Chat details. Each one changes the server,
  * then the local state from its answer. `store` holds the chats (useChatMessages), `team` the home's members (useTeam);
  * `editingSectionId` is the section being renamed. `dropChat` takes a chat off the list (and opens another if it was
  * open), `open` holds the account menu's dialogs, `copy` copies text to the clipboard and `reportFailure` explains a
  * command that failed: the server's own words where it refused (who may, D-112). `homeName` names the home, for the
- * everyone chat's refusals.
+ * everyone chat's refusals. `homeSlug` names it for the sidebar's folded sections, saved per device and home; `more`
+ * holds each section's "N more" opened, for this visit.
  * @param {object} options
  * @param {import("vue").Ref<Array<import("../../types.js").ChatSection>>} options.sections The sidebar's sections.
  */
-export function useSidebarCommands({ sections, editingSectionId, store, team, dropChat, open, copy, reportFailure, homeName }) {
+export function useSidebarCommands({ sections, editingSectionId, store, team, dropChat, open, copy, reportFailure, homeName, homeSlug, more }) {
   const place = (chatId, changes) => chatsApi.changePlace(chatId, changes).then(({ chat }) => store.updateChat(chat));
   const takeList = (result) => {
     store.mergeChats(result.chats);
@@ -50,7 +51,6 @@ export function useSidebarCommands({ sections, editingSectionId, store, team, dr
     setJoinIn: ({ chatId, on }) => chatsApi.setJoinIn(chatId, on).then(({ chat }) => store.updateChat(chat)),
     archiveChat: ({ chatId }) => chatsApi.archive(chatId).then(({ chat }) => store.updateChat(chat)),
     unarchiveChat: ({ chatId }) => chatsApi.unarchive(chatId).then(({ chat }) => store.updateChat(chat)),
-    joinChat: ({ chatId }) => chatsApi.join(chatId).then(({ chat }) => store.updateChat(chat)),
     // Leaving a private chat, or the last person leaving it (which deletes it), takes it off the list.
     leaveChat: ({ chatId }) => chatsApi.leave(chatId).then((result) => changed(result, chatId)),
     deleteChat: ({ chatId }) => chatsApi.remove(chatId).then(() => dropChat(chatId)),
@@ -82,7 +82,16 @@ export function useSidebarCommands({ sections, editingSectionId, store, team, dr
     toggleArchived: () => {
       shellPreferences.archivedExpanded = !shellPreferences.archivedExpanded;
     },
-    // The home's bots (Team and a bot's card): a bot renamed, made the main bot (the old main changes too, so the whole
+    // Rooms, People or Bots folded or unfolded by its title, kept on this device for this home.
+    foldSection: ({ section }) => {
+      const folded = shellPreferences.folded[homeSlug()] || {};
+      shellPreferences.folded = { ...shellPreferences.folded, [homeSlug()]: { ...folded, [section]: !folded[section] } };
+    },
+    // A section's "N more" (or "Archived bots") opened or closed, for this visit.
+    toggleMore: ({ section }) => {
+      more.value = { ...more.value, [section]: !more.value[section] };
+    },
+    // The home's bots (a bot's card): a bot renamed, made the main bot (the old main changes too, so the whole
     // list is read again), archived or unarchived for everyone (D-108). Archiving replaced deleting (D11).
     renameBot: ({ botId, name }) => botsApi.update(botId, { name }).then(({ bot }) => team.updateBot(bot)),
     makeMain: ({ botId }) => botsApi.update(botId, { main: true }).then(() => team.loadBots()),

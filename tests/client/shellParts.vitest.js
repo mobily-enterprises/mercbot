@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { toChatRow } from "../../src/components/mercbot/chatDirectory.js";
-import { addPersonQuestion, chatMenuItems, chatQuestion, chatRights, sectionMenuItems } from "../../src/components/mercbot/chatMenus.js";
+import { chatMenuItems, chatQuestion, chatRights, inviteChoices, sectionMenuItems } from "../../src/components/mercbot/chatMenus.js";
+import { checkExtensions } from "../../src/components/mercbot/shellChat.js";
 import { paletteCommands, paletteEntries } from "../../src/components/mercbot/paletteEntries.js";
 import { galleryChips, galleryView } from "../../src/components/templates/galleryView.js";
 
@@ -51,7 +52,8 @@ describe("chat list menus", () => {
     expect(titles(menu(kitchen, "archived", { me: "2" })), "nor unarchive it").toEqual(["Copy chat ID", "—", "Leave chat"]);
     expect(titles(menu(kitchen, "row", { me: "2", manages: true }))).toEqual(titles(menu(kitchen, "row")));
     expect(chatRights({ ...kitchen, madeBy: null }, { me: "1", manages: false }), "a chat no one made").toEqual({
-      removeMembers: false, rename: false, joinIn: false, archive: false, unarchive: false, remove: false, leave: true, unpin: true
+      removeMembers: false, addPeople: false, addBots: true, removeBots: true, rename: false, joinIn: false, archive: false, unarchive: false, remove: false,
+      leave: true, unpin: true
     });
     expect(chatRights(kitchen, { me: "1", manages: false }).joinIn, "its maker switches whether its bots join in").toBe(true);
     expect(chatRights(kitchen, { me: "2", manages: true }).joinIn, "and whoever manages the home").toBe(true);
@@ -72,10 +74,29 @@ describe("chat list menus", () => {
     expect(titles(menu(everyone, "tile", { me: "2" }))).toEqual(["Mark as unread", "—", "Copy chat ID", "—", "Hide from sidebar"]);
   });
 
-  it("offers a direct chat with a bot no Rename and no Leave", () => {
-    const direct = chatRow("c2", { directBotId: "b1", bots: [{ chatBotId: "9", botId: "b1", name: "Otto", color: "#1E86FC", shape: "cloud", archived: false, waitingTask: null }] });
-    expect(titles(menu(direct, "row"))).toEqual(["Pin", "Move to new section", "Mark as unread", "—", "Copy chat ID", "—", "Hide from sidebar", "Archive", "Delete"]);
-    expect(titles(menu(direct, "row", { manages: true })).filter((title) => ["Rename chat", "Leave chat"].includes(title))).toEqual([]);
+  it("offers a direct chat with a bot no Rename, Leave or Archive, and its row in Bots only Pin, read marks and its ID", () => {
+    const direct = chatRow("c2", { kind: "private", directBotId: "b1", bots: [{ chatBotId: "9", botId: "b1", name: "Otto", color: "#1E86FC", shape: "cloud", archived: false, waitingTask: null }] });
+    expect(titles(menu(direct, "direct"))).toEqual(["Pin", "Mark as unread", "—", "Copy chat ID", "—", "Delete"]);
+    expect(titles(menu(direct, "direct", { me: "2" }))).toEqual(["Pin", "Mark as unread", "—", "Copy chat ID"]);
+    expect(titles(menu({ ...direct, pinned: true, pinPosition: 0 }, "direct")), "its chat pinned as a tile").toEqual(["Unpin", "Mark as unread", "—", "Copy chat ID", "—", "Delete"]);
+    expect(titles(menu({ ...direct, pinned: true, pinPosition: 0 }, "tile")), "no Hide: Bots lists it anyway").toEqual(["Unpin", "Mark as unread", "—", "Copy chat ID", "—", "Delete"]);
+    expect(titles(menu(direct, "row", { manages: true })).filter((title) => ["Rename chat", "Leave chat", "Archive"].includes(title))).toEqual([]);
+  });
+
+  it("treats a chat between two people like a chat with a bot: no rename, no one added, no archive, but Leave", () => {
+    const pair = chatRow("c3", { kind: "private", directPerson: { userId: "2", name: "Ada Byron" }, people: [KIM, ADA] });
+    const may = chatRights(pair, { me: "1", manages: true });
+    expect([may.rename, may.addPeople, may.addBots, may.removeBots, may.archive, may.joinIn, may.removeMembers, may.leave])
+      .toEqual([false, false, false, false, false, false, false, true]);
+    expect(titles(menu(pair, "direct", { me: "2" }))).toEqual(["Pin", "Mark as unread", "—", "Copy chat ID", "—", "Leave chat"]);
+  });
+
+  it("lets anyone in the home bring a bot into a public room or take one out, and only a private room's people do so there", () => {
+    const visitor = { ...kitchen, visiting: true };
+    expect([chatRights(visitor, { me: "2", manages: false }).addBots, chatRights(visitor, { me: "2", manages: false }).removeBots]).toEqual([true, true]);
+    expect(chatRights(kitchen, { me: "2", manages: false }).addPeople, "a public room is open to everyone already").toBe(false);
+    const plans = { ...kitchen, kind: "private" };
+    expect([chatRights(plans, { me: "2", manages: false }).addPeople, chatRights(plans, { me: "2", manages: false }).addBots]).toEqual([true, true]);
   });
 
   it("runs commands, the rename and the questions", () => {
@@ -95,26 +116,29 @@ describe("chat list menus", () => {
     expect(section.map((item) => Boolean(item.disabled))).toEqual([false, true, false, false, false]);
   });
 
-  it("asks before adding a person to a private chat, since they'll read all of it, and not to a public one", () => {
-    expect(addPersonQuestion({ ...kitchen, kind: "private" }, "Kitchen", "Ben Rossi")).toEqual({
-      title: "Add Ben Rossi to “Kitchen”?", text: "Ben Rossi will see everything said here.", confirmLabel: "Add", danger: false
-    });
-    expect(addPersonQuestion(kitchen, "Kitchen", "Ben Rossi")).toBeNull();
+  it("offers Invite a private room's people and bots not in it yet, and a public room only its bots, never an archived one", () => {
+    const people = [{ id: "1", name: "Kim Lee" }, { id: "2", name: "Ada Byron" }, { id: "3", name: "Bea Cole" }];
+    const bots = [
+      { id: "b2", name: "Zed", archivedAt: null }, { id: "b1", name: "Otto", archivedAt: null }, { id: "b3", name: "Gone", archivedAt: "2026-11-01T10:00:00Z" }
+    ];
+    const room = { ...kitchen, people: [KIM, ADA], bots: [{ chatBotId: "9", botId: "b1", name: "Otto" }] };
+    expect(inviteChoices({ ...room, kind: "private" }, { people, bots, me: "1" }).map((choice) => choice.value)).toEqual(["person:3", "bot:b2"]);
+    expect(inviteChoices(room, { people, bots, me: "1" }).map((choice) => choice.title)).toEqual(["Zed"]);
   });
 
   it("asks before Archive, Leave and Delete, saying what each does to the chat", () => {
     expect(chatQuestion("archive", kitchen, "Kitchen")).toEqual({
       title: "Archive “Kitchen”?", text: "It stays readable for everyone in it, and no one can write in it until it's unarchived.", confirmLabel: "Archive", danger: false
     });
-    expect(chatQuestion("leave", kitchen, "Kitchen").text).toBe("It's public, so you can still open it from New chat and join it again.");
+    expect(chatQuestion("leave", kitchen, "Kitchen").text).toBe("It's public, so it stays in Rooms, faded, and writing there again brings you back.");
     const plans = { ...kitchen, kind: "private" };
     expect([chatQuestion("leave", plans, "Plans").text, chatQuestion("leave", plans, "Plans").danger])
       .toEqual(["It's private, so you can't open it again unless someone adds you back.", false]);
     const alone = chatQuestion("leave", { ...plans, people: [KIM] }, "Plans");
-    expect([alone.title, alone.text, alone.danger]).toEqual(["Leave “Plans”?", "You're the last person in it, so leaving deletes it, with its files and its bots' computers.", true]);
+    expect([alone.title, alone.text, alone.danger]).toEqual(["Leave “Plans”?", "You're the last one here, so this room and everything in it will be deleted.", true]);
     const removal = chatQuestion("remove", kitchen, "Kitchen");
     expect([removal.title, removal.confirmLabel, removal.danger]).toEqual(["Delete “Kitchen”?", "Delete", true]);
-    expect(removal.text).toContain("Its bots stay on your team.");
+    expect(removal.text).toContain("Its bots stay in the home.");
   });
 });
 
@@ -141,7 +165,7 @@ describe("search palette rows", () => {
   it("lists unread, pinned with the everyone chat first, then recent chats, then the commands, before typing", () => {
     expect(rows("").map((row) => row.title)).toEqual([
       "News", "Rossi family", "Pinned", "Budget", "Kitchen", "Ada and Otto",
-      "Add bots", "New chat", "Team", "Keyboard shortcuts", "Settings: General", "Connect Apps", "Skills", "Theme: System", "Theme: Light", "Theme: Dark"
+      "Add bots", "New room", "Keyboard shortcuts", "Settings: General", "Connect Apps", "Skills", "Theme: System", "Theme: Light", "Theme: Dark"
     ]);
     expect(rows("")[0]).toMatchObject({ kind: "chat", key: "chat-4", unread: true });
     expect(commands.find((command) => command.id === "theme:dark").checked).toBe(true);
@@ -205,5 +229,14 @@ describe("template pickers (D-98)", () => {
   it("searches tags, the home's first", () => {
     expect(galleryView(gallery, { chip: "all", query: "bills", home }).found.map((row) => row.key)).toEqual(["found:bill-tracker"]);
     expect(galleryView(gallery, { chip: "all", query: "dinners", home }).found.map((row) => row.key)).toEqual(["home:4", "found:weekly-meal-planner"]);
+  });
+});
+
+describe("what a copy built on Mercbot adds (extensions.js)", () => {
+  it("takes People's + as peopleActions, at most one, and stops at start-up on the old teamActions, naming the fix", () => {
+    expect(() => checkExtensions({ shellParts: [], peopleActions: [] })).not.toThrow();
+    expect(() => checkExtensions({ peopleActions: [{ component: {} }] })).not.toThrow();
+    expect(() => checkExtensions({ peopleActions: [], teamActions: [] })).toThrow("extensions.teamActions is gone: use peopleActions, the People section's +.");
+    expect(() => checkExtensions({ peopleActions: [{ component: {} }, { component: {} }] })).toThrow("at most one");
   });
 });

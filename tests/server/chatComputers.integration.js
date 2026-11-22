@@ -263,7 +263,7 @@ test("a home member who can't open a private chat gets a 404 for its computers, 
   assert.equal((await computers.status(family.chatBotIds.get(bots.Tripbot))).control, null);
 });
 
-test("a chat's computer is reset by whoever started the chat or the home's owners and admins; a direct chat's by its person", async (context) => {
+test("a chat's computer is reset by whoever started the chat or the home's owners and admins; a direct chat's by its person alone", async (context) => {
   const { routes, log } = await startComputers(context);
   const { homeId, anna, ben, carla, bots, family } = await rossiHome(context);
   // Kitchen, which Ben started with Carla, and Carla's direct chat with Chef; Family is Anna's.
@@ -280,15 +280,16 @@ test("a chat's computer is reset by whoever started the chat or the home's owner
 
   assert.deepEqual(await reset(carla, kitchen), refused, "Carla is in Kitchen, but didn't start it");
   assert.deepEqual(await reset(ben, family), refused, "nor did Ben start Family");
-  assert.deepEqual(await reset(ben, carlas), refused, "Carla's direct chat is Public, but its computer is reset by her");
+  const hidden = { status: 404, code: "computer_not_found", error: "That computer isn't here." };
+  assert.deepEqual(await reset(ben, carlas), hidden, "Carla's direct chat is Private: nobody else reaches its computer");
+  assert.deepEqual(await reset(anna, carlas, true), hidden, "not even the home's owner");
   assert.deepEqual(log, [], "no computer was reset");
 
   assert.equal(await reset(ben, kitchen), 200, "Ben started Kitchen");
   assert.equal(await reset(anna, kitchen, true), 200, "Anna is the home's owner");
   assert.equal(await reset(carla, carlas), 200, "Carla's own direct chat");
-  assert.equal(await reset(anna, carlas, true), 200, "and the home's owner");
   const [kitchenChef, carlasChef] = [kitchen.chatBotIds.get(bots.Chef), carlas.chatBotIds.get(bots.Chef)];
-  assert.deepEqual(log, [`reset ${kitchenChef}`, `reset ${kitchenChef}`, `reset ${carlasChef}`, `reset ${carlasChef}`]);
+  assert.deepEqual(log, [`reset ${kitchenChef}`, `reset ${kitchenChef}`, `reset ${carlasChef}`]);
 });
 
 test("Settings → Reset starts fresh the computers of every chat the person is alone in, past a page of their chats", async (context) => {

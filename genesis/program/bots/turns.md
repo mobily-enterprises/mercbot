@@ -11,6 +11,8 @@ follow-ups after a sign-in, summaries of long chats, and the news every open pag
 - `packages/bots/src/server/botReplies.js`
 - `packages/bots/src/server/chatSeats.js`
 - `packages/bots/src/server/botHistory.js`
+- `packages/bots/src/server/records/seatWindows.js`
+- `packages/bots/src/server/memoryTools.js`
 - `packages/bots/src/server/botTurns.js`
 - `packages/bots/src/server/botAgent.js`
 - `packages/bots/src/server/botCards.js`
@@ -42,6 +44,7 @@ follow-ups after a sign-in, summaries of long chats, and the news every open pag
 - `packages/bots/src/server/records/agentTables.js`
 - `packages/bots/src/server/records/rowPolicies.js`
 - `migrations/20261122120000_chats_core.cjs`
+- `migrations/20261123120000_rooms_people_bots.cjs`
 - `src/components/mercbot/useChatMessages.js`
 - `src/components/mercbot/useChatWork.js`
 - `src/components/mercbot/useChatEvents.js`
@@ -71,8 +74,9 @@ archived chats refuse every write, `genesis/program/bots/chats.md`):
   of the messages before `before`, case-insensitively, and the newest and oldest message holding them
   (`{ count, newest, oldest }`), so the page never reads the whole chat to search it (400 past 200 characters,
   `bots_find_too_long`).
-- `POST …/messages {clientId?, text, quotes?, attachments?, replyTo?}`: only one of the chat's people writes (403
-  `bots_chat_join_first` "Join this chat to write in it."). The same `clientId` is stored once (D-19). The message
+- `POST …/messages {clientId?, text, quotes?, attachments?, replyTo?}`: one of the chat's people writes; a person of the
+  home who isn't in a Public room is seated in it by this message, in its transaction (no Join step, D-117), and
+  everyone in it hears; anyone else gets 403 `bots_chat_join_first` ("Join this chat to write in it."). The same `clientId` is stored once (D-19). The message
   keeps its writer (`author_user_id`) and their name as written (`body.authorName`, R2), mentions of the chat's bots
   as `<@bot:ID>` (and `<@everyone>`, `<@app:ID>`; the model reads and writes plain `@Name`), of the chat's other
   people as `<@person:ID>`, kept by name in `body.mentionedPeople` (D-114: a marker naming the author, anyone not in
@@ -162,9 +166,10 @@ start work answer 402 `work_paused`.
 one who can answer its cards and whose approval rules apply; background work runs as its own person (a routine's
 `made_by`, a watch's creator, an app job's or follow-up's person) and stops when that person can no longer open the
 chat. Every model-facing read passes the model's reader for that bot in that chat (`records.readers.forBot`,
-`rowPolicies.js`): it reaches the chats in `readable_from(chat)` (the chat itself, the home's Public chats and, for a
-Private chat, the Private chats whose people include all of its people) and the home's own things, never more
-because of who asked. Every path that builds a model's input is one row of `modelInputs.js` (R12), whose reach is
+`rowPolicies.js`): it reaches the chats in `readable_from(chat)` (the chat itself, the home's Public rooms and, for a
+Private chat, the Private rooms whose people include all of its people; never a direct chat, a person's with a bot or
+one between two people, from any chat but itself, D-117) and the home's own things, never more because of who
+asked. Every path that builds a model's input is one row of `modelInputs.js` (R12), whose reach is
 `reader`, `public` (as a Public chat reads, for a template draft) or `none`. The bot's instructions start the same in
 every chat, so the cached prefix is shared (R5); the chat's own framing is in the state note the server writes before
 the latest message each turn (D-14): which chat it is and its kind, who is in it, who the bot works for now and that
@@ -250,6 +255,19 @@ starts up to 20 ready rows nobody started within 10 seconds or whose lease lapse
 agent loop's thresholds and read by every bot of the chat. It is made through the chat's own reader
 (`records.readers.forChat`, acting for no one), so no read can reach past the chat; a chat's only bot reads a summary
 that keeps what it did with its tools, while with several bots the summary holds each one's words and records only.
+Nothing before the earliest point any of the chat's bots reads from is measured or summarised (`botHistory.js`), so a
+bot joining a long room makes no model call over the history it doesn't read.
+
+**A bot's window** (D-117, `records/seatWindows.js`). A bot invited into a room with more than 30 messages reads it from
+its seat's start (`chat_bots.reads_from_message_id`, the 30th-newest message then; null, the beginning, for every
+other seat), as `genesis/program/bots/chats.md` says. A person's turn reads the chat after its summary only when the
+summary was written at or past the seat's start, else from the start with no summary; routines, watches and
+follow-ups read as before. Its state note then says "You read this chat from <time>: N earlier messages aren't in your
+view. If someone asks you to read further back, call read_further_back." `read_further_back` (`memoryTools.js`, a
+person's turn, defined the same in every chat so the cached prefix is too, R5) takes `messages` (1 to 200, 100 when
+left out) and moves the speaking bot's start back by that many of this chat's messages from its next turn on (one
+count, one read of the new start, one write), answering how many more it now reads and how many are still before
+them, or "You already read this whole chat." A bot invited again after leaving starts afresh.
 
 **Background work in a chat** (`backgroundRuns.js`, `botLoops.js`): a watch's run, a finished background command's
 follow-up and an Apps task each run in their bot's seat in the chat, as their own person, and post nothing when that
@@ -305,6 +323,7 @@ chat (`chatId`).
 - `tests/server/chatReactions.integration.js`
 - `tests/server/promptPrefix.test.js`
 - `tests/server/cachePrefix.test.js`
+- `tests/server/botWindow.integration.js`
 - `tests/server/turnContext.test.js`
 - `tests/server/eventStreams.test.js`
 - `tests/client/chatReplies.vitest.js`

@@ -63,12 +63,23 @@ test("a chat keeps its rules in the database: kinds, the everyone chat, direct c
   assert.equal(await refused(chat({ kind: "group" })), "conversations_kind_check");
   assert.equal(await refused(chat({ kind: "private", everyone: true })), "conversations_everyone_check");
   assert.equal(await refused(chat({ direct_user_id: anna })), "conversations_direct_check", "a direct chat names its person and its bot");
-  assert.equal(await refused(chat({ direct_user_id: anna, direct_bot_id: botId, title: "Hi" })), "conversations_direct_title_check");
+  assert.equal(await refused(chat({ kind: "private", direct_person_id: ben })), "conversations_direct_check", "or its two people");
+  assert.equal(await refused(chat({ kind: "private", direct_user_id: anna, direct_bot_id: botId, title: "Hi" })), "conversations_direct_title_check");
   assert.equal(await refused(chat({ kind: "private", app_id: "app1" })), "conversations_app_check");
-  // A direct chat is Public by default (D15), one per person and bot.
+  // A direct chat, with a bot or between two people, is Private, one per person and bot.
+  assert.equal(await refused(chat({ direct_user_id: anna, direct_bot_id: botId })), "conversations_direct_private_check");
   const direct = await seedChat(knex, { homeId, direct: { userId: anna, botId } });
-  assert.equal((await knex("conversations").where({ id: direct.id }).first("kind")).kind, "public");
-  assert.equal(await refused(chat({ direct_user_id: anna, direct_bot_id: botId })), "ux_conversations_direct");
+  assert.equal((await knex("conversations").where({ id: direct.id }).first("kind")).kind, "private");
+  assert.equal(await refused(chat({ kind: "private", direct_user_id: anna, direct_bot_id: botId })), "ux_conversations_direct");
+  // A chat between two people: Private, untitled, the pair kept lower id first, never with a bot, one per pair.
+  const [low, high] = [anna, ben].sort((a, b) => a - b);
+  const pair = { kind: "private", direct_user_id: low, direct_person_id: high };
+  assert.equal(await refused(chat({ ...pair, kind: "public" })), "conversations_direct_private_check");
+  assert.equal(await refused(chat({ ...pair, title: "Us" })), "conversations_person_direct_check");
+  assert.equal(await refused(chat({ ...pair, direct_user_id: high, direct_person_id: low })), "conversations_person_direct_check");
+  assert.equal(await refused(chat({ ...pair, direct_bot_id: botId })), "conversations_direct_one_check");
+  await chat(pair);
+  assert.equal(await refused(chat(pair)), "ux_conversations_person_direct");
   await chat({ everyone: true, title: "Family" });
   assert.equal(await refused(chat({ everyone: true, title: "Again" })), "ux_conversations_everyone");
 
@@ -140,6 +151,18 @@ test("readable_from(chat) is D12: a chat reads itself, public chats, and private
   assert.deepEqual(await readable(annaCarla), sorted(family, garden, annaBenCarla, annaCarla));
   // A private chat with nobody in it never counts as "everyone": it reads itself and the public chats only.
   assert.deepEqual(await readable(empty.id), sorted(family, garden, empty.id));
+  // A direct chat (Anna's with the bot, Anna and Ben's) is read only from itself: never from Anna's own chat, nor from
+  // a chat of both, nor from a public one; and from itself it reads only itself and the public chats.
+  const annaDirect = (await seedChat(knex, { homeId, direct: { userId: anna, botId } })).id;
+  const [low, high] = [anna, ben].sort((a, b) => a - b);
+  const [pair] = await knex("conversations").insert({ workspace_id: homeId, kind: "private", direct_user_id: low, direct_person_id: high }).returning("id");
+  await knex("chat_people").insert([anna, ben].map((userId) => ({ conversation_id: pair.id, workspace_id: homeId, user_id: userId })));
+  for (const chat of [family, annaAlone, annaBen, annaBenCarla]) {
+    const reads = await readable(chat);
+    assert.ok(!reads.includes(annaDirect) && !reads.includes(String(pair.id)), `chat ${chat} reads no direct chat`);
+  }
+  assert.deepEqual(await readable(annaDirect), sorted(family, garden, annaDirect));
+  assert.deepEqual(await readable(pair.id), sorted(family, garden, pair.id));
   // Another home's chats are never read, and a chat that isn't there reads nothing.
   const [other] = await knex("workspaces").insert({ slug: `schema-far-${randomBytes(5).toString("hex")}`, name: "Far", owner_user_id: anna, is_personal: false }).returning("id");
   context.after(() => knex("workspaces").where({ id: other.id }).del());

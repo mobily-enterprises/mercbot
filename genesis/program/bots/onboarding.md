@@ -22,7 +22,7 @@ then asks what the home is for and whether anyone else will use it, which makes 
 ## Public contract
 
 **The welcome chat** (`POST /api/w/:workspaceSlug/chats/welcome`, the page's first visit): the person's direct chat
-with the home's main bot, Public like every chat (D15), made once (two first visits at once make one), answered as the
+with the home's main bot, Private and readable only from itself like every chat with a bot (D-117), made once (two first visits at once make one), answered as the
 chat list shows it. In a home with no bot yet, the main bot comes with it ("Mercbot", colour `#1C1C1C`, on Mercbot's
 general template) and the chat's script starts at `start`; in a home that has one, a newcomer is greeted at
 `intro-greet`. The chat's `onboarding_step` names where the script is.
@@ -51,8 +51,8 @@ under the chat's lock), and a paused home (D-73) gets the steps' own words with 
 - Typing at a step waiting on a card (`ask-name`, `home-for`, `home-people`) passes the card over and moves on to
   `about`, without a rename, bots offered or the everyone chat; typing makes the Gmail nudge unneeded.
 
-**A bot's first chat** with a person (a new bot's direct chat with its maker, a bot opened from Team, the main bot
-meeting someone new): `intro-greet` greets with its template's greeting, which starts its setup questions; a bot on
+**A bot's first chat** with a person (a new bot's direct chat with its maker, a bot opened from the sidebar's Bots, the
+main bot meeting someone new), Private like the welcome chat: `intro-greet` greets with its template's greeting, which starts its setup questions; a bot on
 Mercbot's general template writes a greeting instead (falling back on "Hi <first name>, I'm <Bot>. Happy to get started
 whenever you are."), then `intro-ask` posts a generated first question as a `first-task` card (single or several picks,
 with "Something else"; falling back on "Where should I start helping?"). A first question is dropped once the person

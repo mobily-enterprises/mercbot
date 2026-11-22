@@ -2,7 +2,7 @@ import path from "node:path";
 import type { TestInfo } from "@playwright/test";
 import { connectTestDb, directChat, expect, expectRefusal, HOME, homeApi, openShell, shell, test, type Page } from "./harness";
 
-// A bot's Instructions (D-98): in the Details of its card (Team's, or beside its direct chat, D-112), the template it
+// A bot's Instructions (D-98): in the Details of its card (beside its direct chat, D-112), the template it
 // points at (read-only, with Change template) and its own additions, which the bot also changes on a card in a chat
 // when asked. Each test makes its own bot in the owner's fixture home, its direct chat with no introduction to sit
 // through, and deletes it. The target's AI is the stand-in model (tools/standInModel.mjs), which says a bot's additions
@@ -159,8 +159,8 @@ test("Change template points the bot at another template, keeps its additions, a
   }
 });
 
-// Instructions, the tag and Change template beside the card's other sections, the tag on Team, and the card in the
-// chat, at desktop and phone width, light and dark.
+// Instructions, the tag and Change template beside the card's other sections, the tag beside its name on its card,
+// and the card in the chat, at desktop and phone width, light and dark.
 test("Instructions, the tag and Change template look like the rest of the app, on a desktop and a phone, light and dark", async ({ page }, info) => {
   const bot = await makeBot(page);
   try {
@@ -174,13 +174,11 @@ test("Instructions, the tag and Change template look like the rest of the app, o
         if (device === "desktop") {
           await openShell(page, `?chat=${bot.chatId}`);
           await expect(shell.chat(page).getByText("Now a meals bot")).toBeVisible();
-          // Its tag beside its name on Team.
-          await openShell(page, "?team=1");
-          await expect(shell.team(page).getByRole("button", { name: `${bot.name}, Bot · made by you` })).toContainText("meals");
-          await page.screenshot({ path: shot(info, `tags-team-${device}-${scheme}.png`) });
         }
         await openDetails(page, bot);
         const panel = card(page, bot);
+        // Its tag beside its name on its card.
+        await expect(panel.getByRole("button", { name: "Template meals from Mercbot's library, with additions. Open its instructions" })).toBeVisible();
         const box = await panel.boundingBox();
         expect(box && box.x >= 0 && box.x + box.width <= width + 1, `the card fits the ${device}'s width`).toBe(true);
         await page.screenshot({ path: shot(info, `instructions-${device}-${scheme}.png`) });

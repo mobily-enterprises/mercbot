@@ -137,7 +137,7 @@ describe("the chat list's @", () => {
       listed("4", "Party", { unread: true, mentioned: true, pinPosition: 0 })
     ];
     expect(chats.map((chat) => chat.mentioned)).toEqual([true, false, false, true]);
-    const html = await rendered(MercbotChatList, { model: buildSidebarModel({ chats, sections: [] }), sections: [], me: "1" });
+    const html = await rendered(MercbotChatList, { model: buildSidebarModel({ chats, sections: [], publicRooms: [], people: [], bots: [] }), sections: [], me: "1" });
     expect(markers(html)).toEqual([["Party", "@"], ["Bathroom", ""], ["Garden", "unread"], ["Kitchen", "@"]]);
   });
 });
