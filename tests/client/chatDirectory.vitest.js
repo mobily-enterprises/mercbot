@@ -147,8 +147,8 @@ describe("Rooms, People and Bots", () => {
   it("lists only rooms under Rooms: a chat with a bot is under Bots, a chat with a person under People", () => {
     const built = model({ chats: [chat("1"), withBot("2", "b1", { lastActivityAt: daysAgo(1) }), withPerson("3", ADA, { lastActivityAt: daysAgo(2) })] });
     expect(built.groups.map((group) => ids(group.chats))).toEqual([["1"]]);
-    expect(built.people.shown.map((entry) => [entry.person.name, entry.id])).toEqual([["Ada Byron", "3"]]);
-    expect(built.bots.shown.map((entry) => [entry.bot.name, entry.id])).toEqual([["Mercbot", "bot:b9"], ["Otto", "2"]]);
+    expect(built.people.shown.map((entry) => [entry.person.name, entry.id])).toEqual([["Ada Byron", "3"], ["Bea Cole", "person:3"], ["Zoe Hart", "person:4"]]);
+    expect(built.bots.shown.map((entry) => [entry.bot.name, entry.id])).toEqual([["Mercbot", "bot:b9"], ["Chef", "bot:b2"], ["Otto", "2"]]);
   });
 
   it("lists the home's other people by name, and its active bots with the main one first, then by name, the archived apart", () => {
@@ -167,23 +167,51 @@ describe("Rooms, People and Bots", () => {
 
   it("marks a person or a bot unread or mentioned from the direct chat with them, found in the list already read", () => {
     const built = model({ chats: [withPerson("3", ADA, { place: { unread: true } }), withBot("4", "b2", { place: { mentioned: true } })] });
-    expect(built.people.shown.map((entry) => [entry.person.name, entry.unread, entry.mentioned])).toEqual([["Ada Byron", true, false]]);
-    expect(built.bots.shown.map((entry) => [entry.bot.name, entry.unread, entry.mentioned])).toEqual([["Mercbot", false, false], ["Chef", false, true]]);
+    expect(built.people.shown.map((entry) => [entry.person.name, entry.unread, entry.mentioned]))
+      .toEqual([["Ada Byron", true, false], ["Bea Cole", false, false], ["Zoe Hart", false, false]]);
+    expect(built.bots.shown.map((entry) => [entry.bot.name, entry.unread, entry.mentioned]))
+      .toEqual([["Mercbot", false, false], ["Chef", false, true], ["Otto", false, false]]);
   });
 
-  it("shows the people and bots talked with in the last 14 days, the open one and the main bot, and the rest under N more", () => {
+  it("shows every person and bot while a section has seven or fewer, however old and untouched", () => {
+    const seven = Array.from({ length: 6 }, (_, at) => bot(`o${at}`, `Old ${at}`, { createdAt: daysAgo(90) }));
+    const built = model({ chats: [], bots: [MAIN, ...seven] });
+    expect([built.bots.shown.length, built.bots.more], "exactly seven").toEqual([7, []]);
+    expect([names(built.people.shown), built.people.more]).toEqual([["Ada Byron", "Bea Cole", "Zoe Hart"], []]);
+  });
+
+  it("shows a new home's one other person and its eight new bots, all of them", () => {
+    const fresh = Array.from({ length: 8 }, (_, at) => bot(`n${at}`, `New ${at}`, { createdAt: daysAgo(0), isMain: at === 0 }));
+    const built = buildSidebarModel({ publicRooms: [], chats: [], sections: [], people: [KIM, ADA], bots: fresh, me: "1", now: NOW });
+    expect([names(built.people.shown), built.people.more]).toEqual([["Ada Byron"], []]);
+    expect([built.bots.shown.length, built.bots.more], "added in the last 14 days, so never tucked away").toEqual([8, []]);
+  });
+
+  it("past seven, tucks away only the entries both added and last talked with more than 14 days ago", () => {
+    const old = Array.from({ length: 20 }, (_, at) => bot(`o${String(at).padStart(2, "0")}`, `Old ${String(at).padStart(2, "0")}`, { createdAt: daysAgo(60) }));
+    const added = bot("n1", "Newcomer", { createdAt: daysAgo(3) });
+    const main = bot("m1", "Mercbot", { isMain: true, createdAt: daysAgo(60) });
     const chats = [
-      withPerson("3", ADA, { lastActivityAt: daysAgo(13) }),
-      withPerson("4", BEA, { lastActivityAt: daysAgo(15) }),
-      withBot("5", "b1", { lastActivityAt: daysAgo(30) }),
-      withBot("6", "b2", { lastActivityAt: daysAgo(2) })
+      withBot("5", "o01", { lastActivityAt: daysAgo(2) }),
+      withBot("6", "o02", { lastActivityAt: daysAgo(30) }),
+      withBot("7", "o03", { lastActivityAt: daysAgo(40) }),
+      withBot("8", "o04", { lastActivityAt: daysAgo(40), place: { unread: true } })
     ];
-    const built = model({ chats });
-    expect([names(built.people.shown), names(built.people.more)]).toEqual([["Ada Byron"], ["Bea Cole", "Zoe Hart"]]);
-    expect([names(built.bots.shown), names(built.bots.more)]).toEqual([["Mercbot", "Chef"], ["Otto"]]);
-    expect(names(model({ chats, openId: "5" }).bots.shown), "the open one").toEqual(["Mercbot", "Chef", "Otto"]);
-    const opened = model({ chats, more: { people: true } });
-    expect([opened.people.moreOpen, names(shownEntries(opened.people))]).toEqual([true, ["Ada Byron", "Bea Cole", "Zoe Hart"]]);
+    const built = model({ chats, bots: [main, added, ...old] });
+    expect(names(built.bots.shown), "the main bot, one talked with lately, one that needs the person, one just added")
+      .toEqual(["Mercbot", "Newcomer", "Old 01", "Old 04"]);
+    expect(built.bots.more.length).toBe(18);
+    expect(names(model({ chats, bots: [main, added, ...old], openId: "7" }).bots.shown), "and the open one")
+      .toEqual(["Mercbot", "Newcomer", "Old 01", "Old 03", "Old 04"]);
+    const opened = model({ chats, bots: [main, added, ...old], more: { bots: true } });
+    expect([opened.bots.moreOpen, shownEntries(opened.bots).length]).toEqual([true, 22]);
+  });
+
+  it("judges a person past seven by their chat alone, as the members list carries no join date", () => {
+    const many = Array.from({ length: 9 }, (_, at) => ({ id: String(10 + at), name: `Person ${10 + at}` }));
+    const chats = [withPerson("3", many[0], { lastActivityAt: daysAgo(13) }), withPerson("4", many[1], { lastActivityAt: daysAgo(15) })];
+    const built = model({ chats, people: [KIM, ...many] });
+    expect([names(built.people.shown), built.people.more.length]).toEqual([["Person 10"], 8]);
   });
 
   it("lists the public rooms the person isn't in after their own, faded, under N more public rooms past three", () => {
@@ -191,7 +219,7 @@ describe("Rooms, People and Bots", () => {
     const archived = visiting("25", { archivedAt: "2026-11-21T10:00:00Z" });
     const three = model({ chats: [chat("1"), chat("21")], publicRooms: [...rooms.slice(0, 3), archived] });
     expect(ids(three.rooms.faded), "one they're in now, and an archived one, aren't faded").toEqual(["22", "23"]);
-    expect(three.visualOrder).toEqual(["21", "1", "22", "23", "bot:b9"]);
+    expect(three.visualOrder).toEqual(["21", "1", "22", "23", "person:2", "person:3", "person:4", "bot:b9", "bot:b2", "bot:b1"]);
     const four = model({ chats: [chat("1")], publicRooms: rooms });
     expect([ids(four.rooms.faded), four.rooms.fadedMore, four.rooms.fadedCount]).toEqual([[], 4, 4]);
     expect(ids(model({ chats: [chat("1")], publicRooms: rooms, more: { rooms: true } }).rooms.faded)).toEqual(["21", "22", "23", "24"]);
@@ -207,8 +235,8 @@ describe("Rooms, People and Bots", () => {
       chat("6", { archivedAt: "2026-11-01T10:00:00Z" })
     ];
     const built = model({ chats, publicRooms: [visiting("9")], hiddenExpanded: true, archivedExpanded: true });
-    expect(built.visualOrder).toEqual(["1", "2", "9", "3", "bot:b9", "4", "5", "6"]);
-    expect(railOrder(built)).toEqual(["1", "2", "9", "3", "bot:b9", "4"]);
+    expect(built.visualOrder).toEqual(["1", "2", "9", "3", "person:3", "person:4", "bot:b9", "4", "bot:b1", "5", "6"]);
+    expect(railOrder(built)).toEqual(["1", "2", "9", "3", "person:3", "person:4", "bot:b9", "4", "bot:b1"]);
   });
 
   it("folds a section to the rows that need the person or are open, counting the rest", () => {

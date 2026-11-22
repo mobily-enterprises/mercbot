@@ -18,13 +18,13 @@ export function archiveRefusal(bot, builderId) {
 }
 
 /**
- * The question before archiving: who it leaves, what stops, and that it comes back.
+ * The question before archiving, as short as the card's line (D-119): it leaves everyone's bots, its chats stay.
  * @param {{ name: string }} bot
  */
 export function archiveBotQuestion(bot) {
   return {
     title: `Archive ${bot.name}?`,
-    text: "Removes it for everyone. Its chats stay; it stops answering and its routines and watches pause. Its maker or an owner or admin can resume it.",
+    text: "Removes it for everyone. Its chats stay.",
     confirmLabel: "Archive"
   };
 }

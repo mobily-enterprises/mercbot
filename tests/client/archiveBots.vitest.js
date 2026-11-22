@@ -59,10 +59,10 @@ describe("who may archive a bot, and why not", () => {
     expect(archiveRefusal(bot("1"), "2")).toBe("");
   });
 
-  it("asks first, saying it leaves the home's bots for everyone and comes back", () => {
+  it("asks first, saying it leaves the home's bots for everyone and its chats stay", () => {
     expect(archiveBotQuestion(bot("1"))).toEqual({
       title: "Archive Bot 1?",
-      text: "Removes it for everyone. Its chats stay; it stops answering and its routines and watches pause. Its maker or an owner or admin can resume it.",
+      text: "Removes it for everyone. Its chats stay.",
       confirmLabel: "Archive"
     });
   });

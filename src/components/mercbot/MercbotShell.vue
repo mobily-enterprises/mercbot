@@ -672,6 +672,7 @@ watch(() => currentHomeEntry.value?.slug, () => loadBuilderBot(), { immediate: t
       @failure="reportFailure('That didn\'t work. Try again.', $event)"
       @notify="notify"
       @connect="settingsOpen = false; openApp($event)"
+      @bots-changed="team.loadBots()"
     />
     <MercbotAboutDialog v-model="aboutOpen" @failure="reportFailure('Couldn\'t copy to the clipboard.', $event)" />
     <MercbotSearchPalette

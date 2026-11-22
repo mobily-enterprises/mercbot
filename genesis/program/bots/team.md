@@ -42,8 +42,8 @@ under `/api/w/:workspaceSlug`, for a member of the home; a bot of another home a
 **Reading the home's bots** (`botList.js`): `GET …/bots` lists the home's bots, archived ones too, each as the sidebar's
 Bots and a bot's card show it
 (`toBot`: its look, `isMain`, `madeBy`, its template's chip, whether it has additions and their first line,
-`archivedAt`), with who made it (`madeByName`, "you" for the person), who archived it, whether it builds the home's
-apps (`isBuilder`) and whether the person may archive and unarchive it (`canArchive`): three reads whatever the
+when it was made (`createdAt`, which keeps a new bot out of the sidebar's "N more") and `archivedAt`), with who made
+it (`madeByName`, "you" for the person), who archived it, whether it builds the home's apps (`isBuilder`) and whether the person may archive and unarchive it (`canArchive`): three reads whatever the
 number of bots. `GET …/bots/:botId` answers one bot the same way (`{ bot }`). Everyone in the home hears a `bot` event
 (`{ botId, change }`) when bots change, on any server.
 
@@ -106,7 +106,7 @@ the Files page; Move to… still offers Home files, D-119), "Library" (Pinned, t
 item with Pin, and Open, Share… and Delete for a page; empty: "Anything <Bot> makes in the chats you can open, like
 pages, files and apps, will be kept here.") and "Computer" ("<Bot> has its own computer in each chat it's in. Open one
 from that chat's details." with the chats the person shares with it). Archive says in one line what it does ("Removes
-<Bot> for everyone. Its chats stay."), asks first (`archiveBot.js`), and where the bot can't be archived says only
+<Bot> for everyone. Its chats stay."), asks first in the same words ("Removes it for everyone. Its chats stay.", `archiveBot.js`), and where the bot can't be archived says only
 why ("The main bot can't be archived. Make another bot main first.").
 
 ## Proved by

@@ -3857,7 +3857,8 @@ Decided:
   home's owners and admins, a link there.
 - **A shorter card.** A bot's Details say each thing once: an empty section is one short line or isn't shown
   (Routines and Watches only when there are some), and Archive is one line ("Removes <Bot> for everyone. Its chats
-  stay."), or for the main bot only why it can't be. Its Files tab lists this chat's folder and the bot's own, with
+  stay."), or for the main bot only why it can't be; its question says the same ("Removes it for everyone. Its chats
+  stay."). Its Files tab lists this chat's folder and the bot's own, with
   "Home files →" to the Files page; Move to… still offers the home's folder. The additions' label reads "Template
   Additions · only this bot".
 - **One migration renames the tables** (`20261123140000_rooms_memory_common_knowledge.cjs`), with their constraints,
@@ -3866,4 +3867,6 @@ Decided:
 - **Proof:** `tests/server/commonKnowledge.integration.js`, `tests/server/roomsMemoryWall.integration.js`,
   `tests/server/roomsMemoryReach.integration.js`, `tests/server/roomsMemoryRefresh.integration.js`,
   `tests/client/roomsMemory.vitest.js`, `tests/client/mainBotSettings.vitest.js`, `tests/client/botCardFiles.vitest.js`,
-  `tests/client/archiveBots.vitest.js`, `tests/client/settingsSections.vitest.js`.
+  `tests/client/archiveBots.vitest.js`, `tests/client/settingsSections.vitest.js`,
+  `tests/client/commonKnowledgeSettings.vitest.js` (who sees a bin, the empty line, the card's link and where it opens)
+  and `tests/client/teamPage.vitest.js` (the card's Files tab and its Home files link).

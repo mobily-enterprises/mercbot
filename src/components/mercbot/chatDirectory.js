@@ -3,7 +3,9 @@
 const byActivity = (a, b) => (b.lastActivityAt || "").localeCompare(a.lastActivityAt || "") || Number(b.id) - Number(a.id);
 const byName = (a, b) => String(a.name || "").localeCompare(String(b.name || ""));
 
-// People and bots talked with in the last 14 days stay in view; the rest go under "N more".
+// People and Bots show every entry up to this many; past it, an entry goes under "N more" only when it was added (a
+// person joined, a bot made) and last talked with more than RECENT_MS ago, so a new bot or person always shows.
+const ALL_SHOWN = 7;
 const RECENT_MS = 14 * 24 * 60 * 60 * 1000;
 // Unjoined public rooms show at once when there are this many or fewer; more go under "N more public rooms".
 const FADED_SHOWN = 3;
@@ -38,27 +40,44 @@ export function toChatRow(view) {
 export const isRoom = (chat) => !chat.directBotId && !chat.directPerson;
 
 /**
- * People or Bots: each entry is { id, entry: "person" | "bot", person | bot, chat, unread, mentioned }, where `chat` is
- * the person's direct chat with them (null until made) and `id` is that chat's id, else "person:<id>" or "bot:<id>",
- * which the shell opens. Unfolded, the entries talked with lately, the open one, the main bot and any that need the
- * person are `shown`, the rest `more`; folded, only those that need the person or are open, the rest counted.
+ * People or Bots: each entry is { id, entry: "person" | "bot", person | bot, templateName, templateLine, addedAt, chat,
+ * unread, mentioned }, where `chat` is the person's direct chat with them (null until made), `id` is that chat's id,
+ * else "person:<id>" or "bot:<id>", which the shell opens, and `addedAt` when the bot was made (null for a person:
+ * JSKIT's members list carries no join date, so a person is judged by their chat alone). Unfolded, up to ALL_SHOWN
+ * entries are all `shown`; past that, those added or talked with in the last 14 days, the open one, the main bot and
+ * any that need the person are `shown`, the rest `more`. Folded, only those that need the person or are open, the rest
+ * counted.
  */
 function splitEntries(entries, { folded, moreOpen, openId, now }) {
   const needs = (entry) => entry.unread || entry.mentioned || entry.id === openId;
-  const recent = (entry) => Boolean(entry.chat?.lastActivityAt) && now - Date.parse(entry.chat.lastActivityAt) <= RECENT_MS;
+  const lately = (at) => Boolean(at) && now - Date.parse(at) <= RECENT_MS;
+  const recent = (entry) => lately(entry.addedAt) || lately(entry.chat?.lastActivityAt);
   if (folded) {
     const shown = entries.filter(needs);
     return { shown, more: [], moreOpen: false, hiddenCount: entries.length - shown.length, count: entries.length };
   }
-  const shown = entries.filter((entry) => needs(entry) || recent(entry) || entry.bot?.isMain);
+  const shown = entries.length <= ALL_SHOWN ? entries : entries.filter((entry) => needs(entry) || recent(entry) || entry.bot?.isMain);
   const more = entries.filter((entry) => !shown.includes(entry));
   return { shown, more, moreOpen: Boolean(moreOpen) && more.length > 0, hiddenCount: 0, count: entries.length };
+}
+
+/**
+ * A bot's template as its sidebar row shows it: its tag after the bot's name, and the line its description gives on
+ * hover, "" for both while it has no template (D-98, the chip's source).
+ * @param {{ template?: { tag: string, description: string } | null }} bot
+ */
+export function templateOfRow(bot) {
+  const template = bot.template || null;
+  if (!template) return { templateName: "", templateLine: "" };
+  return { templateName: template.tag, templateLine: `Template ${template.tag}: ${template.description}` };
 }
 
 const entryOf = (kind, member, chat) => ({
   id: chat?.id || `${kind}:${member.id}`,
   entry: kind,
   [kind]: member,
+  ...(kind === "bot" ? templateOfRow(member) : { templateName: "", templateLine: "" }),
+  addedAt: kind === "bot" ? member.createdAt || null : null,
   chat: chat || null,
   unread: Boolean(chat?.unread),
   mentioned: Boolean(chat?.mentioned)
@@ -75,7 +94,7 @@ const entryOf = (kind, member, chat) => ({
  *   sections: Array<import("../../types.js").ChatSection>,
  *   publicRooms?: Array<import("../../types.js").Chat>,
  *   people?: Array<{ id: string, name: string }>,
- *   bots?: Array<{ id: string, name: string, isMain?: boolean, archivedAt?: string | null }>,
+ *   bots?: Array<{ id: string, name: string, isMain?: boolean, createdAt?: string, archivedAt?: string | null }>,
  *   me?: string,
  *   openId?: string,
  *   folded?: { rooms?: boolean, people?: boolean, bots?: boolean },

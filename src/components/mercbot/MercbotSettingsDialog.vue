@@ -63,7 +63,8 @@ defineProps({
   manages: { type: Boolean, default: false },
   homeName: { type: String, default: "" }
 });
-const emit = defineEmits(["theme", "failure", "notify", "connect"]);
+// `bots-changed`: the home's main bot changed in Main bot and Builder.
+const emit = defineEmits(["theme", "failure", "notify", "connect", "bots-changed"]);
 // The Vault's New item menu sits in the title row; it tells the Vault which dialog to open, or to
 // import a CSV file.
 const vaultCreate = ref("");
@@ -122,7 +123,7 @@ const current = computed(() => sections.value.find((entry) => entry.value === se
           <MercbotSettingsPermissions v-else-if="section === 'permissions'" @failure="emit('failure', $event)" />
           <MercbotSettingsFiles v-else-if="section === 'files'" @failure="emit('failure', $event)" @notify="emit('notify', $event)" @connect="emit('connect', $event)" />
           <MercbotSettingsTemplates v-else-if="section === 'templates'" @failure="emit('failure', $event)" @notify="emit('notify', $event)" />
-          <MercbotSettingsMainBot v-else-if="section === 'main-bot'" :manages="manages" @failure="emit('failure', $event)" @notify="emit('notify', $event)" />
+          <MercbotSettingsMainBot v-else-if="section === 'main-bot'" :manages="manages" @failure="emit('failure', $event)" @notify="emit('notify', $event)" @changed="emit('bots-changed')" />
           <MercbotSettingsCommonKnowledge v-else-if="section === 'common-knowledge'" @failure="emit('failure', $event)" @notify="emit('notify', $event)" />
           <MercbotSettingsVault
             v-else-if="section === 'vault'"

@@ -161,3 +161,19 @@ test("listing a home's common knowledge costs the same for a few entries as for 
   assert.equal(rest.entries.length, 8);
   assert.equal(rest.next, null);
 });
+
+test("every turn, in any chat, reads the newest 30 entries, newest first, and says the older ones are in Settings", async (context) => {
+  const f = await commonKnowledgeHome(context);
+  // Entry 0 is the oldest, Entry 34 the newest.
+  for (let index = 0; index < 35; index += 1) {
+    await f.kit.knex("common_knowledge").insert({ workspace_id: f.homeId, text: `Entry ${index} here`, by_user_id: f.anna, via_bot_id: f.chef });
+  }
+  const ledger = await seedChat(f.kit.knex, { homeId: f.homeId, kind: "private", title: "Ledger", people: [f.ben], bots: [f.chef] });
+  for (const chatId of [f.family.id, ledger.id]) {
+    const { state } = await f.ask(f.ben, chatId);
+    const read = [...state.matchAll(/"Entry (\d+) here"/gu)].map(([, index]) => Number(index));
+    assert.deepEqual(read, Array.from({ length: 30 }, (_, at) => 34 - at), `the newest 30, newest first, in chat ${chatId}`);
+    assert.match(state, /Older entries are in Settings, under Bots' common knowledge\./u);
+    assert.match(state, /\(Anna, via Chef\)/u, "who asked, through which bot");
+  }
+});

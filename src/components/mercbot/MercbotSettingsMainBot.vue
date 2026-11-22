@@ -13,7 +13,8 @@ defineProps({
   // Whether the person is one of the home's owners or admins.
   manages: { type: Boolean, default: false }
 });
-const emit = defineEmits(["failure", "notify"]);
+// `changed`: the main bot changed, so the home's bots (the sidebar, each card's chip) are read again.
+const emit = defineEmits(["failure", "notify", "changed"]);
 
 const bots = ref(null);
 const builder = ref(null);
@@ -45,6 +46,7 @@ async function chooseMain(botId) {
   try {
     await botsApi.update(botId, { main: true });
     bots.value = bots.value.map((bot) => ({ ...bot, isMain: String(bot.id) === botId }));
+    emit("changed");
     emit("notify", `${nameOf(botId)} is now the main bot`);
   } catch (error) {
     emit("failure", error);

@@ -238,7 +238,7 @@ The person who made the bot and the home's owners and admins. Some bots can't be
 ### Archive one
 
 1. Open the bot's card. Under **Archive**, at the end of its **Details** tab, select **Archive** with the bot's name, such as **Archive Ledger**.
-2. Mercbot asks first: "Removes it for everyone. Its chats stay; it stops answering and its routines and watches pause. Its maker or an owner or admin can resume it." Select **Archive** to go ahead, or **Cancel**.
+2. Mercbot asks first: "Removes it for everyone. Its chats stay." Select **Archive** to go ahead, or **Cancel**.
 
 ### While it's archived
 

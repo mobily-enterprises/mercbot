@@ -51,3 +51,31 @@ test("every apps route needs sign-in, and the live stream of table changes too",
   assert.deepEqual([...members].filter(([, options]) => options?.auth !== "required").map(([route]) => route), [], "every member route needs sign-in");
   assert.deepEqual(members.get("GET /api/w/:workspaceSlug/apps-events"), { auth: "required", contextPolicy: "required", visibility: "workspace_user" });
 });
+
+test("only the home's owners and admins choose the Builder; everyone reads which bot it is", async () => {
+  const chosen = [];
+  const apps = {
+    builder: async () => ({ id: "7", name: "Chef" }),
+    setBuilder: async (_actor, botId) => {
+      chosen.push(botId);
+      return { id: botId, name: "Otto" };
+    }
+  };
+  const handlers = new Map();
+  registerRoutes({ router: { register: (method, path, _options, handler) => handlers.set(`${method} ${path}`, handler) } }, { appsRuntime: { apps }, notices: {}, streams: new Set() });
+  async function call(key, body, permissions) {
+    const answered = {};
+    const reply = { code(status) { answered.status = status; return reply; }, send(sent) { answered.body = sent; return reply; } };
+    const request = { workspace: { id: "3", slug: "home-3" }, user: { id: "2", displayName: "Ben" }, permissions, body, params: {}, callOptions: async () => ({}) };
+    await handlers.get(key)(request, reply);
+    return answered;
+  }
+  const member = await call("PUT /api/w/:workspaceSlug/apps/builder", { botId: "8" }, []);
+  assert.deepEqual([member.status, member.body.code], [403, "apps_builder_manage_forbidden"]);
+  assert.deepEqual(chosen, [], "a member's request changes nothing");
+  const read = await call("GET /api/w/:workspaceSlug/apps/builder", undefined, []);
+  assert.deepEqual(read.body, { builder: { id: "7", name: "Chef" }, canManage: false }, "a member reads it, and may not change it");
+  const owner = await call("PUT /api/w/:workspaceSlug/apps/builder", { botId: "8" }, ["workspace.settings.update"]);
+  assert.equal(owner.status, 200);
+  assert.deepEqual(chosen, ["8"]);
+});

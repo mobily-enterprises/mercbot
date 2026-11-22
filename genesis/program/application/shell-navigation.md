@@ -113,12 +113,18 @@ render across compact, medium, and expanded layouts.
   - **Bots** (+ "Add bots"; "+ Add bots" at its foot while there are none): the home's active bots, the main bot first,
     then by name, each opening the person's direct chat with it; under "Archived bots" (folded, with its count), each
     archived bot, faded, opening its card.
-  People and Bots show those talked with in the last 14 days (the direct chat's latest activity), the open one, the
-  main bot and any unread or mentioning the person; the rest are under "N more", opened for the visit. A folded section
-  shows only its rows that are unread, mention the person or are open, with how many it hides. Rows
-  (`MercbotSidebarRow.vue`) are one line: a 24 px face (a room its members', a person their initials, a bot its live
-  face), the name, and marks for a draft, "Waiting for you", "@" or unread, and a room's globe (Public) or lock
-  (Private); the latest message, the draft or the task waiting is the row's tooltip. "Hidden chats" and "Archived chats"
+  People and Bots each show every entry while they have seven or fewer (`chatDirectory.js`), so a new home's one other
+  person or its first bots are never behind "1 more". Past seven, an entry goes under "N more" (opened for the visit)
+  only when it was both added and last talked with (its direct chat's latest activity) more than 14 days ago; the open
+  one, the main bot and any unread or mentioning the person always show. A bot's added date is when it was made
+  (`createdAt` on the bots' list); JSKIT's members list carries no join date, so past seven a person is judged by
+  their direct chat alone. A folded section shows only its rows that are unread, mention the person or are open, with
+  how many it hides. Rows (`MercbotSidebarRow.vue`) are one line: a 24 px face (a room its members', a person their
+  initials, a bot its live face), the name, and marks for a draft, "Waiting for you", "@" or unread, and a room's globe
+  (Public) or lock (Private); the latest message, the draft or the task waiting is the row's tooltip. A bot's row shows
+  its template's tag after its name (the template chip's source, D-98), smaller and in `on-surface-variant`, shrinking
+  long before the name so the bot's name is cut last; its tooltip and accessible description add "Template <tag>:
+  <description>", while its accessible name stays the bot's name. A bot with no template shows its name alone. "Hidden chats" and "Archived chats"
   (newest archived first, "Archived · read-only") follow, for rooms. Position hints, Go to chat (Ctrl+Alt+1…9),
   previous/next (Alt+Up/Down) and Switch chats follow the visual order of what's shown (tiles, rooms, faded rooms,
   people, bots, then hidden and archived when open); the rail shows the same faces in groups with dividers. A room's
@@ -223,12 +229,14 @@ bot and Builder and its common knowledge are the home's, not a bot's (D-119), so
 card links there: its Details shows a "Main bot" or "Builder" chip when it is one and, for the home's owners and
 admins, "Change in Settings →" (or "Main bot and Builder in Settings →"); under its Rooms memory, "<Bot> also knows
 the home's common knowledge (N) →". Each opens Settings at its section (`open-settings`, the `openSettings` command
-with `section`, `useSidebarCommands.js`). A bot's Files tab lists this chat's folder and the bot's own; the home's
+with `section`, `useSidebarCommands.js`). A main bot chosen there reads the home's bots again (`bots-changed`), so the
+sidebar's order and each card's chip follow at once. A bot's Files tab lists this chat's folder and the bot's own; the home's
 folder is a "Home files →" link to the Files page, and Move to… still offers it.
 
 ## Proved by
 
 - `tests/e2e/startup.spec.ts`
+- `tests/client/commonKnowledgeSettings.vitest.js`
 - `tests/e2e/instructions.spec.ts`
 - `tests/client/chatList.vitest.js`
 - `tests/client/chatDirectory.vitest.js`

@@ -53,6 +53,7 @@ test("adding from a template makes a member of the home pointing at it, greeting
   assert.equal(bot.name, "Pantry");
   assert.deepEqual(bot.template, { tag: "meals", source: "library", description: bot.template.description });
   assert.deepEqual([bot.hasAdditions, bot.madeBy, bot.madeByName, bot.isMain, bot.archivedAt], [false, anna, "you", false, null]);
+  assert.ok(Date.now() - Date.parse(bot.createdAt) < 60_000, "when it was made, for the sidebar's N more");
   const row = await knex("bots").where({ id: bot.id }).first();
   assert.deepEqual([row.library_template, row.home_template_id, row.additions], ["weekly-meal-planner", null, ""], "it points at the template; nothing is copied");
   assert.ok(row.template_since);

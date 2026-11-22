@@ -14,9 +14,10 @@ import { useChatDrag } from "./useChatDrag.js";
 // The expanded sidebar's list (D-112, plan 4.1): pinned tiles, then Rooms, People and Bots, each folding by its title
 // and with its + (New room; a copy's Invite people, extensions.js peopleActions; Add bots), then hidden and archived
 // rooms. Rows are one line (MercbotSidebarRow): a room shows its members' faces, its name, and a globe or a lock; a
-// person their initials and name; a bot its live face and name. Rooms the person isn't in are faded, under "N more
-// public rooms" when there are more than three; people and bots not talked with lately go under "N more". Menus, drag
-// and drop for rooms and tiles. Every change is emitted as a command for the shell to carry out.
+// person their initials and name; a bot its live face, name and template's name. Rooms the person isn't in are faded,
+// under "N more public rooms" when there are more than three; past seven, people and bots neither added nor talked with
+// lately go under "N more". Menus, drag and drop for rooms and tiles. Every change is emitted as a command for the
+// shell to carry out.
 const props = defineProps({
   model: { type: Object, required: true },
   sections: { type: Array, required: true },
@@ -158,6 +159,8 @@ function rowTip(chat) {
 }
 const hasDraft = (chat) => Boolean(chat) && previewText(chat).draft;
 const entryName = (entry) => (entry.entry === "bot" ? entry.bot.name : entry.person.name);
+// A person's or bot's description: as its chat's row says it, then a bot's template and its line.
+const entryTip = (entry) => [entry.chat ? rowTip(entry.chat) : entryName(entry), entry.templateLine].filter(Boolean).join("\n");
 const entryMood = (entry) => (entry.chat ? moodOf(entry.chat) : hoveredChatId.value === entry.id ? "hover" : "idle");
 
 // A person's or a bot's row with a direct chat already has its menu: Pin, Mark as read or unread, Copy chat ID, Leave.
@@ -376,7 +379,8 @@ const SECTIONS = computed(() => [
             <MercbotSidebarRow
               :label="entryName(entry)"
               :name="entryName(entry)"
-              :tip="entry.chat ? rowTip(entry.chat) : entryName(entry)"
+              :detail="entry.templateName"
+              :tip="entryTip(entry)"
               :selected="Boolean(entry.chat) && entry.chat.id === currentChatId"
               :switching="entry.id === switchHighlightId"
               :hint="hints[entry.id]"

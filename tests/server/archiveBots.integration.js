@@ -58,6 +58,17 @@ test("the home's main bot and its Builder aren't archived, each saying what to d
   assert.equal((await kit.botList.listedBot(builder, as("anna"))).isBuilder, true);
 });
 
+test("the home's main bot can't be deleted either, even by an owner; another bot can", async (context) => {
+  const kit = await startSurfaces(knex, context);
+  const { as, bot } = await seedHome(knex, context);
+  const main = await bot("Mercbot", { is_main: true });
+  const chef = await bot("Chef");
+  await assert.rejects(kit.settings.deleteBot(main, as("anna")), { statusCode: 409, code: "bots_main_bot_delete" });
+  assert.ok(await knex("bots").where({ id: main }).first(), "the main bot is kept");
+  await kit.settings.deleteBot(chef, as("anna"));
+  assert.equal(await knex("bots").where({ id: chef }).first(), undefined, "an ordinary bot is deleted");
+});
+
 test("archiving pauses its work in every chat it's in, private ones too, and puts its computers to sleep, once", async (context) => {
   const kit = await startSurfaces(knex, context);
   const { homeId, anna, ben, as, bot } = await seedHome(knex, context);

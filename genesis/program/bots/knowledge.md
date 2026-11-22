@@ -179,6 +179,7 @@ any bot's memory.
 - `tests/server/promptPrefix.test.js`
 - `tests/server/cachePrefix.test.js`
 - `tests/client/roomsMemory.vitest.js`
+- `tests/client/commonKnowledgeSettings.vitest.js`
 - `tests/client/settingsSections.vitest.js`
 - `tests/server/knowledgePrompt.test.js`
 - `tests/server/botKnowledge.integration.js`

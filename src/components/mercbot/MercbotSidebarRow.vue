@@ -1,10 +1,12 @@
 <script setup>
 // One single-line row of the sidebar (plan 4.1, dense): a 24px face (the slot), the name, and small marks at the end: a
 // draft's pencil, then the position hint while Ctrl+Alt is held, else waiting for the person, "@" or the unread dot.
-// Its accessible name is `label`; its full name and latest message are its description (`tip`), shown on hover.
+// Its accessible name is `label`; its full name and latest message are its description (`tip`), shown on hover. A bot's
+// row shows its template's name (`detail`) after its own, muted and smaller, and cut short first when there's no room.
 defineProps({
   label: { type: String, required: true },
   name: { type: String, required: true },
+  detail: { type: String, default: "" },
   tip: { type: String, default: "" },
   // A room's globe or lock ($language or $lock), with its word.
   kindIcon: { type: String, default: "" },
@@ -37,6 +39,7 @@ defineOptions({ inheritAttrs: false });
     <slot name="name">
       <span class="mb-row__name">{{ name }}</span>
     </slot>
+    <span v-if="detail" class="mb-row__detail text-body-small" aria-hidden="true">{{ detail }}</span>
     <v-icon v-if="kindIcon" :icon="kindIcon" size="12" class="mb-kind" :aria-label="kindLabel" />
     <span class="mb-row__marks">
       <v-icon v-if="draft" icon="$edit" size="12" class="mb-row__draft" aria-label="Draft" />
@@ -95,6 +98,16 @@ defineOptions({ inheritAttrs: false });
   overflow: hidden;
   font-size: 14px;
   line-height: 18px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The template's name: it shrinks long before the name does, so the bot's own name is cut last. */
+.mb-row__detail {
+  flex: 0 1000 auto;
+  min-width: 0;
+  overflow: hidden;
+  color: rgb(var(--v-theme-on-surface-variant));
   text-overflow: ellipsis;
   white-space: nowrap;
 }

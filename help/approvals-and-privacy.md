@@ -137,7 +137,7 @@ Approvals are the safety net behind this. Text on a page can't press Go ahead fo
 | What you share | Who sees it | What stays private |
 |---|---|---|
 | A Public room, and what its bots make there | Everyone in the home, now and later, and the bots in every chat of the home, which remember it | Private rooms, and your chats with a bot or with another person: a bot in a Public room never uses one, and no bot's memory holds one |
-| A note you ask a bot to tell everyone | Everyone in the home and every bot, in every chat, once you say **Go ahead** on its card | Email addresses, phone and card numbers and passwords: a note never holds them |
+| Something you ask a bot to add to the bots' common knowledge | Everyone in the home and every bot, in every chat, once you say **Go ahead** on its card | Email addresses, phone and card numbers and passwords: it never holds them |
 | A Private chat, and what its bots make there | Its members, and bots in Private chats whose people are all its members | Everything else: nothing in it reaches a chat someone else can open |
 | A sign-in on a bot's computer in a chat | Everyone who can open that chat | Other chats' computers |
 | A file in the shared folder | Everyone in the home and all its bots | Files in a Private chat's folder |

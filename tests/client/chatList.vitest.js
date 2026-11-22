@@ -98,7 +98,7 @@ describe("the chat list", () => {
       "row Bathroom",
       "heading Unassigned",
       "section People",
-      "more 1 more",
+      "row Ben Rossi",
       "section Bots",
       "row Chef"
     ]);
@@ -113,15 +113,41 @@ describe("the chat list", () => {
       ["Quotes", "Quotes\nChef: three quotes in"],
       ["Garden", "Garden\nBen: oak it is"],
       ["Bathroom", "Bathroom\nYou: see you there"],
+      ["Ben Rossi", "Ben Rossi"],
       ["Chef", "Chef\nhere's the plan"]
     ]);
     expect(html, "no preview line").not.toContain("mb-row__preview");
   });
 
+  it("shows a bot's template name after its name, cut first, with the template and its line in its description", async () => {
+    const meals = { ...BOTS[0], template: { tag: "meals", source: "library", description: "Plans the week's meals and the shopping." } };
+    const plain = { id: "8", name: "Otto", color: "#1E86FC", shape: "cloud", isMain: false, archivedAt: null, template: null };
+    const html = await list([DIRECT], { bots: [meals, plain] });
+    const rows = buttons(html).filter((entry) => entry.classes.includes("mb-row") && ["Chef", "Otto"].includes(entry.label));
+    expect(rows.map((entry) => entry.label), "the accessible name stays the bot's name").toEqual(["Chef", "Otto"]);
+    expect(rows.map((entry) => entry.text)).toEqual(["Chef meals", "Otto"]);
+    expect(rows[0].inside.replace(/<!--[\s\S]*?-->/gu, ""), "the name, then the template's").toMatch(/<span class="mb-row__name">Chef<\/span><span class="mb-row__detail text-body-small" aria-hidden="true">meals<\/span>/u);
+    expect(rows[1].inside, "no template, the name alone").not.toContain("mb-row__detail");
+    expect(tips(html).filter(([label]) => ["Chef", "Otto"].includes(label))).toEqual([
+      ["Chef", "Chef\nhere's the plan\nTemplate meals: Plans the week's meals and the shopping."],
+      ["Otto", "Otto"]
+    ]);
+  });
+
+  it("styles the template name muted and smaller, shrinking long before the bot's name", async () => {
+    const { readFile } = await import("node:fs/promises");
+    const source = await readFile(new URL("../../src/components/mercbot/MercbotSidebarRow.vue", import.meta.url), "utf8");
+    const rule = (name) => new RegExp(`\\.${name} \\{([^}]*)\\}`, "u").exec(source)?.[1] ?? "";
+    expect(rule("mb-row__name")).toContain("flex: 0 1 auto");
+    expect(rule("mb-row__detail")).toContain("flex: 0 1000 auto");
+    expect(rule("mb-row__detail")).toContain("rgb(var(--v-theme-on-surface-variant))");
+    expect(rule("mb-row__detail")).toContain("text-overflow: ellipsis");
+  });
+
   it("gives Rooms its New room and Bots its Add bots, with a + … row while each is empty, and People the + a copy gives", async () => {
     const empty = await list([], { bots: [] });
     expect(pluses(empty)).toEqual(["New room", "Add bots"]);
-    expect(outline(empty)).toEqual(["section Rooms", "more + New room", "section People", "more 1 more", "section Bots", "more + Add bots"]);
+    expect(outline(empty)).toEqual(["section Rooms", "more + New room", "section People", "row Ben Rossi", "section Bots", "more + Add bots"]);
     const invite = { component: { props: { homeName: String }, render() { return h("button", { "aria-label": "Invite people", "data-home": this.homeName }); } } };
     const withInvite = await list([KITCHEN], { peopleActions: [invite] });
     expect(pluses(withInvite)).toEqual(["New room", "Invite people", "Add bots"]);
@@ -148,7 +174,7 @@ describe("the chat list", () => {
   it("folds a section by its title, keeping what needs the person and counting the rest", async () => {
     const news = listed("10", "News", { place: { unread: true } });
     const html = await list([GARDEN, QUOTES, news], { folded: { rooms: true, bots: true } });
-    expect(outline(html)).toEqual(["section Rooms", "row News", "section People", "more 1 more", "section Bots"]);
+    expect(outline(html)).toEqual(["section Rooms", "row News", "section People", "row Ben Rossi", "section Bots"]);
     const titles = buttons(html).filter((entry) => entry.classes.includes("mb-section__title"));
     expect(titles.map((entry) => [entry.text, /aria-expanded="([^"]*)"/u.exec(entry.attributes)?.[1]])).toEqual([
       ["Rooms 2", "false"], ["People", "true"], ["Bots 1", "false"]
@@ -202,7 +228,7 @@ describe("the sidebar", () => {
   it("keeps a face for each room, person and bot shown in the compact rail, with no + of its own", async () => {
     const html = await sidebar([KITCHEN, GARDEN], { compact: true });
     const rail = [...html.matchAll(/<button type="button" class="mb-bot[^"]*"[^>]*aria-label="([^"]*)"/gu)].map(([, label]) => label);
-    expect(rail, "Ben, not talked with lately, is under People's N more").toEqual(["Kitchen reno", "Garden", "Chef"]);
+    expect(rail, "Ben shows: People has seven or fewer").toEqual(["Kitchen reno", "Garden", "Ben Rossi", "Chef"]);
     expect(html).not.toContain("New chat or bots");
   });
 });

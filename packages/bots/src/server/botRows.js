@@ -5,7 +5,7 @@ import { templateChipOf } from "./botTemplate.js";
 
 /**
  * A bot as the Team page lists it (D-112: a member of the home, as a person is), from a row of records.bots: its look,
- * whether it's the main bot, who made it, its template's chip and whether it has additions of its own (D-98), and since
+ * whether it's the main bot, who made it and when, its template's chip and whether it has additions of its own (D-98), and since
  * when it's archived (D-108). botList.js adds what depends on who's looking and on the home (isBuilder, madeByName,
  * archivedBy, canArchive).
  * @param {Record<string, any>} row
@@ -21,6 +21,8 @@ export function toBot(row) {
     // Its template's chip and whether it has additions of its own, with their first line (D-98).
     template: templateChipOf(row),
     ...additionsOf(row),
+    // When it was made: the sidebar keeps a new bot in view (shell-navigation.md).
+    createdAt: row.created_at ? new Date(row.created_at).toISOString() : null,
     // Archived for everyone in the home (D-108): since when, null while it isn't.
     archivedAt: row.archived_at ? new Date(row.archived_at).toISOString() : null
   };

@@ -50,7 +50,7 @@ Every new room is **Public** unless you choose **Private** when you make it. New
 
 The rule behind this is simple: **a bot in a chat uses only what everyone who can open that chat can also open.** It doesn't matter who has actually looked. Your private chats with a person or a bot are reached from no other chat at all.
 
-The room's header shows a globe and **Public**, or a lock and **Private**. The message box says who can read what you write: "Everyone in Rossi family can read this · Chef remembers it" in a Public room, naming the bots in it, or "Only you and Ben can read this" in a Private one. What the bots remember, and the notes everyone in the home is told, are in [What bots remember](/help/memory). The first time you write in a Public room, a note above the message box explains what Public means; select **Got it** to dismiss it.
+The room's header shows a globe and **Public**, or a lock and **Private**. The message box says who can read what you write: "Everyone in Rossi family can read this · Chef remembers it" in a Public room, naming the bots in it, or "Only you and Ben can read this" in a Private one. What the bots remember, and the bots' common knowledge, are in [What bots remember](/help/memory). The first time you write in a Public room, a note above the message box explains what Public means; select **Got it** to dismiss it.
 
 An app's chat with the Builder and the home's everyone chat are Public rooms too.
 

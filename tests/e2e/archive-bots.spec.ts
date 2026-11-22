@@ -93,7 +93,7 @@ test("a bot archived from its card leaves Bots for Archived bots on another page
       await section.getByRole("button", { name: `Archive ${bot.name}` }).click();
       await expect(shell.question(page).locator(".mb-confirm__title")).toHaveText(`Archive ${bot.name}?`);
       await expect(shell.question(page).locator(".mb-confirm__text")).toHaveText(
-        "Removes it for everyone. Its chats stay; it stops answering and its routines and watches pause. Its maker or an owner or admin can resume it."
+        "Removes it for everyone. Its chats stay."
       );
       await shot(page, testInfo, `question-${colorScheme}.png`);
       const archived = page.waitForResponse((response) => new URL(response.url()).pathname === `/api${HOME}/bots/${bot.id}/archive`);

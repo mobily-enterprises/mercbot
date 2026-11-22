@@ -37,6 +37,8 @@ const stub = vi.hoisted(() => (vue, name, props = []) => ({
     })
   })
 }));
+// The Files tab's link to the home's Files page, on the open home's surface.
+vi.mock("@jskit-ai/shell-web/client/navigation/usePaths", () => ({ usePaths: () => ({ page: (path) => `/w/casa${path}` }) }));
 vi.mock("../../src/components/files/FileBrowser.vue", async () => stub(await import("vue"), "FileBrowser", ["botId", "chat", "sections", "moveTargets"]));
 vi.mock("../../src/components/mercbot/MercbotChatComputers.vue", async () => stub(await import("vue"), "MercbotChatComputers", ["chat", "me", "homeName", "onlyBotId"]));
 vi.mock("../../src/components/apps/MercbotAppsSection.vue", async () => stub(await import("vue"), "MercbotAppsSection", ["bot"]));
@@ -49,6 +51,8 @@ vi.mock("../../src/components/mercbot/MercbotPageShare.vue", async () => stub(aw
 async function rendered(component, props) {
   const app = createSSRApp({ render: () => h(component, props) });
   app.use(createVuetify({ ...createMaterialVuetifyOptions(theme), ssr: true }));
+  // The router's link, as a plain link to where it goes.
+  app.component("RouterLink", { props: ["to"], setup: (given, { slots }) => () => h("a", { href: given.to }, slots.default?.()) });
   return (await renderToString(app)).replaceAll("&#39;", "'").replaceAll("&quot;", "\"").replace(/ data-v-[0-9a-f]+/gu, "");
 }
 const settled = () => new Promise((resolve) => setTimeout(resolve, 0));
@@ -166,7 +170,7 @@ describe("a bot's card", () => {
     expect(team).toContain("data-bot-id=\"\"7\"\"");
     expect(team).toContain("data-sections=\"[{\"key\":\"bot\",\"label\":\"Chef's files\",\"root\":\"/files/bot\"}]\"");
     expect(team).toContain("data-move-targets=\"[{\"key\":\"shared\",\"label\":\"Home files\",\"root\":\"/files/shared\"}]\"");
-    expect(team).toContain("Home files →");
+    expect(team).toMatch(/<a href="\/w\/casa\/files"[^>]*>Home files →<\/a>/u);
     const inChat = await card({ chat: kitchen });
     expect(inChat).toContain("data-chat=\"\"55\"\"");
     expect(inChat).toContain("data-sections=\"[{\"key\":\"chat\",\"label\":\"This chat\",\"root\":\"/files/chat\"},{\"key\":\"bot\"");
