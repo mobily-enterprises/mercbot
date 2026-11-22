@@ -60,7 +60,7 @@ You can ask a bot "What files do you have?" at any time. It lists the chat's fil
 
 ### See and manage the files yourself
 
-- **A chat's files:** select **Chat details** at the top of the chat and choose **Files**: **This chat**, then the home's folder. In your direct chat with a bot, Chat details shows the bot's card: its **Files** tab starts with **This chat**, then the bot's folder and the home's.
+- **A chat's files:** select **Chat details** at the top of the chat and choose **Files**: **This chat**, then the home's folder. In your direct chat with a bot, Chat details shows the bot's card: its **Files** tab starts with **This chat**, then the bot's folder, and **Home files →** opens the home's. **Move to…** on a file there still offers **Home files**.
 - **A bot's files:** open its card and choose **Files**: the bot's folder and the home's.
 - **The home's files:** choose **Files**, the folder button beside **Search** at the top of the sidebar. You see the home's folder, then **Bots' files**: select a bot to open its card at its **Files**.
 

@@ -149,8 +149,8 @@ test("a bot's memory of a room it joined late starts from its start, not the roo
   const all = await ids(garden);
   await kit.chats.addBot(garden, ada, as);
   const home = { context: kit.systemContext("the bot window's memory").forWorkspace(homeId) };
-  await kit.records.memory.ask([{ botId: ada, minutes: 0 }], {}, home);
-  assert.equal(await kit.memory.runner.runOne(), true, "a refresh was due and ran");
+  await kit.records.roomsMemory.ask([{ botId: ada, minutes: 0 }], {}, home);
+  assert.equal(await kit.roomsMemory.runner.runOne(), true, "a refresh was due and ran");
   const content = written.at(-1);
   assert.equal(all.length, 61);
   assert.match(content, /line-0031 of Garden/u, "the 30th newest, its first line");

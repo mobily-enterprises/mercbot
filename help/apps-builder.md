@@ -18,13 +18,13 @@ Every other bot, and every person, works with the records inside the tables. Onl
 There are two ways:
 
 1. In **Apps**, press **New app**. If your home has no Builder yet, Mercbot asks you to **Choose a Builder**. Pick a bot and press **Make Builder**.
-2. Open a bot's card. On its **Details** tab, in the **Apps** section, press **Make this the Builder**.
+2. Open **Settings** > **Main bot and Builder** and pick a bot under **Builder**.
 
 Choosing the Builder is for the home's owners and admins. Anyone else who presses **New app** before there's a Builder is asked to get an owner or admin to choose one. An archived bot can't be the Builder.
 
 ### Move the role
 
-To give the role to another bot, open that bot's card and press **Make this the Builder**. Every app, table and record stays exactly where it is. Only the bot that makes changes is different. The Builder's own card says that it's the home's Builder, with an **Open Apps** button, and every other bot's card names the bot that builds the home's apps. The Builder can't be archived until another bot takes the role.
+To give the role to another bot, pick it under **Builder** in **Settings** > **Main bot and Builder**. Every app, table and record stays exactly where it is. Only the bot that makes changes is different. The Builder's card shows a **Builder** chip, with **Change in Settings →** for owners and admins. The Builder can't be archived until another bot takes the role.
 
 ## Ask for a new app
 
@@ -133,7 +133,7 @@ The Builder checks every draft before saving it. If something is wrong, such as 
 
 ## If it doesn't work
 
-- **"Choose a Builder first"** when you press **Ask Builder**: your home has no Builder. An owner or admin presses **New app** in Apps, or **Make this the Builder** on a bot's card.
+- **"Choose a Builder first"** when you press **Ask Builder**: your home has no Builder. An owner or admin presses **New app** in Apps, or picks one in **Settings** > **Main bot and Builder**.
 - **"This app hasn't been published yet."**: the app only has a draft. Open it with **Preview the draft** and publish it.
 - **"This app has no draft."**: the draft was already published, or there wasn't one. You're looking at the live app.
 - **"This practice data was just reset or cleared. Reload the preview to start again."**: someone pressed **Reset**, or the practice data was cleared after a week unused. Reload the page.

@@ -456,3 +456,13 @@
 .mb-switch--on .mb-switch__knob {
   transform: translateX(16px);
 }
+
+/* The Files tab's link to the home's files page (D-119). */
+.mb-card__home-files {
+  display: inline-block;
+  margin: 12px 8px 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: rgb(var(--v-theme-primary));
+  text-decoration: none;
+}

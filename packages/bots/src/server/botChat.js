@@ -33,10 +33,10 @@ const FIND_LIMIT = 200;
  * @param {(bot: object, userMessage: object) => Promise<{ status: string, emoji: string | null }>} dependencies.activity
  * @param {{ afterMessage: (chat: object, txOptions: object) => Promise<object> }} dependencies.onboarding the
  *   welcome chat's steps (B), told of a message in a chat with an onboarding step
- * @param {{ noticedLater: (homeId: string, chatId: string) => void }} dependencies.memory the bots' memories (D-113), told
+ * @param {{ noticedLater: (homeId: string, chatId: string) => void }} dependencies.roomsMemory the bots' rooms memory (D-113), told
  *   of a message in a public chat
  */
-export function createBotChat({ records, model, integrations, goals, replies, seats, chats, activity, onboarding, memory }) {
+export function createBotChat({ records, model, integrations, goals, replies, seats, chats, activity, onboarding, roomsMemory }) {
   const { messages: history } = records;
   const chatOf = async (chatId, options) => (await chats.get(chatId, options)).chat;
 
@@ -167,7 +167,7 @@ export function createBotChat({ records, model, integrations, goals, replies, se
     if (joining) await seats.tell(chat.id, { type: "chat", change: "members" }, options);
     await seats.tell(chat.id, { type: "messages" }, options);
     // What's said in a public chat is for its bots' memories (D-113).
-    if (chat.kind === "public") memory.noticedLater(String(chat.workspace_id), chat.id);
+    if (chat.kind === "public") roomsMemory.noticedLater(String(chat.workspace_id), chat.id);
     return { messages: [...changed, sent], chat: await chatOf(chat.id, options) };
   }
 

@@ -21,24 +21,20 @@ const question = computed(() => archiveBotQuestion(props.bot));
   <section class="mb-bot-archive" aria-label="Archive">
     <p class="mb-bot-archive__label">Archive</p>
     <template v-if="bot.archivedAt">
-      <p class="mb-bot-archive__text">
-        {{ archivedBotLine(bot) }}. It's under Archived bots in Bots, and its chats are kept. Its routines and watches stay paused
-        when it's resumed: switch them back on under Routines.
-      </p>
+      <p class="mb-bot-archive__text">{{ archivedBotLine(bot) }}. Its routines and watches stay paused when it's resumed.</p>
       <button v-if="bot.canArchive" type="button" class="mb-set-pill" @click="emit('unarchive')">
         <v-icon icon="$unarchive" size="16" /> Resume {{ bot.name }}
       </button>
-      <p v-else class="mb-bot-archive__text">The person who made {{ bot.name }} and the home's owners and admins can resume it.</p>
+      <p v-else class="mb-bot-archive__text mb-bot-archive__refusal">Only its maker and the home's owners and admins can resume it.</p>
     </template>
     <template v-else>
-      <p class="mb-bot-archive__text">
-        Archiving {{ bot.name }} takes it out of the home's bots for everyone in this home. Its chats are kept, and it stays in them
-        without answering.
-      </p>
       <p v-if="refusal" class="mb-bot-archive__text mb-bot-archive__refusal">{{ refusal }}</p>
-      <button v-else type="button" class="mb-set-pill" @click="asking = true">
-        <v-icon icon="$archive" size="16" /> Archive {{ bot.name }}
-      </button>
+      <template v-else>
+        <p class="mb-bot-archive__text">Removes {{ bot.name }} for everyone. Its chats stay.</p>
+        <button type="button" class="mb-set-pill" @click="asking = true">
+          <v-icon icon="$archive" size="16" /> Archive {{ bot.name }}
+        </button>
+      </template>
     </template>
     <MercbotConfirmDialog
       v-model="asking"

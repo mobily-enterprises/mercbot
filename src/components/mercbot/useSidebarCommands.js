@@ -91,10 +91,9 @@ export function useSidebarCommands({ sections, editingSectionId, store, team, dr
     toggleMore: ({ section }) => {
       more.value = { ...more.value, [section]: !more.value[section] };
     },
-    // The home's bots (a bot's card): a bot renamed, made the main bot (the old main changes too, so the whole
-    // list is read again), archived or unarchived for everyone (D-108). Archiving replaced deleting (D11).
+    // The home's bots (a bot's card): a bot renamed, archived or unarchived for everyone (D-108). Archiving replaced
+    // deleting (D11). The main bot is chosen in Settings (D-119).
     renameBot: ({ botId, name }) => botsApi.update(botId, { name }).then(({ bot }) => team.updateBot(bot)),
-    makeMain: ({ botId }) => botsApi.update(botId, { main: true }).then(() => team.loadBots()),
     archiveBot: ({ botId }) => botsApi.archiveBot(botId).then(({ bot }) => team.updateBot(bot)),
     unarchiveBot: ({ botId }) => botsApi.unarchiveBot(botId).then(({ bot }) => team.updateBot(bot)),
     // The account menu's support items.
@@ -104,7 +103,8 @@ export function useSidebarCommands({ sections, editingSectionId, store, team, dr
     openAbout: () => {
       open.about.value = true;
     },
-    openSettings: () => open.settings("general"),
+    // Settings, at a section when one is named (a bot card's link to the home's common knowledge), else General.
+    openSettings: ({ section } = {}) => open.settings(section || "general"),
     openUsage: () => open.settings("usage")
   };
 

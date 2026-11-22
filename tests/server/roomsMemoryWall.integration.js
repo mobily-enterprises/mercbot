@@ -6,9 +6,9 @@ import { createHandOverNotes } from "../../packages/bots/src/server/handOverNote
 import { seedChat, seedMessage } from "../support/chatFixtures.mjs";
 import { FREE_RECORDER, botsOf, homeOfPeople, startChatTurns } from "../support/botDoubles.mjs";
 
-// The glass wall's canary for what the bots remember (D-113, D10, D12; B2's test 1). B1's canaries
+// The glass wall's canary for the bots' rooms memory and the home's common knowledge (D-113, D10, D12; B2's test 1). B1's canaries
 // (glassWall.integration.js, glassWallPrompts.integration.js) prove the records and the turns' model inputs; this one
-// runs every path the memory adds: a digest's refresh, a turn's "since then" and the home's notes, recall (the bot's
+// runs every path the memory adds: a digest's refresh, a turn's "since then" and the home's common knowledge, recall (the bot's
 // chats, one chat, and everywhere) and read_chat on every chat of the home. Each chat carries a unique string in each
 // place a chat keeps something; everything the stand-in models receive (the digest writer's input, each turn's history
 // and Current state note) and every tool result may hold only what D12 grants the chat it reads from, and the reading
@@ -98,7 +98,7 @@ async function memoryHome(context, { together = false } = {}) {
       // Asked once: the card's answer below runs no turn, but a later one must not ask again.
       const tell = turn.tell;
       turn.tell = null;
-      if (tell) results.tell = await tools.tellEveryone.execute({ text: tell });
+      if (tell) results.tell = await tools.shareCommonKnowledge.execute({ text: tell });
       if (turn.tools) {
         results.recallMine = await tools.recall.execute({ words: "CANARY" });
         results.recallHere = await tools.recall.execute({ words: "CANARY", chat: turn.chat.id });
@@ -120,8 +120,8 @@ async function memoryHome(context, { together = false } = {}) {
   };
   const refresh = async () => {
     const inHome = { context: kit.systemContext("the memory canary's refresh").forWorkspace(home.homeId) };
-    await kit.records.memory.ask([{ botId: home.chef, minutes: 0 }], {}, inHome);
-    assert.equal(await kit.memory.runner.runOne(), true, "a refresh was due and ran");
+    await kit.records.roomsMemory.ask([{ botId: home.chef, minutes: 0 }], {}, inHome);
+    assert.equal(await kit.roomsMemory.runner.runOne(), true, "a refresh was due and ran");
   };
   return { kit, inputs, ask, refresh, ...home };
 }
@@ -155,10 +155,10 @@ test("every path the memory adds holds only what D12 grants the chat it reads fr
   assert.deepEqual(messagesOf(canaries(digest.text)), ["CANARY-family-message"], "its public chats' lines, never a private one's, nor Anna's chat with it");
   assert.deepEqual(canaries(digest.text).filter((canary) => !canary.startsWith("CANARY-family-")), [], "nothing of a private chat");
 
-  // Anna asks Chef, in her own private chat, to tell everyone something: a card, and once she says yes, a note.
+  // Anna asks Chef, in her own private chat, to tell every bot something: a card, and once she says yes, common knowledge.
   await ask(chats.diary, { tools: false, tell: NOTE });
   const card = await kit.knex("messages").where({ conversation_id: chats.diary.id, kind: "choice" }).orderBy("id", "desc").first();
-  assert.equal(card.body.action.id, "tell_everyone", "the card asks first");
+  assert.equal(card.body.action.id, "share_common_knowledge", "the card asks first");
   await kit.turns.chat.answerChoice(chats.diary.id, String(card.id), ["Go ahead"], kit.as(anna, homeId));
   await kit.drain();
 
@@ -170,8 +170,8 @@ test("every path the memory adds holds only what D12 grants the chat it reads fr
     const allowed = granted(chats, chat);
     const found = canaries(reading.text);
     assert.deepEqual(found.filter((canary) => !allowed.has(canary)), [], `everything a turn in ${chat.name} was handed is D12's to read there`);
-    // Live: its own lines are there, and everyone's note.
-    assert.ok(found.includes(`CANARY-${chat.name}-message`) && found.includes(NOTE), `a turn in ${chat.name} reads its own chat and the home's note`);
+    // Live: its own lines are there, and the home's common knowledge.
+    assert.ok(found.includes(`CANARY-${chat.name}-message`) && found.includes(NOTE), `a turn in ${chat.name} reads its own chat and the home's common knowledge`);
     // Recall everywhere and read_chat reach exactly the chats D12 grants: every one of them, and no other.
     const reached = messagesOf(canaries(JSON.stringify([reading.results.recallEverywhere, ...Object.values(chats).map((other) => reading.results[`read ${other.name}`])])));
     assert.deepEqual(reached, readable(chats, chat).map((other) => `CANARY-${other.name}-message`).sort(), `recall and read_chat from ${chat.name}`);

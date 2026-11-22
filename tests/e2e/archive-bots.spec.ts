@@ -87,14 +87,13 @@ test("a bot archived from its card leaves Bots for Archived bots on another page
       // Its card's Archive section has Archive; the question first.
       await card(page, bot.name).getByRole("tab", { name: "Details" }).click();
       const section = card(page, bot.name).getByRole("region", { name: "Archive" });
-      await expect(section).toContainText(`Archiving ${bot.name} takes it out of the home's bots for everyone in this home.`);
+      await expect(section).toContainText(`Removes ${bot.name} for everyone. Its chats stay.`);
       await section.scrollIntoViewIfNeeded();
       await shot(page, testInfo, `archive-section-${colorScheme}.png`);
       await section.getByRole("button", { name: `Archive ${bot.name}` }).click();
       await expect(shell.question(page).locator(".mb-confirm__title")).toHaveText(`Archive ${bot.name}?`);
       await expect(shell.question(page).locator(".mb-confirm__text")).toHaveText(
-        "It leaves the home's bots for everyone in this home. It stays in its chats but no longer answers there, and its routines and " +
-          "watches pause. Nothing is deleted. Whoever made it, or an owner or admin, can resume it."
+        "Removes it for everyone. Its chats stay; it stops answering and its routines and watches pause. Its maker or an owner or admin can resume it."
       );
       await shot(page, testInfo, `question-${colorScheme}.png`);
       const archived = page.waitForResponse((response) => new URL(response.url()).pathname === `/api${HOME}/bots/${bot.id}/archive`);
@@ -106,8 +105,7 @@ test("a bot archived from its card leaves Bots for Archived bots on another page
       await openArchived(page);
       await expect(archivedRow(page)).toHaveAttribute("title", new RegExp(`^${bot.name}\\nBot · left `, "u"));
       await expect(section).toContainText("Archived by you on");
-      await expect(section).toContainText("It's under Archived bots in Bots, and its chats are kept.");
-      await expect(section).toContainText("Its routines and watches stay paused when it's resumed");
+      await expect(section).toContainText("Its routines and watches stay paused when it's resumed.");
       await expect(section.getByRole("button", { name: `Resume ${bot.name}` })).toBeVisible();
       await shot(page, testInfo, `archived-${colorScheme}.png`);
 

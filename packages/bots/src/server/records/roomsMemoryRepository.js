@@ -13,17 +13,17 @@ import { peopleNamed } from "../mentions.js";
  * @typedef {{ id: string, chatId: string, speaker: string, text: string, at: string }} Line
  */
 
-/** bot_memories filters beyond its `search: true` fields: some bots' digests. */
-export const MEMORY_SEARCH = Object.freeze({
+/** rooms_memories filters beyond its `search: true` fields: some bots' digests. */
+export const ROOMS_MEMORY_SEARCH = Object.freeze({
   botIds: Object.freeze({ type: "array", actualField: "botId", filterOperator: "in", items: { type: "id" } })
 });
 
 /**
- * bot_memory_queue filters beyond its `search: true` fields: some bots' refreshes, and those due, whose time has come
+ * rooms_memory_queue filters beyond its `search: true` fields: some bots' refreshes, and those due, whose time has come
  * by the database's clock and no server holds the lease of (or its server's lapsed, D-15).
  */
-export const MEMORY_QUEUE_SEARCH = Object.freeze({
-  ...MEMORY_SEARCH,
+export const ROOMS_MEMORY_QUEUE_SEARCH = Object.freeze({
+  ...ROOMS_MEMORY_SEARCH,
   due: Object.freeze({
     type: "boolean",
     applyFilter(query, _due, { column }) {
@@ -41,7 +41,7 @@ const NOT_YET = "9999-12-31T00:00:00.000Z";
 const ONE_A_BOT = Object.freeze({ keys: ["botId", "workspaceId"], action: "ignore" });
 
 /**
- * What the bots remember (D-113): each bot's digest of the home's public chats and its refreshes waiting, and the reads
+ * The bots' rooms memory (D-113): each bot's digest of the home's public chats and its refreshes waiting, and the reads
  * the memory makes of the chats. Every read of what was said goes through the caller's options: the digest's input
  * through the memory's reader (records.readers.forHome: public chats only), a turn's "since then", recall and
  * read_chat through the model's reader for the bot in its chat (readable_from, D12), so the row policies decide what
@@ -49,8 +49,8 @@ const ONE_A_BOT = Object.freeze({ keys: ["botId", "workspaceId"], action: "ignor
  * system context and writes in each digest's own.
  * @param {Record<string, import("@jskit-ai/resource-runtime/server/types").ResourceHandle>} resources
  */
-export function createMemoryRepository(resources) {
-  const { botMemories, botMemoryQueue: queue, messages, conversations, chatBots } = resources;
+export function createRoomsMemoryRepository(resources) {
+  const { roomsMemories, roomsMemoryQueue: queue, messages, conversations, chatBots } = resources;
   const minutesFromNow = (handle, minutes) => handle.raw("now() + make_interval(mins => ?)", [Number(minutes)]);
   const ids = (list) => [...new Set(list.map(String))];
 
@@ -70,7 +70,7 @@ export function createMemoryRepository(resources) {
 
   /** A bot's digest, or null. @param {string} botId @param {CallOptions} options */
   async function digestOf(botId, options) {
-    const [found] = await botMemories.queryAll({ filters: { botId: String(botId) }, fields: [...DIGEST_FIELDS] }, passedOn(options));
+    const [found] = await roomsMemories.queryAll({ filters: { botId: String(botId) }, fields: [...DIGEST_FIELDS] }, passedOn(options));
     return asDigest(found ?? null);
   }
 
@@ -78,7 +78,7 @@ export function createMemoryRepository(resources) {
   async function digestsOf(botIds, options) {
     const wanted = ids(botIds);
     if (!wanted.length) return new Map();
-    const found = await botMemories.queryAll({ filters: { botIds: wanted }, fields: [...DIGEST_FIELDS] }, passedOn(options));
+    const found = await roomsMemories.queryAll({ filters: { botIds: wanted }, fields: [...DIGEST_FIELDS] }, passedOn(options));
     return new Map(found.map((record) => [String(record.botId), asDigest(record)]));
   }
 
@@ -94,16 +94,16 @@ export function createMemoryRepository(resources) {
     const written = { text, covers, upTo, tokens };
     if (follows == null) {
       // made_at's default is the database's now(): an insert takes no SQL value.
-      const made = await botMemories.createMany([{ botId: String(botId), ...written, version: 1, follows: null }], {
+      const made = await roomsMemories.createMany([{ botId: String(botId), ...written, version: 1, follows: null }], {
         ...passedOn(options),
         onConflict: ONE_A_BOT,
         returning: "count"
       });
       return made > 0;
     }
-    const changed = await botMemories.patchWhere(
+    const changed = await roomsMemories.patchWhere(
       { botId: String(botId), version: Number(follows) },
-      { ...written, madeAt: botMemories.raw("now()"), version: Number(follows) + 1, follows: Number(follows) },
+      { ...written, madeAt: roomsMemories.raw("now()"), version: Number(follows) + 1, follows: Number(follows) },
       { ...passedOn(options), returning: "count" }
     );
     return changed > 0;
@@ -120,14 +120,14 @@ export function createMemoryRepository(resources) {
     const wanted = ids(botIds);
     if (!wanted.length) return;
     const empty = { text: "", covers: {}, upTo: null, tokens: 0 };
-    await botMemories.createMany(wanted.map((botId) => ({ botId, ...empty, version: 0, follows: null })), {
+    await roomsMemories.createMany(wanted.map((botId) => ({ botId, ...empty, version: 0, follows: null })), {
       ...passedOn(options),
       onConflict: ONE_A_BOT,
       returning: "none"
     });
-    await botMemories.patchWhere(
+    await roomsMemories.patchWhere(
       { botIds: wanted },
-      { ...empty, version: botMemories.raw("?? + 1", [botMemories.column("version")]), follows: null, madeAt: botMemories.raw("now()") },
+      { ...empty, version: roomsMemories.raw("?? + 1", [roomsMemories.column("version")]), follows: null, madeAt: roomsMemories.raw("now()") },
       { ...passedOn(options), returning: "none" }
     );
   }

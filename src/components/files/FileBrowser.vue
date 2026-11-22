@@ -1,3 +1,18 @@
+<script>
+/**
+ * Every folder Move to… offers: each section shown and each move target (`{ key, label, root }`), with its folders as
+ * the server lists them by section key (`tree`), as `{ title, value }`.
+ * @param {Array<{ key: string, label: string, root: string }>} sections
+ * @param {Record<string, string[]> | null} tree
+ */
+export function moveDestinations(sections, tree) {
+  return sections.flatMap((section) => [
+    { title: section.label, value: section.root },
+    ...(tree?.[section.key] || []).map((folder) => ({ title: `${section.label} / ${folder.slice(section.root.length + 1)}`, value: folder }))
+  ]);
+}
+</script>
+
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from "vue";
 import { useRoute } from "vue-router";
@@ -8,13 +23,15 @@ import { fileKind, fileUrl, filesApi, formatSize, storageApi, uploadFile } from 
 
 // A file browser over a chat's folder, a bot's own folder or the home's (D-47, D-112): each folder with its
 // sub-folders, and open, download, upload, new folder, move to another folder, rename and delete.
-// `sections` are { key, label, root }, where key is the listing's (chat, bot, shared).
+// `sections` are { key, label, root }, where key is the listing's (chat, bot, shared). `moveTargets`, the same shape,
+// are folders Move to… offers that aren't listed here (a bot's card offers the home's, D-119).
 const props = defineProps({
   botId: { type: String, default: null },
   // The chat whose folder `chat` sections show (each chat has one, /files/chat); null for no chat (a bot's own folder
   // and the home's), and left out for the open chat.
   chat: { type: String, default: undefined },
   sections: { type: Array, required: true },
+  moveTargets: { type: Array, default: () => [] },
   refreshKey: { type: [String, Number], default: 0 }
 });
 
@@ -97,11 +114,8 @@ function crumbs(section) {
   return [{ label: section.label, path: section.root }, ...parts.map((part, index) => ({ label: part, path: `${section.root}/${parts.slice(0, index + 1).join("/")}` }))];
 }
 
-// Every folder a file can go to, across the sections shown.
-const destinations = computed(() => shown.value.flatMap((section) => [
-  { title: section.label, value: section.root },
-  ...(tree.value?.[section.key] || []).map((folder) => ({ title: `${section.label} / ${folder.slice(section.root.length + 1)}`, value: folder }))
-]));
+// Every folder a file can go to, across the sections shown and the move targets.
+const destinations = computed(() => moveDestinations([...shown.value, ...props.moveTargets], tree.value));
 
 async function act(work, failure) {
   busy.value = true;

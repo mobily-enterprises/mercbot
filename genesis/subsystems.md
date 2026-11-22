@@ -66,7 +66,7 @@ route and every bot turn reads through (the row policies and `readable_from`). I
 files, commands, watches and app jobs of other subsystems key to. It owns who speaks and the turns (DeepSeek replies,
 run on the agent loop of the installed JSKIT agent packages, whose tables it owns through them), the bots' tools,
 the sidebar's People and Bots and each member's card, Library and archive, bot templates and teams (D-98, D-105), what a bot knows (D-107), what
-each bot remembers of the home's public chats and the home's notes (D-113), routines run as their maker, and the scripted welcome chat. Its records (`mercbot.bots.records`) are how the other
+each bot remembers of the home's public chats (its rooms memory) and the home's common knowledge (D-113, D-119), routines run as their maker, and the scripted welcome chat. Its records (`mercbot.bots.records`) are how the other
 subsystems read chats, seats and bots.
 
 ### Source
@@ -100,9 +100,9 @@ subsystems read chats, seats and bots.
 - Table `database` `default` `approval_rules`
 - Table `database` `default` `bot_knowledge`
 - Table `database` `default` `bot_knowledge_parts`
-- Table `database` `default` `bot_memories`
-- Table `database` `default` `bot_memory_queue`
-- Table `database` `default` `home_notes`
+- Table `database` `default` `rooms_memories`
+- Table `database` `default` `rooms_memory_queue`
+- Table `database` `default` `common_knowledge`
 - Table `database` `default` `home_templates`
 - Table `database` `default` `home_template_changes`
 - Table `database` `default` `connect_follow_ups`

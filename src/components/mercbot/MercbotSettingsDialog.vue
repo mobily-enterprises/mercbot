@@ -3,9 +3,11 @@ import { useDisplay } from "vuetify";
 import { computed, ref, watch } from "vue";
 import extensions from "./extensions.js";
 import MercbotSettingsAbout from "./MercbotSettingsAbout.vue";
+import MercbotSettingsCommonKnowledge from "./MercbotSettingsCommonKnowledge.vue";
 import MercbotSettingsComputer from "./MercbotSettingsComputer.vue";
 import MercbotSettingsFiles from "./MercbotSettingsFiles.vue";
 import MercbotSettingsLink from "./MercbotSettingsLink.vue";
+import MercbotSettingsMainBot from "./MercbotSettingsMainBot.vue";
 import MercbotSettingsTemplates from "./MercbotSettingsTemplates.vue";
 import MercbotSettingsPermissions from "./MercbotSettingsPermissions.vue";
 import MercbotSettingsGeneral from "./MercbotSettingsGeneral.vue";
@@ -120,6 +122,8 @@ const current = computed(() => sections.value.find((entry) => entry.value === se
           <MercbotSettingsPermissions v-else-if="section === 'permissions'" @failure="emit('failure', $event)" />
           <MercbotSettingsFiles v-else-if="section === 'files'" @failure="emit('failure', $event)" @notify="emit('notify', $event)" @connect="emit('connect', $event)" />
           <MercbotSettingsTemplates v-else-if="section === 'templates'" @failure="emit('failure', $event)" @notify="emit('notify', $event)" />
+          <MercbotSettingsMainBot v-else-if="section === 'main-bot'" :manages="manages" @failure="emit('failure', $event)" @notify="emit('notify', $event)" />
+          <MercbotSettingsCommonKnowledge v-else-if="section === 'common-knowledge'" @failure="emit('failure', $event)" @notify="emit('notify', $event)" />
           <MercbotSettingsVault
             v-else-if="section === 'vault'"
             v-model:create="vaultCreate"

@@ -87,8 +87,8 @@ export function createBotLoops({ records, systemContext, notices, files, apps, c
       bots.connectFollowUps.startSweeping(),
       // What the bots know (D-107): each piece added is read and split once across servers.
       bots.knowledge.start(),
-      // What the bots remember (D-113): each due refresh of a bot's digest made once across servers.
-      bots.memory.start()
+      // The bots' rooms memory (D-113): each due refresh of a bot's digest made once across servers.
+      bots.roomsMemory.start()
     ];
     // A command that went on in the background (D-47) wakes its bot in the same chat when it ends, for the person
     // whose turn ran it; runs whose server stopped are found by any server.

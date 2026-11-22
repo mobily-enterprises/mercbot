@@ -217,6 +217,15 @@ up to five skills (book icon, name, grey description; one- or two-letter queries
 longer ones the start of the name). Arrow keys, Enter or Tab choose; the chosen skill becomes a
 `/Name` token in the bot's colour that is deleted as one unit. The Settings dialog has a Files section (D-26).
 
+Settings' sections, in order (`settingsSections.js`): General, Computer, Permissions, Files, Website (when a copy has
+it), Templates, Main bot and Builder, Bots' common knowledge, Vault, Spending, Mercbot account, About. The home's main
+bot and Builder and its common knowledge are the home's, not a bot's (D-119), so they live in Settings, and each bot's
+card links there: its Details shows a "Main bot" or "Builder" chip when it is one and, for the home's owners and
+admins, "Change in Settings →" (or "Main bot and Builder in Settings →"); under its Rooms memory, "<Bot> also knows
+the home's common knowledge (N) →". Each opens Settings at its section (`open-settings`, the `openSettings` command
+with `section`, `useSidebarCommands.js`). A bot's Files tab lists this chat's folder and the bot's own; the home's
+folder is a "Home files →" link to the Files page, and Move to… still offers it.
+
 ## Proved by
 
 - `tests/e2e/startup.spec.ts`

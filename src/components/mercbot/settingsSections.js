@@ -11,6 +11,10 @@ export const SETTINGS_SECTIONS = [
   ...WEBSITE_PARTS.settingsSections,
   // The home's own templates (D-98): everyone sees them; owners and admins edit and delete them.
   { value: "templates", title: "Templates", icon: "$article" },
+  // The home's main bot and Builder (D-119): owners and admins choose them; each bot's card links here.
+  { value: "main-bot", title: "Main bot and Builder", icon: "$star" },
+  // The home's common knowledge (D-113, D-119): every bot reads it; each bot's card links here.
+  { value: "common-knowledge", title: "Bots' common knowledge", icon: "$menuBook" },
   { value: "vault", title: "Vault", icon: "$encrypted" },
   { value: "usage", title: "Spending", icon: "$speed" },
   { value: "link", title: "Mercbot account", icon: "$link" },

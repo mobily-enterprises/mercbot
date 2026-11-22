@@ -5,7 +5,8 @@ import { createOnboarding } from "./onboarding.js";
 import { createChatTurns } from "./chatTurns.js";
 import { createChatRoutines } from "./chatRoutines.js";
 import { createBotKnowledge } from "./botKnowledge.js";
-import { createBotMemory } from "./botMemory.js";
+import { createCommonKnowledge } from "./commonKnowledge.js";
+import { createRoomsMemory } from "./roomsMemory.js";
 import { createBotList } from "./botList.js";
 import { createBotTemplates } from "./botTemplates.js";
 import { createBotSettings } from "./botSettings.js";
@@ -55,7 +56,7 @@ import { createBotTeaching } from "./botTeaching.js";
  * @param {(system: string, messages: Array<{ role: string, content: string }>) => Promise<string>} [dependencies.writeNote]
  *   the model's answer to the one call writing a hand-over note, for Continue with others (D-114)
  * @param {(system: string, content: string) => Promise<string>} [dependencies.writeMemory] replaces a digest's model call (D-113)
- * @param {Partial<typeof import("./botMemory.js").MEMORY_LIMITS>} [dependencies.memoryLimits] limits over the memory's own
+ * @param {Partial<typeof import("./roomsMemory.js").ROOMS_MEMORY_LIMITS>} [dependencies.memoryLimits] limits over the rooms memory's own
  * @param {(input: { previous: string, text: string }) => Promise<string>} [dependencies.summarize] replaces the summary's model call
  * @param {import("./types.js").SummaryLimits} [dependencies.compactionLimits] replaces the summary limits
  * @param {Partial<typeof import("./botRequests.js").REQUEST_LIMITS>} [dependencies.requestLimits] limits over the requests' own
@@ -93,9 +94,9 @@ export function createBotsService({
 }) {
   // One queue of work left running after a request answers (summaries, teaching, indexing): drain waits for all of it.
   const background = createBackgroundWork();
-  // What each bot remembers of the home's public chats, and the home's notes (D-113): in every turn's state note, and
-  // refreshed in the background on every server.
-  const memory = createBotMemory({
+  // Each bot's rooms memory of the home's public chats (D-113): in every turn's state note, and refreshed in the
+  // background on every server.
+  const roomsMemory = createRoomsMemory({
     records,
     systemContext,
     workspaces,
@@ -114,8 +115,10 @@ export function createBotsService({
     computer,
     systemContext,
     pauseWork: (...args) => turns.pauseWork(...args),
-    forget: (botIds, options) => memory.forget({ botIds }, options)
+    forget: (botIds, options) => roomsMemory.forget({ botIds }, options)
   });
+  // The home's common knowledge (D-113): every bot reads it in every turn; Settings lists it.
+  const commonKnowledge = createCommonKnowledge({ records });
   // The welcome chat's steps and a new bot's greeting (B): the turns tell it of messages and answers in such a chat.
   const onboarding = createOnboarding({ records, chats, model, meter, notices, workspaces });
   // What each bot knows (D-107): its Details section, and what its turns keep in mind and search.
@@ -135,7 +138,8 @@ export function createBotsService({
     files,
     apps,
     knowledge,
-    memory,
+    roomsMemory,
+    commonKnowledge,
     chats,
     background,
     onboarding,
@@ -233,15 +237,18 @@ export function createBotsService({
       runDue: knowledge.indexer.runDue,
       start: knowledge.indexer.start
     }),
-    // What a bot remembers, on its card, and the home's notes, on Team (D-113); the refreshes' loop (botLoops.js); and
-    // forgetting, for a removal another feature makes (a chat's or a bot's), which names the bots or the chats.
-    memory: Object.freeze({
-      memoryOf: memory.memoryOf,
-      listNotes: memory.listNotes,
-      removeNote: memory.removeNote,
-      forget: memory.forget,
-      runDue: memory.runner.runDue,
-      start: memory.runner.start
+    // A bot's rooms memory, on its card (D-113); the refreshes' loop (botLoops.js); and forgetting, for a removal
+    // another feature makes (a chat's or a bot's), which names the bots or the chats.
+    roomsMemory: Object.freeze({
+      roomsMemoryOf: roomsMemory.roomsMemoryOf,
+      forget: roomsMemory.forget,
+      runDue: roomsMemory.runner.runDue,
+      start: roomsMemory.runner.start
+    }),
+    // The home's common knowledge, in Settings (D-113).
+    commonKnowledge: Object.freeze({
+      list: commonKnowledge.list,
+      remove: commonKnowledge.remove
     }),
     listBots: botList.listBots,
     listedBot: botList.listedBot,

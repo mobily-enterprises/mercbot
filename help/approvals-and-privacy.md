@@ -157,7 +157,7 @@ Approvals are the safety net behind this. Text on a page can't press Go ahead fo
 | Website sign-ins on bots' computers | **Settings**, **Computer**, **Reset** | The computers in the chats where you're the only person start afresh; open pages close and saved sign-ins and website data are cleared |
 | A routine | The chat's details | Pause it, or delete it |
 | A chat | The chat's details, **Delete chat** (its maker, owners and admins) | The chat, its files and its bots' computers are gone for good, and its bots forget a Public chat at once |
-| A note for everyone | A bot's card, **Details**, **Notes for everyone**, its bin (the person who asked for it, owners and admins) | Every bot stops reading it from its next reply |
+| Something in the bots' common knowledge | **Settings**, **Bots' common knowledge**, its bin (the person who asked for it, owners and admins) | Every bot stops reading it from its next reply |
 | A bot | Its card, **Archive** (its maker, owners and admins) | It leaves the home: it stays in its chats without answering, and nothing it has runs |
 
 Records in Apps are never deleted: they're marked obsolete and can come back.

@@ -39,7 +39,7 @@ const ARCHIVED_LINE = Object.freeze({
  *   dependencies.pauseWork the routines and watches of some bots in chats paused, with a line in each chat naming them
  *   (workPause.js)
  * @param {(botIds: string[], options: object) => Promise<void>} dependencies.forget a deleted public chat's bots forget
- *   it (botMemory.js forget, D-113, O23): their digests are made again from the chats left
+ *   it (roomsMemory.js forget, D-113, O23): their digests are made again from the chats left
  */
 export function createChatMembers({ records, notices, computer, systemContext, pauseWork, forget }) {
   const { chats, messages } = records;

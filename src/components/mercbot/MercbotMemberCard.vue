@@ -1,5 +1,21 @@
+<script>
+// A bot card's Files tab (D-119): this chat's folder when the card is opened from one, then the bot's own. The home's
+// files are on the Files page (a link under them), and Move to… still offers the home's folder (`HOME_FILES`), so
+// moving a file there stays one step.
+export const HOME_FILES = Object.freeze([Object.freeze({ key: "shared", label: "Home files", root: "/files/shared" })]);
+
+/** The folders a bot card's Files tab lists, for the bot named `botName`, with this chat's when opened from one. */
+export function botFileSections(botName, inChat) {
+  return [
+    ...(inChat ? [{ key: "chat", label: "This chat", root: "/files/chat" }] : []),
+    { key: "bot", label: `${botName}'s files`, root: "/files/bot" }
+  ];
+}
+</script>
+
 <script setup>
 import { computed, nextTick, ref, watch } from "vue";
+import { usePaths } from "@jskit-ai/shell-web/client/navigation/usePaths";
 import MercbotAppsSection from "../apps/MercbotAppsSection.vue";
 import MercbotViewViewer from "@/components/apps/MercbotViewViewer.vue";
 import FileBrowser from "../files/FileBrowser.vue";
@@ -13,8 +29,8 @@ import MercbotConfirmDialog from "./MercbotConfirmDialog.vue";
 import MercbotContextMenu from "./MercbotContextMenu.vue";
 import MercbotFileViewer from "./MercbotFileViewer.vue";
 import MercbotKnowledgeSection from "./MercbotKnowledgeSection.vue";
-import MercbotMemorySection from "./MercbotMemorySection.vue";
 import MercbotPageShare from "./MercbotPageShare.vue";
+import MercbotRoomsMemorySection from "./MercbotRoomsMemorySection.vue";
 import MercbotTemplateTag from "./MercbotTemplateTag.vue";
 import { leftLine } from "./archiveBot.js";
 import { chatTitle, isDirect, kindIcon, kindLabel } from "./chatView.js";
@@ -27,7 +43,7 @@ import { canSwitchRoutine, useBotRoutines } from "./useBotRoutines.js";
 
 // A member's card (D3, plan 4.2), in the shell's Details: a person or a bot of the home, alike. A person: their face,
 // name and role, [Message], and the chats you share. A bot: the same, with its editable name, its template and who made
-// it, then its sections as tabs: Details (its Instructions, Knowledge, Memory, apps, Routines and Archive), Files (its own folder
+// it, then its sections as tabs: Details (its Instructions, Knowledge, Rooms memory, apps, Routines and Archive), Files (its own folder
 // and the home's, and this chat's when the card is opened from one), Library (what it made in the chats you can open)
 // and Computer (its computer in this chat, D14 and D16; opened beside another chat, where to find one).
 const props = defineProps({
@@ -50,8 +66,8 @@ const props = defineProps({
   computerNews: { type: Object, default: () => ({}) }
 });
 const emit = defineEmits([
-  "message", "open-chat", "open-page", "changed", "rename", "make-main", "archive-bot", "unarchive-bot", "edit-routine", "messages",
-  "open-computer", "failure", "notify"
+  "message", "open-chat", "open-page", "changed", "rename", "archive-bot", "unarchive-bot", "edit-routine", "messages",
+  "open-computer", "failure", "notify", "open-settings"
 ]);
 
 const TABS = [
@@ -171,12 +187,9 @@ watch(openItem, (item) => {
   emit("open-page", { path: item.path, botId: String(bot.value.id), chatId: itemChatId(item) });
 });
 
-// Its Files: this chat's folder when the card is opened from one, then its own and the home's.
-const fileSections = computed(() => [
-  ...(props.chat ? [{ key: "chat", label: "This chat", root: "/files/chat" }] : []),
-  { key: "bot", label: `${bot.value?.name}'s files`, root: "/files/bot" },
-  { key: "shared", label: props.homeName || "Whole home", root: "/files/shared" }
-]);
+// Its Files (botFileSections, above).
+const fileSections = computed(() => botFileSections(bot.value?.name, Boolean(props.chat)));
+const paths = usePaths();
 
 // Its routines: in this chat, or, beside another chat, in every chat the person can open, each naming its chat.
 const { routines, routinesLoaded, toggleRoutine, highlightedRoutineId, routineMenu, pendingRoutineDelete, openRoutineMenu, deleteRoutine } =
@@ -358,7 +371,7 @@ async function openInstructions() {
               <button type="button" class="mb-set-pill" @click="changeOpen = true">Choose a template</button>
             </div>
 
-            <p class="mb-instructions__box-label">Additions · only this bot</p>
+            <p class="mb-instructions__box-label">Template Additions · only this bot</p>
             <div v-if="editingAdditions" class="mb-instructions">
               <textarea
                 ref="additionsBox"
@@ -399,8 +412,8 @@ async function openInstructions() {
           />
           <!-- What it knows (D-107), next to what it's told: text and files, always in mind or searched first. -->
           <MercbotKnowledgeSection :bot="bot" :tab="tab" @failure="emit('failure', $event)" />
-          <!-- What it remembers of the home's public chats, and the home's notes, which every bot reads (D-113). -->
-          <MercbotMemorySection :bot="bot" :tab="tab" @failure="emit('failure', $event)" />
+          <!-- Its rooms memory of the home's public rooms, and a link to the home's common knowledge in Settings (D-113). -->
+          <MercbotRoomsMemorySection :bot="bot" :tab="tab" @failure="emit('failure', $event)" @open-settings="emit('open-settings', $event)" />
           <MercbotAppsSection :bot="bot" />
 
           <template v-if="routinesLoaded && routines.length">
@@ -442,26 +455,25 @@ async function openInstructions() {
               @confirm="deleteRoutine"
             />
           </template>
-          <div v-else-if="!routinesLoaded" class="mb-card__skeleton" aria-hidden="true" />
-          <p v-else class="mb-card__empty">
-            Routines are jobs {{ bot.name }} repeats on a schedule. {{ chat ? "Ask in this chat" : "Ask it in a chat" }} to set one up, for example a
-            weekly summary.
-          </p>
-          <!-- The home's main bot, and making this one it. -->
-          <MercbotBotMain :bot="bot" :manages="manages" @make-main="emit('make-main', bot)" />
+          <!-- No routines: no section (ask the bot in a chat to set one up). -->
+          <!-- Whether it's the home's main bot or Builder, chosen in Settings (D-119). -->
+          <MercbotBotMain :bot="bot" :manages="manages" @open-settings="emit('open-settings', $event)" />
           <!-- Leaving the home, and coming back (D-108). -->
           <MercbotBotArchive :bot="bot" @archive="emit('archive-bot', bot)" @unarchive="emit('unarchive-bot', bot)" />
         </template>
 
-        <!-- Its files (R6): this chat's, when opened from one, then its own folder and the home's. -->
-        <FileBrowser
-          v-else-if="tab === 'files'"
-          :key="`${bot.id}:${chat?.id || ''}`"
-          :bot-id="String(bot.id)"
-          :chat="chat ? String(chat.id) : null"
-          :refresh-key="chat?.lastActivityAt || 0"
-          :sections="fileSections"
-        />
+        <!-- Its files (R6): this chat's, when opened from one, then its own folder; the home's are a link away. -->
+        <template v-else-if="tab === 'files'">
+          <FileBrowser
+            :key="`${bot.id}:${chat?.id || ''}`"
+            :bot-id="String(bot.id)"
+            :chat="chat ? String(chat.id) : null"
+            :refresh-key="chat?.lastActivityAt || 0"
+            :sections="fileSections"
+            :move-targets="HOME_FILES"
+          />
+          <RouterLink :to="paths.page('/files')" class="mb-card__home-files">Home files →</RouterLink>
+        </template>
 
         <template v-else-if="tab === 'library'">
           <div v-if="libraryItems.length" class="mb-library">

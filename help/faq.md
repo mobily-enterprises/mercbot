@@ -24,7 +24,7 @@ Yes. A job you've started carries on in the background, and routines run at thei
 
 ## What do bots remember?
 
-Within a chat, a bot keeps the thread however long it gets: it summarises the older part in the background and reads the recent part word for word. Across chats, each bot remembers the Public rooms it's in, and reads the notes everyone in the home was told; a Private chat reaches only chats whose people are all in it. See [What bots remember](/help/memory). Bots made from a template keep what they learn about your job in a notes document in the chat's folder, which anyone who can open the chat can open and correct. What a bot should always do goes in its additions, on its card. See [Bots](/help/bots).
+Within a chat, a bot keeps the thread however long it gets: it summarises the older part in the background and reads the recent part word for word. Across chats, each bot remembers the Public rooms it's in (its Rooms memory), and reads the home's common knowledge, which people asked a bot to tell every bot; a Private chat reaches only chats whose people are all in it. See [What bots remember](/help/memory). Bots made from a template keep what they learn about your job in a notes document in the chat's folder, which anyone who can open the chat can open and correct. What a bot should always do goes in its additions, on its card. See [Bots](/help/bots).
 
 ## How do bots use websites?
 
@@ -114,7 +114,7 @@ Outside your home, you can share one of the ready-made bots in the [template gal
 
 ## Can I take a bot off my team?
 
-Yes: archive it. Open its card and, on its **Details** tab, select **Archive** and its name, such as **Archive Ledger**. It leaves the team for everyone in the home and stays in its chats without answering, and its routines and watches pause. Nothing is deleted, and its maker or the home's owners and admins can resume it. Only they can archive it, and the home's main bot and the bot that builds the home's apps can't be archived. See [Archive a bot](/help/bots#archive-a-bot).
+Yes: archive it. Open its card and, on its **Details** tab, select **Archive** and its name, such as **Archive Ledger**. It's removed for everyone in the home and stays in its chats without answering, and its routines and watches pause. Nothing is deleted, and its maker or the home's owners and admins can resume it. Only they can archive it, and the home's main bot and the bot that builds the home's apps can't be archived. See [Archive a bot](/help/bots#archive-a-bot).
 
 ## How do I delete a chat?
 

@@ -11,11 +11,9 @@ import { currentLanguage } from "./shellPreferences.js";
  * @param {string | null} builderId the home's Builder (builderBot.js)
  */
 export function archiveRefusal(bot, builderId) {
-  if (!bot.canArchive) return `Only the person who made ${bot.name} and the home's owners and admins can archive it.`;
-  if (bot.isMain) return `${bot.name} is this home's main bot, so it can't be archived. Make another bot the main bot first.`;
-  if (builderId != null && String(builderId) === String(bot.id)) {
-    return `${bot.name} builds this home's apps, so it can't be archived. Choose another Builder in Apps first.`;
-  }
+  if (!bot.canArchive) return "Only its maker and the home's owners and admins can archive it.";
+  if (bot.isMain) return "The main bot can't be archived. Make another bot main first.";
+  if (builderId != null && String(builderId) === String(bot.id)) return "The Builder can't be archived. Choose another Builder first.";
   return "";
 }
 
@@ -26,9 +24,7 @@ export function archiveRefusal(bot, builderId) {
 export function archiveBotQuestion(bot) {
   return {
     title: `Archive ${bot.name}?`,
-    text:
-      "It leaves the home's bots for everyone in this home. It stays in its chats but no longer answers there, and its routines " +
-      "and watches pause. Nothing is deleted. Whoever made it, or an owner or admin, can resume it.",
+    text: "Removes it for everyone. Its chats stay; it stops answering and its routines and watches pause. Its maker or an owner or admin can resume it.",
     confirmLabel: "Archive"
   };
 }

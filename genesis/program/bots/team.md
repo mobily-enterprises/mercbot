@@ -60,8 +60,9 @@ Delete nor Make main bot today.
 
 **Archiving a bot** (D-108, `botArchive.js`): `POST …/bots/:botId/archive` and `…/unarchive`, for its maker and the
 home's owners and admins (403 `bots_archive_forbidden`, decided before anything about the bot is said). The main bot
-(409 `bots_archive_main` "<Bot> is this home's main bot, so it can't be archived. Make another bot the main bot
-first.") and the Builder (409 `bots_archive_builder` "… Choose another Builder in Apps first.") aren't archived.
+(409 `bots_archive_main` "<Bot> is this home's main bot, so it can't be archived. Make another bot the main bot in
+Settings first.") and the Builder (409 `bots_archive_builder` "… Make another bot the Builder in Settings first.")
+aren't archived.
 Archiving pauses its routines and watches in every chat it's in, the Private ones the person can't open too, with a
 "Paused while archived" line there, and puts its computers to sleep; archiving one already archived changes nothing.
 An archived bot never speaks, takes no requests, isn't added to chats and isn't offered in pickers; its direct chat
@@ -97,12 +98,16 @@ page of 100 at a time; its bots from `GET …/bots`.
 and a link beside the chat shown (`&member=bot:<id>` or `person:<id>`), and as a direct chat's details): a person's
 name, role, Message (which opens the person's private chat with them, not shown in that chat itself) and "Chats you
 share" ("No chats with <name> yet."). A bot's name (editable by whoever may), template tag and Message, with tabs "Details"
-(Instructions, Knowledge, the apps it uses, Routines, each naming its chat, and Archive, `MercbotBotArchive.vue`),
-"Files" ("This chat" when opened from a chat, "<Bot>'s files" and the home's), "Library" (Pinned, then each day, each
+(Instructions, Knowledge, Rooms memory with its link to the home's common knowledge, Watches when it has some,
+Routines when it has some, each naming its chat, a "Main bot" or "Builder" chip with a link to Settings for the home's
+owners and admins, `MercbotBotMain.vue`, D-119, and Archive, `MercbotBotArchive.vue`), each terse: an empty one is
+one short line or not shown, "Files" ("This chat" when opened from a chat and "<Bot>'s files", then "Home files →" to
+the Files page; Move to… still offers Home files, D-119), "Library" (Pinned, then each day, each
 item with Pin, and Open, Share… and Delete for a page; empty: "Anything <Bot> makes in the chats you can open, like
 pages, files and apps, will be kept here.") and "Computer" ("<Bot> has its own computer in each chat it's in. Open one
-from that chat's details." with the chats the person shares with it). Archive asks first (`archiveBot.js`) and says
-why not where the bot can't be archived.
+from that chat's details." with the chats the person shares with it). Archive says in one line what it does ("Removes
+<Bot> for everyone. Its chats stay."), asks first (`archiveBot.js`), and where the bot can't be archived says only
+why ("The main bot can't be archived. Make another bot main first.").
 
 ## Proved by
 
@@ -113,6 +118,8 @@ why not where the bot can't be archived.
 - `tests/client/chatDirectory.vitest.js`
 - `tests/client/teamReads.vitest.js`
 - `tests/client/archiveBots.vitest.js`
+- `tests/client/mainBotSettings.vitest.js`
+- `tests/client/botCardFiles.vitest.js`
 - `tests/e2e/archive-bots.spec.ts`
 - `tests/e2e/instructions.spec.ts`
 - `tests/server/botAdditions.integration.js`

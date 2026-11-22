@@ -87,11 +87,11 @@ Open the bot's card: select the bot under **Bots** in the sidebar, and in your c
 
 - **Rename it,** if you made it or you're an owner or admin. Select the name, type a new one and press Enter. Escape cancels.
 - **Read its instructions.** **Instructions** comes first on the **Details** tab; selecting the tag under the bot's name takes you there. One line says what the bot is, such as "This bot is a meals bot, plus its own additions." Then its template, which is read-only (marked with a lock): where it's from, with the day Mercbot last tested it for one of Mercbot's, what changed in it since the bot started to follow it, its instructions (**Show all** opens out long ones) and its skills.
-- **Write its additions.** Select the box under **Additions · only this bot**, write or change them, and select **Save**, or **Cancel** to leave them as they were.
+- **Write its additions.** Select the box under **Template Additions · only this bot**, write or change them, and select **Save**, or **Cancel** to leave them as they were.
 - **Change its template.** Select **Change template** under the template. See below.
 - **Teach it.** Add text and files it should know, for everyone it talks with, under **Knowledge**, below Instructions. See [What a bot knows](#what-a-bot-knows).
 - **Look after its routines.** Each routine has an on/off switch. Right-click one for **Pause** or **Resume**, **Edit** and **Delete**. Only the person who set a routine up can resume or edit it. See [Skills, routines and watches](/help/skills-and-routines).
-- **Browse its files** on the **Files** tab: its own folder, the home's, and the chat's when you opened the card from a chat. See what it made in the chats you can open on the **Library** tab. Its **Computer** tab shows its computer in the chat you opened the card from; it has one in each chat it's in.
+- **Browse its files** on the **Files** tab: the chat's folder when you opened the card from a chat, and its own; **Home files →** opens the home's files, and **Move to…** on a file still offers **Home files**. See what it made in the chats you can open on the **Library** tab. Its **Computer** tab shows its computer in the chat you opened the card from; it has one in each chat it's in.
 
 Only the person who made the bot and the home's owners and admins can rename it or change its additions or its template; everyone else in the home can read them. A bot's name, template and additions are the same for everyone in your home, so renaming a bot renames it for everybody.
 
@@ -174,7 +174,7 @@ Each **Draft it**, **Start from this bot**, ticking **Fold in**, **Ask for chang
 
 Every home has one main bot: the home's first bot, Mercbot unless you've renamed it, the one that welcomes you in your first chat. It's a good general helper and the natural place to start a new kind of job before you give it a bot of its own.
 
-The main bot can't be archived, so you always have someone to talk to: its card says "Make another bot the main bot first." You can rename it like any other bot. It's first under **Bots** in the sidebar. The home's owners and admins can make another bot the main bot: open that bot's card and, on its **Details** tab, select **Make** and its name, such as **Make Ledger the main bot**.
+The main bot can't be archived, so you always have someone to talk to: its card shows a **Main bot** chip and says "The main bot can't be archived. Make another bot main first." You can rename it like any other bot. It's first under **Bots** in the sidebar. The home's owners and admins choose the main bot in **Settings** > **Main bot and Builder**; **Change in Settings →** on a bot's card opens it.
 
 ## Start from a bot template
 
@@ -232,13 +232,13 @@ When the home has finished with a bot but you may want it again, archive it inst
 
 The person who made the bot and the home's owners and admins. Some bots can't be archived, and the bot's card says why:
 
-- **The main bot**: make another bot the main bot first.
-- **The Builder**, the bot that builds the home's apps: make another bot the Builder from its card first.
+- **The main bot**: make another bot main first, in **Settings** > **Main bot and Builder**.
+- **The Builder**, the bot that builds the home's apps: choose another Builder first, in the same place.
 
 ### Archive one
 
 1. Open the bot's card. Under **Archive**, at the end of its **Details** tab, select **Archive** with the bot's name, such as **Archive Ledger**.
-2. Mercbot asks first: "It leaves the team for everyone in this home. It stays in its chats but no longer answers there, and its routines and watches pause. Nothing is deleted. Whoever made it, or an owner or admin, can resume it." Select **Archive** to go ahead, or **Cancel**.
+2. Mercbot asks first: "Removes it for everyone. Its chats stay; it stops answering and its routines and watches pause. Its maker or an owner or admin can resume it." Select **Archive** to go ahead, or **Cancel**.
 
 ### While it's archived
 

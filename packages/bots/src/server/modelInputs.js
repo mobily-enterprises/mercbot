@@ -54,9 +54,9 @@ export const MODEL_INPUTS = Object.freeze([
     reach: "reader"
   },
   {
-    file: "packages/bots/src/server/botMemory.js",
+    file: "packages/bots/src/server/roomsMemory.js",
     calls: { generateOnce: 1 },
-    path: "A bot's digest of the home's public chats it's in (D-113), refreshed in the background",
+    path: "A bot's rooms memory: its digest of the home's public chats it's in (D-113), refreshed in the background",
     reads: "the bot's earlier digest and its public chats' new lines, through the memory's reader (records.readers.forHome)",
     reach: "public"
   },

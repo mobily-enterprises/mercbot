@@ -101,11 +101,11 @@ async function setup(context) {
   /** A refresh of `botId`'s memory, asked for now and run. */
   async function refresh(botId) {
     const inHome = { context: kit.systemContext("the test's refresh").forWorkspace(homeId) };
-    await kit.records.memory.ask([{ botId, minutes: 0 }], {}, inHome);
-    assert.equal(await kit.memory.runner.runOne(), true, "a refresh was due and ran");
+    await kit.records.roomsMemory.ask([{ botId, minutes: 0 }], {}, inHome);
+    assert.equal(await kit.roomsMemory.runner.runOne(), true, "a refresh was due and ran");
   }
   /** The bots among `botIds` whose refresh is asked for, in id order. */
-  const asked = async (botIds) => (await kit.knex("bot_memory_queue").whereIn("bot_id", botIds).orderBy("bot_id").select("bot_id"))
+  const asked = async (botIds) => (await kit.knex("rooms_memory_queue").whereIn("bot_id", botIds).orderBy("bot_id").select("bot_id"))
     .map((row) => String(row.bot_id));
   /** A one-round discussion of `question` in `chatId`, proposed and started by `person`, run to its round's end. */
   async function discuss(chatId, person, question) {

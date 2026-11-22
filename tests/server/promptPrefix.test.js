@@ -41,11 +41,11 @@ test("one bot's instructions are byte-identical in two chats, for two people, in
 test("the memory's manners are in the instructions, the same in every chat; what a bot remembers is not", () => {
   const family = { id: "11", workspace_id: "3", kind: "public", title: "Family dinners", time_zone: "Europe/Rome" };
   const instructions = instructionsFor(replyBot(seatOf(ADA, family, { id: "880021" }, "1")));
-  // D-113: recall and read_chat, where something came from, never quoting a private chat elsewhere, tell_everyone.
-  for (const manner of ["recall", "read_chat", "where something came from", "private chat", "tell_everyone"]) {
+  // D-113: recall and read_chat, where something came from, never quoting a private chat elsewhere, share_common_knowledge.
+  for (const manner of ["recall", "read_chat", "where something came from", "private chat", "share_common_knowledge"]) {
     assert.ok(instructions.includes(manner), `the instructions say how to use the memory: ${manner}`);
   }
-  for (const state of ["<<memory>>", "Since then", "Notes for everyone"]) {
+  for (const state of ["<<rooms memory>>", "Since then", "- The home's common knowledge"]) {
     assert.ok(!instructions.includes(state), `the memory itself is in the state note, never the instructions: ${state}`);
   }
 });

@@ -29,7 +29,9 @@ test("a file moves from a chat's folder to the whole home, is renamed there and 
   const here = section(page, "This chat");
   await expect(here).toBeVisible();
   await expect(section(page, "Otto's files")).toBeVisible();
-  await expect(card.locator(".mb-files__section")).toHaveCount(3);
+  // The home's folder isn't listed on a bot's card (D-119): a link leads to the Files page.
+  await expect(card.locator(".mb-files__section")).toHaveCount(2);
+  await expect(card.getByRole("link", { name: "Home files →" })).toBeVisible();
   await expect(card).not.toContainText(/Just me|Everyone using Otto/u);
 
   // Upload into This chat.
@@ -40,11 +42,10 @@ test("a file moves from a chat's folder to the whole home, is renamed there and 
   await expect(here.locator(".mb-files__row").filter({ hasText: name })).toBeVisible();
   await page.screenshot({ path: info.outputPath("chat-files.png") });
 
-  // Move it to the whole home: the folder that's neither the chat's nor Otto's own.
+  // Move it to the whole home: Move to… still offers Home files, though the tab doesn't list it.
   await chooseFromMenu(page, name, "Move to…");
   await page.locator(".v-dialog .v-select").click();
-  // Two plain-text filters: Playwright 1.61 misreads a regular expression with an apostrophe in hasNotText.
-  await page.getByRole("option").filter({ hasNotText: "This chat" }).filter({ hasNotText: "Otto's files" }).first().click();
+  await page.getByRole("option", { name: "Home files", exact: true }).click();
   await page.locator(".v-dialog").getByRole("button", { name: "Move" }).click();
   await expect(here.locator(".mb-files__row").filter({ hasText: name })).toHaveCount(0);
 
@@ -72,13 +73,13 @@ test("a file moves from a chat's folder to the whole home, is renamed there and 
   await page.screenshot({ path: info.outputPath("home-files-phone.png") });
   if (desk) await page.setViewportSize(desk);
 
-  // Otto on the Files page opens his direct chat with his card at its Files: the chat's folder, his own and the home's.
+  // Otto on the Files page opens his direct chat with his card at its Files: the chat's folder and his own.
   await ottoLink.click();
   await expect(page).toHaveURL(new RegExp(`[?&]chat=${chat.id}$`, "u"));
   await expect(shell.chat(page)).toHaveAttribute("aria-label", "Otto");
   await expect(card.getByRole("tab", { name: "Files" })).toHaveAttribute("aria-selected", "true");
   await expect(section(page, "This chat")).toBeVisible();
   await expect(section(page, "Otto's files")).toBeVisible();
-  await expect(card.locator(".mb-files__section")).toHaveCount(3);
+  await expect(card.locator(".mb-files__section")).toHaveCount(2);
   await page.screenshot({ path: info.outputPath("bot-card-files.png") });
 });

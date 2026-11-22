@@ -4,9 +4,10 @@ Each bot's Knowledge (D-107): text and files its maker and the home's owners and
 talks with. Short knowledge is always in the bot's mind; long knowledge (a manual, a book) is split once into parts
 that every turn searches first, so a turn's prompt stays bounded whatever the bot knows.
 
-What each bot remembers (D-113), like a person in the home: a digest of the home's public rooms it's in, made in the
-background; what was said since in its other chats the turn's chat may read; recall and read_chat over those chats;
-and the home's notes, which people ask a bot to tell everyone. Every read goes through the model's reader of the
+What each bot remembers (D-113), like a person in the home, its Rooms memory (D-119: built from public rooms only): a
+digest of the home's public rooms it's in, made in the background; what was said since in its other chats the turn's
+chat may read; recall and read_chat over those chats. And the home's common knowledge (D-119), which people ask a bot
+to tell every bot: the home's, not a bot's, so it lives in Settings, with a link from each bot's card. Every read goes through the model's reader of the
 turn's chat (`readable_from`, D12), so a private chat never reaches a chat with anyone else in it, and a direct chat
 (a person's with a bot, or two people's) is reached from no chat but itself (D-117): what is said there is never in
 any bot's memory.
@@ -37,20 +38,26 @@ any bot's memory.
 - `src/components/mercbot/MercbotMemberCard.vue`
 - `src/components/mercbot/botsApi.js`
 - `tools/standInModel.mjs`
-- Memory: `packages/bots/src/server/botMemory.js`
-- `packages/bots/src/server/memoryTools.js`
+- Rooms memory: `packages/bots/src/server/roomsMemory.js`
+- `packages/bots/src/server/roomsMemoryTools.js`
 - `packages/bots/src/server/records/seatWindows.js`
-- `packages/bots/src/server/records/memoryRepository.js`
-- `packages/bots/src/server/records/homeNoteRepository.js`
+- `packages/bots/src/server/records/roomsMemoryRepository.js`
+- Common knowledge: `packages/bots/src/server/commonKnowledge.js`
+- `packages/bots/src/server/records/commonKnowledgeRepository.js`
 - `packages/bots/src/server/records/rowPolicies.js`
 - `packages/bots/src/server/botActions.js`
 - `packages/bots/src/server/botCards.js`
 - `packages/bots/src/server/chatMembers.js`
 - `packages/bots/src/server/botChat.js`
 - `migrations/20261122140000_bot_memory.cjs`
-- `src/components/mercbot/MercbotMemorySection.vue`
-- `src/components/mercbot/MercbotMemorySection.css`
-- `src/components/mercbot/useBotMemory.js`
+- `migrations/20261123140000_rooms_memory_common_knowledge.cjs`
+- `src/components/mercbot/MercbotRoomsMemorySection.vue`
+- `src/components/mercbot/MercbotRoomsMemorySection.css`
+- `src/components/mercbot/useRoomsMemory.js`
+- `src/components/mercbot/MercbotSettingsCommonKnowledge.vue`
+- `src/components/mercbot/useCommonKnowledge.js`
+- `src/components/mercbot/settingsSections.js`
+- `src/components/mercbot/MercbotSettingsDialog.vue`
 - `src/components/mercbot/chatView.js`
 
 ## Public contract
@@ -104,40 +111,43 @@ any bot's memory.
   of its in-mind knowledge or the state's found parts naming the topic, and where it's from, or that its knowledge
   doesn't say.
 
-- **Memory routes** (signed in, in the bot's home): `GET /api/w/:workspaceSlug/bots/:botId/memory` answers
-  `{ memory: { text, madeAt, tokens } | null }` to anyone in the home (another home's bot is 404
-  `bots_bot_not_found`): a digest holds only public chats, which everyone in the home may open. `GET …/home-notes`
-  (`?after=` the page before's `next`) answers `{ notes, next }`, 50 a page, newest first, each `{ id, text, by: { id,
-  name } | null, viaBot: { id, name } | null, createdAt, canRemove }`; the chat a note was asked in isn't named.
-  `DELETE …/home-notes/:noteId` answers `{ removed }` for the note's author or the home's owners and admins
-  (`workspace.settings.update`); anyone else gets 403 `bots_note_remove_forbidden`, a note not there (or another
-  home's) 404 `bots_note_not_found`. A removed note is kept with `removed_at` and `removed_by`. No route writes a note.
+- **Rooms memory and common knowledge routes** (signed in, in the bot's home): `GET
+  /api/w/:workspaceSlug/bots/:botId/rooms-memory` answers `{ roomsMemory: { text, madeAt, tokens } | null }` to anyone
+  in the home (another home's bot is 404 `bots_bot_not_found`): a digest holds only public chats, which everyone in the
+  home may open. `GET …/common-knowledge` (`?after=` the page before's `next`) answers `{ entries, next }`, 50 a page,
+  newest first, each `{ id, text, by: { id, name } | null, viaBot: { id, name } | null, createdAt, canRemove }`; the
+  chat an entry was asked in isn't named. `DELETE …/common-knowledge/:entryId` answers `{ removed }` for the entry's
+  author or the home's owners and admins (`workspace.settings.update`); anyone else gets 403
+  `bots_common_knowledge_remove_forbidden`, an entry not there (or another home's) 404
+  `bots_common_knowledge_not_found`. A removed entry is kept with `removed_at` and `removed_by`. No route writes one.
 - **The prompt** (D-113): the instructions (`instructionsFor`) are the same in every chat (R5) and carry the memory's
-  manners (`MEMORY_RULES`: recall and read_chat, say which chat something came from, bring another chat up only when
-  it helps, never quote a private chat outside it, offer tell_everyone, never contact details or passwords). The
-  memory is the last part of the Current state note (`botMemory.stateLines`, after `knowledge.stateLines`), so
-  everything before it stays a cached prefix: every turn has the home's newest 30 notes; a turn of a person's chat
-  (not a routine's, a request's run or a discussion's turn, D-115) also has the bot's digest between `<<memory>>` and
-  `<<end of memory>>`, and "since then": its other chats the turn's chat may read with lines past where the digest read
+  manners (`ROOMS_MEMORY_RULES`: recall and read_chat, say which chat something came from, bring another chat up only
+  when it helps, never quote a private chat outside it, offer share_common_knowledge, never contact details or
+  passwords). The common knowledge and the rooms memory are the last part of the Current state note
+  (`commonKnowledge.stateLines` then `roomsMemory.stateLines`, after `knowledge.stateLines`), so everything before
+  them stays a cached prefix: every turn has the home's newest 30 entries of common knowledge; a turn of a person's
+  chat (not a routine's, a request's run or a discussion's turn, D-115) also has the bot's digest between
+  `<<rooms memory>>` and `<<end of rooms memory>>`, and "since then": its other chats the turn's chat may read with lines past where the digest read
   them, newest activity first, 12 chats, 8 lines each (300 characters a line, 3,000 tokens in all), then counts of the
   rest (to 1,000+). Every line the memory reads (digest input, "since then", recall, read_chat) names the people a
   message mentions as "@Name", as the turns' chat lines do (`mentions.peopleNamed`, D-114).
-- **Tools** (`memoryTools.js`, a person's turn): `recall` (`words`, `chat`, `everywhere`; full-text search, any of the
+- **Tools** (`roomsMemoryTools.js`, a person's turn): `recall` (`words`, `chat`, `everywhere`; full-text search, any of the
   words, through `ix_messages_recall`; the bot's chats, one chat, or every chat the turn's chat may read; 10 lines,
   each `[chat · speaker · time · line N]`), `read_chat` (`chat` by name or number, `around` a line, `lines` up to 40),
   `read_further_back` (a person's turn: the bot's start in a room it joined late moves back, `genesis/program/bots/turns.md`),
-  and, in the person's own turn, `tell_everyone` (`text`): refused with an email address, nine or more digits (a date
-  isn't), or a password (`blankPasswords` and the vault's passwords), else an always-ask card (`ACTIONS.tell_everyone`)
-  that writes the note from the card's own words once its person says Go ahead (`homeNotes.addFromCard`: the card must
-  be a tell_everyone approval for the caller, said yes to; one note a card).
-- **Digests** (`bot_memories`, one a bot): written by the background model (`work: "background"`, metered to the home
+  and, in the person's own turn, `share_common_knowledge` (`commonKnowledge.js`, `text`): refused with an email
+  address, nine or more digits (a date isn't; `commonKnowledgeRefusal`), or a password (`blankPasswords` and the vault's
+  passwords), else an always-ask card (`ACTIONS.share_common_knowledge`) that writes the entry from the card's own
+  words once its person says Go ahead (`commonKnowledge.addFromCard`: the card must be a share_common_knowledge
+  approval for the caller, said yes to; one entry a card).
+- **Digests** (`rooms_memories`, one a bot): written by the background model (`work: "background"`, metered to the home
   and bot, no person, R8) from the bot's public rooms only (the memory's reader, `readers.forHome`: public rooms, never
   a direct chat), the earlier digest and each chat's new lines (200 a chat, 48,000 tokens shared; a room not yet in
   `covers` is read from the bot's seat's start, so a room it joined late is read from its last 30 messages then,
   never its whole history), within 20,000 tokens (12,000 asked
   for), with `covers` (where it read each chat), `version` and `follows`. A save is refused unless the stored version
   is still the one it read.
-- **Refreshes** (`bot_memory_queue`, one a bot): asked after a person's message and a bot's reply in a public room
+- **Refreshes** (`rooms_memory_queue`, one a bot): asked after a person's message and a bot's reply in a public room
   (`noticedLater`), due when the bot's new words pass 4,000 tokens or 400 lines (but 30 minutes after the last at the
   soonest), else 24 hours after the last. Every serving server runs the loop (`botLoops.js`, every minute), and
   starts it at once when a refresh is asked for now (`runner.wake`: a rebuild, or words past the threshold); a run
@@ -147,19 +157,29 @@ any bot's memory.
 - **Forgetting** (O23): deleting a public chat empties its bots' digests at once (no turn reads them) and asks for a
   rebuild from the chats themselves (`rebuild`), without it, which the serving server starts at once. Leaving or archiving a chat, or archiving a bot, keeps
   what it remembers; an archived bot's refreshes write nothing until it's back, and the composer doesn't name it.
-- **The card** (Details, under Knowledge, `MercbotMemorySection.vue`): Memory (made when, Show all) and Notes for
-  everyone (who asked, through which bot, Remove for those who may, Show older notes). The composer of a public room
-  says "Everyone in <home> can read this · <bots> remember it" (`readersLine`), and so does its first-time notice.
+- **The card** (Details, under Knowledge, `MercbotRoomsMemorySection.vue`): Rooms memory (made when, Show all), then
+  one line, "<Bot> also knows the home's common knowledge (N) →" (N from the first page, "50+" past it), which opens
+  Settings at Bots' common knowledge (`open-settings`, the shell's `openSettings` command with `section`). The composer
+  of a public room says "Everyone in <home> can read this · <bots> remember it" (`readersLine`), and so does its
+  first-time notice.
+- **Settings → Bots' common knowledge** (`MercbotSettingsCommonKnowledge.vue`, `useCommonKnowledge.js`): a line saying
+  every bot reads it in every chat; the entries, newest first, each with who asked, through which bot and when, and
+  its bin for those who may (Remove from common knowledge?); Show older; the empty sentence "No common knowledge yet.
+  Ask a bot to tell every bot something, such as a date or an allergy; it asks you first."
+- **Names** (D-119): the tables were `bot_memories`, `bot_memory_queue` and `home_notes` until
+  `20261123140000_rooms_memory_common_knowledge.cjs` renamed them, their constraints, indexes and sequences.
 
 ## Proved by
 
-- `tests/server/memoryWall.integration.js`
-- `tests/server/memoryReach.integration.js`
+- `tests/server/roomsMemoryWall.integration.js`
+- `tests/server/roomsMemoryReach.integration.js`
 - `tests/server/botWindow.integration.js`
-- `tests/server/memoryRefresh.integration.js`
-- `tests/server/homeNotes.integration.js`
+- `tests/server/roomsMemoryRefresh.integration.js`
+- `tests/server/commonKnowledge.integration.js`
 - `tests/server/promptPrefix.test.js`
-- `tests/client/botMemory.vitest.js`
+- `tests/server/cachePrefix.test.js`
+- `tests/client/roomsMemory.vitest.js`
+- `tests/client/settingsSections.vitest.js`
 - `tests/server/knowledgePrompt.test.js`
 - `tests/server/botKnowledge.integration.js`
 - `tests/client/knowledge.vitest.js`

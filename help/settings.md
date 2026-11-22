@@ -8,7 +8,7 @@ Settings is where you choose how Mercbot looks and behaves for you, manage your 
 - In the search palette (**Ctrl+K**), type "Settings" to jump straight to a section, such as **Settings: Vault**.
 - **See spending** in the account menu opens **Spending**.
 
-Settings opens over the app, with the sections listed on the left: **General**, **Computer**, **Permissions**, **Files**, **Website**, **Templates**, **Vault**, **Spending**, **Mercbot account** and **About**. Close it with **×**, **Escape** or a click outside. On a phone, Settings fills the screen and shows one section at a time; **All settings** at the top returns to the list.
+Settings opens over the app, with the sections listed on the left: **General**, **Computer**, **Permissions**, **Files**, **Website**, **Templates**, **Main bot and Builder**, **Bots' common knowledge**, **Vault**, **Spending**, **Mercbot account** and **About**. Close it with **×**, **Escape** or a click outside. On a phone, Settings fills the screen and shows one section at a time; **All settings** at the top returns to the list.
 
 Most controls apply as soon as you change them. The exceptions say so: forms in **Files** and the **Vault** have their own **Save** button.
 
@@ -94,6 +94,17 @@ See [The bots' computer and connected apps](/help/computer-and-apps).
 - If someone else saved the template after you opened it, your save is refused with "Someone saved *tag* since you opened it. Open it again to see their changes." Close it and open it again.
 - **Delete** works only for a template no bot uses, and asks first. For one in use, change those bots' template first, with **Change template** on each bot's card.
 
+### Main bot and Builder
+
+- **Main bot:** the bot your home starts with. It can't be archived, so you always have someone to talk to.
+- **Builder:** the bot that makes and changes your home's apps. See [Apps: the Builder](/help/apps-builder).
+
+Owners and admins pick each from the home's bots; everyone else sees which bots they are. A bot's card shows a **Main bot** or **Builder** chip when it is one, and owners and admins have **Change in Settings →** there.
+
+### Bots' common knowledge
+
+What people asked a bot to tell every bot, such as a date or an allergy. Every bot reads it in every chat. It's listed newest first, each with who asked for it, through which bot, and when; **Show older** reads further back. The person who asked for it, and the home's owners and admins, remove it with its bin, and every bot stops reading it from its next reply. Each bot's card links here: "*Bot* also knows the home's common knowledge (3) →". See [What bots remember](/help/memory#bots-common-knowledge).
+
 ### Vault
 
 The home's saved logins, cards and contact info, with tabs, search and **New item**. Everyone in the home shares it. An item can be deleted by the person who added it and by the home's owners and admins: its row has a delete button for them. See [The vault: saved logins and secrets](/help/vault).
@@ -153,11 +164,12 @@ A bot's own options are on its card: select the bot under **Bots** in the sideba
 - **Details** tab:
   - **Instructions:** the template the bot follows, read-only, with **Change template**, and its own **Additions**, which its maker and the home's owners and admins edit. See [Bots](/help/bots).
   - **Knowledge:** what the bot knows in every chat it's in. See [What a bot knows](/help/bots#what-a-bot-knows).
-  - **Memory:** what the bot remembers of the Public rooms it's in, and **Notes for everyone**, the home's notes, which their authors and the home's owners and admins remove. See [What bots remember](/help/memory).
-  - **Apps:** whether the bot builds the home's apps.
-  - **Routines:** the bot's routines, each with its schedule, its chat and a switch.
+  - **Rooms memory:** what the bot remembers of the Public rooms it's in, and a link to the home's **Bots' common knowledge** in Settings. See [What bots remember](/help/memory).
+  - **Watches:** the bot's watches on the home's apps, when it has some.
+  - **Routines:** the bot's routines, each with its schedule, its chat and a switch, when it has some.
+  - A **Main bot** or **Builder** chip when the bot is one, and for owners and admins a link to **Settings** > **Main bot and Builder**.
   - **Archive**, for the bot's maker and the home's owners and admins.
-- **Files**, **Library** and **Computer** tabs.
+- **Files** (this chat's folder and the bot's own, with **Home files →** to the home's; **Move to…** still offers **Home files**), **Library** and **Computer** tabs.
 
 A room's own options are in its **Chat details**: its people and bots, whether it's Public or Private, its files, its bots' computers and its routines, and **Leave chat**, **Archive** (a Public room) or **Hide from sidebar** (a Private one), and **Delete chat**. See [Rooms, people and bots](/help/chats).
 

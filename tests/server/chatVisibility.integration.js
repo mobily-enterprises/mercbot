@@ -196,10 +196,10 @@ test("a person's chat with a bot and a chat between two people are their own peo
     for (const chat of [withChef, pair]) {
       assert.equal(await records.chats.find(chat.id, reader), null);
       assert.equal((await records.messages.timeline(chat.id, {}, reader)).messages.length, 0);
-      assert.deepEqual(await records.memory.window(chat.id, { before: 10, after: 0 }, reader), []);
+      assert.deepEqual(await records.roomsMemory.window(chat.id, { before: 10, after: 0 }, reader), []);
     }
     assert.deepEqual((await records.messages.searchText("said", reader)).filter((row) => /Chef|between/u.test(row.body.text)), []);
-    assert.deepEqual((await records.memory.recall("said", { limit: 10 }, reader)).filter((line) => /Chef|between/u.test(line.text)), []);
+    assert.deepEqual((await records.roomsMemory.recall("said", { limit: 10 }, reader)).filter((line) => /Chef|between/u.test(line.text)), []);
   }
   const fromItself = { context: records.readers.forBot({ homeId, botId: chef, chatId: withChef.id, askerId: anna }) };
   assert.ok((await records.chats.readableFrom(withChef.id, fromItself)).includes(String(withChef.id)));
@@ -207,7 +207,7 @@ test("a person's chat with a bot and a chat between two people are their own peo
 
   // A bot's memory reads its public chats only: never its chat with a person.
   const memory = { context: records.readers.forHome({ homeId, botId: chef }) };
-  assert.deepEqual((await records.memory.chatsOf(chef, memory)).map((chat) => chat.id), [chats.Family.id]);
+  assert.deepEqual((await records.roomsMemory.chatsOf(chef, memory)).map((chat) => chat.id), [chats.Family.id]);
 });
 
 test("a bot in a person's chat with it reaches the home's public rooms, never a private room of that person's", async (context) => {
@@ -221,11 +221,11 @@ test("a bot in a person's chat with it reaches the home's public rooms, never a 
   for (const room of [chats.Plans, chats.Diary]) {
     assert.equal(await records.chats.find(room.id, reader), null);
     assert.equal((await records.messages.timeline(room.id, {}, reader)).messages.length, 0, "no history of it");
-    assert.deepEqual(await records.memory.window(room.id, { before: 10, after: 0 }, reader), [], "nor read_chat");
+    assert.deepEqual(await records.roomsMemory.window(room.id, { before: 10, after: 0 }, reader), [], "nor read_chat");
   }
-  const recalled = (await records.memory.recall("said", { limit: 10 }, reader)).map((line) => line.text);
+  const recalled = (await records.roomsMemory.recall("said", { limit: 10 }, reader)).map((line) => line.text);
   assert.deepEqual(recalled, ["said in Family"], "recall reaches the public room only");
-  assert.deepEqual((await records.memory.window(chats.Family.id, { before: 10, after: 0 }, reader)).map((line) => line.text), ["said in Family"]);
+  assert.deepEqual((await records.roomsMemory.window(chats.Family.id, { before: 10, after: 0 }, reader)).map((line) => line.text), ["said in Family"]);
 });
 
 test("a person's chats add archived ones beside the others when asked, and leave them out otherwise", async (context) => {

@@ -1,4 +1,4 @@
-/* What a bot remembers on its Details tab (MercbotMemorySection.vue, D-113), in the Knowledge section's own label,
+/* A bot's Rooms memory on its Details tab (MercbotRoomsMemorySection.vue, D-113), in the Knowledge section's own label,
    sentence and box (MercbotKnowledgeSection.css). The memory shows a few lines until Show all. */
 .mb-memory {
   margin-bottom: 22px;
@@ -8,10 +8,6 @@
   margin: 0 0 8px;
   font-size: 13px;
   color: rgb(var(--v-theme-on-surface-variant));
-}
-
-.mb-memory__label--notes {
-  margin-top: 18px;
 }
 
 .mb-memory__sentence {
@@ -64,37 +60,8 @@
   overflow-wrap: anywhere;
 }
 
-.mb-memory__notes {
-  margin: 0 0 6px;
-  padding: 4px;
-  border: 1px solid rgb(var(--v-theme-outline-variant));
-  border-radius: 12px;
-  background: rgb(var(--v-theme-surface));
-  list-style: none;
-}
-
-.mb-memory__note {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 8px;
-}
-
-.mb-memory__note + .mb-memory__note {
-  border-top: 1px solid rgb(var(--v-theme-outline-variant));
-}
-
-.mb-memory__note-text {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  min-width: 0;
-  font-size: 14px;
-  line-height: 20px;
-  overflow-wrap: anywhere;
-}
-
-.mb-memory__note-line {
-  font-size: 12px;
-  color: rgb(var(--v-theme-on-surface-variant));
+.mb-memory__common {
+  display: block;
+  margin-top: 10px;
+  text-align: left;
 }

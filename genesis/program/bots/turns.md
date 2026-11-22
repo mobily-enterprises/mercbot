@@ -12,7 +12,8 @@ follow-ups after a sign-in, summaries of long chats, and the news every open pag
 - `packages/bots/src/server/chatSeats.js`
 - `packages/bots/src/server/botHistory.js`
 - `packages/bots/src/server/records/seatWindows.js`
-- `packages/bots/src/server/memoryTools.js`
+- `packages/bots/src/server/roomsMemoryTools.js`
+- `packages/bots/src/server/commonKnowledge.js`
 - `packages/bots/src/server/botTurns.js`
 - `packages/bots/src/server/botAgent.js`
 - `packages/bots/src/server/botCards.js`
@@ -129,7 +130,7 @@ managers, at any time) end it. A press claims each of its bots' reply runs (`cla
 while one is still answering) and holds them, on their heartbeat, until the round ends, so a message written meanwhile
 waits and is answered after (`replies.takeUpWaiting`, `answerWaiting`). A turn is `replyTurn` with its `discussion`
 option: the round's prompt, no tools, no reasoning, no checks that send it back, none of the bot's memory (D-113:
-its state note has the home's notes only, and it asks for no refresh), the turn's output limit and the round's abort
+its state note has the home's common knowledge only, and it asks for no refresh), the turn's output limit and the round's abort
 signal; it may PASS, and its message carries `body.discussion` and `body.round` and answers nobody's
 message. Before each turn the spending so far plus that turn's estimate must fit the cap, or it ends (`cap`); the
 spending is the discussion's own turns' AI calls only, heard through `meter.counting` and each priced by
@@ -263,7 +264,7 @@ its seat's start (`chat_bots.reads_from_message_id`, the 30th-newest message the
 other seat), as `genesis/program/bots/chats.md` says. A person's turn reads the chat after its summary only when the
 summary was written at or past the seat's start, else from the start with no summary; routines, watches and
 follow-ups read as before. Its state note then says "You read this chat from <time>: N earlier messages aren't in your
-view. If someone asks you to read further back, call read_further_back." `read_further_back` (`memoryTools.js`, a
+view. If someone asks you to read further back, call read_further_back." `read_further_back` (`roomsMemoryTools.js`, a
 person's turn, defined the same in every chat so the cached prefix is too, R5) takes `messages` (1 to 200, 100 when
 left out) and moves the speaking bot's start back by that many of this chat's messages from its next turn on (one
 count, one read of the new start, one write), answering how many more it now reads and how many are still before

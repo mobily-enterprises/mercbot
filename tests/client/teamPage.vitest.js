@@ -37,7 +37,7 @@ const stub = vi.hoisted(() => (vue, name, props = []) => ({
     })
   })
 }));
-vi.mock("../../src/components/files/FileBrowser.vue", async () => stub(await import("vue"), "FileBrowser", ["botId", "chat", "sections"]));
+vi.mock("../../src/components/files/FileBrowser.vue", async () => stub(await import("vue"), "FileBrowser", ["botId", "chat", "sections", "moveTargets"]));
 vi.mock("../../src/components/mercbot/MercbotChatComputers.vue", async () => stub(await import("vue"), "MercbotChatComputers", ["chat", "me", "homeName", "onlyBotId"]));
 vi.mock("../../src/components/apps/MercbotAppsSection.vue", async () => stub(await import("vue"), "MercbotAppsSection", ["bot"]));
 vi.mock("../../src/components/apps/MercbotViewViewer.vue", async () => stub(await import("vue"), "MercbotViewViewer"));
@@ -159,12 +159,14 @@ describe("a bot's card", () => {
     expect(await card({ member: { kind: "bot", bot: { ...chef, canArchive: false } }, allBots: [], manages: true })).toContain("Rename Chef");
   });
 
-  it("has its own files and the home's beside another chat, and this chat's first from a chat", async () => {
+  it("has its own files beside another chat, and this chat's first from a chat; the home's only as a link and a place to move to", async () => {
     shellPreferences.detailsTab = "files";
     const team = await card();
     expect(team).toContain("data-chat=\"null\"");
     expect(team).toContain("data-bot-id=\"\"7\"\"");
-    expect(team).toContain("data-sections=\"[{\"key\":\"bot\",\"label\":\"Chef's files\",\"root\":\"/files/bot\"},{\"key\":\"shared\",\"label\":\"Casa\",\"root\":\"/files/shared\"}]\"");
+    expect(team).toContain("data-sections=\"[{\"key\":\"bot\",\"label\":\"Chef's files\",\"root\":\"/files/bot\"}]\"");
+    expect(team).toContain("data-move-targets=\"[{\"key\":\"shared\",\"label\":\"Home files\",\"root\":\"/files/shared\"}]\"");
+    expect(team).toContain("Home files →");
     const inChat = await card({ chat: kitchen });
     expect(inChat).toContain("data-chat=\"\"55\"\"");
     expect(inChat).toContain("data-sections=\"[{\"key\":\"chat\",\"label\":\"This chat\",\"root\":\"/files/chat\"},{\"key\":\"bot\"");

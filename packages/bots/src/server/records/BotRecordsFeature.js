@@ -5,15 +5,15 @@ import { createArchiveRepository } from "./archiveRepository.js";
 import { createBotRepository } from "./botRepository.js";
 import { createChatRepository } from "./chatRepository.js";
 import { createBotDirectory } from "./directory.js";
+import { COMMON_KNOWLEDGE_SEARCH, createCommonKnowledgeRepository } from "./commonKnowledgeRepository.js";
 import { FOLLOW_UP_SEARCH, createFollowUpRepository } from "./followUpRepository.js";
-import { HOME_NOTE_SEARCH, createHomeNoteRepository } from "./homeNoteRepository.js";
 import { createHomeTemplateRepository } from "./homeTemplateRepository.js";
 import { KNOWLEDGE_PART_SEARCH, KNOWLEDGE_SEARCH, createKnowledgeRepository } from "./knowledgeRepository.js";
 import { createMakerRepository } from "./makerRepository.js";
-import { MEMORY_QUEUE_SEARCH, MEMORY_SEARCH, createMemoryRepository } from "./memoryRepository.js";
 import { createMessageRepository } from "./messageRepository.js";
 import { createNewBotRepository } from "./newBotRepository.js";
 import { createPolicyRepository } from "./policyRepository.js";
+import { ROOMS_MEMORY_QUEUE_SEARCH, ROOMS_MEMORY_SEARCH, createRoomsMemoryRepository } from "./roomsMemoryRepository.js";
 import {
   botVisibility,
   conversationVisibility,
@@ -30,17 +30,17 @@ import {
   TABLE_RESOURCES,
   botKnowledgePartResource,
   botKnowledgeResource,
-  botMemoryQueueResource,
-  botMemoryResource,
   botRequestResource,
   botResource,
   botRoutineResource,
   chatBotResource,
   chatPersonResource,
+  commonKnowledgeResource,
   connectFollowUpResource,
   conversationResource,
-  homeNoteResource,
-  messageResource
+  messageResource,
+  roomsMemoryQueueResource,
+  roomsMemoryResource
 } from "./tableResources.js";
 import { TURN_MESSAGE_SEARCH, createTurnRepository } from "./turnRepository.js";
 import { REQUEST_SEARCH, ROUTINE_SEARCH, createWorkRepository } from "./workRepository.js";
@@ -57,15 +57,15 @@ const ROW_POLICIES = new Map([
   [botRequestResource, inReadableChat],
   [botRoutineResource, ofReadableChatBot],
   [connectFollowUpResource, ofReadableChatBot],
-  // A bot's digest is made from public chats only, and a home note is for everyone in the home (D-113): the home's,
-  // as its bots are.
-  [botMemoryResource, botVisibility],
-  [homeNoteResource, botVisibility]
+  // A bot's rooms memory is made from public chats only, and the home's common knowledge is for everyone in the home
+  // (D-113): the home's, as its bots are.
+  [roomsMemoryResource, botVisibility],
+  [commonKnowledgeResource, botVisibility]
 ]);
 // The filters the repositories read by beyond each table's search fields (searchSchemas.js), with the queued work's
 // (workRepository.js: what is due, by the database's clock), a turn's (turnRepository.js), the connect follow-ups'
-// (followUpRepository.js), what the bots know (knowledgeRepository.js) and remember (memoryRepository.js,
-// homeNoteRepository.js).
+// (followUpRepository.js), what the bots know (knowledgeRepository.js), remember (roomsMemoryRepository.js) and all
+// know (commonKnowledgeRepository.js).
 const SEARCH = new Map([
   [botResource, BOT_SEARCH],
   [conversationResource, CHAT_SEARCH],
@@ -77,9 +77,9 @@ const SEARCH = new Map([
   [botRequestResource, REQUEST_SEARCH],
   [botRoutineResource, ROUTINE_SEARCH],
   [connectFollowUpResource, FOLLOW_UP_SEARCH],
-  [botMemoryResource, MEMORY_SEARCH],
-  [botMemoryQueueResource, MEMORY_QUEUE_SEARCH],
-  [homeNoteResource, HOME_NOTE_SEARCH]
+  [roomsMemoryResource, ROOMS_MEMORY_SEARCH],
+  [roomsMemoryQueueResource, ROOMS_MEMORY_QUEUE_SEARCH],
+  [commonKnowledgeResource, COMMON_KNOWLEDGE_SEARCH]
 ]);
 
 /** A table's owns entry: with its row policy and filters, when it has them. */
@@ -149,10 +149,10 @@ const BotRecordsFeature = defineFeature({
       homeTemplates,
       // What each bot knows, and the parts of it its turns search (D-107).
       knowledge: createKnowledgeRepository(resources),
-      // What each bot remembers of the home's public chats and its refreshes waiting, and the memory's reads (D-113).
-      memory: createMemoryRepository(resources),
-      // What everyone in the home is told, from the cards people said yes to (D-113).
-      homeNotes: createHomeNoteRepository(resources),
+      // Each bot's rooms memory of the home's public chats and its refreshes waiting, and the memory's reads (D-113).
+      roomsMemory: createRoomsMemoryRepository(resources),
+      // The home's common knowledge, which every bot reads, from the cards people said yes to (D-113).
+      commonKnowledge: createCommonKnowledgeRepository(resources),
       // The model's reader (R1, D-112): the one context a turn's model-facing reads pass, which reads what its chat may.
       readers: Object.freeze({
         forBot: (reader) => readerFor(systemContext, reader),

@@ -1,10 +1,10 @@
 # What bots remember
 
-Your bots remember, the way a person in your home would. What's said in a Public chat is the whole home's, so each bot in it remembers it and can bring it up in its other chats. What's said in a Private chat stays behind glass: its bots read it there, and in chats of only some of the same people, and never in a chat with anyone else in it. This page explains what each bot remembers, where it uses it, the notes everyone in the home is told, and how to make a bot forget.
+Your bots remember, the way a person in your home would. What's said in a Public chat is the whole home's, so each bot in it remembers it and can bring it up in its other chats. What's said in a Private chat stays behind glass: its bots read it there, and in chats of only some of the same people, and never in a chat with anyone else in it. This page explains what each bot remembers (its **Rooms memory**), where it uses it, the **common knowledge** every bot in the home is told, and how to make a bot forget.
 
 ## What a bot remembers
 
-Each bot keeps a memory of the **Public rooms it's in**: what was decided, what people said about themselves, promises made and threads still open, each with the chat it came from and who said it. Mercbot writes it in the background, from the chats themselves, and keeps it up to date:
+Each bot keeps a **Rooms memory** of the **Public rooms it's in**: what was decided, what people said about themselves, promises made and threads still open, each with the chat it came from and who said it. Mercbot writes it in the background, from the chats themselves, and keeps it up to date:
 
 - soon after a lot has been said in the bot's Public chats since its memory was last made, but never more than every half an hour;
 - otherwise once a day, if anything was said at all.
@@ -15,8 +15,8 @@ A bot's memory never holds a Private room, or anyone's private chat with a bot o
 
 When you ask a bot something, it reads, besides the chat you're in:
 
-- **Notes for everyone** in the home (see below), in every chat;
-- **its memory** of the Public chats it's in;
+- **the home's common knowledge** (see below), in every chat;
+- **its Rooms memory** of the Public chats it's in;
 - **what was said since**, in its other chats that this chat may read: the newest lines of each, newest chats first.
 
 It can also search what was said with **recall**, in its own chats, in one chat by name, or in every chat this chat may read, the home's Public chats it isn't in too, and read more of one chat around a line it found.
@@ -37,24 +37,21 @@ No chat reads your chat with a bot, or a chat between two people, except that ch
 
 So in a Private chat with Ben, a bot can mention something from a Private chat of you, Ben and Carla, but never something from your Private chat with Carla, and never anything Private in a Public chat. This is enforced when Mercbot reads the chats, not by asking the bot to be careful.
 
-## Notes for everyone
+## Bots' common knowledge
 
-Some things everyone in the home and every bot should know from now on: a date, a decision, an allergy. Ask any bot to **tell everyone**, or say yes when a bot offers to:
+Some things every bot in the home should know from now on: a date, a decision, an allergy. Ask any bot to **tell every bot** (or "tell everyone"), or say yes when a bot offers to:
 
-1. The bot shows a card: "Shall I tell everyone in *your home* that? …", with the exact words.
+1. The bot shows a card: "Shall I tell every bot in *your home* that? …", with the exact words.
 2. Select **Go ahead**, or **Don't do it**. Only the person who asked can answer it.
-3. Once you say yes, the chat says **Told everyone in *your home***, and every bot reads the note from its next reply, in every chat.
+3. Once you say yes, the chat says **Added to *your home*'s common knowledge**, and every bot reads it from its next reply, in every chat.
 
-A note is the home's, even when you asked from a Private chat, so word it for everyone. A note never holds an email address, a phone or card number (nine or more digits) or a password: the bot refuses and asks you to leave it out.
+Common knowledge belongs to the home, not to one bot, even when you asked from a Private chat, so word it for everyone. It never holds an email address, a phone or card number (nine or more digits) or a password: the bot refuses and asks you to leave it out.
 
 ## See and remove what's remembered
 
-Open a bot's card (select it under **Bots** in the sidebar, then the chat's name at the top, or select it under **Bots** in a room's **Chat details**) and its **Details** tab. Under **Knowledge**:
+Open a bot's card (select it under **Bots** in the sidebar, then the chat's name at the top, or select it under **Bots** in a room's **Chat details**) and its **Details** tab. Under **Knowledge**, **Rooms memory** shows what the bot remembers and when it was made. Select **Show all** to read all of it. Everyone in the home can read it, as everyone can open the Public chats it comes from.
 
-- **Memory** shows what the bot remembers and when it was made. Select **Show all** to read all of it. Everyone in the home can read it, as everyone can open the Public chats it comes from.
-- **Notes for everyone** lists the home's notes, newest first, each with who asked for it and through which bot. **Show older notes** reads further back.
-
-The person who asked for a note, and the home's owners and admins, can remove it with its bin. Every bot stops reading it from its next reply.
+Below it, "*Bot* also knows the home's common knowledge (3) →" opens **Settings** > **Bots' common knowledge**, the home's list, newest first, each with who asked for it, through which bot, and when. **Show older** reads further back. The person who asked for something there, and the home's owners and admins, can remove it with its bin. Every bot stops reading it from its next reply.
 
 ## Make a bot forget
 
@@ -71,11 +68,11 @@ Only in a chat whose people are all in that Private chat too, such as your chat 
 
 ### Why doesn't a bot know what I said a minute ago in another chat?
 
-Its memory is made in the background. What came after it is in "what was said since", for chats this chat may read; a bot can also search for it with recall.
+Its Rooms memory is made in the background. What came after it is in "what was said since", for chats this chat may read; a bot can also search for it with recall.
 
 ### Does remembering cost anything?
 
-Making a bot's memory is AI work, counted in **Spending** as the bot's, for the home, not for any person.
+Making a bot's Rooms memory is AI work, counted in **Spending** as the bot's, for the home, not for any person.
 
 ## Related pages
 

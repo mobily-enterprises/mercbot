@@ -54,6 +54,8 @@ D-76, docs/architecture.md §3.8).
 - `src/components/mercbot/MercbotSettingsComputer.vue`
 - `src/components/mercbot/MercbotSettingsVault.vue`
 - `src/components/mercbot/MercbotSettingsTemplates.vue`
+- `src/components/mercbot/MercbotSettingsMainBot.vue`
+- `src/components/mercbot/MercbotSettingsCommonKnowledge.vue`
 - `src/components/mercbot/MercbotVaultImport.vue`
 - `src/components/mercbot/vaultImport.js`
 - `src/components/mercbot/MercbotVaultPhoto.vue`
@@ -238,6 +240,13 @@ Settings section for `?settings=<section>` (a link in an email, or back from ano
 address and leaves the rest for the section to read (`useShellDialogs.js`). The sidebar shows no bot's price, with
 the pointer over it or not (D-73, the owner, 2026-11-20).
 Settings → Permissions holds the auto-review switch and the Always ask and Allow without asking rule lists.
+Settings → Main bot and Builder (`MercbotSettingsMainBot.vue`, D-119) shows the home's main bot and its Builder, each a
+picker from the home's active bots for those who may (the main bot: the home's owners and admins, `PATCH …/bots/:id
+{ main: true }`; the Builder: whoever `GET …/builder` says `canManage`, `PUT …/builder`), else each name with "Only the
+home's owners and admins can change these." Settings → Bots' common knowledge (`MercbotSettingsCommonKnowledge.vue`,
+D-113, D-119) lists the home's common knowledge (`genesis/program/bots/knowledge.md`). A bot's card links to both
+(`open-settings` with `main-bot` or `common-knowledge`, through the details panel's `openSettings` command and its
+`section`).
 
 The account menu also has Help and support and Settings. Help and support opens a Help centre
 tab on `/help`, the shortcuts sheet and About. A person's own copy has no other account and no signing out (D-81). A

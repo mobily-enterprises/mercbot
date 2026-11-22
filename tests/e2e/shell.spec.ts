@@ -219,7 +219,8 @@ test("a direct chat's details are its bot's card: its tabs read each, and it ren
   const details = shell.details(page, /^Otto( Pinned)?.s card$/u);
   await expect(details.getByRole("tab")).toHaveText(["Details", "Files", "Library", "Computer"]);
   await expect(details.getByRole("tab", { name: "Details" })).toHaveAttribute("aria-selected", "true");
-  await expect(details.getByText("Routines are jobs Otto repeats on a schedule.", { exact: false })).toBeVisible();
+  // No routines yet: no Routines section (D-119), but its Archive.
+  await expect(details.getByRole("region", { name: "Archive" })).toBeVisible();
   // Its instructions, and its routines in this chat.
   await expect.poll(() => calls.filter((call) => /\/(instructions|routines)$/u.test(call)).sort()).toEqual(["GET /bots/:id/instructions", "GET /chats/:id/routines"]);
   calls.length = 0;

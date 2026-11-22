@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { modelTools, runLoop } from "@jskit-ai/agent/server";
 import { MockLanguageModelV4 } from "ai/test";
-import { MEMORY_LIMITS } from "../../packages/bots/src/server/botMemory.js";
-import { memoryToolsFor } from "../../packages/bots/src/server/memoryTools.js";
+import { ROOMS_MEMORY_LIMITS } from "../../packages/bots/src/server/roomsMemory.js";
+import { roomsMemoryToolsFor } from "../../packages/bots/src/server/roomsMemoryTools.js";
 
 // What keeps replies cheap (D-57): cached input costs a fiftieth of uncached, and a cache reuses only
 // an unchanged start. The state note changes every turn, so nothing that stays the same may follow it.
@@ -46,16 +46,15 @@ test("the summary stays in the system prompt, and no note means no extra message
 });
 
 /**
- * The memory tools a person's own turn is offered (memoryTools.js), as the model is shown them, for a bot's seat: in a
+ * The rooms memory tools a person's own turn is offered (roomsMemoryTools.js), as the model is shown them, for a bot's seat: in a
  * chat it reads whole, or in a room it joined late, reading it from a message on.
  */
 function shownTools(seat) {
-  const tools = memoryToolsFor({
+  const tools = roomsMemoryToolsFor({
     records: {},
-    memory: { limits: MEMORY_LIMITS },
+    roomsMemory: { limits: ROOMS_MEMORY_LIMITS },
     seat,
-    turn: { remembers: true, tells: true, timeZone: "Europe/Rome", home: "Rossi" },
-    withoutSecrets: async (text) => text,
+    turn: { remembers: true, tells: true, timeZone: "Europe/Rome" },
     call: {}
   })(async () => ({}));
   return Object.entries(modelTools(tools)).map(([key, tool]) => ({ key, description: tool.description, schema: tool.inputSchema.jsonSchema }));

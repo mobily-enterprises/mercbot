@@ -63,11 +63,7 @@ function chooseFiles(event) {
       <button type="button" class="mb-knowledge__link" @click="load">Try again</button>
     </p>
     <template v-else>
-      <p class="mb-knowledge__sentence">
-        {{ pieces.length
-          ? `What ${bot.name} knows, in every chat it's in.`
-          : `${bot.name} knows nothing extra yet. Add text or a file, such as a price list, a manual or a book.` }}
-      </p>
+      <p v-if="!pieces.length" class="mb-knowledge__sentence">{{ canChange ? "Nothing yet. Add a price list, a manual or a book." : "Nothing yet." }}</p>
 
       <ul v-if="pieces.length" class="mb-knowledge__list" aria-label="What it knows">
         <li v-for="piece in pieces" :key="piece.id" class="mb-knowledge__piece" :data-knowledge="piece.title">

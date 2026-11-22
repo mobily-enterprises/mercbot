@@ -3063,6 +3063,9 @@ member leaving the home.
   sidebar's Archived bots, menus, question, line, commands, banner and pickers) and `tests/e2e/archive-bots.spec.ts`
   (archived from its menu, another open page following at once, unarchived back in its section, light, dark and phone).
 
+Amended by D-119: a bot's card says Archive in one line, and for the main bot only why it can't be; the main bot and
+the Builder are chosen in Settings.
+
 ## D-109 — Add bots: describe what you need, or choose yourself (2026-11-21)
 
 *Amended by D-112 (2026-11-22): Add bots lives on the Team page too; the bots it adds appear there and don't each open
@@ -3622,6 +3625,9 @@ The bench (`tests/bench/memory.bench.js`, `npm run bench`, the real chat AI) che
 two public chats with conflicting dates kept apart and attributed, a question answerable only from another chat, one
 answerable only by recall, and a clever question that must not reveal a private chat. It has not been run.
 
+Amended by D-119: the home's notes are now Bots' common knowledge, in Settings, and a bot's memory is its Rooms
+memory; their tables, code and routes are renamed so.
+
 ## D-114 — People in chats: their files, mentions, reactions, and Continue with others (2026-11-22)
 
 *Phase B3 of the chats rebuild (D-112). Amends D-90: a person's upload in a chat is checked as theirs in that chat,
@@ -3825,3 +3831,39 @@ no key of its own). Its work is metered and charged as anywhere.
   the files bucket's, live payment keys and the rest.
 - **Proof:** `tests/server/aiKinds.test.js` (a kind with its key uses its provider beside the stand-in; one without
   stays on it).
+
+## D-119 — Bots' common knowledge and Rooms memory (2026-11-22)
+
+Amends D-113 and D-108's card. The owner, 22 November: what people ask a bot to "tell everyone" is the home's, not
+any one bot's, yet it was shown on every bot's card as "Notes for everyone"; and "Memory" on a card didn't say what it
+was made from.
+
+Decided:
+- **Bots' common knowledge.** The home's notes are renamed "Bots' common knowledge" in the app and "common knowledge"
+  in the code: the table `common_knowledge` (was `home_notes`), `commonKnowledge.js` and
+  `records/commonKnowledgeRepository.js`, the routes `GET …/common-knowledge` and `DELETE …/common-knowledge/:entryId`
+  (`{ entries, next }`; `bots_common_knowledge_not_found`, `bots_common_knowledge_remove_forbidden`), and the tool and
+  its always-ask card `share_common_knowledge` (was `tell_everyone`), with the same refusals, rules and reads. They
+  belong to the home, so they live in **Settings → Bots' common knowledge**: the list, newest first, who added each and
+  when, remove for its author and the home's owners and admins, and a line saying every bot reads it in every chat.
+  Each bot's card has one line in their place, "<Bot> also knows the home's common knowledge (N) →", which opens
+  Settings there.
+- **Rooms memory.** A bot's "Memory" is renamed "Rooms memory" in the app and "rooms memory" in the code
+  (`roomsMemory.js`, `roomsMemoryTools.js`, `records/roomsMemoryRepository.js`, the route `GET …/bots/:botId/rooms-memory`,
+  the prompt's `<<rooms memory>>` markers, the tables `rooms_memories` and `rooms_memory_queue`, were `bot_memories`
+  and `bot_memory_queue`): it is built from the home's public rooms only, never a private chat.
+- **The main bot and the Builder** are the home's too: they're chosen in **Settings → Main bot and Builder**, by the
+  same people and with the same server rules as before; a bot's card shows a "Main bot" or "Builder" chip and, for the
+  home's owners and admins, a link there.
+- **A shorter card.** A bot's Details say each thing once: an empty section is one short line or isn't shown
+  (Routines and Watches only when there are some), and Archive is one line ("Removes <Bot> for everyone. Its chats
+  stay."), or for the main bot only why it can't be. Its Files tab lists this chat's folder and the bot's own, with
+  "Home files →" to the Files page; Move to… still offers the home's folder. The additions' label reads "Template
+  Additions · only this bot".
+- **One migration renames the tables** (`20261123140000_rooms_memory_common_knowledge.cjs`), with their constraints,
+  indexes and sequences, and its down renames them back. No row is dropped or converted, and no behaviour, refusal or
+  query count changes.
+- **Proof:** `tests/server/commonKnowledge.integration.js`, `tests/server/roomsMemoryWall.integration.js`,
+  `tests/server/roomsMemoryReach.integration.js`, `tests/server/roomsMemoryRefresh.integration.js`,
+  `tests/client/roomsMemory.vitest.js`, `tests/client/mainBotSettings.vitest.js`, `tests/client/botCardFiles.vitest.js`,
+  `tests/client/archiveBots.vitest.js`, `tests/client/settingsSections.vitest.js`.

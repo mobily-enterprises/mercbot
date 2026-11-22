@@ -19,7 +19,7 @@
 // additions as its system prompt has them, and one told "Change your additions to: …" changes them through
 // change_additions, which leaves the person a card (D-98, D-95). Any bot asked "What do you know about …?" answers with
 // the first line of its knowledge naming it and where that's from, its system prompt's or the current state's search
-// (D-107). It writes a bot's memory of its public chats (botMemory.js, D-113) as the chats' headings and lines it was
+// (D-107). It writes a bot's memory of its public chats (roomsMemory.js, D-113) as the chats' headings and lines it was
 // handed, with the earlier memory's first. It drafts a home's templates
 // (packages/bots/src/server/templateDrafts.js) as fixed drafts: a new one from its sentence, one from a bot from that
 // bot's template (its additions on the end when they're folded in), and a change by putting the request at the end of

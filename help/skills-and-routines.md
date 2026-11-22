@@ -126,7 +126,7 @@ A watch tells a bot to act by itself when records in one of your home's tables c
 
 A watch can look for **new records**, **changes**, or both, and can have a condition, such as a total over 500 or a status of Won. Each time it fires, the chat where you set it up shows **Watch:** with its name, followed by the bot's reply. One run covers up to 20 records and counts the rest.
 
-Watches are listed on the bot's card: open its **Details** tab, and the **Apps** section lists each of its watches in the chats you can open, such as "Watches new records in Orders". Use the switch to pause one, or to resume it if you set it up (it runs as you), or **Remove** to delete it. In a chat, you can also ask the bot "What are you watching here?": it knows its watches in that chat.
+Watches are listed on the bot's card: open its **Details** tab, and the **Watches** section lists each of its watches in the chats you can open, such as "new records in Orders". Use the switch to pause one, or to resume it if you set it up (it runs as you), or **Remove** to delete it. In a chat, you can also ask the bot "What are you watching here?": it knows its watches in that chat.
 
 - A new or resumed watch only sees changes from that moment on.
 - Changes the watch's own run makes never set it off again.

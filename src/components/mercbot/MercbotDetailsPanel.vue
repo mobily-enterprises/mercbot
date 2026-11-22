@@ -56,7 +56,6 @@ const botCommand = (name, args = {}) => emit("command", { name, args: { botId: S
       @open-page="emit('open-page', $event)"
       @changed="emit('changed', $event)"
       @rename="botCommand('renameBot', { name: $event })"
-      @make-main="botCommand('makeMain')"
       @archive-bot="botCommand('archiveBot')"
       @unarchive-bot="botCommand('unarchiveBot')"
       @edit-routine="emit('edit-routine', $event)"
@@ -64,6 +63,7 @@ const botCommand = (name, args = {}) => emit("command", { name, args: { botId: S
       @open-computer="emit('open-computer', $event)"
       @failure="emit('failure', $event)"
       @notify="emit('notify', $event)"
+      @open-settings="emit('command', { name: 'openSettings', args: { section: $event } })"
     />
     <div v-else-if="chat" class="mb-details__scroll">
       <MercbotChatDetails

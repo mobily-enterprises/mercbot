@@ -39,12 +39,12 @@ export function createBotArchive({ records, apps, computer, pauseWork, tellHome,
     }
     if (unarchiving) return bot;
     if (bot.is_main) {
-      throw new BotsError(409, `${bot.name} is this home's main bot, so it can't be archived. Make another bot the main bot first.`, {
+      throw new BotsError(409, `${bot.name} is this home's main bot, so it can't be archived. Make another bot the main bot in Settings first.`, {
         code: "bots_archive_main"
       });
     }
     if (String((await apps.apps.builder(options))?.id) === String(bot.id)) {
-      throw new BotsError(409, `${bot.name} builds this home's apps, so it can't be archived. Make another bot the Builder from its card in Bots first.`, {
+      throw new BotsError(409, `${bot.name} builds this home's apps, so it can't be archived. Make another bot the Builder in Settings first.`, {
         code: "bots_archive_builder"
       });
     }

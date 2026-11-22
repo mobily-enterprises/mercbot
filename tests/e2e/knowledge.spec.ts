@@ -78,16 +78,14 @@ test("Knowledge: short text is always in mind, a long guide is searched first, a
   try {
     await openKnowledge(page, bot);
     const known = section(page, bot);
-    await expect(known.locator(".mb-knowledge__sentence"))
-      .toHaveText(`${bot.name} knows nothing extra yet. Add text or a file, such as a price list, a manual or a book.`);
-    // Under it, what the bot remembers (D-113): nothing yet for a new bot, then the home's notes for everyone.
-    const memory = card(page, bot).getByRole("region", { name: "Memory" });
-    await expect(memory.locator(".mb-memory__sentence").first())
-      .toHaveText(`${bot.name} doesn't remember anything yet. It remembers what's said in the public chats it's in, never a private chat.`);
-    await expect(memory).toContainText("Notes for everyone");
+    await expect(known.locator(".mb-knowledge__sentence")).toHaveText("Nothing yet. Add a price list, a manual or a book.");
+    // Under it, its rooms memory (D-113): nothing yet for a new bot, then a link to the home's common knowledge.
+    const memory = card(page, bot).getByRole("region", { name: "Rooms memory" });
+    await expect(memory.locator(".mb-memory__sentence").first()).toHaveText("Nothing yet. It remembers public rooms only, never private chats.");
+    await expect(memory).toContainText(`${bot.name} also knows the home's common knowledge`);
 
     await addText(page, bot, "Opening hours", "We open at 9am on Saturdays.\nWe close at noon on Sundays.");
-    await expect(known.locator(".mb-knowledge__sentence")).toHaveText(`What ${bot.name} knows, in every chat it's in.`);
+    await expect(known.locator(".mb-knowledge__sentence"), "no sentence once it knows something").toHaveCount(0);
     await expect(piece(page, bot, "Opening hours")).toContainText("57 characters · Always in mind");
     await expect(known.locator(".mb-knowledge__summary")).toContainText("Always in mind: 57 characters, read with every message.");
     await expect(known.locator(".mb-knowledge__summary"), "57 characters cost less than money shows").toContainText("Adds less than $0.0001 to each message.");
@@ -122,12 +120,12 @@ test("Knowledge: short text is always in mind, a long guide is searched first, a
   }
 });
 
-test("Memory: a bot's card shows what it remembers of its public chats, and a note's author removes it", async ({ page }) => {
+test("Rooms memory: a bot's card shows what it remembers of its public rooms and links to the home's common knowledge, whose entry's author removes it", async ({ page }) => {
   const bot = await makeBot(page);
   const stamp = Date.now().toString(36);
   const said = `The tomatoes go in on the fourteenth (${stamp}).`;
   const knex = connectTestDb();
-  let noteId: string | null = null;
+  let entryId: string | null = null;
   let gardenId: string | null = null;
   try {
     const api = await homeApi(page);
@@ -139,34 +137,38 @@ test("Memory: a bot's card shows what it remembers of its public chats, and a no
     const shed = await makeChat(page, { title: `Shed ${stamp}`, bots: [bot.id] });
     await api.post(`/chats/${shed.id}/messages`, { text: `The mower's blade is blunt (${stamp}).` });
     await api.del(`/chats/${shed.id}`);
-    await expect.poll(async () => (await api.get(`/bots/${bot.id}/memory`)).memory?.text || "", { timeout: 20000 }).toContain(said);
-    // A note for everyone, as a yes on its card writes one: asked for by the bot's maker, through the bot.
+    await expect.poll(async () => (await api.get(`/bots/${bot.id}/rooms-memory`)).roomsMemory?.text || "", { timeout: 20000 }).toContain(said);
+    // Common knowledge, as a yes on its card writes it: asked for by the bot's maker, through the bot.
     const made = await knex("bots").where({ id: bot.id }).first();
     expect(made.made_by, "the bot's maker").toBeTruthy();
     const text = `Bins go out on Tuesdays ${stamp}`;
-    const [note] = await knex("home_notes")
+    const [entry] = await knex("common_knowledge")
       .insert({ workspace_id: made.workspace_id, text, by_user_id: made.made_by, via_bot_id: bot.id, from_conversation_id: garden.id })
       .returning("id");
-    noteId = String(note.id);
+    entryId = String(entry.id);
 
     await openKnowledge(page, bot);
-    const memory = card(page, bot).getByRole("region", { name: "Memory" });
-    await expect(memory.locator(".mb-memory__sentence").first()).toContainText(`What ${bot.name} remembers of the public chats it's in, made `);
+    const memory = card(page, bot).getByRole("region", { name: "Rooms memory" });
+    await expect(memory.locator(".mb-memory__sentence").first()).toContainText("From its public rooms, made ");
     await expect(memory.locator("[data-memory]")).toContainText(said);
     await expect(memory.locator("[data-memory]"), "the deleted chat is forgotten").not.toContainText("blade");
-    const listed = memory.locator(`[data-note="${text}"]`);
+    // The card's link opens Settings at the home's common knowledge.
+    await memory.locator("[data-common-knowledge]").click();
+    const settings = page.getByRole("dialog", { name: "Settings" });
+    await expect(settings.getByRole("heading", { name: "Bots' common knowledge" })).toBeVisible();
+    const listed = settings.locator(`[data-entry="${text}"]`);
     await expect(listed).toContainText(`via ${bot.name}`);
 
-    await listed.getByRole("button", { name: `Remove the note: ${text}` }).click();
-    const dialog = page.getByRole("dialog").filter({ hasText: "Remove this note?" });
+    await listed.getByRole("button", { name: `Remove from common knowledge: ${text}` }).click();
+    const dialog = page.getByRole("dialog").filter({ hasText: "Remove from common knowledge?" });
     await expect(dialog).toContainText(`Every bot stops reading it from its next reply: “${text}”`);
     await dialog.getByRole("button", { name: "Remove" }).click();
     await expect(listed).toHaveCount(0);
-    const kept = await knex("home_notes").where({ id: noteId }).first();
+    const kept = await knex("common_knowledge").where({ id: entryId }).first();
     expect(kept.removed_at, "kept, as removed").toBeTruthy();
     expect(String(kept.removed_by), "by its author").toBe(String(made.made_by));
   } finally {
-    if (noteId) await knex("home_notes").where({ id: noteId }).del();
+    if (entryId) await knex("common_knowledge").where({ id: entryId }).del();
     await knex.destroy();
     if (gardenId) await (await homeApi(page)).del(`/chats/${gardenId}`);
     await deleteBot(page, bot);

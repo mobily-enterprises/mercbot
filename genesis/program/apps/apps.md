@@ -20,6 +20,7 @@ publishes and can restore, and fields removed from every app in one save (D-35).
 - `src/components/apps/FieldRemoval.vue`
 - `src/components/apps/MercbotAppsEntry.vue`
 - `src/components/apps/MercbotAppsSection.vue`
+- `src/components/mercbot/MercbotSettingsMainBot.vue`
 
 ## Public contract
 
@@ -31,6 +32,8 @@ publishes and can restore, and fields removed from every app in one save (D-35).
   old version) becomes the next numbered live version, and publishing clears the draft's practice
   copy in the same transaction (practice.md). Creation and publishing are audited.
 - One Builder bot per home (`app_settings.builder_bot_id`); each person pins up to 8 apps.
+  The home's owners and admins choose it in Settings → Main bot and Builder (`MercbotSettingsMainBot.vue`, D-119);
+  a bot's card shows a Builder chip, and its Apps section lists only its watches.
 - `mercbot.apps`' `activity.record(entry, options)` adds another feature's entry (`{ actor, via, action,
   changes }`) to the call's home's Activity trail: an unlinked copy (integrations, D-31) and an account removed with
   the person who connected it (integrations, `changes.departedAccount`, D-111) are `via.kind` `settings`, shown as

@@ -347,13 +347,13 @@ export const homeTemplateChangeResource = defineTableResource({
   }
 });
 
-/** home_notes
- * what a person asked a bot to tell everyone in the home (D-113), written only on the card they said yes to (cardId,
- * one note per card); a removed note keeps its row, with who removed it and when
+/** common_knowledge
+ * the home's common knowledge (D-113): what a person asked a bot to tell every bot in the home, written only on the
+ * card they said yes to (cardId, one entry per card); a removed entry keeps its row, with who removed it and when
  */
-export const homeNoteResource = defineTableResource({
-  name: "homeNotes",
-  tableName: "home_notes",
+export const commonKnowledgeResource = defineTableResource({
+  name: "commonKnowledge",
+  tableName: "common_knowledge",
   ownership: "workspace",
   schema: {
     byUserId: { type: "id", nullable: true, search: true },
@@ -368,13 +368,13 @@ export const homeNoteResource = defineTableResource({
   }
 });
 
-/** bot_memories
- * one digest per bot of the home's public chats it's in (D-113): where it read each chat up to (covers), the home's
+/** rooms_memories
+ * a bot's rooms memory: one digest per bot of the home's public chats it's in (D-113): where it read each chat up to (covers), the home's
  * newest message then (upTo), and the version it replaced (follows): a refresh writes only over the one it read
  */
-export const botMemoryResource = defineTableResource({
-  name: "botMemories",
-  tableName: "bot_memories",
+export const roomsMemoryResource = defineTableResource({
+  name: "roomsMemories",
+  tableName: "rooms_memories",
   ownership: "workspace",
   schema: {
     botId: { type: "id", required: true, search: true },
@@ -389,13 +389,13 @@ export const botMemoryResource = defineTableResource({
   }
 });
 
-/** bot_memory_queue
- * a bot's digest refresh waiting (D-113), claimed by one server at a time under a lease (claimedBy, claimedUntil) that
+/** rooms_memory_queue
+ * a bot's rooms memory refresh waiting (D-113), claimed by one server at a time under a lease (claimedBy, claimedUntil) that
  * its server renews while it writes; asks counts its requests; rebuild asks for one made from the chats
  */
-export const botMemoryQueueResource = defineTableResource({
-  name: "botMemoryQueue",
-  tableName: "bot_memory_queue",
+export const roomsMemoryQueueResource = defineTableResource({
+  name: "roomsMemoryQueue",
+  tableName: "rooms_memory_queue",
   ownership: "workspace",
   schema: {
     botId: { type: "id", required: true, search: true },
@@ -427,7 +427,7 @@ export const TABLE_RESOURCES = Object.freeze([
   approvalRuleResource,
   homeTemplateResource,
   homeTemplateChangeResource,
-  homeNoteResource,
-  botMemoryResource,
-  botMemoryQueueResource
+  commonKnowledgeResource,
+  roomsMemoryResource,
+  roomsMemoryQueueResource
 ]);

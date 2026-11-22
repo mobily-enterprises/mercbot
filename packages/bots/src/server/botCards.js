@@ -109,8 +109,8 @@ export function createBotCards({ records, account, env, computer, integrations, 
               env,
               work,
               bots: records.bots,
-              // The home's notes (D-113): tell_everyone writes its note from this card.
-              notes: records.homeNotes,
+              // The home's common knowledge (D-113): share_common_knowledge writes its entry from this card.
+              commonKnowledge: records.commonKnowledge,
               cardId: String(choice.id),
               computer,
               integrations,

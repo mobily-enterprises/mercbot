@@ -18,7 +18,9 @@ personal preferences.
 
 A Bots section holds the Auto-review switch and the person's
 plain-language rules (Action / Behaviour, with inline edit and delete), the same
-ones as in Settings → Permissions.
+ones as in Settings → Permissions. What belongs to the home rather than the person, such as its main bot and Builder
+and the bots' common knowledge, is in the shell's Settings dialog (`genesis/program/application/shell-navigation.md`,
+D-119), not here.
 
 
 The page sits under JSKIT's top app bar, titled Account settings, with the Up

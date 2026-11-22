@@ -99,9 +99,13 @@
  * }} ModelReaders
  */
 /**
- * What each bot remembers of the home's public chats, and the home's notes (botMemory.js, D-113): a turn's state lines,
- * its tools' reads, the refreshes' runner, forgetting, and the card's and Team's reads.
- * @typedef {ReturnType<typeof import("./botMemory.js").createBotMemory>} BotMemory
+ * Each bot's rooms memory of the home's public chats (roomsMemory.js, D-113): a turn's state lines, its tools' reads,
+ * the refreshes' runner, forgetting, and the card's read.
+ * @typedef {ReturnType<typeof import("./roomsMemory.js").createRoomsMemory>} RoomsMemory
+ */
+/**
+ * The home's common knowledge (commonKnowledge.js, D-113): a turn's state lines, and Settings' list and removal.
+ * @typedef {ReturnType<typeof import("./commonKnowledge.js").createCommonKnowledge>} CommonKnowledge
  */
 /**
  * The bots' tables (`mercbot.bots.records`, records/BotRecordsFeature.js), D-112's records contract: the directory
@@ -109,8 +113,8 @@
  * home's joins and leaves (`chats.personJoined`, `chats.personLeft`); a chat's messages; bots archived (D-108); the
  * bots a person made and the chats they're in across homes; the bots' work (requests, routines, cards) and policies;
  * the connect follow-ups; what a turn reads beside its chat; a bot made from a template opening a chat; new bots made
- * together (D-105); the home's own templates (D-98); what each bot knows (D-107) and remembers, and the home's notes
- * (D-113); the model's reader; the chat rules
+ * together (D-105); the home's own templates (D-98); what each bot knows (D-107), its rooms memory and the home's common
+ * knowledge (D-113); the model's reader; the chat rules
  * other features' row policies apply; and agent-runtime's stores, keyed by the bot's seat in a chat (chat_bots.id)
  * for runs, goals and commands, and by the chat for summaries.
  * @typedef {{
@@ -127,8 +131,8 @@
  *   newBots: ReturnType<typeof import("./records/newBotRepository.js").createNewBotRepository>,
  *   homeTemplates: HomeTemplateRepository,
  *   knowledge: ReturnType<typeof import("./records/knowledgeRepository.js").createKnowledgeRepository>,
- *   memory: ReturnType<typeof import("./records/memoryRepository.js").createMemoryRepository>,
- *   homeNotes: ReturnType<typeof import("./records/homeNoteRepository.js").createHomeNoteRepository>,
+ *   roomsMemory: ReturnType<typeof import("./records/roomsMemoryRepository.js").createRoomsMemoryRepository>,
+ *   commonKnowledge: ReturnType<typeof import("./records/commonKnowledgeRepository.js").createCommonKnowledgeRepository>,
  *   readers: ModelReaders,
  *   rules: ChatRules,
  *   agent: { createRuns: Function, createSummaries: Function, createGoals: Function }

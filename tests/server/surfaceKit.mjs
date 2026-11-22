@@ -60,7 +60,7 @@ export async function startSurfaces(knex, context, {
   // The turns' pauseWork (chatTurns.js): which seats an archive (a bot's or a chat's) asked to pause, and its line.
   const pauseWork = async (seats, line) => { calls.paused.push({ seats: seats.map((seat) => ({ id: String(seat.id), chatId: String(seat.chatId) })), text: line.text }); };
 
-  // A deleted public chat's bots forget it (botMemory.js); the surfaces' tests read no memory.
+  // A deleted public chat's bots forget it (roomsMemory.js); the surfaces' tests read no memory.
   const chats = createChatMembers({ records, notices, computer, systemContext, pauseWork, forget: async () => {} });
   const onboarding = createOnboarding({ records, chats, model, meter, notices, workspaces });
   const botList = createBotList({ records, apps, notices });

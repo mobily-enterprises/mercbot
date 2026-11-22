@@ -32,7 +32,7 @@ export function withMentions(body, members = [], people = []) {
 /**
  * A message's people's markers as the model reads them (D-114): "@Name" from the names kept on the message
  * (`body.mentionedPeople`), "@someone" for any other; the other markers stay. The bots' turns (botAgent.contentOf) and
- * what the bots remember (records/memoryRepository.js) read a person's words through it.
+ * what the bots remember (records/roomsMemoryRepository.js) read a person's words through it.
  * @param {unknown} text
  * @param {Array<{ id: string, name: string }> | null | undefined} people
  */
