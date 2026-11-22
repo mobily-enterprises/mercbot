@@ -196,7 +196,8 @@ place of the provider's, no balance or billing page, the name "Stand-in model, i
 only under that address and refuses any other before it goes out, and Gemini's layer is called with the layer's
 `baseURL`, so pictures and photos go there too. A screen that lists the kinds can say from `standIn` that the key
 isn't needed. Every
-Preview (`bin/develop.js`) and Test Preview (`start-test-app.mjs`) empties every credential-shaped setting and serves
+Preview (`bin/develop.js`) and Test Preview (`start-test-app.mjs`) empties every credential-shaped setting (but a
+payment provider's test-mode key, `sk_test_…` or `rk_test_…`, which can't move money, D-116) and serves
 Mercbot's stand-in model (`tools/standInModel.mjs`, through `tools/previewAi.mjs`, in tools/ so a composition keeps it)
 on a local port and sets it, with each kind's type and no key, so nothing it asks of its AI reaches a provider;
 staging and production ignore the setting and behave as before.

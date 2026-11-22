@@ -75,7 +75,8 @@ test("without its app, connecting Google, Microsoft or GitHub says sign-in isn't
 
 // A Preview (bin/develop.js) and a Test Preview reach no outside service with a key from .env or Development Env: each
 // outside service's credential is emptied, so its feature is off or has its stand-in, a copy built on Mercbot's own
-// too (here, sign-in providers' and a human check's). The copy's own secrets stay.
+// too (here, sign-in providers' and a human check's). The copy's own secrets stay, as does a test-mode payment key
+// (below, D-116).
 test("a Preview empties every outside service's credential, and keeps the copy's own secrets", () => {
   const env = { ...everything, AUTH_GOOGLE_CLIENT_ID: "id", GOOGLE_TEST_CLIENT_SECRET: "secret", WEATHER_API_KEY: "w", GITHUB_TOKEN: "t" };
   for (const name of ["AUTH_GOOGLE_CLIENT_SECRET", "AUTH_MICROSOFT_CLIENT_ID", "AUTH_MICROSOFT_CLIENT_SECRET", "AUTH_GITHUB_CLIENT_ID", "AUTH_GITHUB_CLIENT_SECRET", "TURNSTILE_SITE_KEY", "TURNSTILE_SECRET_KEY"]) {
@@ -92,4 +93,46 @@ test("a Preview empties every outside service's credential, and keeps the copy's
     "TURNSTILE_SECRET_KEY", "TURNSTILE_SITE_KEY", "WEATHER_API_KEY"
   ]);
   for (const name of ["AUTH_LOCAL_SESSION_SECRET", "MERCBOT_VAULT_KEY", "DB_PASSWORD", "MERCBOT_FILES_PASSPHRASE"]) assert.notEqual(env[name], "", name);
+});
+
+// A payment provider's test-mode key can't move money, so a Preview keeps it and a copy built on Mercbot that takes
+// payments can try them there (D-116): Stripe's secret and restricted test keys, whatever the setting's name.
+test("a Preview keeps a payment provider's test-mode key, sk_test_ and rk_test_", () => {
+  const env = { STRIPE_SECRET_KEY: "sk_test_51Example", PAYMENTS_RESTRICTED_SECRET_KEY: "rk_test_51Example", SHOP_API_KEY: " sk_test_padded " };
+  withoutCredentials(env);
+  assert.deepEqual(env, { STRIPE_SECRET_KEY: "sk_test_51Example", PAYMENTS_RESTRICTED_SECRET_KEY: "rk_test_51Example", SHOP_API_KEY: " sk_test_padded " });
+});
+
+// Every other credential is emptied as before: a live payment key, which would take real money, and the AI keys, so
+// the Preview's AI stays the stand-in model (D-83).
+test("a Preview empties a live payment key (sk_live_, rk_live_) and an AI key", () => {
+  const env = { STRIPE_SECRET_KEY: "sk_live_51Example", PAYMENTS_RESTRICTED_SECRET_KEY: "rk_live_51Example", AI_PREMIUM_API_KEY: "ai-key", AI_IMAGES_API_KEY: "sk-images" };
+  withoutCredentials(env);
+  assert.deepEqual(env, { STRIPE_SECRET_KEY: "", PAYMENTS_RESTRICTED_SECRET_KEY: "", AI_PREMIUM_API_KEY: "", AI_IMAGES_API_KEY: "" });
+});
+
+// Only a value that starts with a test-mode prefix is kept: an empty credential stays empty, one that merely contains
+// a prefix or names test mode some other way is emptied, and a setting that isn't credential-shaped is left alone.
+test("a Preview empties an empty or unrelated credential as before", () => {
+  const env = {
+    STRIPE_SECRET_KEY: "",
+    WEATHER_API_KEY: "w",
+    GITHUB_TOKEN: "ghp_test_token",
+    SHOP_SECRET_KEY: "xsk_test_51Example",
+    OTHER_SECRET_KEY: "pk_test_51Example",
+    MISSING_API_KEY: undefined,
+    STRIPE_WEBHOOK_SECRET: "whsec_kept",
+    APP_PUBLIC_URL: "http://localhost:3001"
+  };
+  withoutCredentials(env);
+  assert.deepEqual(env, {
+    STRIPE_SECRET_KEY: "",
+    WEATHER_API_KEY: "",
+    GITHUB_TOKEN: "",
+    SHOP_SECRET_KEY: "",
+    OTHER_SECRET_KEY: "",
+    MISSING_API_KEY: "",
+    STRIPE_WEBHOOK_SECRET: "whsec_kept",
+    APP_PUBLIC_URL: "http://localhost:3001"
+  });
 });

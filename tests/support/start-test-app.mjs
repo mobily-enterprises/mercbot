@@ -36,7 +36,7 @@ if (!testDatabase || testDatabase === developmentDatabase) {
 }
 
 // No outside service's credential reaches the Test Preview, whatever its name (tools/previewAi.mjs): only the test
-// database's password and the test runs' own secrets stay. .env is already loaded, so this sees every variable it set.
+// database's password, the test runs' own secrets and a payment provider's test-mode key (D-116) stay. .env is already loaded, so this sees every variable it set.
 withoutCredentials(process.env);
 // Every kind of AI, images too, is Mercbot's stand-in model (tools/previewAi.mjs, D-83): each names its provider, with
 // no key, and every request goes to the stand-in, so none reaches a provider.

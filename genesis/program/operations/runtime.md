@@ -42,8 +42,9 @@ the server listens it sends what changed in its working copy every 5 seconds, an
 The server believes `X-Forwarded-For` only from the proxies `TRUSTED_PROXIES` names (`trustedProxies`, JSKIT's
 `resolveTrustedProxies`; a proxy on this computer without it), so behind a load balancer each visitor keeps their own
 address for the sign-in limits, and a value that would believe anyone stops the start. `npm run develop` (`bin/develop.js`, `server/lib/develop.js`), the Preview, runs with
-`APP_ENV=development` whatever `.env` says, empties every credential-shaped setting and runs on the stand-in model (`tools/previewAi.mjs`, D-83), so a Preview reaches no
-outside service. It starts only on loopback and its HTTP server is the single-user gate
+`APP_ENV=development` whatever `.env` says, empties every credential-shaped setting but a payment provider's test-mode
+key (`sk_test_…`, `rk_test_…`, which can't move money, D-116) and runs on the stand-in model (`tools/previewAi.mjs`,
+D-83), so a Preview reaches no outside service with a key that could cost anything, and payments can be tried there. It starts only on loopback and its HTTP server is the single-user gate
 (`genesis/program/single-user/single-user.md`), unless a copy built on Mercbot that serves many people passes
 `gate: false` to `serve`, `startServer` or `develop`. `npm start` and the Procfile go through
 `scripts/serve.sh`, so no start skips the hosting script's checks; `HOSTING_SCRIPT=scripts/hosting/local.sh` is a

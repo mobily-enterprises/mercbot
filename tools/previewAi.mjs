@@ -7,16 +7,21 @@ import { startStandInModel } from "./standInModel.mjs";
 // (MERCBOT_FILES_S3_ACCESS_KEY_ID, MERCBOT_FILES_S3_SECRET_ACCESS_KEY), so a Preview's files stay in its own folder. The database's password and the copy's own secrets (the session secret, the Vault key, the
 // files passphrase) don't match.
 const CREDENTIAL = /(^|_)(API_KEY|CLIENT_ID|CLIENT_SECRET|SECRET_KEY|SITE_KEY|ACCESS_KEY|ACCESS_KEY_ID|SECRET_ACCESS_KEY|TOKEN)$/u;
+// A payment provider's test-mode key, which says so in its value and can't move money: Stripe's secret and restricted
+// test keys. Its live keys (sk_live_, rk_live_) are emptied like every other credential (D-116).
+const TEST_MODE_PAYMENT_KEY = /^(sk|rk)_test_/u;
 
 /**
  * Empties every setting of `env` shaped like an outside service's credential, so a Preview or Test Preview reaches no
- * outside service with one: a feature without its key is off there, or has its stand-in. Run it after .env is loaded,
- * which never replaces a variable that is set, even to "".
+ * outside service with one: a feature without its key is off there, or has its stand-in. The one exception is a payment
+ * provider's test-mode key (Stripe's `sk_test_…` and `rk_test_…`), kept so a copy built on Mercbot that takes payments
+ * can try them in its Preview (D-116). Run it after .env is loaded, which never replaces a variable that is set, even
+ * to "".
  * @param {Record<string, string | undefined>} env
  */
 export function withoutCredentials(env) {
   for (const name of Object.keys(env)) {
-    if (CREDENTIAL.test(name)) env[name] = "";
+    if (CREDENTIAL.test(name) && !TEST_MODE_PAYMENT_KEY.test(String(env[name] ?? "").trim())) env[name] = "";
   }
 }
 

@@ -25,10 +25,12 @@ function waitForChild(child) {
 /**
  * Mercbot in development (bin/develop.js): the API server, started as startServer starts it with `options.gate`, on a
  * loopback port of its own, behind Vite's development server at HOST and PORT, which hands it the API and /open
- * (vite.config.mjs). A Preview reaches no outside service (genesis/stack.md, Outputs): with .env loaded, every
- * credential it was given is emptied (tools/previewAi.mjs), so a feature whose key that was is off here, and every kind
- * of AI is Mercbot's stand-in model, so bots answer without a provider (D-83); `npm start` is the copy that uses its
- * keys. It runs with APP_ENV=development, whatever .env or the shell says, as JSKIT's development launcher does (D-87).
+ * (vite.config.mjs). A Preview reaches no outside service with a key that could cost anything (genesis/stack.md,
+ * Outputs): with .env loaded, every credential it was given is emptied (tools/previewAi.mjs), so a feature whose key
+ * that was is off here, but for a payment provider's test-mode key (`sk_test_…`, `rk_test_…`), which can't move money
+ * and is kept so payments can be tried here (D-116); and every kind of AI is Mercbot's stand-in model, so bots answer
+ * without a provider (D-83). `npm start` is the copy that uses its keys. It runs with APP_ENV=development, whatever
+ * .env or the shell says, as JSKIT's development launcher does (D-87).
  * It stops when Vite does, or on SIGTERM or SIGINT; a failed start is reported and sets the exit code.
  * @param {{ gate?: boolean }} [options]
  */

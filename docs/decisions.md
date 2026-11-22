@@ -1810,7 +1810,8 @@ to the real providers, were refused (401) and fell back or said so, and the brow
   services, never real ones). `server/lib/develop.js` empties every setting shaped like an outside service's
   credential (`withoutCredentials`) and runs the same stand-in, so a key in the development settings reaches no
   provider from a Preview. Both files moved to `tools/`, so a composed copy keeps them. `npm run check:templates`
-  still runs a test copy on the real AI on purpose, and refuses the stand-in.
+  still runs a test copy on the real AI on purpose, and refuses the stand-in. *Since D-116, a payment provider's
+  test-mode key (`sk_test_…`, `rk_test_…`) is the one credential kept, so payments can be tried in a Preview.*
 
 ## D-84 — A page can be published to the person's own website (2026-11-12)
 
@@ -3748,3 +3749,24 @@ talks, and approvals stay with people.
   500 characters), and `POST …/discussions/:messageId/start` `{ rounds, timeZone?, language? }`, `/round`, `/wrap`,
   `/cancel` and `/stop`, each answering `{ message }`, the card as it now stands.
 - **Bench:** `tests/agent-evals/chat/discuss-three.mjs`, a three-bot discussion on a real model (not run in the suites).
+
+## D-116 — A Preview keeps a payment provider's test-mode key (2026-11-22)
+
+Amends D-83. A Preview and a Test Preview empty every setting shaped like an outside service's credential
+(`withoutCredentials`, `tools/previewAi.mjs`), so a copy built on Mercbot that takes payments had none in its Preview:
+its payments were off there and couldn't be tried, even with only a test-mode key in the development settings. The
+owner, 22 November: "yes DO keep test keys in a preview, ABSOLUTELY. Otherwise... preview can't work."
+
+Decided: a credential whose **value** marks itself as a payment provider's test mode is kept: Stripe's secret and
+restricted test keys, `sk_test_…` and `rk_test_…`, whatever the setting's name. A test-mode key can't move money: its
+payments are Stripe's sandbox, with test cards only, so keeping it costs nothing and lets a Preview take a payment
+end to end.
+- **Every other credential is still emptied**, as D-83 says: a live payment key (`sk_live_…`, `rk_live_…`), which
+  would take real money, the AI keys, sign-in and connection apps' keys, the files bucket's and the rest. Only a value
+  that starts with a test-mode prefix counts; one that merely contains it, or another provider's test prefix, doesn't.
+- **AI is unchanged:** every kind of AI is still the stand-in model in a Preview and a Test Preview (`startPreviewAi`
+  sets each kind's key to empty whatever the settings say), so nothing they ask of their AI reaches a provider.
+- **A Test Preview** keeps such a key too, as it runs the same function; a copy whose tests take payments sends them
+  to a stand-in of its own there.
+- **Proof:** `tests/server/keys.test.js` (a test-mode key kept; a live key and an AI key emptied; an empty or unrelated
+  credential emptied as before).

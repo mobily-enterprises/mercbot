@@ -117,10 +117,11 @@ database with the fixtures made (once a run, while the app builds), a port the s
 and the next ones, when set) and its own data folder in a temporary folder outside the source tree, opened with the
 key in that folder as its one person, as `mercbot open` opens a copy (`tools/preview-identity`). A Test Preview clears every
 credential-shaped variable (`*_API_KEY`, `*_CLIENT_ID`, `*_CLIENT_SECRET`, `*_TOKEN` and the like), mail and the hub
-address, so no real model, mail or sign-in key reaches it. Every kind of AI is Mercbot's stand-in model
+address, so no real model, mail or sign-in key reaches it; only a payment provider's test-mode key (`sk_test_…`,
+`rk_test_…`) stays, since it can't move money (D-116). Every kind of AI is Mercbot's stand-in model
 (`tools/standInModel.mjs`, D-83), served on a local port, so nothing a Test Preview asks of its AI reaches a
 provider: each kind names its provider, with no key. A Preview (`npm run develop`) does the same, so a key in .env
-reaches no provider from it either. Vibe64's managed run
+reaches no provider from it either, and a test-mode payment key lets payments be tried there. Vibe64's managed run
 (`vibe64-helper playwright --target test-app`) uses its one Test Preview instead, one spec at a time.
 
 Every suite has coarse time bounds, about five times what the test machines measure when busy, so only something
