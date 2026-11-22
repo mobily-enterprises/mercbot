@@ -30,7 +30,10 @@ export function useComposerLines({ draft, lines, stacked, measure, input }) {
     nextTick(countLines);
   }
 
-  /** The lines the field's text takes at the field's width now; counted again once the layout follows a change. */
+  /**
+   * The lines the field's text takes at the field's width now; counted again once the layout follows a change. What it
+   * reads is the layout as it is at once, since the parts that size the text never transition (MercbotChatPanel.css).
+   */
   function countLines() {
     const field = input.value;
     if (!field) return;
