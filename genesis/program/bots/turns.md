@@ -86,8 +86,9 @@ archived chats refuse every write, `genesis/program/bots/chats.md`):
 - `POST …/messages/:messageId/activity`: a few words for the status line and the reaction of the first bot the message
   is for (neither when no bot is, or the model doesn't answer). `PUT …/messages/:messageId/reaction {emoji}`: one
   reaction per person or bot on a message (`body.reactions`, keyed `user:ID` or `bot:ID`), a person's on a bot's or
-  another person's message, never their own or Mercbot's lines (400 `bots_reaction_not_allowed`), one of the quick
-  reactions (400 `bots_reaction_unknown`), a null `emoji` taking it away; written by the database
+  another person's text message, never their own, Mercbot's lines or a card such as a discussion or a bot's question
+  (400 `bots_reaction_not_allowed`, as the page offers React on text messages alone, `messageAuthors.js` `mayReact`),
+  one of the quick reactions (400 `bots_reaction_unknown`), a null `emoji` taking it away; written by the database
   (`messageRepository.js` `setReaction`), so reactions at once each stay (D-114).
 - `POST …/bots/:botId/voice-call {seconds}`: a "Voice conversation" event line with its length, by one of the chat's
   people for one of its bots (404 `bots_bot_not_in_chat`); the page offers a voice call only in a direct chat.

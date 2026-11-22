@@ -3645,9 +3645,11 @@ What people do in chats with other people, beside what the bots do there:
   unread dot would be. A copy built on Mercbot can tell a person of a mention they leave unread, timing it from
   `mentioned_at`.
 - **Reactions on people's messages.** Anyone in a chat reacts to another person's message as to a bot's, one quick
-  reaction each, which they change or take away; never to their own message or to Mercbot's lines. Reactions are
-  written by the database, so several people reacting at once each keep theirs. A message shows everyone's reactions,
-  people's and bots', each emoji once with how many chose it, the person's own ringed.
+  reaction each, which they change or take away; never to their own message, to Mercbot's lines or to a card (a
+  discussion, a bot's question, a draft and the like: React is on text messages alone, on the page and on the server,
+  `bots_reaction_not_allowed`). Reactions are written by the database, so several people reacting at once each keep
+  theirs. A message shows everyone's reactions, people's and bots', each emoji once with how many chose it, the
+  person's own ringed.
 - **Continue with others…** A direct chat (one person, one bot) takes no one else. Its header (and a phone's) offers
   Continue with others…, which opens New chat as Continue with others: Public, the bot on the To: line, and the bot's
   hand-over note as the first message, which the person reads, changes and sends as their own once they've added the

@@ -242,12 +242,16 @@ export function createBotChat({ records, model, integrations, goals, replies, se
     });
   }
 
-  /** A person's reaction to a message from a bot or another person, or none (`emoji` empty). */
+  /**
+   * A person's reaction to a message from a bot or another person, or none (`emoji` empty). Only where the page offers
+   * React (`messageAuthors.js` `mayReact`, on a text message): never on a card (a discussion, a choice, a draft and the
+   * like), on Mercbot's lines or on their own message.
+   */
   async function react(chatId, messageId, emoji, options) {
     const me = await writer(String(chatId), options);
     const message = isMessageId(String(messageId)) ? await history.messageIn(String(chatId), String(messageId), options) : null;
     if (!message) throw new BotsError(404, "Message not found.", { code: "bots_message_not_found" });
-    if (message.role === "system" || String(message.author_user_id) === me) {
+    if (message.kind !== "text" || message.role === "system" || String(message.author_user_id) === me) {
       throw new BotsError(400, "You can react to the bots' and other people's messages.", { code: "bots_reaction_not_allowed" });
     }
     if (emoji && !QUICK_REACTIONS.has(emoji)) throw new BotsError(400, "That reaction isn't available.", { code: "bots_reaction_unknown" });
