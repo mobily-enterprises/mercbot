@@ -173,10 +173,22 @@ const composerPlaceholder = computed(() => {
 });
 
 const { measureLines, inputHeight } =
-  useComposerLines({ draft, lines, stacked, measure, input, columnWidth: () => props.columnWidth });
+  useComposerLines({ draft, lines, stacked, measure, input });
 
 const { awayFromBottom, unseen, dockHeight, updateScrollState, scrollToBottom, showMessage } =
   useChatScroll({ scroller, column, dock, messages: () => props.messages, status: () => props.status, me: () => props.me });
+
+// New chat's Start line (its hint and Start) stays above the message box as the box grows, as a long first message
+// makes it on a phone: the column leaves room under it for the box (dockHeight), and the line is scrolled into it.
+watch(dockHeight, () => {
+  if (props.newChat) nextTick(keepStartLineClear);
+});
+function keepStartLineClear() {
+  const start = column.value?.querySelector(".mb-new-chat__start");
+  if (!start || !dock.value || !scroller.value) return;
+  const covered = start.getBoundingClientRect().bottom - dock.value.getBoundingClientRect().top;
+  if (covered > 0) scroller.value.scrollBy({ top: Math.ceil(covered) + 8 });
+}
 
 // A chat opens on its newest page: scrolling near the top reads the page before and puts
 // it above, and the reader stays on the message they were reading.
@@ -495,8 +507,9 @@ defineExpose({ focusComposer, addSelection, startReply, toggleDictation, dictati
     </Transition>
 
     <div ref="dock" class="mb-chat__dock" :style="columnStyle">
-      <!-- Scrolled up, a reply that arrives leaves the view where it is and shows in a pill instead. -->
-      <div v-if="awayFromBottom && unseen && !page" class="mb-chat__to-bottom mb-new-pill" role="status">
+      <!-- Scrolled up, a reply that arrives leaves the view where it is and shows in a pill instead. New chat has no
+           latest message to go to, so neither shows over it. -->
+      <div v-if="awayFromBottom && unseen && !page && !newChat" class="mb-chat__to-bottom mb-new-pill" role="status">
         <button type="button" class="mb-new-pill__jump" @click="scrollToBottom('auto')">
           <v-icon icon="$arrowdown" size="16" />
           {{ unseen === 1 ? "1 new message" : `${unseen} new messages` }}
@@ -505,7 +518,7 @@ defineExpose({ focusComposer, addSelection, startReply, toggleDictation, dictati
           <v-icon icon="$close" size="14" />
         </button>
       </div>
-      <div v-else-if="awayFromBottom && !page" class="mb-chat__to-bottom">
+      <div v-else-if="awayFromBottom && !page && !newChat" class="mb-chat__to-bottom">
         <MercbotIconButton
           icon="$arrowdown"
           label="Scroll to the latest message"
