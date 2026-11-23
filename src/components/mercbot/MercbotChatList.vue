@@ -342,7 +342,7 @@ const SECTIONS = computed(() => [
           <MercbotSidebarRow
             :label="rowLabel(chat)"
             :name="titleOf(chat)"
-            :tip="`${rowTip(chat)}\nYou're not in it yet: writing there joins you.`"
+            :tip="`${rowTip(chat)}\nYou're not in it yet: opening it joins you.`"
             :kind-icon="kindIcon(chat)"
             :kind-label="kindLabel(chat)"
             :selected="chat.id === currentChatId"

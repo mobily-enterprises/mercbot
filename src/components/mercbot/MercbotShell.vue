@@ -37,6 +37,7 @@ import { MERCBOT_INITIALS_KEY, uploadedPicture } from "./shellInitials.js";
 import { MERCBOT_CHAT_KEY, checkExtensions, createKeyHolds } from "./shellChat.js";
 import MercbotIconButton from "./MercbotIconButton.vue";
 import { useChatEvents } from "./useChatEvents.js";
+import { useRoomJoin } from "./useRoomJoin.js";
 import { useChatMessages } from "./useChatMessages.js";
 import { useChatWork } from "./useChatWork.js";
 import { useChatActions } from "./useChatActions.js";
@@ -188,6 +189,9 @@ watch(addressedChatId, async (chatId) => {
     router.replace({ query: firstChatQuery() });
   }
 }, { immediate: true });
+
+// Opening a faded public room joins it, so its news reaches the person live.
+useRoomJoin({ currentChat, store, reportFailure });
 
 const { drafts, currentDraft } = useDrafts({ currentChatId });
 const currentMessages = computed(() => (currentChat.value ? messagesByChat.value[currentChat.value.id] || [] : []));
@@ -583,6 +587,7 @@ watch(() => currentHomeEntry.value?.slug, () => loadBuilderBot(), { immediate: t
         @unarchive-bot="runCommand({ name: 'unarchiveBot', args: { botId: $event } })"
         @unarchive-chat="runCommand({ name: 'unarchiveChat', args: { chatId: currentChat.id } })"
         @invite="inviteOpen = true"
+        @leave="runCommand({ name: 'leaveChat', args: { chatId: currentChat.id } })"
         @continue-with-others="continueWithOthers(currentChat)"
         @open-direct="openDirect"
         @open-chat="selectChat"

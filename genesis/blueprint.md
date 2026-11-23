@@ -67,7 +67,8 @@ only reported: nothing is ever paused or refused because of it.
 
 An open home is the Mercbot shell: a dense, resizable sidebar (or compact rail)
 with pinned chats, then Rooms (the person's own, grouped into their sections and
-sorted by latest activity, then the public rooms they aren't in, faded), People and
+sorted by latest activity, then the public rooms they aren't in, faded, which opening joins; a room's header has an
+obvious Leave room), People and
 Bots, each section folding away and each with its + — with unread and mention marks,
 drafts, right-click menus and drag and drop; and the
 chat with a header showing its members and whether it is Public or Private, a

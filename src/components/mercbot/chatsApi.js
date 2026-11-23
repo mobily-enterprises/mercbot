@@ -91,6 +91,8 @@ export const chatsApi = {
   remove: (chatId) => remove(chat(chatId)),
   // { chat }, { left: true } out of a private chat, or { deleted: true } when the last person left it.
   leave: (chatId) => post(chat(chatId, "/leave")),
+  // A public room joined by the person, as opening a faded one does: { chat }.
+  join: (chatId) => post(chat(chatId, "/join")),
   addPerson: (chatId, userId) => post(chat(chatId, "/people"), { userId }),
   removePerson: (chatId, userId) => remove(chat(chatId, `/people/${encodeURIComponent(userId)}`)),
   addBot: (chatId, botId) => post(chat(chatId, "/bots"), { botId }),

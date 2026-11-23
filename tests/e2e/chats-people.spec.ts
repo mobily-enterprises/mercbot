@@ -7,7 +7,7 @@ import { connectTestDb, expect, expectRefusal, homeApi, openShell, seedChat, see
 // home who never opens a page here: what he may open is checked from the owner's side, as the person a chat of his
 // isn't shared with, and through the server (the server's tests read it as him, chatMembers.integration.js and
 // chatVisibility.integration.js). The home's everyone chat is the first tile for everyone in it, and no one leaves it; a
-// public room of Ben's is listed faded in the owner's Rooms, opens for them to read, and writing there joins them, and a
+// public room of Ben's is listed faded in the owner's Rooms and opening it joins them, and a
 // private one is a 404 and never listed; New room is Public unless Private is picked, needs a name, and a private room
 // opens Invite at once; its header, composer and details say who can read it; Invite a bot puts a bot in a public room;
 // People and Bots list the home's other people and its bots, each opening the person's private chat with them, with
@@ -155,7 +155,7 @@ test("the home's everyone chat is the first tile for everyone in it, and no one 
   }
 });
 
-test("a public room is anyone's in the home to read, faded until they write there; a private one is only its members'", async ({ page }) => {
+test("a public room is anyone's in the home to open, faded until they open it, which joins them; a private one is only its members'", async ({ page }) => {
   const knex = connectTestDb();
   let home: Home | null = null;
   try {
@@ -174,23 +174,21 @@ test("a public room is anyone's in the home to read, faded until they write ther
     const unjoined = await api.get("/chats/public");
     expect([unjoined.chats.map((chat: { id: string }) => chat.id), unjoined.next ?? null]).toEqual([[garden.id], null]);
 
-    // In the owner's Rooms the public one is listed faded, saying writing there joins them; the private one isn't there.
+    // In the owner's Rooms the public one is listed faded, saying opening it joins them; the private one isn't there.
     await openShell(page, "", home.path);
     const gardenRow = shell.chatRow(page, `Garden ${home.stamp}`);
     await expect(gardenRow).toHaveClass(/\bmb-row--faded\b/u);
-    await expect(gardenRow).toHaveAttribute("title", /You're not in it yet: writing there joins you\.$/u);
+    await expect(gardenRow).toHaveAttribute("title", /You're not in it yet: opening it joins you\.$/u);
     await expect(shell.chatRow(page, `Surprise ${home.stamp}, private`)).toHaveCount(0);
     await expect(shell.section(page, "Rooms").getByText(`Surprise ${home.stamp}`)).toHaveCount(0);
 
-    // Opened, it reads with the composer as usual: no Join step. Writing there joins them, and the row isn't faded.
+    // Opened, it joins them: no Join step, the row isn't faded, and they're among its people.
+    const joined = page.waitForResponse((response) => response.request().method() === "POST" && new URL(response.url()).pathname === `/api${home!.path}/chats/${garden.id}/join`);
     await gardenRow.click();
+    expect((await joined).ok()).toBe(true);
     await expect(page).toHaveURL(new RegExp(`[?&]chat=${garden.id}\\b`, "u"));
     await expect(chip(page, `Garden ${home.stamp}`)).toBeVisible();
     await expect(shell.chat(page).getByRole("button", { name: "Join", exact: true })).toHaveCount(0);
-    const sent = page.waitForResponse((response) => response.request().method() === "POST" && new URL(response.url()).pathname === `/api${home!.path}/chats/${garden.id}/messages`);
-    await shell.composer(page).fill("Count me in for the weeding.");
-    await shell.composer(page).press("Enter");
-    expect((await sent).ok()).toBe(true);
     await expect(gardenRow).not.toHaveClass(/\bmb-row--faded\b/u);
     expect(await knex("chat_people").where({ conversation_id: garden.id }).pluck("user_id").then((ids) => ids.map(String).sort()))
       .toEqual([home.owner, home.ben].sort());
@@ -454,7 +452,7 @@ test("leaving a public room leaves it faded, and writing there brings you back; 
     await chip(page, title).click();
     await details.getByRole("button", { name: "Leave chat", exact: true }).click();
     await expect(question.locator(".mb-confirm__title")).toHaveText(`Leave “${title}”?`);
-    await expect(question.locator(".mb-confirm__text")).toHaveText("It's public, so it stays in Rooms, faded, and writing there again brings you back.");
+    await expect(question.locator(".mb-confirm__text")).toHaveText("It's public, so it stays in Rooms, faded, and opening it again brings you back.");
     const left = page.waitForResponse((response) => response.request().method() === "POST" && new URL(response.url()).pathname === `/api${home!.path}/chats/${hello.id}/leave`);
     await question.getByRole("button", { name: "Leave", exact: true }).click();
     expect((await left).ok()).toBe(true);

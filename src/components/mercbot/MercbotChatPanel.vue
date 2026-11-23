@@ -8,7 +8,7 @@ import { mentionBotsOf, mentionPeopleOf, soleBotOf, useComposerTokens } from "./
 import { hasSeveral, initialsOf } from "./messageAuthors.js";
 import { chatSubtitle, chatTitle, directBotOf, directLine, isDirect, kindIcon, kindLabel, kindMeaning, publicNotice } from "./chatView.js";
 import { isRoom } from "./chatDirectory.js";
-import { chatRights } from "./chatMenus.js";
+import { chatQuestion, chatRights } from "./chatMenus.js";
 import { useDictation } from "./useDictation.js";
 import { useFindInChat } from "./useFindInChat.js";
 import { formatSize } from "./filesApi.js";
@@ -68,7 +68,7 @@ const emit = defineEmits([
   "react", "copy", "copy-image", "retry", "teach", "update:draft", "answer",
   "take-over", "use-computer", "secure-form", "settle-draft", "manage-rules", "settle-handover", "open-skill", "cancel-request", "discuss",
   "failure", "open-page", "close-page", "open-direct", "open-chat",
-  "new-chat", "new-bot", "menu", "unarchive-bot", "unarchive-chat", "invite", "continue-with-others"
+  "new-chat", "new-bot", "menu", "unarchive-bot", "unarchive-chat", "invite", "continue-with-others", "leave"
 ]);
 
 const chatId = computed(() => props.chat?.id || "");
@@ -108,6 +108,15 @@ const inviteLabel = computed(() => {
   if (props.chat.kind === "private") return may.value.addPeople ? "Invite" : "";
   return may.value.addBots ? "Invite a bot" : "";
 });
+// Leave room (the owner, 23 Nov 2026: "Make the button obvious"): a labelled button in the header of a public room the
+// person is in, asking first, as the details panel's Leave does.
+const canLeave = computed(() => Boolean(props.chat) && props.chat.kind === "public" && isRoom(props.chat) && Boolean(may.value.leave));
+const leaving = ref(false);
+const leaveQuestion = computed(() => (props.chat ? chatQuestion("leave", props.chat, title.value) : null));
+function confirmLeave() {
+  leaving.value = false;
+  emit("leave");
+}
 // A direct chat with a bot goes on with others in a new room instead (D-114), its person's alone.
 const canContinue = computed(() => Boolean(props.chat) && isDirect(props.chat) && !blocked.value);
 
@@ -303,6 +312,9 @@ defineExpose({ focusComposer, addSelection, startReply, toggleDictation, dictati
       <MercbotIconButton v-if="inviteLabel" icon="$personAdd" :label="inviteLabel" tone="surface" @click="emit('invite')" />
       <MercbotIconButton v-else-if="canContinue" icon="$forkRight" label="Continue with others…" tone="surface" @click="emit('continue-with-others')" />
       <MercbotIconButton icon="$info" label="Chat details" tone="surface" @click="emit('open-details')" />
+      <button v-if="canLeave" type="button" class="mb-set-pill mb-chat__leave" @click="leaving = true">
+        <v-icon icon="$logout" size="16" /> <span>{{ phone ? "Leave" : "Leave room" }}</span>
+      </button>
     </header>
 
     <!-- With no chat open: where to start (D4). -->
@@ -395,7 +407,19 @@ defineExpose({ focusComposer, addSelection, startReply, toggleDictation, dictati
       </button>
       <MercbotIconButton v-if="inviteLabel" icon="$personAdd" :label="inviteLabel" tone="surface" @click="emit('invite')" />
       <MercbotIconButton v-else-if="canContinue" icon="$forkRight" label="Continue with others…" tone="surface" @click="emit('continue-with-others')" />
+      <button v-if="canLeave" type="button" class="mb-set-pill mb-chat__leave" @click="leaving = true">
+        <v-icon icon="$logout" size="16" /> <span>{{ phone ? "Leave" : "Leave room" }}</span>
+      </button>
     </div>
+    <MercbotConfirmDialog
+      :model-value="leaving"
+      :title="leaveQuestion?.title || ''"
+      :text="leaveQuestion?.text || ''"
+      :confirm-label="leaveQuestion?.confirmLabel"
+      :danger="Boolean(leaveQuestion?.danger)"
+      @update:model-value="leaving = $event"
+      @confirm="confirmLeave"
+    />
 
     <MercbotCallBar
       v-if="calling && directBot"

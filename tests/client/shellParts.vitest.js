@@ -130,7 +130,7 @@ describe("chat list menus", () => {
     expect(chatQuestion("archive", kitchen, "Kitchen")).toEqual({
       title: "Archive “Kitchen”?", text: "It stays readable for everyone in it, and no one can write in it until it's unarchived.", confirmLabel: "Archive", danger: false
     });
-    expect(chatQuestion("leave", kitchen, "Kitchen").text).toBe("It's public, so it stays in Rooms, faded, and writing there again brings you back.");
+    expect(chatQuestion("leave", kitchen, "Kitchen").text).toBe("It's public, so it stays in Rooms, faded, and opening it again brings you back.");
     const plans = { ...kitchen, kind: "private" };
     expect([chatQuestion("leave", plans, "Plans").text, chatQuestion("leave", plans, "Plans").danger])
       .toEqual(["It's private, so you can't open it again unless someone adds you back.", false]);

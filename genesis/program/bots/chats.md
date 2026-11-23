@@ -3,7 +3,7 @@
 Everything in a home happens in chats (D-112): a chat holds any of the home's people and bots, is Public or Private from
 the moment it's made, and is the one thing that decides who can open what is said and made in it. A chat is a room, or
 a direct chat: a person's chat with a bot, or the chat between two people, each Private and readable only from itself
-(D-117). This boundary owns the chat list, New room, writing to join and leaving, Invite, a chat's people and bots,
+(D-117). This boundary owns the chat list, New room, joining (opening a faded Public room, or writing in it) and leaving, Invite, a chat's people and bots,
 renaming, archiving and deleting, each person's own place in a chat, the direct chats a bot's or a person's Message
 opens, the home's everyone chat, and search across the chats a person can open.
 
@@ -119,7 +119,10 @@ without a reload):
   Private chat they aren't in is a 404.
 - `GET`, `PATCH {title?, botsJoinIn?}` and `DELETE …/chats/:chatId` (`botsJoinIn`, a boolean, by whoever may rename
   it, never in a direct chat: D-115, `bots_join_in_invalid` for another value; with neither field it renames); `POST …/archive` and `…/unarchive`, `…/join` (a Public room
-  only; a Private one is 404; kept for callers, the page no longer offers it), `…/leave`; `POST …/people {userId}` and
+  only; a Private one is 404, an archived one 409 `bots_chat_archived`; the page calls it when the person opens a faded
+  Public room that isn't the everyone chat or archived, `useRoomJoin.js`, following the chat shown, so a room just
+  left stays left while it's open; a chat's news, `messages` and `working`, goes only to its people, so a faded room
+  sends nothing until it's joined, D-125), `…/leave`; `POST …/people {userId}` and
   `DELETE …/people/:userId`; `POST …/bots {botId}` and `DELETE …/bots/:botId` (an archived bot can be taken out). A bot
   taken out of a chat takes its runs, computer, routines and watches there with it. A bot invited into a room reads it
   from its seat's start (`chat_bots.reads_from_message_id`, `records/seatWindows.js`): the room's 30th-newest message,
@@ -221,7 +224,8 @@ the other person's). Its title,
 with a rename pencil for whoever may, "Public" or "Private" (" · Archived") and what that kind means; tabs "Chat",
 "Files" (the chat's folder, labelled "This chat") and "Computers" (`genesis/program/computer/bot-computer.md`). The
 Chat tab lists "People" (each opens their card; "(you)"), with an × for whoever may remove them, "Bots" (" ·
-archived", with an × for whoever may take a bot out: anyone in a Public room, its people in a Private one), "Routines" (`genesis/program/bots/routines.md`), and Leave chat, Archive (a Public chat) or Unarchive,
+archived", with an × for whoever may take a bot out: anyone in a Public room, its people in a Private one), "Routines" (`genesis/program/bots/routines.md`), and Leave chat (also a labelled, outlined **Leave room** button in the
+header of a Public room the person is in, "Leave" on a phone, asking the same question, D-125), Archive (a Public chat) or Unarchive,
 Hide from sidebar (a Private chat the person is in and hasn't hidden) and Delete chat for whoever may; the everyone chat says "Everyone in <home> is in this chat, for as long as they're in the home."
 Under Bots, a chat with bots shows **Bots join in when useful** (D-115, the chat view's `botsJoinIn`, off by default),
 a switch for whoever may rename it (`chatRights` `joinIn`), with "When someone writes without calling a bot, one bot

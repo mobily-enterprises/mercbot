@@ -4025,3 +4025,24 @@ Decided:
 - **Proof:** `tests/server/botTalk.integration.js`, `tests/server/botTalk.test.js`,
   `tests/server/startRoomCard.integration.js`, `tests/server/standInRooms.test.js`, `tests/server/runClaims.integration.js`,
   `tests/server/chatSpeaking.integration.js`.
+
+## D-125 — Opening a faded room joins it; Leave room in the header (2026-11-23)
+
+Amends D-112 and D-117. On the hosted copy two people were in a home: one wrote in a public room, the other had it open
+and saw the message only after a reload. The live news itself worked: a chat's news (`messages`, bots' `working`) goes
+only to its people, and the reader had never joined the room, so it was faded for them. The owner, 23 November: "a room
+can appear faded or not. If it's faded, it means the user isn't subscribed, and they shouldn't get anything", then
+"Yes, opening a faded room joins it", "Provide an easy way to leave it", "No, only the Leave button for now" and "Make
+the button obvious".
+
+Decided:
+- **News stays with a chat's people.** A faded room sends nothing; no broadcast to the whole home.
+- **Opening a faded public room joins it** (`useRoomJoin.js`, `POST …/chats/:chatId/join`), however it's opened: Rooms,
+  search, a link. Not the everyone chat, an archived room (409), a private or a direct chat. It follows the chat shown,
+  so a room left while it's open stays left until it's opened again. A faded row's tip says "opening it joins you".
+- **Leave room**: a labelled, outlined button in the header of a public room the person is in ("Leave" on a phone),
+  asking first, as the details panel's Leave chat does; its question says "opening it again brings you back".
+- **No automatic leaving** after days away, for now.
+- **Proof:** `tests/client/roomJoin.vitest.js`, `tests/server/chatMembers.integration.js` (joining brings news, leaving
+  and before joining none, an archived room refused), `tests/e2e/rooms-people-bots.spec.ts`,
+  `tests/e2e/chats-people.spec.ts`.

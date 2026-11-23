@@ -6,7 +6,7 @@ import { connectTestDb, expect, expectRefusal, homeApi, openShell, seedChat, see
 // Rossi, and two bots, Chef and Shopper. A person's own copy has one person who signs in (D-81), so Ben never opens a
 // page here: what he makes is seeded as the server writes it, and "another person" is the owner looking at Ben's.
 // A public room made with New room has its maker in it and its start line, and its maker can leave it, empty and faded;
-// Ben's public room is faded in the owner's Rooms until they write there; Ben's chat with a bot and his chats with
+// Ben's public room is faded in the owner's Rooms until they open it, which joins them; Ben's chat with a bot and his chats with
 // others aren't the owner's to open (404); a private room opens Invite at once, which brings a bot in; a person in
 // People opens the owner's private chat with them; Bots' + opens Add bots. Then the density the sidebar is for: at
 // 1280 by 800, a home of 8 people, 10 rooms and 20 bots shows most of itself on one screen, and folded sections show
@@ -98,7 +98,7 @@ async function newRoom(page: Page, home: Home, kind: "Public" | "Private", name:
   return chat;
 }
 
-test("a public room starts with its maker and their start line, its maker can leave it empty, and another's public room is faded until you write there", async ({ page }) => {
+test("a public room starts with its maker and their start line, its maker leaves it from its header, and another's public room is faded until you open it", async ({ page }) => {
   const knex = connectTestDb();
   let home: Home | null = null;
   try {
@@ -122,10 +122,10 @@ test("a public room starts with its maker and their start line, its maker can le
     await expect(row).not.toHaveClass(FADED);
     await expect(shell.chat(page).getByRole("button", { name: "Invite a bot", exact: true })).toBeVisible();
 
-    // Its maker leaves: the room stays, with nobody in it, faded in their Rooms.
-    await chip(page, title).click();
-    await shell.details(page, "Chat details").getByRole("button", { name: "Leave chat", exact: true }).click();
-    await expect(shell.question(page).locator(".mb-confirm__text")).toHaveText("It's public, so it stays in Rooms, faded, and writing there again brings you back.");
+    // Its maker leaves with the header's Leave room: the room stays, with nobody in it, faded in their Rooms, and stays
+    // left while it's still open.
+    await shell.chat(page).getByRole("button", { name: "Leave room", exact: true }).click();
+    await expect(shell.question(page).locator(".mb-confirm__text")).toHaveText("It's public, so it stays in Rooms, faded, and opening it again brings you back.");
     const left = answered(page, "POST", `/api${home.path}/chats/${room.id}/leave`);
     await shell.question(page).getByRole("button", { name: "Leave", exact: true }).click();
     expect((await left).ok()).toBe(true);
@@ -134,19 +134,19 @@ test("a public room starts with its maker and their start line, its maker can le
     await expect(row).toHaveClass(FADED);
     expect((await api.get("/chats/public")).chats.map((chat: { id: string }) => String(chat.id)).sort()).toEqual([String(room.id), bens.id].sort());
 
-    // Ben's public room: faded in the owner's Rooms; opened, it reads, with its start line and the composer as usual.
+    await expect(row).toHaveAttribute("aria-current", "page");
+    await expect(shell.chat(page).getByRole("button", { name: "Leave room", exact: true })).toHaveCount(0);
+
+    // Ben's public room: faded in the owner's Rooms; opening it joins it: no longer faded, the owner among its people,
+    // its start line and the composer as usual, and its Leave room in the header.
     const bensRow = shell.chatRow(page, `Allotment ${home.stamp}`);
     await expect(bensRow).toHaveClass(FADED);
+    const joined = answered(page, "POST", `/api${home.path}/chats/${bens.id}/join`);
     await bensRow.click();
+    expect((await joined).ok()).toBe(true);
     await expect(shell.chat(page).getByText("Ben Rossi started this room.", { exact: true })).toBeVisible();
-    await expect(shell.chat(page).getByRole("button", { name: "Join", exact: true })).toHaveCount(0);
-
-    // Writing there joins it: no longer faded, and the owner is among its people.
-    const sent = answered(page, "POST", `/api${home.path}/chats/${bens.id}/messages`);
-    await shell.composer(page).fill("I'll bring the seedlings.");
-    await shell.composer(page).press("Enter");
-    expect((await sent).ok()).toBe(true);
     await expect(bensRow).not.toHaveClass(FADED);
+    await expect(shell.chat(page).getByRole("button", { name: "Leave room", exact: true })).toBeVisible();
     expect(await knex("chat_people").where({ conversation_id: bens.id }).pluck("user_id").then((ids) => ids.map(String).sort())).toEqual([home.owner, home.ben].sort());
     expect((await api.get("/chats/public")).chats.map((chat: { id: string }) => String(chat.id))).toEqual([String(room.id)]);
   } finally {

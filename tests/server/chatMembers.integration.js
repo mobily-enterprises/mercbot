@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import test, { after } from "node:test";
 import { createChatMembers } from "../../packages/bots/src/server/chatMembers.js";
+import { createChatSeats } from "../../packages/bots/src/server/chatSeats.js";
 import { startBotsService } from "../support/botDoubles.mjs";
 import { memberOptions, startChatRecords } from "../support/botRecords.mjs";
 import { seedMessage } from "../support/chatFixtures.mjs";
@@ -383,4 +384,34 @@ test("the chat list is read a page at a time in its queries: every chat once, ea
   assert.equal(new Set(many.ids).size, 541, "none twice");
   assert.equal(many.ids.at(-41), family.id, "the everyone chat, the oldest, first in its page (O9)");
   assert.deepEqual(many.statements, Array(6).fill(few.statements[0]), "each page read alike");
+});
+
+test("joining a public room, as opening a faded one does, brings its news; before joining and after leaving, none comes", async (context) => {
+  const parts = await startChatRecords(knex, context);
+  const { records, systemContext } = parts;
+  const { homeId, anna, ben, chef } = await home(knex, context);
+  const { chats } = chatService(parts);
+  const told = [];
+  const seats = createChatSeats({ records, systemContext, notices: { publishEach: async (_topic, keys, event) => told.push({ keys: [...keys].sort((a, b) => a - b), ...event }) } });
+  const asAnna = memberOptions({ userId: anna, homeId });
+  const asBen = memberOptions({ userId: ben, homeId });
+  const heardBy = (userId) => told.filter((notice) => notice.keys.includes(userId) && notice.type === "messages");
+
+  const { chat: lounge } = await chats.create({ title: "Lounge", bots: [chef] }, asAnna);
+  // Ben reads the room without being in it (faded): Anna's news doesn't reach him.
+  await seats.tell(lounge.id, { type: "messages" }, asAnna);
+  assert.deepEqual(heardBy(ben), []);
+  // He opens it, which joins him: the next news reaches him.
+  await chats.join(lounge.id, asBen);
+  told.length = 0;
+  await seats.tell(lounge.id, { type: "messages" }, asAnna);
+  assert.equal(heardBy(ben).length, 1);
+  // He leaves: no more.
+  await chats.leave(lounge.id, asBen);
+  told.length = 0;
+  await seats.tell(lounge.id, { type: "messages" }, asAnna);
+  assert.deepEqual(heardBy(ben), []);
+  // An archived room isn't joined.
+  await chats.archive(lounge.id, asAnna);
+  await assert.rejects(chats.join(lounge.id, asBen), { statusCode: 409 });
 });

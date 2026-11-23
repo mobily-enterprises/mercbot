@@ -156,7 +156,7 @@ export function chatQuestion(action, chat, title) {
   if (action === "leave") {
     const alone = chat.kind === "private" && (chat.people || []).length <= 1;
     const text = chat.kind !== "private"
-      ? "It's public, so it stays in Rooms, faded, and writing there again brings you back."
+      ? "It's public, so it stays in Rooms, faded, and opening it again brings you back."
       : alone
         ? `You're the last one here, so this ${chat.directPerson ? "chat" : "room"} and everything in it will be deleted.`
         : "It's private, so you can't open it again unless someone adds you back.";
