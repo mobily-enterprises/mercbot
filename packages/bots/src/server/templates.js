@@ -107,6 +107,25 @@ function tablesProblems(tables) {
   return problems;
 }
 
+// Records go in the home's tables, never a spreadsheet (D-130): a template may name one only where the person asks for it.
+const NAMES_SPREADSHEET = /spreadsheet|\.xlsx|\.xls\b|\.csv|\bexcel\b|\bcsv\b/iu;
+const ASKED_FOR = /\basks?\b[^.]{0,40}\b(?:spreadsheet|export|excel|csv)/iu;
+
+/** Each sentence of what a template tells its bot that names a spreadsheet the person didn't ask for, as a problem. */
+function spreadsheetProblems(template) {
+  const texts = [
+    template.description,
+    template.greeting,
+    template.instructions,
+    ...(template.skills || []).flatMap((skill) => [skill.description, skill.instructions]),
+    ...(template.routines || []).map((routine) => routine.what)
+  ];
+  return texts
+    .flatMap((text) => String(text || "").split(/[.!?\n]/u))
+    .filter((sentence) => NAMES_SPREADSHEET.test(sentence) && !ASKED_FOR.test(sentence))
+    .map((sentence) => `keeps records in a spreadsheet ("${sentence.trim().slice(0, 80)}"): keep them in the home's tables`);
+}
+
 export function checkTemplate(template, file = template.slug) {
   const problems = [];
   const text = (value, max) => typeof value === "string" && value.trim() && value.length <= max;
@@ -134,6 +153,7 @@ export function checkTemplate(template, file = template.slug) {
   }
   if (!Array.isArray(template.apps) || template.apps.some((app) => typeof app !== "string")) problems.push("apps: plugin ids");
   problems.push(...tablesProblems(template.tables));
+  problems.push(...spreadsheetProblems(template));
   // What the team changed, newest first (D-98): each bot using it shows the newest change since it started to.
   if (
     "changes" in template &&

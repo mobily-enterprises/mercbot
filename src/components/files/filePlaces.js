@@ -12,8 +12,9 @@ import { filesApi } from "../mercbot/filesApi.js";
 //   place     the place as the transfer route names it: { kind } with botId or chatId
 //   botId, chat, root   the bot and chat the per-place routes name it by (filesApi), and its folder
 //   archived  a chat that takes nothing new
+//   locked    Database files (D-130): records' files, opened and copied out, never changed by hand
 
-const ROOTS = Object.freeze({ home: "/files/shared", bot: "/files/bot", chat: "/files/chat" });
+const ROOTS = Object.freeze({ home: "/files/shared", bot: "/files/bot", chat: "/files/chat", db: "/files/db" });
 
 export const nameOf = (filePath) => String(filePath).split("/").pop();
 export const parentOf = (filePath) => String(filePath).slice(0, String(filePath).lastIndexOf("/"));
@@ -35,6 +36,8 @@ const chatIcon = (place) => {
 export function orderPlaces(places, { chat = null, chatBotId = null } = {}) {
   const hereId = chat ? String(chat.id) : null;
   const home = { key: "home", kind: "home", label: "Home files", title: "Home files", group: "home", icon: "$home", place: { kind: "home" }, botId: null, chat: null, root: ROOTS.home, archived: false };
+  // The records' files, read through the home's own place.
+  const database = { ...home, key: "db", label: "Database files", title: "Database files", icon: "$lock", root: ROOTS.db, locked: true };
   const bots = places
     .filter((place) => place.kind === "bot")
     .map((place, index) => ({ place, index }))
@@ -73,7 +76,7 @@ export function orderPlaces(places, { chat = null, chatBotId = null } = {}) {
   // The chat it was opened from leads, even when the list doesn't have it (a public room being visited).
   const here = hereId ? [chatItem(listedHere || { chatId: hereId, archived: Boolean(chat.archivedAt) }, true)] : [];
   const others = chats.filter((place) => String(place.chatId) !== hereId).map((place) => chatItem(place, false));
-  return [...here, home, ...bots, ...others];
+  return [...here, home, database, ...bots, ...others];
 }
 
 /** The key of the place the browser opens at: the bot's whose card it's on, else the chat's it's in, else the home's. */
@@ -104,6 +107,9 @@ export const widerQuestion = (item) => `Everyone who can open ${item.title} will
 /** What an archived chat's place says, in the picker and the browser: it takes nothing new. */
 export const ARCHIVED_NOTE = "This chat is archived: nothing new can go in it.";
 
+/** What Database files say, in the picker and the browser: they belong to their records (D-130). */
+export const LOCKED_NOTE = "These files belong to their table's records: open one or copy it out, but nothing here is moved, renamed or deleted.";
+
 /**
  * Why the place picker's folder open can't take what's being copied or moved there, or "": an archived chat, itself or
  * a folder inside it, or (a move) the folder it's already in.
@@ -111,6 +117,7 @@ export const ARCHIVED_NOTE = "This chat is archived: nothing new can go in it.";
  */
 export function pickerRefusal({ mode, item, folder, from, path }) {
   if (item.archived) return ARCHIVED_NOTE;
+  if (item.locked) return LOCKED_NOTE;
   if (item.key !== from) return "";
   if (folder === path || folder.startsWith(`${path}/`)) return "A folder can't go inside itself.";
   return mode === "move" && folder === parentOf(path) ? "It's already here." : "";

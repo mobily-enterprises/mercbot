@@ -74,6 +74,16 @@ test("a template's tables are shared tables' keys or its own, linked to what exi
   assert.throws(check("contacts"), /tables: shared tables' keys and tables of its own/u);
 });
 
+test("a template never tells its bot to keep records in a spreadsheet, only to make one when the person asks", () => {
+  const base = { ...written[0].template, creator: "the Mercbot team" };
+  const setup = base.skills.find((skill) => /setup/iu.test(skill.name));
+  const withSkill = (instructions) => ({ ...base, skills: base.skills.map((skill) => (skill === setup ? { ...skill, instructions } : skill)) });
+  assert.throws(() => checkTemplate(withSkill(`${setup.instructions}\n7. Create the "Plants" spreadsheet in /files/chat.`), "bad.json"), /keeps records in a spreadsheet \("Create the "Plants" spreadsheet in \/files\/chat"\)/u);
+  assert.throws(() => checkTemplate({ ...base, routines: [{ name: "Log", when: "Daily", what: "Adds the day's sales to sales.csv" }] }, "bad.json"), /keeps records in a spreadsheet/u);
+  assert.doesNotThrow(() => checkTemplate({ ...base, instructions: `${base.instructions}\n\nOnly when the person asks for a spreadsheet or an export, build it from the table.` }, "bad.json"));
+  assert.doesNotThrow(() => checkTemplate({ ...base, changes: [{ date: "2026-11-23", text: "Keeps its records in the home's shared tables instead of a spreadsheet." }] }, "bad.json"), "its changes aren't what it tells the bot");
+});
+
 // Every template has a tag (D-98): the one word a bot made from it shows beside its name. Each is one of a kind, general's
 // among them, and a home's own template is never given one of them.
 test("every template has a tag of its own, 2 to 10 lowercase letters or digits, and general is the library's too", () => {

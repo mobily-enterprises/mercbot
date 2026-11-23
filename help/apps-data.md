@@ -10,7 +10,22 @@ Open **Apps** and choose the **Data** tab. It lists every table in your home wit
 - **Fields**: how many fields it has
 - **Used by**: the apps that use it
 
-Click a table to open it. If there are no tables yet, the Data tab says so: the Builder makes tables when it makes an app, or when you ask it to. All the apps in a home share these tables, so one table can serve several apps.
+Click a table to open it. At the top, a table shows what it **Links to**, what's **Linked from** it and what it's **Extended by**: click one to open that table. If there are no tables yet, the Data tab says so: the Builder makes tables when it makes an app, or when you ask it to. All the apps in a home share these tables, so one table can serve several apps.
+
+## Shared tables
+
+Every home builds on a small set of shared tables, so there's one list of contacts, to-dos or places for the whole home, whichever bot or app uses it:
+
+- **Organisations** and **Contacts**: the people and organisations you deal with
+- **Departments**, **To-do lists** and **To-dos**: who does what, by when, in which list
+- **Place categories** and **Places**: venues, offices, shops and other places
+- **Events** and **Event attendees**: what happens when and where, and who's going
+- **Graphics**: posters, social posts and logos, with their pictures and source files
+- **Deals**, and **CRM contacts**: each contact's sales stage, value and next step
+
+A bot adds a shared table the first time it needs one, with the tables it links to, and says so in a line. It asks you first before adding a field, or an extension: a table that holds more about each record of another, one row per record, such as a contact's sales details. A bot never makes a second table for something a shared table is for, and never keeps records in a spreadsheet unless you ask for one. The **Templates** tab lists the shared tables, what each is for, and whether your home has it yet.
+
+Every home starts with two apps on them, **Contacts** and **To-dos**, empty, ready to use.
 
 You can also reach an app's tables from inside the app: open its details and choose the **Data** tab there.
 
@@ -29,10 +44,25 @@ Each field has a type, which decides what it holds and how it's shown.
 | Money | An amount, kept exact to the cent | The amount with two decimals, such as 1,234.56 |
 | Date | A day, without a time | The date |
 | Yes/no | Yes or no | Yes or No |
+| Date and time | A moment, such as 9:30 on 24 November | The date and time where you are |
+| Person | Someone in your home | Their name, or "Former member" once they've left |
+| Tags | A few short words, sometimes from a fixed list | The words |
+| Web address | A link starting with http:// or https:// | The link |
+| Long text | Notes of up to 20,000 characters | The notes |
+| File | A document or any other file | Its name and size, as a link |
+| Picture | A PNG, JPEG, GIF or WebP picture | A small picture |
 
 A field can also be required, so a record can't be saved without it. To see a table's fields, open the table and press **Fields**: each field is listed with its name and type.
 
 You don't add fields yourself. Ask the Builder, for example "add a city field to contacts". It adds the field, and none of your apps are affected until it puts the field on a screen.
+
+A link can be **one to one**: each record of the other table has at most one record linked to it. That's how an extension holds more about each record of another table, such as a contact's sales details in **CRM contacts**.
+
+### Files and pictures
+
+To add a file or picture to a record, open the record and choose a file in its field: it's uploaded when you press **Save**. On an app's form for a record, it's uploaded as soon as you choose it. **Remove** takes it away. A bot puts one of its files on a record when you ask it to.
+
+A record's files live in your home's **Database files** folder, at a fixed place for each table, record and field. Anyone in the home can open and copy them, but nobody can move, rename or delete them there: they belong to their records. Replacing or removing a record's file deletes the old one; marking the record obsolete keeps it.
 
 ### Calculated fields
 
@@ -66,6 +96,10 @@ Changes you make here are the same as changes made through an app's screens. The
 ### Who can change a table
 
 Everyone in the home can read and change every table's records, add to them, import into them and mark them obsolete, and so can every bot in the home. There is no setting to keep a table to some people. Every change is kept, with who made it, in the record's history.
+
+## Related records
+
+When you open a record, **Related** lists the records that link to it, table by table, with how many there are: a contact shows their to-dos, deals and sales details, for example. Each table's name opens that table.
 
 ## Mark records obsolete instead of deleting
 
@@ -101,7 +135,8 @@ What to know:
 
 - Each row becomes a **new** record. Import never changes or replaces existing records.
 - Every row is checked first. **If any row has a problem, nothing is added.** Mercbot lists the problem rows by their row number in your file, so you can fix them and try again.
-- Amounts can be written as you'd write them, such as $1,250.50. Yes/no fields accept the usual yes and no words. Dates with a time keep only the day. A link can be given as the linked record's title.
+- Amounts can be written as you'd write them, such as $1,250.50. Yes/no fields accept the usual yes and no words. Dates with a time keep only the day. A link can be given as the linked record's title, and a person as their name. A date and time without a time zone is read as UTC.
+- File and picture columns are left out: files go onto records one at a time.
 - The activity trail shows each imported record as coming from an import of your file, by name.
 
 ## Export a table

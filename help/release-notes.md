@@ -2,6 +2,15 @@
 
 What's new in Mercbot, newest first. To see which version you're using, open the account menu, choose **Help and support**, then **About Mercbot**. You can also ask any bot "What's new in Mercbot?"
 
+## 23 November 2026
+
+- **Shared tables:** bots keep their records in your home's tables, never in a spreadsheet unless you ask for one. Every home builds on a small set of shared tables (organisations, contacts, departments, to-do lists and to-dos, places, events, graphics and deals). A bot adds one the first time it needs it, saying so in a line, and asks before adding a field or an extension, a table that holds more about each record of another. Bot templates now keep their records in these tables too.
+- **Contacts and To-dos** are ready in every home: Contacts for people and organisations, To-dos for named lists, departments, who does what, and what's overdue. The **CRM** template now builds on Contacts, keeping each contact's sales stage and next step beside it.
+- **New kinds of field:** a person in your home, tags, a web address, long notes, a date and time, files and pictures. A record's files live in **Database files**, which anyone can open and copy from but nobody can move, rename or delete.
+- **Links you can see:** each table shows what it links to, what links to it and what extends it, and each record shows its related records.
+
+See [Your data: tables, fields and records](/help/apps-data).
+
 ## 22 November 2026
 
 Version 0: chats are at the heart of Mercbot. Nothing made before version 0 was kept, so these notes start here.

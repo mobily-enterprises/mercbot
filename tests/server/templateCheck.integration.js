@@ -104,6 +104,11 @@ test("a bot that skips a question, starts its routines unasked or sends without 
   assert.equal(sent.passed, false);
   assert.ok(sent.reasons.length >= 1);
   for (const reason of sent.reasons) assert.match(reason, /^It sent something without a yes: .*Test: .*was logged, not sent/u);
+
+  // Its records are in the tables it declares (D-130): the ones above were made as their bots were added, and one it
+  // declares that isn't there fails it.
+  const tableless = await checkTemplateEndToEnd({ person, template: { ...template("weekly-meal-planner"), tables: [{ key: "pantry_ghosts" }] }, players, run });
+  assert.deepEqual(tableless.reasons, ["Its table \"pantry_ghosts\" isn't in the home."]);
 });
 
 test("the checked copy is a test copy whose files, uploads and computers stay in its own folder", async () => {

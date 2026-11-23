@@ -71,7 +71,11 @@ templates a link opens, when a copy built on Mercbot keeps them (D-43).
   `/templates/<slug>`, and the share page `/t/<code>`, all without signing in.
 - **Curated (D-43):** only files in `bot-templates/` are listed, credited to the Mercbot team. Each is
   checked when Mercbot starts (`checkTemplate`): one job, a greeting with `{firstName}`, a setup
-  interview skill, routines described, allowed apps, and no `tested` of its own.
+  interview skill, routines described, allowed apps, and no `tested` of its own. Its `tables` (D-130) list shared
+  tables by key and tables of its own (never a shared table's name or alias, known types, links to shared tables or
+  its own declared before them), and no text of it tells the bot to make a spreadsheet unless the person asks for one.
+  Every way a bot is made on one (adding from a template, New bot, Change template, teams and suggestions) makes its
+  tables once the bot is made, as the person adding it (`templateTables`; a failure is logged and the bot kept).
 - **Tested badge (D-43, D-79):** `npm run check:templates [-- <slug> ...]` adds each template's bot
   as a new person through the routes, plays its setup interview with an AI-played person and an AI
   judge (which gives a reason for each question; a question not asked fails with it), and records
@@ -80,7 +84,8 @@ templates a link opens, when a copy built on Mercbot keeps them (D-43).
   and refuses with exit 2 and writes nothing without them, or where `APP_ENV` is staging or
   production (D-87); it runs on its own copy of the test database and a temporary folder for
   files, uploads and computers (`checkCopyEnv`), as a test copy with `APP_ENV=test`, so sends are
-  logged, not sent (D-69), and any send line fails the template. Templates
+  logged, not sent (D-69), and any send line fails the template. After setup, each table the template declares must
+  be in the home, and a spreadsheet the bot saved in the chat fails it (D-130). Templates
   whose setup needs GitHub connected (`setupNeeds`) are skipped. The results are read once at start
   (`templateResults.js`): a template is tested only while its newest result passed, for its
   current `templateFingerprint` (sha256 of the key-sorted file) and the current
@@ -221,6 +226,7 @@ templates a link opens, when a copy built on Mercbot keeps them (D-43).
 - `tests/server/botTemplates.integration.js`
 - `tests/server/templateChecks.test.js`
 - `tests/server/templateCheck.integration.js`
+- `tests/server/spreadsheetCheck.test.js`
 - `tests/server/templateDraftPrompts.test.js`
 - `tests/server/teams.test.js`
 - `tests/server/teams.integration.js`

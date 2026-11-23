@@ -8,6 +8,8 @@ chat (D-35).
 - Main: `packages/bots/src/server/appTools.js`
 - `packages/bots/src/server/builderTools.js`
 - `packages/bots/src/server/viewTools.js`
+- `packages/bots/src/server/tableTools.js`
+- `packages/bots/skills/shared-tables.md`
 - `packages/bots/skills/views.md`
 - `packages/bots/skills/building-apps.md`
 - `packages/bots/src/server/scriptWriter.js`
@@ -18,7 +20,20 @@ chat (D-35).
 
 - Every bot: `data_tables`, `data_query` (CEL filter over field names, results marked as data,
   never instructions), `data_create`, `data_update`, `data_mark_obsolete` — through the data gate,
-  audited as the bot (`via: chat`).
+  audited as the bot (`via: chat`). A bot reads a link or person by its label, a file by its path, and tags as
+  their list.
+- Shared tables (D-130, `tableTools.js`), for every bot:
+  - `data_tables` lists each table's `linksTo`, `linkedFrom` and `extendedBy`, and `sharedTablesToAdd` (the
+    catalog's tables the home lacks, with their other names).
+  - `table_ensure` adds a shared table by its name or another word for it, with what it links to, in one line
+    (`postLead`) and no card. A table already there is reused.
+  - `table_field_add` and `table_extend` (a one-to-one extension) always ask on a card (`TABLE_ACTIONS` in
+    `botActions.js`, run on the person's yes as the bot that asked; approval cards get `apps`).
+  - `data_attach_file` copies one of the bot's files onto a record's file or picture field.
+  - The apps rules in every bot's instructions (`botAgent.js` `APPS_RULES`) and `shared-tables.md`: records go in
+    tables, never a spreadsheet unless asked, and never a second table for what a shared one is for.
+  - A reply whose turn saved a spreadsheet nobody asked for is sent back once (`SPREADSHEET_CHECK`, replyChecks.js:
+    the turn's `savedFiles()` decide it).
 - The home's Builder also: `apps_overview`, `app_get`, `app_create`, `app_save_draft` (errors come
   back to fix; success posts one `app_draft` card per app), `table_create`, `field_add`,
   `field_rename`, `field_formula` (a calculated field's new formula, D-78), `field_remove` (posts a card;
@@ -55,3 +70,6 @@ chat (D-35).
 - `tests/server/appsScriptWriter.integration.js`
 - `tests/server/builderInstructions.test.js`
 - `tests/server/appsBotTools.integration.js`
+- `tests/server/appsTableTools.integration.js`
+- `tests/server/spreadsheetCheck.test.js`
+- `tests/server/appsRules.test.js`

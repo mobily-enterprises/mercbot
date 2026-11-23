@@ -4284,3 +4284,74 @@ whose one-bot judge it removes.
   tokens against a turn's; the switch's rights; new chats on and the migration), `tests/server/botsTogether.test.js`,
   `tests/server/chatsTogether.integration.js`, `tests/server/roomsMemoryWall.integration.js`,
   `tests/server/standInRooms.test.js` and `tests/e2e/chats-together.spec.ts`.
+
+## D-130 — Shared tables: bots keep records in the home's tables, built on a small catalog (2026-11-23)
+
+Bots kept their records in spreadsheets and documents: 34 of the 48 bot templates told the bot to make one, so a home
+filled with files nobody could search, link or keep up to date. The owner: bots must not make spreadsheets of data but
+neat shared tables; tables start common and small, are composable and reusable, and are extended with fields or
+one-to-one extension tables; relationships are evident; Contacts and To-dos are mini apps in every home; the CRM
+composes from Contacts; records' files live at `db/tables/<table>/…` and nobody may move them. Long term, permissions
+are per table only, and what's private goes in a one-to-one extension only some people can open. This first phase is
+small and complete; more catalog families and mini apps come in phase 2, and per-table permissions in phase 3.
+
+- **New field types** (`packages/apps`): `person` (someone in the home, checked against its members on every write,
+  shown by name; a member who left shows as "Former member"), `tags` (a list of words, optionally from an allowed list;
+  filtered with `"x" in tags`), `url` (http or https only), `longtext` (up to 20,000 characters), `datetime` (an ISO
+  moment, shown in the reader's zone), and `file` and `image` (below). A member's screens read `me` (id and name), as a
+  visitor's read `visitor`.
+- **One-to-one links**: a link field may be `unique`, at most one live record per target, which makes its table a
+  one-to-one extension of the one it links to. Every home's records share one table, so no database index can hold it:
+  the data gate checks it in the write's own transaction under an advisory lock (409 `apps_link_unique_taken`).
+- **Empty values in filters**: a formula reads an empty field as `""`, and the database holds it as null.
+  `field == ""` now finds empty fields, `field != ""` filled ones, and a date and time compared with `""` is a null test.
+- **Database files**: a record's file or picture lives in the home's storage at
+  `/files/db/tables/<table>/<record>/<field>/<name>` (a taken name gets a number), a fourth folder of every place,
+  always read-only. People's moves, renames, deletes, uploads and new folders there are refused (403
+  `files_db_protected`, "Database files belong to their table's records: copy one out instead of moving it."), and so are
+  bots' file tools. Bots' commands and computers mount it read-only. Copying out works everywhere. Only the data gate
+  writes there: a file is copied in (never moved) as the record's change is made, a change that fails leaves no file,
+  and a replaced or cleared file goes once the change is in. An obsolete record keeps its files. A picture field takes
+  only PNG, JPEG, GIF or WebP, by its bytes. Nobody sets a file by sending a path (`apps_value_file_from_upload`), and a
+  draft's practice data takes none.
+  - People upload in the record dialog and on a live app's forms (`POST …/records/:id/files/:field`, with the files'
+    size limit and picture and video check, D-90).
+  - Bots use `data_attach_file` with one of their files.
+  - A copy that serves public apps serves a record's file through `gate.recordFile`, by record and field, within the
+    app's visitor rules, never by path.
+- **The catalog** (`packages/apps/catalog/*.json`, `tableCatalog.js`), checked as the server starts (a broken file
+  stops it, naming the problem): organisations, contacts, departments, to-do lists (seeded with General), to-dos,
+  place categories (seeded), places, events, event attendees, graphics, deals, and `crm_contacts`, a one-to-one
+  extension of contacts. Each has a label, a one-line description and the other names people use for it. A table needs
+  the tables its links point to.
+  - `ensureTable` makes one with what it needs, once: a home's table of the same key is reused and only gains the
+    fields it lacks, nothing renamed or removed, and seed rows go only into a table it made.
+  - `ensureExtension` makes a one-to-one extension, with its required unique link named after the base.
+  - `catalogMatch` finds a shared table by key, label or alias, singular or plural.
+- **Bots build on it**: every bot with apps has `table_ensure` (adds a shared table the home lacks, with what it links
+  to, in one line and no card), `table_field_add` and `table_extend` (both always ask the person on a card, and run as
+  the bot that asked). `data_tables` shows each table's links ("links to", "linked from", "extended by") and the shared
+  tables not added yet. The Builder's `table_create` refuses a table a shared one is for (`apps_table_in_catalog`).
+  Every bot's instructions and the "Shared tables" skill say to keep records in tables, never a spreadsheet. A reply
+  whose turn saved a spreadsheet the person didn't ask for is sent back once, to use the tables.
+- **Bot templates declare their tables** (`tables`: shared keys, and tables of their own linked to the shared ones).
+  `checkTemplate` refuses one that clashes with a shared table's name, links to nothing declared, or tells the bot to
+  make a spreadsheet. Every way a bot is made on a template makes its tables once the bot is made, as the person adding
+  it; a table that fails is logged, and the bot is kept.
+- **Links are visible**: each table's page in the Data tab shows what it links to, what links to it and what extends
+  it. A record shows its related records, by table, the first page of each (`gate.related`, one read per link field
+  that points at the table). The Templates tab lists the shared tables. On app screens, related records are ordinary
+  lists filtered by the link.
+- **Contacts and To-dos in every home**: two app templates on the shared tables (`uses`), installed, empty and
+  published, the first time a home is opened (its list of apps, which the sidebar reads), once per home
+  (`app_settings.starter_apps_at`, claimed under a row lock), retried at the next open after a failure. A home that
+  already has an app of that name keeps its own.
+- **The CRM composes from Contacts**: it uses contacts, organisations, deals and the `crm_contacts` extension for each
+  contact's pipeline. A home with the old CRM keeps its contacts' fields; nothing is removed or renamed.
+
+Tests: `tests/server/appsFieldTypes.test.js`, `tests/server/appsSharedFields.integration.js`,
+`tests/server/databaseFiles.test.js`, `tests/server/appsRecordFiles.integration.js`, `tests/server/tableCatalog.test.js`,
+`tests/server/appsCatalog.integration.js`, `tests/server/appsTableTools.integration.js`,
+`tests/server/spreadsheetCheck.test.js`, `tests/server/templateChecks.test.js`, `tests/server/botTemplates.integration.js`,
+`tests/server/appsTemplates.test.js`, `tests/server/appsTemplates.integration.js`, `tests/server/appsStarter.integration.js`,
+`tests/client/fieldValues.vitest.js`, `tests/client/tableLinks.vitest.js` and `tests/e2e/apps.spec.ts`.

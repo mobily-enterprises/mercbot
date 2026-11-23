@@ -9,7 +9,7 @@ import MercbotConfirmDialog from "@/components/mercbot/MercbotConfirmDialog.vue"
 import MercbotFileViewer from "@/components/mercbot/MercbotFileViewer.vue";
 import { fileKind, fileUrl, filesApi, formatSize, storageApi, uploadFile } from "@/components/mercbot/filesApi.js";
 import MercbotPlacePicker from "./MercbotPlacePicker.vue";
-import { ARCHIVED_NOTE, dropLabel, dropMode, nameOf, onMac, parentOf, pickerLabel, startKey, useFilePlaces, useFolderListing } from "./filePlaces.js";
+import { ARCHIVED_NOTE, LOCKED_NOTE, dropLabel, dropMode, nameOf, onMac, parentOf, pickerLabel, startKey, useFilePlaces, useFolderListing } from "./filePlaces.js";
 import { useFileTransfer } from "./useFileTransfer.js";
 
 // The one file browser (D-47, D-112 R6): on the left every place the person can open (the chat it was opened from,
@@ -168,9 +168,14 @@ const picked = ({ to, folder }) => send({ mode: picker.mode, from: picker.from, 
 
 function menuFor(entry) {
   const item = place.value;
-  return [
+  const reading = [
     { title: "Open", action: () => open(entry) },
-    ...(entry.folder ? [] : [{ title: "Download", href: fileUrl(item.botId, entry.path, { chat: item.chat }) }]),
+    ...(entry.folder ? [] : [{ title: "Download", href: fileUrl(item.botId, entry.path, { chat: item.chat }) }])
+  ];
+  // Database files are opened and copied out, never changed by hand (D-130).
+  if (item.locked) return [...reading, { title: "Copy to…", action: () => startPicker("copy", entry) }];
+  return [
+    ...reading,
     { title: "Rename", action: () => startDialog("rename", entry) },
     { title: "Copy to…", action: () => startPicker("copy", entry) },
     { title: "Move to…", action: () => startPicker("move", entry) },
@@ -187,10 +192,12 @@ function startDrag(event, entry) {
   event.dataTransfer.effectAllowed = "copyMove";
   event.dataTransfer.setData("text/plain", nameOf(entry.path));
 }
+// A file dragged out of Database files is copied, never moved; nothing is dropped into them.
+const dragMode = (event) => (dragging.value?.from?.locked ? "copy" : dropMode(event, mac));
 function dragOver(event, item) {
-  if (!dragging.value || item.archived) return;
+  if (!dragging.value || item.archived || item.locked) return;
   event.preventDefault();
-  const mode = dropMode(event, mac);
+  const mode = dragMode(event);
   event.dataTransfer.dropEffect = mode;
   over.value = { key: item.key, mode };
 }
@@ -201,9 +208,9 @@ function drop(event, item) {
   const dragged = dragging.value;
   dragging.value = null;
   over.value = null;
-  if (!dragged || item.archived) return;
+  if (!dragged || item.archived || item.locked) return;
   event.preventDefault();
-  send({ mode: dropMode(event, mac), from: dragged.from, path: dragged.path, to: item, folder: item.root });
+  send({ mode: dragged.from?.locked ? "copy" : dropMode(event, mac), from: dragged.from, path: dragged.path, to: item, folder: item.root });
 }
 function endDrag() {
   dragging.value = null;
@@ -264,10 +271,11 @@ function endDrag() {
               <button type="button" class="mb-files__crumb" :class="{ 'mb-files__crumb--here': crumb.path === at.folder }" @click="go(place, crumb.path)">{{ crumb.label }}</button>
             </template>
           </nav>
-          <v-btn icon="$createNewFolder" size="x-small" variant="text" :disabled="place.archived" :loading="busy" :aria-label="`New folder in ${pickerLabel(place)}`" @click="startDialog('folder')" />
-          <v-btn icon="$uploadArrow" size="x-small" variant="text" :disabled="place.archived" :loading="busy" :aria-label="`Upload to ${pickerLabel(place)}`" @click="uploadInput.click()" />
+          <v-btn v-if="!place.locked" icon="$createNewFolder" size="x-small" variant="text" :disabled="place.archived" :loading="busy" :aria-label="`New folder in ${pickerLabel(place)}`" @click="startDialog('folder')" />
+          <v-btn v-if="!place.locked" icon="$uploadArrow" size="x-small" variant="text" :disabled="place.archived" :loading="busy" :aria-label="`Upload to ${pickerLabel(place)}`" @click="uploadInput.click()" />
         </div>
         <p v-if="place.archived" class="mb-files__empty">{{ ARCHIVED_NOTE }}</p>
+        <p v-if="place.locked" class="mb-files__empty" data-testid="files-locked-note">{{ LOCKED_NOTE }}</p>
         <p v-if="failure" class="mb-files__problem" role="alert">
           {{ failure.message || "The files couldn't load." }}
           <router-link v-if="signIn === 'can'" :to="signInLink" class="mb-files__sign-in">Sign in again</router-link>

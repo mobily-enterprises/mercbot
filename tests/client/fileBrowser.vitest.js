@@ -53,25 +53,27 @@ beforeEach(() => {
 });
 
 describe("the browser's places", () => {
-  it("lists the room it was opened from first, then Home files, the bots (main first) and the rooms", () => {
+  it("lists the room it was opened from first, then Home files and Database files, the bots (main first) and the rooms", () => {
     const items = orderPlaces(PLACES, { chat: KITCHEN, chatBotId: "4" });
     expect(items.map((item) => [item.label, item.group])).toEqual([
-      ["This room", "here"], ["Home files", "home"], ["Chef", "bots"], ["Ledger", "bots"], ["Garden", "chats"], ["Old trip", "chats"]
+      ["This room", "here"], ["Home files", "home"], ["Database files", "home"], ["Chef", "bots"], ["Ledger", "bots"], ["Garden", "chats"], ["Old trip", "chats"]
     ]);
     // The room's folder is reached through its bot, so the viewer can open a file on that bot's computer; the others name
     // the bot or chat alone, and the home's neither.
     expect(items.map((item) => [item.key, item.botId, item.chat, item.root])).toEqual([
-      ["chat:9", "4", "9", "/files/chat"], ["home", null, null, "/files/shared"], ["bot:4", "4", null, "/files/bot"],
+      ["chat:9", "4", "9", "/files/chat"], ["home", null, null, "/files/shared"], ["db", null, null, "/files/db"], ["bot:4", "4", null, "/files/bot"],
       ["bot:3", "3", null, "/files/bot"], ["chat:20", null, "20", "/files/chat"], ["chat:21", null, "21", "/files/chat"]
     ]);
-    expect(items.map((item) => item.title)).toEqual(["this room", "Home files", "Chef's files", "Ledger's files", "Garden", "Old trip"]);
+    expect(items.map((item) => item.title)).toEqual(["this room", "Home files", "Database files", "Chef's files", "Ledger's files", "Garden", "Old trip"]);
+    // The records' files (D-130): read through the home's own place, and locked.
+    expect(items.find((item) => item.key === "db")).toMatchObject({ place: { kind: "home" }, locked: true, icon: "$lock" });
     expect(items.find((item) => item.key === "chat:21").archived).toBe(true);
   });
 
   it("calls a direct chat This chat, adds the chat it's in when the list lacks it, and lists no chat first from the Files page", () => {
     const direct = { id: "57", directBotId: "4", bots: [{ botId: "4" }], people: [] };
     expect(orderPlaces(PLACES, { chat: direct })[0]).toMatchObject({ key: "chat:57", label: "This chat", group: "here" });
-    expect(orderPlaces(PLACES).map((item) => item.label)).toEqual(["Home files", "Chef", "Ledger", "Garden", "Kitchen reno", "Old trip"]);
+    expect(orderPlaces(PLACES).map((item) => item.label)).toEqual(["Home files", "Database files", "Chef", "Ledger", "Garden", "Kitchen reno", "Old trip"]);
   });
 
   it("names a direct chat as a chat with someone, never like that bot's own files", () => {
@@ -84,7 +86,7 @@ describe("the browser's places", () => {
   });
 
   it("names each place on its own in the picker: a bot's files as its files", () => {
-    expect(orderPlaces(PLACES).map(pickerLabel)).toEqual(["Home files", "Chef's files", "Ledger's files", "Garden", "Kitchen reno", "Old trip"]);
+    expect(orderPlaces(PLACES).map(pickerLabel)).toEqual(["Home files", "Database files", "Chef's files", "Ledger's files", "Garden", "Kitchen reno", "Old trip"]);
   });
 
   it("starts a bot's breadcrumbs with its files, not its bare name, which a chat with it would also have", async () => {
@@ -117,6 +119,8 @@ describe("the place picker", () => {
     expect(pickerRefusal({ mode: "copy", item: at("chat:9"), folder: "/files/chat/Plans", ...file })).toBe("");
     expect(pickerRefusal({ mode: "move", item: at("chat:9"), folder: "/files/chat", ...file })).toBe("");
     expect(pickerRefusal({ mode: "move", item: at("home"), folder: "/files/shared/Plans", ...file })).toBe("");
+    // Nothing is copied or moved into Database files (D-130).
+    for (const mode of ["copy", "move"]) expect(pickerRefusal({ mode, item: at("db"), folder: "/files/db/tables", ...file })).toMatch(/belong to their table's records/u);
     const folder = { from: "chat:9", path: "/files/chat/Plans" };
     expect(pickerRefusal({ mode: "move", item: at("chat:9"), folder: "/files/chat/Plans/2026", ...folder })).toBe("A folder can't go inside itself.");
     expect(pickerRefusal({ mode: "copy", item: at("chat:9"), folder: "/files/chat/Plans", ...folder })).toBe("A folder can't go inside itself.");
@@ -207,8 +211,8 @@ describe("Add from files", () => {
     const { addCopies } = useComposerFiles({ attachments, chat: () => KITCHEN, focusComposer: () => { focused += 1; }, onFailure: () => {}, transfer });
     await addCopies([
       { item: items[1], path: "/files/shared/budget.xlsx", size: 2048 },
-      { item: items[3], path: "/files/bot/secret.txt", size: 10 },
-      { item: items[4], path: "/files/chat/photo.png", size: 4096 }
+      { item: items[4], path: "/files/bot/secret.txt", size: 10 },
+      { item: items[5], path: "/files/chat/photo.png", size: 4096 }
     ], here);
     expect(api.calls.map(([, request]) => [request.mode, request.from.place, request.to])).toEqual([
       ["copy", { kind: "home" }, { place: { kind: "chat", chatId: "9" }, folder: "/files/chat/Uploads" }],
@@ -237,7 +241,7 @@ describe("the browser on a wide screen and on a phone", () => {
   it("shows the places as a column, in order and grouped, opened at the room it's in", async () => {
     const html = await browser({ chat: KITCHEN }, 1280);
     const nav = /<nav class="mb-files__places"[\s\S]*?<\/nav>/u.exec(html)?.[0] || "";
-    expect(text(nav)).toBe("This room Home files Bots Chef Ledger Rooms and chats Garden Old trip");
+    expect(text(nav)).toBe("This room Home files Database files Bots Chef Ledger Rooms and chats Garden Old trip");
     expect(/<button[^>]*aria-current="true"[^>]*>[\s\S]*?<\/button>/u.exec(nav)?.[0]).toContain("This room");
     expect(html).not.toContain("mb-files__place-picker");
     expect(api.calls.find(([name]) => name === "list")).toEqual(["list", "4", "/files/chat", "9"]);

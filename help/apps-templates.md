@@ -11,11 +11,13 @@ Open **Apps** and choose the **Templates** tab. Each template shows:
 - a sentence on what it's for
 - how many screens it has and which tables it uses
 
-## The six templates
+## The eight templates
 
 | Template | What it's for | Tables | Screens you'll see |
 |---|---|---|---|
-| **CRM** | Contacts and the deals you're working on | Contacts, Deals | Contacts, Deals, and a Pipeline with a bar chart of deals by stage and the value at each stage |
+| **Contacts** | The people and organisations you deal with | Contacts, Organisations, To-dos | People with search and tags, Mine, each person's page with their to-dos, and Organisations with their people |
+| **To-dos** | Named lists of to-dos, by department and person | To-dos, To-do lists, Departments | My tasks, Lists, Departments, By person and Overdue, and each to-do's page with its subtasks and quick Doing, Waiting and Done |
+| **CRM** | Your pipeline on the home's contacts, and the deals you're working on | Contacts, Organisations, CRM contacts, Deals | a Pipeline with a chart by stage, Contacts with each one's pipeline row and deals, and Deals with a chart by stage |
 | **Stock** | Items, how many you have and where, and when to reorder | Items | Items, and By location with a pie chart of quantity by location |
 | **Leave requests** | People ask for time off; someone approves or declines it | Leave requests | Requests, Ask for leave, and a Summary with a chart by status |
 | **Hiring pipeline** | Candidates for each role and how far they've got | Candidates | Candidates, and a Pipeline with a chart by stage |
@@ -23,6 +25,8 @@ Open **Apps** and choose the **Templates** tab. Each template shows:
 | **Bookings** | People sign in with their email, book, and see and change only their own bookings | Bookings | All bookings inside your home; My bookings and Book for visitors |
 
 Contact form and Bookings have public screens for visitors, with their visitor access. They work inside your home straight away.
+
+Every home already has **Contacts** and **To-dos**, ready to use. Contacts, To-dos and CRM are built on the home's shared tables, so they share one list of contacts, and the CRM keeps each contact's sales details beside it rather than in a copy. Below the templates, **Shared tables** lists every shared table, what it's for and whether your home has it.
 
 ## Install a template
 

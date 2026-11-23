@@ -230,9 +230,10 @@ test("adding, making, changing to or adding a team of templates asks for the tab
   await kit.templates.addFromTemplate("weekly-meal-planner", "Anna", as("anna"));
   assert.deepEqual(kit.calls.tables.splice(0), [], "none declared, none asked for");
   const made = await kit.templates.createBot({ name: "Chase", shape: "cloud", color: "#14C16F", template: { library: "customer-follow-up" } }, as("anna"));
-  assert.deepEqual(kit.calls.tables.splice(0), ["contacts", "deals"]);
+  assert.deepEqual(kit.calls.tables.splice(0), ["contacts", "organisations", "crm_contacts", "deals"]);
   await kit.templates.changeTemplate(made.id, { library: "household-bills-tracker" }, "Anna", as("anna"));
   assert.deepEqual(kit.calls.tables.splice(0), ["organisations", "bills"]);
   await kit.teams.addTeam("front-desk", ["customer-follow-up", "quote-writer"], as("ben"));
-  assert.deepEqual(kit.calls.tables.splice(0), ["contacts", "deals"]);
+  const quotes = (await import("../../packages/bots/src/server/templates.js")).LIBRARY.get("quote-writer").tables.map((table) => (typeof table === "string" ? table : table.key));
+  assert.deepEqual(kit.calls.tables.splice(0), [...quotes, "contacts", "organisations", "crm_contacts", "deals"], "each template's, in the team's order");
 });

@@ -11,13 +11,26 @@ home, with every change audited and nothing ever deleted (D-35).
 - `packages/apps/src/server/anyapi.js`
 - `packages/apps/src/server/validate.js`
 - `packages/apps/src/server/sqlPlan.js`
+- `packages/apps/src/server/recordChecks.js`
+- `packages/apps/src/server/recordFiles.js`
+- `packages/apps/src/server/relatedRecords.js`
+- `packages/apps/src/server/sheetInput.js`
+- `packages/apps/src/server/auditReads.js`
+- `packages/apps/src/server/tableCatalog.js`
+- `packages/apps/src/server/starterApps.js`
+- `packages/apps/catalog/*.json`
+- `packages/files/src/server/recordFileStore.js`
 - `packages/apps/src/server/schema.js`
 - `packages/apps/src/shared/where.js`
 - `packages/apps/src/shared/formulas.js`
 - `packages/apps/src/shared/calculated.js`
 - `migrations/20261113120000_baseline.cjs`
+- `migrations/20261125120000_app_settings_starter_apps.cjs`
 - `src/components/apps/AppsTable.vue`
 - `src/components/apps/RecordDialog.vue`
+- `src/components/apps/RecordFileField.vue`
+- `src/components/apps/fieldValues.js`
+- `src/components/apps/tableLinks.js`
 - `src/components/apps/linkPickers.js`
 - `src/components/apps/AppsActivity.vue`
 - `src/components/apps/sheets.js`
@@ -27,7 +40,38 @@ home, with every change audited and nothing ever deleted (D-35).
 - Records live in json-rest-api's AnyAPI storage, one tenant per home (`ws:<id>`); tables and
   fields have permanent ids (`t_…`, `f_…`) that are AnyAPI's resource and field names, while keys
   and labels live in `app_tables`/`app_fields`. Renaming changes only the registry. Field types:
-  text, email, phone, choice, link, number, money (whole cents), date (YYYY-MM-DD), yesno.
+  text, email, phone, choice, link, number, money (whole cents), date (YYYY-MM-DD), yesno, and
+  (D-130) person (a member's user id, checked against the home's members on every write and
+  labelled by name, "Former member" once gone), tags (a list of words, optionally from `choices`),
+  url (http or https), longtext (up to 20,000 characters), datetime (an ISO moment) and file and
+  image (below). A link may be `unique`: one live record at most per target, checked in the
+  write's transaction under an advisory lock (`recordChecks.js`, 409 `apps_link_unique_taken`),
+  which makes its table a one-to-one extension. In filters, `"x" in tags` is one `jsonb_exists`,
+  and an empty field, `""` to formulas and null in the database, is found by `== ""` (null or
+  empty text; a date and time's slot is only ever null).
+- **Database files** (D-130): a file or picture field's value is `{ path, name, size, type }`, set
+  only by the gate (`attachFile`, `recordFiles.js`; a value sent by path is refused,
+  `apps_value_file_from_upload`). The files feature plugs its writer in at start
+  (`useRecordFiles`), which copies the file to `/files/db/tables/<table>/<record>/<field>/<name>`
+  in the home's storage before the change; a change that fails removes it, and one that replaces
+  or clears it removes the old one after it's in. A picture is PNG, JPEG, GIF or WebP by its
+  bytes. A draft's practice data and a visitor add none. Uploads come through
+  `POST app-data/tables/:key/records/:id/files/:field` (the files' size limit and picture and
+  video check). `recordFile` serves one by record and field through the gate's visitor rules, for
+  a copy's public routes. Files lists `/files/db` read-only in every place (files.md).
+- **Related records** (`gate.related`, `relatedRecords.js`): the records linking to one, grouped by
+  table and link field, the first 10 of each with its count. That's one read per link field
+  pointing at the table, whatever the counts.
+- **The catalog** (`tableCatalog.js`, `packages/apps/catalog/*.json`, D-130): twelve shared tables,
+  checked at start (`catalogProblems`; a broken file stops the server, naming the problem).
+  `ensureTable` makes one with the tables its links need first, once (a same-key table is reused
+  and only gains fields; seed rows go only into a table it made). `ensureExtension` and
+  `ensureOwnTable` make a one-to-one extension and a template's own table. `catalogMatch` finds a
+  shared table by key, label or alias, singular or plural. On `mercbot.apps` as `catalog`.
+- **Starter apps** (`starterApps.js`): the home's list of apps (`GET /apps`, which its sidebar
+  reads as it opens) first installs Contacts and To-dos, empty and published, once per home
+  (`app_settings.starter_apps_at`, claimed under a row lock; cleared and retried at the next open
+  after a failure). A home with an app of that name keeps its own. One read when they're there.
 - Every write goes through the data gate (`create`, `update`, `markObsolete`, `restore`): values
   are checked by type, links must point to existing records, removed fields are refused, and an
   `audit_events` row (actor, via, field old → new) is written in the same transaction. A write
@@ -80,7 +124,7 @@ home, with every change audited and nothing ever deleted (D-35).
   uses, for its details, and `brief=true` answers the tables alone, for pickers and filters), `app-data/tables/:key/records` (search, sort,
   pages, show obsolete; create; `PATCH :id`; `:id/obsolete`; `:id/restore`; `:id/history`), `app-data/tables/:key/import`
   (`{rows, dryRun, firstRow, file}`, rows keyed by field id),
-  `app-activity` (filters table, app, person or bot, dates; paged by id). The person-or-bot filter
+  `app-data/tables/:key/records/:id/related`, `app-activity` (filters table, app, person or bot, dates; paged by id). The person-or-bot filter
   reads `ix_audit_events_actor` (home, actor id, id desc): its list jumps from one actor id to the
   next (a recursive loose index scan), each with their latest entry's type and name, and one
   actor's page reads only their entries, so neither grows with the home's history.
@@ -94,3 +138,11 @@ home, with every change audited and nothing ever deleted (D-35).
 - `tests/server/appsCalculated.test.js`
 - `tests/server/appsCalculated.integration.js`
 - `tests/client/appsLinkPickers.vitest.js`
+- `tests/server/appsFieldTypes.test.js`
+- `tests/server/appsSharedFields.integration.js`
+- `tests/server/appsRecordFiles.integration.js`
+- `tests/server/tableCatalog.test.js`
+- `tests/server/appsCatalog.integration.js`
+- `tests/server/appsStarter.integration.js`
+- `tests/client/fieldValues.vitest.js`
+- `tests/client/tableLinks.vitest.js`

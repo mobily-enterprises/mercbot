@@ -68,7 +68,7 @@ There's one file browser, wherever you open it:
 - **A room's files:** select **Chat details** at the top of the room and choose **Files**. It opens at **This room**.
 - **A bot's files:** open its card and choose **Files**. It opens at the bot's own files. In your direct chat with a bot, Chat details shows the bot's card.
 
-On the left the browser lists every place you can open: **This room** (or **This chat**) when you opened it from one, **Home files**, each bot's files under **Bots**, and your rooms and chats under **Rooms and chats**. Select a place to see its files. On a phone, or in the narrow details panel, the places are a list at the top instead.
+On the left the browser lists every place you can open: **This room** (or **This chat**) when you opened it from one, **Home files**, **Database files**, each bot's files under **Bots**, and your rooms and chats under **Rooms and chats**. Select a place to see its files. On a phone, or in the narrow details panel, the places are a list at the top instead.
 
 Each folder shows its newest 300 files and says how many older ones it leaves out. A folder with more than 5,000 files shows the newest 300 of the first 5,000 it finds, and says so.
 
@@ -85,6 +85,12 @@ Copying keeps the original; moving takes it away from where it was. If a file wi
 You can also drag a file or folder onto a place in the left column: dragging moves it. Hold **Ctrl** (**⌥** on a Mac) while you drag to copy it instead. The place says **Move to…** or **Copy to…** while you hold the file over it.
 
 If the file comes from a private room or chat and the place you chose can be opened by more people, such as **Home files**, a bot's files or a public room, Mercbot asks first, naming the place, for example "Everyone who can open Home files will see this file. Continue?" Nothing is copied or moved unless you select **Continue**.
+
+### Database files
+
+**Database files** holds the files and pictures your home's records keep, such as a contact's photo or a to-do's attachment, in a folder for each table, record and field. Anyone in the home can open, download and copy them out with **Copy to…**, but nothing there is uploaded, renamed, moved or deleted by hand: they belong to their records. Dragging one out copies it. To change a record's file, open the record and choose another one. See [Your data: tables, fields and records](/help/apps-data#files-and-pictures).
+
+Bots can read and copy them too, and put a file on a record when you ask, but they can't change them either.
 
 ### The home's own storage
 

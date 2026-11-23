@@ -12,6 +12,7 @@ card in the chat with a viewer and a download (D-20, D-21).
 - `packages/files/src/server/sheetPreview.js`
 - `packages/files/src/server/types.js`
 - `packages/files/src/server/fileStore.js`
+- `packages/files/src/server/recordFileStore.js`
 - `packages/files/src/server/fileTransfer.js`
 - `packages/files/src/server/fileCopies.js`
 - `packages/files/src/server/filesVolume.js`
@@ -91,7 +92,13 @@ files are kept.
   `files_wider_needs_card`: "This is a private chat, so its bots only read …"), unless it is widened
   (`store.widened(place)`): what a person does themselves (the file routes) or a card a person tapped, never the bot
   alone; only server code can mark a place so. `store.removeChatFolder(homeId, chatId)` removes a deleted chat's
-  folder. A configured folder without the marker is unavailable, so files
+  folder. **Database files** (D-130): `homes/<home>/db/` (`/files/db`) is in every place and always read-only, by
+  people, bots' file tools and office apps (403 `files_db_protected`: "Database files belong to their table's records:
+  copy one out instead of moving it."), and mounted read-only for bots' commands and computers; it is never a Move-to
+  destination. Copying out works everywhere. Only the apps' data gate writes there, through the writer the files
+  feature plugs into apps at start (`recordFileStore.js`: `writeRecordFile` to `tables/<table>/<record>/<field>/<name>`,
+  a taken name numbered, and `removeRecordFile` only inside `tables/`). The file browser lists it as **Database files**,
+  locked: open, download and Copy to… only, and a drag out copies. A configured folder without the marker is unavailable, so files
   never land on one server's own disk. What writes into the files folder outside the store (the
   usage archive, D-73) reaches the bucket through the working copy the files feature hands the account's sweeps (`files.volume.sync`, `useFilesSync`).
 - People's profile pictures (D-19) are kept with the bots' files, in `profile-pictures/<user>/avatar`
@@ -384,6 +391,7 @@ other text as it is; and documents, other spreadsheets, slides and PDFs as page 
 ## Proved by
 
 - `tests/server/files.test.js`
+- `tests/server/databaseFiles.test.js`
 - `tests/server/sheetPreview.test.js`
 - `tests/server/filesBucket.test.js`
 - `tests/server/mediaChecks.integration.js`

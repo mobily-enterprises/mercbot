@@ -15,6 +15,8 @@ import { browser } from "./browser.mjs";
 
 /** What the person says first, after the bot's greeting: a yes to its setup interview. */
 export const OPENING = "Yes, let's set you up. Ask me your questions.";
+// A spreadsheet file a bot saved, as its chat's file cards name it.
+const SPREADSHEET_PATH = /\/files\/[^"\\]+\.(?:xlsx|xls|ods|csv)(?=")/giu;
 const PICKS = "Reply with the options you pick, exactly as written, one per line.";
 // JSKIT's line for each send a test copy logs instead (D-69, D-87): "<Environment>: <what> was logged, not sent".
 const SIMULATED = /(?:Development|Test|Staging): .* was logged, not sent/u;
@@ -278,6 +280,16 @@ export async function checkTemplateEndToEnd({ person, template, players, run, ma
     }
     for (const routine of routines) if (routine.enabled) reasons.push(`Its routine "${routine.name}" is running, but the person never said to start it.`);
     for (const line of sends.lines) reasons.push(`It sent something without a yes: ${line}`);
+    // Its records are in the home's tables, never a spreadsheet (D-130): each table it declares is there, and no
+    // spreadsheet it saved shows in the chat.
+    const { tables } = needed(await request("GET", `${base}/app-data/tables?brief=true`), "Reading the home's tables");
+    const have = new Set(tables.filter((table) => !table.obsolete).map((table) => table.key));
+    for (const table of template.tables || []) {
+      const key = typeof table === "string" ? table : table.key;
+      if (!have.has(key)) reasons.push(`Its table "${key}" isn't in the home.`);
+    }
+    const sheets = new Set(timeline().flatMap((message) => JSON.stringify(message.body || {}).match(SPREADSHEET_PATH) || []));
+    for (const sheet of sheets) reasons.push(`It saved a spreadsheet nobody asked for: ${sheet.split("/").pop()}.`);
     for (const message of timeline()) {
       if (message.kind === "draft" && ["sending", "sent"].includes(message.body.status)) reasons.push(`It sent a draft without a yes: ${message.body.subject || "a message"}.`);
     }
