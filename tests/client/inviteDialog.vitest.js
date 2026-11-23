@@ -45,11 +45,17 @@ describe("Invite", () => {
       .toEqual([["person", "Cara Bianchi"], ["bot", "Shopper"]]);
   });
 
-  it("is Invite a bot in a public room, which everyone in the home can open already: bots only", async () => {
+  it("is Invite in a public room the person is in: people join it and have it in their list, bots answer there", async () => {
     const html = await rendered({ chat: room({ kind: "public", title: "Kitchen reno" }) });
+    expect(html).toMatch(/<h2 class="mb-ctemp__title">Invite<\/h2>/u);
+    expect(text(html)).toContain("Everyone in the home can open “Kitchen reno” already. Whoever you invite joins it, so it's in their list; a bot answers here.");
+    expect(text(html)).toContain("People and bots");
+  });
+
+  it("is Invite a bot for someone reading a public room without being in it: bots only", async () => {
+    const html = await rendered({ chat: room({ kind: "public", title: "Kitchen reno", visiting: true }) });
     expect(html).toMatch(/<h2 class="mb-ctemp__title">Invite a bot<\/h2>/u);
-    expect(text(html)).toContain("Everyone in the home can open “Kitchen reno” already.");
-    expect(inviteChoices(room({ kind: "public" }), { people: PEOPLE, bots: BOTS, me: "1" }).map((choice) => choice.value)).toEqual(["bot:8"]);
+    expect(text(html)).toContain("Everyone in the home can open “Kitchen reno” already. A bot you invite answers here, and can be taken out again.");
   });
 
   it("waits for a pick before Add", async () => {

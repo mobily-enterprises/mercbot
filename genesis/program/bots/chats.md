@@ -224,8 +224,12 @@ Private room then opens Invite. On a phone it fills the screen.
 **Invite** (`MercbotInviteDialog.vue`, `chatMenus.js` `inviteChoices`; the room's header, and right after a Private room
 is made). In a Private room, "Invite": the home's people and active bots not in it yet ("People and bots", people
 first, then bots, each by name), with "Whoever you invite to “<room>” sees everything said here, from its start."; in a
-Public room, "Invite a bot": its active bots not in it ("Bots"), with "Everyone in the home can open “<room>” already. A
-bot you invite answers here, and can be taken out again." Picks are chips in one field that filters on the page over
+Public room the person is in, "Invite" too, people and bots, with "Everyone in the home can open “<room>” already.
+Whoever you invite joins it, so it's in their list; a bot answers here." (the person added joins it: it's in their list,
+not faded, and they hear what's said); someone reading a Public room without being in it gets "Invite a bot": its
+active bots not in it ("Bots"), with "Everyone in the home can open “<room>” already. A bot you invite answers here, and
+can be taken out again." Who may add a person is the room's own people, in any room but the everyone chat
+(`chatRights` `addPeople`; the server's `addPerson` requires the caller in the chat). Picks are chips in one field that filters on the page over
 the home's people and bots already loaded (`useTeam.js`); Add adds each through `POST …/people` and `POST …/bots`.
 Neither shows in a direct chat.
 
@@ -233,7 +237,8 @@ Neither shows in a direct chat.
 the other person's). Its title,
 with a rename pencil for whoever may, "Public" or "Private" (" · Archived") and what that kind means; tabs "Chat",
 "Files" (the chat's folder, labelled "This chat") and "Computers" (`genesis/program/computer/bot-computer.md`). The
-Chat tab lists "People" (each opens their card; "(you)"), with an × for whoever may remove them, "Bots" (" ·
+Chat tab lists "People" (each opens their card in Details, with an arrow back to Chat details in place of Close,
+`useShellAddress.js` `backToChat`; "(you)"), with an × for whoever may remove them, "Bots" (" ·
 archived", with an × for whoever may take a bot out: anyone in a Public room, its people in a Private one), "Routines" (`genesis/program/bots/routines.md`), and Leave chat (also a labelled, outlined **Leave room** button in the
 header of a Public room the person is in, "Leave" on a phone, asking the same question, D-125), Archive (a Public chat) or Unarchive,
 Hide from sidebar (a Private chat the person is in and hasn't hidden) and Delete chat for whoever may; the everyone chat says "Everyone in <home> is in this chat, for as long as they're in the home."

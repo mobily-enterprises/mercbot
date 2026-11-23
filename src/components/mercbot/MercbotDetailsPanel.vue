@@ -20,10 +20,12 @@ const props = defineProps({
   manages: { type: Boolean, default: false },
   teamBots: { type: Array, default: () => [] },
   computerNews: { type: Object, default: () => ({}) },
-  mood: { type: String, default: "idle" }
+  mood: { type: String, default: "idle" },
+  // A member's card opened beside a chat: an arrow back to the chat's details in place of Close.
+  back: { type: Boolean, default: false }
 });
 const emit = defineEmits([
-  "close", "resize", "open-page", "open-chat", "open-member", "message", "command", "changed", "failure", "notify",
+  "close", "back", "resize", "open-page", "open-chat", "open-member", "message", "command", "changed", "failure", "notify",
   "messages", "edit-routine", "open-computer"
 ]);
 
@@ -36,8 +38,9 @@ const botCommand = (name, args = {}) => emit("command", { name, args: { botId: S
 
 <template>
   <aside class="mb-details" :style="{ width: `${width}px` }" :aria-label="label">
-    <div class="mb-details__top">
-      <MercbotIconButton icon="$close" label="Close details" @click="emit('close')" />
+    <div class="mb-details__top" :class="{ 'mb-details__top--back': back }">
+      <MercbotIconButton v-if="back" icon="$arrowBack" label="Back to chat details" @click="emit('back')" />
+      <MercbotIconButton v-else icon="$close" label="Close details" @click="emit('close')" />
     </div>
     <MercbotMemberCard
       v-if="member"
@@ -108,6 +111,10 @@ const botCommand = (name, args = {}) => emit("command", { name, args: { botId: S
   justify-content: flex-end;
   gap: 8px;
   padding: 12px 16px 0;
+}
+
+.mb-details__top--back {
+  justify-content: flex-start;
 }
 
 .mb-details__scroll {

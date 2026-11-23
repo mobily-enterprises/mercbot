@@ -158,8 +158,8 @@ render across compact, medium, and expanded layouts.
   chat in the list's order and keeps it while news reorders the list. A Public room the person isn't in opens with the
   composer as usual: their first message puts them in it, and its row stops being faded.
 - The chat's header (`MercbotChatPanel.vue`) shows its title and, for a room, "Public" or "Private" with its members,
-  for a direct chat "Private · only you and <name>" (`chatView.js` `directLine`); then **Invite** (a Private room, for
-  its people) or **Invite a bot** (a Public room), never in a direct chat, which opens `MercbotInviteDialog.vue`
+  for a direct chat "Private · only you and <name>" (`chatView.js` `directLine`); then **Invite** (for a room's own
+  people, Public or Private) or **Invite a bot** (someone reading a Public room without being in it), never in a direct chat, which opens `MercbotInviteDialog.vue`
   (`genesis/program/bots/chats.md`); in a chat with a bot, "Continue with others…"; and Chat details (i). An archived
   chat says "This chat is archived, so it's read-only." with Unarchive for whoever may. The composer's + offers Attach
   files and, in a chat with one bot, "Teach <Bot> a task"; "/" picks skills in a chat with one bot, "@" mentions in a

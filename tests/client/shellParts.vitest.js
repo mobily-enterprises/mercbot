@@ -52,7 +52,7 @@ describe("chat list menus", () => {
     expect(titles(menu(kitchen, "archived", { me: "2" })), "nor unarchive it").toEqual(["Copy chat ID", "—", "Leave chat"]);
     expect(titles(menu(kitchen, "row", { me: "2", manages: true }))).toEqual(titles(menu(kitchen, "row")));
     expect(chatRights({ ...kitchen, madeBy: null }, { me: "1", manages: false }), "a chat no one made").toEqual({
-      removeMembers: false, addPeople: false, addBots: true, removeBots: true, rename: false, joinIn: false, archive: false, unarchive: false, remove: false,
+      removeMembers: false, addPeople: true, addBots: true, removeBots: true, rename: false, joinIn: false, archive: false, unarchive: false, remove: false,
       leave: true, unpin: true
     });
     expect(chatRights(kitchen, { me: "1", manages: false }).joinIn, "its maker switches whether its bots join in").toBe(true);
@@ -91,10 +91,12 @@ describe("chat list menus", () => {
     expect(titles(menu(pair, "direct", { me: "2" }))).toEqual(["Pin", "Mark as unread", "—", "Copy chat ID", "—", "Leave chat"]);
   });
 
-  it("lets anyone in the home bring a bot into a public room or take one out, and only a private room's people do so there", () => {
-    const visitor = { ...kitchen, visiting: true };
+  it("lets anyone in the home bring a bot into a public room or take one out, its people invite people too, and only a private room's people do either there", () => {
+    const visitor = { ...kitchen, people: [KIM], visiting: true };
     expect([chatRights(visitor, { me: "2", manages: false }).addBots, chatRights(visitor, { me: "2", manages: false }).removeBots]).toEqual([true, true]);
-    expect(chatRights(kitchen, { me: "2", manages: false }).addPeople, "a public room is open to everyone already").toBe(false);
+    expect(chatRights(visitor, { me: "2", manages: false }).addPeople, "someone reading a public room without being in it adds no one").toBe(false);
+    expect(chatRights(kitchen, { me: "2", manages: false }).addPeople, "a public room's people invite people, who then have it in their list").toBe(true);
+    expect(chatRights({ ...kitchen, everyone: true }, { me: "2", manages: false }).addPeople, "the everyone chat has everyone already").toBe(false);
     const plans = { ...kitchen, kind: "private" };
     expect([chatRights(plans, { me: "2", manages: false }).addPeople, chatRights(plans, { me: "2", manages: false }).addBots]).toEqual([true, true]);
   });
@@ -116,14 +118,14 @@ describe("chat list menus", () => {
     expect(section.map((item) => Boolean(item.disabled))).toEqual([false, true, false, false, false]);
   });
 
-  it("offers Invite a private room's people and bots not in it yet, and a public room only its bots, never an archived one", () => {
+  it("offers Invite a room's people and bots not in it yet, public or private, never an archived bot", () => {
     const people = [{ id: "1", name: "Kim Lee" }, { id: "2", name: "Ada Byron" }, { id: "3", name: "Bea Cole" }];
     const bots = [
       { id: "b2", name: "Zed", archivedAt: null }, { id: "b1", name: "Otto", archivedAt: null }, { id: "b3", name: "Gone", archivedAt: "2026-11-01T10:00:00Z" }
     ];
     const room = { ...kitchen, people: [KIM, ADA], bots: [{ chatBotId: "9", botId: "b1", name: "Otto" }] };
     expect(inviteChoices({ ...room, kind: "private" }, { people, bots, me: "1" }).map((choice) => choice.value)).toEqual(["person:3", "bot:b2"]);
-    expect(inviteChoices(room, { people, bots, me: "1" }).map((choice) => choice.title)).toEqual(["Zed"]);
+    expect(inviteChoices(room, { people, bots, me: "1" }).map((choice) => choice.title)).toEqual(["Bea Cole", "Zed"]);
   });
 
   it("asks before Archive, Leave and Delete, saying what each does to the chat", () => {

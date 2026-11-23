@@ -187,11 +187,15 @@ describe("a person's card", () => {
     expect(html).not.toContain("Show hidden and archived");
   });
 
-  it("is yours without [Message] or chats to share", async () => {
+  it("is yours without [Message] or chats to share, with how the home sees you and where to change it", async () => {
     const html = await card(ben);
     expect(html).toContain("Ben Rossi<span class=\"mb-card__you\"> (you)</span>");
     expect(html).not.toContain("aria-label=\"Message");
     expect(html).not.toContain("Chats you share");
+    expect(html).toContain("Your account");
+    expect(html).toContain("Everyone in Casa sees you by this name and picture, with your role.");
+    expect(html).toContain("Change your name, picture and settings");
+    expect((await card(anna))).not.toContain("Your account");
   });
 });
 

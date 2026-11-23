@@ -29,7 +29,7 @@ export function chatRights(chat, { me, manages }) {
     // Take people out of it (no one leaves the everyone chat but by leaving the home).
     removeMembers: manager && !direct,
     // Invite (a private room: people and bots) or Invite a bot (a public room), and take a bot out again.
-    addPeople: !direct && chat.kind === "private" && inIt && !chat.everyone,
+    addPeople: !direct && inIt && !chat.everyone,
     addBots: !direct && (chat.kind !== "private" || inIt),
     removeBots: !direct && (chat.kind !== "private" || inIt),
     rename: manager && !direct,
@@ -182,9 +182,7 @@ export function inviteChoices(chat, { people, bots, me }) {
   const peopleIn = new Set((chat.people || []).map((person) => String(person.userId)));
   const botsIn = new Set((chat.bots || []).map((bot) => String(bot.botId)));
   const byName = (a, b) => String(a.name).localeCompare(String(b.name));
-  const persons = chat.kind === "private"
-    ? people.filter((person) => String(person.id) !== String(me) && !peopleIn.has(String(person.id))).sort(byName)
-    : [];
+  const persons = people.filter((person) => String(person.id) !== String(me) && !peopleIn.has(String(person.id))).sort(byName);
   const robots = bots.filter((bot) => !bot.archivedAt && !botsIn.has(String(bot.id))).sort(byName);
   return [
     ...persons.map((person) => ({ value: `person:${person.id}`, kind: "person", id: String(person.id), title: person.name })),

@@ -90,7 +90,7 @@ Bots also use cards to ask you to connect an app, to sign in to a site securely,
 
 ## Chats with several bots or people
 
-A room can have several bots and several people in it, so they can work on something together. Start one with **+** beside **Rooms** (**Ctrl+Alt+G**), then invite who you need: **Invite** in a Private room, **Invite a bot** in a Public one, which everyone in the home can open already. [Rooms, people and bots](/help/chats) explains Public and Private rooms, inviting and archiving.
+A room can have several bots and several people in it, so they can work on something together. Start one with **+** beside **Rooms** (**Ctrl+Alt+G**), then invite who you need with **Invite** in its header: people and bots, in a Public room too, where whoever you invite joins it and has it in their list. [Rooms, people and bots](/help/chats) explains Public and Private rooms, inviting and archiving.
 
 ### Who answers
 

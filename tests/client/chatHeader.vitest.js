@@ -35,13 +35,15 @@ const room = (extra) => ({
 });
 
 describe("the chat's header", () => {
-  it("offers Invite in a private room and Invite a bot in a public one", async () => {
+  it("offers Invite to a room's people, public or private, and Invite a bot to someone reading a public room", async () => {
     shellPreferences.publicNoticeSeen = true;
     expect(labels(await panel(room({ kind: "private" })))).toContain("Invite");
     const open = labels(await panel(room()));
-    expect(open).toContain("Invite a bot");
-    expect(open).not.toContain("Invite");
-    expect(open).not.toContain("Add people or bots");
+    expect(open).toContain("Invite");
+    expect(open).not.toContain("Invite a bot");
+    const reading = labels(await panel(room({ visiting: true, people: [BEN] })));
+    expect(reading).toContain("Invite a bot");
+    expect(reading).not.toContain("Invite");
   });
 
   it("offers neither in a direct chat, with a bot or a person, which says it's private to the two of you", async () => {

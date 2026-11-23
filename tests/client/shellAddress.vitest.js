@@ -38,6 +38,18 @@ describe("the shell's address", () => {
     shell.stop();
   });
 
+  it("goes back from a member's card opened beside a chat to that chat's details, and offers no way back without one", () => {
+    const shell = shellAt({ chat: "4", member: "person:2" }, "4");
+    expect(shell.address.backToChat.value.back).toBe(true);
+    shell.address.backToChat.value.onBack();
+    expect(shell.router.replace.mock.calls.at(-1)).toEqual([{ query: { chat: "4" } }]);
+    expect(shell.address.backToChat.value).toEqual({}, "the card is gone, and Chat details shows with Close");
+    shell.stop();
+    const alone = shellAt({ member: "person:2" });
+    expect(alone.address.backToChat.value).toEqual({}, "no chat beside it to go back to");
+    alone.stop();
+  });
+
   it("opens a bot's direct chat with its card at its Files from the home's Files page link (?bot=<id>&files=1)", async () => {
     const link = shellAt({ bot: "7", files: "1" });
     await nextTick();

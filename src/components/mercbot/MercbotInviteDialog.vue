@@ -8,8 +8,9 @@ import { inviteChoices } from "./chatMenus.js";
 import { initialsOf } from "./messageAuthors.js";
 
 // Invite (plan 4.6), from a room's header and right after a private room is made: the home's people and bots not in it
-// yet, picked as chips in one field that filters as the person types. A private room takes people and bots ("Invite");
-// a public room, which everyone in the home can open already, takes bots ("Invite a bot"). Add emits each pick, for the
+// yet, picked as chips in one field that filters as the person types. A room's people invite people and bots ("Invite"):
+// in a public room, which everyone in the home can open already, whoever they invite joins it and has it in their list.
+// Someone reading a public room without being in it invites bots only ("Invite a bot"). Add emits each pick, for the
 // shell to add one by one.
 const open = defineModel({ type: Boolean, default: false });
 const props = defineProps({
@@ -31,8 +32,12 @@ watch(open, (value) => {
 });
 
 const privateRoom = computed(() => props.chat?.kind === "private");
-const heading = computed(() => (privateRoom.value ? "Invite" : "Invite a bot"));
-const choices = computed(() => (props.chat ? inviteChoices(props.chat, { people: props.people, bots: props.bots, me: props.me }) : []));
+// People are offered to the room's own people (chatRights addPeople): a public room's reader who isn't in it adds bots.
+const withPeople = computed(() => Boolean(props.chat) && !props.chat.visiting && !props.chat.everyone);
+const heading = computed(() => (withPeople.value ? "Invite" : "Invite a bot"));
+const choices = computed(() => (props.chat
+  ? inviteChoices(props.chat, { people: withPeople.value ? props.people : [], bots: props.bots, me: props.me })
+  : []));
 const name = computed(() => (props.chat ? chatTitle(props.chat, props.me) : ""));
 
 function add() {
@@ -58,7 +63,9 @@ function add() {
           <p class="mb-invite__note">
             {{ privateRoom
               ? `Whoever you invite to “${name}” sees everything said here, from its start.`
-              : `Everyone in the home can open “${name}” already. A bot you invite answers here, and can be taken out again.` }}
+              : withPeople
+                ? `Everyone in the home can open “${name}” already. Whoever you invite joins it, so it's in their list; a bot answers here.`
+                : `Everyone in the home can open “${name}” already. A bot you invite answers here, and can be taken out again.` }}
           </p>
           <SelectField
             v-model="picked"
@@ -67,8 +74,8 @@ function add() {
             :loading="loading"
             item-title="title"
             item-value="value"
-            :label="privateRoom ? 'People and bots' : 'Bots'"
-            :no-data-text="privateRoom ? 'Everyone is in this room already.' : 'Every bot is in this room already.'"
+            :label="withPeople ? 'People and bots' : 'Bots'"
+            :no-data-text="withPeople ? 'Everyone is in this room already.' : 'Every bot is in this room already.'"
             multiple
             chips
             closable-chips

@@ -45,6 +45,15 @@ export function useShellAddress({ route, router, openDirect, showDetails, shownC
     router.replace({ query: { ...(chat ? { chat } : {}), member } });
   }
 
+  /**
+   * A member's card opened beside a chat goes back to that chat's details: Details shows an arrow back in place of Close
+   * (`backToChat`, bound on the panel), which takes the member out of the address.
+   */
+  function closeMember() {
+    router.replace({ query: Object.fromEntries(Object.entries(route.query).filter(([key]) => key !== "member")) });
+  }
+  const backToChat = computed(() => (memberKey.value && shownChatId() ? { back: true, onBack: closeMember } : {}));
+
   watch(memberKey, (member) => {
     if (member) showDetails();
   }, { immediate: true });
@@ -59,5 +68,5 @@ export function useShellAddress({ route, router, openDirect, showDetails, shownC
     openDirect(String(botId), true);
   }, { immediate: true });
 
-  return { addressedChatId, memberKey, chatQuery, showChat, showMember };
+  return { addressedChatId, memberKey, chatQuery, showChat, showMember, backToChat };
 }

@@ -159,7 +159,7 @@ async function openDirect(botId, replace = false) {
   }
 }
 
-const { addressedChatId, memberKey, chatQuery, showChat, showMember } = useShellAddress({
+const { addressedChatId, memberKey, chatQuery, showChat, showMember, backToChat } = useShellAddress({
   route,
   router,
   openDirect,
@@ -632,6 +632,7 @@ watch(() => currentHomeEntry.value?.slug, () => loadBuilderBot(), { immediate: t
         :team-bots="team.bots.value || []"
         :computer-news="computerNews"
         :mood="details.chat ? moodByChat[details.chat.id] || 'idle' : 'idle'"
+        v-bind="backToChat"
         @close="closeDetails"
         @resize="resizeDetails"
         @open-page="showPage"

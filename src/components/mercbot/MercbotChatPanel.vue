@@ -103,12 +103,12 @@ const notice = computed(() => (
     : null
 ));
 
-// Invite (plan 4.6): a private room's people bring people and bots in; anyone brings a bot into a public room. A direct
-// chat, with a bot or with a person, takes no one else.
+// Invite (plan 4.6): a room's people bring people and bots in, a public room's too (whoever they invite joins it, so it's
+// in their list); anyone brings a bot into a public room. A direct chat, with a bot or with a person, takes no one else.
 const inviteLabel = computed(() => {
   if (!props.chat || blocked.value || !isRoom(props.chat)) return "";
-  if (props.chat.kind === "private") return may.value.addPeople ? "Invite" : "";
-  return may.value.addBots ? "Invite a bot" : "";
+  if (may.value.addPeople) return "Invite";
+  return props.chat.kind === "public" && may.value.addBots ? "Invite a bot" : "";
 });
 // Leave room (the owner, 23 Nov 2026: "Make the button obvious"): a labelled button in the header of a public room the
 // person is in, asking first, as the details panel's Leave does.

@@ -302,7 +302,13 @@ async function openInstructions() {
       </button>
     </div>
 
-    <section v-if="!isMe" class="mb-card__shared" aria-labelledby="mb-card-shared-title">
+    <!-- The person's own card: what others see of them, and where to change it, in place of the chats they share. -->
+    <section v-if="isMe" class="mb-card__shared" aria-labelledby="mb-card-own-title">
+      <p id="mb-card-own-title" class="mb-card__section">Your account</p>
+      <p class="mb-card__quiet">Everyone in {{ homeName }} sees you by this name and picture, with your role.</p>
+      <button type="button" class="mb-card__more" @click="emit('open-settings', 'general')">Change your name, picture and settings</button>
+    </section>
+    <section v-else class="mb-card__shared" aria-labelledby="mb-card-shared-title">
       <p id="mb-card-shared-title" class="mb-card__section">Chats you share</p>
       <p v-if="!chatsShown.length" class="mb-card__quiet">No chats with {{ name }} yet.</p>
       <ul v-else class="mb-card__chats">
