@@ -24,6 +24,8 @@ import { useSelectionPill } from "./useSelectionPill.js";
 import { shellPreferences } from "./shellPreferences.js";
 import MercbotIconButton from "./MercbotIconButton.vue";
 import MercbotTimeline from "./MercbotTimeline.vue";
+import MercbotTypingDots from "./MercbotTypingDots.vue";
+import { typingLine, typingNames, useTypingSignal } from "./useChatTyping.js";
 import MercbotArchivedBotBanner from "./MercbotArchivedBotBanner.vue";
 import MercbotPageView from "./MercbotPageView.vue";
 
@@ -146,6 +148,9 @@ const attachments = ref([]);
 const quotes = ref([]);
 const replyTarget = ref(null);
 const lines = ref(1);
+// Who else is typing here, just above the box, without moving anything; and telling them while this person types.
+const typingText = computed(() => typingLine(typingNames(props.chat, props.me)));
+useTypingSignal({ chatId: () => props.chat?.id || "", draft: () => draft.value, alone: () => (props.chat?.people || []).length < 2 });
 const hasContent = computed(() => Boolean(draft.value.trim() || attachments.value.length || quotes.value.length));
 const stacked = computed(() => lines.value > 1 || attachments.value.length > 0 || quotes.value.length > 0 || Boolean(replyTarget.value));
 const columnStyle = computed(() => ({ width: `${props.columnWidth}px` }));
@@ -501,6 +506,9 @@ defineExpose({ focusComposer, addSelection, startReply, toggleDictation, dictati
         />
       </div>
 
+      <Transition name="mb-typing">
+        <div v-if="typingText" class="mb-chat__typing" role="status"><MercbotTypingDots />{{ typingText }}</div>
+      </Transition>
       <slot name="notice" />
       <!-- What public means, the first time (plan 8). -->
       <div v-if="notice" class="mb-public-notice" role="note">

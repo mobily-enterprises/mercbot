@@ -84,6 +84,11 @@
  * @typedef {{ chatId: string, change: "created" | "members" | "renamed" | "archived" | "unarchived" | "deleted" }} ChatEvent
  */
 /**
+ * A typing event (`bot-events`, event name `typing`), told to a chat's other people when one of them starts or stops
+ * typing there (chatMembers.js typing); never stored.
+ * @typedef {{ chatId: string, userId: string, typing: boolean }} TypingEvent
+ */
+/**
  * The model's reader (R1, D-112): the context every model-facing read of one bot's turn in one chat passes. It reads
  * `readable_from(chatId)`, the chats everyone who can open its chat can open too, and everything keyed to them, never
  * more because of who asked. `forBot` makes one for a bot's turn, acting for the asker; `forChat` one for the chat

@@ -66,6 +66,26 @@ test("a reply that stops short carries on from its own steps", async (context) =
   assert.deepEqual(stored.body.transcript.map((message) => message.role), ["assistant", "tool", "assistant"], "every step is kept");
 });
 
+test("a reply the provider cut off part-way is written again, whole, once, and only the whole one is posted", async (context) => {
+  const passes = [];
+  const cutOff = "I looked, and there's nothing I can read.\n\nWhat I do have on record is the state of the por";
+  const whole = "I looked, and there's nothing I can read.\n\nWhat I do have on record is the state of the port files.";
+  const { ask, said, chat, knex } = await setup(context, {
+    reply: async (_bot, history, _tools, _state, prompt) => {
+      passes.push({ history, prompt });
+      return passes.length === 1
+        ? { text: cutOff, transcript: [{ role: "assistant", content: [{ type: "text", text: cutOff }] }], cut: true }
+        : { text: whole, transcript: [{ role: "assistant", content: [{ type: "text", text: whole }] }], cut: true };
+    }
+  });
+  await ask("What's on record?");
+  assert.equal(passes.length, 2, "written again once, even when the second is cut too");
+  assert.match(passes[1].prompt, /cut off before it ended/u);
+  assert.equal(passes[1].history.at(-1).body.text, cutOff, "the second pass sees what the first wrote");
+  assert.equal((await said()).body.text, whole);
+  assert.equal(await knex("messages").where({ conversation_id: chat, kind: "text", role: "bot" }).count("* as n").first().then((row) => Number(row.n)), 1, "the cut reply isn't posted");
+});
+
 test("in a chat with other bots too, a reply that stops short carries on from its own steps", async (context) => {
   const call = { type: "tool-call", toolCallId: "g1", toolName: "list_files", input: {} };
   const result = { type: "tool-result", toolCallId: "g1", toolName: "list_files", output: { type: "json", value: { chat: [] } } };

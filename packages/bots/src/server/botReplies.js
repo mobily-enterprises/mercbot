@@ -9,7 +9,7 @@ import { isModelFailure, modelFailure } from "./modelFailures.js";
 import { RUN_LEASE, RunTakenOver } from "./runLease.js";
 import { escape, mentionMarkers, mentionsIn, peopleNamed, withMentions } from "./mentions.js";
 import { askedByBotPrompt, briefAnswerer, mentionedNext, pastTalkLimit } from "./botTalk.js";
-import { CHECKS, CLAIM_CHECKS, claimsFiles, FILES_CHECK, ONLY_WHAT_WAS_ASKED, turnAbout, withoutRepeat } from "./replyChecks.js";
+import { CHECKS, CLAIM_CHECKS, CUT_CHECK, claimsFiles, FILES_CHECK, ONLY_WHAT_WAS_ASKED, turnAbout, withoutRepeat } from "./replyChecks.js";
 
 // Cards a person answers: only the one the bot worked for may (R4), and right after one is answered its bot speaks.
 export const CARD_KINDS = new Set(["choice", "handover", "draft", "secure_form", "connect"]);
@@ -277,13 +277,14 @@ export function createBotReplies({
       // The engine's own account of a pass that stopped early (out of steps or time, or failed after
       // some work) already says where it got to; each check's pass below brings its own.
       let account = "";
-      let passed = false;
+      let [passed, cut] = [false, false];
       ({
         text: replyText,
         transcript,
         unfinished = "",
         account = "",
-        passed = false
+        passed = false,
+        cut = false
       } = await reply(
         bot,
         resumed.length ? [...seen, sofar] : seen,
@@ -321,7 +322,8 @@ export function createBotReplies({
         const next = await reply(bot, [...seen, sofar], run.tools, state, `${check}\n\n${ONLY_WHAT_WAS_ASKED}`, { summary, signal: checkpoint?.signal });
         return { ...next, transcript: [...steps, ...next.transcript] };
       };
-      // What the reply says it did, checked against what its tools did, in order: each false claim sends it back once.
+      // Cut off by the provider: written again, whole, once. Then each claim its tools don't back sends it back once.
+      if (!decided && cut) ({ text: replyText, transcript, account = "" } = await again(CUT_CHECK));
       if (!decided) {
         const about = turnAbout(history.slice(-8), seat.id);
         for (const claimCheck of CLAIM_CHECKS) {

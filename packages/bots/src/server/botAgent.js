@@ -112,6 +112,7 @@ const ROOMS_MEMORY_RULES = [
   "You remember, like a person in this home: the Current state note has the home's common knowledge, which every bot here knows, your rooms memory of the home's public chats you're in, and what was said since then in your other chats that everyone here may read. " +
     "Search what was said with recall, and read more of a chat with read_chat.",
   "Say where something came from (\"Priya said in Trip B that…\"). Bring up another chat only when it helps now. Never quote or describe a private chat outside it.",
+  "Asked about a chat you can't read here, such as someone's private chat with you, never say it doesn't exist or that you can't find it: say it stays private to the people in it, so you can't bring it into this chat, and offer to summarise it there, where they can choose what to share here.",
   "When someone shares something everyone in the home should know from now on (a date, a decision, an allergy), offer to tell every bot; when they ask you to tell everyone or every bot, do it with share_common_knowledge, which adds it to the home's common knowledge and asks them on a card first. Never put email addresses, phone or card numbers, or passwords in it."
 ];
 
@@ -510,6 +511,8 @@ export async function generateReply(
   // Making a file, a web errand or work on the command line takes many steps; other work stays at
   // a few.
   const maxSteps = tools.useWebPage ? 60 : tools.useApp || tools.runCommand ? 40 : 8;
+  // Why the model stopped writing, step by step: the last step's reason says whether the reply ended or was cut.
+  let finished = "";
   const out = await runLoop({
     model: languageModel,
     name: bot.name,
@@ -526,6 +529,9 @@ export async function generateReply(
     // A step whose work is refused (meter.js refuseWork) ends the reply, which then says so (D-73).
     throwIf: (error, steps) => throwIf(error, steps) || Boolean(refusalOf(error)),
     signal,
+    onStep: (step) => {
+      finished = String(step?.finishReason || "");
+    },
     clean: stripNotes,
     reasoning,
     ...modelSettings
@@ -533,8 +539,13 @@ export async function generateReply(
   // A bot that copies the chat's "Name (bot):" lines starts with its own name; a follow-up with nothing to add says PASS.
   const text = String(out.text || "").replace(new RegExp(`^${escaped(bot.name)}(?: \\(bot\\))?:\\s*`, "u"), "");
   if (followUp && /^PASS\b/u.test(text.trim())) return { ...out, text: "", passed: true };
-  return text === out.text ? out : { ...out, text };
+  // The provider stopped mid-reply (its length limit, or an answer that broke off): the words so far aren't the reply.
+  const cut = Boolean(text.trim()) && !out.account && CUT_SHORT.has(finished);
+  return { ...out, text, ...(cut ? { cut: true } : {}) };
 }
+
+/** The reasons a model's last step gives when its words stopped before the reply ended (the AI SDK's finishReason). */
+const CUT_SHORT = new Set(["length", "error", "other", "unknown"]);
 
 /** Pure helpers and data the tests reach directly (rule 64). */
 export const __testables = Object.freeze({ stripNotes });

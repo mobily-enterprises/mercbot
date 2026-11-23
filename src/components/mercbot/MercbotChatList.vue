@@ -10,6 +10,7 @@ import { chatMenuItems, chatQuestion, sectionMenuItems } from "./chatMenus.js";
 import { chatTitle, isDirect, kindIcon, kindLabel, previewLine, waitingTaskOf } from "./chatView.js";
 import { initialsOf } from "./messageAuthors.js";
 import { useChatDrag } from "./useChatDrag.js";
+import { typingLine, typingNames } from "./useChatTyping.js";
 
 // The expanded sidebar's list (D-112, plan 4.1): pinned tiles, then Rooms, People and Bots, each folding by its title
 // and with its + (New room; a copy's Invite people, extensions.js peopleActions; Add bots), then hidden and archived
@@ -141,6 +142,9 @@ function onRenameKeydown(event) {
 const { draggingChatId, dropGroupKey, tileOrder, tiles, layout, startRowDrag, startTileDrag, overTile, dropTiles, overGroup, dropOnGroup, endDrag } =
   useChatDrag({ model: () => props.model, command, titleOf });
 
+// Someone else typing in a chat, as its row says it (useChatTyping.js): "Ana is typing", or "".
+const typingOf = (chat) => (chat ? typingLine(typingNames(chat, props.me)) : "");
+
 function previewText(chat) {
   const draft = chat.id !== props.currentChatId ? String(props.drafts[chat.id] || "").trim() : "";
   return draft ? { draft: true, text: draft } : { draft: false, text: previewLine(chat, props.me) };
@@ -154,7 +158,7 @@ function rowTip(chat) {
   if (!chat) return "";
   const waiting = waitingTaskOf(chat);
   const { draft, text } = previewText(chat);
-  const line = waiting ? `Waiting for you: ${waiting}` : draft ? `Draft: ${text}` : text;
+  const line = typingOf(chat) ? `${typingOf(chat)}…` : waiting ? `Waiting for you: ${waiting}` : draft ? `Draft: ${text}` : text;
   return line ? `${titleOf(chat)}\n${line}` : titleOf(chat);
 }
 const hasDraft = (chat) => Boolean(chat) && previewText(chat).draft;
@@ -303,6 +307,7 @@ const SECTIONS = computed(() => [
                 :dragging="chat.id === draggingChatId"
                 :hint="hints[chat.id]"
                 :draft="hasDraft(chat)"
+                :typing="typingOf(chat)"
                 :waiting="waitingTaskOf(chat)"
                 :mentioned="chat.mentioned"
                 :unread="chat.unread"
@@ -385,6 +390,7 @@ const SECTIONS = computed(() => [
               :switching="entry.id === switchHighlightId"
               :hint="hints[entry.id]"
               :draft="hasDraft(entry.chat)"
+              :typing="typingOf(entry.chat)"
               :waiting="entry.chat ? waitingTaskOf(entry.chat) : ''"
               :mentioned="entry.mentioned"
               :unread="entry.unread"

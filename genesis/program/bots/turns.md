@@ -233,8 +233,10 @@ task:
 - **To-do list and job notes:** `update_todos` keeps one `todos` card per job, updated in place
   (`MercbotTodoCard.vue`); `keep_notes` keeps the bot's own notes for the job on its seat (`chat_bots.job_notes`, up to
   30, never shown). Both are in the state note at every turn.
-- **Checks on a reply:** leaked model markup carries on once and is always cleaned from what people see; a reply that
-  says files are attached when no card will show, or claims a change no tool made, or reports actions its tool record
+- **Checks on a reply:** a reply the provider cut off part-way (the model's last step ended for its length limit, an
+  error, or another reason than finishing: `generateReply`'s `cut`) is written again, whole, once (`CUT_CHECK`), before
+  any other check, and only the whole one is posted; leaked model markup carries on once and is always cleaned from what
+  people see; a reply that says files are attached when no card will show, or claims a change no tool made, or reports actions its tool record
   doesn't support (one short call), is sent back once, told what the first pass already did; internal `/files/...`
   paths are taken out of what people see; a password kept in the home's Vault never shows in the chat.
 - **Repeats:** the 3rd, 5th and 8th identical tool call in a row gets a `reminder` in its result.
@@ -332,6 +334,7 @@ chat (`chatId`).
 - `tests/server/replyCheckpoints.integration.js`
 - `tests/server/todos.integration.js`
 - `tests/server/stopShort.integration.js`
+- `tests/server/cutReplies.test.js`
 - `tests/server/approvalAction.integration.js`
 - `tests/server/approvals.test.js`
 - `tests/server/backgroundPerson.integration.js`

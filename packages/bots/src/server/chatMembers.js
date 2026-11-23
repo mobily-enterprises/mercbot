@@ -496,6 +496,24 @@ export function createChatMembers({ records, notices, computer, systemContext, p
     return { ok: true };
   }
 
+  /**
+   * The person started or stopped typing in a chat: everyone else in it hears it at once (a `typing` event { chatId,
+   * userId, typing }), and nothing is kept. Only one of the chat's people may say it: someone who can read a public room
+   * without being in it is refused, as its people never hear of them. Pages show it a few seconds unless told again.
+   */
+  async function typing(chatId, isTyping, options) {
+    if (typeof isTyping !== "boolean") throw new BotsError(400, "Say typing as true or false.", { code: "bots_typing_invalid" });
+    const chat = await openChat(chatId, options);
+    const me = String(personOf(options));
+    const people = (await chats.people(chat.id, options)).map((person) => String(person.user_id));
+    if (!people.includes(me)) throw new BotsError(403, "Join the chat first.", { code: "bots_chat_join_first" });
+    const others = people.filter((userId) => userId !== me);
+    if (others.length) {
+      await notices.publishEach("bots", others, { type: "typing", chatId: String(chat.id), userId: me, typing: isTyping });
+    }
+    return { ok: true };
+  }
+
   /** The person's pinned chats in a new order. */
   async function reorderPins(chatIds, options) {
     const ids = Array.isArray(chatIds) ? chatIds.filter(isId).map(String) : [];
@@ -591,6 +609,7 @@ export function createChatMembers({ records, notices, computer, systemContext, p
     remove,
     changePlace,
     markRead,
+    typing,
     reorderPins,
     createSection,
     updateSection,

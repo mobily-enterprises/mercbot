@@ -245,6 +245,33 @@ test("the chat routes' service: anyone in a chat adds, its maker and the home's 
   assert.equal((await chats.list({}, asBen)).chats.some((chat) => chat.id === withChef.id), true);
 });
 
+test("someone typing in a chat: its other people hear it, nothing else; only its people may say so", async (context) => {
+  const parts = await startChatRecords(knex, context);
+  const { homeId, anna, ben, carla } = await home(knex, context);
+  await knex("workspace_memberships").insert({ workspace_id: homeId, user_id: carla, role_sid: "member", status: "active" });
+  const { chats, heard } = chatService(parts);
+  const [asAnna, asBen, asCarla] = [anna, ben, carla].map((userId) => memberOptions({ userId, homeId }));
+  const { chat: kitchen } = await chats.create({ title: "Kitchen", people: [anna] }, asBen);
+  const { chat: secret } = await chats.create({ title: "Secret", kind: "private", people: [] }, asAnna);
+  heard.length = 0;
+
+  assert.deepEqual(await chats.typing(kitchen.id, true, asBen), { ok: true });
+  assert.deepEqual(heard.pop(), { keys: [anna], type: "typing", chatId: kitchen.id, userId: ben, typing: true }, "Anna hears, Ben doesn't");
+  await chats.typing(kitchen.id, false, asBen);
+  assert.deepEqual(heard.pop(), { keys: [anna], type: "typing", chatId: kitchen.id, userId: ben, typing: false });
+
+  // Carla reads the public room without being in it: its people never hear of her typing, so she can't say it.
+  await assert.rejects(chats.typing(kitchen.id, true, asCarla), { statusCode: 403, code: "bots_chat_join_first" });
+  await assert.rejects(chats.typing(secret.id, true, asBen), { statusCode: 404 }, "a private room she can't open");
+  await assert.rejects(chats.typing("999999999", true, asBen), { statusCode: 404 });
+  for (const typing of ["yes", 1, undefined, null]) {
+    await assert.rejects(chats.typing(kitchen.id, typing, asBen), { statusCode: 400, code: "bots_typing_invalid" });
+  }
+  // Alone in a chat, nobody hears anything.
+  await chats.typing(secret.id, true, asAnna);
+  assert.deepEqual(heard, [], "nothing told for any refusal, nor in a chat with nobody else");
+});
+
 test("a change of the home's people: who joins is in the everyone chat, pinned first; who leaves is out, their own chats gone", async (context) => {
   const parts = await startChatRecords(knex, context);
   const { records } = parts;

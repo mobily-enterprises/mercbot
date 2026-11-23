@@ -100,6 +100,8 @@ export const chatsApi = {
   // The person's own place in a chat: { pinned, sectionId, hidden, muted, unread }, each optional → { chat }.
   changePlace: (chatId, changes) => patch(chat(chatId, "/place"), changes),
   markRead: (chatId, messageId) => post(chat(chatId, "/read"), { messageId }),
+  // The person started (true) or stopped (false) typing there: told to the chat's other people (useChatTyping.js).
+  typing: (chatId, typing) => post(chat(chatId, "/typing"), { typing }),
   reorderPins: (chatIds) => request("/chat-pins", { method: "PUT", body: { chatIds } }),
   createSection: (name, chatId) => post("/chat-sections", { name, chatId }),
   updateSection: (sectionId, changes) => patch(`/chat-sections/${encodeURIComponent(sectionId)}`, changes),

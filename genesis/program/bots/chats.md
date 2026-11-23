@@ -4,7 +4,7 @@ Everything in a home happens in chats (D-112): a chat holds any of the home's pe
 the moment it's made, and is the one thing that decides who can open what is said and made in it. A chat is a room, or
 a direct chat: a person's chat with a bot, or the chat between two people, each Private and readable only from itself
 (D-117). This boundary owns the chat list, New room, joining (opening a faded Public room, or writing in it) and leaving, Invite, a chat's people and bots,
-renaming, archiving and deleting, each person's own place in a chat, the direct chats a bot's or a person's Message
+renaming, archiving and deleting, each person's own place in a chat, who is typing in it, the direct chats a bot's or a person's Message
 opens, the home's everyone chat, and search across the chats a person can open.
 
 ## Sources
@@ -35,6 +35,8 @@ opens, the home's everyone chat, and search across the chats a person can open.
 - `migrations/20261123120000_rooms_people_bots.cjs`
 - `packages/bots/src/server/handOverNotes.js`
 - `src/components/mercbot/chatsApi.js`
+- `src/components/mercbot/useChatTyping.js`
+- `src/components/mercbot/MercbotTypingDots.vue`
 - `src/components/mercbot/chatMenus.js`
 - `src/components/mercbot/chatDirectory.js`
 - `src/components/mercbot/chatPlace.js`
@@ -144,7 +146,15 @@ without a reload):
   home's files are kept; a failure is left to the computers' hourly sweep.
 - `PATCH …/chats/:chatId/place {pinned?, sectionId?, hidden?, muted?, unread?}`: the person's own place, only in a chat
   they're in (404 `bots_chat_not_in`); `pinned: true` pins it last. `POST …/read {messageId}` moves their read point
-  (`read_up_to`) and marks it read. `PUT …/chat-pins {chatIds}` reorders their pinned chats in one statement (409
+  (`read_up_to`) and marks it read. `POST …/typing {typing}` (true or false, else 400 `bots_typing_invalid`; only one
+  of the chat's people, else 403 `bots_chat_join_first`; at most 120 a minute per client address, past which JSKIT
+  answers 429) tells the chat's other people at once, as a `typing` event `{chatId, userId, typing}` on bot-events, and
+  keeps nothing. A page says so at the person's first word in the box and again every 3 seconds while they type, and
+  that they stopped when they send, empty it, pause for 5 seconds, or leave the chat; opening a chat with a draft isn't
+  typing, and a chat with nobody else hears nothing. The others' pages show it for 7 seconds after the last word unless
+  told again: a pill over the bottom of the chat, by the box, so nothing moves ("Ana is typing", "Ana and Max are
+  typing", "Ana, Max and Lee are typing", "Several people are typing", with dots that rise in turn, still for people
+  who ask for less motion), and dots on the chat's row in the sidebar (`useChatTyping.js`). `PUT …/chat-pins {chatIds}` reorders their pinned chats in one statement (409
   `bots_pins_changed` when the pinned chats aren't exactly those). `POST …/chat-sections {name, chatId?}` makes a
   section (from a chat, directly above it, holding it), `PATCH …/chat-sections/:id {name?, collapsed?}`, `POST
   …/move {direction}` and `DELETE` (its chats go back to the list's main part). Each answers the list.

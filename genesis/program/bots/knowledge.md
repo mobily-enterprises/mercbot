@@ -122,7 +122,9 @@ any bot's memory.
   `bots_common_knowledge_not_found`. A removed entry is kept with `removed_at` and `removed_by`. No route writes one.
 - **The prompt** (D-113): the instructions (`instructionsFor`) are the same in every chat (R5) and carry the memory's
   manners (`ROOMS_MEMORY_RULES`: recall and read_chat, say which chat something came from, bring another chat up only
-  when it helps, never quote a private chat outside it, offer share_common_knowledge, never contact details or
+  when it helps, never quote a private chat outside it; asked about a chat it can't read here, such as someone's
+  private chat with it, say it stays private to its people and offer to summarise it there, never that it doesn't
+  exist; offer share_common_knowledge, never contact details or
   passwords). The common knowledge and the rooms memory are the last part of the Current state note
   (`commonKnowledge.stateLines` then `roomsMemory.stateLines`, after `knowledge.stateLines`), so everything before
   them stays a cached prefix: every turn has the home's newest 30 entries of common knowledge; a turn of a person's

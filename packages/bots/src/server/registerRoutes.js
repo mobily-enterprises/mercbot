@@ -163,6 +163,10 @@ export function registerRoutes(http, { bots, approvals, notices, meter, records,
     chats.changePlace(request.params.chatId, body(request), options), { archived: true }));
   router.register("POST", `${chat}/read`, auth, handle(async (request, _user, options) =>
     chats.markRead(request.params.chatId, request.body?.messageId, options), { archived: true }));
+  // The person typing in a chat, or no longer: told to its other people at once. A page says it every few seconds while
+  // the person types, so a generous limit per client address stops only a runaway page.
+  router.register("POST", `${chat}/typing`, { ...auth, rateLimit: { max: 120, timeWindow: "1 minute" } }, handle(async (request, _user, options) =>
+    chats.typing(request.params.chatId, request.body?.typing, options)));
   router.register("PUT", `${home}/chat-pins`, auth, handle(async (request, _user, options) =>
     chats.reorderPins(request.body?.chatIds, options)));
   router.register("POST", `${home}/chat-sections`, auth, handle(async (request, _user, options) =>

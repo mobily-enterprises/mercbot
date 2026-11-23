@@ -1,8 +1,11 @@
 <script setup>
-// One single-line row of the sidebar (plan 4.1, dense): a 24px face (the slot), the name, and small marks at the end: a
-// draft's pencil, then the position hint while Ctrl+Alt is held, else waiting for the person, "@" or the unread dot.
-// Its accessible name is `label`; its full name and latest message are its description (`tip`), shown on hover. A bot's
-// row shows its template's name (`detail`) after its own, muted and smaller, and cut short first when there's no room.
+// One single-line row of the sidebar (plan 4.1, dense): a 24px face (the slot), the name, and small marks at the end:
+// dots while someone else types there (`typing`, its line), a draft's pencil, then the position hint while Ctrl+Alt is
+// held, else waiting for the person, "@" or the unread dot. Its accessible name is `label`; its full name and latest
+// message are its description (`tip`), shown on hover. A bot's row shows its template's name (`detail`) after its own,
+// muted and smaller, and cut short first when there's no room.
+import MercbotTypingDots from "./MercbotTypingDots.vue";
+
 defineProps({
   label: { type: String, required: true },
   name: { type: String, required: true },
@@ -18,6 +21,7 @@ defineProps({
   faded: { type: Boolean, default: false },
   hint: { type: [String, Number], default: "" },
   draft: { type: Boolean, default: false },
+  typing: { type: String, default: "" },
   waiting: { type: String, default: "" },
   mentioned: { type: Boolean, default: false },
   unread: { type: Boolean, default: false }
@@ -42,6 +46,7 @@ defineOptions({ inheritAttrs: false });
     <span v-if="detail" class="mb-row__detail text-body-small" aria-hidden="true">{{ detail }}</span>
     <v-icon v-if="kindIcon" :icon="kindIcon" size="12" class="mb-kind" :aria-label="kindLabel" />
     <span class="mb-row__marks">
+      <span v-if="typing" class="mb-row__typing" role="img" :aria-label="typing"><MercbotTypingDots /></span>
       <v-icon v-if="draft" icon="$edit" size="12" class="mb-row__draft" aria-label="Draft" />
       <kbd v-if="hint" class="mb-hint">{{ hint }}</kbd>
       <span v-else-if="waiting" class="mb-row__unread mb-row__unread--waiting" :aria-label="`Waiting for you: ${waiting}`" />
@@ -123,6 +128,11 @@ defineOptions({ inheritAttrs: false });
   align-items: center;
   gap: 6px;
   margin-left: auto;
+}
+
+.mb-row__typing {
+  display: inline-flex;
+  color: rgb(var(--v-theme-link));
 }
 
 .mb-row__draft {

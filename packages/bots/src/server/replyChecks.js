@@ -97,6 +97,9 @@ export const GITHUB_CHECK =
   "(Check from Mercbot: your reply says something changed on GitHub, but you didn't call github_change, github_discussions or github_comment in this reply, so nothing changed. Do it now with the right tool, or answer again without saying it's done.)";
 // A reply that ends by announcing its next step ("let me read the whole file") and stops there
 // (D-47): the model sometimes ends its turn before the work, most often on the command line.
+// A reply the provider cut off before it ended (generateReply's `cut`): written again, whole, once.
+export const CUT_CHECK =
+  "(Check from Mercbot: your reply was cut off before it ended, part-way through a sentence, so the person can't read the rest. Write your whole reply again, complete, as briefly as it needs.)";
 // The generic checks' notes, signed by Mercbot (D-48; @jskit-ai/agent).
 export const CHECKS = checkTexts("Mercbot");
 // Words that say files are attached, unless they say they aren't (D-48).

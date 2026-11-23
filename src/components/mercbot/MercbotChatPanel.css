@@ -465,6 +465,45 @@
   transform: translateX(-50%);
 }
 
+/* Someone else typing: a small pill over the bottom of the timeline, by the box, so nothing moves (useChatTyping.js). */
+.mb-chat__typing {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: calc(100% - 24px);
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: rgb(var(--v-theme-surface-container-high));
+  color: rgb(var(--v-theme-on-surface-variant));
+  font-size: 12px;
+  line-height: 18px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+}
+
+.mb-typing-enter-active,
+.mb-typing-leave-active {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.mb-typing-enter-from,
+.mb-typing-leave-to {
+  opacity: 0;
+  transform: translateY(4px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mb-typing-enter-active,
+  .mb-typing-leave-active {
+    transition: none;
+  }
+}
+
 .mb-chat__to-bottom {
   position: absolute;
   bottom: calc(100% + 8px);

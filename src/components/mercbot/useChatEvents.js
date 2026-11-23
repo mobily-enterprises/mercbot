@@ -2,10 +2,11 @@ import { onBeforeUnmount, onMounted, ref } from "vue";
 import { chatsApi } from "./chatsApi.js";
 import { homePath } from "./homeApi.js";
 import { homeChanges, useHomes } from "./homesApi.js";
+import { heardTyping } from "./useChatTyping.js";
 
 /**
- * News from any server about this person's chats and their home (D-15, D-112): a chat's new messages, its bots
- * starting and finishing work, a change to the chat itself or its members, a person taking over or handing back a
+ * News from any server about this person's chats and their home (D-15, D-112): a chat's new messages, someone in it
+ * typing (useChatTyping.js), its bots starting and finishing work, a change to the chat itself or its members, a person taking over or handing back a
  * bot's computer, the home's bots and people changing. `store` holds the chats and messages (useChatMessages), `work`
  * the status lines and moods (useChatWork), `team` the home's members (useTeam).
  * @param {{
@@ -84,6 +85,7 @@ export function useChatEvents({ store, work, team, onDropped, onComputer, onRoom
       connectedBefore = true;
     });
     events.addEventListener("working", onWorking);
+    events.addEventListener("typing", (event) => heardTyping(JSON.parse(event.data)));
     events.addEventListener("messages", (event) => {
       const { chatId } = JSON.parse(event.data);
       chatNews(String(chatId)).catch(() => {});
