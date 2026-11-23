@@ -1,11 +1,13 @@
 # Bots' command line
 
-Every bot in a chat can run bash scripts on its own Linux command line there, in gVisor, on that chat's folders and
-without network (D-47, D-112).
+Every bot in a chat can run bash scripts on its own Linux command line there, in gVisor, on that chat's folders, with
+no network of its own: it reaches public internet addresses only through Mercbot's gateway, as the computer's browser
+does (D-47, D-112, D-126).
 
 ## Sources
 
 - Main: `packages/files/src/server/shell.js`
+- `packages/files/src/server/gateway.js`
 - `packages/files/src/server/gvisor.js`
 - `packages/files/src/server/storeToolbox.js`
 - `scripts/build-toolbox.sh`
@@ -89,8 +91,10 @@ without network (D-47, D-112).
   plain sentence ending "See README → Hosting requirements." and the error underneath. gVisor, the
   base image, the offline install inside gVisor, the Craft apps and Chrome are the same on every
   host.
-- **One sandbox's pieces (`gvisor.js`, `@local/files/gvisor`):** what the command line, the office
-  apps, the computers' desktop and their coding runs (`computer/bot-computer.md`) are each made of.
+- **One sandbox's pieces (`gvisor.js`, `@local/files/gvisor`, and `gateway.js`, `@local/files/gateway`):** what the
+  command line, the office apps, the computers' desktop and their coding runs (`computer/bot-computer.md`) are each
+  made of. The gateway is every sandbox's only way to the internet but the office apps', which have none (D-126);
+  `sandboxGateway(dir, start)` is one sandbox's own (its socket and forwarder in `dir`, shown at `/gateway`).
   `sandboxSpec({runtimeEnv, args, cwd, env, limits, mounts, rootReadOnly, hostname, terminal})` is a
   sandbox's OCI spec: the toolbox as its system (`toolboxRoot`: `MERCBOT_TOOLBOX_DIR`, else `.tools/toolbox/rootfs`),
   a private `/tmp` of `limits.scratch`, no capabilities and no new privileges, its own namespaces, the limits on
@@ -116,12 +120,26 @@ without network (D-47, D-112).
   `run_command`.
 - **`shell.start({place, workspaceId, botId, chatBotId, userId, why, script, readOnly,
   foregroundSeconds, maxSeconds})`** runs `bash -c script` for a bot in a chat (`chatBotId`, its seat):
-  - **How it runs:** `runsc --rootless --network=none --ignore-cgroups --overlay2=root:memory`, so
+  - **How it runs:** `runsc --rootless --network=none --ignore-cgroups --overlay2=root:memory --host-uds=open`, so
     changes to the toolbox vanish. It sees a 1 GB scratch `/tmp`, the place's folders at
     `/files/chat`, `/files/bot` and `/files/shared` (read-only where the place only reads them, a Private chat's bot
     and home folders, D13; `readOnly` names more, of "chat", "bot" and "shared"), all mounted `noexec,nosuid,nodev` so nothing in
-    them starts as a program, and the Craft apps at `/opt/apps` on PATH. Its
+    them starts as a program, the Craft apps at `/opt/apps` on PATH, and its gateway's folder at `/gateway`. Its
     environment is only the listed variables, never the server's.
+  - **The internet (D-126):** each run has a gateway of its own (`sandboxGateway`, `@local/files/gateway`: the
+    computer's and coding runs' gateway, `computer/bot-computer.md`), on a socket in its folder made through the
+    folder's open handle, since under a long TMPDIR its path passes the 107 bytes a socket's may have. The script runs
+    after the forwarder (`START_FORWARDER`) listens at 127.0.0.1:3128 (at most 5 s), as a bash of its own
+    (`WITH_GATEWAY`), and the gateway closes when the run ends. The gateway connects only to public addresses: never
+    loopback, private, link-local (cloud metadata), CGNAT, reserved or multicast ones, the server's own, or the mail
+    ports 25, 465, 587 and 2525; through CONNECT, any other port of a public address. The environment adds
+    `HTTP_PROXY`, `HTTPS_PROXY`, `ALL_PROXY` and their lower-case spellings, `NO_PROXY`/`no_proxy`
+    (`localhost,127.0.0.1,::1`: the sandbox's own loopback), `NODE_USE_ENV_PROXY=1` (Node's own fetch and http),
+    `NPM_CONFIG_PREFIX=/tmp/home/.local` and `PIP_BREAK_SYSTEM_PACKAGES=1` with `/tmp/home/.local/bin` on `PATH` (global
+    npm and pip installs in the run's `HOME`, since a store host's toolbox is read-only), and `GIT_SSH_COMMAND`, which
+    answers a `git@host:` address with "There's no ssh on this command line: use the repository's https:// address".
+    A direct connection finds no network. Installs last one run: each starts from the same clean toolbox, and only what
+    it writes in the folders (a clone, a project's `node_modules`) stays.
   - **Limits:** each process gets `RLIMIT_AS` 2 GB, 128 processes, 1024 open files and 4 GB per
     file. A watchdog kills the sandbox above 3 GB in all. Output keeps the first and last 8 KB;
     when that cuts it, the whole output (up to 16 MB) is written once at the end as
@@ -142,7 +160,8 @@ without network (D-47, D-112).
   `shell.onEnd(handler)` hears the end of background runs (finished, failed or stopped).
   `shell.drain()` on shutdown kills running commands, which end as `stopped`.
 - **The computer's session:** `shell.attach({key, place, label})` (key: the computer's, the seat's chat_bots id)
-  starts a detached gVisor sandbox with the same mounts as a run, `/runs` included, running tmux:
+  starts a detached gVisor sandbox with the same mounts as a run, `/runs` and a gateway of its own included (closed
+  when the session ends), running tmux:
   the top pane follows `/tmp/bot.log` under `label`, the bottom pane is a bash loop for the person.
   While it exists, that seat's runs (except those with `readOnly`) execute in it with
   `runsc exec` (`IN_SESSION`): each is shown in the log with its heading and `(exit N)`, keeps
@@ -155,7 +174,9 @@ without network (D-47, D-112).
     ends after it.
   - **Memory:** a session above the sandbox memory limit is ended at once.
 - **Bots:** every bot with files gets `run_command {why, script, seconds?}` and `check_command
-  {run}`. In turns another bot started (D-46), `/files/chat` and `/files/shared` are read-only. A
+  {run}`; `run_command`'s description and the standing rules say what commands reach (D-126): the public internet
+  through the gateway (git clone over https, downloads, npm or pip installs for the job), no ssh, no GitHub sign-in to
+  push with, and each run from the same clean toolbox. In turns another bot started (D-46), `/files/chat` and `/files/shared` are read-only. A
   reply's commands become one `event` with `icon: "command"` and `commands: [{why, script,
   output, exitCode, run, running}]`, shown in the chat as one line that opens to each script and
   its output.
@@ -171,6 +192,9 @@ without network (D-47, D-112).
 ## Proved by
 
 - `tests/server/shell.integration.js`
+- `tests/server/commandInternet.test.js`
+- `tests/server/commandInternetWords.test.js`
+- `tests/server/gateway.test.js`
 - `tests/server/storeToolbox.test.js`
 - `tests/server/toolboxRun.test.js`
 - `tests/server/toolsStore.test.js`

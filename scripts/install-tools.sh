@@ -138,7 +138,8 @@ else
   tools_install desktop "$(echo "$HOST_KEY $(command -v tint2 hsetroot xterm || true)" | sha256sum | cut -c1-12)-r$REVISION" install_desktop desktop
 fi
 
-# gVisor runs bots' commands with its own kernel, rootless and without network (D-47)
+# gVisor runs bots' commands with its own kernel, rootless and with no network of their own (D-47; the internet only
+# through Mercbot's gateway, D-126)
 install_gvisor() { # dir
   local name="gvisor-x86_64.tar.bz2"
   local base="https://github.com/google/gvisor/releases/download/$GVISOR_RELEASE"

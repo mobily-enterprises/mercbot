@@ -155,8 +155,8 @@ files are kept.
   `remove` (a file or an empty folder) and `makeFolder` only reach the place's folders;
   `existingFile` also checks the link-free real path.
 - Everything the office apps run is in the bots' gVisor sandbox (D-49), through
-  `gvisorProcess` in `shell.js`: the toolbox, no network, the place's folders (`noexec`) and the
-  shell's limits. Without gVisor, the toolbox or the apps, `apps.available()` is false and nothing
+  `gvisorProcess` in `shell.js`: the toolbox, no network at all (unlike commands, which have a gateway, D-126), the
+  place's folders (`noexec`) and the shell's limits. Without gVisor, the toolbox or the apps, `apps.available()` is false and nothing
   runs.
 - `apps.session(place)` starts each app (`word`, `sheet`, `slides`, `pdf`) on first use, as
   `<app>-cli mcp` in its own sandbox, and keeps its open documents until `close()`, which also

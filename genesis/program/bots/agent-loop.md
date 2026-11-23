@@ -72,7 +72,9 @@ evaluations is `docs/agent-loop.md`.
   `update_todos`, the goal tools and `ask_user`, each left out when what it needs isn't given.
 - Executors: `gvisorExecutor()` (the default: gVisor's own kernel, no network, the machine's
   programs read-only, people's and services' folders hidden, only the workspace writable) and
-  `localExecutor()` (opt in, no sandbox). Neither passes the server's environment to a command.
+  `localExecutor()` (opt in, no sandbox). Neither passes the server's environment to a command. Mercbot's bots use
+  neither: their `run_command` is `@local/files`'s command line (`files/shell.md`), which reaches public internet
+  addresses through Mercbot's gateway (D-126).
 
 ## Proved by
 

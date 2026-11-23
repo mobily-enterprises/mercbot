@@ -40,7 +40,7 @@ quietly switched off (D-68).
   from Mercbot's keys. That user needs root to set up (`scripts/setup-sandbox-user.sh`). Without it, such
   a program is the person, with all their files.
 - **No home network.** The gateway refuses private addresses
-  (`packages/computer/src/server/gateway.js:11-23`, D-49), so bots can't reach the router, a NAS or a
+  (`packages/files/src/server/gateway.js`, D-49, D-126), so bots can't reach the router, a NAS or a
   printer. This is by design, and at home it keeps bots off the home network.
 
 ### Sign-in and mail

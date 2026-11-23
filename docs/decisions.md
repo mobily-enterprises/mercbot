@@ -606,7 +606,9 @@ we've seen how bots behave in the first two.
 ## D-47 — Bots' real computers: a shell in gVisor, three file folders and file browsers (2026-10-30)
 
 *Amended by D-112 (2026-11-22): the three folders are the chat's (/files/chat, in place of /files/mine), the bot's and
-the home's, and a bot has a computer of its own in each chat.*
+the home's, and a bot has a computer of its own in each chat. "No internet and no installs" is superseded by D-126
+(2026-11-23): commands reach public internet addresses through Mercbot's gateway, and each still starts from the same
+clean toolbox.*
 
 A feature designed here (D-18). Bots get a real command line, safely.
 
@@ -618,7 +620,7 @@ A feature designed here (D-18). Bots get a real command line, safely.
   rootless, with the conversation's folders only, a scratch /tmp, and limits on time, memory,
   processes, file size and output. gVisor was chosen after discussing escapes; separate sandbox
   machines holding no secrets are the next step when usage grows.
-- **No internet and no installs, by design (2026-10-30).** After weighing open internet and installs
+- **No internet and no installs, by design (2026-10-30). Superseded by D-126 (2026-11-23).** After weighing open internet and installs
   that last (a persistent layer per person, package sites through a checking proxy), this design
   was kept: commands have no network, and every command starts from the same clean toolbox, so
   nothing builds up. Tools bots keep needing are added to the shared toolbox (Node.js was, for
@@ -723,7 +725,8 @@ chosen; `computer-terminal`, where the desktop apps and Chrome stayed in bubblew
   - Their only way out is Mercbot's gateway (`packages/computer/src/server/gateway.js`). The
     gateway refuses loopback, private, link-local (cloud metadata), CGNAT, reserved and
     multicast addresses, the server's own addresses, and mail ports.
-  - The command line is a separate gVisor sandbox with no internet. While the computer is awake,
+  - The command line is a separate gVisor sandbox with no internet (since D-126, 2026-11-23, it reaches public
+    addresses through a gateway of its own, the same gateway). While the computer is awake,
     the bot's commands run in its session, and the Terminal on the dock shows them live, with the
     person's own shell below.
   - The screen, the window manager and screen sharing stay outside the sandboxes and only draw.
@@ -4046,3 +4049,59 @@ Decided:
 - **Proof:** `tests/client/roomJoin.vitest.js`, `tests/server/chatMembers.integration.js` (joining brings news, leaving
   and before joining none, an archived room refused), `tests/e2e/rooms-people-bots.spec.ts`,
   `tests/e2e/chats-people.spec.ts`.
+
+## D-126 — Bots' commands reach the internet through Mercbot's gateway (2026-11-23)
+
+Supersedes D-47's "No internet and no installs, by design (2026-10-30)" and amends D-49 (its command line "with no
+internet"). In the voces room "WODC Material" on mercbot.ai a bot asked to change a website on GitHub told the person its
+"own command line has no internet, so I can't clone the repo or push to GitHub from it", and sent them to the coding
+tool instead. The owner, 23 November: "The fact that the bots have no internet is an absurdity, we need to undo it… This
+is a change we need to make."
+
+Decided:
+- **The same gateway, no new way out.** A bot's command reaches public internet addresses only through Mercbot's
+  gateway, the one the computer's browser and coding runs use (`gateway.js`, moved from `@local/computer` to
+  `@local/files/gateway`, beside the other sandbox pieces). Wherever a command runs it has a gateway of its own: its own
+  sandbox while the computer sleeps, and the computer's session while it's awake, where the bot's commands and the
+  person's shell in the Terminal share it. Each sandbox keeps `--network=none` and reaches the gateway's socket in its
+  folder (`--host-uds=open`, the folder shown at `/gateway`) through the forwarder at 127.0.0.1:3128, which starts
+  before the script. The refusals are the same: loopback, private, link-local and cloud metadata, CGNAT, reserved and
+  multicast addresses, the server's own addresses and the mail ports (25, 465, 587, 2525).
+- **Inside:** `HTTP_PROXY`, `HTTPS_PROXY` and `ALL_PROXY` and their lower-case spellings, `NO_PROXY`/`no_proxy` for
+  localhost, 127.0.0.1 and ::1 (the sandbox's own loopback stays direct), and `NODE_USE_ENV_PROXY=1`, so git over https,
+  npm, pip, Python's urllib and Node's own fetch and http go through it. The toolbox has no curl.
+- **Plain TCP, the widening:** this widens what commands reach from nothing to the gateway's whole reach: CONNECT to
+  any port of a public address except the mail ports, not only the web's 80 and 443, so a program that asks the gateway
+  with CONNECT reaches a database or an API on a port of its own. A program that connects directly finds no network: "Network is unreachable" for an
+  address, and no name resolves. There is no ssh client and no key: git's ssh addresses (`git@github.com:…`) get a plain
+  answer through `GIT_SSH_COMMAND`, "There's no ssh on this command line: use the repository's https:// address".
+- **Installs last one command.** A command may install what its job needs: `npm install` in a project (its
+  `node_modules` stays in the project's folder, like any file it writes), `npm install -g` and `pip install` into its
+  `HOME`'s `/tmp/home/.local` (`NPM_CONFIG_PREFIX`, `PIP_BREAK_SYSTEM_PACKAGES`, on `PATH`), since a store host's toolbox
+  is read-only. Every command still starts from the same clean toolbox: what it installs or changes outside the folders
+  goes when it ends, or in the session when the computer sleeps. Tools bots keep needing still go into the toolbox.
+- **The office apps keep no network:** the document tools, previews, charts and voice memos aren't commands.
+- **Bots are told:** the standing rules (`FILES_RULES`), `run_command` and the skill "Working on the command line" say
+  what commands reach, that installs last one command, and that there's no ssh and no GitHub sign-in.
+- **Not decided here: GitHub credentials in the command line.** Nothing in Mercbot pushes code today: the GitHub
+  connection's tools read repositories and manage issues, pull requests and branches but write no commits, and coding
+  runs are told not to push. A bot clones a public repository, changes and tests it, and gives the person the changed
+  files or a patch.
+- **A socket's path (found here).** A socket's path has at most 107 bytes; under Production's TMPDIR
+  (`/var/lib/mercbot-online-work/tmp`) a sandbox's folder makes its gateway's about 115 to 122, and Node's `listen` fails
+  with EINVAL. Coding runs' gateways were made the same way, so they very likely failed to start there. `sandboxGateway`
+  now makes the socket through the folder's open handle (`/proc/self/fd/N/gateway.sock`) for commands, sessions and
+  coding runs alike.
+- **One request per plain http connection.** For `http://` the gateway rewrote only a connection's first request, so a
+  client keeping its connection to the proxy open sent its next one, perhaps for another host, unrewritten to the first
+  host. It now adds `Connection: close`, so the next request comes on a new connection and is checked again.
+- **Next, not built:** limits on what commands download and send (per command and per home), on connection rate and
+  on the hosts' bandwidth; a record of where each command connected (the gateway's own short list goes with it); abuse
+  from the servers' addresses (scanning, scraping, bulk downloads). A command a bot was talked into can now send a
+  chat's files to any public address in one step, as the browser could more slowly; the standing rule never to run
+  commands copied from emails, web pages or files stays.
+- **Proof:** `tests/server/commandInternet.test.js` (real gVisor, under a TMPDIR as long as Production's: a stand-in
+  page by Python and Node, https by Node, plain TCP, the refusals, the mail ports, git clone over https and a git@
+  address, an npm install gone by the next command, the session's commands and the person's shell),
+  `tests/server/commandInternetWords.test.js`, `tests/server/gateway.test.js`, `tests/server/shell.integration.js`,
+  `tests/server/codingSandbox.test.js`. Every public address in them is a stand-in on the test machine.

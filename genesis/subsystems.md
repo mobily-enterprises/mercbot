@@ -191,7 +191,7 @@ or the one a copy built on Mercbot chooses (`mercbot.computer-placement`, D-85),
 Owns the folders bots keep files in (each chat's folder, each bot's own folder in all its chats and the home's
 shared folder, D-112; in a Private chat a bot only reads the wider two unless a person widens the place, D13), the
 file browsers, the pages bots
-write and their sealed viewer (D-74), the sandboxed office apps bots make files with, the bots' command line in gVisor and its toolbox, and the
+write and their sealed viewer (D-74), the sandboxed office apps bots make files with, the bots' command line in gVisor and its toolbox (on the internet only through Mercbot's gateway, D-126), and the
 routes that show, send and change those files (D-20, D-21, D-47), and where each home keeps them: on Mercbot, in its own
 WebDAV storage or in a connected Google Drive account, through `mercbot.integrations` (D-26, D-80), moving every file
 when a home chooses another place, and answering whose own Drive holds them (`storage.heldInTheirDrive`), which a copy

@@ -7,8 +7,8 @@ import { sharedScratch, shellAvailable, toolsDir } from "./gvisor.js";
 import { gvisorProcess } from "./shell.js";
 
 // The office apps bots work with (D-20), installed by scripts/install-tools.sh. Every run is in
-// the bots' gVisor sandbox (D-49), the same as their commands': no network, the toolbox, the
-// apps, and only the place's folders. Nothing runs outside it: without gVisor and the toolbox
+// the bots' gVisor sandbox (D-49), as their commands are: the toolbox, the apps, and only the
+// place's folders, but no network at all (commands have a gateway, D-126). Nothing runs outside it: without gVisor and the toolbox
 // the apps, previews and voice memos are simply unavailable.
 export const APPS = {
   word: { bin: "wordcraft", label: "WordCraft", use: "documents: docx, odt, rtf, md, txt, html; saves pdf too" },

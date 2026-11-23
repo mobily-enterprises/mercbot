@@ -35,7 +35,9 @@ starts Mercbot's server without the single-user gate (`gate: false`) and describ
   saying so, on a host without them. No root. **Everything bots run is in gVisor (D-49):** their commands, their computers' Chrome and
   Craft apps, the office apps behind their document tools and previews, and voice memos. Without
   gVisor and the toolbox, none of these are available and bots' computers don't start; nothing
-  runs outside it. Commands run rootless with no network; `MERCBOT_SHELL_RUNS` (default 2) caps how
+  runs outside it. Commands run rootless with no network of their own: they reach public internet addresses only
+  through Mercbot's gateway (D-126), so the servers need outbound internet for them as for the bots' browsers;
+  `MERCBOT_SHELL_RUNS` (default 2) caps how
   many run at once. KVM can make gVisor faster, but only measure first (below).
 - **Coding runs (D-77)** each start a gVisor sandbox of their own beside their computer's, only while
   a run or a coding tool's sign-in goes on: the same `runsc`, toolbox and `.tools/coding`, so nothing

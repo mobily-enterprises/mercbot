@@ -28,7 +28,7 @@ watch and take over (docs/architecture.md §3.5, decisions D-11 to D-14; D-112's
 - `packages/computer/src/server/browserState.js`
 - `packages/computer/src/server/desktopSandbox.js`
 - `packages/computer/src/server/cdpBridge.js`
-- `packages/computer/src/server/gateway.js`
+- `packages/files/src/server/gateway.js`
 - `packages/computer/assets/terminal.svg`
 - `scripts/measure-browser-speed.mjs`
 - `packages/computer/src/server/stagehandModel.js`
@@ -135,8 +135,8 @@ apps:
   `tests/e2e/live-screen.spec.ts` wakes a computer with a real Xvfb, x11vnc and Chromium, reads its pixels through
   noVNC and the relay, and checks that x11vnc listens on no TCP port, with `MERCBOT_X11VNC`'s x11vnc or the one on
   `PATH`.
-- **Internet:** the only way out is the gateway (`gateway.js`), an HTTP proxy on the sandbox's
-  `/io/gateway.sock`, reached through a forwarder inside it. It resolves names itself, and refuses
+- **Internet:** the only way out is the gateway (`@local/files/gateway`, which bots' commands and coding runs use
+  too, D-126), an HTTP proxy on the sandbox's `/io/gateway.sock`, reached through a forwarder inside it. It resolves names itself, and refuses
   loopback, private, link-local (cloud metadata), CGNAT, reserved and multicast addresses, the
   server's own addresses and mail ports. It keeps a short list of where it connected.
 - **Without gVisor:** without gVisor or a toolbox with Chrome, computers don't start.
@@ -187,8 +187,9 @@ waking it).
   `/files/shared`); nothing else of the browser profile, the
   computer's `/io` or the bot's folders, and nothing of the server. The computer's own sandbox has
   no `/opt/coding`.
-- **Its own gateway:** no network (`--network=none`); a gateway of its own (`gateway.js`) on a
-  socket in its folder (`--host-uds=open`), behind the same forwarder at 127.0.0.1:3128, so public
+- **Its own gateway:** no network (`--network=none`); a gateway of its own (`sandboxGateway`, as a command's, D-126)
+  on a socket in its folder made through the folder's open handle (`--host-uds=open`), behind the same forwarder at
+  127.0.0.1:3128, so public
   addresses only: never Chrome's port 9222 (another sandbox's network), the server's loopback,
   private, link-local or own addresses, or mail ports.
 - **Exactly its folders:** both folders are given by their link-free real paths

@@ -28,10 +28,10 @@ Every bot also has its own Linux command line, for work on files. Bots use it by
 
 - **What's installed:** tools for video and audio, pictures, reading scanned pages (in English, French, German, Italian, Spanish and Portuguese), PDFs, converting documents, data and charts (Python with the usual data libraries), archives, programming (Node.js and Python, with git), and the office apps' own command-line versions.
 - **What it can see:** only the bot's folders in that chat, and a scratch space. The scratch space is emptied after each command, or, while the bot's computer is awake, when the computer goes to sleep. It can't see Mercbot itself, other chats or other people's files. Files in the folders are never started as programs, even ones downloaded or uploaded; scripts are run through Python, Node or bash.
-- **No internet:** commands can't reach the internet or install anything. To work on something from the web, the bot downloads it with its browser first.
+- **The internet:** commands reach public websites and services, as the browser does: for example to copy a public project from GitHub, download a file or install a package the job needs. They never reach private networks, Mercbot's own servers or email servers. Anything a command installs lasts only for that command; what it saves in the folders stays.
 - **Limits:** each command has limits on time, memory and file size. A command that takes more than two minutes carries on in the background, for up to 30 minutes, and the bot tells you when it's done.
 - **You can see what it ran:** a line in the chat, such as "Ran 3 commands: Making the GIF", opens to show each command and its output.
-- **The Terminal:** while the bot's computer is awake, the Terminal on its dock shows the bot's commands live in its top half. In the bottom half you can type your own commands, on the same folders, with the same tools and limits, and also without internet. Select **Take over** in the live view to type. A command the bot started keeps running if the computer goes to sleep.
+- **The Terminal:** while the bot's computer is awake, the Terminal on its dock shows the bot's commands live in its top half. In the bottom half you can type your own commands, on the same folders, with the same tools, internet and limits. Select **Take over** in the live view to type. A command the bot started keeps running if the computer goes to sleep.
 - **Asked by another bot:** when one bot works for another, its commands can read but not change the chat's files or the home's.
 
 ## Coding with your own coding account
@@ -330,6 +330,10 @@ When a bot needs an app that isn't ready, it still shows you the app's card in t
 Bitwarden, under **Password Managers**, isn't connectable yet. Until it is, save the logins you want bots to use in the vault.
 
 ## Questions
+
+### Can a bot work on my project on GitHub?
+
+Yes, for a public repository: the bot copies it to the chat's folder from its command line, makes and tests the changes there, and gives you the changed files or a patch. It can't send the changes back to GitHub itself: its command line has no GitHub sign-in, and the GitHub connection reads repositories and manages issues and pull requests but doesn't change their files.
 
 ### Does my bot see my password when I connect an app?
 

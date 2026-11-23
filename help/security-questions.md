@@ -26,12 +26,16 @@ The web, its own profile and the chat's file folders: the chat's own, the bot's 
 
 - The AI model providers, Together AI and DeepInfra (see [Which AI model is used, and can we choose?](#which-ai-model-is-used-and-can-we-choose)).
 - Google, Microsoft, GitHub, Calendly, Notion and Todoist, for accounts people connect.
-- Websites, through the bots' browsers.
+- Websites and public services, through the bots' browsers and command lines.
 - Optionally, when they are set up: Google's Gemini for pictures and for reading contact details from a photo in the vault, a home's own WebDAV storage, and the hub a copy is linked to.
 
 ### Can Apps scripts call the internet?
 
 Only HTTPS addresses on the home's list, which owners and admins choose. Scripts can never call private addresses, don't follow redirects, and are limited to five calls per run, ten seconds and 1 MB per call. Secret headers are added by the server, and scripts never see them.
+
+### Can a bot's command line reach the internet?
+
+Yes, public internet addresses, through Mercbot's gateway, as the bots' browsers do. The gateway never connects to the server itself, its private network or cloud metadata addresses, and never to the ports used to send email. What a command installs lasts only for that command.
 
 ### Do the office apps have network access?
 
