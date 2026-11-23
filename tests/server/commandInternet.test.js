@@ -109,6 +109,7 @@ before(async () => {
   const web = http.createServer((request, response) => {
     seen.web += 1;
     if (request.url === "/hello.txt") return response.end(`${HELLO}\n`);
+    if (request.url === "/big.bin") return response.end(Buffer.alloc(3 * 1024 ** 2, 7));
     if (request.url === "/tiny-tool") return response.setHeader("content-type", "application/json").end(tiny.packument("http://registry.example.test"));
     if (request.url === "/tiny-tool/-/tiny-tool-1.0.0.tgz") return response.end(tiny.tarball);
     response.statusCode = 404;
@@ -151,14 +152,17 @@ before(async () => {
     stopStale: async () => []
   };
   const meter = { startComputation: async () => ({ blockSeconds: 600, renew: async () => true, settle: async () => true }) };
+  // The bots' minutes and homes' days are the database's (internetLimits.integration.js): here each gateway has only its
+  // command's own limits.
+  const internet = { limits: LIMITS.internet, forGateway: () => null, removeOld: async () => 0 };
   const shell = createShell({
-    store, runs, env: process.env, meter, limits: LIMITS, gateway: (options) => startGateway({ ...options, standIns })
+    store, runs, env: process.env, meter, internet, limits: LIMITS, gateway: (options) => startGateway({ ...options, standIns })
   });
   const place = store.placeFor({ homeId: "1", chatId: "2", chatKind: "public", botId: "3" });
   const chatFolder = (await store.prepare(place)).chat;
   await fs.copyFile(caFile, path.join(chatFolder, "ca.pem"));
   const go = (script) => shell.start({ place, workspaceId: "1", botId: "3", chatBotId: "4", userId: "5", why: "test", script, maxSeconds: 60 });
-  world = { shell, place, go, seen, webPort, chatFolder, servers: [web, git, tcp, mail] };
+  world = { shell, place, go, seen, webPort, chatFolder, servers: [web, git, tcp, mail], store, runs, meter, internet, standIns };
 });
 
 after(async () => {
@@ -225,6 +229,10 @@ except Exception as error:
   }
   assert.match(result.output, /^metadata by url: 403 Mercbot's gateway doesn't connect to 169\.254\.169\.254: it's not a public address\.$/mu);
   assert.equal(world.seen.web, reached, "nothing reached the server listening on this machine");
+  // However the program shows a refusal (a CONNECT's 403 is often only "Tunnel connection failed"), the output ends
+  // with the gateway's own words for each, once (D-127).
+  const refusals = ["127.0.0.1", "10.0.0.1", "169.254.169.254", "100.64.0.1", "[::1]"].map((host) => `Mercbot's gateway doesn't connect to ${host}: it's not a public address.`);
+  assert.ok(result.output.endsWith(`\n\n${refusals.join("\n")}`), result.output);
 });
 
 test("a mail port is refused, even at a public address", { skip }, async () => {
@@ -298,5 +306,43 @@ for _ in $(seq 100); do [ -s /tmp/person.txt ] && break; sleep 0.1; done; cat /t
     assert.match(typed.output, new RegExp(`^person: ${HELLO}$`, "mu"));
   } finally {
     await world.shell.detach("4");
+  }
+});
+
+test("a command past what one command may receive has its connections ended and its output says why, in its own sandbox and in the session", { skip }, async () => {
+  // A shell whose commands may receive 1 MB, the stand-in's file being 3 MB (D-127).
+  const tight = createShell({
+    store: world.store, runs: world.runs, env: process.env, meter: world.meter, internet: world.internet,
+    limits: { ...LIMITS, internet: { ...LIMITS.internet, commandIn: 1024 ** 2 } },
+    gateway: (options) => startGateway({ ...options, standIns: world.standIns })
+  });
+  const go = (script) => tight.start({ place: world.place, workspaceId: "1", botId: "3", chatBotId: "6", userId: "5", why: "test", script, maxSeconds: 60 });
+  const fetch = (url) => `python3 -c 'import urllib.request
+try:
+    print("got", len(urllib.request.urlopen("http://files.example.test/${url}", timeout=10).read()), "bytes")
+except Exception as error:
+    print("${url} failed:", type(error).__name__, getattr(error, "code", ""))'`;
+  const said = "Mercbot's gateway ended this command's internet connections: it received 1 MB, the most one command may receive.";
+  try {
+    // The download is cut; the command's next request is refused; its output ends with why, once.
+    const cut = await go(`${fetch("big.bin")}\n${fetch("hello.txt")}`);
+    assert.equal(cut.status, "done", cut.output);
+    assert.match(cut.output, /^big\.bin failed: \w+/mu);
+    assert.match(cut.output, /^hello\.txt failed: HTTPError 403$/mu);
+    assert.ok(cut.output.endsWith(`\n\n${said}`), cut.output);
+    // The next command has its own count.
+    const next = await go(fetch("hello.txt"));
+    assert.equal(next.output.trim(), `got ${HELLO.length + 1} bytes`);
+    // In the computer's session, which the bot's commands share with the person's shell, each command counts again:
+    // the session's /tmp, which a command in a sandbox of its own doesn't see, shows both ran there.
+    assert.ok(await tight.attach({ key: "6", place: world.place, label: "Tight's commands" }));
+    const inSession = await go(`echo here > /tmp/in-session; ${fetch("big.bin")}`);
+    assert.match(inSession.output, /^big\.bin failed: \w+/mu);
+    assert.ok(inSession.output.endsWith(`\n\n${said}`), inSession.output);
+    const afterIt = await go(`cat /tmp/in-session; ${fetch("hello.txt")}`);
+    assert.equal(afterIt.output.trim(), `here\ngot ${HELLO.length + 1} bytes`, "in the session, and its own count");
+  } finally {
+    await tight.detach("6");
+    await tight.drain();
   }
 });

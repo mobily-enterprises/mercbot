@@ -4,6 +4,7 @@ import { UsersIdentityProvider } from "@jskit-ai/users-core/server/UsersIdentity
 import { WorkspaceRecordsFeature } from "@jskit-ai/workspaces-core/test/WorkspaceRecordsFeature";
 import { BotRecordsFeature } from "../../packages/bots/src/server/records/BotRecordsFeature.js";
 import { FILES_OWNS } from "../../packages/files/src/server/FilesFeature.js";
+import { createInternetUsage, internetLimits } from "../../packages/files/src/server/internetUsage.js";
 import { createShell } from "../../packages/files/src/server/shell.js";
 import { createShellRuns } from "../../packages/files/src/server/shellRuns.js";
 import { createAccounts } from "../../packages/integrations/src/server/accounts.js";
@@ -76,8 +77,14 @@ export async function startShell(knex, context, { store, env = process.env, limi
   const { features } = await ownedHandles(knex, context, { "mercbot.files": FILES_OWNS });
   const { resources, systemContext } = features["mercbot.files"];
   const runs = createShellRuns({ shellRuns: resources.shellRuns, systemContext });
+  const internet = createInternetUsage({
+    internetDays: resources.internetDays,
+    internetMinutes: resources.internetMinutes,
+    systemContext,
+    limits: internetLimits(env)
+  });
   return {
-    shell: createShell({ store, runs, env, meter, ...(limits ? { limits } : {}) }),
+    shell: createShell({ store, runs, env, meter, internet, ...(limits ? { limits } : {}) }),
     commandOutput: runs.commandOutput,
     inHome: (homeId) => ({ context: systemContext("a bot's tools, in the home their turn runs in").forWorkspace(String(homeId)) })
   };

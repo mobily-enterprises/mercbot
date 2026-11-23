@@ -4106,7 +4106,7 @@ Decided:
   client keeping its connection to the proxy open sent its next one, perhaps for another host, unrewritten to the first
   host. It now adds `Connection: close`, so the next request comes on a new connection and is checked again.
 - **Next, not built:** limits on what commands download and send (per command and per home), on connection rate and
-  on the hosts' bandwidth; a record of where each command connected (the gateway's own short list goes with it); abuse
+  on the hosts' bandwidth (the first three built by D-127, 2026-11-23); a record of where each command connected (the gateway's own short list goes with it); abuse
   from the servers' addresses (scanning, scraping, bulk downloads). A command a bot was talked into can now send a
   chat's files to any public address in one step, as the browser could more slowly; the standing rule never to run
   commands copied from emails, web pages or files stays.
@@ -4115,3 +4115,54 @@ Decided:
   address, an npm install gone by the next command, the session's commands and the person's shell),
   `tests/server/commandInternetWords.test.js`, `tests/server/gateway.test.js`, `tests/server/shell.integration.js`,
   `tests/server/codingSandbox.test.js`. Every public address in them is a stand-in on the test machine.
+
+## D-127 — Internet limits for bots' commands (2026-11-23)
+
+Follows D-126, which let every bot command reach the public internet through Mercbot's gateway and listed limits as
+next. The gateway counted bytes only while it ran and then forgot them, and Mercbot may run on several servers at
+once (D-15), so nothing held a command, a bot or a home to an amount. The owner, 23
+November, on a size cap per command, a cap on new connections a minute per bot and a daily data budget per home kept in
+the database: "AGREED!"
+
+Decided:
+- **Per command, in both directions:** one command may receive 2 GB and send 200 MB through its gateway. Past either,
+  the gateway ends every connection the command has open, and refuses its later ones (403), until the command ends.
+- **Per bot, new connections a minute:** 120, counted for the bot across every command it runs, on any server, in
+  clock minutes (UTC). One past it is refused, 429, with "slow down" and when to try again.
+- **Per home, a day's internet:** 20 GB a day (UTC), both directions added up, across all the home's bots' commands on
+  every server. Past it, the connections a command has open end, and new ones are refused, saying it starts again at
+  midnight UTC and in how long.
+- **Kept in the database, a batch at a time:** `internet_days` has one row per home and day (`bytes_in`, `bytes_out`,
+  `connections`); a gateway adds what it counted in one statement every 10 s while data moves, once 64 MB are
+  waiting, and as it closes, never once a connection, and each write answers the day's total, so every gateway sees
+  what the home's others used as of its last write. So a home may pass its day by about 64 MB, plus what arrives
+  while a write is under way, for each gateway moving data at once. `internet_minutes` has one row per bot, holding its present minute;
+  a gateway takes the bot's connections from it a few at a time (1, 2, 4, 8, then 16 at most) and gives back what it
+  didn't use when it closes, so its writes are bounded by the minute's limit, not by the connections asked for, and a
+  minute refused isn't asked again. A read or write that fails is said in the log and the work goes on: a gateway never
+  refuses for the database. Days older than two weeks are removed by the command line's hourly sweep.
+- **Where they apply:** the command line, in a command's own sandbox and in the computer's session. In a session the
+  bot's commands and the person's shell share one gateway: each bot command's count starts at its start and again at
+  its end, and the person's shell counts toward the bot's minute and the home's day. The computer's browser and coding
+  runs, whose gateways are their own, have none of these limits yet; the office apps have no network.
+- **Every refusal reaches the bot in plain words:** a command's output ends with what its gateway refused or ended and
+  why, once each (at most ten, then how many more): the new limits and the existing refusals of private addresses
+  and mail ports, which a program often shows only as "Tunnel connection failed: 403". The bot reads it and the
+  person sees it with the command. The words say what to do (slow down and when to try again; when the home's day
+  starts again), so the bots' rules and skills are unchanged, and the bot templates' checks (D-79) stand.
+- **Shown where usage is shown:** Settings → Spending's "Internet today": what the home's commands received and sent
+  today of its day, a bar, when it starts again, and the per-command and per-bot limits, for everyone in the home, as
+  the day is the home's (`GET /api/w/:home/files/internet`).
+- **Env names, each with its default when unset:** `MERCBOT_INTERNET_COMMAND_IN_MB` (2048),
+  `MERCBOT_INTERNET_COMMAND_OUT_MB` (200), `MERCBOT_INTERNET_CONNECTIONS_PER_MINUTE` (120) and
+  `MERCBOT_INTERNET_HOME_DAY_MB` (20480). A value that isn't a positive number keeps the default and is said as the
+  server starts.
+- **Not decided here:** limits for the browser and coding runs, the hosts' own bandwidth, a record of where each
+  command connected, and a per-home choice of limits.
+- **Proof:** `tests/server/gateway.test.js` (the per-command limits both ways, a meter's refusal and the notes, with
+  stand-ins), `tests/server/internetLimits.test.js` (the Env names and defaults, the words),
+  `tests/server/internetLimits.integration.js` (a bot's minute across two gateways, connections given back, two
+  gateways sharing a home's day one after another and at once, the writes' count for 1 and 40 connections, the day as
+  Settings reads it, old days removed), `tests/server/commandInternet.test.js` (real gVisor: a command cut at its limit
+  and its output's words, in its own sandbox and in the session, and the refusals' words),
+  `tests/e2e/spending.spec.ts` (Internet today).

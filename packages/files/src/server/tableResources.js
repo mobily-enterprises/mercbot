@@ -99,5 +99,35 @@ export const mediaCheckResource = defineTableResource({
   }
 });
 
+/** internet_days: what a home's bot commands received and sent on the internet each day (UTC), one row a day (D-127) */
+export const internetDayResource = defineTableResource({
+  name: "internetDays",
+  tableName: "internet_days",
+  ownership: "workspace",
+  schema: {
+    bytesIn: { type: "integer" },
+    bytesOut: { type: "integer" },
+    connections: { type: "integer" },
+    day: { type: "date", required: true, search: true },
+    workspaceId: { type: "id", hidden: true, search: true }
+  }
+});
+
+/** internet_minutes: each bot's new internet connections in its present minute, one row a bot (D-127) */
+export const internetMinuteResource = defineTableResource({
+  name: "internetMinutes",
+  tableName: "internet_minutes",
+  ownership: "workspace",
+  schema: {
+    botId: { type: "id", required: true, search: true },
+    connections: { type: "integer" },
+    // Minutes since 1970 (UTC).
+    minute: { type: "integer", required: true, search: true },
+    workspaceId: { type: "id", hidden: true, search: true }
+  }
+});
+
 /** Every table resource this feature owns, in table order. */
-export const TABLE_RESOURCES = Object.freeze([fileStorageResource, mediaCheckResource, pageVersionResource, shellRunResource]);
+export const TABLE_RESOURCES = Object.freeze([
+  fileStorageResource, internetDayResource, internetMinuteResource, mediaCheckResource, pageVersionResource, shellRunResource
+]);

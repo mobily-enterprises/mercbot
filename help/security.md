@@ -39,7 +39,7 @@ Mercbot is a web application. People use it in a browser on a computer or phone.
   - has no network of its own: it reaches public internet addresses only through Mercbot's gateway, like the browser, never the server itself, its private network, cloud metadata addresses or the ports used to send email;
   - sees only a fixed set of tools (its changes vanish after the run), a scratch folder, and the folders of the chat it ran in, where a Private chat's bot and home folders are read-only;
   - gets none of the server's settings or secrets;
-  - has limits on time, memory per process and in total, processes, open files, file size and output.
+  - has limits on time, memory per process and in total, processes, open files, file size and output, and on the internet: how much one command may download and upload, how many new connections a bot may open a minute and how much a home's commands may use a day.
   
   When one bot works for another, the chat's folder and the home's are read-only to its commands. Every command is recorded with its output and shown in the chat. The command line runs on the same servers as Mercbot itself; moving it to separate machines that hold no secrets is planned as use grows.
 - **Local-only ports.** The browser's debugging port and the screen-sharing server listen only on the machine itself.

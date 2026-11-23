@@ -4,17 +4,29 @@ import { FILE_STORAGE_FILTERS } from "./fileMoves.js";
 import { PAGE_VERSION_FILTERS } from "./pages.js";
 import { createFilesRuntime } from "./filesRuntime.js";
 import { createFileTransfer } from "./fileTransfer.js";
+import { INTERNET_DAY_FILTERS, INTERNET_MINUTE_FILTERS } from "./internetUsage.js";
 import { MEDIA_CHECK_FILTERS } from "./mediaChecks.js";
 import { registerPageRoutes } from "./pageRoutes.js";
 import { PROFILE_PICTURES, profilePictureDriver } from "./profilePictures.js";
 import { registerRoutes } from "./registerRoutes.js";
 import { SHELL_RUN_FILTERS } from "./shellRuns.js";
-import { fileStorageResource, filesKeyResource, mediaCheckResource, pageVersionResource, shellRunResource } from "./tableResources.js";
+import {
+  fileStorageResource,
+  filesKeyResource,
+  internetDayResource,
+  internetMinuteResource,
+  mediaCheckResource,
+  pageVersionResource,
+  shellRunResource
+} from "./tableResources.js";
 
 /** The tables the files feature owns, with their search entries. */
 export const FILES_OWNS = Object.freeze([
   { resource: fileStorageResource, searchSchema: FILE_STORAGE_FILTERS },
   filesKeyResource,
+  // What a home's bot commands used of the internet, by day, and each bot's present minute (D-127).
+  { resource: internetDayResource, searchSchema: INTERNET_DAY_FILTERS },
+  { resource: internetMinuteResource, searchSchema: INTERNET_MINUTE_FILTERS },
   { resource: mediaCheckResource, searchSchema: MEDIA_CHECK_FILTERS },
   { resource: pageVersionResource, searchSchema: PAGE_VERSION_FILTERS },
   // A bot's commands in a chat are read by whoever may read that chat (the bots' chat rule, D-112).
@@ -35,7 +47,7 @@ const FilesFeature = defineFeature({
   domain: "files",
   owns: FILES_OWNS,
   systemScope:
-    "open each home's own file storage for its bots, move a home's files to the storage it chose and sweep the moves whose server stopped, start, beat, finish and sweep the bots' command runs, and keep the versions of the pages bots save, which run on no request, in any home; reach the Google Drive account a home keeps its files in, as the person it belongs to; queue and check the pictures and videos bots save and their computers' screenshots, in every home; keep which files key a new files bucket uses, for every server",
+    "open each home's own file storage for its bots, move a home's files to the storage it chose and sweep the moves whose server stopped, start, beat, finish and sweep the bots' command runs, count and limit the internet they use by home and day and by bot and minute, and keep the versions of the pages bots save, which run on no request, in any home; reach the Google Drive account a home keeps its files in, as the person it belongs to; queue and check the pictures and videos bots save and their computers' screenshots, in every home; keep which files key a new files bucket uses, for every server",
   requires: {
     records: "mercbot.bots.records",
     http: "runtime.http",

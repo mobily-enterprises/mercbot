@@ -74,7 +74,7 @@ evaluations is `docs/agent-loop.md`.
   programs read-only, people's and services' folders hidden, only the workspace writable) and
   `localExecutor()` (opt in, no sandbox). Neither passes the server's environment to a command. Mercbot's bots use
   neither: their `run_command` is `@local/files`'s command line (`files/shell.md`), which reaches public internet
-  addresses through Mercbot's gateway (D-126).
+  addresses through Mercbot's gateway (D-126), within its limits, whose words a command's output ends with (D-127).
 
 ## Proved by
 

@@ -7,6 +7,7 @@ import { promisify } from "node:util";
 import { refusalOf } from "@local/account/meter";
 import { BOT, CHAT, SHARED } from "./fileStore.js";
 import { GATEWAY_INSIDE, PROXY_ENV, START_FORWARDER, sandboxGateway, startGateway } from "./gateway.js";
+import { internetLimits } from "./internetUsage.js";
 import {
   folderMount, platformFlags, runSandboxed, runsc, sandboxMemory, sandboxPlace, sandboxSpec, shellAvailable, sweepSandboxes, toolsDir
 } from "./gvisor.js";
@@ -16,7 +17,8 @@ const run = promisify(execFile);
 // Bots' command line (D-47). A command is a bash script run in gVisor, which puts its own kernel
 // between the script and the server's, rootless and with no network of its own: it reaches public
 // internet addresses only through a gateway of its own (gateway.js, D-126), as the computer's
-// browser does. The script sees the toolbox (scripts/build-toolbox.sh; what it installs or changes
+// browser does, within its internet limits (D-127). The script sees the toolbox
+// (scripts/build-toolbox.sh; what it installs or changes
 // there vanishes after the run), a private /tmp, the Craft apps, and only its place's folders: the
 // chat's, the bot's and the home's (a private chat's last two read-only, D13). Limits: wall time,
 // memory (each process, and the whole sandbox, watched from outside), processes, open files, file
@@ -42,7 +44,10 @@ const LIMITS = {
   heartbeatSeconds: 20,
   staleSeconds: 90,
   // MERCBOT_SHELL_RUNS sets it per server (createShell).
-  perServer: 2
+  perServer: 2,
+  // What one command may receive and send, a bot's new connections a minute and a home's internet a day (D-127): the
+  // MERCBOT_INTERNET_* Env names set them (internetUsage.js).
+  internet: internetLimits({})
 };
 
 /** Why a run was stopped, as its bot is told (a run out of time says how long it had). */
@@ -126,6 +131,16 @@ function bundle({
   });
 }
 
+/**
+ * A command's output with its gateway's notes after it (D-127): what the gateway refused or ended and why, so the bot
+ * reads it and the person sees it with the output.
+ * @param {string} text
+ * @param {string[]} notes
+ */
+function withNotes(text, notes) {
+  return notes.length ? [text.replace(/\s+$/u, ""), notes.join("\n")].filter(Boolean).join("\n\n") : text;
+}
+
 /** Keeps the first and the last part of a long output, and the whole of it up to `outputFull`. */
 function outputBuffer(limits) {
   let head = "";
@@ -163,15 +178,17 @@ function outputBuffer(limits) {
 }
 
 /**
- * One command in gVisor, with a gateway of its own (`gateway` starts it) that closes when it ends. Returns { done,
- * kill, output }: `done` resolves to { exitCode, output, truncated, seconds, killed } and never rejects.
+ * One command in gVisor, with a gateway of its own (`gateway` starts it, with the command's internet limits and the
+ * `meter` of its bot and home, D-127) that closes when it ends. Returns { done, kill, output }: `done` resolves to {
+ * exitCode, output, truncated, seconds, killed } and never rejects; the output ends with the gateway's notes.
  */
-function execute({ env, dirs, script, maxSeconds, limits, readOnly, gateway: startOne }) {
+function execute({ env, dirs, script, maxSeconds, limits, readOnly, gateway: startOne, meter }) {
   const output = outputBuffer(limits);
   const place = sandboxPlace();
+  let notes = [];
   const started = (async () => {
     const gatewayDir = path.join(place.dir, "gateway");
-    const gateway = await sandboxGateway(gatewayDir, startOne).catch(async (error) => {
+    const gateway = await sandboxGateway(gatewayDir, startOne, { limits: limits.internet, meter }).catch(async (error) => {
       await fs.rm(place.dir, { recursive: true, force: true }).catch(() => {});
       throw error;
     });
@@ -185,7 +202,13 @@ function execute({ env, dirs, script, maxSeconds, limits, readOnly, gateway: sta
         memory: limits.sandboxMemory,
         onOutput: (text) => output.add(text)
       });
-      return { ...job, done: job.done.finally(() => gateway.close().catch(() => {})) };
+      return {
+        ...job,
+        done: job.done.finally(() => {
+          notes = gateway.notes();
+          return gateway.close().catch(() => {});
+        })
+      };
     } catch (error) {
       await gateway.close().catch(() => {});
       throw error;
@@ -196,7 +219,12 @@ function execute({ env, dirs, script, maxSeconds, limits, readOnly, gateway: sta
       output.add(`\n${error.message}`);
       return { exitCode: 127, seconds: 0, killed: null };
     })
-    .then((result) => ({ ...result, output: output.text, truncated: output.truncated, full: output.full }));
+    .then((result) => ({
+      ...result,
+      output: withNotes(output.text, notes),
+      truncated: output.truncated,
+      full: output.full === null ? null : withNotes(output.full, notes)
+    }));
   return { done, kill: (reason) => started.then((job) => job.kill(reason), () => {}), output };
 }
 
@@ -258,9 +286,14 @@ c="\${PIPESTATUS[0]}"; wait $! 2>/dev/null
 printf '\\033[2m(exit %s)\\033[0m\\n' "$c" >> /tmp/bot.log
 exit "$c"`;
 
+/**
+ * One command in a computer's session, whose gateway it shares with the person's shell there: the gateway's count and
+ * notes start again for it, and again once it ends (D-127), and its output ends with the notes.
+ */
 function executeIn(session, { env, script, why, maxSeconds, limits }) {
   const output = outputBuffer(limits);
   const started = Date.now();
+  session.gateway.begin();
   let killed = null;
   let child = null;
   const kill = async (reason) => {
@@ -281,11 +314,13 @@ function executeIn(session, { env, script, why, maxSeconds, limits }) {
       clearTimeout(timer);
       const seconds = (Date.now() - started) / 1000;
       if (!killed && exitCode === 137 && seconds >= maxSeconds - 1) killed = "time";
+      const notes = session.gateway.notes();
+      session.gateway.begin();
       resolve({
         exitCode,
-        output: output.text,
+        output: withNotes(output.text, notes),
         truncated: output.truncated,
-        full: output.full,
+        full: output.full === null ? null : withNotes(output.full, notes),
         seconds: Math.round(seconds * 10) / 10,
         killed
       });
@@ -326,6 +361,8 @@ function backgroundNote(foregroundSeconds, maxSeconds) {
  *   checked through, with a copy that checks pictures and videos (D-90)
  * @param {typeof startGateway} [dependencies.gateway] how each command's and each session's gateway starts (D-126; tests:
  *   one with stand-ins for public addresses)
+ * @param {ReturnType<typeof import("./internetUsage.js").createInternetUsage>} dependencies.internet the bots' and
+ *   homes' internet use, which each gateway's meter counts in and is limited by (D-127), with its limits
  */
 export function createShell({
   store,
@@ -334,7 +371,8 @@ export function createShell({
   meter,
   media = { on: false, filesLater: async () => {} },
   gateway = startGateway,
-  limits = { ...LIMITS, perServer: Number(env.MERCBOT_SHELL_RUNS) || LIMITS.perServer },
+  internet,
+  limits = { ...LIMITS, perServer: Number(env.MERCBOT_SHELL_RUNS) || LIMITS.perServer, internet: internet.limits },
   server = `${os.hostname()}:${process.pid}`
 }) {
   const endHandlers = new Set();
@@ -420,7 +458,7 @@ export function createShell({
     const session = !readOnly.length ? sessions.get(key) : null;
     const job = session
       ? executeIn(session, { env, script, why, maxSeconds, limits })
-      : execute({ env, dirs, script, maxSeconds, limits, readOnly, gateway });
+      : execute({ env, dirs, script, maxSeconds, limits, readOnly, gateway, meter: internet.forGateway({ workspaceId, botId }) });
     if (session) session.running += 1;
     // Before its block runs out, the next is opened; when that's refused, the command stops.
     let heldUntil = startedAt + hold.blockSeconds * 1000;
@@ -526,10 +564,12 @@ export function createShell({
   async function sweep() {
     const stale = await runs.stopStale(limits.staleSeconds).catch(() => []);
     for (const row of stale) if (row.background) await ended(row);
-    // Whole outputs can hold secrets, so they go after a week (D-48); looked for once an hour.
+    // Whole outputs can hold secrets, so they go after a week (D-48); looked for once an hour, with homes' old
+    // internet days (D-127).
     if (Date.now() - lastOutputSweep > 3600 * 1000) {
       lastOutputSweep = Date.now();
       await removeOldOutputs().catch((error) => console.error(`Removing old command outputs: ${error.message}`));
+      await internet.removeOld().catch((error) => console.error(`Removing old internet days: ${error.message}`));
     }
   }
 
@@ -562,9 +602,13 @@ export function createShell({
     dirs = { ...dirs, runs: await store.runsFolder(key) };
     await sweepSandboxes(env);
     const { id, dir: runDir, state } = sandboxPlace("session");
-    // Its gateway (D-126) serves the bot's commands in it and the person's shell, until the session ends.
+    // Its gateway (D-126) serves the bot's commands in it and the person's shell, until the session ends, within the
+    // commands' internet limits, counted for the bot and its home (D-127).
     const gatewayDir = path.join(runDir, "gateway");
-    const sessionGateway = await sandboxGateway(gatewayDir, gateway);
+    const sessionGateway = await sandboxGateway(gatewayDir, gateway, {
+      limits: limits.internet,
+      meter: internet.forGateway({ workspaceId: place.homeId, botId: place.botId })
+    });
     await fs.mkdir(state, { recursive: true });
     await fs.writeFile(path.join(runDir, "config.json"), JSON.stringify(
       bundle({ runtimeEnv: env, dirs, script: SESSION, limits, term: "xterm-256color", label, gateway: gatewayDir })

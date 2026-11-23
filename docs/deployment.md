@@ -38,7 +38,10 @@ starts Mercbot's server without the single-user gate (`gate: false`) and describ
   runs outside it. Commands run rootless with no network of their own: they reach public internet addresses only
   through Mercbot's gateway (D-126), so the servers need outbound internet for them as for the bots' browsers;
   `MERCBOT_SHELL_RUNS` (default 2) caps how
-  many run at once. KVM can make gVisor faster, but only measure first (below).
+  many run at once. Their internet has limits (D-127), each Env name's default applying when it's unset:
+  `MERCBOT_INTERNET_COMMAND_IN_MB` (2048) and `MERCBOT_INTERNET_COMMAND_OUT_MB` (200) a command,
+  `MERCBOT_INTERNET_CONNECTIONS_PER_MINUTE` (120) new connections a minute a bot, and `MERCBOT_INTERNET_HOME_DAY_MB`
+  (20480) a day a home, kept in the database for every server. KVM can make gVisor faster, but only measure first (below).
 - **Coding runs (D-77)** each start a gVisor sandbox of their own beside their computer's, only while
   a run or a coding tool's sign-in goes on: the same `runsc`, toolbox and `.tools/coding`, so nothing
   more to install. Measured (D-77): a start takes 0.2–0.3 s; idle one holds about 70 MB; with Claude Code

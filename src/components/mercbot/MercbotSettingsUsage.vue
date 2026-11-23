@@ -3,10 +3,12 @@ import { onMounted, ref, watch } from "vue";
 import AccountSettingsUsageSection from "@/components/account/settings/AccountSettingsUsageSection.vue";
 import { accountApi } from "./accountApi.js";
 import { homeChanges } from "./homesApi.js";
+import MercbotInternetToday from "./MercbotInternetToday.vue";
 import MercbotSpendingReport from "./MercbotSpendingReport.vue";
 
 // Settings → Spending (D-73): this month, then a report of any period by day, kind, bot and person (the whole home for
-// its owners and admins, a member's own use otherwise) with its CSV, and how spending is counted.
+// its owners and admins, a member's own use otherwise) with its CSV, the home's commands' internet today (D-127), and
+// how spending is counted.
 const emit = defineEmits(["failure", "notify"]);
 const summary = ref(null);
 
@@ -29,6 +31,8 @@ watch(homeChanges, load);
     <div v-else class="mb-spend__loading mb-usage-block" aria-hidden="true" />
 
     <MercbotSpendingReport class="mb-usage-block" @failure="emit('failure', $event)" />
+
+    <MercbotInternetToday @failure="emit('failure', $event)" />
 
     <p class="mb-set-group">How spending is counted</p>
     <div class="mb-set-card mb-usage-block">

@@ -35,7 +35,7 @@ Only HTTPS addresses on the home's list, which owners and admins choose. Scripts
 
 ### Can a bot's command line reach the internet?
 
-Yes, public internet addresses, through Mercbot's gateway, as the bots' browsers do. The gateway never connects to the server itself, its private network or cloud metadata addresses, and never to the ports used to send email. What a command installs lasts only for that command.
+Yes, public internet addresses, through Mercbot's gateway, as the bots' browsers do. The gateway never connects to the server itself, its private network or cloud metadata addresses, and never to the ports used to send email. What a command installs lasts only for that command. There are limits too: one command may download 2 GB and upload 200 MB, a bot may open 120 new connections a minute, and a home's commands may use 20 GB a day. A command past one has its connections ended or refused, and its output says why.
 
 ### Do the office apps have network access?
 

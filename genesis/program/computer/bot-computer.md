@@ -138,7 +138,8 @@ apps:
 - **Internet:** the only way out is the gateway (`@local/files/gateway`, which bots' commands and coding runs use
   too, D-126), an HTTP proxy on the sandbox's `/io/gateway.sock`, reached through a forwarder inside it. It resolves names itself, and refuses
   loopback, private, link-local (cloud metadata), CGNAT, reserved and multicast addresses, the
-  server's own addresses and mail ports. It keeps a short list of where it connected.
+  server's own addresses and mail ports. It keeps a short list of where it connected. The browser's gateway has none
+  of the commands' limits on amounts and connections (D-127).
 - **Without gVisor:** without gVisor or a toolbox with Chrome, computers don't start.
 - **Cleanup:** sandboxes of a server that's gone are removed when the next one starts; their
   folders are named after their server's process.
@@ -191,7 +192,8 @@ waking it).
   on a socket in its folder made through the folder's open handle (`--host-uds=open`), behind the same forwarder at
   127.0.0.1:3128, so public
   addresses only: never Chrome's port 9222 (another sandbox's network), the server's loopback,
-  private, link-local or own addresses, or mail ports.
+  private, link-local or own addresses, or mail ports. A coding run's gateway has none of the commands' limits on
+  amounts and connections (D-127).
 - **Exactly its folders:** both folders are given by their link-free real paths
   (`store.existingFolder`; the sign-in folder must be a real folder of the profile). Since a link
   swapped in as it starts would be mounted instead, the sandbox writes a random mark in each and

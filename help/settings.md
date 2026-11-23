@@ -115,6 +115,7 @@ The home's saved logins, cards and contact info, with tabs, search and **New ite
 
 - **This month:** the whole home's spending so far for owners and admins, and your own use for members (what the home's bots did for you).
 - **Spending:** a report of a **Day**, a **Week** (Monday to Sunday), a **Month** or a **Custom range** of up to a year, with arrows to step back and forward: the total, a chart by day, and the totals by kind, by bot and, for owners and admins, by person. The kinds are **Premium AI**, **Economy AI**, **Pictures**, **Computer days** and **Commands**. Days and months are UTC's, the same for everyone. Day-by-day totals are kept 13 months, so for an older month choose **Month**: it shows the month's totals, without the chart. **Download CSV** saves the same period as a spreadsheet file, one line per day (per month, for those older months), bot, person and kind. Members see and download their own use.
+- **Internet today:** how much the home's bot commands have downloaded and uploaded today (UTC), of the most they may in a day, and when it starts again; and what one command and one bot may use. Everyone in the home sees it, as the day's limit is the home's.
 - **How spending is counted:** what the figures are, as below.
 
 The account menu's first row, **Spending**, shows this month's figure; hover over it for whose figure it is and **See spending**, which opens this section.

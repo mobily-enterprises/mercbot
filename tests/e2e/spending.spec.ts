@@ -154,8 +154,8 @@ test("the person sees what the home's work cost by kind, bot and person, and no 
     const settings = page.getByRole("dialog", { name: "Settings" });
     await expect(settings.getByRole("heading", { name: "Spending", exact: true })).toBeVisible();
 
-    // This month, the report and how it's counted: nothing else.
-    await expect(settings.locator(".mb-set-group")).toHaveText(["This month", "Spending", "How spending is counted"]);
+    // This month, the report, the home's commands' internet today (D-127) and how it's counted: nothing else.
+    await expect(settings.locator(".mb-set-group")).toHaveText(["This month", "Spending", "Internet today", "How spending is counted"]);
     await expect(settings.getByTestId("month-spending")).toHaveText("$1.88");
     await expect(settings.getByText(/^This home in /u)).toBeVisible();
     const spending = settings.getByTestId("spending");
@@ -273,6 +273,40 @@ test("the person reads what was spent by day, week and range, and downloads it a
     // Left first, so the page doesn't go on reading the bot once it's gone (the API guard would see that).
     await page.goto("about:blank");
     await use.remove();
+  }
+});
+
+test("the person sees how much of the home's internet its bots' commands used today, and when it starts again", async ({ page }, testInfo) => {
+  // What the home's commands received and sent today (UTC), as their gateways write it (D-127): 1.5 GB in and 512 MB
+  // out of the 20 GB a home may use in a day, then the whole day.
+  const home = await ownHome(page);
+  const knex = connectTestDb();
+  const row = await knex("workspaces").where({ slug: home.slice("/w/".length) }).first();
+  const today = new Date().toISOString().slice(0, 10);
+  const GB = 1024 ** 3;
+  try {
+    await knex("internet_days").insert({ workspace_id: row.id, day: today, bytes_in: 1.5 * GB, bytes_out: 0.5 * GB, connections: 40 });
+    await openHome(page, home);
+    let settings = await openSpending(page);
+    const internet = settings.locator(".mb-internet");
+    await expect(internet.getByTestId("internet-today")).toHaveText("2.0 GB of 20.0 GB");
+    await expect(internet.getByRole("progressbar", { name: "2.0 GB of 20.0 GB of internet used today" })).toHaveAttribute("aria-valuenow", "10");
+    await expect(internet.getByTestId("internet-ways")).toHaveText("Received 1.5 GB, sent 512.0 MB. It starts again at midnight UTC.");
+    await expect(internet).toContainText("Each command may receive 2.0 GB and send 200.0 MB, and each bot may open 120 new connections a minute.");
+    await internet.scrollIntoViewIfNeeded();
+    await page.screenshot({ path: testInfo.outputPath("internet-today.png") });
+
+    // The whole day used: the bar is full, and it says when commands reach the internet again.
+    await knex("internet_days").where({ workspace_id: row.id, day: today }).update({ bytes_in: 19.5 * GB, bytes_out: 0.5 * GB });
+    await openHome(page, home);
+    settings = await openSpending(page);
+    await expect(settings.getByTestId("internet-today")).toHaveText("20.0 GB of 20.0 GB");
+    await expect(settings.getByTestId("internet-ways")).toHaveText("Received 19.5 GB, sent 512.0 MB. Used up: commands reach the internet again at midnight UTC.");
+    await page.setViewportSize({ width: 390, height: 844 });
+    expect(await fitsTheWidth(page)).toBe(true);
+  } finally {
+    await knex("internet_days").where({ workspace_id: row.id }).del();
+    await knex.destroy();
   }
 });
 

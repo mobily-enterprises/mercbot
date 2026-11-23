@@ -108,6 +108,12 @@ export const storageApi = {
   cancelMove: () => client.request(homePath("/files/storage/move"), { method: "DELETE" })
 };
 
+// What the home's bot commands used of the internet today (UTC) and their limits (D-127): { received, sent,
+// connections, homeDay, commandIn, commandOut, perMinute, startsAgainAt }, bytes but perMinute.
+export const internetApi = {
+  today: () => client.request(homePath("/files/internet"))
+};
+
 // A file attached in the chat goes into the chat's folder (its Uploads, unless `folder` says), with the session's CSRF token
 // as JSKIT's own uploads send it.
 async function csrfToken() {

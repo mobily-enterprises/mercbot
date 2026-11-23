@@ -4,6 +4,7 @@ import { createDriveStorage } from "./driveStorage.js";
 import { createFileMoves } from "./fileMoves.js";
 import { createFileStorageRepository } from "./fileStorageRepository.js";
 import { createFileStore } from "./fileStore.js";
+import { createInternetUsage, internetLimits } from "./internetUsage.js";
 import { createFilesVolume, databaseFilesKeys } from "./filesVolume.js";
 import { createMediaChecks } from "./mediaChecks.js";
 import { createOfficeApps } from "./officeApps.js";
@@ -17,8 +18,8 @@ import { createStorageSettings } from "./storageSettings.js";
 /**
  * The `mercbot.files` capability: the file store, the office apps, each home's own storage, its
  * mounts and the moves of its files between storages (D-80), the bots' command line on the same
- * folders, the pages bots write there (D-74), where a batch of homes keep their files, and how a copy built on Mercbot
- * checks pictures and videos (`media`, D-90).
+ * folders and what its commands use of the internet (`internet`, D-127), the pages bots write there (D-74), where a
+ * batch of homes keep their files, and how a copy built on Mercbot checks pictures and videos (`media`, D-90).
  * @param {object} dependencies
  * @param {Record<string, any>} dependencies.resources this feature's handles
  * @param {(reason: string) => object} dependencies.systemContext the feature's system scope
@@ -51,7 +52,11 @@ export function createFilesRuntime({ resources, systemContext, env, meter, integ
   // With a separate sandbox user (D-49) this server writes group-writable files too, so the
   // sandbox can change what it made and the other way round.
   if (sandboxUser(env)) process.umask(0o002);
-  const shell = createShell({ store, runs, env, meter, media });
+  // What bots' commands may use of the internet, per command, bot and home (D-127).
+  const internet = createInternetUsage({
+    internetDays: resources.internetDays, internetMinutes: resources.internetMinutes, systemContext, limits: internetLimits(env)
+  });
+  const shell = createShell({ store, runs, env, meter, media, internet });
   const pages = createPages({ store, resources, systemContext, env });
   return Object.freeze({
     store,
@@ -63,6 +68,7 @@ export function createFilesRuntime({ resources, systemContext, env, meter, integ
     shell,
     pages,
     media,
+    internet,
     commandOutput: runs.commandOutput,
     // Where each of a batch of homes keeps its files, in every home a system context reaches.
     storageKinds: createFileStorageRepository(resources).kindsByHome

@@ -2,12 +2,13 @@
 
 Every bot in a chat can run bash scripts on its own Linux command line there, in gVisor, on that chat's folders, with
 no network of its own: it reaches public internet addresses only through Mercbot's gateway, as the computer's browser
-does (D-47, D-112, D-126).
+does, within limits per command, per bot and per home (D-47, D-112, D-126, D-127).
 
 ## Sources
 
 - Main: `packages/files/src/server/shell.js`
 - `packages/files/src/server/gateway.js`
+- `packages/files/src/server/internetUsage.js`
 - `packages/files/src/server/gvisor.js`
 - `packages/files/src/server/storeToolbox.js`
 - `scripts/build-toolbox.sh`
@@ -18,6 +19,7 @@ does (D-47, D-112, D-126).
 - `scripts/toolbox-run.sh`
 - `scripts/tools-store.sh`
 - `migrations/20261113120000_baseline.cjs`
+- `migrations/20261123171500_internet_limits.cjs`
 - `packages/bots/src/server/botTools.js`
 - `packages/bots/src/server/commandTools.js`
 - `packages/bots/src/server/botLoops.js`
@@ -145,6 +147,22 @@ does (D-47, D-112, D-126).
     answers a `git@host:` address with "There's no ssh on this command line: use the repository's https:// address".
     A direct connection finds no network. Installs last one run: each starts from the same clean toolbox, and only what
     it writes in the folders (a clone, a project's `node_modules`) stays.
+  - **Internet limits (D-127):** one command may receive `MERCBOT_INTERNET_COMMAND_IN_MB` (2048) and send
+    `MERCBOT_INTERNET_COMMAND_OUT_MB` (200); past either its gateway ends every connection it has open and refuses
+    the rest (403). A bot may open `MERCBOT_INTERNET_CONNECTIONS_PER_MINUTE` (120) new connections in a clock minute,
+    across all its commands on every server (429, "slow down", when to try again), and a home's commands may use
+    `MERCBOT_INTERNET_HOME_DAY_MB` (20480) a UTC day, both ways added up (open connections end, new ones are refused,
+    until midnight UTC); each name's default applies when it's unset, and a value that isn't a positive number keeps
+    it, said as the server starts (`internetLimits`, `internetUsage.js`). Each gateway has a meter
+    (`createInternetUsage(...).forGateway({workspaceId, botId})`): it reads the home's day at its first connection,
+    adds what it counts to `internet_days` in one statement every 10 s while data moves, once 64 MB wait and as it
+    closes (never once a connection), each write answering the day's total, and takes the bot's connections from
+    `internet_minutes` 1, 2, 4, 8 then 16 at a time, giving back the rest as it closes. A failed read or write is
+    logged and never refuses. Whatever the gateway refused or ended, and why, is a note (the private addresses and
+    mail ports too), at most ten and then a count: the run's output, and its whole output when kept, end with them,
+    after a blank line (`withNotes`). `files.internet.today(options, homeId)` is the home's day for Settings →
+    Spending (`GET /api/w/:home/files/internet`, everyone in the home), and the hourly sweep removes days older than
+    two weeks (`internet.removeOld`).
   - **Limits:** each process gets `RLIMIT_AS` 2 GB, 128 processes, 1024 open files and 4 GB per
     file. A watchdog kills the sandbox above 3 GB in all. Output keeps the first and last 8 KB;
     when that cuts it, the whole output (up to 16 MB) is written once at the end as
@@ -170,7 +188,9 @@ does (D-47, D-112, D-126).
   the top pane follows `/tmp/bot.log` under `label`, the bottom pane is a bash loop for the person.
   While it exists, that seat's runs (except those with `readOnly`) execute in it with
   `runsc exec` (`IN_SESSION`): each is shown in the log with its heading and `(exit N)`, keeps
-  its own time limit, and shares the session's `/tmp`. The log starts again once past 1 MB and
+  its own time limit, and shares the session's `/tmp`. The session's gateway counts each run's internet from its start
+  (`gateway.begin()`) and again from its end, and the run's output ends with that run's notes (D-127); the person's
+  shell counts toward the bot's minute and the home's day. The log starts again once past 1 MB and
   takes at most 1 MB of one command; the run's own output is unaffected.
   - **The Terminal:** `shell.terminalCommand(key)` is the command the desktop's xterm runs
     (`tmux attach`).
@@ -193,6 +213,9 @@ does (D-47, D-112, D-126).
 ## Owned data
 
 - `shell_runs`: one row per command a bot ran, keyed by its seat (`chat_bot_id`).
+- `internet_days`: what a home's bot commands received, sent and opened on the internet each UTC day, one row a home and
+  day, kept two weeks (D-127).
+- `internet_minutes`: each bot's new connections in its present minute, one row a bot (D-127).
 
 ## Proved by
 
@@ -200,6 +223,9 @@ does (D-47, D-112, D-126).
 - `tests/server/commandInternet.test.js`
 - `tests/server/commandInternetWords.test.js`
 - `tests/server/gateway.test.js`
+- `tests/server/internetLimits.test.js`
+- `tests/server/internetLimits.integration.js`
+- `tests/e2e/spending.spec.ts`
 - `tests/server/storeToolbox.test.js`
 - `tests/server/toolboxRun.test.js`
 - `tests/server/toolsStore.test.js`

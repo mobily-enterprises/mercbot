@@ -11,7 +11,9 @@ import path from "node:path";
 // addresses it checked, never to this server or its network: no loopback, private or link-local ranges (cloud
 // metadata), no carrier-grade NAT, multicast or reserved ranges, and none of this machine's own addresses. Mail ports
 // are refused, so a bot can't send spam. Plain TCP to any other port of a public address goes through CONNECT too
-// (D-126). It keeps a short list of where it connected.
+// (D-126). It keeps a short list of where it connected. A command's gateway also has the command's limits (D-127): what
+// one command may receive and send, the bot's new connections a minute and the home's internet a day (`meter`,
+// internetUsage.js), and keeps what it refused or ended as notes, which the command's output ends with.
 const BLOCKED = new net.BlockList();
 for (const [address, prefix] of [
   ["0.0.0.0", 8], ["10.0.0.0", 8], ["100.64.0.0", 10], ["127.0.0.0", 8], ["169.254.0.0", 16], ["172.16.0.0", 12],
@@ -26,6 +28,17 @@ for (const entry of Object.values(os.networkInterfaces()).flat()) {
 }
 const BLOCKED_PORTS = new Set([25, 465, 587, 2525]);
 const HEAD_LIMIT = 64 * 1024;
+// A command's notes: its first few refusals, and how many more there were.
+const NOTES_KEPT = 10;
+const MB = 1024 ** 2;
+const GB = 1024 ** 3;
+
+/** An amount of data as people read it: "2 GB", "1.5 GB", "200 MB", "12 KB". */
+export function sizeText(bytes) {
+  if (bytes >= GB) return `${Number((bytes / GB).toFixed(1))} GB`;
+  if (bytes >= MB) return `${Math.round(bytes / MB)} MB`;
+  return bytes >= 1024 ? `${Math.round(bytes / 1024)} KB` : `${bytes} bytes`;
+}
 
 /**
  * An IPv4 address written as IPv6 (::ffff:10.0.0.1) is checked as the IPv4 address it is. (Node's
@@ -54,18 +67,46 @@ async function publicAddress(host) {
   return found[0];
 }
 
-function refuse(client, status, message) {
+function answer(client, status, message) {
   client.end(`HTTP/1.1 ${status}\r\nContent-Type: text/plain; charset=utf-8\r\nConnection: close\r\n` +
     `Content-Length: ${Buffer.byteLength(message)}\r\n\r\n${message}`);
 }
 
 /**
+ * A gateway's meter (internetUsage.js `forGateway`, D-127).
+ * @typedef {{
+ *   connection: () => Promise<{ status: string, key: string, message: string } | null>,
+ *   add: (received: number, sent: number) => string | null,
+ *   close: () => Promise<void>
+ * }} GatewayMeter
+ */
+
+/** What a command's gateway says when the command passes what one command may receive or send (D-127). */
+const PASSED = Object.freeze({
+  in: (most) => `Mercbot's gateway ended this command's internet connections: it received ${sizeText(most)}, the most one command may receive.`,
+  out: (most) => `Mercbot's gateway ended this command's internet connections: it sent ${sizeText(most)}, the most one command may send.`
+});
+
+/**
  * `socketPath`: where the sandbox's forwarder connects. `standIns` (tests only) maps a public "host:port" to the local
  * `{ address, port }` that stands in for it, so a test reaches "the internet" without leaving its machine; the mail
- * ports are refused before it is read. Returns { close(), stats }.
- * @param {{ socketPath: string, standIns?: Map<string, { address: string, port: number }> }} options
+ * ports are refused before it is read.
+ *
+ * A command's gateway (D-127) has `limits`, the bytes one command may receive (`commandIn`) and send (`commandOut`),
+ * and a `meter` (internetUsage.js `forGateway`): `connection()` before each connection, which answers a refusal or
+ * null, `add(received, sent)` for each chunk, which answers why the connections must end now or null, and `close()`.
+ * Past a command's limit every open connection ends, and later ones are refused, until the next command begins.
+ * Every refusal, and the reason connections ended, is kept as a note. A gateway is one command's (a command's own
+ * sandbox) or serves one after another (a computer's session): `begin()` starts the next command's count and notes,
+ * `notes()` are the present command's. Returns { close(), begin(), notes(), stats }.
+ * @param {{
+ *   socketPath: string,
+ *   standIns?: Map<string, { address: string, port: number }>,
+ *   limits?: { commandIn: number, commandOut: number } | null,
+ *   meter?: GatewayMeter | null
+ * }} options
  */
-export async function startGateway({ socketPath, standIns = new Map() }) {
+export async function startGateway({ socketPath, standIns = new Map(), limits = null, meter = null }) {
   const stats = { connections: 0, refused: 0, bytes: 0, recent: [] };
   const note = (host, port, ok) => {
     stats.recent.unshift({ host, port, ok, at: new Date().toISOString() });
@@ -73,9 +114,46 @@ export async function startGateway({ socketPath, standIns = new Map() }) {
     if (ok) stats.connections += 1;
     else stats.refused += 1;
   };
+  // The present command's bytes each way, its notes by what they're about, and why its connections ended ({ key,
+  // message }), if they did.
+  const fresh = () => ({ received: 0, sent: 0, notes: new Map(), more: 0, ended: null });
+  let command = fresh();
+  const remember = (key, message) => {
+    if (command.notes.has(key)) return;
+    if (command.notes.size < NOTES_KEPT) command.notes.set(key, message);
+    else command.more += 1;
+  };
+  const refuse = (client, status, message, key = message) => {
+    remember(key, message);
+    answer(client, status, message);
+  };
+  // Every client connection, and those that reached their host, to end them.
+  const clients = new Set();
+  const open = new Set();
+  const endAll = (key, message) => {
+    command.ended = { key, message };
+    remember(key, message);
+    for (const pair of open) {
+      pair.client.destroy();
+      pair.upstream.destroy();
+    }
+  };
+  /** Counts a chunk each way, for the command and its home's day, and ends every connection past a limit. */
+  const counted = (way) => (chunk) => {
+    stats.bytes += chunk.length;
+    const now = command;
+    now[way] += chunk.length;
+    const stop = meter?.add(way === "received" ? chunk.length : 0, way === "sent" ? chunk.length : 0);
+    if (now.ended) return;
+    if (limits && way === "received" && now.received > limits.commandIn) endAll("in", PASSED.in(limits.commandIn));
+    else if (limits && way === "sent" && now.sent > limits.commandOut) endAll("out", PASSED.out(limits.commandOut));
+    else if (stop) endAll("day", stop);
+  };
 
   const server = net.createServer((client) => {
     let head = Buffer.alloc(0);
+    clients.add(client);
+    client.on("close", () => clients.delete(client));
     client.on("error", () => {});
     const onData = async (chunk) => {
       head = Buffer.concat([head, chunk]);
@@ -128,28 +206,41 @@ export async function startGateway({ socketPath, standIns = new Map() }) {
         note(host, port, false);
         return refuse(client, "403 Forbidden", error.message);
       }
+      // A command past its limits connects nowhere more; then the bot's minute and the home's day (D-127).
+      if (command.ended) {
+        note(host, port, false);
+        return refuse(client, "403 Forbidden", command.ended.message, command.ended.key);
+      }
+      const refusal = meter ? await meter.connection() : null;
+      if (refusal) {
+        note(host, port, false);
+        return refuse(client, refusal.status, refusal.message, refusal.key);
+      }
+      if (client.destroyed) return;
       const upstream = net.connect({ host: address.address, port: standIn?.port ?? port, family: address.family });
+      const pair = { client, upstream };
       upstream.on("error", () => {
         client.destroy();
       });
       upstream.on("connect", () => {
         note(host, port, true);
-        if (method === "CONNECT") {
-          client.write("HTTP/1.1 200 Connection Established\r\n\r\n");
-          if (rest.length) upstream.write(rest);
-        } else {
-          upstream.write(firstBytes);
+        open.add(pair);
+        if (method === "CONNECT") client.write("HTTP/1.1 200 Connection Established\r\n\r\n");
+        const first = method === "CONNECT" ? rest : firstBytes;
+        if (first.length) {
+          upstream.write(first);
+          counted("sent")(first);
         }
-        const count = (chunk) => {
-          stats.bytes += chunk.length;
-        };
-        upstream.on("data", count);
-        client.on("data", count);
+        upstream.on("data", counted("received"));
+        client.on("data", counted("sent"));
         upstream.pipe(client);
         client.pipe(upstream);
         client.resume();
       });
-      client.on("close", () => upstream.destroy());
+      client.on("close", () => {
+        open.delete(pair);
+        upstream.destroy();
+      });
     };
     client.on("data", onData);
   });
@@ -159,7 +250,20 @@ export async function startGateway({ socketPath, standIns = new Map() }) {
   });
   return {
     stats,
-    close: () => new Promise((resolve) => server.close(() => resolve()))
+    begin() {
+      command = fresh();
+    },
+    notes() {
+      const notes = [...command.notes.values()];
+      return command.more ? [...notes, `Mercbot's gateway refused ${command.more} more connections.`] : notes;
+    },
+    // Whatever is still connected ends with the gateway, so its last counts reach the home's day.
+    async close() {
+      const closed = new Promise((resolve) => server.close(() => resolve()));
+      for (const client of clients) client.destroy();
+      await closed;
+      await meter?.close();
+    }
   };
 }
 
@@ -242,11 +346,13 @@ for _ in $(seq 100); do [ -e /tmp/.gateway-ready ] && break; sleep 0.05; done`;
  * A gateway of one sandbox's own (a command's, a computer's session, a coding run's): its socket and the forwarder in
  * `dir` (made here), the folder the sandbox is given at GATEWAY_INSIDE. The sandbox starts with `--host-uds=open`, so
  * it may connect to sockets in the folders it's given: this is the only one of the server's there. `start` is how the
- * gateway starts (tests: one with stand-ins). Resolves to the gateway, { close(), stats }.
+ * gateway starts (tests: one with stand-ins), given `options` (a command's `limits` and `meter`, D-127). Resolves to the
+ * gateway, { close(), begin(), notes(), stats }.
  * @param {string} dir
  * @param {typeof startGateway} [start]
+ * @param {{ limits?: { commandIn: number, commandOut: number } | null, meter?: object | null }} [options]
  */
-export async function sandboxGateway(dir, start = startGateway) {
+export async function sandboxGateway(dir, start = startGateway, options = {}) {
   await fs.mkdir(dir, { recursive: true });
   await fs.writeFile(path.join(dir, "forward.py"), FORWARDER);
   // A socket's path has at most 107 bytes, and a sandbox's folder under a long TMPDIR passes that (Production's
@@ -254,10 +360,11 @@ export async function sandboxGateway(dir, start = startGateway) {
   // handle stays open until the gateway has closed, which removes the socket by that same path.
   const folder = await fs.open(dir, constants.O_RDONLY | constants.O_DIRECTORY);
   try {
-    const gateway = await start({ socketPath: `/proc/self/fd/${folder.fd}/gateway.sock` });
-    return { stats: gateway.stats, close: () => gateway.close().finally(() => folder.close().catch(() => {})) };
+    const gateway = await start({ ...options, socketPath: `/proc/self/fd/${folder.fd}/gateway.sock` });
+    return { ...gateway, close: () => gateway.close().finally(() => folder.close().catch(() => {})) };
   } catch (error) {
     await folder.close().catch(() => {});
+    await options.meter?.close().catch(() => {});
     throw error;
   }
 }

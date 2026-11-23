@@ -265,6 +265,12 @@ export function registerRoutes(http, { files, records, uploads }) {
     reply.send({ bots: bots.map(({ id, name, color, shape }) => ({ id, name, color, shape })) });
   });
 
+  // What the home's bot commands used of the internet today and the most they may (D-127), for Settings → Spending:
+  // the whole home's, for everyone in it, as the day's budget is the home's.
+  router.register("GET", `${base}/internet`, home, async function internetToday(request, reply) {
+    reply.send(await files.internet.today(await request.callOptions(), request.workspace.id));
+  });
+
   // Where the home's files are kept (D-26, D-36). Owners and admins choose it. Settings → Files asks with ?fresh=1, and
   // Mercbot then looks at a Google Drive's folder and space now (D-80); the Files page tells what was last seen.
   router.register("GET", `${base}/storage`, home, served(async function describeStorage(request, reply) {
