@@ -8,6 +8,9 @@ import { RegistryError } from "./registry.js";
 // naming the problem. Read once; they're data.
 const folder = new URL("../../catalog/", import.meta.url);
 
+/** Whether a field type is one tables have. */
+export const knownType = (type) => Object.hasOwn(STORAGE_TYPES, String(type));
+
 /** A name as the catalog compares names: lower case, words joined by _ ("To-do list" → "to_do_list"). */
 export const plainName = (name) => String(name ?? "").trim().toLowerCase().replace(/[\s\-']+/gu, "_").replace(/[^a-z0-9_]/gu, "");
 
@@ -35,7 +38,7 @@ export function catalogProblems(entries) {
     for (const field of entry.fields || []) {
       if (fieldKeys.has(field.key)) problems.push(`${at}: field "${field.key}" appears twice.`);
       fieldKeys.add(field.key);
-      if (!(field.type in STORAGE_TYPES)) problems.push(`${at}: field "${field.key}" has an unknown type "${field.type}".`);
+      if (!knownType(field.type)) problems.push(`${at}: field "${field.key}" has an unknown type "${field.type}".`);
       if (field.type === "link" && !keys.has(field.target)) problems.push(`${at}: field "${field.key}" links to "${field.target}", which isn't in the catalog.`);
     }
     if (!(entry.fields || []).some((field) => field.type === "text" || field.type === "link")) problems.push(`${at}: it needs a text or link field.`);
@@ -202,9 +205,30 @@ export function createTableCatalog({ registry, gate }) {
     return { table: await liveByKey(key, ctx.options), made };
   }
 
+  /**
+   * A bot template's own table (D-130), linked to the shared ones (bills to organisations): the shared tables it links to
+   * first, then made, or completed with the fields it lacks. Its key is never a shared table's or one of their names.
+   * @param {{ actor: object, options: object }} ctx
+   * @param {{ key: string, label?: string, fields: object[] }} own
+   */
+  async function ensureOwnTable(ctx, own) {
+    const taken = catalogMatch(own.key) || catalogMatch(own.label);
+    if (taken) {
+      throw new RegistryError(409, `"${own.key}" is the shared ${CATALOG.get(taken).label} table's name.`, {
+        code: "apps_table_in_catalog",
+        params: { key: String(own.key), table: taken }
+      });
+    }
+    const made = [];
+    for (const target of needsOf(own).filter((key) => CATALOG.has(key))) await ensureTable(ctx, target, made);
+    if (await ensureFields(ctx, own)) made.push(own.key);
+    return { table: await liveByKey(own.key, ctx.options), made };
+  }
+
   return Object.freeze({
     ensureTable,
     ensureExtension,
+    ensureOwnTable,
     match: catalogMatch,
     entries,
     useInstead

@@ -123,6 +123,8 @@ const neutral = {
   apps: () => ({
     // No apps in the home: none found by id (a Builder room) or by a search.
     apps: { builder: async () => null, findApp: async () => null, searchViews: async () => [], queueTask: missing("apps") },
+    // A template's tables (D-130) aren't made: a test that needs them passes the real catalog.
+    catalog: { ensureTable: async () => ({ table: null, made: [] }), ensureOwnTable: async () => ({ table: null, made: [] }) },
     registry: {},
     gate: {},
     // No watches, so none pauses (an archived bot's, or those of a person who left the home).

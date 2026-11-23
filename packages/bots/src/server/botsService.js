@@ -157,7 +157,7 @@ export function createBotsService({
 
   // The Team page: the home's bots, made from templates or described, changed, archived, in teams, and what they made.
   const botList = createBotList({ records, apps, notices });
-  const templates = createBotTemplates({ records, profiles, integrations, env, templateLinks, botList });
+  const templates = createBotTemplates({ records, profiles, integrations, env, templateLinks, botList, apps });
   const settings = createBotSettings({ records, computer, notices, tellHome: botList.tellHome, listedBot: botList.listedBot });
   const archive = createBotArchive({
     records,

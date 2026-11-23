@@ -74,3 +74,23 @@ test("an extension holds one row per record of its base, made once, and never ta
   const crm = await catalog.ensureTable(ctx, "crm_contacts");
   assert.deepEqual(crm.made, ["crm_contacts"], "the catalog's own extension, of the contacts already there");
 });
+
+test("a template's own table comes after the shared tables it links to, and a second template's shared table is reused", async (context) => {
+  const { ctx, keys, catalog } = await setup(context, "apps-catalog-own");
+  const bills = {
+    key: "bills",
+    label: "Bills",
+    fields: [{ key: "title", type: "text", required: true }, { key: "provider", type: "link", target: "organisations" }, { key: "amount", type: "money" }]
+  };
+  // As the household bills template asks: its shared table, then its own.
+  assert.deepEqual((await catalog.ensureTable(ctx, "organisations")).made, ["organisations"]);
+  const own = await catalog.ensureOwnTable(ctx, bills);
+  assert.deepEqual(own.made, ["bills"]);
+  assert.equal(own.table.fields.find((field) => field.key === "provider").type, "link");
+  assert.deepEqual((await catalog.ensureOwnTable(ctx, bills)).made, [], "made once");
+  // A second template's contacts link to the organisations already there.
+  assert.deepEqual((await catalog.ensureTable(ctx, "contacts")).made, ["contacts"]);
+  assert.deepEqual(await keys(), ["bills", "contacts", "organisations"]);
+  await assert.rejects(catalog.ensureOwnTable(ctx, { key: "customers", fields: [{ key: "name", type: "text" }] }), { code: "apps_table_in_catalog" });
+  await assert.rejects(catalog.ensureOwnTable(ctx, { key: "my_people", label: "People", fields: [{ key: "name", type: "text" }] }), { code: "apps_table_in_catalog" });
+});

@@ -30,7 +30,7 @@ export async function startSurfaces(knex, context, {
   const parts = await startBotParts(knex, context);
   const { records, profiles, workspaces, systemContext } = parts;
   const meter = track ? { ...parts.meter, track: (who, work) => (track(who), parts.meter.track(who, work)) } : parts.meter;
-  const calls = { told: [], sleeps: [], removed: [], paused: [], files: [] };
+  const calls = { told: [], sleeps: [], removed: [], paused: [], files: [], tables: [] };
   const builder = { id: null };
   const notices = {
     publish: async (topic, key, event) => { calls.told.push({ topic, keys: [String(key)], event }); },
@@ -44,6 +44,11 @@ export async function startSurfaces(knex, context, {
     apps: {
       builder: async () => (builder.id ? { id: String(builder.id), name: "Builder", color: "#1E86FC" } : null),
       searchViews: async () => views
+    },
+    // The tables a template declares (D-130), as Add bots makes them: noted, never made here.
+    catalog: {
+      ensureTable: async (ctx, key) => { calls.tables.push(key); },
+      ensureOwnTable: async (ctx, table) => { calls.tables.push(table.key); }
     }
   };
   const files = {
@@ -64,7 +69,7 @@ export async function startSurfaces(knex, context, {
   const chats = createChatMembers({ records, notices, computer, systemContext, pauseWork, forget: async () => {} });
   const onboarding = createOnboarding({ records, chats, model, meter, notices, workspaces });
   const botList = createBotList({ records, apps, notices });
-  const templates = createBotTemplates({ records, profiles, integrations, env: process.env, templateLinks, botList });
+  const templates = createBotTemplates({ records, profiles, integrations, env: process.env, templateLinks, botList, apps });
   const settings = createBotSettings({ records, computer, notices, tellHome: botList.tellHome, listedBot: botList.listedBot });
   const archive = createBotArchive({ records, apps, computer, pauseWork, tellHome: botList.tellHome, listedBot: botList.listedBot });
   const teams = createBotTeams({ records, botList, templates, onboarding, notices });

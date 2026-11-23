@@ -58,6 +58,22 @@ test("every template file is a valid template, listed once, with no tested date 
   }
 });
 
+// A template's tables (D-130): shared tables by key, and tables of its own that no shared table is for, of known types,
+// linked to shared tables or its own declared before them.
+test("a template's tables are shared tables' keys or its own, linked to what exists, and never a second shared table", () => {
+  const base = { ...written[0].template, creator: "the Mercbot team" };
+  const check = (tables) => () => checkTemplate({ ...base, tables }, "bad.json");
+  assert.doesNotThrow(check(["contacts", { key: "plants", fields: [{ key: "name", type: "text" }, { key: "where", type: "link", target: "places" }] }]));
+  assert.doesNotThrow(check([{ key: "beds", fields: [{ key: "name", type: "text" }] }, { key: "plants", fields: [{ key: "bed", type: "link", target: "beds" }] }]));
+  assert.throws(check(["plantz"]), /tables: "plantz" isn't a shared table/u);
+  assert.throws(check([{ key: "customers", fields: [{ key: "name", type: "text" }] }]), /"customers" is what the shared table "contacts" is for/u);
+  assert.throws(check([{ key: "my_jobs", label: "Tasks", fields: [{ key: "name", type: "text" }] }]), /shared table "todos" is for/u);
+  assert.throws(check([{ key: "plants", fields: [{ key: "bed", type: "link", target: "beds" }] }]), /links to "beds", neither a shared table nor one declared before it/u);
+  assert.throws(check([{ key: "plants", fields: [{ key: "name", type: "texty" }] }]), /"plants" field "name" has an unknown type/u);
+  assert.throws(check([{ key: "plants" }]), /"plants" needs a key .* and fields/u);
+  assert.throws(check("contacts"), /tables: shared tables' keys and tables of its own/u);
+});
+
 // Every template has a tag (D-98): the one word a bot made from it shows beside its name. Each is one of a kind, general's
 // among them, and a home's own template is never given one of them.
 test("every template has a tag of its own, 2 to 10 lowercase letters or digits, and general is the library's too", () => {

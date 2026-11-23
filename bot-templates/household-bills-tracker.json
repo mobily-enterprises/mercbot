@@ -32,5 +32,74 @@
     "outlook",
     "google-drive",
     "onedrive"
+  ],
+  "tables": [
+    "organisations",
+    {
+      "key": "bills",
+      "label": "Bills",
+      "fields": [
+        {
+          "key": "title",
+          "label": "Bill",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "provider",
+          "label": "Provider",
+          "type": "link",
+          "target": "organisations"
+        },
+        {
+          "key": "amount",
+          "label": "Amount",
+          "type": "money"
+        },
+        {
+          "key": "how_often",
+          "label": "How often",
+          "type": "choice",
+          "choices": [
+            "Weekly",
+            "Monthly",
+            "Quarterly",
+            "Yearly",
+            "Once"
+          ]
+        },
+        {
+          "key": "next_payment",
+          "label": "Next payment",
+          "type": "date"
+        },
+        {
+          "key": "paid_by",
+          "label": "Paid by",
+          "type": "choice",
+          "choices": [
+            "Direct debit",
+            "Card",
+            "Bank transfer",
+            "Other"
+          ]
+        },
+        {
+          "key": "renews",
+          "label": "Contract end or renewal",
+          "type": "date"
+        },
+        {
+          "key": "bill",
+          "label": "Latest bill",
+          "type": "file"
+        },
+        {
+          "key": "notes",
+          "label": "Notes",
+          "type": "longtext"
+        }
+      ]
+    }
   ]
 }

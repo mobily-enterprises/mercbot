@@ -1,5 +1,6 @@
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
+import { CATALOG, catalogMatch, knownType } from "@local/apps/server/tableCatalog";
 import { BOT_PALETTE } from "./botPalette.js";
 import { TEAMS_FILE, TEMPLATES_DIR, templateFingerprint } from "./templateResults.js";
 import { TAG, TEMPLATE_LIMITS, setupSkillOf, templateProblems } from "../shared/templateBody.js";
@@ -72,6 +73,40 @@ export function setupNeeds(template) {
  * A template file is checked when Mercbot starts, so a broken one never reaches the gallery; the static checks
  * (tests/server/templateChecks.test.js) run it on every file too.
  */
+/**
+ * What's wrong with a template's `tables` (D-130), each a problem: a shared table's key, or a table of its own whose
+ * name no shared table has, whose fields have known types, and whose links point at shared tables, its own tables
+ * declared before it, or itself.
+ */
+function tablesProblems(tables) {
+  if (tables === undefined) return [];
+  if (!Array.isArray(tables)) return ["tables: shared tables' keys and tables of its own"];
+  const problems = [];
+  const own = new Set();
+  for (const table of tables) {
+    if (typeof table === "string") {
+      if (!CATALOG.has(table)) problems.push(`tables: "${table}" isn't a shared table`);
+      continue;
+    }
+    const key = String(table?.key || "");
+    if (!/^[a-z][a-z0-9_]{0,63}$/u.test(key) || !Array.isArray(table.fields) || !table.fields.length) {
+      problems.push(`tables: "${key}" needs a key (a–z, 0–9 and _) and fields`);
+      continue;
+    }
+    const shared = catalogMatch(key) || catalogMatch(table.label);
+    if (shared) problems.push(`tables: "${key}" is what the shared table "${shared}" is for: list "${shared}" instead`);
+    for (const field of table.fields) {
+      if (!knownType(field?.type)) problems.push(`tables: "${key}" field "${field?.key}" has an unknown type`);
+      const target = field?.type === "link" ? field.target : null;
+      if (target && !CATALOG.has(target) && !own.has(target) && target !== key) {
+        problems.push(`tables: "${key}" field "${field.key}" links to "${target}", neither a shared table nor one declared before it`);
+      }
+    }
+    own.add(key);
+  }
+  return problems;
+}
+
 export function checkTemplate(template, file = template.slug) {
   const problems = [];
   const text = (value, max) => typeof value === "string" && value.trim() && value.length <= max;
@@ -98,6 +133,7 @@ export function checkTemplate(template, file = template.slug) {
     problems.push("routines: each with a name, when and what");
   }
   if (!Array.isArray(template.apps) || template.apps.some((app) => typeof app !== "string")) problems.push("apps: plugin ids");
+  problems.push(...tablesProblems(template.tables));
   // What the team changed, newest first (D-98): each bot using it shows the newest change since it started to.
   if (
     "changes" in template &&

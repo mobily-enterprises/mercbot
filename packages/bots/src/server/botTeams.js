@@ -83,8 +83,11 @@ export function createBotTeams({ records, botList, templates, onboarding, notice
       }
       const made = await botList.makeBots(starts, txOptions);
       const chatId = await onboarding.introduce(made, txOptions);
-      return { made, chatId, skipped: slugs.filter((slug) => followed.has(slug)) };
+      const library = starts.map((entry) => entry.start.columns.library_template);
+      return { made, chatId, skipped: slugs.filter((slug) => followed.has(slug)), library };
     }));
+    // The tables their templates declare (D-130), once the bots are made.
+    await templates.templateTables(done.library, options);
     const added = done.made.map((bot) => String(bot.id));
     await botList.tellHome(added, "created", options);
     if (done.chatId) {

@@ -30,8 +30,10 @@ export const NO_TEMPLATE_LINKS = Object.freeze({ find: async () => null });
  *   (`mercbot.template-links`; NO_TEMPLATE_LINKS when the copy adds none)
  * @param {import("./types.js").BotList} dependencies.botList new bots made and opened, the
  *   bot as Team lists it, and the home told
+ * @param {import("@local/apps/server/types").Apps} dependencies.apps the home's tables, which a template's tables are
+ *   made in (D-130)
  */
-export function createBotTemplates({ records, profiles, integrations, env, templateLinks, botList }) {
+export function createBotTemplates({ records, profiles, integrations, env, templateLinks, botList, apps }) {
   // How bots behave, and the day each of Mercbot's templates last passed its end-to-end check for that and for the
   // template as it is now, worked out once at start (D-79).
   const behaviour = behaviourFingerprint();
@@ -124,6 +126,25 @@ export function createBotTemplates({ records, profiles, integrations, env, templ
   }
 
   /**
+   * The tables Mercbot's templates `slugs` declare (D-130), made in the home once their bots are, as the person adding
+   * them: each shared table with the tables it links to, and each template table of its own, linked to the shared ones.
+   * One already there is reused and gains only the fields it lacks. The bots are made whatever happens here: a table
+   * that couldn't be made is logged, and the bot adds a shared one itself (table_ensure) or asks the Builder for its own.
+   */
+  async function templateTables(slugs, options) {
+    const ctx = { options, actor: { type: "person", id: String(personOf(options)), name: "" }, via: { kind: "template" } };
+    for (const slug of new Set(slugs.filter(Boolean))) {
+      for (const table of LIBRARY.get(slug)?.tables || []) {
+        // A shared table by its key, or one of the template's own.
+        const shared = typeof table === "string";
+        const made = shared ? apps.catalog.ensureTable(ctx, table) : apps.catalog.ensureOwnTable(ctx, table);
+        const name = shared ? table : table.key;
+        await made.catch((error) => console.warn(`Making the ${slug} template's table ${name} failed: ${error?.message}`));
+      }
+    }
+  }
+
+  /**
    * Adding a bot from a template or a shared link (D-98): it takes the template's name and look and points at it, one of
    * Mercbot's library, or for a link a new template of the person's home made from it, and greets the person in their
    * direct chat with it. Its routines aren't copied: its setup interview creates them, paused, once the person agrees.
@@ -144,6 +165,7 @@ export function createBotTemplates({ records, profiles, integrations, env, templ
       const chat = await botList.openWith(bot, greeting, txOptions);
       return { bot, chatId: chat.id };
     }));
+    await templateTables([template.linked ? null : template.slug], options);
     await botList.tellHome([made.bot.id], "created", options);
     await botList.tellOpened(made.chatId, options);
     return botList.listedBot(String(made.bot.id), options);
@@ -161,8 +183,9 @@ export function createBotTemplates({ records, profiles, integrations, env, templ
       const start = await startOn({ choice: input.template ?? { library: GENERAL.slug }, botName: look.name }, txOptions);
       const [bot] = await botList.makeBots([{ ...look, start }], txOptions);
       const chat = await botList.openWith(bot, start.greeting, txOptions);
-      return { bot, chatId: chat.id };
+      return { bot, chatId: chat.id, library: start.columns.library_template };
     }));
+    await templateTables([made.library], options);
     await botList.tellHome([made.bot.id], "created", options);
     await botList.tellOpened(made.chatId, options);
     return botList.listedBot(String(made.bot.id), options);
@@ -261,6 +284,7 @@ export function createBotTemplates({ records, profiles, integrations, env, templ
       return chat.id;
     });
     if (changed) {
+      await templateTables([(await bots.get(botId, options)).library_template], options);
       await botList.tellHome([String(botId)], "changed", options);
       await botList.tellMessages(changed, options);
     }
@@ -439,6 +463,7 @@ export function createBotTemplates({ records, profiles, integrations, env, templ
     changeTemplate,
     instructionsOf,
     startOn,
+    templateTables,
     homeTemplates,
     homeTemplate,
     editHomeTemplate,
