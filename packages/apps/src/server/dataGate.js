@@ -7,6 +7,7 @@ import { GateError, cleanRecord } from "./validate.js";
 import { fromSheet } from "./sheetInput.js";
 import { createRecordChecks } from "./recordChecks.js";
 import { createAuditReads } from "./auditReads.js";
+import { createRecordFiles } from "./recordFiles.js";
 import {
   checkFields,
   fence,
@@ -57,6 +58,8 @@ const CALCULATED_TOTALS_MAX = 5000;
  * @param {{ activeIds: (options: object) => Promise<Array<string | number>>, names: (ids: string[], options: object) =>
  *   Promise<Map<string, string>> }} dependencies.people the home's members, for person fields: who is in the home now
  *   (a person field holds only them) and their names (as a person field reads back)
+ * @param {() => { write: Function, remove: Function } | null} dependencies.recordFiles Database files' writer, which the
+ *   files feature plugs in at start (null until then: files can't be added)
  */
 export function createDataGate({
   resources,
@@ -70,13 +73,15 @@ export function createDataGate({
     flush: async () => {}
   }),
   calculatedTotalsMax = CALCULATED_TOTALS_MAX,
-  people
+  people,
+  recordFiles
 }) {
   const { auditEvents } = resources;
   // The home a ctx acts in: its call options'.
   const homeOf = (ctx) => homeIdOf(ctx.options);
   const { membersOf, checkPeople, checkUnique, labelPeople } = createRecordChecks({ people, homeOf });
   const { newestAudits, activity, actors } = createAuditReads({ auditEvents, repository });
+  const files = createRecordFiles({ impl: recordFiles, homeOf, tableFor, get, update });
 
   /** A table of the call's home by id, or by its live key. */
   async function tableFor(tableIdOrKey, options, { forWrite = false } = {}) {
@@ -338,6 +343,8 @@ export function createDataGate({
     const access = fence(ctx, table, action === "obsolete" ? "delete" : "update");
     let values = input;
     const api = await apiFor(ctx, tables, table);
+    // Files a change replaced or cleared, removed from Database files once it's in (only when it commits here).
+    const replaced = [];
     const row = await within(ctx, given, async (txOptions) => {
       const transaction = txOptions.trx;
       // AnyAPI's get() has no not-found answer: it throws for a missing record, which reads as null here.
@@ -357,15 +364,18 @@ export function createDataGate({
         await checkUnique(ctx, api, table, { ...before, ...values }, id, txOptions);
       }
       const changes = {};
+      const same = (old, value) => JSON.stringify(old ?? null) === JSON.stringify(value ?? null);
       for (const [fieldId, value] of Object.entries(values)) {
         const old = before[fieldId] ?? null;
-        if (String(old) !== String(value ?? null) || (old === null) !== (value === null)) changes[fieldId] = [old, value];
+        if (!same(old, value)) changes[fieldId] = [old, value];
+        if (old?.path && !same(old, value) && table.fields.some((field) => field.id === fieldId && ["file", "image"].includes(field.type))) replaced.push(old.path);
       }
       if (!Object.keys(changes).length) return before;
       const after = await api.resources[table.id].patch({ id: String(id), data: values, transaction }, { includeObsolete: true });
       await recorded(ctx, table, id, action, action === "update" ? changes : {}, txOptions);
       return after;
     });
+    if (!given && replaced.length) await files.removeAll(ctx, replaced);
     return access ? project(access, toRecord(table, row)) : toRecord(table, row);
   }
 
@@ -629,6 +639,8 @@ export function createDataGate({
     activity,
     actors,
     importRecords,
+    attachFile: files.attach,
+    recordFile: files.fileOf,
     tableFor,
     withTransaction
   });

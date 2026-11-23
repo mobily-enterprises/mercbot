@@ -37,6 +37,14 @@ export function createAppsRuntime({ resources, systemContext, records, anyapi, n
     const named = await people.names(ids, options);
     return ids.map((id) => ({ id, name: named.get(id) ?? "Someone" })).sort((a, b) => a.name.localeCompare(b.name));
   };
+  // Database files' writer (D-127): the files feature plugs it in at start (useRecordFiles), as it depends on apps.
+  let recordFiles = null;
+  /** The files feature's writer of record files: `{ write, remove }` (fileStore's writeRecordFile, removeRecordFile). */
+  function useRecordFiles(impl) {
+    recordFiles = impl;
+  }
+  /** How a record's upload is read: the files feature's size limit and picture check, or null before it plugs in. */
+  const recordUploads = () => (recordFiles ? { receive: recordFiles.receive, limit: recordFiles.limit } : null);
   const gate = createDataGate({
     resources,
     repository,
@@ -45,7 +53,8 @@ export function createAppsRuntime({ resources, systemContext, records, anyapi, n
     practices,
     beforeSave: (...args) => scripts.beforeSave(...args),
     beforeSaveEach: (...args) => scripts.beforeSaveEach(...args),
-    people
+    people,
+    recordFiles: () => recordFiles
   });
   const apps = createApps({ resources, records, registry, anyapi, practices, notices });
   scripts = createScripts({ resources, repository, systemContext, registry, gate, apps, env });
@@ -67,6 +76,8 @@ export function createAppsRuntime({ resources, systemContext, records, anyapi, n
     scripts,
     installTemplate: installTemplateFor,
     templateSummaries,
-    homePeople
+    homePeople,
+    useRecordFiles,
+    recordUploads
   });
 }

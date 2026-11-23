@@ -80,8 +80,10 @@ export async function appsHome(context, { slug = "apps-it", knex: given = null, 
  * @param {number} [parts.calculatedTotalsMax] the gate's bound on a calculated field's sum (default: the server's)
  * @param {object} [parts.notices] the apps' (default: quiet)
  * @param {object} [parts.records] `mercbot.bots.records` (default: a home without bots)
+ * @param {{ write: Function, remove: Function } | null} [parts.recordFiles] Database files' writer (default: none, files
+ *   can't be added)
  */
-export function appsParts(home, { trustMs, beforeSave = async (_ctx, _table, _action, values) => values, beforeSaveEach, calculatedTotalsMax, notices = QUIET, records = NO_BOTS } = {}) {
+export function appsParts(home, { trustMs, beforeSave = async (_ctx, _table, _action, values) => values, beforeSaveEach, calculatedTotalsMax, notices = QUIET, records = NO_BOTS, recordFiles = null } = {}) {
   const resources = home.handles;
   const anyapi = home.apps.anyapi;
   const repository = createAppsRepository(resources);
@@ -91,7 +93,7 @@ export function appsParts(home, { trustMs, beforeSave = async (_ctx, _table, _ac
   const practices = createPractices({ resources, anyapi, systemContext });
   const chats = records.chats ?? membersOn(home.knex);
   const people = { activeIds: (options) => chats.everyoneIn(options), names: (ids, options) => chats.names(ids, options) };
-  const gate = createDataGate({ resources, repository, anyapi, registry, practices, beforeSave, people, ...(beforeSaveEach ? { beforeSaveEach } : {}), ...(calculatedTotalsMax ? { calculatedTotalsMax } : {}) });
+  const gate = createDataGate({ resources, repository, anyapi, registry, practices, beforeSave, people, recordFiles: () => recordFiles, ...(beforeSaveEach ? { beforeSaveEach } : {}), ...(calculatedTotalsMax ? { calculatedTotalsMax } : {}) });
   const apps = createApps({ resources, records, registry, anyapi, practices, notices });
   return Object.freeze({ resources, repository, anyapi, registry, practices, gate, apps, notices, systemContext });
 }

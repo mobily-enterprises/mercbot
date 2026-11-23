@@ -25,7 +25,8 @@ const AppsFeature = defineFeature({
     database: "runtime.database",
     fastify: "runtime.fastify",
     notices: "mercbot.notices",
-    env: "runtime.env"
+    env: "runtime.env",
+    uploads: "runtime.uploads"
   },
   provides: {
     apps: "mercbot.apps"
@@ -37,8 +38,9 @@ const AppsFeature = defineFeature({
    * @param {import("@jskit-ai/kernel/server/types").RuntimeFastify} capabilities.fastify
    * @param {import("@local/notices/server/types").Notices} capabilities.notices
    * @param {import("@jskit-ai/kernel/server/types").RuntimeEnv} capabilities.env
+   * @param {import("@jskit-ai/uploads-runtime/server/types").RuntimeUploads} capabilities.uploads a record's file or picture, uploaded
    */
-  async setup({ resources, systemContext, records, http, database, fastify, notices, env }) {
+  async setup({ resources, systemContext, records, http, database, fastify, notices, env, uploads }) {
     // Each home's AnyAPI declares its runtime tables from the home's registry, whoever asks first.
     const anyapi = createAnyapi({
       knex: database.knex,
@@ -67,7 +69,7 @@ const AppsFeature = defineFeature({
       if (watchLoop) await watchLoop.drain(10000);
       await apps.scripts.close();
     });
-    registerRoutes(http, { appsRuntime: apps, notices, streams });
+    registerRoutes(http, { appsRuntime: apps, notices, streams, uploads });
     return {
       apps: Object.freeze({
         anyapi: apps.anyapi,
@@ -82,6 +84,8 @@ const AppsFeature = defineFeature({
         scripts: apps.scripts,
         installTemplate: apps.installTemplate,
         templateSummaries: apps.templateSummaries,
+        // The files feature plugs in here at start: it writes records' files to the home's Database files (D-127).
+        useRecordFiles: apps.useRecordFiles,
         // app_jobs: queued by apps (queueTask), claimed by the bots' app job runner in its system context.
         jobs: createAppJobs({ appJobs: resources.appJobs }),
         // The home's Activity trail, for what other features record there (an unlinked copy, D-31): an

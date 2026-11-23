@@ -209,7 +209,8 @@ test("on a person's computer each missing piece is refused with the command that
     assert.match(refused.stderr, /^This computer's copy of runsc for Mercbot isn't root's own/u);
     rmSync(path.join(trusted, "runsc"));
 
-    refused = run("host_display_programs", { Xvfb: "exit 0" });
+    // Only the shims are searched (the first folder on PATH), so a computer that has x11vnc and openbox can't answer.
+    refused = run('PATH="${PATH%%:*}"; host_display_programs', { Xvfb: "exit 0" });
     assert.equal(refused.status, 1);
     assert.match(refused.stderr, /^This computer lacks Xvfb, x11vnc or openbox, which Mercbot's bots' computers need\. Install them with: sudo apt-get install xvfb x11vnc openbox See README/u);
   } finally {

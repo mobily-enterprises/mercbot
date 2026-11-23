@@ -76,6 +76,13 @@ describe("apps sheet columns", () => {
     expect(calculated).toEqual(["Total"]);
     expect(ignored).toEqual(["Notes"]);
   });
+
+  it("never fills a file or picture: they go onto a record by upload only (D-127)", () => {
+    const table = { fields: [{ id: "f1", key: "title", label: "Title" }, { id: "f2", key: "picture", label: "Picture", type: "image" }, { id: "f3", key: "source", label: "Source", type: "file" }] };
+    const { columns, ignored, calculated } = matchColumns(table, ["Title", "Picture", "Source"]);
+    expect(columns.map((field) => field?.id ?? null)).toEqual(["f1", null, null]);
+    expect([calculated, ignored]).toEqual([[], ["Picture", "Source"]]);
+  });
 });
 
 // Calculated fields and named formulas in the browser (D-78): a form works calculated fields out from what is typed,

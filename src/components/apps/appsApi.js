@@ -28,6 +28,21 @@ export const appsApi = {
   records: (table, params) => requestInHome(client, `${records(table)}${queryString(params)}`),
   createRecord: (table, values) => requestInHome(client, records(table), { method: "POST", body: { values } }),
   updateRecord: (table, id, values) => requestInHome(client, records(table, id), { method: "PATCH", body: { values } }),
+  // A record's file or picture (D-127), uploaded as a form: the server stores it in Database files and answers the record.
+  attachFile: async (table, id, field, file) => {
+    const form = new FormData();
+    form.append("file", file, file.name);
+    const session = await fetch(AUTH_PATHS.SESSION, { credentials: "include" }).then((response) => response.json()).catch(() => ({}));
+    const response = await fetch(homePath(`${records(table, id)}/files/${encodeURIComponent(field)}`), {
+      method: "POST",
+      credentials: "include",
+      headers: { "csrf-token": String(session.csrfToken || "") },
+      body: form
+    });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) throw Object.assign(new Error(body.error || "That file didn't upload."), { status: response.status, data: body });
+    return body.record;
+  },
   obsoleteRecord: (table, id) => requestInHome(client, `${records(table, id)}/obsolete`, { method: "POST", body: {} }),
   restoreRecord: (table, id) => requestInHome(client, `${records(table, id)}/restore`, { method: "POST", body: {} }),
   recordHistory: (table, id) => requestInHome(client, `${records(table, id)}/history`),

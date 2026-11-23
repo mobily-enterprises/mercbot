@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { AppError } from "@jskit-ai/kernel/server/runtime/errors";
 import { placeTransfer } from "./fileCopies.js";
+import { createRecordFileStore } from "./recordFileStore.js";
 
 // Where bots' files live (D-20, D-21, D-47, D-112). Files belong to a home, in three kinds of folder:
 //   <root>/homes/<homeId>/chats/<chatId>/    /files/chat: one chat's, for whoever can open it (R6)
@@ -18,6 +19,12 @@ import { placeTransfer } from "./fileCopies.js";
 export const CHAT = "/files/chat";
 export const BOT = "/files/bot";
 export const SHARED = "/files/shared";
+/**
+ * The home's Database files (D-127): the files and pictures records hold, at `tables/<table>/<record>/<field>/<name>`.
+ * Everyone reads and copies them; nobody moves, renames, deletes or writes them by hand, so a record's link never
+ * breaks: only the table records' own writes put files here (writeRecordFile, removeRecordFile).
+ */
+export const DB = "/files/db";
 // A widened place: only `widened` sets it, so nothing a bot sends (and nothing stored as JSON) can be one.
 const WIDE = Symbol("mercbot.files.widened");
 const MARKER = ".mercbot-files";
@@ -50,11 +57,18 @@ export class FilesError extends AppError {
  * The refusal for writing in a folder the place may only read: a private chat's bot and home folders (D13), which more
  * people can open than its own.
  */
-const onlyReads = (prefix) => new FilesError(
+const onlyReads = (prefix) => (prefix === DB ? dbProtected() : new FilesError(
   403,
   `This is a private chat, so its bots only read ${prefix}: what they make stays in ${CHAT}. ` +
     "Putting it where more people can open it is for a person to do.",
   { code: "files_wider_needs_card", params: { folder: prefix } }
+));
+
+/** The refusal for changing Database files by hand. */
+const dbProtected = () => new FilesError(
+  403,
+  "Database files belong to their table's records: copy one out instead of moving it.",
+  { code: "files_db_protected" }
 );
 
 /** The folders a place has, in words: "/files/chat, /files/bot or /files/shared". */
@@ -122,7 +136,9 @@ export function createFileStore({ root, fallback, volume = null, ownStorage, set
       chat: !homeOnly && chatId != null ? path.join(home, "chats", String(chatId)) : null,
       bot: !homeOnly && botId != null ? path.join(home, "bots", String(botId), "everyone") : null,
       shared: path.join(home, "shared"),
-      readOnly: narrow(place) ? ["bot", "shared"] : []
+      db: path.join(home, "db"),
+      // Database files are only read, wherever they're reached from (DB).
+      readOnly: narrow(place) ? ["bot", "shared", "db"] : ["db"]
     };
     await pullFolders(dirs, own, homeId, { fresh });
     return dirs;
@@ -177,7 +193,8 @@ export function createFileStore({ root, fallback, volume = null, ownStorage, set
     return dir;
   }
 
-  const rootsOf = (dirs) => [[CHAT, dirs.chat, "chat"], [BOT, dirs.bot, "bot"], [SHARED, dirs.shared, "shared"]].filter(([, dir]) => dir);
+  const rootsOf = (dirs) => [[CHAT, dirs.chat, "chat"], [BOT, dirs.bot, "bot"], [SHARED, dirs.shared, "shared"], [DB, dirs.db, "db"]]
+    .filter(([, dir]) => dir);
 
   /**
    * The place's folders, made when missing (empty folders, which a move of the home's files needn't carry); `reading`
@@ -521,6 +538,8 @@ export function createFileStore({ root, fallback, volume = null, ownStorage, set
     const dirs = await prepare(place, { reading: true });
     const tree = {};
     for (const [key, dir, prefix] of sectionsOf(dirs)) {
+      // Database files take nothing moved in (DB): never a destination.
+      if (key === "db") continue;
       const found = [];
       const descend = async (real, at) => {
         for (const entry of visible(await fs.readdir(real, { withFileTypes: true }).catch(() => []))) {
@@ -630,6 +649,7 @@ export function createFileStore({ root, fallback, volume = null, ownStorage, set
    */
   const widened = (place) => Object.freeze({ ...place, [WIDE]: true });
 
+  const recordFiles = createRecordFileStore({ DB, prepare, homePlace, settleHome });
   return Object.freeze({
     available,
     ownFolder,
@@ -667,6 +687,8 @@ export function createFileStore({ root, fallback, volume = null, ownStorage, set
     profilePicturesFolder,
     settleProfilePicture,
     privateFolder,
-    settlePrivate
+    settlePrivate,
+    writeRecordFile: recordFiles.writeRecordFile,
+    removeRecordFile: recordFiles.removeRecordFile
   });
 }

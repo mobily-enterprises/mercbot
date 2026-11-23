@@ -27,7 +27,10 @@ export const STORAGE_TYPES = {
   url: "string",
   longtext: "string",
   tags: "array",
-  datetime: "dateTime"
+  datetime: "dateTime",
+  // A record's file or picture: { path, name, size, type }, its place in the home's Database files.
+  file: "object",
+  image: "object"
 };
 
 export const OBSOLETE = "obsolete_at";

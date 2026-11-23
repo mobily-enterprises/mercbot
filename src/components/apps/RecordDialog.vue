@@ -5,11 +5,13 @@ import { calculate, formulaRecord, isCalculated, showValue } from "@local/apps/s
 import { appsApi, errorText } from "./appsApi.js";
 import { useLinkPickers } from "./linkPickers.js";
 import { SHARED_TYPES, TEXT_INPUT, inputOf, storedOf } from "./fieldValues.js";
+import RecordFileField from "./RecordFileField.vue";
 
 // Adding or editing one record in the Data tab (D-35). Inputs follow the field types; links pick a
 // record of the target table, searched on the server as the person types. Calculated fields (D-78)
 // show what they work out to from the values typed, and are never typed in. The server checks every
-// value again.
+// value again. A file or picture (D-127) is uploaded once the record is saved, as the server stores it at the record's place;
+// only taking one away is part of the save itself.
 const props = defineProps({
   open: { type: Boolean, default: false },
   table: { type: Object, default: null },
@@ -21,6 +23,11 @@ const props = defineProps({
 const emit = defineEmits(["update:open", "saved"]);
 
 const draft = reactive({});
+// The files chosen for file and picture fields, by field id, uploaded after the save.
+const chosen = reactive({});
+const FILES = new Set(["file", "image"]);
+// The record this dialog made, when a file then failed to upload: saving again saves onto it, never a second record.
+const made = ref(null);
 const links = useLinkPickers();
 const saving = ref(false);
 const problem = ref("");
@@ -47,12 +54,15 @@ watch(() => [props.open, props.record], () => {
   if (!props.open) return;
   problem.value = "";
   for (const key of Object.keys(draft)) delete draft[key];
+  for (const key of Object.keys(chosen)) delete chosen[key];
+  made.value = null;
   for (const field of fields.value) draft[field.id] = toInput(field, props.record?.[field.id]);
   links.open(fields.value, props.tables, props.record);
 }, { immediate: true });
 
 const problemOf = (field) => {
   const value = draft[field.id];
+  if (FILES.has(field.type)) return field.options?.required && !value && !chosen[field.id] ? `${field.label} is required` : "";
   if (field.options?.required && (value === null || value === "" || (Array.isArray(value) && !value.length))) return `${field.label} is required`;
   if (field.type === "email" && value && !EMAIL.test(value)) return "Enter a valid email";
   if (["number", "money"].includes(field.type) && value !== null && value !== "" && !Number.isFinite(Number(value))) return "Enter a number";
@@ -69,8 +79,18 @@ async function save() {
   saving.value = true;
   problem.value = "";
   try {
-    const values = Object.fromEntries(fields.value.map((field) => [field.id, toStored(field, draft[field.id])]));
-    const saved = props.record ? await appsApi.updateRecord(props.table.key, props.record.id, values) : await appsApi.createRecord(props.table.key, values);
+    // A file field is sent only to take its file away; a new file goes up on its own once the record exists.
+    const record = props.record || made.value;
+    const sent = fields.value.filter((field) => !FILES.has(field.type) || (record?.[field.id] && !draft[field.id]));
+    const values = Object.fromEntries(sent.map((field) => [field.id, toStored(field, draft[field.id])]));
+    let saved = record ? await appsApi.updateRecord(props.table.key, record.id, values) : await appsApi.createRecord(props.table.key, values);
+    made.value = props.record ? null : saved;
+    for (const field of fields.value.filter((entry) => chosen[entry.id])) {
+      saved = await appsApi.attachFile(props.table.key, saved.id, field.id, chosen[field.id]);
+      made.value = props.record ? null : saved;
+      draft[field.id] = saved[field.id];
+      chosen[field.id] = null;
+    }
     emit("saved", saved);
     emit("update:open", false);
   } catch (error) {
@@ -94,6 +114,13 @@ async function save() {
         <v-select v-else-if="field.type === 'person'" v-model="draft[field.id]" :items="people" item-title="name" item-value="id" :label="field.label + (field.options?.required ? ' *' : '')" :error-messages="problemOf(field)" variant="outlined" density="comfortable" clearable />
         <!-- readable-check: allow selection-field - data: a tags field's allowed tags are part of its table's definition, which the dialog was given -->
         <v-combobox v-else-if="field.type === 'tags'" v-model="draft[field.id]" :items="field.options?.choices || []" :label="field.label + (field.options?.required ? ' *' : '')" :error-messages="problemOf(field)" multiple chips closable-chips variant="outlined" density="comfortable" />
+        <RecordFileField
+          v-else-if="FILES.has(field.type)"
+          v-model:current="draft[field.id]"
+          v-model:chosen="chosen[field.id]"
+          :field="field"
+          :error-messages="problemOf(field)"
+        />
         <v-textarea v-else-if="field.type === 'longtext'" v-model="draft[field.id]" :label="field.label + (field.options?.required ? ' *' : '')" :error-messages="problemOf(field)" auto-grow rows="3" variant="outlined" density="comfortable" />
         <v-text-field
           v-else

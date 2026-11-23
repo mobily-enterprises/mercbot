@@ -5,6 +5,7 @@ import ShellUpButton from "@jskit-ai/shell-web/client/components/ShellUpButton";
 import FieldRemoval from "./FieldRemoval.vue";
 import RecordDialog from "./RecordDialog.vue";
 import { appsApi, errorText } from "./appsApi.js";
+import { fileUrl } from "@/components/mercbot/filesApi.js";
 import { isCalculated } from "@local/apps/shared";
 import { actorName, showValue, whenText as when } from "./appRuntime.js";
 import { exportTable, importRows, matchColumns, readSheetFile } from "./sheets.js";
@@ -212,7 +213,12 @@ const titleOf = (record) => (record ? String(record[table.value?.titleFieldId] ?
         >
           <template #loading><v-skeleton-loader type="table-row@5" /></template>
           <template v-for="field in fields" :key="field.id" #[`item.${field.id}`]="{ item }">
-            <span :class="{ 'text-disabled': item.obsolete }">{{ showValue(field, item[field.id]) }}</span>
+            <!-- A record's picture as a thumbnail, its file as a link (D-127); the click opens the file, not the record. -->
+            <a v-if="item[field.id]?.path" :href="fileUrl(null, item[field.id].path, { download: field.type !== 'image', chat: null })" target="_blank" rel="noopener" class="d-inline-flex align-center ga-2" @click.stop>
+              <v-img v-if="field.type === 'image'" :src="fileUrl(null, item[field.id].path, { download: false, chat: null })" :alt="item[field.id].name" width="32" height="32" cover rounded="sm" class="flex-grow-0" />
+              <span v-else>{{ item[field.id].name }}</span>
+            </a>
+            <span v-else :class="{ 'text-disabled': item.obsolete }">{{ showValue(field, item[field.id]) }}</span>
           </template>
           <template #[`item.actions`]="{ item }">
             <div class="d-flex align-center justify-end ga-1">

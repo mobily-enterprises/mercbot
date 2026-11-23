@@ -1,3 +1,6 @@
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { hasPermission } from "@jskit-ai/kernel/shared/support";
 import { homeOf } from "@local/homes/server/homeOf";
 import { checkRouteVisibility } from "@jskit-ai/kernel/shared/support/visibility";
@@ -64,9 +67,10 @@ const screenTables = (tables) =>
  * @param {import("./types.js").Apps} capabilities.appsRuntime
  * @param {import("@local/notices/server/types").Notices} capabilities.notices
  * @param {Set<import("node:http").ServerResponse>} capabilities.streams the open live streams, closed on shutdown
+ * @param {import("@jskit-ai/uploads-runtime/server/types").RuntimeUploads} capabilities.uploads a record's file, uploaded
  */
-export function registerRoutes(http, { appsRuntime, notices, streams }) {
-  const { registry, gate, apps, practices, views, runtime, scripts, watches, homePeople } = appsRuntime;
+export function registerRoutes(http, { appsRuntime, notices, streams, uploads }) {
+  const { registry, gate, apps, practices, views, runtime, scripts, watches, homePeople, recordUploads } = appsRuntime;
   const router = http.router;
   const home = Object.freeze({ auth: "required", contextPolicy: "required", visibility: checkRouteVisibility("workspace_user") });
   /** Routes for one app answer "not found" when the home has no such app. */
@@ -236,10 +240,42 @@ export function registerRoutes(http, { appsRuntime, notices, streams }) {
       people: await homePeople(ctx.options)
     };
   }));
+  /**
+   * A record's file or picture, uploaded (D-127): read with the files' own size limit and picture and video check (D-90)
+   * into a scratch folder, then written to the home's Database files and set on the record in one change by the gate.
+   */
+  router.register("POST", "/api/w/:workspaceSlug/app-data/tables/:key/records/:id/files/:field", home, handle(async (request, ctx) => {
+    const reader = recordUploads();
+    if (!reader) throw new GateError(503, "Files can't be added right now.", { code: "apps_files_unavailable" });
+    const part = await uploads.readSingleMultipartFile(request, { fieldName: "file", label: "File", maxBytes: reader.limit, required: true });
+    const scratch = await fs.promises.mkdtemp(path.join(os.tmpdir(), "mercbot-record-file-"));
+    try {
+      const source = path.join(scratch, "upload");
+      await reader.receive(part.stream, {
+        origin: "upload",
+        workspaceId: ctx.workspaceId,
+        userId: ctx.userId,
+        botId: null,
+        conversationId: null,
+        place: null,
+        path: null,
+        ip: request.ip ?? null
+      }, source);
+      if (part.stream.truncated) throw new GateError(413, "That file is too big to add.", { code: "apps_file_too_big" });
+      const record = await gate.attachFile({ ...ctx, via: { kind: "data" } }, request.params.key, request.params.id, request.params.field, {
+        source,
+        name: part.fileName,
+        type: part.mimeType
+      });
+      return { record };
+    } finally {
+      await fs.promises.rm(scratch, { recursive: true, force: true });
+    }
+  }));
   /** The Data tab's spreadsheet: records of one table, through the data gate (via "data"). */
   const dataCtx = (ctx) => ({ ...ctx, via: { kind: "data" } });
   const records = `${data}/tables/:key/records`;
-  const TEXTUAL = new Set(["text", "email", "phone", "choice"]);
+  const TEXTUAL = new Set(["text", "email", "phone", "choice", "longtext", "url"]);
   router.register("GET", records, home, handle(async (request, ctx) => {
     const { table } = await gate.tableFor(request.params.key, ctx.options);
     const q = String(request.query?.search || "").trim().toLowerCase();

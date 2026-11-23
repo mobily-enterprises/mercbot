@@ -47,7 +47,7 @@ test("bots' commands run sealed off, within limits, and carry on in the backgrou
   // The toolbox, the three folders, and what changed.
   let run = await go("echo hello > /files/chat/hello.txt && ls /files && ffmpeg -version | head -1 && python3 -c 'import pandas, pptx; print(\"py ok\")'");
   assert.equal(run.status, "done", run.output);
-  assert.match(run.output, /^bot\nchat\nshared\n/u);
+  assert.match(run.output, /^bot\nchat\ndb\nshared\n/u);
   assert.match(run.output, /ffmpeg version/u);
   assert.match(run.output, /py ok/u);
   assert.deepEqual(run.changed, ["/files/chat/hello.txt"]);
@@ -87,6 +87,14 @@ test("bots' commands run sealed off, within limits, and carry on in the backgrou
   // A link made inside can't make the app serve a server file.
   await go("ln -s /etc/passwd /files/chat/p");
   await assert.rejects(store.existingFile(place, "/files/chat/p"), /isn't there/u);
+
+  // The records' Database files are there to read and copy from, never to change (D-127).
+  await fs.writeFile(path.join(dir, "pic.png"), "picture");
+  await store.writeRecordFile(workspaceId, { table: "graphics", record: "1", field: "picture" }, path.join(dir, "pic.png"), "pic.png");
+  run = await go("cat /files/db/tables/graphics/1/picture/pic.png; echo; cp /files/db/tables/graphics/1/picture/pic.png /files/chat/ && echo copied; rm /files/db/tables/graphics/1/picture/pic.png 2>&1; touch /files/db/x 2>&1");
+  assert.match(run.output, /^picture\ncopied\n/u);
+  assert.match(run.output, /pic\.png.*Read-only file system/u);
+  assert.match(run.output, /\/files\/db\/x.*Read-only file system/u);
 
   // Asked by another bot: the chat's and the home's folders are read-only.
   run = await go("touch /files/chat/x 2>&1; touch /files/shared/x 2>&1; touch /files/bot/ok && echo bot-ok", { readOnly: ["chat", "shared"] });

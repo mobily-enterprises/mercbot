@@ -98,6 +98,8 @@ export async function startApps({ knex, env = {}, records = NO_BOTS, extras = {}
       // stop().
       "runtime.fastify": { addHook: (name, hook) => name === "preClose" && closing.push(hook) },
       "runtime.env": env,
+      // Uploads aren't part of these tests' routes: a record's file is given to the gate directly.
+      "runtime.uploads": { readSingleMultipartFile: async () => { throw new Error("These apps tests upload no files."); } },
       // Person fields read the home's members through the chats records; a stand-in without them gets the database's.
       "mercbot.bots.records": records.chats ? records : { ...records, chats: membersOn(knex) },
       ...extras.inputs

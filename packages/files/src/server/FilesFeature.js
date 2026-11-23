@@ -10,6 +10,7 @@ import { registerPageRoutes } from "./pageRoutes.js";
 import { PROFILE_PICTURES, profilePictureDriver } from "./profilePictures.js";
 import { registerRoutes } from "./registerRoutes.js";
 import { SHELL_RUN_FILTERS } from "./shellRuns.js";
+import { UPLOAD_LIMIT, writeUpload } from "./uploadedFile.js";
 import {
   fileStorageResource,
   filesKeyResource,
@@ -57,7 +58,8 @@ const FilesFeature = defineFeature({
     integrations: "mercbot.integrations",
     env: "runtime.env",
     meter: "mercbot.meter",
-    sweeps: "mercbot.account.sweeps"
+    sweeps: "mercbot.account.sweeps",
+    apps: "mercbot.apps"
   },
   optional: {
     mediaCheck: "mercbot.media-check"
@@ -77,15 +79,26 @@ const FilesFeature = defineFeature({
    * @param {import("@local/account/server/types").Meter} capabilities.meter what the bots' commands run is recorded through (D-73)
    * @param {{ useFilesSync: (sync: object | null) => void }} capabilities.sweeps the account's sweeps, whose usage archive
    *   is kept in the files bucket when there is one (D-91)
+   * @param {{ useRecordFiles: (impl: object) => void }} capabilities.apps mercbot.apps, whose records' files and pictures
+   *   live in the home's Database files (D-127), which this feature writes
    * @param {import("@local/account/server/types").MediaCheck | null} capabilities.mediaCheck how a copy checks pictures and videos (D-90)
    * @param {Record<string, any>} capabilities.resources this feature's handles
    * @param {(reason: string) => object} capabilities.systemContext
    */
-  async setup({ records, http, fastify, uploads, storage, integrations, env, meter, sweeps, mediaCheck, resources, systemContext }) {
+  async setup({ records, http, fastify, uploads, storage, integrations, env, meter, sweeps, apps, mediaCheck, resources, systemContext }) {
     const runtime = createFilesRuntime({ resources, systemContext, env, meter, integrations, mediaCheck });
     // Copy to… and Move to… between the places a person can open: chats and bots are the records' (D-120).
     const files = Object.freeze({ ...runtime, transfer: createFileTransfer({ files: runtime, records }) });
     sweeps.useFilesSync(files.volume.sync);
+    // Records' files and pictures (D-127): written to and removed from Database files only through the apps' gate, and an
+    // upload for one takes the same picture and video check as any upload (D-90).
+    apps.useRecordFiles({
+      write: files.store.writeRecordFile,
+      remove: files.store.removeRecordFile,
+      real: async (homeId, virtualPath) => (await files.store.existingFile(files.store.homePlace(homeId), virtualPath)).real,
+      receive: (stream, item, target) => writeUpload(stream, { target, media: files.media, item }),
+      limit: UPLOAD_LIMIT
+    });
     registerRoutes(http, { files, records, uploads });
     // A Google Drive mount's rclone asks this server for its keys, at its own address (D-80), and so does a move's,
     // so this server carries on moves whose server stopped only once it listens.

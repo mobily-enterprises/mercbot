@@ -24,6 +24,7 @@ const MAX_RECORDS = 50;
 export const APP_ACTIONS = [
   "data_create",
   "data_update",
+  "data_attach_file",
   "data_mark_obsolete",
   "watch_create",
   "watch_pause",
@@ -60,6 +61,8 @@ export const APP_ACTIONS = [
  * @param {string[]} turn.attempted the ids of the tools the reply has called
  * @param {{ kind: string } | null} turn.via where the bot is working when not in chat (a watch run, a button's
  *   task), for the audit
+ * @param {(path: string) => Promise<{ real: string }>} turn.fileAt one of the bot's files by its path (/files/...), as
+ *   its file tools read it: refused when the bot can't read it
  * @param {(prompt: string) => Promise<object>} turn.scriptModel asks for a script and its tests: writeScriptRound with the chat
  *   model (tests pass a model stand-in)
  */
@@ -74,6 +77,7 @@ export function buildAppTools({
   after,
   attempted,
   via,
+  fileAt,
   scriptModel
 }) {
   const { registry, gate, watches } = apps;
@@ -88,13 +92,19 @@ export function buildAppTools({
   const NO_SEAT = { error: "Watches belong to a bot in a chat, and you're working on a request from a chat you aren't in: say so in your answer." };
 
 
+  /** A value as the bot reads it: a link or person by its label, a file by its path, tags as their list. */
+  function botValue(value) {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return value ?? null;
+    return value.path ?? value.label;
+  }
+
   /** Records by field name, as the bot reads and writes them. */
   function byName(table, record) {
     const out = { id: record.id };
     if (record.obsolete) out.obsolete = true;
     for (const field of table.fields.filter((entry) => !entry.obsolete)) {
       const value = record[field.id];
-      out[field.key] = value && typeof value === "object" ? value.label : (value ?? null);
+      out[field.key] = botValue(value);
     }
     return out;
   }
@@ -204,6 +214,17 @@ export function buildAppTools({
       return failed(error);
     }
   }
+  // A file or picture goes onto a record as a copy in the home's Database files (D-127): the bot's own file stays.
+  async function dataAttachFile({ table, id, field, path: wanted }) {
+    try {
+      const { table: info } = await gate.tableFor(table, call);
+      const { real } = await fileAt(wanted);
+      const upload = { source: real, name: wanted.split("/").pop(), type: "application/octet-stream" };
+      return { status: "attached", record: byName(info, await gate.attachFile(await ctx(), table, id, field, upload)) };
+    } catch (error) {
+      return failed(error);
+    }
+  }
   async function dataMarkObsolete({ table, id }) {
     try {
       await gate.markObsolete(await ctx(), table, id);
@@ -273,9 +294,24 @@ export function buildAppTools({
     dataUpdate: createTool(
       Object.freeze({
         id: "data_update",
-        description: "Change fields of one record. Only the fields given change.",
+        description: "Change fields of one record. Only the fields given change. A file or picture field is set with data_attach_file.",
         inputSchema: z.object({ table: z.string().min(1).max(64), id: z.string().min(1).max(64), values: z.record(z.string(), z.any()) }),
         execute: (input, options) => dataUpdate(input, options)
+      })
+    ),
+    dataAttachFile: createTool(
+      Object.freeze({
+        id: "data_attach_file",
+        description:
+          "Put one of your files (a /files/... path) on a record's file or picture field. The record keeps its own copy in " +
+          "the home's Database files (/files/db/tables/...), which nobody moves; a picture field takes PNG, JPEG, GIF or WebP.",
+        inputSchema: z.object({
+          table: z.string().min(1).max(64),
+          id: z.string().min(1).max(64),
+          field: z.string().min(1).max(64),
+          path: z.string().min(1).max(1000)
+        }),
+        execute: (input, options) => dataAttachFile(input, options)
       })
     ),
     dataMarkObsolete: createTool(

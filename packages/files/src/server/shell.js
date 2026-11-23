@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
 import { refusalOf } from "@local/account/meter";
-import { BOT, CHAT, SHARED } from "./fileStore.js";
+import { BOT, CHAT, DB, SHARED } from "./fileStore.js";
 import { GATEWAY_INSIDE, PROXY_ENV, START_FORWARDER, sandboxGateway, startGateway } from "./gateway.js";
 import { internetLimits } from "./internetUsage.js";
 import { secretMask } from "./secretMask.js";
@@ -123,6 +123,8 @@ function bundle({
       ...(dirs.chat ? [folderMount(dirs.chat, CHAT, { readonly: reads("chat") })] : []),
       ...(dirs.bot ? [folderMount(dirs.bot, BOT, { readonly: reads("bot") })] : []),
       folderMount(dirs.shared, SHARED, { readonly: reads("shared") }),
+      // The records' Database files, to read and copy from, never to change (D-127).
+      ...(dirs.db ? [folderMount(dirs.db, DB, { readonly: true })] : []),
       // The bot's whole command outputs in its chat, to read with grep, tail and the like (D-48).
       ...(dirs.runs ? [folderMount(dirs.runs, "/runs", { readonly: true })] : []),
       ...(existsSync(apps) ? [folderMount(apps, "/opt/apps", { readonly: true, exec: true })] : []),

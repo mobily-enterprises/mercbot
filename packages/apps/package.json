@@ -46,6 +46,7 @@
         "mercbot.notices",
         "runtime.env",
         "runtime.resources",
+        "runtime.uploads",
         "mercbot.bots.records"
       ]
     },

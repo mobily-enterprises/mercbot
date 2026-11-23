@@ -23,6 +23,20 @@ const DATETIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d{1,6})?)?(Z|[+-]\d{2
 const URL_START = /^https?:\/\/[^\s/$.?#][^\s]*$/iu;
 /** A tag: at most this long, and a field holds at most this many. */
 export const TAG_MAX = 80;
+/**
+ * A record's file as the data gate stores it after writing it to Database files (attachFile): only the gate makes
+ * one, marked so, since a value someone sends could name any path.
+ */
+export const STORED_FILE = Symbol("stored record file");
+/** The pictures an image field takes, by the start of their bytes. */
+export function pictureKind(head) {
+  const bytes = Buffer.from(head || []);
+  if (bytes.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) return "image/png";
+  if (bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return "image/jpeg";
+  if (bytes.subarray(0, 4).toString("latin1") === "GIF8") return "image/gif";
+  if (bytes.subarray(0, 4).toString("latin1") === "RIFF" && bytes.subarray(8, 12).toString("latin1") === "WEBP") return "image/webp";
+  return null;
+}
 export const TAGS_MAX = 50;
 const empty = (value) => value === null || value === undefined || value === "";
 
@@ -117,6 +131,13 @@ function cleanValue(field, value) {
         fail(`must be among: ${allowed.join(", ")}.`, "apps_value_tag_unknown", { choices: allowed.join(", "), tags: unknown.join(", ") });
       }
       return tags.length ? tags : null;
+    }
+    case "file":
+    case "image": {
+      // Set only by attachFile, which writes the file to Database files first; anything else sent here is refused.
+      if (!value[STORED_FILE]) fail("add a file by uploading it, or a bot passing one it has.", "apps_value_file_from_upload");
+      const { path, name, size, type } = value;
+      return { path: String(path), name: String(name), size: Number(size), type: String(type || "") };
     }
     case "datetime": {
       // A moment, with its zone: kept as the same instant in UTC.

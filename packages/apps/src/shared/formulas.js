@@ -163,6 +163,8 @@ export function plainValue(value) {
  */
 export function formulaValue(field, value) {
   if (field.type === "tags") return Array.isArray(value) ? value.map(String) : [];
+  // A file as formulas see it: its name ("" for none); its path is for screens, not formulas.
+  if (field.type === "file" || field.type === "image") return value?.name ? String(value.name) : "";
   const plain = value && typeof value === "object" ? value.id : value;
   if (plain === null || plain === undefined) return ["number", "money"].includes(field.type) ? 0 : field.type === "yesno" ? false : "";
   return ["number", "money"].includes(field.type) ? Number(plain) : plain;
@@ -180,6 +182,7 @@ export function showValue(field, value) {
     return value.label ?? "—";
   }
   if (field.type === "tags") return Array.isArray(value) && value.length ? value.join(", ") : "—";
+  if (field.type === "file" || field.type === "image") return value?.name ?? "—";
   // A moment, in the reader's own time zone (a server shows its own).
   if (field.type === "datetime") {
     const moment = new Date(value);
@@ -232,7 +235,9 @@ const CEL_TYPES = {
   url: "string",
   longtext: "string",
   tags: "list<string>",
-  datetime: "string"
+  datetime: "string",
+  file: "string",
+  image: "string"
 };
 
 /** A table's record as formulas see it: each live field's name and CEL type, and the id. */

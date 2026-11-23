@@ -577,6 +577,7 @@ export function buildTools({
     after,
     attempted,
     via: appsVia,
+    fileAt: (wanted) => files.store.existingFile(place, wanted),
     scriptModel: (prompt) => writeScriptRound(model, prompt)
   }));
   // Actions switched off for every connected app that offers them aren't offered at all.

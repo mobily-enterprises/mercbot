@@ -97,3 +97,9 @@ test("formulas see a person as their id and tags as a list; screens show names, 
   assert.equal(showValue(tags, ["a", "b"]), "a, b");
   assert.match(showValue(due, "2026-11-24T08:30:00.000Z"), /2[45] Nov 2026, \d{2}:\d{2}/u, "in the reader's zone");
 });
+
+test("an import skips a file or picture column, which holds a file's name: files go onto records by upload only", async () => {
+  const { fromSheet } = await import("../../packages/apps/src/server/sheetInput.js");
+  const table = { fields: [{ id: "f1", key: "title", label: "Title", type: "text" }, { id: "f2", key: "picture", label: "Picture", type: "image" }, { id: "f3", key: "source", label: "Source", type: "file" }] };
+  assert.deepEqual(fromSheet(table, { f1: "Poster", f2: "poster.png", f3: "poster.psd" }, new Map()), { f1: "Poster" });
+});

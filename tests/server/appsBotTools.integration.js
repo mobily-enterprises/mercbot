@@ -32,7 +32,7 @@ test("bots use the home's data; the Builder drafts apps", async (context) => {
   const run = (tool, input) => tool.execute(input, {});
 
   const plain = buildAppTools({ apps, directory, call, botId, conversationId: chat.id, chatBotId, userId, isBuilder: false, after: [], attempted: [], via: null });
-  assert.deepEqual(Object.keys(plain).sort(), ["dataCreate", "dataMarkObsolete", "dataQuery", "dataTables", "dataUpdate", "viewGet", "viewList", "viewSave", "watchCreate", "watchList", "watchPause", "watchRemove", "watchResume"], "no Builder tools for other bots");
+  assert.deepEqual(Object.keys(plain).sort(), ["dataAttachFile", "dataCreate", "dataMarkObsolete", "dataQuery", "dataTables", "dataUpdate", "viewGet", "viewList", "viewSave", "watchCreate", "watchList", "watchPause", "watchRemove", "watchResume"], "no Builder tools for other bots");
 
   const after = [];
   const attempted = [];

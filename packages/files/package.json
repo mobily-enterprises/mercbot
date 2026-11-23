@@ -41,6 +41,7 @@
         "mercbot.bots.records",
         "mercbot.meter",
         "mercbot.integrations",
+        "mercbot.apps",
         "mercbot.account.sweeps"
       ]
     },
