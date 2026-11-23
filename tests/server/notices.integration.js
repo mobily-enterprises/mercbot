@@ -133,12 +133,14 @@ test("a listening connection kept alive, replaced when it stops hearing itself o
 
 /**
  * A network path to the database that can go quiet: `freeze()` stops forwarding on the connections open now without
- * closing them (as a dropped route does), while connections made after pass as usual.
+ * closing them (as a dropped route does), while connections made after pass as usual. It reaches the database as the
+ * test's own connection does: at a host and port, or, when the host is a folder, at the database's socket in it, as
+ * pg does.
  */
 async function pathTo({ host, port }) {
   const open = new Set();
   const server = net.createServer((socket) => {
-    const upstream = net.connect(Number(port), host);
+    const upstream = String(host).startsWith("/") ? net.connect(`${host}/.s.PGSQL.${Number(port) || 5432}`) : net.connect(Number(port), host);
     const pair = [socket, upstream];
     open.add(pair);
     socket.pipe(upstream);
