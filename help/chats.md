@@ -12,7 +12,7 @@ At the top of the sidebar are your home, then **Search**, **Files** and **Apps**
 
 Each row is one line: a face, a name, and small marks. A dot marks something you haven't read, **@** a chat where someone mentioned you since you last read it, a pencil an unsent draft, and **Waiting for you** a chat where a bot needs you. A room shows a globe if it's Public or a lock if it's Private. Point at a row to see its latest message.
 
-Select a section's title to fold it away, and again to open it. A folded section still shows what needs you: anything unread, mentioning you, or open. Your device remembers which sections you folded, for each home. People and bots you haven't talked with in the last 14 days are tucked under **N more**; select it to show them.
+Select a section's title to fold it away, and again to open it. A folded section still shows what needs you: anything unread, mentioning you, or open. Your device remembers which sections you folded, for each home. **People** and **Bots** show everyone while they have seven or fewer. Past seven, they show those you've talked with in the last 14 days, bots added in that time, the main bot and anyone with something for you, and tuck the rest under **N more**; select it to show them.
 
 ## Rooms
 
