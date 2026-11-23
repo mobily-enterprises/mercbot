@@ -4069,7 +4069,8 @@ Decided:
   multicast addresses, the server's own addresses and the mail ports (25, 465, 587, 2525).
 - **Inside:** `HTTP_PROXY`, `HTTPS_PROXY` and `ALL_PROXY` and their lower-case spellings, `NO_PROXY`/`no_proxy` for
   localhost, 127.0.0.1 and ::1 (the sandbox's own loopback stays direct), and `NODE_USE_ENV_PROXY=1`, so git over https,
-  npm, pip, Python's urllib and Node's own fetch and http go through it. The toolbox has no curl.
+  npm, pip, curl, Python's urllib and Node's own fetch and http go through it. Both toolboxes have curl (added the same
+  day: Ubuntu's `curl`, nixpkgs' `curl` on a store host).
 - **Plain TCP, the widening:** this widens what commands reach from nothing to the gateway's whole reach: CONNECT to
   any port of a public address except the mail ports, not only the web's 80 and 443, so a program that asks the gateway
   with CONNECT reaches a database or an API on a port of its own. A program that connects directly finds no network: "Network is unreachable" for an
@@ -4081,6 +4082,14 @@ Decided:
   is read-only. Every command still starts from the same clean toolbox: what it installs or changes outside the folders
   goes when it ends, or in the session when the computer sleeps. Tools bots keep needing still go into the toolbox.
 - **The office apps keep no network:** the document tools, previews, charts and voice memos aren't commands.
+- **Root certificates on a store host (added the same day).** A command checks an https site's certificate itself (the
+  gateway passes its TLS through), against `/etc/ssl/certs/ca-certificates.crt`: the one file nixpkgs' python3, curl,
+  git, node and pip all read at nixos-26.05 (measured on 2026-11-23, each reading only it, and checking a stand-in site
+  with only its authority there). Ubuntu's toolbox has it from `ca-certificates`; the store toolbox wrote none, so on
+  a store host every https site failed ("unable to get local issuer certificate"). `MERCBOT_TOOLBOX_CERTIFICATES` now
+  names a bundle in the store (nixpkgs' `cacert`, `etc/ssl/certs/ca-bundle.crt`), linked there; one that isn't a file
+  in the store stops the start, naming it, and without one the start says commands can't check https sites. Bots are
+  offered the command line on a store host only with `git`, `curl` and `pip` too, as they're told of them.
 - **Bots are told:** the standing rules (`FILES_RULES`), `run_command` and the skill "Working on the command line" say
   what commands reach, that installs last one command, and that there's no ssh and no GitHub sign-in.
 - **Not decided here: GitHub credentials in the command line.** Nothing in Mercbot pushes code today: the GitHub

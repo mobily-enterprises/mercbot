@@ -69,7 +69,8 @@ the error underneath; Mercbot never switches its computers off quietly. Check a 
   mounts it again). The office apps, voice memos and coding tools are still `npm run tools:install`'s downloads, made
   for an ordinary Linux system: with `nix-ld` and glibc on `PATH`, and their libraries' folders in
   `MERCBOT_TOOLBOX_LIBRARIES` (and Mesa's in `MERCBOT_TOOLBOX_MESA` for the office apps' windows), they start there
-  too. docs/deployment.md lists the packages.
+  too. Bots' commands check https sites against the root certificates `MERCBOT_TOOLBOX_CERTIFICATES` names in the
+  store (nixpkgs' `cacert`). docs/deployment.md lists the packages.
 - **Other hosts** are not supported yet. Another host needs its own `scripts/hosting/<name>.sh` with
   the same functions (`host_check`, `host_display_programs`, `host_toolbox_packages`,
   `host_desktop_tools`, `host_unpack_deb`, `host_store_toolbox`; those for Ubuntu are shared in

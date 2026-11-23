@@ -22,6 +22,10 @@ console.log(`Toolbox made from the store: ${made.programs} programs, ${made.font
 if (!made.commandLine) {
   console.log(`Bots have no command line on this server: the store lacks ${made.missing.commandLine.join(", ")}.`);
 }
+if (!made.certificates) {
+  console.log("Bots' commands can't check the certificates of https sites: MERCBOT_TOOLBOX_CERTIFICATES names no root " +
+    "certificates in the store (nixpkgs' cacert).");
+}
 if (!made.loader) {
   console.log("The office apps, voice memos and coding tools can't start in this toolbox, as they're made for an ordinary " +
     `Linux system: the store lacks ${made.missing.loader.join(" and ")} on PATH.`);

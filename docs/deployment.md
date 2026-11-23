@@ -87,8 +87,11 @@ release about 2.2 GB smaller than one built for an Ubuntu host, and its build ab
   `liberation_ttf`, `dejavu_fonts` and `noto-fonts-color-emoji`. Without a browser, `python3` or `bash` the start stops,
   saying so.
 - Bots get their command line only when the store also has every tool they're told of (`files/shell.md` in the
-  Program lists them, with Python's pandas, numpy, matplotlib, openpyxl, python-docx and python-pptx); otherwise the
-  start says which are missing and bots work without it.
+  Program lists them, with Python's pandas, numpy, matplotlib, openpyxl, python-docx and python-pptx, and `git`,
+  `curl` and `pip`); otherwise the start says which are missing and bots work without it.
+- Bots' commands check https sites against root certificates: `MERCBOT_TOOLBOX_CERTIFICATES` names a bundle in the
+  store, nixpkgs' `cacert`'s `etc/ssl/certs/ca-bundle.crt`, which the toolbox puts where the store's programs read it
+  (D-126). Without it the start says commands can't check https sites.
 - The computers' own launchers are written while Mercbot runs and started as programs: the browser's (`chrome.sh` in
   the temporary folder, `TMPDIR`) and the dock's (`launch-*.sh` under `MERCBOT_DATA_DIR`). Both folders must be
   writable and allow programs; on a host where only one work folder does, put them and `MERCBOT_TOOLBOX_DIR` there.

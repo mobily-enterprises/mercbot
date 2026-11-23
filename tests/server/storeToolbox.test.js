@@ -81,7 +81,13 @@ test("the toolbox is made of links into the store, from the programs on PATH the
 });
 
 test("with every tool bots are told of, and python3's modules, the command line is offered too", (context) => {
-  const tools = ["tail", "ffmpeg", "ffprobe", "convert", "tesseract", "pdftotext", "pdftoppm", "qpdf", "gs", "pandoc", "node", "npm", "sqlite3", "jq"];
+  const tools = ["tail", "ffmpeg", "ffprobe", "convert", "tesseract", "pdftotext", "pdftoppm", "qpdf", "gs", "pandoc", "node", "npm", "sqlite3", "jq",
+    "git", "curl", "pip"];
+  // Each tool bots are told of is needed: without git, curl or pip (D-126) there's no command line either.
+  for (const left of ["git", "curl", "pip"]) {
+    const { env: without } = place(context, { extra: tools.filter((name) => name !== left) });
+    assert.ok(makeStoreToolbox(without).missing.commandLine.includes(left), left);
+  }
   const { packages, env, box } = place(context, { extra: tools });
   // python3's stand-in imports what it's asked to only when MODULES says it can.
   program(path.join(packages, "bbb-python3-3.13/bin/python3"), '[ -n "${MODULES:-}" ] && [ "$1" = -c ] && [[ "$2" == "import pandas, numpy, matplotlib, openpyxl, docx, pptx" ]]');
@@ -136,10 +142,33 @@ test("the start stops, saying so, when the store lacks what computers need, and 
   const made = run(env);
   assert.equal(made.status, 0, made.stderr);
   assert.match(made.stdout, /^Toolbox made from the store: \d+ programs, 1 font folders, 0 libraries, in .+\.\nBots have no command line on this server: the store lacks tail, ffmpeg, /u);
+  assert.match(made.stdout, /\nBots' commands can't check the certificates of https sites: MERCBOT_TOOLBOX_CERTIFICATES names no root certificates in the store \(nixpkgs' cacert\)\.\n/u);
   assert.match(made.stdout, /\nThe office apps, voice memos and coding tools can't start in this toolbox, as they're made for an ordinary Linux system: the store lacks nix-ld and ld\.so on PATH\.\n$/u);
   const loaded = run(place(context, { loader: true }).env);
   assert.equal(loaded.status, 0, loaded.stderr);
   assert.doesNotMatch(loaded.stdout, /can't start in this toolbox/u);
+});
+
+test("the root certificates named are where the store's programs read them, so a command can check an https site", (context) => {
+  const { dir, packages, env, box } = place(context);
+  const bundle = path.join(packages, "kkk-nss-cacert-3.131/etc/ssl/certs/ca-bundle.crt");
+  mkdirSync(path.dirname(bundle), { recursive: true });
+  writeFileSync(bundle, "-----BEGIN CERTIFICATE-----\n");
+  // Named through a link outside the store, as a host's folder of declared packages names a package.
+  symlinkSync(path.join(packages, "kkk-nss-cacert-3.131"), path.join(dir, "host/cacert"));
+  const made = makeStoreToolbox({ ...env, MERCBOT_TOOLBOX_CERTIFICATES: path.join(dir, "host/cacert/etc/ssl/certs/ca-bundle.crt") });
+  assert.equal(made.certificates, true);
+  // The one file nixpkgs' python3, curl, git, node and pip all read (nixos-26.05, measured on 2026-11-23).
+  assert.equal(readlinkSync(path.join(box, "etc/ssl/certs/ca-certificates.crt")), bundle);
+  const none = makeStoreToolbox(env);
+  assert.equal(none.certificates, false);
+  assert.equal(existsSync(path.join(box, "etc/ssl")), false, "none named, none linked");
+  // A file outside the store, or a folder, is refused by name.
+  writeFileSync(path.join(dir, "host/ca.pem"), "");
+  for (const named of [path.join(dir, "host/ca.pem"), path.dirname(bundle), path.join(dir, "host/missing.pem")]) {
+    assert.throws(() => makeStoreToolbox({ ...env, MERCBOT_TOOLBOX_CERTIFICATES: named }),
+      (error) => error.message === `MERCBOT_TOOLBOX_CERTIFICATES names ${named}, which isn't a file in the store (${env.MERCBOT_TOOLBOX_STORE}).`);
+  }
 });
 
 /** Library packages in `packages`: each `name` holding `files` in lib/ (a library is a file; `name -> target` a link). */

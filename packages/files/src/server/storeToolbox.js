@@ -17,7 +17,7 @@ const COMPUTER_PROGRAMS = ["python3", "sh"];
 // What bots are told their command line has (botAgent.js, commandTools.js). The command line is offered only when all
 // of it is there, so a bot is never told of a tool it doesn't have.
 const COMMAND_LINE_PROGRAMS = ["bash", "tmux", "tail", "ffmpeg", "ffprobe", "convert", "tesseract", "pdftotext", "pdftoppm",
-  "qpdf", "gs", "pandoc", "python3", "node", "npm", "sqlite3", "jq"];
+  "qpdf", "gs", "pandoc", "python3", "node", "npm", "sqlite3", "jq", "git", "curl", "pip"];
 const COMMAND_LINE_PYTHON = ["pandas", "numpy", "matplotlib", "openpyxl", "docx", "pptx"];
 
 // Programs made for an ordinary Linux system rather than for the store (install-tools.sh's downloads: the Craft apps,
@@ -37,6 +37,11 @@ const MESA_MANIFESTS = [
   ["share/vulkan/icd.d/lvp_icd.x86_64.json", DESKTOP_GRAPHICS.vulkan],
   ["share/glvnd/egl_vendor.d/50_mesa.json", DESKTOP_GRAPHICS.egl]
 ];
+
+// Where the store's programs read the root certificates they check an https site's against: the one file nixpkgs'
+// python3, curl, git, node and pip all read (nixos-26.05, measured on 2026-11-23), as on Debian and Ubuntu. Bots'
+// commands reach https sites through Mercbot's gateway (D-126), which passes their own TLS through, so they check it.
+const CERTIFICATES = "etc/ssl/certs/ca-certificates.crt";
 
 // Which fonts stand in for the families pages ask for most, when the store has them; a fontconfig package's own rules,
 // where the store has one, say more.
@@ -125,6 +130,23 @@ export function mesaManifests(dir, store) {
     if (!file || !inside(file, store) || !statSync(file).isFile()) throw new Error(`MERCBOT_TOOLBOX_MESA names ${dir}, which has no ${manifest}.`);
     return [file, place];
   });
+}
+
+/**
+ * The root certificates in `file` (MERCBOT_TOOLBOX_CERTIFICATES, a bundle in the store, such as nixpkgs' cacert's
+ * etc/ssl/certs/ca-bundle.crt), at its real path; null without `file`. The bundle is named on purpose, so one that isn't
+ * a file in the store stops the toolbox, naming it, rather than leave every https site unchecked.
+ * @param {string} file
+ * @param {string} store
+ * @returns {string | null}
+ */
+export function storeCertificates(file, store) {
+  if (!file) return null;
+  const real = realOrNull(file);
+  if (!real || !inside(real, store) || !statSync(real).isFile()) {
+    throw new Error(`MERCBOT_TOOLBOX_CERTIFICATES names ${file}, which isn't a file in the store (${store}).`);
+  }
+  return real;
 }
 
 /**
@@ -219,15 +241,16 @@ function pythonHas(python3) {
 /**
  * Makes the toolbox in MERCBOT_TOOLBOX_DIR from the programs on PATH that are in MERCBOT_TOOLBOX_STORE: each as
  * usr/bin/<name> (bin and sbin lead there), the browser as opt/chrome/chrome, a fonts.conf with the store's fonts, and
- * the few files a system has in etc; with nix-ld and ld.so on PATH, the loader programs made for an ordinary Linux
+ * the few files a system has in etc, with MERCBOT_TOOLBOX_CERTIFICATES' root certificates where the store's programs read
+ * them; with nix-ld and ld.so on PATH, the loader programs made for an ordinary Linux
  * system ask for, with MERCBOT_TOOLBOX_LIBRARIES' libraries where it finds them; and MERCBOT_TOOLBOX_MESA's driver
  * manifests where a desktop sandbox looks for them. The command line's stamp
  * (etc/mercbot-toolbox, shellAvailable) is written only when every tool bots are told of is there. The new toolbox
  * replaces the old one whole. Returns what it found: `computers` is false, with `missing` naming why, when bots'
  * computers can't start with it; `loader` is false, with `missing.loader`, when such programs can't start; `graphics`
- * is whether it has Mesa's drivers.
+ * is whether it has Mesa's drivers, and `certificates` whether it has root certificates.
  * @param {import("@jskit-ai/kernel/server/types").RuntimeEnv} env
- * @returns {{ programs: number, fonts: number, computers: boolean, commandLine: boolean, loader: boolean, libraries: number, graphics: boolean, missing: { computers: string[], commandLine: string[], loader: string[] } }}
+ * @returns {{ programs: number, fonts: number, computers: boolean, commandLine: boolean, loader: boolean, libraries: number, graphics: boolean, certificates: boolean, missing: { computers: string[], commandLine: string[], loader: string[] } }}
  */
 export function makeStoreToolbox(env) {
   const store = toolboxStore(env);
@@ -244,6 +267,7 @@ export function makeStoreToolbox(env) {
   const programs = storePrograms(String(env.PATH || ""), store);
   const libraries = storeLibraries(String(env.MERCBOT_TOOLBOX_LIBRARIES || ""), store);
   const graphics = mesaManifests(String(env.MERCBOT_TOOLBOX_MESA || "").trim(), store);
+  const certificates = storeCertificates(String(env.MERCBOT_TOOLBOX_CERTIFICATES || "").trim(), store);
   const fresh = `${root}.new`;
   rmSync(fresh, { recursive: true, force: true });
   for (const dir of ["usr/bin", "usr/local/bin", "etc/fonts", "opt/chrome", "proc", "dev", "sys", "tmp", "root", store.slice(1)]) {
@@ -262,7 +286,7 @@ export function makeStoreToolbox(env) {
     symlinkSync(programs.get("ld.so"), path.join(fresh, NIX_LD_LIBRARIES, "ld.so"));
     for (const [name, real] of libraries) symlinkSync(real, path.join(fresh, NIX_LD_LIBRARIES, name));
   }
-  for (const [real, place] of graphics) {
+  for (const [real, place] of [...graphics, ...(certificates ? [[certificates, CERTIFICATES]] : [])]) {
     mkdirSync(path.join(fresh, path.dirname(place)), { recursive: true });
     symlinkSync(real, path.join(fresh, place));
   }
@@ -293,6 +317,7 @@ export function makeStoreToolbox(env) {
     loader,
     libraries: loader ? libraries.size : 0,
     graphics: graphics.length > 0,
+    certificates: Boolean(certificates),
     missing
   };
 }
