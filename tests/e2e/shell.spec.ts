@@ -222,6 +222,8 @@ test("a direct chat's details are its bot's card: its tabs read each, and it ren
   await expect(details.getByRole("tab", { name: "Details" })).toHaveAttribute("aria-selected", "true");
   // No routines yet: no Routines section (D-119), but its Archive.
   await expect(details.getByRole("region", { name: "Archive" })).toBeVisible();
+  // The chat stays in the sidebar, Otto's row in Bots: nothing here hides it (fc5b8b2, help/chats.md).
+  await expect(details.getByRole("button", { name: /Hide from sidebar/u })).toHaveCount(0);
   // Its instructions, and its routines in this chat.
   await expect.poll(() => calls.filter((call) => /\/(instructions|routines)$/u.test(call)).sort()).toEqual(["GET /bots/:id/instructions", "GET /chats/:id/routines"]);
   calls.length = 0;
