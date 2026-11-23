@@ -46,6 +46,8 @@ export const appsApi = {
   obsoleteRecord: (table, id) => requestInHome(client, `${records(table, id)}/obsolete`, { method: "POST", body: {} }),
   restoreRecord: (table, id) => requestInHome(client, `${records(table, id)}/restore`, { method: "POST", body: {} }),
   recordHistory: (table, id) => requestInHome(client, `${records(table, id)}/history`),
+  // The records that link to one (D-130), by table and link field, the first page of each.
+  relatedRecords: (table, id) => requestInHome(client, `${records(table, id)}/related`),
   importRecords: (table, body) => requestInHome(client, `/app-data/tables/${encodeURIComponent(table)}/import`, { method: "POST", body }),
   fieldImpact: (fieldId) => requestInHome(client, `/app-data/fields/${encodeURIComponent(fieldId)}/impact`),
   removeField: (fieldId) => requestInHome(client, `/app-data/fields/${encodeURIComponent(fieldId)}/remove`, { method: "POST", body: {} }),

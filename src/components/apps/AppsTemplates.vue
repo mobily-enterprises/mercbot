@@ -12,13 +12,15 @@ const emit = defineEmits(["notify"]);
 const router = useRouter();
 const paths = usePaths();
 const templates = ref([]);
+// The shared tables every home builds on (D-130): what each is for, what it links to, and whether this home has it.
+const sharedTables = ref([]);
 const canManage = ref(false);
 const loading = ref(true);
 const installing = ref("");
 
 onMounted(async () => {
   try {
-    ({ templates: templates.value, canManage: canManage.value } = await appsApi.templates());
+    ({ templates: templates.value, sharedTables: sharedTables.value = [], canManage: canManage.value } = await appsApi.templates());
   } catch (error) {
     emit("notify", errorText(error, "The templates couldn't load."), "error");
   } finally {
@@ -67,6 +69,31 @@ async function install(template, sample) {
         </div>
       </v-card>
     </div>
+    <section v-if="sharedTables.length" class="mt-8" data-testid="apps-shared-tables">
+      <div class="text-subtitle-1 mb-1">Shared tables</div>
+      <div class="text-body-2 text-on-surface-variant mb-3">
+        Every bot and app keeps its records in these, so there's one list of contacts, to-dos or places for the whole home. A bot adds one the first time it needs it.
+      </div>
+      <v-table density="comfortable">
+        <tbody>
+          <tr v-for="table in sharedTables" :key="table.key" :data-shared-table="table.key">
+            <td class="text-body-2 font-weight-medium">
+              <router-link v-if="table.inHome" :to="paths.page(`/apps/data/${table.key}`)">{{ table.label }}</router-link>
+              <span v-else>{{ table.label }}</span>
+            </td>
+            <td class="text-body-2">
+              {{ table.description }}
+              <span v-if="table.extends" class="text-on-surface-variant"> One row per record of {{ table.extends }}.</span>
+              <span v-else-if="table.linksTo.length" class="text-on-surface-variant"> Links to {{ table.linksTo.join(", ") }}.</span>
+            </td>
+            <td class="text-right">
+              <v-chip v-if="table.inHome" size="small" variant="tonal" color="primary">In this home</v-chip>
+              <span v-else class="text-caption text-on-surface-variant">Not added yet</span>
+            </td>
+          </tr>
+        </tbody>
+      </v-table>
+    </section>
   </div>
 </template>
 

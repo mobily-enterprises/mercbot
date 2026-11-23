@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { appsHome, appsParts } from "../support/appsHome.mjs";
 import { createTableCatalog } from "../../packages/apps/src/server/tableCatalog.js";
+import { queriesDuring } from "../support/queryCount.mjs";
 
 // A home's shared tables from the catalog (D-130), on the test database: each is made once with the tables it needs
 // first, seeded only when made, and reused after; a home's own table of the same key keeps everything and gains only
@@ -93,4 +94,37 @@ test("a template's own table comes after the shared tables it links to, and a se
   assert.deepEqual(await keys(), ["bills", "contacts", "organisations"]);
   await assert.rejects(catalog.ensureOwnTable(ctx, { key: "customers", fields: [{ key: "name", type: "text" }] }), { code: "apps_table_in_catalog" });
   await assert.rejects(catalog.ensureOwnTable(ctx, { key: "my_people", label: "People", fields: [{ key: "name", type: "text" }] }), { code: "apps_table_in_catalog" });
+});
+
+test("a record's related records come by table and link, a page of each, in a fixed number of queries", async (context) => {
+  const { home, gate, ctx, catalog } = await setup(context, "apps-catalog-related");
+  await catalog.ensureTable(ctx, "todos");
+  await catalog.ensureTable(ctx, "deals");
+  await catalog.ensureTable(ctx, "crm_contacts");
+  const ann = await gate.create(ctx, "contacts", { name: "Ann" });
+  const bob = await gate.create(ctx, "contacts", { name: "Bob" });
+  const add = async (count) => {
+    for (let index = 0; index < count; index += 1) {
+      await gate.create(ctx, "todos", { title: `Call ${index}`, contact: ann.id });
+      await gate.create(ctx, "deals", { title: `Deal ${index}`, contact: ann.id });
+    }
+  };
+  await add(3);
+  await gate.create(ctx, "crm_contacts", { contact: ann.id, stage: "Lead" });
+  await gate.create(ctx, "todos", { title: "Bob's", contact: bob.id });
+
+  const groups = await gate.related(ctx, "contacts", ann.id);
+  const summary = groups.map((group) => [group.table.key, group.field.key, group.total, group.extension]).sort();
+  assert.deepEqual(summary, [["crm_contacts", "contact", 1, true], ["deals", "contact", 3, false], ["todos", "contact", 3, false]]);
+  const todos = groups.find((group) => group.table.key === "todos");
+  assert.ok(todos.records.every((record) => record[todos.field.id].id === String(ann.id)), "only Ann's");
+  assert.deepEqual(await gate.related(ctx, "organisations", "999999"), []);
+
+  const few = await queriesDuring(home.knex, () => gate.related(ctx, "contacts", ann.id));
+  await add(37);
+  const many = await queriesDuring(home.knex, () => gate.related(ctx, "contacts", ann.id));
+  assert.equal(many, few, `40 related records each took ${many} queries, 3 took ${few}`);
+  const after = await gate.related(ctx, "contacts", ann.id);
+  assert.deepEqual(after.find((group) => group.table.key === "todos").records.length, 10, "the first page");
+  assert.equal(after.find((group) => group.table.key === "todos").total, 40);
 });

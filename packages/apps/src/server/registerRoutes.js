@@ -7,6 +7,7 @@ import { checkRouteVisibility } from "@jskit-ai/kernel/shared/support/visibility
 import { fieldByNames, isCalculated } from "../shared/calculated.js";
 import { scopeStyle } from "./appStyle.js";
 import { installTemplate, templateSummaries } from "./templates.js";
+import { CATALOG, needsOf } from "./tableCatalog.js";
 import { GateError } from "./validate.js";
 
 /**
@@ -349,6 +350,13 @@ export function registerRoutes(http, { appsRuntime, notices, streams, uploads })
     home,
     handle(async (request, ctx) => ({ events: await gate.history(ctx, request.params.key, request.params.id) }))
   );
+  // The records that link to one (D-130), by table and link field, the first page of each.
+  router.register(
+    "GET",
+    `${records}/:id/related`,
+    home,
+    handle(async (request, ctx) => ({ groups: await gate.related(dataCtx(ctx), request.params.key, request.params.id) }))
+  );
 
   // Removing a field asks first (impact), then applies everywhere in one save, as the person.
   router.register("GET", `${data}/fields/:id/impact`, home, handle((request, ctx) => apps.fieldImpact(request.params.id, ctx.options)));
@@ -381,7 +389,19 @@ export function registerRoutes(http, { appsRuntime, notices, streams, uploads })
     "GET",
     "/api/w/:workspaceSlug/apps-templates",
     home,
-    handle(async (_request, ctx) => ({ templates: templateSummaries(), canManage: ctx.canManage }))
+    handle(async (_request, ctx) => {
+      // The shared tables (D-130), each with what it links to and whether this home has it yet.
+      const have = new Set((await registry.loadTables(ctx.options)).filter((table) => !table.obsolete).map((table) => table.key));
+      const sharedTables = [...CATALOG.values()].map((entry) => ({
+        key: entry.key,
+        label: entry.label,
+        description: entry.description,
+        linksTo: needsOf(entry).map((key) => CATALOG.get(key).label),
+        ...(entry.extends ? { extends: CATALOG.get(entry.extends).label } : {}),
+        inHome: have.has(entry.key)
+      }));
+      return { templates: templateSummaries(), sharedTables, canManage: ctx.canManage };
+    })
   );
   router.register("POST", "/api/w/:workspaceSlug/apps-templates/:key/install", home, handle((request, ctx) => {
     if (!ctx.canManage) {

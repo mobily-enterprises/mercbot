@@ -6,6 +6,8 @@ import FieldRemoval from "./FieldRemoval.vue";
 import RecordDialog from "./RecordDialog.vue";
 import { appsApi, errorText } from "./appsApi.js";
 import { fileUrl } from "@/components/mercbot/filesApi.js";
+import { usePaths } from "@jskit-ai/shell-web/client/navigation/usePaths";
+import { linksOf } from "./tableLinks.js";
 import { isCalculated } from "@local/apps/shared";
 import { actorName, showValue, whenText as when } from "./appRuntime.js";
 import { exportTable, importRows, matchColumns, readSheetFile } from "./sheets.js";
@@ -15,6 +17,7 @@ import { useSnackbar } from "./useSnackbar.js";
 // (never delete) and restore, each record's history, and CSV/Excel import and export. Every write
 // goes through the data gate.
 const route = useRoute();
+const paths = usePaths();
 const key = computed(() => String(route.params.table || ""));
 
 const table = ref(null);
@@ -36,6 +39,11 @@ const importing = reactive({ open: false, file: null, rows: [], match: null, pro
 const exporting = ref(false);
 
 const fields = computed(() => (table.value?.fields || []).filter((field) => !field.obsolete));
+// What this table links to, what links to it and what extends it (D-130), each opening that table.
+const links = computed(() => {
+  const found = linksOf(tables.value.find((entry) => entry.key === key.value), tables.value);
+  return [["Links to", found.linksTo], ["Linked from", found.linkedFrom], ["Extended by", found.extendedBy]].filter(([, list]) => list.length);
+});
 // Calculated fields (D-78) are worked out on every read, not stored: the database can't search, sort, filter or
 // group by them, which the table and its Fields say in a line, rather than leaving a column that doesn't sort.
 const calculated = computed(() => fields.value.filter(isCalculated));
@@ -193,6 +201,12 @@ const titleOf = (record) => (record ? String(record[table.value?.titleFieldId] ?
       <div class="d-flex align-center flex-wrap ga-4 mb-4">
         <v-text-field v-model="search" label="Search" density="comfortable" variant="outlined" hide-details clearable class="apps-table__search" />
         <v-switch v-model="showObsolete" label="Show obsolete" color="primary" inset hide-details />
+      </div>
+      <div v-if="links.length" class="d-flex flex-wrap align-center ga-4 mb-3 text-body-2" data-testid="apps-table-links">
+        <span v-for="[label, list] in links" :key="label" class="d-inline-flex flex-wrap align-center ga-1">
+          <span class="text-on-surface-variant">{{ label }}</span>
+          <v-chip v-for="linked in list" :key="linked.id" :to="paths.page(`/apps/data/${linked.key}`)" size="small" variant="tonal">{{ linked.label }}</v-chip>
+        </span>
       </div>
       <p v-if="calculated.length" class="text-body-2 text-medium-emphasis mb-3" data-testid="apps-table-calculated-note">
         Search and sorting leave out {{ calculatedNames }}: {{ calculated.length === 1 ? "it's" : "they're" }} calculated each time a record is shown, not stored.

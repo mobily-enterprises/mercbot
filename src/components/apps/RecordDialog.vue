@@ -6,6 +6,7 @@ import { appsApi, errorText } from "./appsApi.js";
 import { useLinkPickers } from "./linkPickers.js";
 import { SHARED_TYPES, TEXT_INPUT, inputOf, storedOf } from "./fieldValues.js";
 import RecordFileField from "./RecordFileField.vue";
+import { usePaths } from "@jskit-ai/shell-web/client/navigation/usePaths";
 
 // Adding or editing one record in the Data tab (D-35). Inputs follow the field types; links pick a
 // record of the target table, searched on the server as the person types. Calculated fields (D-78)
@@ -28,6 +29,26 @@ const chosen = reactive({});
 const FILES = new Set(["file", "image"]);
 // The record this dialog made, when a file then failed to upload: saving again saves onto it, never a second record.
 const made = ref(null);
+// The records that link to this one (D-130), by table: a contact's to-dos, events and deals. Read when it opens.
+const related = ref([]);
+const relatedLoading = ref(false);
+const paths = usePaths();
+const titleOf = (group, record) => {
+  const value = record[group.table.titleFieldId];
+  return value && typeof value === "object" ? value.label : value || `#${record.id}`;
+};
+async function loadRelated(record) {
+  related.value = [];
+  if (!record) return;
+  relatedLoading.value = true;
+  try {
+    related.value = (await appsApi.relatedRecords(props.table.key, record.id)).groups;
+  } catch {
+    // The form works without them; the list is left out.
+  } finally {
+    relatedLoading.value = false;
+  }
+}
 const links = useLinkPickers();
 const saving = ref(false);
 const problem = ref("");
@@ -57,6 +78,7 @@ watch(() => [props.open, props.record], () => {
   for (const key of Object.keys(chosen)) delete chosen[key];
   made.value = null;
   for (const field of fields.value) draft[field.id] = toInput(field, props.record?.[field.id]);
+  loadRelated(props.record);
   links.open(fields.value, props.tables, props.record);
 }, { immediate: true });
 
@@ -145,6 +167,20 @@ async function save() {
         density="comfortable"
         class="mb-2"
       />
+      <section v-if="record && (relatedLoading || related.length)" class="mb-4" data-testid="record-related">
+        <div class="text-subtitle-2 mb-2">Related</div>
+        <v-skeleton-loader v-if="relatedLoading" type="list-item@2" />
+        <div v-for="group in related" v-else :key="group.field.id" class="mb-2">
+          <router-link :to="paths.page(`/apps/data/${group.table.key}`)" class="text-body-2">
+            {{ group.table.label }}{{ related.filter((other) => other.table.id === group.table.id).length > 1 ? ` (${group.field.label})` : "" }}
+          </router-link>
+          <span class="text-body-2 text-on-surface-variant"> · {{ group.total }}</span>
+          <div class="d-flex flex-wrap ga-1 mt-1">
+            <v-chip v-for="item in group.records" :key="item.id" size="small" variant="tonal">{{ titleOf(group, item) }}</v-chip>
+            <span v-if="group.total > group.records.length" class="text-caption text-on-surface-variant align-self-center">and {{ group.total - group.records.length }} more</span>
+          </div>
+        </div>
+      </section>
       <v-alert v-if="problem" type="error" variant="tonal" density="compact" class="mb-3">{{ problem }}</v-alert>
       <div class="d-flex justify-end ga-2">
         <v-btn variant="text" @click="emit('update:open', false)">Cancel</v-btn>

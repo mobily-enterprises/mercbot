@@ -8,6 +8,7 @@ import { fromSheet } from "./sheetInput.js";
 import { createRecordChecks } from "./recordChecks.js";
 import { createAuditReads } from "./auditReads.js";
 import { createRecordFiles } from "./recordFiles.js";
+import { createRelatedRecords } from "./relatedRecords.js";
 import {
   checkFields,
   fence,
@@ -82,6 +83,7 @@ export function createDataGate({
   const { membersOf, checkPeople, checkUnique, labelPeople } = createRecordChecks({ people, homeOf });
   const { newestAudits, activity, actors } = createAuditReads({ auditEvents, repository });
   const files = createRecordFiles({ impl: recordFiles, homeOf, tableFor, get, update });
+  const relatedRecords = createRelatedRecords({ tableFor, read });
 
   /** A table of the call's home by id, or by its live key. */
   async function tableFor(tableIdOrKey, options, { forWrite = false } = {}) {
@@ -641,6 +643,7 @@ export function createDataGate({
     importRecords,
     attachFile: files.attach,
     recordFile: files.fileOf,
+    related: relatedRecords.related,
     tableFor,
     withTransaction
   });
