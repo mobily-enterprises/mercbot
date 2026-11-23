@@ -57,8 +57,8 @@ An app's chat with the Builder and the home's everyone chat are Public rooms too
 ## Who answers
 
 - **When you're the only person in the chat,** every bot in it answers, in turn. Type **@** and pick a bot to ask only that one.
-- **When several people are in the chat,** a bot answers only when it's called: by its name, with **@**, when you reply to one of its messages, or with **@everyone**.
-- **Bots join in when useful.** In a chat with several people, the chat's maker and the home's owners and admins can switch this on in **Chat details**, under **Bots**. Then, when someone writes without calling a bot, Mercbot checks whether one of the chat's bots can help, and at most one answers. People talking to each other are left alone. It's off unless someone switches it on, and others see the switch but can't change it.
+- **When several people are in the chat,** a bot always answers when it's called: by its name, with **@**, when you reply to one of its messages, or with **@everyone**.
+- **Bots join in when useful.** It's on in every chat unless someone switches it off. Every bot in the chat reads every message, and a bot you didn't call replies only when it has something useful to say: an answer, a correction, or what settles a question it asked you. So you can answer a bot's question without naming it, and it carries on. When people talk to each other, the bots stay quiet. The chat's maker and the home's owners and admins can switch it off in **Chat details**, under **Bots**, and then a bot answers only when it's called. Others see the switch but can't change it.
 - After the bots answer, a bot another bot mentioned answers it in the chat, and the bots can talk back and forth there. After 5 replies between bots in a row, they stop and one says plainly what it needs from you ("We need you to go on: …"). Anything anyone writes in the chat lets them carry on. Bots stay quiet when they have nothing new to add.
 - A chat with people only has no bot answering at all.
 

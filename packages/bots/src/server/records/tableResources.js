@@ -44,7 +44,7 @@ export const conversationResource = defineTableResource({
     appId: { type: "string", maxLength: 24, noTrim: true, nullable: true, search: true },
     archivedAt: { type: "dateTime", nullable: true },
     archivedBy: { type: "id", nullable: true },
-    // Whether its bots join in when useful (D-115): off by default, its maker's and the home's owners' and admins'.
+    // Whether its bots join in when useful (D-115): on by default (D-129), its maker's and the home's owners' and admins'.
     botsJoinIn: { type: "boolean" },
     createdAt: { type: "dateTime" },
     directBotId: { type: "id", nullable: true, search: true },

@@ -3,12 +3,13 @@ import type { Knex } from "knex";
 import type { TestInfo } from "@playwright/test";
 import { connectTestDb, expect, openShell, seedChat, shell, test, type Page } from "./harness";
 
-// Bots together (D-115), on the Test Preview target, whose AI is the stand-in model (tools/standInModel.mjs): its join-in
-// judge names the chat's first bot for a question and no bot otherwise, and in a discussion each bot makes one point in
-// round 1, passes after, and one sums it up. In a home of each test's own with a second person, Ben Rossi (who never
-// opens a page here), and two bots, Chef and Shopper:
-// - Chat details shows "Bots join in when useful", off, a switch for the chat's maker; on, a question nobody calls a bot
-//   for gets one bot's answer (Chef's), and chatter gets none.
+// Bots together (D-115, D-129), on the Test Preview target, whose AI is the stand-in model (tools/standInModel.mjs): a
+// bot a message doesn't call replies when the message is a question nobody has answered yet and passes otherwise, and in
+// a discussion each bot makes one point in round 1, passes after, and one sums it up. In a home of each test's own with a
+// second person, Ben Rossi (who never opens a page here), and two bots, Chef and Shopper:
+// - Chat details shows "Bots join in when useful", a switch for the chat's maker (this chat is made with it off); on,
+//   each bot reads every message in turn: a question nobody calls a bot for gets Chef's answer, and Shopper, reading it,
+//   passes; chatter gets no answer, and a call to Chef after it gets Chef's.
 // - Discuss with the bots, from the composer's +, puts a card in the chat that says what it may cost; Start runs round 1,
 //   the card waits for One more round or Wrap up, and Wrap up has one bot sum it up and ends it.
 // Screenshots light, dark and phone (390 by 844): the switch in Chat details, the chat with Chef joining in, and the
@@ -88,7 +89,7 @@ test("Chat details' switch lets bots join in when useful: one bot answers a ques
   try {
     home = await homeWithBen(page, knex);
     const title = `Kitchen ${home.stamp}`;
-    const chat = await seedChat(knex, { homeId: home.homeId, title, people: [home.owner, home.ben], bots: [home.chef, home.shopper] });
+    const chat = await seedChat(knex, { homeId: home.homeId, title, people: [home.owner, home.ben], bots: [home.chef, home.shopper], botsJoinIn: false });
     await openShell(page, `?chat=${chat.id}`, home.path);
     const openDetails = () => shell.chat(page).getByRole("button", { name: `${title} details` }).click();
     await openDetails();
@@ -107,19 +108,23 @@ test("Chat details' switch lets bots join in when useful: one bot answers a ques
     });
     await openShell(page, `?chat=${chat.id}`, home.path);
 
-    // A question for nobody in particular: the judge names Chef, who answers; Shopper stays quiet.
+    // A question for nobody in particular: Chef, first, reads it and answers; Shopper reads Chef's answer and passes.
+    const lastSaid = async () => String((await knex("messages").where({ conversation_id: chat.id, role: "user" }).orderBy("id", "desc").first())?.id);
     await say(page, "Does anyone know when the hardware shop opens on Sundays?");
     await expect.poll(() => botMessages(knex, chat.id, home!.chef), { timeout: 20_000 }).toBeGreaterThan(0);
-    const [asked] = await knex("messages").where({ conversation_id: chat.id, role: "user" }).orderBy("id", "desc").limit(1);
-    expect(asked.body.judged).toBe(home.chef);
     expect(await botMessages(knex, chat.id, home.shopper)).toBe(0);
+    const asked = await lastSaid();
 
-    // Chatter: judged, and left to the people.
+    // Chatter: every bot reads it and passes, so it's left to the people; Chef, called after it, answers the call.
     await say(page, "Thanks, see you there.");
-    const chatter = () => knex("messages").where({ conversation_id: chat.id, role: "user" }).orderBy("id", "desc").first();
-    await expect.poll(async () => (await chatter()).body.judged, { timeout: 20_000 }).toBe("quiet");
-    const answered = await knex("messages").where({ conversation_id: chat.id, role: "bot" }).whereRaw("(body->>'answers')::bigint >= ?", [(await chatter()).id]);
-    expect(answered, "no bot answered the chatter").toEqual([]);
+    await expect.poll(lastSaid).not.toBe(asked);
+    const chatter = await lastSaid();
+    await say(page, "Chef, tell me which aisle has the paint.");
+    await expect.poll(lastSaid).not.toBe(chatter);
+    const call = await lastSaid();
+    const answering = (id: string) => knex("messages").where({ conversation_id: chat.id, role: "bot" }).whereRaw("(body->>'answers')::bigint = ?", [id]);
+    await expect.poll(async () => [...new Set((await answering(call)).map((message) => String(message.author_bot_id)))], { timeout: 20_000 }).toEqual([String(home.chef)]);
+    expect(await answering(chatter), "no bot answered the chatter").toEqual([]);
     expect(await botMessages(knex, chat.id, home.shopper)).toBe(0);
     await shots(page, testInfo, "join-in-chat");
   } finally {

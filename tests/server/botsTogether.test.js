@@ -2,36 +2,36 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { previewOf } from "../../packages/bots/src/server/botRows.js";
 import { DISCUSSION_LIMITS, discussionTokens, roundPrompt, wrapPrompt } from "../../packages/bots/src/server/discussions.js";
-import { JUDGED_CHARACTERS, JUDGED_MESSAGES, judgedConversation, judgementOf, judgingInstructions } from "../../packages/bots/src/server/joiningIn.js";
+import { DECIDED_CHARACTERS, DECIDED_MESSAGES, DECIDING, decidedConversation, decidingInstructions, decisionOf } from "../../packages/bots/src/server/joiningIn.js";
 
-// Bots together (D-115): the join-in judge's instructions, what it reads and how its answer is read, and what a
-// discussion may cost, in tokens, for each choice of rounds.
+// Bots together (D-115, D-129): what a bot the message doesn't call reads to decide whether to reply, and how its answer
+// is read, and what a discussion may cost, in tokens, for each choice of rounds.
 const bots = [{ id: "7", name: "Ada" }, { id: "9", name: "Bo" }];
 
-test("the judge's answer names one of the chat's bots, null, or nothing it can use", () => {
-  assert.equal(judgementOf("{\"bot\": \"Ada\"}", bots), bots[0]);
-  assert.equal(judgementOf("```json\n{\"bot\": \" bo \"}\n```", bots), bots[1], "in a code fence, in any case, trimmed");
-  assert.equal(judgementOf("{\"bot\": null}", bots), null);
-  for (const odd of ["{\"bot\": \"Zed\"}", "{\"reply\": true}", "Sure!", "", "{\"bot\": 7}", "null", "[]"]) {
-    assert.equal(judgementOf(odd, bots), undefined, odd);
-  }
+test("a decision is REPLY or PASS, as its first word in any case; anything else is neither", () => {
+  for (const reply of ["REPLY", "reply", " Reply.", "**REPLY**", "REPLY: it answers my question"]) assert.equal(decisionOf(reply), true, reply);
+  for (const pass of ["PASS", "pass", "Pass.", "`PASS`"]) assert.equal(decisionOf(pass), false, pass);
+  for (const odd of ["Sure!", "", null, "{\"bot\": \"Ada\"}", "I'd PASS", "REPLYING"]) assert.equal(decisionOf(odd), undefined, String(odd));
 });
 
-test("the judge reads the latest messages under their authors' names, clipped, mentions as names; its instructions list the bots", () => {
-  const messages = Array.from({ length: JUDGED_MESSAGES + 3 }, (_, at) => ({ body: { text: `Line ${at}`, authorName: at % 2 ? "Kim" : "Pat" } }));
-  messages.push({ body: { text: `<@bot:9>, ${"long ".repeat(200)}`, authorName: "Kim" } });
-  messages.push({ body: { text: "who's free\n\n  on Saturday?" } });
-  const lines = judgedConversation(bots, messages).split("\n");
-  assert.equal(lines[0], "The conversation, oldest first; decide on the last message:");
-  assert.equal(lines.length, JUDGED_MESSAGES + 1, "only the latest");
-  assert.ok(lines.at(-2).startsWith("[Kim]: @Bo, long long"));
-  assert.equal(lines.at(-2).length, "[Kim]: ".length + JUDGED_CHARACTERS, "each clipped");
-  assert.equal(lines.at(-1), "[Someone]: who's free on Saturday?", "spaces folded; no name is Someone");
+test("a decision reads the latest messages under their authors' names, its own as (you), the message decided on marked", () => {
+  const messages = Array.from({ length: DECIDED_MESSAGES + 3 }, (_, at) => ({ id: String(at + 1), body: { text: `Line ${at}`, authorName: at % 2 ? "Kim" : "Pat" } }));
+  messages.push({ id: "100", author_bot_id: "7", body: { text: "Question 4 of 6. What must never appear on the artwork?", authorName: "Ada" } });
+  messages.push({ id: "101", body: { text: `<@bot:9>, ${"long ".repeat(200)}`, authorName: "Kim" } });
+  messages.push({ id: "102", author_bot_id: "9", body: { text: "who's free\n\n  on Saturday?" } });
+  const lines = decidedConversation({ botId: "7", decidedId: "101", bots }, messages).split("\n");
+  assert.equal(lines[0], "The conversation, oldest first. Decide on the message marked \">>\"; anything after it was said since.");
+  assert.equal(lines.length, DECIDED_MESSAGES + 1, "only the latest");
+  assert.equal(lines.at(-3), "[Ada (you)]: Question 4 of 6. What must never appear on the artwork?", "its own words");
+  assert.ok(lines.at(-2).startsWith(">> [Kim]: @Bo, long long"), "the message decided on");
+  assert.equal(lines.at(-2).length, ">> [Kim]: ".length + DECIDED_CHARACTERS, "each clipped");
+  assert.equal(lines.at(-1), "[Someone]: who's free on Saturday?", "said since; spaces folded; no name is Someone");
 
-  const instructions = judgingInstructions([{ name: "Ada", job: "Plans trips." }, { name: "Bo", job: "Keeps the accounts." }]);
-  assert.match(instructions, /^- Ada: Plans trips\.$/mu);
-  assert.match(instructions, /^- Bo: Keeps the accounts\.$/mu);
-  assert.match(instructions, /Never name more than one/u);
+  const instructions = decidingInstructions({ name: "Ada", job: "Plans trips." });
+  assert.ok(instructions.startsWith(`${DECIDING}\nYou are Ada, one of the bots in it. Your job: Plans trips.\n`));
+  assert.match(instructions, /Above all, reply when the message answers a question you asked/u);
+  assert.match(instructions, /Pass when you'd add nothing: people talking to each other/u);
+  assert.match(instructions, /Answer with one word: REPLY or PASS\.$/u);
 });
 
 test("a discussion's tokens: every turn reads the chat and all said before it, and writes at most a turn's output", () => {

@@ -190,7 +190,7 @@ export function createChatTurns({
     checkClaims,
     // Late-bound, a cycle: a follow-up replies through the replies, and a reply's end starts a waiting follow-up.
     followUps: () => connectFollowUps,
-    // Bots joining in when useful, in a chat that says so (D-115).
+    // Each bot's decision whether to reply to a message that doesn't call it, in a chat whose bots join in (D-115, D-129).
     joiningIn: createJoiningIn({ records, meter, model })
   });
   // Discuss (D-115): the bots of a chat talk a question over in rounds, each round from a person's press.

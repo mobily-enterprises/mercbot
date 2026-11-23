@@ -2,12 +2,13 @@ import assert from "node:assert/strict";
 import test, { after, before } from "node:test";
 import { instructionsFor } from "../../packages/bots/src/server/botAgent.js";
 import { askedByBotPrompt } from "../../packages/bots/src/server/botTalk.js";
+import { decidedConversation, decidingInstructions } from "../../packages/bots/src/server/joiningIn.js";
 import { startStandInModel } from "../../tools/standInModel.mjs";
 
 // The stand-in model plays a bot asked for a database or a spreadsheet (D-122), so the flow can be tried in a Preview:
 // a bot that isn't the Builder proposes a private room with the Builder (start_room), and says so once the card is up;
-// with no Builder it says so; a request that names a spreadsheet starts one, with no room. Through its HTTP API, as the
-// app calls it.
+// with no Builder it says so; a request that names a spreadsheet starts one, with no room. It also decides, for a bot a
+// message in a shared chat doesn't call, whether that bot replies (D-129). Through its HTTP API, as the app calls it.
 
 let standIn;
 before(async () => {
@@ -65,4 +66,23 @@ test("a request that names a spreadsheet gets a spreadsheet, and no room", async
   const then = await step("Put my cats in a spreadsheet.", "- This home's Builder: Mercbot.", helped);
   assert.deepEqual(called(then), []);
   assert.match(then.content, /spreadsheet, as you asked/u);
+});
+
+test("asked whether a bot replies to a message it isn't called in (D-129), the stand-in replies to an unanswered question and passes otherwise", async () => {
+  const system = decidingInstructions({ name: "Chef", job: "Plans meals." });
+  const bots = [{ id: "7", name: "Chef" }, { id: "9", name: "Shopper" }];
+  const decide = async (messages, decidedId) => {
+    const response = await fetch(`${standIn.url}/economy/chat/completions`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ model: "stand-in", messages: [{ role: "system", content: system }, { role: "user", content: decidedConversation({ botId: "7", decidedId, bots }, messages) }] })
+    });
+    assert.equal(response.status, 200);
+    return (await response.json()).choices[0].message.content;
+  };
+  const asked = { id: "2", body: { text: "What should we cook on Saturday?", authorName: "Ben" } };
+  const chatter = { id: "3", body: { text: "Thanks, see you at one.", authorName: "Ben" } };
+  assert.equal(await decide([asked], "2"), "REPLY", "a question");
+  assert.equal(await decide([asked, { id: "4", author_bot_id: "9", body: { text: "Risotto.", authorName: "Shopper" } }], "2"), "PASS", "already answered");
+  assert.equal(await decide([chatter], "3"), "PASS", "people chatting");
 });

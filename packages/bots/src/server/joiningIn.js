@@ -4,162 +4,128 @@ import { plainMentions } from "./mentions.js";
 import { isModelFailure, modelFailure } from "./modelFailures.js";
 import { GENERAL } from "./templates.js";
 
-// Bots join in when useful (D-115, D-102's judge moved to chats). In a chat with several people, people talk to each
-// other as much as to the bots, so a bot answers only when it's called (R3). With the chat's "Bots join in when useful"
-// on (`conversations.bots_join_in`, off by default, O17), a person's message that calls no bot goes through one
-// judging call, which names at most one of the chat's bots to answer it, or none: with several people and nobody
-// called, at most one bot joins per message. The judge's answer is kept on the message (`body.judged`: the bot's id, or
-// "quiet"), so a page asking again, another server, or a bot freed later (answerWaiting) reads the same answer and
-// nothing judges it twice. A chat of one person never judges (every bot answers it, R3), nor a paused home (D-73).
+// Bots join in when useful (D-115, as D-129 changes it). In a chat with several people and the chat's switch on
+// (`conversations.bots_join_in`, on by default), every live bot reads every person's message, one after another in the
+// chat's order (R3), so each reads what the ones before it said. A bot the message calls (its name, an @-mention, a reply
+// to one of its messages, @everyone) answers it as always. Any other bot first decides for itself whether it has
+// something useful to say, in one cheap call of its own: no tools, no reasoning, its name and job and the chat's latest
+// text messages, one word out. Only REPLY starts its turn, which may still PASS; anything else leaves the chat as it
+// was, with nothing posted, shown or kept. Off, only a bot that is called answers. A chat of one person never decides
+// (every bot answers it, R3), nor a paused home (D-73).
 
-/** How many of a chat's latest text messages the judge reads, and how many characters of each. */
-export const JUDGED_MESSAGES = 12;
-export const JUDGED_CHARACTERS = 400;
-// The judge answers {"bot": "<name>"} or {"bot": null}: a few tokens, with room for a code fence around it.
-const JUDGE_OUTPUT_TOKENS = 40;
-/** The mark on a message the judge left to the people. */
-export const QUIET = "quiet";
+/** How many of a chat's latest text messages a decision reads, and how many characters of each. */
+export const DECIDED_MESSAGES = 12;
+export const DECIDED_CHARACTERS = 400;
+// The decision answers REPLY or PASS: a token or two, with room for a stray word around it.
+const DECISION_OUTPUT_TOKENS = 10;
+/** The first words of every decision's instructions. */
+export const DECIDING = "You decide whether you reply to a message in a chat that several people share.";
 
 /**
- * The judge's instructions: fixed for a chat's bots, so the provider caches them.
- * @param {Array<{ name: string, job: string }>} bots the chat's bots that may answer, with what each is for
+ * What a bot is told in the turn it decided to take: say what's useful, and PASS (which posts nothing) if, with the
+ * whole chat in front of it, there's nothing after all.
  */
-export function judgingInstructions(bots) {
+export const UNCALLED =
+  "Nobody called you by name in it: you read it and chose to reply. Say what you have that's useful, such as an " +
+  "answer, a correction, or what it settles of a question you asked, and carry on with what you were doing with them. " +
+  "If, with the whole chat in front of you, there's nothing useful to add after all, reply with exactly PASS.";
+
+/**
+ * A bot's instructions for deciding: fixed for the bot, so the provider caches them. They say what makes a reply
+ * useful, and it decides how chatty a room feels.
+ * @param {{ name: string, job: string }} bot
+ */
+export function decidingInstructions({ name, job }) {
   return [
-    "You decide whether one of the bots in a shared conversation should answer the latest message, and which one. " +
-      "Several people talk here, to each other and sometimes to the bots. The bots and their jobs:",
-    ...bots.map((bot) => `- ${bot.name}: ${bot.job}`),
-    "Answer with one JSON object and nothing else: {\"bot\": \"<its name>\"} or {\"bot\": null}.",
-    "Name a bot when the latest message asks it something, asks for something its job covers, asks everyone a question " +
-      "it can usefully answer, or carries on a conversation the person is having with it. Never name more than one: the " +
-      "one whose job fits best.",
-    "Answer null when people are talking to each other, chatting, thanking, agreeing or saying goodbye, or when an " +
-      "answer would interrupt. When unsure, answer null."
+    DECIDING,
+    `You are ${name}, one of the bots in it. Your job: ${job}`,
+    "You read every message here, also the ones that don't call you by name, so people can carry on with you without " +
+      "naming you every time.",
+    "Reply when you have something useful to say: an answer, a correction, or something that settles one of your own " +
+      "open questions. Above all, reply when the message answers a question you asked or carries on what you were doing " +
+      "with its writer: that is how your work goes on.",
+    "Pass when you'd add nothing: people talking to each other, chatting, thanking, agreeing or saying goodbye, " +
+      "something another bot is doing or has already answered, or a reply that would only repeat what's been said.",
+    "Answer with one word: REPLY or PASS."
   ].join("\n");
 }
 
 /**
- * What the judge reads: the chat's latest text messages, oldest first, the one decided on last, each on one line named
- * by its author as the chat keeps it (`body.authorName`) and clipped to JUDGED_CHARACTERS.
- * @param {Array<{ id: string, name: string }>} bots the chat's bots, whose mentions read as "@Name", as the people a
- *   message mentions do from the names kept on it (`body.mentionedPeople`, D-114)
- * @param {Array<{ body: { text?: string, authorName?: string, mentionedPeople?: Array<{ id: string, name: string }> } }>} messages oldest first
+ * What a decision reads: the chat's latest text messages, oldest first, each on one line named by its author as the chat
+ * keeps it (`body.authorName`, the deciding bot's own lines as "(you)") and clipped to DECIDED_CHARACTERS; the message
+ * decided on is marked ">>", and the lines after it were said since (by the bots before this one).
+ * @param {{ botId: string, decidedId: string, bots: Array<{ id: string, name: string }> }} at the deciding bot, the
+ *   message decided on, and the chat's bots, whose mentions read as "@Name", as the people a message mentions do from
+ *   the names kept on it (`body.mentionedPeople`, D-114)
+ * @param {Array<{ id: string | number, author_bot_id?: string | number | null, body: { text?: string, authorName?: string,
+ *   mentionedPeople?: Array<{ id: string, name: string }> } }>} messages oldest first
  */
-export function judgedConversation(bots, messages) {
-  const lines = messages.slice(-JUDGED_MESSAGES).map((message) => {
-    const text = plainMentions(message.body.text, bots, message.body.mentionedPeople).replace(/\s+/gu, " ").trim().slice(0, JUDGED_CHARACTERS);
-    return `[${message.body.authorName || "Someone"}]: ${text}`;
+export function decidedConversation({ botId, decidedId, bots }, messages) {
+  const lines = messages.slice(-DECIDED_MESSAGES).map((message) => {
+    const text = plainMentions(message.body.text, bots, message.body.mentionedPeople).replace(/\s+/gu, " ").trim().slice(0, DECIDED_CHARACTERS);
+    const own = message.author_bot_id != null && String(message.author_bot_id) === String(botId);
+    const line = `[${message.body.authorName || "Someone"}${own ? " (you)" : ""}]: ${text}`;
+    return String(message.id) === String(decidedId) ? `>> ${line}` : line;
   });
-  return ["The conversation, oldest first; decide on the last message:", ...lines].join("\n");
+  return [`The conversation, oldest first. Decide on the message marked ">>"; anything after it was said since.`, ...lines].join("\n");
 }
 
 /**
- * The judge's answer: the bot it names among `bots` (by name, in any case), null for none, or undefined for an answer
- * in any other shape (a name that isn't one of them included). A code fence around it is read.
+ * The decision's answer: true for REPLY, false for PASS (each in any case, as its first word), undefined for anything
+ * else.
  * @param {unknown} text
- * @param {Array<{ id: string, name: string }>} bots
  */
-export function judgementOf(text, bots) {
-  let parsed;
-  try {
-    parsed = JSON.parse(String(text || "").replace(/^\s*```(?:json)?|```\s*$/gu, "").trim());
-  } catch {
-    return undefined;
-  }
-  if (!parsed || typeof parsed !== "object" || !Object.hasOwn(parsed, "bot")) return undefined;
-  if (parsed.bot === null) return null;
-  const name = typeof parsed.bot === "string" ? parsed.bot.trim().toLowerCase() : "";
-  return bots.find((bot) => bot.name.trim().toLowerCase() === name);
+export function decisionOf(text) {
+  const word = /^[^\p{L}]*(\p{L}+)/u.exec(String(text || ""))?.[1]?.toUpperCase();
+  return word === "REPLY" ? true : word === "PASS" ? false : undefined;
 }
 
 /**
  * @param {object} dependencies
  * @param {import("./types.js").BotRecords} dependencies.records the chat's messages and bots, and its reader
- * @param {import("@local/account/server/types").Meter} dependencies.meter the judge's ticket, and whether the home is paused
+ * @param {import("@local/account/server/types").Meter} dependencies.meter the decision's ticket, and whether the home is paused
  * @param {import("./types.js").ChatModel} dependencies.model
  */
 export function createJoiningIn({ records, meter, model }) {
   /**
-   * The judging call: one generateOnce without reasoning, on the chat kind of work, metered to the person whose message
-   * it decides on, in the chat's home, and no bot, since none has spoken (R8). A failure, or an answer in another shape,
-   * is a no, logged without the conversation.
-   * @param {{ id: string, workspace_id: string }} chat
-   * @param {Array<{ id: string, name: string, job: string }>} bots
-   * @param {object[]} conversation the chat's latest text messages, oldest first
-   * @param {string} askerId
+   * Whether a bot its chat's latest person's message doesn't call replies to it (D-129): false in a paused home, when
+   * the message isn't among the chat's DECIDED_MESSAGES latest text messages any more (the chat has moved on), and when
+   * the decision fails or answers in another shape (logged without the conversation). One generateOnce on the chat kind
+   * of work, no tools, metered to the person the bot works for (who wrote the message), in the chat's home, and that bot
+   * (R8). It reads through the chat's own reader (R1: what the chat may read, for no one) the chat's latest text messages
+   * and the bot's row: the same statements however long the chat.
+   * @param {{ id: string, name: string, chat_id: string, workspace_id: string, user_id: string }} seat the bot's seat
+   * @param {string | number} messageId the person's message decided on
+   * @param {Array<{ bot_id: string | number, name: string }>} bots the chat's bots (records.chats.bots rows)
+   * @returns {Promise<boolean>}
    */
-  async function judge(chat, bots, conversation, askerId) {
-    const system = judgingInstructions(bots);
-    const prompt = judgedConversation(bots, conversation);
+  async function replies(seat, messageId, bots) {
+    if (await meter.pausedMessage(String(seat.workspace_id))) return false;
+    const reader = { context: records.readers.forChat({ homeId: String(seat.workspace_id), chatId: String(seat.chat_id) }) };
+    const [recent, [row]] = await Promise.all([
+      records.messages.recentText(String(seat.chat_id), DECIDED_MESSAGES, reader),
+      records.bots.byIds([String(seat.id)], reader)
+    ]);
+    if (!recent.some((message) => String(message.id) === String(messageId))) return false;
+    const job = (row && templateChipOf(row)?.description) || GENERAL.description;
+    const members = bots.map((bot) => ({ id: String(bot.bot_id), name: bot.name }));
+    const system = decidingInstructions({ name: seat.name, job });
+    const prompt = decidedConversation({ botId: seat.id, decidedId: messageId, bots: members }, [...recent].reverse());
     try {
-      const text = await meter.track({ userId: String(askerId), botId: null, workspaceId: String(chat.workspace_id), work: "chat" }, () =>
-        generateOnce({ model, system, messages: [{ role: "user", content: prompt }], maxOutputTokens: JUDGE_OUTPUT_TOKENS }));
-      const answer = judgementOf(text, bots);
-      if (answer === undefined) console.warn(`Chat ${chat.id}'s bots stayed quiet: their judgement came back in another shape.`);
-      return answer ?? null;
+      const who = { userId: String(seat.user_id), botId: String(seat.id), workspaceId: String(seat.workspace_id), work: "chat" };
+      const text = await meter.track(who, () =>
+        generateOnce({ model, system, messages: [{ role: "user", content: prompt }], maxOutputTokens: DECISION_OUTPUT_TOKENS }));
+      const decided = decisionOf(text);
+      if (decided === undefined) console.warn(`Bot ${seat.id} stayed quiet in chat ${seat.chat_id}: its decision came back in another shape.`);
+      return decided === true;
     } catch (error) {
       const why = isModelFailure(error) ? modelFailure(error) : error?.message || error;
-      console.warn(`Chat ${chat.id}'s bots stayed quiet: their judgement failed: ${why}`);
-      return null;
+      console.warn(`Bot ${seat.id} stayed quiet in chat ${seat.chat_id}: its decision failed: ${why}`);
+      return false;
     }
   }
 
-  /**
-   * The judgement kept on the message (`body.judged`), unless another server kept one first: then that one stands, so
-   * two judgements at once still let at most one bot join in. Answers the mark that stands.
-   */
-  async function keep(chat, message, mark, call) {
-    return records.chats.withTransaction(call, async (txOptions) => {
-      const held = await records.messages.lockMessageIn(String(chat.id), String(message.id), txOptions);
-      if (!held) return QUIET;
-      if (held.body?.judged) return String(held.body.judged);
-      await records.messages.mergeBody(String(message.id), { judged: mark }, txOptions);
-      return mark;
-    });
-  }
-
-  /**
-   * Whether a person's message `latest` that calls none of the chat's bots goes to the judge: only with the chat's
-   * setting on, a live bot, and no judgement on it yet. (With one person in the chat every bot is called, R3.)
-   * @param {{ bots_join_in?: boolean }} chat
-   * @param {{ body?: { judged?: string } } | null | undefined} latest
-   * @param {{ people: object[], bots: object[] }} present
-   */
-  function mayJudge(chat, latest, present) {
-    return Boolean(chat.bots_join_in && latest && !latest.body?.judged && present.bots.some((bot) => !bot.archived_at));
-  }
-
-  /**
-   * The bot that joins in on the chat's latest person's message `latest`, which calls none of its bots, in a list of at
-   * most one (D-115): none unless mayJudge, nor in a paused home. It is called only when the message calls no bot, so
-   * with several people (addressedBots). The judge reads through the chat's own reader (R1:
-   * what the chat may read, for no one), its JUDGED_MESSAGES latest text messages and its live bots' rows: the same
-   * statements however long the chat. The mark is written with the person's request (`call`).
-   * @param {{ id: string, workspace_id: string, bots_join_in?: boolean }} chat records.chats row
-   * @param {{ id: string | number, authorUserId?: string | number, body: { judged?: string } }} latest
-   * @param {{ people: object[], bots: object[] }} present
-   * @param {import("./types.js").CallOptions} call
-   * @returns {Promise<object[]>} the present.bots entry that joins in, or none
-   */
-  async function joining(chat, latest, present, call) {
-    if (!mayJudge(chat, latest, present) || await meter.pausedMessage(String(chat.workspace_id))) return [];
-    const live = present.bots.filter((bot) => !bot.archived_at);
-    const reader = { context: records.readers.forChat({ homeId: String(chat.workspace_id), chatId: String(chat.id) }) };
-    const [recent, rows] = await Promise.all([
-      records.messages.recentText(String(chat.id), JUDGED_MESSAGES, reader),
-      records.bots.byIds(live.map((bot) => String(bot.bot_id)), reader)
-    ]);
-    const jobs = live.map((bot) => {
-      const row = rows.find((entry) => String(entry.id) === String(bot.bot_id));
-      return { id: String(bot.bot_id), name: bot.name, job: (row && templateChipOf(row)?.description) || GENERAL.description };
-    });
-    const picked = await judge(chat, jobs, [...recent].reverse(), latest.authorUserId);
-    const mark = await keep(chat, latest, picked ? picked.id : QUIET, call);
-    return live.filter((bot) => String(bot.bot_id) === mark);
-  }
-
   return Object.freeze({
-    mayJudge,
-    joining
+    replies
   });
 }

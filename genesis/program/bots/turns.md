@@ -101,7 +101,8 @@ archived chats refuse every write, `genesis/program/bots/chats.md`):
 
 **Who speaks (R3, `addressedBots` in `botReplies.js`).** With one person in the chat, every live bot answers in
 order, or only those @-mentioned. With several people, a bot answers only when named as a word, @-mentioned, replied
-to (`replyTo` its message) or called with `<@everyone>`, or when the join-in judge named it (below). After a card is
+to (`replyTo` its message) or called with `<@everyone>`; with the chat's bots joining in, every other live bot reads
+it too and replies only when it has something useful to say (below). After a card is
 answered, its bot speaks. Then each bot another bot just mentioned answers it there, in the chat, round after round
 (D-124, `botTalk.js`): a live bot of the chat, never the message's own author nor one that spoke after the mention,
 once a round, prompted "<Bot> just mentioned you here…" (`PASS` stays quiet: nothing is posted), its reply marked
@@ -116,15 +117,20 @@ never speak; a chat with only people makes no model call. The page decides how t
 `answering`): no live bot, no reply asked; several people, it asks and shows a bot working only once the server says
 one started (`untilStarted`, the `working` event); otherwise it waits for the reply.
 
-**Bots join in when useful (D-115, `joiningIn.js`).** With the chat's `bots_join_in` on and several people, a
-person's message that calls no bot goes through one judging call, in the background job the reply request starts:
-one `generateOnce` on the chat kind of work, at most 40 tokens out, metered to the message's person and no bot, which
-reads the chat's last 12 text messages (each clipped to 400 characters, mentions of bots and people as "@Name")
-through the chat's own reader and answers
-`{"bot": "<name>"}` or `{"bot": null}`. Its answer is kept on the message, `body.judged` (the bot's id, or `"quiet"`),
-under the message's lock, the first kept standing, so at most one bot joins per message and nothing is judged twice;
-`addressedBots` counts the judged bot as called, so one busy at the time answers once it's free. Off, alone in the
-chat, for a call, or in a paused home, nothing is judged. A failure or an answer in another shape stays quiet.
+**Bots join in when useful (D-115, D-129, `joiningIn.js`).** With the chat's `bots_join_in` on (the default) and
+several people, every live bot reads every person's message: `addressedBots` lists the bots it calls, which answer and
+can't pass, and every other live bot marked `mayPass`, all in the chat's order, and `speakInTurn` runs them one after
+another, so each reads what the ones before it said. A `mayPass` bot's run is claimed (a busy bot decides once it's
+free, in `answerWaiting`), then it decides, first thing in `runReply`: one `generateOnce` with no tools and no reasoning, on
+the chat kind of work, at most 10 tokens out, metered to the message's person and that bot, whose fixed instructions
+are its name and job and say what makes a reply useful (an answer, a correction, something that settles one of its
+own open questions, above all an answer to a question it asked), and which reads the chat's last 12 text messages
+(each clipped to 400 characters, its own as "(you)", mentions of bots and people as "@Name", the message decided on
+marked ">>") through the chat's own reader, answering REPLY or PASS. REPLY starts its turn, told nobody called it and
+that exactly `PASS` stays quiet (`joiningIn.js` `UNCALLED`, `generateReply`'s `followUp`); anything else, a failure, a
+message the chat has moved past or a paused home ends `runReply` there, with nothing posted or shown (`working` is never
+sent), and the bot is free as after a reply (a call that came meanwhile is answered). Off, alone in the chat, or for `<@everyone>`, nothing
+decides: only the bots called answer, as before. The inbox (D-48) stays for the bots a message calls.
 
 **Discuss (D-115, `discussions.js`, `MercbotDiscussionCard.vue`).** In a chat with two or more live bots, `POST
 …/chats/:chatId/discussions {question}` (one of its people; at most 500 characters) writes a `discussion` card by

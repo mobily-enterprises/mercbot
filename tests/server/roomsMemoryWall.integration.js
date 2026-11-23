@@ -14,8 +14,8 @@ import { FREE_RECORDER, botsOf, homeOfPeople, startChatTurns } from "../support/
 // and Current state note) and every tool result may hold only what D12 grants the chat it reads from, and the reading
 // chat's own strings are there, so the capture is live. A private chat never reaches a chat with anyone else in it,
 // and a chat of one person reads every chat that person is in (R10). The other paths that read through the model's
-// reader (D-114's hand-over note, D-115's join-in judge and a discussion's turns) read only their own chat, and none of
-// the memory. Stand-ins for every model; no provider is called.
+// reader (D-114's hand-over note, a bot's decision whether to join in, D-129, and a discussion's turns) read only their
+// own chat, and none of the memory. Stand-ins for every model; no provider is called.
 assert.ok(process.env.TEST_DB_NAME?.trim(), "TEST_DB_NAME must identify a disposable test database.");
 assert.equal(process.env.DB_NAME, process.env.TEST_DB_NAME, "DB_NAME must match the dedicated TEST_DB_NAME.");
 
@@ -28,7 +28,7 @@ const NOTE = "CANARY-note-everyone";
  * The Rossi home: Anna, Ben and Carla, Anna's bot Chef, and its chats, each with Chef and a canary in every carrier.
  * Family is public; Anna's direct chat with Chef is private and read only from itself; Plans (Anna and Ben), Diary
  * (Anna alone), Secret (Anna and Carla) and Trio (all three) are private. `together`: Anna's bot Pulse is in every chat but the direct one
- * too, and a chat of several people has its bots join in when useful (D-115).
+ * too, and a chat of several people has its bots join in when useful (D-115, D-129).
  */
 async function rossiHome(kit, { together = false } = {}) {
   const { homeId, people: [anna, ben, carla] } = await homeOfPeople(kit, ["Anna", "Ben", "Carla"]);
@@ -77,7 +77,7 @@ const messagesOf = (list) => list.filter((canary) => canary.endsWith("-message")
  * The home with Chef's digest made, and a turn of Chef asked in any chat by its first person: its reply stand-in runs
  * recall three ways and read_chat on every chat of the home, and keeps what it was handed and what each tool answered.
  * A discussion's turn (D-115) is kept as it was handed, with no tools. `together` makes the home rossiHome's together
- * one, with a join-in judge that keeps what it reads and leaves the message to the people, and a meter that prices a
+ * one, with each bot's decision whether to join in keeping what it reads and passing, and a meter that prices a
  * discussion.
  */
 async function memoryHome(context, { together = false } = {}) {
@@ -126,7 +126,7 @@ async function memoryHome(context, { together = false } = {}) {
   return { kit, inputs, ask, refresh, ...home };
 }
 
-/** The together home's doubles: a judge that keeps what it reads (as a "judge" input) and answers null, and a meter. */
+/** The together home's doubles: each bot's decision, which keeps what it reads (a "decision" input) and passes, and a meter. */
 function togetherDoubles(inputs) {
   return {
     meter: { ...createMeter({ recorder: FREE_RECORDER }), pausedMessage: async () => null, estimateNano: async () => 1000, spentSince: async () => 0 },
@@ -134,9 +134,10 @@ function togetherDoubles(inputs) {
       doGenerate: async (options) => {
         const system = options.prompt.filter((message) => message.role === "system").map((message) => message.content).join("\n");
         const user = options.prompt.filter((message) => message.role === "user").flatMap((message) => message.content).map((part) => part.text || "").join("");
-        if (system.startsWith("You decide whether ")) inputs.push({ path: "judge", text: user });
+        const deciding = system.startsWith("You decide whether you reply ");
+        if (deciding) inputs.push({ path: "decision", bot: /^You are (.+?), one of the bots in it\./mu.exec(system)?.[1], text: `${system}\n${user}` });
         return {
-          content: [{ type: "text", text: "{\"bot\": null}" }],
+          content: [{ type: "text", text: deciding ? "PASS" : "{\"bot\": null}" }],
           finishReason: { unified: "stop", raw: "stop" },
           usage: { inputTokens: { total: 1 }, outputTokens: { total: 1 } },
           warnings: []
@@ -214,7 +215,7 @@ test("mutation: readable_from without \"every person of the chat is in it\" leak
   assert.ok(!reached.includes("CANARY-diary-message") && !reached.includes("CANARY-secret-message"), "restored, the wall holds");
 });
 
-test("the join-in judge, a discussion's turns and Continue with others' note read only their own chat, and none of the memory", async (context) => {
+test("a bot's decision whether to join in, a discussion's turns and Continue with others' note read only their own chat, and none of the memory", async (context) => {
   const { kit, inputs, refresh, homeId, anna, chats } = await memoryHome(context, { together: true });
   await refresh();
   const own = (chat) => [...CARRIERS].map((carrier) => `CANARY-${chat.name}-${carrier}`);
@@ -222,16 +223,19 @@ test("the join-in judge, a discussion's turns and Continue with others' note rea
 
   for (const chat of Object.values(chats)) {
     const as = kit.as(chat.people[0], homeId);
-    // The judge (D-115), in a chat of several people that calls no bot: it reads that chat's own words, and only them.
+    // Each bot's decision (D-129), in a chat of several people, on a message that calls no bot: it reads that chat's own
+    // words, and only them.
     if (chat.people.length > 1) {
       const person = kit.as(chat.people[1], homeId);
       const sent = await kit.turns.chat.sendMessage(chat.id, { text: "Is anyone free on Saturday?" }, person);
       await kit.turns.chat.reply(chat.id, { afterMessageId: sent.messages.at(-1).id }, undefined, person);
       await kit.drain();
-      const judged = latest("judge").at(-1);
-      assert.ok(judged, `${chat.name}'s message was judged`);
-      assert.deepEqual(canaries(judged.text), [`CANARY-${chat.name}-message`], `the judge in ${chat.name} reads its own chat's words, and only them`);
-      inputs.splice(inputs.indexOf(judged), 1);
+      const decided = latest("decision");
+      assert.deepEqual(decided.map((input) => input.bot), ["Chef", "Pulse"], `in ${chat.name}, each bot decided`);
+      for (const input of decided) {
+        assert.deepEqual(canaries(input.text), [`CANARY-${chat.name}-message`], `${input.bot} in ${chat.name} reads its own chat's words, and only them`);
+        inputs.splice(inputs.indexOf(input), 1);
+      }
     }
     // A discussion's turns (D-115): what D12 grants the chat, its own words among it, with no tools and no memory.
     if (chat.name !== "direct") {

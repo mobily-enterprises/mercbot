@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { randomBytes, randomUUID } from "node:crypto";
 import test from "node:test";
+import { MockLanguageModelV4 } from "ai/test";
 import { queriesDuring } from "../support/queryCount.mjs";
 import { connectTestDatabase } from "../support/testDatabase.mjs";
 import { createBotsService } from "../../packages/bots/src/server/botsService.js";
@@ -76,7 +77,16 @@ async function setup(context, { pausedWatches = [] } = {}) {
     reply: async (current, history) => {
       turns.push({ bot: String(current.id), history: history.filter((message) => message.kind === "text").map((message) => message.body.text) });
       return { text: "Noted.", transcript: [] };
-    }
+    },
+    // A chat started here has its bots join in (D-129): the bot reads what isn't for it, and passes.
+    model: new MockLanguageModelV4({
+      doGenerate: async () => ({
+        content: [{ type: "text", text: "PASS" }],
+        finishReason: { unified: "stop", raw: "stop" },
+        usage: { inputTokens: { total: 1 }, outputTokens: { total: 1 } },
+        warnings: []
+      })
+    })
   }));
   // Pat is the home's owner, so may change any chat (workspace.settings.update); Kim is a member.
   const as = (userId, workspaceId = homeId) => memberOptions(userId === pat

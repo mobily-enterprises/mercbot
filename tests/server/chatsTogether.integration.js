@@ -8,12 +8,12 @@ import { FREE_RECORDER, botsOf, homeOfPeople, startChatTurns } from "../support/
 import { memberOptions } from "../support/botRecords.mjs";
 
 // Where the chats rebuild's phases meet, against the disposable test database, each test in a home of its own: what the
-// bots remember (D-113), people in chats (D-114) and bots together (D-115). A discussion's turns read none of the memory
-// and ask for no refresh, while a person's turn, and a reply the join-in judge chose, read it; a message that mentions
-// people and a bot calls only that bot, marks only those people and has its public chat's bots notice it; a person's
-// mention reads as "@Name" in everything the memory reads, in the judge's conversation, in a discussion's question, in
-// what reaches a working bot and in the prompt that names a message that waited for it; and Continue with others' note
-// holds nothing of what the bot remembers. Stand-ins for every model; no provider is called.
+// bots remember (D-113), people in chats (D-114) and bots together (D-115, D-129). A discussion's turns read none of the
+// memory and ask for no refresh, while a person's turn, and a reply a bot chose to join in with, read it; a message that
+// mentions people and a bot calls only that bot, marks only those people and has its public chat's bots notice it; a
+// person's mention reads as "@Name" in everything the memory reads, in what a bot reads to decide whether to join in, in
+// a discussion's question, in what reaches a working bot and in the prompt that names a message that waited for it; and
+// Continue with others' note holds nothing of what the bot remembers. Stand-ins for every model; no provider is called.
 assert.ok(process.env.TEST_DB_NAME?.trim(), "TEST_DB_NAME must identify a disposable test database.");
 assert.equal(process.env.DB_NAME, process.env.TEST_DB_NAME, "DB_NAME must match the dedicated TEST_DB_NAME.");
 
@@ -26,7 +26,8 @@ const MARKER = /<@person:/u;
  * A home of Anna (its owner), Ben and Carla, with Anna's bots Chef and Pulse; the turns, whose replies say "<Name>
  * here." and keep what each was handed (recall run when `steer.tools` gives words, and read_chat when it names a chat;
  * a turn started while `steer.hold` is a promise waits for it first, saying so through `steer.started`); the digest
- * writer, which keeps its input and answers MEMORY; and the join-in judge, which answers `judging.answer`.
+ * writer, which keeps its input and answers MEMORY; and each bot's decision whether to join in (D-129), which keeps what
+ * it read and answers `deciding.answer(bot)`, PASS unless the test says.
  */
 async function setup(context) {
   const meter = {
@@ -35,15 +36,15 @@ async function setup(context) {
     estimateNano: async () => 1000,
     spentSince: async () => 0
   };
-  const judging = { answer: "{\"bot\": null}", calls: [] };
+  const deciding = { answer: () => "PASS", calls: [] };
   const model = new MockLanguageModelV4({
     doGenerate: async (options) => {
       const system = options.prompt.filter((message) => message.role === "system").map((message) => message.content).join("\n");
       const user = options.prompt.filter((message) => message.role === "user").flatMap((message) => message.content).map((part) => part.text || "").join("");
-      const judgement = system.startsWith("You decide whether ");
-      if (judgement) judging.calls.push({ system, user });
+      const bot = system.startsWith("You decide whether you reply ") ? /^You are (.+?), one of the bots in it\./mu.exec(system)?.[1] : null;
+      if (bot) deciding.calls.push({ bot, system, user });
       return {
-        content: [{ type: "text", text: judgement ? judging.answer : "Noted." }],
+        content: [{ type: "text", text: bot ? deciding.answer(bot) : "Noted." }],
         finishReason: { unified: "stop", raw: "stop" },
         usage: { inputTokens: { total: 1 }, outputTokens: { total: 1 } },
         warnings: []
@@ -114,7 +115,7 @@ async function setup(context) {
     await kit.drain();
     return (await kit.knex("messages").where({ id: card.id }).first()).body;
   }
-  return { ...kit, meter, judging, turns, digests, steer, homeId, anna, ben, carla, chef, pulse, as, chat, chatOf, say, refresh, asked, discuss };
+  return { ...kit, meter, deciding, turns, digests, steer, homeId, anna, ben, carla, chef, pulse, as, chat, chatOf, say, refresh, asked, discuss };
 }
 
 test("a discussion's turns read none of what the bots remember and ask for no refresh; a person's turn reads it and asks", async (context) => {
@@ -140,23 +141,22 @@ test("a discussion's turns read none of what the bots remember and ask for no re
   assert.deepEqual(await asked([chef, pulse]), [chef, pulse].sort((a, b) => Number(a) - Number(b)), "and its bots' memories notice it");
 });
 
-test("a reply the join-in judge chose reads what its bot remembers, as any person's turn does", async (context) => {
-  const { knex, homeId, anna, ben, chef, pulse, judging, turns, chatOf, say, refresh } = await setup(context);
+test("a reply a bot chose to join in with reads what its bot remembers, as any person's turn does", async (context) => {
+  const { knex, homeId, anna, ben, chef, pulse, deciding, turns, chatOf, say, refresh } = await setup(context);
   const family = await chatOf({ kind: "public", title: "Family", people: [anna, ben], bots: [chef, pulse], botsJoinIn: true });
   await seedMessage(knex, { homeId, chatId: family, userId: anna, body: { text: "Dinner is at eight on Saturday", authorName: "Anna" } });
   await refresh(chef);
 
-  judging.answer = "{\"bot\": \"Chef\"}";
-  const sent = await say(family, ben, "What should we cook on Saturday?");
-  assert.equal(judging.calls.length, 1, "judged once");
-  assert.ok(!judging.calls[0].user.includes(MEMORY), "the judge reads the chat, not the memory");
-  assert.equal((await knex("messages").where({ id: sent.id }).first()).body.judged, chef, "judged for Chef");
-  assert.deepEqual(turns.map((turn) => turn.bot), ["Chef"], "Chef joined in");
+  deciding.answer = (bot) => (bot === "Chef" ? "REPLY" : "PASS");
+  await say(family, ben, "What should we cook on Saturday?");
+  assert.deepEqual(deciding.calls.map((call) => call.bot), ["Chef", "Pulse"], "each bot decided once");
+  assert.ok(deciding.calls.every((call) => !call.user.includes(MEMORY) && !call.system.includes(MEMORY)), "reading the chat, not the memory");
+  assert.deepEqual(turns.map((turn) => turn.bot), ["Chef"], "Chef joined in; Pulse passed");
   assert.ok(turns[0].state.includes(REMEMBERED) && turns[0].state.includes(MEMORY), "its turn reads its memory");
 });
 
 test("a message that mentions people and a bot calls only that bot, marks only those people, and its public chat's bots notice it", async (context) => {
-  const { knex, anna, ben, carla, chef, pulse, judging, turns, chat, as, chatOf, drain, asked } = await setup(context);
+  const { knex, anna, ben, carla, chef, pulse, deciding, turns, chat, as, chatOf, drain, asked } = await setup(context);
   const family = await chatOf({ kind: "public", title: "Family", people: [anna, ben, carla], bots: [chef, pulse], botsJoinIn: true });
 
   // Anna names Ben, herself and Chef: Chef is called, Ben is mentioned, and Anna marks nobody by naming herself.
@@ -172,8 +172,8 @@ test("a message that mentions people and a bot calls only that bot, marks only t
 
   await chat.reply(family, { afterMessageId: sent.id }, undefined, as(anna));
   await drain();
-  assert.equal(judging.calls.length, 0, "a bot was called: nothing is judged");
-  assert.deepEqual(turns.map((turn) => turn.bot), ["Chef"], "only Chef answers; Pulse stays quiet");
+  assert.deepEqual(deciding.calls.map((call) => call.bot), ["Pulse"], "Chef was called; Pulse, which wasn't, read it and decided");
+  assert.deepEqual(turns.map((turn) => turn.bot), ["Chef"], "only Chef answers; Pulse passed");
 });
 
 test("a person's mention reads as \"@Name\" in everything the memory reads: since then, recall, read_chat and the digest", async (context) => {
@@ -198,8 +198,8 @@ test("a person's mention reads as \"@Name\" in everything the memory reads: sinc
   assert.doesNotMatch(digests.at(-1), MARKER);
 });
 
-test("a discussion's question and the join-in judge's conversation read people's mentions as \"@Name\"", async (context) => {
-  const { anna, ben, carla, chef, pulse, judging, turns, chatOf, say, discuss } = await setup(context);
+test("a discussion's question and what a bot reads to decide whether to join in read people's mentions as \"@Name\"", async (context) => {
+  const { anna, ben, carla, chef, pulse, deciding, turns, chatOf, say, discuss } = await setup(context);
   const family = await chatOf({ kind: "public", title: "Family", people: [anna, ben, carla], bots: [chef, pulse], botsJoinIn: true });
 
   // The composer sends its mentions as markers; the card keeps the words everyone reads.
@@ -209,11 +209,13 @@ test("a discussion's question and the join-in judge's conversation read people's
   assert.equal(discussed.length, 2);
   for (const turn of discussed) assert.match(turn.prompt, /"Should @Ben and @Chef plan Saturday\?"/u, `${turn.bot}'s round reads the question`);
 
-  // A message that names only a person is judged, and the judge reads who it names.
+  // A message that names only a person calls no bot: each bot decides, and reads who it names.
   await say(family, ben, `<@person:${carla}> are you coming on Saturday?`);
-  assert.equal(judging.calls.length, 1);
-  assert.match(judging.calls[0].user, /\[Ben\]: @Carla are you coming on Saturday\?/u);
-  assert.doesNotMatch(judging.calls[0].user, /@someone|<@person:/u);
+  assert.deepEqual(deciding.calls.map((call) => call.bot), ["Chef", "Pulse"]);
+  for (const call of deciding.calls) {
+    assert.match(call.user, />> \[Ben\]: @Carla are you coming on Saturday\?/u);
+    assert.doesNotMatch(call.user, /@someone|<@person:/u);
+  }
 });
 
 test("Continue with others' note holds nothing of what the bot remembers", async (context) => {

@@ -33,6 +33,7 @@ opens, the home's everyone chat, and search across the chats a person can open.
 - `migrations/20261122150000_chat_mentions.cjs`
 - `migrations/20261122160000_chat_bots_join_in.cjs`
 - `migrations/20261123120000_rooms_people_bots.cjs`
+- `migrations/20261124120000_bots_join_in_on.cjs`
 - `packages/bots/src/server/handOverNotes.js`
 - `src/components/mercbot/chatsApi.js`
 - `src/components/mercbot/useChatTyping.js`
@@ -114,7 +115,7 @@ without a reload):
   people, with the people (active members of the home, else 404 `bots_person_not_found`) and bots named, up to 200 of
   each (400 `bots_chat_too_many`). In the same transaction its maker's start line is written: "<Name> started this
   room.", an event line by the maker (`body.event: "room_started"`), drawn as a centred line, which counts as the
-  room's activity and which no bot answers or judges (only a person's text message starts a reply). Chats made
+  room's activity and which no bot answers or decides on (only a person's text message starts a reply). Chats made
   elsewhere (direct chats, the welcome chat, an app's Builder chat, the everyone chat) don't come this way.
 - `POST …/chats/:chatId/messages` by a person of the home who isn't in a Public room seats them in it in the message's
   own transaction (`records.chats.joinByWriting`), and everyone in it hears: writing is how a person joins a room. A
@@ -242,10 +243,11 @@ Chat tab lists "People" (each opens their card in Details, with an arrow back to
 archived", with an × for whoever may take a bot out: anyone in a Public room, its people in a Private one), "Routines" (`genesis/program/bots/routines.md`), and Leave chat (also a labelled, outlined **Leave room** button in the
 header of a Public room the person is in, "Leave" on a phone, asking the same question, D-125), Archive (a Public chat) or Unarchive,
 Hide from sidebar (a Private chat the person is in and hasn't hidden) and Delete chat for whoever may; the everyone chat says "Everyone in <home> is in this chat, for as long as they're in the home."
-Under Bots, a chat with bots shows **Bots join in when useful** (D-115, the chat view's `botsJoinIn`, off by default),
-a switch for whoever may rename it (`chatRights` `joinIn`), with "When someone writes without calling a bot, one bot
-may answer if it can help. Off, bots answer only when called."; for anyone else it is shown but disabled, with "Only
-the person who started this chat and the home's owners and admins can change this."
+Under Bots, a chat with bots shows **Bots join in when useful** (D-115, the chat view's `botsJoinIn`, on by default,
+D-129: every live bot reads every message and replies when it has something useful to say, `genesis/program/bots/turns.md`),
+a switch for whoever may rename it (`chatRights` `joinIn`), with "On: a bot may reply without being called. Off: only
+when called."; for anyone else it is shown but disabled, with "Only the person who started this chat and the home's
+owners and admins can change this."
 
 ## Proved by
 

@@ -70,7 +70,8 @@ const PLANNER = "You plan which bots a Mercbot home should have.";
 // packages/bots/src/server/handOverNotes.js's NOTE_WRITER: Continue with others' hand-over note (D-114).
 const NOTE_WRITER = "You write a short hand-over note that carries a chat on into a new chat with more people.";
 const DIGEST_WRITER = "You keep a bot's memory of the public chats it is in";
-const JOIN_IN = "You decide whether one of the bots in a shared conversation should answer the latest message, and which one.";
+// packages/bots/src/server/joiningIn.js's DECIDING: whether a bot replies to a message it isn't called in (D-129).
+const DECIDING = "You decide whether you reply to a message in a chat that several people share.";
 // A discussion's turns and its wrap-up (packages/bots/src/server/discussions.js), known by the words they're asked with.
 const DISCUSSION_ROUND = /^\(A discussion .+ This is round (\d+) of \d+,/su;
 const DISCUSSION_WRAP = "(Wrap up the discussion of ";
@@ -391,11 +392,14 @@ function answerFor(request, misbehave) {
   if (system.startsWith(PLANNER)) {
     return say(JSON.stringify(botPlan(textOf(request.messages.find((message) => message.role === "user")?.content))));
   }
-  // Whether a bot joins in (D-115): the conversation's last line is the message decided on; people chatting don't ask, and
-  // a question goes to the first bot listed.
-  if (system.startsWith(JOIN_IN)) {
-    const asks = textOf(request.messages.at(-1)?.content).trim().endsWith("?");
-    return say(JSON.stringify({ bot: asks ? /^- (.+?): /mu.exec(system)?.[1] ?? null : null }));
+  // Whether a bot replies to a message it isn't called in (D-129): the line marked ">>" is the message decided on. A
+  // question no one has answered yet gets a reply, so the chat's first bot answers it and the others pass; people
+  // chatting get none.
+  if (system.startsWith(DECIDING)) {
+    const lines = textOf(request.messages.at(-1)?.content).split("\n");
+    const decided = lines.findIndex((line) => line.startsWith(">> "));
+    const unanswered = decided >= 0 && decided === lines.length - 1 && lines[decided].trim().endsWith("?");
+    return say(unanswered ? "REPLY" : "PASS");
   }
   // A discussion: each bot makes one placeholder point in round 1 and passes after; the wrap-up says so.
   const asked = request.messages.filter((message) => message.role === "user" && !textOf(message.content).startsWith(STATE_NOTE)).at(-1);

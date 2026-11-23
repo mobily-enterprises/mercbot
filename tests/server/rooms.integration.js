@@ -74,8 +74,9 @@ test("a room needs a name and starts with its maker and their start line, which 
   );
   assert.equal((await kit.chats.get(garden.id, as(lee))).chat.place, null, "Lee isn't in it");
 
-  // Asked for a reply, and with joining in on, no bot answers the start line, and the model isn't called.
-  await kit.knex("conversations").where({ id: garden.id }).update({ bots_join_in: true });
+  // A new room starts with its bots joining in when useful (D-129); asked for a reply, no bot answers the start line,
+  // and the model isn't called.
+  assert.equal(garden.botsJoinIn, true);
   const answer = await kit.turns.chat.reply(garden.id, {}, undefined, as(pat));
   await kit.drain();
   assert.deepEqual(answer.messages ?? [], []);

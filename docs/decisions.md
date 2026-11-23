@@ -3686,7 +3686,8 @@ moves to chats, off by default) and closes D-46 step 3: bots talk together in a 
 person runs, so there are no bots-only threads and no company chart. Bots still aren't permission: a discussion only
 talks, and approvals stay with people.
 
-- **Bots join in when useful** (O17, O27). A chat's setting, `conversations.bots_join_in` (boolean NOT NULL DEFAULT
+- **Bots join in when useful** (O17, O27; D-129 replaces the judge below with each bot's own decision, and turns it on
+  by default). A chat's setting, `conversations.bots_join_in` (boolean NOT NULL DEFAULT
   false), shown in **Chat details** under **Bots** as a switch when the chat has bots and isn't a direct chat. Its
   maker and the home's owners and admins change it (`PATCH …/chats/:chatId` with `{ botsJoinIn: true|false }`; anyone
   else 403, `bots_chat_manage_forbidden`; not a boolean 400, `bots_join_in_invalid`; a direct chat 409); everyone in the
@@ -4233,3 +4234,53 @@ Decided:
   `tests/server/commandGithub.test.js` (real gVisor: a stand-in github.com over https behind git http-backend, a
   private clone and a pushed branch as the bot, the key masked and withdrawn), `tests/server/commandInternetWords.test.js`
   and `tests/server/botsRouteGuard.test.js`. Nothing in them reaches GitHub.
+
+## D-129 — Every bot reads every message and replies when useful (2026-11-24)
+
+A bot ran a questionnaire in a room with several people; a person answered its question without naming it, and
+nothing replied until they named the bot. The owner: "I want the bots to read EVERY message, and only not-respond if
+they have nothing to say. If they have something useful to say, they can and should say something and see if it
+answers some of their questions." It amends R3 (D-112's "Who speaks"), O17 and D-115's **Bots join in when useful**,
+whose one-bot judge it removes.
+
+- **The setting keeps its name and words**: **Bots join in when useful**, "On: a bot may reply without being called.
+  Off: only when called.", the same switch, the same people change it (D-115). Only what On does, and its default,
+  change.
+- **On, every live bot reads every person's message.** In a chat with several people, a bot the message calls (its
+  name as a word, an @-mention, a reply to one of its messages, @everyone) answers it as always and can't pass. Every
+  other live bot comes after it in the chat's order (`addressedBots` marks it `mayPass`; `speakInTurn` runs them one
+  after another, so each reads what the ones before it said) and first decides for itself whether it has something
+  useful to say: an answer, a correction, or something that settles one of its own open questions, above all when the
+  message answers a question it asked or carries on what it was doing with its writer. Otherwise it passes: people
+  talking to each other, chatting, thanking, agreeing, saying goodbye, something another bot is doing or has answered,
+  or a reply that would only repeat what's been said.
+- **The decision is cheap** (`packages/bots/src/server/joiningIn.js`). The bot's run in the chat is claimed first (so a
+  bot busy with a reply decides once it's free, through `answerWaiting`, and never twice), then one `generateOnce` with
+  no tools and no reasoning, on the chat kind of work, at most 10 tokens out, metered to the message's person, in the
+  chat's home, and that bot (R8). Its fixed instructions are the bot's own (its name and job, the template description
+  or the general bot's) and end "Answer with one word: REPLY or PASS." It reads, through the chat's own reader (R1), the
+  chat's latest 12 text messages, oldest first, one line each, `[Author]: text`, its own lines as "(you)", mentions as
+  "@Name", each clipped to 400 characters, the message decided on marked ">>", and what was said since after it. Only
+  REPLY (its first word, in any case) starts the bot's turn; PASS, any other answer, a failure (both logged without the
+  conversation), a message the chat has moved past (no longer among those 12) and a paused home (D-73) let the run go,
+  with nothing posted, shown as working or kept. A bot let go is free as after a reply: a call that came while it
+  decided is answered then. Measured with the agent loop's count (4 characters a token) in a room of twenty lines, a
+  PASS decision reads a small fraction of a turn's prompt and tools (`tests/server/joinInChats.integration.js` logs both).
+- **A turn that chose to reply may still PASS.** It's told nobody called it by name, to say what it has that's useful
+  and carry on with what it was doing, and to answer exactly PASS if, with the whole chat in front of it, there's
+  nothing after all; PASS posts nothing, as a bot-to-bot follow-up's does (D-124).
+- **Off is as before**: only a bot that is called answers, nothing else calls the model, and no bot passes.
+- **Unchanged:** alone in a chat every bot answers (R3), and with @everyone every bot does, none passing; a bot named
+  can't pass; a paused home starts nothing; the bot-to-bot limit (D-124); a message heard while a bot works reaches its
+  turn only when it calls that bot (D-48); otherwise the bot decides on it once it's free.
+- **On by default.** The column's default is true, and migration `20261124120000_bots_join_in_on.cjs` switches every
+  chat made before it on: none chose Off, which was only the default (an add-only change, a default and values).
+- **Removed, with no compatibility path:** the judge (`judgingInstructions`, `judgedConversation`, `judgementOf`) and
+  `body.judged` on messages. A message an older release judged keeps the field, which nothing reads.
+- **Proof:** `tests/server/joinInChats.integration.js` (the questionnaire answer reaching Studio unnamed; two bots, the
+  message for one, the other passing with nothing posted or shown; people chatting, every bot passing, no judge; a
+  called bot that can't pass, by name, @, reply and everyone; Off exactly as before; a paused home; failures; a busy bot
+  deciding once free; a call answered after a pass; the same statements at 4 and 40 messages; the PASS decision's
+  tokens against a turn's; the switch's rights; new chats on and the migration), `tests/server/botsTogether.test.js`,
+  `tests/server/chatsTogether.integration.js`, `tests/server/roomsMemoryWall.integration.js`,
+  `tests/server/standInRooms.test.js` and `tests/e2e/chats-together.spec.ts`.
