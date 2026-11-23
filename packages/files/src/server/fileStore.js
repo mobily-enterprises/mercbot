@@ -71,6 +71,42 @@ const dbProtected = () => new FilesError(
   { code: "files_db_protected" }
 );
 
+/** A place's folders (`folders`) as [prefix, real folder, name], each it has. */
+const rootsOf = (dirs) => [[CHAT, dirs.chat, "chat"], [BOT, dirs.bot, "bot"], [SHARED, dirs.shared, "shared"], [DB, dirs.db, "db"]]
+  .filter(([, dir]) => dir);
+
+/**
+ * A path with its links followed as far as they exist (what's past them is kept as given); null for a dangling link,
+ * which a write would follow anywhere.
+ */
+async function linkFree(real) {
+  const rest = [];
+  for (let at = real; ; at = path.dirname(at)) {
+    if (await fs.lstat(at).then(() => true, () => false)) {
+      const canonical = await fs.realpath(at).catch(() => null);
+      return canonical && path.join(canonical, ...rest.reverse());
+    }
+    if (path.dirname(at) === at) return null;
+    rest.push(path.basename(at));
+  }
+}
+
+/**
+ * A write lands where its links lead: a bot's command can make a link (/files/shared/x → ../db), so a write is refused
+ * unless the link-free path is in a folder the place may change: never Database files, nor a folder its private chat
+ * only reads (D13, D-130).
+ */
+async function landsWritable(dirs, real) {
+  const target = await linkFree(real);
+  for (const [prefix, dir, name] of rootsOf(dirs)) {
+    const root = await linkFree(dir);
+    if (!target || !root || !target.startsWith(root + path.sep)) continue;
+    if (dirs.readOnly.includes(name)) throw onlyReads(prefix);
+    return;
+  }
+  throw new FilesError(400, "That's not one of the bot's files.", { code: "files_path_outside" });
+}
+
 /** The folders a place has, in words: "/files/chat, /files/bot or /files/shared". */
 function placeFolders(place) {
   const named = [...(place.chatId != null ? [CHAT] : []), ...(place.botId != null && !place.home ? [BOT] : []), SHARED];
@@ -192,9 +228,6 @@ export function createFileStore({ root, fallback, volume = null, ownStorage, set
     await fs.mkdir(dir, { recursive: true });
     return dir;
   }
-
-  const rootsOf = (dirs) => [[CHAT, dirs.chat, "chat"], [BOT, dirs.bot, "bot"], [SHARED, dirs.shared, "shared"], [DB, dirs.db, "db"]]
-    .filter(([, dir]) => dir);
 
   /**
    * The place's folders, made when missing (empty folders, which a move of the home's files needn't carry); `reading`
@@ -353,9 +386,10 @@ export function createFileStore({ root, fallback, volume = null, ownStorage, set
 
   /**
    * "/files/chat/a/b.docx" → the real path, or null outside the place's folders; for writing unless `reading`, which in a
-   * folder the place only reads is refused (files_wider_needs_card).
+   * folder the place only reads is refused (files_wider_needs_card), wherever its links lead (landsWritable; an `entry`
+   * that exists is checked by existingEntry instead).
    */
-  async function resolve(place, virtualPath, { reading = false } = {}) {
+  async function resolve(place, virtualPath, { reading = false, entry = false } = {}) {
     const value = path.posix.normalize(String(virtualPath || "").trim());
     const dirs = await folders(place, { reading });
     for (const [prefix, dir, name] of rootsOf(dirs)) {
@@ -363,6 +397,7 @@ export function createFileStore({ root, fallback, volume = null, ownStorage, set
       const real = path.join(dir, value.slice(prefix.length + 1));
       if (!real.startsWith(dir + path.sep)) return null;
       if (!reading && dirs.readOnly.includes(name)) throw onlyReads(prefix);
+      if (!reading && !entry) await landsWritable(dirs, real);
       return real;
     }
     return null;
@@ -373,7 +408,7 @@ export function createFileStore({ root, fallback, volume = null, ownStorage, set
    * sandbox lets a bot make links, so the link-free real path is checked too: a link never leads a download elsewhere.
    */
   async function existingEntry(place, virtualPath, { folder = false, reading = false } = {}) {
-    const real = await resolve(place, virtualPath, { reading });
+    const real = await resolve(place, virtualPath, { reading, entry: true });
     if (!real) throw new FilesError(400, "That's not one of the bot's files.", { code: "files_path_outside" });
     const found = (stat) => stat?.isFile() || (folder && stat?.isDirectory());
     let stat = await fs.lstat(real).catch(() => null);
@@ -387,9 +422,11 @@ export function createFileStore({ root, fallback, volume = null, ownStorage, set
     }
     const dirs = await folders(place, { reading });
     const canonical = await fs.realpath(real);
-    const allowed = await Promise.all(rootsOf(dirs).map(async ([, dir, name]) => [name, await fs.realpath(dir).catch(() => dir)]));
+    const allowed = await Promise.all(rootsOf(dirs).map(async ([at, dir, name]) => [name, await fs.realpath(dir).catch(() => dir), at]));
     const within = allowed.find(([, dir]) => canonical.startsWith(dir + path.sep));
     if (!within) throw new FilesError(400, "That's not one of the bot's files.", { code: "files_path_outside" });
+    // A change goes where the link leads, so a folder the place only reads refuses it there too (D13, D-130).
+    if (!reading && dirs.readOnly.includes(within[0])) throw onlyReads(within[2]);
     return { real: canonical, stat, folder: within[0] };
   }
   /** An existing file to read, or to change in place with `writing` (refused while the home's files are moved). */

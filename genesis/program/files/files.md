@@ -97,7 +97,8 @@ files are kept.
   copy one out instead of moving it."), and mounted read-only for bots' commands and computers; it is never a Move-to
   destination. Copying out works everywhere. Only the apps' data gate writes there, through the writer the files
   feature plugs into apps at start (`recordFileStore.js`: `writeRecordFile` to `tables/<table>/<record>/<field>/<name>`,
-  a taken name numbered, and `removeRecordFile` only inside `tables/`). The file browser lists it as **Database files**,
+  a taken name numbered, the name without folders, control or text-direction characters or leading dots, and at most
+  200 bytes with its extension kept, and `removeRecordFile` only inside `tables/`). The file browser lists it as **Database files**,
   locked: open, download and Copy to… only, and a drag out copies. A configured folder without the marker is unavailable, so files
   never land on one server's own disk. What writes into the files folder outside the store (the
   usage archive, D-73) reaches the bucket through the working copy the files feature hands the account's sweeps (`files.volume.sync`, `useFilesSync`).
@@ -160,7 +161,9 @@ files are kept.
   path, in name order, at most 5,000 in each folder), `move`
   (files and folders, between any of the folders, never over a file or a folder into itself),
   `remove` (a file or an empty folder) and `makeFolder` only reach the place's folders;
-  `existingFile` also checks the link-free real path.
+  `existingFile` also checks the link-free real path, and every write (`resolve` for writing) is refused unless its
+  link-free path is in a folder the place may change, so a link a bot's command made (`/files/shared/x` → `../db`)
+  never leads a change into Database files or a folder a private chat only reads.
 - Everything the office apps run is in the bots' gVisor sandbox (D-49), through
   `gvisorProcess` in `shell.js`: the toolbox, no network at all (unlike commands, which have a gateway, D-126), the
   place's folders (`noexec`) and the shell's limits. Without gVisor, the toolbox or the apps, `apps.available()` is false and nothing

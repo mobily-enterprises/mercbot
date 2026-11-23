@@ -78,8 +78,10 @@ function build(builder, plan, value, column, knex) {
     case "compare": {
       const operand = value(plan.value);
       // In formulas an empty field reads as "" (a text, a link, a date and time, D-130), and its slot holds null, or ""
-      // for a text; a date and time's slot holds a timestamp, which "" can't be.
-      if (operand === "" && ["=", "<>"].includes(plan.op)) {
+      // for a text; a date and time's slot holds a timestamp, which "" can't be. Only a "" written in the formula asks
+      // for empty fields: an empty value it reads (a signed-out visitor's email, a missing `params.id`) matches none,
+      // so `owner == visitor.email` never gives someone signed out every record nobody owns.
+      if (/^\s*(?:""|'')\s*$/u.test(String(plan.value)) && ["=", "<>"].includes(plan.op)) {
         const moment = /(?:^|\.)date_\d+$/u.test(String(column(plan.field.name)));
         const slot = target(plan.field);
         if (plan.op === "=") {

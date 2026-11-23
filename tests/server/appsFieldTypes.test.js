@@ -82,6 +82,22 @@ test("an empty field is \"\" in formulas: == \"\" finds no value, != \"\" a valu
   assert.match(sql('=due != "" && due < "2026-01-01T00:00:00Z"'), /\("records"\."date_2" is not null\)\) and \("records"\."date_2" < \$1\)/u);
 });
 
+test("only a \"\" written in the formula finds empty fields: an empty value it reads (a visitor not signed in) finds none", () => {
+  const knex = knexLib({ client: "pg" });
+  const variables = { owner: "string", visitor: { signedIn: "bool", email: "string" }, me: { id: "string", name: "string" }, params: { id: "string" } };
+  const values = { visitor: { signedIn: false, email: "" }, me: { id: "", name: "" }, params: { id: "" } };
+  const sql = (where) => knex("records")
+    .where((builder) => applyPlan(builder, compileWhere(variables, where), { variables, values }, () => "records.string_3", knex))
+    .toSQL().toNative();
+  // A visitor rule "their own rows" must never give someone signed out every row nobody owns.
+  for (const where of ["=owner == visitor.email", "=visitor.email == owner", "=owner == me.id", "=owner == params.id"]) {
+    const query = sql(where);
+    assert.doesNotMatch(query.sql, /is null/u, `${where}: ${query.sql}`);
+    assert.deepEqual(query.bindings, [""], where);
+  }
+  assert.match(sql("=owner == ''").sql, /is null/u, "a \"\" in single quotes is written in the formula too");
+});
+
 test("a member's screens read who they are as me; a public screen reads its visitor instead", () => {
   const field = (id, key, type) => ({ id, key, label: key, type, options: {} });
   const tables = [{ id: "t_tasks", key: "tasks", label: "Tasks", obsolete: false, fields: [field("f_title", "title", "text"), field("f_owner", "owner", "person")] }];

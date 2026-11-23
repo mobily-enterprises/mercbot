@@ -140,6 +140,16 @@ test("a visitor's context reaches only what a public app lists, on every method 
     await gate.update(ctx, "people", ann.id, { name: "Ann" });
   });
 
+  await context.test("a rule matching the visitor's email gives someone signed out nobody's records, not every record without one (D-130)", async () => {
+    const cy = await gate.create(ctx, "people", { name: "Cy" });
+    const mine = compile({ public: { tables: { people: { can: ["list", "get", "update"], rows: "=email == visitor.email", read: ["name"], write: ["name"] } } } }, tables, visitor);
+    const outCtx = { workspaceId, actor: { type: "visitor", id: null, name: "Directory (public form)" }, via: { kind: "public" }, visitor, access: mine, options: visitorOptions };
+    assert.deepEqual((await gate.read(outCtx, "people", {})).records, [], "a list of nobody's records");
+    await assert.rejects(gate.get(outCtx, "people", cy.id), (error) => error.statusCode === 404);
+    await assert.rejects(gate.update(outCtx, "people", cy.id, { name: "Hijacked" }), (error) => error.statusCode === 404);
+    await gate.markObsolete(ctx, "people", cy.id);
+  });
+
   await context.test("links reach only the linked table's rows: labels, groups' names and links a visitor writes (P5, P9)", async () => {
     const dan = await gate.create(ctx, "people", { name: "Dan", email: "dan@example.test", team: blue.id });
     const linked = base();

@@ -4307,11 +4307,13 @@ small and complete; more catalog families and mini apps come in phase 2, and per
   import's rows once among them and against the table.
 - **Empty values in filters**: a formula reads an empty field as `""`, and the database holds it as null.
   `field == ""` now finds empty fields, `field != ""` filled ones, and a date and time compared with `""` is a null test.
+  Only a `""` written in the formula does: an empty value it reads (a signed-out visitor's email) is compared as it
+  is, so a visitor rule `owner == visitor.email` never gives someone signed out every record nobody owns.
 - **Database files**: a record's file or picture lives in the home's storage at
   `/files/db/tables/<table>/<record>/<field>/<name>` (a taken name gets a number), a fourth folder of every place,
-  always read-only. People's moves, renames, deletes, uploads and new folders there are refused (403
-  `files_db_protected`, "Database files belong to their table's records: copy one out instead of moving it."), and so are
-  bots' file tools. Bots' commands and computers mount it read-only. Copying out works everywhere. Only the data gate
+  always read-only, also through a link a bot's command made. People's moves, renames, deletes, uploads and new folders
+  there are refused (403 `files_db_protected`, "Database files belong to their table's records: copy one out instead
+  of moving it."), and so are bots' file tools. Bots' commands and computers mount it read-only. Copying out works everywhere. Only the data gate
   writes there: a file is copied in (never moved) as the record's change is made, a change that fails leaves no file,
   and a replaced or cleared file goes once the change is in. An obsolete record keeps its files. A picture field takes
   only PNG, JPEG, GIF or WebP, by its bytes. Nobody sets a file by sending a path (`apps_value_file_from_upload`), and a

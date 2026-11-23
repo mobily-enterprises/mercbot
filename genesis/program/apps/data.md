@@ -60,8 +60,10 @@ home, with every change audited and nothing ever deleted (D-35).
   write's transaction under an advisory lock (`recordChecks.js`, 409 `apps_link_unique_taken`), and
   for an import's rows once among them and against the table, in one read per such field
   (`uniqueTakenIn`), which makes its table a one-to-one extension. In filters, `"x" in tags` is one `jsonb_exists`,
-  and an empty field, `""` to formulas and null in the database, is found by `== ""` (null or
-  empty text; a date and time's slot is only ever null).
+  and an empty field, `""` to formulas and null in the database, is found by a `== ""` written in the
+  formula (null or empty text; a date and time's slot is only ever null). An empty value the formula
+  reads (a signed-out visitor's email, a missing `params.id`, `me.id` for a bot) is compared as it is,
+  so `owner == visitor.email` never reaches every record nobody owns.
 - **Database files** (D-130): a file or picture field's value is `{ path, name, size, type }` (never
   required, `apps_file_required`: its file goes on once the record exists), set only by the gate (`attachFile`, `recordFiles.js`; a value sent by path is refused,
   `apps_value_file_from_upload`). The files feature plugs its writer in at start

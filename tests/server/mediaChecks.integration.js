@@ -281,7 +281,8 @@ test("screenshots and the pictures and videos bots save are checked afterwards, 
       assert.deepEqual(await refusal(kept({ origin: "screenshot", path: badName, conversationId: computer, workspaceId: home })), [400, "media_screenshot_invalid"], `${badName} on ${computer}`);
     }
     assert.ok(existsSync(outside) && existsSync(stays));
-    for (const link of ["/files/chat/link.png", "/files/chat/linked"]) await fs.unlink(await store.resolve(place, link));
+    // The links themselves go (their own paths, as a reading gives them): a write through one that leads outside is refused.
+    for (const link of ["/files/chat/link.png", "/files/chat/linked"]) await fs.unlink(await store.resolve(place, link, { reading: true }));
   });
 
   await context.test("a picture or video too big to check isn't kept", async (t) => {
