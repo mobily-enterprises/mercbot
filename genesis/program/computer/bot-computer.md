@@ -354,17 +354,22 @@ commands once per tab and none per navigation. The chain ends with `endSignIn`, 
 started, or when the bot opens an address itself (`browse`, `fill` reopening its page); it lives in
 the owner's memory with the browser, so a computer that sleeps or moves starts without one. The
 page work itself (waiting for a page to settle, what covers it, a direct click, a login's fields and
-typing into them) is in `webPage.js`.
+typing into them) is in `webPage.js`. What `browse` reads of a page includes the HTTP status its
+document answered with, from Navigation Timing (`responseStatus`) after any redirects: a missing
+page's 404, a redirected address's page's own 200, the same when the open page is read again
+without reloading, and null when the browser doesn't say. The stand-in computers' pages answer 200.
 `signInPage` says whether the page in front is in the open chain and where it started. `fill` with
 `inChain` types a code only while that holds, checked just before typing (otherwise
 `{outsideChain: true}` and nothing typed), and with `onlyAt` only while the page in front is still
 at that address. The manager's `startBrowser`, `libraries` and `clock` let
-`tests/e2e/sign-in-chain.spec.ts` run it on a plain Chromium with a stand-in for Stagehand's AI.
+`tests/e2e/sign-in-chain.spec.ts` and `tests/e2e/page-status.spec.ts` run it on a plain Chromium with a stand-in
+for Stagehand's AI.
 
 ## Proved by
 
 - `tests/server/signInChain.test.js`
 - `tests/e2e/sign-in-chain.spec.ts`
+- `tests/e2e/page-status.spec.ts`
 - `tests/server/computers.integration.js`
 - `tests/server/cdpBridge.test.js`
 - `tests/server/gateway.test.js`

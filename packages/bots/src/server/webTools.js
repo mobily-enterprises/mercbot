@@ -4,9 +4,9 @@ import { APPROVAL_OPTIONS } from "./botActions.js";
 import { savedLogin } from "./vaultLogins.js";
 
 /**
- * Web work on the chat's computer (D14): one screenshot per page it worked on, signing in without secrets passing
- * through the bot, and handing the screen to the person. A saved login is the home's vault's (D8), in any chat; what the
- * computer signs in to is the chat's, said in one line (`signedIn`).
+ * Web work on the chat's computer (D14): one screenshot per page it worked on (none of a page that answered an error),
+ * signing in without secrets passing through the bot, and handing the screen to the person. A saved login is the home's
+ * vault's (D8), in any chat; what the computer signs in to is the chat's, said in one line (`signedIn`).
  * @param {object} shared
  * @param {import("./types.js").TurnRepository} shared.turns records.turns
  * @param {{ savedLogins: (options: object) => Promise<object[]> }} shared.account the account capability (the home's vault)
@@ -69,6 +69,19 @@ export function buildWebTools({
   async function openWebPage({ url }) {
     try {
       const page = await inTime(computer.browse(String(computerId), url), "Opening the page");
+      // A page that answered an error is the site's error page, not the page: the bot is told, and its screenshot isn't
+      // shown under the reply. A missing one is most often an address guessed rather than followed; any other error's
+      // page is read too, as it may be a wall (a sign-in, a check that the visitor is a person).
+      if (page.status === 404 || page.status === 410) {
+        return { error: `That page doesn't exist (${page.status}). Use the links on the site's own pages instead of guessing addresses.` };
+      }
+      if (page.status >= 400) {
+        return {
+          error: `The site answered ${page.status} for that page, so it isn't shown. If it asks you to sign in or to prove you're a person, deal with that as with any wall; otherwise use the links on the site's own pages, or try again later.`,
+          title: page.title,
+          text: untrusted(page.text)
+        };
+      }
       screenshots.push({ name: page.screenshot, caption: page.title || page.url });
       return { url: page.url, title: page.title, text: untrusted(page.text), ...coveredBy(page) };
     } catch (error) {
@@ -78,7 +91,8 @@ export function buildWebTools({
   tools.openWebPage = createTool(
     Object.freeze({
       id: "open_web_page",
-      description: "Open a web page in your own browser and read its text. Use it to look things up on the web.",
+      description:
+        "Open a web page in your own browser and read its text. Use it to look things up on the web. On a site, reach its other pages through its own links rather than guessing their addresses.",
       inputSchema: z.object({ url: z.string().min(3).max(2000).describe("The address to open") }),
       execute: (input, options) => openWebPage(input, options)
     })

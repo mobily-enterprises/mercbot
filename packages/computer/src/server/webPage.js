@@ -68,11 +68,18 @@ export async function covering(page) {
   }).catch(() => "");
 }
 
-/** What the bot reads of a page: its address, title and text, and what covers it. */
+/**
+ * What the bot reads of a page: its address, title and text, what covers it, and the HTTP status its document answered
+ * with (Navigation Timing's, after any redirects: a missing page's 404, a redirected page's own 200), null when the
+ * browser doesn't say.
+ */
 export async function readPage(page) {
   const title = await page.title();
-  const text = await page.evaluate(() => document.body?.innerText || "");
-  return { url: page.url(), title, text: text.slice(0, 8000), covering: await covering(page) };
+  const { text, status } = await page.evaluate(() => ({
+    text: document.body?.innerText || "",
+    status: performance.getEntriesByType("navigation")[0]?.responseStatus || null
+  }));
+  return { url: page.url(), title, text: text.slice(0, 8000), status, covering: await covering(page) };
 }
 
 /** A site as a login names it: "https://www.Example.com/login" gives example.com. */

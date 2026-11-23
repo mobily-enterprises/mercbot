@@ -24,7 +24,7 @@ test("a stand-in computer wakes, browses with a real screenshot, records and sle
   });
   assert.deepEqual(manager.status("4"), { state: "asleep", url: "", error: "" });
   const page = await manager.browse("4", "https://example.org/");
-  assert.deepEqual(page, { url: "https://example.org/", title: "A page", text: "", screenshot: "/screens/4.jpg" });
+  assert.deepEqual(page, { url: "https://example.org/", title: "A page", text: "", status: 200, screenshot: "/screens/4.jpg" });
   assert.deepEqual(stored[0].subarray(0, 3), Buffer.from([0xff, 0xd8, 0xff]), "a JPEG, as a real screenshot is");
   assert.deepEqual(manager.status("4"), { state: "awake", url: "https://example.org/", error: "" });
   assert.equal(manager.screen("4"), null, "no live screen to watch");

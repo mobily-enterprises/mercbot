@@ -58,7 +58,7 @@ You can see a bot's screen at any time, even while it's working.
 
 The live view shows the bot's whole desktop: its tabs, address bar and windows, with the computer's name and the line saying who can use it at the top. At the bottom it says **Watching**, so you can follow along without getting in the way. Press **Escape** or select the collapse button at the top to close it. Closing the view doesn't stop the bot.
 
-You don't need to watch to know what happened. When a bot has used its browser, its reply ends with a screenshot of each page it worked on. Select one to see it full size.
+You don't need to watch to know what happened. When a bot has used its browser, its reply ends with a screenshot of each page it worked on. Select one to see it full size. A page that turned out not to exist, or that the site answered with an error, isn't among them: the bot is told, and finds its way through the site's own links instead.
 
 If the live view shows **Couldn't reach the screen**, select **Try again**. While the screen is still starting you'll see **Starting the desktop…** or **Connecting to the screen…** for a few seconds.
 

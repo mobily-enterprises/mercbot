@@ -124,7 +124,10 @@ as a `voice` message shown as an audio bubble with the waveform, length and tran
 **Web work on the chat's computer** (D14, `webTools.js`; the computer is `genesis/program/computer/bot-computer.md`):
 `open_web_page`, `use_web_page` (an irreversible step asks first), `ask_for_help` (hands the screen to the person with
 a hand-over card and the seat's `waiting_task`, keeping the computer awake) and the sign-ins. A reply that used the web
-ends with one screenshot per page. Sign-ins, in order: a login the person gave for the task, `sign_in_with_saved_login`
+ends with one screenshot per page, its last four. A page `open_web_page` opened that answered an HTTP error (the status
+the computer reports) has none: a missing one (404, 410) comes back to the bot as "That page doesn't exist (404). Use the
+links on the site's own pages instead of guessing addresses.", and any other error's says which status the site
+answered, with the page's text, as it may be a wall (a sign-in, a check that the visitor is a person). Sign-ins, in order: a login the person gave for the task, `sign_in_with_saved_login`
 (a login from the home's Vault, D8, filled by the computer and never shown to the model), `ask_for_login` (a
 `secure_form` card), then `ask_for_help`. At each sign-in the chat gets D14's one line, "Everyone who can open this
 chat can use this sign-in.", and the computer notes it in its sign-ins list.
@@ -211,6 +214,7 @@ offer to try it. A recording it can't learn from gets a short explanation and no
 - `tests/server/commandOutput.integration.js`
 - `tests/server/pictureChecks.test.js`
 - `tests/server/screenshotChecks.test.js`
+- `tests/server/webPageStatus.test.js`
 - `tests/server/signInCodes.test.js`
 - `tests/server/signInSecrets.test.js`
 - `tests/server/signInChain.test.js`
@@ -227,4 +231,5 @@ offer to try it. A recording it can't learn from gets a short explanation and no
 - `tests/server/skills.test.js`
 - `tests/server/teaching.test.js`
 - `tests/e2e/sign-in-chain.spec.ts`
+- `tests/e2e/page-status.spec.ts`
 - `tests/e2e/sedna.spec.ts`

@@ -45,7 +45,7 @@ When you send a message, the bot gets to work and a status line at the end of th
 
 Some things show up in the chat as small centred lines rather than messages, for example when a bot creates a routine or passes a job to another bot. They're a record of what actually happened.
 
-When a bot uses the web, its reply ends with a screenshot of each page it worked on. Select a screenshot to see it large and download it.
+When a bot uses the web, its reply ends with a screenshot of each page it worked on. Select a screenshot to see it large and download it. A page that doesn't exist, or that the site answered with an error, has no screenshot there.
 
 If you've scrolled up to read something earlier, the chat stays where you are when new messages arrive. A green pill at the bottom says how many came in, such as **2 new messages**. Select it to jump to the newest, or select **×** on it to dismiss it. Sending a message always takes you to the bottom.
 

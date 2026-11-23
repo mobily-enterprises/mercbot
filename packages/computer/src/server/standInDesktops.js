@@ -26,7 +26,8 @@ export function standInDesktops(env) {
 function createStandInDesktops({ changed, store }) {
   const computers = new Map();
   const status = (computerId) => ({ state: computers.get(computerId)?.state || "asleep", url: computers.get(computerId)?.url || "", error: "" });
-  const page = async (computerId, url, title) => ({ url, title, text: "", screenshot: await store(computerId, SCREEN) });
+  // Every page it opens answers, as a page that exists does.
+  const page = async (computerId, url, title) => ({ url, title, text: "", status: 200, screenshot: await store(computerId, SCREEN) });
 
   async function wake(computerId) {
     if (computers.get(computerId)?.state !== "awake") {
