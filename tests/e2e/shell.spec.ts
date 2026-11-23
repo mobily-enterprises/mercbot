@@ -198,7 +198,8 @@ test("a chat's menu offers its actions, and Pin pins it until Unpin", async ({ p
   const tile = shell.sidebar(page).getByRole("region", { name: "Pinned chats" }).getByRole("button", { name: "Otto", exact: true });
   await expect(tile).toBeVisible();
   await tile.click({ button: "right" });
-  await expect(shell.menuItems(page)).toHaveText(["Unpin", "Mark as unread", "Copy chat ID", "Hide from sidebar", "Delete"]);
+  // A direct chat offers no Hide from sidebar, pinned or not (fc5b8b2).
+  await expect(shell.menuItems(page)).toHaveText(["Unpin", "Mark as unread", "Copy chat ID", "Delete"]);
   await shell.menuItems(page).filter({ hasText: "Unpin" }).click();
   await expect(tile).toHaveCount(0);
   await expect(shell.chatRow(page, "Otto")).toBeVisible();
