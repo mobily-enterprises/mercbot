@@ -14,7 +14,7 @@ import { homeIdOf } from "../../packages/apps/src/server/callOptions.js";
 // features on mercbot.apps beside it (`extras`).
 
 const NO_BOTS = Object.freeze({
-  directory: Object.freeze({ listHomeBots: async () => [], findBot: async () => null })
+  directory: Object.freeze({ listHomeBots: async () => [], homeBotFaces: async () => [], findBot: async () => null })
 });
 
 /**

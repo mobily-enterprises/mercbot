@@ -177,6 +177,8 @@ export const appSettingResource = defineTableResource({
   ownership: "workspace",
   schema: {
     builderBotId: { type: "id", nullable: true, search: true },
+    // When the home got its starter apps, Contacts and To-dos (D-130): once, at its first open.
+    starterAppsAt: { type: "dateTime", nullable: true },
     createdAt: { type: "dateTime" },
     updatedAt: { type: "dateTime" },
     workspaceId: { type: "id", hidden: true, search: true }

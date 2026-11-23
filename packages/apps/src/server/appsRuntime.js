@@ -7,6 +7,7 @@ import { createRuntime } from "./runtime.js";
 import { createScripts } from "./scripts.js";
 import { installTemplate, templateSummaries } from "./templates.js";
 import { createTableCatalog } from "./tableCatalog.js";
+import { createStarterApps } from "./starterApps.js";
 import { createTrial } from "./trial.js";
 import { createViews } from "./views.js";
 import { createWatches } from "./watches.js";
@@ -65,6 +66,7 @@ export function createAppsRuntime({ resources, systemContext, records, anyapi, n
   const watches = createWatches({ resources, repository, systemContext, registry, gate, apps, records });
   const catalog = createTableCatalog({ registry, gate });
   const installTemplateFor = (ctx, key, options) => installTemplate({ registry, apps, gate, catalog }, ctx, key, options);
+  const starterApps = createStarterApps({ appSettings: resources.appSettings, installTemplate: installTemplateFor, apps });
   return Object.freeze({
     anyapi,
     registry,
@@ -79,6 +81,7 @@ export function createAppsRuntime({ resources, systemContext, records, anyapi, n
     installTemplate: installTemplateFor,
     templateSummaries,
     catalog,
+    starterApps,
     homePeople,
     useRecordFiles,
     recordUploads
