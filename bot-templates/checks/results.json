@@ -1,4 +1,647 @@
 {
   "about": "The bot templates' end-to-end checks (D-43, D-79), written by npm run check:templates and read when Mercbot starts: one result per template, its newest. A template shows as tested only while its result passed, its fingerprint matches the template as it is now, and its behaviour fingerprint matches how bots behave now (BEHAVIOUR_SOURCES in packages/bots/src/server/templateResults.js). Run the check after changing bot behaviour and before publishing, then commit this file.",
-  "results": {}
+  "results": {
+    "accessibility-checker": {
+      "date": "2026-11-23",
+      "commit": "7ebfb42",
+      "behaviour": "51e117da7d5345c8",
+      "template": "8a241541a5072677",
+      "models": {
+        "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
+        "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
+      },
+      "passed": true,
+      "reasons": [],
+      "turns": 10,
+      "asked": "6 of 6"
+    },
+    "appointment-bookings": {
+      "date": "2026-11-23",
+      "commit": "7ebfb42",
+      "behaviour": "51e117da7d5345c8",
+      "template": "ac72b15fb2352d9f",
+      "models": {
+        "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
+        "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
+      },
+      "passed": true,
+      "reasons": [],
+      "turns": 11,
+      "asked": "6 of 6"
+    },
+    "blog-article-desk": {
+      "date": "2026-11-23",
+      "commit": "7ebfb42",
+      "behaviour": "51e117da7d5345c8",
+      "template": "b077b7152bd385e3",
+      "models": {
+        "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
+        "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
+      },
+      "passed": true,
+      "reasons": [],
+      "turns": 11,
+      "asked": "6 of 6"
+    },
+    "brand-mention-digest": {
+      "date": "2026-11-23",
+      "commit": "7ebfb42",
+      "behaviour": "51e117da7d5345c8",
+      "template": "e7e964b6edc3b65e",
+      "models": {
+        "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
+        "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
+      },
+      "passed": true,
+      "reasons": [],
+      "turns": 8,
+      "asked": "5 of 5"
+    },
+    "brand-voice-editor": {
+      "date": "2026-11-23",
+      "commit": "7ebfb42",
+      "behaviour": "51e117da7d5345c8",
+      "template": "f837cb4747e20a3b",
+      "models": {
+        "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
+        "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
+      },
+      "passed": false,
+      "reasons": [
+        "Its setup didn't finish within 12 turns."
+      ],
+      "turns": 12,
+      "asked": "4 of 4"
+    },
+    "competitor-watch": {
+      "date": "2026-11-23",
+      "commit": "7ebfb42",
+      "behaviour": "51e117da7d5345c8",
+      "template": "df619166e013cbf8",
+      "models": {
+        "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
+        "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
+      },
+      "passed": true,
+      "reasons": [],
+      "turns": 7,
+      "asked": "4 of 4"
+    },
+    "customer-follow-up": {
+      "date": "2026-11-23",
+      "commit": "7ebfb42",
+      "behaviour": "51e117da7d5345c8",
+      "template": "1667a402f27f982e",
+      "models": {
+        "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
+        "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
+      },
+      "passed": true,
+      "reasons": [],
+      "turns": 9,
+      "asked": "6 of 6"
+    },
+    "deal-follow-ups": {
+      "date": "2026-11-23",
+      "commit": "7ebfb42",
+      "behaviour": "51e117da7d5345c8",
+      "template": "11d867ff678e8732",
+      "models": {
+        "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
+        "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
+      },
+      "passed": true,
+      "reasons": [],
+      "turns": 9,
+      "asked": "5 of 5"
+    },
+    "design-critique": {
+      "date": "2026-11-23",
+      "commit": "7ebfb42",
+      "behaviour": "51e117da7d5345c8",
+      "template": "12a6a02c2b9c0a85",
+      "models": {
+        "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
+        "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
+      },
+      "passed": true,
+      "reasons": [],
+      "turns": 7,
+      "asked": "5 of 5"
+    },
+    "expense-receipt-tidy": {
+      "date": "2026-11-23",
+      "commit": "7ebfb42",
+      "behaviour": "51e117da7d5345c8",
+      "template": "019d86302909d39c",
+      "models": {
+        "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
+        "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
+      },
+      "passed": false,
+      "reasons": [
+        "It didn't ask: Ask with a question card where receipts usually arrive: email, paper or photos, PDFs in a drive folder (several allowed). If email, ask which senders or words usually mark a receipt. The judge: Asked where receipts arrive (email/drive) but never asked which senders or words mark receipt emails — only a generic spotting card."
+      ],
+      "turns": 11,
+      "asked": "5 of 6"
+    },
+    "family-chores-rota": {
+      "date": "2026-11-23",
+      "commit": "7ebfb42",
+      "behaviour": "51e117da7d5345c8",
+      "template": "81c35391eb11f6a4",
+      "models": {
+        "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
+        "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
+      },
+      "passed": true,
+      "reasons": [],
+      "turns": 9,
+      "asked": "4 of 4"
+    },
+    "habit-tracker": {
+      "date": "2026-11-23",
+      "commit": "7ebfb42",
+      "behaviour": "51e117da7d5345c8",
+      "template": "31b3748ba7a56c69",
+      "models": {
+        "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
+        "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
+      },
+      "passed": false,
+      "reasons": [
+        "Its setup didn't finish within 12 turns."
+      ],
+      "turns": 12,
+      "asked": "4 of 4"
+    },
+    "home-maintenance-log": {
+      "date": "2026-11-23",
+      "commit": "7ebfb42",
+      "behaviour": "51e117da7d5345c8",
+      "template": "799393850f0f6df0",
+      "models": {
+        "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
+        "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
+      },
+      "passed": false,
+      "reasons": [
+        "Its setup didn't finish within 12 turns.",
+        "It didn't ask: Ask with a question card which day of the month the reminder should run and around what time. The judge: The bot asked the reminder day with a question card but did not ask around what time it should run.",
+        "It set up 0 of its 1 routines (Monthly home jobs)."
+      ],
+      "turns": 12,
+      "asked": "3 of 4"
+    },
+    "household-bills-tracker": {
+      "date": "2026-11-23",
+      "commit": "7ebfb42",
+      "behaviour": "51e117da7d5345c8",
+      "template": "a3856a3765fdd4bb",
+      "models": {
+        "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
+        "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
+      },
+      "passed": false,
+      "reasons": [
+        "Its setup didn't finish within 12 turns.",
+        "It didn't ask: Ask with a question card which day of the month the check should run and around what time. The judge: Asked on a question card which day, but never asked about the time of day.",
+        "It set up 0 of its 1 routines (Monthly bills check)."
+      ],
+      "turns": 12,
+      "asked": "3 of 4"
+    },
+    "job-description-writer": {
+      "date": "2026-11-23",
+      "commit": "7ebfb42",
+      "behaviour": "51e117da7d5345c8",
+      "template": "33291f6f6d4e3296",
+      "models": {
+        "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
+        "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
+      },
+      "passed": true,
+      "reasons": [],
+      "turns": 9,
+      "asked": "6 of 6"
+    },
+    "job-search-helper": {
+      "date": "2026-11-23",
+      "commit": "7ebfb42",
+      "behaviour": "51e117da7d5345c8",
+      "template": "13bea82563638680",
+      "models": {
+        "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
+        "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
+      },
+      "passed": false,
+      "reasons": [
+        "It didn't ask: Ask them to share their current CV (upload, /files/chat, or a connected drive). Read it and summarise their strengths in three lines to check you've understood. The judge: It asked them to share the CV but never read it or summarised their strengths in three lines, since no drive was connected."
+      ],
+      "turns": 13,
+      "asked": "5 of 6"
+    },
+    "kids-activities-planner": {
+      "date": "2026-11-23",
+      "commit": "7ebfb42",
+      "behaviour": "51e117da7d5345c8",
+      "template": "e14c7a2941d3e87a",
+      "models": {
+        "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
+        "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
+      },
+      "passed": false,
+      "reasons": [
+        "It didn't ask: Ask with a question card whether you may read a calendar (Google, Outlook, or no) and whether you may read messages from the clubs in their inbox (Gmail, Outlook, or no). If one isn't connected, say they can connect it from the bot's apps. The judge: The bot presented two separate cards, one for calendar and one for inbox, instead of one question card asking both together, and didn't give the connect-from-apps wording for each."
+      ],
+      "turns": 12,
+      "asked": "4 of 5"
+    },
+    "language-practice-partner": {
+      "date": "2026-11-23",
+      "commit": "7ebfb42",
+      "behaviour": "51e117da7d5345c8",
+      "template": "b96f21ee38a56e22",
+      "models": {
+        "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
+        "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
+      },
+      "passed": true,
+      "reasons": [],
+      "turns": 11,
+      "asked": "6 of 6"
+    },
+    "meeting-recap-writer": {
+      "date": "2026-11-23",
+      "commit": "7ebfb42",
+      "behaviour": "51e117da7d5345c8",
+      "template": "1d9ccb42419cce3e",
+      "models": {
+        "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
+        "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
+      },
+      "passed": true,
+      "reasons": [],
+      "turns": 9,
+      "asked": "5 of 5"
+    },
+    "money-check-in": {
+      "date": "2026-11-23",
+      "commit": "7ebfb42",
+      "behaviour": "51e117da7d5345c8",
+      "template": "5c72d9124e42a7a4",
+      "models": {
+        "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
+        "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
+      },
+      "passed": true,
+      "reasons": [],
+      "turns": 12,
+      "asked": "5 of 5"
+    },
+    "new-starter-onboarding": {
+      "date": "2026-11-23",
+      "commit": "7ebfb42",
+      "behaviour": "51e117da7d5345c8",
+      "template": "1d4a5abcae030fda",
+      "models": {
+        "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
+        "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
+      },
+      "passed": false,
+      "reasons": [
+        "It didn't ask: Ask with a question card whether each starter gets a buddy (yes, sometimes, no) and how check-ins work in the first month. The judge: The bot asked the buddy question on a card but answered the check-in part from the person's prior unprompted comment rather than asking it."
+      ],
+      "turns": 9,
+      "asked": "4 of 5"
+    },
+    "newsletter-writer": {
+      "date": "2026-11-23",
+      "commit": "7ebfb42",
+      "behaviour": "51e117da7d5345c8",
+      "template": "0c194c6b58830187",
+      "models": {
+        "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
+        "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
+      },
+      "passed": false,
+      "reasons": [
+        "Its setup didn't finish within 13 turns."
+      ],
+      "turns": 13,
+      "asked": "5 of 5"
+    },
+    "on-call-handover": {
+      "date": "2026-11-23",
+      "commit": "7ebfb42",
+      "behaviour": "51e117da7d5345c8",
+      "template": "a670ce55f8ed1756",
+      "models": {
+        "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
+        "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
+      },
+      "passed": true,
+      "reasons": [],
+      "turns": 9,
+      "asked": "3 of 3"
+    },
+    "plant-care": {
+      "date": "2026-11-23",
+      "commit": "7ebfb42",
+      "behaviour": "51e117da7d5345c8",
+      "template": "32eb2ee74974afc1",
+      "models": {
+        "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
+        "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
+      },
+      "passed": true,
+      "reasons": [],
+      "turns": 10,
+      "asked": "5 of 5"
+    },
+    "presentation-polisher": {
+      "date": "2026-11-23",
+      "commit": "7ebfb42",
+      "behaviour": "51e117da7d5345c8",
+      "template": "5ae9e850430fb941",
+      "models": {
+        "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
+        "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
+      },
+      "passed": true,
+      "reasons": [],
+      "turns": 7,
+      "asked": "5 of 5"
+    },
+    "proposal-writer": {
+      "date": "2026-11-23",
+      "commit": "7ebfb42",
+      "behaviour": "51e117da7d5345c8",
+      "template": "80f6bd2fa0c214ac",
+      "models": {
+        "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
+        "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
+      },
+      "passed": true,
+      "reasons": [],
+      "turns": 8,
+      "asked": "4 of 4"
+    },
+    "prospect-research": {
+      "date": "2026-11-23",
+      "commit": "7ebfb42",
+      "behaviour": "51e117da7d5345c8",
+      "template": "c237cdb4c3976c3a",
+      "models": {
+        "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
+        "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
+      },
+      "passed": true,
+      "reasons": [],
+      "turns": 11,
+      "asked": "7 of 7"
+    },
+    "quote-writer": {
+      "date": "2026-11-23",
+      "commit": "7ebfb42",
+      "behaviour": "51e117da7d5345c8",
+      "template": "81833288a9af24ed",
+      "models": {
+        "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
+        "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
+      },
+      "passed": true,
+      "reasons": [],
+      "turns": 12,
+      "asked": "7 of 7"
+    },
+    "receipts-and-invoices": {
+      "date": "2026-11-23",
+      "commit": "7ebfb42",
+      "behaviour": "51e117da7d5345c8",
+      "template": "a7735e1fe8babe06",
+      "models": {
+        "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
+        "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
+      },
+      "passed": true,
+      "reasons": [],
+      "turns": 11,
+      "asked": "6 of 6"
+    },
+    "recruiting-coordinator": {
+      "date": "2026-11-23",
+      "commit": "7ebfb42",
+      "behaviour": "51e117da7d5345c8",
+      "template": "e3033480c335235b",
+      "models": {
+        "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
+        "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
+      },
+      "passed": true,
+      "reasons": [],
+      "turns": 10,
+      "asked": "5 of 5"
+    },
+    "renewal-watch": {
+      "date": "2026-11-23",
+      "commit": "7ebfb42",
+      "behaviour": "51e117da7d5345c8",
+      "template": "e50ddc34f7f7688c",
+      "models": {
+        "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
+        "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
+      },
+      "passed": true,
+      "reasons": [],
+      "turns": 9,
+      "asked": "5 of 5"
+    },
+    "review-replies": {
+      "date": "2026-11-23",
+      "commit": "7ebfb42",
+      "behaviour": "51e117da7d5345c8",
+      "template": "02a17673e4065df3",
+      "models": {
+        "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
+        "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
+      },
+      "passed": true,
+      "reasons": [],
+      "turns": 12,
+      "asked": "6 of 6"
+    },
+    "sales-call-prep": {
+      "date": "2026-11-23",
+      "commit": "7ebfb42",
+      "behaviour": "51e117da7d5345c8",
+      "template": "73d235ea870e05a0",
+      "models": {
+        "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
+        "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
+      },
+      "passed": true,
+      "reasons": [],
+      "turns": 7,
+      "asked": "5 of 5"
+    },
+    "school-admin-helper": {
+      "date": "2026-11-23",
+      "commit": "7ebfb42",
+      "behaviour": "51e117da7d5345c8",
+      "template": "ba01b0471229bef2",
+      "models": {
+        "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
+        "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
+      },
+      "passed": true,
+      "reasons": [],
+      "turns": 8,
+      "asked": "4 of 4"
+    },
+    "shop-stock-keeper": {
+      "date": "2026-11-23",
+      "commit": "7ebfb42",
+      "behaviour": "51e117da7d5345c8",
+      "template": "497560fb07027953",
+      "models": {
+        "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
+        "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
+      },
+      "passed": true,
+      "reasons": [],
+      "turns": 10,
+      "asked": "5 of 5"
+    },
+    "social-post-calendar": {
+      "date": "2026-11-23",
+      "commit": "7ebfb42",
+      "behaviour": "51e117da7d5345c8",
+      "template": "294e9ab140f3d9ad",
+      "models": {
+        "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
+        "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
+      },
+      "passed": true,
+      "reasons": [],
+      "turns": 13,
+      "asked": "6 of 6"
+    },
+    "stock-reorder-planner": {
+      "date": "2026-11-23",
+      "commit": "7ebfb42",
+      "behaviour": "51e117da7d5345c8",
+      "template": "b04b3f4de4b75b5a",
+      "models": {
+        "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
+        "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
+      },
+      "passed": true,
+      "reasons": [],
+      "turns": 8,
+      "asked": "3 of 3"
+    },
+    "supplier-contract-tracker": {
+      "date": "2026-11-23",
+      "commit": "7ebfb42",
+      "behaviour": "51e117da7d5345c8",
+      "template": "513cd1cf14d9e4b2",
+      "models": {
+        "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
+        "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
+      },
+      "passed": true,
+      "reasons": [],
+      "turns": 10,
+      "asked": "6 of 6"
+    },
+    "team-check-in": {
+      "date": "2026-11-23",
+      "commit": "7ebfb42",
+      "behaviour": "51e117da7d5345c8",
+      "template": "7bbe9d7fa0341c4c",
+      "models": {
+        "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
+        "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
+      },
+      "passed": false,
+      "reasons": [
+        "It didn't ask: Ask with a question card which day and time the reminder should come, then create the routine, paused, named \"Check-in reminder\", at the chosen rhythm. Its instructions: prepare the next round's questions using the \"Check-in notes\" document and trends, save them, and remind the person it's time, without sending anything. The judge: The bot used a question card to ask the reminder day and time and did create a paused routine named 'Check-in reminder' at the chosen rhythm, but it never described the instructions to prepare the next round's questions using 'Check-in notes' and trends, save them, and remind without sending anything."
+      ],
+      "turns": 7,
+      "asked": "4 of 5"
+    },
+    "time-off-tracker": {
+      "date": "2026-11-23",
+      "commit": "7ebfb42",
+      "behaviour": "51e117da7d5345c8",
+      "template": "373cbea558ee7694",
+      "models": {
+        "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
+        "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
+      },
+      "passed": true,
+      "reasons": [],
+      "turns": 8,
+      "asked": "6 of 6"
+    },
+    "ux-copy-writer": {
+      "date": "2026-11-23",
+      "commit": "7ebfb42",
+      "behaviour": "51e117da7d5345c8",
+      "template": "d747a4e26c3c33ab",
+      "models": {
+        "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
+        "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
+      },
+      "passed": true,
+      "reasons": [],
+      "turns": 11,
+      "asked": "5 of 5"
+    },
+    "website-enquiries": {
+      "date": "2026-11-23",
+      "commit": "7ebfb42",
+      "behaviour": "51e117da7d5345c8",
+      "template": "9020c8db4b58e299",
+      "models": {
+        "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
+        "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
+      },
+      "passed": true,
+      "reasons": [],
+      "turns": 13,
+      "asked": "6 of 6"
+    },
+    "weekly-kpi-report": {
+      "date": "2026-11-23",
+      "commit": "7ebfb42",
+      "behaviour": "51e117da7d5345c8",
+      "template": "287283f2a35af962",
+      "models": {
+        "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
+        "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
+      },
+      "passed": false,
+      "reasons": [
+        "It didn't ask: Ask with a question card which day and time the report should be ready (for example Monday 8am or Friday 4pm). The judge: Never asked with a question card which day and time the report should be ready; the bot stated an assumed paused routine at Mondays ~8:00 AM London and offered to start or change it."
+      ],
+      "turns": 11,
+      "asked": "4 of 5"
+    },
+    "weekly-meal-planner": {
+      "date": "2026-11-23",
+      "commit": "7ebfb42",
+      "behaviour": "51e117da7d5345c8",
+      "template": "aeb33ac852606298",
+      "models": {
+        "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
+        "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
+      },
+      "passed": true,
+      "reasons": [],
+      "turns": 7,
+      "asked": "5 of 5"
+    }
+  }
 }
