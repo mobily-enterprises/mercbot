@@ -3,7 +3,7 @@ import { connectTestDb, expect, HOME, homeApi, openShell, seedChat, shell, test,
 
 // Archiving a chat (D-112), on the Test Preview target, with a chat of the test's own in the fixture home, made by the
 // person, with Otto in it. Archive, from the chat's row, asks first; the chat is then read-only for everyone in it: a
-// banner where the composer was ("This chat is archived, so it's read-only.", with Unarchive), no Invite a bot, and the server
+// banner where the composer was ("This chat is archived, so it's read-only.", with Unarchive), no Invite, and the server
 // refuses anything written to it. It moves to the list's Archived chats, collapsed with its count until opened, and
 // Chat details says Public · Archived. Another page of the person's sees it at once. Unarchive, from the banner or the
 // archived row's menu, makes it a chat to write in again. Screenshots light, dark and phone of the archived chat are the
@@ -45,7 +45,8 @@ test("an archived chat is read-only for everyone in it, sits in Archived chats, 
     const path = `/api${HOME}/chats/${chatId}`;
     await openShell(page, `?chat=${chatId}`);
     await expect(shell.composer(page)).toBeVisible();
-    await expect(shell.chat(page).getByRole("button", { name: "Invite a bot", exact: true })).toBeVisible();
+    // Its people invite people and bots, in a public room too (8ccf7bd).
+    await expect(shell.chat(page).getByRole("button", { name: "Invite", exact: true })).toBeVisible();
 
     // Another page of the person's, with the same chat open.
     const other = await context.newPage();

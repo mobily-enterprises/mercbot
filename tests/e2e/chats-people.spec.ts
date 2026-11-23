@@ -9,7 +9,8 @@ import { connectTestDb, expect, expectRefusal, homeApi, openShell, seedChat, see
 // chatVisibility.integration.js). The home's everyone chat is the first tile for everyone in it, and no one leaves it; a
 // public room of Ben's is listed faded in the owner's Rooms and opening it joins them, and a
 // private one is a 404 and never listed; New room is Public unless Private is picked, needs a name, and a private room
-// opens Invite at once; its header, composer and details say who can read it; Invite a bot puts a bot in a public room;
+// opens Invite at once; its header, composer and details say who can read it; Invite puts people and bots in a public
+// room its people are in, and Invite a bot only bots, for someone reading it from outside;
 // People and Bots list the home's other people and its bots, each opening the person's private chat with them, with
 // their card in the details; leaving a public room leaves it faded, and deleting the last room leaves Rooms empty, with
 // + New room. Screenshots light, dark and phone (390 by 844) are the output: the list with the everyone chat, New room,
@@ -312,7 +313,7 @@ test("New room is Public unless Private is picked and needs a name; a private ro
   }
 });
 
-test("Invite a bot puts the home's bots into a public room, never a person", async ({ page }) => {
+test("Invite puts the home's people and bots into a public room its people are in; Invite a bot, for someone reading it from outside, never a person", async ({ page }) => {
   const knex = connectTestDb();
   let home: Home | null = null;
   try {
@@ -329,25 +330,32 @@ test("Invite a bot puts the home's bots into a public room, never a person", asy
     await expect(shell.composer(page)).toHaveAttribute("placeholder", `Everyone in ${home.name} can read this · Chef remembers it`);
     await expect(chip(page, title)).toContainText("Public · You and Chef");
 
-    // Invite a bot: everyone in the home can open the room already, so it offers the home's bots not in it: Shopper.
-    await expect(inviteButton(page)).toHaveAccessibleName("Invite a bot");
+    // Invite, for its people (8ccf7bd): everyone in the home can open the room already, and whoever is invited joins it,
+    // so it offers the home's people and bots not in it: Ben, then Shopper.
+    await expect(inviteButton(page)).toHaveAccessibleName("Invite");
     await inviteButton(page).click();
-    const inviting = page.getByRole("dialog", { name: "Invite a bot" });
-    await expect(inviting.getByText(`Everyone in the home can open “${title}” already. A bot you invite answers here, and can be taken out again.`)).toBeVisible();
-    await inviting.getByLabel("Bots").click();
-    await expect(page.getByRole("option")).toHaveText([/Shopper/u]);
-    await invite(page, inviting, "Bots", ["Shopper"]);
+    const inviting = page.getByRole("dialog", { name: "Invite", exact: true });
+    await expect(inviting.getByText(`Everyone in the home can open “${title}” already. Whoever you invite joins it, so it's in their list; a bot answers here.`)).toBeVisible();
+    await inviting.getByLabel("People and bots").click();
+    await expect(page.getByRole("option")).toHaveText([/Ben Rossi/u, /Shopper/u]);
+    await invite(page, inviting, "People and bots", ["Shopper"]);
     await expect(chip(page, title)).toContainText("Public · You, Chef and Shopper");
 
-    // Again: every bot is in it already.
+    // Its maker leaves it, so they read it from outside: Invite a bot, which offers bots only, never a person, and every
+    // bot is in it already.
+    await shell.chat(page).getByRole("button", { name: "Leave room", exact: true }).click();
+    await shell.question(page).getByRole("button", { name: "Leave", exact: true }).click();
+    await expect(inviteButton(page)).toHaveAccessibleName("Invite a bot");
     await inviteButton(page).click();
-    await inviting.getByLabel("Bots").click();
+    const fromOutside = page.getByRole("dialog", { name: "Invite a bot" });
+    await expect(fromOutside.getByText(`Everyone in the home can open “${title}” already. A bot you invite answers here, and can be taken out again.`)).toBeVisible();
+    await fromOutside.getByLabel("Bots").click();
     await expect(page.getByText("Every bot is in this room already.")).toBeVisible();
     await page.keyboard.press("Escape");
-    if (await inviting.isVisible()) await inviting.getByRole("button", { name: "Cancel" }).click();
-    await expect(inviting).toBeHidden();
+    if (await fromOutside.isVisible()) await fromOutside.getByRole("button", { name: "Cancel" }).click();
+    await expect(fromOutside).toBeHidden();
 
-    expect(await knex("chat_people").where({ conversation_id: plans.id }).pluck("user_id").then((ids) => ids.map(String))).toEqual([home.owner]);
+    expect(await knex("chat_people").where({ conversation_id: plans.id }).pluck("user_id").then((ids) => ids.map(String))).toEqual([]);
     expect(await knex("chat_bots").where({ conversation_id: plans.id }).orderBy("position").pluck("bot_id").then((ids) => ids.map(String)))
       .toEqual([home.chef, home.shopper]);
   } finally {

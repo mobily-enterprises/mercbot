@@ -120,7 +120,8 @@ test("a public room starts with its maker and their start line, its maker leaves
     const row = shell.chatRow(page, title);
     await expect(row).toHaveAttribute("aria-current", "page");
     await expect(row).not.toHaveClass(FADED);
-    await expect(shell.chat(page).getByRole("button", { name: "Invite a bot", exact: true })).toBeVisible();
+    // Its people invite people and bots, in a public room too (8ccf7bd).
+    await expect(shell.chat(page).getByRole("button", { name: "Invite", exact: true })).toBeVisible();
 
     // Its maker leaves with the header's Leave room: the room stays, with nobody in it, faded in their Rooms, and stays
     // left while it's still open.
