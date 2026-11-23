@@ -42,7 +42,7 @@ const people = computed(() => (props.room.people || []).map((person) => ({ id: S
         {{ bot.name }}
       </li>
     </ul>
-    <p class="mb-room-card__brief text-body-medium">{{ room.brief }}</p>
+    <p class="mb-room-card__brief text-body-medium" tabindex="0" role="region" aria-label="The room's brief">{{ room.brief }}</p>
     <v-btn v-if="done?.chatId" class="mb-room-card__open" color="primary" variant="flat" prepend-icon="$openInNew" @click="emit('open-chat', String(done.chatId))">
       Open the room
     </v-btn>

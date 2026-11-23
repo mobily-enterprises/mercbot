@@ -9,7 +9,7 @@ import MercbotConfirmDialog from "@/components/mercbot/MercbotConfirmDialog.vue"
 import MercbotFileViewer from "@/components/mercbot/MercbotFileViewer.vue";
 import { fileKind, fileUrl, filesApi, formatSize, storageApi, uploadFile } from "@/components/mercbot/filesApi.js";
 import MercbotPlacePicker from "./MercbotPlacePicker.vue";
-import { dropLabel, dropMode, nameOf, onMac, parentOf, pickerLabel, startKey, useFilePlaces, useFolderListing } from "./filePlaces.js";
+import { ARCHIVED_NOTE, dropLabel, dropMode, nameOf, onMac, parentOf, pickerLabel, startKey, useFilePlaces, useFolderListing } from "./filePlaces.js";
 import { useFileTransfer } from "./useFileTransfer.js";
 
 // The one file browser (D-47, D-112 R6): on the left every place the person can open (the chat it was opened from,
@@ -267,6 +267,7 @@ function endDrag() {
           <v-btn icon="$createNewFolder" size="x-small" variant="text" :disabled="place.archived" :loading="busy" :aria-label="`New folder in ${pickerLabel(place)}`" @click="startDialog('folder')" />
           <v-btn icon="$uploadArrow" size="x-small" variant="text" :disabled="place.archived" :loading="busy" :aria-label="`Upload to ${pickerLabel(place)}`" @click="uploadInput.click()" />
         </div>
+        <p v-if="place.archived" class="mb-files__empty">{{ ARCHIVED_NOTE }}</p>
         <p v-if="failure" class="mb-files__problem" role="alert">
           {{ failure.message || "The files couldn't load." }}
           <router-link v-if="signIn === 'can'" :to="signInLink" class="mb-files__sign-in">Sign in again</router-link>

@@ -6,6 +6,7 @@ import { createCallerReaders, fieldsOf, isId } from "./recordRows.js";
 import { builderChanger } from "./builderSeats.js";
 import { createSeatWindows } from "./seatWindows.js";
 import { createSectionRecords } from "./sectionRepository.js";
+import { roomsToVisit } from "./publicRoomRepository.js";
 import { createSharedChatRepository } from "./sharedChatRepository.js";
 
 /** @typedef {import("@jskit-ai/resource-runtime/server/types").ResourceCallOptions} CallOptions */
@@ -28,8 +29,6 @@ const PLACE_CHANGES = new Set(PLACE.filter((field) => field !== "mentionedAt"));
 const ADD_LIMIT = 200;
 // A page of a person's chat list (their places, at most the resource's page limit): the page reads on while `next`.
 const LIST_PAGE = 100;
-// A page of the home's public rooms a person isn't in.
-const ROOMS_PAGE = 100;
 
 const notFound = () => new BotsError(404, "Chat not found.", { code: "bots_chat_not_found" });
 const archivedRefusal = () =>
@@ -49,39 +48,6 @@ function chatsByIds(conversations) {
     if (!wanted.length) return [];
     const records = await conversations.queryAll({ filters: { id: wanted }, sort: ["id"] }, passedOn(options));
     return records.map((record) => asRow(record, options));
-  };
-}
-
-/**
- * The home's public rooms a person isn't in, a page at a time (chatRepository.js publicRooms).
- * @param {ResourceHandle} conversations
- * @param {ResourceHandle} chatPeople
- */
-function roomsToVisit(conversations, chatPeople) {
-  const { personOf, asRow } = createCallerReaders();
-  /**
-   * A page of the home's public rooms the person isn't in (not a direct chat, not archived), newest made first, an order
-   * no room moves in while the pages are read (`after`: the page before's `next`, its last room's id; null after the
-   * last page): what the list shows faded. One read of the person's places and one of the page.
-   * @param {CallOptions} options
-   * @param {{ after?: string | null }} [page]
-   * @returns {Promise<{ chats: object[], next: string | null }>}
-   */
-  return async function publicRooms(options, { after = null } = {}) {
-    const mine = await chatPeople.queryAll({ filters: { userId: personOf(options) }, fields: ["conversationId"] }, passedOn(options));
-    const { records, page } = await conversations.query({
-      filters: {
-        kind: "public",
-        archived: false,
-        direct: false,
-        directPerson: false,
-        ...(after ? { beforeId: String(after) } : {}),
-        ...(mine.length ? { notIds: mine.map((place) => String(place.conversationId)) } : {})
-      },
-      sort: ["-id"],
-      page: { size: ROOMS_PAGE }
-    }, passedOn(options));
-    return { chats: records.map((record) => asRow(record, options)), next: page.hasMore ? String(records.at(-1).id) : null };
   };
 }
 

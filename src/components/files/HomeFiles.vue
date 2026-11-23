@@ -1,5 +1,6 @@
 <script setup>
 import { onMounted, ref } from "vue";
+import ShellPageTitle from "@jskit-ai/shell-web/client/components/ShellPageTitle";
 import ShellUpButton from "@jskit-ai/shell-web/client/components/ShellUpButton";
 import { storageApi } from "@/components/mercbot/filesApi.js";
 import { driveNotices, moveNotice } from "@/components/mercbot/storageNotices.js";
@@ -22,9 +23,10 @@ onMounted(() => {
   <div class="home-files">
     <header class="home-files__bar">
       <ShellUpButton />
+      <ShellPageTitle />
     </header>
     <main class="home-files__main">
-      <p v-for="notice in notices" :key="notice.key" class="home-files__notice" role="status">{{ notice.text }}</p>
+      <v-alert v-for="notice in notices" :key="notice.key" type="error" variant="tonal" density="compact" role="status" :text="notice.text" />
       <FileBrowser />
     </main>
   </div>
@@ -37,6 +39,7 @@ onMounted(() => {
 .home-files__bar {
   display: flex;
   align-items: center;
+  gap: 4px;
   padding: 8px 16px;
   border-bottom: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
 }
@@ -46,12 +49,5 @@ onMounted(() => {
   gap: 16px;
   max-width: 1040px;
   padding: 24px;
-}
-.home-files__notice {
-  margin: 0;
-  padding: 10px 12px;
-  border-radius: 10px;
-  background: rgba(var(--v-theme-error), 0.08);
-  font-size: 13px;
 }
 </style>

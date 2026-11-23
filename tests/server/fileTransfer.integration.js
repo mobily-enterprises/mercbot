@@ -253,6 +253,47 @@ test("a private chat's file goes wider only with a yes, and every other refusal 
   assert.equal(await f.read(f.places.bot(f.chef), "/files/bot/plan.txt"), null);
 });
 
+test("a path that climbs out of its place, or a link a bot planted in its files, reaches nothing outside the place", async (context) => {
+  const f = await transferHome(context);
+  const home = { kind: "home" };
+  const tripbot = { kind: "bot", botId: f.tripbot };
+  await f.put(f.places.home, "/files/shared/plan.txt", "plan");
+  await f.put(f.places.chat(f.plans.id), "/files/chat/private.txt", "Anna's private room");
+
+  // A path with "..", to leave the place's own folder: refused before anything is read or written.
+  const climbing = [
+    { mode: "copy", from: { place: home, path: "/files/shared/../chat/private.txt" }, to: { place: home, folder: "/files/shared" } },
+    { mode: "copy", from: { place: home, path: "/files/shared/plan.txt" }, to: { place: home, folder: "/files/shared/.." } },
+    { mode: "copy", from: { place: home, path: "/files/shared/plan.txt" }, to: { place: tripbot, folder: "/files/bot/../shared" } }
+  ];
+  for (const body of climbing) assert.deepEqual(said(await f.transfer(body)), [400, "files_path_outside"], `${body.from.path} → ${body.to.folder}`);
+
+  // Another home's private file, and links to it that a bot's commands could make in the bot's own files (the app's
+  // sandbox lets a bot make links): the link itself, a folder that is a link, and a link inside a folder that's copied.
+  const away = await f.home("Away", [f.ben]);
+  const secret = await f.put(f.store.homePlace(away), "/files/shared/secret.txt", "another home's secret");
+  const botFile = await f.put(f.places.bot(f.tripbot), "/files/bot/notes.txt", "notes");
+  const botRoot = path.dirname(botFile);
+  await fs.symlink(secret, path.join(botRoot, "secret.txt"));
+  await fs.symlink(path.dirname(secret), path.join(botRoot, "Away"));
+  await fs.mkdir(path.join(botRoot, "Bundle"));
+  await fs.writeFile(path.join(botRoot, "Bundle", "mine.txt"), "mine");
+  await fs.symlink(secret, path.join(botRoot, "Bundle", "secret.txt"));
+
+  const linked = await f.transfer({ mode: "copy", from: { place: tripbot, path: "/files/bot/secret.txt" }, to: { place: home, folder: "/files/shared" } });
+  assert.deepEqual(said(linked), [404, "files_file_gone"], "a link is no file of the place");
+  const through = await f.transfer({ mode: "copy", from: { place: tripbot, path: "/files/bot/Away/secret.txt" }, to: { place: home, folder: "/files/shared" } });
+  assert.deepEqual(said(through), [400, "files_path_outside"], "a folder that's a link leads outside the place");
+  const moved = await f.transfer({ mode: "move", from: { place: tripbot, path: "/files/bot/Away" }, to: { place: home, folder: "/files/shared" } });
+  assert.deepEqual(said(moved), [404, "files_file_gone"], "a link to a folder isn't moved either");
+  const bundle = await f.transfer({ mode: "copy", from: { place: tripbot, path: "/files/bot/Bundle" }, to: { place: home, folder: "/files/shared" } });
+  assert.deepEqual([bundle.status, bundle.body], [200, { path: "/files/shared/Bundle" }]);
+  assert.equal(await f.read(f.places.home, "/files/shared/Bundle/mine.txt"), "mine");
+  assert.equal(await f.read(f.places.home, "/files/shared/Bundle/secret.txt"), null, "a link inside a copied folder is left out");
+  assert.equal(await f.read(f.places.home, "/files/shared/secret.txt"), null);
+  assert.equal(await fs.readFile(secret, "utf8"), "another home's secret", "the other home's file is untouched");
+});
+
 test("a moved page keeps its versions and link, a copied page is a page of its own, and pictures wait for a check", async (context) => {
   const f = await transferHome(context);
   const saved = await f.pages.save({ place: f.places.bot(f.tripbot), title: "Party", slug: "party", content: "<h1>Party</h1><p>Saturday.</p>" });

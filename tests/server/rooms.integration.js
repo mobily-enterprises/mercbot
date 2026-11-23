@@ -245,6 +245,36 @@ test("the public rooms' page, a bot's invitation and a first message cost the sa
   }
   assert.deepEqual([seen.size, pages, page.next], [300, 3, null], "every room once, in three pages");
 
+  // A page costs the same whatever the person's own history: in 3 chats of the home, then in 3,000, the first page
+  // sends the same statements with the same number of values, and leaves out every room the person has a place in.
+  const sent = async (work) => {
+    let values = 0;
+    const counted = (query) => { values += (query.bindings || []).length; };
+    kit.knex.on("query", counted);
+    try {
+      return { statements: await count(work), values };
+    } finally {
+      kit.knex.removeListener("query", counted);
+    }
+  };
+  const seat = async (n) => {
+    const made = Array.from({ length: n }, (_, index) => ({ workspace_id: homeId, kind: "private", title: `Lee's ${index}`, made_by: lee }));
+    for (let start = 0; start < made.length; start += 500) {
+      const ids = await kit.knex("conversations").insert(made.slice(start, start + 500)).returning("id");
+      await kit.knex("chat_people").insert(ids.map(({ id }) => ({ conversation_id: id, workspace_id: homeId, user_id: lee })));
+    }
+  };
+  const joined = [...seen].slice(0, 2);
+  await kit.knex("chat_people").insert(joined.map((id) => ({ conversation_id: id, workspace_id: homeId, user_id: lee })));
+  await seat(1);
+  const short = await sent(() => kit.chats.publicRooms({}, as(lee)));
+  await seat(2997);
+  let opened = null;
+  const long = await sent(async () => { opened = await kit.chats.publicRooms({}, as(lee)); });
+  assert.deepEqual(long, short, `a page for someone in 3,000 chats: ${JSON.stringify(long)}, against ${JSON.stringify(short)} in 3`);
+  assert.equal(opened.chats.length, 100);
+  assert.ok(!opened.chats.some((chat) => joined.includes(chat.id)), "a room the person is in isn't offered");
+
   // A bot invited into a room of 5 messages and of 30 (it reads them all), and of 31 and of 3,000 (it reads the last 30,
   // with its joined line).
   const roomWith = async (n) => {

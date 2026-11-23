@@ -245,6 +245,15 @@ describe("the browser on a wide screen and on a phone", () => {
     expect(html).toContain("aria-label=\"More for budget.xlsx\"");
   });
 
+  it("in an archived chat, says why nothing new can go in, where New folder and Upload are off", async () => {
+    const oldTrip = { id: "21", title: "Old trip", kind: "private", bots: [], people: [], archivedAt: "2026-01-01T00:00:00Z" };
+    const html = await browser({ chat: oldTrip }, 1280);
+    expect(html).toContain("This chat is archived: nothing new can go in it.");
+    expect(html).toMatch(/<button[^>]*disabled[^>]*aria-label="Upload to/u);
+    const open = await browser({ chat: KITCHEN }, 1280);
+    expect(open, "a chat that isn't archived says nothing of it").not.toContain("is archived");
+  });
+
   it("puts the places in a picker at the top on a phone, with no column", async () => {
     const html = await browser({}, 390);
     expect(html).toContain("mb-files__place-picker");

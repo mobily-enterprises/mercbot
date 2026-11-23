@@ -101,13 +101,16 @@ export const dropLabel = (mode, item) => `${mode === "copy" ? "Copy" : "Move"} t
 /** What the person is asked before a file leaves a private chat for a wider place. */
 export const widerQuestion = (item) => `Everyone who can open ${item.title} will see this file. Continue?`;
 
+/** What an archived chat's place says, in the picker and the browser: it takes nothing new. */
+export const ARCHIVED_NOTE = "This chat is archived: nothing new can go in it.";
+
 /**
  * Why the place picker's folder open can't take what's being copied or moved there, or "": an archived chat, itself or
  * a folder inside it, or (a move) the folder it's already in.
  * @param {{ mode: string, item: Record<string, any>, folder: string, from: string, path: string }} where
  */
 export function pickerRefusal({ mode, item, folder, from, path }) {
-  if (item.archived) return "This chat is archived: nothing new can go in it.";
+  if (item.archived) return ARCHIVED_NOTE;
   if (item.key !== from) return "";
   if (folder === path || folder.startsWith(`${path}/`)) return "A folder can't go inside itself.";
   return mode === "move" && folder === parentOf(path) ? "It's already here." : "";

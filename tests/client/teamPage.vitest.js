@@ -152,6 +152,26 @@ describe("a person's card", () => {
     expect(both, "the last page").not.toContain("Show more");
   });
 
+  it("says so when there are no hidden or archived chats to show, and reads them once however quickly it's pressed", async () => {
+    answers.byUrl.set("GET /api/w/casa/chats/shared?withPerson=1", { chats: [], next: null });
+    const none = await pressed(anna, 1);
+    expect(sharedLabels(none)).toEqual(["Kitchen reno, Public", "Saturday party, Private"]);
+    expect(none).toContain("No hidden or archived chats with Anna Rossi.");
+    expect(none).not.toContain("Show hidden and archived");
+
+    calls.length = 0;
+    const app = createSSRApp({ render: () => h(MercbotMemberCard, { member: { kind: "person", person: anna }, chats: [kitchen], me: "2", homeName: "Casa" }) });
+    app.use(createVuetify({ ...createMaterialVuetifyOptions(theme), ssr: true }));
+    app.mixin({
+      async serverPrefetch() {
+        if (this.$.type !== MercbotMemberCard) return;
+        await Promise.all([this.$.setupState.showTuckedAway(), this.$.setupState.showTuckedAway()]);
+      }
+    });
+    await renderToString(app);
+    expect(calls, "a second press while the first reads sends nothing").toEqual([["GET", "/api/w/casa/chats/shared?withPerson=1"]]);
+  });
+
   it("asks for a bot's by the bot, and its Computer tab lists them too", async () => {
     shellPreferences.detailsTab = "computer";
     const oldPlans = chatRow("58", "Old plans", [ben], [chef], { place: { hidden: true } });

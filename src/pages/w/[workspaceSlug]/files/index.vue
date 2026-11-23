@@ -2,7 +2,8 @@
 {
   "meta": {
     "jskit": {
-      "parent": "/"
+      "parent": "/",
+      "title": "Files"
     }
   }
 }

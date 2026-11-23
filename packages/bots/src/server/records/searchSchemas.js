@@ -31,14 +31,6 @@ export const CHAT_SEARCH = Object.freeze({
   directPerson: isSet("directPersonId"),
   // The chats made before one: the next page of a list read newest first.
   beforeId: idBound("<"),
-  // Every chat but these: the public chats a person isn't in yet.
-  notIds: Object.freeze({
-    type: "array",
-    items: { type: "id" },
-    applyFilter(query, ids, { column }) {
-      query.whereNotIn(column("id"), ids.map(String));
-    }
-  }),
   // A chat at this step of its onboarding script: what moves it on writes only while it's still there.
   onboardingStep: Object.freeze({ type: "string", actualField: "onboardingStep", filterOperator: "=" }),
   // The chats a bot in this chat may read (D-112): the migration's readable_from(chat).

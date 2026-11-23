@@ -100,6 +100,8 @@ const tuckedAway = (entry) => Boolean(entry.archivedAt || entry.hidden || entry.
 const tucked = ref({ asked: false, loading: false, chats: [], next: null });
 const memberKey = () => `${props.member.kind}:${props.member.bot?.id ?? props.member.person?.id}`;
 async function showTuckedAway() {
+  // A press while a page is read sends nothing more: the button stays pressable (and keeps its focus) but says it reads.
+  if (tucked.value.loading) return;
   const key = memberKey();
   const after = tucked.value.next;
   tucked.value = { ...tucked.value, asked: true, loading: true };
@@ -315,8 +317,11 @@ async function openInstructions() {
       <button v-if="sharedChats.length > 5" type="button" class="mb-card__more" @click="allChatsShown = !allChatsShown">
         {{ allChatsShown ? "Show fewer" : `Show all ${sharedChats.length}` }}
       </button>
-      <button v-if="!tucked.asked || tucked.next" type="button" class="mb-card__more" :disabled="tucked.loading" @click="showTuckedAway">
-        {{ tucked.asked ? "Show more" : "Show hidden and archived" }}
+      <p v-if="tucked.asked && !tucked.loading && !tucked.chats.length && !tucked.next" class="mb-card__quiet" role="status">
+        No hidden or archived chats with {{ name }}.
+      </p>
+      <button v-if="!tucked.asked || tucked.next || tucked.loading" type="button" class="mb-card__more" :aria-busy="tucked.loading ? 'true' : undefined" @click="showTuckedAway">
+        {{ tucked.loading ? "Loading…" : tucked.asked ? "Show more" : "Show hidden and archived" }}
       </button>
     </section>
 
