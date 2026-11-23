@@ -6,7 +6,7 @@ import { homeOf } from "@local/homes/server/homeOf";
 import { checkRouteVisibility } from "@jskit-ai/kernel/shared/support/visibility";
 import { fieldByNames, isCalculated } from "../shared/calculated.js";
 import { scopeStyle } from "./appStyle.js";
-import { installTemplate, templateSummaries } from "./templates.js";
+import { templateSummaries } from "./templates.js";
 import { CATALOG, needsOf } from "./tableCatalog.js";
 import { GateError } from "./validate.js";
 
@@ -408,7 +408,8 @@ export function registerRoutes(http, { appsRuntime, notices, streams, uploads })
     if (!ctx.canManage) {
       throw forbidden("Only the home's owners and admins can install a template; or ask the Builder.", "apps_template_install_forbidden");
     }
-    return installTemplate({ registry, apps, gate }, ctx, request.params.key, { sample: body(request).sample === true });
+    // The runtime's install, as the Builder's and the starter apps' are: it makes the shared tables a template uses (D-130).
+    return appsRuntime.installTemplate(ctx, request.params.key, { sample: body(request).sample === true });
   }));
 
   // The home's look for its apps, and an app's own colour and density.
