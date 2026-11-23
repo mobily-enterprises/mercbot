@@ -91,9 +91,11 @@ test("an app shows a shared view and its own copy, and asks before the copy take
   const ben = (await contacts(page)).find((person: { name: string }) => person.name === "Ben Okafor");
   await expect(page.locator(".app-node--view")).toContainText(ben.stage);
 
-  // An app's shared view stays live on its screen too, while it's open.
-  await page.goBack();
+  // An app's shared view stays live on its screen too, while it's open. Moving in an app replaces its history entry
+  // (D-123), so Back would leave the app: the screen is opened again.
+  await page.goto(`${HOME}/apps/reports`);
   const shared = page.locator(".app-node--view").first();
+  await expect(shared.locator(".app-node--totals strong").last()).toBeVisible();
   const count = Number(await shared.locator(".app-node--totals strong").last().innerText());
   await addContact(page, "Yara Embedded");
   await expect(shared.locator(".app-node--totals strong").last()).toHaveText(String(count + 1));
