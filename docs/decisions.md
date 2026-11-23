@@ -4079,7 +4079,8 @@ Decided:
 - **Installs last one command.** A command may install what its job needs: `npm install` in a project (its
   `node_modules` stays in the project's folder, like any file it writes), `npm install -g` and `pip install` into its
   `HOME`'s `/tmp/home/.local` (`NPM_CONFIG_PREFIX`, `PIP_BREAK_SYSTEM_PACKAGES`, on `PATH`), since a store host's toolbox
-  is read-only. Every command still starts from the same clean toolbox: what it installs or changes outside the folders
+  is read-only; `PIP_ROOT_USER_ACTION=ignore` keeps pip from warning the bot about running as root, which a sandbox's
+  command always is (added the same day). Every command still starts from the same clean toolbox: what it installs or changes outside the folders
   goes when it ends, or in the session when the computer sleeps. Tools bots keep needing still go into the toolbox.
 - **The office apps keep no network:** the document tools, previews, charts and voice memos aren't commands.
 - **Root certificates on a store host (added the same day).** A command checks an https site's certificate itself (the

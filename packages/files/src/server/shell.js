@@ -67,13 +67,16 @@ const homeFolder = (dirs) => (dirs.chat ? CHAT : dirs.bot ? BOT : SHARED);
 
 // A command's way to the internet (D-126): the gateway's proxy, which Node's own fetch and http follow only when told
 // to; installs for the command in its HOME, /tmp/home/.local, which goes with it (npm install -g there, since the
-// toolbox's own is read-only on a store host; pip install there when the system's isn't writable); and a plain answer
-// where git would start ssh, which the command line doesn't have, for a repository's git@host:owner/name address.
+// toolbox's own is read-only on a store host; pip install there when the system's isn't writable), with pip quiet about
+// running as root, which a sandbox's command always is, so a bot isn't told to follow advice for a system's
+// administrator; and a plain answer where git would start ssh, which the command line doesn't have, for a
+// repository's git@host:owner/name address.
 const NO_SSH = "echo \"There's no ssh on this command line: use the repository's https:// address " +
   "(git clone https://github.com/OWNER/REPO.git).\" >&2; exit 128; :";
 const INSTALLED = "/tmp/home/.local";
 const INTERNET_ENV = Object.freeze([
-  ...PROXY_ENV, "NODE_USE_ENV_PROXY=1", `NPM_CONFIG_PREFIX=${INSTALLED}`, "PIP_BREAK_SYSTEM_PACKAGES=1", `GIT_SSH_COMMAND=${NO_SSH}`
+  ...PROXY_ENV, "NODE_USE_ENV_PROXY=1", `NPM_CONFIG_PREFIX=${INSTALLED}`, "PIP_BREAK_SYSTEM_PACKAGES=1", "PIP_ROOT_USER_ACTION=ignore",
+  `GIT_SSH_COMMAND=${NO_SSH}`
 ]);
 
 // A sandbox with a gateway starts its forwarder first, then runs the script ($1) as a bash of its own, so the

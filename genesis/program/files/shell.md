@@ -140,7 +140,8 @@ does (D-47, D-112, D-126).
     `HTTP_PROXY`, `HTTPS_PROXY`, `ALL_PROXY` and their lower-case spellings, `NO_PROXY`/`no_proxy`
     (`localhost,127.0.0.1,::1`: the sandbox's own loopback), `NODE_USE_ENV_PROXY=1` (Node's own fetch and http),
     `NPM_CONFIG_PREFIX=/tmp/home/.local` and `PIP_BREAK_SYSTEM_PACKAGES=1` with `/tmp/home/.local/bin` on `PATH` (global
-    npm and pip installs in the run's `HOME`, since a store host's toolbox is read-only), and `GIT_SSH_COMMAND`, which
+    npm and pip installs in the run's `HOME`, since a store host's toolbox is read-only), `PIP_ROOT_USER_ACTION=ignore`
+    (pip doesn't warn the bot about running as root, which a sandbox's command always is), and `GIT_SSH_COMMAND`, which
     answers a `git@host:` address with "There's no ssh on this command line: use the repository's https:// address".
     A direct connection finds no network. Installs last one run: each starts from the same clean toolbox, and only what
     it writes in the folders (a clone, a project's `node_modules`) stays.

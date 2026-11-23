@@ -265,6 +265,25 @@ test("an install lasts for its command: the next starts from the same clean tool
   assert.equal(next.output.trim(), "gone");
 });
 
+// A wheel the command makes itself, so pip installs with nothing fetched: what's tested is what pip says to a bot.
+const WHEEL = `python3 - <<'PY'
+import zipfile
+files = {"tiny_wheel/__init__.py": 'SAID = "tiny-wheel ran"\\n', "tiny_wheel-1.0.dist-info/METADATA": "Metadata-Version: 2.1\\nName: tiny-wheel\\nVersion: 1.0\\n",
+         "tiny_wheel-1.0.dist-info/WHEEL": "Wheel-Version: 1.0\\nGenerator: test\\nRoot-Is-Purelib: true\\nTag: py3-none-any\\n"}
+with zipfile.ZipFile("/tmp/tiny_wheel-1.0-py3-none-any.whl", "w") as wheel:
+    for name, text in files.items(): wheel.writestr(name, text)
+    wheel.writestr("tiny_wheel-1.0.dist-info/RECORD", "".join(f"{name},,\\n" for name in files) + "tiny_wheel-1.0.dist-info/RECORD,,\\n")
+PY`;
+
+test("pip installs for its command and doesn't warn the bot about running as root, which a sandbox's command always is", { skip }, async () => {
+  const installed = await world.go(`${WHEEL}
+pip install --no-index --disable-pip-version-check /tmp/tiny_wheel-1.0-py3-none-any.whl 2>&1 && python3 -c 'import tiny_wheel; print(tiny_wheel.SAID)'`);
+  assert.equal(installed.status, "done", installed.output);
+  assert.match(installed.output, /^Successfully installed tiny-wheel-1\.0$/mu, installed.output);
+  assert.match(installed.output, /^tiny-wheel ran$/mu);
+  assert.doesNotMatch(installed.output, /root/iu, "pip's advice for a system's administrator isn't the bot's to follow");
+});
+
 test("in the computer's session too: the bot's commands and the person's own shell reach the internet", { skip }, async () => {
   const session = await world.shell.attach({ key: "4", place: world.place, label: "Test's commands" });
   assert.ok(session);

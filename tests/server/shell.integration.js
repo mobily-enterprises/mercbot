@@ -60,8 +60,8 @@ test("bots' commands run sealed off, within limits, and carry on in the backgrou
   assert.doesNotMatch(run.output, /^vibe64$/mu);
   assert.match(run.output, /cannot access '[^']*mercbot-shell-test[^']*': No such file or directory/u);
   assert.equal(run.output.trim().split("\n").at(-1).trim(), "ALL_PROXY GIT_SSH_COMMAND HOME HTTPS_PROXY HTTP_PROXY LANG LC_ALL MPLBACKEND NODE_USE_ENV_PROXY NO_PROXY " +
-    "NPM_CONFIG_PREFIX PATH PIP_BREAK_SYSTEM_PACKAGES PWD PYTHONDONTWRITEBYTECODE SHLVL TERM TMPDIR _ all_proxy http_proxy " +
-    "https_proxy no_proxy");
+    "NPM_CONFIG_PREFIX PATH PIP_BREAK_SYSTEM_PACKAGES PIP_ROOT_USER_ACTION PWD PYTHONDONTWRITEBYTECODE SHLVL TERM TMPDIR _ " +
+    "all_proxy http_proxy https_proxy no_proxy");
 
   // Limits: time, memory, file size, processes, output.
   run = await go("while true; do :; done", { maxSeconds: 3 });
