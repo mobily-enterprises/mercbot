@@ -1,4 +1,4 @@
-import { HOME, botNamed, directChat, expect, openShell, shell, test, type Page } from "./harness";
+import { HOME, botNamed, directChat, expect, expectRefusal, openShell, shell, test, type Page } from "./harness";
 
 // The file browser (D-47, D-112 R6), on the Test Preview target: in Otto's direct chat, his card's Files opens at his
 // own files, with the places as a picker (the card is narrow); a file uploaded into This chat is moved to Home files
@@ -36,9 +36,10 @@ test("a file moves from a chat's folder to Home files, is renamed, copied, dragg
   const card = shell.details(page, "Otto's card");
   if (!(await card.isVisible())) await shell.chat(page).getByRole("button", { name: "Otto details" }).click();
   await card.getByRole("tab", { name: "Files" }).click();
-  await expect(card.locator(".mb-files__crumb--here")).toHaveText("Otto");
+  // A bot's files are "Otto's files" in a picker and its folders' first crumb (905ca08, feaed2c); "Otto" in the column.
+  await expect(card.locator(".mb-files__crumb--here")).toHaveText("Otto's files");
   await card.locator(".mb-files__place-picker").click();
-  for (const label of ["This chat", "Home files", "Otto"]) await expect(page.getByRole("option", { name: label, exact: true })).toBeVisible();
+  for (const label of ["This chat", "Home files", "Otto's files"]) await expect(page.getByRole("option", { name: label, exact: true })).toBeVisible();
   await page.getByRole("option", { name: "This chat", exact: true }).click();
   await expect(card.locator(".mb-files__crumb--here")).toHaveText("This chat");
   await expect(card).not.toContainText(/Just me|Everyone using Otto/u);
@@ -51,9 +52,14 @@ test("a file moves from a chat's folder to Home files, is renamed, copied, dragg
   await expect(row(page, name)).toBeVisible();
   await page.screenshot({ path: info.outputPath("chat-files.png") });
 
-  // Move it to Home files: the place picker, then Move here.
+  // Move it to Home files: the place picker, then Move here. Out of a private chat it asks first (D-120, 905ca08): the
+  // server's 409 until Continue sends it again, confirmed.
+  expectRefusal(`409 POST /api${HOME}/files/transfer`);
   await chooseFromMenu(page, name, "Move to…");
   await pick(page, "Home files", "Move here");
+  await expect(shell.question(page).locator(".mb-confirm__title")).toHaveText("Let more people see it?");
+  await expect(shell.question(page).locator(".mb-confirm__text")).toHaveText("Everyone who can open Home files will see this file. Continue?");
+  await shell.question(page).getByRole("button", { name: "Continue", exact: true }).click();
   await expect(row(page, name)).toHaveCount(0);
 
   // The home's Files page, from the sidebar's Files button: the places column, at Home files, with the file there.
@@ -72,10 +78,10 @@ test("a file moves from a chat's folder to Home files, is renamed, copied, dragg
 
   // Copy to… Otto's files: the original stays.
   await chooseFromMenu(page, renamed, "Copy to…");
-  await pick(page, "Otto", "Copy here");
+  await pick(page, "Otto's files", "Copy here");
   await expect(row(page, renamed)).toBeVisible();
   await place(page, "Otto").click();
-  await expect(crumbHere(page)).toHaveText("Otto");
+  await expect(crumbHere(page)).toHaveText("Otto's files");
   await expect(row(page, renamed)).toBeVisible();
   await chooseFromMenu(page, renamed, "Delete");
   await page.getByRole("button", { name: /^Delete$/u }).click();
