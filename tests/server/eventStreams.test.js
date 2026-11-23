@@ -44,6 +44,33 @@ const STREAMS = [
 /** A request's close, listened for as the routes do: `once` would also listen for errors, and so see the abort as one. */
 const closeOf = (raw) => new Promise((resolve) => raw.once("close", resolve));
 
+/** The request a route is handed, for a page of person 7 in home 3. */
+const requestOf = (raw, query = {}) => ({
+  raw,
+  params: { workspaceSlug: "home-3", botId: "5" },
+  query,
+  user: { id: "7" },
+  workspace: { id: "3", slug: "home-3" },
+  membership: { roleSid: "member" },
+  permissions: [],
+  callOptions: async () => ({})
+});
+
+/** The reply a route is handed: a stream hijacks it and writes to its raw response. */
+function replyOf(res) {
+  const reply = {
+    raw: res,
+    hijack() {},
+    code() {
+      return reply;
+    },
+    send() {
+      return reply;
+    }
+  };
+  return reply;
+}
+
 /** The route's handler on a real server, with what it subscribed to and the keep-alives it left. */
 async function streamOn(t, { route, register, query = {} }) {
   const handlers = new Map();
@@ -56,7 +83,8 @@ async function streamOn(t, { route, register, query = {} }) {
       return () => {
         subscription.ended = true;
       };
-    }
+    },
+    onMissed: () => () => {}
   };
   register({ router: { register: (method, path, _options, handler) => handlers.set(`${method} ${path}`, handler) } }, { notices, streams });
   const handler = handlers.get(route);
@@ -85,27 +113,7 @@ async function streamOn(t, { route, register, query = {} }) {
   client.on("error", () => {});
 
   const { raw, res } = await arrivals;
-  const request = {
-    raw,
-    params: { workspaceSlug: "home-3", botId: "5" },
-    query,
-    user: { id: "7" },
-    workspace: { id: "3", slug: "home-3" },
-    membership: { roleSid: "member" },
-    permissions: [],
-    callOptions: async () => ({})
-  };
-  const reply = {
-    raw: res,
-    hijack() {},
-    code() {
-      return reply;
-    },
-    send() {
-      return reply;
-    }
-  };
-  return { answer: () => handler(request, reply), client, raw, streams, subscriptions, keepAlives };
+  return { answer: () => handler(requestOf(raw, query), replyOf(res)), client, raw, streams, subscriptions, keepAlives };
 }
 
 for (const stream of STREAMS) {
@@ -136,3 +144,59 @@ for (const stream of STREAMS) {
     assert.deepEqual(subscriptions.map(({ ended }) => ended), [true]);
   });
 }
+
+// Notices the server may have missed (its listening connection was replaced, notices.js) end every page's stream open
+// then, so each page connects again and catches up (useChatEvents.js); a stream opened after stays until the next time.
+test("GET /api/w/:workspaceSlug/bot-events ends the streams open when notices may have been missed", async (t) => {
+  const handlers = new Map();
+  const streams = new Set();
+  const missedListeners = [];
+  const notices = {
+    subscribe: () => () => {},
+    onMissed(listener) {
+      missedListeners.push(listener);
+      return () => {};
+    }
+  };
+  registerBotsRoutes(
+    { router: { register: (method, path, _options, handler) => handlers.set(`${method} ${path}`, handler) } },
+    { bots: {}, approvals: {}, meter: {}, records: {}, notices, streams }
+  );
+  const handler = handlers.get("GET /api/w/:workspaceSlug/bot-events");
+  const server = http.createServer((raw, res) => handler(requestOf(raw), replyOf(res)));
+  server.listen(0, "127.0.0.1");
+  await once(server, "listening");
+  t.after(() => {
+    server.closeAllConnections();
+    server.close();
+  });
+  const missed = () => {
+    for (const listener of missedListeners) listener();
+  };
+  /** A page's stream, as the page sees it: whether the server has ended it. */
+  const open = async () => {
+    const client = http.get({ host: "127.0.0.1", port: server.address().port, path: "/api/w/home-3/bot-events" });
+    client.on("error", () => {});
+    const [response] = await once(client, "response");
+    const page = { ended: false, end: once(response, "end") };
+    response.on("end", () => {
+      page.ended = true;
+    });
+    response.resume();
+    return page;
+  };
+
+  const first = await open();
+  assert.equal(missedListeners.length, 1, "the route hears when notices may have been missed");
+  missed();
+  await first.end;
+
+  const second = await open();
+  const third = await open();
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  assert.deepEqual([second.ended, third.ended], [false, false], "a stream opened after stays open");
+  assert.equal(missedListeners.length, 1, "heard once, however many streams open");
+
+  missed();
+  await Promise.all([second.end, third.end]);
+});

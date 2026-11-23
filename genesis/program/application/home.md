@@ -86,7 +86,9 @@ last message the reader had (not their own messages or time stamps); the pill go
 the newest, its × dismisses it, and sending always goes down. While a bot works, a status line describes the work and the bot's
 avatar changes expression (attention, thinking, working, concentrating, happy). In a chat with several people, where
 a bot answers only when called (R3), the sender's page shows a bot working only once the server says it started
-(`useChatWork.js` `requestReply` `untilStarted`, `workStarted`). Under the composer a line says who can read the chat
+(`useChatWork.js` `requestReply` `untilStarted`, `workStarted`). Everyone else in the chat sees it too (`working`
+events, `useChatEvents.js` `onWorking`): "Thinking it over" with the working bots' faces until the last of them stops,
+leaving the asker's own wording and a status a bot names as they are. Under the composer a line says who can read the chat
 (`chatView.js` `readersLine`): "Everyone in <home> can read this · Chef remembers it" in a Public chat, naming its
 bots, which remember it (D-113; "Chef, Ada and 2 more remember it" past three, no second part with no bots; "Everyone
 can read this" on a phone), "Only <names> can read this" in a Private one ("Only this chat's members

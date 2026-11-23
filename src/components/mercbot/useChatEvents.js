@@ -71,8 +71,13 @@ export function useChatEvents({ store, work, team, onDropped, onComputer, onRoom
     const alreadyWorking = ["attention", "thinking", "working"].includes(work.moodByChat.value[chatId]);
     if (!working && !(work.speakersByChat.value[chatId] || []).length) work.playMood(chatId, [["happy", 5000], ["settled", 3000]]);
     else if (working && !alreadyWorking) work.playMood(chatId, [["attention", 500], ["thinking", 1500], ["working", Infinity]]);
-    // Background work such as learning a taught task names its steps on the status line.
-    if (status || !working) work.setWork(chatId, working ? status : "");
+    // Background work such as learning a taught task names its steps on the status line. Everyone in the chat sees a
+    // bot working (R9): a page that didn't ask shows the asker's general wording, until the last working bot stops;
+    // the asker's own wording, and a status a bot named, stay as they are.
+    const stillWorking = (work.speakersByChat.value[chatId] || []).length > 0;
+    if (status && working) work.setWork(chatId, status);
+    else if (working && !work.workByChat.value[chatId]) work.setWork(chatId, "Thinking it over");
+    else if (!working && !stillWorking) work.setWork(chatId, "");
     if (!working) work.replyNews(chatId);
   }
 

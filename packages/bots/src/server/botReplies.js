@@ -343,10 +343,10 @@ export function createBotReplies({
       } else if (
         // A reply that stopped at "let me…" carries on once (D-47), for any bot with tools (D-48).
         // With a goal active, its next round carries on instead. The engine's own account of a reply
-        // that stopped early is never sent back.
+        // that stopped early is never sent back, nor one whose card (an approval) waits for the person.
         !decided &&
         Object.keys(run.tools).length &&
-        !account &&
+        !account && !run.showsCard() &&
         stoppedShort(replyText.trim()) &&
         (!seat.chat_bot_id || (await goals.openGoal(seat.chat_bot_id))?.status !== "active")
       ) {

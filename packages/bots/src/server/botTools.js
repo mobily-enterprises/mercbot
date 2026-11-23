@@ -209,9 +209,13 @@ export function buildTools({
 
   /**
    * An action parked on a "Go ahead" / "Don't do it" card under the reply, run as it is if they say yes. `change`: what
-   * the card shows before and after, for a change of text (the bot's instructions, D-95).
+   * the card shows before and after, for a change of text (the bot's instructions, D-95). The same action asked again in
+   * the reply (a second pass after a check) gets no second card: the check and the push run together, with nothing
+   * awaited between them, so two tool calls at once can't both find no card.
    */
   function askFirst({ question, subline = "", change = null, action }) {
+    const same = JSON.stringify(action);
+    if (after.some((message) => message.kind === "choice" && message.body.purpose === "approval" && JSON.stringify(message.body.action) === same)) return;
     after.push({
       kind: "choice",
       role: "bot",
@@ -322,7 +326,7 @@ export function buildTools({
     botId,
     personInChat: !routineRun && !viaBot && !appsVia,
     attempt,
-    acknowledge,
+    postLead,
     call
   }));
 

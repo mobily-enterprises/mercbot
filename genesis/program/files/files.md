@@ -9,6 +9,7 @@ card in the chat with a viewer and a download (D-20, D-21).
 - Main: `packages/files/src/server/FilesFeature.js`
 - `packages/files/src/server/filesRuntime.js`
 - `packages/files/src/server/registerRoutes.js`
+- `packages/files/src/server/sheetPreview.js`
 - `packages/files/src/server/types.js`
 - `packages/files/src/server/fileStore.js`
 - `packages/files/src/server/fileTransfer.js`
@@ -372,12 +373,18 @@ is (`useComposerFiles` `addCopies`: its name, size and path in the chat's folder
 The bots package gives each reply the tools `list_files`, `app_help`, `use_app`,
 `move_file` (inside one folder) and `transfer_file` (to another place, on a card; `genesis/program/bots/bot-tools.md`). Every file under `/files/` that an app call names and that was
 saved during the reply becomes a `files` message (`{files: [{path, name, size}]}`)
-after the reply's text. The timeline shows it as file cards, and the viewer shows
-page pictures.
+after the reply's text. The timeline shows it as file cards, and the viewer shows them: `GET …/files/preview` answers an
+.xlsx or .csv as `{kind: "sheet", sheets: [{name, rows, more}], more}` (`sheetPreview.js`: every sheet by name, at
+most 10 sheets, 500 rows and 40 columns each, cells as text with dates as `2026-11-23` and their time when they have
+one, empty rows at the end and empty columns on the right left out; one it can't read falls back on pictures), which
+the viewer draws as a table with column letters and row numbers that stay in view, numbers to the right, and a tab per
+sheet; a Markdown file formatted, tables and task boxes included, with Formatted and Source to read it as written;
+other text as it is; and documents, other spreadsheets, slides and PDFs as page pictures.
 
 ## Proved by
 
 - `tests/server/files.test.js`
+- `tests/server/sheetPreview.test.js`
 - `tests/server/filesBucket.test.js`
 - `tests/server/mediaChecks.integration.js`
 - `tests/server/mediaCheckRoutes.integration.js`

@@ -50,7 +50,7 @@ function userOf(request) {
  * @param {import("@local/notices/server/types").Notices} capabilities.notices
  * @param {import("@local/account/server/types").Meter} capabilities.meter
  * @param {import("./types.js").BotRecords} capabilities.records mercbot.bots.records, for the bot and the chat in the address
- * @param {Set<import("node:http").ServerResponse>} capabilities.streams the live event streams, ended on shutdown
+ * @param {Set<import("node:http").ServerResponse>} capabilities.streams the live event streams, ended on shutdown and when notices may have been missed
  */
 export function registerRoutes(http, { bots, approvals, notices, meter, records, streams }) {
   /**
@@ -296,8 +296,19 @@ export function registerRoutes(http, { bots, approvals, notices, meter, records,
   // The "/" picker's skills in a chat (?chat=): the person's own only in a Private chat of theirs alone.
   router.register("GET", `${home}/bot-skills`, auth, handle(async (request, _user, options) => bots.skillsFor(request.query?.chat, options)));
   router.register("GET", `${home}/search`, auth, handle(async (request, _user, options) => bots.search(request.query?.q, options)));
+  // Notices this server may have missed (its listening connection was replaced) end every open stream, and each page
+  // connects again and catches up (useChatEvents.js). Heard from the first stream on: before it there's none to end.
+  let endingOnMissed = false;
+  const endStreamsOnMissed = () => {
+    if (endingOnMissed) return;
+    endingOnMissed = true;
+    notices.onMissed(() => {
+      for (const stream of streams) stream.end();
+    });
+  };
   // What changed for this person's chats and bots, as server-sent events from any server (D-15).
   router.register("GET", `${home}/bot-events`, auth, async (request, reply) => {
+    endStreamsOnMissed();
     reply.hijack();
     reply.raw.writeHead(200, {
       "content-type": "text/event-stream",

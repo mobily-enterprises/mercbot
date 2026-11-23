@@ -16,10 +16,10 @@ import { ADDITIONS_LIMIT, changeRefusal, mayChangeBot } from "./botAdditions.js"
  *   work another bot asked for
  * @param {(actionId: string, args: object, lead: string, change: { before: string, after: string }) => Promise<object>} shared.attempt
  *   botTools' attempt, which parks an action on a card showing the change
- * @param {(text: string) => void} shared.acknowledge
+ * @param {import("./types.js").PostLead} shared.postLead the acknowledgement, posted at once (as make_picture's is)
  * @param {import("@jskit-ai/resource-runtime/server/types").ResourceCallOptions} shared.call the turn's call options
  */
-export function buildSkillTools({ bots, integrations, botSkills, botId, userId, personInChat, attempt, acknowledge, call }) {
+export function buildSkillTools({ bots, integrations, botSkills, botId, userId, personInChat, attempt, postLead, call }) {
   const tools = {};
 
   /**
@@ -30,7 +30,7 @@ export function buildSkillTools({ bots, integrations, botSkills, botId, userId, 
   async function readSkill({ acknowledgement, name }) {
     const skill = findSkill(name, [...await ownSkills(), ...botSkills.map((entry, index) => ({ ...entry, id: `t${index}` }))]);
     if (!skill) return { error: `There's no skill called "${name}".` };
-    acknowledge(acknowledgement);
+    await postLead(acknowledgement);
     return { name: skill.name, instructions: skill.instructions };
   }
   tools.readSkill = createTool(

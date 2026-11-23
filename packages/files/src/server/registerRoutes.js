@@ -4,6 +4,7 @@ import { hasPermission } from "@jskit-ai/kernel/shared/support";
 import { checkRouteVisibility } from "@jskit-ai/kernel/shared/support/visibility";
 import { BOT, CHAT, FilesError, SHARED } from "./fileStore.js";
 import { UPLOAD_LIMIT, tooBig, writeUpload } from "./uploadedFile.js";
+import { READS_AS_SHEET, sheetPreview } from "./sheetPreview.js";
 
 // Types a page may show inline. Anything else (HTML and SVG included) is only ever downloaded.
 const INLINE = Object.freeze({
@@ -107,13 +108,21 @@ export function registerRoutes(http, { files, records, uploads }) {
     reply.send(await fs.promises.readFile(file.real));
   }));
 
-  // What the viewer shows: a picture as it is, text as text, and other files as pictures of
-  // their pages, which every browser can show (phones don't show PDFs inside a page).
+  // What the viewer shows: a picture as it is, an .xlsx or .csv as a table per sheet, text as text (the viewer renders
+  // Markdown), and other files as pictures of their pages, which every browser can show (phones don't show PDFs inside
+  // a page). A spreadsheet that can't be read as a table falls back on those.
   router.register("GET", `${base}/preview`, home, served(async function filePreview(request, reply) {
     const file = await find(request);
     if (INLINE[file.ext]?.startsWith("image/") || INLINE[file.ext]?.startsWith("audio/")) {
       reply.send({ kind: "image" });
       return;
+    }
+    if (READS_AS_SHEET.has(file.ext)) {
+      const sheet = await sheetPreview(file.real, file.ext).catch(() => null);
+      if (sheet?.sheets.length) {
+        reply.send({ kind: "sheet", ...sheet });
+        return;
+      }
     }
     if (INLINE[file.ext]?.startsWith("text/")) {
       const text = await fs.promises.readFile(file.real, "utf8");

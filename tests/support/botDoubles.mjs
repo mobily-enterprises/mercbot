@@ -44,7 +44,7 @@ const neutral = {
     // What some tokens would cost, at the provider's list prices, as Mercbot's own recorder answers (D-107).
     estimateNano: estimateAtProvider
   }),
-  notices: () => ({ publish: async () => {}, publishEach: async () => {}, subscribe: () => () => {} }),
+  notices: () => ({ publish: async () => {}, publishEach: async () => {}, subscribe: () => () => {}, onMissed: () => () => {} }),
   // The chats' computers, keyed by the bot's seat in a chat (chat_bots.id, D-112).
   computer: () => ({
     hold: async () => {},

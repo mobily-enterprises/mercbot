@@ -263,3 +263,39 @@ test("a check that may be wrong never tells a bot to make something up, and a qu
   await say("And another one?");
   assert.equal(prompts.length, 1, "a reply that ends by asking the person something isn't sent back");
 });
+
+test("a reply whose approval card waits isn't sent back as stopped short, and one action asked twice gets one card", async (context) => {
+  const passes = [];
+  const plan = { acknowledgement: "Setting it up", name: "Plans", schedule: "Every day at 9:00 (UTC)", cron: "0 9 * * *", timezone: "UTC", instructions: "Plan." };
+  const { ask, chat, knex } = await setup(context, {
+    approvals: { decide: async () => "ask" },
+    reply: async (_bot, _history, tools, _state, prompt) => {
+      passes.push(prompt);
+      // The same action twice at once, as a model's parallel tool calls make it.
+      const asked = await Promise.all([tools.createRoutine.execute(plan), tools.createRoutine.execute(plan)]);
+      assert.deepEqual(asked.map((answer) => answer.status), ["waiting_for_approval", "waiting_for_approval"]);
+      const text = "I'll set up the daily plan once you approve.";
+      return { text, transcript: [{ role: "assistant", content: [{ type: "text", text }] }] };
+    }
+  });
+  await ask("Plan my day every morning");
+  assert.equal(passes.length, 1, "its card waits for the person: not sent back");
+  const cards = await knex("messages").where({ conversation_id: chat, kind: "choice" });
+  assert.equal(cards.filter((card) => card.body.purpose === "approval").length, 1, "one card for the one action");
+});
+
+test("reading a skill posts its acknowledgement at once, before the reply ends", async (context) => {
+  let kit = null;
+  let shownWhileWorking = [];
+  kit = await setup(context, {
+    integrations: { skills: async () => [{ id: "s1", name: "Weekly menu", description: "Plans the week", instructions: "Plan seven dinners." }] },
+    reply: async (_bot, _history, tools) => {
+      const skill = await tools.readSkill.execute({ acknowledgement: "Looking at the weekly menu.", name: "Weekly menu" });
+      assert.equal(skill.instructions, "Plan seven dinners.");
+      shownWhileWorking = (await kit.knex("messages").where({ conversation_id: kit.chat, kind: "text", role: "bot" })).map((row) => row.body.text);
+      return { text: "Here's the week.", transcript: [{ role: "assistant", content: [{ type: "text", text: "Here's the week." }] }] };
+    }
+  });
+  await kit.ask("Plan the week");
+  assert.deepEqual(shownWhileWorking, ["Looking at the weekly menu."], "in the chat while the bot still works");
+});
