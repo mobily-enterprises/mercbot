@@ -144,6 +144,13 @@ export function resultProblems(result) {
   if (typeof result.passed !== "boolean") problems.push("passed: true or false");
   if (!Array.isArray(result.reasons) || result.reasons.some((reason) => typeof reason !== "string")) problems.push("reasons: a list of sentences");
   if (result.passed === false && !result.reasons?.length) problems.push("reasons: why it failed");
+  // How many of its runs passed (two of up to three pass a template); a result recorded before runs has none.
+  const runs = result.runs;
+  const counted = Number.isInteger(runs?.passed) && Number.isInteger(runs?.of) &&
+    runs.passed >= 0 && runs.passed <= runs.of && runs.of >= 1;
+  if (runs !== undefined && !counted) {
+    problems.push("runs: how many runs passed, of how many");
+  }
   return problems;
 }
 
@@ -207,6 +214,7 @@ export function lastCheck(template, results, behaviour) {
     commit: result.commit,
     models: result.models ?? null,
     passed: result.passed,
+    runs: result.runs ?? null,
     reasons: result.reasons,
     sameTemplate: result.template === template.fingerprint,
     sameBehaviour: result.behaviour === behaviour

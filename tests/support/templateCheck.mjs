@@ -298,3 +298,32 @@ export async function checkTemplateEndToEnd({ person, template, players, run, ma
     asked: `${asked.filter((entry) => entry.asked).length} of ${questions.length}`
   };
 }
+
+/** How many runs a template gets at most: it passes on two of them, so a single unlucky run doesn't decide it. */
+export const RUNS = 3;
+
+/**
+ * Whether a template's runs so far decide it: two passes or two failures (of at most RUNS).
+ * @param {Array<{ passed: boolean }>} outcomes
+ */
+export function decided(outcomes) {
+  const passes = outcomes.filter((outcome) => outcome.passed).length;
+  return passes >= 2 || outcomes.length - passes >= 2 || outcomes.length >= RUNS;
+}
+
+/**
+ * A template's result from its runs: passed when two of them passed. It is the newest run on the winning side, with
+ * how many runs passed (`runs`), and the failed runs' reasons, each once: why it failed, or, for one that passed
+ * anyway, what went wrong in the run that failed.
+ * @param {Array<{ passed: boolean, reasons: string[] }>} outcomes the runs, in order
+ */
+export function combinedResult(outcomes) {
+  const passes = outcomes.filter((outcome) => outcome.passed).length;
+  const passed = passes >= 2;
+  const base = [...outcomes].reverse().find((outcome) => outcome.passed === passed) || outcomes.at(-1);
+  const failedReasons = [...new Set(outcomes.filter((outcome) => !outcome.passed).flatMap((outcome) => outcome.reasons))];
+  const reasons = passed && failedReasons.length
+    ? failedReasons.map((reason) => `In the run that failed: ${reason}`)
+    : failedReasons;
+  return { ...base, passed, reasons, runs: { passed: passes, of: outcomes.length } };
+}

@@ -281,7 +281,7 @@ test("a template's newest check comes with its reasons, and how many aren't test
     "weekly-meal-planner": { date: "2026-11-10", commit: "abc1234", behaviour: "fedcba9876543210", template: pantry.fingerprint, passed: true, reasons: [] }
   };
   assert.deepEqual(lastCheck(fern, results, behaviour), {
-    date: "2026-11-12", commit: "abc1234", models: { premium: "together m" }, passed: false, reasons, sameTemplate: true, sameBehaviour: true
+    date: "2026-11-12", commit: "abc1234", models: { premium: "together m" }, passed: false, runs: null, reasons, sameTemplate: true, sameBehaviour: true
   });
   assert.deepEqual(
     [lastCheck(pantry, results, behaviour).sameBehaviour, lastCheck({ ...fern, fingerprint: "4444444444444444" }, results, behaviour).sameTemplate],

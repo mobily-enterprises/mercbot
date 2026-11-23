@@ -1,7 +1,7 @@
 // npm run check:templates [-- <slug> ...]: every bot template, or the ones named, checked end to end on the real AI
 // (D-43, D-79). For each, a new person adds the bot through Mercbot's routes, plays its setup interview with an
 // AI-played person, and the check records whether the bot asked its setup questions, created its routines paused and
-// sent nothing without a yes, with the date, the app's commit, the fingerprint of how bots behave (D-79) and the
+// sent nothing without a yes (on two runs of up to three, each as a new person: one run on a real AI can be unlucky), with the date, the app's commit, the fingerprint of how bots behave (D-79) and the
 // reasons, in bot-templates/checks/results.json, which the gallery reads at start. Commit that file afterwards. Run it
 // after changing how bots behave and before publishing: a result counts only for the fingerprint it ran on.
 //
@@ -86,17 +86,23 @@ try {
       continue;
     }
     const started = Date.now();
-    const result = await check.checkTemplateEndToEnd({ person, template, players, run });
+    // Up to three runs, each as a new person in a home of their own: it passes on two (a single run on a real AI can be
+    // unlucky either way).
+    const outcomes = [];
+    while (!check.decided(outcomes)) {
+      outcomes.push(await check.checkTemplateEndToEnd({ person: outcomes.length ? await check.signUpPerson(app) : person, template, players, run }));
+    }
+    const result = check.combinedResult(outcomes);
     file.results[template.slug] = result;
     // Written after each template, so a run cut short keeps what it found.
     await writeFile(RESULTS_FILE, `${JSON.stringify(file, null, 2)}\n`);
     const took = `${Math.round((Date.now() - started) / 1000)} s`;
     if (result.passed) {
       counts.passed += 1;
-      console.log(`- ${template.slug} (${template.name}): passed, ${result.asked} questions asked, ${result.turns} turns, ${took}.`);
+      console.log(`- ${template.slug} (${template.name}): passed ${result.runs.passed} of ${result.runs.of} runs, ${result.asked} questions asked, ${result.turns} turns, ${took}.`);
     } else {
       counts.failed += 1;
-      console.log(`- ${template.slug} (${template.name}): FAILED, ${result.turns} turns, ${took}:`);
+      console.log(`- ${template.slug} (${template.name}): FAILED, passed ${result.runs.passed} of ${result.runs.of} runs, ${took}:`);
       for (const reason of result.reasons) console.log(`    ${reason}`);
     }
   }

@@ -3,7 +3,7 @@
   "results": {
     "accessibility-checker": {
       "date": "2026-11-23",
-      "commit": "cacac72",
+      "commit": "8ccf7bd",
       "behaviour": "6d0598646e718c33",
       "template": "8a241541a5072677",
       "models": {
@@ -12,12 +12,16 @@
       },
       "passed": true,
       "reasons": [],
-      "turns": 9,
-      "asked": "6 of 6"
+      "turns": 10,
+      "asked": "6 of 6",
+      "runs": {
+        "passed": 2,
+        "of": 2
+      }
     },
     "appointment-bookings": {
       "date": "2026-11-23",
-      "commit": "cacac72",
+      "commit": "8ccf7bd",
       "behaviour": "6d0598646e718c33",
       "template": "ac72b15fb2352d9f",
       "models": {
@@ -26,26 +30,37 @@
       },
       "passed": true,
       "reasons": [],
-      "turns": 10,
-      "asked": "6 of 6"
+      "turns": 9,
+      "asked": "6 of 6",
+      "runs": {
+        "passed": 2,
+        "of": 2
+      }
     },
     "blog-article-desk": {
       "date": "2026-11-23",
-      "commit": "cacac72",
+      "commit": "8ccf7bd",
       "behaviour": "6d0598646e718c33",
       "template": "b077b7152bd385e3",
       "models": {
         "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
         "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
       },
-      "passed": true,
-      "reasons": [],
-      "turns": 11,
-      "asked": "6 of 6"
+      "passed": false,
+      "reasons": [
+        "It didn't ask: Ask with a question card how often to draft (weekly or every two weeks) and on which day, then create the routine, paused, named \"Article draft\". Its instructions: draft the next planned topic using the \"Blog notes\" document, save it, mark it drafted in the plan, and say it's ready. The judge: Asked how often and which day via card, but never confirmed the routine's content instructions (draft from Blog notes, save, mark drafted in plan, say it's ready).",
+        "It didn't ask: Ask with a question card how often to draft (weekly or every two weeks) and on which day, then create the routine, paused, named \"Article draft\". Its instructions: draft the next planned topic using the \"Blog notes\" document, save it, mark it drafted in the plan, and say it's ready. The judge: Created the Monday 'Article draft' routine paused, but never asked how often to draft (weekly or every two weeks) or on which day, defaulting instead."
+      ],
+      "turns": 13,
+      "asked": "5 of 6",
+      "runs": {
+        "passed": 1,
+        "of": 3
+      }
     },
     "brand-mention-digest": {
       "date": "2026-11-23",
-      "commit": "cacac72",
+      "commit": "8ccf7bd",
       "behaviour": "6d0598646e718c33",
       "template": "e7e964b6edc3b65e",
       "models": {
@@ -53,27 +68,40 @@
         "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
       },
       "passed": true,
-      "reasons": [],
+      "reasons": [
+        "In the run that failed: It didn't ask: Ask with a question card where mentions usually appear (review sites, news, forums, blogs, social posts; several allowed), and for any specific review pages they have. The judge: Asked a question card about where mentions appear, but did not also ask for any specific review pages they have."
+      ],
       "turns": 9,
-      "asked": "5 of 5"
+      "asked": "5 of 5",
+      "runs": {
+        "passed": 2,
+        "of": 3
+      }
     },
     "brand-voice-editor": {
       "date": "2026-11-23",
-      "commit": "cacac72",
+      "commit": "8ccf7bd",
       "behaviour": "6d0598646e718c33",
       "template": "d7af32243417f5ad",
       "models": {
         "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
         "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
       },
-      "passed": true,
-      "reasons": [],
-      "turns": 9,
-      "asked": "4 of 4"
+      "passed": false,
+      "reasons": [
+        "It didn't ask: Ask with a question card about house style: spelling (UK, US or other), headings in sentence case or title case, serial comma or not, numbers as digits or words. The judge: Used a card covering spelling, heading case, and digits, but the card omitted the serial comma and the bot only left it as a suggestion rather than asking with a card.",
+        "It didn't ask: Ask with a question card about house style: spelling (UK, US or other), headings in sentence case or title case, serial comma or not, numbers as digits or words. The judge: The bot never asked about house style with a question card; it just guessed its own defaults and marked them unconfirmed."
+      ],
+      "turns": 7,
+      "asked": "3 of 4",
+      "runs": {
+        "passed": 1,
+        "of": 3
+      }
     },
     "competitor-watch": {
       "date": "2026-11-23",
-      "commit": "cacac72",
+      "commit": "8ccf7bd",
       "behaviour": "6d0598646e718c33",
       "template": "df619166e013cbf8",
       "models": {
@@ -82,12 +110,16 @@
       },
       "passed": true,
       "reasons": [],
-      "turns": 10,
-      "asked": "4 of 4"
+      "turns": 8,
+      "asked": "4 of 4",
+      "runs": {
+        "passed": 2,
+        "of": 2
+      }
     },
     "customer-follow-up": {
       "date": "2026-11-23",
-      "commit": "cacac72",
+      "commit": "8ccf7bd",
       "behaviour": "6d0598646e718c33",
       "template": "1667a402f27f982e",
       "models": {
@@ -96,12 +128,16 @@
       },
       "passed": true,
       "reasons": [],
-      "turns": 9,
-      "asked": "6 of 6"
+      "turns": 8,
+      "asked": "6 of 6",
+      "runs": {
+        "passed": 2,
+        "of": 2
+      }
     },
     "deal-follow-ups": {
       "date": "2026-11-23",
-      "commit": "cacac72",
+      "commit": "8ccf7bd",
       "behaviour": "6d0598646e718c33",
       "template": "11d867ff678e8732",
       "models": {
@@ -109,13 +145,19 @@
         "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
       },
       "passed": true,
-      "reasons": [],
-      "turns": 9,
-      "asked": "5 of 5"
+      "reasons": [
+        "In the run that failed: It didn't ask: Ask how they like to sound in email (formal, friendly, brief) and how they sign off. If they have a past follow-up they liked, ask them to paste it. The judge: It split the question into card-only tone and sign-off questions and never asked about a past follow-up they liked or to paste it."
+      ],
+      "turns": 8,
+      "asked": "5 of 5",
+      "runs": {
+        "passed": 2,
+        "of": 3
+      }
     },
     "design-critique": {
       "date": "2026-11-23",
-      "commit": "cacac72",
+      "commit": "8ccf7bd",
       "behaviour": "6d0598646e718c33",
       "template": "12a6a02c2b9c0a85",
       "models": {
@@ -125,11 +167,15 @@
       "passed": true,
       "reasons": [],
       "turns": 8,
-      "asked": "5 of 5"
+      "asked": "5 of 5",
+      "runs": {
+        "passed": 2,
+        "of": 2
+      }
     },
     "expense-receipt-tidy": {
       "date": "2026-11-23",
-      "commit": "cacac72",
+      "commit": "8ccf7bd",
       "behaviour": "6d0598646e718c33",
       "template": "c2be86a0d43df8f5",
       "models": {
@@ -138,12 +184,16 @@
       },
       "passed": true,
       "reasons": [],
-      "turns": 12,
-      "asked": "6 of 6"
+      "turns": 11,
+      "asked": "6 of 6",
+      "runs": {
+        "passed": 2,
+        "of": 2
+      }
     },
     "family-chores-rota": {
       "date": "2026-11-23",
-      "commit": "cacac72",
+      "commit": "8ccf7bd",
       "behaviour": "6d0598646e718c33",
       "template": "ef14a402d1905e70",
       "models": {
@@ -153,11 +203,15 @@
       "passed": true,
       "reasons": [],
       "turns": 10,
-      "asked": "4 of 4"
+      "asked": "4 of 4",
+      "runs": {
+        "passed": 2,
+        "of": 2
+      }
     },
     "habit-tracker": {
       "date": "2026-11-23",
-      "commit": "cacac72",
+      "commit": "8ccf7bd",
       "behaviour": "6d0598646e718c33",
       "template": "2f582fa50e66cb6e",
       "models": {
@@ -166,28 +220,34 @@
       },
       "passed": true,
       "reasons": [],
-      "turns": 9,
-      "asked": "4 of 4"
+      "turns": 10,
+      "asked": "4 of 4",
+      "runs": {
+        "passed": 2,
+        "of": 2
+      }
     },
     "home-maintenance-log": {
       "date": "2026-11-23",
-      "commit": "cacac72",
+      "commit": "8ccf7bd",
       "behaviour": "6d0598646e718c33",
       "template": "b6d392ac1d5a7d63",
       "models": {
         "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
         "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
       },
-      "passed": false,
-      "reasons": [
-        "It didn't ask: Ask with a question card which systems and appliances to track (heating or boiler, hot water, smoke and carbon monoxide alarms, washing machine, dishwasher, fridge freezer, oven and hob, gutters and roof, garden, car, other; several allowed). The judge: Only offered five systems on the card and never presented the full required list including washing machine, dishwasher, fridge freezer, oven and hob, garden, or car."
-      ],
-      "turns": 9,
-      "asked": "4 of 5"
+      "passed": true,
+      "reasons": [],
+      "turns": 11,
+      "asked": "5 of 5",
+      "runs": {
+        "passed": 2,
+        "of": 2
+      }
     },
     "household-bills-tracker": {
       "date": "2026-11-23",
-      "commit": "cacac72",
+      "commit": "8ccf7bd",
       "behaviour": "6d0598646e718c33",
       "template": "6244dc2010cd39da",
       "models": {
@@ -197,11 +257,15 @@
       "passed": true,
       "reasons": [],
       "turns": 10,
-      "asked": "5 of 5"
+      "asked": "5 of 5",
+      "runs": {
+        "passed": 2,
+        "of": 2
+      }
     },
     "job-description-writer": {
       "date": "2026-11-23",
-      "commit": "cacac72",
+      "commit": "8ccf7bd",
       "behaviour": "6d0598646e718c33",
       "template": "33291f6f6d4e3296",
       "models": {
@@ -209,13 +273,21 @@
         "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
       },
       "passed": true,
-      "reasons": [],
+      "reasons": [
+        "In the run that failed: It didn't ask: Ask with a question card whether adverts should show a pay range (always, when possible, never) and mention any local rules on pay transparency they follow. The judge: Used a question card to ask whether adverts should show a pay range, but never mentioned any local pay transparency rules it follows.",
+        "In the run that failed: It didn't ask: Ask with a question card what voice to write in (warm and plain, professional, lively), and whether to use \"we\" and \"you\". The judge: Used a card to ask what voice to write in, and stated its own assumption about using 'we' and 'you' rather than asking about it.",
+        "In the run that failed: It didn't ask: Ask for their equal opportunities line and how candidates ask for adjustments, or offer to draft them. The judge: The bot itself offered to draft the lines rather than asking for them; it then asked only a follow-up card about which adjustments email to use."
+      ],
       "turns": 9,
-      "asked": "6 of 6"
+      "asked": "6 of 6",
+      "runs": {
+        "passed": 2,
+        "of": 3
+      }
     },
     "job-search-helper": {
       "date": "2026-11-23",
-      "commit": "cacac72",
+      "commit": "8ccf7bd",
       "behaviour": "6d0598646e718c33",
       "template": "ad880b16ed0b00fc",
       "models": {
@@ -223,13 +295,19 @@
         "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
       },
       "passed": true,
-      "reasons": [],
-      "turns": 13,
-      "asked": "6 of 6"
+      "reasons": [
+        "In the run that failed: It didn't ask: Ask them to share their current CV (upload, /files/chat, or a connected drive). When they share it, read it and summarise their strengths in three lines to check you've understood; if they'd rather not share it now, ask them for their strengths in a few lines instead. The judge: Asked for the CV but when the upload failed it just repeated back their typed strengths without offering the alternative of asking for strengths only if they'd rather not share."
+      ],
+      "turns": 10,
+      "asked": "6 of 6",
+      "runs": {
+        "passed": 2,
+        "of": 3
+      }
     },
     "kids-activities-planner": {
       "date": "2026-11-23",
-      "commit": "cacac72",
+      "commit": "8ccf7bd",
       "behaviour": "6d0598646e718c33",
       "template": "ece870b7aae21cc1",
       "models": {
@@ -238,12 +316,16 @@
       },
       "passed": true,
       "reasons": [],
-      "turns": 12,
-      "asked": "7 of 7"
+      "turns": 10,
+      "asked": "7 of 7",
+      "runs": {
+        "passed": 2,
+        "of": 2
+      }
     },
     "language-practice-partner": {
       "date": "2026-11-23",
-      "commit": "cacac72",
+      "commit": "8ccf7bd",
       "behaviour": "6d0598646e718c33",
       "template": "4e4251868e0bdec1",
       "models": {
@@ -252,12 +334,16 @@
       },
       "passed": true,
       "reasons": [],
-      "turns": 12,
-      "asked": "6 of 6"
+      "turns": 11,
+      "asked": "6 of 6",
+      "runs": {
+        "passed": 2,
+        "of": 2
+      }
     },
     "meeting-recap-writer": {
       "date": "2026-11-23",
-      "commit": "cacac72",
+      "commit": "8ccf7bd",
       "behaviour": "6d0598646e718c33",
       "template": "1d9ccb42419cce3e",
       "models": {
@@ -267,11 +353,15 @@
       "passed": true,
       "reasons": [],
       "turns": 8,
-      "asked": "5 of 5"
+      "asked": "5 of 5",
+      "runs": {
+        "passed": 2,
+        "of": 2
+      }
     },
     "money-check-in": {
       "date": "2026-11-23",
-      "commit": "cacac72",
+      "commit": "8ccf7bd",
       "behaviour": "6d0598646e718c33",
       "template": "22143c8d25e1635b",
       "models": {
@@ -281,27 +371,33 @@
       "passed": true,
       "reasons": [],
       "turns": 11,
-      "asked": "5 of 5"
+      "asked": "5 of 5",
+      "runs": {
+        "passed": 2,
+        "of": 2
+      }
     },
     "new-starter-onboarding": {
       "date": "2026-11-23",
-      "commit": "cacac72",
+      "commit": "8ccf7bd",
       "behaviour": "6d0598646e718c33",
       "template": "c139b470f42a4f12",
       "models": {
         "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
         "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
       },
-      "passed": false,
-      "reasons": [
-        "It didn't ask: Ask with a question card which day and time the weekly reminder should be ready, each choice naming both a day and a time (for example \"Monday 9am\" or \"Friday 4pm\"), so one answer gives both. The judge: Bot only named 'Monday 9am' and 'Friday 4pm' as examples in text but never asked the card question; it asked a different card about the reminder day and time without day+time options, so the required question was never asked."
-      ],
-      "turns": 12,
-      "asked": "5 of 6"
+      "passed": true,
+      "reasons": [],
+      "turns": 10,
+      "asked": "6 of 6",
+      "runs": {
+        "passed": 2,
+        "of": 2
+      }
     },
     "newsletter-writer": {
       "date": "2026-11-23",
-      "commit": "cacac72",
+      "commit": "8ccf7bd",
       "behaviour": "6d0598646e718c33",
       "template": "3e7dc5547c169518",
       "models": {
@@ -310,12 +406,16 @@
       },
       "passed": true,
       "reasons": [],
-      "turns": 9,
-      "asked": "5 of 5"
+      "turns": 8,
+      "asked": "5 of 5",
+      "runs": {
+        "passed": 2,
+        "of": 2
+      }
     },
     "on-call-handover": {
       "date": "2026-11-23",
-      "commit": "cacac72",
+      "commit": "8ccf7bd",
       "behaviour": "6d0598646e718c33",
       "template": "a670ce55f8ed1756",
       "models": {
@@ -324,12 +424,16 @@
       },
       "passed": true,
       "reasons": [],
-      "turns": 7,
-      "asked": "3 of 3"
+      "turns": 8,
+      "asked": "3 of 3",
+      "runs": {
+        "passed": 2,
+        "of": 2
+      }
     },
     "plant-care": {
       "date": "2026-11-23",
-      "commit": "cacac72",
+      "commit": "8ccf7bd",
       "behaviour": "6d0598646e718c33",
       "template": "8f683bfb56b120ea",
       "models": {
@@ -338,12 +442,16 @@
       },
       "passed": true,
       "reasons": [],
-      "turns": 9,
-      "asked": "6 of 6"
+      "turns": 10,
+      "asked": "6 of 6",
+      "runs": {
+        "passed": 2,
+        "of": 2
+      }
     },
     "presentation-polisher": {
       "date": "2026-11-23",
-      "commit": "cacac72",
+      "commit": "8ccf7bd",
       "behaviour": "6d0598646e718c33",
       "template": "5ae9e850430fb941",
       "models": {
@@ -353,29 +461,17 @@
       "passed": true,
       "reasons": [],
       "turns": 8,
-      "asked": "5 of 5"
+      "asked": "5 of 5",
+      "runs": {
+        "passed": 2,
+        "of": 2
+      }
     },
     "proposal-writer": {
       "date": "2026-11-23",
-      "commit": "cacac72",
+      "commit": "8ccf7bd",
       "behaviour": "6d0598646e718c33",
       "template": "80f6bd2fa0c214ac",
-      "models": {
-        "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
-        "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
-      },
-      "passed": false,
-      "reasons": [
-        "Its setup didn't finish within 12 turns."
-      ],
-      "turns": 12,
-      "asked": "4 of 4"
-    },
-    "prospect-research": {
-      "date": "2026-11-23",
-      "commit": "cacac72",
-      "behaviour": "6d0598646e718c33",
-      "template": "c237cdb4c3976c3a",
       "models": {
         "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
         "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
@@ -383,11 +479,35 @@
       "passed": true,
       "reasons": [],
       "turns": 10,
-      "asked": "7 of 7"
+      "asked": "4 of 4",
+      "runs": {
+        "passed": 2,
+        "of": 2
+      }
+    },
+    "prospect-research": {
+      "date": "2026-11-23",
+      "commit": "8ccf7bd",
+      "behaviour": "6d0598646e718c33",
+      "template": "c237cdb4c3976c3a",
+      "models": {
+        "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
+        "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
+      },
+      "passed": true,
+      "reasons": [
+        "In the run that failed: It didn't ask: Ask with a question card how many prospects per batch (5, 10, 20) and which day and time it should be ready. The judge: It asked batch size with a card and the day/time in text, but split these into two separate questions instead of one combined question card as required."
+      ],
+      "turns": 10,
+      "asked": "7 of 7",
+      "runs": {
+        "passed": 2,
+        "of": 3
+      }
     },
     "quote-writer": {
       "date": "2026-11-23",
-      "commit": "cacac72",
+      "commit": "8ccf7bd",
       "behaviour": "6d0598646e718c33",
       "template": "81833288a9af24ed",
       "models": {
@@ -396,30 +516,59 @@
       },
       "passed": true,
       "reasons": [],
-      "turns": 12,
-      "asked": "7 of 7"
+      "turns": 11,
+      "asked": "7 of 7",
+      "runs": {
+        "passed": 2,
+        "of": 2
+      }
     },
     "receipts-and-invoices": {
       "date": "2026-11-23",
-      "commit": "cacac72",
+      "commit": "8ccf7bd",
       "behaviour": "6d0598646e718c33",
       "template": "957e361ebd58c65b",
       "models": {
         "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
         "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
       },
-      "passed": false,
+      "passed": true,
       "reasons": [
-        "Its setup didn't finish within 14 turns."
+        "In the run that failed: It didn't ask: Ask whether they're registered for sales tax or VAT, and the expense categories they or their bookkeeper use. Offer a short common list if they don't have one. The judge: Asked VAT registration and expense categories as two separate question cards instead of one question."
       ],
-      "turns": 14,
-      "asked": "6 of 6"
+      "turns": 12,
+      "asked": "6 of 6",
+      "runs": {
+        "passed": 2,
+        "of": 3
+      }
     },
     "recruiting-coordinator": {
       "date": "2026-11-23",
-      "commit": "cacac72",
+      "commit": "8ccf7bd",
       "behaviour": "6d0598646e718c33",
       "template": "7a9e357bb1919fe0",
+      "models": {
+        "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
+        "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
+      },
+      "passed": false,
+      "reasons": [
+        "It didn't ask: Ask them to list the must-have requirements, then the nice-to-haves, separately. Read them back and check each is about the job itself; if one isn't (for example an age range or \"native speaker\" where fluency is what matters), explain why and suggest a fair wording. The judge: The bot read back must-haves and nice-to-haves but never asked the person to list them or checked them for fairness wording.",
+        "It didn't ask: Ask them to list the must-have requirements, then the nice-to-haves, separately. Read them back and check each is about the job itself; if one isn't (for example an age range or \"native speaker\" where fluency is what matters), explain why and suggest a fair wording. The judge: The bot asked for nice-to-haves and listed the must-haves, but never asked them to list the must-haves separately or read them back to check each is about the job."
+      ],
+      "turns": 9,
+      "asked": "4 of 5",
+      "runs": {
+        "passed": 0,
+        "of": 2
+      }
+    },
+    "renewal-watch": {
+      "date": "2026-11-23",
+      "commit": "8ccf7bd",
+      "behaviour": "6d0598646e718c33",
+      "template": "1d1cce9e4310a057",
       "models": {
         "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
         "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
@@ -427,27 +576,15 @@
       "passed": true,
       "reasons": [],
       "turns": 10,
-      "asked": "5 of 5"
-    },
-    "renewal-watch": {
-      "date": "2026-11-23",
-      "commit": "cacac72",
-      "behaviour": "6d0598646e718c33",
-      "template": "1d1cce9e4310a057",
-      "models": {
-        "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
-        "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
-      },
-      "passed": false,
-      "reasons": [
-        "It didn't ask: Ask with a question card which day and time the weekly check should be ready, each choice naming both a day and a time (for example \"Monday 9am\" or \"Friday 4pm\"), so one answer gives both. The judge: Explained it set the weekly check to Monday around 9:00am itself and never asked which day and time; it also split tone and sign-off into two cards."
-      ],
-      "turns": 9,
-      "asked": "4 of 5"
+      "asked": "5 of 5",
+      "runs": {
+        "passed": 2,
+        "of": 2
+      }
     },
     "review-replies": {
       "date": "2026-11-23",
-      "commit": "cacac72",
+      "commit": "8ccf7bd",
       "behaviour": "6d0598646e718c33",
       "template": "191862be61757c2d",
       "models": {
@@ -456,8 +593,12 @@
       },
       "passed": true,
       "reasons": [],
-      "turns": 12,
-      "asked": "6 of 6"
+      "turns": 11,
+      "asked": "6 of 6",
+      "runs": {
+        "passed": 2,
+        "of": 2
+      }
     },
     "sales-call-prep": {
       "date": "2026-11-23",
