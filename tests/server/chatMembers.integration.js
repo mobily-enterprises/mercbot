@@ -207,7 +207,7 @@ test("the chat routes' service: anyone in a chat adds, its maker and the home's 
   // Deleted, its people hear and its computers and files go; leaving the last person deletes a private chat the same way.
   const secretSeat = secret.bots[0].chatBotId;
   await assert.rejects(chats.archive(secret.id, asAnna), {
-    statusCode: 409, code: "bots_chat_private_archive", message: "A private chat is hidden for yourself, not archived for everyone."
+    statusCode: 409, code: "bots_chat_private_archive", message: "A Private room isn't archived: hide it from your sidebar instead."
   });
   assert.equal(paused.length, 1, "nothing of its work paused");
   assert.equal((await chats.changePlace(secret.id, { hidden: true }, asBen)).chat.place.hidden, true, "Ben hides it for himself");

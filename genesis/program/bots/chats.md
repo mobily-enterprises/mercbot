@@ -134,8 +134,9 @@ without a reload):
   transaction. A bot invited again after it left gets a fresh start (`genesis/program/bots/turns.md`). Each answers `{ chat }`, except leaving a Private chat (`{ left: true }`, it's
   no longer theirs to read) and a deletion (`{ deleted: true }`). Deleting a public chat makes its bots forget it at
   once (`genesis/program/bots/knowledge.md`, D-113); leaving or archiving a chat keeps what they remember.
-- Archiving (plan 5.1): a Private chat answers 409 `bots_chat_private_archive` ("A private chat is hidden for
-  yourself, not archived for everyone."), the everyone chat 409 `bots_chat_everyone`, and a chat already as asked is
+- Archiving (plan 5.1): a Private room answers 409 `bots_chat_private_archive` ("A Private room isn't archived: hide
+  it from your sidebar instead."), a chat with a person or a bot the same code ("A chat with a person or a bot isn't
+  archived: it stays in your sidebar."), the everyone chat 409 `bots_chat_everyone`, and a chat already as asked is
   answered unchanged. In one transaction, its bots' routines and watches there are paused, with a "Paused while
   archived" line naming them ("This chat was archived, so its … paused. They stay paused when it's unarchived: resume
   them here.", `workPause.js` through the turns' `pauseWork`), and then it is archived. Unarchiving leaves them paused.

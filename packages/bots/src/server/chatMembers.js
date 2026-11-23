@@ -415,8 +415,9 @@ export function createChatMembers({ records, notices, computer, systemContext, p
 
   /**
    * A Public chat archived (read-only for everyone in it) or back in use, by its maker or an owner or admin; never the
-   * everyone chat, nor a Private chat, which each of its people hides for themselves instead (changePlace's `hidden`):
-   * its view is each member's own, so no one puts it away for the others (plan 5.1). Archiving pauses its bots' routines
+   * everyone chat, nor a Private room, which each of its people hides for themselves instead (changePlace's `hidden`):
+   * its view is each member's own, so no one puts it away for the others (plan 5.1); nor a chat with a person or a bot,
+   * which stays in the sidebar as their row in People or Bots. Archiving pauses its bots' routines
    * and watches there with a line, before it's read-only; unarchiving leaves them paused, to be resumed there. A chat
    * already as asked is left as it is.
    */
@@ -425,7 +426,10 @@ export function createChatMembers({ records, notices, computer, systemContext, p
     // Someone who may not manage the chat hears that first, whatever its kind.
     requireManager(chat, options, archived ? "archive" : "unarchive");
     if (archived && chat.kind === "private") {
-      throw new BotsError(409, "A private chat is hidden for yourself, not archived for everyone.", { code: "bots_chat_private_archive" });
+      const message = isDirect(chat)
+        ? "A chat with a person or a bot isn't archived: it stays in your sidebar."
+        : "A Private room isn't archived: hide it from your sidebar instead.";
+      throw new BotsError(409, message, { code: "bots_chat_private_archive" });
     }
     if (archived) requireNotEveryone(chat);
     if (Boolean(chat.archived_at) === archived) return get(chat.id, options);

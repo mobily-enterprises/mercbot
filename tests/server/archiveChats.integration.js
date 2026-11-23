@@ -198,7 +198,12 @@ test("each refusal: a member's archive of a chat she didn't start, the everyone 
   const diary = (await bots.chats.create({ kind: "private", title: "Diary", people: [kim], bots: [String(bot.id)] }, as(pat))).chat.id;
   await assert.rejects(bots.chats.archive(diary, as(kim)), refused(403, "bots_chat_manage_forbidden"), "Kim didn't start it");
   await assert.rejects(bots.chats.archive(diary, as(pat)), {
-    statusCode: 409, code: "bots_chat_private_archive", message: "A private chat is hidden for yourself, not archived for everyone."
+    statusCode: 409, code: "bots_chat_private_archive", message: "A Private room isn't archived: hide it from your sidebar instead."
+  });
+  // Nor a chat with a bot, even by its person: it stays in the sidebar, as the bot's row in Bots.
+  const { id: withBot } = await seedChat(knex, { homeId, direct: { userId: pat, botId: bot.id }, madeBy: pat });
+  await assert.rejects(bots.chats.archive(withBot, as(pat)), {
+    statusCode: 409, code: "bots_chat_private_archive", message: "A chat with a person or a bot isn't archived: it stays in your sidebar."
   });
   await bots.chats.changePlace(diary, { hidden: true }, as(kim));
   assert.ok(!(await listed(kim)).includes(diary), "hidden from Kim's list");
