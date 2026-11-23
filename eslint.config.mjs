@@ -18,7 +18,9 @@ const HAND_WRITTEN_SOURCES = ["packages/*/src/**", "src/**", "server/**", "serve
 
 export default [
   {
-    ignores: ["dist/**", "node_modules/**", "coverage/**", "test-results/**", "playwright-report/**", ".jskit/**", ".artifacts/**", ".tools/**", "artifacts/**", "tests/agent-evals/**/files/**"]
+    ignores: ["dist/**", "node_modules/**", "coverage/**", "test-results/**", "playwright-report/**", ".jskit/**", ".artifacts/**", ".tools/**", "artifacts/**", "tests/agent-evals/**/files/**",
+      // An AI assistant's own scratch folders: never the app's code.
+      ".claude/**", ".tmp-scripts/**"]
   },
   {
     files: ["src/pages/**/*.vue"],
