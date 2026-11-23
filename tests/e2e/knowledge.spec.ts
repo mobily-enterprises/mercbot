@@ -49,7 +49,8 @@ async function openKnowledge(page: Page, bot: Bot) {
   await openShell(page, `?chat=${bot.chatId}`);
   await shell.chat(page).getByRole("button", { name: `${bot.name} details` }).click();
   await card(page, bot).getByRole("tab", { name: "Details" }).click();
-  await expect(section(page, bot).locator(".mb-knowledge__sentence")).toBeVisible();
+  // Loaded: its sentence while it knows nothing, else the list of what it knows (dfc16f7).
+  await expect(section(page, bot).locator(".mb-knowledge__sentence, .mb-knowledge__list")).toBeVisible();
   await section(page, bot).scrollIntoViewIfNeeded();
 }
 
