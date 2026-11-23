@@ -77,6 +77,18 @@ function build(builder, plan, value, column, knex) {
       return;
     case "compare": {
       const operand = value(plan.value);
+      // In formulas an empty field reads as "" (a text, a link, a date and time, D-130), and its slot holds null, or ""
+      // for a text; a date and time's slot holds a timestamp, which "" can't be.
+      if (operand === "" && ["=", "<>"].includes(plan.op)) {
+        const moment = /(?:^|\.)date_\d+$/u.test(String(column(plan.field.name)));
+        const slot = target(plan.field);
+        if (plan.op === "=") {
+          builder.where((blank) => (moment ? blank.whereNull(slot) : blank.whereNull(slot).orWhere(slot, "=", "")));
+        } else {
+          builder.where((filled) => (moment ? filled.whereNotNull(slot) : filled.whereNotNull(slot).andWhere(slot, "<>", "")));
+        }
+        return;
+      }
       if (operand === null || operand === undefined) {
         if (plan.op === "=") {
           builder.whereNull(target(plan.field));

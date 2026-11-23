@@ -18,7 +18,7 @@
       "required": true
     },
     {
-      "key": "list",
+      "key": "todo_list",
       "type": "link",
       "label": "List",
       "target": "todo_lists"

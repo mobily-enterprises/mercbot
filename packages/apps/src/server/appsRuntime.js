@@ -63,8 +63,8 @@ export function createAppsRuntime({ resources, systemContext, records, anyapi, n
   const trial = createTrial({ apps, runtime, scripts });
   const views = createViews({ resources, records, systemContext, registry, apps, runtime });
   const watches = createWatches({ resources, repository, systemContext, registry, gate, apps, records });
-  const installTemplateFor = (ctx, key, options) => installTemplate({ registry, apps, gate }, ctx, key, options);
   const catalog = createTableCatalog({ registry, gate });
+  const installTemplateFor = (ctx, key, options) => installTemplate({ registry, apps, gate, catalog }, ctx, key, options);
   return Object.freeze({
     anyapi,
     registry,

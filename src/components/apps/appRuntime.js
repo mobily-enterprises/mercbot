@@ -216,5 +216,10 @@ export function createScreenRuntime({
     };
   }
 
-  return { slug, state, data, grandTotals, attention, loading, busy, dialogs, tables, people, screen, screens, tableNamed, queryTable, referenced, evaluate, rowScope, load, loadAll, reloadChanged, run, followState, stop, signal: reading.signal, version };
+  // A member on the live app adds files and pictures to records (D-130); a visitor doesn't, nor a draft's practice data.
+  const attachesFiles = !visitor && version !== "draft";
+  return {
+    slug, state, data, grandTotals, attention, loading, busy, dialogs, tables, people, screen, screens, tableNamed, queryTable, referenced, evaluate,
+    rowScope, load, loadAll, reloadChanged, run, followState, stop, signal: reading.signal, version, attachesFiles
+  };
 }

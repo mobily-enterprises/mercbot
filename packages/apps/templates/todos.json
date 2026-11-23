@@ -1,0 +1,961 @@
+{
+  "key": "todos",
+  "name": "To-dos",
+  "icon": "check",
+  "color": "#14C16F",
+  "description": "Named lists of to-dos, by department and person: who does what, by when, and what's overdue.",
+  "uses": [
+    "todos"
+  ],
+  "tables": [],
+  "definition": {
+    "home": "mine",
+    "navigation": {
+      "style": "rail",
+      "items": [
+        {
+          "screen": "mine",
+          "label": "My tasks",
+          "icon": "check"
+        },
+        {
+          "screen": "lists",
+          "label": "Lists",
+          "icon": "open"
+        },
+        {
+          "screen": "departments",
+          "label": "Departments",
+          "icon": "star"
+        },
+        {
+          "screen": "people",
+          "label": "By person",
+          "icon": "person"
+        },
+        {
+          "screen": "overdue",
+          "label": "Overdue",
+          "icon": "calendar"
+        }
+      ]
+    },
+    "screens": {
+      "mine": {
+        "data": {
+          "tasks": {
+            "from": "todos",
+            "where": "=assignee == me.id && status != \"Done\"",
+            "sort": "due"
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "text",
+                "value": "Yours, not done yet."
+              },
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "New to-do",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "new_task"
+                    }
+                  }
+                ],
+                "emphasis": "primary"
+              }
+            ]
+          },
+          {
+            "type": "table",
+            "rows": "=data.tasks",
+            "columns": [
+              {
+                "label": "To-do",
+                "value": "=row.title"
+              },
+              {
+                "label": "List",
+                "value": "=row.todo_list"
+              },
+              {
+                "label": "Status",
+                "value": "=row.status",
+                "display": "chip"
+              },
+              {
+                "label": "Priority",
+                "value": "=row.priority",
+                "display": "chip"
+              },
+              {
+                "label": "Due",
+                "value": "=row.due"
+              },
+              {
+                "label": "Assignee",
+                "value": "=row.assignee"
+              }
+            ],
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "task",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "lists": {
+        "data": {
+          "lists": {
+            "from": "todo_lists",
+            "where": "=archived == false",
+            "sort": "name"
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "New list",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "new_list"
+                    }
+                  }
+                ],
+                "emphasis": "primary"
+              }
+            ]
+          },
+          {
+            "type": "table",
+            "rows": "=data.lists",
+            "columns": [
+              {
+                "label": "List",
+                "value": "=row.name"
+              },
+              {
+                "label": "Department",
+                "value": "=row.department"
+              },
+              {
+                "label": "Owner",
+                "value": "=row.owner"
+              },
+              {
+                "label": "Colour",
+                "value": "=row.colour",
+                "display": "chip"
+              }
+            ],
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "todo_list",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "todo_list": {
+        "params": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "data": {
+          "todo_list": {
+            "record": "todo_lists",
+            "id": "=params.id"
+          },
+          "tasks": {
+            "from": "todos",
+            "where": "=todo_list == params.id && parent == \"\"",
+            "sort": "status"
+          }
+        },
+        "content": [
+          {
+            "type": "form",
+            "record": "=data.todo_list",
+            "fields": [
+              "name",
+              "owner",
+              "colour",
+              "archived"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Save",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.todo_list",
+                      "set": "=form.values"
+                    }
+                  },
+                  {
+                    "notify": "=\"Saved \" + form.name"
+                  }
+                ],
+                "emphasis": "primary"
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "lists"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "text",
+                "value": "To-dos, by status",
+                "size": "title"
+              },
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "New to-do here",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "new_task_in_list",
+                      "params": {
+                        "todo_list": "=params.id"
+                      }
+                    }
+                  }
+                ],
+                "emphasis": "primary"
+              }
+            ]
+          },
+          {
+            "type": "table",
+            "rows": "=data.tasks",
+            "columns": [
+              {
+                "label": "Status",
+                "value": "=row.status",
+                "display": "chip"
+              },
+              {
+                "label": "To-do",
+                "value": "=row.title"
+              },
+              {
+                "label": "Priority",
+                "value": "=row.priority",
+                "display": "chip"
+              },
+              {
+                "label": "Due",
+                "value": "=row.due"
+              },
+              {
+                "label": "Assignee",
+                "value": "=row.assignee"
+              }
+            ],
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "task",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "departments": {
+        "data": {
+          "departments": {
+            "from": "departments",
+            "sort": "name"
+          },
+          "lists": {
+            "from": "todo_lists",
+            "where": "=archived == false",
+            "sort": "department"
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "New department",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "new_department"
+                    }
+                  }
+                ],
+                "emphasis": "primary"
+              }
+            ]
+          },
+          {
+            "type": "table",
+            "rows": "=data.departments",
+            "columns": [
+              {
+                "label": "Department",
+                "value": "=row.name"
+              },
+              {
+                "label": "Lead",
+                "value": "=row.lead"
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "value": "Lists by department",
+            "size": "title"
+          },
+          {
+            "type": "table",
+            "rows": "=data.lists",
+            "columns": [
+              {
+                "label": "Department",
+                "value": "=row.department"
+              },
+              {
+                "label": "List",
+                "value": "=row.name"
+              },
+              {
+                "label": "Owner",
+                "value": "=row.owner"
+              }
+            ],
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "todo_list",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "people": {
+        "data": {
+          "tasks": {
+            "from": "todos",
+            "where": "=status != \"Done\"",
+            "sort": "assignee"
+          }
+        },
+        "content": [
+          {
+            "type": "text",
+            "value": "Everything not done yet, by who does it."
+          },
+          {
+            "type": "table",
+            "rows": "=data.tasks",
+            "columns": [
+              {
+                "label": "Assignee",
+                "value": "=row.assignee"
+              },
+              {
+                "label": "To-do",
+                "value": "=row.title"
+              },
+              {
+                "label": "Status",
+                "value": "=row.status",
+                "display": "chip"
+              },
+              {
+                "label": "Due",
+                "value": "=row.due"
+              },
+              {
+                "label": "List",
+                "value": "=row.todo_list"
+              }
+            ],
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "task",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "overdue": {
+        "data": {
+          "tasks": {
+            "from": "todos",
+            "where": "=due != \"\" && due < now() && status != \"Done\"",
+            "sort": "due"
+          }
+        },
+        "content": [
+          {
+            "type": "text",
+            "value": "Past their due time and not done."
+          },
+          {
+            "type": "table",
+            "rows": "=data.tasks",
+            "columns": [
+              {
+                "label": "To-do",
+                "value": "=row.title"
+              },
+              {
+                "label": "List",
+                "value": "=row.todo_list"
+              },
+              {
+                "label": "Status",
+                "value": "=row.status",
+                "display": "chip"
+              },
+              {
+                "label": "Priority",
+                "value": "=row.priority",
+                "display": "chip"
+              },
+              {
+                "label": "Due",
+                "value": "=row.due"
+              },
+              {
+                "label": "Assignee",
+                "value": "=row.assignee"
+              }
+            ],
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "task",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "task": {
+        "params": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "data": {
+          "task": {
+            "record": "todos",
+            "id": "=params.id"
+          },
+          "subtasks": {
+            "from": "todos",
+            "where": "=parent == params.id",
+            "sort": "status"
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "button",
+                "label": "Doing",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.task",
+                      "set": {
+                        "status": "Doing"
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Waiting",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.task",
+                      "set": {
+                        "status": "Waiting"
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Done",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.task",
+                      "set": {
+                        "status": "Done",
+                        "done_on": "=now()"
+                      }
+                    }
+                  },
+                  {
+                    "notify": "Done."
+                  }
+                ],
+                "emphasis": "primary"
+              }
+            ]
+          },
+          {
+            "type": "form",
+            "record": "=data.task",
+            "fields": [
+              "title",
+              "todo_list",
+              "assignee",
+              "status",
+              "priority",
+              "start",
+              "due",
+              "contact",
+              "tags",
+              "attachment",
+              "notes"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Save",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.task",
+                      "set": "=form.values"
+                    }
+                  },
+                  {
+                    "notify": "=\"Saved \" + form.title"
+                  }
+                ],
+                "emphasis": "primary"
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "mine"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "text",
+                "value": "Subtasks",
+                "size": "title"
+              },
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "New subtask",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "new_subtask",
+                      "params": {
+                        "parent": "=params.id"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "table",
+            "rows": "=data.subtasks",
+            "columns": [
+              {
+                "label": "Subtask",
+                "value": "=row.title"
+              },
+              {
+                "label": "Status",
+                "value": "=row.status",
+                "display": "chip"
+              },
+              {
+                "label": "Assignee",
+                "value": "=row.assignee"
+              },
+              {
+                "label": "Due",
+                "value": "=row.due"
+              }
+            ],
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "task",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "new_task": {
+        "content": [
+          {
+            "type": "form",
+            "table": "todos",
+            "fields": [
+              "title",
+              "assignee",
+              "status",
+              "priority",
+              "start",
+              "due",
+              "tags",
+              "notes"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Add",
+                "do": [
+                  {
+                    "create": {
+                      "table": "todos",
+                      "values": "=form.values",
+                      "preset": {
+                        "status": "=form.status == \"\" ? \"To do\" : form.status"
+                      }
+                    }
+                  },
+                  {
+                    "notify": "=\"Added \" + form.title"
+                  },
+                  {
+                    "go": {
+                      "screen": "mine"
+                    }
+                  }
+                ],
+                "emphasis": "primary"
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "mine"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "new_task_in_list": {
+        "params": {
+          "todo_list": {
+            "type": "string"
+          }
+        },
+        "content": [
+          {
+            "type": "form",
+            "table": "todos",
+            "fields": [
+              "title",
+              "assignee",
+              "status",
+              "priority",
+              "start",
+              "due",
+              "tags",
+              "notes"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Add",
+                "do": [
+                  {
+                    "create": {
+                      "table": "todos",
+                      "values": "=form.values",
+                      "preset": {
+                        "todo_list": "=params.todo_list",
+                        "status": "=form.status == \"\" ? \"To do\" : form.status"
+                      }
+                    }
+                  },
+                  {
+                    "notify": "=\"Added \" + form.title"
+                  },
+                  {
+                    "go": {
+                      "screen": "todo_list",
+                      "params": {
+                        "id": "=params.todo_list"
+                      }
+                    }
+                  }
+                ],
+                "emphasis": "primary"
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "todo_list",
+                      "params": {
+                        "id": "=params.todo_list"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "new_subtask": {
+        "params": {
+          "parent": {
+            "type": "string"
+          }
+        },
+        "content": [
+          {
+            "type": "form",
+            "table": "todos",
+            "fields": [
+              "title",
+              "assignee",
+              "status",
+              "due",
+              "notes"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Add",
+                "do": [
+                  {
+                    "create": {
+                      "table": "todos",
+                      "values": "=form.values",
+                      "preset": {
+                        "parent": "=params.parent",
+                        "status": "=form.status == \"\" ? \"To do\" : form.status"
+                      }
+                    }
+                  },
+                  {
+                    "notify": "=\"Added \" + form.title"
+                  },
+                  {
+                    "go": {
+                      "screen": "task",
+                      "params": {
+                        "id": "=params.parent"
+                      }
+                    }
+                  }
+                ],
+                "emphasis": "primary"
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "task",
+                      "params": {
+                        "id": "=params.parent"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "new_list": {
+        "content": [
+          {
+            "type": "form",
+            "table": "todo_lists",
+            "fields": [
+              "name",
+              "owner",
+              "colour"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Add",
+                "do": [
+                  {
+                    "create": {
+                      "table": "todo_lists",
+                      "values": "=form.values"
+                    }
+                  },
+                  {
+                    "notify": "=\"Added \" + form.name"
+                  },
+                  {
+                    "go": {
+                      "screen": "lists"
+                    }
+                  }
+                ],
+                "emphasis": "primary"
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "lists"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "new_department": {
+        "content": [
+          {
+            "type": "form",
+            "table": "departments",
+            "fields": [
+              "name",
+              "lead",
+              "description"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Add",
+                "do": [
+                  {
+                    "create": {
+                      "table": "departments",
+                      "values": "=form.values"
+                    }
+                  },
+                  {
+                    "notify": "=\"Added \" + form.name"
+                  },
+                  {
+                    "go": {
+                      "screen": "departments"
+                    }
+                  }
+                ],
+                "emphasis": "primary"
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "departments"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

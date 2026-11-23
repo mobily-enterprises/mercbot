@@ -28,7 +28,7 @@ test("a shared table comes with the tables it needs, each made once, seeded once
   const idOf = (key) => tables.find((table) => table.key === key).id;
   const field = (key) => first.table.fields.find((entry) => entry.key === key);
   assert.equal(field("parent").options.target, first.table.id, "a to-do is part of another to-do");
-  assert.equal(field("list").options.target, idOf("todo_lists"));
+  assert.equal(field("todo_list").options.target, idOf("todo_lists"));
   assert.equal(field("attachment").type, "file");
   assert.equal(first.table.fields[0].key, "title");
   assert.equal(first.table.titleFieldId, field("title").id);

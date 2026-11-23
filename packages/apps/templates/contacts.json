@@ -1,0 +1,557 @@
+{
+  "key": "contacts",
+  "name": "Contacts",
+  "icon": "person",
+  "color": "#1E86FC",
+  "description": "The home's people and organisations in one place: find anyone, see their organisation and what's linked to them.",
+  "uses": [
+    "contacts",
+    "todos"
+  ],
+  "tables": [],
+  "definition": {
+    "home": "people",
+    "navigation": {
+      "style": "rail",
+      "items": [
+        {
+          "screen": "people",
+          "label": "People",
+          "icon": "person"
+        },
+        {
+          "screen": "mine",
+          "label": "Mine",
+          "icon": "star"
+        },
+        {
+          "screen": "organisations",
+          "label": "Organisations",
+          "icon": "open"
+        }
+      ]
+    },
+    "screens": {
+      "people": {
+        "state": {
+          "search": {
+            "type": "string",
+            "default": ""
+          },
+          "tag": {
+            "type": "string",
+            "default": ""
+          }
+        },
+        "data": {
+          "people": {
+            "from": "contacts",
+            "where": "=(state.search == \"\" || name.lowerAscii().contains(state.search.lowerAscii()) || email.lowerAscii().contains(state.search.lowerAscii())) && (state.tag == \"\" || state.tag in tags)",
+            "sort": "name"
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "input",
+                "bind": "state.search",
+                "label": "Search",
+                "icon": "search"
+              },
+              {
+                "type": "input",
+                "bind": "state.tag",
+                "label": "Tag"
+              },
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "New contact",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "new_contact"
+                    }
+                  }
+                ],
+                "emphasis": "primary"
+              }
+            ]
+          },
+          {
+            "type": "table",
+            "rows": "=data.people",
+            "columns": [
+              {
+                "label": "Name",
+                "value": "=row.name"
+              },
+              {
+                "label": "Organisation",
+                "value": "=row.organisation"
+              },
+              {
+                "label": "Email",
+                "value": "=row.email"
+              },
+              {
+                "label": "Phone",
+                "value": "=row.phone"
+              },
+              {
+                "label": "Tags",
+                "value": "=row.tags"
+              },
+              {
+                "label": "Owner",
+                "value": "=row.owner"
+              }
+            ],
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "contact",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "mine": {
+        "data": {
+          "people": {
+            "from": "contacts",
+            "where": "=owner == me.id",
+            "sort": "name"
+          }
+        },
+        "content": [
+          {
+            "type": "text",
+            "value": "The contacts you look after."
+          },
+          {
+            "type": "table",
+            "rows": "=data.people",
+            "columns": [
+              {
+                "label": "Name",
+                "value": "=row.name"
+              },
+              {
+                "label": "Organisation",
+                "value": "=row.organisation"
+              },
+              {
+                "label": "Email",
+                "value": "=row.email"
+              },
+              {
+                "label": "Last contacted",
+                "value": "=row.last_contacted"
+              }
+            ],
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "contact",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "contact": {
+        "params": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "data": {
+          "person": {
+            "record": "contacts",
+            "id": "=params.id"
+          },
+          "todos": {
+            "from": "todos",
+            "where": "=contact == params.id",
+            "sort": "due"
+          }
+        },
+        "content": [
+          {
+            "type": "form",
+            "record": "=data.person",
+            "fields": [
+              "name",
+              "first_name",
+              "last_name",
+              "photo",
+              "role",
+              "email",
+              "phone",
+              "mobile",
+              "address",
+              "website",
+              "birthday",
+              "tags",
+              "owner",
+              "last_contacted",
+              "notes"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Save",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.person",
+                      "set": "=form.values"
+                    }
+                  },
+                  {
+                    "notify": "=\"Saved \" + form.name"
+                  }
+                ],
+                "emphasis": "primary"
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "people"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "value": "To-dos about them",
+            "size": "title"
+          },
+          {
+            "type": "table",
+            "rows": "=data.todos",
+            "columns": [
+              {
+                "label": "To-do",
+                "value": "=row.title"
+              },
+              {
+                "label": "Status",
+                "value": "=row.status",
+                "display": "chip"
+              },
+              {
+                "label": "Due",
+                "value": "=row.due"
+              },
+              {
+                "label": "Assignee",
+                "value": "=row.assignee"
+              }
+            ]
+          }
+        ]
+      },
+      "new_contact": {
+        "content": [
+          {
+            "type": "form",
+            "table": "contacts",
+            "fields": [
+              "name",
+              "first_name",
+              "last_name",
+              "role",
+              "email",
+              "phone",
+              "mobile",
+              "tags",
+              "owner",
+              "notes"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Add",
+                "do": [
+                  {
+                    "create": {
+                      "table": "contacts",
+                      "values": "=form.values"
+                    }
+                  },
+                  {
+                    "notify": "=\"Added \" + form.name"
+                  },
+                  {
+                    "go": {
+                      "screen": "people"
+                    }
+                  }
+                ],
+                "emphasis": "primary"
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "people"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "organisations": {
+        "state": {
+          "search": {
+            "type": "string",
+            "default": ""
+          }
+        },
+        "data": {
+          "organisations": {
+            "from": "organisations",
+            "where": "=state.search == \"\" || name.lowerAscii().contains(state.search.lowerAscii())",
+            "sort": "name"
+          }
+        },
+        "content": [
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "input",
+                "bind": "state.search",
+                "label": "Search",
+                "icon": "search"
+              },
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "New organisation",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "new_organisation"
+                    }
+                  }
+                ],
+                "emphasis": "primary"
+              }
+            ]
+          },
+          {
+            "type": "table",
+            "rows": "=data.organisations",
+            "columns": [
+              {
+                "label": "Name",
+                "value": "=row.name"
+              },
+              {
+                "label": "Kind",
+                "value": "=row.kind",
+                "display": "chip"
+              },
+              {
+                "label": "Website",
+                "value": "=row.website"
+              },
+              {
+                "label": "Phone",
+                "value": "=row.phone"
+              }
+            ],
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "organisation",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "organisation": {
+        "params": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "data": {
+          "organisation": {
+            "record": "organisations",
+            "id": "=params.id"
+          },
+          "people": {
+            "from": "contacts",
+            "where": "=organisation == params.id",
+            "sort": "name"
+          }
+        },
+        "content": [
+          {
+            "type": "form",
+            "record": "=data.organisation",
+            "fields": [
+              "name",
+              "kind",
+              "logo",
+              "website",
+              "email",
+              "phone",
+              "address",
+              "tags",
+              "notes"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Save",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.organisation",
+                      "set": "=form.values"
+                    }
+                  },
+                  {
+                    "notify": "=\"Saved \" + form.name"
+                  }
+                ],
+                "emphasis": "primary"
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "organisations"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "value": "People",
+            "size": "title"
+          },
+          {
+            "type": "table",
+            "rows": "=data.people",
+            "columns": [
+              {
+                "label": "Name",
+                "value": "=row.name"
+              },
+              {
+                "label": "Role",
+                "value": "=row.role"
+              },
+              {
+                "label": "Email",
+                "value": "=row.email"
+              },
+              {
+                "label": "Phone",
+                "value": "=row.phone"
+              }
+            ],
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "contact",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "new_organisation": {
+        "content": [
+          {
+            "type": "form",
+            "table": "organisations",
+            "fields": [
+              "name",
+              "kind",
+              "website",
+              "email",
+              "phone",
+              "address",
+              "tags",
+              "notes"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Add",
+                "do": [
+                  {
+                    "create": {
+                      "table": "organisations",
+                      "values": "=form.values"
+                    }
+                  },
+                  {
+                    "notify": "=\"Added \" + form.name"
+                  },
+                  {
+                    "go": {
+                      "screen": "organisations"
+                    }
+                  }
+                ],
+                "emphasis": "primary"
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "organisations"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

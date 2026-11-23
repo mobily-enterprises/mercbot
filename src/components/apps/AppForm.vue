@@ -5,11 +5,14 @@ import AppNode from "./AppNode.vue";
 import { formulaRecord, refersToRemovedField, showValue } from "./appRuntime.js";
 import { APP_FORM_KEY, APP_SCREEN_KEY } from "./screenKeys.js";
 import { SHARED_TYPES, TEXT_INPUT, inputOf, storedOf } from "./fieldValues.js";
+import RecordFileField from "./RecordFileField.vue";
+import { appsApi, errorText } from "./appsApi.js";
 
 // A form (D-35). Inputs come from the field types; the app only lists field names. Money is typed
 // in units and stored in cents; links are shown, and changed in the Data tab. A calculated field
 // (D-78) is shown worked out from what is typed, never typed in. The server checks everything again
-// and only writes the fields this form shows.
+// and only writes the fields this form shows. A file or picture (D-130) goes onto the record as soon as it's chosen, on a
+// form showing a record of the live app; a form adding a record leaves it out until the record exists.
 const props = defineProps({
   node: { type: Object, required: true },
   path: { type: String, required: true },
@@ -25,13 +28,16 @@ const table = computed(() => (creating.value ? runtime.tableNamed(props.node.tab
 const record = computed(() => (creating.value ? null : runtime.data[queryName.value]));
 const loading = computed(() => !creating.value && runtime.loading.has(queryName.value));
 const draft = reactive({});
+const FILES = new Set(["file", "image"]);
+// The file field being uploaded or taken away, and what went wrong.
+const attaching = reactive({ field: "", failed: "", problem: "" });
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/u;
 
 const entries = computed(() => (props.node.fields || [])
   .map((entry) => (typeof entry === "string" ? { field: entry } : entry))
   .filter((entry) => !refersToRemovedField(entry.field))
   .map((entry) => ({ ...entry, def: table.value?.fields.find((field) => field.key === entry.field) }))
-  .filter((entry) => entry.def));
+  .filter((entry) => entry.def && !(FILES.has(entry.def.type) && (creating.value || !runtime.attachesFiles))));
 
 // Values as typed: money in units, links as their label.
 const toInput = (field, value) => {
@@ -57,7 +63,23 @@ function reset(next = record.value) {
 }
 watch(record, (next) => reset(next), { immediate: true });
 
-const typedIn = (entry) => entry.def.type !== "link" && !isCalculated(entry.def);
+const typedIn = (entry) => entry.def.type !== "link" && !FILES.has(entry.def.type) && !isCalculated(entry.def);
+
+/** A chosen file onto the record at once, or (`file` null) the record's taken away; the screen's lists read it again. */
+async function attach(entry, file) {
+  attaching.field = entry.field;
+  attaching.failed = "";
+  try {
+    if (file) await appsApi.attachFile(table.value.key, record.value.id, entry.def.id, file);
+    else await appsApi.updateRecord(table.value.key, record.value.id, { [entry.def.id]: null });
+    await runtime.reloadChanged([table.value.id]);
+  } catch (error) {
+    attaching.failed = entry.field;
+    attaching.problem = errorText(error, "That file didn't upload.");
+  } finally {
+    attaching.field = "";
+  }
+}
 const storedValues = () => Object.fromEntries(entries.value.filter(typedIn).map((entry) => [entry.field, toStored(entry.def, draft[entry.field])]));
 
 /** The record as the form holds it now, as formulas see it, its calculated fields worked out from what is typed. */
@@ -171,6 +193,17 @@ provide(APP_FORM_KEY, {
             density="comfortable"
             clearable
           />
+          <template v-else-if="FILES.has(entry.def.type)">
+            <v-progress-linear v-if="attaching.field === entry.field" indeterminate class="mb-2" />
+            <RecordFileField
+              :field="entry.def"
+              :current="record?.[entry.field] || null"
+              :chosen="null"
+              :error-messages="attaching.failed === entry.field ? attaching.problem : ''"
+              @update:chosen="(file) => file && attach(entry, file)"
+              @update:current="(value) => value === null && attach(entry, null)"
+            />
+          </template>
           <v-switch v-else-if="entry.def.type === 'yesno'" v-model="draft[entry.field]" :label="entry.def.label" color="primary" inset hide-details class="mb-4" />
           <v-text-field
             v-else-if="entry.def.type === 'link'"

@@ -68,6 +68,20 @@ test("tags are filtered with CEL's own list test, which becomes one jsonb_exists
   assert.match(sql('=state.tag in tags', { tag: "" }).sql, /false/u, "no tag chosen matches nothing");
 });
 
+test("an empty field is \"\" in formulas: == \"\" finds no value, != \"\" a value, and a date and time's is only ever null", () => {
+  const knex = knexLib({ client: "pg" });
+  const variables = { parent: "string", due: "string", state: {}, params: {} };
+  // AnyAPI's slots: a link in a string slot, a date and time in a date slot.
+  const slots = { parent: "string_3", due: "date_2" };
+  const sql = (where) => knex("records")
+    .where((builder) => applyPlan(builder, compileWhere(variables, where), { variables: {}, values: {} }, (field) => `records.${slots[field]}`, knex))
+    .toSQL().toNative().sql;
+  assert.match(sql('=parent == ""'), /\("records"\."string_3" is null or "records"\."string_3" = \$1\)/u);
+  assert.match(sql('=parent != ""'), /\("records"\."string_3" is not null and "records"\."string_3" <> \$1\)/u);
+  assert.match(sql('=due == ""'), /\("records"\."date_2" is null\)/u);
+  assert.match(sql('=due != "" && due < "2026-01-01T00:00:00Z"'), /\("records"\."date_2" is not null\)\) and \("records"\."date_2" < \$1\)/u);
+});
+
 test("a member's screens read who they are as me; a public screen reads its visitor instead", () => {
   const field = (id, key, type) => ({ id, key, label: key, type, options: {} });
   const tables = [{ id: "t_tasks", key: "tasks", label: "Tasks", obsolete: false, fields: [field("f_title", "title", "text"), field("f_owner", "owner", "person")] }];

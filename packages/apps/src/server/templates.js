@@ -12,18 +12,20 @@ const TEMPLATES = readdirSync(folder)
 const templateNamed = (key) => TEMPLATES.find((template) => template.key === key) || null;
 
 /**
- * Installs a template in a home (D-35): each of its tables is reused when the home already has one
- * with that key (adding only the fields it lacks) or made new; the app is created and its screens
- * saved as a draft for a person to preview and publish; sample records are added on request.
+ * Installs a template in a home (D-35): the shared tables it uses come from the catalog (D-130); each of its own
+ * tables is reused when the home already has one with that key (adding only the fields it lacks) or made new; the app
+ * is created and its screens saved as a draft for a person to preview and publish; sample records are added on request.
  * Nothing is removed or renamed. Returns the app and, if the draft didn't pass the save check
  * (say, an existing field has another type), the errors for the Builder to fix. Sample records
  * that don't fit a table the home already had (say, other choices) are skipped and counted.
  * `ctx` is a gate ctx: `{ options, actor, via }`.
  */
-export async function installTemplate({ registry, apps, gate }, ctx, key, { sample = false } = {}) {
+export async function installTemplate({ registry, apps, gate, catalog }, ctx, key, { sample = false } = {}) {
   const template = templateNamed(key);
   if (!template) throw new AppError(404, `There's no template "${key}".`, { code: "apps_template_missing", params: { key } });
   const { options, actor } = ctx;
+  // The shared tables it's built on (D-130), with those they link to, made or completed once.
+  for (const shared of template.uses || []) await catalog.ensureTable(ctx, shared);
   for (const table of template.tables) {
     const existing = (await registry.loadTables(options)).find((entry) => !entry.obsolete && entry.key === table.key);
     if (!existing) {
@@ -60,7 +62,7 @@ export const templateSummaries = () => TEMPLATES.map((template) => ({
   color: template.color,
   description: template.description,
   screens: Object.keys(template.definition.screens).length,
-  tables: template.tables.map((table) => table.key),
+  tables: [...(template.uses || []), ...template.tables.map((table) => table.key)],
   public: Boolean(template.definition.public),
   sample: Object.values(template.sample || {}).some((rows) => rows.length)
 }));

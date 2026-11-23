@@ -45,3 +45,50 @@ test("templates install as drafts on reused or new tables", async (context) => {
   assert.match(JSON.stringify(stock.errors), /quantity/u);
   await assert.rejects(install("nope"), /no template "nope"/u);
 });
+
+// The Contacts and To-dos mini apps (D-130) are built on the shared tables: installed into a home that already keeps
+// contacts its own way, they keep everything and only add fields, and their screens find each person's to-dos, each
+// list's, a task's subtasks and what's overdue.
+test("Contacts and To-dos install on the shared tables, and their screens find what they should", async (context) => {
+  const { knex, apps: capability, userId, workspaceId, options, ctx: ctxOf } = await appsHome(context, { slug: "apps-tpl-shared" });
+  const { registry, gate, apps, runtime } = capability;
+  // Pat is in the home, so to-dos and contacts can be theirs.
+  await knex("workspace_memberships").insert({ workspace_id: workspaceId, user_id: userId, role_sid: "member", status: "active" });
+  const ctx = ctxOf({ type: "person", id: String(userId), name: "Pat" });
+  await registry.createTable(ctx.actor, { key: "contacts", fields: [{ key: "name", type: "text", required: true }, { key: "company", type: "text" }, { key: "stage", type: "choice", choices: ["Lead", "Customer"] }] }, options);
+  const ann = await gate.create(ctx, "contacts", { name: "Ann", company: "Acme", stage: "Lead" });
+  for (const key of ["contacts", "todos"]) {
+    const installed = await capability.installTemplate(ctx, key);
+    assert.deepEqual(installed.errors, [], key);
+    await apps.publish(ctx.actor, installed.app.slug, {}, options);
+  }
+  const contacts = (await registry.loadTables(options)).find((table) => table.key === "contacts");
+  const keys = contacts.fields.filter((field) => !field.obsolete).map((field) => field.key);
+  assert.deepEqual(keys.slice(0, 3), ["name", "company", "stage"], "kept as they were");
+  assert.ok(["organisation", "photo", "tags", "owner"].every((key) => keys.includes(key)));
+  const general = (await gate.read(ctx, "todo_lists")).records[0];
+
+  await gate.update(ctx, "contacts", ann.id, { tags: ["vip"], owner: String(userId) });
+  const call = await gate.create(ctx, "todos", { title: "Call Ann", assignee: String(userId), status: "To do", due: "2020-01-01T09:00:00Z", contact: ann.id, todo_list: general.id });
+  await gate.create(ctx, "todos", { title: "Book a room", status: "Done", todo_list: general.id });
+  await gate.create(ctx, "todos", { title: "Find her number", parent: call.id, status: "To do" });
+  const query = async (slug, screen, name, extra = {}) => (await runtime.query(ctx, { slug, screen, query: name, ...extra })).records.map((record) => record.name ?? record.title);
+
+  assert.deepEqual(await query("contacts", "people", "people", { state: { search: "", tag: "vip" } }), ["Ann"]);
+  assert.deepEqual(await query("contacts", "people", "people", { state: { search: "", tag: "other" } }), []);
+  assert.deepEqual(await query("contacts", "mine", "people"), ["Ann"]);
+  assert.deepEqual(await query("contacts", "contact", "todos", { params: { id: ann.id } }), ["Call Ann"]);
+  assert.deepEqual(await query("to-dos", "mine", "tasks"), ["Call Ann"]);
+  assert.deepEqual(await query("to-dos", "overdue", "tasks"), ["Call Ann"]);
+  assert.deepEqual((await query("to-dos", "todo_list", "tasks", { params: { id: general.id } })).sort(), ["Book a room", "Call Ann"], "a list's to-dos, not their subtasks");
+  assert.deepEqual(await query("to-dos", "task", "subtasks", { params: { id: call.id } }), ["Find her number"]);
+
+  // Its quick status: Done, with when.
+  await runtime.action(ctx, { slug: "to-dos", screen: "task", path: "content/0/content/2/do", params: { id: call.id } });
+  const done = await gate.get(ctx, "todos", call.id);
+  const todos = (await registry.loadTables(options)).find((table) => table.key === "todos");
+  const valueOf = (key) => done[todos.fields.find((field) => field.key === key).id];
+  assert.equal(valueOf("status"), "Done");
+  assert.ok(Date.now() - Date.parse(valueOf("done_on")) < 60_000);
+  assert.deepEqual(await query("to-dos", "overdue", "tasks"), []);
+});
