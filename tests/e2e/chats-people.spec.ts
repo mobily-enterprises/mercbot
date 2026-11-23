@@ -248,7 +248,8 @@ test("New room is Public unless Private is picked and needs a name; a private ro
     expect([row.kind, row.title, String(row.made_by)]).toEqual(["private", "Kitchen reno", home.owner]);
     await expect(newRoom).toBeHidden();
     await expect(page).toHaveURL(new RegExp(`[?&]chat=${chat.id}\\b`, "u"));
-    await expect(shell.chat(page).getByText(/ started this room\.$/u)).toBeVisible();
+    // Unanchored: a regular expression is tried on the line's text as it stands, with the space before its (absent) link.
+    await expect(shell.chat(page).getByText(/ started this room\./u)).toBeVisible();
 
     // Invite: the home's people and bots not in it yet; Ben and Chef.
     const inviting = page.getByRole("dialog", { name: "Invite", exact: true });
