@@ -597,6 +597,8 @@ export function buildTools({
     attempted,
     attempt,
     madePicture,
+    // What this turn saved (/files/… paths), for the reply's checks.
+    savedFiles: () => [...saved],
     picturesOn,
     fileCards,
     showsCard,

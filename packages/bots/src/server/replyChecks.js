@@ -159,6 +159,15 @@ export function turnAbout(recent, botId) {
 /** Whether the run called any tool of these lists. */
 const wrote = (run, ...lists) => run.attempted.some((id) => lists.some((list) => list.includes(id)));
 
+// Records go in the home's tables, never a spreadsheet (D-130): a turn that saved one the person didn't ask for is sent
+// back. What the turn saved decides it, not the reply's words; the person's message says whether they asked.
+const SPREADSHEET_FILE = /\.(?:xlsx|xls|ods|csv)$/iu;
+const ASKS_FOR_SPREADSHEET = /\b(?:spread ?sheets?|excel|xlsx|xls|csv|ods|sheets?|export\w*|download\w*|files?)\b/iu;
+export const SPREADSHEET_CHECK =
+  "(Check from Mercbot: you saved a spreadsheet nobody asked for. Keep these records in the home's tables: use data_tables and table_ensure, add the rows, and remove the spreadsheet you made.)";
+/** Whether a turn saved a spreadsheet that the person's message (`about`) didn't ask for. */
+export const unaskedSpreadsheet = (saved, about) => saved.some((file) => SPREADSHEET_FILE.test(file)) && !ASKS_FOR_SPREADSHEET.test(String(about || ""));
+
 /**
  * The checks of what a reply claims, in order, each read after the one before sent it back: the check to send it back
  * with, or "". A run's pictures, cards and attempted tools are asked of the run itself, as they join the reply only
@@ -189,5 +198,7 @@ export const CLAIM_CHECKS = [
     const asking = run.after.some((message) => message.kind === "choice");
     const wroteAny = wrote(run, APP_ACTIONS, MAIL_CHANGES, GITHUB_WRITES, SEDNA_CHANGES);
     return !asking && run.tools.dataCreate && !wroteAny && CLAIMS_APPS.test(text) ? APPS_CHECK : "";
-  }
+  },
+  // A spreadsheet of records nobody asked for goes back once, for the home's tables (D-130).
+  (run, _text, about) => (run.tools.tableEnsure && unaskedSpreadsheet(run.savedFiles(), about) ? SPREADSHEET_CHECK : "")
 ];
