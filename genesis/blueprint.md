@@ -130,7 +130,23 @@ Builder: people ask it for an app or a change, it prepares a draft, and a person
 previews it and publishes it. The Builder looks the part: at rest its face is
 thinking, eyes up to one side under a raised brow. Apps open from the sidebar (people pin the ones
 they use) in their own frame with their own screens, lists, forms, totals and
-dialogs. Every bot can read and add to the same data from chat. The Apps area
+dialogs. Every bot can read and add to the same data from chat.
+
+Bots keep their records in the home's tables, never in spreadsheets unless a
+person asks for one. Every home builds on a small set of shared tables
+(organisations, contacts, departments, to-do lists and to-dos, places, events,
+graphics and deals). A bot adds one the first time it needs it, saying so in a
+line, and asks before adding a field or a one-to-one extension, a table that
+holds more about each record of another, such as a contact's sales details.
+Nobody makes a second table for what a shared one is for, and bot templates
+declare the tables they keep. Every home starts with two apps on them, Contacts
+and To-dos, and the CRM template builds on Contacts. Fields can hold a person in
+the home, tags, a web address, long notes, a date and time, and files and
+pictures. A record's files live in the home's Database files, which anyone can
+open and copy from but nobody can move, rename or delete. Each table shows what
+it links to, what links to it and what extends it, and each record shows its
+related records. Long term, permissions will be per table only, with what's
+private in an extension only some people can open. The Apps area
 also shows the home's tables as spreadsheets, which can be exported to CSV or
 Excel and filled from a CSV or Excel file (all rows or none), and an activity
 feed of every change: who made it, where, and what each value was before and after. Nothing is

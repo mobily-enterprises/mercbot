@@ -67,6 +67,8 @@ export const APP_ACTIONS = [
  *   task), for the audit
  * @param {(text: string) => Promise<void>} turn.postLead a one-line note in the chat (a shared table added, D-130)
  * @param {(actionId: string, input: object) => Promise<object>} turn.attempt an action on a card the person approves
+ * @param {boolean} turn.privateChat whether the turn's chat is private: its own folder's files stay in it (D13), so none
+ *   goes onto a record, which the whole home reads
  * @param {(path: string) => Promise<{ real: string }>} turn.fileAt one of the bot's files by its path (/files/...), as
  *   its file tools read it: refused when the bot can't read it
  * @param {(prompt: string) => Promise<object>} turn.scriptModel asks for a script and its tests: writeScriptRound with the chat
@@ -84,6 +86,7 @@ export function buildAppTools({
   attempted,
   via,
   fileAt,
+  privateChat,
   postLead,
   attempt,
   scriptModel
@@ -243,6 +246,11 @@ export function buildAppTools({
   }
   // A file or picture goes onto a record as a copy in the home's Database files (D-130): the bot's own file stays.
   async function dataAttachFile({ table, id, field, path: wanted }) {
+    if (privateChat && /^\/files\/chat(?:\/|$)/u.test(String(wanted))) {
+      return {
+        error: "That file is in this private chat, and a record's files are the whole home's. Copy it to /files/shared with transfer_file first, which asks the person, then attach the copy."
+      };
+    }
     try {
       const { table: info } = await gate.tableFor(table, call);
       const { real } = await fileAt(wanted);

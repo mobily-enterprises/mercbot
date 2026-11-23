@@ -3,16 +3,16 @@
   "results": {
     "accessibility-checker": {
       "date": "2026-11-23",
-      "commit": "8ccf7bd",
-      "behaviour": "6d0598646e718c33",
-      "template": "8a241541a5072677",
+      "commit": "8469e40",
+      "behaviour": "48b60ed4326675aa",
+      "template": "b7b615f344e095d6",
       "models": {
         "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
         "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
       },
       "passed": true,
       "reasons": [],
-      "turns": 10,
+      "turns": 9,
       "asked": "6 of 6",
       "runs": {
         "passed": 2,
@@ -21,8 +21,8 @@
     },
     "appointment-bookings": {
       "date": "2026-11-23",
-      "commit": "8ccf7bd",
-      "behaviour": "6d0598646e718c33",
+      "commit": "8469e40",
+      "behaviour": "48b60ed4326675aa",
       "template": "ac72b15fb2352d9f",
       "models": {
         "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
@@ -39,78 +39,70 @@
     },
     "blog-article-desk": {
       "date": "2026-11-23",
-      "commit": "8ccf7bd",
-      "behaviour": "6d0598646e718c33",
-      "template": "b077b7152bd385e3",
-      "models": {
-        "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
-        "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
-      },
-      "passed": false,
-      "reasons": [
-        "It didn't ask: Ask with a question card how often to draft (weekly or every two weeks) and on which day, then create the routine, paused, named \"Article draft\". Its instructions: draft the next planned topic using the \"Blog notes\" document, save it, mark it drafted in the plan, and say it's ready. The judge: Asked how often and which day via card, but never confirmed the routine's content instructions (draft from Blog notes, save, mark drafted in plan, say it's ready).",
-        "It didn't ask: Ask with a question card how often to draft (weekly or every two weeks) and on which day, then create the routine, paused, named \"Article draft\". Its instructions: draft the next planned topic using the \"Blog notes\" document, save it, mark it drafted in the plan, and say it's ready. The judge: Created the Monday 'Article draft' routine paused, but never asked how often to draft (weekly or every two weeks) or on which day, defaulting instead."
-      ],
-      "turns": 13,
-      "asked": "5 of 6",
-      "runs": {
-        "passed": 1,
-        "of": 3
-      }
-    },
-    "brand-mention-digest": {
-      "date": "2026-11-23",
-      "commit": "8ccf7bd",
-      "behaviour": "6d0598646e718c33",
-      "template": "e7e964b6edc3b65e",
-      "models": {
-        "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
-        "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
-      },
-      "passed": true,
-      "reasons": [
-        "In the run that failed: It didn't ask: Ask with a question card where mentions usually appear (review sites, news, forums, blogs, social posts; several allowed), and for any specific review pages they have. The judge: Asked a question card about where mentions appear, but did not also ask for any specific review pages they have."
-      ],
-      "turns": 9,
-      "asked": "5 of 5",
-      "runs": {
-        "passed": 2,
-        "of": 3
-      }
-    },
-    "brand-voice-editor": {
-      "date": "2026-11-23",
-      "commit": "8ccf7bd",
-      "behaviour": "6d0598646e718c33",
-      "template": "d7af32243417f5ad",
-      "models": {
-        "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
-        "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
-      },
-      "passed": false,
-      "reasons": [
-        "It didn't ask: Ask with a question card about house style: spelling (UK, US or other), headings in sentence case or title case, serial comma or not, numbers as digits or words. The judge: Used a card covering spelling, heading case, and digits, but the card omitted the serial comma and the bot only left it as a suggestion rather than asking with a card.",
-        "It didn't ask: Ask with a question card about house style: spelling (UK, US or other), headings in sentence case or title case, serial comma or not, numbers as digits or words. The judge: The bot never asked about house style with a question card; it just guessed its own defaults and marked them unconfirmed."
-      ],
-      "turns": 7,
-      "asked": "3 of 4",
-      "runs": {
-        "passed": 1,
-        "of": 3
-      }
-    },
-    "competitor-watch": {
-      "date": "2026-11-23",
-      "commit": "8ccf7bd",
-      "behaviour": "6d0598646e718c33",
-      "template": "df619166e013cbf8",
+      "commit": "8469e40",
+      "behaviour": "48b60ed4326675aa",
+      "template": "58101818b787e120",
       "models": {
         "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
         "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
       },
       "passed": true,
       "reasons": [],
-      "turns": 8,
+      "turns": 11,
+      "asked": "6 of 6",
+      "runs": {
+        "passed": 2,
+        "of": 2
+      }
+    },
+    "brand-mention-digest": {
+      "date": "2026-11-23",
+      "commit": "8469e40",
+      "behaviour": "48b60ed4326675aa",
+      "template": "acb9665072474825",
+      "models": {
+        "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
+        "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
+      },
+      "passed": true,
+      "reasons": [],
+      "turns": 7,
+      "asked": "5 of 5",
+      "runs": {
+        "passed": 2,
+        "of": 2
+      }
+    },
+    "brand-voice-editor": {
+      "date": "2026-11-23",
+      "commit": "8469e40",
+      "behaviour": "48b60ed4326675aa",
+      "template": "c78df536ba2cad95",
+      "models": {
+        "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
+        "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
+      },
+      "passed": true,
+      "reasons": [],
+      "turns": 11,
+      "asked": "5 of 5",
+      "runs": {
+        "passed": 2,
+        "of": 2
+      }
+    },
+    "competitor-watch": {
+      "date": "2026-11-23",
+      "commit": "8469e40",
+      "behaviour": "48b60ed4326675aa",
+      "template": "73f163b6766c20ec",
+      "models": {
+        "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
+        "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
+      },
+      "passed": true,
+      "reasons": [],
+      "turns": 6,
       "asked": "4 of 4",
       "runs": {
         "passed": 2,
@@ -119,16 +111,16 @@
     },
     "customer-follow-up": {
       "date": "2026-11-23",
-      "commit": "8ccf7bd",
-      "behaviour": "6d0598646e718c33",
-      "template": "1667a402f27f982e",
+      "commit": "8469e40",
+      "behaviour": "48b60ed4326675aa",
+      "template": "673bb923a420c8dc",
       "models": {
         "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
         "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
       },
       "passed": true,
       "reasons": [],
-      "turns": 8,
+      "turns": 9,
       "asked": "6 of 6",
       "runs": {
         "passed": 2,
@@ -137,28 +129,26 @@
     },
     "deal-follow-ups": {
       "date": "2026-11-23",
-      "commit": "8ccf7bd",
-      "behaviour": "6d0598646e718c33",
-      "template": "11d867ff678e8732",
+      "commit": "8469e40",
+      "behaviour": "48b60ed4326675aa",
+      "template": "1ba3424dcb74a187",
       "models": {
         "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
         "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
       },
       "passed": true,
-      "reasons": [
-        "In the run that failed: It didn't ask: Ask how they like to sound in email (formal, friendly, brief) and how they sign off. If they have a past follow-up they liked, ask them to paste it. The judge: It split the question into card-only tone and sign-off questions and never asked about a past follow-up they liked or to paste it."
-      ],
-      "turns": 8,
+      "reasons": [],
+      "turns": 9,
       "asked": "5 of 5",
       "runs": {
         "passed": 2,
-        "of": 3
+        "of": 2
       }
     },
     "design-critique": {
       "date": "2026-11-23",
-      "commit": "8ccf7bd",
-      "behaviour": "6d0598646e718c33",
+      "commit": "8469e40",
+      "behaviour": "48b60ed4326675aa",
       "template": "12a6a02c2b9c0a85",
       "models": {
         "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
@@ -166,7 +156,7 @@
       },
       "passed": true,
       "reasons": [],
-      "turns": 8,
+      "turns": 7,
       "asked": "5 of 5",
       "runs": {
         "passed": 2,
@@ -175,9 +165,9 @@
     },
     "expense-receipt-tidy": {
       "date": "2026-11-23",
-      "commit": "8ccf7bd",
-      "behaviour": "6d0598646e718c33",
-      "template": "c2be86a0d43df8f5",
+      "commit": "8469e40",
+      "behaviour": "48b60ed4326675aa",
+      "template": "4885e49a16ce2a52",
       "models": {
         "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
         "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
@@ -193,16 +183,16 @@
     },
     "family-chores-rota": {
       "date": "2026-11-23",
-      "commit": "8ccf7bd",
-      "behaviour": "6d0598646e718c33",
-      "template": "ef14a402d1905e70",
+      "commit": "8469e40",
+      "behaviour": "48b60ed4326675aa",
+      "template": "fcd5086a79ff1ffe",
       "models": {
         "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
         "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
       },
       "passed": true,
       "reasons": [],
-      "turns": 10,
+      "turns": 9,
       "asked": "4 of 4",
       "runs": {
         "passed": 2,
@@ -211,16 +201,16 @@
     },
     "habit-tracker": {
       "date": "2026-11-23",
-      "commit": "8ccf7bd",
-      "behaviour": "6d0598646e718c33",
-      "template": "2f582fa50e66cb6e",
+      "commit": "8469e40",
+      "behaviour": "48b60ed4326675aa",
+      "template": "9ce34efea020428f",
       "models": {
         "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
         "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
       },
       "passed": true,
       "reasons": [],
-      "turns": 10,
+      "turns": 7,
       "asked": "4 of 4",
       "runs": {
         "passed": 2,
@@ -229,123 +219,30 @@
     },
     "home-maintenance-log": {
       "date": "2026-11-23",
-      "commit": "8ccf7bd",
-      "behaviour": "6d0598646e718c33",
-      "template": "b6d392ac1d5a7d63",
+      "commit": "8469e40",
+      "behaviour": "48b60ed4326675aa",
+      "template": "14bf4d41981ead17",
       "models": {
         "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
         "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
       },
       "passed": true,
-      "reasons": [],
+      "reasons": [
+        "In the run that failed: It didn't ask: Ask with a question card what kind of home it is (flat, terraced or semi-detached house, detached house, other) and whether they own or rent. If they rent, note that the landlord handles some jobs. The judge: The bot asked only what kind of home it is, never whether they own or rent or that the landlord handles jobs if renting.",
+        "In the run that failed: It didn't ask: Ask with a question card which systems and appliances to track (heating or boiler, hot water, smoke and carbon monoxide alarms, washing machine, dishwasher, fridge freezer, oven and hob, gutters and roof, garden, car, other; several allowed). The judge: The bot's tracking card omitted 'other' and 'car', and did not present the options as listed."
+      ],
       "turns": 11,
       "asked": "5 of 5",
       "runs": {
         "passed": 2,
-        "of": 2
+        "of": 3
       }
     },
     "household-bills-tracker": {
       "date": "2026-11-23",
-      "commit": "8ccf7bd",
-      "behaviour": "6d0598646e718c33",
-      "template": "6244dc2010cd39da",
-      "models": {
-        "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
-        "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
-      },
-      "passed": true,
-      "reasons": [],
-      "turns": 10,
-      "asked": "5 of 5",
-      "runs": {
-        "passed": 2,
-        "of": 2
-      }
-    },
-    "job-description-writer": {
-      "date": "2026-11-23",
-      "commit": "8ccf7bd",
-      "behaviour": "6d0598646e718c33",
-      "template": "33291f6f6d4e3296",
-      "models": {
-        "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
-        "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
-      },
-      "passed": true,
-      "reasons": [
-        "In the run that failed: It didn't ask: Ask with a question card whether adverts should show a pay range (always, when possible, never) and mention any local rules on pay transparency they follow. The judge: Used a question card to ask whether adverts should show a pay range, but never mentioned any local pay transparency rules it follows.",
-        "In the run that failed: It didn't ask: Ask with a question card what voice to write in (warm and plain, professional, lively), and whether to use \"we\" and \"you\". The judge: Used a card to ask what voice to write in, and stated its own assumption about using 'we' and 'you' rather than asking about it.",
-        "In the run that failed: It didn't ask: Ask for their equal opportunities line and how candidates ask for adjustments, or offer to draft them. The judge: The bot itself offered to draft the lines rather than asking for them; it then asked only a follow-up card about which adjustments email to use."
-      ],
-      "turns": 9,
-      "asked": "6 of 6",
-      "runs": {
-        "passed": 2,
-        "of": 3
-      }
-    },
-    "job-search-helper": {
-      "date": "2026-11-23",
-      "commit": "8ccf7bd",
-      "behaviour": "6d0598646e718c33",
-      "template": "ad880b16ed0b00fc",
-      "models": {
-        "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
-        "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
-      },
-      "passed": true,
-      "reasons": [
-        "In the run that failed: It didn't ask: Ask them to share their current CV (upload, /files/chat, or a connected drive). When they share it, read it and summarise their strengths in three lines to check you've understood; if they'd rather not share it now, ask them for their strengths in a few lines instead. The judge: Asked for the CV but when the upload failed it just repeated back their typed strengths without offering the alternative of asking for strengths only if they'd rather not share."
-      ],
-      "turns": 10,
-      "asked": "6 of 6",
-      "runs": {
-        "passed": 2,
-        "of": 3
-      }
-    },
-    "kids-activities-planner": {
-      "date": "2026-11-23",
-      "commit": "8ccf7bd",
-      "behaviour": "6d0598646e718c33",
-      "template": "ece870b7aae21cc1",
-      "models": {
-        "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
-        "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
-      },
-      "passed": true,
-      "reasons": [],
-      "turns": 10,
-      "asked": "7 of 7",
-      "runs": {
-        "passed": 2,
-        "of": 2
-      }
-    },
-    "language-practice-partner": {
-      "date": "2026-11-23",
-      "commit": "8ccf7bd",
-      "behaviour": "6d0598646e718c33",
-      "template": "4e4251868e0bdec1",
-      "models": {
-        "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
-        "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
-      },
-      "passed": true,
-      "reasons": [],
-      "turns": 11,
-      "asked": "6 of 6",
-      "runs": {
-        "passed": 2,
-        "of": 2
-      }
-    },
-    "meeting-recap-writer": {
-      "date": "2026-11-23",
-      "commit": "8ccf7bd",
-      "behaviour": "6d0598646e718c33",
-      "template": "1d9ccb42419cce3e",
+      "commit": "8469e40",
+      "behaviour": "48b60ed4326675aa",
+      "template": "20af840172c2bbf6",
       "models": {
         "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
         "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
@@ -359,11 +256,11 @@
         "of": 2
       }
     },
-    "money-check-in": {
+    "job-description-writer": {
       "date": "2026-11-23",
-      "commit": "8ccf7bd",
-      "behaviour": "6d0598646e718c33",
-      "template": "22143c8d25e1635b",
+      "commit": "8469e40",
+      "behaviour": "48b60ed4326675aa",
+      "template": "33291f6f6d4e3296",
       "models": {
         "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
         "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
@@ -371,17 +268,59 @@
       "passed": true,
       "reasons": [],
       "turns": 11,
-      "asked": "5 of 5",
+      "asked": "6 of 6",
       "runs": {
         "passed": 2,
         "of": 2
       }
     },
-    "new-starter-onboarding": {
+    "job-search-helper": {
       "date": "2026-11-23",
-      "commit": "8ccf7bd",
-      "behaviour": "6d0598646e718c33",
-      "template": "c139b470f42a4f12",
+      "commit": "8469e40",
+      "behaviour": "48b60ed4326675aa",
+      "template": "c3068a05c121ed1e",
+      "models": {
+        "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
+        "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
+      },
+      "passed": true,
+      "reasons": [
+        "In the run that failed: It didn't ask: Ask them to share their current CV (upload, /files/chat, or a connected drive). When they share it, read it and summarise their strengths in three lines to check you've understood; if they'd rather not share it now, ask them for their strengths in a few lines instead. The judge: Asked them to share their CV but read only the pasted summary without giving the required three-line strengths summary to check understanding."
+      ],
+      "turns": 10,
+      "asked": "6 of 6",
+      "runs": {
+        "passed": 2,
+        "of": 3
+      }
+    },
+    "kids-activities-planner": {
+      "date": "2026-11-23",
+      "commit": "8469e40",
+      "behaviour": "48b60ed4326675aa",
+      "template": "f1e0b0dfa7f5eb7e",
+      "models": {
+        "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
+        "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
+      },
+      "passed": true,
+      "reasons": [
+        "In the run that failed: It didn't ask: Ask with a question card whether you may read a calendar (Google, Outlook, or no). If it isn't connected, say they can connect it from the bot's apps. The judge: Bot asked about calendar access with a card, but didn't mention connecting from the bot's apps if not connected.",
+        "In the run that failed: It didn't ask: Ask with a question card whether you may read messages from the clubs in their inbox (Gmail, Outlook, or no). If it isn't connected, say they can connect it from the bot's apps. The judge: Bot asked about inbox access with a card, but didn't mention connecting from the bot's apps if not connected.",
+        "In the run that failed: It didn't ask: Ask with a question card which day and time the week ahead should be ready, each choice naming both (for example \"Sunday 4pm\", \"Sunday 7pm\", \"Monday 7am\"). The judge: Bot asked about the day and time with a card, but the choices didn't all name both day and time (Friday 6pm did, Sunday/Monday did, but card choices overall included Friday 6pm which is fine; actually Sunday 4pm, Sunday 7pm, Monday 7am name both, Friday 6pm does not name the day)."
+      ],
+      "turns": 10,
+      "asked": "7 of 7",
+      "runs": {
+        "passed": 2,
+        "of": 3
+      }
+    },
+    "language-practice-partner": {
+      "date": "2026-11-23",
+      "commit": "8469e40",
+      "behaviour": "48b60ed4326675aa",
+      "template": "43dcbfaaf4bdaa9e",
       "models": {
         "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
         "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
@@ -395,11 +334,65 @@
         "of": 2
       }
     },
+    "meeting-recap-writer": {
+      "date": "2026-11-23",
+      "commit": "8469e40",
+      "behaviour": "48b60ed4326675aa",
+      "template": "1d9ccb42419cce3e",
+      "models": {
+        "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
+        "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
+      },
+      "passed": true,
+      "reasons": [],
+      "turns": 7,
+      "asked": "5 of 5",
+      "runs": {
+        "passed": 2,
+        "of": 2
+      }
+    },
+    "money-check-in": {
+      "date": "2026-11-23",
+      "commit": "8469e40",
+      "behaviour": "48b60ed4326675aa",
+      "template": "cd01b65eb27dadb0",
+      "models": {
+        "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
+        "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
+      },
+      "passed": true,
+      "reasons": [],
+      "turns": 9,
+      "asked": "5 of 5",
+      "runs": {
+        "passed": 2,
+        "of": 2
+      }
+    },
+    "new-starter-onboarding": {
+      "date": "2026-11-23",
+      "commit": "8469e40",
+      "behaviour": "48b60ed4326675aa",
+      "template": "62440ebbeddd4a66",
+      "models": {
+        "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
+        "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
+      },
+      "passed": true,
+      "reasons": [],
+      "turns": 8,
+      "asked": "6 of 6",
+      "runs": {
+        "passed": 2,
+        "of": 2
+      }
+    },
     "newsletter-writer": {
       "date": "2026-11-23",
-      "commit": "8ccf7bd",
-      "behaviour": "6d0598646e718c33",
-      "template": "3e7dc5547c169518",
+      "commit": "8469e40",
+      "behaviour": "48b60ed4326675aa",
+      "template": "45aaa5376b305292",
       "models": {
         "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
         "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
@@ -415,8 +408,8 @@
     },
     "on-call-handover": {
       "date": "2026-11-23",
-      "commit": "8ccf7bd",
-      "behaviour": "6d0598646e718c33",
+      "commit": "8469e40",
+      "behaviour": "48b60ed4326675aa",
       "template": "a670ce55f8ed1756",
       "models": {
         "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
@@ -424,7 +417,7 @@
       },
       "passed": true,
       "reasons": [],
-      "turns": 8,
+      "turns": 9,
       "asked": "3 of 3",
       "runs": {
         "passed": 2,
@@ -433,16 +426,16 @@
     },
     "plant-care": {
       "date": "2026-11-23",
-      "commit": "8ccf7bd",
-      "behaviour": "6d0598646e718c33",
-      "template": "8f683bfb56b120ea",
+      "commit": "8469e40",
+      "behaviour": "48b60ed4326675aa",
+      "template": "fe3ab45f78c3c609",
       "models": {
         "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
         "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
       },
       "passed": true,
       "reasons": [],
-      "turns": 10,
+      "turns": 9,
       "asked": "6 of 6",
       "runs": {
         "passed": 2,
@@ -451,8 +444,8 @@
     },
     "presentation-polisher": {
       "date": "2026-11-23",
-      "commit": "8ccf7bd",
-      "behaviour": "6d0598646e718c33",
+      "commit": "8469e40",
+      "behaviour": "48b60ed4326675aa",
       "template": "5ae9e850430fb941",
       "models": {
         "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
@@ -469,16 +462,16 @@
     },
     "proposal-writer": {
       "date": "2026-11-23",
-      "commit": "8ccf7bd",
-      "behaviour": "6d0598646e718c33",
-      "template": "80f6bd2fa0c214ac",
+      "commit": "8469e40",
+      "behaviour": "48b60ed4326675aa",
+      "template": "1a98ef9d0b70a6e7",
       "models": {
         "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
         "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
       },
       "passed": true,
       "reasons": [],
-      "turns": 10,
+      "turns": 11,
       "asked": "4 of 4",
       "runs": {
         "passed": 2,
@@ -487,36 +480,34 @@
     },
     "prospect-research": {
       "date": "2026-11-23",
-      "commit": "8ccf7bd",
-      "behaviour": "6d0598646e718c33",
-      "template": "c237cdb4c3976c3a",
-      "models": {
-        "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
-        "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
-      },
-      "passed": true,
-      "reasons": [
-        "In the run that failed: It didn't ask: Ask with a question card how many prospects per batch (5, 10, 20) and which day and time it should be ready. The judge: It asked batch size with a card and the day/time in text, but split these into two separate questions instead of one combined question card as required."
-      ],
-      "turns": 10,
-      "asked": "7 of 7",
-      "runs": {
-        "passed": 2,
-        "of": 3
-      }
-    },
-    "quote-writer": {
-      "date": "2026-11-23",
-      "commit": "8ccf7bd",
-      "behaviour": "6d0598646e718c33",
-      "template": "81833288a9af24ed",
+      "commit": "8469e40",
+      "behaviour": "48b60ed4326675aa",
+      "template": "c04f16e3df4cf8d7",
       "models": {
         "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
         "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
       },
       "passed": true,
       "reasons": [],
-      "turns": 11,
+      "turns": 12,
+      "asked": "7 of 7",
+      "runs": {
+        "passed": 2,
+        "of": 2
+      }
+    },
+    "quote-writer": {
+      "date": "2026-11-23",
+      "commit": "8469e40",
+      "behaviour": "48b60ed4326675aa",
+      "template": "cb82c9812a35f5e1",
+      "models": {
+        "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
+        "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
+      },
+      "passed": true,
+      "reasons": [],
+      "turns": 10,
       "asked": "7 of 7",
       "runs": {
         "passed": 2,
@@ -525,18 +516,20 @@
     },
     "receipts-and-invoices": {
       "date": "2026-11-23",
-      "commit": "8ccf7bd",
-      "behaviour": "6d0598646e718c33",
-      "template": "957e361ebd58c65b",
+      "commit": "8469e40",
+      "behaviour": "48b60ed4326675aa",
+      "template": "055282a455877d76",
       "models": {
         "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
         "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
       },
       "passed": true,
       "reasons": [
-        "In the run that failed: It didn't ask: Ask whether they're registered for sales tax or VAT, and the expense categories they or their bookkeeper use. Offer a short common list if they don't have one. The judge: Asked VAT registration and expense categories as two separate question cards instead of one question."
+        "In the run that failed: It didn't ask: Ask when the business's financial year starts and which currency it uses. One question. The judge: Split this into two separate card questions — one asking when the financial year starts and ends, then a separate card for which currency — instead of one combined question.",
+        "In the run that failed: It didn't ask: Ask whether they're registered for sales tax or VAT, and the expense categories they or their bookkeeper use. Offer a short common list if they don't have one. The judge: Asked two separate card questions: one about VAT registration, then a separate one about expense categories, rather than one combined question.",
+        "In the run that failed: It didn't ask: Ask how they send invoices to customers and their usual payment terms (for example 14 or 30 days). The judge: Only asked about payment terms; never asked how invoices are sent to customers."
       ],
-      "turns": 12,
+      "turns": 10,
       "asked": "6 of 6",
       "runs": {
         "passed": 2,
@@ -545,37 +538,37 @@
     },
     "recruiting-coordinator": {
       "date": "2026-11-23",
-      "commit": "8ccf7bd",
-      "behaviour": "6d0598646e718c33",
-      "template": "7a9e357bb1919fe0",
+      "commit": "8469e40",
+      "behaviour": "48b60ed4326675aa",
+      "template": "5730b29fde09ca2d",
       "models": {
         "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
         "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
       },
-      "passed": false,
+      "passed": true,
       "reasons": [
-        "It didn't ask: Ask them to list the must-have requirements, then the nice-to-haves, separately. Read them back and check each is about the job itself; if one isn't (for example an age range or \"native speaker\" where fluency is what matters), explain why and suggest a fair wording. The judge: The bot read back must-haves and nice-to-haves but never asked the person to list them or checked them for fairness wording.",
-        "It didn't ask: Ask them to list the must-have requirements, then the nice-to-haves, separately. Read them back and check each is about the job itself; if one isn't (for example an age range or \"native speaker\" where fluency is what matters), explain why and suggest a fair wording. The judge: The bot asked for nice-to-haves and listed the must-haves, but never asked them to list the must-haves separately or read them back to check each is about the job."
+        "In the run that failed: It didn't ask: Ask with a question card what the hiring steps are (application review, phone screen, task, interview, final interview, references; several allowed), and who interviews. The judge: Asked via text and a card about the hiring steps, but only asked who interviews in text, not with a question card that covers steps and interviewers together.",
+        "In the run that failed: It didn't ask: Ask how quickly candidates should hear back at each step, and how they sign candidate emails. The judge: Asked about candidate response times, but never asked how candidate emails are signed in a separate question about sign-off at each step."
       ],
-      "turns": 9,
-      "asked": "4 of 5",
+      "turns": 10,
+      "asked": "6 of 6",
       "runs": {
-        "passed": 0,
-        "of": 2
+        "passed": 2,
+        "of": 3
       }
     },
     "renewal-watch": {
       "date": "2026-11-23",
-      "commit": "8ccf7bd",
-      "behaviour": "6d0598646e718c33",
-      "template": "1d1cce9e4310a057",
+      "commit": "8469e40",
+      "behaviour": "48b60ed4326675aa",
+      "template": "e7daf68ed2e5a2c3",
       "models": {
         "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
         "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
       },
       "passed": true,
       "reasons": [],
-      "turns": 10,
+      "turns": 9,
       "asked": "5 of 5",
       "runs": {
         "passed": 2,
@@ -584,9 +577,83 @@
     },
     "review-replies": {
       "date": "2026-11-23",
-      "commit": "8ccf7bd",
-      "behaviour": "6d0598646e718c33",
-      "template": "191862be61757c2d",
+      "commit": "8469e40",
+      "behaviour": "48b60ed4326675aa",
+      "template": "b39edfb742406c0b",
+      "models": {
+        "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
+        "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
+      },
+      "passed": true,
+      "reasons": [
+        "In the run that failed: It didn't ask: Ask how an unhappy customer should get in touch privately (an email address, a phone number, a contact form), and what they're generally willing to offer, if anything. One question. The judge: Asked how an unhappy customer should get in touch privately, but then asked what they're willing to offer as a separate follow-up question instead of one combined question."
+      ],
+      "turns": 11,
+      "asked": "6 of 6",
+      "runs": {
+        "passed": 2,
+        "of": 3
+      }
+    },
+    "sales-call-prep": {
+      "date": "2026-11-23",
+      "commit": "8469e40",
+      "behaviour": "48b60ed4326675aa",
+      "template": "73d235ea870e05a0",
+      "models": {
+        "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
+        "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
+      },
+      "passed": true,
+      "reasons": [],
+      "turns": 7,
+      "asked": "5 of 5",
+      "runs": {
+        "passed": 2,
+        "of": 2
+      }
+    },
+    "school-admin-helper": {
+      "date": "2026-11-23",
+      "commit": "8469e40",
+      "behaviour": "48b60ed4326675aa",
+      "template": "a8f58dc50e0da755",
+      "models": {
+        "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
+        "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
+      },
+      "passed": true,
+      "reasons": [],
+      "turns": 9,
+      "asked": "4 of 4",
+      "runs": {
+        "passed": 2,
+        "of": 2
+      }
+    },
+    "shop-stock-keeper": {
+      "date": "2026-11-23",
+      "commit": "8469e40",
+      "behaviour": "48b60ed4326675aa",
+      "template": "52742b682788f509",
+      "models": {
+        "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
+        "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
+      },
+      "passed": true,
+      "reasons": [],
+      "turns": 9,
+      "asked": "6 of 6",
+      "runs": {
+        "passed": 2,
+        "of": 2
+      }
+    },
+    "social-post-calendar": {
+      "date": "2026-11-23",
+      "commit": "8469e40",
+      "behaviour": "48b60ed4326675aa",
+      "template": "fb44b00d38fde62c",
       "models": {
         "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
         "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
@@ -600,11 +667,11 @@
         "of": 2
       }
     },
-    "sales-call-prep": {
+    "stock-reorder-planner": {
       "date": "2026-11-23",
-      "commit": "cacac72",
-      "behaviour": "6d0598646e718c33",
-      "template": "73d235ea870e05a0",
+      "commit": "8469e40",
+      "behaviour": "48b60ed4326675aa",
+      "template": "92a18f97825f9e04",
       "models": {
         "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
         "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
@@ -612,78 +679,56 @@
       "passed": true,
       "reasons": [],
       "turns": 8,
-      "asked": "5 of 5"
-    },
-    "school-admin-helper": {
-      "date": "2026-11-23",
-      "commit": "cacac72",
-      "behaviour": "6d0598646e718c33",
-      "template": "a8f58dc50e0da755",
-      "models": {
-        "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
-        "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
-      },
-      "passed": false,
-      "reasons": [
-        "It didn't ask: Ask with a question card how the schools mostly contact them (email, a school app or website, paper letters, a mix). The judge: The bot asked with a card 'How do the schools and clubs mostly contact you?' but did not include the option 'paper letters' with a 'mix' as specified — it used its own wording.",
-        "It didn't ask: Ask with a question card which day the round-up should be ready (for example Sunday evening or Monday morning), each choice naming both a day and a time (for example \"Monday 9am\" or \"Friday 4pm\"), so one answer gives both. The judge: The bot asked with a card 'When should the weekly round-up be ready for you?' with day-and-time choices like 'Sunday 6pm', which satisfies the requirement."
-      ],
-      "turns": 9,
-      "asked": "2 of 4"
-    },
-    "shop-stock-keeper": {
-      "date": "2026-11-23",
-      "commit": "cacac72",
-      "behaviour": "6d0598646e718c33",
-      "template": "c51d1eee981587fe",
-      "models": {
-        "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
-        "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
-      },
-      "passed": true,
-      "reasons": [],
-      "turns": 10,
-      "asked": "5 of 5"
-    },
-    "social-post-calendar": {
-      "date": "2026-11-23",
-      "commit": "cacac72",
-      "behaviour": "6d0598646e718c33",
-      "template": "a9eaf2e09a085064",
-      "models": {
-        "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
-        "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
-      },
-      "passed": true,
-      "reasons": [],
-      "turns": 11,
-      "asked": "6 of 6"
-    },
-    "stock-reorder-planner": {
-      "date": "2026-11-23",
-      "commit": "cacac72",
-      "behaviour": "6d0598646e718c33",
-      "template": "094b85ddd0c4ace4",
-      "models": {
-        "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
-        "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
-      },
-      "passed": false,
-      "reasons": [
-        "It didn't ask: Ask who their main suppliers are and how each one takes orders (email, website, phone). One question; they can list them. The judge: The bot stopped before the setup questions because the Stock levels app was missing; it only listed the questions it would ask later.",
-        "It didn't ask: Ask, in one message, each supplier's usual delivery time and any minimum order; a rough list is fine. The judge: The bot deferred the delivery times and minimum orders question until the Stock levels app is added.",
-        "It didn't ask: Ask with a question card how reorder quantities should be set: use the quantity recorded for each item, top up to a fixed level, or suggest one from recent use for me to approve. The judge: The bot did not present a question card about reorder quantities; it only described that topic as a later step.",
-        "It didn't ask: Ask with a question card which day and time the weekly check should run (for example Monday 8am or Thursday 2pm). The judge: The bot did not present a question card about the weekly check day and time; it only mentioned it would ask later.",
-        "It set up 0 of its 1 routines (Weekly stock check)."
-      ],
-      "turns": 2,
-      "asked": "0 of 4"
+      "asked": "4 of 4",
+      "runs": {
+        "passed": 2,
+        "of": 2
+      }
     },
     "supplier-contract-tracker": {
       "date": "2026-11-23",
-      "commit": "cacac72",
-      "behaviour": "6d0598646e718c33",
-      "template": "513cd1cf14d9e4b2",
+      "commit": "8469e40",
+      "behaviour": "48b60ed4326675aa",
+      "template": "df6d95322f49a509",
+      "models": {
+        "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
+        "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
+      },
+      "passed": true,
+      "reasons": [
+        "In the run that failed: It didn't ask: Ask who owns which suppliers internally, if anyone besides the person. One question; they can skip it. The judge: Never asked who owns suppliers; it only affirmed the person as sole owner after their voluntary remark about the finance person.",
+        "In the run that failed: It didn't ask: Ask with a question card which day and time the weekly check should run (for example Monday 9am). The judge: Never asked the person for a preferred day and time; it unilaterally set up a paused Monday 9am check."
+      ],
+      "turns": 10,
+      "asked": "6 of 6",
+      "runs": {
+        "passed": 2,
+        "of": 3
+      }
+    },
+    "team-check-in": {
+      "date": "2026-11-23",
+      "commit": "8469e40",
+      "behaviour": "48b60ed4326675aa",
+      "template": "b88599bfe2ddcb9c",
+      "models": {
+        "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
+        "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
+      },
+      "passed": true,
+      "reasons": [],
+      "turns": 12,
+      "asked": "5 of 5",
+      "runs": {
+        "passed": 2,
+        "of": 2
+      }
+    },
+    "time-off-tracker": {
+      "date": "2026-11-23",
+      "commit": "8469e40",
+      "behaviour": "48b60ed4326675aa",
+      "template": "491dc26350249748",
       "models": {
         "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
         "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
@@ -691,54 +736,36 @@
       "passed": true,
       "reasons": [],
       "turns": 9,
-      "asked": "6 of 6"
-    },
-    "team-check-in": {
-      "date": "2026-11-23",
-      "commit": "cacac72",
-      "behaviour": "6d0598646e718c33",
-      "template": "7e649e534cba3824",
-      "models": {
-        "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
-        "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
-      },
-      "passed": true,
-      "reasons": [],
-      "turns": 11,
-      "asked": "5 of 5"
-    },
-    "time-off-tracker": {
-      "date": "2026-11-23",
-      "commit": "cacac72",
-      "behaviour": "6d0598646e718c33",
-      "template": "cd080e40600e906b",
-      "models": {
-        "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
-        "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
-      },
-      "passed": true,
-      "reasons": [],
-      "turns": 8,
-      "asked": "6 of 6"
+      "asked": "6 of 6",
+      "runs": {
+        "passed": 2,
+        "of": 2
+      }
     },
     "ux-copy-writer": {
       "date": "2026-11-23",
-      "commit": "cacac72",
-      "behaviour": "6d0598646e718c33",
-      "template": "d747a4e26c3c33ab",
+      "commit": "8469e40",
+      "behaviour": "48b60ed4326675aa",
+      "template": "0f087ecf2486fc0c",
       "models": {
         "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
         "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
       },
       "passed": true,
-      "reasons": [],
-      "turns": 10,
-      "asked": "5 of 5"
+      "reasons": [
+        "In the run that failed: It didn't ask: Ask for the terms the product already uses for its main things (for example \"workspace\" or \"project\", \"sign in\" or \"log in\"). If they share a screenshot or a strings file, read it and suggest the terms you found. The judge: It asked which options were settled with a card (sign in/log in, appointment/booking, patient/client) and resolved each pair one by one, but never offered to read a shared screenshot or strings file, though the person never shared one either."
+      ],
+      "turns": 12,
+      "asked": "5 of 5",
+      "runs": {
+        "passed": 2,
+        "of": 3
+      }
     },
     "website-enquiries": {
       "date": "2026-11-23",
-      "commit": "cacac72",
-      "behaviour": "6d0598646e718c33",
+      "commit": "8469e40",
+      "behaviour": "48b60ed4326675aa",
       "template": "9020c8db4b58e299",
       "models": {
         "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
@@ -746,29 +773,38 @@
       },
       "passed": true,
       "reasons": [],
-      "turns": 14,
-      "asked": "6 of 6"
+      "turns": 13,
+      "asked": "6 of 6",
+      "runs": {
+        "passed": 2,
+        "of": 2
+      }
     },
     "weekly-kpi-report": {
       "date": "2026-11-23",
-      "commit": "cacac72",
-      "behaviour": "6d0598646e718c33",
-      "template": "efcbad68e6b3294a",
+      "commit": "8469e40",
+      "behaviour": "48b60ed4326675aa",
+      "template": "39613aa8982e13ef",
       "models": {
         "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
         "economy": "deepinfra deepseek-ai/DeepSeek-V4.1-Flash"
       },
-      "passed": false,
+      "passed": true,
       "reasons": [
-        "Its setup didn't finish within 13 turns."
+        "In the run that failed: It didn't ask: Ask whether any measure has a target, and what it is. Repeat the targets back to confirm them exactly. The judge: Deferred targets, saying they'd confirm measures, targets and direction only after Drive was connected; never asked about or repeated targets.",
+        "In the run that failed: It didn't ask: Ask with a question card whether higher is better or lower is better for each measure where it isn't obvious (for example costs, refunds, response times). The judge: Never asked a question card about higher or lower being better for measures; it was listed as a future step once Drive connects."
       ],
-      "turns": 13,
-      "asked": "5 of 5"
+      "turns": 9,
+      "asked": "5 of 5",
+      "runs": {
+        "passed": 2,
+        "of": 3
+      }
     },
     "weekly-meal-planner": {
       "date": "2026-11-23",
-      "commit": "cacac72",
-      "behaviour": "6d0598646e718c33",
+      "commit": "8469e40",
+      "behaviour": "48b60ed4326675aa",
       "template": "ad238e79c3cfc17a",
       "models": {
         "premium": "together deepseek-ai/DeepSeek-V4.1-Flash",
@@ -776,8 +812,12 @@
       },
       "passed": true,
       "reasons": [],
-      "turns": 8,
-      "asked": "5 of 5"
+      "turns": 11,
+      "asked": "5 of 5",
+      "runs": {
+        "passed": 2,
+        "of": 2
+      }
     }
   }
 }

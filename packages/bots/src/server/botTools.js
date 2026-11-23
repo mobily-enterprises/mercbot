@@ -579,6 +579,7 @@ export function buildTools({
     attempted,
     via: appsVia,
     fileAt: (wanted) => files.store.existingFile(place, wanted),
+    privateChat: place?.chatId != null && place.chatKind !== "public",
     postLead,
     attempt,
     scriptModel: (prompt) => writeScriptRound(model, prompt)

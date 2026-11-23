@@ -80,15 +80,10 @@ test("a picture field takes only pictures, nobody sets a file by sending a path,
   assert.ok(home.workspaceId);
 });
 
-test("a bot puts one of its files on a record as the record's own copy, and reads it back by its path", async (context) => {
-  const { home, store, gate, registry, watches, views, ctx, sourceFile, exists } = await setup(context);
-  const poster = await gate.create(ctx, "graphics", { title: "Poster" });
-  const place = store.homePlace(home.workspaceId);
-  const { source } = await sourceFile("logo.png", PNG);
-  const shared = `/files/shared/logo.png`;
-  await writeFile(path.join((await store.prepare(place)).shared, "logo.png"), await readFile(source));
-  const tools = buildAppTools({
-    apps: { registry, gate, watches, views },
+/** A bot's turn in the test's home, as botTools gives buildAppTools. */
+function turnOf(home, apps, store, place) {
+  return {
+    apps,
     directory: { findBot: async () => ({ name: "Tess" }) },
     call: home.options,
     botId: "1",
@@ -101,6 +96,19 @@ test("a bot puts one of its files on a record as the record's own copy, and read
     postLead: async () => {},
     attempt: async () => ({ status: "waiting_for_approval" }),
     fileAt: (wanted) => store.existingFile(place, wanted)
+  };
+}
+
+test("a bot puts one of its files on a record as the record's own copy, and reads it back by its path", async (context) => {
+  const { home, store, gate, registry, watches, views, ctx, sourceFile, exists } = await setup(context);
+  const poster = await gate.create(ctx, "graphics", { title: "Poster" });
+  const place = store.homePlace(home.workspaceId);
+  const { source } = await sourceFile("logo.png", PNG);
+  const shared = `/files/shared/logo.png`;
+  await writeFile(path.join((await store.prepare(place)).shared, "logo.png"), await readFile(source));
+  const tools = buildAppTools({
+    ...turnOf(home, { registry, gate, watches, views }, store, place),
+    privateChat: false
   });
   const attached = await tools.dataAttachFile.execute({ table: "graphics", id: poster.id, field: "picture", path: shared }, {});
   assert.equal(attached.status, "attached", JSON.stringify(attached));
@@ -110,6 +118,12 @@ test("a bot puts one of its files on a record as the record's own copy, and read
   assert.match((await tools.dataAttachFile.execute({ table: "graphics", id: poster.id, field: "picture", path: "/files/shared/none.png" }, {})).error, /./u);
   const sneaky = await tools.dataUpdate.execute({ table: "graphics", id: poster.id, values: { picture: { path: shared } } }, {});
   assert.match(sneaky.error, /upload|file/iu, "a file value in values is refused");
+
+  // In a private chat, its own folder's files stay in it (D13): a record's files are the whole home's.
+  const privately = buildAppTools({ ...turnOf(home, { registry, gate, watches, views }, store, place), privateChat: true });
+  const kept = await privately.dataAttachFile.execute({ table: "graphics", id: poster.id, field: "picture", path: "/files/chat/secret.png" }, {});
+  assert.match(kept.error, /private chat.*transfer_file/u);
+  assert.equal((await privately.dataAttachFile.execute({ table: "graphics", id: poster.id, field: "picture", path: shared }, {})).status, "attached", "the home's own files are fine");
 });
 
 test("a visitor gets a record's picture only by its record, from a record and field the public app lets them read", async (context) => {

@@ -144,3 +144,15 @@ test("the CRM's sample puts its contacts in the pipeline and their deals on thei
   const deals = (await query("deals", "open")).map((deal) => [deal.title, nameOf(deal.contact)]).sort();
   assert.deepEqual(deals, [["Support plan", "Ben Okafor"], ["Website refresh", "Ana Ruiz"]]);
 });
+
+// The Templates tab's Install (an owner's), through its route: a template on the shared tables makes them (D-130).
+test("installing the CRM from the Templates tab makes the shared tables it uses", async (context) => {
+  const home = await appsHome(context, { slug: "apps-tpl-route" });
+  const { userId, workspace, apps: capability, options } = home;
+  const call = home.browser({ member: { userId, workspace, role: "owner" } });
+  const installed = await call("POST", `/api/w/${workspace.slug}/apps-templates/crm/install`, {});
+  assert.equal(installed.status, 200, JSON.stringify(installed.body));
+  assert.deepEqual(installed.body.errors, []);
+  const keys = (await capability.registry.loadTables(options)).filter((table) => !table.obsolete).map((table) => table.key).sort();
+  assert.deepEqual(keys, ["contacts", "crm_contacts", "deals", "organisations"]);
+});
