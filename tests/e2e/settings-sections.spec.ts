@@ -25,6 +25,8 @@ test("a home's owner gets Mercbot's own Settings sections, and General has no Si
   await page.goto("/");
   await expect(page).toHaveURL(/\/w\/[^/?]+/u);
   const sections = await openSettings(page);
+  // The home's main bot and Builder and its bots' common knowledge are the home's, not a bot's, so they have sections
+  // of their own after Templates (D-119).
   await expect(sections.getByRole("button")).toHaveText([
     "General",
     "Computer",
@@ -32,6 +34,8 @@ test("a home's owner gets Mercbot's own Settings sections, and General has no Si
     "Files",
     "Website",
     "Templates",
+    "Main bot and Builder",
+    "Bots' common knowledge",
     "Vault",
     "Spending",
     "Mercbot account",
@@ -41,4 +45,21 @@ test("a home's owner gets Mercbot's own Settings sections, and General has no Si
   const settings = page.getByRole("dialog", { name: "Settings" });
   await expect(settings.getByRole("button", { name: "Account details" })).toBeVisible();
   await expect(settings.getByRole("button", { name: "Sign out" })).toHaveCount(0);
+
+  // Main bot and Builder: both rows, which the home's owner may change (no line saying only owners and admins can).
+  await sections.getByRole("button", { name: "Main bot and Builder" }).click();
+  await expect(settings.getByRole("heading", { name: "Main bot and Builder" })).toBeVisible();
+  const choices = settings.getByRole("region", { name: "Main bot and Builder" });
+  await expect(choices.locator(".mb-set-row__label")).toHaveText(["Main bot", "Builder"]);
+  await expect(choices).toContainText("It can't be archived.");
+  await expect(choices).toContainText("It makes and changes the home's apps.");
+  await expect(choices).not.toContainText("Only the home's owners and admins can change these.");
+
+  // Bots' common knowledge: what it is, then its entries or the line saying there are none yet, never an error.
+  await sections.getByRole("button", { name: "Bots' common knowledge" }).click();
+  await expect(settings.getByRole("heading", { name: "Bots' common knowledge" })).toBeVisible();
+  const knowledge = settings.getByRole("region", { name: "Bots' common knowledge" });
+  await expect(knowledge.locator(".mb-set-group")).toHaveText("Every bot in this home reads it in every chat.");
+  await expect(knowledge.getByRole("list", { name: "Common knowledge" }).or(knowledge.getByText(/^No common knowledge yet\./u))).toBeVisible();
+  await expect(knowledge.getByRole("alert")).toHaveCount(0);
 });
