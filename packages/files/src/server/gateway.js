@@ -1,13 +1,17 @@
 import dns from "node:dns/promises";
+import { constants } from "node:fs";
+import fs from "node:fs/promises";
 import net from "node:net";
 import os from "node:os";
+import path from "node:path";
 
-// The only way from a computer's apps to the internet (D-47, branch computer-gvisor). The apps run
-// in gVisor with no network of their own; their traffic reaches this HTTP proxy through a Unix
-// socket. It resolves names itself and connects only to public addresses it checked, never to
-// this server or its network: no loopback, private or link-local ranges (cloud metadata), no
-// carrier-grade NAT, multicast or reserved ranges, and none of this machine's own addresses. Mail
-// ports are refused, so a computer can't send spam. It keeps a short list of where it connected.
+// The only way from bots' sandboxes to the internet (D-49, D-126): a computer's browser and apps, every bot command
+// (its own sandbox, or the computer's session) and coding runs. Each sandbox runs in gVisor with no network of its own;
+// its traffic reaches this HTTP proxy through a Unix socket. It resolves names itself and connects only to public
+// addresses it checked, never to this server or its network: no loopback, private or link-local ranges (cloud
+// metadata), no carrier-grade NAT, multicast or reserved ranges, and none of this machine's own addresses. Mail ports
+// are refused, so a bot can't send spam. Plain TCP to any other port of a public address goes through CONNECT too
+// (D-126). It keeps a short list of where it connected.
 const BLOCKED = new net.BlockList();
 for (const [address, prefix] of [
   ["0.0.0.0", 8], ["10.0.0.0", 8], ["100.64.0.0", 10], ["127.0.0.0", 8], ["169.254.0.0", 16], ["172.16.0.0", 12],
@@ -55,8 +59,13 @@ function refuse(client, status, message) {
     `Content-Length: ${Buffer.byteLength(message)}\r\n\r\n${message}`);
 }
 
-/** `socketPath`: where the apps' forwarder connects. Returns { close(), stats }. */
-export async function startGateway({ socketPath }) {
+/**
+ * `socketPath`: where the sandbox's forwarder connects. `standIns` (tests only) maps a public "host:port" to the local
+ * `{ address, port }` that stands in for it, so a test reaches "the internet" without leaving its machine; the mail
+ * ports are refused before it is read. Returns { close(), stats }.
+ * @param {{ socketPath: string, standIns?: Map<string, { address: string, port: number }> }} options
+ */
+export async function startGateway({ socketPath, standIns = new Map() }) {
   const stats = { connections: 0, refused: 0, bytes: 0, recent: [] };
   const note = (host, port, ok) => {
     stats.recent.unshift({ host, port, ok, at: new Date().toISOString() });
@@ -100,22 +109,26 @@ export async function startGateway({ socketPath }) {
         }
         host = url.hostname;
         port = Number(url.port) || 80;
-        const headers = lines.slice(1).filter((line) => !/^proxy-/iu.test(line));
-        const requestHead = [`${method} ${url.pathname}${url.search} ${version}`, ...headers, "", ""].join("\r\n");
+        // Only this request goes to this host: the connection closes after its answer, so a client that keeps its
+        // connection to the proxy open asks again on a new one, which is checked again, instead of sending its next
+        // request, perhaps for another host, unrewritten to this one.
+        const headers = lines.slice(1).filter((line) => !/^(?:proxy-|connection:|keep-alive:)/iu.test(line));
+        const requestHead = [`${method} ${url.pathname}${url.search} ${version}`, ...headers, "Connection: close", "", ""].join("\r\n");
         firstBytes = Buffer.concat([Buffer.from(requestHead, "latin1"), rest]);
       }
       if (BLOCKED_PORTS.has(port)) {
         note(host, port, false);
         return refuse(client, "403 Forbidden", `Mercbot's gateway doesn't connect to port ${port}.`);
       }
+      const standIn = standIns.get(`${host}:${port}`);
       let address = null;
       try {
-        address = await publicAddress(host);
+        address = standIn ? { address: standIn.address, family: net.isIPv6(standIn.address) ? 6 : 4 } : await publicAddress(host);
       } catch (error) {
         note(host, port, false);
         return refuse(client, "403 Forbidden", error.message);
       }
-      const upstream = net.connect({ host: address.address, port, family: address.family });
+      const upstream = net.connect({ host: address.address, port: standIn?.port ?? port, family: address.family });
       upstream.on("error", () => {
         client.destroy();
       });
@@ -150,10 +163,14 @@ export async function startGateway({ socketPath }) {
   };
 }
 
-/** A sandboxed program's way out: the forwarder below, at 127.0.0.1:3128; loopback stays its own. */
+/**
+ * A sandboxed program's way out: the forwarder below, at 127.0.0.1:3128, in both spellings tools read (curl and git
+ * read only the lower-case http_proxy). Loopback stays its own: inside a sandbox it is the sandbox's.
+ */
 export const PROXY_ENV = Object.freeze([
-  "HTTP_PROXY=http://127.0.0.1:3128", "HTTPS_PROXY=http://127.0.0.1:3128",
-  "http_proxy=http://127.0.0.1:3128", "https_proxy=http://127.0.0.1:3128", "NO_PROXY=localhost,127.0.0.1"
+  "HTTP_PROXY=http://127.0.0.1:3128", "HTTPS_PROXY=http://127.0.0.1:3128", "ALL_PROXY=http://127.0.0.1:3128",
+  "http_proxy=http://127.0.0.1:3128", "https_proxy=http://127.0.0.1:3128", "all_proxy=http://127.0.0.1:3128",
+  "NO_PROXY=localhost,127.0.0.1,::1", "no_proxy=localhost,127.0.0.1,::1"
 ]);
 
 /**
@@ -210,6 +227,40 @@ if CDP:
 open("/tmp/.gateway-ready", "w").close()
 serve(proxy, lambda: unix(GATEWAY))
 `;
+
+/** Where a sandbox with a gateway of its own sees that gateway's folder (`sandboxGateway`). */
+export const GATEWAY_INSIDE = "/gateway";
+
+/**
+ * Inside such a sandbox, the lines that start its forwarder and wait, at most 5 s, until it listens; what runs next
+ * reaches the gateway at 127.0.0.1:3128.
+ */
+export const START_FORWARDER = `python3 ${GATEWAY_INSIDE}/forward.py ${GATEWAY_INSIDE}/gateway.sock > /dev/null 2>&1 &
+for _ in $(seq 100); do [ -e /tmp/.gateway-ready ] && break; sleep 0.05; done`;
+
+/**
+ * A gateway of one sandbox's own (a command's, a computer's session, a coding run's): its socket and the forwarder in
+ * `dir` (made here), the folder the sandbox is given at GATEWAY_INSIDE. The sandbox starts with `--host-uds=open`, so
+ * it may connect to sockets in the folders it's given: this is the only one of the server's there. `start` is how the
+ * gateway starts (tests: one with stand-ins). Resolves to the gateway, { close(), stats }.
+ * @param {string} dir
+ * @param {typeof startGateway} [start]
+ */
+export async function sandboxGateway(dir, start = startGateway) {
+  await fs.mkdir(dir, { recursive: true });
+  await fs.writeFile(path.join(dir, "forward.py"), FORWARDER);
+  // A socket's path has at most 107 bytes, and a sandbox's folder under a long TMPDIR passes that (Production's
+  // /var/lib/mercbot-online-work/tmp gives about 120), so the socket is made through the folder's open handle. The
+  // handle stays open until the gateway has closed, which removes the socket by that same path.
+  const folder = await fs.open(dir, constants.O_RDONLY | constants.O_DIRECTORY);
+  try {
+    const gateway = await start({ socketPath: `/proc/self/fd/${folder.fd}/gateway.sock` });
+    return { stats: gateway.stats, close: () => gateway.close().finally(() => folder.close().catch(() => {})) };
+  } catch (error) {
+    await folder.close().catch(() => {});
+    throw error;
+  }
+}
 
 /** Pure helpers and data the tests reach directly (rule 64). */
 export const __testables = Object.freeze({ blocked });

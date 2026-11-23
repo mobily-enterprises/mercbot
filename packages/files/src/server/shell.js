@@ -6,6 +6,7 @@ import path from "node:path";
 import { promisify } from "node:util";
 import { refusalOf } from "@local/account/meter";
 import { BOT, CHAT, SHARED } from "./fileStore.js";
+import { GATEWAY_INSIDE, PROXY_ENV, START_FORWARDER, sandboxGateway, startGateway } from "./gateway.js";
 import {
   folderMount, platformFlags, runSandboxed, runsc, sandboxMemory, sandboxPlace, sandboxSpec, shellAvailable, sweepSandboxes, toolsDir
 } from "./gvisor.js";
@@ -13,11 +14,13 @@ import {
 const run = promisify(execFile);
 
 // Bots' command line (D-47). A command is a bash script run in gVisor, which puts its own kernel
-// between the script and the server's, rootless and without any network. The script sees the
-// Ubuntu toolbox (scripts/build-toolbox.sh; its changes vanish after the run), a private /tmp, the
-// Craft apps, and only its place's folders: the chat's, the bot's and the home's (a private chat's last two read-only,
-// D13). Limits: wall time, memory (each process,
-// and the whole sandbox, watched from outside), processes, open files, file size and output.
+// between the script and the server's, rootless and with no network of its own: it reaches public
+// internet addresses only through a gateway of its own (gateway.js, D-126), as the computer's
+// browser does. The script sees the toolbox (scripts/build-toolbox.sh; what it installs or changes
+// there vanishes after the run), a private /tmp, the Craft apps, and only its place's folders: the
+// chat's, the bot's and the home's (a private chat's last two read-only, D13). Limits: wall time,
+// memory (each process, and the whole sandbox, watched from outside), processes, open files, file
+// size and output.
 // Every run is a shell_runs row. One that outlives the reply carries on in the background on this
 // server, with a heartbeat; its ending is passed to `onEnd` handlers, which wake the bot.
 const LIMITS = {
@@ -62,17 +65,36 @@ function craftPaths(env) {
 /** Where a sandbox starts: the chat's folder, else the bot's, else the home's. */
 const homeFolder = (dirs) => (dirs.chat ? CHAT : dirs.bot ? BOT : SHARED);
 
+// A command's way to the internet (D-126): the gateway's proxy, which Node's own fetch and http follow only when told
+// to; installs for the command in its HOME, /tmp/home/.local, which goes with it (npm install -g there, since the
+// toolbox's own is read-only on a store host; pip install there when the system's isn't writable); and a plain answer
+// where git would start ssh, which the command line doesn't have, for a repository's git@host:owner/name address.
+const NO_SSH = "echo \"There's no ssh on this command line: use the repository's https:// address " +
+  "(git clone https://github.com/OWNER/REPO.git).\" >&2; exit 128; :";
+const INSTALLED = "/tmp/home/.local";
+const INTERNET_ENV = Object.freeze([
+  ...PROXY_ENV, "NODE_USE_ENV_PROXY=1", `NPM_CONFIG_PREFIX=${INSTALLED}`, "PIP_BREAK_SYSTEM_PACKAGES=1", `GIT_SSH_COMMAND=${NO_SSH}`
+]);
+
+// A sandbox with a gateway starts its forwarder first, then runs the script ($1) as a bash of its own, so the
+// script's `wait` and `jobs` see only what it started. The forwarder goes with the sandbox.
+const WITH_GATEWAY = `${START_FORWARDER}
+/bin/bash -c "$1"`;
+
 /**
- * The OCI bundle for one run, or for a computer's command-line session (`term`, `label`). `args`,
- * `cwd`, `env` (replacing variables of the same name) and `mounts` ({source, destination,
- * readonly, exec}) are for other programs run in the same sandbox, such as the office apps. `runtimeEnv` is the
- * server's env, for the tools folder and the sandbox user. `readOnly` names folders ("chat", "bot", "shared") mounted
- * read-only besides those the place itself only reads (`dirs.readOnly`).
+ * The OCI bundle for one run, or for a computer's command-line session (`term`, `label`). `gateway` is the folder of
+ * its own gateway on this server (sandboxGateway, D-126), which a command and a session have: it is the sandbox's
+ * /gateway, its forwarder starts before the script, and its environment leads to it. `args`, `cwd`, `env` (replacing
+ * variables of the same name) and `mounts` ({source, destination, readonly, exec}) are for other programs run in the
+ * same sandbox, such as the office apps, which have no gateway. `runtimeEnv` is the server's env, for the tools folder
+ * and the sandbox user. `readOnly` names folders ("chat", "bot", "shared") mounted read-only besides those the place
+ * itself only reads (`dirs.readOnly`).
  */
 function bundle({
   runtimeEnv,
-  dirs, script, limits, readOnly = [], term = "dumb", label = "",
-  args = ["/bin/bash", "-c", script], cwd = homeFolder(dirs), env = [], mounts = [], rootReadOnly = false
+  dirs, script, limits, readOnly = [], term = "dumb", label = "", gateway = "",
+  args = gateway ? ["/bin/bash", "-c", WITH_GATEWAY, "command", script] : ["/bin/bash", "-c", script],
+  cwd = homeFolder(dirs), env = [], mounts = [], rootReadOnly = false
 }) {
   const apps = path.join(toolsDir(runtimeEnv), "apps");
   const reads = (name) => readOnly.includes(name) || (dirs.readOnly ?? []).includes(name);
@@ -81,9 +103,10 @@ function bundle({
     args,
     cwd,
     env: [
-      `PATH=${["/usr/local/bin", "/usr/bin", "/bin", ...craftPaths(runtimeEnv)].join(":")}`,
+      `PATH=${["/usr/local/bin", "/usr/bin", "/bin", ...craftPaths(runtimeEnv), ...(gateway ? [`${INSTALLED}/bin`] : [])].join(":")}`,
       "HOME=/tmp/home", "TMPDIR=/tmp", "LANG=C.UTF-8", "LC_ALL=C.UTF-8", "MPLBACKEND=Agg", "PYTHONDONTWRITEBYTECODE=1", `TERM=${term}`,
-      ...(label ? [`BOT_LABEL=${label}`] : [])
+      ...(label ? [`BOT_LABEL=${label}`] : []),
+      ...(gateway ? INTERNET_ENV : [])
     ].filter((entry) => !env.some((other) => other.split("=")[0] === entry.split("=")[0])).concat(env),
     limits,
     rootReadOnly,
@@ -94,6 +117,7 @@ function bundle({
       // The bot's whole command outputs in its chat, to read with grep, tail and the like (D-48).
       ...(dirs.runs ? [folderMount(dirs.runs, "/runs", { readonly: true })] : []),
       ...(existsSync(apps) ? [folderMount(apps, "/opt/apps", { readonly: true, exec: true })] : []),
+      ...(gateway ? [folderMount(gateway, GATEWAY_INSIDE)] : []),
       ...mounts.map((mount) => folderMount(mount.source, mount.destination, { readonly: mount.readonly, exec: mount.exec }))
     ]
   });
@@ -136,19 +160,34 @@ function outputBuffer(limits) {
 }
 
 /**
- * One command in gVisor. Returns { done, kill, output }: `done` resolves to
- * { exitCode, output, truncated, seconds, killed } and never rejects.
+ * One command in gVisor, with a gateway of its own (`gateway` starts it) that closes when it ends. Returns { done,
+ * kill, output }: `done` resolves to { exitCode, output, truncated, seconds, killed } and never rejects.
  */
-function execute({ env, dirs, script, maxSeconds, limits, readOnly }) {
+function execute({ env, dirs, script, maxSeconds, limits, readOnly, gateway: startOne }) {
   const output = outputBuffer(limits);
-  const started = runSandboxed({
-    env,
-    place: sandboxPlace(),
-    spec: bundle({ runtimeEnv: env, dirs, script, limits, readOnly }),
-    maxSeconds,
-    memory: limits.sandboxMemory,
-    onOutput: (text) => output.add(text)
-  });
+  const place = sandboxPlace();
+  const started = (async () => {
+    const gatewayDir = path.join(place.dir, "gateway");
+    const gateway = await sandboxGateway(gatewayDir, startOne).catch(async (error) => {
+      await fs.rm(place.dir, { recursive: true, force: true }).catch(() => {});
+      throw error;
+    });
+    try {
+      const job = await runSandboxed({
+        env,
+        place,
+        spec: bundle({ runtimeEnv: env, dirs, script, limits, readOnly, gateway: gatewayDir }),
+        flags: ["--host-uds=open"],
+        maxSeconds,
+        memory: limits.sandboxMemory,
+        onOutput: (text) => output.add(text)
+      });
+      return { ...job, done: job.done.finally(() => gateway.close().catch(() => {})) };
+    } catch (error) {
+      await gateway.close().catch(() => {});
+      throw error;
+    }
+  })();
   const done = started
     .then(({ done: ended }) => ended, (error) => {
       output.add(`\n${error.message}`);
@@ -282,6 +321,8 @@ function backgroundNote(foregroundSeconds, maxSeconds) {
  *   computation is recorded through it a block at a time (D-73)
  * @param {Pick<import("./types.js").MediaChecks, "on" | "filesLater">} [dependencies.media] every file a command changes is
  *   checked through, with a copy that checks pictures and videos (D-90)
+ * @param {typeof startGateway} [dependencies.gateway] how each command's and each session's gateway starts (D-126; tests:
+ *   one with stand-ins for public addresses)
  */
 export function createShell({
   store,
@@ -289,6 +330,7 @@ export function createShell({
   env,
   meter,
   media = { on: false, filesLater: async () => {} },
+  gateway = startGateway,
   limits = { ...LIMITS, perServer: Number(env.MERCBOT_SHELL_RUNS) || LIMITS.perServer },
   server = `${os.hostname()}:${process.pid}`
 }) {
@@ -375,7 +417,7 @@ export function createShell({
     const session = !readOnly.length ? sessions.get(key) : null;
     const job = session
       ? executeIn(session, { env, script, why, maxSeconds, limits })
-      : execute({ env, dirs, script, maxSeconds, limits, readOnly });
+      : execute({ env, dirs, script, maxSeconds, limits, readOnly, gateway });
     if (session) session.running += 1;
     // Before its block runs out, the next is opened; when that's refused, the command stops.
     let heldUntil = startedAt + hold.blockSeconds * 1000;
@@ -517,19 +559,24 @@ export function createShell({
     dirs = { ...dirs, runs: await store.runsFolder(key) };
     await sweepSandboxes(env);
     const { id, dir: runDir, state } = sandboxPlace("session");
+    // Its gateway (D-126) serves the bot's commands in it and the person's shell, until the session ends.
+    const gatewayDir = path.join(runDir, "gateway");
+    const sessionGateway = await sandboxGateway(gatewayDir, gateway);
     await fs.mkdir(state, { recursive: true });
     await fs.writeFile(path.join(runDir, "config.json"), JSON.stringify(
-      bundle({ runtimeEnv: env, dirs, script: SESSION, limits, term: "xterm-256color", label })
+      bundle({ runtimeEnv: env, dirs, script: SESSION, limits, term: "xterm-256color", label, gateway: gatewayDir })
     ));
     await new Promise((resolve) => {
       const child = spawn(...runsc(env, [
-        "--rootless", "--network=none", "--ignore-cgroups", "--overlay2=root:memory", ...platformFlags(env),
+        "--rootless", "--network=none", "--ignore-cgroups", "--overlay2=root:memory", "--host-uds=open", ...platformFlags(env),
         "--root", state, "run", "--detach", "--bundle", runDir, id
       ]), { stdio: "ignore" });
       child.on("error", resolve);
       child.on("close", resolve);
     });
-    const session = { key: String(key), id, state, runDir, cwd: homeFolder(dirs), running: 0, asleep: false };
+    const session = {
+      key: String(key), id, state, runDir, cwd: homeFolder(dirs), running: 0, asleep: false, gateway: sessionGateway
+    };
     session.watchdog = setInterval(async () => {
       const used = await sandboxMemory(env, session);
       if (used !== null && used <= limits.sandboxMemory) return;
@@ -556,6 +603,7 @@ export function createShell({
   async function end(session) {
     clearInterval(session.watchdog);
     await run(...runsc(env, ["--root", session.state, "delete", "-force", session.id]), { timeout: 30000 }).catch(() => {});
+    await session.gateway.close().catch(() => {});
     await fs.rm(session.runDir, { recursive: true, force: true }).catch(() => {});
   }
 

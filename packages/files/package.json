@@ -8,6 +8,7 @@
   "exports": {
     "./office-apps": "./src/server/officeApps.js",
     "./own-machine": "./src/server/ownMachine.js",
+    "./gateway": "./src/server/gateway.js",
     "./gvisor": "./src/server/gvisor.js",
     "./server/pageHeaders": "./src/server/pageHeaders.js",
     "./server/storeToolbox": "./src/server/storeToolbox.js",

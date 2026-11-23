@@ -15,7 +15,8 @@ function withWholeOutput(result, run) {
 
 /**
  * The command line (D-47): a bash script in the gVisor toolbox, on the folders of the bot's seat in this chat (R6),
- * without network. A reply's commands leave one line in the chat, opening to each script and its output.
+ * reaching public internet addresses through Mercbot's gateway (D-126). A reply's commands leave one line in the chat,
+ * opening to each script and its output.
  * @param {object} shared
  * @param {import("@local/files/server/types").Files} shared.files
  * @param {import("./types.js").Place} shared.place
@@ -95,9 +96,9 @@ export function buildCommandTools({
     Object.freeze({
       id: "run_command",
       description:
-        "Run a bash script on your own Linux computer's command line, for work on files: video and audio (ffmpeg), pictures (ImageMagick), reading scanned pages (tesseract), PDFs (qpdf, pdftotext, gs), data (Python with pandas, numpy, matplotlib, openpyxl; sqlite3, jq), documents (pandoc, python-docx, python-pptx), archives, and ordinary Unix tools with pipes and loops. It sees only your folders (/files/chat, /files/bot, /files/shared" +
+        "Run a bash script on your own Linux computer's command line, for work on files and code: video and audio (ffmpeg), pictures (ImageMagick), reading scanned pages (tesseract), PDFs (qpdf, pdftotext, gs), data (Python with pandas, numpy, matplotlib, openpyxl; sqlite3, jq), documents (pandoc, python-docx, python-pptx), archives, Node.js with npm, git, and ordinary Unix tools with pipes and loops. It sees only your folders (/files/chat, /files/bot, /files/shared" +
         (privateChat ? "; in this private chat /files/bot and /files/shared can only be read" : "") +
-        ") and a scratch /tmp emptied after each run, and has no internet and nothing to install. Check what you made (ls, ffprobe, head) and fix errors by running again. A command still running after 2 minutes carries on in the background and you're woken here when it ends.",
+        ") and a scratch /tmp emptied after each run. It reaches the public internet through Mercbot's gateway, as your browser does: git clone over https, downloads with Python or Node, and packages installed with npm or pip for the job. Each run starts from the same clean toolbox, so what it installs outside your folders is gone next time. It has no ssh (use a repository's https:// address) and no GitHub sign-in, so it can't push. Private and local network addresses and mail ports are refused. Check what you made (ls, ffprobe, head) and fix errors by running again. A command still running after 2 minutes carries on in the background and you're woken here when it ends.",
       inputSchema: z.object({
         why: z
           .string()

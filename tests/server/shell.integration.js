@@ -13,7 +13,8 @@ import { refuseWork } from "../../packages/account/src/server/meter.js";
 
 const { LIMITS } = __testables;
 
-// Bots' command line (D-47): gVisor, no network, only the chat's folders (R6; in a private chat the bot's and the
+// Bots' command line (D-47): gVisor, no network of its own (the internet only through its gateway, D-126, which
+// commandInternet.test.js proves), only the chat's folders (R6; in a private chat the bot's and the
 // home's are read-only, D13), limits on time, memory, processes, file size and output; background runs, heartbeats and
 // stopped servers. A bot's commands in a chat are its seat's there (chat_bots, D14).
 assert.ok(process.env.TEST_DB_NAME?.trim(), "TEST_DB_NAME must identify a disposable test database.");
@@ -52,12 +53,15 @@ test("bots' commands run sealed off, within limits, and carry on in the backgrou
   assert.deepEqual(run.changed, ["/files/chat/hello.txt"]);
   assert.equal((await fs.readFile((await store.existingFile(place, "/files/chat/hello.txt")).real, "utf8")), "hello\n");
 
-  // No network, no server files, no server environment.
+  // No network of its own (a direct connection finds none), no server files, no server environment: only its own
+  // variables, with the gateway's proxy (D-126).
   run = await go("python3 -c 'import socket; socket.create_connection((\"1.1.1.1\", 80), 3)' 2>&1 | tail -1; ls /var/lib /home 2>&1; ls " + JSON.stringify(dir) + " 2>&1; env | cut -d= -f1 | sort | tr '\\n' ' '");
   assert.match(run.output, /Network is unreachable/u);
   assert.doesNotMatch(run.output, /^vibe64$/mu);
   assert.match(run.output, /cannot access '[^']*mercbot-shell-test[^']*': No such file or directory/u);
-  assert.equal(run.output.trim().split("\n").at(-1).trim(), "HOME LANG LC_ALL MPLBACKEND PATH PWD PYTHONDONTWRITEBYTECODE SHLVL TERM TMPDIR _");
+  assert.equal(run.output.trim().split("\n").at(-1).trim(), "ALL_PROXY GIT_SSH_COMMAND HOME HTTPS_PROXY HTTP_PROXY LANG LC_ALL MPLBACKEND NODE_USE_ENV_PROXY NO_PROXY " +
+    "NPM_CONFIG_PREFIX PATH PIP_BREAK_SYSTEM_PACKAGES PWD PYTHONDONTWRITEBYTECODE SHLVL TERM TMPDIR _ all_proxy http_proxy " +
+    "https_proxy no_proxy");
 
   // Limits: time, memory, file size, processes, output.
   run = await go("while true; do :; done", { maxSeconds: 3 });

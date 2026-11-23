@@ -6,8 +6,8 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
+import { FORWARDER, PROXY_ENV, startGateway } from "@local/files/gateway";
 import { DESKTOP_GRAPHICS, folderMount, platformFlags, runsc, sandboxUser, storeMounts, toolboxRoot } from "@local/files/gvisor";
-import { FORWARDER, PROXY_ENV, startGateway } from "./gateway.js";
 import { quote } from "./shellQuote.js";
 
 const run = promisify(execFile);

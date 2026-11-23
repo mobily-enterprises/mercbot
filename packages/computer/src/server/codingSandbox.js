@@ -3,8 +3,8 @@ import { constants } from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
+import { GATEWAY_INSIDE, PROXY_ENV, START_FORWARDER, sandboxGateway } from "@local/files/gateway";
 import { folderMount, runSandboxed, sandboxPlace, sandboxSpec, toolsDir } from "@local/files/gvisor";
-import { FORWARDER, PROXY_ENV, startGateway } from "./gateway.js";
 
 /**
  * A coding sandbox's limits, like a bot's command's (shell.js in @local/files): its whole memory,
@@ -32,10 +32,9 @@ const CHECK_MS = 20000;
 // sandbox whose server has gone still ends. A window's terminal stays the tool's.
 const START = `mark="$1" seconds="$2"; shift 2
 for dir in "$PWD" "$HOME"; do : > "$dir/$mark" || { echo "This run's folders couldn't be checked; nothing ran." >&2; exit 70; }; done
-for _ in $(seq 400); do [ -e /gateway/go ] && break; sleep 0.05; done
-[ -e /gateway/go ] || exit 70
-python3 /gateway/forward.py /gateway/gateway.sock > /dev/null 2>&1 &
-for _ in $(seq 100); do [ -e /tmp/.gateway-ready ] && break; sleep 0.05; done
+for _ in $(seq 400); do [ -e ${GATEWAY_INSIDE}/go ] && break; sleep 0.05; done
+[ -e ${GATEWAY_INSIDE}/go ] || exit 70
+${START_FORWARDER}
 [ -t 0 ] && exec timeout --foreground -k 10 "$seconds" "$@"
 exec timeout -k 10 "$seconds" "$@"`;
 
@@ -100,11 +99,9 @@ export async function startCodingSandbox({
   const outline = (inside) => path.join(place.dir, "outline", inside);
   let gateway = null;
   try {
-    await fs.mkdir(gatewayDir, { recursive: true });
     await fs.mkdir(outline(SIGN_IN_HOME), { recursive: true });
     if (project) await fs.mkdir(outline(project.destination), { recursive: true });
-    await fs.writeFile(path.join(gatewayDir, "forward.py"), FORWARDER);
-    gateway = await startGateway({ socketPath: path.join(gatewayDir, "gateway.sock") });
+    gateway = await sandboxGateway(gatewayDir);
   } catch (error) {
     await gateway?.close().catch(() => {});
     await fs.rm(place.dir, { recursive: true, force: true }).catch(() => {});
@@ -125,7 +122,7 @@ export async function startCodingSandbox({
     terminal: Boolean(terminal),
     mounts: [
       folderMount(path.join(toolsDir(runtimeEnv), "coding"), "/opt/coding", { readonly: true, exec: true }),
-      folderMount(gatewayDir, "/gateway"),
+      folderMount(gatewayDir, GATEWAY_INSIDE),
       folderMount(outline("/profile"), "/profile", { readonly: true }),
       folderMount(home, SIGN_IN_HOME),
       ...(project ? [folderMount(outline("/files"), "/files", { readonly: true }), folderMount(project.source, project.destination)] : [])
