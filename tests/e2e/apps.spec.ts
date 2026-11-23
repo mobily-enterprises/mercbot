@@ -247,18 +247,21 @@ test("a template installs as a draft and can be published", async ({ page }, tes
   await page.goto(`${HOME}/apps?tab=templates`);
   const crm = page.locator('[data-template="crm"]');
   await expect(crm).toContainText("CRM");
-  await expect(page.locator("[data-template]")).toHaveCount(6);
+  // The six apps, with Contacts and To-dos (D-130).
+  await expect(page.locator("[data-template]")).toHaveCount(8);
   await page.screenshot({ path: testInfo.outputPath("templates.png") });
   await crm.getByRole("button", { name: "With sample data" }).click();
   await expect(page).toHaveURL(/\/apps\/crm[^/]*\?version=draft/u);
-  await expect(page.locator(".v-snackbar__content")).toContainText("didn't fit your existing tables");
+  await expect(page.locator(".v-snackbar__content")).toContainText("is ready as a draft");
   await expect(page.getByRole("button", { name: "Publish" })).toBeVisible();
   await page.getByRole("button", { name: "Publish" }).click();
   await expect(page.getByRole("button", { name: "Publish" })).toHaveCount(0);
   await page.getByRole("link", { name: "Deals" }).first().click();
   await expect(page.getByRole("row", { name: /Website refresh/u })).toBeVisible();
-  await page.getByRole("link", { name: "Pipeline" }).first().click();
   await expect(page.locator(".app-chart")).toHaveAttribute("aria-label", /Bar chart of Deals by stage/u);
+  // The pipeline is each contact's stage, kept in the contacts' CRM extension (D-130).
+  await page.getByRole("link", { name: "Pipeline" }).first().click();
+  await expect(page.locator(".app-chart")).toHaveAttribute("aria-label", /Bar chart of Pipeline by stage/u);
 });
 
 test("scripts: a formula function, data worked out by a script, a button and a rule", async ({ page }, testInfo) => {

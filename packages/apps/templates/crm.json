@@ -3,78 +3,24 @@
   "name": "CRM",
   "icon": "person",
   "color": "#1E5BD8",
-  "description": "Contacts and the deals you're working on, with a chart of deals by stage.",
-  "tables": [
-    {
-      "key": "contacts",
-      "fields": [
-        {
-          "key": "name",
-          "type": "text",
-          "required": true
-        },
-        {
-          "key": "email",
-          "type": "email"
-        },
-        {
-          "key": "phone",
-          "type": "phone"
-        },
-        {
-          "key": "company",
-          "type": "text"
-        },
-        {
-          "key": "stage",
-          "type": "choice",
-          "choices": [
-            "Lead",
-            "Customer",
-            "Lost"
-          ]
-        }
-      ]
-    },
-    {
-      "key": "deals",
-      "fields": [
-        {
-          "key": "title",
-          "type": "text",
-          "required": true
-        },
-        {
-          "key": "contact",
-          "type": "link",
-          "target": "contacts"
-        },
-        {
-          "key": "amount",
-          "type": "money"
-        },
-        {
-          "key": "stage",
-          "type": "choice",
-          "choices": [
-            "New",
-            "Proposal",
-            "Won",
-            "Lost"
-          ]
-        },
-        {
-          "key": "closes",
-          "type": "date"
-        }
-      ]
-    }
+  "description": "Your pipeline on the home's contacts: each contact's stage, value and next step, and the deals you're working on.",
+  "uses": [
+    "contacts",
+    "organisations",
+    "crm_contacts",
+    "deals"
   ],
+  "tables": [],
   "definition": {
-    "home": "contacts",
+    "home": "pipeline",
     "navigation": {
       "style": "rail",
       "items": [
+        {
+          "screen": "pipeline",
+          "label": "Pipeline",
+          "icon": "chart"
+        },
         {
           "screen": "contacts",
           "label": "Contacts",
@@ -84,15 +30,70 @@
           "screen": "deals",
           "label": "Deals",
           "icon": "star"
-        },
-        {
-          "screen": "pipeline",
-          "label": "Pipeline",
-          "icon": "chart"
         }
       ]
     },
     "screens": {
+      "pipeline": {
+        "data": {
+          "leads": {
+            "from": "crm_contacts",
+            "sort": "stage"
+          },
+          "byStage": {
+            "from": "crm_contacts",
+            "groupBy": "stage",
+            "sum": "value"
+          }
+        },
+        "content": [
+          {
+            "type": "chart",
+            "kind": "bar",
+            "label": "Pipeline by stage",
+            "rows": "=data.byStage",
+            "measure": "total"
+          },
+          {
+            "type": "table",
+            "rows": "=data.leads",
+            "columns": [
+              {
+                "label": "Contact",
+                "value": "=row.contact"
+              },
+              {
+                "label": "Stage",
+                "value": "=row.stage",
+                "display": "chip"
+              },
+              {
+                "label": "Value",
+                "value": "=row.value"
+              },
+              {
+                "label": "Next step",
+                "value": "=row.next_step"
+              },
+              {
+                "label": "By",
+                "value": "=row.next_step_date"
+              }
+            ],
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "lead",
+                  "params": {
+                    "id": "=row.id",
+                    "contact": "=row.contact"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
       "contacts": {
         "state": {
           "search": {
@@ -123,14 +124,14 @@
               {
                 "type": "button",
                 "label": "New contact",
-                "emphasis": "primary",
                 "do": [
                   {
                     "go": {
                       "screen": "new_contact"
                     }
                   }
-                ]
+                ],
+                "emphasis": "primary"
               }
             ]
           },
@@ -143,17 +144,16 @@
                 "value": "=row.name"
               },
               {
-                "label": "Company",
-                "value": "=row.company"
+                "label": "Organisation",
+                "value": "=row.organisation"
               },
               {
                 "label": "Email",
                 "value": "=row.email"
               },
               {
-                "label": "Stage",
-                "value": "=row.stage",
-                "display": "chip"
+                "label": "Owner",
+                "value": "=row.owner"
               }
             ],
             "onRowClick": [
@@ -179,6 +179,15 @@
           "person": {
             "record": "contacts",
             "id": "=params.id"
+          },
+          "pipeline": {
+            "from": "crm_contacts",
+            "where": "=contact == params.id"
+          },
+          "deals": {
+            "from": "deals",
+            "where": "=contact == params.id",
+            "sort": "-amount"
           }
         },
         "content": [
@@ -189,14 +198,16 @@
               "name",
               "email",
               "phone",
-              "company",
-              "stage"
+              "mobile",
+              "organisation",
+              "role",
+              "tags",
+              "owner"
             ],
             "buttons": [
               {
                 "type": "button",
                 "label": "Save",
-                "emphasis": "primary",
                 "do": [
                   {
                     "update": {
@@ -206,13 +217,9 @@
                   },
                   {
                     "notify": "=\"Saved \" + form.name"
-                  },
-                  {
-                    "go": {
-                      "screen": "contacts"
-                    }
                   }
-                ]
+                ],
+                "emphasis": "primary"
               },
               {
                 "type": "button",
@@ -221,6 +228,210 @@
                   {
                     "go": {
                       "screen": "contacts"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "row",
+            "content": [
+              {
+                "type": "text",
+                "value": "In the pipeline",
+                "size": "title"
+              },
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "label": "Add to the pipeline",
+                "do": [
+                  {
+                    "create": {
+                      "table": "crm_contacts",
+                      "values": {
+                        "contact": "=params.id",
+                        "stage": "Lead"
+                      }
+                    }
+                  },
+                  {
+                    "notify": "Added to the pipeline."
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "table",
+            "rows": "=data.pipeline",
+            "columns": [
+              {
+                "label": "Stage",
+                "value": "=row.stage",
+                "display": "chip"
+              },
+              {
+                "label": "Value",
+                "value": "=row.value"
+              },
+              {
+                "label": "Next step",
+                "value": "=row.next_step"
+              },
+              {
+                "label": "By",
+                "value": "=row.next_step_date"
+              }
+            ],
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "lead",
+                  "params": {
+                    "id": "=row.id",
+                    "contact": "=params.id"
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "value": "Deals",
+            "size": "title"
+          },
+          {
+            "type": "table",
+            "rows": "=data.deals",
+            "columns": [
+              {
+                "label": "Deal",
+                "value": "=row.title"
+              },
+              {
+                "label": "Amount",
+                "value": "=row.amount"
+              },
+              {
+                "label": "Stage",
+                "value": "=row.stage",
+                "display": "chip"
+              },
+              {
+                "label": "Closes",
+                "value": "=row.closes"
+              }
+            ],
+            "onRowClick": [
+              {
+                "go": {
+                  "screen": "deal",
+                  "params": {
+                    "id": "=row.id"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "lead": {
+        "params": {
+          "id": {
+            "type": "string"
+          },
+          "contact": {
+            "type": "string"
+          }
+        },
+        "data": {
+          "pipeline": {
+            "record": "crm_contacts",
+            "id": "=params.id"
+          },
+          "person": {
+            "record": "contacts",
+            "id": "=params.contact"
+          }
+        },
+        "content": [
+          {
+            "type": "text",
+            "value": "The contact",
+            "size": "title"
+          },
+          {
+            "type": "form",
+            "record": "=data.person",
+            "fields": [
+              "name",
+              "email",
+              "phone",
+              "organisation",
+              "role"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Save contact",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.person",
+                      "set": "=form.values"
+                    }
+                  },
+                  {
+                    "notify": "=\"Saved \" + form.name"
+                  }
+                ],
+                "emphasis": "primary"
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "value": "In the pipeline",
+            "size": "title"
+          },
+          {
+            "type": "form",
+            "record": "=data.pipeline",
+            "fields": [
+              "stage",
+              "source",
+              "value",
+              "next_step",
+              "next_step_date"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Save pipeline",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.pipeline",
+                      "set": "=form.values"
+                    }
+                  },
+                  {
+                    "notify": "Saved."
+                  }
+                ],
+                "emphasis": "primary"
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "pipeline"
                     }
                   }
                 ]
@@ -238,14 +449,15 @@
               "name",
               "email",
               "phone",
-              "company",
-              "stage"
+              "mobile",
+              "role",
+              "tags",
+              "owner"
             ],
             "buttons": [
               {
                 "type": "button",
                 "label": "Add",
-                "emphasis": "primary",
                 "do": [
                   {
                     "create": {
@@ -261,6 +473,18 @@
                       "screen": "contacts"
                     }
                   }
+                ],
+                "emphasis": "primary"
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "contacts"
+                    }
+                  }
                 ]
               }
             ]
@@ -271,7 +495,12 @@
         "data": {
           "open": {
             "from": "deals",
-            "sort": "-amount"
+            "sort": "stage"
+          },
+          "byStage": {
+            "from": "deals",
+            "groupBy": "stage",
+            "sum": "amount"
           }
         },
         "content": [
@@ -284,16 +513,23 @@
               {
                 "type": "button",
                 "label": "New deal",
-                "emphasis": "primary",
                 "do": [
                   {
                     "go": {
                       "screen": "new_deal"
                     }
                   }
-                ]
+                ],
+                "emphasis": "primary"
               }
             ]
+          },
+          {
+            "type": "chart",
+            "kind": "bar",
+            "label": "Deals by stage",
+            "rows": "=data.byStage",
+            "measure": "total"
           },
           {
             "type": "table",
@@ -306,6 +542,10 @@
               {
                 "label": "Contact",
                 "value": "=row.contact"
+              },
+              {
+                "label": "Organisation",
+                "value": "=row.organisation"
               },
               {
                 "label": "Amount",
@@ -353,15 +593,16 @@
             "fields": [
               "title",
               "contact",
+              "organisation",
               "amount",
               "stage",
-              "closes"
+              "closes",
+              "owner"
             ],
             "buttons": [
               {
                 "type": "button",
                 "label": "Save",
-                "emphasis": "primary",
                 "do": [
                   {
                     "update": {
@@ -370,14 +611,15 @@
                     }
                   },
                   {
-                    "notify": "=\"Saved\""
+                    "notify": "Saved."
                   },
                   {
                     "go": {
                       "screen": "deals"
                     }
                   }
-                ]
+                ],
+                "emphasis": "primary"
               },
               {
                 "type": "button",
@@ -403,13 +645,13 @@
               "title",
               "amount",
               "stage",
-              "closes"
+              "closes",
+              "owner"
             ],
             "buttons": [
               {
                 "type": "button",
                 "label": "Add",
-                "emphasis": "primary",
                 "do": [
                   {
                     "create": {
@@ -425,32 +667,21 @@
                       "screen": "deals"
                     }
                   }
+                ],
+                "emphasis": "primary"
+              },
+              {
+                "type": "button",
+                "label": "Back",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "deals"
+                    }
+                  }
                 ]
               }
             ]
-          }
-        ]
-      },
-      "pipeline": {
-        "data": {
-          "byStage": {
-            "from": "deals",
-            "groupBy": "stage",
-            "sum": "amount"
-          }
-        },
-        "content": [
-          {
-            "type": "chart",
-            "kind": "bar",
-            "label": "Deals by stage",
-            "rows": "=data.byStage",
-            "measure": "total"
-          },
-          {
-            "type": "totals",
-            "label": "Value by stage",
-            "rows": "=data.byStage"
           }
         ]
       }
@@ -461,14 +692,12 @@
       {
         "name": "Ana Ruiz",
         "email": "ana@example.com",
-        "company": "Ruiz Design",
-        "stage": "Customer"
+        "role": "Owner"
       },
       {
         "name": "Ben Okafor",
         "email": "ben@example.com",
-        "company": "Okafor Ltd",
-        "stage": "Lead"
+        "role": "Buyer"
       }
     ],
     "deals": [

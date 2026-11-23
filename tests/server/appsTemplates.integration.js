@@ -18,8 +18,13 @@ test("templates install as drafts on reused or new tables", async (context) => {
   const crm = await install("crm", { sample: true });
   assert.deepEqual([crm.app.slug, crm.errors, crm.skipped], ["crm", [], 0]);
   const tables = async () => Object.fromEntries((await registry.loadTables(options)).filter((table) => !table.obsolete).map((table) => [table.key, table.fields.filter((field) => !field.obsolete).map((field) => field.key)]));
-  assert.deepEqual((await tables()).contacts, ["name", "birthday", "stage", "email", "phone", "company"], "kept its fields, gained the template's");
-  assert.deepEqual((await tables()).deals, ["title", "contact", "amount", "stage", "closes"]);
+  // The CRM is built on the shared tables (D-130): contacts keep their fields and gain the shared table's, deals are the
+  // shared deals, and each contact's pipeline is a one-to-one extension of them.
+  const contactKeys = (await tables()).contacts;
+  assert.deepEqual(contactKeys.slice(0, 3), ["name", "birthday", "stage"], "kept its fields");
+  assert.ok(["organisation", "email", "phone", "tags", "owner"].every((key) => contactKeys.includes(key)), "gained the shared table's");
+  assert.deepEqual((await tables()).deals, ["title", "contact", "organisation", "amount", "stage", "closes", "owner"]);
+  assert.deepEqual((await tables()).crm_contacts, ["contact", "stage", "source", "value", "next_step", "next_step_date"]);
   const draft = await apps.get("crm", { version: "draft" }, options);
   assert.equal(draft.version.draft, true, "a draft, not published");
   assert.equal((await apps.get("crm", {}, options)).definition, null);
@@ -30,7 +35,7 @@ test("templates install as drafts on reused or new tables", async (context) => {
   // Installing again reuses everything and adds a second app.
   const again = await install("crm");
   assert.equal(again.app.slug, "crm-2");
-  assert.deepEqual((await tables()).contacts.length, 6, "no duplicate fields");
+  assert.deepEqual((await tables()).contacts.length, contactKeys.length, "no duplicate fields");
   assert.equal((await gate.read(ctx, "deals")).records.length, 2, "no sample unless asked");
 
   // Sample records that don't fit an existing table are skipped, not fatal.
@@ -91,4 +96,30 @@ test("Contacts and To-dos install on the shared tables, and their screens find w
   assert.equal(valueOf("status"), "Done");
   assert.ok(Date.now() - Date.parse(valueOf("done_on")) < 60_000);
   assert.deepEqual(await query("to-dos", "overdue", "tasks"), []);
+});
+
+// The CRM on the shared tables (D-130): a contact joins the pipeline once, from their page, and a second pipeline row
+// for one contact is refused; a home that had the old CRM keeps its contacts' stage, which the new screens don't use.
+test("the CRM keeps each contact's pipeline in its extension, one row per contact, over an old CRM's contacts", async (context) => {
+  const { apps: capability, userId, options, ctx: ctxOf } = await appsHome(context, { slug: "apps-tpl-crm" });
+  const { registry, gate, apps, runtime } = capability;
+  const ctx = ctxOf({ type: "person", id: String(userId), name: "Pat" });
+  // As the old CRM left them.
+  await registry.createTable(ctx.actor, { key: "contacts", fields: [{ key: "name", type: "text", required: true }, { key: "company", type: "text" }, { key: "stage", type: "choice", choices: ["Lead", "Customer", "Lost"] }] }, options);
+  const ana = await gate.create(ctx, "contacts", { name: "Ana", company: "Ruiz Design", stage: "Customer" });
+  const installed = await capability.installTemplate(ctx, "crm");
+  assert.deepEqual(installed.errors, []);
+  await apps.publish(ctx.actor, installed.app.slug, {}, options);
+  const kept = await gate.get(ctx, "contacts", ana.id);
+  const contacts = (await registry.loadTables(options)).find((table) => table.key === "contacts");
+  assert.equal(kept[contacts.fields.find((field) => field.key === "stage").id], "Customer", "nothing removed");
+
+  // "Add to the pipeline" on Ana's page, twice: the second is refused.
+  const add = { slug: installed.app.slug, screen: "contact", path: "content/1/content/2/do", params: { id: ana.id } };
+  await runtime.action(ctx, add);
+  await assert.rejects(runtime.action(ctx, add), { code: "apps_link_unique_taken" });
+  const leads = (await runtime.query(ctx, { slug: installed.app.slug, screen: "pipeline", query: "leads" })).records;
+  assert.deepEqual(leads.map((lead) => [lead.contact?.id ?? lead.contact, lead.stage]), [[String(ana.id), "Lead"]]);
+  const mine = await runtime.query(ctx, { slug: installed.app.slug, screen: "contact", query: "pipeline", params: { id: ana.id } });
+  assert.equal(mine.records.length, 1);
 });

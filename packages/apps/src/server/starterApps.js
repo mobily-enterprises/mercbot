@@ -1,15 +1,18 @@
 // Every home starts with two mini apps on the shared tables, Contacts and To-dos (D-130): empty, published, the first
 // time the home is opened (a new home is opened as soon as it's made; one made before them, at its next open). The home's
 // app settings note when it got them, so they're added once, whoever opens it and however many pages ask at once. A
-// failure never stops the home from opening: it's logged and tried again at the next open.
+// failure never stops the home from opening: it's logged and tried again at the next open. A home that already has an
+// app of that name (its own Contacts, say) keeps its own, and gets no second one.
 const STARTERS = ["contacts", "todos"];
+// Their templates' names, as a home's own app of that name is compared.
+const NAMES = Object.freeze({ contacts: "contacts", todos: "to-dos" });
 const MERCBOT = Object.freeze({ type: "system", id: null, name: "Mercbot" });
 
 /**
  * @param {object} dependencies
  * @param {object} dependencies.appSettings the home's app settings rows
  * @param {(ctx: object, key: string, settings?: object) => Promise<{ app: object, errors: object[] }>} dependencies.installTemplate
- * @param {{ publish: Function }} dependencies.apps the app store
+ * @param {{ publish: Function, list: Function }} dependencies.apps the app store
  */
 export function createStarterApps({ appSettings, installTemplate, apps }) {
   const settingsOf = async (options) => (await appSettings.query({ page: { size: 1 } }, options)).records[0] ?? null;
@@ -38,7 +41,9 @@ export function createStarterApps({ appSettings, installTemplate, apps }) {
     }
     try {
       const ctx = { options, actor: MERCBOT, via: { kind: "template" } };
+      const named = new Set((await apps.list({}, options)).apps.map((app) => app.name.trim().toLowerCase()));
       for (const key of STARTERS) {
+        if (named.has(NAMES[key])) continue;
         const { app, errors } = await installTemplate(ctx, key);
         // A home whose own tables clash keeps the draft for its Builder; the others go live at once.
         if (errors.length) console.warn(`The ${key} starter app is a draft in this home: ${errors[0].message}`);

@@ -49,3 +49,13 @@ test("adding them failing never stops the home opening, and they're added at its
   await starter.ensure(options);
   assert.deepEqual((await capability.apps.list({}, options)).apps.map((app) => app.name).sort(), ["Contacts", "To-dos"]);
 });
+
+test("a home with an app of a starter's name keeps its own and gets only the other", async (context) => {
+  const home = await appsHome(context, { slug: "apps-starter-own" });
+  const { apps: capability, handles, options, ctx: ctxOf, userId } = home;
+  const person = ctxOf({ type: "person", id: String(userId), name: "Pat" }).actor;
+  await capability.apps.createApp(person, { name: "Contacts" }, options);
+  const starter = createStarterApps({ appSettings: handles.appSettings, installTemplate: capability.installTemplate, apps: capability.apps });
+  await starter.ensure(options);
+  assert.deepEqual((await capability.apps.list({}, options)).apps.map((app) => app.name).sort(), ["Contacts", "To-dos"]);
+});
