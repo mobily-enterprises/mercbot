@@ -35,7 +35,7 @@ Preview, what it needs first, opening it, publishing to staging, and what to do 
 
 Mercbot is a person's own copy with one person, `you@mercbot.localhost`, and no sign-in: it opens with its
 secret key (D-81), which its first start makes in the data folder (`.data/mercbot.key`). The Preview identity menu
-opens it the same way. The project saves one identity in `.vibe64/preview-identities.json`, **you**: choosing it
+opens it the same way. The project saves one identity in `.vibe64/preview-identities.json`, **owner**: choosing it
 opens `/open` with the copy's key (the Test Preview's from `.data-test`) and gives the Preview the key's cookie. Any
 other address is refused ("This copy of Mercbot has one person, you@mercbot.localhost."), and signing out in the
 menu drops the key's cookie. On a person's own computer, `mercbot open` does the same.

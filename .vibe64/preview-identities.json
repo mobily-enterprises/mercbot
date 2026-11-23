@@ -1,7 +1,7 @@
 {
   "identities": [
     {
-      "name": "you",
+      "name": "owner",
       "type": "email",
       "value": "you@mercbot.localhost"
     }
