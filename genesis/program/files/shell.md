@@ -9,6 +9,7 @@ does, within limits per command, per bot and per home (D-47, D-112, D-126, D-127
 - Main: `packages/files/src/server/shell.js`
 - `packages/files/src/server/gateway.js`
 - `packages/files/src/server/internetUsage.js`
+- `packages/files/src/server/secretMask.js`
 - `packages/files/src/server/gvisor.js`
 - `packages/files/src/server/storeToolbox.js`
 - `scripts/build-toolbox.sh`
@@ -22,6 +23,7 @@ does, within limits per command, per bot and per home (D-47, D-112, D-126, D-127
 - `migrations/20261123171500_internet_limits.cjs`
 - `packages/bots/src/server/botTools.js`
 - `packages/bots/src/server/commandTools.js`
+- `packages/bots/src/server/githubCommands.js`
 - `packages/bots/src/server/botLoops.js`
 - `packages/bots/skills/command-line.md`
 
@@ -203,8 +205,22 @@ does, within limits per command, per bot and per home (D-47, D-112, D-126, D-127
   - **Memory:** a session above the sandbox memory limit is ended at once.
 - **Bots:** every bot with files gets `run_command {why, script, seconds?}` and `check_command
   {run}`; `run_command`'s description and the standing rules say what commands reach (D-126): the public internet
-  through the gateway (git clone over https, downloads, npm or pip installs for the job), no ssh, no GitHub sign-in to
-  push with, and each run from the same clean toolbox. In turns another bot started (D-46), `/files/chat` and `/files/shared` are read-only. A
+  through the gateway (git clone over https, downloads, npm or pip installs for the job), no ssh, and each run from the
+  same clean toolbox. Without the copy's GitHub App, or in work another bot asked for, they say there's no GitHub
+  sign-in to push with.
+- **Signed in to GitHub (D-128):** on a copy with its GitHub App (`integrations.connections.github.ready()`),
+  `run_command` also takes `github` (owner/name), except in work another bot asked for. `githubCommandKey`
+  (`githubCommands.js`) finds the repository with the turn's person's own GitHub (`github.repository`), and checks
+  that person let this bot use it (`records.githubRepos.allows`, always or for this seat's task). If they haven't,
+  nothing runs and a card goes under the reply (`purpose: "github-repo"`). If they have, the app makes a key for that
+  repository alone (`github.commandKey`). `shell.start({ secret })` runs the command in a fresh sandbox, never the
+  computer's session, with `secret.env` (`githubEnv`: `GH_TOKEN`, `GH_PROMPT_DISABLED`, `GIT_TERMINAL_PROMPT=0`, git's
+  credential helper for `https://github.com` through `GIT_CONFIG_COUNT`, and the bot's name as author and committer at
+  `<slug>[bot]@users.noreply.github.com`). `secretMask` replaces each of `secret.hide` and git's Basic form of it
+  (base64 of `x-access-token:<key>`) with `***` as output streams, holding back the end of each piece until the next.
+  Everything downstream reads the masked output: the bot, `shell_runs.output`, `/runs/<run>.log` and the chat line.
+  `secret.ended` withdraws the key once the command ends, whatever happens: refused, failed to start, finished or
+  stopped. The app's private key is never in a sandbox's variables. In turns another bot started (D-46), `/files/chat` and `/files/shared` are read-only. A
   reply's commands become one `event` with `icon: "command"` and `commands: [{why, script,
   output, exitCode, run, running}]`, shown in the chat as one line that opens to each script and
   its output.
@@ -224,6 +240,8 @@ does, within limits per command, per bot and per home (D-47, D-112, D-126, D-127
 
 - `tests/server/shell.integration.js`
 - `tests/server/commandInternet.test.js`
+- `tests/server/commandGithub.test.js`
+- `tests/server/githubCommands.integration.js`
 - `tests/server/commandInternetWords.test.js`
 - `tests/server/gateway.test.js`
 - `tests/server/internetLimits.test.js`

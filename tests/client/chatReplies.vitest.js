@@ -159,8 +159,11 @@ describe("sending", () => {
     const { actions, asked } = actionsFor(chatOf());
     await actions.answerChoice({ message: { id: "90" }, selected: ["Yes"] });
     await settle();
-    expect(chatsApi.answer).toHaveBeenCalledWith("7", "90", ["Yes"]);
+    expect(chatsApi.answer).toHaveBeenCalledWith("7", "90", ["Yes"], null);
     expect(asked).toEqual([["7", { afterCard: true }]]);
+    // A GitHub card's answer names the other repository chosen on it (D-128).
+    await actions.answerChoice({ message: { id: "92" }, selected: ["Always for this bot"], repository: "ann/notes" });
+    expect(chatsApi.answer).toHaveBeenLastCalledWith("7", "92", ["Always for this bot"], "ann/notes");
 
     const welcome = actionsFor(chatOf({ onboardingStep: "name" }));
     await welcome.actions.answerChoice({ message: { id: "91" }, selected: ["Otto"] });

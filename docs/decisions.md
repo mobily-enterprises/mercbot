@@ -4093,7 +4093,7 @@ Decided:
   offered the command line on a store host only with `git`, `curl` and `pip` too, as they're told of them.
 - **Bots are told:** the standing rules (`FILES_RULES`), `run_command` and the skill "Working on the command line" say
   what commands reach, that installs last one command, and that there's no ssh and no GitHub sign-in.
-- **Not decided here: GitHub credentials in the command line.** Nothing in Mercbot pushes code today: the GitHub
+- **Not decided here: GitHub credentials in the command line (decided in D-128, 2026-11-23).** Nothing in Mercbot pushes code today: the GitHub
   connection's tools read repositories and manage issues, pull requests and branches but write no commits, and coding
   runs are told not to push. A bot clones a public repository, changes and tests it, and gives the person the changed
   files or a patch.
@@ -4166,3 +4166,70 @@ Decided:
   Settings reads it, old days removed), `tests/server/commandInternet.test.js` (real gVisor: a command cut at its limit
   and its output's words, in its own sandbox and in the session, and the refusals' words),
   `tests/e2e/spending.spec.ts` (Internet today).
+
+## D-128 — Bots' commands push to GitHub through the copy's GitHub App (2026-11-23)
+
+Answers D-126's "Not decided here: GitHub credentials in the command line". A bot asked to change a website on GitHub
+could clone it but not push. The owner approved this design on 23 November: "YES!". Their condition was that picking a
+repository is instant, at the moment it's needed.
+
+Decided:
+- **A GitHub App, not a wider OAuth scope.** Each copy registers its own, installable by any account. Its callback is
+  `<APP_PUBLIC_URL>/api/connections/callback`, with **Expire user authorization tokens** on and **Request user
+  authorization during installation** off. Its Setup URL is `<APP_PUBLIC_URL>/api/connections/github/installed`, with
+  **Redirect on update** on, and it has no webhook. Repository permissions: Contents, Pull requests and Issues read and
+  write; Actions, Checks, Commit statuses and Metadata read. No Workflows, and no organisation or account permissions.
+  A person chooses on GitHub which of their repositories it reaches. Env: `GITHUB_APP_ID`, `GITHUB_APP_SLUG` and
+  `GITHUB_APP_PRIVATE_KEY` (PEM), with `GITHUB_CLIENT_ID`/`GITHUB_CLIENT_SECRET` the App's own; a local copy uses the
+  `GITHUB_TEST_` ones when set. A copy for checking (`APP_ENV=staging`) gets a test App of its own,
+  registered with its own callback and Setup URL, under the same names, so it never holds the live copy's key.
+- **Named the same everywhere:** Mercbot's pages and its bots call it "Mercbot's GitHub App", whatever name a copy
+  registered it under. GitHub's own pages show that name, and its commits show `<slug>[bot]`.
+- **Connecting** is the App's user-to-server sign-in: an 8-hour `ghu_` key, renewed like any other. The App's
+  installations the person reaches are kept with the account's sealed keys. Where there are none yet, the page the
+  sign-in ends on offers **Install on GitHub**. The Setup URL's page is static: its `installation_id` can be anyone's,
+  so it's never used. Repositories are always read with the person's own key, when they're needed. Connect apps shows
+  where the App is installed, with **Choose repositories**.
+- **Accounts connected before** (a classic OAuth app's `gho_` keys) keep the reading tools. Where the copy has the App,
+  they show **Sign in again** (`lacksAccess`), and a command that would push says to sign in again. When
+  `GITHUB_CLIENT_ID`/`_SECRET` change to the App's, nothing breaks at once: those keys never expire, so they read until
+  the old OAuth app is deleted or its keys are withdrawn on GitHub, and nothing renews them. Signing in again replaces
+  the key with the App's.
+- **The card.** The first time a command names a repository (`run_command`'s new `github`), nothing runs, and the bot
+  posts "Let *bot* use *owner/name*?" under its reply. The card says whether its commands could push there or only read
+  it. Its options are **Just this task** (the bot's seat in this chat, for 4 hours), **Always for this bot** (every
+  chat, until removed) and **No**, which was added here so a person can refuse on the card itself. The bot proposes the
+  repository. **Choose another repository** on the card searches the person's own repositories on the server as they
+  type (20 a page, **More**, at most 5 of GitHub's pages of 100 a request), and the one chosen is checked again with
+  their own GitHub when they answer. Only the person the bot works for answers it (R4).
+- **The shared-room rule.** A bot uses only the asking person's own GitHub (their accounts in the home signed in
+  through the App) and only their own yeses (`bot_github_repos`, each person's own rows). It never uses another
+  person's, though every home account is everyone's for the reading tools (D-111), because a key that pushes acts as its
+  person. Work another bot asked for (D-46) never signs in to GitHub.
+- **A key per command.** Each command on an allowed repository gets an installation key made for it: `repository_ids`
+  holds that one repository. It gets the permissions above where the person can push and read-only ones where they
+  can't, so it never does more than its person may. It lasts at most an hour (GitHub's limit) and is withdrawn when the
+  command ends, however it ends. GitHub's answer is checked to reach exactly that repository, and any other key is
+  withdrawn and refused. `gh` and `git` sign in with it: `GH_TOKEN`, and a credential helper for `https://github.com`
+  given through `GIT_CONFIG_COUNT` that reads it from there, so it's in no file and no remote's address. Commits are
+  the bot's, at `my-mercbot[bot]@users.noreply.github.com`. Such a command always runs in a fresh sandbox, never the
+  computer's session, where the Terminal shows what runs and the key would outlive its command.
+- **Masked.** The key, and git's Basic form of it, show as `***` in everything a command's output reaches: the bot, the
+  run's record, its whole output and the chat line. The App's private key never enters a sandbox. A command could
+  still write the key into a file; it's told never to, and the key dies with the command.
+- **Bots are told** (the standing rules, `run_command` and the skills "Working on the command line" and "Coding"):
+  clone a private repository, push a branch and open a pull request (`gh pr create`). They work on a branch of their own
+  and push to the default branch only when asked, and suggest protecting it with a branch rule.
+- **Allowed repositories** show on the bot's card under Details, each with Remove (`DELETE
+  …/bots/:botId/github-repos/:grantId`). A person sees and removes only their own.
+- **gh** is in both toolboxes (Ubuntu's `gh`, nixpkgs' `gh` on a store host, whose package list must give it),
+  and a store host offers the command line only with it, as with git, curl and pip.
+- **Not built:** pushing from a copy linked to a hub (minting needs the App's private key, which stays on the hub); a
+  GitHub stand-in for the Test Preview; Workflows.
+- **Proof:** `tests/server/githubApp.test.js` (the App's proof, the narrowed key and a too-wide one withdrawn, the
+  paged search, the mask, the command's variables), `tests/server/githubAccess.integration.js` (only the asker's own
+  account, the old account's Sign in again, installations kept), `tests/server/githubCommands.integration.js` (no key
+  without a yes, only the asker answers, the shared-room rule, choosing another, No, Remove),
+  `tests/server/commandGithub.test.js` (real gVisor: a stand-in github.com over https behind git http-backend, a
+  private clone and a pushed branch as the bot, the key masked and withdrawn), `tests/server/commandInternetWords.test.js`
+  and `tests/server/botsRouteGuard.test.js`. Nothing in them reaches GitHub.

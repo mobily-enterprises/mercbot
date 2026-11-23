@@ -73,11 +73,12 @@ test("routes that prove themselves pass without the key; nothing else that looks
     ["GET", `/api/computer-cdp/${key}/devtools/browser/x`, true],
     ["POST", "/api/files/drive-token", false],
     ["GET", "/api/pages/frame-token/plan.html", false],
-    ["GET", "/api/connections/callback?code=c&state=s", false]
+    ["GET", "/api/connections/callback?code=c&state=s", false],
+    ["GET", "/api/connections/github/installed?installation_id=1&setup_action=install", false]
   ]) {
     assert.equal(refused({ method, url, cookie: "" }, upgrade), null, url);
   }
-  for (const url of ["/api/healthz", "/api/internal/computers", "/api/files/drive-tokens", "/api/pages", "/api/public/pages/link-token/plan.html", "/api/connections/callbacks", "/api/public/sign-in/callback"]) {
+  for (const url of ["/api/healthz", "/api/internal/computers", "/api/files/drive-tokens", "/api/pages", "/api/public/pages/link-token/plan.html", "/api/connections/callbacks", "/api/public/sign-in/callback", "/api/connections/github/installed/x"]) {
     assert.equal(refused({ url, cookie: "" }), 401, url);
   }
   // A request from outside, such as another service's webhook, carries no Origin and no key: it's refused, and only

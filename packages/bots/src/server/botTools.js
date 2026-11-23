@@ -461,7 +461,12 @@ export function buildTools({
         viaBot,
         before,
         attempted,
-        saved
+        saved,
+        // GitHub in its commands (D-128): the turn's person's own, and the repositories they let this bot use.
+        integrations,
+        githubRepos: records.githubRepos,
+        botName: seat.name,
+        after
       })
     );
   }

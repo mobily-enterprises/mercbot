@@ -57,6 +57,12 @@ const OTHER_ENTRIES = [
     missing: "GitHub can't be connected."
   },
   {
+    name: "GitHub App",
+    purpose: "Lets bots' commands push to the GitHub repositories each person allows, through the copy's GitHub App (whose client is the GitHub app's).",
+    settings: [{ name: "GITHUB_APP_ID" }, { name: "GITHUB_APP_SLUG" }, { name: "GITHUB_APP_PRIVATE_KEY" }],
+    missing: "Bots' commands can't sign in to GitHub, so they can't push; GitHub connects for reading only."
+  },
+  {
     name: "Bots' file storage",
     purpose: "The S3 bucket every server keeps bots' files in, each file sealed with the passphrase (any store speaking the S3 API, at its endpoint).",
     settings: [

@@ -8,8 +8,9 @@ import { keyMatches } from "./key.js";
 //      computer (DNS rebinding) gets nothing.
 //   2. Routes that prove themselves pass: the health check, which says only that the server is up; another server's
 //      work, the bots' browsers and Google Drive mounts, each with its own key; a page's sealed frame (D-74), whose
-//      address carries its own signed token, since the frame is credentialless and sends no cookie; and the
-//      providers' return from a connection, which its OAuth state proves.
+//      address carries its own signed token, since the frame is credentialless and sends no cookie; the
+//      providers' return from a connection, which its OAuth state proves; and the page GitHub shows after installing
+//      the copy's GitHub App (D-128), which says only that, and comes from github.com without the key's cookie.
 //   3. /open?key=<the key> opens Mercbot (SingleUserFeature).
 //   4. Anything that changes something, and every websocket, comes from Mercbot's own page (its Origin), beside JSKIT's
 //      CSRF token.
@@ -24,7 +25,8 @@ const OWN_PROOF = [
   /^\/api\/computer-cdp\//u,
   /^\/api\/files\/drive-token(?:\?|$)/u,
   /^\/api\/pages\//u,
-  /^\/api\/connections\/callback(?:\?|$)/u
+  /^\/api\/connections\/callback(?:\?|$)/u,
+  /^\/api\/connections\/github\/installed(?:\?|$)/u
 ];
 const NOT_ON_ONE_COMPUTER = [
   /^\/api\/(?:register|login|logout|password|oauth|dev-auth)(?:[/?]|$)/u,

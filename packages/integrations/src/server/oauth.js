@@ -162,7 +162,9 @@ export function createOAuth({ env, insecure = false }) {
     refresh: tokens.refresh_token || previous.refresh || null,
     expiresAt: tokens.expires_in ? Date.now() + tokens.expires_in * 1000 : null,
     // What the person actually allowed: consent screens let them untick parts of it.
-    scope: tokens.scope || previous.scope || null
+    scope: tokens.scope || previous.scope || null,
+    // Where a GitHub account has this copy's GitHub App installed (D-128), as last read: a renewal keeps it.
+    ...(previous.installations ? { installations: previous.installations } : {})
   });
 
   async function exchange(provider, params, state, verifier) {

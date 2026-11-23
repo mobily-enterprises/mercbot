@@ -464,6 +464,11 @@ function openTemplates() {
                 <span class="mb-detail__home">
                   <v-icon icon="$home" size="12" />{{ lineOf(account).who }}<template v-if="lineOf(account).addedBy"> Added by {{ lineOf(account).addedBy }}.</template>
                 </span>
+                <!-- Signed in through the copy's GitHub App (D-128): where it's installed, and where to choose its repositories. -->
+                <span v-if="account.github" class="mb-detail__home">
+                  {{ account.github.reaches.length ? `Mercbot's GitHub App is on ${account.github.reaches.map((entry) => entry.account).join(", ")}.` : "Mercbot's GitHub App isn't installed on GitHub yet." }}
+                  <a :href="account.github.chooseUrl" target="_blank" rel="noopener">{{ account.github.reaches.length ? "Choose repositories" : "Install on GitHub" }}</a>
+                </span>
               </div>
               <div class="mb-detail__account-actions">
                 <template v-if="removingAccount === account.id">

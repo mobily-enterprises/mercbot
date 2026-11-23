@@ -323,3 +323,42 @@ describe("a bot's start_room card (D-122)", () => {
     expect(part).toContain("Open the room");
   });
 });
+
+// A bot's GitHub card (D-128): the repository it asks to use and what its commands may do there; only the person it
+// asks answers it or chooses another of theirs, and once answered it offers none.
+describe("a bot's GitHub card", () => {
+  const github = (extra = {}) => card("choice", "7", {
+    purpose: "github-repo",
+    question: "Let Chef use ben/site?",
+    subline: "It can read it, push branches and open pull requests there, as Mercbot's GitHub App, in its commands.",
+    options: ["Just this task", "Always for this bot", "No"],
+    multi: false,
+    chosen: null,
+    repository: { id: "101", fullName: "ben/site", private: true, write: true },
+    for: { id: "2", name: "Ben" },
+    ...extra
+  });
+
+  it("names the repository and what it may do there, and only the person it asks answers it or chooses another", async () => {
+    const asked = github();
+    const annas = item(await timeline({ chat: KITCHEN, messages: [asked] }), asked);
+    expect(annas).toContain("Let Chef use ben/site?");
+    expect(annas).toContain("Private · can push");
+    expect(annas).toContain("Waiting for Ben's OK");
+    expect(annas).not.toContain("mb-choice__option");
+    expect(annas).not.toContain("Choose another repository");
+
+    const bens = item(await timeline({ chat: KITCHEN, messages: [asked], me: "2" }), asked);
+    expect(bens).not.toContain("Waiting for");
+    expect([...bens.matchAll(/<span[^>]*>(Just this task|Always for this bot|No)<\/span>/gu)].map((found) => found[1])).toEqual(["Just this task", "Always for this bot", "No"]);
+    expect(bens).toContain("Choose another repository");
+  });
+
+  it("once answered, keeps what was chosen and offers no other repository", async () => {
+    const answered = github({ chosen: "Always for this bot" });
+    const part = item(await timeline({ chat: KITCHEN, messages: [answered], me: "2" }), answered);
+    expect(part).toContain("Always for this bot");
+    expect(part).not.toContain("Just this task");
+    expect(part).not.toContain("Choose another repository");
+  });
+});

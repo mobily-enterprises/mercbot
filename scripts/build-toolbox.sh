@@ -24,7 +24,7 @@ BASE="ubuntu-base-24.04.5-base-amd64.tar.gz"
 PACKAGES=(
   bash coreutils findutils grep sed gawk bc file less tree
   zip unzip p7zip-full xz-utils bzip2 zstd
-  jq sqlite3 ripgrep git curl libatomic1 tmux libutempter0
+  jq sqlite3 ripgrep git gh curl libatomic1 tmux libutempter0
   ffmpeg imagemagick libheif1 webp
   poppler-utils ghostscript qpdf
   tesseract-ocr tesseract-ocr-eng tesseract-ocr-fra tesseract-ocr-deu tesseract-ocr-ita tesseract-ocr-spa tesseract-ocr-por

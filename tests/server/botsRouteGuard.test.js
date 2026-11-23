@@ -9,7 +9,7 @@ import { requestContextOptions } from "../support/requestContextOptions.mjs";
 // :botId, bots_chat_not_found for :chatId. An id that is no id at all is refused the same way, without a read. An
 // archived bot (D-108) or chat is read-only: only the routes that say they take one change anything about it.
 
-function routesWith(findBot, service = {}, findChat = (chatId) => ({ id: chatId, archived_at: null }), pausedMessage = async () => null) {
+function routesWith(findBot, service = {}, findChat = (chatId) => ({ id: chatId, archived_at: null }), pausedMessage = async () => null, moreRecords = {}) {
   const routes = new Map();
   const asked = [];
   const askedChats = [];
@@ -31,7 +31,8 @@ function routesWith(findBot, service = {}, findChat = (chatId) => ({ id: chatId,
         askedChats.push({ chatId, options });
         return findChat(chatId);
       }
-    }
+    },
+    ...moreRecords
   };
   registerRoutes(http, {
     bots,
@@ -283,4 +284,39 @@ test("only the home's owners and admins make a bot the main bot; anyone who may 
   const owner = await call(route, { workspaceSlug: "home-3", botId: "12" }, { main: true }, ["workspace.settings.update"]);
   assert.equal(owner.status, 200);
   assert.deepEqual(updates.map((update) => update.patch), [{ name: "Otto 2" }, { main: true }]);
+});
+
+test("a bot's GitHub repositories (D-128): listed and removed through the guard, an archived bot's too, and only the person's own", async () => {
+  const removed = [];
+  const githubRepos = {
+    listFor: async (botId, options) => [{ id: "4", botId, fullName: "pat/site", seen: Boolean(options.context) }],
+    remove: async (botId, grantId) => {
+      removed.push([botId, grantId]);
+      return grantId === "4";
+    }
+  };
+  const archived = routesWith(() => ({ id: "12", name: "Ledger", kind: "bot", archivedAt: "2026-11-21T10:00:00.000Z" }), {}, undefined, undefined, { githubRepos });
+  const params = { workspaceSlug: "home-3", botId: "12", grantId: "4" };
+  const listed = await archived.call("GET /api/w/:workspaceSlug/bots/:botId/github-repos", params);
+  assert.deepEqual(listed, { status: 200, body: { repositories: [{ id: "4", botId: "12", fullName: "pat/site", seen: true }] } });
+  assert.equal((await archived.call("DELETE /api/w/:workspaceSlug/bots/:botId/github-repos/:grantId", params)).status, 200, "an archived bot's is removed too");
+  const other = await archived.call("DELETE /api/w/:workspaceSlug/bots/:botId/github-repos/:grantId", { ...params, grantId: "5" });
+  assert.deepEqual([other.status, other.body.code], [404, "bots_github_repo_not_found"], "one that isn't the person's");
+  assert.deepEqual(removed, [["12", "4"], ["12", "5"]]);
+  const hidden = routesWith(() => null, {}, undefined, undefined, { githubRepos });
+  assert.equal((await hidden.call("GET /api/w/:workspaceSlug/bots/:botId/github-repos", params)).status, 404, "a bot the person doesn't see");
+  assert.equal(removed.length, 2);
+});
+
+test("a card's answer passes another repository only as its name (D-128)", async () => {
+  const answered = [];
+  const service = { chat: { answerChoice: async (...args) => answered.push(args.slice(0, 3)) } };
+  const { call } = routesWith(() => null, service);
+  const params = { workspaceSlug: "home-3", chatId: "40", messageId: "5" };
+  await call("POST /api/w/:workspaceSlug/chats/:chatId/choices/:messageId", params, { selected: ["Always for this bot"], repository: "pat/site" });
+  await call("POST /api/w/:workspaceSlug/chats/:chatId/choices/:messageId", params, { selected: ["No"], repository: { id: "1" } });
+  assert.deepEqual(answered, [
+    ["40", "5", { selected: ["Always for this bot"], repository: "pat/site" }],
+    ["40", "5", { selected: ["No"], repository: null }]
+  ]);
 });

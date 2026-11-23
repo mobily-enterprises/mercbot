@@ -1,5 +1,6 @@
 import { createTool, textPart } from "@jskit-ai/agent/server";
 import { z } from "zod";
+import { GITHUB_CARD, githubCommandKey } from "./githubCommands.js";
 
 /** A command result that was cut says how to read the rest (D-48). */
 function withWholeOutput(result, run) {
@@ -16,7 +17,8 @@ function withWholeOutput(result, run) {
 /**
  * The command line (D-47): a bash script in the gVisor toolbox, on the folders of the bot's seat in this chat (R6),
  * reaching public internet addresses through Mercbot's gateway (D-126). A reply's commands leave one line in the chat,
- * opening to each script and its output.
+ * opening to each script and its output. A command that names a GitHub repository runs signed in to it alone (D-128),
+ * once the person the turn works for let the bot use it on its card.
  * @param {object} shared
  * @param {import("@local/files/server/types").Files} shared.files
  * @param {import("./types.js").Place} shared.place
@@ -30,6 +32,10 @@ function withWholeOutput(result, run) {
  * @param {string[]} shared.attempted
  * @param {Set<string>} shared.saved
  * @param {import("@jskit-ai/resource-runtime/server/types").ResourceCallOptions} shared.call the turn's call options
+ * @param {import("@local/integrations/server/types").Integrations} shared.integrations the person's own GitHub (D-128)
+ * @param {import("./types.js").GithubRepoRepository} shared.githubRepos the repositories they let bots use
+ * @param {string} shared.botName
+ * @param {object[]} shared.after the cards under the reply, where a bot asks to use a repository
  */
 export function buildCommandTools({
   files,
@@ -43,9 +49,15 @@ export function buildCommandTools({
   before,
   attempted,
   saved,
-  call
+  call,
+  integrations,
+  githubRepos,
+  botName,
+  after
 }) {
   const tools = {};
+  // GitHub in commands (D-128): where this copy has its GitHub App, for work the person asked for themselves.
+  const githubReady = !viaBot && integrations.connections.github.ready();
   const failed = (error) => ({ error: error.message });
   const recordCommand = (run, script, why) => {
     const command = {
@@ -68,8 +80,27 @@ export function buildCommandTools({
     if (commands.length > 1) before[before.length - 1] = line;
     else before.push(line);
   };
-  async function runCommand({ why, script, seconds }) {
+  /** A card asking to use `repository`, once a reply; what the bot is told meanwhile. */
+  function askForRepository(card) {
+    const same = card.body.repository.id;
+    if (!after.some((message) => message.body?.purpose === GITHUB_CARD && message.body.repository?.id === same)) after.push(card);
+    return {
+      status: "waiting_for_approval",
+      note:
+        `Nothing ran. The person has a card asking whether you may use ${card.body.repository.fullName}; say in a line what you'd do ` +
+        "there and that it's waiting for their OK. Their answer comes back to you, and then you run the command again."
+    };
+  }
+  async function runCommand({ why, script, seconds, github }) {
     attempted.push("run_command");
+    let secret = null;
+    if (github) {
+      if (!githubReady) return { error: "Commands can't sign in to GitHub here." };
+      const key = await githubCommandKey({ integrations, githubRepos, bot: { botId, chatBotId, botName }, call }, github);
+      if (key.error) return { error: key.error };
+      if (key.card) return askForRepository(key.card);
+      secret = key.secret;
+    }
     try {
       // Asked by another bot, not the person (D-46): the chat's files and the home's can only be read, so nothing a
       // bot was talked into can change them.
@@ -82,7 +113,8 @@ export function buildCommandTools({
         why,
         script,
         readOnly: viaBot ? ["chat", "shared"] : [],
-        ...(seconds ? { maxSeconds: seconds } : {})
+        ...(seconds ? { maxSeconds: seconds } : {}),
+        ...(secret ? { secret } : {})
       });
       if (run.status === "unavailable" || run.status === "busy") return { error: run.error };
       recordCommand(run, script, why);
@@ -98,7 +130,11 @@ export function buildCommandTools({
       description:
         "Run a bash script on your own Linux computer's command line, for work on files and code: video and audio (ffmpeg), pictures (ImageMagick), reading scanned pages (tesseract), PDFs (qpdf, pdftotext, gs), data (Python with pandas, numpy, matplotlib, openpyxl; sqlite3, jq), documents (pandoc, python-docx, python-pptx), archives, Node.js with npm, git, curl, and ordinary Unix tools with pipes and loops. It sees only your folders (/files/chat, /files/bot, /files/shared" +
         (privateChat ? "; in this private chat /files/bot and /files/shared can only be read" : "") +
-        ") and a scratch /tmp emptied after each run. It reaches the public internet through Mercbot's gateway, as your browser does: git clone over https, downloads with curl, Python or Node, and packages installed with npm or pip for the job. Each run starts from the same clean toolbox, so what it installs outside your folders is gone next time. It has no ssh (use a repository's https:// address) and no GitHub sign-in, so it can't push. Private and local network addresses and mail ports are refused. Check what you made (ls, ffprobe, head) and fix errors by running again. A command still running after 2 minutes carries on in the background and you're woken here when it ends.",
+        ") and a scratch /tmp emptied after each run. It reaches the public internet through Mercbot's gateway, as your browser does: git clone over https, downloads with curl, Python or Node, and packages installed with npm or pip for the job. Each run starts from the same clean toolbox, so what it installs outside your folders is gone next time. It has no ssh (use a repository's https:// address)" +
+        (githubReady
+          ? ". To work on one of the person's GitHub repositories (clone a private one, push a branch, gh pr create, gh issue), name it in github (owner/name): that command runs with gh and git signed in to GitHub for that repository alone, as Mercbot's GitHub App, and the key ends with it. The first time, the person gets a card to let you use it; stop and wait for their answer. Work on a branch of your own and open a pull request; push to the default branch only when they ask you to, and suggest protecting it with a branch rule on GitHub. Never write the key into a file, a remote's address or the output."
+          : " and no GitHub sign-in, so it can't push.") +
+        " Private and local network addresses and mail ports are refused. Check what you made (ls, ffprobe, head) and fix errors by running again. A command still running after 2 minutes carries on in the background and you're woken here when it ends.",
       inputSchema: z.object({
         why: z
           .string()
@@ -106,7 +142,10 @@ export function buildCommandTools({
           .max(160)
           .describe("What it does, in a few plain words for the person, e.g. Making a GIF of the first 5 seconds"),
         script: z.string().min(1).max(20000).describe("The bash script"),
-        seconds: z.number().int().min(5).max(1800).optional().describe("Most it may take in total; default 30 minutes")
+        seconds: z.number().int().min(5).max(1800).optional().describe("Most it may take in total; default 30 minutes"),
+        ...(githubReady
+          ? { github: z.string().min(3).max(140).optional().describe("The person's GitHub repository this command works on, as owner/name, to run signed in to it") }
+          : {})
       }),
       execute: (input, options) => runCommand(input, options)
     })

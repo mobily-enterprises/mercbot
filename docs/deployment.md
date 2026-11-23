@@ -220,6 +220,22 @@ doesn't accept, a public address that isn't https) still stops the start, saying
   (`<PROVIDER>_TEST_CLIENT_ID`/`_SECRET` are used instead while the public address is
   `localhost`). A copy without its own apps can link to another Mercbot that connects accounts for it instead:
   `MERCBOT_HUB_URL`, that copy's address (no default: without it, linking is off).
+- GitHub for bots' commands (D-128): GitHub is signed in to through the copy's GitHub App, which lets a bot's command
+  push to a repository its person allowed. `GITHUB_APP_ID` (the App's numeric id), `GITHUB_APP_SLUG` (its name in
+  `github.com/apps/<slug>`) and `GITHUB_APP_PRIVATE_KEY` (a private key generated on the App's page, in PEM: with its
+  line breaks, or with `\n` for each), and `GITHUB_CLIENT_ID`/`GITHUB_CLIENT_SECRET` are then the App's own client id
+  and a client secret generated there (`GITHUB_TEST_APP_ID`, `GITHUB_TEST_APP_SLUG`, `GITHUB_TEST_APP_PRIVATE_KEY` and
+  `GITHUB_TEST_CLIENT_ID`/`_SECRET` instead, when set, while the public address is `localhost`). The App is registered with the callback
+  above, **Expire user authorization tokens** on, **Request user authorization (OAuth) during installation** off, its
+  Setup URL `<APP_PUBLIC_URL>/api/connections/github/installed` with **Redirect on update** on, no webhook, and
+  repository permissions Contents, Pull requests and Issues read and write, Actions, Checks, Commit statuses and
+  Metadata read; no Workflows, and no organisation or account permissions. The private key stays on the server: a
+  command gets a key of the App's for one repository, made for it and withdrawn when it ends. Without the three
+  `GITHUB_APP_*` settings, GitHub signs in as before (a classic OAuth app's client in `GITHUB_CLIENT_ID`), for the
+  reading tools only, and commands can't push. Switching `GITHUB_CLIENT_ID`/`_SECRET` to the App's leaves accounts
+  signed in before reading with their old keys, which don't expire, until the old OAuth app is deleted or its keys
+  withdrawn; each shows **Sign in again**, and signing in again goes through the App. A copy for checking (`APP_ENV=staging`)
+  uses a test App of its own, registered with its own callback and Setup URL, under the same names in its settings.
 
 ## Optional
 

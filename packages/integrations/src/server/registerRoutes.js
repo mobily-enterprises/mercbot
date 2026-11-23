@@ -187,9 +187,18 @@ export function registerRoutes(http, { integrations, catalogue, env }) {
     if (request.cookies?.[cookie] !== undefined) reply.clearCookie(cookie, cookieOptions(env, 0));
     let page;
     try {
-      const { provider, label } = await connections.callback(request.query || {}, request.cookies || {}, await request.callOptions());
+      const signedIn = await connections.callback(request.query || {}, request.cookies || {}, await request.callOptions());
+      const { provider, label, install } = signedIn;
       const signedInAs = label ? `Signed in as ${label}. ` : "";
-      page = signInPage(`Connected to ${provider}`, `${signedInAs}It's all set.`, { connected: true });
+      // Signed in to GitHub with Mercbot's GitHub App installed nowhere yet (D-128): bots read, and the next step lets them work on
+      // repositories.
+      page = install
+        ? signInPage(
+          `Connected to ${provider}`,
+          `${signedInAs}Next, install Mercbot's GitHub App on GitHub and choose the repositories your bots may work on. Each bot still asks you before it uses one.`,
+          { connected: true, next: { href: install, label: "Install on GitHub" } }
+        )
+        : signInPage(`Connected to ${provider}`, `${signedInAs}It's all set.`, { connected: true });
     } catch (error) {
       if (!(error instanceof ConnectionError)) console.error(`Sign-in callback failed: ${error?.message || error}`);
       const didNotConnect = error instanceof ConnectionError
@@ -201,6 +210,28 @@ export function registerRoutes(http, { integrations, catalogue, env }) {
     }
     reply.code(200).header("content-type", "text/html; charset=utf-8").header("cache-control", "no-store").send(page);
   }
+
+  /**
+   * Where GitHub sends people after they install Mercbot's GitHub App or change its repositories (the GitHub App's Setup URL,
+   * D-128). Its installation_id can be anyone's, so it is never used: a bot's card and its commands read the person's
+   * repositories with their own sign-in, at the moment they need them.
+   */
+  function githubInstalled(request, reply) {
+    const changed = request.query?.setup_action === "update";
+    const page = signInPage(
+      changed ? "The repositories Mercbot's GitHub App reaches are changed" : "Mercbot's GitHub App is installed on GitHub",
+      "Your bots can ask to use the repositories you chose, and each one asks you first. You can change them on GitHub at any time.",
+      { connected: true }
+    );
+    reply.code(200).header("content-type", "text/html; charset=utf-8").header("cache-control", "no-store").send(page);
+  }
+
+  /**
+   * A page of the person's own GitHub repositories that Mercbot's GitHub App reaches, whose name holds `q`, for a bot's card to
+   * choose from (D-128), and where to go on (`after`).
+   */
+  const githubRepositories = (request, options) =>
+    connections.github.repositories(options, { words: String(request.query?.q || ""), after: request.query?.after ? String(request.query.after) : null });
 
   /** The sign-in page's one script, its Copy button, kept out of the page so a Content Security Policy needs no inline script. */
   function signInPageScript(_request, reply) {
@@ -254,6 +285,9 @@ export function registerRoutes(http, { integrations, catalogue, env }) {
   router.register("POST", "/api/w/:workspaceSlug/connections/finish", IN_HOME, handle(finishPasted));
   router.register("GET", "/api/connections/callback", PUBLIC, signInCallback);
   router.register("GET", "/api/connections/sign-in-page.js", PUBLIC, signInPageScript);
+  // The GitHub App's Setup URL, and a person's repositories it reaches, for a bot's card (D-128).
+  router.register("GET", "/api/connections/github/installed", PUBLIC, githubInstalled);
+  router.register("GET", "/api/w/:workspaceSlug/github/repositories", IN_HOME, handle(githubRepositories));
   // A sign-in this copy lends a linked copy (D-31) is begun by the account that copy is linked to, signed in (D-97).
   router.register("POST", "/api/connections/lent/begin", SIGNED_IN, handle(beginLentSignIn));
   // This copy's link to a hub (Settings → Mercbot account). Its status and unlinking are asked from a

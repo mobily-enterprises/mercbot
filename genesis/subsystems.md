@@ -103,6 +103,7 @@ subsystems read chats, seats and bots.
 - Table `database` `default` `rooms_memories`
 - Table `database` `default` `rooms_memory_queue`
 - Table `database` `default` `common_knowledge`
+- Table `database` `default` `bot_github_repos`
 - Table `database` `default` `home_templates`
 - Table `database` `default` `home_template_changes`
 - Table `database` `default` `connect_follow_ups`

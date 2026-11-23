@@ -7,6 +7,7 @@ import { createChatRepository } from "./chatRepository.js";
 import { createBotDirectory } from "./directory.js";
 import { COMMON_KNOWLEDGE_SEARCH, createCommonKnowledgeRepository } from "./commonKnowledgeRepository.js";
 import { FOLLOW_UP_SEARCH, createFollowUpRepository } from "./followUpRepository.js";
+import { GITHUB_REPO_SEARCH, createGithubRepoRepository } from "./githubRepoRepository.js";
 import { createHomeTemplateRepository } from "./homeTemplateRepository.js";
 import { KNOWLEDGE_PART_SEARCH, KNOWLEDGE_SEARCH, createKnowledgeRepository } from "./knowledgeRepository.js";
 import { createMakerRepository } from "./makerRepository.js";
@@ -28,6 +29,7 @@ import {
 import { BOT_SEARCH, CHAT_BOT_SEARCH, CHAT_PERSON_SEARCH, CHAT_SEARCH, MESSAGE_SEARCH } from "./searchSchemas.js";
 import {
   TABLE_RESOURCES,
+  botGithubRepoResource,
   botKnowledgePartResource,
   botKnowledgeResource,
   botRequestResource,
@@ -79,7 +81,8 @@ const SEARCH = new Map([
   [connectFollowUpResource, FOLLOW_UP_SEARCH],
   [roomsMemoryResource, ROOMS_MEMORY_SEARCH],
   [roomsMemoryQueueResource, ROOMS_MEMORY_QUEUE_SEARCH],
-  [commonKnowledgeResource, COMMON_KNOWLEDGE_SEARCH]
+  [commonKnowledgeResource, COMMON_KNOWLEDGE_SEARCH],
+  [botGithubRepoResource, GITHUB_REPO_SEARCH]
 ]);
 
 /** A table's owns entry: with its row policy and filters, when it has them. */
@@ -153,6 +156,8 @@ const BotRecordsFeature = defineFeature({
       roomsMemory: createRoomsMemoryRepository(resources),
       // The home's common knowledge, which every bot reads, from the cards people said yes to (D-113).
       commonKnowledge: createCommonKnowledgeRepository(resources),
+      // The GitHub repositories each person let each bot use in its commands (D-128), the person's own.
+      githubRepos: createGithubRepoRepository(resources),
       // The model's reader (R1, D-112): the one context a turn's model-facing reads pass, which reads what its chat may.
       readers: Object.freeze({
         forBot: (reader) => readerFor(systemContext, reader),

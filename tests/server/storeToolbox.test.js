@@ -82,9 +82,9 @@ test("the toolbox is made of links into the store, from the programs on PATH the
 
 test("with every tool bots are told of, and python3's modules, the command line is offered too", (context) => {
   const tools = ["tail", "ffmpeg", "ffprobe", "convert", "tesseract", "pdftotext", "pdftoppm", "qpdf", "gs", "pandoc", "node", "npm", "sqlite3", "jq",
-    "git", "curl", "pip"];
-  // Each tool bots are told of is needed: without git, curl or pip (D-126) there's no command line either.
-  for (const left of ["git", "curl", "pip"]) {
+    "git", "gh", "curl", "pip"];
+  // Each tool bots are told of is needed: without git, curl or pip (D-126), or gh (D-128), there's no command line either.
+  for (const left of ["git", "gh", "curl", "pip"]) {
     const { env: without } = place(context, { extra: tools.filter((name) => name !== left) });
     assert.ok(makeStoreToolbox(without).missing.commandLine.includes(left), left);
   }

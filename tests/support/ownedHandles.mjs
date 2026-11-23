@@ -54,7 +54,7 @@ export async function ownedHandles(knex, context, ownsByFeature) {
  * @param {{ after: (work: () => unknown) => void }} context
  * @param {{ catalogue: ReadonlyArray<object>, connections?: object }} options
  */
-export async function startIntegrations(knex, context, { catalogue, connections = { lacksAccess: () => false, withdraw: async () => {} } }) {
+export async function startIntegrations(knex, context, { catalogue, connections = { lacksAccess: () => false, github: { shown: () => null }, withdraw: async () => {} } }) {
   const { profiles, features } = await ownedHandles(knex, context, { "mercbot.integrations": INTEGRATIONS_OWNS });
   const { resources, systemContext } = features["mercbot.integrations"];
   const accounts = createAccounts({ pluginAccounts: resources.pluginAccounts, systemContext });

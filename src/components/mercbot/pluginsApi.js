@@ -35,7 +35,11 @@ export const pluginsApi = {
   appUsers: (accountId, words) => requestInHome(client, `/plugin-accounts/${accountId}/app-users?${new URLSearchParams({ q: words })}`),
   pickAppUser: (accountId, appUserId) => requestInHome(client, `/plugin-accounts/${accountId}/people/me`, { method: "PUT", body: { appUserId } }),
   confirmAppPerson: (accountId, userId) => requestInHome(client, `/plugin-accounts/${accountId}/people/${userId}/confirm`, { method: "POST", body: {} }),
-  forgetAppPerson: (accountId, userId) => requestInHome(client, `/plugin-accounts/${accountId}/people/${userId}`, { method: "DELETE" })
+  forgetAppPerson: (accountId, userId) => requestInHome(client, `/plugin-accounts/${accountId}/people/${userId}`, { method: "DELETE" }),
+  // The person's own GitHub repositories Mercbot's GitHub App reaches, whose name holds `words`, a page at a time, for a bot's
+  // card (D-128): { repositories: [{ id, fullName, private, write }], next, installUrl }.
+  githubRepositories: (words = "", after = null) =>
+    requestInHome(client, `/github/repositories?${new URLSearchParams({ q: words, ...(after ? { after } : {}) })}`)
 };
 
 // This copy's link to a hub, another Mercbot that connects accounts for it (D-31). Its status

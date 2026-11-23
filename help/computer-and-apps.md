@@ -34,6 +34,7 @@ Every bot also has its own Linux command line, for work on files. Bots use it by
 - **You can see what it ran:** a line in the chat, such as "Ran 3 commands: Making the GIF", opens to show each command and its output.
 - **The Terminal:** while the bot's computer is awake, the Terminal on its dock shows the bot's commands live in its top half. In the bottom half you can type your own commands, on the same folders, with the same tools, internet and limits. Select **Take over** in the live view to type. A command the bot started keeps running if the computer goes to sleep.
 - **Asked by another bot:** when one bot works for another, its commands can read but not change the chat's files or the home's.
+- **GitHub:** with your permission on its card, a command can push a branch to one of your repositories and open a pull request. See [Pushing code from a bot's command line](#pushing-code-from-a-bot-s-command-line). Work another bot asked for never signs in to GitHub.
 
 ## Coding with your own coding account
 
@@ -295,6 +296,25 @@ Google Drive asks for access to your whole Drive, so bots can work with any of y
 
 GitHub changes go ahead only when you asked for exactly that change; otherwise the bot asks first. Comments on issues and pull requests always ask.
 
+#### Pushing code from a bot's command line
+
+Where your Mercbot has its GitHub App, a bot can also work on your repositories from its command line: clone a private one, push a branch and open a pull request with `gh pr create`.
+
+1. **Connect GitHub** in **Connect apps**. You sign in through Mercbot's GitHub App. If it isn't on your GitHub yet, the window that says **Connected to GitHub** has an **Install on GitHub** button. On GitHub, choose the account and the repositories Mercbot's GitHub App may reach: all of them, or only some.
+2. **Ask the bot**, for example "fix the typo on the About page of my website repo". The first time it needs a repository, the bot posts a card: **Let Ada use ann/site?** The card says whether its commands could push there or only read it.
+3. **Choose on the card.** **Just this task** lets that bot use the repository in this chat for the next 4 hours. **Always for this bot** lets it use the repository in every chat until you remove it. **No** lets it use nothing. If the bot picked the wrong one, **Choose another repository** searches yours as you type. Only the person who asked can answer the card.
+4. **The bot carries on.** Each command that works on the repository gets its own key from GitHub, for that one repository only. The key lasts at most an hour and is withdrawn when the command ends. The bot works on a branch of its own and opens a pull request. It pushes to the default branch only when you ask it to.
+
+To change which repositories Mercbot's GitHub App can reach, open your GitHub account in **Connect apps** and choose **Choose repositories**, or go to your GitHub settings under **Applications**. To take back a bot's permission, open the bot's card: **Details** lists **GitHub repositories**, each with a remove button. The bot asks you again next time.
+
+A few things to know:
+
+- **Protect your default branch.** On GitHub, add a branch rule to `main` (**Settings** → **Rules** → **Rulesets**) so changes reach it only through a reviewed pull request, whoever pushes.
+- **Your own GitHub only.** In a room, a bot works with the GitHub of the person who asked it and that person's yeses. It never uses someone else's, even when everyone in the room can see the conversation.
+- **It can never do more than you can.** On a repository you can only read, its commands can only read too. They can't change GitHub Actions workflows, or your account's or organisation's settings.
+- **The key never shows.** Wherever a command's output appears, in the chat or in its log, the key is replaced with `***`. A command signed in to GitHub always runs on its own, never in the Terminal.
+- **Connected before the GitHub App?** A GitHub account connected earlier keeps working for reading and for issues and pull requests. It shows **Sign in again**. Sign in again to let bots push.
+
 ### Sedna
 
 Bots work in your own Sedna teams' shared email, as you: the Sedna user with your email address, or the one you picked and an owner or admin confirmed.
@@ -334,7 +354,7 @@ Bitwarden, under **Password Managers**, isn't connectable yet. Until it is, save
 
 ### Can a bot work on my project on GitHub?
 
-Yes, for a public repository: the bot copies it to the chat's folder from its command line, makes and tests the changes there, and gives you the changed files or a patch. It can't send the changes back to GitHub itself: its command line has no GitHub sign-in, and the GitHub connection reads repositories and manages issues and pull requests but doesn't change their files.
+Yes. Where your Mercbot has its GitHub App, a bot can clone your private repositories, push a branch and open a pull request once you've allowed it on its card: see [Pushing code from a bot's command line](#pushing-code-from-a-bot-s-command-line). Without the app, it can work on a public repository: the bot copies it to the chat's folder, makes and tests the changes there, and gives you the changed files or a patch.
 
 ### Does my bot see my password when I connect an app?
 

@@ -12,6 +12,8 @@ the home's accounts, and keeps the private skills their bots have made.
 - `packages/integrations/src/server/types.js`
 - `packages/integrations/src/server/catalogue.js`
 - `packages/integrations/src/server/connections.js`
+- `packages/integrations/src/server/githubApp.js`
+- `packages/integrations/src/server/githubAccess.js`
 - `packages/integrations/src/server/signInBinding.js`
 - `packages/integrations/src/server/hubLink.js`
 - `packages/integrations/src/server/oauth.js`
@@ -24,6 +26,7 @@ the home's accounts, and keeps the private skills their bots have made.
 - `plugins/README.md`
 - `migrations/20261113120000_baseline.cjs`
 - `src/components/mercbot/MercbotAppsModal.vue`
+- `src/components/mercbot/MercbotGithubRepoPick.vue`
 - `src/components/mercbot/useAppAccounts.js`
 - `src/components/mercbot/usePrivateSkill.js`
 - `src/components/mercbot/appsCatalogue.js`
@@ -330,6 +333,42 @@ when this call asked. A home's files kept in Google Drive get their keys this wa
 stand-in Drive (`tests/support/fakeDrive.mjs`) Google's sign-in for connected accounts too
 (`standInGoogle` in `IntegrationsFeature.js`), for the Test Preview.
 
+**GitHub through the copy's GitHub App** (D-128, `githubApp.js`, `githubAccess.js`): with `GITHUB_APP_ID`,
+`GITHUB_APP_SLUG` and `GITHUB_APP_PRIVATE_KEY` (PEM, or with `\n` for line breaks; the `GITHUB_TEST_APP_` ones on a
+local copy when set, `githubAppSettings`), `GITHUB_CLIENT_ID`/`_SECRET` are the App's client and signing in to GitHub
+is the App's user-to-server sign-in: a `ghu_` key for 8 hours, renewed with its `ghr_` key like any other
+(`tokenRenewal.js`), seeing only what both the person and the App reach. `finishSignIn` reads the App's
+installations the person reaches (`GET /user/installations`) and keeps them in the account's sealed tokens
+(`installations: [{ id, account, accountType, all }]`, kept across renewals by `oauth.js` `stored`). When there are
+none, the callback's page says "Next, install Mercbot's GitHub App on GitHub and choose the repositories your bots may work on.
+Each bot still asks you before it uses one." with **Install on GitHub** (`signInPage`'s `next`, which keeps the page
+open). The App's Setup URL, public `GET /api/connections/github/installed`, answers a static page ("Mercbot's GitHub App is
+installed on GitHub", or "The repositories Mercbot's GitHub App reaches are changed" for `setup_action=update`). It never uses its
+`installation_id`, which anyone could send. A single-user copy lets it through without the key's cookie, which
+SameSite=Strict keeps from a redirect off github.com (`gate.js`). Connect apps shows an App-signed account's
+`github: { reaches: [{ account, all }], chooseUrl }` ("Mercbot's GitHub App is on …" with **Choose repositories**, or "isn't
+installed on GitHub yet" with **Install on GitHub**). An account signed in before the App (a `gho_` key) reads as
+before: `lacksAccess` is true for it, so it shows **Sign in again**, and signing in again goes through the App.
+- `connections.github` (`createGithubAccess`) is a person's own GitHub for bots' commands: only the call's person's
+  own connected GitHub accounts in the call's home that were signed in through the App (`ownAccounts`; every home
+  account is everyone's for reading, D-111, but a key that pushes acts as its person). Refusals: 409
+  `integrations_github_app_unset` (no App), `integrations_github_sign_in_again` (only accounts from before the App, or
+  GitHub turned the key down) and `integrations_github_not_connected`. `repository(options, owner/name)` answers `{
+  repository: { id, fullName, private, write, defaultBranch }, accountId }` as their own key sees it (`write` from
+  their push, maintain or admin), or null. `repositories(options, { words, after })`, behind `GET
+  /api/w/:workspaceSlug/github/repositories?q=&after=`, answers a page of 20 of their repositories in the App's
+  installations whose owner/name holds the words, `next` (an opaque place: account, installation, page and entry)
+  and `installUrl`. Each request reads at most 5 of GitHub's pages of 100, so a person with thousands of
+  repositories gets an answer at once, and it keeps the installations it read with the account's tokens.
+  `commandKey(repository)` makes the App's installation key for that repository alone: the App's JWT (RS256, issued a
+  minute early, 9 minutes), `GET /repos/{owner}/{name}/installation` (409 `integrations_github_not_installed`), then
+  `POST /app/installations/{id}/access_tokens` with `repository_ids: [id]` and `permissions`. Those are Contents,
+  Pull requests and Issues write with Actions, Checks, Statuses and Metadata read where the person can push, all read
+  otherwise, and never Workflows. GitHub's answer must reach exactly that repository, or the key is withdrawn and 502
+  `integrations_github_key_too_wide`. The key lasts at most an hour (GitHub's limit), and `revoke` withdraws it
+  (`DELETE /installation/token`). The private key never leaves this module.
+- A copy linked to a hub has no App key, so its bots' commands can't push (not built).
+
 Unlinking (D-31) signs out every account that borrowed the hub's sign-in, in every home. The person who
 linked the copy may unlink it; so may the owners and admins (`workspace.settings.update`) of a home that
 person is an active member of (`workspaces.memberships`), asking from that home, or of any home once the
@@ -383,6 +422,8 @@ remove it with its bin, which forgets its people matches too; **Change credentia
 
 ## Proved by
 
+- `tests/server/githubApp.test.js`
+- `tests/server/githubAccess.integration.js`
 - `tests/server/sednaCredentials.integration.js`
 - `tests/e2e/sedna.spec.ts`
 - `tests/server/connections.integration.js`

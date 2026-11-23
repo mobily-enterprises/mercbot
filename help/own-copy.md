@@ -63,6 +63,7 @@ Settings are in `mercbot.env`. Keep their values private.
 | Bots' files | `MERCBOT_FILES_S3_BUCKET`, `MERCBOT_FILES_S3_REGION`, `MERCBOT_FILES_S3_ACCESS_KEY_ID`, `MERCBOT_FILES_S3_SECRET_ACCESS_KEY`, `MERCBOT_FILES_PASSPHRASE`, and `MERCBOT_FILES_S3_ENDPOINT` for a store other than AWS | Optional: an S3 bucket (AWS's, or any store speaking the S3 API) to keep your bots' files in instead of the data folder, and the passphrase that seals every file before it leaves your computer. Keep the passphrase safe: the files can't be read without it |
 | Where it runs | `APP_ENV`, `NODE_ENV` | Both `production` when your copy is for real use. `APP_ENV` set to `development` (or `staging`, which also needs `NODE_ENV=production`) makes a test copy that only logs what it would send. Mercbot doesn't start without `APP_ENV`, or while the old `SIDE_EFFECTS` setting is still there |
 | Connected accounts | `GOOGLE_CLIENT_ID` / `_SECRET`, `MICROSOFT_CLIENT_ID` / `_SECRET`, `GITHUB_CLIENT_ID` / `_SECRET` | Your own registered apps with each provider, if you have them |
+| GitHub for bots' commands | `GITHUB_APP_ID`, `GITHUB_APP_SLUG`, `GITHUB_APP_PRIVATE_KEY` | Optional: your own GitHub App, so bots' commands can push to the repositories you allow. `GITHUB_CLIENT_ID` / `_SECRET` are then the App's. See [below](#with-your-own-registered-apps) |
 | Hub | `MERCBOT_HUB_URL` | Another Mercbot this copy may link to, to connect accounts through its apps. No default |
 
 An optional setting, `MERCBOT_MAX_COMPUTERS`, sets how many bots' computers are awake at once.
@@ -85,6 +86,14 @@ Calendly, Notion and Todoist need neither: your copy registers itself with each 
 ### With your own registered apps
 
 Register an app with each provider, set its client ID and secret, and register `<APP_PUBLIC_URL>/api/connections/callback` as its return address. Each app's permissions are listed in its folder under `plugins/`, so you know what to ask the provider for. Some, such as Gmail and full Google Drive access, are restricted by Google and need its review before the app can leave testing.
+
+For GitHub, register a **GitHub App** (GitHub's **Settings** → **Developer settings** → **GitHub Apps**) if you want bots' commands to push to your repositories:
+
+1. Its callback is `<APP_PUBLIC_URL>/api/connections/callback`, with **Expire user authorization tokens** on and **Request user authorization (OAuth) during installation** off. Its **Setup URL** is `<APP_PUBLIC_URL>/api/connections/github/installed`, with **Redirect on update** on. Turn its webhook off.
+2. Give it these repository permissions: Contents, Pull requests and Issues **Read and write**; Actions, Checks, Commit statuses and Metadata **Read-only**. Don't give it Workflows, or any organisation or account permissions.
+3. Generate a client secret and a private key on its page. Set `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET` to its client ID and that secret, `GITHUB_APP_ID` to its App ID, `GITHUB_APP_SLUG` to its name in its `github.com/apps/…` address, and `GITHUB_APP_PRIVATE_KEY` to the key file's contents. On a `localhost` address, the same names with `GITHUB_TEST_` in place of `GITHUB_` (`GITHUB_TEST_APP_ID`, `GITHUB_TEST_CLIENT_ID` and so on) are used instead when they're set.
+
+The private key never leaves your copy: each command that works on a repository gets a key of the App's for that one repository, which lasts at most an hour and is withdrawn when the command ends. A copy linked to a hub can't push from bots' commands, since the hub's App key stays on the hub.
 
 ### Linked to a Mercbot hub
 

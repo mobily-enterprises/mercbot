@@ -32,6 +32,7 @@ const CATALOGUE = Object.freeze([
 // each account's key names it. No provider is called.
 const CONNECTIONS = Object.freeze({
   lacksAccess: (row) => row.label === "old-access@example.com",
+  github: { shown: () => null },
   accessToken: async (accountId) => accessOf(`key-${accountId}`)
 });
 

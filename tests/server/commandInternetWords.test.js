@@ -23,10 +23,14 @@ const NO_INTERNET = [
   /\bdownload it with your browser\b/iu
 ];
 
-/** The run_command tool as a bot in a chat gets it, in a public chat or a private one. */
-const runCommandOf = (privateChat) => buildCommandTools({
-  files: { shell: {} }, place: {}, homeId: "1", botId: "2", chatBotId: "3", userId: "4", privateChat, viaBot: false,
-  before: [], attempted: [], saved: new Set(), call: {}
+/**
+ * The run_command tool as a bot in a chat gets it, in a public chat or a private one, on a copy without its GitHub App
+ * or, with `github`, with one (D-128); `viaBot` for work another bot asked for.
+ */
+const runCommandOf = (privateChat, github = false, viaBot = false) => buildCommandTools({
+  files: { shell: {} }, place: {}, homeId: "1", botId: "2", chatBotId: "3", userId: "4", privateChat, viaBot,
+  before: [], attempted: [], saved: new Set(), call: {},
+  integrations: { connections: { github: { ready: () => github } } }, githubRepos: {}, botName: "Ada", after: []
 }).runCommand;
 
 /** Every skill a bot reads: Mercbot's own and each connected app's. */
@@ -61,4 +65,24 @@ test("the run_command tool and a bot's rules say what its commands reach, and th
     assert.match(text, /can't push/u);
   }
   assert.match(readFileSync(path.join(APP, "packages/bots/skills/command-line.md"), "utf8"), /reaches the public internet through Mercbot's gateway/u);
+});
+
+test("with the copy's GitHub App, run_command names a repository to push to, and says to open pull requests (D-128)", () => {
+  const tool = runCommandOf(false, true);
+  assert.ok(tool.inputSchema.shape.github, "run_command takes the repository");
+  assert.equal(runCommandOf(false).inputSchema.shape.github, undefined, "without the app it has no github field");
+  for (const text of [tool.description, instructionsFor({ id: "1", name: "Ada" }), readFileSync(path.join(APP, "packages/bots/skills/command-line.md"), "utf8")]) {
+    assert.match(text, /clone a private one, push a branch/u);
+    assert.match(text, /gh pr create/u);
+    assert.match(text, /branch rule/u);
+    assert.match(text, /default branch only when they ask/u);
+  }
+  assert.doesNotMatch(tool.description, /can't push/u);
+});
+
+test("work another bot asked for never signs in to GitHub, even on a copy with its GitHub App (D-128)", async () => {
+  const tool = runCommandOf(false, true, true);
+  assert.equal(tool.inputSchema.shape.github, undefined);
+  assert.match(tool.description, /can't push/u);
+  assert.deepEqual(await tool.execute({ why: "Pushing", script: "git push", github: "pat/site" }), { error: "Commands can't sign in to GitHub here." });
 });

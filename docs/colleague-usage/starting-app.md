@@ -29,7 +29,9 @@ Preview, what it needs first, opening it, publishing to staging, and what to do 
    chat, but have no computer, command line or office apps.
 3. **Optional settings** in Env: `AI_IMAGES_PROVIDER=gemini` with `AI_IMAGES_API_KEY` (pictures;
    without them bots say pictures aren't set up), and the Google, Microsoft and GitHub app keys
-   (Connect apps) or `MERCBOT_HUB_URL`. docs/deployment.md lists every setting.
+   (Connect apps) or `MERCBOT_HUB_URL`, and a GitHub App's (`GITHUB_APP_ID`, `GITHUB_APP_SLUG`,
+   `GITHUB_APP_PRIVATE_KEY`) so bots' commands can push (D-128). A Preview empties every one of these keys, so it
+   reaches none of those services. docs/deployment.md lists every setting.
 
 ## Opening Mercbot
 

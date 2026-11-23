@@ -71,6 +71,36 @@ account step is open, the lines' sign-in buttons are hidden.
 - There's no Disconnect. To stop bots doing one thing with an app, switch that action off under the app's **Tools**
   (a person's own switch, for their own bots).
 
+## GitHub: let bots push from their commands
+
+Where the copy has its GitHub App (D-128), signing in to GitHub goes through it. It lets a bot's
+commands clone the person's private repositories, push branches and open pull requests, with the person's yes on a card.
+
+1. **Connect GitHub** as above. When Mercbot's GitHub App isn't installed on any of the person's GitHub accounts yet, the window
+   says "Next, install Mercbot's GitHub App on GitHub and choose the repositories your bots may work on. Each bot still asks you
+   before it uses one." with **Install on GitHub** beside **Close**. On GitHub they choose the account and its
+   repositories (all, or only some). GitHub then shows **Mercbot's GitHub App is installed on GitHub** (or **The repositories Mercbot's GitHub App
+   repositories are changed**), which they close.
+2. **The account's line** in Connect apps then says where it's installed, "Mercbot's GitHub App is on ann, acme.", with **Choose
+   repositories** (or "Mercbot's GitHub App isn't installed on GitHub yet." with **Install on GitHub**). Both open GitHub's own page
+   for it.
+3. **The card.** The first time a bot's command needs a repository, the bot posts **Let *bot* use *owner/name*?**, with
+   whether its commands could push there or only read it, and **Just this task** (that bot in this chat, for 4 hours),
+   **Always for this bot** (every chat, until removed) or **No**. **Choose another repository** searches the person's
+   repositories as they type, 20 at a time with **More**; **Keep *owner/name*** goes back. Only the person whose
+   message started the work answers it; anyone else sees "This is waiting for *name*'s OK."
+4. **The bot carries on** once answered: each command on that repository gets its own key for that repository alone,
+   lasting at most an hour and withdrawn when the command ends. It works on a branch and opens a pull request; it pushes
+   to the default branch only when asked, and suggests a branch rule there.
+5. **Taking it back:** a bot's card, **Details**, lists **GitHub repositories** the person allowed, each "Always" or
+   "For one task, until *time*", with a remove button: "Remove *owner/name*?" and "*bot* will ask you again before its
+   commands use it." Each person sees and removes only their own.
+
+In a room a bot uses only the asking person's own GitHub account in the home and their own yeses, never another
+person's, even though everyone's accounts are the home's for reading. A GitHub account connected before the GitHub App keeps
+reading and managing issues and pull requests, and its line shows **Sign in again**: signing in again goes through
+Mercbot's GitHub App and lets bots push.
+
 ## Messages
 
 - **"Only the person who added this account and the home's owners and admins can change it."** Renaming, signing in
@@ -86,8 +116,18 @@ account step is open, the lines' sign-in buttons are hidden.
   → Files."** The person who connected it left or was removed, or someone removed the account.
 - **"This sign-in was started in another browser, so nothing was connected. …"** Start again from Connect apps in the
   browser used to sign in.
+- **"Mercbot's GitHub App doesn't reach *owner/name* with your GitHub."** Chosen on a GitHub card: it isn't one of their
+  repositories, or the App isn't installed on it. Choose its repositories on GitHub (the account's **Choose
+  repositories**), then choose again.
+- **What a bot says when its command can't use GitHub:** "They haven't connected their own GitHub in this home." (connect
+  GitHub in Connect apps), "Their GitHub was connected before bots could push: they sign in to GitHub again in Connect
+  apps first.", or "*owner/name* isn't a repository Mercbot's GitHub App reaches with their GitHub…", with where to choose its
+  repositories. "Commands can't sign in to GitHub here." means the copy has no GitHub app, or the work was asked for by
+  another bot.
 
 ## What Colleague can do
 
 Colleague can explain these steps and open Connect apps on the app. The person signs in and removes accounts or apps
-themselves: each changes what everyone in the home and their bots can use.
+themselves: each changes what everyone in the home and their bots can use. The same goes for GitHub: Colleague explains
+the card and where a bot's repositories are listed, but the person answers the card, installs Mercbot's GitHub App and removes a
+repository themselves.

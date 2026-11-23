@@ -14,6 +14,7 @@ import { toChatRow } from "./chatDirectory.js";
 import MercbotConfirmDialog from "./MercbotConfirmDialog.vue";
 import MercbotContextMenu from "./MercbotContextMenu.vue";
 import MercbotFileViewer from "./MercbotFileViewer.vue";
+import MercbotGithubReposSection from "./MercbotGithubReposSection.vue";
 import MercbotKnowledgeSection from "./MercbotKnowledgeSection.vue";
 import MercbotPageShare from "./MercbotPageShare.vue";
 import MercbotRoomsMemorySection from "./MercbotRoomsMemorySection.vue";
@@ -435,6 +436,8 @@ async function openInstructions() {
           <MercbotKnowledgeSection :bot="bot" :tab="tab" @failure="emit('failure', $event)" />
           <!-- Its rooms memory of the home's public rooms, and a link to the home's common knowledge in Settings (D-113). -->
           <MercbotRoomsMemorySection :bot="bot" :tab="tab" @failure="emit('failure', $event)" @open-settings="emit('open-settings', $event)" />
+          <!-- The GitHub repositories the person let it use in its commands (D-128), each with Remove. -->
+          <MercbotGithubReposSection :bot="bot" :tab="tab" @failure="emit('failure', $event)" />
           <MercbotAppsSection :bot="bot" />
 
           <template v-if="routinesLoaded && routines.length">

@@ -28,6 +28,7 @@ and deleting a bot, the main bot, and a bot's Library of what it made in the cha
 - `src/components/mercbot/useBotLibrary.js`
 - `src/components/mercbot/archiveBot.js`
 - `src/components/mercbot/MercbotBotArchive.vue`
+- `src/components/mercbot/MercbotGithubReposSection.vue`
 - `src/components/mercbot/MercbotArchivedBotBanner.vue`
 - `src/components/mercbot/botsApi.js`
 
@@ -103,7 +104,10 @@ time (`chatsApi.sharedTuckedAway`, `GET …/chats/shared`, `genesis/program/bots
 more" while there are more; the person's own card ("(you)") has instead "Your account": how everyone in the home sees
 them, and "Change your name, picture and settings", which opens Settings → General. Opened beside a chat, a card has an
 arrow back to Chat details in place of Close. A bot's name (editable by whoever may), template tag and Message, with tabs "Details"
-(Instructions, Knowledge, Rooms memory with its link to the home's common knowledge, Watches when it has some,
+(Instructions, Knowledge, Rooms memory with its link to the home's common knowledge, the GitHub repositories the
+person let it use in its commands when there are some, each "Always" or "For one task, until <time>" with a remove
+button that asks first ("Remove <owner/name>?", "<Bot> will ask you again before its commands use it.",
+`MercbotGithubReposSection.vue`, D-128, `genesis/program/bots/bot-tools.md`), Watches when it has some,
 Routines when it has some, each naming its chat, a "Main bot" or "Builder" chip with a link to Settings for the home's
 owners and admins, `MercbotBotMain.vue`, D-119, and Archive, `MercbotBotArchive.vue`), each terse: an empty one is
 one short line or not shown, "Files" ("This chat" when opened from a chat and "<Bot>'s files", then "Home files →" to

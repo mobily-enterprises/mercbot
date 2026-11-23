@@ -124,7 +124,9 @@ export const chatsApi = {
     retrying(() => post(chat(chatId, "/reply"), { ...where(), afterMessageId, afterCard })),
   activity: (chatId, messageId) => post(chat(chatId, `/messages/${messageId}/activity`)),
   react: (chatId, messageId, emoji) => request(chat(chatId, `/messages/${messageId}/reaction`), { method: "PUT", body: { emoji } }),
-  answer: (chatId, messageId, selected) => post(chat(chatId, `/choices/${messageId}`), { selected }),
+  // A GitHub card's answer may name another repository chosen on it (D-128).
+  answer: (chatId, messageId, selected, repository = null) =>
+    post(chat(chatId, `/choices/${messageId}`), { selected, ...(repository ? { repository } : {}) }),
   settleHandover: (chatId, messageId, outcome) => post(chat(chatId, `/handover/${messageId}`), { outcome }),
   settleSecureForm: (chatId, messageId, answer) => post(chat(chatId, `/secure-forms/${messageId}`), answer),
   // The person started signing in from a connect card: the bot finishes its task once the app is connected.

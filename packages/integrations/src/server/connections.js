@@ -8,6 +8,8 @@ import { createConnectorAccounts } from "./connectorAccounts.js";
 import { createHttpHub, createHubLink } from "./hubLink.js";
 import { createAppPeople } from "./appPeople.js";
 import { createAppRequests } from "./appRequests.js";
+import { createGithubAccess } from "./githubAccess.js";
+import { createGithubApp, githubAppSettings, signedInThroughApp } from "./githubApp.js";
 import { credentialKind, credentialValues, credentialsMissing, credentialsOnly } from "./credentials.js";
 import { ConnectionError, PROVIDERS, callbackUrl, createOAuth, credentials, fresh, publicUrl } from "./oauth.js";
 import { SIGN_IN_MINUTES, newBinding, sameBrowser } from "./signInBinding.js";
@@ -109,7 +111,8 @@ export function createConnections({
   homePeople,
   emailOf,
   memberWithEmail,
-  systemContext
+  systemContext,
+  githubApp = createGithubApp({ env })
 }) {
   const { oauthStates, bridgeLink } = resources;
   const key = () => {
@@ -142,6 +145,9 @@ export function createConnections({
     const scopes = pluginOf(row.pluginId)?.oauth?.scopes;
     if (row.status !== "connected" || !row.tokens || !scopes) return false;
     try {
+      // A GitHub account signed in before this copy had its GitHub App (D-128) reads as before; its bots' commands push
+      // once it's signed in again, through the app.
+      if (row.pluginId === "github" && githubAppSettings(env)) return !signedInThroughApp(opened(row.tokens));
       return missingScopes(opened(row.tokens), scopes);
     } catch {
       return false;
@@ -528,13 +534,22 @@ export function createConnections({
     const kept = row.accountId ? (await accounts.signingIn(row.accountId, options))?.label : null;
     if (kept && signedInAs && !sameAddress(kept, signedInAs)) throw otherAddress(plugin.name, kept, signedInAs);
     const label = signedInAs || kept || null;
+    // Signed in through this copy's GitHub App (D-128): where the person has it installed, kept with the keys; the page
+    // says where to install it when that's nowhere yet.
+    const installing = plugin.id === "github" && githubApp.configured() && signedInThroughApp(tokens);
+    if (installing) {
+      tokens.installations = await githubApp.installations({ token: tokens.access }).catch((error) => {
+        console.warn(`Reading where Mercbot's GitHub App is installed for a GitHub sign-in failed: ${error?.message}`);
+        return [];
+      });
+    }
     const update = { tokens: sealed(tokens), label };
     if (row.accountId) {
       await accounts.signedIn(row.accountId, { ...update, status: "connected", signInState: null, connectedAt: new Date().toISOString() }, options);
     } else {
       await bridgedSignIns.signedIn(String(row.bridgeConnectionId), update, options);
     }
-    return { provider: provider.name, label };
+    return { provider: provider.name, label, ...(installing && !tokens.installations.length ? { install: githubApp.installUrl() } : {}) };
   }
 
   /**
@@ -634,6 +649,10 @@ export function createConnections({
     return { accessToken: tokens.access, expiresAt: tokens.expiresAt };
   }
 
+  // A person's own GitHub for bots' commands (D-128): their repositories through this copy's GitHub App, and a key for
+  // one of them.
+  const github = createGithubAccess({ accounts, connections: { accessToken }, app: githubApp, sealed, opened });
+
   return Object.freeze({
     // Apps that host their own connection point (D-34): an account's actions, one run, and every app's actions as stored.
     connectorTools: connectorAccounts.tools,
@@ -655,6 +674,7 @@ export function createConnections({
     syncPending,
     whenConnected: accounts.whenConnected,
     lacksAccess,
+    github,
     linkStatus: hubLink.linkStatus,
     startLink: hubLink.startLink,
     checkLink: hubLink.checkLink,

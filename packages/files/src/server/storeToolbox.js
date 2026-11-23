@@ -17,7 +17,7 @@ const COMPUTER_PROGRAMS = ["python3", "sh"];
 // What bots are told their command line has (botAgent.js, commandTools.js). The command line is offered only when all
 // of it is there, so a bot is never told of a tool it doesn't have.
 const COMMAND_LINE_PROGRAMS = ["bash", "tmux", "tail", "ffmpeg", "ffprobe", "convert", "tesseract", "pdftotext", "pdftoppm",
-  "qpdf", "gs", "pandoc", "python3", "node", "npm", "sqlite3", "jq", "git", "curl", "pip"];
+  "qpdf", "gs", "pandoc", "python3", "node", "npm", "sqlite3", "jq", "git", "gh", "curl", "pip"];
 const COMMAND_LINE_PYTHON = ["pandas", "numpy", "matplotlib", "openpyxl", "docx", "pptx"];
 
 // Programs made for an ordinary Linux system rather than for the store (install-tools.sh's downloads: the Craft apps,

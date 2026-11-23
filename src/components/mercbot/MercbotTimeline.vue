@@ -16,6 +16,7 @@ import MercbotDraftCard from "./MercbotDraftCard.vue";
 import MercbotAppDraftCard from "../apps/MercbotAppDraftCard.vue";
 import MercbotFieldRemovalCard from "../apps/MercbotFieldRemovalCard.vue";
 import MercbotSecureForm from "./MercbotSecureForm.vue";
+import MercbotGithubRepoPick from "./MercbotGithubRepoPick.vue";
 import MercbotRoomProposal from "./MercbotRoomProposal.vue";
 import MercbotLightbox from "./MercbotLightbox.vue";
 import MercbotContextMenu from "./MercbotContextMenu.vue";
@@ -197,6 +198,12 @@ const choiceStyle = (message) => {
   return { "--mb-choice": choiceColor(color), "--mb-on-choice": onChoiceColor(color) };
 };
 const picks = ref({});
+// Another repository the person chose on a bot's GitHub card (D-128), by card, until they answer it.
+const githubPicks = ref({});
+
+/** A card's question; a GitHub card names the repository the person chose on it instead of the bot's. */
+const questionOf = (message) => (githubPicks.value[message.id] && isOpen(message) && message.body.repository
+  ? message.body.question.replace(message.body.repository.fullName, githubPicks.value[message.id].fullName) : message.body.question);
 
 function chosenList(message) {
   return [].concat(message.body.chosen || []);
@@ -210,6 +217,8 @@ function clickOption(message, option) {
   if (!isOpen(message)) return;
   if (message.body.purpose === "bot-name") {
     emit("choose", option);
+  } else if (message.body.purpose === "github-repo") {
+    emit("answer", { message, selected: [option], repository: githubPicks.value[message.id]?.fullName || null });
   } else if (!message.body.multi) {
     emit("answer", { message, selected: [option] });
   } else {
@@ -485,7 +494,7 @@ const fileDate = (iso) => (iso ? fileDay.format(new Date(iso)) : "");
         :class="{ 'mb-choice--answered': message.body.chosen, 'mb-choice--inactive': message.body.inactive }"
         :style="choiceStyle(message)"
       >
-        <p class="mb-choice__question">{{ message.body.question }}</p>
+        <p class="mb-choice__question">{{ questionOf(message) }}</p>
         <p v-if="message.body.subline" class="mb-choice__subline">{{ message.body.subline }}</p>
         <!-- A change of text the person approves, as it is and as it would be: a bot's own instructions (D-95). -->
         <div v-if="message.body.change" class="mb-choice__change">
@@ -496,6 +505,8 @@ const fileDate = (iso) => (iso ? fileDay.format(new Date(iso)) : "");
         </div>
         <!-- A room a bot proposes (start_room, D-122): who is in it and its brief; once started, the room to open. -->
         <MercbotRoomProposal v-if="message.body.action?.id === 'start_room'" :room="message.body.action.args" :done="message.body.done" :bots="bots" @open-chat="emit('open-chat', $event)" />
+        <!-- A repository a bot asks to use in its commands (D-128): the one it proposed, or another the person finds. -->
+        <MercbotGithubRepoPick v-if="message.body.purpose === 'github-repo' && message.body.repository" :proposed="message.body.repository" :picked="isOpen(message) ? githubPicks[message.id] || null : null" :open="isOpen(message) && !waitingFor(message)" @pick="githubPicks = { ...githubPicks, [message.id]: $event }" />
         <p v-if="waitingFor(message) && isOpen(message)" class="mb-choice__subline">Waiting for {{ waitingFor(message) }}'s OK</p>
         <div v-if="!waitingFor(message) || !isOpen(message)" class="mb-choice__options">
           <button

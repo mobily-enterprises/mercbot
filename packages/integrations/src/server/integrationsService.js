@@ -17,12 +17,14 @@ export const ACTION_SWITCH_FILTERS = Object.freeze({
  * An account as Connect apps shows it (D-111): who added it, and whether the call's person may change it (the person
  * who added it, and the home's owners and admins).
  * @param {Record<string, any>} account a record of accounts.reachable, with its tokens
- * @param {Connections["lacksAccess"]} lacksAccess
+ * @param {Pick<Connections, "lacksAccess" | "github">} connections
  * @param {Map<string, string>} names who added each account
  * @param {object} options the call's
  * @param {import("./types.js").Accounts} accounts
  */
-function toAccount(account, lacksAccess, names, options, accounts) {
+function toAccount(account, { lacksAccess, github }, names, options, accounts) {
+  // A GitHub account signed in through this copy's GitHub App (D-128): where to choose the repositories it reaches.
+  const githubApp = github.shown(account);
   return {
     id: account.id,
     name: account.name,
@@ -34,7 +36,8 @@ function toAccount(account, lacksAccess, names, options, accounts) {
     addedByYou: account.userId === String(accounts.personOf(options) ?? ""),
     canChange: accounts.mayChange(account, options),
     // Its Request pace (D-96): the one chosen in Connect apps, or Gentle.
-    pace: paceOf(account)
+    pace: paceOf(account),
+    ...(githubApp ? { github: githubApp } : {})
   };
 }
 
@@ -148,7 +151,7 @@ export function createIntegrationsService({ resources, accounts, catalogue, conn
           ...entry,
           installed: marks.has(entry.id),
           canRemove: marks.has(entry.id) && mayRemoveApp(marks.get(entry.id), appAccounts, options),
-          accounts: appAccounts.map((row) => toAccount(row, connections.lacksAccess, names, options, accounts)),
+          accounts: appAccounts.map((row) => toAccount(row, connections, names, options, accounts)),
           // What the bot can do with the app, each with the person's switch.
           ...(actions ? { actions: actions.map((action) => ({ ...action, enabled: !off.get(entry.id)?.has(action.id) })) } : {}),
           ...(entry.soon ? { wanted: wanted.has(entry.id) } : {})
@@ -467,7 +470,7 @@ export function createIntegrationsService({ resources, accounts, catalogue, conn
    */
   async function accountStatus(accountId, options) {
     const found = await accounts.reachableAccount(accountId, options, { tokens: true });
-    return { account: toAccount(found, connections.lacksAccess, await namesOf([found.userId], options), options, accounts) };
+    return { account: toAccount(found, connections, await namesOf([found.userId], options), options, accounts) };
   }
 
   /** One account the call may use; 404 integrations_account_not_found. */

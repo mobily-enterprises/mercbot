@@ -75,7 +75,8 @@ const neutral = {
     appName: (id) => id,
     appNamed: () => null,
     // No sign-in finishes here, so no connect follow-up is ever marked by one.
-    connections: { accessToken: missing("connected account"), whenConnected: () => () => {} },
+    // No GitHub App here (D-128): commands never sign in to GitHub.
+    connections: { accessToken: missing("connected account"), whenConnected: () => () => {}, github: { ready: () => false } },
     // No app that hosts its own connection point (D-34) is in the catalogue.
     connectors: { apps: () => [], actions: missing("connected app"), use: missing("connected app") },
     createSkill: missing("skill store"),

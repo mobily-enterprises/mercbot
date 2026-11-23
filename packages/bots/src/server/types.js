@@ -47,6 +47,7 @@
 /** @typedef {ReturnType<typeof import("./records/botRepository.js").createBotRepository>} BotRepository */
 /** @typedef {ReturnType<typeof import("./records/messageRepository.js").createMessageRepository>} MessageRepository */
 /** @typedef {ReturnType<typeof import("./records/rowPolicies.js").createChatRules>} ChatRules */
+/** @typedef {ReturnType<typeof import("./records/githubRepoRepository.js").createGithubRepoRepository>} GithubRepoRepository */
 /**
  * The chats' service behind the chat routes (D-112, R2: chatMembers.js), `bots.chats`: the chat list, one chat, New chat,
  * joining and leaving, members, renaming, archiving, deleting, a person's place, pins, sections and a bot's direct chat;
@@ -138,6 +139,7 @@
  *   knowledge: ReturnType<typeof import("./records/knowledgeRepository.js").createKnowledgeRepository>,
  *   roomsMemory: ReturnType<typeof import("./records/roomsMemoryRepository.js").createRoomsMemoryRepository>,
  *   commonKnowledge: ReturnType<typeof import("./records/commonKnowledgeRepository.js").createCommonKnowledgeRepository>,
+ *   githubRepos: GithubRepoRepository,
  *   readers: ModelReaders,
  *   rules: ChatRules,
  *   agent: { createRuns: Function, createSummaries: Function, createGoals: Function }

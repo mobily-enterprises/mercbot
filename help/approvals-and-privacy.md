@@ -68,6 +68,7 @@ With **Auto-review** on (it's on unless you turn it off), these are the rules Me
 | In Sedna: a new job reference or contact, a contact changed | Only when you ask for it |
 | In Sedna: sending a message or a draft, assigning a message to a colleague | Yes, unless you asked for exactly that; in a routine, always unless one of your rules allows it |
 | Posting a comment on GitHub under your name | Yes |
+| A bot's command using one of your GitHub repositories, to clone, push a branch or open a pull request | Yes, the first time for each bot: **Just this task** or **Always for this bot** |
 | The final step on a web page that sends, buys, books, posts, deletes or saves a change | Yes |
 
 Bots added from a template set up their routines paused, so nothing runs on a schedule until you say yes.

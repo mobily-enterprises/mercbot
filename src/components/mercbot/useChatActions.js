@@ -91,10 +91,10 @@ export function useChatActions({ currentChat, store, work, reportFailure, notify
   }
 
   // Question cards: the picks are the answer, then the bots reply.
-  async function answerChoice({ message, selected }) {
+  async function answerChoice({ message, selected, repository = null }) {
     const chatId = currentChat.value.id;
     try {
-      const result = await chatsApi.answer(chatId, message.id, selected);
+      const result = await chatsApi.answer(chatId, message.id, selected, repository);
       appendMessages(chatId, result.messages);
       if (result.chat) updateChat(result.chat);
       // What the home is for (D-109): the welcome chat carries on by itself, and Add bots opens on Describe what you need

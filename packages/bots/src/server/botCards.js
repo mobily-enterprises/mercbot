@@ -9,6 +9,7 @@ import { SednaUncertainError } from "./sednaApi.js";
 import { BotsError } from "./botsError.js";
 import { SHARE_YES, shareFile } from "./fileTools.js";
 import { SIGN_IN_LINE } from "./signInCodes.js";
+import { GITHUB_ALWAYS, GITHUB_CARD, GITHUB_NO } from "./githubCommands.js";
 
 /**
  * A person's answers on the cards a bot posts in a chat (D-46, R4): a question or approval, a hand-over, a secure
@@ -70,13 +71,35 @@ export function createBotCards({ records, account, env, computer, integrations, 
   }
 
   /**
+   * The repository a GitHub card's yes is for (D-128): the one the bot asked for, or another of the person's that they
+   * chose on the card, as their own GitHub sees it now (never as the page says), or 409 when it doesn't reach it.
+   */
+  async function chosenRepository(chatId, messageId, wanted, options) {
+    if (!wanted) return null;
+    const card = await messages.messageIn(String(chatId), String(messageId), options);
+    if (!card || card.kind !== "choice" || card.body.purpose !== GITHUB_CARD || wanted === card.body.repository?.fullName) return null;
+    answerer(card, options);
+    const found = await integrations.connections.github.repository(options, String(wanted));
+    if (!found) {
+      throw new BotsError(409, `Mercbot's GitHub App doesn't reach ${wanted} with your GitHub.`, { code: "bots_github_repository_unreached", params: { repository: String(wanted) } });
+    }
+    const { id, fullName, write } = found.repository;
+    return { id, fullName, write, private: Boolean(found.repository.private) };
+  }
+
+  /**
    * Answering a question card: one pick, or several for multi-select. No message bubble. The card is claimed in a short
    * transaction; an approved action then runs outside it, because it may take a while on the chat's computer and must
    * never hold the chat's rows locked. The welcome chat's cards (B's onboarding) move its steps on, and may answer
-   * `addBots`.
+   * `addBots`. A GitHub card's yes (D-128) is kept in the same transaction: the bot may use that repository in its
+   * commands, for this task or always, for the person answering, who is the one it's for; `answer` may name another of
+   * their repositories they chose on the card (`{ selected, repository }`).
    */
-  async function answerChoice(chatId, messageId, selected, options) {
+  async function answerChoice(chatId, messageId, answer, options) {
+    const { selected, repository: wanted = null } = Array.isArray(answer) || answer == null ? { selected: answer } : answer;
     const answering = (work) => retryLostInsertRace(options, () => records.chats.withTransaction(options, work));
+    // Another repository chosen on the card is checked with the person's own GitHub before anything is locked.
+    const other = await chosenRepository(chatId, messageId, wanted, options);
     const { chat, choice, picks, updated, extra } = await answering(async (txOptions) => {
       const chat = await records.chats.lock(String(chatId), txOptions, { writing: true });
       const choice = await messages.lockMessageIn(chat.id, String(messageId), txOptions, { kind: "choice" });
@@ -89,7 +112,19 @@ export function createBotCards({ records, account, env, computer, integrations, 
       if (!picks.length || (!choice.body.multi && picks.length !== 1)) {
         throw new BotsError(400, "Choose an option first.", { code: "bots_choice_missing" });
       }
-      const updated = await messages.setBody(choice.id, { ...choice.body, chosen: choice.body.multi ? picks : picks[0] }, txOptions);
+      const repository = choice.body.purpose === GITHUB_CARD ? other || choice.body.repository : null;
+      const updated = await messages.setBody(choice.id, {
+        ...choice.body,
+        chosen: choice.body.multi ? picks : picks[0],
+        ...(repository ? { repository, question: choice.body.question.replace(choice.body.repository.fullName, repository.fullName) } : {})
+      }, txOptions);
+      if (repository && picks[0] !== GITHUB_NO) {
+        const seat = await seatFor(chat.id, choice, answerer(choice, txOptions), txOptions);
+        const always = picks[0] === GITHUB_ALWAYS;
+        // Just this task is the bot's seat in this chat: one that left it has none.
+        if (!always && !seat.chat_bot_id) throw new BotsError(409, "That card's bot isn't here any more.", { code: "bots_card_closed" });
+        await records.githubRepos.allow({ botId: seat.id, chatBotId: seat.chat_bot_id, repository, always }, txOptions);
+      }
       const extra = chat.onboarding_step && choice.body.purpose
         ? await onboarding.choiceAnswered(chat, choice, picks, txOptions)
         : {};

@@ -368,6 +368,26 @@ export const commonKnowledgeResource = defineTableResource({
   }
 });
 
+/** bot_github_repos
+ * the GitHub repositories a person let a bot use in its commands (D-128), on the bot's card: always (no chatBotId), or
+ * for one task, the bot's seat in the chat it was asked in until expiresAt; the person's own in the home
+ */
+export const botGithubRepoResource = defineTableResource({
+  name: "botGithubRepos",
+  tableName: "bot_github_repos",
+  ownership: "workspace_user",
+  schema: {
+    botId: { type: "id", required: true, search: true },
+    chatBotId: { type: "id", nullable: true, search: true },
+    createdAt: { type: "dateTime" },
+    expiresAt: { type: "dateTime", nullable: true },
+    fullName: { type: "string", maxLength: 140, noTrim: true, required: true },
+    repositoryId: { type: "id", required: true, search: true },
+    userId: { type: "id", hidden: true, search: true },
+    workspaceId: { type: "id", hidden: true, search: true }
+  }
+});
+
 /** rooms_memories
  * a bot's rooms memory: one digest per bot of the home's public chats it's in (D-113): where it read each chat up to (covers), the home's
  * newest message then (upTo), and the version it replaced (follows): a refresh writes only over the one it read
@@ -428,6 +448,7 @@ export const TABLE_RESOURCES = Object.freeze([
   homeTemplateResource,
   homeTemplateChangeResource,
   commonKnowledgeResource,
+  botGithubRepoResource,
   roomsMemoryResource,
   roomsMemoryQueueResource
 ]);

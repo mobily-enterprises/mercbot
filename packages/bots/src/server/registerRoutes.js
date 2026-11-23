@@ -208,8 +208,14 @@ export function registerRoutes(http, { bots, approvals, notices, meter, records,
       : bots.chat.describeWork(request.params.chatId, request.params.messageId, options)));
   router.register("PUT", `${chat}/messages/:messageId/reaction`, auth, handle(async (request, _user, options) =>
     bots.chat.react(request.params.chatId, request.params.messageId, request.body?.emoji, options)));
+  // A GitHub card's answer may name another of the person's repositories, chosen on it (D-128).
   router.register("POST", `${chat}/choices/:messageId`, auth, handle(async (request, _user, options) =>
-    bots.chat.answerChoice(request.params.chatId, request.params.messageId, request.body?.selected, options)));
+    bots.chat.answerChoice(
+      request.params.chatId,
+      request.params.messageId,
+      { selected: request.body?.selected, repository: typeof request.body?.repository === "string" ? request.body.repository : null },
+      options
+    )));
   router.register("POST", `${chat}/handover/:messageId`, auth, handle(async (request, _user, options) =>
     bots.chat.settleHandover(request.params.chatId, request.params.messageId, request.body?.outcome, options)));
   router.register("POST", `${chat}/secure-forms/:messageId`, auth, handle(async (request, _user, options) =>
@@ -406,6 +412,16 @@ export function registerRoutes(http, { bots, approvals, notices, meter, records,
   // person who asked for it or the home's owners and admins.
   router.register("GET", `${home}/bots/:botId/rooms-memory`, auth, handle(async (request, _user, options) =>
     bots.roomsMemory.roomsMemoryOf(request.params.botId, options)));
+  // The GitHub repositories the person let a bot use in its commands (D-128), on its card: their own, each removed by
+  // them (an archived bot's too). Another person's, or one that's gone, is 404.
+  router.register("GET", `${home}/bots/:botId/github-repos`, auth, handle(async (request, _user, options) =>
+    ({ repositories: await records.githubRepos.listFor(request.params.botId, options) })));
+  router.register("DELETE", `${home}/bots/:botId/github-repos/:grantId`, auth, handle(async (request, _user, options) => {
+    if (!await records.githubRepos.remove(request.params.botId, request.params.grantId, options)) {
+      throw new BotsError(404, "That repository isn't one you let this bot use.", { code: "bots_github_repo_not_found" });
+    }
+    return { repositories: await records.githubRepos.listFor(request.params.botId, options) };
+  }, { archived: true }));
   router.register("GET", `${home}/common-knowledge`, auth, handle(async (request, _user, options) =>
     bots.commonKnowledge.list({ after: typeof request.query?.after === "string" ? request.query.after : null }, options)));
   router.register("DELETE", `${home}/common-knowledge/:entryId`, auth, handle(async (request, _user, options) =>

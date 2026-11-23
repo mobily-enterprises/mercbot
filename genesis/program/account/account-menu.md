@@ -184,8 +184,8 @@ its AI isn't set up. Whoever runs it sets …, then starts it again."), and `bot
 
 Every key a copy can be given (D-72, amended 2026-11-12): `KEYS` in `packages/account/src/server/keys.js` lists each
 one, what it's for, the settings that give it and what's off without it, from the AI kinds to the public address,
-the Vault key, email, the apps to connect, visitors' sign-ins, the human check, the files bucket and another Mercbot to
-link to. Mercbot starts without any of them. `startServer` logs one line for each setting a feature that's off still
+the Vault key, email, the apps to connect, the GitHub App bots' commands push through (D-128), visitors' sign-ins, the
+human check, the files bucket and another Mercbot to link to. Mercbot starts without any of them. `startServer` logs one line for each setting a feature that's off still
 needs (`missingKeyLines`: "<SETTING> isn't set, so this is off: <name>. <what's off>"); a kind on the stand-in model is
 on without its key. `keysOf(env)` gives each key's settings, whether each is set (never a value) and `set`, `partly`
 or `missing`, for a screen that lists them. Both take a list of entries in `KEYS`'s shape as well, `KEYS` by default,

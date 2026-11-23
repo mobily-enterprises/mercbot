@@ -8,6 +8,7 @@ import { refusalOf } from "@local/account/meter";
 import { BOT, CHAT, SHARED } from "./fileStore.js";
 import { GATEWAY_INSIDE, PROXY_ENV, START_FORWARDER, sandboxGateway, startGateway } from "./gateway.js";
 import { internetLimits } from "./internetUsage.js";
+import { secretMask } from "./secretMask.js";
 import {
   folderMount, platformFlags, runSandboxed, runsc, sandboxMemory, sandboxPlace, sandboxSpec, shellAvailable, sweepSandboxes, toolsDir
 } from "./gvisor.js";
@@ -179,11 +180,14 @@ function outputBuffer(limits) {
 
 /**
  * One command in gVisor, with a gateway of its own (`gateway` starts it, with the command's internet limits and the
- * `meter` of its bot and home, D-127) that closes when it ends. Returns { done, kill, output }: `done` resolves to {
- * exitCode, output, truncated, seconds, killed } and never rejects; the output ends with the gateway's notes.
+ * `meter` of its bot and home, D-127) that closes when it ends. `secret` is what a command signed in to GitHub has
+ * (D-128): `env`, its variables, and `hide`, what never shows in its output. Returns { done, kill, output }: `done`
+ * resolves to { exitCode, output, truncated, seconds, killed } and never rejects; the output ends with the gateway's
+ * notes.
  */
-function execute({ env, dirs, script, maxSeconds, limits, readOnly, gateway: startOne, meter }) {
+function execute({ env, dirs, script, maxSeconds, limits, readOnly, gateway: startOne, meter, secret = null }) {
   const output = outputBuffer(limits);
+  const mask = secretMask(secret?.hide || []);
   const place = sandboxPlace();
   let notes = [];
   const started = (async () => {
@@ -196,11 +200,11 @@ function execute({ env, dirs, script, maxSeconds, limits, readOnly, gateway: sta
       const job = await runSandboxed({
         env,
         place,
-        spec: bundle({ runtimeEnv: env, dirs, script, limits, readOnly, gateway: gatewayDir }),
+        spec: bundle({ runtimeEnv: env, dirs, script, limits, readOnly, gateway: gatewayDir, env: secret?.env || [] }),
         flags: ["--host-uds=open"],
         maxSeconds,
         memory: limits.sandboxMemory,
-        onOutput: (text) => output.add(text)
+        onOutput: (text) => output.add(mask.add(text))
       });
       return {
         ...job,
@@ -216,15 +220,18 @@ function execute({ env, dirs, script, maxSeconds, limits, readOnly, gateway: sta
   })();
   const done = started
     .then(({ done: ended }) => ended, (error) => {
-      output.add(`\n${error.message}`);
+      output.add(mask.add(`\n${error.message}`));
       return { exitCode: 127, seconds: 0, killed: null };
     })
-    .then((result) => ({
-      ...result,
-      output: withNotes(output.text, notes),
-      truncated: output.truncated,
-      full: output.full === null ? null : withNotes(output.full, notes)
-    }));
+    .then((result) => {
+      output.add(mask.flush());
+      return {
+        ...result,
+        output: withNotes(output.text, notes),
+        truncated: output.truncated,
+        full: output.full === null ? null : withNotes(output.full, notes)
+      };
+    });
   return { done, kill: (reason) => started.then((job) => job.kill(reason), () => {}), output };
 }
 
@@ -418,18 +425,37 @@ export function createShell({
    * Runs `script` for a bot in a chat (`chatBotId`, its chat_bots id) on its place's folders. Waits up to
    * `foregroundSeconds`; a run still going after that carries on in the background and returns { status: "running",
    * run }. `readOnly` lists more folders the script may only read ("chat", "bot", "shared") than its place does.
+   * `secret` signs the command in to GitHub (D-128): `env`, its variables; `hide`, what never shows in its output;
+   * and `ended`, which withdraws it once the command ends, however it ends. Such a command always runs in a fresh
+   * sandbox, never in the computer's session, where the Terminal shows what runs and the key would outlive it.
    */
   async function start({
     place, workspaceId, botId, chatBotId, userId = null, why = "", script, readOnly = [],
-    foregroundSeconds = limits.foregroundSeconds, maxSeconds = limits.maxSeconds
+    foregroundSeconds = limits.foregroundSeconds, maxSeconds = limits.maxSeconds, secret = null
   }) {
-    if (stopping) return { status: "unavailable", error: "This server is shutting down; try again in a moment." };
-    if (!shellAvailable(env)) return { status: "unavailable", error: "The command line isn't installed on this server." };
-    if (chatBotId == null || !/^\d+$/u.test(String(chatBotId))) throw new Error("A command runs for a bot in a chat: chatBotId is needed.");
+    // A key is withdrawn once its command has ended, or straight away when no command starts.
+    const withdraw = async () => {
+      if (!secret) return;
+      try {
+        await secret.ended();
+      } catch (error) {
+        console.warn(`Withdrawing a command's GitHub key failed: ${error?.message}`);
+      }
+    };
+    const refused = async (answer) => {
+      await withdraw();
+      return answer;
+    };
+    if (stopping) return refused({ status: "unavailable", error: "This server is shutting down; try again in a moment." });
+    if (!shellAvailable(env)) return refused({ status: "unavailable", error: "The command line isn't installed on this server." });
+    if (chatBotId == null || !/^\d+$/u.test(String(chatBotId))) {
+      await withdraw();
+      throw new Error("A command runs for a bot in a chat: chatBotId is needed.");
+    }
     const key = String(chatBotId);
     while (busy.has(key)) {
       const current = busy.get(key);
-      if (current.background) return { status: "busy", error: busyMessage(current.run) };
+      if (current.background) return refused({ status: "busy", error: busyMessage(current.run) });
       await current.finished.catch(() => {});
     }
     let settle = null;
@@ -448,6 +474,7 @@ export function createShell({
       busy.delete(key);
       settle();
       await hold?.settle(0).catch(() => {});
+      await withdraw();
       const refusal = refusalOf(error);
       if (refusal) return { status: "unavailable", error: refusal.message };
       throw error;
@@ -456,11 +483,11 @@ export function createShell({
     const startedAt = Date.now();
     await slot();
     // While the bot's computer in the chat is awake its commands run in its session, where the
-    // Terminal shows them; one with more read-only folders keeps to a fresh sandbox.
-    const session = !readOnly.length ? sessions.get(key) : null;
+    // Terminal shows them; one with more read-only folders, or signed in to GitHub (D-128), keeps to a fresh sandbox.
+    const session = !readOnly.length && !secret ? sessions.get(key) : null;
     const job = session
       ? executeIn(session, { env, script, why, maxSeconds, limits })
-      : execute({ env, dirs, script, maxSeconds, limits, readOnly, gateway, meter: internet.forGateway({ workspaceId, botId }) });
+      : execute({ env, dirs, script, maxSeconds, limits, readOnly, gateway, meter: internet.forGateway({ workspaceId, botId }), secret });
     if (session) session.running += 1;
     // Before its block runs out, the next is opened; when that's refused, the command stops.
     let heldUntil = startedAt + hold.blockSeconds * 1000;
@@ -473,6 +500,7 @@ export function createShell({
     heartbeat.unref();
     const finished = job.done.then(async (result) => {
       clearInterval(heartbeat);
+      await withdraw();
       // The time it ran is recorded as computation for the bot, its home and the person the work is for (D-73).
       hold.settle(result.seconds).catch((error) => console.warn("Recording a command's computation failed.", error));
       // A computer that went to sleep while this ran ends its session now.

@@ -38,7 +38,7 @@ async function setup(context) {
   const homeId = await separateHome(knex, pat, [kim, lee]);
   await knex("workspace_memberships").where({ workspace_id: homeId, user_id: lee }).update({ role_sid: "admin" });
   const withdrawn = [];
-  const connections = { lacksAccess: () => false, withdraw: async (account) => withdrawn.push([account.id, Boolean(account.tokens)]) };
+  const connections = { lacksAccess: () => false, github: { shown: () => null }, withdraw: async (account) => withdrawn.push([account.id, Boolean(account.tokens)]) };
   const { integrations } = await startIntegrations(knex, context, { catalogue: CATALOGUE, connections });
   context.after(async () => {
     await knex("workspaces").where({ id: homeId }).del();

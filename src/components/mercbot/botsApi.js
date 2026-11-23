@@ -49,6 +49,10 @@ export const botsApi = {
   // A bot's rooms memory of the home's public chats (D-113), for everyone in the home:
   // { roomsMemory: { text, madeAt, tokens } | null }.
   roomsMemory: (botId) => request(`/bots/${botId}/rooms-memory`),
+  // The GitHub repositories the person let a bot use in its commands (D-128), their own: { repositories: [{ id,
+  // fullName, chatBotId, expiresAt }] }; removing one answers the list left.
+  githubRepos: (botId) => request(`/bots/${botId}/github-repos`),
+  removeGithubRepo: (botId, id) => remove(`/bots/${botId}/github-repos/${id}`),
   // The home's common knowledge, which people asked a bot to tell every bot (D-113), newest first a page at a time:
   // { entries, next }.
   commonKnowledge: (after = null) => request(after ? `/common-knowledge?${new URLSearchParams({ after: String(after) })}` : "/common-knowledge"),

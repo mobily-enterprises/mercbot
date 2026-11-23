@@ -28,6 +28,9 @@ that chat may not read (D12, D13, D14).
 - `packages/bots/src/server/githubApps.js`
 - `packages/bots/src/server/githubTools.js`
 - `packages/bots/src/server/githubActions.js`
+- `packages/bots/src/server/githubCommands.js`
+- `packages/bots/src/server/records/githubRepoRepository.js`
+- `migrations/20261123160000_bot_github_repos.cjs`
 - `packages/bots/src/server/mailTools.js`
 - `packages/bots/src/server/calendarTools.js`
 - `packages/bots/src/server/driveTools.js`
@@ -162,6 +165,27 @@ connected hides sign-in codes and links (`signInSecrets.js`: "[sign-in code hidd
 `signInHidden` telling the bot why), erring towards hiding. `show_draft` posts a `draft` card the person edits
 (`MercbotDraftCard.vue`); a draft from a connected mailbox is sent from it on Send.
 
+**GitHub in the bot's commands** (D-128, `githubCommands.js`; the command line is `genesis/program/files/shell.md`,
+the GitHub App `genesis/program/integrations/connect-apps.md`): a command that names a repository (`run_command`'s
+`github`) runs signed in to it alone, once the turn's person let the bot use it. They do that on the card the bot
+posts the first time, under its reply: "Let *bot* use *owner/name*?", `purpose: "github-repo"`, `repository: { id,
+fullName, write, private }` as the person's own GitHub sees it, and options **Just this task**, **Always for this
+bot** and **No**. The card is for the turn's person (`body.for`, R4), and one repository gets one card a reply. Only
+they answer it (`botCards.answerChoice`: anyone else is 403 `bots_waiting_for_other`, before anything is read). Its
+answer may name another of their repositories chosen on the card (`{ selected, repository }`, POST
+`…/choices/:messageId`), checked again with their own GitHub before the chat is locked (409
+`bots_github_repository_unreached` when it doesn't reach it). The card's question then names it. A yes is kept in the
+same transaction as the card (`records.githubRepos.allow`): **Always** keeps one row for the bot, the person and the
+repository (`chat_bot_id` null), and **Just this task** keeps a row for the bot's seat in this chat for 4 hours
+(`TASK_HOURS`). The rows are the person's own (`bot_github_repos`, ownership `workspace_user`), so in a room a bot
+working for someone finds only that person's yeses, and only their GitHub (`connections.github`, their own accounts
+signed in through the app). The model reads the answered card as "*pick*: you may use *owner/name*. Carry on with the
+task." or "No, don't use *owner/name*.". `GET /api/w/:workspaceSlug/bots/:botId/github-repos` lists the person's
+standing yeses for a bot on its card's Details (`MercbotGithubReposSection.vue`). `DELETE …/github-repos/:grantId`
+removes one of theirs, an archived bot's too: another person's or a missing one is 404 `bots_github_repo_not_found`.
+The answer is the list left, and the bot asks again next time. Work another bot asked for (D-46) has no `github` and
+is refused one ("Commands can't sign in to GitHub here.").
+
 **Sedna** (D-93, D-94, `sednaTools.js`, `sednaApi.js`, `sednaChanges.js`, `sednaActions.js`): in any chat once the
 home connected Sedna, as the asking person's own Sedna user (a person who is no one in Sedna is told why). Reads:
 `sedna_messages`, `sedna_lists` and `sedna_attachments` (saved into `/files/chat/Sedna/<subject>/`, at most 10 files
@@ -222,6 +246,10 @@ offer to try it. A recording it can't learn from gets a short explanation and no
 - `tests/server/calendarInfo.test.js`
 - `tests/server/driveTools.test.js`
 - `tests/server/githubTools.test.js`
+- `tests/server/githubCommands.integration.js`
+- `tests/server/githubApp.test.js`
+- `tests/server/commandInternetWords.test.js`
+- `tests/server/botsRouteGuard.test.js`
 - `tests/server/googleApps.test.js`
 - `tests/server/connectorTools.test.js`
 - `tests/server/sednaTools.test.js`
