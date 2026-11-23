@@ -4,7 +4,7 @@ import { connectTestDb, expect, homeApi, openShell, shell, test } from "./harnes
 // Add bots' A ready-made set (D-105, D-109) as a person meets it, on the Test Preview target, in a home of the test's
 // own. Bots' + (Add bots) opens on its two ways to choose; A ready-made set lists the sets under For home and life and
 // For work; Small shop shows its five bots, all ticked, and adds the three left ticked to the home, in the set's order,
-// listed in the sidebar's Bots (under "3 more", with no chat yet). They make no chats of their own (D-112): the welcome
+// listed in the sidebar's Bots (all shown, with no chat yet). They make no chats of their own (D-112): the welcome
 // chat introduces them, and a [Message] there opens a bot's direct chat. Opened again, Small shop says which three are
 // already in this home and adds only the other two. Screenshots
 // light, dark and phone. The test deletes the home it makes.
@@ -109,7 +109,8 @@ test("A ready-made set adds the bots ticked to the home in the set's order, intr
     const nameOf = (id: string) => shopBody.bots.find((bot: { id: string }) => String(bot.id) === String(id))?.name;
     expect(shopBody.added.map(nameOf), "in the set's order").toEqual(["Restock", "Chorus", "Docket"]);
     await expect(page.getByText("Added 3 bots to your home.")).toBeVisible();
-    await expect(shell.section(page, "Bots").getByRole("button", { name: "3 more" }), "no chat with them yet").toBeVisible();
+    // No chat with them yet, and still shown: a section of seven or fewer shows every entry, with no "N more" (4c94837).
+    await expect(shell.section(page, "Bots").getByRole("button", { name: /^\d+ more$/u })).toHaveCount(0);
     await expect(await botNames(page), "Mercbot, then the three by name").toHaveText(["Mercbot", "Chorus", "Docket", "Restock"]);
     await expect(shell.chat(page), "no chat opens: the welcome chat stays").toHaveAttribute("aria-label", "Mercbot");
     const chatsNow = async () => (await api.get("/chats?hidden=1&archived=1")).chats.map((chat: { id: string }) => String(chat.id));

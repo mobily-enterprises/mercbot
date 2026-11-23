@@ -7,7 +7,7 @@ import { connectTestDb, expect, homeApi, openShell, shell, sidebarEntry, test, t
 // and nothing else in the list. Mercbot greets them, asks to be named and is renamed, then asks what the home is for:
 // Show me ready-made sets opens Add bots on its sets, and Small shop's three bots ticked join the home, introduced in the
 // welcome chat, with no chats of their own; then whether anyone else will use the home: Just me makes no everyone chat.
-// The sidebar's Bots lists the main bot, then the three under "3 more" (no chat with them yet), and People isn't there
+// The sidebar's Bots lists the main bot, then the three, all shown as a section of seven or fewer is, and People isn't there
 // (the person is the home's only one); a bot's row there opens the person's direct chat with it, Private. The
 // test deletes the home it makes. Screenshots light, dark and phone of the welcome, Mercbot asking to be named, are the
 // output.
@@ -143,13 +143,12 @@ test("a new home's welcome chat names its main bot, picks a ready-made set, and 
     await expect(shell.chat(page).getByText("A bit about how I work:")).toBeVisible({ timeout: 20_000 });
     expect(await knex("conversations").where({ workspace_id: home.homeId, everyone: true }).first()).toBeUndefined();
 
-    // Bots: the main bot, then the three by name under "3 more", as there's no chat with them yet; no People, as the
-    // person is the home's only one.
+    // Bots: the main bot, then the three by name, with no chat with them yet and none under "N more", as a section of
+    // seven or fewer shows every entry (4c94837); no People, as the person is the home's only one.
     await expect(shell.section(page, "People")).toHaveCount(0);
     const bots = shell.section(page, "Bots");
-    await expect(bots.locator(".mb-row__name")).toHaveText([name]);
-    await bots.getByRole("button", { name: "3 more" }).click();
     await expect(bots.locator(".mb-row__name")).toHaveText([name, "Chorus", "Docket", "Restock"]);
+    await expect(bots.getByRole("button", { name: /^\d+ more$/u })).toHaveCount(0);
 
     // Restock's row: the person's direct chat with it, made now, Private, open and listed.
     const restock = String((await knex("bots").where({ workspace_id: home.homeId, name: "Restock" }).first()).id);

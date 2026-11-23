@@ -114,9 +114,10 @@ test("Describe what you need suggests library and new bots, checked before Add m
     expect([answer.added.length, answer.skipped]).toEqual([3, []]);
     await expect(dialog).toBeHidden();
     await expect(page.getByText("Added 3 bots to your home.")).toBeVisible();
+    // A section of seven or fewer shows every entry, with none under "N more" (4c94837).
     const bots = shell.section(page, "Bots");
-    await bots.getByRole("button", { name: "3 more" }).click();
     await expect(bots.locator(".mb-row__name"), "Mercbot, then the three by name").toHaveText(["Mercbot", "Payroll", "Restock", "Rota"]);
+    await expect(bots.getByRole("button", { name: /^\d+ more$/u })).toHaveCount(0);
     await expect(shell.chat(page), "no chat opens: the welcome chat stays").toHaveAttribute("aria-label", "Mercbot");
     expect((await api.get("/chats?hidden=1&archived=1")).chats.map((chat: { id: string }) => String(chat.id)), "they make no chats")
       .toEqual([String(welcome.id)]);

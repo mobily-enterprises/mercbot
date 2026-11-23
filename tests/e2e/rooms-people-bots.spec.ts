@@ -276,6 +276,8 @@ test("at 1280 by 800, a home of 8 people, 10 rooms and 20 bots shows most of its
     for (const person of h.people.slice(0, 3)) await personChat(knex, h, h.owner, person);
     const old = await Promise.all(h.people.slice(3, 5).map((person) => personChat(knex, h, h.owner, person)));
     for (const bot of h.bots.slice(0, 5)) await seedChat(knex, { homeId: h.homeId, direct: { userId: h.owner, botId: bot } });
+    // The bots were made a month ago, as in a home in use: a bot made in the last 14 days always shows (4c94837).
+    await knex("bots").where({ workspace_id: h.homeId }).update({ created_at: knex.raw("now() - interval '30 days'") });
     old.push((await seedChat(knex, { homeId: h.homeId, direct: { userId: h.owner, botId: h.bots[5] } })).id);
     await knex("conversations").whereIn("id", old).update({ last_activity_at: knex.raw("now() - interval '30 days'") });
 
@@ -284,14 +286,15 @@ test("at 1280 by 800, a home of 8 people, 10 rooms and 20 bots shows most of its
     const people = shell.section(page, "People");
     const bots = shell.section(page, "Bots");
     await expect(rooms_.locator(".mb-row")).toHaveCount(10);
-    // People: the three talked with lately, then "4 more"; Bots: the five, then "15 more".
-    await expect(people.locator(".mb-row")).toHaveCount(3);
-    await expect(people.getByRole("button", { name: "4 more" })).toBeVisible();
+    // People: all seven, as a section of seven or fewer shows every entry (4c94837); Bots: the five talked with lately,
+    // then "15 more".
+    await expect(people.locator(".mb-row")).toHaveCount(7);
+    await expect(people.getByRole("button", { name: /^\d+ more$/u })).toHaveCount(0);
     await expect(bots.locator(".mb-row")).toHaveCount(5);
     await expect(bots.getByRole("button", { name: "15 more" })).toBeVisible();
 
     const expanded = await densityShot(page, testInfo, "density-expanded");
-    expect(expanded.rows, "10 rooms, 3 people and 5 bots").toBe(18);
+    expect(expanded.rows, "10 rooms, 7 people and 5 bots").toBe(22);
     expect(expanded.tallest, "single-line rows").toBeLessThanOrEqual(36);
     expect(expanded.visible, "most of the home on one screen").toBeGreaterThanOrEqual(15);
 

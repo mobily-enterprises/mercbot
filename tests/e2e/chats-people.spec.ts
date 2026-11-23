@@ -372,14 +372,13 @@ test("People and Bots list the home's other people and its bots; each opens the 
     const everyone = await everyoneChat(knex, home);
     await openShell(page, "", home.path);
 
-    // People: Ben, under "1 more" as the two haven't talked; Bots: Chef and Shopper, by name, under "2 more". The person
-    // themselves isn't listed.
+    // People: Ben; Bots: Chef and Shopper, by name. The two haven't talked, and still each section shows every entry, with
+    // none under "N more", as it has seven or fewer (4c94837). The person themselves isn't listed.
     const people = shell.section(page, "People");
-    await people.getByRole("button", { name: "1 more" }).click();
     await expect(people.locator(".mb-row__name")).toHaveText(["Ben Rossi"]);
     const bots = shell.section(page, "Bots");
-    await bots.getByRole("button", { name: "2 more" }).click();
     await expect(bots.locator(".mb-row__name")).toHaveText(["Chef", "Shopper"]);
+    for (const section of [people, bots]) await expect(section.getByRole("button", { name: /^\d+ more$/u })).toHaveCount(0);
     await expect(shell.section(page, "Bots").getByRole("button", { name: "Add bots", exact: true })).toBeVisible();
     await shots(page, testInfo, "people-and-bots", async () => {
       await shell.chat(page).getByRole("button", { name: "Your chats" }).click();
