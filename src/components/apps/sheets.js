@@ -8,14 +8,16 @@ import { appsApi } from "./appsApi.js";
 const IMPORT_PAGE = 500;
 
 // What a cell holds for a value of the field: money in units, dates as real dates in Excel, a
-// link as the linked record's title (the import looks titles up again).
-function toCell(field, value, excel) {
+// link as the linked record's title (the import looks titles up again), a file or picture as its name.
+export function toCell(field, value, excel) {
   if (value === null || value === undefined || value === "") return null;
   if (field.type === "link") return typeof value === "object" ? value.label : String(value);
   // A person by name (the import reads it back by name), tags as "a, b", a moment as a real date and time in Excel.
   if (field.type === "person") return typeof value === "object" ? value.label : String(value);
   if (field.type === "tags") return Array.isArray(value) ? value.join(", ") : String(value);
-  if (field.type === "datetime") return excel ? new Date(value) : value;
+  // Excel shows a moment's time too (its cells have no zone: UTC, as the import reads them back).
+  if (field.type === "datetime") return excel ? { value: new Date(value), type: Date, format: "yyyy-mm-dd hh:mm" } : value;
+  if (field.type === "file" || field.type === "image") return value?.name ?? null;
   if (field.type === "money") return value / 100;
   if (field.type === "date") return excel ? new Date(`${value}T00:00:00Z`) : value;
   if (field.type === "yesno") return excel ? Boolean(value) : value ? "Yes" : "No";
@@ -76,12 +78,13 @@ export function matchColumns(table, header) {
   return { columns, ignored, calculated, missing };
 }
 
-const cellText = (cell) => (cell instanceof Date ? cell.toISOString().slice(0, 10) : cell);
+// An Excel date as the field takes it: a date and time as its instant, a date as its day.
+const cellText = (cell, field) => (cell instanceof Date ? (field.type === "datetime" ? cell.toISOString() : cell.toISOString().slice(0, 10)) : cell);
 
 // Sends the rows: first every page is checked, then (only if all pass) written. Returns
 // { imported, errors }; errors name the file's row numbers.
 export async function importRows(key, file, rows, columns) {
-  const records = rows.map((row) => Object.fromEntries(columns.flatMap((field, index) => (field && row[index] !== null && row[index] !== undefined ? [[field.id, cellText(row[index])]] : []))));
+  const records = rows.map((row) => Object.fromEntries(columns.flatMap((field, index) => (field && row[index] !== null && row[index] !== undefined ? [[field.id, cellText(row[index], field)]] : []))));
   const pages = [];
   for (let start = 0; start < records.length; start += IMPORT_PAGE) pages.push({ rows: records.slice(start, start + IMPORT_PAGE), firstRow: start + 2, file: file.name });
   const errors = [];

@@ -29,7 +29,8 @@ chat (D-35).
     (`postLead`) and no card. A table already there is reused.
   - `table_field_add` and `table_extend` (a one-to-one extension) always ask on a card (`TABLE_ACTIONS` in
     `botActions.js`, run on the person's yes as the bot that asked; approval cards get `apps`).
-  - `data_attach_file` copies one of the bot's files onto a record's file or picture field.
+  - `data_attach_file` copies one of the bot's files onto a record's file or picture field; in a private chat, never
+    one that is really in the chat's own folder (`existingFile`'s `folder`), whatever its path says.
   - The apps rules in every bot's instructions (`botAgent.js` `APPS_RULES`) and `shared-tables.md`: records go in
     tables, never a spreadsheet unless asked, and never a second table for what a shared one is for.
   - A reply whose turn saved a spreadsheet nobody asked for is sent back once (`SPREADSHEET_CHECK`, replyChecks.js:

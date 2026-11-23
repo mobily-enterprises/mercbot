@@ -4,7 +4,7 @@ import SelectField from "@jskit-ai/http-web/client/components/SelectField";
 import { calculate, formulaRecord, isCalculated, showValue } from "@local/apps/shared";
 import { appsApi, errorText } from "./appsApi.js";
 import { useLinkPickers } from "./linkPickers.js";
-import { SHARED_TYPES, TEXT_INPUT, inputOf, storedOf } from "./fieldValues.js";
+import { SHARED_TYPES, TEXT_INPUT, inputOf, personChoices, storedOf } from "./fieldValues.js";
 import RecordFileField from "./RecordFileField.vue";
 import { usePaths } from "@jskit-ai/shell-web/client/navigation/usePaths";
 
@@ -21,7 +21,8 @@ const props = defineProps({
   // The home's people ({ id, name }), for person fields.
   people: { type: Array, default: () => [] }
 });
-const emit = defineEmits(["update:open", "saved"]);
+// `changed`: the record was saved, but a file after it failed: the table reads it again while the dialog stays open.
+const emit = defineEmits(["update:open", "saved", "changed"]);
 
 const draft = reactive({});
 // The files chosen for file and picture fields, by field id, uploaded after the save.
@@ -100,12 +101,14 @@ const worked = computed(() => {
 async function save() {
   saving.value = true;
   problem.value = "";
+  let wrote = false;
   try {
     // A file field is sent only to take its file away; a new file goes up on its own once the record exists.
     const record = props.record || made.value;
     const sent = fields.value.filter((field) => !FILES.has(field.type) || (record?.[field.id] && !draft[field.id]));
     const values = Object.fromEntries(sent.map((field) => [field.id, toStored(field, draft[field.id])]));
     let saved = record ? await appsApi.updateRecord(props.table.key, record.id, values) : await appsApi.createRecord(props.table.key, values);
+    wrote = true;
     made.value = props.record ? null : saved;
     for (const field of fields.value.filter((entry) => chosen[entry.id])) {
       saved = await appsApi.attachFile(props.table.key, saved.id, field.id, chosen[field.id]);
@@ -117,6 +120,7 @@ async function save() {
     emit("update:open", false);
   } catch (error) {
     problem.value = errorText(error, "Saving didn't work.");
+    if (wrote) emit("changed");
   } finally {
     saving.value = false;
   }
@@ -133,7 +137,7 @@ async function save() {
         <SelectField v-else-if="field.type === 'link'" v-model="draft[field.id]" :items="links.choices[field.id] || []" :loading="Boolean(links.loading[field.id])" searchable no-filter :label="field.label + (field.options?.required ? ' *' : '')" :error-messages="problemOf(field)" variant="outlined" density="comfortable" clearable @update:search="(text) => links.search(field.id, text, draft[field.id])" />
         <v-switch v-else-if="field.type === 'yesno'" v-model="draft[field.id]" :label="field.label" color="primary" inset hide-details class="mb-4" />
         <!-- readable-check: allow selection-field - data: the home's people come with the Data tab's tables, read once -->
-        <v-select v-else-if="field.type === 'person'" v-model="draft[field.id]" :items="people" item-title="name" item-value="id" :label="field.label + (field.options?.required ? ' *' : '')" :error-messages="problemOf(field)" variant="outlined" density="comfortable" clearable />
+        <v-select v-else-if="field.type === 'person'" v-model="draft[field.id]" :items="personChoices(people, record?.[field.id])" item-title="name" item-value="id" :label="field.label + (field.options?.required ? ' *' : '')" :error-messages="problemOf(field)" variant="outlined" density="comfortable" clearable />
         <!-- readable-check: allow selection-field - data: a tags field's allowed tags are part of its table's definition, which the dialog was given -->
         <v-combobox v-else-if="field.type === 'tags'" v-model="draft[field.id]" :items="field.options?.choices || []" :label="field.label + (field.options?.required ? ' *' : '')" :error-messages="problemOf(field)" multiple chips closable-chips variant="outlined" density="comfortable" />
         <RecordFileField

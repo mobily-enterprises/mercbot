@@ -70,10 +70,6 @@ export function setupNeeds(template) {
 }
 
 /**
- * A template file is checked when Mercbot starts, so a broken one never reaches the gallery; the static checks
- * (tests/server/templateChecks.test.js) run it on every file too.
- */
-/**
  * What's wrong with a template's `tables` (D-130), each a problem: a shared table's key, or a table of its own whose
  * name no shared table has, whose fields have known types, and whose links point at shared tables, its own tables
  * declared before it, or itself.
@@ -126,6 +122,10 @@ function spreadsheetProblems(template) {
     .map((sentence) => `keeps records in a spreadsheet ("${sentence.trim().slice(0, 80)}"): keep them in the home's tables`);
 }
 
+/**
+ * A template file is checked when Mercbot starts, so a broken one never reaches the gallery; the static checks
+ * (tests/server/templateChecks.test.js) run it on every file too.
+ */
 export function checkTemplate(template, file = template.slug) {
   const problems = [];
   const text = (value, max) => typeof value === "string" && value.trim() && value.length <= max;

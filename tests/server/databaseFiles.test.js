@@ -38,6 +38,21 @@ test("a record's file lands at its fixed place, a taken name gets a number, and 
   await files.removeRecordFile("7", `${DB}/tables/../../shared/x`);
 });
 
+test("two files of one name written at once each keep their own, never one over the other", async (context) => {
+  const { dir, store: files } = await store(context);
+  const at = { table: "graphics", record: "42", field: "picture" };
+  const sources = await Promise.all(["one", "two", "three"].map(async (text) => {
+    const source = path.join(dir, `${text}.png`);
+    await writeFile(source, text);
+    return source;
+  }));
+  const written = await Promise.all(sources.map((source) => files.writeRecordFile("7", at, source, "poster.png")));
+  assert.equal(new Set(written.map((file) => file.path)).size, 3, written.map((file) => file.path).join(", "));
+  const home = files.homePlace("7");
+  const contents = await Promise.all(written.map(async (file) => readFile((await files.existingFile(home, file.path)).real, "utf8")));
+  assert.deepEqual(contents, ["one", "two", "three"]);
+});
+
 test("nobody moves, renames, deletes, writes or makes folders in Database files, from any place; copying out works", async (context) => {
   const { store: files, source } = await store(context);
   const { path: picture } = await files.writeRecordFile("7", { table: "contacts", record: "3", field: "photo" }, source, "ana.png");

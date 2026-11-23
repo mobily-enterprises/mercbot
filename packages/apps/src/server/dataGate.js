@@ -80,7 +80,7 @@ export function createDataGate({
   const { auditEvents } = resources;
   // The home a ctx acts in: its call options'.
   const homeOf = (ctx) => homeIdOf(ctx.options);
-  const { membersOf, checkPeople, checkUnique, labelPeople } = createRecordChecks({ people, homeOf });
+  const { membersOf, checkPeople, checkUnique, uniqueTakenIn, labelPeople } = createRecordChecks({ people, homeOf });
   const { newestAudits, activity, actors } = createAuditReads({ auditEvents, repository });
   const files = createRecordFiles({ impl: recordFiles, homeOf, tableFor, get, update });
   const relatedRecords = createRelatedRecords({ tableFor, read });
@@ -356,10 +356,9 @@ export function createDataGate({
       }
       if (action === "update") {
         const ruled = await beforeSave(ctx, table, "update", values, before, cleanRecord);
-        if (ruled !== values) {
-          await checkLinks(api, tables, table, (values = ruled));
-          await checkPeople(ctx, table, values);
-        }
+        if (ruled !== values) await checkLinks(api, tables, table, (values = ruled));
+        // Someone set now is in the home; a person kept as they were (a member who has left) stays.
+        await checkPeople(ctx, table, values, before);
       }
       // A record restored, or a one-to-one link changed, still holds the only live link to its target.
       if (action !== "obsolete" && !(before[OBSOLETE] && action === "update")) {
@@ -386,7 +385,6 @@ export function createDataGate({
     const access = fence(ctx, table, "update");
     const values = cleanRecord(table, access ? visitorInput(access, table, ctx, input) : input);
     await checkLinks(await apiFor(ctx, tables, table), tables, table, values, new Map(), access ? ctx : null);
-    await checkPeople(ctx, table, values);
     return change(ctx, table.id, id, values, "update", txOptions);
   }
 
@@ -596,12 +594,15 @@ export function createDataGate({
     const rules = await beforeSaveEach(ctx, table, "create", cleanRecord);
     const errors = [];
     const checked = [];
+    // Each checked record's row in the sheet.
+    const rowOf = [];
     try {
       for (const [index, row] of rows.entries()) {
         try {
           const input = fromSheet(table, row, titles, members);
           if (!Object.keys(input).length) continue; // an empty line
           checked.push(await checkNew(ctx, api, tables, table, input, (cleaned) => rules.apply(cleaned, null), known));
+          rowOf.push(firstRow + index);
         } catch (error) {
           if (!(error instanceof GateError)) throw error;
           errors.push({ row: firstRow + index, message: error.message });
@@ -611,8 +612,16 @@ export function createDataGate({
     } finally {
       await rules.flush(); // the rules' runs are recorded together, a failed or dry-run import's too
     }
+    // A one-to-one link's target once among the rows, and not one a live record already links to (D-130).
+    for (const { index, error } of await uniqueTakenIn(ctx, api, table, checked)) {
+      errors.push({ row: rowOf[index], message: error.message });
+    }
+    errors.sort((a, b) => a.row - b.row).splice(20);
     if (dryRun || errors.length || !checked.length) return { imported: 0, errors };
     await withTransaction(ctx, async (txOptions) => {
+      // Checked again under the targets' locks, as a single write is: a record added since gets in first.
+      const raced = await uniqueTakenIn(ctx, api, table, checked, txOptions);
+      if (raced.length) throw raced[0].error;
       // One insert per chunk of rows, answering their ids in the rows' order.
       const { data: created } = await api.resources[table.id].postMany(
         { data: checked, returning: "minimal", transaction: txOptions.trx },

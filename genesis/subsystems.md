@@ -200,7 +200,9 @@ when a home chooses another place, and answering whose own Drive holds them (`st
 that removes people from homes asks first, and the pictures and videos a copy built on Mercbot checks (D-90): uploads and
 profile pictures before they're kept, the screenshots a bot's reply shows and the files it saves afterwards, from
 `media_checks`, removing later a file such a copy's own review judges (`files.media.remove`), and a folder
-of such a copy's own (`store.privateFolder`). Mercbot's own files are kept in an S3 bucket when one is configured, each
+of such a copy's own (`store.privateFolder`). It keeps each home's Database files (`/files/db`, D-130), the files and
+pictures of the apps' records: read-only to people, bots and their commands and computers, and written only for the
+apps' data gate. Mercbot's own files are kept in an S3 bucket when one is configured, each
 sealed, with the files key sealed in the bucket's `.mercbot-files` record (D-91); each server works on a copy in its
 files folder.
 
@@ -396,8 +398,10 @@ Owns each home's mini-apps (D-35): the tables and fields its Builder bot makes, 
 everyone and every bot shares, the audit of every change, the app definitions with their drafts
 and versions, the screens that run them, bots' watches and the tasks they queue for bots, and
 public screens and the visitor access that fences them, who may use what, how apps look, templates, and scripts with the
-web addresses they may call. Records are stored with json-rest-api's AnyAPI, one tenant per
-home; nothing is ever deleted.
+web addresses they may call, and the shared tables' catalog every home builds on, with the Contacts and To-dos apps
+each home starts with (D-130). Records are stored with json-rest-api's AnyAPI, one tenant per
+home; nothing is ever deleted. A record's files and pictures are set only through its data gate, which has the files
+subsystem write them to the home's Database files.
 
 ### Source
 

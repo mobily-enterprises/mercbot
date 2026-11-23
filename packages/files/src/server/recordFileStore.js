@@ -1,5 +1,12 @@
+import { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
+
+/** Whether `target` was free and now holds `source`'s file: false when a file is there already. */
+const claim = (source, target) => fs.link(source, target).then(() => true, (error) => {
+  if (error?.code === "EEXIST") return false;
+  throw error;
+});
 
 /**
  * A home's Database files (D-130) as the table records write them: each record's file at its fixed place, copied in,
@@ -29,11 +36,15 @@ export function createRecordFileStore({ DB, prepare, homePlace, settleHome }) {
     await fs.mkdir(folder, { recursive: true });
     const clean = path.basename(String(name || "file")).replace(/[\p{Cc}/\\]/gu, "").slice(0, 120) || "file";
     const { name: stem, ext } = path.parse(clean);
-    let chosen = clean;
-    for (let n = 2; await fs.lstat(path.join(folder, chosen)).then(() => true, () => false); n += 1) chosen = `${stem} (${n})${ext}`;
-    const temporary = path.join(folder, `.${chosen}.${process.pid}.part`);
+    const temporary = path.join(folder, `.${randomUUID()}.part`);
     await fs.copyFile(source, temporary);
-    await fs.rename(temporary, path.join(folder, chosen));
+    let chosen = clean;
+    try {
+      // The first free name, claimed with a link, which never replaces a file there (another write's at the same moment too).
+      for (let n = 2; !(await claim(temporary, path.join(folder, chosen))); n += 1) chosen = `${stem} (${n})${ext}`;
+    } finally {
+      await fs.unlink(temporary).catch(() => {});
+    }
     const { size } = await fs.stat(path.join(folder, chosen));
     await settleHome(homeId);
     return { path: `${DB}/tables/${parts.join("/")}/${chosen}`, name: chosen, size };

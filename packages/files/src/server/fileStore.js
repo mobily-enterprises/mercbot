@@ -369,8 +369,8 @@ export function createFileStore({ root, fallback, volume = null, ownStorage, set
   }
 
   /**
-   * An existing regular file the bot may reach. The app sandbox lets a bot make links, so the
-   * link-free real path is checked too: a link can never lead a download anywhere else.
+   * An existing regular file the bot may reach, and the folder it really is in ("chat", "bot", "shared" or "db"). The app
+   * sandbox lets a bot make links, so the link-free real path is checked too: a link never leads a download elsewhere.
    */
   async function existingEntry(place, virtualPath, { folder = false, reading = false } = {}) {
     const real = await resolve(place, virtualPath, { reading });
@@ -387,11 +387,10 @@ export function createFileStore({ root, fallback, volume = null, ownStorage, set
     }
     const dirs = await folders(place, { reading });
     const canonical = await fs.realpath(real);
-    const allowed = await Promise.all(rootsOf(dirs).map(([, dir]) => fs.realpath(dir).catch(() => dir)));
-    if (!allowed.some((dir) => canonical.startsWith(dir + path.sep))) {
-      throw new FilesError(400, "That's not one of the bot's files.", { code: "files_path_outside" });
-    }
-    return { real: canonical, stat };
+    const allowed = await Promise.all(rootsOf(dirs).map(async ([, dir, name]) => [name, await fs.realpath(dir).catch(() => dir)]));
+    const within = allowed.find(([, dir]) => canonical.startsWith(dir + path.sep));
+    if (!within) throw new FilesError(400, "That's not one of the bot's files.", { code: "files_path_outside" });
+    return { real: canonical, stat, folder: within[0] };
   }
   /** An existing file to read, or to change in place with `writing` (refused while the home's files are moved). */
   const existingFile = (place, virtualPath, { writing = false } = {}) => existingEntry(place, virtualPath, { reading: !writing });

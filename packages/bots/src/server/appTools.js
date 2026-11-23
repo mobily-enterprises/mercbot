@@ -69,8 +69,9 @@ export const APP_ACTIONS = [
  * @param {(actionId: string, input: object) => Promise<object>} turn.attempt an action on a card the person approves
  * @param {boolean} turn.privateChat whether the turn's chat is private: its own folder's files stay in it (D13), so none
  *   goes onto a record, which the whole home reads
- * @param {(path: string) => Promise<{ real: string }>} turn.fileAt one of the bot's files by its path (/files/...), as
- *   its file tools read it: refused when the bot can't read it
+ * @param {(path: string) => Promise<{ real: string, folder: string }>} turn.fileAt one of the bot's files by its path
+ *   (/files/...), as its file tools read it, with the folder it really is in ("chat", "bot", "shared" or "db"): refused
+ *   when the bot can't read it
  * @param {(prompt: string) => Promise<object>} turn.scriptModel asks for a script and its tests: writeScriptRound with the chat
  *   model (tests pass a model stand-in)
  */
@@ -246,14 +247,15 @@ export function buildAppTools({
   }
   // A file or picture goes onto a record as a copy in the home's Database files (D-130): the bot's own file stays.
   async function dataAttachFile({ table, id, field, path: wanted }) {
-    if (privateChat && /^\/files\/chat(?:\/|$)/u.test(String(wanted))) {
-      return {
-        error: "That file is in this private chat, and a record's files are the whole home's. Copy it to /files/shared with transfer_file first, which asks the person, then attach the copy."
-      };
-    }
+    const privateFile = {
+      error: "That file is in this private chat, and a record's files are the whole home's. Copy it to /files/shared with transfer_file first, which asks the person, then attach the copy."
+    };
+    if (privateChat && /^\/files\/chat(?:\/|$)/u.test(String(wanted))) return privateFile;
     try {
       const { table: info } = await gate.tableFor(table, call);
-      const { real } = await fileAt(wanted);
+      // Where the file really is decides, whatever its path says ("..", or a link to the chat's folder).
+      const { real, folder } = await fileAt(wanted);
+      if (privateChat && folder === "chat") return privateFile;
       const upload = { source: real, name: wanted.split("/").pop(), type: "application/octet-stream" };
       return { status: "attached", record: byName(info, await gate.attachFile(await ctx(), table, id, field, upload)) };
     } catch (error) {

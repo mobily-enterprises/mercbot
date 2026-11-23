@@ -224,9 +224,13 @@ test("the Team list and one bot cost the same with 4 bots on templates as with 6
 // once the bot is made, and a template declaring none asks for nothing.
 test("adding, making, changing to or adding a team of templates asks for the tables they declare", async (context) => {
   const kit = await startSurfaces(knex, context, { integrations });
-  const { as } = await seedHome(knex, context);
+  const { as, anna: annaId } = await seedHome(knex, context);
   await kit.templates.addFromTemplate("household-bills-tracker", "Anna", as("anna"));
   assert.deepEqual(kit.calls.tables.splice(0), ["organisations", "bills"]);
+  // As the person adding the bot, by name, as the Activity shows who made each change.
+  const { display_name: annaName } = await knex("users").where({ id: annaId }).first("display_name");
+  assert.ok(annaName, "the test database's first user has a name");
+  assert.deepEqual(kit.calls.tableActors.splice(0), [1, 2].map(() => ({ type: "person", id: annaId, name: annaName })));
   await kit.templates.addFromTemplate("weekly-meal-planner", "Anna", as("anna"));
   assert.deepEqual(kit.calls.tables.splice(0), [], "none declared, none asked for");
   const made = await kit.templates.createBot({ name: "Chase", shape: "cloud", color: "#14C16F", template: { library: "customer-follow-up" } }, as("anna"));

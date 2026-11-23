@@ -92,7 +92,11 @@ watch(search, () => {
   }, 300);
 });
 watch(showObsolete, load);
-watch(key, load);
+// Another table (a Related or links chip): the open record belongs to the one before, so its dialog closes.
+watch(key, () => {
+  Object.assign(editor, { open: false, record: null });
+  load();
+});
 
 function onOptions(next) {
   Object.assign(options, { page: next.page, itemsPerPage: next.itemsPerPage, sortBy: next.sortBy });
@@ -255,7 +259,7 @@ const titleOf = (record) => (record ? String(record[table.value?.titleFieldId] ?
       </v-card>
     </main>
 
-    <RecordDialog v-model:open="editor.open" :table="table" :tables="tables" :people="people" :record="editor.record" @saved="() => { notify('Saved.'); load(); }" />
+    <RecordDialog v-model:open="editor.open" :table="table" :tables="tables" :people="people" :record="editor.record" @saved="() => { notify('Saved.'); load(); }" @changed="load" />
 
     <v-dialog v-model="fieldsDialog.open" max-width="560">
       <v-card rounded="lg" class="pa-4">

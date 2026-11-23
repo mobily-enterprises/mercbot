@@ -30,7 +30,7 @@ export async function startSurfaces(knex, context, {
   const parts = await startBotParts(knex, context);
   const { records, profiles, workspaces, systemContext } = parts;
   const meter = track ? { ...parts.meter, track: (who, work) => (track(who), parts.meter.track(who, work)) } : parts.meter;
-  const calls = { told: [], sleeps: [], removed: [], paused: [], files: [], tables: [] };
+  const calls = { told: [], sleeps: [], removed: [], paused: [], files: [], tables: [], tableActors: [] };
   const builder = { id: null };
   const notices = {
     publish: async (topic, key, event) => { calls.told.push({ topic, keys: [String(key)], event }); },
@@ -47,8 +47,8 @@ export async function startSurfaces(knex, context, {
     },
     // The tables a template declares (D-130), as Add bots makes them: noted, never made here.
     catalog: {
-      ensureTable: async (ctx, key) => { calls.tables.push(key); },
-      ensureOwnTable: async (ctx, table) => { calls.tables.push(table.key); }
+      ensureTable: async (ctx, key) => { calls.tables.push(key); calls.tableActors.push(ctx.actor); },
+      ensureOwnTable: async (ctx, table) => { calls.tables.push(table.key); calls.tableActors.push(ctx.actor); }
     }
   };
   const files = {

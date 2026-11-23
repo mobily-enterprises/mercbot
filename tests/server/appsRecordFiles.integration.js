@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -66,6 +66,16 @@ test("a picture lands at its record's place in Database files; replaced or clear
   assert.ok(home.workspaceId);
 });
 
+test("a file or picture field can't be required: its file goes on once the record exists", async (context) => {
+  const { home, registry } = await setup(context);
+  const person = { type: "person", id: String(home.userId), name: "Tester" };
+  const fields = (type) => [{ key: "title", type: "text" }, { key: "attachment", type, required: true }];
+  for (const type of ["file", "image"]) {
+    await assert.rejects(registry.createTable(person, { key: `required_${type}`, fields: fields(type) }, home.options), { code: "apps_file_required" });
+    await assert.rejects(registry.addField(person, "graphics", { key: `required_${type}`, type, required: true }, home.options), { code: "apps_file_required" });
+  }
+});
+
 test("a picture field takes only pictures, nobody sets a file by sending a path, and a failed change leaves no file", async (context) => {
   const { home, gate, ctx, sourceFile, exists } = await setup(context);
   const poster = await gate.create(ctx, "graphics", { title: "Poster" });
@@ -124,6 +134,18 @@ test("a bot puts one of its files on a record as the record's own copy, and read
   const kept = await privately.dataAttachFile.execute({ table: "graphics", id: poster.id, field: "picture", path: "/files/chat/secret.png" }, {});
   assert.match(kept.error, /private chat.*transfer_file/u);
   assert.equal((await privately.dataAttachFile.execute({ table: "graphics", id: poster.id, field: "picture", path: shared }, {})).status, "attached", "the home's own files are fine");
+
+  // However the path reaches the chat's own folder: through "..", or a folder in the home's folder that links to it.
+  const chatPlace = store.placeFor({ homeId: home.workspaceId, chatId: "77", chatKind: "private", botId: "1" });
+  const dirs = await store.prepare(chatPlace);
+  await writeFile(path.join(dirs.chat, "secret.png"), PNG);
+  await symlink(dirs.chat, path.join(dirs.shared, "chat-link"));
+  const inChat = buildAppTools({ ...turnOf(home, { registry, gate, watches, views }, store, chatPlace), privateChat: true });
+  for (const sneaky of ["/files/shared/../chat/secret.png", "/files/./chat/secret.png", "/files/shared/chat-link/secret.png"]) {
+    const refused = await inChat.dataAttachFile.execute({ table: "graphics", id: poster.id, field: "picture", path: sneaky }, {});
+    assert.match(String(refused.error), /private chat.*transfer_file/u, sneaky);
+  }
+  assert.equal((await inChat.dataAttachFile.execute({ table: "graphics", id: poster.id, field: "picture", path: shared }, {})).status, "attached");
 });
 
 test("a visitor gets a record's picture only by its record, from a record and field the public app lets them read", async (context) => {

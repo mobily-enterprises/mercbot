@@ -132,8 +132,13 @@ export function createBotTemplates({ records, profiles, integrations, env, templ
    * that couldn't be made is logged, and the bot adds a shared one itself (table_ensure) or asks the Builder for its own.
    */
   async function templateTables(slugs, options) {
-    const ctx = { options, actor: { type: "person", id: String(personOf(options)), name: "" }, via: { kind: "template" } };
-    for (const slug of new Set(slugs.filter(Boolean))) {
+    const declared = [...new Set(slugs.filter(Boolean))].filter((slug) => LIBRARY.get(slug)?.tables?.length);
+    if (!declared.length) return;
+    // The person by name, as the home's Activity shows who made each change.
+    const person = await profiles.findById(personOf(options), passedOn(options));
+    const actor = { type: "person", id: String(personOf(options)), name: person?.displayName || "Someone" };
+    const ctx = { options, actor, via: { kind: "template" } };
+    for (const slug of declared) {
       for (const table of LIBRARY.get(slug)?.tables || []) {
         // A shared table by its key, or one of the template's own.
         const shared = typeof table === "string";

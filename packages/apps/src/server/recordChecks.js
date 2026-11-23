@@ -1,4 +1,5 @@
 // readable-check: allow no-transaction-reader - infrastructure: a one-to-one link is checked in the AnyAPI write's own transaction (the audit_events handle's), under a lock taken in it, as the data gate writes
+import { PAGE_MAX } from "../shared/index.js";
 import { GateError } from "./validate.js";
 
 /**
@@ -18,9 +19,13 @@ export function createRecordChecks({ people, homeOf }) {
     return membersOfCall.get(ctx);
   }
 
-  /** A person field holds someone who is in the home now. */
-  async function checkPeople(ctx, table, values) {
-    const given = table.fields.filter((field) => field.type === "person" && values[field.id]);
+  /**
+   * A person field set holds someone who is in the home now; with `before` (an update), only the ones it changes, so a
+   * record keeps a member who has left until someone sets another.
+   */
+  async function checkPeople(ctx, table, values, before = null) {
+    const kept = (field) => before && String(before[field.id] ?? "") === String(values[field.id]);
+    const given = table.fields.filter((field) => field.type === "person" && values[field.id] && !kept(field));
     if (!given.length) return;
     const members = await membersOf(ctx);
     for (const field of given) {
@@ -33,27 +38,62 @@ export function createRecordChecks({ people, homeOf }) {
     }
   }
 
+  // One-to-one links (link fields marked unique), each target's lock, and the refusal of a second live record for one.
+  const uniqueLinks = (table) => table.fields.filter((entry) => entry.type === "link" && entry.options?.unique && !entry.obsolete);
+  // A field's lock (an import takes it alone, a single write shares it) and each target's under it.
+  const lockKey = (ctx, table, field, target = "") => `apps-unique:${homeOf(ctx)}:${ctx.practice?.id ?? ""}:${table.id}:${field.id}:${target}`;
+  const taken = (field) => new GateError(409, `${field.label}: that record already has one, and it can have only one.`, {
+    code: "apps_link_unique_taken",
+    params: { field: field.label }
+  });
+
   /**
    * A one-to-one link (a link field marked unique): at most one live record links to each target. Checked in the
-   * write's transaction after a lock on the table, field and target, so two writes at once can't both get in. `row`
-   * holds the values as they'll be; `selfId` the record itself, when it exists.
+   * write's transaction after a lock on the table, field and target, so two writes at once can't both get in (and a
+   * share of the field's, which an import takes alone). `row` holds the values as they'll be; `selfId` the record
+   * itself, when it exists.
    */
   async function checkUnique(ctx, api, table, row, selfId, txOptions) {
-    for (const field of table.fields.filter((entry) => entry.type === "link" && entry.options?.unique && !entry.obsolete && row[entry.id])) {
+    for (const field of uniqueLinks(table).filter((entry) => row[entry.id])) {
       const target = String(row[field.id]);
-      const scope = `${homeOf(ctx)}:${ctx.practice?.id ?? ""}`;
-      await txOptions.trx.raw("select pg_advisory_xact_lock(hashtext(?))", [`apps-unique:${scope}:${table.id}:${field.id}:${target}`]);
+      await txOptions.trx.raw("select pg_advisory_xact_lock_shared(hashtext(?))", [lockKey(ctx, table, field)]);
+      await txOptions.trx.raw("select pg_advisory_xact_lock(hashtext(?))", [lockKey(ctx, table, field, target)]);
       const same = { kind: "compare", op: "=", field: { name: field.id, lower: false }, value: JSON.stringify(target) };
       const notSelf = { kind: "compare", op: "<>", field: { name: "id", lower: false }, value: JSON.stringify(String(selfId ?? "")) };
       const where = { plan: selfId ? { kind: "and", items: [same, notSelf] } : same, variables: {}, values: {} };
       const found = await api.resources[table.id].query({ queryParams: { page: { size: 1 } }, transaction: txOptions.trx }, { where });
-      if (found.data.length) {
-        throw new GateError(409, `${field.label}: that record already has one, and it can have only one.`, {
-          code: "apps_link_unique_taken",
-          params: { field: field.label }
-        });
+      if (found.data.length) throw taken(field);
+    }
+  }
+
+  /**
+   * New records' one-to-one links (an import's rows): each target at most once among them, and none a live record links
+   * to already. Answers each row that can't go in, by its index, with its refusal: one read per one-to-one link field
+   * and PAGE_MAX targets, whatever the rows. Given the write's transaction, under the field's lock, which keeps out every
+   * single write of the field (checkUnique shares it) until the import is in.
+   */
+  async function uniqueTakenIn(ctx, api, table, rows, txOptions = null) {
+    const refused = [];
+    for (const field of uniqueLinks(table)) {
+      const firstRow = new Map();
+      for (const [index, row] of rows.entries()) {
+        if (!row[field.id]) continue;
+        const target = String(row[field.id]);
+        if (firstRow.has(target)) refused.push({ index, error: taken(field) });
+        else firstRow.set(target, index);
+      }
+      const targets = [...firstRow.keys()];
+      // The field's lock alone: no single write of the field gets in while the import checks and writes.
+      if (txOptions && targets.length) await txOptions.trx.raw("select pg_advisory_xact_lock(hashtext(?))", [lockKey(ctx, table, field)]);
+      for (let start = 0; start < targets.length; start += PAGE_MAX) {
+        const batch = targets.slice(start, start + PAGE_MAX);
+        const where = { plan: { kind: "in", field: { name: field.id, lower: false }, value: "targets" }, variables: { targets: "list<string>" }, values: { targets: batch } };
+        const params = { queryParams: { page: { size: batch.length } }, ...(txOptions ? { transaction: txOptions.trx } : {}) };
+        const found = await api.resources[table.id].query(params, { where });
+        for (const record of found.data) refused.push({ index: firstRow.get(String(record[field.id])), error: taken(field) });
       }
     }
+    return refused.sort((a, b) => a.index - b.index);
   }
 
   /** A page's person values as { id, label }: one read of names and one of who's in the home, whatever the page. */
@@ -76,6 +116,7 @@ export function createRecordChecks({ people, homeOf }) {
     membersOf,
     checkPeople,
     checkUnique,
+    uniqueTakenIn,
     labelPeople
   });
 }

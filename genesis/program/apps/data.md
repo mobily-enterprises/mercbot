@@ -18,7 +18,18 @@ home, with every change audited and nothing ever deleted (D-35).
 - `packages/apps/src/server/auditReads.js`
 - `packages/apps/src/server/tableCatalog.js`
 - `packages/apps/src/server/starterApps.js`
-- `packages/apps/catalog/*.json`
+- `packages/apps/catalog/contacts.json`
+- `packages/apps/catalog/crm_contacts.json`
+- `packages/apps/catalog/deals.json`
+- `packages/apps/catalog/departments.json`
+- `packages/apps/catalog/event_attendees.json`
+- `packages/apps/catalog/events.json`
+- `packages/apps/catalog/graphics.json`
+- `packages/apps/catalog/organisations.json`
+- `packages/apps/catalog/place_categories.json`
+- `packages/apps/catalog/places.json`
+- `packages/apps/catalog/todo_lists.json`
+- `packages/apps/catalog/todos.json`
 - `packages/files/src/server/recordFileStore.js`
 - `packages/apps/src/server/schema.js`
 - `packages/apps/src/shared/where.js`
@@ -41,16 +52,18 @@ home, with every change audited and nothing ever deleted (D-35).
   fields have permanent ids (`t_…`, `f_…`) that are AnyAPI's resource and field names, while keys
   and labels live in `app_tables`/`app_fields`. Renaming changes only the registry. Field types:
   text, email, phone, choice, link, number, money (whole cents), date (YYYY-MM-DD), yesno, and
-  (D-130) person (a member's user id, checked against the home's members on every write and
-  labelled by name, "Former member" once gone), tags (a list of words, optionally from `choices`),
+  (D-130) person (a member's user id, checked against the home's members whenever a write sets it,
+  so a record keeps a member who has left until someone sets another, and labelled by name,
+  "Former member" once gone), tags (a list of words, optionally from `choices`),
   url (http or https), longtext (up to 20,000 characters), datetime (an ISO moment) and file and
   image (below). A link may be `unique`: one live record at most per target, checked in the
-  write's transaction under an advisory lock (`recordChecks.js`, 409 `apps_link_unique_taken`),
-  which makes its table a one-to-one extension. In filters, `"x" in tags` is one `jsonb_exists`,
+  write's transaction under an advisory lock (`recordChecks.js`, 409 `apps_link_unique_taken`), and
+  for an import's rows once among them and against the table, in one read per such field
+  (`uniqueTakenIn`), which makes its table a one-to-one extension. In filters, `"x" in tags` is one `jsonb_exists`,
   and an empty field, `""` to formulas and null in the database, is found by `== ""` (null or
   empty text; a date and time's slot is only ever null).
-- **Database files** (D-130): a file or picture field's value is `{ path, name, size, type }`, set
-  only by the gate (`attachFile`, `recordFiles.js`; a value sent by path is refused,
+- **Database files** (D-130): a file or picture field's value is `{ path, name, size, type }` (never
+  required, `apps_file_required`: its file goes on once the record exists), set only by the gate (`attachFile`, `recordFiles.js`; a value sent by path is refused,
   `apps_value_file_from_upload`). The files feature plugs its writer in at start
   (`useRecordFiles`), which copies the file to `/files/db/tables/<table>/<record>/<field>/<name>`
   in the home's storage before the change; a change that fails removes it, and one that replaces

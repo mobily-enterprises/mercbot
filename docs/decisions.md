@@ -4295,14 +4295,16 @@ composes from Contacts; records' files live at `db/tables/<table>/…` and nobod
 are per table only, and what's private goes in a one-to-one extension only some people can open. This first phase is
 small and complete; more catalog families and mini apps come in phase 2, and per-table permissions in phase 3.
 
-- **New field types** (`packages/apps`): `person` (someone in the home, checked against its members on every write,
-  shown by name; a member who left shows as "Former member"), `tags` (a list of words, optionally from an allowed list;
+- **New field types** (`packages/apps`): `person` (someone in the home, checked against its members whenever a write
+  sets it, shown by name; a member who left shows as "Former member", and their records keep them until someone sets
+  another), `tags` (a list of words, optionally from an allowed list;
   filtered with `"x" in tags`), `url` (http or https only), `longtext` (up to 20,000 characters), `datetime` (an ISO
   moment, shown in the reader's zone), and `file` and `image` (below). A member's screens read `me` (id and name), as a
   visitor's read `visitor`.
 - **One-to-one links**: a link field may be `unique`, at most one live record per target, which makes its table a
   one-to-one extension of the one it links to. Every home's records share one table, so no database index can hold it:
-  the data gate checks it in the write's own transaction under an advisory lock (409 `apps_link_unique_taken`).
+  the data gate checks it in the write's own transaction under an advisory lock (409 `apps_link_unique_taken`), and an
+  import's rows once among them and against the table.
 - **Empty values in filters**: a formula reads an empty field as `""`, and the database holds it as null.
   `field == ""` now finds empty fields, `field != ""` filled ones, and a date and time compared with `""` is a null test.
 - **Database files**: a record's file or picture lives in the home's storage at
@@ -4313,10 +4315,12 @@ small and complete; more catalog families and mini apps come in phase 2, and per
   writes there: a file is copied in (never moved) as the record's change is made, a change that fails leaves no file,
   and a replaced or cleared file goes once the change is in. An obsolete record keeps its files. A picture field takes
   only PNG, JPEG, GIF or WebP, by its bytes. Nobody sets a file by sending a path (`apps_value_file_from_upload`), and a
-  draft's practice data takes none.
+  draft's practice data takes none. A file or picture field can't be required (`apps_file_required`): its file goes on
+  once the record exists.
   - People upload in the record dialog and on a live app's forms (`POST …/records/:id/files/:field`, with the files'
     size limit and picture and video check, D-90).
-  - Bots use `data_attach_file` with one of their files.
+  - Bots use `data_attach_file` with one of their files; in a private chat never one really in the chat's own folder,
+    whatever its path says.
   - A copy that serves public apps serves a record's file through `gate.recordFile`, by record and field, within the
     app's visitor rules, never by path.
 - **The catalog** (`packages/apps/catalog/*.json`, `tableCatalog.js`), checked as the server starts (a broken file

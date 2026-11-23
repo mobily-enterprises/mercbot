@@ -42,7 +42,7 @@ async function setup(context) {
 }
 
 test("a person field holds someone in the home now, and reads back with their name until they leave", async (context) => {
-  const { knex, gate, ctx, tasks, idOf, other, leaver, userId, workspaceId } = await setup(context);
+  const { home, knex, gate, ctx, tasks, idOf, other, leaver, userId, workspaceId } = await setup(context);
   const assignee = idOf(tasks, "assignee");
   const mine = await gate.create(ctx, "tasks", { title: "Mine", assignee: userId });
   const theirs = await gate.create(ctx, "tasks", { title: "Theirs", assignee: String(leaver.id) });
@@ -58,6 +58,11 @@ test("a person field holds someone in the home now, and reads back with their na
   await knex("workspace_memberships").where({ workspace_id: workspaceId, user_id: leaver.id }).update({ status: "removed" });
   assert.deepEqual((await read()).get(theirs.id), { id: String(leaver.id), label: "Former member" }, "the id is kept");
   assert.deepEqual((await gate.get(ctx, "tasks", theirs.id))[assignee], { id: String(leaver.id), label: "Former member" });
+  // Their record stays editable, sent back whole as a form sends it; nobody is newly set to them (a new call: a call
+  // reads who is in the home once).
+  const later = home.ctx({ type: "person", id: userId, name: "Tester" }, { kind: "data" });
+  await gate.update(later, "tasks", theirs.id, { title: "Theirs, renamed", assignee: String(leaver.id) });
+  await assert.rejects(gate.update(later, "tasks", mine.id, { assignee: String(leaver.id) }), { code: "apps_value_person_unknown" });
 });
 
 test("labelling people costs the same few queries for a page of 5 or 40 records", async (context) => {
@@ -93,6 +98,35 @@ test("a one-to-one link leaves at most one live record per target, a restore and
   const results = await Promise.allSettled([1, 2, 3].map((n) => gate.create(ctx, "pipeline", { contact: carl.id, stage: `Race ${n}` })));
   assert.equal(results.filter((result) => result.status === "fulfilled").length, 1);
   assert.ok(results.filter((result) => result.status === "rejected").every((result) => result.reason.code === "apps_link_unique_taken"));
+});
+
+test("an import into a one-to-one extension takes one row per target, in a fixed number of queries", async (context) => {
+  const { knex, gate, ctx, pipeline, idOf } = await setup(context);
+  const ana = await gate.create(ctx, "contacts", { name: "Ana" });
+  const ben = await gate.create(ctx, "contacts", { name: "Ben" });
+  await gate.create(ctx, "pipeline", { contact: ana.id, stage: "Lead" });
+  const row = (contact, stage) => ({ [idOf(pipeline, "contact")]: contact, [idOf(pipeline, "stage")]: stage });
+  const stages = async () => (await gate.read(ctx, "pipeline", { page: { size: 100 } })).records.map((record) => record[idOf(pipeline, "stage")]).sort();
+
+  const taken = await gate.importRecords(ctx, "pipeline", [row("Ana", "Again"), row("Ben", "New")]);
+  assert.deepEqual(taken.errors.map((error) => error.row), [2], "Ana has one already");
+  assert.match(taken.errors[0].message, /can have only one/u);
+  const twice = await gate.importRecords(ctx, "pipeline", [row("Ben", "One"), row(ben.id, "Two")], { dryRun: true });
+  assert.deepEqual(twice.errors.map((error) => error.row), [3], "Ben twice in one sheet");
+  assert.deepEqual(await stages(), ["Lead"], "nothing written");
+
+  // Checking them costs the same queries for 3 rows or 60.
+  const fill = async (count) => {
+    const people = [];
+    for (let at = 0; at < count; at += 1) people.push(await gate.create(ctx, "contacts", { name: `P${count}-${at}` }));
+    return people.map((person) => row(person.id, "Lead"));
+  };
+  const few = await fill(3);
+  const many = await fill(60);
+  const fewQueries = await queriesDuring(knex, () => gate.importRecords(ctx, "pipeline", few));
+  const manyQueries = await queriesDuring(knex, () => gate.importRecords(ctx, "pipeline", many));
+  assert.equal(manyQueries, fewQueries, `60 rows took ${manyQueries} queries, 3 took ${fewQueries}`);
+  assert.equal((await stages()).length, 64);
 });
 
 test("tags are filtered with \"x\" in tags; a date and time is one instant; a person column imports by name", async (context) => {

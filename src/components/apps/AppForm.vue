@@ -4,7 +4,7 @@ import { calculate, celSchema, isCalculated } from "@local/apps/shared";
 import AppNode from "./AppNode.vue";
 import { formulaRecord, refersToRemovedField, showValue } from "./appRuntime.js";
 import { APP_FORM_KEY, APP_SCREEN_KEY } from "./screenKeys.js";
-import { SHARED_TYPES, TEXT_INPUT, inputOf, storedOf } from "./fieldValues.js";
+import { SHARED_TYPES, TEXT_INPUT, inputOf, personChoices, storedOf } from "./fieldValues.js";
 import RecordFileField from "./RecordFileField.vue";
 import { appsApi, errorText } from "./appsApi.js";
 
@@ -30,7 +30,8 @@ const loading = computed(() => !creating.value && runtime.loading.has(queryName.
 const draft = reactive({});
 const FILES = new Set(["file", "image"]);
 // The file field being uploaded or taken away, and what went wrong.
-const attaching = reactive({ field: "", failed: "", problem: "" });
+// `round` remounts the file inputs after each try, so the same file can be chosen again.
+const attaching = reactive({ field: "", failed: "", problem: "", round: 0 });
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/u;
 
 const entries = computed(() => (props.node.fields || [])
@@ -70,13 +71,15 @@ async function attach(entry, file) {
   attaching.field = entry.field;
   attaching.failed = "";
   try {
-    if (file) await appsApi.attachFile(table.value.key, record.value.id, entry.def.id, file);
-    else await appsApi.updateRecord(table.value.key, record.value.id, { [entry.def.id]: null });
+    // By the field's name: an app's tables come without field ids.
+    if (file) await appsApi.attachFile(table.value.key, record.value.id, entry.field, file);
+    else await appsApi.updateRecord(table.value.key, record.value.id, { [entry.field]: null });
     await runtime.reloadChanged([table.value.id]);
   } catch (error) {
     attaching.failed = entry.field;
     attaching.problem = errorText(error, "That file didn't upload.");
   } finally {
+    attaching.round += 1;
     attaching.field = "";
   }
 }
@@ -146,7 +149,7 @@ provide(APP_FORM_KEY, {
           <v-select
             v-else-if="entry.def.type === 'person'"
             v-model="draft[entry.field]"
-            :items="runtime.people || []"
+            :items="personChoices(runtime.people || [], record?.[entry.field])"
             item-title="name"
             item-value="id"
             :label="entry.def.label + (required(entry) ? ' *' : '')"
@@ -196,6 +199,7 @@ provide(APP_FORM_KEY, {
           <template v-else-if="FILES.has(entry.def.type)">
             <v-progress-linear v-if="attaching.field === entry.field" indeterminate class="mb-2" />
             <RecordFileField
+              :key="`${entry.field}:${attaching.round}`"
               :field="entry.def"
               :current="record?.[entry.field] || null"
               :chosen="null"

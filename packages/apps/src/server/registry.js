@@ -147,6 +147,12 @@ export function createRegistry({ resources, anyapi, notices, trustMs = TRUST_MS 
       }
       return { type, options: { formula: String(formula) } };
     }
+    if (input.required && ["file", "image"].includes(type)) {
+      // A record's file goes on once the record exists (D-130), so a new record could never have one.
+      throw new RegistryError(400, `A ${type === "image" ? "picture" : "file"} field can't be required: its file goes on once the record exists.`, {
+        code: "apps_file_required"
+      });
+    }
     if (input.required) options.required = true;
     // A tags field may name the tags it takes; without a list, any tag.
     if (type === "tags") {

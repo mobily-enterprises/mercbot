@@ -4,15 +4,30 @@
 
 const pad = (number) => String(number).padStart(2, "0");
 
-/** A stored datetime (an ISO instant) as a datetime-local input's value, in this browser's zone, or "". */
+/**
+ * A stored datetime (an ISO instant) as a datetime-local input's value, in this browser's zone, or "": its seconds and
+ * milliseconds too when it has them, so a form sends back the same instant when nobody touched it.
+ */
 export function localDateTime(value) {
   const moment = value ? new Date(value) : null;
   if (!moment || Number.isNaN(moment.getTime())) return "";
-  return `${moment.getFullYear()}-${pad(moment.getMonth() + 1)}-${pad(moment.getDate())}T${pad(moment.getHours())}:${pad(moment.getMinutes())}`;
+  const minutes = `${moment.getFullYear()}-${pad(moment.getMonth() + 1)}-${pad(moment.getDate())}T${pad(moment.getHours())}:${pad(moment.getMinutes())}`;
+  const seconds = moment.getSeconds() || moment.getMilliseconds() ? `:${pad(moment.getSeconds())}` : "";
+  const milliseconds = moment.getMilliseconds() ? `.${String(moment.getMilliseconds()).padStart(3, "0")}` : "";
+  return `${minutes}${seconds}${milliseconds}`;
 }
 
 /** Whether a field is one of the types these conversions handle. */
 export const SHARED_TYPES = new Set(["person", "tags", "datetime", "url", "longtext"]);
+
+/**
+ * The people a person field picks from: the home's, and the one the record holds when they've left the home (shown as
+ * the record reads them, "Former member"), so the field shows them rather than their id.
+ */
+export function personChoices(people, value) {
+  if (!value || typeof value !== "object" || people.some((person) => person.id === value.id)) return people;
+  return [...people, { id: value.id, name: value.label }];
+}
 
 /** A stored value of one of those types as the form holds it. */
 export function inputOf(field, value) {
