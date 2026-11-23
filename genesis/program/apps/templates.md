@@ -25,8 +25,11 @@ Ready-made apps a home installs and adapts (D-35, stage 3).
 - Installing (`POST /api/w/:slug/apps-templates/:key/install`, owners and admins, or the
   Builder's `template_install`) reuses tables with the same key, adding only missing fields, or
   creates them; creates the app with the template as a draft; optionally adds sample records
-  through the gate (audited `via template`), skipping and counting ones that don't fit. Nothing
-  is removed or renamed.
+  through the gate (audited `via template`), skipping and counting ones that don't fit. A sample
+  link names another of the sample's records, made earlier, by its table and values
+  (`{ "sample": "contacts", "name": "Ana Ruiz" }`, so the CRM's sample contacts are in its Pipeline
+  and own its deals), and a row whose linked record was skipped is skipped too. Nothing is removed
+  or renamed.
 
 ## Proved by
 

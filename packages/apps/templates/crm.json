@@ -703,14 +703,34 @@
     "deals": [
       {
         "title": "Website refresh",
+        "contact": { "sample": "contacts", "name": "Ana Ruiz" },
         "amount": 480000,
         "stage": "Proposal",
         "closes": "2026-12-15"
       },
       {
         "title": "Support plan",
+        "contact": { "sample": "contacts", "name": "Ben Okafor" },
         "amount": 120000,
         "stage": "Won"
+      }
+    ],
+    "crm_contacts": [
+      {
+        "contact": { "sample": "contacts", "name": "Ana Ruiz" },
+        "stage": "Qualified",
+        "source": "Website",
+        "value": 480000,
+        "next_step": "Follow up on the proposal",
+        "next_step_date": "2026-12-08"
+      },
+      {
+        "contact": { "sample": "contacts", "name": "Ben Okafor" },
+        "stage": "Customer",
+        "source": "Referral",
+        "value": 120000,
+        "next_step": "Check in on the support plan",
+        "next_step_date": "2027-01-15"
       }
     ]
   }

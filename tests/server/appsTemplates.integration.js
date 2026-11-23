@@ -123,3 +123,22 @@ test("the CRM keeps each contact's pipeline in its extension, one row per contac
   const mine = await runtime.query(ctx, { slug: installed.app.slug, screen: "contact", query: "pipeline", params: { id: ana.id } });
   assert.equal(mine.records.length, 1);
 });
+
+// "With sample data" fills the CRM's Pipeline (the contacts' extension, D-130) with a row for each sample contact, as
+// their deals stand, and each sample deal is its contact's: the sample's links name its own records.
+test("the CRM's sample puts its contacts in the pipeline and their deals on their pages", async (context) => {
+  const { apps: capability, userId, options, ctx: ctxOf } = await appsHome(context, { slug: "apps-tpl-crm-sample" });
+  const { apps, runtime } = capability;
+  const ctx = ctxOf({ type: "person", id: String(userId), name: "Pat" });
+  const installed = await capability.installTemplate(ctx, "crm", { sample: true });
+  assert.deepEqual([installed.errors, installed.skipped], [[], 0]);
+  await apps.publish(ctx.actor, installed.app.slug, {}, options);
+  const query = async (screen, name) => (await runtime.query(ctx, { slug: installed.app.slug, screen, query: name })).records;
+  const names = new Map((await query("contacts", "people")).map((person) => [String(person.id), person.name]));
+  const nameOf = (link) => names.get(String(link?.id ?? link));
+  const pipeline = (await query("pipeline", "leads")).map((lead) => [nameOf(lead.contact), lead.stage]).sort();
+  assert.deepEqual(pipeline, [["Ana Ruiz", "Qualified"], ["Ben Okafor", "Customer"]]);
+  assert.ok((await query("pipeline", "byStage")).length > 0, "Pipeline's chart has bars");
+  const deals = (await query("deals", "open")).map((deal) => [deal.title, nameOf(deal.contact)]).sort();
+  assert.deepEqual(deals, [["Support plan", "Ben Okafor"], ["Website refresh", "Ana Ruiz"]]);
+});

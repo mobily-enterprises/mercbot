@@ -45,7 +45,7 @@ Everyone else in the home can ask the Builder instead: "Install the Leave reques
 - **Tables and fields**, with sensible types and choices, such as a deal's stage (New, Proposal, Won, Lost) or a booking's status (Requested, Confirmed, Cancelled)
 - **Screens and navigation**: lists, forms for adding and editing, single records, and charts or totals where they help
 - **Visitor access** for the public templates, such as letting visitors add enquiries but read nothing
-- **Sample records**, only if you choose **With sample data**, and only for the templates that have them (CRM, Stock, Leave requests and Hiring pipeline)
+- **Sample records**, only if you choose **With sample data**, and only for the templates that have them: CRM (two contacts, each in the Pipeline with a deal), Stock, Leave requests and Hiring pipeline
 
 ## What a template leaves out
 

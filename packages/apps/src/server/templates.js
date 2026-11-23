@@ -41,17 +41,41 @@ export async function installTemplate({ registry, apps, gate, catalog }, ctx, ke
   let skipped = 0;
   if (sample) {
     const sampleCtx = { ...ctx, via: { kind: "template", template: template.key } };
+    // The sample's records as they're made, by table: { row, id }, for the sample's own links.
+    const made = new Map();
     for (const [tableKey, rows] of Object.entries(template.sample || {})) {
-      // Row by row through the gate, so each sample row gets every record's checks and a refused one is skipped.
+      made.set(tableKey, []);
+      // Row by row through the gate, so each sample row gets every record's checks and a refused one is skipped, with
+      // the rows that link to it.
       for (const row of rows) {
-        await gate.create(sampleCtx, tableKey, row).catch((error) => {
+        const values = sampleLinks(row, made);
+        const record = values && await gate.create(sampleCtx, tableKey, values).catch((error) => {
           if (!(Number.isInteger(error?.statusCode) && error.statusCode < 500)) throw error;
-          skipped += 1;
+          return null;
         });
+        if (record) made.get(tableKey).push({ row, id: record.id });
+        else skipped += 1;
       }
     }
   }
   return { app, errors, skipped };
+}
+
+/**
+ * A sample row's values with its links to the sample's own records made: a link names one by its table, made earlier in
+ * the sample, and its values, as `{ "sample": "contacts", "name": "Ana Ruiz" }`, and gets the id it was given. Null when
+ * that record wasn't made (it didn't fit the home's table), so the row is skipped too.
+ */
+function sampleLinks(row, made) {
+  const values = { ...row };
+  for (const [key, value] of Object.entries(row)) {
+    if (!value || typeof value !== "object" || typeof value.sample !== "string") continue;
+    const { sample: tableKey, ...match } = value;
+    const found = (made.get(tableKey) || []).find((entry) => Object.entries(match).every(([field, wanted]) => entry.row[field] === wanted));
+    if (!found) return null;
+    values[key] = found.id;
+  }
+  return values;
 }
 
 /** What the Templates tab shows of each. */
