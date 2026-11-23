@@ -8,7 +8,7 @@ import { createFileStore } from "../../packages/files/src/server/fileStore.js";
 import { buildAppTools } from "../../packages/bots/src/server/appTools.js";
 import { compile } from "../../packages/apps/src/server/visitorAccess.js";
 
-// A record's file or picture (D-127), through the data gate on the test database and a real file store: the gate writes
+// A record's file or picture (D-130), through the data gate on the test database and a real file store: the gate writes
 // it to the home's Database files at the record's own place and sets it in one change; a change that fails leaves no
 // file; a replaced or cleared file goes once the change is in; an obsolete record keeps its files; a picture field takes
 // only pictures; nobody sets a file by sending a path; a draft's practice data and a visitor add none.

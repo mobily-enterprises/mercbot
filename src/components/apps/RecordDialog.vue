@@ -10,7 +10,7 @@ import RecordFileField from "./RecordFileField.vue";
 // Adding or editing one record in the Data tab (D-35). Inputs follow the field types; links pick a
 // record of the target table, searched on the server as the person types. Calculated fields (D-78)
 // show what they work out to from the values typed, and are never typed in. The server checks every
-// value again. A file or picture (D-127) is uploaded once the record is saved, as the server stores it at the record's place;
+// value again. A file or picture (D-130) is uploaded once the record is saved, as the server stores it at the record's place;
 // only taking one away is part of the save itself.
 const props = defineProps({
   open: { type: Boolean, default: false },

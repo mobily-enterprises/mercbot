@@ -80,7 +80,7 @@ const FilesFeature = defineFeature({
    * @param {{ useFilesSync: (sync: object | null) => void }} capabilities.sweeps the account's sweeps, whose usage archive
    *   is kept in the files bucket when there is one (D-91)
    * @param {{ useRecordFiles: (impl: object) => void }} capabilities.apps mercbot.apps, whose records' files and pictures
-   *   live in the home's Database files (D-127), which this feature writes
+   *   live in the home's Database files (D-130), which this feature writes
    * @param {import("@local/account/server/types").MediaCheck | null} capabilities.mediaCheck how a copy checks pictures and videos (D-90)
    * @param {Record<string, any>} capabilities.resources this feature's handles
    * @param {(reason: string) => object} capabilities.systemContext
@@ -90,7 +90,7 @@ const FilesFeature = defineFeature({
     // Copy to… and Move to… between the places a person can open: chats and bots are the records' (D-120).
     const files = Object.freeze({ ...runtime, transfer: createFileTransfer({ files: runtime, records }) });
     sweeps.useFilesSync(files.volume.sync);
-    // Records' files and pictures (D-127): written to and removed from Database files only through the apps' gate, and an
+    // Records' files and pictures (D-130): written to and removed from Database files only through the apps' gate, and an
     // upload for one takes the same picture and video check as any upload (D-90).
     apps.useRecordFiles({
       write: files.store.writeRecordFile,

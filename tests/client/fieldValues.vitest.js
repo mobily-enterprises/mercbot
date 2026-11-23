@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { SHARED_TYPES, TEXT_INPUT, inputOf, localDateTime, storedOf } from "../../src/components/apps/fieldValues.js";
 
-// The new field types as both forms hold them (D-127): a person as their id, tags as a list, a date and time in the
+// The new field types as both forms hold them (D-130): a person as their id, tags as a list, a date and time in the
 // reader's zone for a datetime-local input, and back as the server takes them.
 const field = (type) => ({ type });
 

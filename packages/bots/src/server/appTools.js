@@ -214,7 +214,7 @@ export function buildAppTools({
       return failed(error);
     }
   }
-  // A file or picture goes onto a record as a copy in the home's Database files (D-127): the bot's own file stays.
+  // A file or picture goes onto a record as a copy in the home's Database files (D-130): the bot's own file stays.
   async function dataAttachFile({ table, id, field, path: wanted }) {
     try {
       const { table: info } = await gate.tableFor(table, call);

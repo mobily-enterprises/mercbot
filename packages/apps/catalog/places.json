@@ -1,0 +1,80 @@
+{
+  "key": "places",
+  "label": "Places",
+  "description": "Venues, offices, shops and other places, with where they are and how to reach them.",
+  "aliases": [
+    "venues",
+    "locations",
+    "sites",
+    "addresses"
+  ],
+  "fields": [
+    {
+      "key": "name",
+      "type": "text",
+      "label": "Name",
+      "required": true
+    },
+    {
+      "key": "category",
+      "type": "link",
+      "label": "Category",
+      "target": "place_categories"
+    },
+    {
+      "key": "photo",
+      "type": "image",
+      "label": "Photo"
+    },
+    {
+      "key": "address",
+      "type": "longtext",
+      "label": "Address"
+    },
+    {
+      "key": "city",
+      "type": "text",
+      "label": "City"
+    },
+    {
+      "key": "country",
+      "type": "text",
+      "label": "Country"
+    },
+    {
+      "key": "website",
+      "type": "url",
+      "label": "Website"
+    },
+    {
+      "key": "phone",
+      "type": "phone",
+      "label": "Phone"
+    },
+    {
+      "key": "email",
+      "type": "email",
+      "label": "Email"
+    },
+    {
+      "key": "capacity",
+      "type": "number",
+      "label": "Capacity"
+    },
+    {
+      "key": "opening_hours",
+      "type": "longtext",
+      "label": "Opening hours"
+    },
+    {
+      "key": "tags",
+      "type": "tags",
+      "label": "Tags"
+    },
+    {
+      "key": "notes",
+      "type": "longtext",
+      "label": "Notes"
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+{
+  "key": "event_attendees",
+  "label": "Event attendees",
+  "description": "Who is invited to or going to each event.",
+  "aliases": [
+    "attendees",
+    "rsvps",
+    "guest list"
+  ],
+  "fields": [
+    {
+      "key": "event",
+      "type": "link",
+      "label": "Event",
+      "target": "events",
+      "required": true
+    },
+    {
+      "key": "contact",
+      "type": "link",
+      "label": "Contact",
+      "target": "contacts",
+      "required": true
+    },
+    {
+      "key": "status",
+      "type": "choice",
+      "label": "Status",
+      "choices": [
+        "Invited",
+        "Going",
+        "Not going",
+        "Attended"
+      ]
+    }
+  ]
+}

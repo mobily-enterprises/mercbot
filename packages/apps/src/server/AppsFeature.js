@@ -84,7 +84,9 @@ const AppsFeature = defineFeature({
         scripts: apps.scripts,
         installTemplate: apps.installTemplate,
         templateSummaries: apps.templateSummaries,
-        // The files feature plugs in here at start: it writes records' files to the home's Database files (D-127).
+        // The shared tables' catalog (D-130): a home's shared tables, made once and reused.
+        catalog: apps.catalog,
+        // The files feature plugs in here at start: it writes records' files to the home's Database files (D-130).
         useRecordFiles: apps.useRecordFiles,
         // app_jobs: queued by apps (queueTask), claimed by the bots' app job runner in its system context.
         jobs: createAppJobs({ appJobs: resources.appJobs }),

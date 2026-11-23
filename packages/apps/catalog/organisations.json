@@ -1,0 +1,67 @@
+{
+  "key": "organisations",
+  "label": "Organisations",
+  "description": "Companies, charities, schools and other bodies people deal with.",
+  "aliases": [
+    "organizations",
+    "companies",
+    "businesses",
+    "clients' companies",
+    "firms"
+  ],
+  "fields": [
+    {
+      "key": "name",
+      "type": "text",
+      "label": "Name",
+      "required": true
+    },
+    {
+      "key": "kind",
+      "type": "choice",
+      "label": "Kind",
+      "choices": [
+        "Company",
+        "Charity",
+        "School",
+        "Public body",
+        "Other"
+      ]
+    },
+    {
+      "key": "website",
+      "type": "url",
+      "label": "Website"
+    },
+    {
+      "key": "email",
+      "type": "email",
+      "label": "Email"
+    },
+    {
+      "key": "phone",
+      "type": "phone",
+      "label": "Phone"
+    },
+    {
+      "key": "address",
+      "type": "longtext",
+      "label": "Address"
+    },
+    {
+      "key": "logo",
+      "type": "image",
+      "label": "Logo"
+    },
+    {
+      "key": "tags",
+      "type": "tags",
+      "label": "Tags"
+    },
+    {
+      "key": "notes",
+      "type": "longtext",
+      "label": "Notes"
+    }
+  ]
+}

@@ -5,7 +5,7 @@ import path from "node:path";
 import test from "node:test";
 import { DB, createFileStore } from "../../packages/files/src/server/fileStore.js";
 
-// Database files (D-127): the files and pictures a home's records hold, at a fixed place per table, record and field
+// Database files (D-130): the files and pictures a home's records hold, at a fixed place per table, record and field
 // under /files/db. Only the records' own writes put a file there (writeRecordFile) or take one away (removeRecordFile);
 // a person, a bot's file tools or anyone else reads and copies them, and is refused moving, renaming, deleting,
 // writing or making folders there, so a record's link never breaks.

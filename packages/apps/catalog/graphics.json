@@ -1,0 +1,66 @@
+{
+  "key": "graphics",
+  "label": "Graphics",
+  "description": "Posters, social posts, logos and other pictures made for the home, with their source files.",
+  "aliases": [
+    "designs",
+    "artwork",
+    "visuals"
+  ],
+  "fields": [
+    {
+      "key": "title",
+      "type": "text",
+      "label": "Title",
+      "required": true
+    },
+    {
+      "key": "kind",
+      "type": "choice",
+      "label": "Kind",
+      "choices": [
+        "Poster",
+        "Social post",
+        "Logo",
+        "Banner",
+        "Other"
+      ]
+    },
+    {
+      "key": "picture",
+      "type": "image",
+      "label": "Picture"
+    },
+    {
+      "key": "source_file",
+      "type": "file",
+      "label": "Source file"
+    },
+    {
+      "key": "status",
+      "type": "choice",
+      "label": "Status",
+      "choices": [
+        "Draft",
+        "Approved",
+        "Used"
+      ]
+    },
+    {
+      "key": "owner",
+      "type": "person",
+      "label": "Owner"
+    },
+    {
+      "key": "event",
+      "type": "link",
+      "label": "Event",
+      "target": "events"
+    },
+    {
+      "key": "tags",
+      "type": "tags",
+      "label": "Tags"
+    }
+  ]
+}

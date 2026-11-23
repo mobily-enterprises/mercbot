@@ -7,7 +7,7 @@ import { compileWhere } from "../../packages/apps/src/shared/where.js";
 import { applyPlan } from "../../packages/apps/src/server/sqlPlan.js";
 import { cleanRecord, TAG_MAX, TAGS_MAX } from "../../packages/apps/src/server/validate.js";
 
-// The field types shared tables need (D-127): a person in the home, tags, a web address, long notes and a date and
+// The field types shared tables need (D-130): a person in the home, tags, a web address, long notes and a date and
 // time. Each value is checked by type before anything is written (validate.js); tags are filtered with CEL's own
 // `"x" in tags`, which becomes SQL; a member's screens read who they are as `me`.
 const table = {

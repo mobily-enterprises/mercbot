@@ -1,0 +1,98 @@
+{
+  "key": "contacts",
+  "label": "Contacts",
+  "description": "People the home deals with: clients, suppliers, guests, anyone with a name and a way to reach them.",
+  "aliases": [
+    "people",
+    "clients",
+    "customers",
+    "leads",
+    "guests",
+    "address book",
+    "contact list"
+  ],
+  "fields": [
+    {
+      "key": "name",
+      "type": "text",
+      "label": "Name",
+      "required": true
+    },
+    {
+      "key": "first_name",
+      "type": "text",
+      "label": "First name"
+    },
+    {
+      "key": "last_name",
+      "type": "text",
+      "label": "Last name"
+    },
+    {
+      "key": "photo",
+      "type": "image",
+      "label": "Photo"
+    },
+    {
+      "key": "organisation",
+      "type": "link",
+      "label": "Organisation",
+      "target": "organisations"
+    },
+    {
+      "key": "role",
+      "type": "text",
+      "label": "Role"
+    },
+    {
+      "key": "email",
+      "type": "email",
+      "label": "Email"
+    },
+    {
+      "key": "phone",
+      "type": "phone",
+      "label": "Phone"
+    },
+    {
+      "key": "mobile",
+      "type": "phone",
+      "label": "Mobile"
+    },
+    {
+      "key": "address",
+      "type": "longtext",
+      "label": "Address"
+    },
+    {
+      "key": "website",
+      "type": "url",
+      "label": "Website"
+    },
+    {
+      "key": "birthday",
+      "type": "date",
+      "label": "Birthday"
+    },
+    {
+      "key": "tags",
+      "type": "tags",
+      "label": "Tags"
+    },
+    {
+      "key": "owner",
+      "type": "person",
+      "label": "Owner"
+    },
+    {
+      "key": "last_contacted",
+      "type": "date",
+      "label": "Last contacted"
+    },
+    {
+      "key": "notes",
+      "type": "longtext",
+      "label": "Notes"
+    }
+  ]
+}

@@ -20,7 +20,7 @@ export const CHAT = "/files/chat";
 export const BOT = "/files/bot";
 export const SHARED = "/files/shared";
 /**
- * The home's Database files (D-127): the files and pictures records hold, at `tables/<table>/<record>/<field>/<name>`.
+ * The home's Database files (D-130): the files and pictures records hold, at `tables/<table>/<record>/<field>/<name>`.
  * Everyone reads and copies them; nobody moves, renames, deletes or writes them by hand, so a record's link never
  * breaks: only the table records' own writes put files here (writeRecordFile, removeRecordFile).
  */

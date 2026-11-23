@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 
 /**
- * A home's Database files (D-127) as the table records write them: each record's file at its fixed place, copied in,
+ * A home's Database files (D-130) as the table records write them: each record's file at its fixed place, copied in,
  * and removed once no record holds it. Nothing else writes there (fileStore.js refuses it).
  * @param {object} store the file store's own parts
  * @param {string} store.DB the Database files' path for bots and people ("/files/db")

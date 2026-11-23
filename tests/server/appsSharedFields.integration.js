@@ -5,7 +5,7 @@ import { queriesDuring } from "../support/queryCount.mjs";
 import { celSchema } from "../../packages/apps/src/shared/formulas.js";
 import { compileWhere, planToIds } from "../../packages/apps/src/shared/where.js";
 
-// The fields shared tables need (D-127), through the data gate on the test database: a person field holds someone in
+// The fields shared tables need (D-130), through the data gate on the test database: a person field holds someone in
 // the home now and reads back with their name ("Former member" once they leave); a one-to-one link (unique) leaves at
 // most one live record per target, a restore included; tags are filtered with `"x" in tags`; a date and time is kept
 // as one instant; a person column imports by name. Labelling people costs the same few queries whatever the page.

@@ -121,7 +121,7 @@ export async function startDesktopSandbox({ runtimeEnv, computerId, display, pro
         ...(folders.chat ? [bind(folders.chat, "/files/chat", { exec: false })] : []),
         ...(folders.bot ? [bind(folders.bot, "/files/bot", { readonly: folders.readOnly?.includes("bot"), exec: false })] : []),
         bind(folders.shared, "/files/shared", { readonly: folders.readOnly?.includes("shared"), exec: false }),
-        // The records' Database files, to read and copy from, never to change (D-127).
+        // The records' Database files, to read and copy from, never to change (D-130).
         ...(folders.db ? [bind(folders.db, "/files/db", { readonly: true, exec: false })] : [])
       ] : []),
       ...(existsSync(apps) ? [bind(apps, "/opt/apps", { readonly: true })] : [])

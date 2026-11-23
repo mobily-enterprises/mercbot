@@ -1,0 +1,45 @@
+{
+  "key": "place_categories",
+  "label": "Place categories",
+  "description": "Kinds of places: venue, office, hotel and so on.",
+  "aliases": [
+    "place types",
+    "kinds of places"
+  ],
+  "fields": [
+    {
+      "key": "name",
+      "type": "text",
+      "label": "Name",
+      "required": true
+    },
+    {
+      "key": "description",
+      "type": "longtext",
+      "label": "Description"
+    }
+  ],
+  "seed": [
+    {
+      "name": "Venue"
+    },
+    {
+      "name": "Office"
+    },
+    {
+      "name": "Hotel"
+    },
+    {
+      "name": "Restaurant"
+    },
+    {
+      "name": "Shop"
+    },
+    {
+      "name": "School"
+    },
+    {
+      "name": "Other"
+    }
+  ]
+}

@@ -1,0 +1,55 @@
+{
+  "key": "deals",
+  "label": "Deals",
+  "description": "Sales being worked on: with whom, for how much, and how far along.",
+  "aliases": [
+    "opportunities",
+    "sales"
+  ],
+  "fields": [
+    {
+      "key": "title",
+      "type": "text",
+      "label": "Title",
+      "required": true
+    },
+    {
+      "key": "contact",
+      "type": "link",
+      "label": "Contact",
+      "target": "contacts"
+    },
+    {
+      "key": "organisation",
+      "type": "link",
+      "label": "Organisation",
+      "target": "organisations"
+    },
+    {
+      "key": "amount",
+      "type": "money",
+      "label": "Amount"
+    },
+    {
+      "key": "stage",
+      "type": "choice",
+      "label": "Stage",
+      "choices": [
+        "New",
+        "Proposal",
+        "Won",
+        "Lost"
+      ]
+    },
+    {
+      "key": "closes",
+      "type": "date",
+      "label": "Closes"
+    },
+    {
+      "key": "owner",
+      "type": "person",
+      "label": "Owner"
+    }
+  ]
+}

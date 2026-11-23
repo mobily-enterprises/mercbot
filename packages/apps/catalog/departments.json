@@ -1,0 +1,27 @@
+{
+  "key": "departments",
+  "label": "Departments",
+  "description": "The parts of the organisation that work is split into.",
+  "aliases": [
+    "teams",
+    "divisions"
+  ],
+  "fields": [
+    {
+      "key": "name",
+      "type": "text",
+      "label": "Name",
+      "required": true
+    },
+    {
+      "key": "lead",
+      "type": "person",
+      "label": "Lead"
+    },
+    {
+      "key": "description",
+      "type": "longtext",
+      "label": "Description"
+    }
+  ]
+}

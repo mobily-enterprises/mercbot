@@ -1,0 +1,96 @@
+{
+  "key": "todos",
+  "label": "To-dos",
+  "description": "Things to do: who does them, by when, how far along, in which list.",
+  "aliases": [
+    "tasks",
+    "actions",
+    "jobs",
+    "to-do list",
+    "todo list",
+    "action items"
+  ],
+  "fields": [
+    {
+      "key": "title",
+      "type": "text",
+      "label": "Title",
+      "required": true
+    },
+    {
+      "key": "list",
+      "type": "link",
+      "label": "List",
+      "target": "todo_lists"
+    },
+    {
+      "key": "assignee",
+      "type": "person",
+      "label": "Assignee"
+    },
+    {
+      "key": "status",
+      "type": "choice",
+      "label": "Status",
+      "choices": [
+        "To do",
+        "Doing",
+        "Waiting",
+        "Done"
+      ]
+    },
+    {
+      "key": "priority",
+      "type": "choice",
+      "label": "Priority",
+      "choices": [
+        "Low",
+        "Normal",
+        "High",
+        "Urgent"
+      ]
+    },
+    {
+      "key": "start",
+      "type": "date",
+      "label": "Start"
+    },
+    {
+      "key": "due",
+      "type": "datetime",
+      "label": "Due"
+    },
+    {
+      "key": "done_on",
+      "type": "datetime",
+      "label": "Done on"
+    },
+    {
+      "key": "parent",
+      "type": "link",
+      "label": "Part of",
+      "target": "todos"
+    },
+    {
+      "key": "contact",
+      "type": "link",
+      "label": "Contact",
+      "target": "contacts"
+    },
+    {
+      "key": "tags",
+      "type": "tags",
+      "label": "Tags"
+    },
+    {
+      "key": "attachment",
+      "type": "file",
+      "label": "Attachment"
+    },
+    {
+      "key": "notes",
+      "type": "longtext",
+      "label": "Notes"
+    }
+  ]
+}

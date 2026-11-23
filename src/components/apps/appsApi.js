@@ -28,7 +28,7 @@ export const appsApi = {
   records: (table, params) => requestInHome(client, `${records(table)}${queryString(params)}`),
   createRecord: (table, values) => requestInHome(client, records(table), { method: "POST", body: { values } }),
   updateRecord: (table, id, values) => requestInHome(client, records(table, id), { method: "PATCH", body: { values } }),
-  // A record's file or picture (D-127), uploaded as a form: the server stores it in Database files and answers the record.
+  // A record's file or picture (D-130), uploaded as a form: the server stores it in Database files and answers the record.
   attachFile: async (table, id, field, file) => {
     const form = new FormData();
     form.append("file", file, file.name);

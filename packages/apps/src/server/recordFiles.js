@@ -3,7 +3,7 @@ import { refuse } from "./visitorAccess.js";
 import { GateError, STORED_FILE, pictureKind } from "./validate.js";
 
 /**
- * A record's files and pictures in the home's Database files (D-127): the gate stores one when a file or image field is
+ * A record's files and pictures in the home's Database files (D-130): the gate stores one when a file or image field is
  * set (attachFile), and removes the file a change replaced or cleared once the change is in. The files themselves are
  * written by the files feature, which plugs in at start (`impl`: write, remove, real); without it, nothing is stored.
  * @param {object} dependencies

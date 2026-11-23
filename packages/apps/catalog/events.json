@@ -1,0 +1,60 @@
+{
+  "key": "events",
+  "label": "Events",
+  "description": "Things that happen at a time and a place: meetings, gigs, launches, parties.",
+  "aliases": [
+    "happenings",
+    "occasions",
+    "gigs"
+  ],
+  "fields": [
+    {
+      "key": "title",
+      "type": "text",
+      "label": "Title",
+      "required": true
+    },
+    {
+      "key": "starts",
+      "type": "datetime",
+      "label": "Starts"
+    },
+    {
+      "key": "ends",
+      "type": "datetime",
+      "label": "Ends"
+    },
+    {
+      "key": "place",
+      "type": "link",
+      "label": "Place",
+      "target": "places"
+    },
+    {
+      "key": "organiser",
+      "type": "person",
+      "label": "Organiser"
+    },
+    {
+      "key": "status",
+      "type": "choice",
+      "label": "Status",
+      "choices": [
+        "Planned",
+        "Confirmed",
+        "Cancelled",
+        "Done"
+      ]
+    },
+    {
+      "key": "poster",
+      "type": "image",
+      "label": "Poster"
+    },
+    {
+      "key": "notes",
+      "type": "longtext",
+      "label": "Notes"
+    }
+  ]
+}

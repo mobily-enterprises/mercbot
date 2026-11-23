@@ -1,0 +1,52 @@
+{
+  "key": "todo_lists",
+  "label": "To-do lists",
+  "description": "Named lists that to-dos are kept in, each optionally a department's.",
+  "aliases": [
+    "task lists",
+    "lists"
+  ],
+  "fields": [
+    {
+      "key": "name",
+      "type": "text",
+      "label": "Name",
+      "required": true
+    },
+    {
+      "key": "department",
+      "type": "link",
+      "label": "Department",
+      "target": "departments"
+    },
+    {
+      "key": "owner",
+      "type": "person",
+      "label": "Owner"
+    },
+    {
+      "key": "colour",
+      "type": "choice",
+      "label": "Colour",
+      "choices": [
+        "Blue",
+        "Green",
+        "Yellow",
+        "Orange",
+        "Red",
+        "Purple",
+        "Grey"
+      ]
+    },
+    {
+      "key": "archived",
+      "type": "yesno",
+      "label": "Archived"
+    }
+  ],
+  "seed": [
+    {
+      "name": "General"
+    }
+  ]
+}

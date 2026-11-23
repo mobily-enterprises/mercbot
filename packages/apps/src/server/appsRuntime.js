@@ -6,6 +6,7 @@ import { createRegistry } from "./registry.js";
 import { createRuntime } from "./runtime.js";
 import { createScripts } from "./scripts.js";
 import { installTemplate, templateSummaries } from "./templates.js";
+import { createTableCatalog } from "./tableCatalog.js";
 import { createTrial } from "./trial.js";
 import { createViews } from "./views.js";
 import { createWatches } from "./watches.js";
@@ -37,7 +38,7 @@ export function createAppsRuntime({ resources, systemContext, records, anyapi, n
     const named = await people.names(ids, options);
     return ids.map((id) => ({ id, name: named.get(id) ?? "Someone" })).sort((a, b) => a.name.localeCompare(b.name));
   };
-  // Database files' writer (D-127): the files feature plugs it in at start (useRecordFiles), as it depends on apps.
+  // Database files' writer (D-130): the files feature plugs it in at start (useRecordFiles), as it depends on apps.
   let recordFiles = null;
   /** The files feature's writer of record files: `{ write, remove }` (fileStore's writeRecordFile, removeRecordFile). */
   function useRecordFiles(impl) {
@@ -63,6 +64,7 @@ export function createAppsRuntime({ resources, systemContext, records, anyapi, n
   const views = createViews({ resources, records, systemContext, registry, apps, runtime });
   const watches = createWatches({ resources, repository, systemContext, registry, gate, apps, records });
   const installTemplateFor = (ctx, key, options) => installTemplate({ registry, apps, gate }, ctx, key, options);
+  const catalog = createTableCatalog({ registry, gate });
   return Object.freeze({
     anyapi,
     registry,
@@ -76,6 +78,7 @@ export function createAppsRuntime({ resources, systemContext, records, anyapi, n
     scripts,
     installTemplate: installTemplateFor,
     templateSummaries,
+    catalog,
     homePeople,
     useRecordFiles,
     recordUploads

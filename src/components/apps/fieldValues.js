@@ -1,4 +1,4 @@
-// The new field types as the forms hold them while someone types (D-127): a person as their id, picked from the home's
+// The new field types as the forms hold them while someone types (D-130): a person as their id, picked from the home's
 // people; tags as a list of words; a date and time in the reader's own zone, as a datetime-local input takes it.
 // Each form converts its other types itself; these are the same in both.
 

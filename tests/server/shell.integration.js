@@ -88,7 +88,7 @@ test("bots' commands run sealed off, within limits, and carry on in the backgrou
   await go("ln -s /etc/passwd /files/chat/p");
   await assert.rejects(store.existingFile(place, "/files/chat/p"), /isn't there/u);
 
-  // The records' Database files are there to read and copy from, never to change (D-127).
+  // The records' Database files are there to read and copy from, never to change (D-130).
   await fs.writeFile(path.join(dir, "pic.png"), "picture");
   await store.writeRecordFile(workspaceId, { table: "graphics", record: "1", field: "picture" }, path.join(dir, "pic.png"), "pic.png");
   run = await go("cat /files/db/tables/graphics/1/picture/pic.png; echo; cp /files/db/tables/graphics/1/picture/pic.png /files/chat/ && echo copied; rm /files/db/tables/graphics/1/picture/pic.png 2>&1; touch /files/db/x 2>&1");

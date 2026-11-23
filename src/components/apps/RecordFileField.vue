@@ -2,7 +2,7 @@
 import { computed } from "vue";
 import { fileUrl, formatSize } from "@/components/mercbot/filesApi.js";
 
-// A record's file or picture field in a form (D-127): what it holds now (a picture as a thumbnail, a file as a link with
+// A record's file or picture field in a form (D-130): what it holds now (a picture as a thumbnail, a file as a link with
 // its name and size), taken away with Remove, and a new one to choose, which the form uploads once the record is saved.
 // The file itself lives in the home's Database files, at the record's own place.
 const props = defineProps({

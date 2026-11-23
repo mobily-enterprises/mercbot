@@ -1,0 +1,51 @@
+{
+  "key": "crm_contacts",
+  "label": "CRM contacts",
+  "description": "A contact's sales details: their stage, where they came from, what they're worth and the next step.",
+  "aliases": [
+    "pipeline",
+    "sales contacts"
+  ],
+  "extends": "contacts",
+  "fields": [
+    {
+      "key": "contact",
+      "type": "link",
+      "label": "Contact",
+      "target": "contacts",
+      "required": true,
+      "unique": true
+    },
+    {
+      "key": "stage",
+      "type": "choice",
+      "label": "Stage",
+      "choices": [
+        "Lead",
+        "Qualified",
+        "Customer",
+        "Lost"
+      ]
+    },
+    {
+      "key": "source",
+      "type": "text",
+      "label": "Source"
+    },
+    {
+      "key": "value",
+      "type": "money",
+      "label": "Value"
+    },
+    {
+      "key": "next_step",
+      "type": "text",
+      "label": "Next step"
+    },
+    {
+      "key": "next_step_date",
+      "type": "date",
+      "label": "Next step date"
+    }
+  ]
+}

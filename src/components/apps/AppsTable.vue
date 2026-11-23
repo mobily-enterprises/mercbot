@@ -213,7 +213,7 @@ const titleOf = (record) => (record ? String(record[table.value?.titleFieldId] ?
         >
           <template #loading><v-skeleton-loader type="table-row@5" /></template>
           <template v-for="field in fields" :key="field.id" #[`item.${field.id}`]="{ item }">
-            <!-- A record's picture as a thumbnail, its file as a link (D-127); the click opens the file, not the record. -->
+            <!-- A record's picture as a thumbnail, its file as a link (D-130); the click opens the file, not the record. -->
             <a v-if="item[field.id]?.path" :href="fileUrl(null, item[field.id].path, { download: field.type !== 'image', chat: null })" target="_blank" rel="noopener" class="d-inline-flex align-center ga-2" @click.stop>
               <v-img v-if="field.type === 'image'" :src="fileUrl(null, item[field.id].path, { download: false, chat: null })" :alt="item[field.id].name" width="32" height="32" cover rounded="sm" class="flex-grow-0" />
               <span v-else>{{ item[field.id].name }}</span>
