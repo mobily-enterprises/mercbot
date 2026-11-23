@@ -1,5 +1,5 @@
 import { reactive, ref, watch } from "vue";
-import { FIELD_REFERENCE, celSchema, evaluateFormula, formatMoney, formulaRecord, isFormula, plainValue, refersToRemovedField, showValue } from "@local/apps/shared";
+import { FIELD_REFERENCE, ME, celSchema, evaluateFormula, formatMoney, formulaRecord, isFormula, plainValue, refersToRemovedField, showValue } from "@local/apps/shared";
 import { appsApi } from "./appsApi.js";
 
 // The browser side of an app screen (D-35): page values, query results, formulas and buttons.
@@ -91,8 +91,12 @@ export function screenLocation(screens, base, key, params = {}) {
  * @param {(error: unknown) => void} options.onError Explains a query or button that failed.
  * @param {typeof appsApi | Record<string, any>} [options.api]
  * @param {Record<string, any> | null} [options.screens] The app's screens, where a copy of a view is drawn from.
+ * @param {{ id: string, name: string } | null} [options.me] The member using it, as formulas read `me`.
+ * @param {Array<{ id: string, name: string }>} [options.people] The home's people, for person fields.
  */
-export function createScreenRuntime({ slug, version, tables, screen, screens = null, screenKey, params, onEffects, onError, api = appsApi, visitor = null, functions = null }) {
+export function createScreenRuntime({
+  slug, version, tables, screen, screens = null, screenKey, params, onEffects, onError, api = appsApi, visitor = null, functions = null, me = null, people = []
+}) {
   const state = reactive({});
   for (const [name, def] of Object.entries(screen.state || {})) state[name] = def.default ?? (def.type === "double" ? 0 : def.type === "bool" ? false : "");
   const data = reactive({});
@@ -111,7 +115,7 @@ export function createScreenRuntime({ slug, version, tables, screen, screens = n
       state: Object.fromEntries(Object.entries(screen.state || {}).map(([name, def]) => [name, def.type in { string: 1, double: 1, bool: 1 } ? def.type : "string"])),
       params: Object.fromEntries(Object.keys(screen.params || {}).map((name) => [name, "string"])),
       data: {},
-      ...(visitor ? { visitor: { signedIn: "bool", email: "string" } } : {})
+      ...(visitor ? { visitor: { signedIn: "bool", email: "string" } } : me ? { me: ME } : {})
     };
     for (const [name, query] of Object.entries(screen.data || {})) {
       const table = queryTable(name);
@@ -129,7 +133,7 @@ export function createScreenRuntime({ slug, version, tables, screen, screens = n
       if (query.script) dataValues[name] = data[name] ?? null;
       else dataValues[name] = query.record ? formulaRecord(table, data[name]) : (data[name] || []).map((record) => formulaRecord(table, record));
     }
-    return { state: { ...state }, params: { ...params }, data: dataValues, ...(visitor ? { visitor } : {}), ...extra };
+    return { state: { ...state }, params: { ...params }, data: dataValues, ...(visitor ? { visitor } : me ? { me } : {}), ...extra };
   }
 
   // scope = { variables, values } added by a table row or a form.
@@ -212,5 +216,5 @@ export function createScreenRuntime({ slug, version, tables, screen, screens = n
     };
   }
 
-  return { slug, state, data, grandTotals, attention, loading, busy, dialogs, tables, screen, screens, tableNamed, queryTable, referenced, evaluate, rowScope, load, loadAll, reloadChanged, run, followState, stop, signal: reading.signal, version };
+  return { slug, state, data, grandTotals, attention, loading, busy, dialogs, tables, people, screen, screens, tableNamed, queryTable, referenced, evaluate, rowScope, load, loadAll, reloadChanged, run, followState, stop, signal: reading.signal, version };
 }

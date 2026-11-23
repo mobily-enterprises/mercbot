@@ -12,6 +12,10 @@ const IMPORT_PAGE = 500;
 function toCell(field, value, excel) {
   if (value === null || value === undefined || value === "") return null;
   if (field.type === "link") return typeof value === "object" ? value.label : String(value);
+  // A person by name (the import reads it back by name), tags as "a, b", a moment as a real date and time in Excel.
+  if (field.type === "person") return typeof value === "object" ? value.label : String(value);
+  if (field.type === "tags") return Array.isArray(value) ? value.join(", ") : String(value);
+  if (field.type === "datetime") return excel ? new Date(value) : value;
   if (field.type === "money") return value / 100;
   if (field.type === "date") return excel ? new Date(`${value}T00:00:00Z`) : value;
   if (field.type === "yesno") return excel ? Boolean(value) : value ? "Yes" : "No";

@@ -2,7 +2,7 @@
 // the Data tab, bots, imports — goes through here via the data gate.
 import { AppError } from "@jskit-ai/kernel/server/runtime/errors";
 import { isCalculated } from "../shared/calculated.js";
-import { TEXT_MAX } from "../shared/formulas.js";
+import { LONGTEXT_MAX, TEXT_MAX } from "../shared/formulas.js";
 
 /** A refusal of a value, a record or an app action, which the apps routes answer with its status, message and code. */
 export class GateError extends AppError {
@@ -19,6 +19,11 @@ export class GateError extends AppError {
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/u;
 const DATE = /^(\d{4})-(\d{2})-(\d{2})$/u;
+const DATETIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d{1,6})?)?(Z|[+-]\d{2}:\d{2})$/u;
+const URL_START = /^https?:\/\/[^\s/$.?#][^\s]*$/iu;
+/** A tag: at most this long, and a field holds at most this many. */
+export const TAG_MAX = 80;
+export const TAGS_MAX = 50;
 const empty = (value) => value === null || value === undefined || value === "";
 
 function validDate(text) {
@@ -83,6 +88,44 @@ function cleanValue(field, value) {
       return fail("must be yes or no.", "apps_value_yesno_invalid");
     case "link":
       return String(typeof value === "object" ? value.id : value);
+    case "person": {
+      // A member of the home, by their user id ({ id } as a record reads it back); the gate checks they're in the home.
+      const id = String(typeof value === "object" ? value.id : value).trim();
+      if (!/^\d{1,20}$/u.test(id)) fail("must be someone in this home.", "apps_value_person_invalid");
+      return id;
+    }
+    case "url": {
+      const text = String(value).trim();
+      if (text.length > TEXT_MAX || !URL_START.test(text)) fail("must be a web address starting with https://.", "apps_value_url_invalid");
+      return text;
+    }
+    case "longtext": {
+      const text = String(value);
+      if (text.length > LONGTEXT_MAX) fail(`at most ${LONGTEXT_MAX} characters.`, "apps_value_too_long", { max: LONGTEXT_MAX });
+      return text;
+    }
+    case "tags": {
+      // A list of tags, or "a, b" as a sheet or a person types it: trimmed, each once, in the order given.
+      const given = Array.isArray(value) ? value : String(value).split(",");
+      const tags = [...new Set(given.map((tag) => String(tag ?? "").trim()).filter(Boolean))];
+      if (tags.length > TAGS_MAX) fail(`at most ${TAGS_MAX} tags.`, "apps_value_tags_too_many", { max: TAGS_MAX });
+      const long = tags.find((tag) => tag.length > TAG_MAX);
+      if (long) fail(`a tag is at most ${TAG_MAX} characters.`, "apps_value_tag_too_long", { max: TAG_MAX });
+      const allowed = field.options?.choices;
+      const unknown = allowed?.length ? tags.filter((tag) => !allowed.includes(tag)) : [];
+      if (unknown.length) {
+        fail(`must be among: ${allowed.join(", ")}.`, "apps_value_tag_unknown", { choices: allowed.join(", "), tags: unknown.join(", ") });
+      }
+      return tags.length ? tags : null;
+    }
+    case "datetime": {
+      // A moment, with its zone: kept as the same instant in UTC.
+      const text = String(value instanceof Date ? value.toISOString() : value).trim();
+      // The calendar day as written must exist (Date would roll 30 February over into March).
+      const moment = DATETIME.test(text) && validDate(text.slice(0, 10)) ? new Date(text) : null;
+      if (!moment || Number.isNaN(moment.getTime())) fail("must be a date and time like 2026-11-24T09:30:00Z.", "apps_value_datetime_invalid");
+      return moment.toISOString();
+    }
     default:
       // The registry only stores known types, so this is a broken table, not a refusal.
       throw new Error(`${field.label} has an unknown type "${field.type}".`);

@@ -4,6 +4,7 @@ import SelectField from "@jskit-ai/http-web/client/components/SelectField";
 import { calculate, formulaRecord, isCalculated, showValue } from "@local/apps/shared";
 import { appsApi, errorText } from "./appsApi.js";
 import { useLinkPickers } from "./linkPickers.js";
+import { SHARED_TYPES, TEXT_INPUT, inputOf, storedOf } from "./fieldValues.js";
 
 // Adding or editing one record in the Data tab (D-35). Inputs follow the field types; links pick a
 // record of the target table, searched on the server as the person types. Calculated fields (D-78)
@@ -13,7 +14,9 @@ const props = defineProps({
   open: { type: Boolean, default: false },
   table: { type: Object, default: null },
   tables: { type: Array, default: () => [] },
-  record: { type: Object, default: null }
+  record: { type: Object, default: null },
+  // The home's people ({ id, name }), for person fields.
+  people: { type: Array, default: () => [] }
 });
 const emit = defineEmits(["update:open", "saved"]);
 
@@ -26,12 +29,14 @@ const calculatedFields = computed(() => (props.table?.fields || []).filter((fiel
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/u;
 
 const toInput = (field, value) => {
+  if (SHARED_TYPES.has(field.type)) return inputOf(field, value);
   if (value === null || value === undefined) return field.type === "yesno" ? false : null;
   if (field.type === "money") return String(Number(value) / 100);
   if (field.type === "link") return value.id;
   return value;
 };
 const toStored = (field, value) => {
+  if (SHARED_TYPES.has(field.type)) return storedOf(field, value);
   if (value === "" || value === undefined) return null;
   if (field.type === "money") return value === null ? null : Math.round(Number(value) * 100);
   if (field.type === "number") return value === null ? null : Number(value);
@@ -48,7 +53,7 @@ watch(() => [props.open, props.record], () => {
 
 const problemOf = (field) => {
   const value = draft[field.id];
-  if (field.options?.required && (value === null || value === "")) return `${field.label} is required`;
+  if (field.options?.required && (value === null || value === "" || (Array.isArray(value) && !value.length))) return `${field.label} is required`;
   if (field.type === "email" && value && !EMAIL.test(value)) return "Enter a valid email";
   if (["number", "money"].includes(field.type) && value !== null && value !== "" && !Number.isFinite(Number(value))) return "Enter a number";
   return "";
@@ -85,10 +90,15 @@ async function save() {
         <v-select v-if="field.type === 'choice'" v-model="draft[field.id]" :items="field.options?.choices || []" :label="field.label + (field.options?.required ? ' *' : '')" :error-messages="problemOf(field)" variant="outlined" density="comfortable" clearable />
         <SelectField v-else-if="field.type === 'link'" v-model="draft[field.id]" :items="links.choices[field.id] || []" :loading="Boolean(links.loading[field.id])" searchable no-filter :label="field.label + (field.options?.required ? ' *' : '')" :error-messages="problemOf(field)" variant="outlined" density="comfortable" clearable @update:search="(text) => links.search(field.id, text, draft[field.id])" />
         <v-switch v-else-if="field.type === 'yesno'" v-model="draft[field.id]" :label="field.label" color="primary" inset hide-details class="mb-4" />
+        <!-- readable-check: allow selection-field - data: the home's people come with the Data tab's tables, read once -->
+        <v-select v-else-if="field.type === 'person'" v-model="draft[field.id]" :items="people" item-title="name" item-value="id" :label="field.label + (field.options?.required ? ' *' : '')" :error-messages="problemOf(field)" variant="outlined" density="comfortable" clearable />
+        <!-- readable-check: allow selection-field - data: a tags field's allowed tags are part of its table's definition, which the dialog was given -->
+        <v-combobox v-else-if="field.type === 'tags'" v-model="draft[field.id]" :items="field.options?.choices || []" :label="field.label + (field.options?.required ? ' *' : '')" :error-messages="problemOf(field)" multiple chips closable-chips variant="outlined" density="comfortable" />
+        <v-textarea v-else-if="field.type === 'longtext'" v-model="draft[field.id]" :label="field.label + (field.options?.required ? ' *' : '')" :error-messages="problemOf(field)" auto-grow rows="3" variant="outlined" density="comfortable" />
         <v-text-field
           v-else
           v-model="draft[field.id]"
-          :type="{ email: 'email', date: 'date', number: 'number', money: 'number', phone: 'tel' }[field.type] || 'text'"
+          :type="TEXT_INPUT[field.type] || 'text'"
           :step="field.type === 'money' ? '0.01' : undefined"
           :label="field.label + (field.options?.required ? ' *' : '')"
           :error-messages="problemOf(field)"

@@ -18,6 +18,8 @@ const key = computed(() => String(route.params.table || ""));
 
 const table = ref(null);
 const tables = ref([]);
+// The home's people, for person fields in the record dialog.
+const people = ref([]);
 const records = ref([]);
 const total = ref(0);
 const loading = ref(true);
@@ -68,7 +70,9 @@ async function load() {
 }
 
 onMounted(async () => {
-  tables.value = (await appsApi.tables({ brief: true }).catch(() => ({ tables: [] }))).tables;
+  const read = await appsApi.tables({ brief: true }).catch(() => ({ tables: [], people: [] }));
+  tables.value = read.tables;
+  people.value = read.people || [];
 });
 let timer = null;
 watch(search, () => {
@@ -231,7 +235,7 @@ const titleOf = (record) => (record ? String(record[table.value?.titleFieldId] ?
       </v-card>
     </main>
 
-    <RecordDialog v-model:open="editor.open" :table="table" :tables="tables" :record="editor.record" @saved="() => { notify('Saved.'); load(); }" />
+    <RecordDialog v-model:open="editor.open" :table="table" :tables="tables" :people="people" :record="editor.record" @saved="() => { notify('Saved.'); load(); }" />
 
     <v-dialog v-model="fieldsDialog.open" max-width="560">
       <v-card rounded="lg" class="pa-4">

@@ -29,6 +29,14 @@ export function createAppsRuntime({ resources, systemContext, records, anyapi, n
   // A cycle: scripts read and write records through the gate, and the gate runs scripts' rules
   // inside its writes; the gate is made first, so it asks for them late.
   let scripts = null;
+  // The home's members, as person fields hold them: who's in the home now, and their names (two reads).
+  const people = { activeIds: (options) => records.chats.everyoneIn(options), names: (ids, options) => records.chats.names(ids, options) };
+  /** The home's people as a person field's picker lists them, by name. */
+  const homePeople = async (options) => {
+    const ids = (await people.activeIds(options)).map(String);
+    const named = await people.names(ids, options);
+    return ids.map((id) => ({ id, name: named.get(id) ?? "Someone" })).sort((a, b) => a.name.localeCompare(b.name));
+  };
   const gate = createDataGate({
     resources,
     repository,
@@ -36,7 +44,8 @@ export function createAppsRuntime({ resources, systemContext, records, anyapi, n
     registry,
     practices,
     beforeSave: (...args) => scripts.beforeSave(...args),
-    beforeSaveEach: (...args) => scripts.beforeSaveEach(...args)
+    beforeSaveEach: (...args) => scripts.beforeSaveEach(...args),
+    people
   });
   const apps = createApps({ resources, records, registry, anyapi, practices, notices });
   scripts = createScripts({ resources, repository, systemContext, registry, gate, apps, env });
@@ -57,6 +66,7 @@ export function createAppsRuntime({ resources, systemContext, records, anyapi, n
     watches,
     scripts,
     installTemplate: installTemplateFor,
-    templateSummaries
+    templateSummaries,
+    homePeople
   });
 }

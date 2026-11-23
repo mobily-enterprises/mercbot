@@ -111,7 +111,7 @@ function openScreen() {
     runtime.value = null;
     return;
   }
-  const next = createScreenRuntime({ slug: slug.value, version: version.value, tables: loaded.value.tables, screen: screen.value, screens: definition.value.screens, screenKey: screenKey.value, params: screenParams(definition.value.screens, screenKey.value, pathParts.value, route.query), onEffects, onError, functions: functions.value });
+  const next = createScreenRuntime({ slug: slug.value, version: version.value, tables: loaded.value.tables, screen: screen.value, screens: definition.value.screens, screenKey: screenKey.value, params: screenParams(definition.value.screens, screenKey.value, pathParts.value, route.query), onEffects, onError, functions: functions.value, me: loaded.value.me ?? null, people: loaded.value.people ?? [] });
   runtime.value = next;
   runs.value += 1;
   next.loadAll();

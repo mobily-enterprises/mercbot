@@ -99,6 +99,13 @@ function build(builder, plan, value, column, knex) {
       }
       return;
     }
+    case "has": {
+      // A tags field holds a JSON list: whether it holds this value (PostgreSQL's jsonb ? operator, by name).
+      const item = value(plan.value);
+      if (item === null || item === undefined || item === "") builder.whereRaw("false");
+      else builder.whereRaw("jsonb_exists(??::jsonb, ?)", [column(plan.field.name), String(item)]);
+      return;
+    }
     case "like": {
       const text = escapeLike(value(plan.value));
       const pattern = plan.mode === "contains" ? `%${text}%` : plan.mode === "starts" ? `${text}%` : `%${text}`;

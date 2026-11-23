@@ -1,4 +1,4 @@
-import { VISITOR, celSchema, evaluateFormula, formulaValue, isFixedFormula, isFormula, jsonValue, plainValue } from "../shared/formulas.js";
+import { ME, VISITOR, celSchema, evaluateFormula, formulaValue, isFixedFormula, isFormula, jsonValue, plainValue } from "../shared/formulas.js";
 import { calculate, dataOnly, isCalculated, storedFieldIds, withNamedFormulas } from "../shared/index.js";
 import { NeedsAttention, compileWhere, planToIds } from "../shared/where.js";
 import { GateError } from "./validate.js";
@@ -217,11 +217,15 @@ export function createRuntime({ apps, gate, scripts, practices }) {
 
   async function query(ctx, { slug, version, screen: screenKey, query: name, state, params, page: pageNumber, loaded: given = null }) {
     const { loaded, actx } = await screenFor(ctx, slug, version, screenKey, given);
-    return runQuery(actx, loaded, withVisitor(pageValues(loaded.screen, state, params), ctx.visitor), name, pageNumber);
+    return runQuery(actx, loaded, withVisitor(pageValues(loaded.screen, state, params), ctx.visitor, ctx.actor), name, pageNumber);
   }
 
-  const withVisitor = (page, visitor) =>
-    visitor ? { variables: { ...page.variables, visitor: VISITOR }, values: { ...page.values, visitor } } : page;
+  // A visitor's page reads `visitor`; a member's reads `me`, who they are in the home.
+  const withVisitor = (page, visitor, actor = null) => {
+    if (visitor) return { variables: { ...page.variables, visitor: VISITOR }, values: { ...page.values, visitor } };
+    const me = { id: String(actor?.type === "person" ? actor.id : ""), name: String(actor?.name || "") };
+    return { variables: { ...page.variables, me: ME }, values: { ...page.values, me } };
+  };
 
   /**
    * Finds the steps a path points at ("content/1/buttons/0/do"), with the table row and form
@@ -262,7 +266,7 @@ export function createRuntime({ apps, gate, scripts, practices }) {
     const { practice = null } = actx;
     const dryRun = pretend || (!publicOnly && version === "draft" && !practice);
     const { screen } = loaded;
-    const page = withVisitor(pageValues(screen, state, params), ctx.visitor);
+    const page = withVisitor(pageValues(screen, state, params), ctx.visitor, ctx.actor);
     const { steps, tableNode, formNode } = stepsAt(screen, path);
     if (publicOnly) {
       const screens = loaded.definition.screens;

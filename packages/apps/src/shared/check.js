@@ -1,4 +1,4 @@
-import { VISITOR, celSchema, checkFormula, isFixedFormula, isFormula } from "./formulas.js";
+import { ME, VISITOR, celSchema, checkFormula, isFixedFormula, isFormula } from "./formulas.js";
 import { calculatedFrom, isCalculated } from "./calculated.js";
 import { closest, fieldsIn, toIds } from "./definitions.js";
 import { callProblem, checkNamedFormulas, filterCallProblem, functionsForCheck, knownCalls } from "./namedFormulas.js";
@@ -287,8 +287,9 @@ function checkScreen(base, screen, { screens, tableNamed, report, named, bots, s
     const table = tableNamed(query.record || query.from);
     data[name] = query.script ? "dyn" : query.record && table ? celSchema(table) : "list";
   }
-  // Public screens can also read who the visitor is.
-  const pageVariables = { state, params, data, ...(screen.public === true ? { visitor: VISITOR } : {}) };
+  // Public screens can also read who the visitor is; a member's screens, who the member is (`me`).
+  const who = screen.public === true ? { visitor: VISITOR } : { me: ME };
+  const pageVariables = { state, params, data, ...who };
 
   const formula = (path, value, variables, expected, { noFunctions = false } = {}) => {
     if (!isFormula(value) || named.has(path)) return;
@@ -321,7 +322,7 @@ function checkScreen(base, screen, { screens, tableNamed, report, named, bots, s
         report(`${path}.input`, 'is an object of values or formulas, e.g. { "search": "=state.search" }.');
       }
       for (const [key, value] of Object.entries(query.input || {})) {
-        formula(`${path}.input.${key}`, value, { state, params, ...(screen.public === true ? { visitor: VISITOR } : {}) });
+        formula(`${path}.input.${key}`, value, { state, params, ...who });
       }
       continue;
     }
@@ -333,7 +334,7 @@ function checkScreen(base, screen, { screens, tableNamed, report, named, bots, s
       formula(`${path}.id`, query.id, { state, params }, "string");
     }
     if (query.where && !named.has(`${path}.where`)) {
-      const variables = { ...celSchema(table), state, params };
+      const variables = { ...celSchema(table), state, params, ...who };
       formula(`${path}.where`, query.where, variables, "bool", { noFunctions: true });
       try {
         compileWhere(variables, query.where);

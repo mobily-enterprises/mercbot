@@ -4,6 +4,9 @@ import { PAGE_MAX, isCalculated, withCalculated } from "../shared/index.js";
 import { OBSOLETE } from "./anyapi.js";
 import { homeIdOf } from "./callOptions.js";
 import { GateError, cleanRecord } from "./validate.js";
+import { fromSheet } from "./sheetInput.js";
+import { createRecordChecks } from "./recordChecks.js";
+import { createAuditReads } from "./auditReads.js";
 import {
   checkFields,
   fence,
@@ -19,53 +22,9 @@ import {
 } from "./visitorAccess.js";
 
 const IMPORT_MAX = 500;
-// The Activity filter's actors: every person, bot and script of a home that changed something.
-const ACTORS_MAX = 1000;
 // A calculated field's sum or average is worked out from the records themselves (D-78), read a page
 // at a time: past this many, the total is refused rather than slow every view that shows it.
 const CALCULATED_TOTALS_MAX = 5000;
-
-/**
- * A spreadsheet cell as the gate expects it: money is written in units (12.50 → 1250 cents),
- * yes/no accepts yes, no, true, false, 1 and 0, a date may carry a time, and a link is the linked
- * record's title (as exported) or its id.
- */
-function fromSheet(table, row, titles) {
-  const input = {};
-  for (const [fieldId, cell] of Object.entries(row || {})) {
-    const field = table.fields.find((entry) => entry.id === fieldId);
-    const text = String(cell ?? "").trim();
-    // A calculated column of an exported sheet is worked out again from the others, never imported.
-    if (!field || !text || isCalculated(field)) continue;
-    if (field.type === "money") {
-      const plain = text.replace(/[\s,]/gu, "").replace(/^[^\d.-]{1,3}/u, ""); // "$1,250.50" → "1250.50"
-      if (!/^-?\d*\.?\d+$/u.test(plain)) {
-        throw new GateError(400, `${field.label}: must be an amount like 12.50.`, {
-          code: "apps_value_amount_invalid",
-          params: { field: field.label }
-        });
-      }
-      input[fieldId] = Math.round(Number(plain) * 100);
-    } else if (field.type === "yesno") {
-      const word = text.toLowerCase();
-      input[fieldId] = ["yes", "y", "true", "1"].includes(word) ? true : ["no", "n", "false", "0"].includes(word) ? false : text;
-    } else if (field.type === "date") {
-      input[fieldId] = /^\d{4}-\d{2}-\d{2}T/u.test(text) ? text.slice(0, 10) : text;
-    } else if (field.type === "link") {
-      const ids = titles.get(fieldId)?.get(text.toLowerCase()) || [];
-      if (ids.length > 1) {
-        throw new GateError(400, `${field.label}: ${ids.length} records are called "${text}".`, {
-          code: "apps_link_value_ambiguous",
-          params: { field: field.label, count: ids.length, text }
-        });
-      }
-      input[fieldId] = ids[0] || text;
-    } else {
-      input[fieldId] = cell;
-    }
-  }
-  return input;
-}
 
 /**
  * Every read and write of a home's records.
@@ -95,6 +54,9 @@ function fromSheet(table, row, titles) {
  *   records the runs made so far together; by default, beforeSave for each and nothing to flush.
  * @param {number} [dependencies.calculatedTotalsMax] The most records a calculated field's sum or average is worked out
  *   from (see above); a test makes it small.
+ * @param {{ activeIds: (options: object) => Promise<Array<string | number>>, names: (ids: string[], options: object) =>
+ *   Promise<Map<string, string>> }} dependencies.people the home's members, for person fields: who is in the home now
+ *   (a person field holds only them) and their names (as a person field reads back)
  */
 export function createDataGate({
   resources,
@@ -107,11 +69,14 @@ export function createDataGate({
     apply: (values, previous) => beforeSave(ctx, table, action, values, previous, clean),
     flush: async () => {}
   }),
-  calculatedTotalsMax = CALCULATED_TOTALS_MAX
+  calculatedTotalsMax = CALCULATED_TOTALS_MAX,
+  people
 }) {
   const { auditEvents } = resources;
   // The home a ctx acts in: its call options'.
   const homeOf = (ctx) => homeIdOf(ctx.options);
+  const { membersOf, checkPeople, checkUnique, labelPeople } = createRecordChecks({ people, homeOf });
+  const { newestAudits, activity, actors } = createAuditReads({ auditEvents, repository });
 
   /** A table of the call's home by id, or by its live key. */
   async function tableFor(tableIdOrKey, options, { forWrite = false } = {}) {
@@ -170,6 +135,7 @@ export function createDataGate({
    * they reach there (its rows); otherwise { id, label: null }, whether or not the record exists.
    */
   async function withLinks(ctx, api, tables, table, records) {
+    await labelPeople(ctx, table, records);
     for (const field of table.fields.filter((entry) => entry.type === "link")) {
       const target = tables.find((entry) => entry.id === field.options?.target);
       const ids = [...new Set(records.map((record) => record[field.id]).filter(Boolean))];
@@ -336,6 +302,7 @@ export function createDataGate({
   async function checkNew(ctx, api, tables, table, input, rules, known) {
     const values = cleanRecord(table, await rules(cleanRecord(table, input, { creating: true })), { creating: true });
     await checkLinks(api, tables, table, values, known);
+    await checkPeople(ctx, table, values);
     return values;
   }
 
@@ -353,6 +320,7 @@ export function createDataGate({
     }
     const values = await checkNew(ctx, api, tables, table, input, (cleaned) => beforeSave(ctx, table, "create", cleaned, null, cleanRecord));
     const row = await within(ctx, given, async (txOptions) => {
+      await checkUnique(ctx, api, table, values, null, txOptions);
       const created = await api.resources[table.id].post({ data: values, transaction: txOptions.trx }, { includeObsolete: true });
       await recorded(ctx, table, created.id, "create", createdChanges(values), txOptions);
       return created;
@@ -379,7 +347,14 @@ export function createDataGate({
       }
       if (action === "update") {
         const ruled = await beforeSave(ctx, table, "update", values, before, cleanRecord);
-        if (ruled !== values) await checkLinks(api, tables, table, (values = ruled));
+        if (ruled !== values) {
+          await checkLinks(api, tables, table, (values = ruled));
+          await checkPeople(ctx, table, values);
+        }
+      }
+      // A record restored, or a one-to-one link changed, still holds the only live link to its target.
+      if (action !== "obsolete" && !(before[OBSOLETE] && action === "update")) {
+        await checkUnique(ctx, api, table, { ...before, ...values }, id, txOptions);
       }
       const changes = {};
       for (const [fieldId, value] of Object.entries(values)) {
@@ -399,6 +374,7 @@ export function createDataGate({
     const access = fence(ctx, table, "update");
     const values = cleanRecord(table, access ? visitorInput(access, table, ctx, input) : input);
     await checkLinks(await apiFor(ctx, tables, table), tables, table, values, new Map(), access ? ctx : null);
+    await checkPeople(ctx, table, values);
     return change(ctx, table.id, id, values, "update", txOptions);
   }
 
@@ -412,11 +388,6 @@ export function createDataGate({
     refuse(ctx);
     const { table } = await tableFor(tableIdOrKey, ctx.options);
     return newestAudits({ tableId: table.id, recordId: String(id) }, 200, ctx.options);
-  }
-
-  /** The newest audit entries the filters select, up to `limit`: one page. */
-  async function newestAudits(filters, limit, options) {
-    return (await auditEvents.query({ filters, sort: ["-id"], page: { size: limit } }, options)).records;
   }
 
   /**
@@ -519,49 +490,6 @@ export function createDataGate({
     return Number(result.data?.[0]?.count ?? 0);
   }
 
-  /** The audit trail of a home, newest first, by table, app or person; `before` pages by id. */
-  async function activity(ctx, { table = null, app = null, actor = null, from = null, to = null, before = null, limit = 50 } = {}) {
-    refuse(ctx);
-    const filters = {
-      ...(table ? { tableId: table } : {}),
-      ...(app ? { viaApp: String(app) } : {}),
-      ...(actor ? { actorId: String(actor) } : {}),
-      ...(from ? { atFrom: new Date(`${from}T00:00:00`) } : {}),
-      ...(to ? { atBefore: new Date(new Date(`${to}T00:00:00`).getTime() + 86400000).toISOString() } : {}),
-      ...(before ? { beforeId: String(before) } : {})
-    };
-    return (await newestAudits(filters, Math.min(Number(limit) || 50, 200), ctx.options)).map((entry) => ({
-      id: String(entry.id),
-      at: entry.at,
-      actor: entry.actor,
-      via: entry.via,
-      tableId: entry.tableId,
-      recordId: entry.recordId,
-      action: entry.action,
-      changes: entry.changes
-    }));
-  }
-
-  /**
-   * Everyone and every bot that has changed something in this home, for the Activity filter: one
-   * entry per actor id, with the type and name of their latest entry. A loose index scan over
-   * ix_audit_events_actor (workspace_id, actor id, id desc): each step reads the first entry past the
-   * previous actor in the index's own order, which is the next actor's latest, so the cost grows with
-   * the number of actors, not with the home's history. Asking for "the latest entry of actor X" apart
-   * instead lets the planner walk the home's entries newest first until it meets X, which for someone
-   * who changed something long ago is the whole history.
-   */
-  async function actors(ctx) {
-    refuse(ctx);
-    const found = [];
-    // One statement per actor, the loose index scan's steps (nextActor); past ACTORS_MAX the filter lists the first ones.
-    for (let actor = await repository.nextActor(null, ctx.options); actor && found.length < ACTORS_MAX; ) {
-      found.push({ id: String(actor.id), type: actor.type ?? null, name: actor.name ?? null });
-      actor = await repository.nextActor(String(actor.id), ctx.options);
-    }
-    return found;
-  }
-
   /** Two `where`s that must both hold; either may be null. */
   const bothWhere = (first, second) =>
     !first || !second
@@ -644,13 +572,22 @@ export function createDataGate({
     }
     const api = await anyapi.instanceFor(homeOf(ctx));
     const { titles, known } = await linkTitles(ctx, api, tables, table, rows);
+    // A person column names members as exported: their names, lowercased, to their ids (two reads, whatever the rows).
+    const members = new Map();
+    if (table.fields.some((field) => field.type === "person")) {
+      const ids = [...(await membersOf(ctx))];
+      for (const [id, name] of await people.names(ids, ctx.options)) {
+        const key = String(name).trim().toLowerCase();
+        members.set(key, [...(members.get(key) || []), String(id)]);
+      }
+    }
     const rules = await beforeSaveEach(ctx, table, "create", cleanRecord);
     const errors = [];
     const checked = [];
     try {
       for (const [index, row] of rows.entries()) {
         try {
-          const input = fromSheet(table, row, titles);
+          const input = fromSheet(table, row, titles, members);
           if (!Object.keys(input).length) continue; // an empty line
           checked.push(await checkNew(ctx, api, tables, table, input, (cleaned) => rules.apply(cleaned, null), known));
         } catch (error) {

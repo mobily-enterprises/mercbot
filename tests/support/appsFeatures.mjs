@@ -5,6 +5,7 @@ import { WorkspaceRecordsFeature } from "@jskit-ai/workspaces-core/test/Workspac
 import { AppsFeature } from "../../packages/apps/src/server/AppsFeature.js";
 import { requestContextOptions } from "./requestContextOptions.mjs";
 import { NoticesFeature } from "../../packages/notices/src/server/NoticesFeature.js";
+import { homeIdOf } from "../../packages/apps/src/server/callOptions.js";
 
 // The apps feature as the server starts it (AppsFeature, with mercbot.notices and the workspaces records it
 // requires), on the test's own Knex and without HTTP, for the apps' integration tests. The tests call the
@@ -14,6 +15,17 @@ import { NoticesFeature } from "../../packages/notices/src/server/NoticesFeature
 
 const NO_BOTS = Object.freeze({
   directory: Object.freeze({ listHomeBots: async () => [], findBot: async () => null })
+});
+
+/**
+ * The home's members as the chats records give them (`everyoneIn`, `names`), read from the test's database: what
+ * person fields check and show. The chats records' own tests cover theirs.
+ * @param {import("knex").Knex} knex
+ */
+export const membersOn = (knex) => Object.freeze({
+  everyoneIn: async (options) => (await knex("workspace_memberships").where({ workspace_id: homeIdOf(options), status: "active" }).pluck("user_id")).map(String),
+  names: async (ids) => new Map((await knex("users").whereIn("id", ids).select("id", "display_name", "username"))
+    .map((user) => [String(user.id), user.display_name || user.username || "Someone"]))
 });
 
 /**
@@ -86,7 +98,8 @@ export async function startApps({ knex, env = {}, records = NO_BOTS, extras = {}
       // stop().
       "runtime.fastify": { addHook: (name, hook) => name === "preClose" && closing.push(hook) },
       "runtime.env": env,
-      "mercbot.bots.records": records,
+      // Person fields read the home's members through the chats records; a stand-in without them gets the database's.
+      "mercbot.bots.records": records.chats ? records : { ...records, chats: membersOn(knex) },
       ...extras.inputs
     }
   });

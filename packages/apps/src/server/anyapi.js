@@ -21,7 +21,13 @@ export const STORAGE_TYPES = {
   number: "number",
   money: "number",
   date: "date",
-  yesno: "boolean"
+  yesno: "boolean",
+  // A member of the home (their user id), a web address and long notes are text; tags a list; a time a timestamp.
+  person: "string",
+  url: "string",
+  longtext: "string",
+  tags: "array",
+  datetime: "dateTime"
 };
 
 export const OBSOLETE = "obsolete_at";

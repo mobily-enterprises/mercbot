@@ -40,6 +40,8 @@ function formatMoney(cents) {
 
 /** The longest text a field holds: what a person types, and what a calculated field works out (D-78). */
 export const TEXT_MAX = 10000;
+/** Long notes (`longtext` fields) hold more than a text field. */
+export const LONGTEXT_MAX = 20000;
 
 /** Today's date (YYYY-MM-DD, like date fields) and the current moment (ISO 8601), in UTC. */
 const today = () => new Date().toISOString().slice(0, 10);
@@ -160,6 +162,7 @@ export function plainValue(value) {
  * links as the linked record's id. Server and screens build formula records with this.
  */
 export function formulaValue(field, value) {
+  if (field.type === "tags") return Array.isArray(value) ? value.map(String) : [];
   const plain = value && typeof value === "object" ? value.id : value;
   if (plain === null || plain === undefined) return ["number", "money"].includes(field.type) ? 0 : field.type === "yesno" ? false : "";
   return ["number", "money"].includes(field.type) ? Number(plain) : plain;
@@ -172,6 +175,16 @@ export function formulaValue(field, value) {
 export function showValue(field, value) {
   if (value === null || value === undefined || value === "") return "—";
   if (!field) return String(value);
+  if (field.type === "person") {
+    if (typeof value !== "object") return value; // history and audit keep the member's id
+    return value.label ?? "—";
+  }
+  if (field.type === "tags") return Array.isArray(value) && value.length ? value.join(", ") : "—";
+  // A moment, in the reader's own time zone (a server shows its own).
+  if (field.type === "datetime") {
+    const moment = new Date(value);
+    return Number.isNaN(moment.getTime()) ? String(value) : moment.toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" });
+  }
   if (field.type === "link") {
     if (typeof value !== "object") return `#${value}`; // history and audit keep the linked record's id
     // A visitor gets no label for a record they may not read (D-66).
@@ -214,7 +227,12 @@ const CEL_TYPES = {
   link: "string",
   number: "double",
   money: "double",
-  yesno: "bool"
+  yesno: "bool",
+  person: "string",
+  url: "string",
+  longtext: "string",
+  tags: "list<string>",
+  datetime: "string"
 };
 
 /** A table's record as formulas see it: each live field's name and CEL type, and the id. */
@@ -226,3 +244,5 @@ export function celSchema(table) {
 
 /** A public screen's visitor, as its formulas and visitor access see them. */
 export const VISITOR = { signedIn: "bool", email: "string" };
+/** The member using a screen of their home's app, as its formulas see them: `assignee == me.id` is "mine". */
+export const ME = { id: "string", name: "string" };

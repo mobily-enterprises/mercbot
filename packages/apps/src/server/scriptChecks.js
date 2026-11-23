@@ -1,7 +1,7 @@
 import { isDeepStrictEqual } from "node:util";
 import { isCalculated, storedFieldIds } from "../shared/calculated.js";
 import { fieldsIn } from "../shared/definitions.js";
-import { BUILT_IN_FUNCTIONS, celSchema, evaluateFormula, isFormula } from "../shared/formulas.js";
+import { BUILT_IN_FUNCTIONS, celSchema, evaluateFormula, formulaValue, isFormula } from "../shared/formulas.js";
 import { ScriptError, runFunction } from "../shared/sandbox.js";
 import { compileWhere, planToIds } from "../shared/where.js";
 
@@ -154,7 +154,7 @@ export function createScriptChecks({ pool, ready }) {
           .filter((field) => !field.obsolete)
           .map((field) => [
             field.key,
-            record[field.key] ?? (["number", "money"].includes(field.type) ? 0 : field.type === "yesno" ? false : "")
+            formulaValue(field, record[field.key])
           ])
       );
       const variables = whereFor(table, where, params).variables;

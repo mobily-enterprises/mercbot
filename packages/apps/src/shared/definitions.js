@@ -4,7 +4,7 @@ import { Environment } from "@marcbachmann/cel-js";
 // and the renderer always see current names, so renaming a field never touches an app, and
 // removing one can find every use exactly. The same walk converts in both directions.
 const parser = new Environment({ unlistedVariablesAreDyn: true });
-const PAGE_NAMES = new Set(["state", "params", "data", "row", "form", "user", "today", "now", "visitor"]);
+const PAGE_NAMES = new Set(["state", "params", "data", "row", "form", "user", "today", "now", "visitor", "me"]);
 const FORM_EXTRAS = new Set(["valid", "changed", "values"]);
 const isFormula = (value) => typeof value === "string" && value.startsWith("=");
 /** A plain object: what definitions, written by a model, hold where an object belongs. */

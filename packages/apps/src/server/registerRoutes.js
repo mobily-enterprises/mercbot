@@ -66,7 +66,7 @@ const screenTables = (tables) =>
  * @param {Set<import("node:http").ServerResponse>} capabilities.streams the open live streams, closed on shutdown
  */
 export function registerRoutes(http, { appsRuntime, notices, streams }) {
-  const { registry, gate, apps, practices, views, runtime, scripts, watches } = appsRuntime;
+  const { registry, gate, apps, practices, views, runtime, scripts, watches, homePeople } = appsRuntime;
   const router = http.router;
   const home = Object.freeze({ auth: "required", contextPolicy: "required", visibility: checkRouteVisibility("workspace_user") });
   /** Routes for one app answer "not found" when the home has no such app. */
@@ -120,6 +120,9 @@ export function registerRoutes(http, { appsRuntime, notices, streams }) {
       functions: await scripts.functionCode(app.id, ctx.options),
       style: scopeStyle(app.id, definition?.style),
       copyUpdates: await views.copyUpdates(definition, ctx.options),
+      // Who is using it (`me` in its formulas) and the home's people, for person fields.
+      me: { id: ctx.actor.id, name: ctx.actor.name },
+      people: await homePeople(ctx.options),
       ...(app.kind === "view" ? await views.details(app, ctx.options) : {})
     };
   }));
@@ -222,12 +225,16 @@ export function registerRoutes(http, { appsRuntime, notices, streams }) {
     // Calculated fields' formulas as they were written, by names (D-78).
     const tables = (await registry.loadTables(ctx.options))
       .map((table) => ({ ...table, fields: table.fields.map((field) => fieldByNames(table, field)) }));
-    if (request.query?.brief === "true") return { tables };
+    // The home's people come with them, for person fields' pickers and names.
+    if (request.query?.brief === "true") return { tables, people: await homePeople(ctx.options) };
     const app = request.query?.app ? String(request.query.app) : null;
     const used = await apps.tablesUsed({ app }, ctx.options);
     const listed = app ? tables.filter((table) => used.has(table.id)) : tables;
     const counts = await Promise.all(listed.map((table) => (table.obsolete ? null : gate.count(ctx, table.id).catch(() => null))));
-    return { tables: listed.map((table, index) => ({ ...table, count: counts[index], usedBy: used.get(table.id) || [] })) };
+    return {
+      tables: listed.map((table, index) => ({ ...table, count: counts[index], usedBy: used.get(table.id) || [] })),
+      people: await homePeople(ctx.options)
+    };
   }));
   /** The Data tab's spreadsheet: records of one table, through the data gate (via "data"). */
   const dataCtx = (ctx) => ({ ...ctx, via: { kind: "data" } });

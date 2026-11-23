@@ -11,7 +11,7 @@ import { loadTables, toField } from "./tables.js";
 const FIELD_TYPES = Object.keys(STORAGE_TYPES);
 const KEY = /^[a-z][a-z0-9_]{0,63}$/u;
 // Names formulas use for themselves can't be field or table names.
-const RESERVED = new Set(["id", "obsolete_at", "state", "params", "data", "row", "form", "user", "today", "now"]);
+const RESERVED = new Set(["id", "obsolete_at", "state", "params", "data", "row", "form", "user", "today", "now", "me", "visitor"]);
 
 /** A refusal of a change to a home's tables, fields or apps, answered with its status, message and code. */
 export class RegistryError extends AppError {
@@ -148,6 +148,11 @@ export function createRegistry({ resources, anyapi, notices, trustMs = TRUST_MS 
       return { type, options: { formula: String(formula) } };
     }
     if (input.required) options.required = true;
+    // A tags field may name the tags it takes; without a list, any tag.
+    if (type === "tags") {
+      const allowed = [...new Set((input.choices || input.options?.choices || []).map((choice) => String(choice).trim()).filter(Boolean))];
+      if (allowed.length) options.choices = allowed;
+    }
     if (type === "choice") {
       const choices = [...new Set((input.choices || input.options?.choices || []).map((choice) => String(choice).trim()).filter(Boolean))];
       if (!choices.length) {
@@ -167,6 +172,8 @@ export function createRegistry({ resources, anyapi, notices, trustMs = TRUST_MS 
         });
       }
       options.target = table.id;
+      // One record at most links to each target: the table is a one-to-one extension of the one it links to.
+      if (input.unique === true || input.options?.unique === true) options.unique = true;
     }
     return { type, options };
   }

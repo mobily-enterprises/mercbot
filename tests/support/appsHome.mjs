@@ -6,7 +6,7 @@ import { createDataGate } from "../../packages/apps/src/server/dataGate.js";
 import { createPractices } from "../../packages/apps/src/server/practice.js";
 import { createRegistry } from "../../packages/apps/src/server/registry.js";
 import { homeIdOf } from "../../packages/apps/src/server/callOptions.js";
-import { startApps } from "./appsFeatures.mjs";
+import { membersOn, startApps } from "./appsFeatures.mjs";
 import { connectTestDatabase } from "./testDatabase.mjs";
 
 const { tenantOf } = anyapiTestables;
@@ -89,7 +89,9 @@ export function appsParts(home, { trustMs, beforeSave = async (_ctx, _table, _ac
   const systemContext = () => home.systemContext;
   const registry = createRegistry({ resources, anyapi, notices: QUIET, ...(trustMs === undefined ? {} : { trustMs }) });
   const practices = createPractices({ resources, anyapi, systemContext });
-  const gate = createDataGate({ resources, repository, anyapi, registry, practices, beforeSave, ...(beforeSaveEach ? { beforeSaveEach } : {}), ...(calculatedTotalsMax ? { calculatedTotalsMax } : {}) });
+  const chats = records.chats ?? membersOn(home.knex);
+  const people = { activeIds: (options) => chats.everyoneIn(options), names: (ids, options) => chats.names(ids, options) };
+  const gate = createDataGate({ resources, repository, anyapi, registry, practices, beforeSave, people, ...(beforeSaveEach ? { beforeSaveEach } : {}), ...(calculatedTotalsMax ? { calculatedTotalsMax } : {}) });
   const apps = createApps({ resources, records, registry, anyapi, practices, notices });
   return Object.freeze({ resources, repository, anyapi, registry, practices, gate, apps, notices, systemContext });
 }

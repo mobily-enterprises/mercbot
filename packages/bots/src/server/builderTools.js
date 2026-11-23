@@ -6,7 +6,7 @@ import { SCRIPT_GUIDE, writeScript } from "./scriptWriter.js";
 // The home's Builder's own apps tools (D-35, D-48), beyond the records and watches every bot has:
 // it makes tables, fields, apps and scripts; its app changes are drafts a person previews and
 // publishes. It tries its drafts on their practice copy (app_try, D-71), as a person would.
-const FIELD_TYPES = ["text", "email", "phone", "choice", "link", "number", "money", "date", "yesno"];
+const FIELD_TYPES = ["text", "email", "phone", "choice", "link", "number", "money", "date", "yesno", "person", "url", "longtext", "tags", "datetime"];
 // What a calculated field can't do (D-78), which the Builder tells the person whenever it adds one (owner, 2026-11-12).
 const CALCULATED_LIMITS =
   "Lists can't be filtered, sorted or grouped by a calculated field, and a sum or average of one adds up at most 5,000 records: " +
@@ -15,10 +15,14 @@ const CALCULATED_LIMITS =
 const fieldInput = z.object({
   key: z.string().min(1).max(64).describe("Field name: lowercase letters, digits and _ , starting with a letter"),
   label: z.string().max(120).optional().describe("What people see; defaults from the name"),
-  type: z.enum(FIELD_TYPES).describe("money is stored in whole cents; date is YYYY-MM-DD; link points to a record of another table"),
+  type: z.enum(FIELD_TYPES).describe(
+    "money is stored in whole cents; date is YYYY-MM-DD; datetime is a moment like 2026-11-24T09:30:00Z; link points to a " +
+      "record of another table; person is someone in this home; tags is a list of short words; longtext is long notes; url a web address"
+  ),
   required: z.boolean().optional(),
-  choices: z.array(z.string().min(1).max(80)).max(50).optional().describe("For choice fields"),
+  choices: z.array(z.string().min(1).max(80)).max(50).optional().describe("For choice fields; for tags fields, the only tags allowed (optional)"),
   target: z.string().max(64).optional().describe("For link fields: the table it points to"),
+  unique: z.boolean().optional().describe("For link fields: at most one record links to each target (a one-to-one extension of that table)"),
   formula: z
     .string()
     .max(2000)

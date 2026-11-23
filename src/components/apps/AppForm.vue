@@ -4,6 +4,7 @@ import { calculate, celSchema, isCalculated } from "@local/apps/shared";
 import AppNode from "./AppNode.vue";
 import { formulaRecord, refersToRemovedField, showValue } from "./appRuntime.js";
 import { APP_FORM_KEY, APP_SCREEN_KEY } from "./screenKeys.js";
+import { SHARED_TYPES, TEXT_INPUT, inputOf, storedOf } from "./fieldValues.js";
 
 // A form (D-35). Inputs come from the field types; the app only lists field names. Money is typed
 // in units and stored in cents; links are shown, and changed in the Data tab. A calculated field
@@ -34,12 +35,14 @@ const entries = computed(() => (props.node.fields || [])
 
 // Values as typed: money in units, links as their label.
 const toInput = (field, value) => {
+  if (SHARED_TYPES.has(field.type)) return inputOf(field, value);
   if (value === null || value === undefined) return field.type === "yesno" ? false : "";
   if (field.type === "money") return String(Number(value) / 100);
   if (field.type === "link") return value.label;
   return value;
 };
 const toStored = (field, value) => {
+  if (SHARED_TYPES.has(field.type)) return storedOf(field, value);
   if (field.type === "money") return value === "" || value === null ? null : Math.round(Number(value) * 100);
   if (field.type === "number") return value === "" || value === null ? null : Number(value);
   return value === "" ? null : value;
@@ -77,7 +80,8 @@ const required = (entry) => entry.def.options?.required || runtime.evaluate(entr
 const problem = (entry) => {
   if (isCalculated(entry.def)) return "";
   const value = draft[entry.field];
-  if (required(entry) && (value === "" || value === null || value === undefined)) return `${entry.def.label} is required`;
+  const blank = value === "" || value === null || value === undefined || (Array.isArray(value) && !value.length);
+  if (required(entry) && blank) return `${entry.def.label} is required`;
   if (entry.def.type === "email" && value && !EMAIL.test(value)) return "Enter a valid email";
   if (["number", "money"].includes(entry.def.type) && value !== "" && value !== null && !Number.isFinite(Number(value))) return "Enter a number";
   return "";
@@ -116,6 +120,45 @@ provide(APP_FORM_KEY, {
             class="mb-2"
             data-testid="app-form-calculated"
           />
+          <!-- readable-check: allow selection-field - data: the home's people come with the app, read once when it opens -->
+          <v-select
+            v-else-if="entry.def.type === 'person'"
+            v-model="draft[entry.field]"
+            :items="runtime.people || []"
+            item-title="name"
+            item-value="id"
+            :label="entry.def.label + (required(entry) ? ' *' : '')"
+            :error-messages="shownProblem(entry)"
+            @update:model-value="touched.add(entry.field)"
+            variant="outlined"
+            density="comfortable"
+            clearable
+          />
+          <!-- readable-check: allow selection-field - data: a tags field's allowed tags are part of its table's definition, read with the form -->
+          <v-combobox
+            v-else-if="entry.def.type === 'tags'"
+            v-model="draft[entry.field]"
+            :items="entry.def.options?.choices || []"
+            :label="entry.def.label + (required(entry) ? ' *' : '')"
+            :error-messages="shownProblem(entry)"
+            @update:model-value="touched.add(entry.field)"
+            multiple
+            chips
+            closable-chips
+            variant="outlined"
+            density="comfortable"
+          />
+          <v-textarea
+            v-else-if="entry.def.type === 'longtext'"
+            v-model="draft[entry.field]"
+            :label="entry.def.label + (required(entry) ? ' *' : '')"
+            :error-messages="shownProblem(entry)"
+            @update:model-value="touched.add(entry.field)"
+            auto-grow
+            rows="3"
+            variant="outlined"
+            density="comfortable"
+          />
           <!-- readable-check: allow selection-field - data: a choice field's options are part of its table's definition, read with the form -->
           <v-select
             v-else-if="entry.def.type === 'choice'"
@@ -143,7 +186,7 @@ provide(APP_FORM_KEY, {
           <v-text-field
             v-else
             v-model="draft[entry.field]"
-            :type="{ email: 'email', date: 'date', number: 'number', money: 'number', phone: 'tel' }[entry.def.type] || 'text'"
+            :type="TEXT_INPUT[entry.def.type] || 'text'"
             :step="entry.def.type === 'money' ? '0.01' : undefined"
             :label="entry.def.label + (required(entry) ? ' *' : '')"
             :error-messages="shownProblem(entry)"

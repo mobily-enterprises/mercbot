@@ -3,7 +3,7 @@ import { environmentFor } from "./formulas.js";
 const COMPARISONS = { "==": "=", "!=": "<>", "<": "<", "<=": "<=", ">": ">", ">=": ">=" };
 const FLIPPED = { "=": "=", "<>": "<>", "<": ">", "<=": ">=", ">": "<", ">=": "<=" };
 const LIKE_MODES = { contains: "contains", startsWith: "starts", endsWith: "ends" };
-const PAGE_NAMES = new Set(["state", "params", "visitor"]);
+const PAGE_NAMES = new Set(["state", "params", "visitor", "me"]);
 
 /**
  * Turns a `where` formula into a plan for SQL. Parts that don't mention fields stay as
@@ -54,6 +54,9 @@ export function compileWhere(variables, source) {
     if (node.op === "in") {
       const field = fieldOf(node.args[0]);
       if (field && !mentionsFields(node.args[1])) return { kind: "in", field, value: text(node.args[1]) };
+      // `"urgent" in tags`: a list field holding a value (tags), with `||` and `&&` for any or all of several.
+      const list = fieldOf(node.args[1]);
+      if (list && !list.lower && !mentionsFields(node.args[0])) return { kind: "has", field: list, value: text(node.args[0]) };
       fail(node);
     }
     if (node.op === "rcall" && LIKE_MODES[node.args[0]]) {
