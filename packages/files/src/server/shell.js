@@ -262,13 +262,15 @@ const TMUX_LOOK = "tmux set -g mouse on \\; set -g status off \\; set -g pane-bo
 // A computer's command line while it's awake (D-47): one sandbox that stays up, with a tmux
 // session showing the bot's commands on top and the person's own shell below. The Terminal on the
 // computer's desktop attaches to it, and the bot's commands run in it, so they show there live.
-const SESSION = `mkdir -p /tmp/home; touch /tmp/bot.log
+// The sandbox's own process only keeps it up (after its gateway's forwarder starts); its tmux is SESSION_TMUX, which
+// attach runs in it and waits for, so a session attach answers has its tmux already.
+const SESSION = "exec sleep infinity";
+const SESSION_TMUX = `mkdir -p /tmp/home; touch /tmp/bot.log
 tmux -f /dev/null new-session -d -s main -x 160 -y 48 "tail -n 400 -F /tmp/bot.log 2>/dev/null"
 ${TMUX_LOOK}
 tmux select-pane -t main.0 -T "$BOT_LABEL"
 tmux split-window -v -t main -l 55% -c "$PWD" "while true; do bash -l; done"
-tmux select-pane -t main.1 -T "Your shell"
-exec sleep infinity`;
+tmux select-pane -t main.1 -T "Your shell"`;
 
 // The command itself, cut off at its time limit with everything it started; at most 1 MB of its
 // output goes in the log.
@@ -624,6 +626,14 @@ export function createShell({
     const session = {
       key: String(key), id, state, runDir, cwd: homeFolder(dirs), running: 0, asleep: false, gateway: sessionGateway
     };
+    // Its tmux, before the session is anyone's: the bot's commands and the Terminal find "main" from the start. tmux's
+    // server stays once this ends. A session whose tmux didn't start ends, and the computer goes on without it.
+    try {
+      await run(...runsc(env, ["--root", state, "exec", "--cwd", session.cwd, id, "/bin/bash", "-c", SESSION_TMUX]), { timeout: 30000 });
+    } catch (error) {
+      await end(session);
+      throw error;
+    }
     session.watchdog = setInterval(async () => {
       const used = await sandboxMemory(env, session);
       if (used !== null && used <= limits.sandboxMemory) return;

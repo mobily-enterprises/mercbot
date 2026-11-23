@@ -185,7 +185,10 @@ does, within limits per command, per bot and per home (D-47, D-112, D-126, D-127
 - **The computer's session:** `shell.attach({key, place, label})` (key: the computer's, the seat's chat_bots id)
   starts a detached gVisor sandbox with the same mounts as a run, `/runs` and a gateway of its own included (closed
   when the session ends), running tmux:
-  the top pane follows `/tmp/bot.log` under `label`, the bottom pane is a bash loop for the person.
+  the top pane follows `/tmp/bot.log` under `label`, the bottom pane is a bash loop for the person. The sandbox's
+  own process only keeps it up; attach starts its tmux in it with `runsc exec` (`SESSION_TMUX`) and answers once that
+  has, so the session's runs and the Terminal find `main` from the start, however slowly the sandbox started. A
+  session whose tmux didn't start ends, and attach fails (the computer goes on without it).
   While it exists, that seat's runs (except those with `readOnly`) execute in it with
   `runsc exec` (`IN_SESSION`): each is shown in the log with its heading and `(exit N)`, keeps
   its own time limit, and shares the session's `/tmp`. The session's gateway counts each run's internet from its start
