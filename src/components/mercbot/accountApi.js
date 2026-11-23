@@ -1,5 +1,5 @@
 import { ref } from "vue";
-import { createHttpClient } from "@jskit-ai/http-runtime/client";
+import { createHttpClient, isGenericHttpErrorMessage } from "@jskit-ai/http-runtime/client";
 import { homePath } from "./homeApi.js";
 import { AUTH_PATHS } from "@jskit-ai/auth-core/shared/authPaths";
 
@@ -21,6 +21,19 @@ export function refusedWork(error) {
   if (error?.status !== 402) return false;
   workRefusals.value += 1;
   return true;
+}
+
+/**
+ * What a failed request tells the person: the server's own words when it refused with some (a limit, a missing
+ * permission, an outside service that didn't answer), else `fallback`. The transport's wording ("Failed to fetch",
+ * "Request failed with status 404.") and a hidden server failure keep the fallback.
+ * @param {unknown} error
+ * @param {string} fallback
+ */
+export function saidByServer(error, fallback) {
+  const message = String(error?.message || "").trim();
+  const answered = Number(error?.status) >= 400 && !isGenericHttpErrorMessage(error) && message !== "Internal server error.";
+  return answered && message ? message : fallback;
 }
 
 // Money as the provider reports it, e.g. "$21.09" (D-16).

@@ -38,11 +38,11 @@ any bot's memory.
 - `src/components/mercbot/MercbotMemberCard.vue`
 - `src/components/mercbot/botsApi.js`
 - `tools/standInModel.mjs`
-- Rooms memory: `packages/bots/src/server/roomsMemory.js`
+- `packages/bots/src/server/roomsMemory.js`
 - `packages/bots/src/server/roomsMemoryTools.js`
 - `packages/bots/src/server/records/seatWindows.js`
 - `packages/bots/src/server/records/roomsMemoryRepository.js`
-- Common knowledge: `packages/bots/src/server/commonKnowledge.js`
+- `packages/bots/src/server/commonKnowledge.js`
 - `packages/bots/src/server/records/commonKnowledgeRepository.js`
 - `packages/bots/src/server/records/rowPolicies.js`
 - `packages/bots/src/server/botActions.js`

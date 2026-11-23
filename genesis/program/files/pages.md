@@ -112,7 +112,8 @@ page-only address carries no session.
 ## Owned data
 
 - `page_versions`: every version of every page, by home, bot and path, with its key, kind and whole
-  document.
+  document; read by home, bot and path (`ix_page_versions_page`), or by home and path for a page in the home's own
+  folder, which is any bot's (`ix_page_versions_path`), so a move reads only its pages' versions.
 
 ## Proved by
 

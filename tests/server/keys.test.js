@@ -111,6 +111,14 @@ test("a Preview empties a live payment key (sk_live_, rk_live_) and an AI key", 
   assert.deepEqual(env, { STRIPE_SECRET_KEY: "", PAYMENTS_RESTRICTED_SECRET_KEY: "", AI_PREMIUM_API_KEY: "", AI_IMAGES_API_KEY: "" });
 });
 
+// A live payment key is emptied whatever its setting is called: a key kept under a name that doesn't look like a
+// credential (a setting named anything) would otherwise sit in the Preview's server, able to take real money.
+test("a Preview empties a live payment key under any name", () => {
+  const env = { ADMIN_PAYMENT_KEY: "sk_live_51Example", BILLING: " rk_live_51Example ", NOTE: "sk_live is a prefix", APP_PUBLIC_URL: "http://localhost:3001" };
+  withoutCredentials(env);
+  assert.deepEqual(env, { ADMIN_PAYMENT_KEY: "", BILLING: "", NOTE: "sk_live is a prefix", APP_PUBLIC_URL: "http://localhost:3001" });
+});
+
 // Only a value that starts with a test-mode prefix is kept: an empty credential stays empty, one that merely contains
 // a prefix or names test mode some other way is emptied, and a setting that isn't credential-shaped is left alone.
 test("a Preview empties an empty or unrelated credential as before", () => {

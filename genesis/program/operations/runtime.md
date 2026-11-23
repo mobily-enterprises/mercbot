@@ -42,7 +42,7 @@ the server listens it sends what changed in its working copy every 5 seconds, an
 The server believes `X-Forwarded-For` only from the proxies `TRUSTED_PROXIES` names (`trustedProxies`, JSKIT's
 `resolveTrustedProxies`; a proxy on this computer without it), so behind a load balancer each visitor keeps their own
 address for the sign-in limits, and a value that would believe anyone stops the start. `npm run develop` (`bin/develop.js`, `server/lib/develop.js`), the Preview, runs with
-`APP_ENV=development` whatever `.env` says, empties every credential-shaped setting but a payment provider's test-mode
+`APP_ENV=development` whatever `.env` says, empties every credential-shaped setting, and every live payment key whatever its name, but a payment provider's test-mode
 key (`sk_test_…`, `rk_test_…`, which can't move money, D-116) and the AI keys (`aiKeysOf`, D-118), so its bots use
 their providers; a kind of AI without a key runs on the stand-in model (`tools/previewAi.mjs`, D-83). No other
 outside service gets a key from a Preview, and payments can be tried there. It starts only on loopback and its HTTP server is the single-user gate

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { nanoMoney, refusedWork, workRefusals } from "../../src/components/mercbot/accountApi.js";
+import { nanoMoney, refusedWork, saidByServer, workRefusals } from "../../src/components/mercbot/accountApi.js";
 import {
   barWidths, daysKeptFrom, duration, kindAmount, periodRange, rangeProblem, stepPeriod
 } from "../../src/components/mercbot/spendingView.js";
@@ -23,6 +23,23 @@ describe("work the copy refused", () => {
     expect(refusedWork({ status: 502 })).toBe(false);
     expect(refusedWork(undefined)).toBe(false);
     expect(workRefusals.value).toBe(before + 1);
+  });
+});
+
+describe("what a failed request says to the person", () => {
+  const fallback = "That didn't work. Try again.";
+  const refused = (status, message, extra = {}) => Object.assign(new Error(message), { status, ...extra });
+  it("is the server's own words when it refused with some, Settings' fallback otherwise", () => {
+    expect(saidByServer(refused(400, "Name a month as YYYY-MM."), fallback)).toBe("Name a month as YYYY-MM.");
+    expect(saidByServer(refused(403, "Only the home's owners and admins see its spending."), fallback)).toBe("Only the home's owners and admins see its spending.");
+    expect(saidByServer(refused(429, "Too many requests. Try again in 12 seconds."), fallback)).toBe("Too many requests. Try again in 12 seconds.");
+    expect(saidByServer(refused(502, "The mail service didn't answer. Try again in a moment."), fallback)).toBe("The mail service didn't answer. Try again in a moment.");
+    // The transport's own wording, a hidden server failure and no request at all keep the fallback.
+    expect(saidByServer(refused(0, "Failed to fetch"), fallback)).toBe(fallback);
+    expect(saidByServer(refused(404, "Request failed with status 404."), fallback)).toBe(fallback);
+    expect(saidByServer(refused(500, "Internal server error."), fallback)).toBe(fallback);
+    expect(saidByServer(new Error("Couldn't copy."), fallback)).toBe(fallback);
+    expect(saidByServer(undefined, fallback)).toBe(fallback);
   });
 });
 

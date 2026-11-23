@@ -6,7 +6,7 @@ import { useWebPlacementContext } from "@jskit-ai/shell-web/client/placement";
 import { useAuthStore } from "@jskit-ai/auth-web/client";
 import { useShellWebErrorRuntime } from "@jskit-ai/shell-web/client/error";
 import MercbotChatPanel from "./MercbotChatPanel.vue";
-import { refusedWork } from "./accountApi.js";
+import { refusedWork, saidByServer } from "./accountApi.js";
 import extensions from "./extensions.js";
 import MercbotDetailsPanel from "./MercbotDetailsPanel.vue";
 import MercbotAppsModal from "./MercbotAppsModal.vue";
@@ -640,7 +640,7 @@ watch(() => currentHomeEntry.value?.slug, () => loadBuilderBot(), { immediate: t
         @message="messageMember"
         @command="runCommand"
         @changed="team.updateBot($event)"
-        @failure="reportFailure('That didn\'t work. Try again.', $event)"
+        @failure="reportFailure(saidByServer($event, 'That didn\'t work. Try again.'), $event)"
         @notify="notify"
         @messages="showChanged"
         @edit-routine="editRoutine"
@@ -675,7 +675,7 @@ watch(() => currentHomeEntry.value?.slug, () => loadBuilderBot(), { immediate: t
       :manages="manages"
       :home-name="homeName"
       @theme="setTheme"
-      @failure="reportFailure('That didn\'t work. Try again.', $event)"
+      @failure="reportFailure(saidByServer($event, 'That didn\'t work. Try again.'), $event)"
       @notify="notify"
       @connect="settingsOpen = false; openApp($event)"
       @bots-changed="team.loadBots()"
@@ -720,7 +720,7 @@ watch(() => currentHomeEntry.value?.slug, () => loadBuilderBot(), { immediate: t
       @add-team="addTeam"
       @add-bots="addBots"
     />
-    <MercbotAppsModal v-model="appsOpen" :main-bot="team.mainBot.value" :skill-id="appsSkillId" :app-id="appsAppId" :start-page="appsPage" @failure="reportFailure('That didn\'t work. Try again.', $event)" />
+    <MercbotAppsModal v-model="appsOpen" :main-bot="team.mainBot.value" :skill-id="appsSkillId" :app-id="appsAppId" :start-page="appsPage" @failure="reportFailure(saidByServer($event, 'That didn\'t work. Try again.'), $event)" />
     <MercbotConnectExplainer
       v-model="explainerOpen"
       :plugin="explainerPlugin"
@@ -737,7 +737,7 @@ watch(() => currentHomeEntry.value?.slug, () => loadBuilderBot(), { immediate: t
       :handover="Boolean(liveView.handover)"
       :teach="Boolean(liveView.teach)"
       @taught="finishTeaching"
-      @failure="reportFailure('That didn\'t work. Try again.', $event)"
+      @failure="reportFailure(saidByServer($event, 'That didn\'t work. Try again.'), $event)"
       @close="closeLive"
       @take-over="takeOver({ botId: liveView.botId, chatId: liveView.chatId })"
       @hand-back="handBack()"
