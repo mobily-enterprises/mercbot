@@ -147,16 +147,16 @@ hides per-row work, and these counts are the figures the report compares.
 
 - The pass changes how data is read, written, constrained and indexed, never
   what it means: no product rule change, no dropped column or row, and no data
-  rewritten without the person's agreement. A missing feature is a follow-up
-  finding, left unchanged.
+  rewritten without the person's agreement. A fix that needs a missing feature
+  is a question for the person.
 - Tests and measurements use test databases the run creates and drops; never a
   development or production database or its configuration.
 - The selected Stack's data pass guidance names its owner layer, its query
   counter, its migration mechanics and what differs between databases; follow
   it.
 - **Fix at the owner.** When the framework or a library blocks a correct
-  query, report the exact change it needs instead of working around it in the
-  app.
+  query, report the exact change it needs under "Outside this scope" instead of
+  working around it in the app.
 - Do not edit `.genesis/`, Git metadata, dependency directories, generated
   build output, retained migration history (add new migrations instead), or
   external resources.
@@ -166,8 +166,8 @@ commit. Never amend or rewrite selected commits. Summarize the resolved scope,
 the data map, each path's counts before and after at both sizes, the
 constraints added with the test that trips each, the migrations with their
 lock and time notes, the indexes with the query each serves and the plan that
-uses it, the tests added, files changed, checks actually run, and follow-up
-findings left unchanged.
+uses it, the tests added, files changed, checks actually run, and what lies
+outside this scope.
 
 When the prompt ends with a `PASS RECORD` step, take it once the pass has
 finished: the Genesis `passes done data-pass` operation records it in `genesis/passes.json`,

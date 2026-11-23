@@ -115,7 +115,7 @@ whole scope with them and fixes what it finds:
   missing optional values, zero, one and many items, large numbers, dates near
   midnight and in another time zone, duplicates, a double click or double
   submit, refresh or back in the middle of an action, two tabs, an expired
-  session, a slow or dropped connection. Fix what breaks, or report it.
+  session, a slow or dropped connection. Fix what breaks.
 - **Every refusal explained.** When the software refuses (invalid input, a
   missing permission, a limit, a conflict, missing setup), the person sees what
   was refused, why, and what they can do about it, in words they understand.
@@ -155,11 +155,13 @@ interface (a browser, a terminal, a device), not reading its code:
 
 - The pass changes behavior only to handle a state or an edge case and to
   explain a refusal. It adds no feature and changes no permission, product rule
-  or stored data; a larger gap is a follow-up finding, left unchanged.
+  or stored data: a fix that needs one is a question for the person. A larger
+  gap within the scope is fixed like any other.
 - The selected Stack's quality pass guidance names where states, errors and
   refusals live in its technology; follow it.
 - **Fix at the owner.** When the framework itself blocks a result, report the
-  exact framework change instead of working around it in the app.
+  exact framework change under "Outside this scope" instead of working around
+  it in the app.
 - You may edit source, styles, messages and tests in scope; every existing
   behavior assertion stays. Do not edit `.genesis/`, Git metadata, dependency
   directories, generated build output, retained migration history, or external
@@ -170,7 +172,7 @@ commit. Never amend or rewrite selected commits. Summarize the resolved scope,
 the states listed for each screen or flow with what was missing and what
 changed, the edge cases tried and their results, the refusals reworded, the
 accessibility checks, the screenshots and tests actually taken and run (with
-their paths), files changed, and follow-up findings left unchanged.
+their paths), files changed, and what lies outside this scope.
 
 When the prompt ends with a `PASS RECORD` step, take it once the pass has
 finished: the Genesis `passes done quality-pass` operation records it in `genesis/passes.json`,

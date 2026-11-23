@@ -299,3 +299,49 @@ test("reading a skill posts its acknowledgement at once, before the reply ends",
   await kit.ask("Plan the week");
   assert.deepEqual(shownWhileWorking, ["Looking at the weekly menu."], "in the chat while the bot still works");
 });
+
+/** What the page may get back for a message: toMessage's shape, and nothing a model or the database keeps for itself. */
+function assertPageShaped(message) {
+  assert.deepEqual(Object.keys(message).sort(), ["authorBotId", "authorUserId", "body", "createdAt", "id", "kind", "role"]);
+  assert.equal(message.body.transcript, undefined, "no transcript");
+  assert.equal(message.body.trigger, undefined, "no trigger");
+}
+
+test("asking for the reply again after the bot answered gives page-shaped messages, with who said them", async (context) => {
+  const { kit, ask, chat, bots, pat, homeId } = await (async () => {
+    const parts = {
+      reply: async () => ({
+        text: "Hello, Pat.",
+        transcript: [{ role: "assistant", content: [{ type: "text", text: "Hello, Pat." }] }]
+      })
+    };
+    const set = await setup(context, parts);
+    return { kit: set, ...set };
+  })();
+  const asked = await ask("Hello");
+  const again = await kit.turns.chat.reply(chat, { afterMessageId: asked.id }, undefined, kit.as(pat, homeId));
+
+  assert.ok(again.messages, "the reply that was already given, not a pending answer");
+  const answer = again.messages.find((message) => message.role === "bot" && message.kind === "text");
+  assert.ok(answer, "the bot's answer is in it");
+  assert.equal(answer.authorBotId, String(bots[0]), "said by the bot, so its pictures load from its own address");
+  assert.equal(answer.body.text, "Hello, Pat.");
+  for (const message of again.messages) assertPageShaped(message);
+});
+
+test("in a room of two people, what one wrote without calling a bot comes back page-shaped", async (context) => {
+  const kit = await startChatTurns(context, {});
+  const { homeId, people: [pat, sam] } = await homeOfPeople(kit, ["Pat", "Sam"]);
+  const bots = await botsOf(kit, homeId, pat, ["Bot"]);
+  const { id: chat } = await seedChat(kit.knex, { homeId, people: [pat, sam], bots });
+  const seen = await kit.turns.chat.sendMessage(chat, { text: "Shall we meet at six?" }, kit.as(pat, homeId));
+  const sent = await kit.turns.chat.sendMessage(chat, { text: "Six works for me." }, kit.as(sam, homeId));
+
+  const got = await kit.turns.chat.reply(chat, { afterMessageId: seen.messages.at(-1).id }, undefined, kit.as(pat, homeId));
+  await kit.drain(5000);
+  const said = got.messages.find((message) => message.id === String(sent.messages.at(-1).id));
+  assert.ok(said, "Sam's message is what was said since Pat's page last looked");
+  assert.equal(said.authorUserId, String(sam));
+  assert.equal(said.authorBotId, null);
+  for (const message of got.messages) assertPageShaped(message);
+});

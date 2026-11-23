@@ -265,8 +265,8 @@ When the time is in the database, the data pass owns the cure: query counts
 that grow with the rows read, reads narrowed in code instead of in the query,
 and indexes for the filters the software really runs belong to the data pass
 skill (`.agents/skills/genesis-data-pass/SKILL.md`). Apply its method to that
-path, with its counts at a few rows and at a realistic size, or report the
-path as a data pass finding when it lies beyond the scope. This pass does not
+path, with its counts at a few rows and at a realistic size, or list the path
+under "Outside this scope" when it lies beyond the scope. This pass does not
 restate those rules; it measures the whole wait, end to end, and reports it
 before and after.
 
@@ -309,10 +309,11 @@ For each wait:
 - Share the machine fairly: stay within its test budget, never fill a shared
   machine with repeated full runs, and wait for long runs without polling.
 - **Fix at the owner.** When the framework, the test runner or a library causes
-  the slowness, report the exact change it needs instead of working around it
-  in the app.
-- **Report what it can't fix.** A slow outside service, a hosting limit or a
-  product decision is reported with its numbers, what it needs and who must
+  the slowness, report the exact change it needs under "Outside this scope"
+  instead of working around it in the app.
+- **Report what it can't fix.** A product decision is a question for the
+  person, with a recommended answer; a slow outside service or a hosting limit
+  goes under "Outside this scope" with its numbers, what it needs and who must
   act.
 - The selected Stack's speed pass guidance names its test runner and the
   machine's test budget, how its build splits client code, its request
@@ -327,9 +328,9 @@ commit. Never amend or rewrite selected commits. Summarize the resolved scope,
 each wait with how it was measured and its numbers before and after, each
 cause found and its fix, the whole suite's wall time before and after with its
 phases and slowest files, the tests guarding each fix and their failing run
-without it, the paths handed to the data pass, the areas that do not apply and
-why, files changed, checks actually run, and everything left unfixed with what
-it needs and who must act.
+without it, the paths fixed with the data pass's method, the areas that do not
+apply and why, files changed, checks actually run, and what lies outside this
+scope, with what it needs and who must act.
 
 When the prompt ends with a `PASS RECORD` step, take it once the pass has
 finished: the Genesis `passes done speed-pass` operation records it in `genesis/passes.json`,

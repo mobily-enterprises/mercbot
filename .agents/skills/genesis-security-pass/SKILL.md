@@ -256,11 +256,12 @@ never enforced is a finding.
   databases and test accounts it creates. Never probe a production deployment,
   a real person's account or another party's service, and never send real
   email, messages or payments.
-- **Report what it can't fix.** A secret to replace, a product decision, a
-  hosting setting, a vulnerable dependency with no fix: each is reported with
-  what it needs and who must act. When the framework itself blocks a fix,
-  report the exact framework change instead of working around it in the app
-  (**fix at the owner**).
+- **Report what it can't fix.** A product decision is a question for the
+  person, with a recommended answer. A secret to replace at its issuer, a
+  hosting setting and a vulnerable dependency with no fix go under "Outside
+  this scope", each with what it needs and who must act. When the framework
+  itself blocks a fix, report the exact framework change there instead of
+  working around it in the app (**fix at the owner**).
 - The selected Stack's security pass guidance names where its technology
   decides access, scopes rows, limits requests, keeps sessions and secrets and
   switches to production; follow it.
@@ -274,8 +275,8 @@ commit. Never amend or rewrite selected commits. Summarize the resolved scope,
 the map of ways in, each finding with the input that broke it and the refusal
 seen after the fix, the test guarding each fix and its failing run without the
 fix, the protections tried that already held, the areas that do not apply and
-why, the dependency audit, files changed, checks actually run, and everything
-left unfixed with what it needs and who must act.
+why, the dependency audit, files changed, checks actually run, and what lies
+outside this scope, with what it needs and who must act.
 
 When the prompt ends with a `PASS RECORD` step, take it once the pass has
 finished: the Genesis `passes done security-pass` operation records it in `genesis/passes.json`,

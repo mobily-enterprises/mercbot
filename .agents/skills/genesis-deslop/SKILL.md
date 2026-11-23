@@ -137,16 +137,16 @@ keep behavior" section of
 `.agents/skills/genesis-project/references/sanity-checks.md` describe. After
 cleanup, walk the list again: every item must still hold and still have a test,
 and a test the cleanup changed must assert no less than before. A behavior no
-test covers is a follow-up finding, never permission to drop it.
+test covers is a test gap, fixed as below, never permission to drop it.
 
 Cleanup is not a second implementation pass. The selected changes limit where
 cleanup may occur; sharing a file does not bring unrelated edits into scope or
-authorize different behavior in that file. Deslop may reorganize behavior
+authorize different behavior in that file. A cleanup may reorganize behavior
 already present; it may not complete, correct, or extend
-behavior. If review reveals a defect, missing behavior, contract mismatch, or
-test gap, report it as a follow-up finding and leave it unchanged, even when it
-is inside a changed path or appears related to the preceding implementation. Do
-not implement the finding or alter tests to accommodate it during Deslop.
+behavior. A real defect found within the scope (wrong or missing behavior, a
+contract mismatch, a test gap) is fixed as a separate fix, not a cleanup: its
+own test, seen to fail first, then the fix, kept apart from the cleanups and
+reported as a fix. Never alter a test to accommodate a cleanup.
 
 Apply every technology-specific Deslop instruction supplied by the selected
 Stack and load applicable official technology skills for framework and language
@@ -168,7 +168,8 @@ commit. Never amend or rewrite the selected commits. Run focused checks when
 useful. Final declared checks remain available through the Genesis `verify`
 operation. Summarize the resolved scope and any selected commit identities,
 what became simpler, the behaviors checked before and after, files changed,
-checks actually run, and follow-up findings left unchanged.
+checks actually run, each defect fixed apart from the cleanups with its test,
+and what lies outside this scope.
 
 When the prompt ends with a `PASS RECORD` step, take it once the pass has
 finished: the Genesis `passes done deslop` operation records it in `genesis/passes.json`,
@@ -191,5 +192,5 @@ checklist:
   including one job written in different words, and a pattern one subsystem
   follows that another ignores.
 
-Deslop's limits hold in a deep run: behaviour stays as it is, and a defect
-found stays a follow-up finding, left unchanged.
+Deslop's limits hold in a deep run: cleanups keep behaviour as it is, and a
+defect found is fixed in its own commit, with its own test, reported as a fix.

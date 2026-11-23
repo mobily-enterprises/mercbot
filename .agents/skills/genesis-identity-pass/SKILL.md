@@ -82,7 +82,8 @@ section; follow it with "Deep run" below.
 
 A narrower scope in an app with no identity yet still needs the foundation
 (the seed, the colour module and the logo, steps 1 and 2 below): build it, and
-report that the rest of the app does not have the identity yet.
+list the rest of the app, which does not have the identity yet, under "Outside
+this scope".
 
 ## Study the software first
 
@@ -228,11 +229,13 @@ data.
   change what the software does: no feature, field, action, permission,
   validation or data change. New words go through the project's translation
   mechanism where it has one. A defect, missing behavior or test gap you notice
-  is a follow-up finding, left unchanged.
+  within the scope is fixed as a separate fix with its own test, reported as a
+  fix.
 - The selected Stack's identity pass guidance says where each piece lives;
   the identity never breaks a design rule the Stack marks as must-fix.
 - **Fix at the owner.** When the framework itself blocks a result, report the
-  exact framework change instead of overriding it in the app's styles.
+  exact framework change under "Outside this scope" instead of overriding it in
+  the app's styles.
 - You may add the art components, the colour module, the logo and icon files,
   the loading screen and their styles, place the art in screens, and update
   tests whose markup changed; every behavior assertion stays. Do not edit
@@ -263,7 +266,7 @@ Leave the pass as ordinary uncommitted work for review and a later normal
 commit. Never amend or rewrite selected commits. Summarize the resolved scope,
 the look spec (style option, seed, content kinds and their motifs), what
 changed, files changed, the checks, contrast figures and screenshots actually
-taken (with their paths), and follow-up findings left unchanged.
+taken (with their paths), and what lies outside this scope.
 
 When the prompt ends with a `PASS RECORD` step, take it once the pass has
 finished: the Genesis `passes done identity-pass` operation records it in `genesis/passes.json`,

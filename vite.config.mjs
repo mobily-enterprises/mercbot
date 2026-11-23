@@ -6,6 +6,7 @@ import vuetify from "vite-plugin-vuetify";
 import VueRouter from "vue-router/vite";
 import { createJskitClientBootstrapPlugin } from "@jskit-ai/kernel/client/vite";
 import { testConcurrency } from "@jskit-ai/jskit-catalog/test-budget";
+import { fromVitePage } from "./server/lib/vitePage.js";
 
 const configuredDevPort = Number.parseInt(String(process.env.VITE_DEV_PORT || "").trim(), 10);
 const devPort = Number.isInteger(configuredDevPort) && configuredDevPort > 0 ? configuredDevPort : 3001;
@@ -33,7 +34,7 @@ const appVersion = JSON.parse(readFileSync(new URL("./package.json", import.meta
 function ownPageThroughVite(target) {
   const apiOrigin = new URL(target).origin;
   const fromApiOrigin = (proxyRequest, request) => {
-    if (request.headers.origin === `http://${request.headers.host}`) proxyRequest.setHeader("origin", apiOrigin);
+    if (fromVitePage(request.headers.origin, request.headers.host)) proxyRequest.setHeader("origin", apiOrigin);
   };
   return {
     name: "mercbot-own-page-through-vite",

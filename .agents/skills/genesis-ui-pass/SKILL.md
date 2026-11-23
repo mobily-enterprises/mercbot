@@ -102,12 +102,13 @@ do not invent a new one.
 - **Behavior stays as it is.** Change how the UI looks and is laid out, never
   what it does: no feature, field, action, permission, validation, data or
   copy change beyond what the design rules require. A defect, missing behavior,
-  contract mismatch or test gap you notice is a follow-up finding, left
-  unchanged. Rules the Stack guidance marks as must-fix (such as navigation
-  rules) are fixed at every scope, never only reported.
+  contract mismatch or test gap you notice within the scope is fixed as a
+  separate fix with its own test, reported as a fix. Rules the Stack guidance
+  marks as must-fix (such as navigation rules) are fixed at every scope, never
+  only reported.
 - **Fix at the owner.** When the framework itself blocks an exact result,
-  report the exact framework change instead of compensating with app CSS,
-  `!important`, or a copied framework file.
+  report the exact framework change under "Outside this scope" instead of
+  compensating with app CSS, `!important`, or a copied framework file.
 - **Prove it.** Run the conformance checks the Stack guidance names on the
   scope until they pass. Take screenshots of every affected screen at 390, 768
   and 1280 pixels wide, in light and dark, through the host's managed browser
@@ -125,7 +126,8 @@ do not invent a new one.
 - **Quote the rule.** Before saying a choice was kept or made because the
   project's rules require it, quote the rule and say where it lives; a rule you
   cannot quote is no reason. When two rules seem to conflict, quote both and
-  report the conflict instead of quietly choosing one.
+  ask the person which holds, recommending one, instead of quietly choosing
+  one.
 - **Edits.** You may edit UI source, styles and tests whose markup changed;
   every behavior assertion stays. Do not edit `.genesis/`, Git metadata,
   dependency directories, generated build output, retained migration history,
@@ -135,8 +137,8 @@ do not invent a new one.
 Leave the pass as ordinary uncommitted work for review and a later normal
 commit. Never amend or rewrite the selected commits. Summarize the resolved
 scope and any commit identities, what changed, files changed, the checks and
-screenshots actually taken (with their paths), and follow-up findings left
-unchanged.
+screenshots actually taken (with their paths), and what lies outside this
+scope.
 
 When the prompt ends with a `PASS RECORD` step, take it once the pass has
 finished: the Genesis `passes done ui-pass` operation records it in `genesis/passes.json`,

@@ -78,12 +78,14 @@ Before the first pass, write the Master ledger at the path the `MASTER PASS`
 section names. It lives in Git's own directory, outside the project's tracked
 files, so an interrupted Master pass finds it again. Record the request, the
 commit it starts from, and each listed pass with its status (to do, running,
-done or skipped), the path of its checklist (the one its `DEEP RUN` names), its
-commits and its checklist count. Update it as each pass starts and finishes.
+questions, done or skipped), the path of its checklist (the one its `DEEP RUN`
+names), its commits and its checklist count. Update it as each pass starts and
+finishes.
 
 When a ledger for the same request is already there and not finished, continue
-from it: passes marked done stay done, and a pass marked running continues its
-own checklist from its first unticked item. Any other ledger is replaced.
+from it: passes marked done stay done, and a pass marked running or questions
+continues its own checklist from its first unticked item. Any other ledger is
+replaced.
 
 ## Run each pass
 
@@ -105,9 +107,13 @@ For each listed pass, in order:
    pass's final whole-suite run passed on the committed tree. Record its
    commits and checklist count in the ledger and mark it done.
 
-A pass that cannot finish, such as one whose failing checks it cannot fix,
-stops the Master pass there: report where it stopped and why, and do not start
-the next pass on a broken tree.
+Each pass ends as its `PASS REPORT` says: finished, or with questions for the
+person. A pass with questions, including a blocker such as failing checks it
+cannot fix, stops the Master pass there: mark it questions in the ledger,
+report its questions, and do not start the next pass. Once they are answered,
+it continues from its checklist and finishes before the next pass starts. When
+the person said to pick the recommendation, each pass picks it, records the
+choice and finishes, and the Master pass goes on.
 
 Skip a pass that does not apply to this software, such as the UI or identity
 pass where the software has no screens, and write the reason in the ledger and
@@ -121,13 +127,16 @@ it ran and leaving out those it skipped, records the Master pass in
 `genesis/passes-added.json`; commit that change as its last commit, so nothing is
 left uncommitted and its next run since the last one starts there.
 
-End with one combined report. Open with the passes run and skipped, and how the
+End with one combined report. Open with the ending reached (finished, or the
+questions of the pass where it stopped), the passes run and skipped, and how the
 work was split across agents (or that it ran as one agent). Then, for each pass
 in order: its checklist count and how many ticks rest on each kind of evidence,
-what changed, its commits, its unticked items and the findings left unchanged.
+what changed, its commits, its unticked items and the choices it made for the
+person.
 A pass that changes behaviour on purpose, such as the security, data or
 quality pass, states plainly what now behaves differently; a pass that keeps
 behaviour, such as Deslop, states that behaviour is unchanged and how that was
 proven. For a run since the last Master pass, say which files each pass read in
 full and which it only searched against the whole app. Close with the final
-whole-suite run on the committed tree.
+whole-suite run on the committed tree, then one "Outside this scope" list for
+every pass.

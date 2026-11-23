@@ -1,6 +1,6 @@
 ---
 name: genesis-review
-description: Review the work against what the software should do through an explicitly requested review over the whole app, the changes since its last completed run, a named section or the current work, judging the tests (each changed behavior has one that would fail without it; none weakened or skipped), the gaps between intent, code and explanation, and costs that grow with the data, writing only tests and reporting everything else. Use when asked for a review, a review pass, or to check the tests and the work against the Blueprint.
+description: Review the work against what the software should do through an explicitly requested review over the whole app, the changes since its last completed run, a named section or the current work, judging the tests (each changed behavior has one that would fail without it; none weakened or skipped), the gaps between intent, code and explanation, and costs that grow with the data, fixing each defect after writing the test that fails without the fix. Use when asked for a review, a review pass, or to check the tests and the work against the Blueprint.
 ---
 
 # Genesis review
@@ -81,10 +81,9 @@ If the scope is ambiguous, ask which section or changes.
 
 ## Boundaries
 
-- The prompt says what a review judges. It edits only tests: it adds or updates
-  the tests changed behavior lacks and changes no product code, Blueprint,
-  Program, Stack or other file. Every other finding is reported with the
-  smallest sensible correction, left unchanged.
+- The prompt says what a review judges. It fixes what it finds within the
+  scope: for each defect it writes the test that fails because of it, sees it
+  fail, then fixes the code.
 - Run the tests relevant to the scope; report what actually ran and what was not
   verified, and never report an unrun check as passing.
 
@@ -106,8 +105,7 @@ evidence, chunks, commits and report work for every pass. This pass adds to the
 checklist:
 
 - every behavior the source exposes (operation, screen, command or job), each
-  with the test that would fail without it, or the missing test written or
-  reported;
+  with the test that would fail without it, or the missing test written;
 - every test file: whether it runs in the whole suite, what it proves, what it
   costs, and any test weakened, skipped or loosened;
 - every list, batch and write path, with its query or call counts at a few rows
@@ -117,5 +115,4 @@ checklist:
   at all, a table with more than one owner, and work over a whole population
   done inside a request.
 
-Review's limits hold in a deep run: it writes only tests, and every other
-finding is reported and left unchanged.
+In a deep run too, each defect gets its failing test first, then its fix.

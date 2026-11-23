@@ -1,4 +1,5 @@
 import { languageName } from "./botWriting.js";
+import { toMessage } from "./botRows.js";
 import { validTimeZone } from "./routineSchedule.js";
 import { withoutPaths } from "./botAgent.js";
 import { LEAKED_MARKUP, reportsActions, stoppedShort, toolRecord, withoutClosingWords, withoutMarkup } from "@jskit-ai/agent/server";
@@ -41,6 +42,10 @@ export function addressedBots(message, { people, bots }) {
     mentioned.has(String(bot.bot_id)) || String(bot.bot_id) === repliedTo || namedAsWord(words, bot.name));
   return called.length ? called : live.filter((bot) => String(bot.bot_id) === String(message?.body?.judged));
 }
+
+/** Messages read from storage as every route gives them to the page (toMessage): who said each, and never a reply's
+ * transcript or what started it. */
+const pageShaped = (rows) => rows.map(toMessage);
 
 /**
  * The bots' replies in chats (D-48, R3): to a person's message, after a card they answered, a scheduled routine and a
@@ -447,7 +452,7 @@ export function createBotReplies({
     const chat = await records.chats.get(String(chatId), options);
     const present = { people: await records.chats.people(chat.id, options), bots: await records.chats.bots(chat.id, options) };
     const after = Number(afterMessageId) || 0;
-    const since = async () => ({ messages: after > 0 ? await records.messages.messagesAfter(chat.id, after, options) : [] });
+    const since = async () => ({ messages: after > 0 ? pageShaped(await records.messages.messagesAfter(chat.id, after, options)) : [] });
     if (!present.bots.some((bot) => !bot.archived_at)) return since();
     const { bots, asked, askerId, cardId, latest } = await whoSpeaks(records.turns, chat.id, { afterCard }, present, options);
     const judging = !bots.length && Boolean(askerId) && joiningIn.mayJudge(chat, latest, present);
