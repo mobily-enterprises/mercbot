@@ -31,12 +31,12 @@ test("bots use the home's data; the Builder drafts apps", async (context) => {
   const chatBotId = chat.chatBotIds.get(String(botId));
   const run = (tool, input) => tool.execute(input, {});
 
-  const plain = buildAppTools({ apps, directory, call, botId, conversationId: chat.id, chatBotId, userId, isBuilder: false, after: [], attempted: [], via: null });
-  assert.deepEqual(Object.keys(plain).sort(), ["dataAttachFile", "dataCreate", "dataMarkObsolete", "dataQuery", "dataTables", "dataUpdate", "viewGet", "viewList", "viewSave", "watchCreate", "watchList", "watchPause", "watchRemove", "watchResume"], "no Builder tools for other bots");
+  const plain = buildAppTools({ apps, directory, call, botId, conversationId: chat.id, chatBotId, userId, isBuilder: false, after: [], attempted: [], via: null, postLead: async () => {}, attempt: async () => ({ status: "waiting_for_approval" }) });
+  assert.deepEqual(Object.keys(plain).sort(), ["dataAttachFile", "dataCreate", "dataMarkObsolete", "dataQuery", "dataTables", "dataUpdate", "tableEnsure", "tableExtend", "tableFieldAdd", "viewGet", "viewList", "viewSave", "watchCreate", "watchList", "watchPause", "watchRemove", "watchResume"], "no Builder tools for other bots");
 
   const after = [];
   const attempted = [];
-  const builder = buildAppTools({ apps, directory, call, botId, conversationId: null, userId: null, isBuilder: true, after, attempted, via: null });
+  const builder = buildAppTools({ apps, directory, call, botId, conversationId: null, userId: null, isBuilder: true, after, attempted, via: null, postLead: async () => {}, attempt: async () => ({ status: "waiting_for_approval" }) });
   assert.ok(!Object.keys(builder).some((name) => /publish|delete/iu.test(name)), "no tool publishes or deletes");
   assert.equal((await run(builder.tableCreate, { key: "suppliers", fields: [{ key: "name", type: "text", required: true }, { key: "status", type: "choice", choices: ["Active", "Paused"] }, { key: "spend", type: "money" }] })).status, "created");
 
@@ -110,7 +110,7 @@ test("bots use the home's data; the Builder drafts apps", async (context) => {
   assert.ok(attempted.includes("script_save"));
   assert.deepEqual(await run(builder.scriptRemove, { app: "hiring-pipeline", key: "nope" }), { error: 'No script "nope".' });
   assert.equal((await run(builder.scriptList, { app: "hiring-pipeline" })).scripts[0].key, "initials");
-  const writer = buildAppTools({ apps, directory, call, botId, conversationId: null, userId: null, isBuilder: true, after, attempted, via: null, scriptModel: async () => ({ summary: "Doubles", code: "function main(n) { return n * 2 }", tests: [{ name: "two", input: [2], expect: 4 }] }) });
+  const writer = buildAppTools({ apps, directory, call, botId, conversationId: null, userId: null, isBuilder: true, after, attempted, via: null, postLead: async () => {}, attempt: async () => ({ status: "waiting_for_approval" }), scriptModel: async () => ({ summary: "Doubles", code: "function main(n) { return n * 2 }", tests: [{ name: "two", input: [2], expect: 4 }] }) });
   const written = await run(writer.scriptWrite, { app: "hiring-pipeline", key: "twice", kind: "function", settings: { params: ["n"] }, job: "Double the number given." });
   assert.equal(written.status, "saved", JSON.stringify(written));
   const badName = await run(writer.scriptWrite, { app: "hiring-pipeline", key: "double", kind: "function", settings: { params: ["n"] }, job: "Double the number given." });

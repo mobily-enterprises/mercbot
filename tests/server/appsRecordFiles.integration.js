@@ -98,6 +98,8 @@ test("a bot puts one of its files on a record as the record's own copy, and read
     after: [],
     attempted: [],
     via: null,
+    postLead: async () => {},
+    attempt: async () => ({ status: "waiting_for_approval" }),
     fileAt: (wanted) => store.existingFile(place, wanted)
   });
   const attached = await tools.dataAttachFile.execute({ table: "graphics", id: poster.id, field: "picture", path: shared }, {});

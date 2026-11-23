@@ -76,8 +76,12 @@ const BUILDER_RULES = [
 const APPS_RULES = [
   "Mercbot has apps: the home's own databases. An app keeps tables of records (a table of cats, say, with each one's name, age and vet visits) that stay up to date, " +
     "with screens, lists and totals everyone in the home can use, and bots read and add to them with data_tables, data_query, data_create and data_update. " +
-    "Only the home's Builder makes and changes apps and their tables; the Current state note says which bot that is.",
-  "When the person asks for a database, a table, an app, or a list or tracker that should stay up to date, that's an app, made by the Builder: never make a spreadsheet, a document or a file instead. " +
+    "Only the home's Builder makes apps and the home's own tables; the Current state note says which bot that is.",
+  "Keep records in the home's tables, never in a spreadsheet, a document or a file: people, organisations, to-dos, places, events, graphics, deals, bills, and any list that should stay up to date. " +
+    "Look at data_tables first and use the table that's there. If it's one of the shared tables not added yet (data_tables lists them), add it yourself with table_ensure: its one-line note is all you say about it. " +
+    "Never make a second table for what a shared table is for. A field the records need that the table lacks: ask with table_field_add. Details only your work needs (a contact's sales stage): ask for a one-to-one extension with table_extend. " +
+    "A file or picture that belongs to a record goes in its file or picture field with data_attach_file. The skill \"Shared tables\" says more.",
+  "When the person asks for an app, screens or a tracker with its own lists and totals, that's the Builder's to make. " +
     "Only when they directly ask for a spreadsheet or a document (\"put it in a spreadsheet\") make that, as asked, with no Builder and no room.",
   "If you aren't the Builder, say in a line that the Builder (by name) makes databases and apps, and offer to start a room with the person, you and the Builder with start_room: " +
     "private unless they say otherwise, with a short brief written from this conversation (what to keep, its fields, who uses it) for the Builder to build from. " +

@@ -6,18 +6,21 @@ import { SCRIPT_GUIDE, writeScript } from "./scriptWriter.js";
 // The home's Builder's own apps tools (D-35, D-48), beyond the records and watches every bot has:
 // it makes tables, fields, apps and scripts; its app changes are drafts a person previews and
 // publishes. It tries its drafts on their practice copy (app_try, D-71), as a person would.
-const FIELD_TYPES = ["text", "email", "phone", "choice", "link", "number", "money", "date", "yesno", "person", "url", "longtext", "tags", "datetime"];
+const FIELD_TYPES = [
+  "text", "email", "phone", "choice", "link", "number", "money", "date", "yesno", "person", "url", "longtext", "tags", "datetime", "file", "image"
+];
 // What a calculated field can't do (D-78), which the Builder tells the person whenever it adds one (owner, 2026-11-12).
 const CALCULATED_LIMITS =
   "Lists can't be filtered, sorted or grouped by a calculated field, and a sum or average of one adds up at most 5,000 records: " +
   "tell the person so when you add one. If they will want to filter, sort or group by it, offer a stored field that a rule fills in on save instead.";
 
-const fieldInput = z.object({
+export const fieldInput = z.object({
   key: z.string().min(1).max(64).describe("Field name: lowercase letters, digits and _ , starting with a letter"),
   label: z.string().max(120).optional().describe("What people see; defaults from the name"),
   type: z.enum(FIELD_TYPES).describe(
     "money is stored in whole cents; date is YYYY-MM-DD; datetime is a moment like 2026-11-24T09:30:00Z; link points to a " +
-      "record of another table; person is someone in this home; tags is a list of short words; longtext is long notes; url a web address"
+      "record of another table; person is someone in this home; tags is a list of short words; longtext is long notes; url a web address; " +
+      "file holds a document and image a picture, each put on a record with data_attach_file"
   ),
   required: z.boolean().optional(),
   choices: z.array(z.string().min(1).max(80)).max(50).optional().describe("For choice fields; for tags fields, the only tags allowed (optional)"),
@@ -206,6 +209,9 @@ export function buildBuilderTools({ apps, call, actor, ctx, failed, after, scrip
     }
   }
   async function tableCreate(input) {
+    // What the shared tables have is never made twice (D-130): the bot uses the shared one and builds on it.
+    const shared = apps.catalog.match(input.key) || apps.catalog.match(input.label);
+    if (shared) return { error: apps.catalog.useInstead(shared, input.label || input.key) };
     try {
       const table = await registry.createTable(await actor(), input, call);
       return { status: "created", table: table.key, fields: table.fields.map((field) => field.key) };

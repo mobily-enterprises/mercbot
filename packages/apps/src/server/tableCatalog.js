@@ -105,6 +105,20 @@ export function catalogMatch(name) {
  * @param {{ create: Function }} dependencies.gate the data gate, which adds seed rows
  */
 export function createTableCatalog({ registry, gate }) {
+  /** The catalog's tables as bots read them: key, label, one-line description, other names, and what one extends. */
+  const entries = () => [...CATALOG.values()].map((entry) => ({
+    key: entry.key,
+    label: entry.label,
+    description: entry.description,
+    aliases: entry.aliases || [],
+    ...(entry.extends ? { extends: entry.extends } : {})
+  }));
+
+  /** What a bot is told when it would make a second table for a shared one (`key`), as `name`. */
+  const useInstead = (key, name) =>
+    `"${name}" is what the shared ${CATALOG.get(key).label} table ("${key}") is for: add it with table_ensure, then add any fields it lacks ` +
+    "with table_field_add, or a one-to-one extension with table_extend. Never make a second table for it.";
+
   const liveByKey = async (key, options) => {
     const tables = await registry.loadTables(options);
     return tables.find((table) => !table.obsolete && table.key === key) || null;
@@ -190,6 +204,9 @@ export function createTableCatalog({ registry, gate }) {
 
   return Object.freeze({
     ensureTable,
-    ensureExtension
+    ensureExtension,
+    match: catalogMatch,
+    entries,
+    useInstead
   });
 }

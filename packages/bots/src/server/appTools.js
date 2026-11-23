@@ -14,6 +14,7 @@ import {
 } from "@local/apps/shared";
 import { buildBuilderTools } from "./builderTools.js";
 import { buildViewTools } from "./viewTools.js";
+import { buildTableTools } from "./tableTools.js";
 
 // Apps tools (D-35). Every bot works with the home's records through the data gate, audited as
 // that bot. The home's Builder also makes tables, fields and apps (builderTools.js); its app
@@ -25,6 +26,9 @@ export const APP_ACTIONS = [
   "data_create",
   "data_update",
   "data_attach_file",
+  "table_ensure",
+  "table_extend",
+  "table_field_add",
   "data_mark_obsolete",
   "watch_create",
   "watch_pause",
@@ -61,6 +65,8 @@ export const APP_ACTIONS = [
  * @param {string[]} turn.attempted the ids of the tools the reply has called
  * @param {{ kind: string } | null} turn.via where the bot is working when not in chat (a watch run, a button's
  *   task), for the audit
+ * @param {(text: string) => Promise<void>} turn.postLead a one-line note in the chat (a shared table added, D-130)
+ * @param {(actionId: string, input: object) => Promise<object>} turn.attempt an action on a card the person approves
  * @param {(path: string) => Promise<{ real: string }>} turn.fileAt one of the bot's files by its path (/files/...), as
  *   its file tools read it: refused when the bot can't read it
  * @param {(prompt: string) => Promise<object>} turn.scriptModel asks for a script and its tests: writeScriptRound with the chat
@@ -78,6 +84,8 @@ export function buildAppTools({
   attempted,
   via,
   fileAt,
+  postLead,
+  attempt,
   scriptModel
 }) {
   const { registry, gate, watches } = apps;
@@ -129,12 +137,28 @@ export function buildAppTools({
     return switchWatch(name, true);
   }
 
+  /**
+   * The home's tables and how they're linked (D-130): what each links to, what links to it, and the one-to-one
+   * extensions that hold more about its records; and the shared tables the home doesn't have yet, for table_ensure.
+   */
   async function dataTables() {
     const tables = (await registry.loadTables(call)).filter((table) => !table.obsolete);
+    const links = tables.flatMap((table) => table.fields
+      .filter((field) => !field.obsolete && field.type === "link")
+      .map((field) => ({
+        from: table.key,
+        to: tables.find((entry) => entry.id === field.options.target)?.key,
+        unique: field.options.unique === true
+      })));
+    const keys = (list) => [...new Set(list)].filter(Boolean);
+    const have = new Set(tables.map((table) => table.key));
     return {
       tables: tables.map((table) => ({
         table: table.key,
         label: table.label,
+        linksTo: keys(links.filter((link) => link.from === table.key && link.to !== table.key).map((link) => link.to)),
+        linkedFrom: keys(links.filter((link) => link.to === table.key && link.from !== table.key && !link.unique).map((link) => link.from)),
+        extendedBy: keys(links.filter((link) => link.to === table.key && link.unique).map((link) => link.from)),
         fields: table.fields
           .filter((field) => !field.obsolete)
           .map((field) => ({
@@ -146,7 +170,10 @@ export function buildAppTools({
             ...(field.options?.target ? { linksTo: tables.find((entry) => entry.id === field.options.target)?.key } : {}),
             ...(isCalculated(field) ? calculatedInfo(table, field) : {})
           }))
-      }))
+      })),
+      sharedTablesToAdd: apps.catalog.entries()
+        .filter((entry) => !have.has(entry.key))
+        .map((entry) => ({ table: entry.key, label: entry.label, about: entry.description, alsoCalled: entry.aliases }))
     };
   }
   /** A calculated field as data_tables lists it (D-78): its formula by names, and what is wrong with it, if anything. */
@@ -263,7 +290,9 @@ export function buildAppTools({
     dataTables: createTool(
       Object.freeze({
         id: "data_tables",
-        description: "List this home's tables with their fields (name, type, choices, links). Use before reading or writing records.",
+        description:
+          "List this home's tables with their fields and links (what each links to, is linked from and is extended by), and the " +
+          "shared tables not added yet. Use before reading or writing records, and before keeping anything new: records go in tables.",
         inputSchema: z.object({}),
         execute: (input, options) => dataTables(input, options)
       })
@@ -372,6 +401,7 @@ export function buildAppTools({
     )
   };
 
+  Object.assign(tools, buildTableTools({ apps, call, actor, ctx, failed, postLead, attempt }));
   Object.assign(tools, buildViewTools({ views: apps.views, call, botId, userId, isBuilder, ctx, failed, after }));
   if (isBuilder) Object.assign(tools, buildBuilderTools({ apps, call, actor, ctx, failed, after, scriptModel }));
   return tracked(tools);

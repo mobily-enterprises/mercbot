@@ -33,8 +33,12 @@ import { GITHUB_ALWAYS, GITHUB_CARD, GITHUB_NO } from "./githubCommands.js";
  *   the welcome chat's steps (B), for its own cards
  * @param {(chatId: string, brief: { botId: string, by: string, userId: string }, options: object) => void} dependencies.answerBrief
  *   the bot a room's brief is for answers it there (botReplies.js), once start_room made the room (D-122)
+ * @param {import("@local/apps/server/types").Apps} dependencies.apps the home's tables, which table_extend and
+ *   table_field_add change once approved (D-130)
  */
-export function createBotCards({ records, account, env, computer, integrations, requests, files, seats, chats, onboarding, answerBrief }) {
+export function createBotCards({
+  records, account, env, computer, integrations, requests, files, seats, chats, onboarding, answerBrief, apps
+}) {
   const { messages, work } = records;
   const chatOf = async (chatId, options) => (await chats.get(String(chatId), options)).chat;
   const placeOf = (seat) => files.store.placeFor({
@@ -162,7 +166,9 @@ export function createBotCards({ records, account, env, computer, integrations, 
               // Rooms (chatMembers.js): start_room makes one as the person who said yes (D-122), and the bot its brief is
               // for answers it there.
               chats,
-              answerBrief
+              answerBrief,
+              // The home's tables (D-130): table_extend and table_field_add change them from this card.
+              apps
             },
             choice.body.action.args
           )

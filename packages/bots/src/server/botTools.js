@@ -272,7 +272,8 @@ export function buildTools({
         integrations,
         userId,
         files,
-        place
+        place,
+        apps
       };
       ran = await action.run(context, args);
     } catch (error) {
@@ -578,6 +579,8 @@ export function buildTools({
     attempted,
     via: appsVia,
     fileAt: (wanted) => files.store.existingFile(place, wanted),
+    postLead,
+    attempt,
     scriptModel: (prompt) => writeScriptRound(model, prompt)
   }));
   // Actions switched off for every connected app that offers them aren't offered at all.

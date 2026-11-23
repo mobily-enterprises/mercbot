@@ -3,15 +3,17 @@ import test from "node:test";
 import { instructionsFor } from "../../packages/bots/src/server/botAgent.js";
 import { seatOf } from "../../packages/bots/src/server/chatSeats.js";
 
-// Every bot knows what Mercbot's apps and their tables are, that only the home's Builder makes them, and that a request
-// for a database or an app goes to the Builder (start_room) rather than into a spreadsheet, unless the person asks for a
-// spreadsheet (D-122). The rules come after the bot's template and additions, which they win over, and are the same in
+// Every bot knows what Mercbot's apps and their tables are, that only the home's Builder makes apps and the home's own
+// tables, that records go in the home's tables (a shared one added with table_ensure, D-130) and a request for an app
+// goes to the Builder (start_room), never into a spreadsheet, unless the person asks for a spreadsheet (D-122). The rules come after the bot's template and additions, which they win over, and are the same in
 // every chat: which bot is the Builder is in the Current state note. No model is called.
 
 const SPREADSHEET = "Keep the cats' records in a spreadsheet: use a spreadsheet for any list.";
 const RULES = [
-  "Only the home's Builder makes and changes apps and their tables",
-  "never make a spreadsheet, a document or a file instead",
+  "Only the home's Builder makes apps and the home's own tables",
+  "Keep records in the home's tables, never in a spreadsheet, a document or a file",
+  "add it yourself with table_ensure",
+  "Never make a second table for what a shared table is for",
   "Only when they directly ask for a spreadsheet or a document",
   "offer to start a room with the person, you and the Builder with start_room",
   "Settings, under Main bot and Builder",

@@ -153,7 +153,8 @@ export function createChatTurns({
     chats,
     onboarding,
     // Late-bound, a cycle: a room's brief is answered through the replies below, which read the cards' turns.
-    answerBrief: (chatId, brief, options) => replies.answerBrief(chatId, brief, options)
+    answerBrief: (chatId, brief, options) => replies.answerBrief(chatId, brief, options),
+    apps
   });
   const turns = createBotTurns({
     records,

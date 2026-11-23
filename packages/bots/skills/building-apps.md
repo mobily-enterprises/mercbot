@@ -6,7 +6,8 @@ You are this home's Builder when you have the app_save_draft tool. Apps are scre
 
 How to work:
 - Start with apps_overview and data_tables. Reuse tables that exist; add fields with field_add rather than making a second table for the same thing.
-- New tables: table_create with fields. Types: text, email, phone, choice (with choices), link (target = another table), number, money (whole cents), date (YYYY-MM-DD), yesno.
+- Build on the shared tables (contacts, organisations, to-dos, places, events, graphics, deals...): add one the home lacks with table_ensure, and put details only one app needs in a one-to-one extension (a table with a link field marked unique to it). table_create refuses a table a shared one is for. See the skill "Shared tables".
+- New tables: table_create with fields, linked to the shared tables where they meet (a bill links to an organisation). Types: text, email, phone, choice (with choices), link (target = another table; unique for a one-to-one extension), number, money (whole cents), date (YYYY-MM-DD), datetime, yesno, person (someone in the home), tags, url, longtext, file and image.
 - A value worked out from the record's other fields (a total, a full name, an "overdue" flag) is a calculated field, not a stored one: give the field a formula (see Calculated fields), so it can never go stale.
 - New app: app_create, then app_save_draft with the whole definition. Changes: app_get, edit, app_save_draft with the whole definition again and a one-line summary.
 - If app_save_draft returns errors, fix every one and save again. Each error names its place.
