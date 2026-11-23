@@ -259,9 +259,17 @@ test("a template installs as a draft and can be published", async ({ page }, tes
   await page.getByRole("link", { name: "Deals" }).first().click();
   await expect(page.getByRole("row", { name: /Website refresh/u })).toBeVisible();
   await expect(page.locator(".app-chart")).toHaveAttribute("aria-label", /Bar chart of Deals by stage/u);
-  // The pipeline is each contact's stage, kept in the contacts' CRM extension (D-130).
+  // The pipeline is each contact's stage, kept in the contacts' CRM extension (D-130). The sample adds no one to it: a
+  // contact joins it from their page.
+  await page.getByRole("link", { name: "Pipeline" }).first().click();
+  await expect(page.getByRole("main")).toContainText("No data yet.");
+  await page.getByRole("link", { name: "Contacts" }).first().click();
+  await page.getByRole("row", { name: /Ana Ruiz/u }).first().click();
+  await page.getByRole("button", { name: "Add to the pipeline" }).click();
+  await expect(page.locator(".v-snackbar__content")).toContainText("Added to the pipeline.");
   await page.getByRole("link", { name: "Pipeline" }).first().click();
   await expect(page.locator(".app-chart")).toHaveAttribute("aria-label", /Bar chart of Pipeline by stage/u);
+  await expect(page.getByRole("row", { name: /Ana Ruiz.*Lead/u })).toBeVisible();
 });
 
 test("scripts: a formula function, data worked out by a script, a button and a rule", async ({ page }, testInfo) => {
