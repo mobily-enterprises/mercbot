@@ -263,7 +263,9 @@ test("the search palette lists chats then commands, and runs what is chosen", as
   const options = palette.getByRole("listbox", { name: "Results" }).getByRole("option");
   const commands = [
     "Add bots", "New room", "Keyboard shortcuts", "Settings: General", "Settings: Computer",
-    "Settings: Permissions", "Settings: Files", "Settings: Website", "Settings: Templates", "Settings: Vault",
+    "Settings: Permissions", "Settings: Files", "Settings: Website", "Settings: Templates",
+    // The home's main bot and Builder and its common knowledge are Settings sections (D-119: dfc16f7, 4c94837).
+    "Settings: Main bot and Builder", "Settings: Bots' common knowledge", "Settings: Vault",
     "Settings: Spending", "Settings: Mercbot account", "Settings: About", "Connect Apps", "Skills",
     "Theme: System", "Theme: Light", "Theme: Dark"
   ];
