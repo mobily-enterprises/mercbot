@@ -1,6 +1,7 @@
 import { defineFeature } from "@jskit-ai/kernel/server/features";
 import { registerDriveTokenRoute } from "./driveTokenRoute.js";
 import { FILE_STORAGE_FILTERS } from "./fileMoves.js";
+import { PAGE_VERSION_FILTERS } from "./pages.js";
 import { createFilesRuntime } from "./filesRuntime.js";
 import { createFileTransfer } from "./fileTransfer.js";
 import { MEDIA_CHECK_FILTERS } from "./mediaChecks.js";
@@ -15,7 +16,7 @@ export const FILES_OWNS = Object.freeze([
   { resource: fileStorageResource, searchSchema: FILE_STORAGE_FILTERS },
   filesKeyResource,
   { resource: mediaCheckResource, searchSchema: MEDIA_CHECK_FILTERS },
-  pageVersionResource,
+  { resource: pageVersionResource, searchSchema: PAGE_VERSION_FILTERS },
   // A bot's commands in a chat are read by whoever may read that chat (the bots' chat rule, D-112).
   {
     resource: shellRunResource,

@@ -294,6 +294,24 @@ test("a path that climbs out of its place, or a link a bot planted in its files,
   assert.equal(await fs.readFile(secret, "utf8"), "another home's secret", "the other home's file is untouched");
 });
 
+test("moving a folder of pages sends the same statements at 2 pages and at 40, and each page's versions follow it", async (context) => {
+  const movedFolder = async (count) => {
+    const f = await transferHome(context);
+    for (let index = 0; index < count; index += 1) {
+      await f.pages.save({ place: f.places.bot(f.tripbot), title: `Page ${index}`, slug: `page-${index}`, content: `<h1>Page ${index}</h1>` });
+    }
+    let moved;
+    const statements = await queriesDuring(f.knex, async () => {
+      moved = await f.transfer({ mode: "move", from: { place: { kind: "bot", botId: f.tripbot }, path: "/files/bot/Pages" }, to: { place: { kind: "bot", botId: f.chef }, folder: "/files/bot" } });
+    });
+    assert.deepEqual(moved.body, { path: "/files/bot/Pages" });
+    const rows = await f.knex("page_versions").whereIn("bot_id", [f.tripbot, f.chef]).orderBy("id").select("bot_id", "path");
+    assert.deepEqual(rows.map((row) => [String(row.bot_id), row.path]), Array.from({ length: count }, (_, index) => [f.chef, `/files/bot/Pages/page-${index}.html`]), "every page is Chef's now, at its new path");
+    return statements;
+  };
+  assert.equal(await movedFolder(40), await movedFolder(2), "a page more is no statement more");
+});
+
 test("a moved page keeps its versions and link, a copied page is a page of its own, and pictures wait for a check", async (context) => {
   const f = await transferHome(context);
   const saved = await f.pages.save({ place: f.places.bot(f.tripbot), title: "Party", slug: "party", content: "<h1>Party</h1><p>Saturday.</p>" });

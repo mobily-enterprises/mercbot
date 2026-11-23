@@ -60,7 +60,8 @@ export async function develop({ gate } = {}) {
 
   try {
     previewAi = await startPreviewAi(aiKeys);
-    Object.assign(process.env, previewAi.env);
+    // Only a Preview uses its own AI keys beside the stand-in (aiKind); a test copy with inherited keys never does.
+    Object.assign(process.env, previewAi.env, { MERCBOT_PREVIEW_AI_KEYS: "1" });
     const real = Object.keys(aiKeys).filter((name) => name.endsWith("_API_KEY"));
     console.log(real.length
       ? `This Preview's AI uses its own keys (${real.join(", ")}); any kind without one is the stand-in model at ${previewAi.standIn.url}.`

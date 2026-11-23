@@ -5,8 +5,13 @@ import { homeWebsiteResource, pagePublicationResource } from "./tableResources.j
 import { registerWebsiteRoutes } from "./websiteRoutes.js";
 import { createWebsites, websiteFoldersOn } from "./websites.js";
 
+/** The search entry page_publications' owns entry adds: the publications of any of some pages, by their paths. */
+const PUBLICATION_FILTERS = Object.freeze({
+  pathIn: { type: "array", actualField: "path", filterOperator: "in" }
+});
+
 /** The tables the websites feature owns. */
-export const WEBSITES_OWNS = Object.freeze([homeWebsiteResource, pagePublicationResource]);
+export const WEBSITES_OWNS = Object.freeze([homeWebsiteResource, { resource: pagePublicationResource, searchSchema: PUBLICATION_FILTERS }]);
 
 // A home's own website (D-84): a folder a web server already serves (unless MERCBOT_WEBSITE_FOLDERS=off), or
 // S3-compatible storage, and the address it is served at; the pages people publish there follow their files as they

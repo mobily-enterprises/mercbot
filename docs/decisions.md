@@ -3827,8 +3827,9 @@ mode, bots work normally. There is no real testing otherwise."
 
 Decided: a **Preview** (`npm run develop`) keeps its AI keys. `aiKeysOf` reads each kind's key and provider before
 `withoutCredentials` empties the credentials, and `startPreviewAi` gives them back. A kind with its key uses its
-provider; a kind without one is still the stand-in model (`aiKind` sends a kind to `MERCBOT_TEST_AI_URL` only when it has
-no key of its own). Its work is metered and charged as anywhere.
+provider; a kind without one is still the stand-in model (`aiKind` sends a kind to `MERCBOT_TEST_AI_URL` unless it has
+its own key and the copy is a Preview: `develop.js` alone sets `MERCBOT_PREVIEW_AI_KEYS=1`, so a test copy that inherited
+keys still reaches no provider). Its work is metered and charged as anywhere.
 - **A Test Preview is unchanged:** it keeps no AI key, so every kind is the stand-in and no test reaches a provider.
 - **Every other credential is still emptied in a Preview**, as D-83 and D-116 say: sign-in and connection apps' keys,
   the files bucket's, live payment keys and the rest.

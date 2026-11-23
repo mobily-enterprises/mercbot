@@ -199,6 +199,8 @@ export function createFileTransfer({ files, records }) {
       await media.filesLater({ place: destination.place, paths: arrived.splice(0), workspaceId: caller.homeId, userId: caller.userId });
     };
     const moving = mode === "move";
+    // The pages a move takes follow it together once the files have moved: one batch however many there are.
+    const moved = [];
     const { path: landed } = await store.transfer({
       from: { place: source.place, path: fromPath },
       to: { place: destination.place, folder },
@@ -210,11 +212,13 @@ export function createFileTransfer({ files, records }) {
           arrived.push(now);
           if (arrived.length >= QUEUE_BATCH) await queue();
         }
-        const toBotId = destination.botId ?? null;
-        if (moving) await pages.pathChanged({ homeId: caller.homeId, botId: source.botId ?? null, from: was, to: now, toBotId });
+        if (moving) moved.push({ from: was, to: now });
         else await pages.copied({ place: destination.place, path: now });
       }
     });
+    if (moved.length) {
+      await pages.pathsChanged({ homeId: caller.homeId, botId: source.botId ?? null, toBotId: destination.botId ?? null, moves: moved });
+    }
     await store.settle(caller.homeId);
     await queue();
     return { path: landed };

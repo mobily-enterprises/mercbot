@@ -45,7 +45,7 @@
   "dependencies": {
     "@ai-sdk/anthropic": "4.0.93",
     "@ai-sdk/deepseek": "3.0.72",
-    "@browserbasehq/stagehand": "4.3.0",
+    "@browserbasehq/stagehand": "4.4.0",
     "@fastify/fast-json-stringify-compiler": "^5.1.0",
     "@fastify/static": "^10.1.4",
     "@jitl/quickjs-singlefile-browser-release-sync": "0.32.0",

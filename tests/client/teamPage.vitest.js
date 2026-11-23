@@ -52,7 +52,7 @@ async function rendered(component, props) {
   const app = createSSRApp({ render: () => h(component, props) });
   app.use(createVuetify({ ...createMaterialVuetifyOptions(theme), ssr: true }));
   // The router's link, as a plain link to where it goes.
-  app.component("RouterLink", { props: ["to"], setup: (given, { slots }) => () => h("a", { href: given.to }, slots.default?.()) });
+  app.component("RouterLink", { props: { to: { type: [String, Object], default: "" } }, setup: (given, { slots }) => () => h("a", { href: given.to }, slots.default?.()) });
   return (await renderToString(app)).replaceAll("&#39;", "'").replaceAll("&quot;", "\"").replace(/ data-v-[0-9a-f]+/gu, "");
 }
 const settled = () => new Promise((resolve) => setTimeout(resolve, 0));

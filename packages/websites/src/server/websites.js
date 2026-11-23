@@ -320,28 +320,40 @@ export function createWebsites({ resources, systemContext, env, pages, runsThisC
   }
 
   /**
-   * Follows a page as it moves or goes in its home's files (files.pages.follow): its publication moves with it and
-   * keeps its address, or its copy is taken off the website and the publication goes. A copy that can't be taken off
-   * now stays on the website. A page moved into another bot's folder (`toBotId`) becomes that bot's.
+   * Follows pages as they move or go in their home's files (files.pages.follow), all of one move or delete at once:
+   * each publication moves with its page and keeps its address, or its copy is taken off the website and the
+   * publication goes. A copy that can't be taken off now stays on the website. Pages moved into another bot's folder
+   * (`toBotId`) become that bot's. One read, one patch and one delete, however many pages moved.
+   * @param {{ homeId: string, botId: string | null, toBotId?: string | null, moves: Array<{ from: string, to: string | null }> }} change
    */
-  async function pageChanged({ homeId, botId, from, to, toBotId = null }) {
-    const options = inHome(homeId);
-    const where = botId ? { botId, path: from } : { path: from };
-    if (to) {
-      // A page moved into another bot's folder is that bot's now (Move to…).
-      await pagePublications.patchWhere(where, { path: to, ...(toBotId ? { botId: String(toBotId) } : {}) }, { ...passedOn(options), returning: "none" });
-      return;
+  async function pageChanged({ homeId, botId, toBotId = null, moves }) {
+    if (!Array.isArray(moves)) {
+      throw new TypeError("websites.pageChanged takes { homeId, botId, toBotId, moves: [{ from, to }] } (files.pages.follow), not one page's { from, to }.");
     }
-    const publications = await pagePublications.queryAll({ filters: where, fields: PUBLICATION_FIELDS }, passedOn(options));
-    if (!publications.length) return;
-    const found = await websiteOf(options);
+    if (!moves.length) return;
+    const options = inHome(homeId);
+    const toOf = new Map(moves.map(({ from, to }) => [from, to]));
+    const filters = { pathIn: [...toOf.keys()], ...(botId ? { botId } : {}) };
+    const publications = await pagePublications.queryAll({ filters, fields: PUBLICATION_FIELDS }, passedOn(options));
+    const moving = [];
+    const going = [];
     for (const publication of publications) {
-      if (found) {
+      const to = toOf.get(publication.path);
+      // A page moved into another bot's folder is that bot's now (Move to…).
+      if (to) moving.push({ id: publication.id, path: to, ...(toBotId ? { botId: String(toBotId) } : {}) });
+      else going.push(publication);
+    }
+    const write = { ...passedOn(options), returning: "none" };
+    if (moving.length) await pagePublications.patchMany(moving, write);
+    if (!going.length) return;
+    const found = await websiteOf(options);
+    if (found) {
+      for (const publication of going) {
         await takeDown(siteOf(placeOf(found)), publication).catch((error) =>
           console.warn("Taking a deleted page off its home's website failed; its copy stays there.", error?.message));
       }
-      await pagePublications.deleteWhere({ id: String(publication.id) }, { ...passedOn(options), returning: "none" });
     }
+    await pagePublications.deleteWhere({ id: going.map((publication) => String(publication.id)) }, write);
   }
 
   return Object.freeze({

@@ -61,6 +61,11 @@ const gone = () => new FilesError(404, "This page isn't here.", { code: "files_p
 /** What a save took out of the page, for the bot: the tags pages never hold, then what couldn't be copied in. */
 const takenOut = (forbidden, removed) => [...forbidden.map((tag) => ({ address: `<${tag}>`, why: "pages never hold it" })), ...removed];
 
+/** The search entry page_versions' owns entry adds: the versions of any of some pages, by their paths. */
+export const PAGE_VERSION_FILTERS = Object.freeze({
+  pathIn: { type: "array", actualField: "path", filterOperator: "in" }
+});
+
 /**
  * @param {object} dependencies
  * @param {import("./types.js").FileStore} dependencies.store
@@ -325,18 +330,48 @@ export function createPages({ store, resources, systemContext, env, insecure = f
    * pages (`follow`) is told, with `botId` null for a page in the home's folder, and `toBotId` the bot it's now in when
    * it moved into another bot's folder.
    */
-  async function pathChanged({ homeId, botId, from, to, toBotId = null }) {
-    if (!isPagePath(from)) return;
-    const mine = from.startsWith("/files/bot/");
+  function pathChanged({ homeId, botId, from, to, toBotId = null }) {
+    return pathsChanged({ homeId, botId, toBotId, moves: [{ from, to }] });
+  }
+
+  /**
+   * pathChanged for many pages at once, all from one place (a folder moved by Move to…, fileTransfer.js): `moves` are
+   * `[{ from, to }]`. Their versions follow in one read, one patch and one delete, however many pages there are, and
+   * each follower is told once, with every page's move: `{ homeId, botId, toBotId, moves }`, `to` null for a page that
+   * went. Moves of files that aren't pages are left out.
+   */
+  async function pathsChanged({ homeId, botId, moves, toBotId = null }) {
+    const pageMoves = moves.filter(({ from }) => isPagePath(from));
+    if (!pageMoves.length) return;
+    const mine = pageMoves[0].from.startsWith("/files/bot/");
     if (mine && !botId) return;
-    const where = mine ? { botId: String(botId), path: from } : { path: from };
-    const write = { ...inHome(homeId), returning: "none" };
-    const stays = Boolean(to) && isPagePath(to);
-    const ownerNow = stays && to.startsWith("/files/bot/") && toBotId != null ? String(toBotId) : null;
-    if (stays) await pageVersions.patchWhere(where, { path: to, ...(ownerNow ? { botId: ownerNow } : {}) }, write);
-    else await pageVersions.deleteWhere(where, write);
-    const change = { homeId: String(homeId), botId: mine ? String(botId) : null, from, to: stays ? to : null };
-    if (ownerNow) change.toBotId = ownerNow;
+    const ownerNow = toBotId != null ? String(toBotId) : null;
+    const after = pageMoves.map(({ from, to }) => {
+      const stays = Boolean(to) && isPagePath(to);
+      return { from, to: stays ? to : null, toBot: stays && ownerNow && to.startsWith("/files/bot/") ? ownerNow : null };
+    });
+    const byPath = new Map(after.map((move) => [move.from, move]));
+    const options = inHome(homeId);
+    const rows = await pageVersions.queryAll({
+      filters: { pathIn: [...byPath.keys()], ...(mine ? { botId: String(botId) } : {}) },
+      fields: ["path"]
+    }, options);
+    const patches = [];
+    const gone = [];
+    for (const row of rows) {
+      const move = byPath.get(row.path);
+      if (move.to) patches.push({ id: row.id, path: move.to, ...(move.toBot ? { botId: move.toBot } : {}) });
+      else gone.push(String(row.id));
+    }
+    const write = { ...options, returning: "none" };
+    if (patches.length) await pageVersions.patchMany(patches, write);
+    if (gone.length) await pageVersions.deleteWhere({ id: gone }, write);
+    const change = {
+      homeId: String(homeId),
+      botId: mine ? String(botId) : null,
+      toBotId: after.some((move) => move.toBot) ? ownerNow : null,
+      moves: after.map(({ from, to }) => ({ from, to }))
+    };
     for (const follower of followers) await follower(change);
   }
 
@@ -356,10 +391,10 @@ export function createPages({ store, resources, systemContext, env, insecure = f
 
   const followers = [];
   /**
-   * Adds something else that follows a page as it moves or goes (D-84: its copy on the home's website). `follower`
-   * gets { homeId, botId, from, to } after the page's own versions have followed, and handles its own
-   * failures: the move or delete has already happened.
-   * @param {(change: { homeId: string, botId: string | null, from: string, to: string | null }) => Promise<void>} follower
+   * Adds something else that follows pages as they move or go (D-84: their copies on the home's website). `follower`
+   * gets { homeId, botId, toBotId, moves: [{ from, to }] } once per move or delete, however many pages it took, after
+   * the pages' own versions have followed, and handles its own failures: the move or delete has already happened.
+   * @param {(change: { homeId: string, botId: string | null, toBotId: string | null, moves: Array<{ from: string, to: string | null }> }) => Promise<void>} follower
    */
   function follow(follower) {
     followers.push(follower);
@@ -482,6 +517,7 @@ export function createPages({ store, resources, systemContext, env, insecure = f
     versions,
     restore,
     pathChanged,
+    pathsChanged,
     copied,
     follow,
     published,

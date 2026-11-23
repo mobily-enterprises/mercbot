@@ -186,7 +186,8 @@ test("a page is saved, versioned, ticked, framed, opened on its own, moved and r
   // Moved, its versions and key follow it; deleted, its versions go. Whatever follows pages is told after each.
   const followed = [];
   pages.follow(async (change) => {
-    followed.push({ ...change, versions: (await pages.versions({ ...page, path: change.from }, inHome(homeId))).versions.length });
+    const [{ from, to }] = change.moves;
+    followed.push({ homeId: change.homeId, botId: change.botId, toBotId: change.toBotId, from, to, versions: (await pages.versions({ ...page, path: from }, inHome(homeId))).versions.length });
   });
   const moved = "/files/bot/Pages/party-moved.html";
   await fs.rename(real, await store.resolve(place, moved));
@@ -196,8 +197,8 @@ test("a page is saved, versioned, ticked, framed, opened on its own, moved and r
   await pages.pathChanged({ homeId, botId, from: moved, to: null });
   assert.deepEqual((await pages.versions({ ...page, path: moved }, inHome(homeId))).versions, [], "a deleted page's versions go with it");
   assert.deepEqual(followed, [
-    { homeId, botId, from: page.path, to: moved, versions: 0 },
-    { homeId, botId, from: moved, to: null, versions: 0 }
+    { homeId, botId, toBotId: null, from: page.path, to: moved, versions: 0 },
+    { homeId, botId, toBotId: null, from: moved, to: null, versions: 0 }
   ], "told after the page's own versions have followed");
 
   // A tick on a page deleted meanwhile doesn't bring it back.

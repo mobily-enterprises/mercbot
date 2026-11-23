@@ -298,8 +298,9 @@ widened, the person's own doing):
   the source's people, unless `confirmed` is `true`. The store's `transfer` (`fileCopies.js` `placeTransfer`) renames
   a move (copying then removing across disks), and copies a folder one directory entry at a time, links left out,
   never reading the tree into memory. Every file that arrived is queued for a copy's check like a bot's saved file
-  (`media.filesLater`, 200 at a time, each batch after the files are settled, D-90); a moved page's versions and
-  publication follow it, into another bot's folder too (`pages.pathChanged` with `toBotId`, D-74); a copied page gets a
+  (`media.filesLater`, 200 at a time, each batch after the files are settled, D-90); the moved pages' versions and
+  publications follow them, into another bot's folder too, all of the move's pages together once the files have moved
+  (`pages.pathsChanged` with `toBotId`, D-74: the same statements for 2 pages or 40); a copied page gets a
   new key and no versions (`pages.copied`).
 
 - `GET …/files/content?path=[&download=1]` sends the file (read whole;

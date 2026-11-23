@@ -27,7 +27,7 @@ test("transfer_file asks on a card, changes nothing until its person says yes, a
     chatNamed: (...args) => real.transfer.chatNamed(...args),
     transfer: (...args) => real.transfer.transfer(...args)
   };
-  const pages = { pathChanged: async () => {}, copied: async () => {} };
+  const pages = { pathChanged: async () => {}, pathsChanged: async () => {}, copied: async () => {} };
   // What each turn's stand-in model calls, and what the tool answered.
   let calls = [];
   const answers = [];

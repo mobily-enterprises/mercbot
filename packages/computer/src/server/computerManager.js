@@ -27,7 +27,7 @@ function loadBrowserLibraries() {
 }
 
 // The flags Stagehand gives a Chrome it launches itself; Mercbot starts Chrome in gVisor and
-// connects, so it passes them (from @browserbasehq/stagehand 4.3.0).
+// connects, so it passes them (from @browserbasehq/stagehand 4.4.0, the same as 4.3.0).
 const CHROME_FLAGS = [
   "--disable-features=Translate,OptimizationHints,MediaRouter,DialMediaRouteProvider,CalculateNativeWinOcclusion," +
     "InterestFeedContentSuggestions,CertificateTransparencyComponentUpdater,AutofillServerCommunication," +

@@ -242,11 +242,19 @@ test("a test copy with a stand-in model sends every kind there, needs no key, an
   await assert.rejects(aiFetch(env, "chat")("https://api.together.xyz/v1/chat/completions", { body: "{}" }), /stand-in model at http:\/\/127\.0\.0\.1:4999\/premium, so a request for https:\/\/api\.together\.xyz wasn't sent/u);
   assert.equal(sent.length, 1, "nothing else went out");
 
-  // A Preview keeps its AI keys (D-118): a kind given its own key uses its provider beside the stand-in; the others
-  // stay on the stand-in.
-  const keyed = aiKind({ ...env, AI_PREMIUM_API_KEY: "premium-secret" }, "premium");
+  // A test copy that inherited a key stays on the stand-in: only a Preview says it uses its own keys.
+  const inherited = aiKind({ ...env, AI_PREMIUM_API_KEY: "premium-secret" }, "premium");
+  assert.deepEqual([inherited.standIn, inherited.layer.baseURL, inherited.apiKey], [true, `${standIn}/premium`, "stand-in"], "an inherited key reaches no provider");
+  for (const notQuite of ["0", "yes", "true", ""]) {
+    assert.equal(aiKind({ ...env, AI_PREMIUM_API_KEY: "premium-secret", MERCBOT_PREVIEW_AI_KEYS: notQuite }, "premium").standIn, true, notQuite);
+  }
+
+  // A Preview keeps its AI keys (D-118, MERCBOT_PREVIEW_AI_KEYS=1, which develop.js sets): a kind given its own key uses
+  // its provider beside the stand-in; the others stay on the stand-in.
+  const preview = { ...env, MERCBOT_PREVIEW_AI_KEYS: "1", AI_PREMIUM_API_KEY: "premium-secret" };
+  const keyed = aiKind(preview, "premium");
   assert.deepEqual([keyed.standIn, keyed.layer.baseURL, keyed.apiKey], [false, together.baseURL, "premium-secret"], "a kind with its key uses its provider");
-  assert.equal(aiKind({ ...env, AI_PREMIUM_API_KEY: "premium-secret" }, "economy").standIn, true, "a kind without one stays on the stand-in");
+  assert.equal(aiKind(preview, "economy").standIn, true, "a kind without one stays on the stand-in");
 
   // A development copy uses it too; staging and production, which refuse development shortcuts (APP_ENV, D-87), never
   // do: there each kind is its provider's, with its key, as before. A copy that doesn't say where it runs is refused.

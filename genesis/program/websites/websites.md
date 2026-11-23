@@ -54,7 +54,9 @@ copy and `files.pages.follow` for its moves.
   (`checkAnswer`, 10 seconds) and answers `check`: ok, or why not (`websites_check_unreachable`,
   `websites_check_status`, `websites_check_other_page`).
 - **Unpublishing** (`unpublish`) takes the copy away when it still holds this publication's marker, then the row.
-- **Following the page** (`pageChanged`, through `files.pages.follow`): a moved page keeps its publication and address;
+- **Following the page** (`pageChanged`, through `files.pages.follow`, every page of one move at once, `moves`; one
+  read, one patch and one delete however many; the old one-page shape is refused): a moved page keeps its publication
+  and address;
   a deleted page's copy is taken off the website and its row goes (a copy that can't be taken off now stays there,
   with a warning in the server's log).
 - **Errors** from the folder (`websites_folder_missing`, `_not_writable`, `_failed`) or the storage

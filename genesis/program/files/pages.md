@@ -73,8 +73,10 @@ and the files routes call it.
   file. The request log names a page's address without its token (`server/lib/loggerOptions.js`: under
   `/api`, the long base64url part after a `pages/` folder, with its seal).
 - **Moved or deleted** through the file routes, the bot's `move_file` or the Library's Delete, a page's
-  versions follow it, or go (`pathChanged`, in the home's own context), so a later page at the same path
-  has none; then whatever else follows pages (`follow`, the home's website D-84 among them) is told.
+  versions follow it, or go (`pathChanged`, or `pathsChanged` for a folder's pages at once: one read, one patch and one delete of
+  `page_versions` however many; in the home's own context), so a later page at the same path has none; then whatever
+  else follows pages (`follow`, the home's website D-84 among them) is told once per move, with
+  `{ homeId, botId, toBotId, moves: [{ from, to }] }`.
 - **Standalone copy** (`standalone`, keep_page_copy and the viewer's download): the page with its shell
   and helper and every file of its folder inlined as data, under a meta policy that loads nothing.
 

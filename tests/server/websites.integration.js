@@ -5,6 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { ownedHandles } from "../support/ownedHandles.mjs";
+import { queriesDuring } from "../support/queryCount.mjs";
 import { startFakeS3 } from "../support/fakeS3.mjs";
 import { serveFolder } from "../support/staticSite.mjs";
 import { connectTestDatabase } from "../support/testDatabase.mjs";
@@ -160,6 +161,32 @@ test("a folder website: a page published, published again, followed as it moves 
   assert.deepEqual((await fs.readdir(siteDir)).sort(), ["fiesta"]);
   assert.deepEqual(await websites.remove(home.homeId, options), { website: null });
   assert.deepEqual(await websites.describe(options), { website: null });
+});
+
+test("a folder's published pages moving together follow it in the same statements at 2 pages and at 40", async (context) => {
+  const { knex, home, websites } = await started(context, "websites-batch");
+  const [otto] = await knex("bots").insert({ made_by: (await knex("users").first()).id, workspace_id: home.homeId, name: "Otto", color: "#1E86FC" }).returning("id");
+  const ottoId = String(otto.id ?? otto);
+  const rows = () => knex("page_publications").where({ workspace_id: home.homeId }).orderBy("id").select("bot_id", "path");
+
+  /** The bot's folder of `count` published pages moved into Otto's folder, one gone on the way: the statements it took. */
+  const moved = async (folder, count) => {
+    const paths = Array.from({ length: count }, (_, index) => `/files/bot/${folder}/page-${index}.html`);
+    await knex("page_publications").insert(paths.map((at, index) => ({
+      workspace_id: home.homeId, bot_id: home.botId, path: at, slug: `${folder.toLowerCase()}-${index}`, marker: `m-${folder}-${index}`
+    })));
+    const moves = paths.map((from, index) => ({ from, to: index === 0 ? null : from.replace(`/${folder}/`, `/${folder}-moved/`) }));
+    const statements = await queriesDuring(knex, () => websites.pageChanged({ homeId: home.homeId, botId: home.botId, toBotId: ottoId, moves }));
+    const now = (await rows()).filter((row) => row.path.includes(`/${folder}`));
+    assert.deepEqual(now.map((row) => [String(row.bot_id), row.path]), paths.slice(1).map((at) => [ottoId, at.replace(`/${folder}/`, `/${folder}-moved/`)]),
+      "each publication follows its page into Otto's folder, and the gone page's goes");
+    return statements;
+  };
+  assert.equal(await moved("Big", 40), await moved("Small", 2), "a page more is no statement more");
+
+  // The old single-page shape fails loudly instead of matching every publication.
+  await assert.rejects(websites.pageChanged({ homeId: home.homeId, botId: home.botId, from: "/files/bot/Big-moved/page-1.html", to: null }), /moves: \[\{ from, to \}\]/u);
+  assert.equal((await rows()).length, 40, "nothing was touched");
 });
 
 test("an S3 website: published to a bucket, published again, unpublished; its keys are never shown, stored open or logged", async (context) => {
