@@ -133,12 +133,14 @@ test("the CRM's sample puts its contacts in the pipeline and their deals on thei
   const installed = await capability.installTemplate(ctx, "crm", { sample: true });
   assert.deepEqual([installed.errors, installed.skipped], [[], 0]);
   await apps.publish(ctx.actor, installed.app.slug, {}, options);
-  const query = async (screen, name) => (await runtime.query(ctx, { slug: installed.app.slug, screen, query: name })).records;
+  const result = (screen, name) => runtime.query(ctx, { slug: installed.app.slug, screen, query: name });
+  const query = async (screen, name) => (await result(screen, name)).records;
   const names = new Map((await query("contacts", "people")).map((person) => [String(person.id), person.name]));
   const nameOf = (link) => names.get(String(link?.id ?? link));
   const pipeline = (await query("pipeline", "leads")).map((lead) => [nameOf(lead.contact), lead.stage]).sort();
   assert.deepEqual(pipeline, [["Ana Ruiz", "Qualified"], ["Ben Okafor", "Customer"]]);
-  assert.ok((await query("pipeline", "byStage")).length > 0, "Pipeline's chart has bars");
+  const bars = (await result("pipeline", "byStage")).totals.map((group) => [group.key, group.count]).sort();
+  assert.deepEqual(bars, [["Customer", 1], ["Qualified", 1]], "Pipeline's chart has a bar for each stage");
   const deals = (await query("deals", "open")).map((deal) => [deal.title, nameOf(deal.contact)]).sort();
   assert.deepEqual(deals, [["Support plan", "Ben Okafor"], ["Website refresh", "Ana Ruiz"]]);
 });
