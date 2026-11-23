@@ -398,6 +398,12 @@ function open(entry) {
   font-size: 13px;
 }
 
+/* In the text, code breaks where it must, so a long address never makes the page wider than a phone; in a table it
+   stays whole, and the table scrolls in its own box. */
+.mb-help__article :deep(:is(p, li) code) {
+  overflow-wrap: anywhere;
+}
+
 .mb-help__article :deep(.mb-help__table) {
   margin: 0 0 18px;
   overflow-x: auto;
