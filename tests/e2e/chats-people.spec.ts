@@ -454,9 +454,29 @@ test("leaving a public room leaves it faded, and writing there brings you back; 
     await expect(question.locator(".mb-confirm__title")).toHaveText(`Leave “${title}”?`);
     await expect(question.locator(".mb-confirm__text")).toHaveText("It's public, so it stays in Rooms, faded, and opening it again brings you back.");
     const left = page.waitForResponse((response) => response.request().method() === "POST" && new URL(response.url()).pathname === `/api${home!.path}/chats/${hello.id}/leave`);
+    // Its row moves to the faded ones drawn once, never beside the row it was: the leave's answer and the chat read
+    // again on its news are held until the faded rooms are read again, so the row moves in one change, and every
+    // change to the page meanwhile counts the rows named after the room.
+    const chatPath = `/api${home.path}/chats/${hello.id}`;
+    const roomsRead = page.waitForResponse((response) => new URL(response.url()).pathname === `/api${home!.path}/chats/public`);
+    const held = (url: URL) => url.pathname === chatPath || url.pathname === `${chatPath}/leave`;
+    await page.route(held, async (route) => {
+      const response = await route.fetch();
+      await roomsRead;
+      await route.fulfill({ response });
+    });
+    await page.evaluate((name) => {
+      const rows = () => [...document.querySelectorAll(".mb-row")].filter((element) => element.getAttribute("aria-label") === name).length;
+      const seen = window as unknown as { mbRowsSeen: number };
+      seen.mbRowsSeen = rows();
+      new MutationObserver(() => { seen.mbRowsSeen = Math.max(seen.mbRowsSeen, rows()); }).observe(document.body, { childList: true, subtree: true });
+    }, title);
     await question.getByRole("button", { name: "Leave", exact: true }).click();
     expect((await left).ok()).toBe(true);
     expect(await knex("chat_people").where({ conversation_id: hello.id }).pluck("user_id").then((ids) => ids.map(String))).toEqual([home.ben]);
+    await expect(shell.sidebar(page).locator(".mb-row--faded").filter({ hasText: title })).toHaveCount(1);
+    await page.unroute(held);
+    expect(await page.evaluate(() => (window as unknown as { mbRowsSeen: number }).mbRowsSeen), "the room's rows at any moment").toBe(1);
     await expect(row).toHaveClass(/\bmb-row--faded\b/u);
     await expect(shell.composer(page)).toBeVisible();
     await expect(shell.chat(page).getByRole("button", { name: "Join", exact: true })).toHaveCount(0);

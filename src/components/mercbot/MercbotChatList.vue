@@ -294,7 +294,9 @@ const SECTIONS = computed(() => [
 
         <template v-if="!group.section?.collapsed">
           <p v-if="group.kind === 'section' && !group.chats.length" class="mb-empty-hint">Nothing filed yet: drop a room in</p>
-          <TransitionGroup tag="ul" name="mb-reorder" class="mb-rows">
+          <!-- Rows slide when they reorder (mb-reorder-move), and come and go at once: a room someone leaves isn't drawn
+               beside its faded row for the frames a leave would take. -->
+          <TransitionGroup tag="ul" name="mb-reorder" class="mb-rows" :css="false">
             <li v-for="chat in group.chats" :key="chat.id">
               <MercbotSidebarRow
                 :label="rowLabel(chat)"
