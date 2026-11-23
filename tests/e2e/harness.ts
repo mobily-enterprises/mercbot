@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import knexLib from "knex";
+import type { Knex } from "knex";
 import { expect, test as base, type Browser, type BrowserContext, type Locator, type Page, type Request as PageRequest, type Route } from "@playwright/test";
 
 // The browser suite's `test`: when the run started its own Test Previews (globalSetup.mjs), each
@@ -340,6 +341,57 @@ export async function sidebarEntry(page: Page, section: "People" | "Bots", name:
   await expect(row).toBeVisible();
   return row;
 }
+
+/** A home of the test's own, made as New home makes it, with Ben Rossi a member and the owner's bot Chef. */
+export async function homeWithBen(page: Page, knex: Knex) {
+  const stamp = Date.now().toString(36);
+  const { csrfToken } = await (await page.request.get("/api/session")).json();
+  const made = await page.request.post("/api/workspaces", {
+    headers: { "csrf-token": csrfToken, "content-type": "application/vnd.api+json", accept: "application/vnd.api+json" },
+    data: JSON.stringify({ data: { type: "workspaces", attributes: { name: `Hilltop ${stamp}` } } })
+  });
+  expect(made.ok(), await made.text()).toBe(true);
+  const slug = String((await made.json()).data.attributes.slug);
+  const home = await knex("workspaces").where({ slug }).first();
+  const homeId = String(home.id);
+  const owner = String(home.owner_user_id);
+  const [ben] = await knex("users").insert({
+    auth_provider: "test", auth_provider_user_sid: `ben-${stamp}`, email: `ben-${stamp}@example.test`, username: `ben${stamp}`, display_name: "Ben Rossi"
+  }).returning("id");
+  const benId = String(ben.id);
+  await knex("workspace_memberships").insert({ workspace_id: homeId, user_id: benId, role_sid: "member", status: "active" });
+  const chef = String((await knex("bots").insert({ made_by: owner, workspace_id: homeId, name: "Chef", color: "#E65100", library_template: "general" }).returning("id"))[0].id);
+  const remove = async () => {
+    // Away from the home first, so the page reads nothing of it while it goes; a test that timed out has no page left.
+    if (!page.isClosed() && page.url() !== "about:blank") await page.goto("about:blank").catch(() => null);
+    await knex("conversations").where({ workspace_id: homeId }).del();
+    await knex("bots").where({ workspace_id: homeId }).del();
+    for (const table of ["usage_events", "usage_daily", "usage_monthly", "workspace_settings", "workspace_memberships"]) {
+      await knex(table).where({ workspace_id: homeId }).del();
+    }
+    await knex("workspaces").where({ id: homeId }).del();
+    await knex("users").where({ id: benId }).del();
+  };
+  return { slug, path: `/w/${slug}`, homeId, name: String(home.name), owner, ben: benId, chef, stamp, remove };
+}
+
+/**
+ * Whether the composer is as tall as its text needs, as useComposerLines counts it: one line (22 px) while the text fits
+ * beside its buttons, else 20 px a line, 2 to 6 lines, measured here from the field's own text at its own width. It is
+ * measured with transitions off: the specs' reduced motion gives every element a 1 ms one, which would keep the field
+ * at its old height as it is read.
+ */
+export const composerFits = (page: Page) => shell.composer(page).evaluate((field: HTMLTextAreaElement) => {
+  const height = field.offsetHeight;
+  const { height: set, transition } = field.style;
+  field.style.transition = "none";
+  field.style.height = "0px";
+  const needs = field.scrollHeight;
+  field.style.height = set;
+  void field.offsetHeight;
+  field.style.transition = transition;
+  return height === 22 ? needs <= 22 : height === Math.min(6, Math.max(2, Math.round(needs / 20))) * 20;
+});
 
 export { seedChat, seedMessage, seedMessages } from "../support/chatFixtures.mjs";
 export { expect };

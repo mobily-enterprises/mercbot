@@ -135,6 +135,7 @@ const scroller = ref(null);
 const column = ref(null);
 const input = ref(null);
 const measure = ref(null);
+const composerRow = ref(null);
 const fileInput = ref(null);
 const findInput = ref(null);
 const composerFocused = ref(false);
@@ -163,7 +164,7 @@ const composerPlaceholder = computed(() => {
 });
 
 const { measureLines, inputHeight } =
-  useComposerLines({ draft, lines, stacked, measure, input });
+  useComposerLines({ draft, lines, stacked, measure, input, row: composerRow });
 
 const { awayFromBottom, unseen, dockHeight, updateScrollState, scrollToBottom, showMessage } =
   useChatScroll({ scroller, column, dock, messages: () => props.messages, status: () => props.status, me: () => props.me });
@@ -563,7 +564,7 @@ defineExpose({ focusComposer, addSelection, startReply, toggleDictation, dictati
           </span>
         </div>
 
-        <div class="mb-composer__main">
+        <div ref="composerRow" class="mb-composer__main">
           <v-menu location="top start" :offset="8" content-class="mb-popover">
             <template #activator="{ props: plusProps }">
               <MercbotIconButton
@@ -612,7 +613,7 @@ defineExpose({ focusComposer, addSelection, startReply, toggleDictation, dictati
             <div v-if="tokens.length" ref="mirror" class="mb-composer__mirror" :style="{ height: inputHeight }" aria-hidden="true">
               <template v-for="(part, index) in mirrorParts" :key="index">
                 <span v-if="part.token?.kind === 'skill'" class="mb-mention mb-skill-token" :style="{ color: tokenColor, '--mb-token-tint': tokenColor }">/{{ part.token.label }}</span>
-                <span v-else-if="part.token" class="mb-mention" :style="{ color: part.token.bot ? part.token.bot.color : undefined }">
+                <span v-else-if="part.token" class="mb-mention" :class="{ 'mb-mention--plain': !part.token.bot }" :style="{ color: part.token.bot?.color }">
                   <span class="mb-mention__at">@<span class="mb-mention__avatar">
                     <MercbotAvatar v-if="part.token.bot" :bot="part.token.bot" :size="14" still />
                     <v-icon v-else :icon="part.token.kind === 'everyone' ? '$groupFilled' : part.token.kind === 'person' ? '$person' : '$alternateEmail'" size="12" />

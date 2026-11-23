@@ -30,8 +30,9 @@ export function soleBotOf(chat) {
 /**
  * Mentions: in a chat of several (more than one bot or more than one person), @ opens a menu of everyone, the chat's
  * other people (D-114), its bots and the person's apps. A chosen one stays in the text as "@Name" and acts as one unit:
- * Backspace or Delete takes the whole token, and the caret can't stop inside it. A layer behind the text draws tokens
- * in the bot's colour with its avatar over the "@", a person's with a person's glyph. Sending turns them into markers.
+ * Backspace or Delete takes the whole token, and the caret can't stop inside it. A layer behind the masked text draws
+ * tokens in the bot's colour with its avatar over the "@", a person's with a person's glyph on a light tint, each glyph
+ * as wide as the field's (MercbotChatPanel.css). Sending turns them into markers.
  * `draft` is the composer's text, `several` whether the chat has several (messageAuthors.js hasSeveral), `mentionBots`
  * the bots @ offers (mentionBotsOf), `mentionPeople` the people (mentionPeopleOf), `chatId` the open chat, whose change
  * clears the tokens and the skills "/" offers there (the server's, by chat).

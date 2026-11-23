@@ -78,7 +78,7 @@ reply, more) beside the bubble at every width, so nothing but "Not sent." ever
 takes a line under a message, right-click menus (on a message Reply, Copy and Copy request ID,
 under a row of six reactions on a bot's or another person's; on a picture or chart Copy image, as PNG, and Save
 image; a link or selected text keeps the browser's own menu; each menu takes the keyboard as it
-opens, holding an arrow typed before it shows for its first or last row, and gives focus back as it closes), a growing composer with attachments and quote tokens (its lines counted again as its text or its laid-out width changes, and once more as it moves above its buttons or back, `useComposerLines.js`), find in chat
+opens, holding an arrow typed before it shows for its first or last row, and gives focus back as it closes), a growing composer with attachments and quote tokens (its lines counted at the width the field has beside its buttons, again as its text or its laid-out width changes, and once more as it moves above its buttons or back, `useComposerLines.js`; its mention and skill tokens drawn by a layer behind the masked field with the field's own glyph widths), find in chat
 with highlights, an add-to-chat pill for selections, and a microphone error
 popover. Scrolled up, the chat stays where it is as messages arrive: the
 round scroll-down button turns into an "N new messages" pill counting what came after the
