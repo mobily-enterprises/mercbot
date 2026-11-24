@@ -36,7 +36,10 @@ function createReconnecting() {
     return trying;
   }
 
-  return Object.freeze({ reconnect, isTrying });
+  return Object.freeze({
+    reconnect,
+    isTrying
+  });
 }
 
 const reconnecting = createReconnecting();
