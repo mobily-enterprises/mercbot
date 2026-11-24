@@ -157,7 +157,14 @@ async function chooseBuilder() {
           </v-card>
         </div>
         <div v-else-if="!state.loading && state.apps.length" class="apps-home__grid">
-          <v-card v-for="app in tiles" :key="app.id" flat class="pa-4 apps-home__tile" :to="paths.page(`/apps/${app.slug}`)">
+          <!-- An app never published opens its draft, where it's previewed and published. -->
+          <v-card
+            v-for="app in tiles"
+            :key="app.id"
+            flat
+            class="pa-4 apps-home__tile"
+            :to="paths.page(`/apps/${app.slug}${!app.liveVersionId && app.draftVersionId ? '?version=draft' : ''}`)"
+          >
             <div class="d-flex align-start ga-3">
               <v-avatar :color="app.color" size="44" rounded="lg"><v-icon :icon="ICON_PATHS[app.icon] || ICON_PATHS.apps" color="white" /></v-avatar>
               <v-spacer />

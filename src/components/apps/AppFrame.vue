@@ -91,7 +91,9 @@ async function loadApp() {
     // The app's named formulas (D-78) and script functions, callable from its formulas.
     functions.value = withNamedFormulas(next.definition?.formulas, await browserFunctions(next.functions).catch(() => null));
     loaded.value = next;
-    if (!loaded.value.definition) problem.value = version.value === "draft" ? "This app has no draft." : "This app hasn't been published yet.";
+    if (!loaded.value.definition) {
+      problem.value = version.value === "draft" ? "This app has no draft." : "This app hasn't been published yet.";
+    }
   } catch (error) {
     // An address that answers 404 may have been an app or a view; it says neither as a guess.
     problem.value = error?.status === 404 ? "There's no app or view at this address in this home. A view may have been retired." : "This couldn't load. Try again.";
@@ -302,7 +304,14 @@ async function publish() {
             <v-tab v-for="item in navItems" :key="item.screen" :value="item.screen" :to="screenLocation(item.screen)" replace :prepend-icon="ICON_PATHS[item.icon]">{{ item.label }}</v-tab>
           </v-tabs>
 
-          <v-card v-if="problem" flat class="pa-6 text-body-1">{{ problem }}</v-card>
+          <v-card v-if="problem" flat class="pa-6 text-body-1" data-testid="app-frame-problem">
+            {{ problem }}
+            <!-- Opened live (a pin, a link) with only a draft: the draft is one step away, and it's published from there. -->
+            <template v-if="version === 'live' && !loaded?.definition && loaded?.app?.draftVersionId">
+              <div class="text-body-2 text-on-surface-variant mt-2">Its draft is ready: open it to try it, then publish it from there.</div>
+              <v-btn color="primary" variant="flat" class="mt-4" :to="{ path: route.path, query: { version: 'draft' } }" replace>Open the draft</v-btn>
+            </template>
+          </v-card>
           <div v-else-if="!loaded || (screen && runtime?.screen !== screen)" class="d-flex flex-column ga-4">
             <v-skeleton-loader type="heading" width="280" />
             <v-skeleton-loader type="table-tbody" />
