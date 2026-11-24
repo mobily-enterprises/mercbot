@@ -47,7 +47,11 @@ key (`sk_test_…`, `rk_test_…`, which can't move money, D-116) and the AI key
 their providers; a kind of AI without a key runs on the stand-in model (`tools/previewAi.mjs`, D-83). No other
 outside service gets a key from a Preview, and payments can be tried there. It starts only on loopback and its HTTP server is the single-user gate
 (`genesis/program/single-user/single-user.md`), unless a copy built on Mercbot that serves many people passes
-`gate: false` to `serve`, `startServer` or `develop`. `npm start` and the Procfile go through
+`gate: false` to `serve`, `startServer` or `develop`. `serve` and `startServer` also take the server's `role` (D-131), and a
+start without one, or with one there isn't, stops, naming them: `"web"` serves the pages and the API and runs every
+loop that claims the servers' shared work, and `"computers"`, for a copy that runs bots' computers on servers of
+their own (D-85), answers only its health, the work other servers pass to its computers and its own rclone's Drive
+keys, a 404 for everything else, and runs none of those loops. `bin/server.js` and `develop` start web servers. `npm start` and the Procfile go through
 `scripts/serve.sh`, so no start skips the hosting script's checks; `HOSTING_SCRIPT=scripts/hosting/local.sh` is a
 person's own computer's, whose refusals name the command that fixes each, and `scripts/hosting/store.sh` a host's whose
 programs come from a read-only Nix store, where `serve.sh` first makes the bots' toolbox from the store

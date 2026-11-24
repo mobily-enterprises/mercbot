@@ -6,6 +6,7 @@ import { createMeter, logAiFailure } from "./meter.js";
 import { registerRoutes } from "./registerRoutes.js";
 import { createReports } from "./reports.js";
 import { createRetention } from "./retention.js";
+import { claimsSharedWork } from "./serverRole.js";
 import { createSpending } from "./spending.js";
 import { USAGE_FILTERS, createUsageRecorder } from "./usage.js";
 import {
@@ -95,11 +96,12 @@ const AccountFeature = defineFeature({
     const retention = createRetention({ resources, systemContext, env, knex: database.knex, archivedColumns, filesSync: () => filesSync });
     const meter = createMeter({ recorder, recordError: aiFailures ? aiFailures.record : logAiFailure });
     registerRoutes(http, { account, spending, uploads, track: meter.track, media: createMediaGuard(mediaCheck) });
-    // Every serving server keeps the usage tables (D-15), every hour and once at start so their partitions are there;
-    // a failure is logged and tried again next time.
+    // Every serving web server keeps the usage tables (D-15), every hour and once at start so their partitions are
+    // there; a failure is logged and tried again next time. A computers server leaves them to the web servers (D-131).
     const timers = [];
     const upkeep = () => retention.sweep().catch((error) => console.warn("Keeping the usage tables failed; the next sweep tries again.", error));
     fastify.addHook("onListen", () => {
+      if (!claimsSharedWork(env)) return;
       upkeep();
       const timer = setInterval(upkeep, UPKEEP_MS);
       timer.unref();

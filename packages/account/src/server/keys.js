@@ -1,12 +1,14 @@
 import { AI_KINDS, WORK, aiReady, settingOf } from "./providers/index.js";
+import { serverRoleOf } from "./serverRole.js";
 
 /**
  * One key or account a copy of Mercbot can be given: what it's for, the settings that give it (an optional one doesn't
  * decide whether it's on), what's off without it, and, where its settings alone don't say, whether it's on (`ready`).
  * Mercbot starts without any of them: each turns its feature on when it's there, and the server says at start what's
- * off (missingKeyLines).
+ * off (missingKeyLines). `computers` is what's off without it on a computers server (D-131), for the keys that role
+ * uses; a key without it is a web server's only.
  * @typedef {{ name: string, purpose: string, settings: ReadonlyArray<{ name: string, optional?: boolean }>, missing: string,
- *   ready?: (env: import("@jskit-ai/kernel/server/types").RuntimeEnv) => boolean }} KeyEntry
+ *   computers?: string, ready?: (env: import("@jskit-ai/kernel/server/types").RuntimeEnv) => boolean }} KeyEntry
  */
 
 // What bots can't do without the premium or the economy AI (providers/index.js, botsAiOff).
@@ -20,6 +22,8 @@ const AI_ENTRIES = Object.values(AI_KINDS).map((kind) => ({
   missing: kind.id === "images"
     ? "Bots can't make or edit pictures, and say pictures aren't set up on this copy. The Vault can't read contact details from photos."
     : BOTS_OFF,
+  // A computers server runs its computers' browser steps (stagehandModel.js), on the kind WORK.browser names.
+  ...(kind.id === WORK.browser.kind ? { computers: "The bots' browser steps on this server's computers can't run." } : {}),
   // On the stand-in model (D-83) a kind needs no key.
   ready: (env) => aiReady(env, kind.id)
 }));
@@ -36,7 +40,8 @@ const OTHER_ENTRIES = [
     name: "Vault key",
     purpose: "Seals Vault passwords and cards, connected accounts' tokens, scripts' secret web headers, a home's own storage details and bots' saved browsers.",
     settings: [{ name: "MERCBOT_VAULT_KEY" }],
-    missing: "The Vault takes no logins or cards, apps can't be connected, and bots' browser sign-ins don't outlive their machine."
+    missing: "The Vault takes no logins or cards, apps can't be connected, and bots' browser sign-ins don't outlive their machine.",
+    computers: "Bots' browser sign-ins on this server's computers don't outlive their machine."
   },
   {
     name: "Google app",
@@ -75,7 +80,8 @@ const OTHER_ENTRIES = [
       { name: "MERCBOT_FILES_S3_PREFIX", optional: true },
       { name: "MERCBOT_FILES_DIR", optional: true }
     ],
-    missing: "Files stay in a folder on this machine, which only suits a single server."
+    missing: "Files stay in a folder on this machine, which only suits a single server.",
+    computers: "Its computers' files stay in a folder on this machine, where no other server finds them."
   },
   {
     name: "Another Mercbot to link to",
@@ -112,15 +118,20 @@ export function keysOf(env, keys = KEYS) {
 
 /**
  * The server's line at start for each setting a feature that's off here still needs, saying what's off: one line a
- * missing key. A feature that's on (its settings, or `ready`, as on the stand-in model) has none.
+ * missing key. A feature that's on (its settings, or `ready`, as on the stand-in model) has none. Only the keys this
+ * server's role uses are named (serverRoleOf, D-131): every key on a web server, and on a computers server those with
+ * a `computers` text, which says what's off there.
  * @param {import("@jskit-ai/kernel/server/types").RuntimeEnv} env
  * @param {ReadonlyArray<KeyEntry>} [keys] as keysOf's
  * @returns {string[]}
  */
 export function missingKeyLines(env, keys = KEYS) {
+  const computers = serverRoleOf(env) === "computers";
   return keys.flatMap((entry) => {
+    const missing = computers ? entry.computers : entry.missing;
+    if (!missing) return [];
     const unset = entry.settings.filter((setting) => !setting.optional && !settingOf(env, setting.name)).map((setting) => setting.name);
     const on = entry.ready ? entry.ready(env) : !unset.length;
-    return on ? [] : unset.map((name) => `${name} isn't set, so this is off: ${entry.name}. ${entry.missing}`);
+    return on ? [] : unset.map((name) => `${name} isn't set, so this is off: ${entry.name}. ${missing}`);
   });
 }

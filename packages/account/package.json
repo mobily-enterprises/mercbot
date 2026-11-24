@@ -19,6 +19,7 @@
     "./vault-crypto": "./src/server/vaultCrypto.js",
     "./shared/vault": "./src/shared/vault.js",
     "./this-copy": "./src/server/thisCopy.js",
+    "./server-role": "./src/server/serverRole.js",
     "./server/accountError": "./src/server/accountError.js",
     "./server/tableResources": "./src/server/tableResources.js",
     "./server/types": "./src/server/types.js"

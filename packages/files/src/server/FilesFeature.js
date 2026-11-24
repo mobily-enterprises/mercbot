@@ -1,4 +1,5 @@
 import { defineFeature } from "@jskit-ai/kernel/server/features";
+import { claimsSharedWork } from "@local/account/server-role";
 import { registerDriveTokenRoute } from "./driveTokenRoute.js";
 import { FILE_STORAGE_FILTERS } from "./fileMoves.js";
 import { PAGE_VERSION_FILTERS } from "./pages.js";
@@ -105,11 +106,14 @@ const FilesFeature = defineFeature({
     await registerDriveTokenRoute(fastify, files.mounts);
     fastify.addHook("onListen", () => {
       files.mounts.listening(fastify.server.address());
-      files.moves.startSweeping();
-      // Every server checks the pictures and videos waiting for a check (D-15), with a copy that checks them.
-      files.media.startSweeping();
-      // What this server writes in its copy of the files bucket goes there every few seconds too (D-91).
+      // What this server writes in its copy of the files bucket goes there every few seconds too (D-91), its computers'
+      // files on a computers server (D-131).
       if (files.volume.kind === "bucket") files.volume.startSyncing();
+      // Moves and the checks waiting are the web servers' (D-131).
+      if (!claimsSharedWork(env)) return;
+      files.moves.startSweeping();
+      // Every web server checks the pictures and videos waiting for a check (D-15), with a copy that checks them.
+      files.media.startSweeping();
     });
     registerPageRoutes(http, { pages: files.pages, directory: records.directory });
     // JSKIT's profile pictures go on the shared volume, from wherever JSKIT's storage kept them.

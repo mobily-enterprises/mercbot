@@ -3,7 +3,8 @@
 Mercbot is a standard Node application on PostgreSQL, run as a person's own copy on their own computer (D-81): one
 person, opened with its key, reached only from that computer. `scripts/mercbot` installs releases, starts and stops it,
 backs it up and upgrades it (help/own-copy.md is the person's guide). A copy built on Mercbot that serves many people
-starts Mercbot's server without the single-user gate (`gate: false`) and describes its own deployment.
+starts Mercbot's server without the single-user gate (`gate: false`), gives each of its servers its role (`web`, or
+`computers` for servers that run only bots' computers, D-131), and describes its own deployment.
 
 ## Before each release
 

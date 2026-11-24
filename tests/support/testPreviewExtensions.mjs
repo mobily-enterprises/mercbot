@@ -21,7 +21,7 @@ export async function testPreviewExtensions() {
 export async function testPreviewOwner() {
   // Loaded only here: start-test-app.mjs imports this file before it sets the environment the server reads.
   const { startServer } = await import("../../server.js");
-  const api = await startServer({ host: "127.0.0.1", port: 0 });
+  const api = await startServer({ host: "127.0.0.1", port: 0, role: "web" });
   try {
     const opened = await fetch(`http://127.0.0.1:${api.server.address().port}/open?key=${loadKey(process.env)}`);
     if (opened.status !== 200) throw new Error(`Opening the Test Preview with its key failed (${opened.status}): ${await opened.text()}`);

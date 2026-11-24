@@ -1902,6 +1902,7 @@ Mercbot's own behaviour is unchanged without it.
   as its calls (`x-mercbot-internal`).
 - **Without the seam** a computer goes to the server that needs it, as before (`PLACE_HERE`, a placement like any
   other); one server, or several, works as it did.
+- **Servers of their own start in the computers role (D-131)**, which claims none of the web servers' work.
 
 ## D-86 — The toolbox can come from a host's read-only Nix store (2026-11-15)
 
@@ -4381,3 +4382,29 @@ Tests: `tests/server/appsFieldTypes.test.js`, `tests/server/appsSharedFields.int
 `tests/server/spreadsheetCheck.test.js`, `tests/server/templateChecks.test.js`, `tests/server/botTemplates.integration.js`,
 `tests/server/appsTemplates.test.js`, `tests/server/appsTemplates.integration.js`, `tests/server/appsStarter.integration.js`,
 `tests/client/fieldValues.vitest.js`, `tests/client/tableLinks.vitest.js` and `tests/e2e/apps.spec.ts`.
+
+## D-131 — A server starts in a role: web, or computers (2026-11-24)
+
+A copy built on Mercbot may run bots' computers on servers of their own (D-85). Until now such a server was a whole
+Mercbot server: it served the pages and the API, and its loops claimed the work every server shares, each piece once
+across them. A server given only what computers need (no AI for bots, no apps to connect) claimed due routines, Apps'
+jobs, bots' requests, goals and replies to carry on like any other, and answered each "this copy's AI isn't set up",
+so that work was answered, not done, and its start listed every key as missing though it used three.
+- **Every start names its role** (`packages/account/src/server/serverRole.js`): `serve` and `startServer` take
+  `role`, `"web"` or `"computers"`, and a start without one, or with one there isn't, stops, naming both and
+  `serve({ role: "web" })`. A server never guesses its role, since running as the wrong one claims work it can't do or
+  leaves it undone. `bin/server.js`, `npm run develop` and the Test Preview start web servers. `createServer`, which
+  builds a server without starting it (tests, the template check), is a web server unless given one.
+- **A web server** is as before: pages, the API, and every loop (routines and Apps' jobs, bots' requests, goals,
+  replies, knowledge, rooms' memory, connect follow-ups and commands' cleanup; Apps' watches; moves of homes' files
+  and the checks of waiting pictures; the usage tables' upkeep), each piece claimed once across the web servers.
+- **A computers server** answers `GET`/`HEAD /api/health`, `POST /api/internal/computer` (the work other servers pass
+  to its computers, signed as D-85 has it) and `POST /api/files/drive-token` (its own rclone's, for a home whose files
+  are on Google Drive, D-80); everything else is a 404, and it serves no pages. Live screens and browsers reach it as
+  WebSocket upgrades, as before. It registers for computers (D-15) and keeps its computers' files in the files bucket
+  (D-91), and starts none of the web servers' loops.
+- **Its start names only what it uses** (`missingKeyLines`): the premium AI its computers' browser steps run on
+  (`WORK.browser`), the Vault key that seals their saved browsers, and the files bucket, each saying what's off on
+  that server. A web server's start names every key, as before.
+- The role reaches the features as `MERCBOT_SERVER_ROLE`, which the start sets from `role`; it is never set by hand.
+- Tests: `tests/server/serverRoles.test.js` and `tests/server/serverRoles.integration.js`.

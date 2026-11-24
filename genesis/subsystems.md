@@ -309,7 +309,7 @@ Owns usage (every AI call, picture, computer's day and command, D-73, with what 
 the meter around that work and the recorder that counts it, which a copy built on Mercbot may replace
 (`mercbot.usage-recorder`), the spending reports (D-76), the archive of old usage, Mercbot's three kinds of AI and
 their providers (D-16, D-72), who runs this copy (whom `mercbot.copy-runners` names: Mercbot's one person, or a copy built on Mercbot's
-own), the Vault (D-17), the check a copy built on Mercbot may make of every picture and video (`mercbot.media-check`, its
+own), the server's role (web or computers, D-131), the Vault (D-17), the check a copy built on Mercbot may make of every picture and video (`mercbot.media-check`, its
 guard and the sniffer of what a file is, D-90; the Vault's photos are checked here), the account menu, About and help
 pages that show them,
 and Settings' sections, the account menu, Settings → General and help, to which a copy built on Mercbot may add

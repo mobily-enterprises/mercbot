@@ -1,4 +1,5 @@
 import { defineFeature } from "@jskit-ai/kernel/server/features";
+import { claimsSharedWork } from "@local/account/server-role";
 import { createApprovals, matchRules } from "./approvals.js";
 import { createBotLoops } from "./botLoops.js";
 import { createBotsService } from "./botsService.js";
@@ -104,8 +105,10 @@ const BotsFeature = defineFeature({
       templateLinks: templateLinks ?? NO_TEMPLATE_LINKS
     });
     const botLoops = createBotLoops({ records, systemContext, notices, files, apps, computer, bots });
+    // Only a web server claims the bots' work (D-131): a computers server, which has none of their AI, would answer it
+    // "this copy's AI isn't set up".
     fastify.addHook("onListen", () => {
-      botLoops.start();
+      if (claimsSharedWork(env)) botLoops.start();
     });
     // Shutting down (D-19): close live streams so pages reconnect elsewhere; the shutdown hook then
     // drains the loops, after the bots' computers were put away (serveComputers).

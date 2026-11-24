@@ -14,6 +14,7 @@ import { loadAppConfigFromAppRoot } from "@jskit-ai/kernel/server/support";
 import { API_BASE_PATH, matchesPathPrefix, normalizePathname, toRequestPathname } from "@jskit-ai/kernel/shared/surface/paths";
 import { missingKeyLines } from "@local/account/keys";
 import { checkAiSettings } from "@local/account/model";
+import { SERVER_ROLE, checkServerRole } from "@local/account/server-role";
 import { checkSingleUserHost, singleUserServer } from "@local/single-user/gate";
 import { loadKey } from "@local/single-user/key";
 import { checkPublicUrl, resolveRuntimeEnv } from "./server/lib/runtimeEnv.js";
@@ -105,6 +106,11 @@ function canServeStaticFile(distRoot, relativePath) {
   return statSync(resolvedPath, { throwIfNoEntry: false })?.isFile() === true;
 }
 
+// What a computers server answers (D-131): its health, the work other servers pass to the computers it runs, and its
+// own rclone asking for a Google Drive home's keys (driveTokenRoute.js, D-80). Their screens and browsers come in as
+// WebSocket upgrades, which no route takes (vncBridge.js, cdpBridge.js).
+const COMPUTERS_REQUESTS = new Set(["GET /api/health", "HEAD /api/health", "POST /api/internal/computer", "POST /api/files/drive-token"]);
+
 /** The 404 every other route gets. */
 function notFound(reply, method, pathname) {
   return reply.code(404).send({
@@ -162,10 +168,14 @@ function trustedProxies(runtimeEnv) {
  * The Fastify server with Mercbot's JSKIT runtime installed, for the environment given, and the `providers` of
  * `settings.providers` beside the installed packages' (a test's probe of the runtime it built). It is one person's own
  * copy, behind the single-user gate, unless `settings.gate` is false (seam S1: a copy built on Mercbot that serves many
- * people).
- * @param {{ runtimeEnv: RuntimeEnv, providers: object[], gate?: boolean }} settings
+ * people). It is a server in `settings.role` (D-131), `web` unless given, which it sets as MERCBOT_SERVER_ROLE for the
+ * features: a computers server answers only its health and the work other servers pass to its computers, serves no
+ * pages, and its features claim none of the work web servers share.
+ * @param {{ runtimeEnv: RuntimeEnv, providers: object[], gate?: boolean, role?: string }} settings
  */
-async function createServerWith({ runtimeEnv, providers, gate = true }) {
+async function createServerWith({ runtimeEnv: givenEnv, providers, gate = true, role = "web" }) {
+  const serverRole = checkServerRole(role);
+  const runtimeEnv = { ...givenEnv, [SERVER_ROLE]: serverRole };
   // A person's own copy (D-81) listens on loopback only, and checks every request and websocket for its key before
   // anything else sees it.
   if (gate) checkSingleUserHost(runtimeEnv);
@@ -185,6 +195,13 @@ async function createServerWith({ runtimeEnv, providers, gate = true }) {
     }
   });
 
+  if (serverRole === "computers") {
+    app.addHook("onRequest", async (request, reply) => {
+      const pathname = toRequestPathname(request.url);
+      if (!COMPUTERS_REQUESTS.has(`${request.method} ${pathname}`)) return notFound(reply, request.method, pathname);
+    });
+  }
+
   app.get("/api/health", async () => ({
     ok: true,
     app: "account-app"
@@ -193,8 +210,8 @@ async function createServerWith({ runtimeEnv, providers, gate = true }) {
   const appRoot = path.resolve(process.cwd());
   const distRoot = path.resolve(appRoot, "dist");
   // Read once: a build running beside this start (the browser suite seeds its fixtures meanwhile)
-  // can empty dist between a check and a read. No page there means no web build.
-  const spaDocument = readSpaDocument(path.resolve(distRoot, SPA_INDEX_FILE));
+  // can empty dist between a check and a read. No page there means no web build. A computers server has none.
+  const spaDocument = serverRole === "web" ? readSpaDocument(path.resolve(distRoot, SPA_INDEX_FILE)) : "";
   const hasWebBuild = Boolean(spaDocument);
   const runtime = await createInstalledRuntime({
     appRoot,
@@ -222,7 +239,7 @@ async function createServerWith({ runtimeEnv, providers, gate = true }) {
       index: false,
       serve: false
     });
-  } else {
+  } else if (serverRole === "web") {
     app.log.warn("Frontend build not found (dist/index.html). Page routes will return 404 until `npm run build`.");
   }
 
@@ -230,6 +247,7 @@ async function createServerWith({ runtimeEnv, providers, gate = true }) {
 
   app.log.info(
     {
+      role: serverRole,
       surface: surfaceRuntime.normalizeSurfaceMode(runtimeEnv.SERVER_SURFACE),
       providerPackages: runtime.providerPackageOrder,
       packageOrder: runtime.packageOrder,
@@ -243,37 +261,33 @@ async function createServerWith({ runtimeEnv, providers, gate = true }) {
 
 /**
  * The Fastify server with Mercbot's JSKIT runtime installed, for the environment given, behind the single-user gate
- * unless `settings.gate` is false (createServerWith).
- * @param {{ runtimeEnv: RuntimeEnv, gate?: boolean }} settings
+ * unless `settings.gate` is false, in `settings.role`, `web` unless given (createServerWith).
+ * @param {{ runtimeEnv: RuntimeEnv, gate?: boolean, role?: string }} settings
  */
-function createServer({ runtimeEnv, gate }) {
-  return createServerWith({ runtimeEnv, providers: [], gate });
+function createServer({ runtimeEnv, gate, role }) {
+  return createServerWith({ runtimeEnv, providers: [], gate, role });
 }
 
 /**
  * Starts the server on the host and port given, else on the environment's HOST and PORT. It refuses to start, saying
  * which setting to fix, with a public address in staging or production that isn't https (D-65; http on loopback only
  * while it listens on loopback), with a kind of AI naming a provider it doesn't accept (D-72), or, behind the
- * single-user gate, listening anywhere but loopback (D-81). A key it isn't given leaves that feature off: the log says
- * so, one line a key (keys.js). The gate is on unless `options.gate` is false (seam S1): a copy built on Mercbot that
- * serves many people passes `gate: false`.
- * @param {{ host?: string, port?: number, gate?: boolean }} [options]
+ * single-user gate, listening anywhere but loopback (D-81), or without `options.role`, the server's role (D-131): `web`,
+ * or `computers` for a server that runs only bots' computers for the others. A key its role uses and it isn't given
+ * leaves that feature off: the log says so, one line a key (keys.js). The gate is on unless `options.gate` is false
+ * (seam S1): a copy built on Mercbot that serves many people passes `gate: false`.
+ * @param {{ host?: string, port?: number, gate?: boolean, role?: string }} [options]
  */
-async function startServer({ host, port, gate } = {}) {
+async function startServer({ host, port, gate, role } = {}) {
   const runtimeEnv = resolveRuntimeEnv();
   const listenHost = host || runtimeEnv.HOST;
   checkPublicUrl({ ...runtimeEnv, HOST: listenHost });
   checkAiSettings(runtimeEnv);
+  const serverRole = checkServerRole(role);
   const listenPort = port ?? Number(runtimeEnv.PORT);
-  const app = await createServer({
-    runtimeEnv: {
-      ...runtimeEnv,
-      HOST: listenHost,
-      PORT: String(listenPort)
-    },
-    gate
-  });
-  for (const line of missingKeyLines(runtimeEnv)) app.log.warn(line);
+  const serverEnv = { ...runtimeEnv, HOST: listenHost, PORT: String(listenPort), [SERVER_ROLE]: serverRole };
+  const app = await createServer({ runtimeEnv: serverEnv, gate, role: serverRole });
+  for (const line of missingKeyLines(serverEnv)) app.log.warn(line);
   await app.listen({ port: listenPort, host: listenHost });
   return app;
 }
@@ -284,13 +298,14 @@ async function startServer({ host, port, gate } = {}) {
 const DRAIN_MS = 25000;
 
 /**
- * Mercbot's server as `npm start` runs it (bin/server.js): started as startServer starts it, with `options.gate`, and
- * drained on SIGTERM or SIGINT. A failed start is reported and sets the exit code.
- * @param {{ gate?: boolean }} [options]
+ * Mercbot's server as `npm start` runs it (bin/server.js): started as startServer starts it, with `options.gate` and
+ * `options.role`, and drained on SIGTERM or SIGINT. A failed start, one without a role among them, is reported and sets
+ * the exit code.
+ * @param {{ gate?: boolean, role?: string }} [options]
  */
-async function serve({ gate } = {}) {
+async function serve({ gate, role } = {}) {
   try {
-    const app = await startServer({ gate });
+    const app = await startServer({ gate, role });
     let closing = false;
     const drain = async (signal) => {
       if (closing) return;

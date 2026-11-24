@@ -66,7 +66,7 @@ export async function develop({ gate } = {}) {
     console.log(real.length
       ? `This Preview's AI uses its own keys (${real.join(", ")}); any kind without one is the stand-in model at ${previewAi.standIn.url}.`
       : `This Preview's AI is the stand-in model at ${previewAi.standIn.url} (tools/standInModel.mjs), never a provider.`);
-    apiServer = await startServer({ host: LOOPBACK_HOST, port: 0, gate });
+    apiServer = await startServer({ host: LOOPBACK_HOST, port: 0, gate, role: "web" });
     const apiPort = /** @type {import("node:net").AddressInfo} */ (apiServer.server.address()).port;
     const npmCommand = process.platform === "win32" ? "npm.cmd" : "npm";
     viteProcess = spawn(

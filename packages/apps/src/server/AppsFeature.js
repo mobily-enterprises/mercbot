@@ -1,5 +1,6 @@
 // readable-check: allow no-direct-knex - infrastructure: AnyAPI keeps each home's runtime tables (the ones people define while the app runs, which no table resource describes) on the app's Knex
 import { defineFeature } from "@jskit-ai/kernel/server/features";
+import { claimsSharedWork } from "@local/account/server-role";
 import { passedOn } from "@jskit-ai/resource-runtime/server";
 import { createAnyapi } from "./anyapi.js";
 import { createAppsRepository } from "./appsRepository.js";
@@ -49,10 +50,11 @@ const AppsFeature = defineFeature({
     });
     const apps = createAppsRuntime({ resources, systemContext, records, anyapi, notices, env });
     const reports = createAppsRepository(resources);
-    // Only a server that is serving checks watches (D-15); on shutdown it finishes the claim in
-    // hand (D-19).
+    // Only a web server that is serving checks watches (D-15, D-131); on shutdown it finishes the
+    // claim in hand (D-19).
     let watchLoop = null;
     fastify.addHook("onListen", () => {
+      if (!claimsSharedWork(env)) return;
       watchLoop = apps.watches.start({
         prune: async () => {
           await apps.scripts.prune();
