@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { buildTools } from "../../packages/bots/src/server/botTools.js";
-import { botsOf, homeOfPeople, startChatTurns, turnDoubles } from "../support/botDoubles.mjs";
+import { RunTakenOver } from "../../packages/bots/src/server/runLease.js";
+import { botsOf, homeOfPeople, sharedNotices, startChatTurns, turnDoubles } from "../support/botDoubles.mjs";
 import { memberOptions } from "../support/botRecords.mjs";
 import { seedChat } from "../support/chatFixtures.mjs";
 
@@ -319,6 +320,69 @@ test("a step whose server stopped is picked up by another server", async (contex
   const request = await requestOf(f);
   assert.equal(request.status, "done");
   assert.equal(request.answer, "Made it.");
+});
+
+test("a server that stops hands its request's step over at once: the asked bot's turn stops mid model call, and another server carries it on straight away", async (context) => {
+  context.mock.method(console, "warn", () => {});
+  const notices = sharedNotices();
+  let started = false;
+  let stoppedBy = null;
+  const asker = (current, tools, prompt) => (String(current.id) !== String(f.bots.Builder.id) && !prompt
+    ? tools.askBot.execute({ bot: f.name("Builder"), brief: "Make it." })
+    : null);
+  // On this server the Builder's model call answers 25 s on, unless something stops it first.
+  const f = await setup(context, ["Asker", "Builder"], {
+    notices,
+    reply: async (current, _history, tools, _state, prompt, { signal }) => {
+      if (String(current.id) === String(f.bots.Builder.id)) {
+        started = true;
+        stoppedBy = await new Promise((resolve) => {
+          const late = setTimeout(() => resolve(null), 25_000);
+          signal?.addEventListener("abort", () => {
+            clearTimeout(late);
+            resolve(signal.reason);
+          }, { once: true });
+        });
+        if (stoppedBy) throw stoppedBy;
+        await tools.answerRequest.execute({ answer: "Made it late, on the stopping server." });
+        return { text: "Sent.", transcript: [] };
+      }
+      await asker(current, tools, prompt);
+      return { text: "OK.", transcript: [] };
+    }
+  });
+  // The other server's Builder answers.
+  const other = await startChatTurns(context, {
+    requestLimits: FAST,
+    notices,
+    reply: async (current, _history, tools, _state, prompt) => {
+      if (String(current.id) === String(f.bots.Builder.id)) {
+        await tools.answerRequest.execute({ answer: "Made it on the other server." });
+        return { text: "Sent.", transcript: [] };
+      }
+      await asker(current, tools, prompt);
+      return { text: "OK.", transcript: [] };
+    }
+  });
+  await f.ask("Ask the Builder");
+  const stepping = f.turns.requests.runDue();
+  for (let waited = 0; !started && waited < 5000; waited += 10) await new Promise((resolve) => setTimeout(resolve, 10));
+  assert.ok(started, "this server's Builder started its turn");
+  // The other server's loop: it looks once now (the step is this server's) and next in an hour.
+  const runner = other.turns.requests.start({ everyMs: 3_600_000 });
+  context.after(() => runner.drain(1000));
+
+  const stopping = performance.now();
+  await f.turns.requests.start({ everyMs: 3_600_000 }).drain(20_000);
+  const took = performance.now() - stopping;
+  await stepping;
+  for (let waited = 0; (await requestOf(f)).status !== "done" && waited < 5000; waited += 25) await new Promise((resolve) => setTimeout(resolve, 25));
+  await f.drain(10000);
+  await other.drain(10000);
+  assert.ok(took < 5000, `handed over without waiting for the drain's time (${Math.round(took)} ms)`);
+  assert.ok(stoppedBy instanceof RunTakenOver, `the stop ended its model call (${stoppedBy})`);
+  const request = await requestOf(f);
+  assert.deepEqual([request.status, request.answer, request.attempts, request.turns], ["done", "Made it on the other server.", 0, 1], "carried on as the same turn, no attempt counted");
 });
 
 test("a job is passed on at most twice, and a request past its time stops", async (context) => {

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { connectTestDatabase } from "../support/testDatabase.mjs";
 import { RunTakenOver } from "../../packages/bots/src/server/runLease.js";
-import { startChatTurns } from "../support/botDoubles.mjs";
+import { sharedNotices, startChatTurns } from "../support/botDoubles.mjs";
 import { testBot } from "./testHome.js";
 import { memberOptions } from "../support/botRecords.mjs";
 
@@ -251,25 +251,6 @@ test("a reply whose run another server took over, once its own server stalled pa
   assert.ok(afterFirst && startOf(afterFirst) !== startOf(claimed), "the stalled server frees nothing: the run is still the other server's");
   assert.equal(await knex("agent_runs").where({ conversation_id: seatId }).first(), undefined, "freed by the server that answered");
 });
-
-/** Notices as the servers share them (packages/notices), for two servers in one test. */
-function sharedNotices() {
-  const listeners = new Map();
-  const tell = (topic, key, event) => {
-    for (const listener of listeners.get(`${topic}:${key}`) ?? []) listener(event);
-  };
-  return {
-    publish: async (topic, key, event) => tell(topic, String(key), event),
-    publishEach: async (topic, keys, event) => keys.forEach((key) => tell(topic, String(key), event)),
-    subscribe: (topic, key, listener) => {
-      const name = `${topic}:${key}`;
-      if (!listeners.has(name)) listeners.set(name, new Set());
-      listeners.get(name).add(listener);
-      return () => listeners.get(name)?.delete(listener);
-    },
-    onMissed: () => () => {}
-  };
-}
 
 test("a stopping server hands its person's replies over at once: each stops mid model call and posts nothing, and another server carries it on straight away", async (context) => {
   context.mock.method(console, "warn", () => {});

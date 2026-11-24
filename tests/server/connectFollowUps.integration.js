@@ -12,7 +12,7 @@ import { createAccounts } from "../../packages/integrations/src/server/accounts.
 import { createConnections } from "../../packages/integrations/src/server/connections.js";
 import { INTEGRATIONS_OWNS } from "../../packages/integrations/src/server/IntegrationsFeature.js";
 import { createOAuth } from "../../packages/integrations/src/server/oauth.js";
-import { botsOf, homeOfPeople, startChatTurns } from "../support/botDoubles.mjs";
+import { botsOf, homeOfPeople, sharedNotices, startChatTurns } from "../support/botDoubles.mjs";
 
 // Connect follow-ups (D-77) against the disposable test database, on two servers that share it: each is
 // its own Knex pool with its own chats' turns and sign-ins, and a stand-in provider stands in for the app's sign-in.
@@ -294,25 +294,6 @@ test("a server that stops hands its follow-up over at once: its chat is freed, a
   assert.equal(await followUp(), undefined);
   assert.deepEqual([a.prompts.length, b.prompts.length], [1, 1]);
 });
-
-/** Notices as the servers share them (packages/notices), for the two servers in one test. */
-function sharedNotices() {
-  const listeners = new Map();
-  const tell = (topic, key, event) => {
-    for (const listener of listeners.get(`${topic}:${key}`) ?? []) listener(event);
-  };
-  return {
-    publish: async (topic, key, event) => tell(topic, String(key), event),
-    publishEach: async (topic, keys, event) => keys.forEach((key) => tell(topic, String(key), event)),
-    subscribe: (topic, key, listener) => {
-      const name = `${topic}:${key}`;
-      if (!listeners.has(name)) listeners.set(name, new Set());
-      listeners.get(name).add(listener);
-      return () => listeners.get(name)?.delete(listener);
-    },
-    onMissed: () => () => {}
-  };
-}
 
 test("a stopping server hands its follow-up over without waiting for it, and tells the others: another server's sweeper finishes it at once, not at its next sweep", async (context) => {
   const asked = deferred();

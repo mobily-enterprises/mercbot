@@ -4,7 +4,7 @@ import { createMeter, createMeteredFetch, currentWork } from "../../packages/acc
 import { WORK } from "../../packages/account/src/server/providers/index.js";
 import { DISCUSSION_LIMITS, discussionTokens } from "../../packages/bots/src/server/discussions.js";
 import { seedChat } from "../support/chatFixtures.mjs";
-import { FREE_RECORDER, botsOf, homeOfPeople, startChatTurns } from "../support/botDoubles.mjs";
+import { FREE_RECORDER, botsOf, homeOfPeople, sharedNotices, startChatTurns } from "../support/botDoubles.mjs";
 import { memberOptions } from "../support/botRecords.mjs";
 
 // Discuss (D-115), against the disposable test database, each test in a home of its own: a card in a chat with two or
@@ -36,7 +36,7 @@ const seatsOf = async (knex, chatId) => (await knex("chat_bots").where({ convers
  * `cost(bot, prompt)` nanodollars, which the recorder adds up per person and bot (the meter's spentSince, which a
  * discussion must not count by). Every turn is kept in `turns`. `discussionLimits` replaces the discussion's.
  */
-async function setup(context, { discussionLimits } = {}) {
+async function setup(context, { discussionLimits, notices } = {}) {
   const spent = new Map();
   const estimates = [];
   const meter = {
@@ -50,13 +50,15 @@ async function setup(context, { discussionLimits } = {}) {
   };
   const turns = [];
   const steer = { script: (bot) => `${bot.name}: a point.`, cost: () => 1000 };
-  const kit = await startChatTurns(context, {
+  // A server of the test's; with `notices`, a second one ("B") shares the database and the notices.
+  const serve = (server) => startChatTurns(context, {
     ...(discussionLimits ? { discussionLimits } : {}),
+    ...(notices ? { notices } : {}),
     meter,
     reply: async (bot, _timeline, tools, _state, prompt, options) => {
-      const turn = { bot: bot.name, prompt, tools: Object.keys(tools), who: meter.currentMeter(), work: currentWork(), options };
+      const turn = { server, bot: bot.name, prompt, tools: Object.keys(tools), who: meter.currentMeter(), work: currentWork(), options };
       turns.push(turn);
-      const said = await steer.script(bot, prompt, options);
+      const said = await steer.script(bot, prompt, options, server);
       const cost = steer.cost(bot, prompt);
       await callCosting(cost);
       const key = `${turn.who.userId}:${turn.who.botId}`;
@@ -65,6 +67,8 @@ async function setup(context, { discussionLimits } = {}) {
       return { text: said, transcript: [] };
     }
   });
+  const kit = await serve("A");
+  const other = notices ? await serve("B") : null;
   const { homeId, people: [pat, kim, lee] } = await homeOfPeople(kit, ["Pat", "Kim", "Lee"]);
   const [ada, bo, cy] = await botsOf(kit, homeId, pat, ["Ada", "Bo", "Cy"]);
   const owner = memberOptions({ userId: pat, homeId, role: "owner", permissions: MANAGE });
@@ -86,7 +90,7 @@ async function setup(context, { discussionLimits } = {}) {
   /** The card as a page reads it now: the chat's newest page, as the person reads it. */
   const shown = async (chatId, cardId, person) =>
     (await kit.records.messages.timeline(chatId, {}, as(person))).messages.find((message) => message.id === String(cardId)).body;
-  return { ...kit, meter, spent, estimates, turns, steer, homeId, pat, kim, lee, ada, bo, cy, owner, as, chatOf, chat, propose, cardOf, press, said, shown };
+  return { ...kit, other, discussions: kit.turns.discussions, meter, spent, estimates, turns, steer, homeId, pat, kim, lee, ada, bo, cy, owner, as, chatOf, chat, propose, cardOf, press, said, shown };
 }
 
 test("a discussion needs two bots, the chat's person and a question, and is proposed with what it may cost", async (context) => {
@@ -369,6 +373,36 @@ test("Stop during a turn ends it at the round's next heartbeat, which renews the
   assert.deepEqual([body.status, body.ended], ["ended", "stopped"]);
   assert.deepEqual(turns.map((turn) => turn.bot), ["Ada"], "Bo's turn never ran");
   assert.deepEqual(await said(kitchen), [], "the stopped turn posted nothing");
+  const seats = await seatsOf(knex, kitchen);
+  assert.equal(await knex("agent_runs").whereIn("conversation_id", seats.map((seat) => seat.id)).first(), undefined, "its runs are free");
+});
+
+test("a server that stops hands its round over: the turn in progress stops, another server carries the round on from that turn, and the card never reads as interrupted", async (context) => {
+  const { knex, kim, ada, bo, turns, steer, as, chatOf, chat, propose, cardOf, drain, said, shown, discussions, other } =
+    await setup(context, { notices: sharedNotices() });
+  const kitchen = await chatOf([ada, bo]);
+  const card = await propose(kitchen, kim, "Tiles or wood?");
+  // On this server Ada's turn talks until something stops it; on the other, each bot makes its point.
+  steer.script = (bot, _prompt, options, server) => (server === "A"
+    ? new Promise((_resolve, reject) => options.signal.addEventListener("abort", () => reject(options.signal.reason), { once: true }))
+    : `${bot.name}: a point.`);
+  const carrying = other.turns.discussions.startCarryingOn();
+  context.after(() => carrying.drain());
+  await chat.startDiscussion(kitchen, card.id, { rounds: 1 }, as(kim));
+  while (!turns.length) await new Promise((resolve) => setImmediate(resolve));
+
+  const stopping = performance.now();
+  await discussions.startCarryingOn().drain();
+  const took = performance.now() - stopping;
+  assert.notEqual((await shown(kitchen, card.id, kim)).status, "interrupted", "never interrupted");
+  for (let waited = 0; (await cardOf(card.id)).status === "running" && waited < 5000; waited += 25) await new Promise((resolve) => setTimeout(resolve, 25));
+  await drain(10000);
+  await other.drain(10000);
+  assert.ok(took < 5000, `handed over at once (${Math.round(took)} ms)`);
+  assert.deepEqual(turns.map((turn) => [turn.server, turn.bot]), [["A", "Ada"], ["B", "Ada"], ["B", "Bo"]], "carried on from Ada's turn");
+  const body = await cardOf(card.id);
+  assert.deepEqual([body.status, body.round, body.handedOver ?? null], ["waiting", 1, null]);
+  assert.deepEqual((await said(kitchen)).map((message) => message.text), ["Ada: a point.", "Bo: a point."]);
   const seats = await seatsOf(knex, kitchen);
   assert.equal(await knex("agent_runs").whereIn("conversation_id", seats.map((seat) => seat.id)).first(), undefined, "its runs are free");
 });
