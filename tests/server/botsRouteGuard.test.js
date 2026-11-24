@@ -320,3 +320,12 @@ test("a card's answer passes another repository only as its name (D-128)", async
     ["40", "5", { selected: ["No"], repository: null }]
   ]);
 });
+
+test("the person's unread chats in their other homes are their own, whatever the address says, without the home in it", async () => {
+  const asked = [];
+  const pushQueue = { unreadChats: async (userIds, which) => (asked.push({ userIds, which }), new Map([["7", 4]])) };
+  const { call } = routesWith(() => null, {}, undefined, undefined, { pushQueue });
+  const answer = await call("GET /api/w/:workspaceSlug/chats/unread-elsewhere", { workspaceSlug: "home-3", userId: "9" });
+  assert.deepEqual([answer.status, answer.body], [200, { chats: 4 }]);
+  assert.deepEqual(asked, [{ userIds: ["7"], which: { exceptHomeId: "3" } }], "the signed-in person's, in every home but the one in the address");
+});

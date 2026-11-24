@@ -272,3 +272,56 @@ test("queueing and sending stay a fixed number of queries however many people an
   const sendingFew = await queriesDuring(knex, () => sweep.sweepOnce());
   assert.equal(sending, sendingFew, `sending 46 takes the queries sending 5 does (${sendingFew})`);
 });
+
+/** `count` more homes of `people`'s, the first person their owner; `remove` deletes them and what they hold. */
+async function moreHomes(people, count) {
+  const stamp = randomBytes(5).toString("hex");
+  const rows = await knex("workspaces").insert(Array.from({ length: count }, (_, index) => ({
+    slug: `push-${stamp}-${index}`, name: `Push ${index}`, owner_user_id: people[0], is_personal: false
+  }))).returning("id");
+  const ids = rows.map((row) => String(row.id));
+  await knex("workspace_memberships").insert(ids.flatMap((workspaceId) => people.map((userId, index) => ({
+    workspace_id: workspaceId, user_id: userId, role_sid: index ? "member" : "owner", status: "active"
+  }))));
+  const remove = async () => {
+    await knex("push_queue").whereIn("workspace_id", ids).del();
+    await knex("workspaces").whereIn("id", ids).del();
+  };
+  return { ids, remove };
+}
+
+test("a person's app icon counts their unread chats in every home, muted ones left out, in one query however many homes", async (context) => {
+  const { homeId, slug, anna, ben } = await home(context);
+  const { records, sweep, sent, due } = await startSweep(context, slug);
+  const homes = await moreHomes([anna, ben], 4);
+  try {
+    // A chat of Anna's and Ben's in a home, where what Anna says (to Ben) is unread for him.
+    const news = async (inHome) => {
+      const chat = await seedChat(knex, { homeId: inHome, kind: "private", title: "News", people: [anna, ben] });
+      const said = [{ role: "user", kind: "text", body: { text: "News, @Ben", mentionedPeople: [{ id: Number(ben), name: "Ben" }] } }];
+      await records.messages.append(chat.id, said, memberOptions({ userId: anna, homeId: inHome }));
+      return chat;
+    };
+    const count = async (userId, which) => (await records.pushQueue.unreadChats([userId], which)).get(String(userId)) ?? 0;
+    const counting = () => queriesDuring(knex, () => count(ben));
+    await news(homeId);
+    await news(homes.ids[0]);
+    const few = await counting();
+    await news(homes.ids[1]);
+    const muted = await news(homes.ids[2]);
+    await news(homes.ids[3]);
+    await records.chats.updatePlace(muted.id, { muted: true }, memberOptions({ userId: ben, homeId: homes.ids[2] }));
+    assert.equal(await count(ben), 4, "the chat here and three other homes'; the muted one isn't counted");
+    assert.equal(await count(ben, { exceptHomeId: homeId }), 3, "with the app open here, its other homes'");
+    assert.equal(await count(anna), 0, "what she says isn't news to her");
+    assert.equal(await counting(), few, `counting in five homes takes the queries counting in two does (${few})`);
+    assert.equal(few, 1);
+
+    // A notification counts them the same way, as its number on the icon.
+    await due();
+    await sweep.sweepOnce();
+    assert.deepEqual([...new Set(sent.splice(0).map((note) => `${note.userId} ${note.payload.unread}`))], [`${ben} 4`]);
+  } finally {
+    await homes.remove();
+  }
+});

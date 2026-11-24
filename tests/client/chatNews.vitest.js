@@ -1,7 +1,7 @@
 import { ref } from "vue";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { chatsApi } from "../../src/components/mercbot/chatsApi.js";
-import { useChatEvents } from "../../src/components/mercbot/useChatEvents.js";
+import { newsElsewhere, useChatEvents } from "../../src/components/mercbot/useChatEvents.js";
 import { useChatMessages } from "../../src/components/mercbot/useChatMessages.js";
 
 // What the open page reads from the chat routes when news comes (D-15, D-112): a chat's news reads that chat alone, its
@@ -97,6 +97,20 @@ describe("news of a chat's messages (D-15)", () => {
     expect(chatsApi.get).not.toHaveBeenCalled();
     expect(store.catchUp).not.toHaveBeenCalled();
     expect(store.mergeChats, "with when the read began").toHaveBeenCalledWith([{ id: "7", title: "New" }], 12);
+  });
+});
+
+describe("news of another home's chats (D-133)", () => {
+  it("counts news of a chat the page doesn't know as news elsewhere, so the app's icon reads the other homes' again", async () => {
+    chatsApi.get.mockResolvedValue({ chat: { id: "4", place: null } });
+    chatsApi.list.mockResolvedValue({ chats: [], sections: [], startedAt: 1 });
+    const { events } = listening(["4"]);
+    const before = newsElsewhere.value;
+    events.send("messages", { chatId: 4 });
+    expect(newsElsewhere.value, "a chat of this home's is counted here").toBe(before);
+    events.send("messages", { chatId: "9" });
+    await settled();
+    expect(newsElsewhere.value).toBe(before + 1);
   });
 });
 
