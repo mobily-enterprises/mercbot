@@ -26,7 +26,7 @@ test("a home's owner gets Mercbot's own Settings sections, and General has no Si
   await expect(page).toHaveURL(/\/w\/[^/?]+/u);
   const sections = await openSettings(page);
   // The home's main bot and Builder and its bots' common knowledge are the home's, not a bot's, so they have sections
-  // of their own after Templates (D-119).
+  // of their own after Templates (D-119), and so does every recurring task in the home (D-132).
   await expect(sections.getByRole("button")).toHaveText([
     "General",
     "Computer",
@@ -36,6 +36,7 @@ test("a home's owner gets Mercbot's own Settings sections, and General has no Si
     "Templates",
     "Main bot and Builder",
     "Bots' common knowledge",
+    "Recurring tasks",
     "Vault",
     "Spending",
     "Mercbot account",
