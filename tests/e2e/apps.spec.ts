@@ -375,8 +375,9 @@ test("an app's own CSS restyles its area, and only its area", async ({ page }, t
   await page.goto(`${HOME}/apps/leads`);
   const area = page.locator("[data-app-style]");
   await expect(area).toHaveCSS("background-color", "rgb(10, 10, 40)");
-  await expect(page.locator(".x-banner .text-h6")).toHaveCSS("color", "rgb(255, 51, 102)");
-  await expect(page.locator(".x-banner .text-h6")).toHaveCSS("text-transform", "uppercase");
+  // A title text part carries the theme's Material 3 type role, which the app's CSS targets.
+  await expect(page.locator(".x-banner .text-title-large")).toHaveCSS("color", "rgb(255, 51, 102)");
+  await expect(page.locator(".x-banner .text-title-large")).toHaveCSS("text-transform", "uppercase");
   await expect(page.locator(".app-frame__bar")).not.toHaveCSS("background-color", "rgb(10, 10, 40)");
   await expect(area).toHaveCSS("contain", "paint");
   await page.screenshot({ path: testInfo.outputPath("styled-app.png") });

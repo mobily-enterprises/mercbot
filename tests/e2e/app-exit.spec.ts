@@ -167,7 +167,9 @@ test("from a room, Apps and two screens of an app's draft close back to the room
   await page.locator(".mb-apps-entry__link").first().click();
   await expect(page).toHaveURL(appsAddress);
   await expectClose(page, `Back to ${title}`);
-  const tile = page.locator(`.apps-home__tile[href$="/apps/${app.slug}"]`);
+  // An app never published opens its draft from its tile, where it's previewed and published.
+  const tile = page.locator(`.apps-home__tile[href$="/apps/${app.slug}?version=draft"]`);
+  await expect(tile).toHaveCount(1);
   await tile.getByRole("button", { name: "App menu" }).click();
   await page.locator(".v-overlay--active .v-list-item").filter({ hasText: "Preview the draft" }).click();
   await expect(page).toHaveURL(new RegExp(`/apps/${app.slug}\\?version=draft$`, "u"));
@@ -195,4 +197,12 @@ test("from a room, Apps and two screens of an app's draft close back to the room
   await expect(page).toHaveURL(roomUrl);
   await expect(shell.chat(page).getByRole("textbox", { name: `Message ${title}` })).toBeVisible();
   expect(await position(page)).toBe(atRoom + 1);
+
+  // Opened live (a pin, a link) with only a draft, it says so, and its draft is one click away.
+  await page.goto(`${HOME}/apps/${app.slug}`);
+  const problem = page.getByTestId("app-frame-problem");
+  await expect(problem).toContainText("This app hasn't been published yet.");
+  await problem.getByRole("link", { name: "Open the draft" }).click();
+  await expect(page).toHaveURL(new RegExp(`/apps/${app.slug}\\?version=draft$`, "u"));
+  await expect(page.locator(".app-frame__draft")).toBeVisible();
 });
