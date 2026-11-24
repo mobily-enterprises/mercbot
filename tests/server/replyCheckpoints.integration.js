@@ -251,3 +251,72 @@ test("a reply whose run another server took over, once its own server stalled pa
   assert.ok(afterFirst && startOf(afterFirst) !== startOf(claimed), "the stalled server frees nothing: the run is still the other server's");
   assert.equal(await knex("agent_runs").where({ conversation_id: seatId }).first(), undefined, "freed by the server that answered");
 });
+
+/** Notices as the servers share them (packages/notices), for two servers in one test. */
+function sharedNotices() {
+  const listeners = new Map();
+  const tell = (topic, key, event) => {
+    for (const listener of listeners.get(`${topic}:${key}`) ?? []) listener(event);
+  };
+  return {
+    publish: async (topic, key, event) => tell(topic, String(key), event),
+    publishEach: async (topic, keys, event) => keys.forEach((key) => tell(topic, String(key), event)),
+    subscribe: (topic, key, listener) => {
+      const name = `${topic}:${key}`;
+      if (!listeners.has(name)) listeners.set(name, new Set());
+      listeners.get(name).add(listener);
+      return () => listeners.get(name)?.delete(listener);
+    },
+    onMissed: () => () => {}
+  };
+}
+
+test("a stopping server hands its person's replies over at once: each stops mid model call and posts nothing, and another server carries it on straight away", async (context) => {
+  context.mock.method(console, "warn", () => {});
+  const passes = [];
+  let mine = null;
+  let stoppedBy = null;
+  const reply = async (current, _history, _tools, _state, _prompt, { signal }) => {
+    if (String(current.id) !== String(mine)) return { text: "", transcript: [] };
+    passes.push(true);
+    if (passes.length === 1) {
+      // The stopping server's reply, in its model call: its answer comes 10 s on, unless the stop ends the call first.
+      try {
+        await new Promise((resolve, reject) => {
+          const late = setTimeout(resolve, 10_000);
+          signal?.addEventListener("abort", () => {
+            clearTimeout(late);
+            reject(signal.reason);
+          }, { once: true });
+        });
+      } catch (error) {
+        stoppedBy = error;
+        throw error;
+      }
+      return { text: "The stopping server's answer.", transcript: [] };
+    }
+    return { text: "Carried on by the other server.", transcript: [] };
+  };
+  const notices = sharedNotices();
+  const { knex, as, userId, bot, service, drain, seatId } = await setup(context, reply, { notices });
+  const other = await startChatTurns(context, { reply, notices });
+  // The other server's resumer: its first scan finds nothing, and its next is 30 s away.
+  const resumer = other.turns.startResumer();
+  context.after(() => resumer.drain(1000));
+  mine = bot.id;
+  const sent = await service.chat.sendMessage(bot.conversation_id, { text: "What files do I have?", clientId: `h-${Date.now()}` }, as(userId));
+  const replying = service.chat.reply(bot.conversation_id, { afterMessageId: sent.messages[0].id }, undefined, as(userId));
+  await until(() => passes.length === 1, "the stopping server's reply started");
+  const stopped = performance.now();
+  await service.handOverReplies();
+  await until(() => passes.length === 2, "the other server carried the reply on", 200);
+  const took = performance.now() - stopped;
+  await replying;
+  await other.drain(10000);
+  await drain(10000);
+  assert.ok(took < 5000, `carried on at once, not after the staleness and a scan (${Math.round(took)} ms)`);
+  assert.ok(stoppedBy instanceof RunTakenOver, `the stop ended its model call (${stoppedBy})`);
+  const answers = await knex("messages").where({ conversation_id: bot.conversation_id, kind: "text", role: "bot" });
+  assert.deepEqual(answers.map((message) => message.body.text), ["Carried on by the other server."], "one answer");
+  assert.equal(await knex("agent_runs").where({ conversation_id: seatId }).first(), undefined, "freed by the server that answered");
+});

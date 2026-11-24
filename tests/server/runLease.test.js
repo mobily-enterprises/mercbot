@@ -133,3 +133,110 @@ test("draining the routine runner hands over a run still going: it stops, and it
   assert.equal(signal.reason instanceof RunTakenOver, true, "stopped at its next step");
   assert.deepEqual(changes, [{ runLeaseUntil: "now()" }], "its lease ends now, so another server carries it on at once");
 });
+
+/** Notices as the servers share them (packages/notices): what each publishes, and each topic's listeners here. */
+function sharedNotices() {
+  const listeners = new Map();
+  const published = [];
+  return {
+    published,
+    publish: async (topic, key, event) => {
+      published.push([topic, String(key)]);
+      for (const listener of listeners.get(`${topic}:${key}`) ?? []) listener(event);
+    },
+    subscribe: (topic, key, listener) => {
+      const name = `${topic}:${key}`;
+      if (!listeners.has(name)) listeners.set(name, new Set());
+      listeners.get(name).add(listener);
+      return () => listeners.get(name)?.delete(listener);
+    }
+  };
+}
+
+// A graceful stop waits for no lease to lapse and for no run to finish (the owner's "Will they restart immediately?"):
+// each run still going stops at once, mid model call too, and its lease ends as soon as it has stopped, and the other
+// servers hear it and claim it straight away, not at their next scan.
+test("a stopping server's routine runner hands its runs over at once, without waiting for them to finish, and tells the other servers", async (context) => {
+  quiet(context);
+  let routine = { id: 4, name: "News" };
+  const changes = [];
+  let signal = null;
+  const notices = sharedNotices();
+  const work = {
+    claimRoutine: async () => {
+      const due = routine;
+      routine = null;
+      return due;
+    },
+    claimStalledRoutine: async () => null,
+    renewRoutineRun: async () => true,
+    changeRoutineRun: async (_routine, fields) => changes.push(fields),
+    now: () => "now()"
+  };
+  const runner = startRoutineRunner({
+    work,
+    systemContext: () => ({}),
+    notices,
+    run: (_routine, runSignal) => ((signal = runSignal), untilAborted(runSignal)),
+    everyMs: 10,
+    lease: SHORT
+  });
+  while (!signal) await sleep(5);
+  const started = performance.now();
+  await runner.drain(20000);
+  const took = performance.now() - started;
+  assert.ok(took < 1000, `handed over at once, not after the drain's 20 s (${Math.round(took)} ms)`);
+  assert.equal(signal.reason instanceof RunTakenOver, true, "stopped mid call");
+  assert.deepEqual(changes, [{ runLeaseUntil: "now()" }]);
+  assert.deepEqual(notices.published, [["routines", "all"]], "the other servers are told");
+});
+
+test("a routine runner claims at once when another server hands routines over, not at its next scan", async (context) => {
+  quiet(context);
+  const notices = sharedNotices();
+  let claims = 0;
+  const work = {
+    claimRoutine: async () => ((claims += 1), null),
+    claimStalledRoutine: async () => null,
+    renewRoutineRun: async () => true,
+    changeRoutineRun: async () => {},
+    now: () => "now()"
+  };
+  const runner = startRoutineRunner({ work, systemContext: () => ({}), notices, run: async () => {}, everyMs: 60_000, lease: SHORT });
+  context.after(() => runner.drain(100));
+  while (claims < 1) await sleep(5);
+  await notices.publish("routines", "all", {});
+  for (let waited = 0; claims < 2 && waited < 1000; waited += 5) await sleep(5);
+  assert.equal(claims, 2, "it looked again as soon as it heard");
+});
+
+test("a stopping server's app job runner hands its tasks over at once and tells the other servers", async (context) => {
+  quiet(context);
+  const queued = [{ id: 9, workspaceId: 7 }];
+  const released = [];
+  let signal = null;
+  const notices = sharedNotices();
+  const jobs = {
+    withTransaction: (options, work) => work(options),
+    claimNext: async () => queued.shift() || null,
+    claimStalled: async () => null,
+    renew: async () => true,
+    release: async (job) => (released.push(job.id), true),
+    finish: async () => {}
+  };
+  const runner = startAppJobRunner({
+    jobs,
+    systemContext: () => ({ forWorkspace: () => ({}) }),
+    notices,
+    run: (_job, runSignal) => ((signal = runSignal), untilAborted(runSignal)),
+    everyMs: 10,
+    lease: SHORT
+  });
+  while (!signal) await sleep(5);
+  const started = performance.now();
+  await runner.drain(20000);
+  const took = performance.now() - started;
+  assert.ok(took < 1000, `handed over at once (${Math.round(took)} ms)`);
+  assert.deepEqual(released, [9]);
+  assert.deepEqual(notices.published, [["apps-jobs", "all"]], "the other servers are told");
+});
