@@ -56,7 +56,8 @@ chat (D-35).
   90 s, metered like other model calls, each round kept for the Logic tab; nothing is saved
   unless every test passes, and settings the model can't fix fail before any model call. What
   scripts can do is in the Builder's instructions (`BUILDER_RULES`), so a long chat never drops it.
-- `template_list` and `template_install` (genesis/program/apps/templates.md).
+- `template_list` and `template_install` (genesis/program/apps/templates.md), and `template_check` and
+  `template_update`, which bring an app made from a template up to the template's latest version as a draft (D-130).
 - No tool publishes, restores or deletes; people do that from cards and screens.
 - Every bot also has `watch_create`, `watch_list`, `watch_pause`, `watch_resume` and `watch_remove`
   (genesis/program/apps/automation.md). `packages/bots/src/server/appJobRunner.js` runs the tasks

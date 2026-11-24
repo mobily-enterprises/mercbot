@@ -43,6 +43,8 @@ const toApp = (record) => ({
   madeByBotId: record.madeByBotId ? String(record.madeByBotId) : null,
   madeByUserId: record.madeByUserId ? String(record.madeByUserId) : null,
   themeOverride: record.theme ?? null,
+  templateKey: record.templateKey ?? null,
+  templateVersion: record.templateVersion ?? null,
   updatedAt: record.updatedAt
 });
 
@@ -162,6 +164,11 @@ export function createApps({ resources, records, registry, anyapi, practices, no
       await audit({ actor, via: { kind: "app", appId: row.id }, action: "app", changes: { createdApp: { slug, name } } }, txOptions);
       return toApp({ ...row, visibility: "internal" });
     }));
+  }
+
+  /** Notes the ready-made template an app was made or last updated from, and that template's version (D-130). */
+  async function markTemplate(appId, { key, version }, options) {
+    await appRows.patch(String(appId), { templateKey: key, templateVersion: version }, { ...passedOn(options), returning: "none" });
   }
 
   /** The home's bots that a button can hand a task to, in id order. */
@@ -630,6 +637,7 @@ export function createApps({ resources, records, registry, anyapi, practices, no
     // readable-check: allow setter-seam - not a slot: saves whether an app is public
     setPublic,
     saveDraft,
+    markTemplate,
     publish,
     restore,
     visitorAccess: visitorAccessOf.visitorAccess,

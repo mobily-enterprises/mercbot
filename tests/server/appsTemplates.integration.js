@@ -164,3 +164,47 @@ test("installing the CRM from the Templates tab makes the shared tables it uses"
   const keys = (await capability.registry.loadTables(options)).filter((table) => !table.obsolete).map((table) => table.key).sort();
   assert.deepEqual(keys, ["contacts", "crm_contacts", "deals", "organisations"]);
 });
+
+// An app remembers the template it came from (D-130), so the Builder can tell when the template has improved and bring
+// the app up to date as a draft: the live app keeps working until a person publishes, and the screens it had come back
+// for the Builder to carry the person's own changes over. An app made before apps remembered is matched by its name.
+test("an app from a template knows when the template has improved, and is brought up to date as a draft", async (context) => {
+  const { knex, apps: capability, userId, options, ctx: ctxOf } = await appsHome(context, { slug: "apps-tpl-update" });
+  const { apps } = capability;
+  const ctx = ctxOf({ type: "person", id: String(userId), name: "Pat" });
+  const { app } = await capability.installTemplate(ctx, "contacts");
+  await apps.publish(ctx.actor, app.slug, {}, options);
+  const stateOf = async (slug) => (await capability.templateStatus(options)).find((entry) => entry.app === slug);
+  assert.deepEqual(await stateOf(app.slug), { app: app.slug, name: "Contacts", template: "contacts", matchedBy: "recorded", state: "up to date", published: true });
+
+  // The template has improved since: an older version is recorded.
+  await apps.markTemplate(app.id, { key: "contacts", version: "0000000000000000" }, options);
+  assert.equal((await stateOf(app.slug)).state, "an update is ready");
+  // The person's own change to the live app, which the update hands back.
+  const live = (await apps.get(app.slug, {}, options)).definition;
+  const mine = { ...live, home: "mine" };
+  assert.deepEqual((await apps.saveDraft(ctx.actor, app.slug, mine, "Mine first", options)).errors, []);
+  await apps.publish(ctx.actor, app.slug, {}, options);
+
+  const updated = await capability.updateFromTemplate(ctx, app.slug);
+  assert.deepEqual(updated.errors, []);
+  assert.equal(updated.previous.home, "mine", "the screens it had, the person's change included");
+  const draft = await apps.get(app.slug, { version: "draft" }, options);
+  assert.equal(draft.version.draft, true);
+  assert.equal(draft.version.summary, "Updated from the Contacts template");
+  assert.equal(draft.definition.home, "people", "the template's screens");
+  assert.equal((await apps.get(app.slug, {}, options)).definition.home, "mine", "live unchanged until published");
+  assert.equal((await stateOf(app.slug)).state, "up to date");
+
+  // An app made before apps remembered their template: matched by its name, and the Builder checks with the person.
+  const { app: older } = await capability.installTemplate(ctx, "crm");
+  await knex("apps").where({ id: older.id }).update({ template_key: null, template_version: null });
+  assert.deepEqual([(await stateOf(older.slug)).matchedBy, (await stateOf(older.slug)).state], ["name", "can't tell"]);
+  assert.deepEqual((await capability.updateFromTemplate(ctx, older.slug)).errors, []);
+  assert.equal((await stateOf(older.slug)).state, "up to date");
+
+  // An app of the home's own has no template.
+  await apps.createApp(ctx.actor, { name: "Garden log" }, options);
+  assert.equal(await stateOf("garden-log"), undefined);
+  await assert.rejects(capability.updateFromTemplate(ctx, "garden-log"), { code: "apps_template_unknown" });
+});

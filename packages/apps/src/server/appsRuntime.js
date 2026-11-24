@@ -5,7 +5,7 @@ import { createPractices } from "./practice.js";
 import { createRegistry } from "./registry.js";
 import { createRuntime } from "./runtime.js";
 import { createScripts } from "./scripts.js";
-import { installTemplate, templateSummaries } from "./templates.js";
+import { installTemplate, templateStatus, templateSummaries, updateFromTemplate } from "./templates.js";
 import { createTableCatalog } from "./tableCatalog.js";
 import { createStarterApps } from "./starterApps.js";
 import { createTrial } from "./trial.js";
@@ -69,6 +69,9 @@ export function createAppsRuntime({ resources, systemContext, records, anyapi, n
   const watches = createWatches({ resources, repository, systemContext, registry, gate, apps, records });
   const catalog = createTableCatalog({ registry, gate });
   const installTemplateFor = (ctx, key, options) => installTemplate({ registry, apps, gate, catalog }, ctx, key, options);
+  // The home's apps made from templates and whether each is up to date; one brought up to date as a draft (D-130).
+  const templateStatusFor = (options) => templateStatus({ apps }, options);
+  const updateFromTemplateFor = (ctx, slugOrId) => updateFromTemplate({ registry, apps, catalog }, ctx, slugOrId);
   const starterApps = createStarterApps({ appSettings: resources.appSettings, installTemplate: installTemplateFor, apps });
   return Object.freeze({
     anyapi,
@@ -83,6 +86,8 @@ export function createAppsRuntime({ resources, systemContext, records, anyapi, n
     scripts,
     installTemplate: installTemplateFor,
     templateSummaries,
+    templateStatus: templateStatusFor,
+    updateFromTemplate: updateFromTemplateFor,
     catalog,
     starterApps,
     homePeople,

@@ -22,6 +22,11 @@ Ready-made apps a home installs and adapts (D-35, stage 3).
   (D-130), which installing makes with `ensureTable`. Contacts, To-dos and CRM are built on the
   shared tables: the CRM keeps each contact's pipeline in the `crm_contacts` extension. Contacts
   and To-dos are every home's starter apps (data.md).
+- An installed app remembers its template and version (`apps.template_key`, `template_version`:
+  `templateVersionOf`, a hash of its screens and tables). `templateStatus` lists the home's apps made from templates
+  as up to date, "an update is ready" or "can't tell" (made before apps remembered: matched by name);
+  `updateFromTemplate` makes or completes its tables and saves the template's screens as the app's draft, answering
+  the screens it had (D-130). The Builder's `template_check` and `template_update` call them.
 - Installing (`POST /api/w/:slug/apps-templates/:key/install`, owners and admins, or the
   Builder's `template_install`) reuses tables with the same key, adding only missing fields, or
   creates them; creates the app with the template as a draft; optionally adds sample records

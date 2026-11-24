@@ -74,6 +74,10 @@ An installed template is an ordinary app. Change it the way you change any app:
 
 Each change goes into a draft for you to preview and publish. See [Build an app with the Builder](/help/apps-builder).
 
+## Keep an app up to date with its template
+
+Templates improve over time, but an app you installed doesn't change by itself: it's yours, and you may have changed it. Ask the Builder, for example "Is my CRM up to date with its template?". It checks your apps made from templates, and when one has an update, it brings it up to date as a draft, keeping the changes you made yourself. Your app keeps working as it is until you preview the draft and press **Publish**.
+
 ## Questions
 
 ### Can I install the same template twice?

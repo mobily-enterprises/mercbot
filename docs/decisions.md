@@ -4363,6 +4363,15 @@ small and complete; more catalog families and mini apps come in phase 2, and per
   published, the first time a home is opened (its list of apps, which the sidebar reads), once per home
   (`app_settings.starter_apps_at`, claimed under a row lock), retried at the next open after a failure. A home that
   already has an app of that name keeps its own.
+- **Apps keep up with their templates**: an app made from a template remembers which, and the template's version (a
+  short hash of its screens and tables; migration `20261126120000_apps_template.cjs`, add-only). The Builder's
+  `template_check` lists the home's apps made from templates as up to date, "an update is ready" or "can't tell" (an
+  app made before apps remembered, matched by its name, which the Builder confirms with the person). `template_update`
+  brings one up to date as a draft: tables gain what it needs (nothing removed), the draft takes the template's screens,
+  the live app is unchanged until a person publishes, and the screens it had come back so the Builder carries the
+  person's own changes over. Nothing updates an app by itself: an app is the home's, and may have been changed.
+- **An app never published opens its draft** from its card, and opened live (a pin, a link) it says its draft is ready,
+  with **Open the draft**, where it's tried and published.
 - **The CRM composes from Contacts**: it uses contacts, organisations, deals and the `crm_contacts` extension for each
   contact's pipeline. A home with the old CRM keeps its contacts' fields; nothing is removed or renamed.
 

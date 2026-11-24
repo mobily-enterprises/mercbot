@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { readdirSync, readFileSync } from "node:fs";
 import { AppError } from "@jskit-ai/kernel/server/runtime/errors";
 
@@ -10,6 +11,27 @@ const TEMPLATES = readdirSync(folder)
   .sort((a, b) => a.name.localeCompare(b.name));
 
 const templateNamed = (key) => TEMPLATES.find((template) => template.key === key) || null;
+
+/** A template's version: a short hash of what an app gets from it, its screens and the tables they need (D-130). */
+export const templateVersionOf = (template) =>
+  createHash("sha256").update(JSON.stringify([template.definition, template.tables, template.uses || []])).digest("hex").slice(0, 16);
+
+/** The tables a template needs, made or completed with the fields they lack: nothing removed or renamed. */
+async function prepareTables({ registry, catalog }, ctx, template) {
+  const { options, actor } = ctx;
+  // The shared tables it's built on (D-130), with those they link to, made or completed once.
+  for (const shared of template.uses || []) await catalog.ensureTable(ctx, shared);
+  for (const table of template.tables) {
+    const existing = (await registry.loadTables(options)).find((entry) => !entry.obsolete && entry.key === table.key);
+    if (!existing) {
+      await registry.createTable(actor, { key: table.key, fields: table.fields }, options);
+    } else {
+      for (const field of table.fields.filter((wanted) => !existing.fields.some((entry) => !entry.obsolete && entry.key === wanted.key))) {
+        await registry.addField(actor, table.key, field, options);
+      }
+    }
+  }
+}
 
 /**
  * Installs a template in a home (D-35): the shared tables it uses come from the catalog (D-130); each of its own
@@ -24,20 +46,11 @@ export async function installTemplate({ registry, apps, gate, catalog }, ctx, ke
   const template = templateNamed(key);
   if (!template) throw new AppError(404, `There's no template "${key}".`, { code: "apps_template_missing", params: { key } });
   const { options, actor } = ctx;
-  // The shared tables it's built on (D-130), with those they link to, made or completed once.
-  for (const shared of template.uses || []) await catalog.ensureTable(ctx, shared);
-  for (const table of template.tables) {
-    const existing = (await registry.loadTables(options)).find((entry) => !entry.obsolete && entry.key === table.key);
-    if (!existing) {
-      await registry.createTable(actor, { key: table.key, fields: table.fields }, options);
-    } else {
-      for (const field of table.fields.filter((wanted) => !existing.fields.some((entry) => !entry.obsolete && entry.key === wanted.key))) {
-        await registry.addField(actor, table.key, field, options);
-      }
-    }
-  }
+  await prepareTables({ registry, catalog }, ctx, template);
   const app = await apps.createApp(actor, { name: template.name, icon: template.icon, color: template.color }, options);
   const { errors = [] } = await apps.saveDraft(actor, app.slug, template.definition, `From the ${template.name} template`, options);
+  // It remembers its template, so the Builder can tell when the template changes (D-130).
+  await apps.markTemplate(app.id, { key: template.key, version: templateVersionOf(template) }, options);
   let skipped = 0;
   if (sample) {
     const sampleCtx = { ...ctx, via: { kind: "template", template: template.key } };
@@ -59,6 +72,62 @@ export async function installTemplate({ registry, apps, gate, catalog }, ctx, ke
     }
   }
   return { app, errors, skipped };
+}
+
+/**
+ * The template an app came from: the one it recorded, or, for an app made before apps recorded it, the template of the
+ * same name (a guess the Builder checks with the person). Null when none.
+ */
+function templateOfApp(app) {
+  const recorded = app.templateKey ? templateNamed(app.templateKey) : null;
+  if (recorded) return { template: recorded, by: "recorded" };
+  const named = TEMPLATES.find((template) => template.name.toLowerCase() === String(app.name || "").trim().toLowerCase());
+  return named ? { template: named, by: "name" } : null;
+}
+
+/**
+ * The home's apps made from a ready-made template, and whether each is up to date with it (D-130): "up to date", "an
+ * update is ready" (the template changed since the app was made or last updated from it), or "can't tell" (an app made
+ * before apps recorded their template, matched by its name).
+ * @param {{ apps: object }} parts
+ * @param {object} options the call's
+ */
+export async function templateStatus({ apps }, options) {
+  const { apps: list } = await apps.list({ withPins: false, kind: "app" }, options);
+  return list.flatMap((app) => {
+    const found = templateOfApp(app);
+    if (!found) return [];
+    const latest = templateVersionOf(found.template);
+    const state = found.by === "name" || !app.templateVersion ? "can't tell" : app.templateVersion === latest ? "up to date" : "an update is ready";
+    const published = Boolean(app.liveVersionId);
+    return [{ app: app.slug, name: app.name, template: found.template.key, matchedBy: found.by, state, published }];
+  });
+}
+
+/**
+ * Brings an app up to its template's latest version as a draft (D-130): the tables the template needs are made or
+ * completed (nothing removed or renamed), the template's screens become the app's draft, and the app notes the
+ * version. The live app keeps working until a person publishes. Answers the app, the draft's save errors, and the
+ * screens the app had (its draft, else live), by names, so the Builder can carry over the person's own changes.
+ * @param {object} parts registry, apps, catalog
+ * @param {{ actor: object, options: object }} ctx a gate ctx
+ * @param {string} slugOrId the app
+ */
+export async function updateFromTemplate({ registry, apps, catalog }, ctx, slugOrId) {
+  const { options, actor } = ctx;
+  const before = await apps.get(slugOrId, { version: "draft" }, options);
+  const found = templateOfApp(before.app);
+  if (!found) {
+    throw new AppError(409, `${before.app.name} wasn't made from a ready-made template.`, {
+      code: "apps_template_unknown",
+      params: { app: before.app.slug }
+    });
+  }
+  const { template } = found;
+  await prepareTables({ registry, catalog }, ctx, template);
+  const { errors = [] } = await apps.saveDraft(actor, before.app.slug, template.definition, `Updated from the ${template.name} template`, options);
+  await apps.markTemplate(before.app.id, { key: template.key, version: templateVersionOf(template) }, options);
+  return { app: before.app, template: template.key, errors, previous: before.definition };
 }
 
 /**

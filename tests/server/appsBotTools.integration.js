@@ -100,6 +100,14 @@ test("bots use the home's data; the Builder drafts apps", async (context) => {
   assert.deepEqual([installed.status, installed.slug], ["draft saved", "hiring-pipeline"]);
   assert.equal(after.at(-1).kind, "app_draft");
   assert.ok(attempted.includes("template_install"));
+  // It checks the home's apps against their templates, and brings one up to date as a draft, with a card (D-130).
+  assert.deepEqual((await run(builder.templateCheck, {})).apps.map((entry) => [entry.app, entry.state]), [["hiring-pipeline", "up to date"]]);
+  const updated = await run(builder.templateUpdate, { app: "hiring-pipeline" });
+  assert.deepEqual([updated.status, updated.slug], ["draft saved", "hiring-pipeline"]);
+  assert.ok(updated.previousScreens?.screens, "the screens it had, to carry the person's changes over");
+  assert.deepEqual([after.at(-1).kind, after.at(-1).body.summary], ["app_draft", "Updated from the Hiring pipeline template"]);
+  assert.ok(attempted.includes("template_update"));
+  assert.match((await run(builder.templateUpdate, { app: "nope" })).error, /./u);
 
   // Scripts: saved only with passing tests; script_write runs the loop (a fake model here).
   const failing = await run(builder.scriptSave, { app: "hiring-pipeline", key: "initials", kind: "function", summary: "Initials of a name", settings: { params: ["name"] }, code: "function main(name) { return name }", tests: [{ name: "two words", input: ["Ada Lovelace"], expect: "AL" }] });

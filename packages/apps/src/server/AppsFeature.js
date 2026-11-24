@@ -84,6 +84,8 @@ const AppsFeature = defineFeature({
         scripts: apps.scripts,
         installTemplate: apps.installTemplate,
         templateSummaries: apps.templateSummaries,
+        templateStatus: apps.templateStatus,
+        updateFromTemplate: apps.updateFromTemplate,
         // The shared tables' catalog (D-130): a home's shared tables, made once and reused.
         catalog: apps.catalog,
         // The files feature plugs in here at start: it writes records' files to the home's Database files (D-130).

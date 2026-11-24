@@ -105,6 +105,35 @@ export function buildBuilderTools({ apps, call, actor, ctx, failed, after, scrip
       return failed(error);
     }
   }
+  // Apps made from templates, kept up to date with them (D-130): which have an update, and one brought up to date as a
+  // draft the person previews and publishes, with the screens it had, to carry the person's own changes over.
+  async function templateCheck() {
+    try {
+      return { apps: await apps.templateStatus(call) };
+    } catch (error) {
+      return failed(error);
+    }
+  }
+  async function templateUpdate({ app: slug }) {
+    try {
+      const { app, errors, previous } = await apps.updateFromTemplate(await ctx(), slug);
+      if (!errors.length) {
+        after.push({ kind: "app_draft", role: "bot", body: { slug: app.slug, name: app.name, summary: `Updated from the ${app.name} template` } });
+      }
+      return {
+        status: errors.length ? "updated; the draft needs fixing" : "draft saved",
+        slug: app.slug,
+        errors,
+        previousScreens: previous,
+        note:
+          "The draft is now the template's latest version. Compare it with previousScreens: anything the person changed " +
+          "themselves (a field, a screen, a column, wording) is carried over into the draft with app_get and app_save_draft, " +
+          "then tell the person what changed and that it's live once they publish."
+      };
+    } catch (error) {
+      return failed(error);
+    }
+  }
   async function scriptList({ app }) {
     try {
       const { scripts: list } = await scripts.list(app, { runs: 5 }, call);
@@ -302,6 +331,27 @@ export function buildBuilderTools({ apps, call, actor, ctx, failed, after, scrip
           "Install a ready-made app as a draft: its tables are reused when this home already has them (only missing fields are added) or made new. Optionally add its sample records. Then adapt it with app_get and app_save_draft; the person previews and publishes.",
         inputSchema: z.object({ key: z.string().min(1).max(40), sample: z.boolean().optional() }),
         execute: (input, options) => templateInstall(input, options)
+      })
+    ),
+    templateCheck: createTool(
+      Object.freeze({
+        id: "template_check",
+        description:
+          "Check this home's apps made from ready-made templates: for each, its template and whether an update is ready (the " +
+          "template has improved since), it's up to date, or you can't tell (an older app, matched by its name: confirm with the person).",
+        inputSchema: z.object({}),
+        execute: (input, options) => templateCheck(input, options)
+      })
+    ),
+    templateUpdate: createTool(
+      Object.freeze({
+        id: "template_update",
+        description:
+          "Bring an app made from a template up to the template's latest version, as a draft: tables gain what it needs (nothing " +
+          "removed), the draft takes the template's screens, and the live app is unchanged until the person publishes. Then carry " +
+          "over anything the person had changed themselves, from previousScreens, with app_get and app_save_draft.",
+        inputSchema: z.object({ app: z.string().min(1).max(64) }),
+        execute: (input, options) => templateUpdate(input, options)
       })
     ),
     scriptList: createTool(

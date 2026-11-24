@@ -21,6 +21,9 @@ export const appResource = defineTableResource({
     publicAt: { type: "dateTime", nullable: true },
     retiredAt: { type: "dateTime", nullable: true },
     slug: { type: "string", maxLength: 64, noTrim: true, required: true, search: true },
+    // The ready-made template it was made from, and that template's version when it was made or last updated (D-130).
+    templateKey: { type: "string", maxLength: 64, noTrim: true, nullable: true },
+    templateVersion: { type: "string", maxLength: 32, noTrim: true, nullable: true },
     theme: { type: "object", nullable: true, additionalProperties: true },
     updatedAt: { type: "dateTime" },
     visibility: { type: "string", maxLength: 16, noTrim: true },

@@ -40,6 +40,7 @@ export const APP_ACTIONS = [
   "app_try",
   "view_save",
   "template_install",
+  "template_update",
   "table_create",
   "field_add",
   "field_rename",
