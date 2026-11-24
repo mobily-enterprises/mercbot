@@ -77,6 +77,30 @@ test("Mercbot installs from its address: the manifest, a service worker over the
   await expect(page.locator(".mb-shell")).toBeVisible();
 });
 
+// The page's own network and the service worker's come back a moment apart, so the reload the online event starts can
+// still fail and land on the offline page again, after the event. It keeps trying until a page loads (offline.js).
+test("Mercbot reconnects by itself: a reload that still can't reach Mercbot just after it's back online keeps trying until the app opens", async ({ page, context }) => {
+  await openShell(page);
+  await page.evaluate(async () => (await navigator.serviceWorker.ready).scope);
+  await page.reload();
+  await expect.poll(() => page.evaluate(() => Boolean(navigator.serviceWorker.controller))).toBe(true);
+  await context.setOffline(true);
+  await page.goto(HOME).catch(() => {});
+  await expect(page.getByRole("heading", { name: "You're offline" })).toBeVisible();
+  // Its icon and script come from the worker's copy: the browser's own cache would ask the server first.
+  await expect.poll(() => page.locator("img").evaluate((img) => img.naturalWidth)).toBeGreaterThan(0);
+
+  // Back online, the first load of the page still can't reach Mercbot, as when the worker's network is a moment behind.
+  let refused = 0;
+  await context.route((url) => url.pathname === HOME, (route) => {
+    refused += 1;
+    return route.abort("internetdisconnected");
+  }, { times: 1 });
+  await context.setOffline(false);
+  await expect(page.locator(".mb-shell")).toBeVisible();
+  expect(refused, "the load that couldn't reach Mercbot").toBe(1);
+});
+
 test("Install app shows the browser's own sheet, and is gone once it's used", async ({ page }) => {
   await openShell(page);
   await page.evaluate(() => {
