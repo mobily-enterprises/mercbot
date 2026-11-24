@@ -132,6 +132,11 @@ function add() {
   gap: 12px;
 }
 
+/* The field keeps its own height: Vuetify's inputs grow to fill their column, which on a phone is the whole screen. */
+.mb-invite__fields > :deep(.v-input) {
+  flex: none;
+}
+
 .mb-invite__note {
   margin: 0;
   font-size: 13px;

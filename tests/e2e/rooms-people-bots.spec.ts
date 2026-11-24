@@ -227,6 +227,14 @@ test("a private room opens Invite at once, which invites a bot; Bots' + opens Ad
     await expect(shell.chatRow(page, `${title}, private`)).toBeVisible();
     // Its header keeps Invite for its people.
     await expect(shell.chat(page).getByRole("button", { name: "Invite", exact: true })).toBeVisible();
+    // On a phone Invite fills the screen, and its picker stays one field high, never stretched to the screen's height.
+    await page.setViewportSize({ width: 390, height: 844 });
+    await shell.chat(page).getByRole("button", { name: "Invite", exact: true }).click();
+    await expect(invite.getByLabel("People and bots")).toBeVisible();
+    expect((await invite.locator(".v-input").first().boundingBox())?.height).toBeLessThan(80);
+    await invite.getByRole("button", { name: "Cancel", exact: true }).click();
+    await expect(invite).toBeHidden();
+    await page.setViewportSize({ width: 1280, height: 800 });
 
     // Bots' +: Add bots, on Describe what you need.
     await shell.section(page, "Bots").getByRole("button", { name: "Add bots", exact: true }).click();

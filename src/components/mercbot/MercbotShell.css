@@ -17,15 +17,6 @@
   min-width: 0;
 }
 
-.mb-shell__drawer {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  z-index: 21;
-  box-shadow: var(--mb-shadow-popover);
-}
-
 .mb-shell__menu {
   position: absolute;
   top: 12px;

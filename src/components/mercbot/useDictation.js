@@ -29,6 +29,11 @@ export function useDictation({ draft, chatId, botId, focusComposer, voiceEnded }
   // The chat and bot of the call on now, kept from its start so the call is counted where it was made.
   let callWith = null;
   let dictation = null;
+  // Which listening session may still write the message box: the recognition reports its last words a moment after
+  // it's told to stop, and by then the message may have been sent or another chat opened, whose box they'd land in.
+  let session = 0;
+  // What the listening last wrote in the message box, to tell it from a box emptied by sending.
+  let written = null;
   let pressedAt = 0;
   let startedByPress = false;
 
@@ -47,11 +52,18 @@ export function useDictation({ draft, chatId, botId, focusComposer, voiceEnded }
     const before = draft.value;
     const join = before && !/\s$/u.test(before) ? " " : "";
     dictating.value = true;
+    const mine = (session += 1);
+    const current = () => mine === session;
     dictation = listen({
       lang: currentLanguage(),
-      onText: (finalText, interim) => { draft.value = `${before}${join}${finalText}${interim}`; },
-      onError: (event) => { micError.value = microphoneProblem(event); },
+      onText: (finalText, interim) => {
+        if (current()) draft.value = written = `${before}${join}${finalText}${interim}`;
+      },
+      onError: (event) => {
+        if (current()) micError.value = microphoneProblem(event);
+      },
       onEnd: (finalText) => {
+        if (!current()) return;
         draft.value = `${before}${finalText ? join : ""}${finalText}`;
         dictating.value = false;
         dictation = null;
@@ -62,6 +74,15 @@ export function useDictation({ draft, chatId, botId, focusComposer, voiceEnded }
 
   function stopDictation() {
     dictation?.stop();
+  }
+
+  // Ends the listening for good: whatever the recognition still reports is dropped.
+  function abandonDictation() {
+    if (!dictating.value) return;
+    session += 1;
+    dictation?.stop();
+    dictation = null;
+    dictating.value = false;
   }
 
   function dictationPress() {
@@ -102,10 +123,15 @@ export function useDictation({ draft, chatId, botId, focusComposer, voiceEnded }
   }
 
   watch(chatId, () => {
-    stopDictation();
+    abandonDictation();
     calling.value = false;
   });
-  onBeforeUnmount(stopDictation);
+  // The message box emptied by anything but the listening itself: the message was sent (or cleared), so these words are
+  // done with. At once, as a send and the words heard just before it can come in the same moment.
+  watch(() => draft.value, (text) => {
+    if (!text && text !== written) abandonDictation();
+  }, { flush: "sync" });
+  onBeforeUnmount(abandonDictation);
 
   return { micError, dictating, calling, canCall, dictationPress, dictationRelease, toggleDictation, startCall, callFailed, callEnded };
 }

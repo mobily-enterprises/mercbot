@@ -9,6 +9,7 @@ import MercbotChatPanel from "./MercbotChatPanel.vue";
 import { refusedWork, saidByServer } from "./accountApi.js";
 import extensions from "./extensions.js";
 import MercbotDetailsPanel from "./MercbotDetailsPanel.vue";
+import MercbotDrawer from "./MercbotDrawer.vue";
 import MercbotAppsModal from "./MercbotAppsModal.vue";
 import MercbotLiveView from "./MercbotLiveView.vue";
 import MercbotFileViewer from "./MercbotFileViewer.vue";
@@ -517,40 +518,39 @@ watch(() => currentHomeEntry.value?.slug, () => loadBuilderBot(), { immediate: t
 <template>
   <div class="mb-shell">
     <div class="mb-shell__frame" :class="{ 'mb-shell__frame--phone': geometry.phone }">
-      <div v-if="geometry.phone && drawerOpen" class="mb-shell__scrim" @click="drawerOpen = false" />
-      <MercbotSidebar
-        v-show="!geometry.phone || drawerOpen"
-        :class="{ 'mb-shell__drawer': geometry.phone }"
-        :model="sidebarModel"
-        :sections="sections"
-        :current-chat-id="currentChat ? currentChat.id : ''"
-        :folded="folded"
-        :people-actions="peopleActions"
-        :home-name="homeName"
-        :me="me"
-        :manages="manages"
-        :compact="geometry.compact"
-        :width="geometry.sidebarWidth"
-        :hints="hints"
-        :switch-highlight-id="switchHighlightId"
-        :drafts="drafts"
-        :moods="moodByChat"
-        :hidden-expanded="shellPreferences.hiddenExpanded"
-        :archived-expanded="shellPreferences.archivedExpanded"
-        :editing-section-id="editingSectionId"
-        :display-name="displayName"
-        :initials="initials"
-        :picture="picture"
-        @select="selectChat"
-        @command="runCommand"
-        @search="paletteOpen = true"
-        @new-chat="beginNewChat()"
-        @new-bot="openNewBot()"
-        @open-member="openMember"
-        @connect-apps="appsOpen = true"
-        @skills="openSkills"
-        @resize="resizeSidebar"
-      />
+      <MercbotDrawer v-model:open="drawerOpen" :phone="geometry.phone">
+        <MercbotSidebar
+          :model="sidebarModel"
+          :sections="sections"
+          :current-chat-id="currentChat ? currentChat.id : ''"
+          :folded="folded"
+          :people-actions="peopleActions"
+          :home-name="homeName"
+          :me="me"
+          :manages="manages"
+          :compact="geometry.compact"
+          :width="geometry.sidebarWidth"
+          :hints="hints"
+          :switch-highlight-id="switchHighlightId"
+          :drafts="drafts"
+          :moods="moodByChat"
+          :hidden-expanded="shellPreferences.hiddenExpanded"
+          :archived-expanded="shellPreferences.archivedExpanded"
+          :editing-section-id="editingSectionId"
+          :display-name="displayName"
+          :initials="initials"
+          :picture="picture"
+          @select="selectChat"
+          @command="runCommand"
+          @search="paletteOpen = true"
+          @new-chat="beginNewChat()"
+          @new-bot="openNewBot()"
+          @open-member="openMember"
+          @connect-apps="appsOpen = true"
+          @skills="openSkills"
+          @resize="resizeSidebar"
+        />
+      </MercbotDrawer>
       <!-- On a phone a chat's own header has the drawer's button (plan 4.6); an empty list shows this one. -->
       <div v-if="geometry.phone && !shownPage && !currentChat" class="mb-shell__menu">
         <MercbotIconButton icon="$menu" label="Your chats" tone="surface" @click="drawerOpen = true" />
