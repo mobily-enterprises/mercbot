@@ -4404,8 +4404,10 @@ so that work was answered, not done, and its start listed every key as missing t
   WebSocket upgrades, as before. It registers for computers (D-15) and keeps its computers' files in the files bucket
   (D-91), and starts none of the web servers' loops.
 - **Its start names only what it uses** (`missingKeyLines`): the premium AI its computers' browser steps run on
-  (`WORK.browser`), the Vault key that seals their saved browsers, and the files bucket, each saying what's off on
-  that server. A web server's start names every key, as before.
+  (`WORK.browser`), the Vault key that seals their saved browsers, the Google app (amended the same day: a home's
+  files kept in Google Drive are mounted on the server that runs its computer, whose drive-token route renews the
+  Drive's key with the Google app's client, D-80), and the files bucket, each saying what's off on that server. A web
+  server's start names every key, as before.
 - The role reaches the features as `MERCBOT_SERVER_ROLE`, which the start sets from `role`; it is never set by hand.
 - Tests: `tests/server/serverRoles.test.js` and `tests/server/serverRoles.integration.js`.
 

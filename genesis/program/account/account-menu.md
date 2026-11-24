@@ -196,7 +196,8 @@ the Vault key, email, the apps to connect, the GitHub App bots' commands push th
 human check, the files bucket and another Mercbot to link to. Mercbot starts without any of them. `startServer` logs one line for each setting a feature that's off still
 needs (`missingKeyLines`: "<SETTING> isn't set, so this is off: <name>. <what's off>"); a kind on the stand-in model is
 on without its key. It names only the keys the server's role uses (D-131, `serverRole.js`): every one on a web server,
-and on a computers server the premium AI, the Vault key and the files bucket, each with its `computers` text, which
+and on a computers server the premium AI, the Vault key, the Google app (the Drive key of a home whose files are in
+Google Drive is renewed where its computer runs) and the files bucket, each with its `computers` text, which
 says what's off there. `keysOf(env)` gives each key's settings, whether each is set (never a value) and `set`, `partly`
 or `missing`, for a screen that lists them. Both take a list of entries in `KEYS`'s shape as well, `KEYS` by default,
 for a copy built on Mercbot that lists and checks its own keys the same way.
