@@ -154,10 +154,12 @@ test("every switch copies all the home's files and makes the new place an exact 
   drive.add({ name: "notes.txt", parents: [oldShared.id], data: "Shoppinz", modifiedTime: when.toISOString() });
   drive.add({ name: "stale.txt", parents: [oldShared.id], data: "From before" });
   await knex("file_storage").insert({ workspace_id: homeId, kind: "mercbot", settings: seal({ driveFolders: { [homeDrive.id]: old.id } }, VAULT_KEY) });
+  // A home's folders, its database files' folder among them (fileStore.js's prepare makes it in every home, d036b7a).
   const files = {
     "shared/notes.txt": "Shopping",
     "shared/Invoices/march.pdf": "%PDF-1.7 march",
     "shared/Empty/": null,
+    "db/": null,
     "bots/7/everyone/report.md": "# Report",
     "chats/9/diary.txt": "Dear diary"
   };
@@ -345,10 +347,10 @@ test("a command started before the move is waited for, and a copy that differs i
   assert.deepEqual(drive.tree((await stored()).settings.folderId), withFolders({ ...files, "shared/report.txt": "The report" }));
 });
 
-test("whose own Google Drive holds the home's files: the person's account while the files move in and once they're there", { skip: SKIP }, async (context) => {
+test("whose Google Drive holds the home's files: the account the person added, while the files move in and once they're there", { skip: SKIP }, async (context) => {
   const { pat, kim, homeId, serve, account, as, moved } = await setup(context);
   const kimDrive = await account(kim, "kim@example.com");
-  const homeDrive = await account(pat, "family@example.com", { workspace_id: homeId });
+  const patDrive = await account(pat, "family@example.com");
   const server = await serve();
   const held = (userId) => server.storage.heldInTheirDrive(homeId, userId);
 
@@ -368,9 +370,10 @@ test("whose own Google Drive holds the home's files: the person's account while 
   assert.deepEqual(await held(kim), { account: "kim@example.com", moving: false, into: false });
   assert.equal(await held(pat), null);
 
-  // In the home's own Drive account, which Pat added, the files are nobody's.
-  await server.storage.choose(homeId, { kind: "drive", accountId: homeDrive.id }, as(pat));
+  // In a Drive account Pat added, the files are Pat's, whatever it's called: every account is its home's, and the ones
+  // a person added go when they leave it, the files with them (D-111). Never Kim's.
+  await server.storage.choose(homeId, { kind: "drive", accountId: patDrive.id }, as(pat));
   await moved("done");
-  assert.equal(await held(pat), null);
+  assert.deepEqual(await held(pat), { account: "family@example.com", moving: false, into: false });
   assert.equal(await held(kim), null);
 });
