@@ -10,7 +10,8 @@ import { GATEWAY_INSIDE, PROXY_ENV, START_FORWARDER, sandboxGateway, startGatewa
 import { internetLimits } from "./internetUsage.js";
 import { secretMask } from "./secretMask.js";
 import {
-  folderMount, platformFlags, runSandboxed, runsc, sandboxMemory, sandboxPlace, sandboxSpec, shellAvailable, sweepSandboxes, toolsDir
+  ensureMountPoints, folderMount, platformFlags, runSandboxed, runsc, sandboxMemory, sandboxPlace, sandboxSpec, shellAvailable,
+  sweepSandboxes, toolsDir
 } from "./gvisor.js";
 
 const run = promisify(execFile);
@@ -246,10 +247,10 @@ function execute({ env, dirs, script, maxSeconds, limits, readOnly, gateway: sta
 export async function gvisorProcess({ runtimeEnv, dirs, args, cwd, env, mounts, readOnly }) {
   await sweepSandboxes(runtimeEnv);
   const { id, dir: runDir, state } = sandboxPlace("app");
+  const spec = bundle({ runtimeEnv, dirs, args, cwd, env, mounts, readOnly, limits: LIMITS, rootReadOnly: true });
+  await ensureMountPoints(spec);
   await fs.mkdir(state, { recursive: true });
-  await fs.writeFile(path.join(runDir, "config.json"), JSON.stringify(
-    bundle({ runtimeEnv, dirs, args, cwd, env, mounts, readOnly, limits: LIMITS, rootReadOnly: true })
-  ));
+  await fs.writeFile(path.join(runDir, "config.json"), JSON.stringify(spec));
   const [command, runArgs] = runsc(runtimeEnv, [
     "--rootless", "--network=none", "--ignore-cgroups", "--overlay2=root:memory", ...platformFlags(runtimeEnv),
     "--root", state, "run", "--bundle", runDir, id
@@ -641,10 +642,10 @@ export function createShell({
       limits: limits.internet,
       meter: internet.forGateway({ workspaceId: place.homeId, botId: place.botId })
     });
+    const spec = bundle({ runtimeEnv: env, dirs, script: SESSION, limits, term: "xterm-256color", label, gateway: gatewayDir });
+    await ensureMountPoints(spec);
     await fs.mkdir(state, { recursive: true });
-    await fs.writeFile(path.join(runDir, "config.json"), JSON.stringify(
-      bundle({ runtimeEnv: env, dirs, script: SESSION, limits, term: "xterm-256color", label, gateway: gatewayDir })
-    ));
+    await fs.writeFile(path.join(runDir, "config.json"), JSON.stringify(spec));
     await new Promise((resolve) => {
       const child = spawn(...runsc(env, [
         "--rootless", "--network=none", "--ignore-cgroups", "--overlay2=root:memory", "--host-uds=open", ...platformFlags(env),
