@@ -31,6 +31,15 @@ test("a copy given nothing has every feature off, one line for each setting it n
   assert.deepEqual(keysOf({}).map((entry) => entry.status), KEYS.map(() => "missing"));
 });
 
+test("every key decides whether a computers server uses it: what's off there without it, or null for a web server's only", () => {
+  // A key that says nothing would be left off a computers server's start (missingKeyLines) and its settings off its
+  // machines without anyone deciding so (D-131).
+  for (const entry of KEYS) {
+    assert.ok(Object.hasOwn(entry, "computers"), `${entry.name} doesn't say whether a computers server uses it (computers: a text, or null)`);
+    assert.ok(entry.computers === null || (typeof entry.computers === "string" && entry.computers.trim() !== ""), `${entry.name}'s computers is a text or null`);
+  }
+});
+
 test("each key, missing alone, turns off its own feature and nothing else", () => {
   assert.deepEqual(missingKeyLines(everything), []);
   for (const entry of KEYS) {
