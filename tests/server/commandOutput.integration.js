@@ -76,10 +76,7 @@ test("a cut command output is kept whole at /runs and read only by its own bot i
 
 // The bot's own tools on it, run_command and read_command_output (packages/bots commandTools.js), which page through
 // the whole output.
-test("read_command_output reads a cut output in parts, from its own chat only", {
-  skip: SKIP,
-  todo: "commandTools.js (packages/bots) still gives files.shell.start and files.commandOutput a conversationId, not the seat's chatBotId (58d009e), and botTools.js doesn't import while the bots package is rewired"
-}, async (context) => {
+test("read_command_output reads a cut output in parts, from its own chat only", { skip: SKIP }, async (context) => {
   const { buildTools } = await import("../../packages/bots/src/server/botTools.js");
   const { turnDoubles } = await import("../support/botDoubles.mjs");
   const knex = await connectTestDatabase();
@@ -88,10 +85,12 @@ test("read_command_output reads a cut output in parts, from its own chat only", 
   const store = createFileStore({ root: "", fallback: dir, ownStorage: async () => null, settle: async () => {}, explain: async () => {} });
   const { shell, commandOutput, inHome } = await startShell(knex, context, { store, limits: LIMITS });
   const files = { store, shell, commandOutput, apps: { session: () => ({ close() {} }) } };
-  // The tools read and write with their turn's call options, in the bot's home.
+  // A turn's tools are the bot's in one chat, its seat there (chat_bot_id), and read and write with their turn's call
+  // options, in the bot's home.
   const toolsFor = (chat) => buildTools(turnDoubles({
-    call: inHome(homeId), approvals: { decide: async () => "allow" }, computer: null, files, homeId, userId, botId,
-    place: store.placeFor({ homeId, chatId: chat.id, chatKind: "public", botId }), conversationId: chat.id, computerId: chat.chatBotIds.get(botId)
+    call: inHome(homeId), approvals: { decide: async () => "allow" }, computer: null, files,
+    seat: { id: botId, name: "Outie", workspace_id: homeId, user_id: userId, chat_id: chat.id, chat_bot_id: chat.chatBotIds.get(botId), chat: { id: chat.id, kind: "public" } },
+    place: store.placeFor({ homeId, chatId: chat.id, chatKind: "public", botId })
   })).tools;
   const tools = toolsFor(mine);
 
