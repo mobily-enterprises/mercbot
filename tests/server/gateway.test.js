@@ -20,11 +20,12 @@ test("private, internal and this machine's addresses are blocked; public ones ar
 
 test("the gateway refuses internal targets and mail ports before connecting", async (context) => {
   const dir = await mkdtemp(path.join(os.tmpdir(), "mb-gateway-"));
-  const gateway = await startGateway({ socketPath: path.join(dir, "gateway.sock") });
+  let gateway = null;
   context.after(async () => {
-    await gateway.close();
+    await gateway?.close();
     await rm(dir, { recursive: true, force: true });
   });
+  gateway = await startGateway({ socketPath: path.join(dir, "gateway.sock") });
   const ask = (request) => new Promise((resolve) => {
     const socket = net.connect(path.join(dir, "gateway.sock"));
     let answer = "";
@@ -56,14 +57,17 @@ test("a stand-in answers for its own public name and port only, and never for a 
   await new Promise((resolve) => standIn.listen(0, "127.0.0.1", resolve));
   const { port } = standIn.address();
   const socketPath = path.join(dir, "gateway.sock");
-  const gateway = await startGateway({
-    socketPath,
-    standIns: new Map([["web.example.test:443", { address: "127.0.0.1", port }], ["mail.example.test:587", { address: "127.0.0.1", port }]])
-  });
+  // Put away before the gateway starts: one that doesn't start must not leave the stand-in listening, which keeps the
+  // file from ever ending.
+  let gateway = null;
   context.after(async () => {
-    await gateway.close();
+    await gateway?.close();
     await new Promise((resolve) => standIn.close(resolve));
     await rm(dir, { recursive: true, force: true });
+  });
+  gateway = await startGateway({
+    socketPath,
+    standIns: new Map([["web.example.test:443", { address: "127.0.0.1", port }], ["mail.example.test:587", { address: "127.0.0.1", port }]])
   });
   assert.equal(await askAt(socketPath, "CONNECT web.example.test:443 HTTP/1.1\r\n\r\n"), "HTTP/1.1 200 Connection Established\r\n\r\nthe stand-in\n");
   assert.match(await askAt(socketPath, "CONNECT mail.example.test:587 HTTP/1.1\r\n\r\n"), /^HTTP\/1\.1 403[^]*port 587/u);
@@ -79,12 +83,13 @@ test("a plain http request reaches its host by its path alone, and only that req
   }));
   await new Promise((resolve) => standIn.listen(0, "127.0.0.1", resolve));
   const socketPath = path.join(dir, "gateway.sock");
-  const gateway = await startGateway({ socketPath, standIns: new Map([["web.example.test:80", { address: "127.0.0.1", port: standIn.address().port }]]) });
+  let gateway = null;
   context.after(async () => {
-    await gateway.close();
+    await gateway?.close();
     await new Promise((resolve) => standIn.close(resolve));
     await rm(dir, { recursive: true, force: true });
   });
+  gateway = await startGateway({ socketPath, standIns: new Map([["web.example.test:80", { address: "127.0.0.1", port: standIn.address().port }]]) });
   const answer = await askAt(socketPath, "GET http://web.example.test/page?x=1 HTTP/1.1\r\nHost: web.example.test\r\nConnection: keep-alive\r\nProxy-Connection: keep-alive\r\n\r\n");
   assert.match(answer, /^HTTP\/1\.1 200 OK[^]*ok$/u);
   assert.equal(heads[0], "GET /page?x=1 HTTP/1.1\r\nHost: web.example.test\r\nConnection: close\r\n\r\n");
@@ -136,11 +141,12 @@ async function reader(context) {
 async function gatewayWith(context, standIns, options = {}) {
   const dir = await mkdtemp(path.join(os.tmpdir(), "mb-gateway-"));
   const socketPath = path.join(dir, "gateway.sock");
-  const gateway = await startGateway({ socketPath, standIns: new Map(standIns), ...options });
+  let gateway = null;
   context.after(async () => {
-    await gateway.close();
+    await gateway?.close();
     await rm(dir, { recursive: true, force: true });
   });
+  gateway = await startGateway({ socketPath, standIns: new Map(standIns), ...options });
   return { gateway, socketPath };
 }
 
