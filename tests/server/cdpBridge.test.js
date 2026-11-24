@@ -34,7 +34,12 @@ async function fakeBrowser(socketPath) {
     upgrades.push(request.url);
     wss.handleUpgrade(request, socket, head, (ws) => ws.on("message", (data) => ws.send(`echo ${data}`)));
   });
-  await new Promise((resolve) => server.listen(socketPath, resolve));
+  // A listen that fails (a path past the 107 bytes a socket's may have) rejects here; with no "error" listener it
+  // would end the whole file, and Node 26.5 aborts on its own assertion instead of reporting it.
+  await new Promise((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(socketPath, resolve);
+  });
   return {
     upgrades,
     close: () => new Promise((resolve) => {
