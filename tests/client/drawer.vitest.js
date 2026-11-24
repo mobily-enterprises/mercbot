@@ -5,7 +5,9 @@ import MercbotDrawer from "../../src/components/mercbot/MercbotDrawer.vue";
 import { swipeCloses } from "../../src/components/mercbot/drawerSwipe.js";
 
 // The phone's chat drawer (MercbotDrawer.vue): a swipe toward its edge closes it past a third of its width or as a quick
-// flick, anything less springs back; on a phone it has a backdrop and its own sliding panel, elsewhere the list alone.
+// flick, anything less springs back; on a phone it has a backdrop and its own sliding panel, elsewhere the list in its
+// place. Both hold the list in the same element, so a window crossing the phone's width keeps it mounted, with whatever
+// it has open (tests/e2e/new-home.spec.ts resizes to a phone with New home open).
 describe("swiping the chat drawer", () => {
   it("closes past a third of its width, or with a quick flick", () => {
     expect(swipeCloses({ dragged: -110, width: 300, ms: 900 })).toBe(true);
@@ -37,7 +39,12 @@ describe("the chat drawer", () => {
     expect(html).toMatch(/class="mb-drawer"[^>]*style="[^"]*display:\s*none/u);
   });
 
-  it("elsewhere: the list alone, in its place", async () => {
-    expect(await render({ phone: false, open: false })).toBe("<nav>Chats</nav>");
+  it("elsewhere: the list in its place, in a wrapper laid out as if it weren't there, with no backdrop", async () => {
+    expect(await render({ phone: false, open: false })).toMatch(/^<div class="mb-drawer-host"[^>]*><nav>Chats<\/nav><\/div>$/u);
+  });
+
+  it("holds the list in the same element on a phone and elsewhere, so crossing the phone's width never remounts it", async () => {
+    const holder = (html) => html.match(/<(\w+)[^>]*><nav>Chats<\/nav><\/\1>/u)?.[1];
+    expect([holder(await render({ phone: true, open: true })), holder(await render({ phone: false, open: false }))]).toEqual(["div", "div"]);
   });
 });
