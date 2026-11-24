@@ -170,6 +170,8 @@ test("watches see each change once and queue one task per claim", async (context
 
   assert.deepEqual((await one.watches.remove({ chatBotId, name: "Won" }, options)).removed, true);
   assert.deepEqual((await one.watches.list({}, options)).map((watch) => watch.name), ["New deals"]);
+  // Their ids alone, as the home's recurring tasks count them (D-132).
+  assert.deepEqual(await one.watches.idsOfHome(options), (await one.watches.list({}, options)).map((watch) => watch.id));
 });
 
 test("a watch reads 200 changed records in as many queries as 10", async (context) => {

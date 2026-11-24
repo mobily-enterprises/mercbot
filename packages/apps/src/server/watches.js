@@ -170,6 +170,11 @@ export function createWatches({ resources, repository, systemContext, registry, 
     }));
   }
 
+  /** The ids of every watch the caller may read, in id order: a system context's count of a home's recurring tasks (D-132). */
+  async function idsOfHome(options) {
+    return (await appWatches.queryAll({ sort: ["id"], fields: ["chatBotId"] }, passedOn(options))).map((row) => String(row.id));
+  }
+
   /** A watch the caller may read, by `{ id }`, or by its bot in its chat and its name (`{ chatBotId, name }`). */
   async function find(where, options) {
     const filters = where?.id != null
@@ -425,6 +430,7 @@ export function createWatches({ resources, repository, systemContext, registry, 
   return Object.freeze({
     create,
     list,
+    idsOfHome,
     // readable-check: allow setter-seam - not a slot: pauses or resumes a watch
     setEnabled,
     pauseIn,

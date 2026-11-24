@@ -1,13 +1,13 @@
 <script setup>
 import { computed, onMounted, ref, watch } from "vue";
 import { appsApi } from "../apps/appsApi.js";
-import { nanoMoney } from "./accountApi.js";
+import { nanoMoney, saidByServer } from "./accountApi.js";
 import { botsApi } from "./botsApi.js";
 import { chatsApi } from "./chatsApi.js";
 import { homeChanges } from "./homesApi.js";
 import MercbotAvatar from "./MercbotAvatar.vue";
 import MercbotConfirmDialog from "./MercbotConfirmDialog.vue";
-import { FILTERS, KIND_LABELS, costWords, groupsOf, summaryParts, whenWords } from "./recurringTasksView.js";
+import { FILTERS, KIND_LABELS, costWords, groupsOf, kept, summaryParts, whenWords } from "./recurringTasksView.js";
 
 // Settings → Recurring tasks (D-132): every routine and watch in the chats the person can open and every app's job,
 // grouped by bot, each with where it runs, when in words, its last and next run, its state and what it cost in the last
@@ -20,7 +20,8 @@ const props = defineProps({
 const emit = defineEmits(["failure", "notify", "open-chat", "edit-routine", "open-app"]);
 
 const list = ref(null);
-const failed = ref(false);
+// Why the list couldn't load, in the server's words when it said some; shown in place, with Try again.
+const failed = ref("");
 const filter = ref("all");
 const sort = ref("bot");
 const onlyBot = ref(props.bot);
@@ -29,13 +30,14 @@ const deleting = ref(null);
 const now = ref(new Date());
 
 async function load() {
-  failed.value = false;
+  failed.value = "";
   try {
     list.value = await botsApi.recurringTasks();
     now.value = new Date();
   } catch (error) {
-    failed.value = true;
-    emit("failure", error);
+    failed.value = saidByServer(error, "Try again in a moment.");
+    // A list already on screen stays; only then is the failure told apart from it.
+    if (list.value) emit("failure", error);
   }
 }
 onMounted(load);
@@ -52,8 +54,9 @@ const summary = computed(() => {
 });
 const groups = computed(() => (list.value ? groupsOf(list.value.tasks, { filter: filter.value, bot: onlyBot.value, sort: sort.value }) : []));
 const botName = computed(() => list.value?.tasks.find((task) => task.bot?.id === onlyBot.value)?.bot.name || "this bot");
-const count = (value) => (list.value?.tasks || []).filter((task) => (value === "all" ? true : value === "paused" || value === "failing" ? task.state === value : task.kind === value)).length;
-const filters = computed(() => FILTERS.filter((entry) => entry.value === "all" || entry.value === filter.value || count(entry.value) > 0));
+// A chip for each kind and state the list has, and the one chosen.
+const filters = computed(() => FILTERS.filter((entry) =>
+  entry.value === "all" || entry.value === filter.value || (list.value?.tasks || []).some((task) => kept(task, entry.value))));
 
 const keyOf = (task) => `${task.kind}:${task.id}`;
 const switchable = (task) => (task.state === "paused" || task.state === "failing" ? task.can.resume : task.can.pause);
@@ -68,7 +71,11 @@ function whereText(task) {
 }
 function whenLine(task) {
   const parts = [task.schedule];
-  if (task.nextRunAt && task.state === "running") parts.push(`Next ${whenWords(task.nextRunAt, now.value)}`);
+  if (task.nextRunAt && task.state === "running") {
+    // A run its runner hasn't picked up yet is due, never "ago".
+    const due = new Date(task.nextRunAt) <= now.value;
+    parts.push(due ? "Next: due now" : `Next ${whenWords(task.nextRunAt, now.value)}`);
+  }
   if (task.lastRunAt) parts.push(`Last ${whenWords(task.lastRunAt, now.value)}`);
   return parts.join(" · ");
 }
@@ -130,7 +137,7 @@ function menuOf(task) {
       <div class="mb-set-row">
         <span class="mb-set-row__text">
           <span class="mb-set-row__label">The recurring tasks couldn't load.</span>
-          <span class="mb-set-row__description">Check your connection, then try again.</span>
+          <span class="mb-set-row__description">{{ failed }}</span>
         </span>
         <button type="button" class="mb-set-pill" @click="load">Try again</button>
       </div>
@@ -174,7 +181,10 @@ function menuOf(task) {
           </span>
         </div>
       </div>
-      <p v-else-if="!groups.length" class="mb-tasks__none">Nothing here with this filter.</p>
+      <p v-else-if="!groups.length" class="mb-tasks__none">
+        Nothing here with this filter.
+        <button type="button" class="mb-tasks__where" @click="filter = 'all'; onlyBot = ''">Show every task</button>
+      </p>
 
       <div v-for="group in groups" :key="group.key" class="mb-tasks__group">
         <p class="mb-set-group mb-tasks__group-head">
@@ -201,7 +211,13 @@ function menuOf(task) {
               <span v-if="task.why" class="mb-tasks__why"><v-icon icon="$warning" size="13" />{{ task.why }}</span>
             </span>
             <span class="mb-tasks__side">
-              <span class="mb-tasks__cost" :class="{ 'mb-tasks__cost--none': !task.cost?.nano }">{{ costWords(task) || "—" }}</span>
+              <span v-if="costWords(task)" class="mb-tasks__cost" :class="{ 'mb-tasks__cost--none': !task.cost?.nano }">{{ costWords(task) }}</span>
+              <span
+                v-else
+                class="mb-tasks__cost mb-tasks__cost--none"
+                title="Only the home's owners and admins, and the person it runs as, see its cost"
+                aria-label="Cost not shown: it runs as someone else"
+              >—</span>
               <v-tooltip :text="switchNote(task)" :disabled="!switchNote(task)" location="top">
                 <template #activator="{ props: tipProps }">
                   <span v-bind="tipProps">

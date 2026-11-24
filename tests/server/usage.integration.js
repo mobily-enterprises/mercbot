@@ -157,6 +157,24 @@ test("work a routine or a watch runs is counted for its task too: its AI calls a
   assert.deepEqual(own.map((row) => row.id), ["5"]);
 });
 
+test("a task's day keeps only the kinds Mercbot counts, never a negative count, and two servers' first calls on it both count", async (context) => {
+  const { knex, recorder: make, homeId, ownerId, botId, cleanup } = await setup(context);
+  cleanup(() => knex("usage_tasks_daily").where({ workspace_id: homeId }).del());
+  const row = (fields) => ({ workspace_id: homeId, day: "2026-11-24", task_kind: "routine", task_id: "1", ...fields });
+  await assert.rejects(knex("usage_tasks_daily").insert(row({ task_kind: "goal" })), /ck_usage_tasks_daily_kind/u);
+  for (const column of ["runs", "calls", "cost_nano"]) {
+    await assert.rejects(knex("usage_tasks_daily").insert(row({ [column]: -1 })), /ck_usage_tasks_daily_counts/u, column);
+  }
+  // Two calls of one run finishing at once on different servers: the day's row is made once, and both count.
+  const recorder = make();
+  const routine = { kind: "routine", id: "88" };
+  const done = { state: "done", cacheHit: 0, cacheMiss: 100, output: 10 };
+  const tickets = await Promise.all([1, 2].map(() => recorder.open({ userId: ownerId, botId, task: routine, provider: "together" })));
+  await Promise.all(tickets.map((ticket) => recorder.finish(ticket, done)));
+  const days = await knex("usage_tasks_daily").where({ workspace_id: homeId, task_id: "88" });
+  assert.deepEqual(days.map((day) => day.calls), [2]);
+});
+
 test("the meter carries the task a run is for to each AI call made inside it", async (context) => {
   const opened = [];
   const recorder = { open: async (call) => (opened.push(call), call), finish: async () => true };

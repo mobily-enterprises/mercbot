@@ -18,9 +18,12 @@ vi.mock("vue", async (importOriginal) => {
   const onMounted = (hook) => (vue.getCurrentInstance()?.type.__name === "MercbotSettingsRecurringTasks" ? vue.onServerPrefetch(hook) : vue.onMounted(hook));
   return { ...vue, onMounted };
 });
-const listed = vi.hoisted(() => ({ value: null }));
+const listed = vi.hoisted(() => ({ value: null, error: null }));
 vi.mock("../../src/components/mercbot/botsApi.js", () => ({
-  botsApi: { recurringTasks: async () => listed.value }
+  botsApi: { recurringTasks: async () => {
+    if (listed.error) throw listed.error;
+    return listed.value;
+  } }
 }));
 const { default: MercbotSettingsRecurringTasks } = await import("../../src/components/mercbot/MercbotSettingsRecurringTasks.vue");
 const { useSidebarCommands } = await import("../../src/components/mercbot/useSidebarCommands.js");
@@ -102,6 +105,12 @@ describe("Settings → Recurring tasks", () => {
     expect(html).toContain('aria-label="Resume Close stale deals"');
   });
 
+  it("offers a filter chip only for what the list has", async () => {
+    listed.value = { tasks: [TASKS[0], TASKS[1]], costScope: "home", others: null, notListedNano: 0 };
+    const chips = [...(await rendered()).matchAll(/mb-tasks__chip[^>]*>(?:<[^>]*>)*\s*([^<]+?)\s*</gu)].map(([, label]) => label);
+    expect(chips).toEqual(["All", "Routines"]);
+  });
+
   it("tells a member they see their own tasks' costs", async () => {
     listed.value = { tasks: [TASKS[0]], costScope: "own", others: null, notListedNano: 0 };
     const html = await rendered();
@@ -122,6 +131,39 @@ describe("Settings → Recurring tasks", () => {
     const { runCommand } = useSidebarCommands({ open: { settings: (section, how) => opened.push([section, how.bot]) }, reportFailure: () => {} });
     await runCommand({ name: "openSettings", args: { section: "recurring-tasks", bot: "7" } });
     expect(opened).toEqual([["recurring-tasks", "7"]]);
+  });
+
+  it("offers every task again when a filter leaves none", async () => {
+    listed.value = { tasks: TASKS, costScope: "home", others: null, notListedNano: 0 };
+    const html = await rendered({ bot: "99" });
+    expect(html).toContain("Nothing here with this filter.");
+    expect(html).toContain("Show every task");
+  });
+
+  it("says a running task's overdue next run is due now, not that it was", async () => {
+    const overdue = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    listed.value = { tasks: [task({ nextRunAt: overdue })], costScope: "home", others: null, notListedNano: 0 };
+    const html = await rendered();
+    expect(html).toContain("Next: due now");
+    expect(html).not.toMatch(/Next 1 h ago/u);
+  });
+
+  it("says why a cost isn't shown, to everyone and to screen readers", async () => {
+    listed.value = { tasks: [task({ cost: null })], costScope: "own", others: null, notListedNano: 0 };
+    const html = await rendered();
+    expect(html).toContain('aria-label="Cost not shown: it runs as someone else"');
+  });
+
+  it("keeps the server's words in place when the list can't load, with Try again", async () => {
+    listed.error = Object.assign(new Error("Recurring tasks are resting for a minute."), { status: 503 });
+    try {
+      const html = await rendered();
+      expect(html).toContain("Recurring tasks are resting for a minute.");
+      expect(html).toContain("Try again");
+      expect(html).not.toContain("Check your connection");
+    } finally {
+      listed.error = null;
+    }
   });
 
   it("opens filtered to one bot from its card", async () => {

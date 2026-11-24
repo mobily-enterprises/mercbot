@@ -66,7 +66,8 @@ route and every bot turn reads through (the row policies and `readable_from`). I
 files, commands, watches and app jobs of other subsystems key to. It owns who speaks and the turns (DeepSeek replies,
 run on the agent loop of the installed JSKIT agent packages, whose tables it owns through them), the bots' tools,
 the sidebar's People and Bots and each member's card, Library and archive, bot templates and teams (D-98, D-105), what a bot knows (D-107), what
-each bot remembers of the home's public chats (its rooms memory) and the home's common knowledge (D-113, D-119), routines run as their maker, and the scripted welcome chat. Its records (`mercbot.bots.records`) are how the other
+each bot remembers of the home's public chats (its rooms memory) and the home's common knowledge (D-113, D-119), routines run as their maker, the home's list of its recurring tasks (every routine and watch in the
+chats a person can open and every app's job, with what each cost, D-132), and the scripted welcome chat. Its records (`mercbot.bots.records`) are how the other
 subsystems read chats, seats and bots.
 
 ### Source
@@ -306,7 +307,8 @@ so open pages on any server hear about changes made on another (D-15).
 ## `account` Account menu services
 
 Owns usage (every AI call, picture, computer's day and command, D-73, with what each AI call cost at its provider),
-the meter around that work and the recorder that counts it, which a copy built on Mercbot may replace
+what each recurring task (a routine's or a watch's runs) used and cost per day, with its runs (`usage_tasks_daily`,
+D-132), the meter around that work and the recorder that counts it, which a copy built on Mercbot may replace
 (`mercbot.usage-recorder`), the spending reports (D-76), the archive of old usage, Mercbot's three kinds of AI and
 their providers (D-16, D-72), who runs this copy (whom `mercbot.copy-runners` names: Mercbot's one person, or a copy built on Mercbot's
 own), the server's role (web or computers, D-131), the Vault (D-17), the check a copy built on Mercbot may make of every picture and video (`mercbot.media-check`, its
@@ -328,6 +330,7 @@ its own or, for a Settings section, put one in the place of Mercbot's (extension
 - Table `database` `default` `usage_events`
 - Table `database` `default` `usage_daily`
 - Table `database` `default` `usage_monthly`
+- Table `database` `default` `usage_tasks_daily`
 - Table `database` `default` `computer_days`
 - Table `database` `default` `usage_jobs`
 - Table `database` `default` `vault_items`

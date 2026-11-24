@@ -119,7 +119,9 @@ rows while they're kept and the daily totals after that. The account keeps these
 its cost, and the archive's claims in a table of their own, `usage_jobs`. Work a recurring task runs for (a routine's
 or a watch's run, `task` in `track()`'s who, D-132) also adds its AI calls and cost to `usage_tasks_daily` (by home,
 UTC day and task, with the person it runs as; never a computer's day), and each run adds one there, once
-(`meter.countTaskRun`, whoever records the work); its rows are deleted after 13 months by the hourly upkeep, a few
+(`meter.countTaskRun`, whoever records the work). The table keeps only a routine's or a watch's kind and no negative
+count or cost (`ck_usage_tasks_daily_kind`, `ck_usage_tasks_daily_counts`), one row per home, day and task (its unique
+key, which also serves the 30-day read); its rows are deleted after 13 months by the hourly upkeep, a few
 thousand at a time, and `spending.tasks(homeId, reader)` adds up the last 30 days by task, under the same reader rules
 (`genesis/program/bots/routines.md`).
 

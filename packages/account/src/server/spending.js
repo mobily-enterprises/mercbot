@@ -18,7 +18,7 @@ export async function everyGroup(handle, spec, options) {
 }
 
 /** The days a recurring task's cost is shown for (D-132): today and the 29 before it. */
-export const TASK_DAYS = 30;
+const TASK_DAYS = 30;
 
 /** A home's totals the reader may see: the whole home for its owners and admins, else their own use. */
 export function seen(homeId, reader) {
@@ -51,7 +51,7 @@ export function readerOf(request) {
  * @param {Date} at now
  * @returns {Promise<Array<{ kind: string, id: string, runs: number, calls: number, spentNano: number }>>}
  */
-export async function taskSpending(handle, spend, homeId, reader, options, at) {
+async function taskSpending(handle, spend, homeId, reader, options, at) {
   const from = dayOf(new Date(at.getTime() - (TASK_DAYS - 1) * 24 * 60 * 60 * 1000));
   const rows = await everyGroup(handle, {
     groupBy: ["taskKind", "taskId"],

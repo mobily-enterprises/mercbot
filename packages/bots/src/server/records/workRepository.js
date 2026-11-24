@@ -326,7 +326,18 @@ export function createWorkRepository({ botRequests, botRoutines, messages: botMe
    * @param {CallOptions} options
    */
   async function routinesOfHome(options) {
-    return botRoutines.queryAll({ sort: ["id"] }, options);
+    // Never a running routine's saved steps (runSteps), which only its run reads.
+    const fields = ["chatBotId", "name", "schedule", "enabled", "once", "failures", "nextRunAt", "lastRunAt", "madeBy"];
+    return botRoutines.queryAll({ sort: ["id"], fields }, options);
+  }
+
+  /**
+   * The ids of every routine of the home the caller may read, in id order: a system context's count of a home's
+   * recurring tasks (D-132).
+   * @param {CallOptions} options
+   */
+  async function routineIdsOfHome(options) {
+    return (await botRoutines.queryAll({ sort: ["id"], fields: ["chatBotId"] }, options)).map((row) => String(row.id));
   }
 
   /**
@@ -435,6 +446,7 @@ export function createWorkRepository({ botRequests, botRoutines, messages: botMe
     routinesOf,
     routinesIn,
     routinesOfHome,
+    routineIdsOfHome,
     routine,
     routineNamed,
     routineOf,

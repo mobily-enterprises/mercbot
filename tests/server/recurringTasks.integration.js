@@ -4,7 +4,7 @@ import test from "node:test";
 import { claimedWork, memberOptions } from "../support/botRecords.mjs";
 import { seedChat } from "../support/chatFixtures.mjs";
 import { botsOf, homeOfPeople, startChatTurns } from "../support/botDoubles.mjs";
-import { queriesDuring } from "../support/queryCount.mjs";
+import { queriesDuring, statementsDuring } from "../support/queryCount.mjs";
 import { createChatRoutines } from "../../packages/bots/src/server/chatRoutines.js";
 import { createRecurringTasks, jobName, jobSchedule, watchSchedule } from "../../packages/bots/src/server/recurringTasks.js";
 
@@ -45,9 +45,11 @@ async function setup(context, { watches = [], scripts = [] } = {}) {
     }).returning("*");
     return String(row.id);
   };
+  // Apps answer as theirs do: the scripts of the kind asked for, when one is.
+  const asked = [];
   const apps = {
-    watches: { list: async () => watches },
-    scripts: { overview: async () => scripts }
+    watches: { list: async () => watches, idsOfHome: async () => watches.map((watch) => watch.id) },
+    scripts: { overview: async (where) => (asked.push(where?.kind ?? null), scripts.filter((script) => !where?.kind || script.kind === where.kind)) }
   };
   const routines = createChatRoutines({ records: kit.records });
   const tasks = createRecurringTasks({ records: kit.records, routines, apps, meter: kit.meter, systemContext: kit.systemContext });
@@ -55,7 +57,7 @@ async function setup(context, { watches = [], scripts = [] } = {}) {
     list: (options = memberOptions({ userId, homeId, role: manages ? "owner" : "member" })) =>
       tasks.list({ homeId, reader: { userId, manages } }, options)
   });
-  return { kit, knex, homeId, olive, max, scout, shared, oliveOnly, maxOnly, routine, owner: as(olive, true), member: as(max, false) };
+  return { kit, knex, homeId, olive, max, scout, shared, oliveOnly, maxOnly, routine, asked, owner: as(olive, true), member: as(max, false) };
 }
 
 /** A day's figures of a task, as its runs and calls add them. */
@@ -93,6 +95,10 @@ test("each person sees the routines of the chats they can open, and the costs th
   );
   assert.ok(weatherRow.nextRunAt);
   assert.deepEqual(weatherRow.can, { pause: true, resume: false, edit: true, delete: true });
+  // A routine in an archived chat can't be edited or resumed, as in its chat's details.
+  await knex("conversations").where({ id: oliveOnly.id }).update({ archived_at: new Date() });
+  const archived = (await owner.list()).tasks.find((task) => task.name === "Diary");
+  assert.deepEqual(archived.can, { pause: true, resume: false, edit: false, delete: true });
   const brokenRow = byName.get("Broken");
   assert.deepEqual([brokenRow.state, brokenRow.why, brokenRow.nextRunAt], ["failing", "Paused after 5 failed runs in a row", null]);
   assert.deepEqual(brokenRow.can, { pause: false, resume: false, edit: false, delete: true }, "only its maker resumes it");
@@ -145,6 +151,7 @@ test("watches and apps' jobs are listed with their schedules in words; a job run
       { pause: true, resume: false, edit: false, delete: false }]
   );
   assert.equal(tasks.filter((task) => task.kind === "job").length, 1, "only jobs: a button isn't a recurring task");
+  assert.deepEqual(kit.asked, ["job"], "and apps are asked for their jobs alone, not every script");
   const { tasks: his } = await kit.member.list();
   assert.equal(his.find((task) => task.kind === "job").can.pause, false, "a member can't switch an app's job");
 });
@@ -176,11 +183,26 @@ test("a routine's run is counted once, by the server that started it, with the A
   assert.equal(String(row.user_id), olive, "for the person it runs as");
 });
 
-test("the list costs the same number of queries for 5 routines or 40", async (context) => {
+test("the list costs the same queries for 5 routines or 200, but a page of costs per 100, and never reads a routine's saved run", async (context) => {
   const { knex, homeId, olive, shared, routine, owner } = await setup(context);
-  const count = async () => (await queriesDuring(knex, () => owner.list())).length;
+  const count = () => queriesDuring(knex, () => owner.list());
   for (let index = 0; index < 5; index += 1) await spent(knex, homeId, "routine", await routine(shared, olive, `Few ${index}`), olive, 1e6);
   const few = await count();
-  for (let index = 0; index < 35; index += 1) await spent(knex, homeId, "routine", await routine(shared, olive, `Many ${index}`), olive, 1e6);
-  assert.equal(await count(), few);
+  assert.ok(few > 0, "it counts the list's queries");
+  // 195 more in one insert each, as a realistic home's.
+  const steps = Array.from({ length: 50 }, (_, step) => ({ role: "assistant", content: `Step ${step} `.repeat(40) }));
+  const rows = await knex("bot_routines").insert(Array.from({ length: 195 }, (_, index) => ({
+    workspace_id: homeId, chat_bot_id: shared.chatBotIds.values().next().value, made_by: olive, name: `Many ${index}`,
+    schedule: "Every day at 7:00 (UTC)", instructions: "Many", cron: "0 7 * * *", timezone: "UTC", run_steps: JSON.stringify(steps)
+  }))).returning("id");
+  await knex("usage_tasks_daily").insert(rows.map((row) => ({
+    workspace_id: homeId, day: today(), task_kind: "routine", task_id: String(row.id), user_id: olive, runs: 1, calls: 1, cost_nano: 1e6
+  })));
+  // The costs are read a page of 100 tasks' totals at a time (spending's everyGroup): one more for the second hundred.
+  assert.equal(await count(), few + 1, "the same queries, and one more page of costs");
+  const { tasks } = await owner.list();
+  assert.equal(tasks.length, 200);
+  const reads = await statementsDuring(knex, () => owner.list(), /from "bot_routines"/u);
+  assert.ok(reads.length, "it reads the routines");
+  for (const { sql } of reads) assert.doesNotMatch(sql, /run_steps|"\*"|bot_routines"\.\*/u, "only the columns the list shows");
 });

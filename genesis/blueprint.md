@@ -95,7 +95,9 @@ and its routines, which people pause, resume, edit or delete there.
 People ask a bot in plain words to do something on a schedule; it sets up a
 routine, says when it will run with the time zone, and then runs it on its own
 while they are away, posting the result in the chat and marking it unread. A routine runs as the person
-who asked for it. Opening a chat shows a "new" divider above what arrived since the last visit.
+who asked for it. Settings lists everything a home does by itself in one place, every routine and watch in the
+chats a person can open and every app's job, with when each runs and what each cost in the last 30 days, as far as
+that person may see what was spent. Opening a chat shows a "new" divider above what arrived since the last visit.
 People can teach a bot a task by recording themselves doing it on the bot's
 computer; the bot saves the steps as the person's own skill, which a bot uses only in a Private
 chat whose only person is them.

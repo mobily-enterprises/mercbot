@@ -21,6 +21,8 @@ runs, how people list, pause, resume and delete them, and the home's list of eve
 - `packages/bots/src/server/records/workRepository.js`
 - `migrations/20261122120000_chats_core.cjs`
 - `migrations/20261119180000_routine_feeds.cjs`
+- `migrations/20261127120000_usage_tasks_daily.cjs`
+- `migrations/20261128120000_usage_tasks_daily_checks.cjs`
 - `src/components/mercbot/useBotRoutines.js`
 - `src/components/mercbot/MercbotChatDetails.vue`
 - `src/components/mercbot/MercbotMemberCard.vue`
@@ -89,10 +91,12 @@ a job whose last run failed), with `why` in words. `cost` is the last 30 days' `
 totals (`meter.taskCosts`, below), `{ nano: 0, runs: 0 }` when nothing is counted and null when the person can't see it:
 owners and admins see every task's (`costScope: "home"`), a member only those that run as them (`"own"`). Apps' jobs
 run without AI. `can` says which of the existing routes the person may use: a routine's and a watch's switch (pause:
-anyone who can open its chat; resume: its maker) and delete; edit (a routine's maker, through its chat); a job's switch,
+anyone who can open its chat; resume: its maker) and delete; edit (a routine's maker, neither its chat nor its bot archived, as Chat details' Edit, through its chat); a job's switch,
 owners and admins only. Owners and admins also get `others: { count, costNano }`, the routines and watches in chats
 they can't open, unnamed (read with the bots' system context), and everyone `notListedNano`, what tasks since deleted
-(and, for a member, theirs in chats they've left) cost. Its reads are the same number however many tasks.
+(and, for a member, theirs in chats they've left) cost. Its reads are the same number however many tasks, apart from the costs, read a page of 100 tasks' totals at a
+time; it reads only the columns it shows (never a running routine's saved steps), apps' jobs alone of their scripts
+(`scripts.overview({ kind: "job" })`), and, for the unseen count, only ids (`routineIdsOfHome`, `watches.idsOfHome`).
 
 **What a task costs** (D-132; `packages/account`): a routine's run and a watch's run are tracked with their task
 (`meter.track({ …, task: { kind, id } })`), which work started inside carries on. Each AI call and command's

@@ -447,7 +447,7 @@ export function registerRoutes(http, { appsRuntime, notices, streams, uploads })
     "/api/w/:workspaceSlug/apps-scripts",
     home,
     handle(async (_request, ctx) => ({
-      scripts: await scripts.overview(ctx.options),
+      scripts: await scripts.overview({}, ctx.options),
       webAccess: await scripts.web.list(ctx.options),
       canManage: ctx.canManage
     }))

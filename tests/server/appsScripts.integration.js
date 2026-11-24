@@ -169,8 +169,11 @@ test("scripts: saving, buttons, data, rules, functions, jobs and the web", async
   const runs = await scripts.list("sales", {}, options);
   assert.equal(runs.scripts.find((script) => script.key === "close_deal").runs[0].ok, true);
   // The Scripts tab: every script of the home, with its app and its last run.
-  const closeDeal = (await scripts.overview(options)).find((script) => script.key === "close_deal");
+  const closeDeal = (await scripts.overview({}, options)).find((script) => script.key === "close_deal");
   assert.deepEqual([closeDeal.app.slug, closeDeal.lastRun.ok], ["sales", true]);
+  // Only one kind when asked (the home's recurring tasks read its jobs, D-132): close_deal is a button's.
+  assert.deepEqual((await scripts.overview({ kind: "job" }, options)).map((script) => script.kind).filter((kind) => kind !== "job"), []);
+  assert.ok((await scripts.overview({ kind: "action" }, options)).some((script) => script.key === "close_deal"));
 
   // A script past its call budget fails in place, with a friendly message.
   const budget = { ...bonus, key: "greedy", code: "async function main() { for (let i = 0; i < 60; i += 1) await records.list('deals'); return {} }", tests: [{ name: "runs", input: {}, records: {}, expect: {} }] };

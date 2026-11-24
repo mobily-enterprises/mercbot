@@ -43,7 +43,7 @@ const neutral = {
     pausedMessage: async () => null,
     // What some tokens would cost, at the provider's list prices, as Mercbot's own recorder answers (D-107).
     estimateNano: estimateAtProvider,
-    // A recurring task's runs and costs (D-131) are counted nowhere.
+    // A recurring task's runs and costs (D-132) are counted nowhere.
     countTaskRun: async () => true,
     taskCosts: async () => []
   }),

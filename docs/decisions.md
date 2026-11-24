@@ -4438,7 +4438,9 @@ the app.
   from this release: older runs show none. Apps' jobs run in the script pool without AI and cost nothing.
 - **A watch's last run** is kept on the watch (`app_watches.last_run_at`, set when a run is queued), so the list reads
   it without reading the jobs table.
-- Its reads are the same number however many tasks a home has (a list per kind, the chats, bots and costs once each).
+- Its reads are the same number however many tasks a home has (a list per kind, the chats, bots and costs once each),
+  but for the costs, read a page of 100 tasks' totals at a time; it reads only the columns it shows and apps' jobs
+  alone.
 
 Proved by `tests/server/recurringTasks.integration.js`, `tests/server/usage.integration.js`,
 `tests/server/appsWatches.integration.js` and `tests/client/recurringTasks.vitest.js`.

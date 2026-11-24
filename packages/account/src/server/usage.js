@@ -161,7 +161,7 @@ export function eventRow(event) {
 }
 
 /** The kinds of recurring task whose work is counted on its own (D-132): a routine's runs and a watch's. */
-export const TASK_KINDS = Object.freeze(["routine", "watch"]);
+const TASK_KINDS = Object.freeze(["routine", "watch"]);
 
 /**
  * The recurring task a piece of work ran for, as the meter carries it (`task` in track()'s who), or null: a routine or
@@ -176,7 +176,7 @@ export function taskOf(task) {
 }
 
 /** The key of a task's day's row: its home, day (UTC) and task. */
-export const taskDayKey = (workspaceId, task, at) => ({ workspaceId, day: dayOf(at), taskKind: task.kind, taskId: task.id });
+const taskDayKey = (workspaceId, task, at) => ({ workspaceId, day: dayOf(at), taskKind: task.kind, taskId: task.id });
 
 /**
  * Adds a finished piece of work to its recurring task's day (D-132), when it ran for one: its AI calls and their cost,

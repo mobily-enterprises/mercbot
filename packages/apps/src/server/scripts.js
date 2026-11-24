@@ -273,9 +273,13 @@ export function createScripts({
     };
   }
 
-  /** Every script of the home, for the Apps home's Scripts tab, in its apps' name order. */
-  async function overview(options) {
-    const rows = await appScripts.queryAll({ sort: ["key"] }, passedOn(options));
+  /**
+   * Every script of the home, or only those of one `kind` (the home's recurring tasks read its jobs, D-132), for the
+   * Apps home's Scripts tab, in its apps' name order.
+   * @param {{ kind?: string | null }} where
+   */
+  async function overview({ kind = null } = {}, options) {
+    const rows = await appScripts.queryAll({ ...(kind ? { filters: { kind } } : {}), sort: ["key"] }, passedOn(options));
     const appIds = [...new Set(rows.map((row) => row.appId))];
     const owners = appIds.length ? await appRows.queryAll({ filters: { id: appIds }, sort: ["name"] }, passedOn(options)) : [];
     const order = new Map(owners.map((app, index) => [app.id, index]));
