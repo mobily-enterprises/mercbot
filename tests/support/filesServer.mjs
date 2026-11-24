@@ -40,8 +40,8 @@ export async function filesEnv({ vault, drive, filesDir }) {
     MERCBOT_VAULT_KEY: vault,
     MERCBOT_FILES_DIR: filesDir,
     MERCBOT_TOOLS_DIR: path.resolve(".tools"),
-    GOOGLE_CLIENT_ID: "client",
-    GOOGLE_CLIENT_SECRET: "secret",
+    GOOGLE_CLIENT_ID: drive.client.id,
+    GOOGLE_CLIENT_SECRET: drive.client.secret,
     MERCBOT_TEST_GOOGLE_DRIVE_URL: drive.url,
     MERCBOT_TEST_GOOGLE_DRIVE_PROXY: drive.proxy,
     MERCBOT_TEST_GOOGLE_DRIVE_CA: drive.caFile

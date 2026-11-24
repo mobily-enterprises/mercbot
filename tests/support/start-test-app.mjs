@@ -63,9 +63,14 @@ Object.assign(process.env, {
 });
 
 // A home's files kept in Google Drive (D-80), and signing in to a Google Drive account in Connect apps, go to a local
-// stand-in (fakeDrive.mjs): Mercbot calls it directly, rclone through its proxy, trusting its test authority.
+// stand-in (fakeDrive.mjs): Mercbot calls it directly, rclone through its proxy, trusting its test authority. It is
+// signed in to with the Google app it knows, whichever pair this copy would pick (credentials in oauth.js).
 const fakeDrive = await startFakeDrive();
 Object.assign(process.env, {
+  GOOGLE_CLIENT_ID: fakeDrive.client.id,
+  GOOGLE_CLIENT_SECRET: fakeDrive.client.secret,
+  GOOGLE_TEST_CLIENT_ID: fakeDrive.client.id,
+  GOOGLE_TEST_CLIENT_SECRET: fakeDrive.client.secret,
   MERCBOT_TEST_GOOGLE_DRIVE_URL: fakeDrive.url,
   MERCBOT_TEST_GOOGLE_DRIVE_PROXY: fakeDrive.proxy,
   MERCBOT_TEST_GOOGLE_DRIVE_CA: fakeDrive.caFile
