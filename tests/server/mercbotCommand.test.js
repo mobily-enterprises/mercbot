@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { execFile } from "node:child_process";
+import { execFile, execFileSync, spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readlinkSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import http from "node:http";
 import os from "node:os";
@@ -40,9 +40,17 @@ const IS_ACTIVE = "systemctl --user is-active --quiet mercbot.service";
  */
 const withoutWaiting = (calls) => calls.filter((call, index) => call !== IS_ACTIVE || !calls.slice(0, index).includes(ENABLE));
 
-/** A person's computer with Mercbot 0.1.0 installed, and its health check answering while `healthy` is true. */
-async function computer(context) {
+// setfacl (the acl package), to make a folder whose ACL lets its group into everything made in it, as a Vibe64
+// session's folders do. Such a folder ignores the umask: only the mode a file is made with keeps the group out.
+const HAS_SETFACL = spawnSync("setfacl", ["--version"]).status === 0;
+
+/**
+ * A person's computer with Mercbot 0.1.0 installed, and its health check answering while `healthy` is true; with
+ * `groupAcl`, its folders' default ACL gives this process's group everything made in them.
+ */
+async function computer(context, { groupAcl = false } = {}) {
   const root = mkdtempSync(path.join(os.tmpdir(), "mercbot-command-"));
+  if (groupAcl) execFileSync("setfacl", ["-m", `g:${process.getgid()}:rwx`, "-m", `d:g:${process.getgid()}:rwx`, root]);
   const home = path.join(root, "mercbot");
   const state = path.join(root, "state");
   const shims = path.join(root, "bin");
@@ -185,6 +193,21 @@ test("a backup holds the database, the data and the settings, for the person alo
   assert.ok(restored.calls.includes("systemctl --user --quiet enable --now mercbot.service"), "it was running, so it runs again");
 
   assert.match((await mercbot(["restore", path.join(home, "mercbot.env")])).stderr, /can't be read as a backup\.\n$/u);
+});
+
+test("a backup and the settings restore brings back stay the person's alone in a folder whose ACL lets its group in", {
+  skip: !HAS_SETFACL && "this machine has no setfacl (the acl package), so it can't make such a folder"
+}, async (context) => {
+  const { home, mercbot } = await computer(context, { groupAcl: true });
+  writeFileSync(path.join(home, "made-plainly"), "");
+  assert.equal(statSync(path.join(home, "made-plainly")).mode & 0o060, 0o060, "the folder lets its group into what is made in it");
+  const archive = path.join(home, "kept.tar.gz");
+  const saved = await mercbot(["backup", archive]);
+  assert.equal(saved.status, 0, saved.stderr);
+  assert.equal(statSync(archive).mode & 0o777, 0o600, "the backup");
+  const restored = await mercbot(["restore", archive]);
+  assert.equal(restored.status, 0, restored.stderr);
+  assert.equal(statSync(path.join(home, "mercbot.env")).mode & 0o777, 0o600, "the settings restore brings back");
 });
 
 /** A release archive of Mercbot `version`, in one folder as releases come. */
