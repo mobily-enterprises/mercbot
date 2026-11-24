@@ -45,7 +45,12 @@ does, within limits per command, per bot and per home (D-47, D-112, D-126, D-127
   (`makeMountPoints`, `storeToolbox.js`) on a toolbox it builds and on one it already has. gVisor makes a missing mount
   point in the toolbox itself, which only the user running runsc can do where it may write; a toolbox made by root for
   a host's servers to share starts no sandbox given a folder at a point it lacks (`cannot create sandbox`), so no
-  mount point is left to gVisor or made by hand (`tests/server/storeToolbox.test.js`).
+  mount point is left to gVisor or made by hand (`tests/server/storeToolbox.test.js`). And just before each sandbox
+  starts (`runSandboxed`, `gvisorProcess`, the session's and the desktop's), `ensureMountPoints` makes each point its
+  spec gives a folder at that the toolbox lacks, where this server may write in it (its own toolbox, while
+  `MERCBOT_SANDBOX_USER` runs runsc too); where it may not, the sandbox is refused in words naming
+  `node scripts/toolbox-mount-points.mjs <toolbox>`, which the toolbox's owner runs, in place of gVisor's
+  `cannot create sandbox` (`tests/server/sandboxMountPoints.test.js`).
 - **Toolbox from a host's store (D-86):** on a host whose programs come from a read-only Nix store, nothing is
   installed or built: `MERCBOT_TOOLBOX_STORE` names the store (such as `/nix`) and `MERCBOT_TOOLBOX_DIR` the folder the
   toolbox is made in, and `scripts/serve.sh` runs `scripts/store-toolbox.mjs` (`makeStoreToolbox`, `storeToolbox.js`)
