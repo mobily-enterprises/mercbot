@@ -128,6 +128,12 @@ export function registerRoutes(http, { bots, approvals, notices, meter, records,
     return chats.list({ hidden: hidden === "1", archived: archived === "1", after: after || null }, options);
   }));
   router.register("POST", `${home}/chats`, auth, handle(async (request, _user, options) => chats.create(body(request), options)));
+  // How many chats have news for the person in their other homes (D-133): the app's icon is one a device, so with the
+  // app open here it counts them beside this home's, as a notification's number does. Always the signed-in person's.
+  router.register("GET", `${home}/chats/unread-elsewhere`, auth, handle(async (_request, user) => {
+    const counts = await records.pushQueue.unreadChats([String(user.id)], { exceptHomeId: String(user.homeId) });
+    return { chats: counts.get(String(user.id)) ?? 0 };
+  }));
   router.register("GET", `${home}/chats/public`, auth, handle(async (request, _user, options) =>
     chats.publicRooms({ after: typeof request.query?.after === "string" ? request.query.after : null }, options)));
   // A card's "Show hidden and archived": the person's hidden and archived chats a bot or a person shares, a page at a time.

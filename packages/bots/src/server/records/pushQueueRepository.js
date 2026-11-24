@@ -116,25 +116,39 @@ export function createPushQueueRepository({ resources, systemContext, now = () =
   }
 
   /**
+   * How many chats have news for each of these people (D-133): unread for them in every home, a chat they muted left
+   * out. It's the number on their app's icon, one icon a device: a notification's, and with the app open its other
+   * homes' (`exceptHomeId`, the one it shows, whose chats the page counts itself). One query however many.
+   * @param {string[]} userIds
+   * @param {{ exceptHomeId?: string | null }} [which]
+   * @returns {Promise<Map<string, number>>}
+   */
+  async function unreadChats(userIds, { exceptHomeId = null } = {}) {
+    const options = { context: systemContext("count people's chats with news in every home, for their app's icon") };
+    const filters = { userIds: userIds.map(String), unread: true, muted: false, ...(exceptHomeId == null ? {} : { notWorkspaceId: String(exceptHomeId) }) };
+    const counts = await chatPeople.aggregate({ groupBy: ["userId"], measures: { unread: { count: "*" } }, filters }, options);
+    return new Map(counts.map((row) => [String(row.userId), Number(row.unread) || 0]));
+  }
+
+  /**
    * What due notifications are about, in a fixed number of reads however many: each one still unread and not muted,
    * with its chat (title and whose direct chat it is), its message (kind, role, author and text) and its person's
-   * unread chats in that home. One whose message was read meanwhile, or whose chat is gone, is left out.
+   * chats with news (unreadChats). One whose message was read meanwhile, or whose chat is gone, is left out.
    * @param {Array<{ workspaceId: string, userId: string, chatId: string, kind: string, messageId: string }>} due
    */
   async function stillUnread(due) {
     if (!due.length) return [];
     const options = { context: systemContext("read what people's due notifications are about, in every home") };
     const ids = (field) => [...new Set(due.map((row) => String(row[field])))];
-    const [places, chats, said, counts] = await Promise.all([
+    const [places, chats, said, unreadOf] = await Promise.all([
       chatPeople.queryAll({ filters: { conversationIds: ids("chatId"), userIds: ids("userId") }, fields: ["conversationId", "userId", "readUpTo", "unread", "muted"] }, options),
       conversations.queryAll({ filters: { id: ids("chatId") }, fields: ["title", "directBotId", "directUserId", "directPersonId"] }, options),
       messages.queryAll({ filters: { id: ids("messageId") }, fields: ["kind", "role", "body", "authorBotId", "authorUserId"] }, options),
-      chatPeople.aggregate({ groupBy: ["userId"], measures: { unread: { count: "*" } }, filters: { userIds: ids("userId"), unread: true } }, options)
+      unreadChats(ids("userId"))
     ]);
     const placeOf = new Map(places.map((place) => [`${place.conversationId}:${place.userId}`, place]));
     const chatOf = new Map(chats.map((chat) => [String(chat.id), chat]));
     const messageOf = new Map(said.map((message) => [String(message.id), message]));
-    const unreadOf = new Map(counts.map((row) => [String(row.userId), Number(row.unread) || 0]));
     return due.flatMap((row) => {
       const place = placeOf.get(`${row.chatId}:${row.userId}`);
       const chat = chatOf.get(String(row.chatId));
@@ -149,6 +163,7 @@ export function createPushQueueRepository({ resources, systemContext, now = () =
   return Object.freeze({
     notePosted,
     takeDue,
-    stillUnread
+    stillUnread,
+    unreadChats
   });
 }

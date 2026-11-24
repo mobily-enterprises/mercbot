@@ -50,6 +50,8 @@ export const chatsApi = {
   },
   // One chat the person can open: { chat }.
   get: (chatId) => request(chat(chatId)),
+  // How many chats have news for the person in their other homes ({ chats }), for the app's icon (D-133).
+  unreadElsewhere: () => retrying(() => request("/chats/unread-elsewhere")),
   // New room's Create: { kind: "public" | "private", title, people: userIds, bots: botIds } → { chat }; a room needs its
   // title (400 bots_chat_needs_title).
   create: (choice) => post("/chats", choice),

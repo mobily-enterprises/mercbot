@@ -4480,6 +4480,12 @@ news, and takes what other apps share into it.
   newest message, as the most pressing kind. One tag a chat, so a newer one replaces the one before on the device; the
   app's icon shows the unread chats where the device shows a count. Opening it goes to the chat, in a window already
   open when there is one.
+- **The icon's count** (amended the same day): the icon is one a device, so its number is the person's chats with news
+  in every home, a chat they muted left out, one rule (`pushQueueRepository.js` `unreadChats`, one query however many
+  homes): a notification's number, and with the app open this home's chats as the page lists them plus the other
+  homes' (`GET /api/w/:workspaceSlug/chats/unread-elsewhere`, `src/components/mercbot/appBadge.js`), read as the page
+  opens, as it's shown again and as news of another home's chat comes. It counted only the home being viewed with the
+  app open, and a notification's counted muted chats.
 - **Settings → General → Notifications** (`push_settings`, one row a person who changed theirs): this device on or
   off, a switch per kind, whether the message's text shows (off: who and where only), quiet hours in the bots' time
   zone, the devices (each removable) and **Send a test notification**. The browser asks permission only when the

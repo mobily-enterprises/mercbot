@@ -52,6 +52,13 @@ export const CHAT_PERSON_SEARCH = Object.freeze({
       query.whereNot(column("userId"), id);
     }
   }),
+  // Places in every home but this one: the chats with news in a person's other homes, for their app's icon (D-133).
+  notWorkspaceId: Object.freeze({
+    type: "id",
+    applyFilter(query, id, { column }) {
+      query.whereNot(column("workspaceId"), id);
+    }
+  }),
   // Everyone but these people: who has a place in a home's chats but is no longer one of its active members.
   notUserIds: Object.freeze({
     type: "array",

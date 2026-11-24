@@ -3,6 +3,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue"
 import { useRoute, useRouter } from "vue-router";
 import iconUrl from "../../../favicon.svg";
 import { accountApi } from "./accountApi.js";
+import { useAppBadge } from "./appBadge.js";
 import { useAppInstall } from "./appInstall.js";
 import { chatTitle } from "./chatView.js";
 
@@ -167,12 +168,8 @@ async function turnOnNotifications() {
   }
 }
 
-// The app's icon shows how many chats have news, where the device shows a count (installed, on Android and computers).
-const unreadChats = computed(() => props.chats.filter((chat) => chat.unread && !chat.muted).length);
-watch(unreadChats, (count) => {
-  if (!("setAppBadge" in navigator)) return;
-  (count ? navigator.setAppBadge(count) : navigator.clearAppBadge()).catch(() => {});
-}, { immediate: true });
+// The app's icon shows how many chats have news in every home (appBadge.js).
+useAppBadge(() => props.chats);
 </script>
 
 <template>

@@ -23,6 +23,7 @@ other apps share into it, and sends people notifications on their devices when a
 - `src/main.js`
 - `src/components/mercbot/appInstall.js`
 - `src/components/mercbot/MercbotAppDevice.vue`
+- `src/components/mercbot/appBadge.js`
 - `src/components/mercbot/MercbotSettingsNotifications.vue`
 - `src/components/mercbot/MercbotAccountMenu.vue`
 - `src/components/mercbot/accountApi.js`
@@ -68,6 +69,13 @@ row, forgets the device.
 
 On the device the service worker shows it with the chat's tag (a newer one replaces it), sets the icon's count, and
 opening it focuses a Mercbot window and goes to the chat, or opens one.
+
+The icon's count is one a device: the person's chats with news in every home, a chat they muted left out
+(`unreadChats`, one query however many homes), the notification's `unread`. With the app open, `appBadge.js` sets it to
+the shown home's chats with news, as the page lists them, plus the other homes' (`GET
+/api/w/:workspaceSlug/chats/unread-elsewhere`, always the signed-in person's), read when the page opens, when it's
+shown again, and when the page's stream (every chat of the person's, `useChatEvents.js`) brings news of a chat it
+doesn't list.
 
 The browser asks permission only when the person turns notifications on in Settings → General → Notifications, or
 accepts the offer made once (remembered on the device) when they see their first routine set up in the open chat.

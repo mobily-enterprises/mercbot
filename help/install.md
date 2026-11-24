@@ -30,7 +30,7 @@ In Chrome or Edge, open the account menu and choose **Install app**, or use the 
 
 - **Its own window:** full screen on a phone, with the phone's status bar in Mercbot's colours, light or dark as you chose in Settings.
 - **Quick actions:** press and hold the icon (on Android) or right-click it (on a computer) for **New chat**, **Recurring tasks** and **Files**.
-- **The icon's count:** on Android and computers, the icon shows how many of your chats have something new.
+- **The icon's count:** on Android and computers, the icon shows how many of your chats have something new, in all your homes. Chats you muted aren't counted.
 - **Opening links:** a link to another website opens in your browser, not inside Mercbot.
 - **Offline:** without a connection, Mercbot shows a page that says so, with **Try again**; it carries on as soon as you're back online. Bots keep working on Mercbot's servers meanwhile.
 

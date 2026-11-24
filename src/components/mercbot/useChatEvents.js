@@ -4,6 +4,11 @@ import { homePath } from "./homeApi.js";
 import { homeChanges, useHomes } from "./homesApi.js";
 import { heardTyping } from "./useChatTyping.js";
 
+// Counts news of chats the page doesn't list: another home's (the person's stream is all their chats'), so the app's
+// icon reads the other homes' count again (appBadge.js), or a chat new here.
+// readable-check: allow module-state - shared resource: the page's one stream hears it, the app's icon (useAppBadge) follows it
+export const newsElsewhere = ref(0);
+
 /**
  * News from any server about this person's chats and their home (D-15, D-112): a chat's new messages, someone in it
  * typing (useChatTyping.js), its bots starting and finishing work, a change to the chat itself or its members, a person taking over or handing back a
@@ -93,6 +98,7 @@ export function useChatEvents({ store, work, team, onDropped, onComputer, onRoom
     events.addEventListener("typing", (event) => heardTyping(JSON.parse(event.data)));
     events.addEventListener("messages", (event) => {
       const { chatId } = JSON.parse(event.data);
+      if (!store.knowsChat(String(chatId))) newsElsewhere.value += 1;
       chatNews(String(chatId)).catch(() => {});
       work.replyNews(String(chatId));
     });
