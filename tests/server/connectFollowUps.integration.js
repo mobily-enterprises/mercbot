@@ -73,10 +73,11 @@ function deferred() {
  * what the database says is connected in `home` (filled in once it exists). `reply` stands in for the model; each
  * server's prompts are kept.
  */
-async function startServer(context, { home, providers, reply = async () => ({ text: "Done.", transcript: [] }) }) {
+async function startServer(context, { home, providers, notices, reply = async () => ({ text: "Done.", transcript: [] }) }) {
   const prompts = [];
   const connected = { knex: null };
   const kit = await startChatTurns(context, {
+    ...(notices ? { notices } : {}),
     integrations: {
       hasConnected: async (pluginId) =>
         Boolean(await connected.knex("plugin_accounts").where({ workspace_id: home.id, plugin_id: pluginId, status: "connected" }).first())
@@ -112,13 +113,13 @@ async function startServer(context, { home, providers, reply = async () => ({ te
  * Pat and Kim's home, Pat's bot and Pat's chat with it, holding a connect card for Pat, and Pat's Testmail account,
  * not connected yet; the two servers.
  */
-async function setup(context, replies = {}) {
+async function setup(context, replies = {}, { notices } = {}) {
   const cleanup = cleanupStack(context);
   const providers = await standInProvider(cleanup);
   const home = {};
   // The sign-in's callback lands on A; the person's page, and their chat, are on B.
-  const a = await startServer(context, { home, providers, reply: replies.a });
-  const b = await startServer(context, { home, providers, reply: replies.b });
+  const a = await startServer(context, { home, providers, notices, reply: replies.a });
+  const b = await startServer(context, { home, providers, notices, reply: replies.b });
   const { knex } = a;
   const { homeId, people: [userId, kim] } = await homeOfPeople(a, ["Pat", "Kim"]);
   home.id = homeId;
@@ -292,6 +293,53 @@ test("a server that stops hands its follow-up over at once: its chat is freed, a
   assert.deepEqual(await botTexts(), ["Filed the receipts on B."]);
   assert.equal(await followUp(), undefined);
   assert.deepEqual([a.prompts.length, b.prompts.length], [1, 1]);
+});
+
+/** Notices as the servers share them (packages/notices), for the two servers in one test. */
+function sharedNotices() {
+  const listeners = new Map();
+  const tell = (topic, key, event) => {
+    for (const listener of listeners.get(`${topic}:${key}`) ?? []) listener(event);
+  };
+  return {
+    publish: async (topic, key, event) => tell(topic, String(key), event),
+    publishEach: async (topic, keys, event) => keys.forEach((key) => tell(topic, String(key), event)),
+    subscribe: (topic, key, listener) => {
+      const name = `${topic}:${key}`;
+      if (!listeners.has(name)) listeners.set(name, new Set());
+      listeners.get(name).add(listener);
+      return () => listeners.get(name)?.delete(listener);
+    },
+    onMissed: () => () => {}
+  };
+}
+
+test("a stopping server hands its follow-up over without waiting for it, and tells the others: another server's sweeper finishes it at once, not at its next sweep", async (context) => {
+  const asked = deferred();
+  const { a, b, as, bot, card, signIn, followUp, botTexts } = await setup(context, {
+    a: (_bot, _history, _tools, _state, _prompt, options) => {
+      asked.resolve();
+      return new Promise((_resolve, reject) => options.signal.addEventListener("abort", () => reject(options.signal.reason), { once: true }));
+    },
+    b: async () => ({ text: "Filed the receipts on B.", transcript: [] })
+  }, { notices: sharedNotices() });
+  await b.turns.chat.connectFromCard(bot.chat_id, card.id, {}, as);
+  // B sweeps once now and next in an hour.
+  const sweeper = b.followUps.startSweeping({ everyMs: 3600000 });
+  context.after(() => sweeper.drain(1000));
+  await signIn();
+  await asked.promise;
+
+  // A shuts down with the usual time to drain: nothing waits for it.
+  const stopping = performance.now();
+  await a.followUps.startSweeping({ everyMs: 3600000 }).drain(20000);
+  const took = performance.now() - stopping;
+  for (let waited = 0; !(await botTexts()).length && waited < 5000; waited += 50) await new Promise((resolve) => setTimeout(resolve, 50));
+  await a.drain(10000);
+  await b.drain(10000);
+  assert.ok(took < 5000, `handed over without waiting for the drain's time (${Math.round(took)} ms)`);
+  assert.deepEqual(await botTexts(), ["Filed the receipts on B."], "B's sweeper heard and finished it");
+  assert.equal(await followUp(), undefined);
 });
 
 test("a follow-up its server marked but never started waits out its start there, and one whose chat is busy starts as that chat's reply ends", async (context) => {
