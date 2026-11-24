@@ -244,6 +244,9 @@ test("a server stopped mid-follow-up: another server's sweep takes it over and f
   // A stops: its follow-up's lease and its hold on the chat are no longer renewed, and lapse.
   await knex("connect_follow_ups").where({ id: held.id }).update({ lease_until: knex.raw("now() - interval '1 second'") });
   await knex("agent_runs").where({ conversation_id: bot.chat_bot_id }).update({ heartbeat_at: knex.raw("now() - interval '5 minutes'") });
+  // B's reply resumer finds nothing of it to carry on: a follow-up keeps its steps on its own row, so only its sweep
+  // carries it on, once.
+  await b.turns.resumeStalled();
 
   // B's sweep takes it over, under a run of its own, and finishes it.
   await b.followUps.sweep();

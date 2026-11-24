@@ -242,9 +242,11 @@ export function createBotReplies({
         ? briefOnly.steps || []
         : saved?.steps?.length && saved.input?.answers === asked && (saved.input?.prompt || "") === prompt ? saved.steps : [];
     // What carries a person's reply on if its server stops (D-48), kept on its run from before its first step: a reply
-    // whose server stopped before any step finished is started over by another server, not lost.
+    // whose server stopped before any step finished is started over by another server, not lost. One that keeps its
+    // steps on a row of its own (a connect follow-up's) is carried on from there, so nothing of it goes on the run.
+    const onRun = checkpointed && !checkpoint && !briefOnly?.save;
     const runInput = { prompt, human, goalTurn, timeZone, language, answers: asked, followUp };
-    if (checkpointed) {
+    if (onRun) {
       await chatHistory.runs.save(seat.chat_bot_id, resumed, runInput)
         .catch((error) => console.warn("Keeping a reply's start on its run failed; it's kept with its first step instead.", error));
     }
@@ -252,7 +254,7 @@ export function createBotReplies({
       ? (steps) => checkpoint.save([...resumed, ...steps])
       : briefOnly?.save
         ? (steps) => briefOnly.save([...resumed, ...steps])
-        : checkpointed
+        : onRun
           ? (steps) => chatHistory.runs.save(seat.chat_bot_id, [...resumed, ...steps], runInput)
           : keepNoSteps;
     /**
