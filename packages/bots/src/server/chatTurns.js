@@ -54,6 +54,8 @@ import { createDiscussions } from "./discussions.js";
  * @param {Partial<typeof REQUEST_LIMITS>} [dependencies.requestLimits]
  * @param {Partial<typeof GOAL_LIMITS>} [dependencies.goalLimits]
  * @param {Partial<typeof import("./discussions.js").DISCUSSION_LIMITS>} [dependencies.discussionLimits] a discussion's limits (tests)
+ * @param {{ staleSeconds: number, heartbeatMs: number }} [dependencies.runLimits] a reply's run's staleness and heartbeat,
+ *   agent-runtime's RUN_LIMITS unless given (tests)
  */
 export function createChatTurns({
   records,
@@ -82,7 +84,8 @@ export function createChatTurns({
   compactionLimits,
   requestLimits,
   goalLimits,
-  discussionLimits
+  discussionLimits,
+  runLimits
 }) {
   const seats = createChatSeats({ records, systemContext, notices });
   const workPause = createWorkPause({ records, apps, seats });
@@ -94,6 +97,7 @@ export function createChatTurns({
     notices,
     summarize,
     compactionLimits,
+    runLimits,
     background: background.add
   });
 

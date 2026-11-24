@@ -20,7 +20,7 @@ const RECENT_MESSAGES_READ = 6;
  * @param {import("./types.js").SummaryLimits} [dependencies.compactionLimits] replaces the summary limits
  * @param {(work: Promise<unknown>) => void} dependencies.background runs work that outlives the request (backgroundWork.js)
  */
-export function createBotHistory({ records, systemContext, model, meter, notices, summarize, compactionLimits, background }) {
+export function createBotHistory({ records, systemContext, model, meter, notices, summarize, compactionLimits, runLimits, background }) {
   const { messages, chats, directory } = records;
 
   /** Messages as the bots read them, each with its author's name: one read of the people's, one of the home's bots'. */
@@ -68,7 +68,7 @@ export function createBotHistory({ records, systemContext, model, meter, notices
 
   // One reply per bot in a chat at a time, its steps saved as it goes (D-48, @jskit-ai/agent-runtime runs): the
   // runtime's conversation is the bot's seat in the chat (chat_bots.id), and the run knows its bot and its person.
-  const runs = records.agent.createRuns();
+  const runs = records.agent.createRuns(runLimits ? { limits: runLimits } : {});
   const claimReply = (seat) => runs.claim(seat.chat_bot_id, { bot_id: seat.id, user_id: seat.user_id });
 
   const SUMMARY_REASON = "a chat's summary is made from that chat's own messages, in its home";
