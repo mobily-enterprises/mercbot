@@ -8,13 +8,14 @@ import { createReports } from "./reports.js";
 import { createRetention } from "./retention.js";
 import { claimsSharedWork } from "./serverRole.js";
 import { createSpending } from "./spending.js";
-import { USAGE_FILTERS, createUsageRecorder } from "./usage.js";
+import { USAGE_FILTERS, createTaskRuns, createUsageRecorder } from "./usage.js";
 import {
   computerDayResource,
   usageDailyResource,
   usageEventResource,
   usageJobResource,
   usageMonthlyResource,
+  usageTaskDailyResource,
   vaultItemResource
 } from "./tableResources.js";
 
@@ -24,6 +25,7 @@ export const ACCOUNT_OWNS = Object.freeze([
   { resource: usageEventResource, searchSchema: USAGE_FILTERS.usageEvents },
   { resource: usageDailyResource, searchSchema: USAGE_FILTERS.usageDaily },
   { resource: usageMonthlyResource, searchSchema: USAGE_FILTERS.usageMonthly },
+  { resource: usageTaskDailyResource, searchSchema: USAGE_FILTERS.usageTasksDaily },
   { resource: computerDayResource, searchSchema: USAGE_FILTERS.computerDays },
   { resource: usageJobResource, searchSchema: USAGE_FILTERS.usageJobs }
 ]);
@@ -95,6 +97,8 @@ const AccountFeature = defineFeature({
     let filesSync = null;
     const retention = createRetention({ resources, systemContext, env, knex: database.knex, archivedColumns, filesSync: () => filesSync });
     const meter = createMeter({ recorder, recordError: aiFailures ? aiFailures.record : logAiFailure });
+    // A recurring task's runs are counted here, whoever records what they use (D-132).
+    const taskRuns = createTaskRuns({ resources, systemContext });
     registerRoutes(http, { account, spending, uploads, track: meter.track, media: createMediaGuard(mediaCheck) });
     // Every serving web server keeps the usage tables (D-15), every hour and once at start so their partitions are
     // there; a failure is logged and tried again next time. A computers server leaves them to the web servers (D-131).
@@ -116,6 +120,8 @@ const AccountFeature = defineFeature({
         startComputerDay: meter.startComputerDay,
         computerDay: meter.computerDay,
         startComputation: meter.startComputation,
+        countTaskRun: taskRuns.countRun,
+        taskCosts: spending.tasks,
         spentSince: recorder.spentSince,
         pausedMessage: recorder.pausedMessage,
         estimateNano: recorder.estimateNano

@@ -42,7 +42,10 @@ const neutral = {
     ...createMeter({ recorder: FREE_RECORDER }),
     pausedMessage: async () => null,
     // What some tokens would cost, at the provider's list prices, as Mercbot's own recorder answers (D-107).
-    estimateNano: estimateAtProvider
+    estimateNano: estimateAtProvider,
+    // A recurring task's runs and costs (D-131) are counted nowhere.
+    countTaskRun: async () => true,
+    taskCosts: async () => []
   }),
   notices: () => ({ publish: async () => {}, publishEach: async () => {}, subscribe: () => () => {}, onMissed: () => () => {} }),
   // The chats' computers, keyed by the bot's seat in a chat (chat_bots.id, D-112).

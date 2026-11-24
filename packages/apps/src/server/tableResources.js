@@ -124,6 +124,7 @@ export const appWatcheResource = defineTableResource({
     cursor: { type: "string", required: true },
     enabled: { type: "boolean" },
     instructions: { type: "string", noTrim: true, required: true },
+    lastRunAt: { type: "dateTime", nullable: true },
     name: { type: "string", maxLength: 120, noTrim: true, required: true, search: true },
     on: { type: "string", maxLength: 16, noTrim: true, required: true },
     runsHourStart: { type: "dateTime", nullable: true },

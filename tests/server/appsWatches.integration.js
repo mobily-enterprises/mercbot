@@ -141,12 +141,17 @@ test("watches see each change once and queue one task per claim", async (context
   await one.watches.setEnabled({ chatBotId, name: "New deals" }, true, options);
   await drainBoth();
   assert.equal((await jobs()).length, 3, "changes while paused don't fire it");
+  // Its last run, as the home's recurring tasks show it (D-132); paused by a person, not by its limit.
+  const shown = (await one.watches.list({}, options)).find((watch) => watch.name === "New deals");
+  assert.ok(shown.lastRunAt, "a watch that ran says when");
+  assert.equal(shown.pausedByLimit, false);
   await knex("app_watches").where({ workspace_id: workspaceId, name: "New deals" }).update({ runs_in_hour: 30, runs_hour_start: new Date() });
   await one.gate.create(ctx, "deals", { title: "One too many" });
   await drainBoth();
   all = await jobs();
   assert.equal(all.at(-1).title, "Watch paused: New deals");
   assert.equal((await knex("app_watches").where({ workspace_id: workspaceId, name: "New deals" }).first()).enabled, false);
+  assert.equal((await one.watches.list({}, options)).find((watch) => watch.name === "New deals").pausedByLimit, true, "paused by its limit");
 
   // More changes than one page (1,000): every one is read before the cursor moves past them.
   await one.watches.create(where, { name: "Every deal", table: "deals", on: "create", instructions: "Count the new deals." }, options);

@@ -16,29 +16,39 @@ export function createChatRoutines({ records }) {
   const { personOf } = createCallerReaders();
 
   /**
-   * Routines as the page shows them, each naming its bot and chat (a direct chat by its person: "you" or their name)
-   * and whether the person may resume it. Two reads for any number of chats.
-   * @param {object[]} routines records.work rows
-   * @param {Map<string, { botId: string, chatId: string }>} seats each routine's bot in a chat, by chat_bots id
+   * The chats and bots routines and watches name, as people see them (D-132): each chat by its id with its title (a
+   * direct chat by its bot and person: "you" or their name) and whether it's archived, and each bot by its id. Three
+   * reads for any number of chats.
+   * @param {string[]} chatIds
+   * @param {string[]} botIds
    */
-  async function shown(routines, seats, options) {
+  async function places(chatIds, botIds, options) {
     const person = personOf(options);
-    const chatIds = [...new Set(routines.map((routine) => seats.get(String(routine.chatBotId))?.chatId).filter(Boolean))];
-    const rows = await chats.byIds(chatIds, options);
-    const chatOf = new Map(rows.map((row) => [String(row.id), row]));
+    const rows = await chats.byIds([...new Set(chatIds)], options);
     const direct = rows.map((row) => row.direct_user_id).filter((id) => id != null && String(id) !== person);
-    const [names, botRows] = await Promise.all([
-      chats.names(direct, options),
-      bots.byIds([...new Set([...seats.values()].map((seat) => seat.botId))], options)
-    ]);
+    const wantedBots = [...new Set([...botIds, ...rows.map((row) => row.direct_bot_id).filter((id) => id != null)].map(String))];
+    const [names, botRows] = await Promise.all([chats.names(direct, options), bots.byIds(wantedBots, options)]);
     const botOf = new Map(botRows.map((bot) => [String(bot.id), bot]));
     const titleOf = (chat) => {
-      if (!chat) return null;
       if (chat.title) return chat.title;
       if (chat.direct_user_id == null) return null;
       const who = String(chat.direct_user_id) === person ? "you" : names.get(String(chat.direct_user_id)) || "Someone";
       return `${botOf.get(String(chat.direct_bot_id))?.name || "A bot"} and ${who}`;
     };
+    const chatOf = new Map(rows.map((row) => [String(row.id), { title: titleOf(row), archived: Boolean(row.archived_at) }]));
+    return { chatOf, botOf };
+  }
+
+  /**
+   * Routines as the page shows them, each naming its bot and chat, with its schedule, its last and next run and its
+   * failures in a row, and whether the person may resume it. Three reads for any number of chats.
+   * @param {object[]} routines records.work rows
+   * @param {Map<string, { botId: string, chatId: string }>} seats each routine's bot in a chat, by chat_bots id
+   */
+  async function shown(routines, seats, options) {
+    const person = personOf(options);
+    const chatIds = routines.map((routine) => seats.get(String(routine.chatBotId))?.chatId).filter(Boolean);
+    const { chatOf, botOf } = await places(chatIds, [...new Set([...seats.values()].map((seat) => seat.botId))], options);
     return routines.flatMap((routine) => {
       const seat = seats.get(String(routine.chatBotId));
       const chat = seat && chatOf.get(seat.chatId);
@@ -49,11 +59,15 @@ export function createChatRoutines({ records }) {
         name: routine.name,
         schedule: routine.schedule,
         enabled: Boolean(routine.enabled),
+        once: Boolean(routine.once),
+        failures: Number(routine.failures) || 0,
+        nextRunAt: routine.nextRunAt ?? null,
+        lastRunAt: routine.lastRunAt ?? null,
         botId: seat.botId,
         chatId: seat.chatId,
-        chatTitle: titleOf(chat),
+        chatTitle: chat.title,
         madeBy,
-        canResume: madeBy === person && !chat.archived_at && !botOf.get(seat.botId)?.archived_at
+        canResume: madeBy === person && !chat.archived && !botOf.get(seat.botId)?.archived_at
       }];
     });
   }
@@ -72,6 +86,17 @@ export function createChatRoutines({ records }) {
     const seats = await directory.seatsOfBot(bot.id, options);
     const byId = new Map(seats.map((seat) => [seat.id, { botId: String(bot.id), chatId: seat.chatId }]));
     return { routines: await shown(await work.routinesIn([...byId.keys()], options), byId, options) };
+  }
+
+  /**
+   * Every routine in the chats the person can open, and no others (R11): the home's recurring tasks (D-132). Four reads
+   * for any number of routines.
+   */
+  async function routinesOfHome(options) {
+    const routines = await work.routinesOfHome(options);
+    const found = await directory.seats(routines.map((routine) => String(routine.chatBotId)), options);
+    const byId = new Map(found.map((seat) => [seat.id, { botId: seat.botId, chatId: seat.chatId }]));
+    return shown(routines, byId, options);
   }
 
   /** The routine, which the person can reach through its chat, with its bot in that chat; a 404 otherwise. */
@@ -119,6 +144,8 @@ export function createChatRoutines({ records }) {
   return Object.freeze({
     routinesIn,
     routinesOf,
+    routinesOfHome,
+    places,
     switchRoutine,
     deleteRoutine
   });

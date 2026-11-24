@@ -92,6 +92,28 @@ export const usageMonthlyResource = defineTableResource({
   schema: usageMonthlySchema
 });
 
+/** usage_tasks_daily
+ * What each recurring task (a routine or a watch, by its kind and id) used per home and day (UTC), where user_id 0 is
+ * none (D-132): how many times it ran, its AI calls and what they cost at their providers. Kept 13 months.
+ */
+export const usageTaskDailySchema = Object.freeze({
+  calls: { type: "integer" },
+  costNano: { type: "integer" },
+  day: { type: "date", search: true },
+  runs: { type: "integer" },
+  taskId: { type: "string", maxLength: 64, noTrim: true, required: true, search: true },
+  taskKind: { type: "string", maxLength: 12, noTrim: true, required: true, search: true },
+  userId: { type: "integer", search: true },
+  workspaceId: { type: "integer", search: true }
+});
+
+export const usageTaskDailyResource = defineTableResource({
+  name: "usageTasksDaily",
+  tableName: "usage_tasks_daily",
+  ownership: "system",
+  schema: usageTaskDailySchema
+});
+
 /** computer_days
  * The day (UTC) each bot's computer was last counted for (D-73), so a day is counted once.
  */
@@ -135,6 +157,7 @@ export const TABLE_RESOURCES = Object.freeze([
   usageEventResource,
   usageDailyResource,
   usageMonthlyResource,
+  usageTaskDailyResource,
   computerDayResource,
   usageJobResource
 ]);

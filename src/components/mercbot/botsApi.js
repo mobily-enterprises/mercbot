@@ -36,6 +36,8 @@ export const botsApi = {
   addBots: (body) => post("/bots/batch", body),
   // A bot's name, colour, shape or additions, or { main: true } (owners and admins): { bot }.
   update: (botId, changes) => patch(`/bots/${botId}`, changes),
+  // The home's recurring tasks (D-132): its routines, watches and apps' jobs, with what each cost in the last 30 days.
+  recurringTasks: () => request("/recurring-tasks"),
   // A request between bots, cancelled by the person it's for (D-46).
   cancelRequest: (requestId) => post(`/bot-requests/${requestId}/cancel`),
   // A whole bot archived and unarchived for everyone in the home (D-108): each answers { bot } as listed.

@@ -15,6 +15,8 @@ export const SETTINGS_SECTIONS = [
   { value: "main-bot", title: "Main bot and Builder", icon: "$star" },
   // The home's common knowledge (D-113, D-119): every bot reads it; each bot's card links here.
   { value: "common-knowledge", title: "Bots' common knowledge", icon: "$menuBook" },
+  // Every routine, watch and app job in the home, with what each costs (D-132); each bot's card links here.
+  { value: "recurring-tasks", title: "Recurring tasks", icon: "$clockLoaderHalf" },
   { value: "vault", title: "Vault", icon: "$encrypted" },
   { value: "usage", title: "Spending", icon: "$speed" },
   { value: "link", title: "Mercbot account", icon: "$link" },

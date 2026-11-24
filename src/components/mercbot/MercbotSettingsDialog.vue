@@ -1,6 +1,8 @@
 <script setup>
 import { useDisplay } from "vuetify";
 import { computed, ref, watch } from "vue";
+import { useRouter } from "vue-router";
+import { usePaths } from "@jskit-ai/shell-web/client/navigation/usePaths";
 import extensions from "./extensions.js";
 import MercbotSettingsAbout from "./MercbotSettingsAbout.vue";
 import MercbotSettingsCommonKnowledge from "./MercbotSettingsCommonKnowledge.vue";
@@ -10,6 +12,7 @@ import MercbotSettingsLink from "./MercbotSettingsLink.vue";
 import MercbotSettingsMainBot from "./MercbotSettingsMainBot.vue";
 import MercbotSettingsTemplates from "./MercbotSettingsTemplates.vue";
 import MercbotSettingsPermissions from "./MercbotSettingsPermissions.vue";
+import MercbotSettingsRecurringTasks from "./MercbotSettingsRecurringTasks.vue";
 import MercbotSettingsGeneral from "./MercbotSettingsGeneral.vue";
 import MercbotSettingsUsage from "./MercbotSettingsUsage.vue";
 import MercbotSettingsVault from "./MercbotSettingsVault.vue";
@@ -61,10 +64,19 @@ defineProps({
   // The person's id, whether they manage the home, and its name (the Vault's).
   me: { type: String, default: "" },
   manages: { type: Boolean, default: false },
-  homeName: { type: String, default: "" }
+  homeName: { type: String, default: "" },
+  // The bot Recurring tasks opens filtered to (a bot's card's link), or none.
+  taskBot: { type: String, default: "" }
 });
-// `bots-changed`: the home's main bot changed in Main bot and Builder.
-const emit = defineEmits(["theme", "failure", "notify", "connect", "bots-changed"]);
+// `bots-changed`: the home's main bot changed in Main bot and Builder. `open-chat` and `edit-routine`: a recurring
+// task's chat or routine, which Settings closes for, as it does for a task's app, opened here.
+const emit = defineEmits(["theme", "failure", "notify", "connect", "bots-changed", "open-chat", "edit-routine"]);
+const router = useRouter();
+const paths = usePaths();
+function openApp(slug) {
+  open.value = false;
+  router.push(paths.page(`/apps/${slug}`));
+}
 // The Vault's New item menu sits in the title row; it tells the Vault which dialog to open, or to
 // import a CSV file.
 const vaultCreate = ref("");
@@ -125,6 +137,15 @@ const current = computed(() => sections.value.find((entry) => entry.value === se
           <MercbotSettingsTemplates v-else-if="section === 'templates'" @failure="emit('failure', $event)" @notify="emit('notify', $event)" />
           <MercbotSettingsMainBot v-else-if="section === 'main-bot'" :manages="manages" @failure="emit('failure', $event)" @notify="emit('notify', $event)" @changed="emit('bots-changed')" />
           <MercbotSettingsCommonKnowledge v-else-if="section === 'common-knowledge'" @failure="emit('failure', $event)" @notify="emit('notify', $event)" />
+          <MercbotSettingsRecurringTasks
+            v-else-if="section === 'recurring-tasks'"
+            :bot="taskBot"
+            @failure="emit('failure', $event)"
+            @notify="emit('notify', $event)"
+            @open-chat="emit('open-chat', $event)"
+            @edit-routine="emit('edit-routine', $event)"
+            @open-app="openApp"
+          />
           <MercbotSettingsVault
             v-else-if="section === 'vault'"
             v-model:create="vaultCreate"

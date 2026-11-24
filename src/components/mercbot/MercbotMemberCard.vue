@@ -470,6 +470,9 @@ async function openInstructions() {
                 </button>
               </div>
             </div>
+            <button type="button" class="mb-routines__all" data-recurring-tasks @click="emit('open-settings', { section: 'recurring-tasks', bot: String(bot.id) })">
+              All of {{ bot.name }}'s recurring tasks, with what they cost →
+            </button>
             <MercbotContextMenu v-model="routineMenu.open" :target="routineMenu.target" :items="routineMenu.items" />
             <MercbotConfirmDialog
               :model-value="Boolean(pendingRoutineDelete)"

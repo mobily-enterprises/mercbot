@@ -67,8 +67,9 @@ export function refusalOf(error) {
 const context = new AsyncLocalStorage();
 
 /**
- * Who the work in progress is for: the person, bot, home and kind of work track() was given, without where things go.
- * @returns {{ userId?: string, botId?: string, workspaceId?: string, work?: string } | null}
+ * Who the work in progress is for: the person, bot, home, recurring task and kind of work track() was given, without
+ * where things go.
+ * @returns {{ userId?: string, botId?: string, workspaceId?: string, task?: { kind: string, id: string }, work?: string } | null}
  */
 function currentWho() {
   const store = context.getStore();
@@ -96,9 +97,10 @@ export function currentWork() {
  */
 export function createMeter({ recorder, recordError }) {
   /**
-   * Runs work for a person, bot and home; what it uses is recorded for them.
+   * Runs work for a person, bot and home; what it uses is recorded for them, and for the recurring task it runs for
+   * (`task`, a routine's or a watch's run, D-132), which work it starts inside carries on counting for.
    * @template T
-   * @param {{ userId?: string, botId?: string, workspaceId?: string, work?: "chat" | "build" | "background" }} who
+   * @param {{ userId?: string, botId?: string, workspaceId?: string, task?: { kind: "routine" | "watch", id: string }, work?: "chat" | "build" | "background" }} who
    * @param {() => T} work
    * @returns {T}
    */
@@ -399,6 +401,7 @@ async function meteredFetch(traceDir, provider, recorded, input, init) {
     userId: who.userId,
     botId: who.botId,
     workspaceId: who.workspaceId,
+    task: who.task,
     work: recorded.purpose || who.work,
     kind: recorded.kind,
     provider,

@@ -16,7 +16,13 @@
  */
 
 /**
- * What a home has spent, for the routes /usage, /spending/bots, /spending and /spending/export: Mercbot's own
+ * What a recurring task used in the last 30 days (D-132): its kind and id, its runs and AI calls, and what was spent.
+ * @typedef {{ kind: string, id: string, runs: number, calls: number, spentNano: number }} TaskSpending
+ */
+
+/**
+ * What a home has spent, for the routes /usage, /spending/bots, /spending and /spending/export, and what each recurring
+ * task has cost for the home's list of them (`tasks`, D-132): Mercbot's own
  * (spending.js and reports.js, what work cost at its providers), or a copy's (`UsageRecorder.spending`), which answers
  * the same shapes and may add to them.
  * @typedef {{
@@ -24,7 +30,8 @@
  *     scope: "home" | "own", month: string, monthNano: number, note: string | null, attention: boolean, action: string | null
  *   }>,
  *   report: (homeId: string, reader: SpendingReader) => Promise<object>,
- *   exportCsv: (homeId: string, reader: SpendingReader) => SpendingCsv | Promise<SpendingCsv>
+ *   exportCsv: (homeId: string, reader: SpendingReader) => SpendingCsv | Promise<SpendingCsv>,
+ *   tasks: (homeId: string, reader: SpendingReader) => Promise<TaskSpending[]>
  * }} Spending
  */
 
@@ -45,6 +52,8 @@
 
 /**
  * @typedef {ReturnType<typeof import("./meter.js").createMeter> & {
+ *   countTaskRun: ReturnType<typeof import("./usage.js").createTaskRuns>["countRun"],
+ *   taskCosts: Spending["tasks"],
  *   spentSince: UsageRecorder["spentSince"],
  *   pausedMessage: UsageRecorder["pausedMessage"],
  *   estimateNano: UsageRecorder["estimateNano"]

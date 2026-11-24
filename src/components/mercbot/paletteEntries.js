@@ -4,6 +4,8 @@ import { chatTitle, memberNames, joinNames } from "./chatView.js";
 
 // What Settings: General is found by, with the buttons a copy built on Mercbot adds there (extensions.js).
 const GENERAL_KEYWORDS = ["theme appearance accent language spell microphone timezone", ...extensions.generalActions.map((action) => action.title.toLowerCase())].join(" ");
+// What a section is also found by, beside its title.
+const SECTION_KEYWORDS = Object.freeze({ "recurring-tasks": "routines watches jobs schedules automations scheduled costs" });
 
 /**
  * The search palette's commands: Add bots, New room, shortcuts, each settings section, Connect Apps, Skills and the
@@ -24,7 +26,7 @@ export function paletteCommands({ settingsSections, theme: currentTheme }) {
       title: `Settings: ${section.title}`,
       category: "Settings",
       icon: "$settings",
-      keywords: section.value === "general" ? GENERAL_KEYWORDS : ""
+      keywords: section.value === "general" ? GENERAL_KEYWORDS : SECTION_KEYWORDS[section.value] || ""
     })),
     { id: "connectApps", title: "Connect Apps", category: "Search across apps and skills", icon: "$extension" },
     { id: "skills", title: "Skills", category: "Your private skills", icon: "$menuBook" },

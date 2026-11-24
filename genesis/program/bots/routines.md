@@ -2,7 +2,8 @@
 
 A bot does something on a schedule in a chat (D-15, D-112, R4): a routine belongs to one bot in one chat and runs as
 the person who made it. This boundary owns making and changing routines from chat, the routine runner every server
-runs, and how people list, pause, resume and delete them.
+runs, how people list, pause, resume and delete them, and the home's list of every recurring task with what each costs
+(D-132).
 
 ## Sources
 
@@ -10,6 +11,7 @@ runs, and how people list, pause, resume and delete them.
 - `packages/bots/src/server/routineTools.js`
 - `packages/bots/src/server/routineSchedule.js`
 - `packages/bots/src/server/routineRunner.js`
+- `packages/bots/src/server/recurringTasks.js`
 - `packages/bots/src/server/runLease.js`
 - `packages/bots/src/server/backgroundRuns.js`
 - `packages/bots/src/server/botActions.js`
@@ -22,6 +24,8 @@ runs, and how people list, pause, resume and delete them.
 - `src/components/mercbot/useBotRoutines.js`
 - `src/components/mercbot/MercbotChatDetails.vue`
 - `src/components/mercbot/MercbotMemberCard.vue`
+- `src/components/mercbot/MercbotSettingsRecurringTasks.vue`
+- `src/components/mercbot/recurringTasksView.js`
 
 ## Public contract
 
@@ -59,7 +63,8 @@ watches they made are paused first with a "Paused: its maker left" line (`workPa
 **Routes** (under `/api/w/:workspaceSlug`; `chatRoutines.js`):
 - `GET …/chats/:chatId/routines`: the routines of every bot in the chat, for anyone who can open it (404 otherwise).
 - `GET …/bots/:botId/routines`: a bot's routines in the chats the person can open, and no others (R11).
-- Each routine is shown as `{ id, name, schedule, enabled, botId, chatId, chatTitle, madeBy, canResume }`, naming its
+- Each routine is shown as `{ id, name, schedule, enabled, once, failures, nextRunAt, lastRunAt, botId, chatId, chatTitle,
+  madeBy, canResume }`, naming its
   bot and chat (a direct chat by its person, "you" or their name): two reads for any number of chats.
 - `PATCH …/routines/:routineId {enabled}` (400 `bots_routine_enabled` without a boolean): anyone who can open its
   chat pauses it; only the person it runs as resumes it (403 `bots_routine_resume_forbidden` "Only the person who made
@@ -74,6 +79,37 @@ this chat and everywhere."); with none, "No routines run in this chat. Ask a bot
 schedule." A bot's card lists its routines, each naming its chat. Search lists every routine in the chats the person
 can open (`genesis/program/bots/chats.md`).
 
+**Recurring tasks** (D-132; `recurringTasks.js`, `GET …/recurring-tasks`): every routine and watch in the chats the
+person can open, and every app's job (`kind: "job"`), each `{ kind, id, name, detail?, bot, where, schedule, nextRunAt,
+lastRunAt, state, why, madeByYou, cost, can }`: `where` is its chat (`chatId`, `chatTitle`) or app (`appSlug`,
+`appName`); `schedule` is in words (a routine's own; "When Deals records are added" for a watch; "Every day at 02:00
+(Europe/Rome)" or "When Weigh-ins records change" for a job, named from its key, its summary as `detail`); `state` is
+`running`, `paused` or `failing` (a routine paused by 5 failed runs in a row, a watch by more than 30 runs in an hour,
+a job whose last run failed), with `why` in words. `cost` is the last 30 days' `{ nano, runs }` from the account's task
+totals (`meter.taskCosts`, below), `{ nano: 0, runs: 0 }` when nothing is counted and null when the person can't see it:
+owners and admins see every task's (`costScope: "home"`), a member only those that run as them (`"own"`). Apps' jobs
+run without AI. `can` says which of the existing routes the person may use: a routine's and a watch's switch (pause:
+anyone who can open its chat; resume: its maker) and delete; edit (a routine's maker, through its chat); a job's switch,
+owners and admins only. Owners and admins also get `others: { count, costNano }`, the routines and watches in chats
+they can't open, unnamed (read with the bots' system context), and everyone `notListedNano`, what tasks since deleted
+(and, for a member, theirs in chats they've left) cost. Its reads are the same number however many tasks.
+
+**What a task costs** (D-132; `packages/account`): a routine's run and a watch's run are tracked with their task
+(`meter.track({ …, task: { kind, id } })`), which work started inside carries on. Each AI call and command's
+computation made for a task adds its calls and cost to `usage_tasks_daily` (home, UTC day, task, the person it runs as),
+and each run adds one, once, by the server that started it (`meter.countTaskRun`, never again for a run taken over); a
+computer's day is never a task's. A copy that records work its own way (`mercbot.usage-recorder`) adds its own columns
+there and answers `spending.tasks`. Rows are kept 13 months, then deleted by the usage upkeep. Costs count from this
+release; earlier runs show none.
+
+**Settings → Recurring tasks** (`MercbotSettingsRecurringTasks.vue`): a top line ("3 running · 1 paused · 1 needs
+attention" and the last 30 days' cost the person sees), filter chips (All, Routines, Watches, App jobs, Paused, Needs
+attention; each shown when it has tasks), By bot or By cost, the tasks grouped under each bot's face (apps' jobs last),
+each row with its name, kind, where (a link that opens its chat or app), when, why, cost, a switch (disabled with a
+tooltip saying who may) and a menu (Open chat or Open app, Edit, Delete, confirmed); then the unseen and no-longer-listed
+lines and how costs are counted. With none: "No recurring tasks yet" and an example to ask for. A bot's card links to it
+under its routines, opening it at that bot ("Only Scout", closable); `?settings=recurring-tasks&bot=<id>` does the same.
+
 ## Proved by
 
 - `tests/server/chatRoutines.integration.js`
@@ -83,3 +119,6 @@ can open (`genesis/program/bots/chats.md`).
 - `tests/server/runLease.test.js`
 - `tests/server/backgroundPerson.integration.js`
 - `tests/server/archiveChats.integration.js`
+- `tests/server/recurringTasks.integration.js`
+- `tests/server/usage.integration.js`
+- `tests/client/recurringTasks.vitest.js`

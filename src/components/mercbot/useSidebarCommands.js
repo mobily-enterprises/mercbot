@@ -104,7 +104,7 @@ export function useSidebarCommands({ sections, editingSectionId, store, team, dr
       open.about.value = true;
     },
     // Settings, at a section when one is named (a bot card's link to the home's common knowledge), else General.
-    openSettings: ({ section } = {}) => open.settings(section || "general"),
+    openSettings: ({ section, bot } = {}) => open.settings(section || "general", { bot }),
     openUsage: () => open.settings("usage")
   };
 

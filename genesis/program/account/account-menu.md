@@ -116,7 +116,12 @@ day each computer was last counted, so a day is counted once however often it wa
 a computer; none for commands), estimated calls, cache-hit, cache-miss and output tokens, images, seconds and
 `cost_nano`. `spentSince({ workspaceId, userId, botId, since })`, a goal's spending in dollars, adds up the calls' own
 rows while they're kept and the daily totals after that. The account keeps these four tables with what work used and
-its cost, and the archive's claims in a table of their own, `usage_jobs`.
+its cost, and the archive's claims in a table of their own, `usage_jobs`. Work a recurring task runs for (a routine's
+or a watch's run, `task` in `track()`'s who, D-132) also adds its AI calls and cost to `usage_tasks_daily` (by home,
+UTC day and task, with the person it runs as; never a computer's day), and each run adds one there, once
+(`meter.countTaskRun`, whoever records the work); its rows are deleted after 13 months by the hourly upkeep, a few
+thousand at a time, and `spending.tasks(homeId, reader)` adds up the last 30 days by task, under the same reader rules
+(`genesis/program/bots/routines.md`).
 
 A copy built on Mercbot may record work its own way (`mercbot.usage-recorder`, an optional capability, `UsageRecorder`
 in `types.js`). The meter then calls its `open`, `finish`, `release`, `startComputerDay`, `countComputerDay`,
@@ -124,7 +129,7 @@ in `types.js`). The meter then calls its `open`, `finish`, `release`, `startComp
 `spentSince` and `pausedMessage` are its. Its `open`, `startComputerDay` and `startComputation` may refuse work before
 it starts by throwing `refuseWork(message, { code, notice })` (`@local/account/meter`: a 402 carrying `params.notice`,
 what a bot says in place of the work), and its `renewComputation` by answering false. Its `spending` (`summary`,
-`report`, `exportCsv`) answers the spending routes in the same shapes, which it may add to, and its
+`report`, `exportCsv`, `tasks`) answers the spending routes in the same shapes, which it may add to, and its
 `archivedColumns` are the whole-number columns it adds to `usage_daily`, archived after Mercbot's own and summed in the
 archive's check. `createSpending` and `createReports` take `spend`, the totals' measure that is what was spent
 (`costNano` unless a copy names another). Without such a copy, the account uses its own recorder, `spending.js` and

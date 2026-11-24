@@ -321,6 +321,15 @@ export function createWorkRepository({ botRequests, botRoutines, messages: botMe
   }
 
   /**
+   * Every routine of the home the caller may read (its chat's rule), in id order, in one read: the home's recurring
+   * tasks (D-132). With a system context, every routine of its home.
+   * @param {CallOptions} options
+   */
+  async function routinesOfHome(options) {
+    return botRoutines.queryAll({ sort: ["id"] }, options);
+  }
+
+  /**
    * One routine by id, as the caller may read it (its chat's rule), or null.
    * @param {string} routineId
    * @param {CallOptions} options
@@ -425,6 +434,7 @@ export function createWorkRepository({ botRequests, botRoutines, messages: botMe
     endRoutineRun,
     routinesOf,
     routinesIn,
+    routinesOfHome,
     routine,
     routineNamed,
     routineOf,

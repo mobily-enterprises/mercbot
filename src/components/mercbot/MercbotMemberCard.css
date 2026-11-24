@@ -372,6 +372,19 @@
   cursor: pointer;
 }
 
+.mb-routines__all {
+  margin-top: 6px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  color: rgb(var(--v-theme-primary));
+  text-align: left;
+  cursor: pointer;
+}
+
 .mb-routines {
   overflow: hidden;
   padding: 4px;

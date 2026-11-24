@@ -105,6 +105,19 @@ Owners and admins pick each from the home's bots; everyone else sees which bots 
 
 What people asked a bot to tell every bot, such as a date or an allergy. Every bot reads it in every chat. It's listed newest first, each with who asked for it, through which bot, and when; **Show older** reads further back. The person who asked for it, and the home's owners and admins, remove it with its bin, and every bot stops reading it from its next reply. Each bot's card links here: "*Bot* also knows the home's common knowledge (3) →". See [What bots remember](/help/memory#bots-common-knowledge).
 
+### Recurring tasks
+
+Everything your home does by itself, in one list: each routine and watch in the chats you can open, and each app's job. They're grouped by bot, with apps' jobs last. Each shows:
+
+- its name and kind (**Routine**, **Watch** or **App job**), and the chat or app it runs in, which opens it when you select it;
+- when it runs, in words, with its next and last run;
+- whether it's on, **Paused**, or needs attention, with why (for example "Paused after 5 failed runs in a row");
+- what its runs cost in the last 30 days, and how many times it ran.
+
+Use the switch to pause or resume a task, and **⋯** for **Open chat** (or **Open app**), **Edit** and **Delete**. The same rules apply as everywhere else: anyone who can open a chat can pause its routines and watches, only the person who set one up can resume or edit it, because it runs as them, and only owners and admins switch an app's jobs.
+
+The chips at the top show only routines, watches, app jobs, paused tasks or the ones that need attention, and **By bot** changes to **By cost** to put the costliest first. Owners and admins see what every task cost, and a line for the tasks in chats they can't open, without their names; members see what their own tasks cost. Apps' jobs run without AI. Costs are counted from when this list began, so older runs show **No cost yet**. Each bot's card links here from its routines, showing just that bot's tasks.
+
 ### Vault
 
 The home's saved logins, cards and contact info, with tabs, search and **New item**. Everyone in the home shares it. An item can be deleted by the person who added it and by the home's owners and admins: its row has a delete button for them. See [The vault: saved logins and secrets](/help/vault).

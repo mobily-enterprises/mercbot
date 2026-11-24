@@ -69,7 +69,8 @@ test("each call is written down before it goes out and recorded before its answe
   await meter.track({ userId: "1", botId: "2", workspaceId: "3", work: "build" }, () => send({}, "deepinfra"));
   assert.deepEqual(order, ["sent after 1 written down"]);
   assert.deepEqual(recorder.calls[0].call, {
-    userId: "1", botId: "2", workspaceId: "3", work: "build", kind: undefined, provider: "deepinfra", requestChars: 400, mostOutput: undefined, pictures: 0
+    userId: "1", botId: "2", workspaceId: "3", task: undefined, work: "build", kind: undefined, provider: "deepinfra", requestChars: 400,
+    mostOutput: undefined, pictures: 0
   });
   assert.deepEqual(recorder.calls[0].outcome, { state: "done", cacheHit: 0, cacheMiss: 100, output: 10 });
 });

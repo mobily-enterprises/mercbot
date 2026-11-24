@@ -26,6 +26,8 @@ import { DETAIL_DAYS } from "./usage.js";
 /** Daily totals are kept for this month and the twelve before it (D-73). */
 export const DAILY_MONTHS = 13;
 const ARCHIVE_YEARS = 7;
+/** Rows of recurring tasks' days deleted at a time, once they're past DAILY_MONTHS (D-132). */
+const TASK_ROWS_PER_DELETE = 5000;
 /** Homes per archive file: a file holds one month of daily totals for a range of homes, by their ids. */
 export const HOMES_PER_FILE = 100000;
 const ROWS_PER_READ = 5000;
@@ -210,6 +212,26 @@ export function createRetention({
     }
   }
 
+  /**
+   * Deletes the recurring tasks' days (D-132) from before the months daily totals are kept, a few thousand rows at a
+   * time by their day's index, so no delete holds many rows at once. They aren't archived: the daily totals keep what
+   * the work cost. Answers how many it deleted.
+   */
+  async function dropOldTaskDays() {
+    const before = `${monthsBefore(now(), DAILY_MONTHS - 1)}-01`;
+    let deleted = 0;
+    for (;;) {
+      const result = await knex.raw(
+        "delete from usage_tasks_daily where ctid in (select ctid from usage_tasks_daily where day < ? limit ?)",
+        [before, TASK_ROWS_PER_DELETE]
+      );
+      // A connection that doesn't say how many it deleted ends the loop rather than looping for good.
+      const count = Number(result?.rowCount) || 0;
+      deleted += count;
+      if (count < TASK_ROWS_PER_DELETE) return deleted;
+    }
+  }
+
   /** Removes the archive files of months more than seven years ago. */
   async function removeOld() {
     const oldest = monthsBefore(now(), ARCHIVE_YEARS * 12);
@@ -224,13 +246,15 @@ export function createRetention({
   }
 
   /**
-   * One sweep: the partitions for the days and months ahead are made and per-call days past their keep dropped; every
-   * month of daily totals older than 13 months is archived and dropped; archives older than seven years are deleted.
+   * One sweep: the partitions for the days and months ahead are made and per-call days past their keep dropped;
+   * recurring tasks' days older than 13 months are deleted; every month of daily totals older than 13 months is archived
+   * and dropped; archives older than seven years are deleted.
    * Safe on every server at once.
    * @returns {Promise<string[]>} the months this server archived
    */
   async function sweep() {
     await knex.raw("select mercbot_charge_partitions(?, ?)", [now().toISOString(), DETAIL_DAYS]);
+    await dropOldTaskDays();
     if (!(await volumeReady())) return [];
     const keepFrom = monthsBefore(now(), DAILY_MONTHS - 1);
     const archived = [];
@@ -244,6 +268,7 @@ export function createRetention({
   return Object.freeze({
     sweep,
     archiveMonth,
+    dropOldTaskDays,
     folder
   });
 }

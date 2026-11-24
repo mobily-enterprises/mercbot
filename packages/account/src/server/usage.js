@@ -31,6 +31,10 @@ export const USAGE_FILTERS = Object.freeze({
     homeFrom: { type: "integer", actualField: "workspace_id", filterOperator: ">=" },
     homeBefore: { type: "integer", actualField: "workspace_id", filterOperator: "<" }
   }),
+  usageTasksDaily: Object.freeze({
+    dayFrom: { type: "date", actualField: "day", filterOperator: ">=" },
+    dayBefore: { type: "date", actualField: "day", filterOperator: "<" }
+  }),
   computerDays: Object.freeze({
     dayBefore: { type: "date", actualField: "day", filterOperator: "<" }
   }),
@@ -156,6 +160,65 @@ export function eventRow(event) {
   };
 }
 
+/** The kinds of recurring task whose work is counted on its own (D-132): a routine's runs and a watch's. */
+export const TASK_KINDS = Object.freeze(["routine", "watch"]);
+
+/**
+ * The recurring task a piece of work ran for, as the meter carries it (`task` in track()'s who), or null: a routine or
+ * a watch, by its id.
+ * @param {unknown} task
+ * @returns {{ kind: "routine" | "watch", id: string } | null}
+ */
+export function taskOf(task) {
+  const kind = task?.kind;
+  const id = String(task?.id ?? "");
+  return TASK_KINDS.includes(kind) && /^[\w:-]{1,64}$/u.test(id) ? { kind, id } : null;
+}
+
+/** The key of a task's day's row: its home, day (UTC) and task. */
+export const taskDayKey = (workspaceId, task, at) => ({ workspaceId, day: dayOf(at), taskKind: task.kind, taskId: task.id });
+
+/**
+ * Adds a finished piece of work to its recurring task's day (D-132), when it ran for one: its AI calls and their cost,
+ * and `also`'s amounts (a copy's own columns). A computer's day is the computer's, never a task's.
+ * @param {any} handle the task totals' handle (or a copy's view of them)
+ * @param {Record<string, any>} event
+ * @param {Record<string, number>} also
+ * @param {(handle: any, key: object, amounts: object, also: object, txOptions: object) => Promise<void>} add addTo, or a copy's own
+ */
+export async function countForTask(handle, event, also, add, txOptions) {
+  const task = taskOf(event.task);
+  if (!task || event.kind === "computer") return;
+  const amounts = { calls: event.kind === "computation" ? 0 : 1, costNano: event.costNano || 0, ...also };
+  await add(handle, taskDayKey(event.workspaceId, task, event.at), amounts, { userId: Number(event.userId || 0) }, txOptions);
+}
+
+/**
+ * Counts the runs of recurring tasks (D-132), whoever records what they use: each run adds one to its task's day,
+ * once, however often its server is taken over.
+ * @param {object} dependencies
+ * @param {Record<string, any>} dependencies.resources the account feature's handles
+ * @param {(reason: string) => object} dependencies.systemContext the feature's system scope
+ * @param {() => Date} [dependencies.now]
+ */
+export function createTaskRuns({ resources, systemContext, now = () => new Date() }) {
+  const { usageTasksDaily } = resources;
+  /**
+   * One run of a task, for its home and the person it runs as.
+   * @param {{ kind: string, id: string, workspaceId: string | number, userId?: string | number | null }} run
+   */
+  async function countRun({ workspaceId, userId, ...task }) {
+    const found = taskOf(task);
+    const home = homeOf(workspaceId);
+    if (!found || !home) return false;
+    const options = { context: systemContext("count a run of a home's recurring task") };
+    await retryLostInsertRace(options, () => usageTasksDaily.withTransaction(options, (txOptions) =>
+      addTo(usageTasksDaily, taskDayKey(home, found, now()), { runs: 1 }, { userId: Number(idOf(userId) || 0) }, txOptions)));
+    return true;
+  }
+  return Object.freeze({ countRun });
+}
+
 /** The keys of a piece of work's totals rows: its home, bot, person and kind. */
 export const totalsKey = (event) => ({
   workspaceId: event.workspaceId, botId: Number(event.botId || 0), userId: Number(event.userId || 0), kind: event.kind
@@ -169,7 +232,7 @@ export const totalsKey = (event) => ({
  * @param {() => Date} [dependencies.now]
  */
 export function createUsageRecorder({ resources, systemContext, directory, now = () => new Date() }) {
-  const { usageEvents, usageDaily, usageMonthly, computerDays } = resources;
+  const { usageEvents, usageDaily, usageMonthly, usageTasksDaily, computerDays } = resources;
   const system = (reason) => ({ context: systemContext(reason) });
   const whoFor = createWhoFor(directory, system("read a bot's maker, home and name for its usage"), now);
 
@@ -189,6 +252,7 @@ export function createUsageRecorder({ resources, systemContext, directory, now =
     const named = event.botName ? { botName: event.botName } : {};
     await addTo(usageDaily, { ...key, day: dayOf(event.at) }, amounts, named, txOptions);
     await addTo(usageMonthly, { ...key, month: `${monthOf(event.at)}-01` }, amounts, named, txOptions);
+    await countForTask(usageTasksDaily, event, {}, addTo, txOptions);
     if (event.kind === "computation") return;
     await usageEvents.create(eventRow(event), { ...txOptions, returning: "none" });
   }
@@ -196,8 +260,8 @@ export function createUsageRecorder({ resources, systemContext, directory, now =
   const counted = (event) => inTransaction("count a piece of work in its home's usage", (txOptions) => count(event, txOptions)).then(() => true);
 
   /**
-   * Opens an AI call before it goes out, for the person, bot and home it's for.
-   * @param {{ userId?: string, botId?: string, workspaceId?: string, work?: string, kind?: string, provider?: string, requestChars?: number, pictures?: number }} call
+   * Opens an AI call before it goes out, for the person, bot and home it's for, and the recurring task it runs for.
+   * @param {{ userId?: string, botId?: string, workspaceId?: string, task?: { kind: string, id: string }, work?: string, kind?: string, provider?: string, requestChars?: number, pictures?: number }} call
    */
   async function open(call) {
     const who = await whoFor(call);
@@ -208,7 +272,8 @@ export function createUsageRecorder({ resources, systemContext, directory, now =
       purpose: call.work || "chat",
       provider: call.provider || null,
       requestChars: Math.max(0, Math.round(call.requestChars || 0)),
-      pictures: Math.max(0, Math.round(call.pictures || 0))
+      pictures: Math.max(0, Math.round(call.pictures || 0)),
+      task: taskOf(call.task)
     };
   }
 
@@ -281,7 +346,7 @@ export function createUsageRecorder({ resources, systemContext, directory, now =
    * @param {{ botId?: string, userId?: string, workspaceId?: string }} work
    */
   async function startComputation(work) {
-    return { ...(await whoFor(work)), kind: "computation", purpose: "command" };
+    return { ...(await whoFor(work)), kind: "computation", purpose: "command", task: taskOf(work.task) };
   }
 
   /** A command still running carries on: Mercbot never stops one for what it uses. */

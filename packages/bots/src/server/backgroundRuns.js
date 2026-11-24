@@ -41,10 +41,19 @@ export function createBackgroundRuns({ records, systemContext, meter, seats, job
       return;
     }
     const { seat, call } = found;
+    const task = { kind: "routine", id: String(routine.id) };
+    // Counted once, by the server that started it; one that carries it on after another stopped doesn't count it again.
+    if (!(routine.runAttempts > 1)) countRun(task, seat);
     await meter.track(
-      { userId: seat.user_id, botId: seat.id, workspaceId: seat.workspace_id, work: "background" },
+      { userId: seat.user_id, botId: seat.id, workspaceId: seat.workspace_id, task, work: "background" },
       () => runRoutineFor(seat, routine, call, signal)
     );
+  }
+
+  /** A run of a recurring task, in its day's figures (D-132); a run whose count fails runs all the same. */
+  function countRun(task, seat) {
+    meter.countTaskRun({ ...task, workspaceId: seat.workspace_id, userId: seat.user_id })
+      .catch((error) => console.warn(`Counting a run of ${task.kind} ${task.id} failed; it runs all the same.`, error));
   }
 
   /**
@@ -181,7 +190,11 @@ export function createBackgroundRuns({ records, systemContext, meter, seats, job
         : { kind: "task", botId: seat.id };
     // A button's hand-off has someone waiting on it; a watch run or a finished command doesn't (D-59).
     const work = job.kind === "watch" || job.kind === "shell" ? "background" : "chat";
-    await meter.track({ userId: seat.user_id, botId: seat.id, workspaceId: seat.workspace_id, work }, async () => {
+    // A watch's run is a recurring task's (D-132), counted once as a routine's is.
+    const task = job.kind === "watch" ? { kind: "watch", id: String(job.watchId) } : null;
+    if (task && !(job.attempts > 1)) countRun(task, seat);
+    const who = { userId: seat.user_id, botId: seat.id, workspaceId: seat.workspace_id, ...(task ? { task } : {}), work };
+    await meter.track(who, async () => {
       await seats.working(seat, true, null, call);
       try {
         // The task's line goes up once: a run taken over from a stopped server already showed it.

@@ -4,6 +4,7 @@ import { createChatMembers } from "./chatMembers.js";
 import { createOnboarding } from "./onboarding.js";
 import { createChatTurns } from "./chatTurns.js";
 import { createChatRoutines } from "./chatRoutines.js";
+import { createRecurringTasks } from "./recurringTasks.js";
 import { createBotKnowledge } from "./botKnowledge.js";
 import { createCommonKnowledge } from "./commonKnowledge.js";
 import { createRoomsMemory } from "./roomsMemory.js";
@@ -176,6 +177,7 @@ export function createBotsService({
   // Continue with others (D-114): the hand-over note a direct chat's bot writes for the new chat.
   const notes = createHandOverNotes({ records, meter, write: writeNote });
   const routines = createChatRoutines({ records });
+  const recurringTasks = createRecurringTasks({ records, routines, apps, meter, systemContext });
   // Teaching a bot on its computer in a chat (C): a recording, then the skill it teaches.
   const teaching = createBotTeaching({ records, computer, integrations, notices, background, writeSkill });
 
@@ -211,6 +213,7 @@ export function createBotsService({
       routinesOf: routines.routinesOf,
       switchRoutine: routines.switchRoutine,
       deleteRoutine: routines.deleteRoutine,
+      recurringTasks: recurringTasks.list,
       startTeaching: teaching.startTeaching,
       stopTeaching: teaching.stopTeaching
     }),

@@ -14,18 +14,21 @@ export function useShellDialogs({ route, router }) {
   // Settings: opens on General unless a section is asked for.
   const settingsOpen = ref(false);
   const settingsSection = ref("general");
+  // The bot Recurring tasks shows only (a bot's card's link, or ?settings=recurring-tasks&bot=<id>), or none (D-132).
+  const settingsTaskBot = ref("");
 
-  function openSettings(section = "general") {
+  function openSettings(section = "general", { bot = "" } = {}) {
     settingsSection.value = EVERYONE_SECTIONS.some((entry) => entry.value === section) ? section : "general";
+    settingsTaskBot.value = bot ? String(bot) : "";
     settingsOpen.value = true;
   }
   watch(() => route.query.settings, (section) => {
     if (!section) return;
-    openSettings(String(section));
-    const { settings: _section, ...rest } = route.query;
+    openSettings(String(section), { bot: typeof route.query.bot === "string" ? route.query.bot : "" });
+    const { settings: _section, bot: _bot, ...rest } = route.query;
     router.replace({ query: rest });
   }, { immediate: true });
   const aboutOpen = ref(false);
   const findOpen = ref(false);
-  return { shortcutsOpen, settingsOpen, settingsSection, openSettings, aboutOpen, findOpen };
+  return { shortcutsOpen, settingsOpen, settingsSection, settingsTaskBot, openSettings, aboutOpen, findOpen };
 }

@@ -113,6 +113,8 @@ A bot's card lists its routines in every chat you can open, each naming its chat
 
 You can also just say it in the chat: "Pause the Monday summary".
 
+To see every routine, watch and app job in your home at once, with what each costs, open **Settings** > **Recurring tasks**, or **All of *bot*'s recurring tasks** under a bot's routines on its card. See [Settings](/help/settings#recurring-tasks).
+
 ### Routines that wait for your yes
 
 A bot can set up a routine paused, so it doesn't run until you're ready. Bots made from templates do this: their setup interview creates the routines they need, paused, and they start only when you say yes. Ask for the same yourself: "Set it up, but don't start it yet." To start a paused routine, tell the bot to start it, or switch it on under **Routines**.
@@ -154,7 +156,7 @@ For buttons in an app that hand a bot a task, see [Logic: formulas, scripts and 
 | One watch run | Shows up to 20 records; the rest are counted |
 | A teaching recording | 10 minutes |
 
-Routine runs, watch runs and skills are ordinary bot work, counted like any reply, computer days and commands included; **Settings** > **Spending** shows what they came to. A long job that runs out of time or steps ends with the bot's own account of what it did and what's left.
+Routine runs, watch runs and skills are ordinary bot work, counted like any reply, computer days and commands included; **Settings** > **Spending** shows what they came to, and **Settings** > **Recurring tasks** what each routine and watch cost in the last 30 days. A long job that runs out of time or steps ends with the bot's own account of what it did and what's left.
 
 ## Why didn't it run?
 

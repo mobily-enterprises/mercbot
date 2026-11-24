@@ -4408,3 +4408,37 @@ so that work was answered, not done, and its start listed every key as missing t
   that server. A web server's start names every key, as before.
 - The role reaches the features as `MERCBOT_SERVER_ROLE`, which the start sets from `role`; it is never set by hand.
 - Tests: `tests/server/serverRoles.test.js` and `tests/server/serverRoles.integration.js`.
+
+## D-132 — Recurring tasks: every routine, watch and app job in one list, with what each costs (2026-11-24)
+
+A home's recurring work was spread out: routines in each chat's details and on each bot's card, watches on the bot that
+runs them, apps' jobs in each app's Logic tab and the Apps home's Scripts tab, and nothing said what any of them cost.
+The owner asked for one place to see it all, how often each runs and what it costs, made nice and fitting the rest of
+the app.
+
+- **Settings → Recurring tasks** (`MercbotSettingsRecurringTasks.vue`, `GET /api/w/:slug/recurring-tasks`,
+  `packages/bots/src/server/recurringTasks.js`): every routine and watch in the chats the person can open (their row
+  policies) and every app's job (scripts of kind `job`), grouped by bot, apps' jobs last; each with where it runs (a
+  link to its chat or app), when in words, its next and last run, its state (running, paused, or needing attention:
+  a routine paused by 5 failed runs in a row, a watch by more than 30 runs in an hour, a job whose last run failed)
+  with why, and its cost over the last 30 days. Filter chips, By bot or By cost, a top line of counts and cost, loading,
+  error and empty states, and a phone layout. A bot's card links to it filtered to that bot.
+- **No new rules.** Pausing, resuming, editing and deleting use each kind's own routes, and the list only says which the
+  person may use (`can`): anyone who can open a chat pauses and deletes its routines and watches; their maker resumes
+  and edits them, as they run as them (R4); owners and admins switch apps' jobs.
+- **Who sees what it costs** follows spending's rule (D-73): owners and admins every task's, plus one unnamed line for
+  the routines and watches in chats they can't open (counted with the bots' system context); a member only the tasks
+  that run as them. Names and chats a person can't open are never shown.
+- **Counting a task's cost**: the meter's `track()` takes a `task` (`{ kind: "routine" | "watch", id }`), which a
+  routine's and a watch's run pass and work started inside carries on; the recorder adds each AI call's and command's
+  cost to `usage_tasks_daily` (home, UTC day, task, the person it runs as), and the account counts each run once,
+  by the server that started it (`countTaskRun`), whoever records the work. A computer's day is the computer's, never a
+  task's. A copy built on Mercbot that records work its own way adds its own columns and answers `spending.tasks`.
+  Rows are kept 13 months and deleted by the usage upkeep by their day's index, a few thousand at a time. Costs count
+  from this release: older runs show none. Apps' jobs run in the script pool without AI and cost nothing.
+- **A watch's last run** is kept on the watch (`app_watches.last_run_at`, set when a run is queued), so the list reads
+  it without reading the jobs table.
+- Its reads are the same number however many tasks a home has (a list per kind, the chats, bots and costs once each).
+
+Proved by `tests/server/recurringTasks.integration.js`, `tests/server/usage.integration.js`,
+`tests/server/appsWatches.integration.js` and `tests/client/recurringTasks.vitest.js`.

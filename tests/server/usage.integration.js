@@ -10,7 +10,8 @@ import { providerCostNano } from "../../packages/account/src/server/cost.js";
 import { createReports, csvCell, csvDollars } from "../../packages/account/src/server/reports.js";
 import { HOMES_PER_FILE, createRetention } from "../../packages/account/src/server/retention.js";
 import { createSpending } from "../../packages/account/src/server/spending.js";
-import { createUsageRecorder } from "../../packages/account/src/server/usage.js";
+import { createMeter, createMeteredFetch } from "../../packages/account/src/server/meter.js";
+import { createTaskRuns, createUsageRecorder } from "../../packages/account/src/server/usage.js";
 import { ownedHandles } from "../support/ownedHandles.mjs";
 import { connectTestDatabase } from "../support/testDatabase.mjs";
 
@@ -119,6 +120,76 @@ test("every AI call, computer day and command is recorded with what it cost at i
   const largest = await recorder.open({ userId: memberId, botId, provider: "together", requestChars: 3e9, mostOutput: 1e9 });
   assert.equal(await recorder.finish(largest, { state: "failed" }), true);
   assert.equal(await recorder.pausedMessage(homeId), null);
+});
+
+test("work a routine or a watch runs is counted for its task too: its AI calls and commands, never a computer's day", async (context) => {
+  const { knex, recorder: make, resources, systemContext, homeId, ownerId, memberId, botId, cleanup } = await setup(context);
+  cleanup(() => knex("usage_tasks_daily").where({ workspace_id: homeId }).del());
+  const recorder = make();
+  const routine = { kind: "routine", id: "71" };
+  const chat = { state: "done", cacheHit: 100, cacheMiss: 200, output: 50 };
+  await recorder.finish(await recorder.open({ userId: ownerId, botId, task: routine, work: "background", provider: "together" }), chat);
+  await recorder.finish(await recorder.open({ userId: ownerId, botId, task: routine, work: "background", provider: "together" }), chat);
+  await recorder.finishComputation(await recorder.startComputation({ userId: ownerId, botId, task: routine }), 30);
+  await recorder.computerDay({ computerId: "9", userId: ownerId, botId, task: routine });
+  // Not a task: a chat reply, and a task of a kind Mercbot doesn't count.
+  await recorder.finish(await recorder.open({ userId: ownerId, botId, provider: "together" }), chat);
+  await recorder.finish(await recorder.open({ userId: ownerId, botId, task: { kind: "goal", id: "3" }, provider: "together" }), chat);
+  const rows = await knex("usage_tasks_daily").where({ workspace_id: homeId });
+  assert.deepEqual(
+    rows.map((row) => [row.task_kind, row.task_id, String(row.user_id), row.runs, row.calls, Number(row.cost_nano)]),
+    [["routine", "71", ownerId, 0, 2, 2 * providerCostNano(chat, "together")]]
+  );
+
+  // Runs are counted once each, whoever records the work.
+  const runs = createTaskRuns({ resources, systemContext });
+  await Promise.all([runs.countRun({ ...routine, workspaceId: homeId, userId: ownerId }), runs.countRun({ ...routine, workspaceId: homeId, userId: ownerId })]);
+  await runs.countRun({ kind: "watch", id: "5", workspaceId: homeId, userId: memberId });
+  assert.equal(await runs.countRun({ kind: "goal", id: "5", workspaceId: homeId }), false);
+  const counted = await knex("usage_tasks_daily").where({ workspace_id: homeId }).orderBy("task_kind");
+  assert.deepEqual(counted.map((row) => [row.task_kind, row.runs]), [["routine", 2], ["watch", 1]]);
+
+  // The reader sees what it may: owners and admins every task, a member those that run as them.
+  const spending = createSpending({ resources, systemContext });
+  const whole = await spending.tasks(homeId, { userId: ownerId, manages: true });
+  assert.deepEqual(whole.map((row) => [row.kind, row.id, row.runs, row.calls]), [["routine", "71", 2, 2], ["watch", "5", 1, 0]]);
+  const own = await spending.tasks(homeId, { userId: memberId, manages: false });
+  assert.deepEqual(own.map((row) => row.id), ["5"]);
+});
+
+test("the meter carries the task a run is for to each AI call made inside it", async (context) => {
+  const opened = [];
+  const recorder = { open: async (call) => (opened.push(call), call), finish: async () => true };
+  const meter = createMeter({ recorder });
+  const real = globalThis.fetch;
+  globalThis.fetch = async () => new Response(JSON.stringify({ usage: { prompt_tokens: 1, completion_tokens: 1 } }), { headers: { "content-type": "application/json" } });
+  context.after(() => {
+    globalThis.fetch = real;
+  });
+  const send = createMeteredFetch({}, "together");
+  await meter.track({ userId: "1", botId: "2", workspaceId: "3", task: { kind: "watch", id: "8" }, work: "background" }, async () => {
+    await send("https://example.com", { method: "POST", body: "{}" });
+    // Work started inside carries on counting for it.
+    await meter.track({ botId: "4" }, () => send("https://example.com", { method: "POST", body: "{}" }));
+  });
+  await meter.track({ userId: "1", botId: "2", workspaceId: "3" }, () => send("https://example.com", { method: "POST", body: "{}" }));
+  assert.deepEqual(opened.map((call) => call.task ?? null), [{ kind: "watch", id: "8" }, { kind: "watch", id: "8" }, null]);
+});
+
+test("recurring tasks' days older than 13 months are deleted by the upkeep", async (context) => {
+  const { knex, resources, systemContext, homeId, cleanup } = await setup(context);
+  cleanup(() => knex("usage_tasks_daily").where({ workspace_id: homeId }).del());
+  const now = new Date();
+  const old = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 13, 15)).toISOString().slice(0, 10);
+  const kept = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 12, 1)).toISOString().slice(0, 10);
+  await knex("usage_tasks_daily").insert([
+    { workspace_id: homeId, day: old, task_kind: "routine", task_id: "1", runs: 1 },
+    { workspace_id: homeId, day: kept, task_kind: "routine", task_id: "1", runs: 1 }
+  ]);
+  const retention = createRetention({ resources, systemContext, env: {}, knex, archivedColumns: [], filesSync: () => null });
+  await retention.dropOldTaskDays();
+  const days = (await knex("usage_tasks_daily").where({ workspace_id: homeId }).select(knex.raw("to_char(day, 'YYYY-MM-DD') as day"))).map((row) => row.day);
+  assert.deepEqual(days, [kept]);
 });
 
 test("owners and admins see the whole home's spending; a member sees their own use", async (context) => {

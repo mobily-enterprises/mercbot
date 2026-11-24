@@ -243,7 +243,7 @@ const picture = computed(() => uploadedPicture(placementContext.value?.user));
 provide(MERCBOT_INITIALS_KEY, initials);
 
 const chatPanel = ref(null);
-const { shortcutsOpen, settingsOpen, settingsSection, openSettings, aboutOpen, findOpen } = useShellDialogs({ route, router });
+const { shortcutsOpen, settingsOpen, settingsSection, settingsTaskBot, openSettings, aboutOpen, findOpen } = useShellDialogs({ route, router });
 // The open chat's page before its oldest loaded message, as the person scrolls up.
 const loadOlder = () => store.loadOlder(currentChatId()).catch((error) => reportFailure("Older messages didn't load.", error));
 // Find in chat counts the matches in the pages not loaded yet on the server, and brings the pages down to one only
@@ -669,17 +669,15 @@ watch(() => currentHomeEntry.value?.slug, () => loadBuilderBot(), { immediate: t
     <MercbotSettingsDialog
       v-model="settingsOpen"
       v-model:section="settingsSection"
-      :theme="themePreference"
-      :display-name="displayName"
-      :initials="initials"
-      :me="me"
-      :manages="manages"
-      :home-name="homeName"
+      :theme="themePreference" :display-name="displayName" :initials="initials"
+      :me="me" :manages="manages" :home-name="homeName" :task-bot="settingsTaskBot"
       @theme="setTheme"
       @failure="reportFailure(saidByServer($event, 'That didn\'t work. Try again.'), $event)"
       @notify="notify"
       @connect="settingsOpen = false; openApp($event)"
       @bots-changed="team.loadBots()"
+      @open-chat="settingsOpen = false; showChat(String($event))"
+      @edit-routine="settingsOpen = false; editRoutine($event)"
     />
     <MercbotAboutDialog v-model="aboutOpen" @failure="reportFailure('Couldn\'t copy to the clipboard.', $event)" />
     <MercbotSearchPalette

@@ -265,6 +265,10 @@ export function registerRoutes(http, { bots, approvals, notices, meter, records,
     bots.chat.switchRoutine(request.params.routineId, request.body?.enabled, options)));
   router.register("DELETE", `${home}/routines/:routineId`, auth, handle(async (request, _user, options) =>
     bots.chat.deleteRoutine(request.params.routineId, options)));
+  // The home's recurring tasks (D-132): its routines and watches in the chats the person can open and its apps' jobs,
+  // with what each cost as far as the person may see (owners and admins every task's, a member their own).
+  router.register("GET", `${home}/recurring-tasks`, auth, handle(async (request, user, options) =>
+    bots.chat.recurringTasks({ homeId: String(user.homeId), reader: { userId: String(user.id), manages: manages(request) } }, options)));
   // A request between bots is cancelled by the person it's for (D-46).
   router.register("POST", `${home}/bot-requests/:requestId/cancel`, auth, handle(async (request, _user, options) =>
     bots.cancelRequest(request.params.requestId, options)));

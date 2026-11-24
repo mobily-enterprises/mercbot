@@ -40,8 +40,8 @@ test("a chat lists its routines; a bot's card lists them in the chats the viewer
   const inKitchen = (await kit.routines.routinesIn(kitchenChat.id, as("ben"))).routines;
   assert.deepEqual(inKitchen.map((routine) => routine.id), [menu]);
   assert.deepEqual(inKitchen[0], {
-    id: menu, name: "Weekly menu", schedule: "Sundays at 5pm", enabled: false, botId: chef, chatId: kitchenChat.id,
-    chatTitle: "Kitchen", madeBy: anna, canResume: false
+    id: menu, name: "Weekly menu", schedule: "Sundays at 5pm", enabled: false, once: false, failures: 3, nextRunAt: null, lastRunAt: null,
+    botId: chef, chatId: kitchenChat.id, chatTitle: "Kitchen", madeBy: anna, canResume: false
   }, "Ben sees it, and can't resume Anna's routine");
   await assert.rejects(kit.routines.routinesIn(secret.id, as("ben")), { statusCode: 404 }, "a private chat he can't open");
 

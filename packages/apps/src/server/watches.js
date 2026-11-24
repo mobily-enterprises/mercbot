@@ -86,7 +86,10 @@ export function createWatches({ resources, repository, systemContext, registry, 
     on: row.on,
     condition: row.condition,
     instructions: row.instructions,
-    enabled: row.enabled
+    enabled: row.enabled,
+    lastRunAt: row.lastRunAt ?? null,
+    // Paused by Mercbot for running more than PER_HOUR times in an hour, rather than by a person.
+    pausedByLimit: !row.enabled && Number(row.runsInHour) > PER_HOUR
   });
 
   /**
@@ -330,9 +333,11 @@ export function createWatches({ resources, repository, systemContext, registry, 
       const hourStart = sameHour ? watch.runsHourStart : new Date().toISOString();
       const runs = hourStart === watch.runsHourStart ? watch.runsInHour + 1 : 1;
       const paused = runs > PER_HOUR;
+      // A run that goes ahead is its last run, as the home's recurring tasks show it (D-132).
+      const ran = paused ? { enabled: false } : { lastRunAt: new Date().toISOString() };
       await appWatches.patch(
         watch.id,
-        { ...advance, runsHourStart: hourStart, runsInHour: runs, ...(paused ? { enabled: false } : {}) },
+        { ...advance, runsHourStart: hourStart, runsInHour: runs, ...ran },
         { ...home, returning: "none" }
       );
       // Its run is its bot's in its chat, as the person who made it (R4).
