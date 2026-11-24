@@ -336,16 +336,22 @@ test("a round whose server stopped reads as interrupted once its lease lapses, a
 
 // Renewed every 100 ms, the lease holds 1 s, so the round outlasts a stall of this process or its database on a busy
 // host: with a 300 ms lease, a heartbeat that came late on a host running 20 processes for its 8 CPUs let it lapse,
-// which ends a round for good.
+// which ends a round for good. The test waits for what it checks (two renewals of the lease, the stopped turn's end),
+// never for a set time: a set time is too short on a busy host, and on any host it checks nothing about the events.
 test("Stop during a turn ends it at the round's next heartbeat, which renews the card's lease while the round runs", async (context) => {
   const { knex, kim, lee, ada, bo, turns, steer, as, chatOf, chat, propose, cardOf, drain, said, shown } = await setup(context, {
     discussionLimits: { heartbeatMs: 100, leaseMs: 1000 }
   });
   const kitchen = await chatOf([ada, bo], [kim, lee]);
   const card = await propose(kitchen, kim, "Tiles or wood?");
-  // Ada's turn talks until it's stopped, or for 5 seconds at most.
+  // Ada's turn talks until it's stopped, or for a minute: far longer than the test, unless the Stop never reaches it.
+  let endedByItself = false;
   steer.script = (bot, _prompt, options) => new Promise((resolve, reject) => {
-    const late = setTimeout(() => resolve(`${bot.name}: at last.`), 5000);
+    const late = setTimeout(() => {
+      endedByItself = true;
+      resolve(`${bot.name}: at last.`);
+    }, 60_000);
+    late.unref();
     options.signal?.addEventListener("abort", () => {
       clearTimeout(late);
       reject(options.signal.reason);
@@ -353,13 +359,21 @@ test("Stop during a turn ends it at the round's next heartbeat, which renews the
   });
   await chat.startDiscussion(kitchen, card.id, { rounds: 1 }, as(kim));
   while (!turns.length) await new Promise((resolve) => setImmediate(resolve));
-  await new Promise((resolve) => setTimeout(resolve, 2000));
-  assert.equal((await shown(kitchen, card.id, lee)).status, "running", "twice its lease later, renewed at each heartbeat");
+  // Two heartbeats renew the card's lease while the turn runs.
+  const leases = [(await cardOf(card.id)).leaseUntil];
+  while (leases.length < 3) {
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    const { status, leaseUntil } = await cardOf(card.id);
+    assert.equal(status, "running", "the round runs on while its lease is renewed");
+    if (leaseUntil !== leases.at(-1)) leases.push(leaseUntil);
+    else assert.ok(Date.now() < Date.parse(leaseUntil), `a heartbeat renewed the lease before it lapsed (${leaseUntil})`);
+  }
+  assert.ok(leases.every((lease, index) => !index || Date.parse(lease) > Date.parse(leases[index - 1])), `each renewal moves the lease on (${leases})`);
+  assert.equal((await shown(kitchen, card.id, lee)).status, "running", "renewed at each heartbeat");
 
-  const stoppedAt = Date.now();
   await chat.stopDiscussion(kitchen, card.id, as(kim));
   await drain();
-  assert.ok(Date.now() - stoppedAt < 2000, `the turn stopped at the next heartbeat, not when it would have ended (${Date.now() - stoppedAt} ms)`);
+  assert.equal(endedByItself, false, "the turn stopped at a heartbeat, not when it would have ended");
   assert.equal(turns[0].options.signal.aborted, true, "Ada's turn was stopped");
   const body = await cardOf(card.id);
   assert.deepEqual([body.status, body.ended], ["ended", "stopped"]);
