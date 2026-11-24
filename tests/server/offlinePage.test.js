@@ -27,7 +27,8 @@ function openPage({ onLine = false, failures = 0 } = {}) {
     navigator: { onLine },
     location: { href: "https://mercbot.example.test/w/home?chat=3", reload: () => { reloads += 1; } },
     fetch: async (url, options) => {
-      tries.push({ at: now, url, options });
+      // The page's options are of the page's own world: copied into this one, so they compare as plain objects.
+      tries.push({ at: now, url, options: { ...options } });
       inFlight += 1;
       mostAtOnce = Math.max(mostAtOnce, inFlight);
       await null;
