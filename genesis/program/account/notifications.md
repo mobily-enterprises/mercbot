@@ -18,7 +18,11 @@ other apps share into it, and sends people notifications on their devices when a
 - `src/public/sw.js`
 - `src/public/offline.html`
 - `src/public/offline.js`
-- `src/public/app-icons`
+- `src/public/app-icons/apple-touch-icon.png`
+- `src/public/app-icons/badge-96.png`
+- `src/public/app-icons/icon-192.png`
+- `src/public/app-icons/icon-512.png`
+- `src/public/app-icons/maskable-512.png`
 - `index.html`
 - `src/main.js`
 - `src/components/mercbot/appInstall.js`

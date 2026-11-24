@@ -128,7 +128,6 @@ why ("The main bot can't be archived. Make another bot main first.").
 - `tests/client/teamReads.vitest.js`
 - `tests/client/archiveBots.vitest.js`
 - `tests/client/mainBotSettings.vitest.js`
-- `tests/client/botCardFiles.vitest.js`
 - `tests/e2e/archive-bots.spec.ts`
 - `tests/e2e/instructions.spec.ts`
 - `tests/server/botAdditions.integration.js`
