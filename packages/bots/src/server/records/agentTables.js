@@ -37,8 +37,16 @@ export function lookingRuns(runs, agentRuns, options) {
     const { records: stale } = await agentRuns.query({ filters, fields: ["id"], page: { size: 1 } }, options);
     return !stale.length;
   }
+  /**
+   * In the transaction that posts a person's reply (txOptions): its run's steps and input go, so a run whose reply was
+   * posted is never carried on again, even when its server stops before freeing it just after (release).
+   */
+  async function settle(conversationId, txOptions) {
+    await agentRuns.patch(String(conversationId), { steps: null, input: null }, { ...options, trx: txOptions.trx, missing: "skip" });
+  }
   return Object.freeze({
     ...runs,
-    claim: async (conversationId, owner) => !(await running(conversationId)) && runs.claim(conversationId, owner)
+    claim: async (conversationId, owner) => !(await running(conversationId)) && runs.claim(conversationId, owner),
+    settle
   });
 }

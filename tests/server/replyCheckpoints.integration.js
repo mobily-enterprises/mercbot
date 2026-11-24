@@ -15,7 +15,7 @@ const call = { type: "tool-call", toolCallId: "c1", toolName: "list_files", inpu
 const result = { type: "tool-result", toolCallId: "c1", toolName: "list_files", output: { type: "json", value: { mine: ["notes.txt"] } } };
 const steps = [{ role: "assistant", content: [call] }, { role: "tool", content: [result] }];
 
-async function setup(context, reply) {
+async function setup(context, reply, more = {}) {
   const knex = await connectTestDatabase();
   const userId = (await knex("users").first())?.id;
   const bot = await testBot(knex, userId, { name: `Resume ${Date.now().toString(36)}` });
@@ -25,7 +25,7 @@ async function setup(context, reply) {
   });
   // A reply a stopped server left is carried on in the bots' system context, for the person it worked for. Its run is
   // the bot's in its chat: the runtime's conversation is its seat (chat_bots.id).
-  const kit = await startChatTurns(context, { reply });
+  const kit = await startChatTurns(context, { reply, ...more });
   /** The person's request in the bot's home, as the bots routes make its options. */
   const as = (person) => memberOptions({ userId: person, homeId: bot.workspace_id });
   return { knex, userId, as, bot, service: kit.turns, drain: kit.drain, seatId: bot.chat_bot_id };
@@ -99,4 +99,79 @@ test("saved steps for an older message aren't carried into a newer one", async (
   assert.equal(passes.length, 1);
   assert.equal(passes[0].prompt, "", "a fresh reply to the newer message");
   assert.notEqual(passes[0].history.at(-1).body?.transcript?.length, 2);
+});
+
+/** A run row as a server that stopped leaves it behind: as read then, its heartbeat gone quiet. */
+const leftBehind = (knex, run) => ({
+  ...run,
+  heartbeat_at: knex.raw("now() - interval '5 minutes'"),
+  steps: run.steps === null ? null : JSON.stringify(run.steps),
+  input: run.input === null ? null : JSON.stringify(run.input)
+});
+
+test("a reply whose server stopped before its first step finished is started over by any server, from the person's message", async (context) => {
+  const passes = [];
+  // Only this test's bot counts: resuming looks across the whole test database.
+  let mine = null;
+  let left = null;
+  const { knex, as, userId, bot, service, drain, seatId } = await setup(context, async (current, _history, _tools, _state, prompt) => {
+    if (String(current.id) !== String(mine)) return { text: "", transcript: [] };
+    passes.push({ prompt });
+    // The first pass is where the stopped server was: in its first model call, no step finished yet. The run as it is
+    // then is what that server leaves behind, and like a stopped server this pass posts nothing.
+    if (passes.length === 1) {
+      left = await knex("agent_runs").where({ conversation_id: seatId }).first();
+      return { text: "", transcript: [] };
+    }
+    return { text: "You have notes.txt.", transcript: [{ role: "assistant", content: [{ type: "text", text: "You have notes.txt." }] }] };
+  });
+  mine = bot.id;
+  const sent = await service.chat.sendMessage(bot.conversation_id, { text: "What files do I have?", clientId: `s-${Date.now()}` }, as(userId));
+  await service.chat.reply(bot.conversation_id, { afterMessageId: sent.messages[0].id }, undefined, as(userId));
+  await drain(10000);
+  assert.ok(left, "the run, while its first step ran");
+  await knex("agent_runs").insert(leftBehind(knex, left));
+  await service.resumeStalled();
+  await drain(10000);
+  assert.equal(passes.length, 2, "another server starts the reply over");
+  assert.equal(passes[1].prompt, "", "from the person's message, as the first pass began");
+  const answers = await knex("messages").where({ conversation_id: bot.conversation_id, kind: "text", role: "bot" });
+  assert.deepEqual(answers.map((message) => message.body.text), ["You have notes.txt."]);
+  assert.equal(await knex("agent_runs").where({ conversation_id: seatId }).first(), undefined, "and frees its run");
+});
+
+test("a reply's run gives up its steps as the reply is posted, so a server that stopped before freeing it is never answered for twice", async (context) => {
+  const passes = [];
+  let mine = null;
+  let left = null;
+  // Set once setup answers: the chat's people hear of the reply once it's posted and before its run is freed, which is
+  // where a server that stopped right after posting leaves the run.
+  let seen = null;
+  const notices = {
+    publishEach: async (_topic, _people, event) => {
+      if (!seen || left || event.type !== "messages" || !passes.length) return;
+      const posted = await seen.knex("messages").where({ conversation_id: seen.bot.conversation_id, kind: "text", role: "bot" }).first();
+      if (posted) left = await seen.knex("agent_runs").where({ conversation_id: seen.seatId }).first();
+    }
+  };
+  const kit = await setup(context, async (current, _history, _tools, _state, _prompt, { onSteps }) => {
+    if (String(current.id) !== String(mine)) return { text: "", transcript: [] };
+    passes.push(true);
+    await onSteps(steps);
+    return { text: "You have notes.txt.", transcript: [...steps, { role: "assistant", content: [{ type: "text", text: "You have notes.txt." }] }] };
+  }, { notices });
+  const { knex, as, userId, bot, service, drain, seatId } = kit;
+  seen = kit;
+  mine = bot.id;
+  context.after(() => knex("agent_runs").where({ conversation_id: seatId }).del());
+  const sent = await service.chat.sendMessage(bot.conversation_id, { text: "What files do I have?", clientId: `p-${Date.now()}` }, as(userId));
+  await service.chat.reply(bot.conversation_id, { afterMessageId: sent.messages[0].id }, undefined, as(userId));
+  await drain(10000);
+  assert.ok(left, "the run was still there as its reply was posted");
+  await knex("agent_runs").insert(leftBehind(knex, left));
+  await service.resumeStalled();
+  await drain(10000);
+  assert.equal(passes.length, 1, "nothing answers the message again");
+  const answers = await knex("messages").where({ conversation_id: bot.conversation_id, kind: "text", role: "bot" });
+  assert.deepEqual(answers.map((message) => message.body.text), ["You have notes.txt."]);
 });
