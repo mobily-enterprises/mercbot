@@ -1,12 +1,14 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readlinkSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readlinkSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import { desktopSandboxAvailable, startDesktopSandbox } from "../../packages/computer/src/server/desktopSandbox.js";
-import { DESKTOP_GRAPHICS, sandboxSpec, shellAvailable } from "../../packages/files/src/server/gvisor.js";
+import { BOT, CHAT, DB, SHARED } from "../../packages/files/src/server/fileStore.js";
+import { GATEWAY_INSIDE } from "../../packages/files/src/server/gateway.js";
+import { DESKTOP_GRAPHICS, TOOLBOX_MOUNT_POINTS, sandboxSpec, shellAvailable } from "../../packages/files/src/server/gvisor.js";
 import { makeStoreToolbox, mountedNoexec } from "../../packages/files/src/server/storeToolbox.js";
 
 // On a host whose programs come from a read-only Nix store (MERCBOT_TOOLBOX_STORE), the bots' toolbox is a small system
@@ -78,6 +80,28 @@ test("the toolbox is made of links into the store, from the programs on PATH the
   assert.ok(made.missing.commandLine.includes("ffmpeg") && made.missing.commandLine.includes("pandoc"), made.missing.commandLine.join(" "));
   assert.equal(existsSync(path.join(box, "etc/mercbot-toolbox")), false);
   assert.equal(shellAvailable(env), false);
+});
+
+// gVisor makes a sandbox's missing mount point in the toolbox itself, which only the user running runsc may do where it
+// may write: a toolbox made by root for a host's servers to share, or the server's own while MERCBOT_SANDBOX_USER runs
+// the sandboxes, starts no sandbox that mounts a folder at a point it lacks ("cannot create sandbox"). So every
+// toolbox has them all from when it's made.
+test("every toolbox has the mount points of every folder a sandbox is given, made with it", (context) => {
+  // A command's folders of its home, its gateway, and the rest of what sandboxes mount.
+  for (const point of [CHAT, BOT, SHARED, DB, GATEWAY_INSIDE, "/runs", "/opt/apps", "/out", "/io", "/profile", "/opt/coding", "/opt/piper"]) {
+    assert.ok(TOOLBOX_MOUNT_POINTS.includes(point), `${point} is one of the toolbox's mount points`);
+  }
+  const { env, box } = place(context);
+  makeStoreToolbox(env);
+  for (const point of TOOLBOX_MOUNT_POINTS) assert.ok(statSync(path.join(box, point), { throwIfNoEntry: false })?.isDirectory(), `the store's toolbox has ${point}`);
+  // scripts/build-toolbox.sh makes them in a toolbox it builds, and in one it already has, with this script.
+  const built = realpathSync(mkdtempSync(path.join(os.tmpdir(), "mb-toolbox-points-")));
+  context.after(() => rmSync(built, { recursive: true, force: true }));
+  const made = spawnSync(process.execPath, [path.join(ROOT, "scripts/toolbox-mount-points.mjs"), built], { encoding: "utf8" });
+  assert.equal(made.status, 0, made.stderr);
+  for (const point of TOOLBOX_MOUNT_POINTS) assert.ok(statSync(path.join(built, point), { throwIfNoEntry: false })?.isDirectory(), `a built toolbox has ${point}`);
+  assert.match(readFileSync(path.join(ROOT, "scripts/build-toolbox.sh"), "utf8"), /node "\$ROOT\/scripts\/toolbox-mount-points\.mjs" "\$NEW"/u, "a toolbox it builds");
+  assert.match(readFileSync(path.join(ROOT, "scripts/build-toolbox.sh"), "utf8"), /node "\$ROOT\/scripts\/toolbox-mount-points\.mjs" "\$BOX\/rootfs"/u, "one it already has");
 });
 
 test("with every tool bots are told of, and python3's modules, the command line is offered too", (context) => {

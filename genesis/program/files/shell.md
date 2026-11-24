@@ -39,6 +39,13 @@ does, within limits per command, per bot and per home (D-47, D-112, D-126, D-127
   `scripts/toolbox-run.sh`, which keeps the sandbox off the build's own output (gVisor shuts down an
   inherited socket, as Publish's output is, when its sandbox ends) and says which failed: the host
   refusing the sandbox, the install inside it, or the build's own output closing (status 141).
+- **Mount points:** every toolbox has the folders sandboxes are given folders at (`TOOLBOX_MOUNT_POINTS`,
+  `gvisor.js`: `/files/chat`, `/files/bot`, `/files/shared`, `/files/db`, `/runs`, `/gateway` and the rest) from when
+  it's made: `makeStoreToolbox` makes them, and `build-toolbox.sh` runs `scripts/toolbox-mount-points.mjs`
+  (`makeMountPoints`, `storeToolbox.js`) on a toolbox it builds and on one it already has. gVisor makes a missing mount
+  point in the toolbox itself, which only the user running runsc can do where it may write; a toolbox made by root for
+  a host's servers to share starts no sandbox given a folder at a point it lacks (`cannot create sandbox`), so no
+  mount point is left to gVisor or made by hand (`tests/server/storeToolbox.test.js`).
 - **Toolbox from a host's store (D-86):** on a host whose programs come from a read-only Nix store, nothing is
   installed or built: `MERCBOT_TOOLBOX_STORE` names the store (such as `/nix`) and `MERCBOT_TOOLBOX_DIR` the folder the
   toolbox is made in, and `scripts/serve.sh` runs `scripts/store-toolbox.mjs` (`makeStoreToolbox`, `storeToolbox.js`)

@@ -1,7 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { lstatSync, mkdirSync, readFileSync, readdirSync, realpathSync, renameSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { DESKTOP_GRAPHICS, toolboxRoot, toolboxStore } from "./gvisor.js";
+import { DESKTOP_GRAPHICS, TOOLBOX_MOUNT_POINTS, toolboxRoot, toolboxStore } from "./gvisor.js";
 
 // The bots' toolbox (D-47) on a host whose programs come from a read-only Nix store (MERCBOT_TOOLBOX_STORE, such as
 // /nix) instead of Mercbot's own build (scripts/build-toolbox.sh): a small system of links into the store, made in
@@ -239,6 +239,15 @@ function pythonHas(python3) {
 }
 
 /**
+ * Makes the sandboxes' mount points (TOOLBOX_MOUNT_POINTS) in the toolbox at `root`: in one made from a store here,
+ * and in one scripts/build-toolbox.sh builds or already has (scripts/toolbox-mount-points.mjs).
+ * @param {string} root
+ */
+export function makeMountPoints(root) {
+  for (const point of TOOLBOX_MOUNT_POINTS) mkdirSync(path.join(root, point), { recursive: true });
+}
+
+/**
  * Makes the toolbox in MERCBOT_TOOLBOX_DIR from the programs on PATH that are in MERCBOT_TOOLBOX_STORE: each as
  * usr/bin/<name> (bin and sbin lead there), the browser as opt/chrome/chrome, a fonts.conf with the store's fonts, and
  * the few files a system has in etc, with MERCBOT_TOOLBOX_CERTIFICATES' root certificates where the store's programs read
@@ -273,6 +282,7 @@ export function makeStoreToolbox(env) {
   for (const dir of ["usr/bin", "usr/local/bin", "etc/fonts", "opt/chrome", "proc", "dev", "sys", "tmp", "root", store.slice(1)]) {
     mkdirSync(path.join(fresh, dir), { recursive: true });
   }
+  makeMountPoints(fresh);
   symlinkSync("usr/bin", path.join(fresh, "bin"));
   symlinkSync("usr/bin", path.join(fresh, "sbin"));
   for (const [name, real] of programs) symlinkSync(real, path.join(fresh, "usr", "bin", name));

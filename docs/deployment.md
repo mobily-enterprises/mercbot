@@ -247,7 +247,9 @@ doesn't accept, a public address that isn't https) still stops the start, saying
 - `MERCBOT_TOOLS_DIR` (default `.tools`) when the tools live elsewhere.
 - `MERCBOT_TOOLBOX_STORE` and `MERCBOT_TOOLBOX_DIR`: on a host whose programs come from a read-only Nix store, the store
   and the folder the toolbox is made in (above). `MERCBOT_TOOLBOX_DIR` alone names a toolbox kept elsewhere than
-  `<MERCBOT_TOOLS_DIR>/toolbox/rootfs`.
+  `<MERCBOT_TOOLS_DIR>/toolbox/rootfs`. Every toolbox has the folders sandboxes are given folders at from when it's
+  made; one copied from an older build gets them with `node scripts/toolbox-mount-points.mjs <toolbox>`, run by the
+  toolbox's owner, as a sandbox can't make them in a toolbox its user can't write.
 - `MERCBOT_TOOLS_STORE`: where `npm run tools:install` keeps each tool's installed versions (D-70;
   default `.tools/store`, and `$HOME/.cache/mercbot-tools` through `npm run deploy:prepare`).
 - `HOSTING_SCRIPT`'s default is `scripts/hosting/vibe64.sh`, for development in Vibe64. The hosting

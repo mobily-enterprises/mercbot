@@ -25,6 +25,19 @@ export function toolsDir(env) {
 const runscPath = (env) => env.MERCBOT_RUNSC || path.join(toolsDir(env), "bin", "runsc");
 
 /**
+ * Where sandboxes are given folders of the server's (shell.js, officeApps.js and @local/computer's desktop, coding and
+ * apps sandboxes, each a folderMount at one of these or inside a folder mounted at one): every toolbox has them from
+ * when it's made (storeToolbox.js, scripts/build-toolbox.sh). gVisor makes a missing mount point in the toolbox
+ * itself, which only works where the user running runsc may write in it; a toolbox made by root for a host's servers
+ * to share, or the server's own while MERCBOT_SANDBOX_USER runs the sandboxes, starts no sandbox that mounts a folder
+ * at a point it lacks ("cannot create sandbox"). A sandbox given a folder at a new point adds it here.
+ */
+export const TOOLBOX_MOUNT_POINTS = Object.freeze([
+  "/files/chat", "/files/bot", "/files/shared", "/files/db", "/runs", "/gateway", "/out", "/io", "/profile",
+  "/opt/apps", "/opt/coding", "/opt/piper", "/opt/stagehand-extension"
+]);
+
+/**
  * Who the sandboxes run as (D-49). With MERCBOT_SANDBOX_USER set (scripts/setup-sandbox-user.sh,
  * run once as root), every gVisor sandbox runs as that powerless user through one sudo rule, so a
  * program that got out of gVisor still couldn't read this server's settings, keys or database
