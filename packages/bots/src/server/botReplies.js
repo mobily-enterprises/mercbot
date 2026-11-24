@@ -651,9 +651,9 @@ export function createBotReplies({
     if (!fresh?.chat_bot_id || fresh.chat.archived_at || fresh.archived_at) return;
     if (!(await chatHistory.claimReply(fresh))) return;
     // The waiting message is what it answers, not the connected app it followed up (connectFollowUps.js) nor a card.
-    const next = { ...input, connected: null, afterCard: false, waiting: waitingWords(latest), asked: Number(latest.id) };
-    const reader = seats.readerOf(fresh);
-    await meter.track(meteredAs(fresh), () => handover.runReply(fresh, { ...next, mayPass: Boolean(entry.mayPass) }, reader, null, present));
+    const turn = { ...input, connected: null, afterCard: false, waiting: waitingWords(latest), asked: Number(latest.id) };
+    const reply = () => handover.runReply(fresh, { ...turn, mayPass: Boolean(entry.mayPass) }, seats.readerOf(fresh), null, present);
+    await meter.track(meteredAs(fresh), reply);
   }
 
   /** A bot freed by a discussion (D-115) answers a message for it newer than `since`, as after a reply of its own. */
