@@ -237,6 +237,11 @@ task:
   starts over. The transaction that posts a reply clears its steps and input, so a reply posted by a server that
   stopped before freeing its run is never posted again. A routine's, an app task's or a request's run keeps its steps
   on its own row instead.
+- **Taken over:** a person's reply holds its run as a routine holds its lease (D-59): each heartbeat locks the run's row
+  and checks it's still the run the reply's claim started. Once another server has taken it over (this one stalled past
+  the staleness), or no heartbeat went through for most of the staleness, the reply stops at its next step, and its
+  steps, its post and its release are refused, so it posts and frees nothing and only the server holding the run
+  answers.
 - **Messages mid-reply:** what the person writes while a reply works reaches the bot with its next tool result, when
   the message is for that bot (R3), and that reply then counts as answering it.
 - **To-do list and job notes:** `update_todos` keeps one `todos` card per job, updated in place
