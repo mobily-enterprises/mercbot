@@ -69,7 +69,6 @@ export function codingFollowUp(apps, systemContext) {
 export function createBotLoops({ records, systemContext, notices, files, apps, computer, bots, push, workspaces }) {
   /** @type {{ drain: (ms: number) => Promise<void> }[]} */
   let loops = [];
-  let shellEnded = () => {};
 
   /** Starts every loop, once the server is listening. */
   function start() {
@@ -98,8 +97,10 @@ export function createBotLoops({ records, systemContext, notices, files, apps, c
     // A command that went on in the background (D-47) wakes its bot in the same chat when it ends, for the person
     // whose turn ran it; runs whose server stopped are found by any server.
     files.shell.startSweeping();
-    // The run's own home queues it (a run row, snake_case, as the shell keeps it), for its seat's bot.
-    shellEnded = files.shell.onEnd(async (run) => {
+    // The run's own home queues it (a run row, snake_case, as the shell keeps it), for its seat's bot. It keeps
+    // listening through the drain, as coding runs do: Files shuts down after Bots, which requires it, and its drain
+    // stops each command still running, which is reported too (another server runs the task).
+    files.shell.onEnd(async (run) => {
       const inHome = { context: systemContext("a finished command's follow-up").forWorkspace(String(run.workspace_id)) };
       const [seat] = await records.directory.seats([String(run.chat_bot_id)], inHome);
       if (!seat) return;
@@ -125,7 +126,6 @@ export function createBotLoops({ records, systemContext, notices, files, apps, c
    */
   async function drain(ms) {
     await Promise.all([...loops.map((loop) => loop.drain(ms)), bots.drain(ms)]);
-    shellEnded();
   }
 
   return Object.freeze({

@@ -232,7 +232,8 @@ does, within limits per command, per bot and per home (D-47, D-112, D-126, D-127
   output, exitCode, run, running}]`, shown in the chat as one line that opens to each script and
   its output.
 - **Background ends:** `botLoops.js` queues an `app_jobs` task of kind `shell` for the run's seat in its chat. The task posts "Command finished" (or "Command stopped") and a turn in which the
-  bot reports. Replies with the shell may take 40 steps. The standing rules (`FILES_RULES`)
+  bot reports. It listens through the server's shutdown: Files drains after Bots and stops the commands still running,
+  each reported so, and another server runs the task. Replies with the shell may take 40 steps. The standing rules (`FILES_RULES`)
   explain the folders and the command line, and the skill "Working on the command line" has
   recipes.
 
