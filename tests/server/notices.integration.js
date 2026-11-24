@@ -166,30 +166,53 @@ async function pathTo({ host, port }) {
   };
 }
 
+// "Within a few heartbeats" is counted in heartbeats, in the order the test sees things happen, never in milliseconds a
+// busy host can stretch: each check notices.js sends itself (a pg_notify of its own topic through the server's pool,
+// which the quiet path doesn't carry), the warning that one went unheard, each listening connection made, and each
+// catch-up.
 test("a listening connection whose network path goes quiet is replaced within a few heartbeats, and only then is anything caught up", async (context) => {
   const knex = await connectTestDatabase();
   const path = await pathTo(knex.client.config.connection);
+  const events = [];
+  const checks = (query) => {
+    if (String(query?.bindings?.[1] ?? "").includes('"topic":"notices-check"')) events.push("check");
+  };
+  knex.on("query", checks);
   // One server publishes; another listens through the path.
   const sender = createNotices({ knex });
-  const { notices, clients, heard, missed } = noticesKeeping(knex, HEARTBEAT, (config) => ({ ...config, host: "127.0.0.1", port: path.port }));
+  const { notices, clients, heard, missed } = noticesKeeping(knex, HEARTBEAT, (config) => {
+    events.push("connect");
+    return { ...config, host: "127.0.0.1", port: path.port };
+  });
+  notices.onMissed(() => events.push("catch up"));
   context.after(async () => {
+    knex.removeListener("query", checks);
     path.close();
     await notices.close();
     await sender.close();
     await knex.destroy();
   });
-  context.mock.method(console, "warn", () => {});
+  context.mock.method(console, "warn", (message) => {
+    events.push(String(message).startsWith("The notices connection stopped hearing its own check") ? "unheard" : `warn: ${message}`);
+  });
   await hears(sender, heard, 1);
-  await pause(HEARTBEAT.heartbeatMs * 4);
+  // Four checks: one waiting holds the next back, so at least three were heard.
+  await until(() => events.filter((event) => event === "check").length >= 4, "four checks while the path is up");
+  assert.deepEqual(events.filter((event) => event !== "check"), ["connect"], "heard checks replace nothing");
   assert.deepEqual([clients.length, missed()], [1, 0], "the first connect is no reconnect: nothing to catch up");
 
   path.freeze();
-  const frozenAt = Date.now();
+  events.push("quiet");
   await hears(sender, heard, 2);
-  const took = Date.now() - frozenAt;
+  const after = events.slice(events.indexOf("quiet") + 1);
+  const replaced = after.indexOf("connect");
+  // The next check goes unheard and replaces it: none goes out while one waits, nor while no connection listens, so at
+  // most one leaves after the path goes quiet (none when the one that goes unheard had left just before).
+  const sent = after.slice(0, replaced).filter((event) => event === "check").length;
+  assert.ok(sent <= 1, `${sent} checks went out between the path going quiet and its replacement`);
+  assert.deepEqual(after.filter((event) => event !== "check"), ["unheard", "connect", "catch up"],
+    "an unheard check replaces it, and only the new connection's listening catches up");
   assert.deepEqual([clients.length, missed()], [2, 1], "replaced once, and its streams told to catch up");
-  const bound = RECONNECT_MS + 4 * (HEARTBEAT.heartbeatMs + HEARTBEAT.heartbeatTimeoutMs);
-  assert.ok(took < bound, `heard again ${took} ms after the path went quiet (bound ${bound} ms)`);
 });
 
 test("an unheard check, an error and an end of the same connection reconnect it once", async (context) => {
