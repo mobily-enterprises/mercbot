@@ -190,41 +190,31 @@
         },
         "content": [
           {
-            "type": "form",
-            "record": "=data.person",
-            "fields": [
-              "name",
-              "first_name",
-              "last_name",
-              "photo",
-              "role",
-              "email",
-              "phone",
-              "mobile",
-              "address",
-              "website",
-              "birthday",
-              "tags",
-              "owner",
-              "last_contacted",
-              "notes"
-            ],
-            "buttons": [
+            "type": "row",
+            "content": [
+              {
+                "type": "text",
+                "value": "=data.person.name",
+                "size": "headline"
+              },
+              {
+                "type": "spacer"
+              },
               {
                 "type": "button",
-                "label": "Save",
+                "label": "Edit",
+                "icon": "edit",
+                "emphasis": "primary",
                 "do": [
                   {
-                    "update": {
-                      "record": "=data.person",
-                      "set": "=form.values"
+                    "go": {
+                      "screen": "edit_contact",
+                      "params": {
+                        "id": "=params.id"
+                      }
                     }
-                  },
-                  {
-                    "notify": "=\"Saved \" + form.name"
                   }
-                ],
-                "emphasis": "primary"
+                ]
               },
               {
                 "type": "button",
@@ -238,6 +228,72 @@
                 ]
               }
             ]
+          },
+          {
+            "type": "grid",
+            "columns": 2,
+            "content": [
+              {
+                "type": "field",
+                "label": "Organisation",
+                "value": "=data.person.organisation"
+              },
+              {
+                "type": "field",
+                "label": "Role",
+                "value": "=data.person.role"
+              },
+              {
+                "type": "field",
+                "label": "Email",
+                "value": "=data.person.email"
+              },
+              {
+                "type": "field",
+                "label": "Phone",
+                "value": "=data.person.phone"
+              },
+              {
+                "type": "field",
+                "label": "Mobile",
+                "value": "=data.person.mobile"
+              },
+              {
+                "type": "field",
+                "label": "Website",
+                "value": "=data.person.website"
+              },
+              {
+                "type": "field",
+                "label": "Birthday",
+                "value": "=data.person.birthday"
+              },
+              {
+                "type": "field",
+                "label": "Owner",
+                "value": "=data.person.owner"
+              },
+              {
+                "type": "field",
+                "label": "Tags",
+                "value": "=data.person.tags"
+              },
+              {
+                "type": "field",
+                "label": "Last contacted",
+                "value": "=data.person.last_contacted"
+              }
+            ]
+          },
+          {
+            "type": "field",
+            "label": "Address",
+            "value": "=data.person.address"
+          },
+          {
+            "type": "field",
+            "label": "Notes",
+            "value": "=data.person.notes"
           },
           {
             "type": "text",
@@ -264,6 +320,82 @@
               {
                 "label": "Assignee",
                 "value": "=row.assignee"
+              }
+            ]
+          }
+        ]
+      },
+      "edit_contact": {
+        "params": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "data": {
+          "person": {
+            "record": "contacts",
+            "id": "=params.id"
+          }
+        },
+        "content": [
+          {
+            "type": "form",
+            "record": "=data.person",
+            "fields": [
+              "name",
+              "first_name",
+              "last_name",
+              "photo",
+              "role",
+              "email",
+              "phone",
+              "mobile",
+              "address",
+              "website",
+              "birthday",
+              "tags",
+              "owner",
+              "last_contacted",
+              "notes"
+            ],
+            "buttons": [
+              {
+                "type": "button",
+                "label": "Save",
+                "emphasis": "primary",
+                "do": [
+                  {
+                    "update": {
+                      "record": "=data.person",
+                      "set": "=form.values"
+                    }
+                  },
+                  {
+                    "notify": "=\"Saved \" + form.name"
+                  },
+                  {
+                    "go": {
+                      "screen": "contact",
+                      "params": {
+                        "id": "=params.id"
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "label": "Cancel",
+                "do": [
+                  {
+                    "go": {
+                      "screen": "contact",
+                      "params": {
+                        "id": "=params.id"
+                      }
+                    }
+                  }
+                ]
               }
             ]
           }

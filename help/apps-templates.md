@@ -15,7 +15,7 @@ Open **Apps** and choose the **Templates** tab. Each template shows:
 
 | Template | What it's for | Tables | Screens you'll see |
 |---|---|---|---|
-| **Contacts** | The people and organisations you deal with | Contacts, Organisations, To-dos | People with search and tags, Mine, each person's page with their to-dos, and Organisations with their people |
+| **Contacts** | The people and organisations you deal with | Contacts, Organisations, To-dos | People with search and tags, Mine, each person's record with their to-dos (**Edit** to change it), and Organisations with their people |
 | **To-dos** | Named lists of to-dos, by department and person | To-dos, To-do lists, Departments | My tasks, Lists, Departments, By person and Overdue, and each to-do's page with its subtasks and quick Doing, Waiting and Done |
 | **CRM** | Your pipeline on the home's contacts, and the deals you're working on | Contacts, Organisations, CRM contacts, Deals | a Pipeline with a chart by stage, Contacts with each one's pipeline row and deals, and Deals with a chart by stage |
 | **Stock** | Items, how many you have and where, and when to reorder | Items | Items, and By location with a pie chart of quantity by location |

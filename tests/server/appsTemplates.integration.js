@@ -83,6 +83,14 @@ test("Contacts and To-dos install on the shared tables, and their screens find w
   assert.deepEqual(await query("contacts", "people", "people", { state: { search: "", tag: "other" } }), []);
   assert.deepEqual(await query("contacts", "mine", "people"), ["Ann"]);
   assert.deepEqual(await query("contacts", "contact", "todos", { params: { id: ann.id } }), ["Call Ann"]);
+  // A person opens as their record to read; Edit opens the form, and saving it comes back to the record.
+  const steps = async (screen, path, values = {}) =>
+    (await runtime.action(ctx, { slug: "contacts", screen, path, params: { id: ann.id }, values })).effects;
+  assert.deepEqual(await steps("contact", "content/0/content/2/do"), [{ go: { screen: "edit_contact", params: { id: String(ann.id) } } }]);
+  const saved = await steps("edit_contact", "content/0/buttons/0/do", { name: "Ann Lee" });
+  assert.deepEqual(saved.at(-1), { go: { screen: "contact", params: { id: String(ann.id) } } });
+  assert.equal((await runtime.query(ctx, { slug: "contacts", screen: "contact", query: "person", params: { id: ann.id } })).record.name, "Ann Lee");
+  assert.deepEqual(await steps("edit_contact", "content/0/buttons/1/do"), [{ go: { screen: "contact", params: { id: String(ann.id) } } }], "Cancel");
   assert.deepEqual(await query("to-dos", "mine", "tasks"), ["Call Ann"]);
   assert.deepEqual(await query("to-dos", "overdue", "tasks"), ["Call Ann"]);
   assert.deepEqual((await query("to-dos", "todo_list", "tasks", { params: { id: general.id } })).sort(), ["Book a room", "Call Ann"], "a list's to-dos, not their subtasks");

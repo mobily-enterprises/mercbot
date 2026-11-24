@@ -28,7 +28,8 @@ const classes = computed(() => [`app-node--${props.node.type}`, ...String(props.
 /** @type {import("../../types.js").AppForm} */
 const form = inject(APP_FORM_KEY, NO_APP_FORM);
 const tones = { success: "success", warning: "warning", danger: "error", primary: "primary", neutral: undefined };
-const sizes = { headline: "text-h5", title: "text-h6", body: "text-body-1" };
+// The theme's Material 3 type roles: text-h5 and text-h6 have no size in it.
+const sizes = { headline: "text-headline-small", title: "text-title-large", body: "text-body-large" };
 
 const value = (setting, scope = props.scope) => runtime.evaluate(setting, scope);
 const visible = computed(() => props.node.showIf === undefined || value(props.node.showIf) === true);
