@@ -34,8 +34,8 @@ other apps share into it, and sends people notifications on their devices when a
 The web app manifest (`/manifest.webmanifest`) installs Mercbot as a standalone app with its icons, light and dark
 theme colours, shortcuts (`/?go=new-chat`, `/?settings=recurring-tasks`, `/?settings=files`) and a share target
 (`POST /share`, multipart: title, text, url, files). The service worker (`/sw.js`, scope `/`) answers a page that can't
-load with `/offline.html`, never for `/api`, `/a`, `/p` or `/console`, keeps the built files under `/assets/` and
-nothing else, and turns a share into `/?go=share&key=<key>`, where the shell asks **Send to a chat**.
+load with `/offline.html`, never for `/api`, `/a`, `/p` or `/console`, and the offline page's script and icon from
+its own copy when the network can't give them; it keeps the built files under `/assets/` and nothing else, and turns a share into `/?go=share&key=<key>`, where the shell asks **Send to a chat**.
 
 `GET /api/w/:workspaceSlug/push` answers the signed-in person's own `{ enabled, publicKey, settings, devices }`:
 `enabled` is false without `MERCBOT_PUSH_SECRET`; `settings` are `results`, `waiting`, `messages`, `showText`,

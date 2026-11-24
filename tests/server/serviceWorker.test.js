@@ -125,6 +125,18 @@ test("offline, a page shows the offline page; the API, public pages and the Cons
   assert.deepEqual(online.fetched, ["/w/home", "/assets/app-abc123.js"], "a built file kept is read from the cache");
 });
 
+test("offline, the offline page's own script and icon come from the worker's copy, so its Try again works there", async () => {
+  const worker = startWorker({ online: false });
+  await worker.fire("install", {});
+  for (const path of ["/offline.js", "/app-icons/icon-192.png"]) {
+    const answer = await worker.fire("fetch", fetchEvent(path, { mode: "no-cors" }));
+    assert.equal(await answer?.text(), `kept ${ORIGIN}${path}`, path);
+  }
+  const online = startWorker();
+  await online.fire("install", {});
+  assert.equal(await (await online.fire("fetch", fetchEvent("/offline.js", { mode: "no-cors" }))).text(), "from the network", "online, the server's own");
+});
+
 test("a pushed notification shows with its chat's tag, opens there, and sets the icon's count", async () => {
   const worker = startWorker();
   const payload = { title: "Chef in Kitchen", body: "Dinner at 7?", url: "/w/home?chat=3", tag: "chat-3", unread: 2 };

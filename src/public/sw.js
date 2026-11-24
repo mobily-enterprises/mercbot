@@ -48,6 +48,12 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(fetch(request).catch(async () => (await caches.match(OFFLINE_PAGE)) || Response.error()));
     return;
   }
+  // The offline page's own script and icon, from the worker's copy when the network can't give them: the browser's
+  // cache asks the server again before using them, so offline the page would stand without its Try again.
+  if (OFFLINE_FILES.includes(url.pathname)) {
+    event.respondWith(fetch(request).catch(async () => (await caches.match(url.pathname)) || Response.error()));
+    return;
+  }
   // Vite names each built file by its content, so one kept is right for good.
   if (url.pathname.startsWith("/assets/")) {
     event.respondWith((async () => {
