@@ -125,7 +125,8 @@ export function createPushQueueRepository({ resources, systemContext, now = () =
    */
   async function unreadChats(userIds, { exceptHomeId = null } = {}) {
     const options = { context: systemContext("count people's chats with news in every home, for their app's icon") };
-    const filters = { userIds: userIds.map(String), unread: true, muted: false, ...(exceptHomeId == null ? {} : { notWorkspaceId: String(exceptHomeId) }) };
+    const filters = { userIds: userIds.map(String), unread: true, muted: false };
+    if (exceptHomeId != null) filters.notWorkspaceId = String(exceptHomeId);
     const counts = await chatPeople.aggregate({ groupBy: ["userId"], measures: { unread: { count: "*" } }, filters }, options);
     return new Map(counts.map((row) => [String(row.userId), Number(row.unread) || 0]));
   }
