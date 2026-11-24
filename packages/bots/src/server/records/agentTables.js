@@ -37,12 +37,14 @@ export function lookingRuns(runs, agentRuns, options) {
     const { records: stale } = await agentRuns.query({ filters, fields: ["id"], page: { size: 1 } }, options);
     return !stale.length;
   }
+  /** The runs' own system context in a caller's transaction (txOptions), which the handle joins. */
+  const joined = (txOptions) => ({ ...txOptions, context: options.context, missing: "skip" });
   /**
    * In the transaction that posts a person's reply (txOptions): its run's steps and input go, so a run whose reply was
    * posted is never carried on again, even when its server stops before freeing it just after (release).
    */
   async function settle(conversationId, txOptions) {
-    await agentRuns.patch(String(conversationId), { steps: null, input: null }, { ...options, trx: txOptions.trx, missing: "skip" });
+    await agentRuns.patch(String(conversationId), { steps: null, input: null }, joined(txOptions));
   }
   /**
    * A person's reply's hold on its run, from just after its claim (botReplies.js runReply): the run is the reply's while
@@ -54,7 +56,7 @@ export function lookingRuns(runs, agentRuns, options) {
     const id = String(conversationId);
     const claimed = await agentRuns.get(id, { fields: ["started_at"] }, { ...options, missing: "skip" });
     const start = claimed ? new Date(claimed.started_at).getTime() : NaN;
-    const writing = (txOptions) => ({ ...options, trx: txOptions.trx, missing: "skip" });
+    const writing = joined;
     const now = () => agentRuns.raw("now()");
     async function holds(txOptions) {
       const run = await agentRuns.lock(id, { ...writing(txOptions), fields: ["started_at"] });

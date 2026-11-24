@@ -445,16 +445,26 @@ export function createBotRequests({
   /** The next due step of any home, leased to this server; claimed in the runner's system context. */
   const claim = () => work.claimRequest(limits.leaseSeconds, { context: systemContext("bot request runner") });
 
-  // Runs every due step this server can claim. Safe to call often and from any server.
+  // Runs every due step this server can claim. Safe to call often and from any server: a call while it runs (a notice)
+  // has it look again before it ends.
   let running = null;
+  let again = false;
   function runDue() {
-    if (running) return running;
+    if (running) {
+      again = true;
+      return running;
+    }
+    again = false;
     running = (async () => {
       try {
         for (let count = 0; count < 50 && !handingOver; count += 1) {
           const request = await claim();
-          if (!request) break;
-          await step(request);
+          if (request) {
+            await step(request);
+            continue;
+          }
+          if (!again) break;
+          again = false;
         }
       } catch (error) {
         console.error(`Bot requests: ${error?.message || error}`);
@@ -481,9 +491,9 @@ export function createBotRequests({
      * stops at its next step, a model call there and then, keeps its steps, and is due again now; then every server is
      * told (`bots-requests`) and one carries it on straight away. A step that doesn't stop in time keeps its lease,
      * which lapses by itself.
-     * @param {number} _ms the drain's time, which a handover never waits out
+     * The drain's time is never waited out.
      */
-    async function drain(_ms) {
+    async function drain() {
       stopped = true;
       clearInterval(timer);
       unsubscribe();
