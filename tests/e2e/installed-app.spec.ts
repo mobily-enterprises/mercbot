@@ -68,12 +68,17 @@ test("Mercbot installs from its address: the manifest, a service worker over the
   expect(kept.names).toEqual(expect.arrayContaining(["mercbot-offline-v1"]));
   expect(kept.urls.filter((url) => url.startsWith("/api") || url.startsWith("/w/"))).toEqual([]);
 
-  // Offline, a page shows Mercbot's own page, and Try again opens the app once back online.
+  // Offline, a page shows Mercbot's own page. Try again there tries the page, which still can't load; back online the
+  // page opens the app by itself (offline.js), with no Try again left to press.
   await context.setOffline(true);
   await page.goto(HOME).catch(() => {});
-  await expect(page.getByRole("heading", { name: "You're offline" })).toBeVisible();
-  await context.setOffline(false);
+  const offline = page.getByRole("heading", { name: "You're offline" });
+  await expect(offline).toBeVisible();
+  const tried = page.waitForEvent("requestfailed", (request) => new URL(request.url()).pathname === HOME);
   await page.getByRole("button", { name: "Try again" }).click();
+  await tried;
+  await expect(offline).toBeVisible();
+  await context.setOffline(false);
   await expect(page.locator(".mb-shell")).toBeVisible();
 });
 
