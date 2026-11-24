@@ -255,6 +255,28 @@ const turnsNeutral = {
 };
 
 /**
+ * Notices as servers share them (packages/notices' LISTEN/NOTIFY), for two or more servers in one test: what any of
+ * them publishes reaches every listener at once.
+ */
+export function sharedNotices() {
+  const listeners = new Map();
+  const tell = (topic, key, event) => {
+    for (const listener of [...(listeners.get(`${topic}:${key}`) ?? [])]) listener(event);
+  };
+  return {
+    publish: async (topic, key, event) => tell(topic, String(key), event),
+    publishEach: async (topic, keys, event) => keys.forEach((key) => tell(topic, String(key), event)),
+    subscribe: (topic, key, listener) => {
+      const name = `${topic}:${key}`;
+      if (!listeners.has(name)) listeners.set(name, new Set());
+      listeners.get(name).add(listener);
+      return () => listeners.get(name)?.delete(listener);
+    },
+    onMissed: () => () => {}
+  };
+}
+
+/**
  * The bots' turns in chats (chatTurns.js) on the test database, for the turn tests: the bots' records and what
  * BotsFeature gives beside them (startBotParts), the chat routes' chats (chatMembers.js), and the neutral doubles for
  * the rest. Also a test's own database connection and its cleanups (newest first): add the rows a test makes to
