@@ -163,7 +163,6 @@ test("a reply's run gives up its steps as the reply is posted, so a server that 
   const { knex, as, userId, bot, service, drain, seatId } = kit;
   seen = kit;
   mine = bot.id;
-  context.after(() => knex("agent_runs").where({ conversation_id: seatId }).del());
   const sent = await service.chat.sendMessage(bot.conversation_id, { text: "What files do I have?", clientId: `p-${Date.now()}` }, as(userId));
   await service.chat.reply(bot.conversation_id, { afterMessageId: sent.messages[0].id }, undefined, as(userId));
   await drain(10000);
@@ -174,4 +173,6 @@ test("a reply's run gives up its steps as the reply is posted, so a server that 
   assert.equal(passes.length, 1, "nothing answers the message again");
   const answers = await knex("messages").where({ conversation_id: bot.conversation_id, kind: "text", role: "bot" });
   assert.deepEqual(answers.map((message) => message.body.text), ["You have notes.txt."]);
+  // The run left behind stays until the bot's next claim takes it over; this test's goes now.
+  await knex("agent_runs").where({ conversation_id: seatId }).del();
 });
