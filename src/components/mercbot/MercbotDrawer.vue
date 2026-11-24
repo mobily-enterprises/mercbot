@@ -2,11 +2,13 @@
 // On a phone the chat list is a drawer over the chat (useShellLayout): it slides in from the left over a dimmed
 // backdrop, and closes with a tap on the backdrop or a swipe back toward the edge, following the finger as it goes.
 // Only its transform and the backdrop's opacity move, so it stays cheap on any phone; with reduced motion it just
-// appears and goes. Elsewhere the list stays in its place, as the slot alone.
+// appears and goes. Elsewhere the list stays in its place: the same element holds it, laid out as if it weren't there
+// (display: contents), so a window crossing the phone's width keeps the list mounted, and with it whatever it has open
+// (New home, from the home menu, and what was typed in it).
 import { ref } from "vue";
 import { SWIPE_START_PX, swipeCloses } from "./drawerSwipe.js";
 
-defineProps({
+const props = defineProps({
   phone: { type: Boolean, required: true }
 });
 const open = defineModel("open", { type: Boolean, required: true });
@@ -20,6 +22,7 @@ let touch = null;
 // Touch events, not pointer events: the browser cancels a pointer the moment the list under the finger would scroll,
 // while a touch's moves keep arriving.
 function start(event) {
+  if (!props.phone) return;
   const [finger] = event.changedTouches;
   if (event.touches.length !== 1 || !finger) return;
   touch = { id: finger.identifier, x: finger.clientX, y: finger.clientY, at: event.timeStamp };
@@ -58,30 +61,30 @@ function release(event, { cancelled = false } = {}) {
 </script>
 
 <template>
-  <template v-if="phone">
-    <Transition name="mb-drawer-scrim">
-      <div v-if="open" class="mb-drawer__scrim" @click="open = false" />
-    </Transition>
-    <Transition name="mb-drawer" @after-leave="dragged = 0">
-      <div
-        v-show="open"
-        ref="panel"
-        class="mb-drawer"
-        :class="{ 'mb-drawer--dragging': dragging }"
-        :style="{ '--mb-drawer-dragged': `${dragged}px` }"
-        @touchstart.passive="start"
-        @touchmove.passive="move"
-        @touchend="release"
-        @touchcancel="release($event, { cancelled: true })"
-      >
-        <slot />
-      </div>
-    </Transition>
-  </template>
-  <slot v-else />
+  <Transition name="mb-drawer-scrim">
+    <div v-if="phone && open" class="mb-drawer__scrim" @click="open = false" />
+  </Transition>
+  <Transition name="mb-drawer" :css="phone" @after-leave="dragged = 0">
+    <div
+      v-show="!phone || open"
+      ref="panel"
+      :class="phone ? ['mb-drawer', { 'mb-drawer--dragging': dragging }] : 'mb-drawer-host'"
+      :style="phone ? { '--mb-drawer-dragged': `${dragged}px` } : undefined"
+      @touchstart.passive="start"
+      @touchmove.passive="move"
+      @touchend="release"
+      @touchcancel="release($event, { cancelled: true })"
+    >
+      <slot />
+    </div>
+  </Transition>
 </template>
 
 <style scoped>
+.mb-drawer-host {
+  display: contents;
+}
+
 .mb-drawer {
   position: absolute;
   top: 0;
