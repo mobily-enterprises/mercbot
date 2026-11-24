@@ -209,6 +209,7 @@ export function createChatTurns({
     chatHistory,
     replies,
     background,
+    notices,
     ...(discussionLimits ? { limits: discussionLimits } : {})
   });
   const connectFollowUps = createConnectFollowUps({
@@ -260,6 +261,8 @@ export function createChatTurns({
     compaction: chatHistory.compaction,
     requests,
     goals,
+    // Discussion rounds handed over between servers (discussions.js startCarryingOn).
+    discussions: { startCarryingOn: discussions.startCarryingOn },
     startResumer: replies.startResumer,
     resumeStalled: replies.resumeStalled,
     handOverReplies: replies.handOverReplies,

@@ -54,7 +54,7 @@ export function keepLease(renew, what, { seconds, heartbeatMs } = RUN_LEASE) {
 }
 
 /** How long a run stopped at shutdown may take to reach its next step before its lease is ended. */
-const HAND_OVER_MS = 5000;
+export const HAND_OVER_MS = 5000;
 
 /**
  * Shutting down: a runner's runs still going are stopped at once, at their next step (a model call ends there and

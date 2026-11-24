@@ -85,6 +85,8 @@ export function createBotLoops({ records, systemContext, notices, files, apps, c
       bots.goals.start(),
       // Replies a stopped server left part-way carry on from their saved steps (D-48).
       bots.startResumer(),
+      // Discussion rounds (D-115) a stopping server hands over carry on here; draining hands this server's over.
+      bots.discussions.startCarryingOn(),
       // A task waiting for an app the person connected from its card is finished: the sign-in starts it,
       // and this sweep, once a minute, those whose server stopped first.
       bots.connectFollowUps.startSweeping(),

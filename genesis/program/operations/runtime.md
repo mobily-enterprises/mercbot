@@ -65,10 +65,11 @@ screens close so pages reconnect elsewhere, and computers save their browsers
 while requests in progress finish (`serveComputers`, before Fastify waits for the
 server's connections, since the browsers' own come in through it, D-68). Then every
 feature's shutdown runs: the bots hand over at once every routine and watch run, app
-task, connect follow-up and person's reply still running (each stops at its next step,
-a model call there and then, keeps its steps and ends its lease or marks its run stale,
-`runLease.js` `handOverRuns`), and tell every server through a notice (`routines`,
-`apps-jobs`, `connect-follow-ups`, `replies`), whose runners claim them straight away;
+task, connect follow-up, person's reply, bot request step and discussion round still
+running (each stops at its next step, a model call there and then, keeps its steps and
+ends its lease or marks its run stale, `runLease.js` `handOverRuns`), and tell every
+server through a notice (`routines`, `apps-jobs`, `connect-follow-ups`, `replies`,
+`bots-requests`, `discussions`), whose runners claim them straight away;
 one that doesn't stop within 5 seconds keeps its lease, which lapses by itself. The rest
 of the background work gets up to 20 seconds. It exits after at most 25 seconds. `docs/deployment.md` lists what a
 deployment of disposable servers needs.
