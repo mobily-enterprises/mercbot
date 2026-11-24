@@ -40,6 +40,14 @@ const model = defineModel({ type: Boolean, default: false });
   background: rgb(var(--v-theme-link));
 }
 
+/* Keyboard focus: the ring Mercbot's other controls draw, in the scheme's secondary, which stands out at least 3:1 from
+   what's behind it in light and dark (Material 3's focus indicator). The browser's own ring was all but invisible on
+   dark surfaces. */
+.mb-toggle:focus-visible {
+  outline: 2px solid rgb(var(--v-theme-secondary));
+  outline-offset: 2px;
+}
+
 .mb-toggle:disabled {
   opacity: 0.5;
   cursor: default;

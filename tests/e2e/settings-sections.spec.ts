@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "./harness";
+import { expect, focusRing, test, type Page } from "./harness";
 
 // Settings lists Mercbot's own sections, the same for everyone in a home; the API guard fails the test on any of
 // the page's calls that the server refuses or leaves unanswered.
@@ -20,6 +20,24 @@ async function openSettings(page: Page) {
   await expect(sections.getByRole("button", { name: "General" })).toBeVisible();
   return sections;
 }
+
+// Settings' on/off switches (MercbotSwitch) show where the keyboard is with the ring Mercbot's other controls draw.
+test("Settings' switches show keyboard focus with a ring that stands out at least 3:1, light and dark", async ({ page }) => {
+  await page.goto("/");
+  await expect(page).toHaveURL(/\/w\/[^/?]+/u);
+  await openSettings(page);
+  const spellcheck = page.getByRole("dialog", { name: "Settings" }).getByRole("switch", { name: "Spell check while typing" });
+  await spellcheck.focus();
+  expect(await spellcheck.evaluate((element) => element.matches(":focus-visible")), "focused from the keyboard").toBe(true);
+  for (const colorScheme of ["light", "dark"] as const) {
+    await page.emulateMedia({ colorScheme });
+    await expect(page.locator(".v-application")).toHaveClass(new RegExp(`\\bv-theme--(workspace-)?${colorScheme}\\b`, "u"));
+    const ring = await focusRing(spellcheck);
+    expect(ring.style, colorScheme).toBe("solid");
+    expect(ring.width, colorScheme).toBeGreaterThanOrEqual(2);
+    expect(ring.ratio, `${colorScheme}: the ring against what's behind it`).toBeGreaterThanOrEqual(3);
+  }
+});
 
 test("a home's owner gets Mercbot's own Settings sections, and General has no Sign out", async ({ page }) => {
   await page.goto("/");
