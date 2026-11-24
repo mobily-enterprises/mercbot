@@ -240,3 +240,25 @@ test("a stopping server's app job runner hands its tasks over at once and tells 
   assert.deepEqual(released, [9]);
   assert.deepEqual(notices.published, [["apps-jobs", "all"]], "the other servers are told");
 });
+
+test("an app job runner told during a scan looks again before the scan ends, so the task handed over isn't left to the next one", async (context) => {
+  quiet(context);
+  const notices = sharedNotices();
+  let claims = 0;
+  const jobs = {
+    withTransaction: (options, work) => work(options),
+    claimNext: async () => ((claims += 1), null),
+    claimStalled: async () => null,
+    renew: async () => true,
+    release: async () => true,
+    finish: async () => {}
+  };
+  const runner = startAppJobRunner({ jobs, systemContext: () => ({ forWorkspace: () => ({}) }), notices, run: async () => {}, everyMs: 60_000, lease: SHORT });
+  context.after(() => runner.drain(100));
+  // The first scan is still under way (its first claim answered nothing, the stalled claim not yet) when another server
+  // hands a task over.
+  assert.equal(claims, 1);
+  await notices.publish("apps-jobs", "all", {});
+  for (let waited = 0; claims < 2 && waited < 1000; waited += 5) await sleep(5);
+  assert.equal(claims, 2, "it looked again as soon as it heard");
+});
