@@ -78,7 +78,9 @@ use_toolbox() {
   tools_link "$BOX/rootfs" "$TOOLS/toolbox/rootfs"
   find "$TOOLS/toolbox" -mindepth 1 -maxdepth 1 ! -name rootfs -exec rm -rf {} +
 }
-if [ "$(stamp "$BOX/rootfs")" = "$STAMP" ]; then use_toolbox; exit 0; fi
+# Every toolbox has the sandboxes' mount points (gvisor.js TOOLBOX_MOUNT_POINTS), one it already has too: gVisor
+# can't make a missing one in a toolbox its user can't write, such as root's for a host's servers to share.
+if [ "$(stamp "$BOX/rootfs")" = "$STAMP" ]; then node "$ROOT/scripts/toolbox-mount-points.mjs" "$BOX/rootfs"; use_toolbox; exit 0; fi
 if [ ! -x "$RUNSC" ]; then echo "The toolbox needs gVisor (.tools/bin/runsc): run scripts/install-tools.sh." >&2; exit 1; fi
 
 mkdir -p "$BOX/downloads"
@@ -168,6 +170,7 @@ missing="$(for package in "${PACKAGES[@]}"; do grep -q "^Package: $package\$" "$
 if [ ! -e "$NEW/usr/bin/tmux" ] || [ -z "$(ls "$NEW"/usr/lib/x86_64-linux-gnu/libutempter.so.* 2>/dev/null)" ]; then missing="$missing tmux"; fi
 if [ -n "$missing" ]; then echo "The toolbox is missing: $missing" >&2; exit 1; fi
 rm -rf "$NEW/debs" "$NEW/wheels" "$NEW/install.sh" "$NEW/chrome.zip" "$NEW"/var/cache/apt/archives/*.deb "$NEW"/var/lib/apt/lists/* "$APT" "$STATE" "$BOX/config.json" "$BOX/install.sh"
+node "$ROOT/scripts/toolbox-mount-points.mjs" "$NEW"
 echo "$STAMP" > "$NEW/etc/mercbot-toolbox"
 rm -rf "$BOX/rootfs.old"
 if [ -d "$BOX/rootfs" ]; then mv "$BOX/rootfs" "$BOX/rootfs.old"; fi
