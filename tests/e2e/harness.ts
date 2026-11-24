@@ -164,12 +164,12 @@ export function expectRefusal(...calls: string[]) {
 }
 
 /**
- * The contrast ratio (WCAG 2) of an element's text against what shows behind it: its own background, else the nearest
- * ancestor's, see-through ones blended down to the first opaque one. Text in its background's own colour, as a selected
- * segment's label drawn in the segment's colour, is about 1; WCAG asks body text for 4.5.
+ * The contrast ratio (WCAG 2) of an element's text, or of its focus ring, against what shows behind it: for text its own
+ * background, else the nearest ancestor's; for the ring, drawn outside the element, its parent's and on. See-through
+ * ones are blended down to the first opaque one. Also the ring's style and width, as the page computes them.
  */
-export async function textContrast(target: Locator) {
-  return target.evaluate((element) => {
+async function contrastBehind(target: Locator, ring: boolean) {
+  return target.evaluate((element, ring) => {
     type Colour = { r: number; g: number; b: number; a: number };
     const colour = (value: string): Colour => {
       const [r, g, b, a = 1] = (value.match(/[\d.]+/gu) || []).map(Number);
@@ -177,20 +177,37 @@ export async function textContrast(target: Locator) {
     };
     const over = (top: Colour, under: Colour): Colour => ({ r: top.r * top.a + under.r * (1 - top.a), g: top.g * top.a + under.g * (1 - top.a), b: top.b * top.a + under.b * (1 - top.a), a: 1 });
     const layers: Colour[] = [];
-    for (let node: Element | null = element; node; node = node.parentElement) {
+    for (let node: Element | null = ring ? element.parentElement : element; node; node = node.parentElement) {
       const background = colour(getComputedStyle(node).backgroundColor);
       if (background.a > 0) layers.push(background);
       if (background.a >= 1) break;
     }
     const behind = layers.reduceRight((under, layer) => over(layer, under), { r: 255, g: 255, b: 255, a: 1 });
-    const text = over(colour(getComputedStyle(element).color), behind);
+    const style = getComputedStyle(element);
+    const front = over(colour(ring ? style.outlineColor : style.color), behind);
     const luminance = ({ r, g, b }: Colour) => {
       const [red, green, blue] = [r, g, b].map((channel) => (channel / 255 <= 0.04045 ? channel / 255 / 12.92 : ((channel / 255 + 0.055) / 1.055) ** 2.4));
       return 0.2126 * red + 0.7152 * green + 0.0722 * blue;
     };
-    const [light, dark] = [luminance(text), luminance(behind)].sort((first, second) => second - first);
-    return (light + 0.05) / (dark + 0.05);
-  });
+    const [light, dark] = [luminance(front), luminance(behind)].sort((first, second) => second - first);
+    return { ratio: (light + 0.05) / (dark + 0.05), style: style.outlineStyle, width: Number.parseFloat(style.outlineWidth) };
+  }, ring);
+}
+
+/**
+ * The contrast ratio (WCAG 2) of an element's text against what shows behind it. Text in its background's own colour,
+ * as a selected segment's label drawn in the segment's colour, is about 1; WCAG asks body text for 4.5.
+ */
+export async function textContrast(target: Locator) {
+  return (await contrastBehind(target, false)).ratio;
+}
+
+/**
+ * An element's focus ring: its style, width and contrast against what's behind it. Material 3 asks a focus indicator
+ * for at least 3:1; a browser's own ring (style "auto") is drawn in the browser's colours, which the page can't vouch for.
+ */
+export async function focusRing(target: Locator) {
+  return contrastBehind(target, true);
 }
 
 /**
