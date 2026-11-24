@@ -331,7 +331,11 @@ also renews a key the provider turned down before it ran out (`refused`, D-80), 
 it's still the saved key, so of several servers that saw it turned down one asks the provider; it answers `renewed`
 when this call asked. A home's files kept in Google Drive get their keys this way (D-80). Outside staging and production only (`APP_ENV`, D-87), `MERCBOT_TEST_GOOGLE_DRIVE_URL` makes the
 stand-in Drive (`tests/support/fakeDrive.mjs`) Google's sign-in for connected accounts too
-(`standInGoogle` in `IntegrationsFeature.js`), for the Test Preview.
+(`standInGoogle` in `IntegrationsFeature.js`), for the Test Preview. It is signed in to with the copy's own Google app
+(`GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`, as `credentials` picks them), and takes only the client it knows
+(`STAND_IN_GOOGLE_CLIENT` unless started with another), as Google does: without the app nothing is renewed, and one it
+doesn't know is refused `invalid_client`, each 502 `integrations_renewal_failed` with the account left signed in. A
+computers server renews a Drive home's key the same way (D-131, `tests/server/serverRoles.integration.js`).
 
 **GitHub through the copy's GitHub App** (D-128, `githubApp.js`, `githubAccess.js`): with `GITHUB_APP_ID`,
 `GITHUB_APP_SLUG` and `GITHUB_APP_PRIVATE_KEY` (PEM, or with `\n` for line breaks; the `GITHUB_TEST_APP_` ones on a

@@ -18,13 +18,17 @@ import { promisify } from "node:util";
 //   files from 8 MB, each chunk sent with POST or PUT to the session's address);
 // - Google's sign-in, enough for a person to sign in again: GET /authorize sends the browser straight back with a
 //   code, POST /token turns it into keys (and gives Mercbot its access back) or renews a key from a refresh key,
-//   refusing with invalid_grant once `refuse()` was called, and GET /oauth2/v3/userinfo says who signed in;
+//   refusing with invalid_grant once `refuse()` was called, and GET /oauth2/v3/userinfo says who signed in. As Google,
+//   /token takes only the client it knows (`client`, the copy's GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET, sent in the
+//   form): any other, or none, is refused with 401 invalid_client;
 // Every Drive call needs a key it handed out and that hasn't run out; others are refused with 401.
 // Mercbot calls it on its plain http address (`url`). rclone's Drive backend always calls https://www.googleapis.com,
 // so in tests it goes through `proxy`, a CONNECT proxy that answers for that name with a certificate from a test
 // authority (`caFile`, which rclone is told to trust): the same stand-in behind it. Making those needs openssl.
 
 const FOLDER = "application/vnd.google-apps.folder";
+/** The Google app the stand-in knows unless it's started with another: a copy's GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET. */
+export const STAND_IN_GOOGLE_CLIENT = Object.freeze({ id: "stand-in-google-client", secret: "stand-in-google-client-secret" });
 const run = promisify(execFile);
 
 /** A test authority and a certificate for www.googleapis.com signed by it, in a folder of their own. */
@@ -99,9 +103,10 @@ const now = () => new Date().toISOString();
 
 /**
  * Starts the stand-in Drive on 127.0.0.1, and, unless `proxy: false`, the CONNECT proxy rclone goes through.
- * @param {{ proxy?: boolean, quota?: number }} [options] `quota`: the Drive's size in bytes
+ * @param {{ proxy?: boolean, quota?: number, client?: { id: string, secret: string } }} [options] `quota`: the Drive's
+ *   size in bytes; `client`: the Google app /token takes (STAND_IN_GOOGLE_CLIENT unless given)
  */
-export async function startFakeDrive({ proxy: withProxy = true, quota = 15 * 1024 ** 3 } = {}) {
+export async function startFakeDrive({ proxy: withProxy = true, quota = 15 * 1024 ** 3, client = STAND_IN_GOOGLE_CLIENT } = {}) {
   const files = new Map();
   const uploads = new Map();
   const keys = new Map();
@@ -210,6 +215,10 @@ export async function startFakeDrive({ proxy: withProxy = true, quota = 15 * 102
 
     if (route === "/token" && request.method === "POST") {
       const form = new URLSearchParams(body.toString("utf8"));
+      // Google's answer to a client it doesn't know, or to a request without one.
+      if (form.get("client_id") !== client.id || form.get("client_secret") !== client.secret) {
+        return { status: 401, body: { error: "invalid_client", error_description: "The OAuth client was not found." } };
+      }
       if (form.get("grant_type") === "authorization_code" && codes.delete(form.get("code"))) {
         // Signed in again: Mercbot's access is back.
         state.refused = false;
@@ -381,6 +390,7 @@ export async function startFakeDrive({ proxy: withProxy = true, quota = 15 * 102
     url,
     proxy,
     caFile,
+    client,
     files,
     requests,
     state,

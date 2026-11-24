@@ -15,20 +15,20 @@ import { TABLE_RESOURCES, oauthStateResource, pluginAccountResource, pluginActio
 /**
  * Outside staging and production only (APP_ENV, D-87): the Test Preview's stand-in Google Drive
  * (tests/support/fakeDrive.mjs, D-80) at MERCBOT_TEST_GOOGLE_DRIVE_URL is Google's sign-in for connected accounts too,
- * so an account there is renewed and signed in to again without Google. Otherwise nothing changes.
+ * so an account there is renewed and signed in to again without Google. It is signed in to with this copy's own Google
+ * app, as Google is (credentials in oauth.js), which the stand-in checks as Google does: without one nothing is renewed,
+ * and one it doesn't know is refused invalid_client. Otherwise nothing changes.
  * @param {import("@jskit-ai/kernel/server/types").RuntimeEnv} env
  */
 function standInGoogle(env) {
   const url = String(env.MERCBOT_TEST_GOOGLE_DRIVE_URL || "").trim();
   if (!url || isStagingOrProduction(env)) return {};
-  // The stand-in's own client, whichever pair this copy would pick (credentials in oauth.js).
-  const standInEnv = { ...env, GOOGLE_CLIENT_ID: "stand-in", GOOGLE_CLIENT_SECRET: "stand-in", GOOGLE_TEST_CLIENT_ID: "stand-in", GOOGLE_TEST_CLIENT_SECRET: "stand-in" };
   const google = {
     ...PROVIDERS.google,
     server: { issuer: url, authorization_endpoint: `${url}/authorize`, token_endpoint: `${url}/token` },
     whoami: { ...PROVIDERS.google.whoami, url: `${url}/oauth2/v3/userinfo` }
   };
-  return { env: standInEnv, providers: { ...PROVIDERS, google }, oauthClient: createOAuth({ env: standInEnv, insecure: true }) };
+  return { providers: { ...PROVIDERS, google }, oauthClient: createOAuth({ env, insecure: true }) };
 }
 
 /**

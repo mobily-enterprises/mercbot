@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
+import { randomBytes } from "node:crypto";
 import test, { after, before } from "node:test";
-import { createServer, startServer } from "../../server.js";
+import { defineProvider } from "@jskit-ai/kernel/shared/capabilities";
+import { seal } from "../../packages/account/src/server/vaultCrypto.js";
+import { createServer, createServerWith, startServer } from "../../server.js";
+import { startFakeDrive } from "../support/fakeDrive.mjs";
 import { connectTestDatabase } from "../support/testDatabase.mjs";
 import { insertRows } from "./characterization/seed.mjs";
 import { testBot, testHome } from "./testHome.js";
@@ -130,6 +134,75 @@ test("a computers server answers its health and the work other servers pass it, 
   } finally {
     await web.close();
   }
+});
+
+/** A computers server on `env`, with the files feature its own rclone's key requests reach (filesRuntime.js's storage). */
+async function computersWithFiles(env) {
+  const reached = {};
+  const FilesProbe = defineProvider({
+    id: "test.server-roles.files",
+    requires: { files: "mercbot.files" },
+    provides: { probe: "test.server-roles.files" },
+    setup: ({ files }) => ({ probe: Object.assign(reached, { files }) })
+  });
+  const app = await createServerWith({ runtimeEnv: env, providers: [FilesProbe], gate: false, role: "computers" });
+  return { app, storage: reached.files.storage };
+}
+
+// A home's files kept in Google Drive are mounted on the server that runs its computer, whose rclone asks that server for
+// the Drive's key (D-80, the drive-token route): a computers server renews it there, with this copy's Google app. The
+// stand-in Google (fakeDrive.mjs) takes only the client it knows, as Google does.
+test("a computers server renews a Google Drive home's key with this copy's Google app, and can't without it", async (context) => {
+  const drive = await startFakeDrive({ proxy: false });
+  const vault = randomBytes(32);
+  const issued = drive.issue();
+  const [account] = await knex("plugin_accounts").insert({
+    user_id: userId,
+    workspace_id: homeId,
+    plugin_id: "google-drive",
+    name: "drive-server-roles",
+    label: "Roles Drive",
+    status: "connected",
+    connected_at: new Date(),
+    tokens: seal({ access: issued.access, refresh: issued.refresh, expiresAt: Date.now() - 1000, scope: "https://www.googleapis.com/auth/drive" }, vault)
+  }).returning("id");
+  const folder = drive.add({ name: "Mercbot", mimeType: "application/vnd.google-apps.folder", parents: ["root"] });
+  const mounted = { accountId: String(account.id), userId, label: "Roles Drive", folderId: folder.id, folderName: "Mercbot" };
+  await knex("file_storage").insert({ workspace_id: homeId, kind: "drive", settings: seal(mounted, vault) });
+  context.after(async () => {
+    await knex("file_storage").where({ workspace_id: homeId }).del();
+    await knex("plugin_accounts").where({ id: account.id }).del();
+    await drive.close();
+  });
+  const withoutGoogle = Object.fromEntries(Object.entries(runtimeEnv).filter(([name]) => !/^GOOGLE_(TEST_)?CLIENT_/u.test(name)));
+  const given = { ...withoutGoogle, MERCBOT_VAULT_KEY: vault.toString("base64"), MERCBOT_TEST_GOOGLE_DRIVE_URL: drive.url };
+  /** What a mount's key request gets from a computers server on `env`: the key, or the refusal's code. */
+  async function renewal(env) {
+    const { app, storage } = await computersWithFiles(env);
+    try {
+      const key = await storage.driveKey(homeId, mounted).catch((error) => ({ code: error.code }));
+      // Renewed, it looks at the Drive once and keeps what it saw: waited for, so nothing is left running at close.
+      for (let waited = 0; key.renewed && !(await knex("file_storage").where({ workspace_id: homeId }).first("drive_look")).drive_look; waited += 50) {
+        assert.ok(waited < 5000, "the renewed key's look at the Drive is kept within 5 seconds");
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }
+      return key;
+    } finally {
+      await app.close();
+    }
+  }
+  // Without the Google app there is no client to ask with, so nothing is renewed; with one Google doesn't know, Google
+  // refuses it (invalid_client). Either way the account stays signed in, to be renewed once the app is right.
+  assert.deepEqual(await renewal(given), { code: "integrations_renewal_failed" }, "renewed without the Google app");
+  assert.deepEqual(
+    await renewal({ ...given, GOOGLE_CLIENT_ID: drive.client.id, GOOGLE_CLIENT_SECRET: "not-its-secret" }),
+    { code: "integrations_renewal_failed" },
+    "renewed with a client Google doesn't know"
+  );
+  assert.deepEqual([drive.state.refreshes, (await knex("plugin_accounts").where({ id: account.id }).first("status")).status], [0, "connected"]);
+  // With this copy's Google app the key is renewed there, once.
+  const key = await renewal({ ...given, GOOGLE_CLIENT_ID: drive.client.id, GOOGLE_CLIENT_SECRET: drive.client.secret });
+  assert.deepEqual([key.renewed, key.accessToken === issued.access, drive.state.refreshes], [true, false, 1]);
 });
 
 test("a server doesn't start without its role, or with one there isn't, and says which to give", async () => {
