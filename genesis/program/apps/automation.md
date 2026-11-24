@@ -45,6 +45,8 @@ become queued tasks that exactly one server runs, in the right chat (D-35, D-15)
   saved `steps`, and only the run holding it writes its result and its end, in one transaction.
   A task stops at its next step once its runner can't be sure it holds it (`runLease.js`
   `keepLease`, as a routine's run does), and is then left unfinished for the server carrying it on.
+  A server that stops hands its tasks over at once, ending their lease, and publishes `apps-jobs`,
+  on which every other server's runner claims them straight away.
   A task tried three times is given up as failed. Tasks left running before leases existed have
   none and are never taken over.
   The chat shows "Watch: …" or "Task from …", then the bot's reply. Record values reach the bot

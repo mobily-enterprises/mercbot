@@ -57,19 +57,35 @@ export function keepLease(renew, what, { seconds, heartbeatMs } = RUN_LEASE) {
 const HAND_OVER_MS = 5000;
 
 /**
- * Shutting down: a runner's runs still going are stopped at their next step, and each that stops
- * within `ms` is handed over at once (`release` ends its lease now), so another server carries it on
- * without waiting for the lease to lapse, and never beside this one. A run that doesn't stop in time
- * keeps its lease, which lapses by itself once this server has gone.
+ * Shutting down: a runner's runs still going are stopped at once, at their next step (a model call ends there and
+ * then), and each that stops within `ms` is handed over (`release` ends its lease now), so another server carries it
+ * on without waiting for the lease to lapse, and never beside this one. A run that doesn't stop in time (in a tool's
+ * call that doesn't end) keeps its lease, which lapses by itself once this server has gone. Answers how many were
+ * handed over, which the runner tells the other servers of.
  * @param {Map<Promise<void>, import("./types.js").RunningRun>} running
  *   the runner's runs, each removed once it has settled
  * @param {number} [ms]
+ * @returns {Promise<number>}
  */
 export async function handOverRuns(running, ms = HAND_OVER_MS) {
   const left = [...running];
   for (const [, { lease }] of left) lease.handOver();
   await settledWithin(Promise.allSettled(left.map(([run]) => run)), ms);
-  await Promise.all(left.filter(([run]) => !running.has(run)).map(([, { release }]) => release().catch(() => {})));
+  const stopped = left.filter(([run]) => !running.has(run));
+  await Promise.all(stopped.map(([, { release }]) => release().catch(() => {})));
+  return stopped.length;
+}
+
+/**
+ * What a stopping server's runner tells every server once it has handed runs over (handOverRuns), so each claims them
+ * at once instead of at its next scan.
+ * @param {{ publish: Function } | undefined} notices
+ * @param {string} topic the runner's, which its other servers' runners listen to
+ * @param {number} handed
+ */
+export async function tellHandedOver(notices, topic, handed) {
+  if (!handed || !notices) return;
+  await notices.publish(topic, "all", {}).catch((error) => console.warn(`Telling the other servers of the runs handed over (${topic}) failed; their next scan finds them.`, error));
 }
 
 /** A run whose lease another server holds now, or whose row is gone: its result isn't posted. */

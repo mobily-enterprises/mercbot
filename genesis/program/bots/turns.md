@@ -242,6 +242,11 @@ task:
   the staleness), or no heartbeat went through for most of the staleness, the reply stops at its next step, and its
   steps, its post and its release are refused, so it posts and frees nothing and only the server holding the run
   answers.
+- **Handed over:** a server that stops (D-19) takes up no more replies and stops each person's reply still running at
+  its next step, mid model call too, with its steps kept; it marks the run stale at once (`agentTables.js` `hold`'s
+  `handOver`, only while the reply holds it) and publishes `replies`, on which every server's resumer takes it over and
+  carries it on straight away, instead of after the staleness and its next scan. A connect follow-up's reply is handed
+  over with its follow-up (below).
 - **Messages mid-reply:** what the person writes while a reply works reaches the bot with its next tool result, when
   the message is for that bot (R3), and that reply then counts as answering it.
 - **To-do list and job notes:** `update_todos` keeps one `todos` card per job, updated in place
@@ -280,7 +285,9 @@ connected after all waits again, one whose seat is busy starts when that reply e
 claims the seat's reply and holds the row under a 90-second lease with a run id (`runLease.js`); its first run turns
 the card `connected` in the same transaction, so it is followed up once whichever server does it. Every server sweeps
 once a minute: it removes rows waiting more than 30 minutes and ready ones no server could start for that long, and
-starts up to 20 ready rows nobody started within 10 seconds or whose lease lapsed.
+starts up to 20 ready rows nobody started within 10 seconds or whose lease lapsed. A server that stops hands its
+follow-ups in progress over without waiting for them (their chat freed and their lease ended) and publishes
+`connect-follow-ups`, on which every other server sweeps at once.
 
 **Long chats** (D-41): one summary per chat (`agent_summaries`, keyed by the chat), made in the background past the
 agent loop's thresholds and read by every bot of the chat. It is made through the chat's own reader

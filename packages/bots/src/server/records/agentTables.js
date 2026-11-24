@@ -76,7 +76,12 @@ export function lookingRuns(runs, agentRuns, options) {
         await agentRuns.patch(id, { steps: null, input: null }, writing(txOptions));
         return true;
       },
-      release: () => whileHeld((txOptions) => agentRuns.delete(id, writing(txOptions)))
+      release: () => whileHeld((txOptions) => agentRuns.delete(id, writing(txOptions))),
+      /**
+       * Its server is stopping, the reply stopped with its steps kept: the run is stale at once (its heartbeat long
+       * past), so another server carries it on now, not once the staleness has passed.
+       */
+      handOver: () => whileHeld((txOptions) => agentRuns.patch(id, { heartbeat_at: agentRuns.raw("to_timestamp(0)") }, writing(txOptions)))
     });
   }
   return Object.freeze({

@@ -75,7 +75,7 @@ export function createBotLoops({ records, systemContext, notices, files, apps, c
   function start() {
     loops = [
       // Due routines and the tasks Apps queues for bots, each claimed once across servers.
-      startRoutineRunner({ work: records.work, systemContext, run: bots.runRoutine }),
+      startRoutineRunner({ work: records.work, systemContext, notices, run: bots.runRoutine }),
       startAppJobRunner({ jobs: apps.jobs, systemContext, notices, run: bots.runAppTask }),
       // Long chats are summarised in the background (@jskit-ai/agent-runtime summaries), once across servers.
       bots.compaction.start(),
@@ -119,12 +119,13 @@ export function createBotLoops({ records, systemContext, notices, files, apps, c
   }
 
   /**
-   * Shutting down (D-19): claim nothing more, and give routine runs and background work up to `ms`
-   * to finish.
+   * Shutting down (D-19): claim nothing more. Routines, watches, tasks and the person's replies still running are
+   * handed over at once, each told to the other servers, which carry them on straight away (runLease.js
+   * handOverRuns); the rest of the background work gets up to `ms` to finish.
    * @param {number} ms
    */
   async function drain(ms) {
-    await Promise.all([...loops.map((loop) => loop.drain(ms)), bots.drain(ms)]);
+    await Promise.all([...loops.map((loop) => loop.drain(ms)), bots.handOverReplies().then(() => bots.drain(ms))]);
     shellEnded();
   }
 

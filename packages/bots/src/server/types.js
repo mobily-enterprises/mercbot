@@ -185,7 +185,7 @@
 /**
  * A run a background runner has going (runLease.js handOverRuns): its lease, and how to end that
  * lease at once when the run is handed over.
- * @typedef {{ lease: RunLease, release: () => Promise<unknown> }} RunningRun
+ * @typedef {{ lease: Pick<RunLease, "handOver">, release: () => Promise<unknown> }} RunningRun
  */
 /** @typedef {ReturnType<typeof import("./botTurns.js").createBotTurns>} BotTurns */
 /** @typedef {ReturnType<typeof import("./botReplies.js").createBotReplies>} BotReplies */

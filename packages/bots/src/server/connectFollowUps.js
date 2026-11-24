@@ -4,7 +4,10 @@ import { settledWithin } from "./backgroundWork.js";
 import { BotsError } from "./botsError.js";
 import { toMessage } from "./botRows.js";
 import { CONNECT_WAITS } from "./cardTools.js";
-import { RUN_LEASE, followUpCheckpoint, handOverRuns, keepLease } from "./runLease.js";
+import { RUN_LEASE, followUpCheckpoint, handOverRuns, keepLease, tellHandedOver } from "./runLease.js";
+
+/** What a stopping server says once it has handed its connect follow-ups over, and every server's sweeper listens to. */
+export const FOLLOW_UPS_HANDED_OVER = "connect-follow-ups";
 
 /** How long after the person starts signing in from a connect card the bot still carries on by itself. */
 const CONNECT_WAIT_MINUTES = 30;
@@ -40,6 +43,8 @@ const closedCard = () => new BotsError(409, "That card isn't waiting for its app
  * @param {(seat: object, input: object, call: object, held: import("./types.js").RunCheckpoint) => Promise<unknown>} dependencies.runReply
  *   botReplies' reply run, with the follow-up's run held
  * @param {{ get: (chatId: string, options: object) => Promise<{ chat: object }> }} dependencies.chats chatMembers, for the chat's row
+ * @param {import("@local/notices/server/types").Notices} dependencies.notices how a stopping server's handed-over
+ *   follow-ups are told to the other servers, and heard
  * @param {typeof RUN_LEASE} [dependencies.lease]
  */
 export function createConnectFollowUps({
@@ -52,6 +57,7 @@ export function createConnectFollowUps({
   background,
   runReply,
   chats,
+  notices,
   lease = RUN_LEASE
 }) {
   const followUps = records.followUps;
@@ -220,8 +226,10 @@ export function createConnectFollowUps({
   }
 
   /**
-   * Sweeps every `everyMs` until drained. Draining starts nothing more, gives follow-ups in progress up to `ms`, then
-   * hands the rest over (handOverRuns): the server that takes one over posts its result instead of this one.
+   * Sweeps every `everyMs` until drained, and at once when another server says it handed follow-ups over. Draining
+   * starts nothing more and, once a sweep in progress has started what it claimed, hands the follow-ups in progress
+   * over at once (handOverRuns), waiting for none to finish, then tells the other servers: the server that takes one
+   * over posts its result instead of this one.
    * @param {{ everyMs?: number }} [options]
    */
   function startSweeping({ everyMs = SWEEP_MS } = {}) {
@@ -236,13 +244,15 @@ export function createConnectFollowUps({
     };
     const timer = setInterval(tick, everyMs);
     timer.unref();
+    const unsubscribe = notices.subscribe(FOLLOW_UPS_HANDED_OVER, "all", () => tick());
     tick();
     return Object.freeze({
       async drain(ms) {
         stopped = true;
         clearInterval(timer);
-        await settledWithin(Promise.allSettled([sweeping, ...running.keys()]), ms);
-        await handOverRuns(running);
+        unsubscribe();
+        await settledWithin(Promise.allSettled([sweeping]), ms);
+        await tellHandedOver(notices, FOLLOW_UPS_HANDED_OVER, await handOverRuns(running));
       }
     });
   }

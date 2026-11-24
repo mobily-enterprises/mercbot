@@ -51,7 +51,8 @@ short failure message. A claimed run holds its routine with a run id and a 90-se
 seconds (`runLease.js`) and saves its steps; when nothing is due, the loop takes over a run whose lease lapsed under a
 new run id and carries it on from its saved steps, so the stopped server's result is never posted, and one tried three
 times is given up as failed. The lease is an AbortSignal handed to the agent loop, so two servers never work on one
-run at once. Where its runs read an app's events feed up to (`feeds`, D-94: Sedna's, by account) is written only when a
+run at once. A server that stops hands its runs over at once (they stop at their next step and their lease ends) and
+publishes `routines`, on which every other server's loop claims them straight away. Where its runs read an app's events feed up to (`feeds`, D-94: Sedna's, by account) is written only when a
 run ends well. The fifth failed run in a row pauses the routine with a "Paused routine" line saying how to resume it;
 a run that works, a resume, or a run whose work was refused (D-73) sets the count back to 0. A one-off is deleted after
 its run with a "Routine finished and removed" line. In a paused home the bot starts nothing new and says why once.

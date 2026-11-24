@@ -1,6 +1,8 @@
-import { settledWithin } from "./backgroundWork.js";
 import { nextRunAt } from "./routineSchedule.js";
-import { RUN_LEASE, handOverRuns, keepLease } from "./runLease.js";
+import { RUN_LEASE, handOverRuns, keepLease, tellHandedOver } from "./runLease.js";
+
+/** What a server that handed routines over says, and every routine runner listens to (tellHandedOver). */
+export const ROUTINES_HANDED_OVER = "routines";
 
 /** The routine's next run time, or null when its schedule can't say (it stops). */
 function nextRunOf(routine) {
@@ -26,13 +28,15 @@ function nextRunOf(routine) {
  * @param {object} dependencies
  * @param {import("./types.js").WorkRepository} dependencies.work
  * @param {(reason: string) => object} dependencies.systemContext the bots' system context
+ * @param {import("@local/notices/server/types").Notices} [dependencies.notices] how a stopping server's handed-over
+ *   runs are told, and heard
  * @param {(routine: object, signal: AbortSignal) => Promise<void>} dependencies.run runs one claimed routine
  *   until `signal`, its lease's, aborts
  * @param {number} [dependencies.everyMs]
  * @param {number} [dependencies.concurrency]
  * @param {typeof RUN_LEASE} [dependencies.lease]
  */
-export function startRoutineRunner({ work, systemContext, run, everyMs = 30000, concurrency = 2, lease = RUN_LEASE }) {
+export function startRoutineRunner({ work, systemContext, notices, run, everyMs = 30000, concurrency = 2, lease = RUN_LEASE }) {
   let active = 0;
   /** @type {Map<Promise<void>, import("./types.js").RunningRun>} */
   const running = new Map();
@@ -79,19 +83,20 @@ export function startRoutineRunner({ work, systemContext, run, everyMs = 30000, 
 
   const timer = setInterval(tick, everyMs);
   timer.unref();
+  // Another server handed its runs over as it stopped: they're claimed here at once.
+  const unsubscribe = notices?.subscribe(ROUTINES_HANDED_OVER, "all", () => tick()) ?? (() => {});
   tick();
 
   /**
-   * Shutting down: claim nothing more, and give runs in progress up to `ms` to finish. Runs still
-   * going after that stop and are handed over (handOverRuns): the server that takes one over posts
-   * its result instead of this one.
-   * @param {number} ms
+   * Shutting down: claim nothing more, and hand the runs in progress over at once (handOverRuns), waiting for none to
+   * finish: the server that takes one over, told so, posts its result instead of this one.
+   * @param {number} _ms the drain's time, which a handover never waits out
    */
-  async function drain(ms) {
+  async function drain(_ms) {
     stopped = true;
     clearInterval(timer);
-    await settledWithin(Promise.allSettled([...running.keys()]), ms);
-    await handOverRuns(running);
+    unsubscribe();
+    await tellHandedOver(notices, ROUTINES_HANDED_OVER, await handOverRuns(running));
   }
 
   return Object.freeze({ drain });
