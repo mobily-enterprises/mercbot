@@ -30,24 +30,32 @@ const chosen = reactive({});
 const FILES = new Set(["file", "image"]);
 // The record this dialog made, when a file then failed to upload: saving again saves onto it, never a second record.
 const made = ref(null);
+// Why a file chosen didn't go on once the record was saved, by field id, shown under its field.
+const fileProblems = reactive({});
 // The records that link to this one (D-130), by table: a contact's to-dos, events and deals. Read when it opens.
 const related = ref([]);
 const relatedLoading = ref(false);
+// The read failed: Related says so, with Try again. Only the latest read counts, for the record open now.
+const relatedFailed = ref(false);
+let relatedRead = 0;
 const paths = usePaths();
 const titleOf = (group, record) => {
   const value = record[group.table.titleFieldId];
   return value && typeof value === "object" ? value.label : value || `#${record.id}`;
 };
 async function loadRelated(record) {
+  const read = ++relatedRead;
   related.value = [];
+  relatedFailed.value = false;
+  relatedLoading.value = Boolean(record);
   if (!record) return;
-  relatedLoading.value = true;
   try {
-    related.value = (await appsApi.relatedRecords(props.table.key, record.id)).groups;
+    const { groups } = await appsApi.relatedRecords(props.table.key, record.id);
+    if (read === relatedRead) related.value = groups;
   } catch {
-    // The form works without them; the list is left out.
+    if (read === relatedRead) relatedFailed.value = true;
   } finally {
-    relatedLoading.value = false;
+    if (read === relatedRead) relatedLoading.value = false;
   }
 }
 const links = useLinkPickers();
@@ -77,6 +85,7 @@ watch(() => [props.open, props.record], () => {
   problem.value = "";
   for (const key of Object.keys(draft)) delete draft[key];
   for (const key of Object.keys(chosen)) delete chosen[key];
+  for (const key of Object.keys(fileProblems)) delete fileProblems[key];
   made.value = null;
   for (const field of fields.value) draft[field.id] = toInput(field, props.record?.[field.id]);
   loadRelated(props.record);
@@ -101,6 +110,7 @@ const worked = computed(() => {
 async function save() {
   saving.value = true;
   problem.value = "";
+  for (const key of Object.keys(fileProblems)) delete fileProblems[key];
   let wrote = false;
   try {
     // A file field is sent only to take its file away; a new file goes up on its own once the record exists.
@@ -111,10 +121,21 @@ async function save() {
     wrote = true;
     made.value = props.record ? null : saved;
     for (const field of fields.value.filter((entry) => chosen[entry.id])) {
-      saved = await appsApi.attachFile(props.table.key, saved.id, field.id, chosen[field.id]);
+      try {
+        saved = await appsApi.attachFile(props.table.key, saved.id, field.id, chosen[field.id]);
+      } catch (error) {
+        // The record is in; this file isn't. Its field says why, and Save tries it again.
+        fileProblems[field.id] = errorText(error, "That file didn't upload.");
+        continue;
+      }
       made.value = props.record ? null : saved;
       draft[field.id] = saved[field.id];
       chosen[field.id] = null;
+    }
+    if (Object.keys(fileProblems).length) {
+      problem.value = "The record is saved; the file marked above didn't go on.";
+      emit("changed");
+      return;
     }
     emit("saved", saved);
     emit("update:open", false);
@@ -145,7 +166,7 @@ async function save() {
           v-model:current="draft[field.id]"
           v-model:chosen="chosen[field.id]"
           :field="field"
-          :error-messages="problemOf(field)"
+          :error-messages="problemOf(field) || fileProblems[field.id] || ''"
         />
         <v-textarea v-else-if="field.type === 'longtext'" v-model="draft[field.id]" :label="field.label + (field.options?.required ? ' *' : '')" :error-messages="problemOf(field)" auto-grow rows="3" variant="outlined" density="comfortable" />
         <v-text-field
@@ -171,9 +192,13 @@ async function save() {
         density="comfortable"
         class="mb-2"
       />
-      <section v-if="record && (relatedLoading || related.length)" class="mb-4" data-testid="record-related">
+      <section v-if="record && (relatedLoading || relatedFailed || related.length)" class="mb-4" data-testid="record-related">
         <div class="text-subtitle-2 mb-2">Related</div>
         <v-skeleton-loader v-if="relatedLoading" type="list-item@2" />
+        <p v-else-if="relatedFailed" class="d-flex align-center flex-wrap ga-2 text-body-2 text-on-surface-variant mb-0" role="alert">
+          The records linked to this one didn't load.
+          <v-btn size="small" variant="text" @click="loadRelated(record)">Try again</v-btn>
+        </p>
         <div v-for="group in related" v-else :key="group.field.id" class="mb-2">
           <router-link :to="paths.page(`/apps/data/${group.table.key}`)" class="text-body-2">
             {{ group.table.label }}{{ related.filter((other) => other.table.id === group.table.id).length > 1 ? ` (${group.field.label})` : "" }}

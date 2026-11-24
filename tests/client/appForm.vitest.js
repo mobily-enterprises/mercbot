@@ -8,10 +8,13 @@ import { APP_SCREEN_KEY } from "../../src/components/apps/screenKeys.js";
 
 // A live app's form with a file or picture field (D-130): a file chosen goes onto the record at once, and Remove takes it
 // away, each by the field's name, since an app's tables (the server's screenTables) come without field ids.
-const calls = vi.hoisted(() => ({ api: [], fileFields: {} }));
+const calls = vi.hoisted(() => ({ api: [], fileFields: {}, uploading: null }));
 vi.mock("../../src/components/apps/appsApi.js", () => ({
   appsApi: {
-    attachFile: async (...args) => calls.api.push(["attachFile", ...args]),
+    attachFile: async (...args) => {
+      calls.api.push(["attachFile", ...args]);
+      await calls.uploading;
+    },
     updateRecord: async (...args) => calls.api.push(["updateRecord", ...args])
   },
   errorText: (error, fallback) => error?.message || fallback
@@ -79,5 +82,19 @@ describe("a live app's form with a picture field", () => {
       ["attachFile", "graphics", "5", "picture", file],
       ["updateRecord", "graphics", "5", { picture: null }]
     ]);
+  });
+
+  it("sends one upload at a time: a file chosen while one goes up isn't sent too", async () => {
+    calls.api = [];
+    let finish;
+    calls.uploading = new Promise((resolve) => { finish = resolve; });
+    await render();
+    const picture = calls.fileFields.picture;
+    const first = picture["onUpdate:chosen"]({ name: "one.png" });
+    const second = picture["onUpdate:chosen"]({ name: "two.png" });
+    finish();
+    await Promise.all([first, second]);
+    calls.uploading = null;
+    expect(calls.api).toEqual([["attachFile", "graphics", "5", "picture", { name: "one.png" }]]);
   });
 });

@@ -121,6 +121,9 @@ describe("the place picker", () => {
     expect(pickerRefusal({ mode: "move", item: at("home"), folder: "/files/shared/Plans", ...file })).toBe("");
     // Nothing is copied or moved into Database files (D-130).
     for (const mode of ["copy", "move"]) expect(pickerRefusal({ mode, item: at("db"), folder: "/files/db/tables", ...file })).toMatch(/belong to their table's records/u);
+    // It says what's refused (putting something there) and what to do, not what can be done with the files already there.
+    expect(pickerRefusal({ mode: "copy", item: at("db"), folder: "/files/db/tables", ...file }))
+      .toBe("Database files belong to their table's records: nothing can be copied or moved in. Choose another place.");
     const folder = { from: "chat:9", path: "/files/chat/Plans" };
     expect(pickerRefusal({ mode: "move", item: at("chat:9"), folder: "/files/chat/Plans/2026", ...folder })).toBe("A folder can't go inside itself.");
     expect(pickerRefusal({ mode: "copy", item: at("chat:9"), folder: "/files/chat/Plans", ...folder })).toBe("A folder can't go inside itself.");
@@ -256,6 +259,25 @@ describe("the browser on a wide screen and on a phone", () => {
     expect(html).toMatch(/<button[^>]*disabled[^>]*aria-label="Upload to/u);
     const open = await browser({ chat: KITCHEN }, 1280);
     expect(open, "a chat that isn't archived says nothing of it").not.toContain("is archived");
+  });
+
+  it("in Database files, says they belong to their records, with no New folder or Upload, and lists them to open", async () => {
+    const app = createSSRApp({ render: () => h(FileBrowser, {}) });
+    app.use(createVuetify({ ...createMaterialVuetifyOptions(theme), ssr: { clientWidth: 1280 } }));
+    app.mixin({
+      async serverPrefetch() {
+        if (this.$.type !== FileBrowser) return;
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        this.$.setupState.openPlace("db");
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      }
+    });
+    const html = (await renderToString(app)).replaceAll("&#39;", "'").replace(/ data-v-[0-9a-f]+/gu, "");
+    expect(html).toContain("These files belong to their table's records: open one or copy it out, but nothing here is moved, renamed or deleted.");
+    expect(html).not.toContain("aria-label=\"Upload to");
+    expect(html).not.toContain("aria-label=\"New folder in");
+    expect(api.calls.at(-1)).toEqual(["list", null, "/files/db", null]);
+    expect(html).toContain("aria-label=\"More for budget.xlsx\"");
   });
 
   it("puts the places in a picker at the top on a phone, with no column", async () => {

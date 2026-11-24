@@ -107,8 +107,11 @@ export const widerQuestion = (item) => `Everyone who can open ${item.title} will
 /** What an archived chat's place says, in the picker and the browser: it takes nothing new. */
 export const ARCHIVED_NOTE = "This chat is archived: nothing new can go in it.";
 
-/** What Database files say, in the picker and the browser: they belong to their records (D-130). */
+/** What Database files say in the browser: they belong to their records (D-130). */
 export const LOCKED_NOTE = "These files belong to their table's records: open one or copy it out, but nothing here is moved, renamed or deleted.";
+
+/** Why the picker can't copy or move anything into Database files. */
+export const LOCKED_REFUSAL = "Database files belong to their table's records: nothing can be copied or moved in. Choose another place.";
 
 /**
  * Why the place picker's folder open can't take what's being copied or moved there, or "": an archived chat, itself or
@@ -117,7 +120,7 @@ export const LOCKED_NOTE = "These files belong to their table's records: open on
  */
 export function pickerRefusal({ mode, item, folder, from, path }) {
   if (item.archived) return ARCHIVED_NOTE;
-  if (item.locked) return LOCKED_NOTE;
+  if (item.locked) return LOCKED_REFUSAL;
   if (item.key !== from) return "";
   if (folder === path || folder.startsWith(`${path}/`)) return "A folder can't go inside itself.";
   return mode === "move" && folder === parentOf(path) ? "It's already here." : "";

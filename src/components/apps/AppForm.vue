@@ -68,6 +68,8 @@ const typedIn = (entry) => entry.def.type !== "link" && !FILES.has(entry.def.typ
 
 /** A chosen file onto the record at once, or (`file` null) the record's taken away; the screen's lists read it again. */
 async function attach(entry, file) {
+  // One at a time: the file fields take nothing while one goes up.
+  if (attaching.field) return;
   attaching.field = entry.field;
   attaching.failed = "";
   try {
@@ -197,13 +199,14 @@ provide(APP_FORM_KEY, {
             clearable
           />
           <template v-else-if="FILES.has(entry.def.type)">
-            <v-progress-linear v-if="attaching.field === entry.field" indeterminate class="mb-2" />
             <RecordFileField
               :key="`${entry.field}:${attaching.round}`"
               :field="entry.def"
               :current="record?.[entry.field] || null"
               :chosen="null"
               :error-messages="attaching.failed === entry.field ? attaching.problem : ''"
+              :busy="attaching.field === entry.field"
+              :disabled="Boolean(attaching.field)"
               @update:chosen="(file) => file && attach(entry, file)"
               @update:current="(value) => value === null && attach(entry, null)"
             />

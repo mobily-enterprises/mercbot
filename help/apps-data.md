@@ -60,7 +60,7 @@ A link can be **one to one**: each record of the other table has at most one rec
 
 ### Files and pictures
 
-To add a file or picture to a record, open the record and choose a file in its field: it's uploaded when you press **Save**. On an app's form for a record, it's uploaded as soon as you choose it. **Remove** takes it away. A bot puts one of its files on a record when you ask it to.
+To add a file or picture to a record, open the record and choose a file in its field: it's uploaded when you press **Save**. If a file can't go on (one over 25 MB, or a file that isn't a PNG, JPEG, GIF or WebP picture in a picture field), the record is still saved and the field says why: choose another file and press **Save** again. On an app's form for a record, it's uploaded as soon as you choose it, and the field says why if it can't be. **Remove** takes it away. A bot puts one of its files on a record when you ask it to.
 
 A record's files live in your home's **Database files** folder, at a fixed place for each table, record and field. Anyone in the home can open and copy them, but nobody can move, rename or delete them there: they belong to their records. Replacing or removing a record's file deletes the old one; marking the record obsolete keeps it.
 
@@ -99,7 +99,7 @@ Everyone in the home can read and change every table's records, add to them, imp
 
 ## Related records
 
-When you open a record, **Related** lists the records that link to it, table by table, with how many there are: a contact shows their to-dos, deals and sales details, for example. Each table's name opens that table.
+When you open a record, **Related** lists the records that link to it, table by table, with how many there are: a contact shows their to-dos, deals and sales details, for example. Each table's name opens that table. If they can't be read just then, **Related** says so, with **Try again**.
 
 ## Mark records obsolete instead of deleting
 

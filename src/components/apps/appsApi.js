@@ -38,9 +38,14 @@ export const appsApi = {
       credentials: "include",
       headers: { "csrf-token": String(session.csrfToken || "") },
       body: form
+    }).catch(() => {
+      // The browser's own words ("Failed to fetch") mean nothing to the person.
+      throw new Error("That file didn't upload: the connection was lost. Check it and try again.");
     });
     const body = await response.json().catch(() => ({}));
-    if (!response.ok) throw Object.assign(new Error(body.error || "That file didn't upload."), { status: response.status, data: body });
+    // A 413 without the server's words is a size limit met on the way.
+    const fallback = response.status === 413 ? "That file is too big to add." : "That file didn't upload.";
+    if (!response.ok) throw Object.assign(new Error(body.error || fallback), { status: response.status, data: body });
     return body.record;
   },
   obsoleteRecord: (table, id) => requestInHome(client, `${records(table, id)}/obsolete`, { method: "POST", body: {} }),

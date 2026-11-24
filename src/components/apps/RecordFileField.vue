@@ -11,7 +11,11 @@ const props = defineProps({
   current: { type: Object, default: null },
   // The file chosen to replace it, not uploaded yet.
   chosen: { type: Object, default: null },
-  errorMessages: { type: String, default: "" }
+  errorMessages: { type: String, default: "" },
+  // Its file is going up or being taken away: the field shows it, in its own place, and takes nothing else meanwhile.
+  busy: { type: Boolean, default: false },
+  // Another field's file is: this one takes nothing meanwhile either.
+  disabled: { type: Boolean, default: false }
 });
 const emit = defineEmits(["update:current", "update:chosen"]);
 const picture = computed(() => props.field.type === "image");
@@ -28,13 +32,15 @@ const label = computed(() => props.field.label + (props.field.options?.required 
         <a :href="href" target="_blank" rel="noopener">{{ current.name }}</a>
         <div class="text-on-surface-variant">{{ field.label }} · {{ formatSize(current.size) }}</div>
       </div>
-      <v-btn variant="text" size="small" @click="emit('update:current', null)">Remove</v-btn>
+      <v-btn variant="text" size="small" :disabled="busy || disabled" :aria-label="`Remove ${current.name}`" @click="emit('update:current', null)">Remove</v-btn>
     </div>
     <v-file-input
       :model-value="chosen"
       :label="current ? `Replace ${field.label.toLowerCase()}` : label"
       :accept="picture ? 'image/png,image/jpeg,image/gif,image/webp' : undefined"
       :error-messages="errorMessages"
+      :loading="busy"
+      :disabled="busy || disabled"
       :prepend-icon="picture ? '$image' : '$attachFile'"
       variant="outlined"
       density="comfortable"

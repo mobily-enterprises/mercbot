@@ -263,7 +263,10 @@ export function registerRoutes(http, { appsRuntime, notices, streams, uploads })
         path: null,
         ip: request.ip ?? null
       }, source);
-      if (part.stream.truncated) throw new GateError(413, "That file is too big to add.", { code: "apps_file_too_big" });
+      if (part.stream.truncated) {
+        const limitMb = Math.floor(reader.limit / (1024 * 1024));
+        throw new GateError(413, `That file is too big to add; the limit is ${limitMb} MB.`, { code: "apps_file_too_big", params: { limitMb } });
+      }
       const record = await gate.attachFile({ ...ctx, via: { kind: "data" } }, request.params.key, request.params.id, request.params.field, {
         source,
         name: part.fileName,
