@@ -44,9 +44,45 @@ export function lookingRuns(runs, agentRuns, options) {
   async function settle(conversationId, txOptions) {
     await agentRuns.patch(String(conversationId), { steps: null, input: null }, { ...options, trx: txOptions.trx, missing: "skip" });
   }
+  /**
+   * A person's reply's hold on its run, from just after its claim (botReplies.js runReply): the run is the reply's while
+   * it's the one that claim started (started_at), since a server that takes it over (this one stalled past the
+   * staleness) starts it again. Each write locks the run's row and goes through only while the reply holds it, and
+   * answers whether it did, so a reply whose run was taken over keeps, posts and frees nothing.
+   */
+  async function hold(conversationId) {
+    const id = String(conversationId);
+    const claimed = await agentRuns.get(id, { fields: ["started_at"] }, { ...options, missing: "skip" });
+    const start = claimed ? new Date(claimed.started_at).getTime() : NaN;
+    const writing = (txOptions) => ({ ...options, trx: txOptions.trx, missing: "skip" });
+    const now = () => agentRuns.raw("now()");
+    async function holds(txOptions) {
+      const run = await agentRuns.lock(id, { ...writing(txOptions), fields: ["started_at"] });
+      return Boolean(run) && new Date(run.started_at).getTime() === start;
+    }
+    const whileHeld = (write) => agentRuns.withTransaction(options, async (txOptions) => {
+      if (!(await holds(txOptions))) return false;
+      await write(txOptions);
+      return true;
+    });
+    return Object.freeze({
+      /** Its heartbeat. */
+      beat: () => whileHeld((txOptions) => agentRuns.patch(id, { heartbeat_at: now() }, writing(txOptions))),
+      /** Its steps so far, and what started it. */
+      save: (steps, input) => whileHeld((txOptions) => agentRuns.patch(id, { steps, input, heartbeat_at: now() }, writing(txOptions))),
+      /** In the transaction that posts its reply (txOptions): its steps and input go, as settle's do. */
+      settle: async (txOptions) => {
+        if (!(await holds(txOptions))) return false;
+        await agentRuns.patch(id, { steps: null, input: null }, writing(txOptions));
+        return true;
+      },
+      release: () => whileHeld((txOptions) => agentRuns.delete(id, writing(txOptions)))
+    });
+  }
   return Object.freeze({
     ...runs,
     claim: async (conversationId, owner) => !(await running(conversationId)) && runs.claim(conversationId, owner),
-    settle
+    settle,
+    hold
   });
 }

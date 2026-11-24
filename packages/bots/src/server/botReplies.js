@@ -7,7 +7,7 @@ import { startResumer as startRunResumer } from "@jskit-ai/agent-runtime/server"
 import { refusalOf } from "@local/account/meter";
 import { settledWithin } from "./backgroundWork.js";
 import { isModelFailure, modelFailure } from "./modelFailures.js";
-import { RUN_LEASE, RunTakenOver } from "./runLease.js";
+import { RUN_LEASE, RunTakenOver, keepLease } from "./runLease.js";
 import { escape, mentionMarkers, mentionsIn, peopleNamed, withMentions } from "./mentions.js";
 import { askedByBotPrompt, briefAnswerer, mentionedNext, pastTalkLimit } from "./botTalk.js";
 import { UNCALLED } from "./joiningIn.js";
@@ -158,6 +158,7 @@ export function createBotReplies({
       present = null,
       checkpoint = null,
       discussion = null,
+      replyRun = null,
       call
     }
   ) {
@@ -246,17 +247,25 @@ export function createBotReplies({
     // steps on a row of its own (a connect follow-up's) is carried on from there, so nothing of it goes on the run.
     const onRun = checkpointed && !checkpoint && !briefOnly?.save;
     const runInput = { prompt, human, goalTurn, timeZone, language, answers: asked, followUp };
+    // A person's reply keeps them through its hold on its run (runReply), which refuses once another server holds it; a
+    // goal round's go on its run as before.
+    const keepOnRun = (steps) => (replyRun ? replyRun.save(steps, runInput) : chatHistory.runs.save(seat.chat_bot_id, steps, runInput));
     if (onRun) {
-      await chatHistory.runs.save(seat.chat_bot_id, resumed, runInput)
-        .catch((error) => console.warn("Keeping a reply's start on its run failed; it's kept with its first step instead.", error));
+      await keepOnRun(resumed).catch((error) => {
+        if (error instanceof RunTakenOver) throw error;
+        console.warn("Keeping a reply's start on its run failed; it's kept with its first step instead.", error);
+      });
     }
     const onSteps = checkpoint
       ? (steps) => checkpoint.save([...resumed, ...steps])
       : briefOnly?.save
         ? (steps) => briefOnly.save([...resumed, ...steps])
         : onRun
-          ? (steps) => chatHistory.runs.save(seat.chat_bot_id, [...resumed, ...steps], runInput)
+          ? (steps) => keepOnRun([...resumed, ...steps])
           : keepNoSteps;
+    // What stops the reply at its next step: its own run taken over (runReply), a follow-up's or a routine's lease, a
+    // discussion's stop.
+    const stopping = replyRun?.signal ?? checkpoint?.signal;
     /**
      * Background work (a routine, a watch run, a task) that fails before doing anything ends with
      * its error, which its runner posts and counts; one that fails part-way still ends with its
@@ -306,7 +315,7 @@ export function createBotReplies({
           followUp: followUp || Boolean(discussion?.mayPass),
           carriesOn: checkpointed,
           throwIf,
-          signal: checkpoint?.signal ?? discussion?.signal,
+          signal: stopping ?? discussion?.signal,
           ...discussion?.model
         }
       ));
@@ -328,7 +337,7 @@ export function createBotReplies({
       const again = async (check) => {
         const steps = withoutClosingWords(transcript);
         const sofar = { kind: "text", role: "bot", authorBotId: seat.id, body: { text: replyText, transcript: steps, ...(prompt ? { trigger: prompt } : {}) } };
-        const next = await reply(bot, [...seen, sofar], run.tools, state, `${check}\n\n${ONLY_WHAT_WAS_ASKED}`, { summary, signal: checkpoint?.signal });
+        const next = await reply(bot, [...seen, sofar], run.tools, state, `${check}\n\n${ONLY_WHAT_WAS_ASKED}`, { summary, signal: stopping });
         return { ...next, transcript: [...steps, ...next.transcript] };
       };
       // Cut off by the provider: written again, whole, once. Then each claim its tools don't back sends it back once.
@@ -410,7 +419,10 @@ export function createBotReplies({
       // A routine's or a task's run ends with its result, so only the server holding it posts it; a person's reply's run
       // gives up what would carry it on, as its reply is posted.
       const ending = checkpoint ? await checkpoint.settle(txOptions, { failed }) : [];
-      if (checkpointed) await chatHistory.runs.settle(seat.chat_bot_id, txOptions);
+      // A person's reply posts only while it still holds its run: one another server took over posts nothing.
+      if (replyRun) {
+        if (!(await replyRun.settle(txOptions))) throw new RunTakenOver(`Bot ${seat.id}'s reply in chat ${seat.chat_id}`);
+      } else if (checkpointed) await chatHistory.runs.settle(seat.chat_bot_id, txOptions);
       const messages = await say(seat, [
         ...run.before,
         ...(replyText ? [{ kind: "text", role: "bot", body }] : []),
@@ -536,13 +548,26 @@ export function createBotReplies({
    *   ends with the reply's result, so only the server holding it posts it
    */
   async function runReply(seat, input, call, held = null, present = null) {
-    const heartbeat = setInterval(
-      () =>
-        chatHistory.runs
-          .heartbeat(seat.chat_bot_id)
-          .catch((error) => console.warn("A run's heartbeat failed; the next one renews it.", error)),
-      chatHistory.runs.limits.heartbeatMs
-    );
+    // The reply's run is kept as a routine's lease is (keepLease, D-59): once this server can't be sure it still holds
+    // it (another server took it over after this one stalled past the staleness, or no heartbeat went through for most
+    // of it), the reply stops at its next step, and what it would keep, post or free is refused, so it posts and frees
+    // nothing and only the server holding the run answers.
+    const what = `Bot ${seat.id}'s reply in chat ${seat.chat_id}`;
+    const own = await chatHistory.runs.hold(seat.chat_bot_id);
+    const lease = keepLease(own.beat, what, {
+      seconds: Number(chatHistory.runs.limits.staleSeconds),
+      heartbeatMs: Number(chatHistory.runs.limits.heartbeatMs)
+    });
+    const refused = new AbortController();
+    const replyRun = {
+      signal: AbortSignal.any([lease.signal, refused.signal, ...(held?.signal ? [held.signal] : [])]),
+      save: async (steps, runInput) => {
+        if (await own.save(steps, runInput)) return;
+        refused.abort(new RunTakenOver(what));
+        throw refused.signal.reason;
+      },
+      settle: own.settle
+    };
     let answered = Number(input.asked) || 0;
     // Whether this server still holds the follow-up it runs: one another server took over is that server's to end.
     let mine = true;
@@ -574,6 +599,7 @@ export function createBotReplies({
             prompt,
             human: true,
             followUp: Boolean(input.resume.followUp),
+            replyRun,
             call
           })
           : await respond(seat, {
@@ -585,6 +611,7 @@ export function createBotReplies({
             answersBot: input.botAsked?.id ?? null,
             present,
             checkpoint: held,
+            replyRun,
             call
           });
         paused = appended.some((message) => message.kind === "event" && message.body?.paused);
@@ -593,7 +620,7 @@ export function createBotReplies({
       } catch (error) {
         if (error instanceof RunTakenOver) {
           // Stopped for its lease (keepLease said why), or another server holds it: nothing is posted here.
-          if (!held?.signal?.aborted) console.warn(error.message);
+          if (!held?.signal?.aborted && !lease.signal.aborted) console.warn(error.message);
           mine = false;
           appended = [];
         } else {
@@ -608,8 +635,8 @@ export function createBotReplies({
           };
           appended = await records.chats.withTransaction(call, async (txOptions) => {
             if (held) mine = Boolean(await held.end({ failed: true }, txOptions));
-            // Its run gives up its steps as the sorry is posted, as a reply's does.
-            else await chatHistory.runs.settle(seat.chat_bot_id, txOptions);
+            // Its run gives up its steps as the sorry is posted, as a reply's does, while the reply still holds it.
+            else mine = await own.settle(txOptions);
             return mine ? say(seat, [sorry], txOptions) : [];
           });
         }
@@ -620,11 +647,12 @@ export function createBotReplies({
       answered = Math.max(answered, ...appended.map((message) => Number(message.body?.answers) || 0));
       return { messages: appended, paused };
     } finally {
-      clearInterval(heartbeat);
-      // A follow-up taken over leaves the chat's reply to the server that took it over.
+      lease.stop();
+      // A follow-up taken over leaves the chat's reply to the server that took it over, and a run another server took
+      // over is that server's to free.
       if (mine) {
-        await chatHistory.runs
-          .release(seat.chat_bot_id)
+        await own
+          .release()
           .catch((error) => console.warn("Releasing a bot's run in a chat failed; its lease runs out instead.", error));
       }
       if (!paused) {
