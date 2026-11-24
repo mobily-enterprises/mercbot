@@ -6,11 +6,13 @@ import { insertRows } from "./characterization/seed.mjs";
 import { testBot, testHome } from "./testHome.js";
 
 // A server's role (D-131). A web server serves the pages and the API, and claims the work every web server shares, each
-// piece once across them: due routines, Apps' jobs, bots' requests, goals and replies to carry on. A computers server
-// runs only bots' computers for the other servers and claims none of that work. These boot the real server, which reads
-// its database as it starts, so the file runs in the database suite, on its own copy of the test template. No AI is set
-// up, as on a computers server given none: bots' work a server claims there is answered "its AI isn't set up" in place
-// of being done.
+// piece once across them: due routines, Apps' jobs, bots' requests, goals and replies to carry on (those claims are
+// characterization/queueClaims.integration.js's). A computers server runs only bots' computers for the other servers and
+// claims none of that work. These boot the real server, which reads its database as it starts, so the file runs in the
+// database suite, on its own copy of the test template. No AI is set up, as on a computers server given none: bots'
+// work a server claims there is answered "its AI isn't set up" in place of being done. No web server here listens: its
+// loops' JSKIT drains (agent-runtime's runs, goals and summaries) each leave a 20 s timer as it closes, which would keep
+// the file alive past its bound.
 assert.equal(process.env.DB_NAME, process.env.TEST_DB_NAME, "DB_NAME must be this file's own test database copy: run it with npm run test:database.");
 const withoutAi = Object.fromEntries(Object.entries(process.env).filter(([name]) => !name.startsWith("AI_") && name !== "MERCBOT_TEST_AI_URL"));
 const settings = {
@@ -79,33 +81,17 @@ async function claimed({ routine, job }) {
   return { routine: routineRow.last_run_at !== null, job: jobRow.status !== "queued" };
 }
 
-async function listening(role) {
-  const app = await createServer({ runtimeEnv, gate: false, role });
-  await app.listen({ host: "127.0.0.1", port: 0 });
-  return app;
-}
-
-test("a computers server claims no due routine or queued Apps job, which a web server claims", async (context) => {
+test("a computers server claims no due routine or queued Apps job", async (context) => {
   const work = await queuedWork(context);
-  const computers = await listening("computers");
+  const computers = await createServer({ runtimeEnv, gate: false, role: "computers" });
+  await computers.listen({ host: "127.0.0.1", port: 0 });
   try {
-    // A server's loops claim at their first tick, which runs as it starts listening: a claim would be in by now.
+    // A web server's loops claim both at their first tick, which runs as it starts listening (routineRunner.js,
+    // appJobRunner.js): a claim would be in by now.
     await new Promise((resolve) => setTimeout(resolve, 1500));
     assert.deepEqual(await claimed(work), { routine: false, job: false }, "the computers server claimed bots' work");
   } finally {
     await computers.close();
-  }
-  const web = await listening("web");
-  try {
-    const deadline = Date.now() + 20000;
-    let found = await claimed(work);
-    while (!(found.routine && found.job) && Date.now() < deadline) {
-      await new Promise((resolve) => setTimeout(resolve, 100));
-      found = await claimed(work);
-    }
-    assert.deepEqual(found, { routine: true, job: true }, "the web server claims them");
-  } finally {
-    await web.close();
   }
 });
 
