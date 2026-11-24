@@ -156,7 +156,11 @@ runs' stale time): once it lapses, every read (`botRows.js` `discussionNow`, thr
 takes it as `interrupted`; a page's read of a running card says what's left of the lease by the server's clock
 (`leaseLeftMs`), which the card counts on the page's own clock (`chatView.js` `discussionState`), never against the
 server's time. An interrupted card waits for One more round (not after a wrap-up was interrupted), Wrap up or Stop
-like a finished round, on runs that are stale by then. Each turn is metered to the starter and the bot that speaks
+like a finished round, on runs that are stale by then. A server that stops gracefully hands its rounds over instead
+(`discussions.js` `handOver`): the turn in progress stops, the card keeps running with where the round got to
+(`handedOver`, never shown to a page), the runs are let go, and the `discussions` notice has another server
+(`startCarryingOn`, on every serving server) claim them and the card under a new token and carry the round on from
+that turn, so the card never reads as interrupted; only a round no server carries on lapses as before. Each turn is metered to the starter and the bot that speaks
 (R8). The chat list shows the card as "Discussion: <question>".
 
 **A reply** (`POST …/reply {timeZone?, language?, afterMessageId?, afterCard?}`): each speaking bot runs its own reply
@@ -271,7 +275,9 @@ request, and never reads the asking chat; what it posts, its cards and its answe
 chat's readers (D12, D13). The first time it needs its computer it joins the asking chat with a "<Bot> joined to work
 on a request" line; a direct chat takes no other bot, so there it does without and suggests a chat with both. Next
 steps are claimed with a 120-second lease and SKIP LOCKED by every serving server, woken by the `bots-requests`
-notice. Request turns are `viaBot`: anything needing approval asks the person, and the answer resumes the request.
+notice. A server that stops hands its step in progress over at once: its turn stops at its next step, the request is
+due again with its turns, attempts and reply as they were, and `bots-requests` has another server carry it on from the
+steps it kept. Request turns are `viaBot`: anything needing approval asks the person, and the answer resumes the request.
 Limits: passed on at most twice, no bot already in the chain, one open request per pair and person, 3 questions, 8
 turns; three failed attempts fail it. `POST /api/w/:workspaceSlug/bot-requests/:requestId/cancel` is the person's it's for (404
 `bots_request_not_found` otherwise); a step still running finishes, but its answer is no longer used.

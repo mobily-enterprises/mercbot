@@ -5,6 +5,8 @@ import { WORK, aiKind } from "@local/account/model";
 import { mayChangeBot } from "./botAdditions.js";
 import { BotsError } from "./botsError.js";
 import { discussionNow, toMessage } from "./botRows.js";
+import { settledWithin } from "./backgroundWork.js";
+import { HAND_OVER_MS } from "./runLease.js";
 import { languageName } from "./botWriting.js";
 import { plainMentions } from "./mentions.js";
 import { validTimeZone } from "./routineSchedule.js";
@@ -31,7 +33,13 @@ import { validTimeZone } from "./routineSchedule.js";
 // A round runs on the server that took the press. Its card is leased like the runs it holds: renewed at each heartbeat,
 // and once the lease lapses (that server stopped) the card reads as interrupted (botRows.js discussionNow), by when
 // those runs are stale too, so any server takes them over: its person may press One more round (unless it was wrapping
-// up), Wrap up or Stop, and nothing is lost but the rest of that round.
+// up), Wrap up or Stop, and nothing is lost but the rest of that round. A server that stops gracefully hands its rounds
+// over instead (handOver): the turn in progress stops, the card keeps running with where the round got to
+// (`handedOver`), and the notice `discussions` has another server carry the round on from that turn, so its person never
+// sees it interrupted.
+
+/** What a stopping server says of each round it handed over, and every server listens to (startCarryingOn). */
+export const DISCUSSIONS_HANDED_OVER = "discussions";
 
 export const DISCUSSION_LIMITS = Object.freeze({
   // The most rounds one discussion has, and what a new card offers first.
@@ -100,7 +108,7 @@ export function discussionTokens({ bots, baseTokens, limits = DISCUSSION_LIMITS 
  * @param {{ add: (work: Promise<unknown>) => void }} dependencies.background
  * @param {Partial<typeof DISCUSSION_LIMITS>} [dependencies.limits]
  */
-export function createDiscussions({ records, systemContext, meter, env, seats, chatHistory, replies, background, limits = {} }) {
+export function createDiscussions({ records, systemContext, meter, env, seats, chatHistory, replies, background, notices, limits = {} }) {
   const LIMITS = { ...DISCUSSION_LIMITS, ...limits };
   const { runs } = chatHistory;
   const heartbeatMs = LIMITS.heartbeatMs || runs.limits.heartbeatMs;
@@ -110,6 +118,12 @@ export function createDiscussions({ records, systemContext, meter, env, seats, c
   const refused = (status, message, code) => new BotsError(status, message, { code });
   const notFound = () => refused(404, "Discussion not found.", "bots_discussion_not_found");
   const live = (present, ids) => present.bots.filter((bot) => !bot.archived_at && (!ids || ids.has(String(bot.bot_id))));
+  // The rounds running here, each with how its server's stop hands it over (handOver).
+  /** @type {Map<Promise<void>, { handOver: () => void }>} */
+  const rounds = new Map();
+  // Set once this server is stopping: its rounds are handed over, and it carries none on.
+  let handingOver = false;
+  const HANDED_OVER = new Error("This server is stopping: another carries the round on.");
 
   /** The caller, one of the chat's people. */
   async function person(chat, options) {
@@ -271,8 +285,76 @@ export function createDiscussions({ records, systemContext, meter, env, seats, c
       throw error;
     }
     const where = { timeZone: validTimeZone(input.timeZone) ? input.timeZone : "UTC", language: languageName(input.language) };
-    background.add(runRound(chat, String(cardId), token, held, present, where, since));
+    keepRound((control) => runRound(chat, String(cardId), token, held, present, where, since, control));
     return { message: result.message };
+  }
+
+  /** A round started here, kept among this server's rounds while it runs, so a stop hands it over. */
+  function keepRound(run) {
+    const control = new AbortController();
+    if (handingOver) control.abort(HANDED_OVER);
+    const round = run(control).finally(() => rounds.delete(round));
+    rounds.set(round, { handOver: () => control.abort(HANDED_OVER) });
+    background.add(round);
+  }
+
+  /**
+   * This server is stopping (D-19): each round still running here stops its turn in progress at once, mid model call
+   * too, and is handed over (runRound): its card keeps running, and another server carries it on from that turn.
+   */
+  async function handOver() {
+    handingOver = true;
+    const left = [...rounds];
+    for (const [, round] of left) round.handOver();
+    await settledWithin(Promise.allSettled(left.map(([run]) => run)), HAND_OVER_MS);
+  }
+
+  /**
+   * A round another server handed over, carried on here from the turn it stopped at (`handedOver`): its speakers' runs
+   * claimed again and the card taken under a new token, so of the servers told only one carries it on. One that can't
+   * be (a bot answering meanwhile, the card stopped) is left as it is: once its lease lapses it reads as interrupted.
+   */
+  async function carryOn({ chatId, cardId, homeId }) {
+    if (handingOver) return;
+    const home = inHome(homeId);
+    const card = await records.messages.messageIn(String(chatId), String(cardId), home, { kind: "discussion" });
+    const body = card && discussionNow(card.body);
+    const left = body?.status === "running" ? body.handedOver : null;
+    if (!left) return;
+    const chat = await records.chats.get(String(chatId), home);
+    let claimed;
+    try {
+      claimed = await claimSpeakers(chat, body, String(body.for.id));
+    } catch (error) {
+      // Another server told carries it on, or a bot is busy: left to its lease.
+      if (error instanceof BotsError) return;
+      throw error;
+    }
+    const { held, present } = claimed;
+    const token = randomUUID();
+    const { changed } = await changeCard(chat.id, cardId, home, (now) =>
+      (isRunning(now, body.run) && now.handedOver ? { ...now, run: token, handedOver: null, leaseUntil: leaseFrom() } : null));
+    if (!changed) {
+      await release(held);
+      return;
+    }
+    keepRound((control) => runRound(chat, String(cardId), token, held, present, left.where, left.since, control, left));
+  }
+
+  /**
+   * Every serving server carries on the rounds a stopping server hands over, as soon as it says so; draining it hands
+   * this server's own rounds over.
+   */
+  function startCarryingOn() {
+    const unsubscribe = notices.subscribe(DISCUSSIONS_HANDED_OVER, "all", (event) => {
+      carryOn(event).catch((error) => console.warn(`Carrying on a discussion handed over failed; its card reads as interrupted once its lease lapses: ${error?.message || error}`));
+    });
+    return Object.freeze({
+      async drain() {
+        unsubscribe();
+        await handOver();
+      }
+    });
   }
 
   /** Start: the rounds chosen (1 to 3, else the card's), its cap fixed, and round 1. */
@@ -340,10 +422,14 @@ export function createDiscussions({ records, systemContext, meter, env, seats, c
    * One round, or the wrap-up, holding its speakers' runs: each turn in order, each checked against the cap first and
    * metered to the person and the bot (R8). It stops when the card no longer says this round runs (Stop), at the cap,
    * in a paused home, or when a turn fails; then it lets go of the runs and the bots take up what was written meanwhile.
+   * Its server's stop (`control` aborted with HANDED_OVER) hands it over: the card keeps where it got to, its runs are
+   * let go, and the other servers are told. A round carried on starts at the turn `carried.from`.
+   * @param {AbortController} control
+   * @param {{ from: number, spoke: string[] }} [carried]
    */
-  async function runRound(chat, cardId, token, held, present, where, since) {
+  async function runRound(chat, cardId, token, held, present, where, since, control, carried = { from: 0, spoke: [] }) {
     const home = inHome(chat.workspace_id);
-    const control = new AbortController();
+    let handedOver = null;
     const current = async () => {
       const card = await records.messages.messageIn(String(chat.id), cardId, home, { kind: "discussion" });
       return card ? discussionNow(card.body) : null;
@@ -371,8 +457,13 @@ export function createDiscussions({ records, systemContext, meter, env, seats, c
     try {
       let body = await current();
       const speakers = body?.wrapping ? held.slice(0, 1) : held;
-      const spoke = new Set();
-      for (const { seat: claimed } of speakers) {
+      const spoke = new Set(carried.spoke);
+      for (const [index, { seat: claimed }] of speakers.entries()) {
+        if (index < carried.from) continue;
+        if (control.signal.reason === HANDED_OVER) {
+          handedOver = { from: index, spoke: [...spoke] };
+          return;
+        }
         body = await current();
         if (!body || !isRunning(body, token)) return;
         const estimate = body.wrapping ? body.wrapNano : body.turnNano;
@@ -389,6 +480,7 @@ export function createDiscussions({ records, systemContext, meter, env, seats, c
         if (!seat?.chat_bot_id || seat.archived_at) continue;
         const { outcome, cost } = await turn(seat, cardId, body, present, where, control.signal);
         await record(seat, cost, outcome);
+        if (outcome === "stopped" && control.signal.reason === HANDED_OVER) handedOver = { from: index, spoke: [...spoke] };
         if (outcome === "stopped") return;
         if (outcome === "paused" || outcome === "failed") {
           await finish((now) => ended(now, outcome));
@@ -406,8 +498,17 @@ export function createDiscussions({ records, systemContext, meter, env, seats, c
       await finish((now) => ended(now, "failed")).catch(() => {});
     } finally {
       clearInterval(heartbeat);
+      if (handedOver) {
+        await finish((now) => ({ ...now, handedOver: { ...handedOver, where, since }, leaseUntil: leaseFrom() }))
+          .catch((error) => console.warn(`Handing a discussion over failed; its card reads as interrupted once its lease lapses: ${error?.message || error}`));
+      }
       await release(held);
-      for (const { seat, call } of held) replies.takeUpWaiting(seat, since, where, call);
+      if (handedOver) {
+        await notices.publish(DISCUSSIONS_HANDED_OVER, "all", { chatId: String(chat.id), cardId: String(cardId), homeId: String(chat.workspace_id) })
+          .catch((error) => console.warn(`Telling the other servers of a discussion handed over failed: ${error?.message || error}`));
+      } else {
+        for (const { seat, call } of held) replies.takeUpWaiting(seat, since, where, call);
+      }
     }
   }
 
@@ -465,6 +566,7 @@ export function createDiscussions({ records, systemContext, meter, env, seats, c
     nextRound,
     wrapUp,
     cancel,
-    stop
+    stop,
+    startCarryingOn
   });
 }

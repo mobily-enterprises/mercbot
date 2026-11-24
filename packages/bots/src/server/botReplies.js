@@ -7,7 +7,7 @@ import { startResumer as startRunResumer } from "@jskit-ai/agent-runtime/server"
 import { refusalOf } from "@local/account/meter";
 import { settledWithin } from "./backgroundWork.js";
 import { isModelFailure, modelFailure } from "./modelFailures.js";
-import { RUN_LEASE, RunTakenOver, handOverRuns, keepLease, tellHandedOver } from "./runLease.js";
+import { HAND_OVER_MS, RUN_LEASE, RunTakenOver, handOverRuns, keepLease, tellHandedOver } from "./runLease.js";
 import { escape, mentionMarkers, mentionsIn, peopleNamed, withMentions } from "./mentions.js";
 import { askedByBotPrompt, briefAnswerer, mentionedNext, pastTalkLimit } from "./botTalk.js";
 import { UNCALLED } from "./joiningIn.js";
@@ -149,7 +149,8 @@ export function createBotReplies({
    * chat history, only its brief (the prompt) and its own steps on the request (`steps`, kept by `save`); `join` seats
    * a request's bot in the asking chat when it first uses its computer. `discussion` is a turn of a discussion
    * (discussions.js, D-115): it only talks, with no tools and none of the checks that send a reply back, answers no
-   * person's message, and may PASS; its message names the discussion and its round, and `signal` stops it.
+   * person's message, and may PASS; its message names the discussion and its round, and `signal` stops it. A request's
+   * turn's `signal` is its server's stop (botRequests.js), which ends it at its next step.
    */
   async function replyTurn(
     seat,
@@ -172,6 +173,7 @@ export function createBotReplies({
       checkpoint = null,
       discussion = null,
       replyRun = null,
+      signal = null,
       call
     }
   ) {
@@ -277,8 +279,8 @@ export function createBotReplies({
           ? (steps) => keepOnRun([...resumed, ...steps])
           : keepNoSteps;
     // What stops the reply at its next step: its own run taken over (runReply), a follow-up's or a routine's lease, a
-    // discussion's stop.
-    const stopping = replyRun?.signal ?? checkpoint?.signal;
+    // request's server stopping, a discussion's stop.
+    const stopping = replyRun?.signal ?? checkpoint?.signal ?? signal ?? undefined;
     /**
      * Background work (a routine, a watch run, a task) that fails before doing anything ends with
      * its error, which its runner posts and counts; one that fails part-way still ends with its
@@ -581,7 +583,7 @@ export function createBotReplies({
    */
   async function handOverReplies() {
     handingOver = true;
-    await Promise.all([...resumers].map((resumer) => resumer.drain(5000)));
+    await Promise.all([...resumers].map((resumer) => resumer.drain(HAND_OVER_MS)));
     let handed = 0;
     // A reply that started meanwhile is handed over in the next round; one that didn't stop in time ends the rounds.
     while (replying.size) {

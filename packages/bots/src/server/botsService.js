@@ -224,6 +224,7 @@ export function createBotsService({
     compaction: turns.compaction,
     requests: turns.requests,
     goals: turns.goals,
+    discussions: turns.discussions,
     startResumer: turns.startResumer,
     resumeStalled: turns.resumeStalled,
     handOverReplies: turns.handOverReplies,

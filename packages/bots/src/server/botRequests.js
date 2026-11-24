@@ -1,6 +1,7 @@
 import { resolveActorId } from "@jskit-ai/kernel/server/actions/actionContributorHelpers";
 import { settledWithin } from "./backgroundWork.js";
 import { OPEN_REQUESTS } from "./records/workRepository.js";
+import { HAND_OVER_MS, RunTakenOver, tellHandedOver } from "./runLease.js";
 
 // Bots asking bots (D-46, O22). A bot in a chat sends another bot of the home a brief for the person it works for.
 // The asked bot works on the brief alone, with its own steps on the request: it never reads the asking chat. What it
@@ -55,6 +56,11 @@ export function createBotRequests({
   limits = REQUEST_LIMITS
 }) {
   const { work, directory } = records;
+  // Set once this server is stopping: it claims no more steps, and the step in progress (`stepping`) is handed over.
+  let handingOver = false;
+  /** @type {AbortController | null} */
+  let stepping = null;
+  let handed = 0;
   const wake = () => notices.publish("bots-requests", "all", {}).catch((error) => console.warn("Waking the bot requests loop failed; it picks the request up on its next poll.", error));
   const look = (bot) => ({ id: String(bot.id), name: bot.name, color: bot.color, shape: bot.shape });
   const personName = async (userId, options) => (await records.chats.names([String(userId)], options)).get(String(userId)) || "the person";
@@ -341,6 +347,10 @@ export function createBotRequests({
       if (seat.chat_bot_id) runs.heartbeat(seat.chat_bot_id).catch((error) => console.warn("A run's heartbeat failed; the next one renews it.", error));
     }, runs.limits.heartbeatMs);
     const call = seats.readerOf(seat);
+    // This server's stop ends the step at its next step (drain), for another server to carry on.
+    const control = new AbortController();
+    stepping = control;
+    if (handingOver) control.abort(new RunTakenOver(`Bot request ${request.id}`));
     try {
       await seats.working(seat, true, null, options);
       if (target) {
@@ -355,6 +365,7 @@ export function createBotRequests({
             requestTurn: { working, viaBot: true },
             briefOnly: { steps: request.steps || [], save: (steps) => work.changeRequest(request.id, { steps }, options) },
             join: seat.chat_bot_id ? null : joinerFor(seat, options),
+            signal: control.signal,
             call
           }));
         const after = await work.request(request.id, options);
@@ -381,6 +392,7 @@ export function createBotRequests({
             language: request.language,
             prompt: askerPrompt(request, { target: toBot.name, person }),
             requestTurn: { asking: request, working: parent, viaBot: true },
+            signal: control.signal,
             call
           }));
         // Done, unless answer_bot sent the asked bot back to work meanwhile.
@@ -388,6 +400,13 @@ export function createBotRequests({
         await work.changeRequest(request.id, { leaseUntil: null }, options);
       }
     } catch (error) {
+      if (control.signal.aborted) {
+        // Handed over as this server stops: due again now, with its turns, attempts and the asking bot's reply as they
+        // were, carried on by another server from the steps it kept.
+        await work.changeRequest(request.id, { leaseUntil: null, runAfter: work.now(), turns: request.turns, reply: request.reply ?? null }, options);
+        handed += 1;
+        return;
+      }
       const attempts = request.attempts + 1;
       const lastError = String(error?.message || error).slice(0, 500);
       if (attempts < 3) {
@@ -414,6 +433,7 @@ export function createBotRequests({
       }
     } finally {
       clearInterval(keep);
+      if (stepping === control) stepping = null;
       if (seat.chat_bot_id) {
         await runs.release(seat.chat_bot_id).catch((error) => console.warn("Releasing a bot's run in a chat failed; its lease runs out instead.", error));
       }
@@ -431,7 +451,7 @@ export function createBotRequests({
     if (running) return running;
     running = (async () => {
       try {
-        for (let count = 0; count < 50; count += 1) {
+        for (let count = 0; count < 50 && !handingOver; count += 1) {
           const request = await claim();
           if (!request) break;
           await step(request);
@@ -457,14 +477,20 @@ export function createBotRequests({
     tick();
 
     /**
-     * Shutting down: start nothing more, and give the step in progress up to `ms` to finish.
-     * @param {number} ms
+     * Shutting down: start nothing more, and hand the step in progress over at once, waiting for none to finish: it
+     * stops at its next step, a model call there and then, keeps its steps, and is due again now; then every server is
+     * told (`bots-requests`) and one carries it on straight away. A step that doesn't stop in time keeps its lease,
+     * which lapses by itself.
+     * @param {number} _ms the drain's time, which a handover never waits out
      */
-    async function drain(ms) {
+    async function drain(_ms) {
       stopped = true;
       clearInterval(timer);
       unsubscribe();
-      await settledWithin(running || Promise.resolve(), ms);
+      handingOver = true;
+      stepping?.abort(new RunTakenOver("A bot request's step"));
+      await settledWithin(running || Promise.resolve(), HAND_OVER_MS);
+      await tellHandedOver(notices, "bots-requests", handed);
     }
 
     return Object.freeze({ drain });

@@ -68,7 +68,9 @@ export function discussionNow(body, now = Date.now()) {
  */
 function shownDiscussion(body) {
   const now = Date.now();
-  const current = discussionNow(body, now);
+  // Where a round handed over got to is the server's (discussions.js), not the page's.
+  const { handedOver, ...rest } = body;
+  const current = discussionNow(rest, now);
   const until = Date.parse(String(current.leaseUntil));
   return current.status === "running" && Number.isFinite(until) ? { ...current, leaseLeftMs: Math.max(0, until - now) } : current;
 }
