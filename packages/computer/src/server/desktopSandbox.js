@@ -7,7 +7,9 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { FORWARDER, PROXY_ENV, startGateway } from "@local/files/gateway";
-import { DESKTOP_GRAPHICS, folderMount, platformFlags, runsc, sandboxUser, storeMounts, toolboxRoot } from "@local/files/gvisor";
+import {
+  DESKTOP_GRAPHICS, ensureMountPoints, folderMount, platformFlags, runsc, sandboxUser, storeMounts, toolboxRoot
+} from "@local/files/gvisor";
 import { quote } from "./shellQuote.js";
 
 const run = promisify(execFile);
@@ -128,6 +130,7 @@ export async function startDesktopSandbox({ runtimeEnv, computerId, display, pro
     ],
     linux: { namespaces: [{ type: "pid" }, { type: "network" }, { type: "ipc" }, { type: "uts" }, { type: "mount" }] }
   };
+  await ensureMountPoints(spec);
   await writeFile(path.join(dir, "config.json"), JSON.stringify(spec));
   const [runscCommand, runscArgs] = runsc(runtimeEnv, ["--root", state]);
   const inSandbox = [runscCommand, ...runscArgs];
