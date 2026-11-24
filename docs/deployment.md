@@ -160,6 +160,10 @@ doesn't accept, a public address that isn't https) still stops the start, saying
 - `TRUSTED_PROXIES`: the addresses (or ranges) of a proxy or load balancer in front of the server, whose
   `X-Forwarded-For` it believes, so each visitor keeps their own address for the sign-in limits. Unset, only a proxy on
   this computer is believed. A value that would believe anyone's header (`true`, a hop count) stops the start.
+- `APP_REDIRECT_HOSTS`: the copy's other names, comma-separated (such as `www.example.com`). JSKIT sends a request for
+  one on to the same path and query at `APP_PUBLIC_URL` with a 301, before any route; behind a proxy the name is the
+  `X-Forwarded-Host` of one `TRUSTED_PROXIES` names. Unset, every name is served; one that isn't a host name, or is
+  `APP_PUBLIC_URL`'s own, stops the start.
 - The database: `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`.
 - Mercbot's three kinds of AI (D-72), each with its provider (the type, which picks the provider's layer
   in `packages/account/src/server/providers/`) and its key there. Each kind accepts one provider for now.
