@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 import { AppError } from "@jskit-ai/kernel/server/runtime/errors";
 import { CALCULATED_TYPES, checkCalculated, isCalculated } from "../shared/calculated.js";
 import { tableFormulaToIds } from "../shared/definitions.js";
+import { isFileField } from "../shared/formulas.js";
 import { STORAGE_TYPES } from "./anyapi.js";
 import { homeIdOf } from "./callOptions.js";
 import { SLOTS } from "./schema.js";
@@ -9,7 +10,9 @@ import { loadTables, toField } from "./tables.js";
 
 // Tables and fields of a home (D-35). Ids are permanent; keys (what the Builder writes) and labels
 // (what people see) can change. Nothing is deleted: tables and fields are marked obsolete.
-const FIELD_TYPES = Object.keys(STORAGE_TYPES);
+
+/** The field types a table has, in the order the Builder is told them. */
+export const FIELD_TYPES = Object.keys(STORAGE_TYPES);
 const KEY = /^[a-z][a-z0-9_]{0,63}$/u;
 // Names formulas use for themselves can't be field or table names.
 const RESERVED = new Set(["id", "obsolete_at", "state", "params", "data", "row", "form", "user", "today", "now", "me", "visitor"]);
@@ -172,7 +175,7 @@ export function createRegistry({ resources, anyapi, notices, trustMs = TRUST_MS 
       }
       return { type, options: { formula: String(formula) } };
     }
-    if (input.required && ["file", "image"].includes(type)) {
+    if (input.required && isFileField({ type })) {
       // A record's file goes on once the record exists (D-130), so a new record could never have one.
       throw new RegistryError(400, `A ${type === "image" ? "picture" : "file"} field can't be required: its file goes on once the record exists.`, {
         code: "apps_file_required"

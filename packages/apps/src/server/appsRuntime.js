@@ -41,7 +41,10 @@ export function createAppsRuntime({ resources, systemContext, records, anyapi, n
   };
   // Database files' writer (D-130): the files feature plugs it in at start (useRecordFiles), as it depends on apps.
   let recordFiles = null;
-  /** The files feature's writer of record files: `{ write, remove }` (fileStore's writeRecordFile, removeRecordFile). */
+  /**
+   * The files feature's part of record files: `{ write, remove, real }` (the file store's writeRecordFile, removeRecordFile
+   * and a file's real path), and `{ receive, limit }`, how an upload of one is read (recordUploads).
+   */
   function useRecordFiles(impl) {
     recordFiles = impl;
   }

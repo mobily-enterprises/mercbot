@@ -1,4 +1,4 @@
-import { PAGE_MAX, isCalculated } from "@local/apps/shared";
+import { PAGE_MAX, isCalculated, isFileField } from "@local/apps/shared";
 import { appsApi } from "./appsApi.js";
 
 // CSV and Excel files for the Data tab (D-35). Export writes a table's live records with field
@@ -11,13 +11,12 @@ const IMPORT_PAGE = 500;
 // link as the linked record's title (the import looks titles up again), a file or picture as its name.
 export function toCell(field, value, excel) {
   if (value === null || value === undefined || value === "") return null;
-  if (field.type === "link") return typeof value === "object" ? value.label : String(value);
-  // A person by name (the import reads it back by name), tags as "a, b", a moment as a real date and time in Excel.
-  if (field.type === "person") return typeof value === "object" ? value.label : String(value);
+  // A person by name too (the import reads it back by name), tags as "a, b", a moment as a real date and time in Excel.
+  if (field.type === "link" || field.type === "person") return typeof value === "object" ? value.label : String(value);
   if (field.type === "tags") return Array.isArray(value) ? value.join(", ") : String(value);
   // Excel shows a moment's time too (its cells have no zone: UTC, as the import reads them back).
   if (field.type === "datetime") return excel ? { value: new Date(value), type: Date, format: "yyyy-mm-dd hh:mm" } : value;
-  if (field.type === "file" || field.type === "image") return value?.name ?? null;
+  if (isFileField(field)) return value?.name ?? null;
   if (field.type === "money") return value / 100;
   if (field.type === "date") return excel ? new Date(`${value}T00:00:00Z`) : value;
   if (field.type === "yesno") return excel ? Boolean(value) : value ? "Yes" : "No";
@@ -70,7 +69,7 @@ export function matchColumns(table, header) {
   const named = (fields, cell) => fields.find((field) => name(field.label) === name(cell) || field.key === name(cell));
   const live = table.fields.filter((field) => !field.obsolete);
   // A file or picture goes onto a record by upload only (D-130): its column, a file's name, is ignored like any other.
-  const fields = live.filter((field) => !isCalculated(field) && !["file", "image"].includes(field.type));
+  const fields = live.filter((field) => !isCalculated(field) && !isFileField(field));
   const columns = header.map((cell) => named(fields, cell) || null);
   const calculated = header.filter((cell, index) => !columns[index] && name(cell) && named(live.filter(isCalculated), cell));
   const ignored = header.filter((cell, index) => !columns[index] && name(cell) && !calculated.includes(cell));

@@ -1,14 +1,13 @@
 import { createTool } from "@jskit-ai/agent/server";
 import { definitionFrom, definitionInput } from "./viewTools.js";
 import { z } from "zod";
+import { FIELD_TYPES } from "@local/apps/server/registry";
 import { SCRIPT_GUIDE, writeScript } from "./scriptWriter.js";
 
 // The home's Builder's own apps tools (D-35, D-48), beyond the records and watches every bot has:
 // it makes tables, fields, apps and scripts; its app changes are drafts a person previews and
 // publishes. It tries its drafts on their practice copy (app_try, D-71), as a person would.
-const FIELD_TYPES = [
-  "text", "email", "phone", "choice", "link", "number", "money", "date", "yesno", "person", "url", "longtext", "tags", "datetime", "file", "image"
-];
+
 // What a calculated field can't do (D-78), which the Builder tells the person whenever it adds one (owner, 2026-11-12).
 const CALCULATED_LIMITS =
   "Lists can't be filtered, sorted or grouped by a calculated field, and a sum or average of one adds up at most 5,000 records: " +

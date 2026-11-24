@@ -80,8 +80,8 @@ export async function appsHome(context, { slug = "apps-it", knex: given = null, 
  * @param {number} [parts.calculatedTotalsMax] the gate's bound on a calculated field's sum (default: the server's)
  * @param {object} [parts.notices] the apps' (default: quiet)
  * @param {object} [parts.records] `mercbot.bots.records` (default: a home without bots)
- * @param {{ write: Function, remove: Function } | null} [parts.recordFiles] Database files' writer (default: none, files
- *   can't be added)
+ * @param {{ write: Function, remove: Function, real: Function } | null} [parts.recordFiles] Database files' writer and
+ *   reader (default: none, files can't be added)
  */
 export function appsParts(home, { trustMs, beforeSave = async (_ctx, _table, _action, values) => values, beforeSaveEach, calculatedTotalsMax, notices = QUIET, records = NO_BOTS, recordFiles = null } = {}) {
   const resources = home.handles;

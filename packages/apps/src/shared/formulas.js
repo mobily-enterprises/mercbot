@@ -42,6 +42,8 @@ function formatMoney(cents) {
 export const TEXT_MAX = 10000;
 /** Long notes (`longtext` fields) hold more than a text field. */
 export const LONGTEXT_MAX = 20000;
+/** Whether a field holds a record's file or picture (D-130): `{ path, name, size, type }`, which only an upload sets. */
+export const isFileField = (field) => field?.type === "file" || field?.type === "image";
 
 /** Today's date (YYYY-MM-DD, like date fields) and the current moment (ISO 8601), in UTC. */
 const today = () => new Date().toISOString().slice(0, 10);
@@ -164,7 +166,7 @@ export function plainValue(value) {
 export function formulaValue(field, value) {
   if (field.type === "tags") return Array.isArray(value) ? value.map(String) : [];
   // A file as formulas see it: its name ("" for none); its path is for screens, not formulas.
-  if (field.type === "file" || field.type === "image") return value?.name ? String(value.name) : "";
+  if (isFileField(field)) return value?.name ? String(value.name) : "";
   const plain = value && typeof value === "object" ? value.id : value;
   if (plain === null || plain === undefined) return ["number", "money"].includes(field.type) ? 0 : field.type === "yesno" ? false : "";
   return ["number", "money"].includes(field.type) ? Number(plain) : plain;
@@ -182,7 +184,7 @@ export function showValue(field, value) {
     return value.label ?? "—";
   }
   if (field.type === "tags") return Array.isArray(value) && value.length ? value.join(", ") : "—";
-  if (field.type === "file" || field.type === "image") return value?.name ?? "—";
+  if (isFileField(field)) return value?.name ?? "—";
   // A moment, in the reader's own time zone (a server shows its own).
   if (field.type === "datetime") {
     const moment = new Date(value);

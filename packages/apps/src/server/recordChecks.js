@@ -4,7 +4,7 @@ import { GateError } from "./validate.js";
 
 /**
  * The record checks that need more than the record: a person field holds someone in the home now (read once per
- * call, so an import's rows share it) and reads back with their name; a one-to-one link (a link field marked unique)
+ * call, so an import's rows share it), reads back with their name and is imported by it; a one-to-one link (a link field marked unique)
  * leaves at most one live record linking to each target.
  * @param {object} dependencies
  * @param {{ activeIds: (options: object) => Promise<Array<string | number>>, names: (ids: string[], options: object) =>
@@ -17,6 +17,16 @@ export function createRecordChecks({ people, homeOf }) {
   async function membersOf(ctx) {
     if (!membersOfCall.has(ctx)) membersOfCall.set(ctx, people.activeIds(ctx.options).then((ids) => new Set(ids.map(String))));
     return membersOfCall.get(ctx);
+  }
+
+  /** The home's members by name, lowercased, each to their ids (several share a name), as a sheet's person column names them. */
+  async function membersByName(ctx) {
+    const byName = new Map();
+    for (const [id, name] of await people.names([...(await membersOf(ctx))], ctx.options)) {
+      const key = String(name).trim().toLowerCase();
+      byName.set(key, [...(byName.get(key) || []), String(id)]);
+    }
+    return byName;
   }
 
   /**
@@ -113,7 +123,7 @@ export function createRecordChecks({ people, homeOf }) {
   }
 
   return Object.freeze({
-    membersOf,
+    membersByName,
     checkPeople,
     checkUnique,
     uniqueTakenIn,

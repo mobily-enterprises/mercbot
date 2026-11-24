@@ -242,41 +242,6 @@ export function registerRoutes(http, { appsRuntime, notices, streams, uploads })
       people: await homePeople(ctx.options)
     };
   }));
-  /**
-   * A record's file or picture, uploaded (D-130): read with the files' own size limit and picture and video check (D-90)
-   * into a scratch folder, then written to the home's Database files and set on the record in one change by the gate.
-   */
-  router.register("POST", "/api/w/:workspaceSlug/app-data/tables/:key/records/:id/files/:field", home, handle(async (request, ctx) => {
-    const reader = recordUploads();
-    if (!reader) throw new GateError(503, "Files can't be added right now.", { code: "apps_files_unavailable" });
-    const part = await uploads.readSingleMultipartFile(request, { fieldName: "file", label: "File", maxBytes: reader.limit, required: true });
-    const scratch = await fs.promises.mkdtemp(path.join(os.tmpdir(), "mercbot-record-file-"));
-    try {
-      const source = path.join(scratch, "upload");
-      await reader.receive(part.stream, {
-        origin: "upload",
-        workspaceId: ctx.workspaceId,
-        userId: ctx.userId,
-        botId: null,
-        conversationId: null,
-        place: null,
-        path: null,
-        ip: request.ip ?? null
-      }, source);
-      if (part.stream.truncated) {
-        const limitMb = Math.floor(reader.limit / (1024 * 1024));
-        throw new GateError(413, `That file is too big to add; the limit is ${limitMb} MB.`, { code: "apps_file_too_big", params: { limitMb } });
-      }
-      const record = await gate.attachFile({ ...ctx, via: { kind: "data" } }, request.params.key, request.params.id, request.params.field, {
-        source,
-        name: part.fileName,
-        type: part.mimeType
-      });
-      return { record };
-    } finally {
-      await fs.promises.rm(scratch, { recursive: true, force: true });
-    }
-  }));
   /** The Data tab's spreadsheet: records of one table, through the data gate (via "data"). */
   const dataCtx = (ctx) => ({ ...ctx, via: { kind: "data" } });
   const records = `${data}/tables/:key/records`;
@@ -361,6 +326,41 @@ export function registerRoutes(http, { appsRuntime, notices, streams, uploads })
     home,
     handle(async (request, ctx) => ({ groups: await gate.related(dataCtx(ctx), request.params.key, request.params.id) }))
   );
+  /**
+   * A record's file or picture, uploaded (D-130): read with the files' own size limit and picture and video check (D-90)
+   * into a scratch folder, then written to the home's Database files and set on the record in one change by the gate.
+   */
+  router.register("POST", `${records}/:id/files/:field`, home, handle(async (request, ctx) => {
+    const reader = recordUploads();
+    if (!reader) throw new GateError(503, "Files can't be added right now.", { code: "apps_files_unavailable" });
+    const part = await uploads.readSingleMultipartFile(request, { fieldName: "file", label: "File", maxBytes: reader.limit, required: true });
+    const scratch = await fs.promises.mkdtemp(path.join(os.tmpdir(), "mercbot-record-file-"));
+    try {
+      const source = path.join(scratch, "upload");
+      await reader.receive(part.stream, {
+        origin: "upload",
+        workspaceId: ctx.workspaceId,
+        userId: ctx.userId,
+        botId: null,
+        conversationId: null,
+        place: null,
+        path: null,
+        ip: request.ip ?? null
+      }, source);
+      if (part.stream.truncated) {
+        const limitMb = Math.floor(reader.limit / (1024 * 1024));
+        throw new GateError(413, `That file is too big to add; the limit is ${limitMb} MB.`, { code: "apps_file_too_big", params: { limitMb } });
+      }
+      const record = await gate.attachFile(dataCtx(ctx), request.params.key, request.params.id, request.params.field, {
+        source,
+        name: part.fileName,
+        type: part.mimeType
+      });
+      return { record };
+    } finally {
+      await fs.promises.rm(scratch, { recursive: true, force: true });
+    }
+  }));
 
   // Removing a field asks first (impact), then applies everywhere in one save, as the person.
   router.register("GET", `${data}/fields/:id/impact`, home, handle((request, ctx) => apps.fieldImpact(request.params.id, ctx.options)));

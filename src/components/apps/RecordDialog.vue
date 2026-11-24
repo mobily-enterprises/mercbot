@@ -1,7 +1,7 @@
 <script setup>
 import { computed, reactive, ref, watch } from "vue";
 import SelectField from "@jskit-ai/http-web/client/components/SelectField";
-import { calculate, formulaRecord, isCalculated, showValue } from "@local/apps/shared";
+import { calculate, formulaRecord, isCalculated, isFileField, showValue } from "@local/apps/shared";
 import { appsApi, errorText } from "./appsApi.js";
 import { useLinkPickers } from "./linkPickers.js";
 import { SHARED_TYPES, TEXT_INPUT, inputOf, personChoices, storedOf } from "./fieldValues.js";
@@ -27,7 +27,6 @@ const emit = defineEmits(["update:open", "saved", "changed"]);
 const draft = reactive({});
 // The files chosen for file and picture fields, by field id, uploaded after the save.
 const chosen = reactive({});
-const FILES = new Set(["file", "image"]);
 // The record this dialog made, when a file then failed to upload: saving again saves onto it, never a second record.
 const made = ref(null);
 // Why a file chosen didn't go on once the record was saved, by field id, shown under its field.
@@ -64,6 +63,7 @@ const problem = ref("");
 const fields = computed(() => (props.table?.fields || []).filter((field) => !field.obsolete && !isCalculated(field)));
 const calculatedFields = computed(() => (props.table?.fields || []).filter((field) => !field.obsolete && isCalculated(field)));
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/u;
+const labelOf = (field) => field.label + (field.options?.required ? " *" : "");
 
 const toInput = (field, value) => {
   if (SHARED_TYPES.has(field.type)) return inputOf(field, value);
@@ -94,7 +94,7 @@ watch(() => [props.open, props.record], () => {
 
 const problemOf = (field) => {
   const value = draft[field.id];
-  if (FILES.has(field.type)) return field.options?.required && !value && !chosen[field.id] ? `${field.label} is required` : "";
+  if (isFileField(field)) return field.options?.required && !value && !chosen[field.id] ? `${field.label} is required` : "";
   if (field.options?.required && (value === null || value === "" || (Array.isArray(value) && !value.length))) return `${field.label} is required`;
   if (field.type === "email" && value && !EMAIL.test(value)) return "Enter a valid email";
   if (["number", "money"].includes(field.type) && value !== null && value !== "" && !Number.isFinite(Number(value))) return "Enter a number";
@@ -115,7 +115,7 @@ async function save() {
   try {
     // A file field is sent only to take its file away; a new file goes up on its own once the record exists.
     const record = props.record || made.value;
-    const sent = fields.value.filter((field) => !FILES.has(field.type) || (record?.[field.id] && !draft[field.id]));
+    const sent = fields.value.filter((field) => !isFileField(field) || (record?.[field.id] && !draft[field.id]));
     const values = Object.fromEntries(sent.map((field) => [field.id, toStored(field, draft[field.id])]));
     let saved = record ? await appsApi.updateRecord(props.table.key, record.id, values) : await appsApi.createRecord(props.table.key, values);
     wrote = true;
@@ -154,27 +154,27 @@ async function save() {
       <div class="text-h6 mb-4">{{ record ? `Edit ${table.label}` : `New in ${table.label}` }}</div>
       <template v-for="field in fields" :key="field.id">
         <!-- readable-check: allow selection-field - data: a choice field's options are part of its table's definition, which the dialog was given -->
-        <v-select v-if="field.type === 'choice'" v-model="draft[field.id]" :items="field.options?.choices || []" :label="field.label + (field.options?.required ? ' *' : '')" :error-messages="problemOf(field)" variant="outlined" density="comfortable" clearable />
-        <SelectField v-else-if="field.type === 'link'" v-model="draft[field.id]" :items="links.choices[field.id] || []" :loading="Boolean(links.loading[field.id])" searchable no-filter :label="field.label + (field.options?.required ? ' *' : '')" :error-messages="problemOf(field)" variant="outlined" density="comfortable" clearable @update:search="(text) => links.search(field.id, text, draft[field.id])" />
+        <v-select v-if="field.type === 'choice'" v-model="draft[field.id]" :items="field.options?.choices || []" :label="labelOf(field)" :error-messages="problemOf(field)" variant="outlined" density="comfortable" clearable />
+        <SelectField v-else-if="field.type === 'link'" v-model="draft[field.id]" :items="links.choices[field.id] || []" :loading="Boolean(links.loading[field.id])" searchable no-filter :label="labelOf(field)" :error-messages="problemOf(field)" variant="outlined" density="comfortable" clearable @update:search="(text) => links.search(field.id, text, draft[field.id])" />
         <v-switch v-else-if="field.type === 'yesno'" v-model="draft[field.id]" :label="field.label" color="primary" inset hide-details class="mb-4" />
         <!-- readable-check: allow selection-field - data: the home's people come with the Data tab's tables, read once -->
-        <v-select v-else-if="field.type === 'person'" v-model="draft[field.id]" :items="personChoices(people, record?.[field.id])" item-title="name" item-value="id" :label="field.label + (field.options?.required ? ' *' : '')" :error-messages="problemOf(field)" variant="outlined" density="comfortable" clearable />
+        <v-select v-else-if="field.type === 'person'" v-model="draft[field.id]" :items="personChoices(people, record?.[field.id])" item-title="name" item-value="id" :label="labelOf(field)" :error-messages="problemOf(field)" variant="outlined" density="comfortable" clearable />
         <!-- readable-check: allow selection-field - data: a tags field's allowed tags are part of its table's definition, which the dialog was given -->
-        <v-combobox v-else-if="field.type === 'tags'" v-model="draft[field.id]" :items="field.options?.choices || []" :label="field.label + (field.options?.required ? ' *' : '')" :error-messages="problemOf(field)" multiple chips closable-chips variant="outlined" density="comfortable" />
+        <v-combobox v-else-if="field.type === 'tags'" v-model="draft[field.id]" :items="field.options?.choices || []" :label="labelOf(field)" :error-messages="problemOf(field)" multiple chips closable-chips variant="outlined" density="comfortable" />
         <RecordFileField
-          v-else-if="FILES.has(field.type)"
+          v-else-if="isFileField(field)"
           v-model:current="draft[field.id]"
           v-model:chosen="chosen[field.id]"
           :field="field"
           :error-messages="problemOf(field) || fileProblems[field.id] || ''"
         />
-        <v-textarea v-else-if="field.type === 'longtext'" v-model="draft[field.id]" :label="field.label + (field.options?.required ? ' *' : '')" :error-messages="problemOf(field)" auto-grow rows="3" variant="outlined" density="comfortable" />
+        <v-textarea v-else-if="field.type === 'longtext'" v-model="draft[field.id]" :label="labelOf(field)" :error-messages="problemOf(field)" auto-grow rows="3" variant="outlined" density="comfortable" />
         <v-text-field
           v-else
           v-model="draft[field.id]"
           :type="TEXT_INPUT[field.type] || 'text'"
           :step="field.type === 'money' ? '0.01' : undefined"
-          :label="field.label + (field.options?.required ? ' *' : '')"
+          :label="labelOf(field)"
           :error-messages="problemOf(field)"
           variant="outlined"
           density="comfortable"

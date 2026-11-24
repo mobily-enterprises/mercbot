@@ -1,6 +1,6 @@
 // readable-check: allow no-transaction-reader - infrastructure: AnyAPI writes a home's runtime tables (no table resource describes them) in the transaction the audit_events handle opened, which it takes as its own Knex transaction
 import { publishIn } from "@local/notices/server/publishIn";
-import { PAGE_MAX, isCalculated, withCalculated } from "../shared/index.js";
+import { PAGE_MAX, isCalculated, isFileField, withCalculated } from "../shared/index.js";
 import { OBSOLETE } from "./anyapi.js";
 import { homeIdOf } from "./callOptions.js";
 import { GateError, cleanRecord } from "./validate.js";
@@ -59,8 +59,8 @@ const CALCULATED_TOTALS_MAX = 5000;
  * @param {{ activeIds: (options: object) => Promise<Array<string | number>>, names: (ids: string[], options: object) =>
  *   Promise<Map<string, string>> }} dependencies.people the home's members, for person fields: who is in the home now
  *   (a person field holds only them) and their names (as a person field reads back)
- * @param {() => { write: Function, remove: Function } | null} dependencies.recordFiles Database files' writer, which the
- *   files feature plugs in at start (null until then: files can't be added)
+ * @param {() => { write: Function, remove: Function, real: Function } | null} dependencies.recordFiles Database files'
+ *   writer and reader, which the files feature plugs in at start (null until then: files can't be added)
  */
 export function createDataGate({
   resources,
@@ -80,7 +80,7 @@ export function createDataGate({
   const { auditEvents } = resources;
   // The home a ctx acts in: its call options'.
   const homeOf = (ctx) => homeIdOf(ctx.options);
-  const { membersOf, checkPeople, checkUnique, uniqueTakenIn, labelPeople } = createRecordChecks({ people, homeOf });
+  const { membersByName, checkPeople, checkUnique, uniqueTakenIn, labelPeople } = createRecordChecks({ people, homeOf });
   const { newestAudits, activity, actors } = createAuditReads({ auditEvents, repository });
   const files = createRecordFiles({ impl: recordFiles, homeOf, tableFor, get, update });
   const relatedRecords = createRelatedRecords({ tableFor, read });
@@ -368,8 +368,9 @@ export function createDataGate({
       const same = (old, value) => JSON.stringify(old ?? null) === JSON.stringify(value ?? null);
       for (const [fieldId, value] of Object.entries(values)) {
         const old = before[fieldId] ?? null;
-        if (!same(old, value)) changes[fieldId] = [old, value];
-        if (old?.path && !same(old, value) && table.fields.some((field) => field.id === fieldId && ["file", "image"].includes(field.type))) replaced.push(old.path);
+        if (same(old, value)) continue;
+        changes[fieldId] = [old, value];
+        if (old?.path && table.fields.some((field) => field.id === fieldId && isFileField(field))) replaced.push(old.path);
       }
       if (!Object.keys(changes).length) return before;
       const after = await api.resources[table.id].patch({ id: String(id), data: values, transaction }, { includeObsolete: true });
@@ -582,15 +583,8 @@ export function createDataGate({
     }
     const api = await anyapi.instanceFor(homeOf(ctx));
     const { titles, known } = await linkTitles(ctx, api, tables, table, rows);
-    // A person column names members as exported: their names, lowercased, to their ids (two reads, whatever the rows).
-    const members = new Map();
-    if (table.fields.some((field) => field.type === "person")) {
-      const ids = [...(await membersOf(ctx))];
-      for (const [id, name] of await people.names(ids, ctx.options)) {
-        const key = String(name).trim().toLowerCase();
-        members.set(key, [...(members.get(key) || []), String(id)]);
-      }
-    }
+    // A person column names members as exported (two reads, whatever the rows).
+    const members = table.fields.some((field) => field.type === "person") ? await membersByName(ctx) : new Map();
     const rules = await beforeSaveEach(ctx, table, "create", cleanRecord);
     const errors = [];
     const checked = [];

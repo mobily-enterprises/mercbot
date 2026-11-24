@@ -1,6 +1,21 @@
 import { open } from "node:fs/promises";
+import { isFileField } from "../shared/formulas.js";
 import { refuse } from "./visitorAccess.js";
-import { GateError, STORED_FILE, pictureKind } from "./validate.js";
+import { GateError, STORED_FILE } from "./validate.js";
+
+/** The pictures an image field takes, by the start of their bytes. */
+function pictureKind(head) {
+  const bytes = Buffer.from(head || []);
+  if (bytes.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) return "image/png";
+  if (bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return "image/jpeg";
+  if (bytes.subarray(0, 4).toString("latin1") === "GIF8") return "image/gif";
+  if (bytes.subarray(0, 4).toString("latin1") === "RIFF" && bytes.subarray(8, 12).toString("latin1") === "WEBP") return "image/webp";
+  return null;
+}
+
+/** A table's live file or picture field, by its id or key, or undefined. */
+const fileFieldOf = (table, fieldName) =>
+  table.fields.find((entry) => !entry.obsolete && (entry.id === fieldName || entry.key === fieldName) && isFileField(entry));
 
 /**
  * A record's files and pictures in the home's Database files (D-130): the gate stores one when a file or image field is
@@ -59,7 +74,7 @@ export function createRecordFiles({ impl, homeOf, tableFor, get, update }) {
     refuse(ctx);
     if (ctx.practice) throw new GateError(409, "Files are added to real records, not to a draft's practice data.", { code: "apps_files_not_in_practice" });
     const { table } = await tableFor(tableIdOrKey, ctx.options, { forWrite: true });
-    const field = table.fields.find((entry) => !entry.obsolete && (entry.id === fieldName || entry.key === fieldName) && ["file", "image"].includes(entry.type));
+    const field = fileFieldOf(table, fieldName);
     if (!field) {
       throw new GateError(400, `${table.label} has no file or picture field "${fieldName}".`, {
         code: "apps_record_field_unknown",
@@ -81,7 +96,7 @@ export function createRecordFiles({ impl, homeOf, tableFor, get, update }) {
    */
   async function fileOf(ctx, tableIdOrKey, id, fieldName) {
     const { table } = await tableFor(tableIdOrKey, ctx.options);
-    const field = table.fields.find((entry) => !entry.obsolete && (entry.id === fieldName || entry.key === fieldName) && ["file", "image"].includes(entry.type));
+    const field = fileFieldOf(table, fieldName);
     const value = field ? (await get(ctx, table.id, id))[field.id] : null;
     if (!value?.path) throw new GateError(404, "That file isn't there.", { code: "apps_record_file_missing" });
     return { real: await files().real(homeOf(ctx), value.path), name: value.name, type: value.type, size: value.size };

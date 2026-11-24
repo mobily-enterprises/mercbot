@@ -1,6 +1,6 @@
 <script setup>
 import { computed, inject, provide, reactive, watch } from "vue";
-import { calculate, celSchema, isCalculated } from "@local/apps/shared";
+import { calculate, celSchema, isCalculated, isFileField } from "@local/apps/shared";
 import AppNode from "./AppNode.vue";
 import { formulaRecord, refersToRemovedField, showValue } from "./appRuntime.js";
 import { APP_FORM_KEY, APP_SCREEN_KEY } from "./screenKeys.js";
@@ -28,7 +28,6 @@ const table = computed(() => (creating.value ? runtime.tableNamed(props.node.tab
 const record = computed(() => (creating.value ? null : runtime.data[queryName.value]));
 const loading = computed(() => !creating.value && runtime.loading.has(queryName.value));
 const draft = reactive({});
-const FILES = new Set(["file", "image"]);
 // The file field being uploaded or taken away, and what went wrong.
 // `round` remounts the file inputs after each try, so the same file can be chosen again.
 const attaching = reactive({ field: "", failed: "", problem: "", round: 0 });
@@ -38,7 +37,7 @@ const entries = computed(() => (props.node.fields || [])
   .map((entry) => (typeof entry === "string" ? { field: entry } : entry))
   .filter((entry) => !refersToRemovedField(entry.field))
   .map((entry) => ({ ...entry, def: table.value?.fields.find((field) => field.key === entry.field) }))
-  .filter((entry) => entry.def && !(FILES.has(entry.def.type) && (creating.value || !runtime.attachesFiles))));
+  .filter((entry) => entry.def && !(isFileField(entry.def) && (creating.value || !runtime.attachesFiles))));
 
 // Values as typed: money in units, links as their label.
 const toInput = (field, value) => {
@@ -64,7 +63,7 @@ function reset(next = record.value) {
 }
 watch(record, (next) => reset(next), { immediate: true });
 
-const typedIn = (entry) => entry.def.type !== "link" && !FILES.has(entry.def.type) && !isCalculated(entry.def);
+const typedIn = (entry) => entry.def.type !== "link" && !isFileField(entry.def) && !isCalculated(entry.def);
 
 /** A chosen file onto the record at once, or (`file` null) the record's taken away; the screen's lists read it again. */
 async function attach(entry, file) {
@@ -104,6 +103,7 @@ function formScope(valid = true, changed = false) {
 
 const shown = (entry) => entry.showIf === undefined || runtime.evaluate(entry.showIf, formScope()) === true;
 const required = (entry) => entry.def.options?.required || runtime.evaluate(entry.required, formScope()) === true;
+const labelOf = (entry) => entry.def.label + (required(entry) ? " *" : "");
 const problem = (entry) => {
   if (isCalculated(entry.def)) return "";
   const value = draft[entry.field];
@@ -154,7 +154,7 @@ provide(APP_FORM_KEY, {
             :items="personChoices(runtime.people || [], record?.[entry.field])"
             item-title="name"
             item-value="id"
-            :label="entry.def.label + (required(entry) ? ' *' : '')"
+            :label="labelOf(entry)"
             :error-messages="shownProblem(entry)"
             @update:model-value="touched.add(entry.field)"
             variant="outlined"
@@ -166,7 +166,7 @@ provide(APP_FORM_KEY, {
             v-else-if="entry.def.type === 'tags'"
             v-model="draft[entry.field]"
             :items="entry.def.options?.choices || []"
-            :label="entry.def.label + (required(entry) ? ' *' : '')"
+            :label="labelOf(entry)"
             :error-messages="shownProblem(entry)"
             @update:model-value="touched.add(entry.field)"
             multiple
@@ -178,7 +178,7 @@ provide(APP_FORM_KEY, {
           <v-textarea
             v-else-if="entry.def.type === 'longtext'"
             v-model="draft[entry.field]"
-            :label="entry.def.label + (required(entry) ? ' *' : '')"
+            :label="labelOf(entry)"
             :error-messages="shownProblem(entry)"
             @update:model-value="touched.add(entry.field)"
             auto-grow
@@ -191,26 +191,25 @@ provide(APP_FORM_KEY, {
             v-else-if="entry.def.type === 'choice'"
             v-model="draft[entry.field]"
             :items="entry.def.options?.choices || []"
-            :label="entry.def.label + (required(entry) ? ' *' : '')"
+            :label="labelOf(entry)"
             :error-messages="shownProblem(entry)"
             @update:model-value="touched.add(entry.field)"
             variant="outlined"
             density="comfortable"
             clearable
           />
-          <template v-else-if="FILES.has(entry.def.type)">
-            <RecordFileField
-              :key="`${entry.field}:${attaching.round}`"
-              :field="entry.def"
-              :current="record?.[entry.field] || null"
-              :chosen="null"
-              :error-messages="attaching.failed === entry.field ? attaching.problem : ''"
-              :busy="attaching.field === entry.field"
-              :disabled="Boolean(attaching.field)"
-              @update:chosen="(file) => file && attach(entry, file)"
-              @update:current="(value) => value === null && attach(entry, null)"
-            />
-          </template>
+          <RecordFileField
+            v-else-if="isFileField(entry.def)"
+            :key="`${entry.field}:${attaching.round}`"
+            :field="entry.def"
+            :current="record?.[entry.field] || null"
+            :chosen="null"
+            :error-messages="attaching.failed === entry.field ? attaching.problem : ''"
+            :busy="attaching.field === entry.field"
+            :disabled="Boolean(attaching.field)"
+            @update:chosen="(file) => file && attach(entry, file)"
+            @update:current="(value) => value === null && attach(entry, null)"
+          />
           <v-switch v-else-if="entry.def.type === 'yesno'" v-model="draft[entry.field]" :label="entry.def.label" color="primary" inset hide-details class="mb-4" />
           <v-text-field
             v-else-if="entry.def.type === 'link'"
@@ -228,7 +227,7 @@ provide(APP_FORM_KEY, {
             v-model="draft[entry.field]"
             :type="TEXT_INPUT[entry.def.type] || 'text'"
             :step="entry.def.type === 'money' ? '0.01' : undefined"
-            :label="entry.def.label + (required(entry) ? ' *' : '')"
+            :label="labelOf(entry)"
             :error-messages="shownProblem(entry)"
             @update:model-value="touched.add(entry.field)"
             variant="outlined"

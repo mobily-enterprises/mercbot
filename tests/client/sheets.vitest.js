@@ -22,6 +22,12 @@ describe("a sheet's cells for the shared tables' types", () => {
     expect([toCell(field("f1", "image"), value, false), toCell(field("f1", "file"), value, true)]).toEqual(["p.png", "p.png"]);
   });
 
+  it("export a link or a person as its label, or the id a record's history keeps", () => {
+    for (const type of ["link", "person"]) {
+      expect([toCell(field("f4", type), { id: "7", label: "Ana Ruiz" }, false), toCell(field("f4", type), 7, true)]).toEqual(["Ana Ruiz", "7"]);
+    }
+  });
+
   it("export a date and time to Excel with its time shown", () => {
     const cell = toCell(field("f2", "datetime"), "2026-11-24T08:30:00.000Z", true);
     expect(cell.value).toEqual(new Date("2026-11-24T08:30:00.000Z"));

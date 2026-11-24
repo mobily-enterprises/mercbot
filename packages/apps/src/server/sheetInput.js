@@ -1,4 +1,5 @@
 import { isCalculated } from "../shared/calculated.js";
+import { isFileField } from "../shared/formulas.js";
 import { GateError } from "./validate.js";
 
 /**
@@ -14,7 +15,7 @@ export function fromSheet(table, row, titles, members = new Map()) {
     const text = String(cell ?? "").trim();
     // A calculated column of an exported sheet is worked out again from the others, never imported.
     // A file or picture goes onto a record by upload only (D-130): its column, a file's name, is skipped.
-    if (!field || !text || isCalculated(field) || ["file", "image"].includes(field.type)) continue;
+    if (!field || !text || isCalculated(field) || isFileField(field)) continue;
     if (field.type === "money") {
       const plain = text.replace(/[\s,]/gu, "").replace(/^[^\d.-]{1,3}/u, ""); // "$1,250.50" → "1250.50"
       if (!/^-?\d*\.?\d+$/u.test(plain)) {
