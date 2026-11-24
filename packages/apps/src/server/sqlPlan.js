@@ -78,16 +78,17 @@ function build(builder, plan, value, column, knex) {
     case "compare": {
       const operand = value(plan.value);
       // In formulas an empty field reads as "" (a text, a link, a date and time, D-130), and its slot holds null, or ""
-      // for a text; a date and time's slot holds a timestamp, which "" can't be. Only a "" written in the formula asks
-      // for empty fields: an empty value it reads (a signed-out visitor's email, a missing `params.id`) matches none,
-      // so `owner == visitor.email` never gives someone signed out every record nobody owns.
+      // for a text; a date and time's, a number's and a yes/no's slot holds a timestamp, a number or a boolean, which
+      // "" can't be (PostgreSQL refuses the comparison). Only a "" written in the formula asks for empty fields: an
+      // empty value it reads (a signed-out visitor's email, a missing `params.id`) matches none, so
+      // `owner == visitor.email` never gives someone signed out every record nobody owns.
       if (/^\s*(?:""|'')\s*$/u.test(String(plan.value)) && ["=", "<>"].includes(plan.op)) {
-        const moment = /(?:^|\.)date_\d+$/u.test(String(column(plan.field.name)));
+        const nullOnly = /(?:^|\.)(?:date|number|boolean)_\d+$/u.test(String(column(plan.field.name)));
         const slot = target(plan.field);
         if (plan.op === "=") {
-          builder.where((blank) => (moment ? blank.whereNull(slot) : blank.whereNull(slot).orWhere(slot, "=", "")));
+          builder.where((blank) => (nullOnly ? blank.whereNull(slot) : blank.whereNull(slot).orWhere(slot, "=", "")));
         } else {
-          builder.where((filled) => (moment ? filled.whereNotNull(slot) : filled.whereNotNull(slot).andWhere(slot, "<>", "")));
+          builder.where((filled) => (nullOnly ? filled.whereNotNull(slot) : filled.whereNotNull(slot).andWhere(slot, "<>", "")));
         }
         return;
       }

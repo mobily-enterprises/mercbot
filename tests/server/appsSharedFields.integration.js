@@ -30,7 +30,9 @@ async function setup(context) {
       { key: "tags", type: "tags" },
       { key: "due", type: "datetime" },
       { key: "site", type: "url" },
-      { key: "notes", type: "longtext" }
+      { key: "notes", type: "longtext" },
+      { key: "hours", type: "number" },
+      { key: "done", type: "yesno" }
     ]
   }, options);
   const pipeline = await registry.createTable(person, {
@@ -38,7 +40,7 @@ async function setup(context) {
     fields: [{ key: "contact", type: "link", target: "contacts", unique: true, required: true }, { key: "stage", type: "text" }]
   }, options);
   const idOf = (table, key) => table.fields.find((field) => field.key === key).id;
-  return { home, knex, userId: String(userId), other, leaver, workspaceId, options, registry, gate, ctx, contacts, tasks, pipeline, idOf };
+  return { home, knex, userId: String(userId), other, leaver, workspaceId, options, registry, gate, ctx, person, contacts, tasks, pipeline, idOf };
 }
 
 test("a person field holds someone in the home now, and reads back with their name until they leave", async (context) => {
@@ -158,6 +160,34 @@ test("tags are filtered with \"x\" in tags; a date and time is one instant; a pe
   assert.match(bad.errors[0].message, /must be someone in this home/u);
   const dueOf = (await gate.read(ctx, "tasks", { page: { size: 100 } })).records.find((record) => record[idOf(tasks, "title")] === "By name")[idOf(tasks, "due")];
   assert.equal(new Date(dueOf).toISOString(), "2026-12-01T10:00:00.000Z", "a sheet's time without a zone is UTC");
+});
+
+test("an empty number or yes/no is found as \"\" like any field's, and only a list field is asked for a tag", async (context) => {
+  const { gate, ctx, tasks, idOf } = await setup(context);
+  await gate.create(ctx, "tasks", { title: "Logged", hours: 2, done: true });
+  await gate.create(ctx, "tasks", { title: "Open" });
+  const keyToId = new Map(tasks.fields.map((field) => [field.key, field.id]));
+  const where = (formula) => ({ plan: planToIds(compileWhere({ ...celSchema(tasks), state: {}, params: {} }, formula), keyToId), variables: { state: {}, params: {} }, values: { state: {}, params: {} } });
+  const titles = async (formula) => (await gate.read(ctx, "tasks", { where: where(formula) })).records.map((record) => record[idOf(tasks, "title")]).sort();
+  assert.deepEqual(await titles('=hours == ""'), ["Open"]);
+  assert.deepEqual(await titles('=done != ""'), ["Logged"]);
+  // A text holds no tags: `"x" in title` is refused as a filter, never sent to the database as a list test.
+  assert.throws(() => where('="Logged" in title'), /can't be turned into a database query/u);
+});
+
+test("a table refuses a tags, file or picture field past the ones its storage holds, saying so, and stays as it was", async (context) => {
+  const { registry, gate, ctx, options, person } = await setup(context);
+  // Each table has 10 places for tags, files and pictures, removed fields' included (AnyAPI's json slots).
+  const lists = Array.from({ length: 10 }, (_, at) => ({ key: `list_${at}`, type: at % 2 ? "tags" : "file" }));
+  await registry.createTable(person, { key: "albums", fields: [{ key: "title", type: "text" }, ...lists] }, options);
+  const full = { statusCode: 409, code: "apps_table_slots_full" };
+  await assert.rejects(registry.addField(person, "albums", { key: "cover", type: "image" }, options), full);
+  await assert.rejects(registry.createTable(person, { key: "scrapbook", fields: [...lists, { key: "extra", type: "tags" }] }, options), full);
+  const tables = await registry.loadTables(options);
+  assert.equal(tables.find((table) => table.key === "albums").fields.length, 11, "nothing added");
+  assert.ok(!tables.some((table) => table.key === "scrapbook"));
+  await registry.addField(person, "albums", { key: "year", type: "number" }, options);
+  assert.equal((await gate.create(ctx, "albums", { title: "Summer", list_1: ["beach"], year: 2026 })).obsolete, false);
 });
 
 test("an app and the Data tab's tables come with who is using them and the home's people, by name", async (context) => {

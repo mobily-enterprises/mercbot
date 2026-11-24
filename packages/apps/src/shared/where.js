@@ -54,9 +54,11 @@ export function compileWhere(variables, source) {
     if (node.op === "in") {
       const field = fieldOf(node.args[0]);
       if (field && !mentionsFields(node.args[1])) return { kind: "in", field, value: text(node.args[1]) };
-      // `"urgent" in tags`: a list field holding a value (tags), with `||` and `&&` for any or all of several.
+      // `"urgent" in tags`: a list field holding a value (tags), with `||` and `&&` for any or all of several. Only a
+      // list field: the database would read any other field's value as a list, and refuse it.
       const list = fieldOf(node.args[1]);
-      if (list && !list.lower && !mentionsFields(node.args[0])) return { kind: "has", field: list, value: text(node.args[0]) };
+      const isList = list && String(variables[list.name] ?? "").startsWith("list<");
+      if (isList && !list.lower && !mentionsFields(node.args[0])) return { kind: "has", field: list, value: text(node.args[0]) };
       fail(node);
     }
     if (node.op === "rcall" && LIKE_MODES[node.args[0]]) {

@@ -128,3 +128,21 @@ test("a record's related records come by table and link, a page of each, in a fi
   assert.deepEqual(after.find((group) => group.table.key === "todos").records.length, 10, "the first page");
   assert.equal(after.find((group) => group.table.key === "todos").total, 40);
 });
+
+test("making a shared table, or finding it made, costs the same queries in a home of 3 tables or 40", async (context) => {
+  const cost = async (slug, own) => {
+    const { registry, ctx, person, catalog, home } = await setup(context, slug);
+    for (let at = 0; at < own; at += 1) {
+      await registry.createTable(person, { key: `own_${at}`, fields: Array.from({ length: 8 }, (_, field) => ({ key: `f${field}`, type: "text" })) }, home.options);
+    }
+    const made = await queriesDuring(home.knex, () => catalog.ensureTable(ctx, "deals"));
+    // Found made, with its tables read afresh (another server's change) and then as this server keeps them.
+    await registry.changed(home.options);
+    const found = await queriesDuring(home.knex, () => catalog.ensureTable(ctx, "deals"));
+    return { made, found, kept: await queriesDuring(home.knex, () => catalog.ensureTable(ctx, "deals")) };
+  };
+  const few = await cost("apps-catalog-cost-few", 3);
+  const many = await cost("apps-catalog-cost-many", 40);
+  assert.deepEqual(many, few, `40 tables: ${JSON.stringify(many)}; 3 tables: ${JSON.stringify(few)}`);
+  assert.equal(few.kept, 0, "a home's tables as this server keeps them");
+});

@@ -4298,15 +4298,18 @@ small and complete; more catalog families and mini apps come in phase 2, and per
 - **New field types** (`packages/apps`): `person` (someone in the home, checked against its members whenever a write
   sets it, shown by name; a member who left shows as "Former member", and their records keep them until someone sets
   another), `tags` (a list of words, optionally from an allowed list;
-  filtered with `"x" in tags`), `url` (http or https only), `longtext` (up to 20,000 characters), `datetime` (an ISO
-  moment, shown in the reader's zone), and `file` and `image` (below). A member's screens read `me` (id and name), as a
+  filtered with `"x" in tags`, which only a list field answers), `url` (http or https only), `longtext` (up to 20,000 characters), `datetime` (an ISO
+  moment, shown in the reader's zone), and `file` and `image` (below). Tags, files and pictures share a table's 10
+  AnyAPI json slots, removed fields' included; a field past them is refused (409 `apps_table_slots_full`), as one past
+  any kind's slots is. A member's screens read `me` (id and name), as a
   visitor's read `visitor`.
 - **One-to-one links**: a link field may be `unique`, at most one live record per target, which makes its table a
   one-to-one extension of the one it links to. Every home's records share one table, so no database index can hold it:
   the data gate checks it in the write's own transaction under an advisory lock (409 `apps_link_unique_taken`), and an
   import's rows once among them and against the table.
 - **Empty values in filters**: a formula reads an empty field as `""`, and the database holds it as null.
-  `field == ""` now finds empty fields, `field != ""` filled ones, and a date and time compared with `""` is a null test.
+  `field == ""` now finds empty fields, `field != ""` filled ones, and a date and time, a number or a yes/no compared
+  with `""` is a null test.
   Only a `""` written in the formula does: an empty value it reads (a signed-out visitor's email) is compared as it
   is, so a visitor rule `owner == visitor.email` never gives someone signed out every record nobody owns.
 - **Database files**: a record's file or picture lives in the home's storage at

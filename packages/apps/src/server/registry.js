@@ -4,6 +4,7 @@ import { CALCULATED_TYPES, checkCalculated, isCalculated } from "../shared/calcu
 import { tableFormulaToIds } from "../shared/definitions.js";
 import { STORAGE_TYPES } from "./anyapi.js";
 import { homeIdOf } from "./callOptions.js";
+import { SLOTS } from "./schema.js";
 import { loadTables, toField } from "./tables.js";
 
 // Tables and fields of a home (D-35). Ids are permanent; keys (what the Builder writes) and labels
@@ -24,6 +25,30 @@ export class RegistryError extends AppError {
     super(status, message, options);
     this.name = "RegistryError";
   }
+}
+
+// Each table's places for values in AnyAPI's shared record table, by the kind of value they hold (schema.js): a field
+// takes one for good, removed fields' included. The field types each kind of place holds, as a refusal names them.
+const SLOT_KINDS = {
+  string: "text, email, phone, choice, link, person, web address or long text",
+  number: "number or money",
+  boolean: "yes/no",
+  date: "date or date and time",
+  json: "tags, file or picture"
+};
+
+/** AnyAPI's refusal of a field past its table's places for that kind of value, as the person's refusal; else the error. */
+function slotsFull(error, tableKey) {
+  for (let cause = error; cause; cause = cause.cause) {
+    const pool = cause.slotsExhausted && /No available (\w+) slots/u.exec(String(cause.message))?.[1];
+    if (pool && SLOT_KINDS[pool]) {
+      return new RegistryError(409, `Table "${tableKey}" has no room for another ${SLOT_KINDS[pool]} field: a table holds ${SLOTS[pool]} of them at most, removed ones included.`, {
+        code: "apps_table_slots_full",
+        params: { table: tableKey, kinds: SLOT_KINDS[pool], max: SLOTS[pool] }
+      });
+    }
+  }
+  return error;
 }
 
 export const newId = (prefix) => `${prefix}_${BigInt(`0x${randomBytes(10).toString("hex")}`).toString(36).padStart(16, "0").slice(0, 16)}`;
@@ -264,7 +289,7 @@ export function createRegistry({ resources, anyapi, notices, trustMs = TRUST_MS 
       return { id, key, label, titleFieldId: titleField?.id ?? null, obsolete: false, fields: made };
     }).catch((error) => {
       anyapi.drop(homeId);
-      throw error;
+      throw slotsFull(error, key);
     });
     await changed(options);
     return table;
@@ -288,8 +313,11 @@ export function createRegistry({ resources, anyapi, notices, trustMs = TRUST_MS 
   async function addField(actor, tableIdOrKey, input, options) {
     const homeId = homeIdOf(options);
     const api = await anyapi.instanceFor(homeId);
+    // The table by its key, as a refusal names it.
+    let tableKey = String(tableIdOrKey);
     const field = await appFields.withTransaction(options, async (txOptions) => {
       const table = await tableOf(tableIdOrKey, txOptions);
+      tableKey = table.key;
       if (table.obsoleteAt) {
         throw new RegistryError(409, `Table "${table.key}" is obsolete.`, { code: "apps_table_obsolete", params: { table: table.key } });
       }
@@ -322,7 +350,7 @@ export function createRegistry({ resources, anyapi, notices, trustMs = TRUST_MS 
       return toField(record);
     }).catch((error) => {
       anyapi.drop(homeId);
-      throw error;
+      throw slotsFull(error, tableKey);
     });
     await changed(options);
     return field;

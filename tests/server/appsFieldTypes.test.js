@@ -82,6 +82,21 @@ test("an empty field is \"\" in formulas: == \"\" finds no value, != \"\" a valu
   assert.match(sql('=due != "" && due < "2026-01-01T00:00:00Z"'), /\("records"\."date_2" is not null\)\) and \("records"\."date_2" < \$1\)/u);
 });
 
+test("a filter asks only what its field's slot can answer: a number's or a yes/no's empty is null, and only a list holds a tag", () => {
+  const knex = knexLib({ client: "pg" });
+  const variables = { hours: "double", done: "bool", title: "string", tags: "list<string>", state: {}, params: {} };
+  // A number's slot is a double and a yes/no's a boolean: neither can be compared with "", which PostgreSQL refuses.
+  const slots = { hours: "number_2", done: "boolean_1", title: "string_1", tags: "json_1" };
+  const sql = (where) => knex("records")
+    .where((builder) => applyPlan(builder, compileWhere(variables, where), { variables: {}, values: {} }, (field) => `records.${slots[field]}`, knex))
+    .toSQL().toNative();
+  assert.deepEqual(sql('=hours == ""'), { sql: 'select * from "records" where (("records"."number_2" is null))', bindings: [] });
+  assert.deepEqual(sql('=done != ""'), { sql: 'select * from "records" where (("records"."boolean_1" is not null))', bindings: [] });
+  // `"x" in title` would cast a text to JSON in the database; a text field holds no tags, so it's no database query.
+  assert.throws(() => compileWhere(variables, '="urgent" in title'), /can't be turned into a database query/u);
+  assert.match(sql('="urgent" in tags').sql, /jsonb_exists/u);
+});
+
 test("only a \"\" written in the formula finds empty fields: an empty value it reads (a visitor not signed in) finds none", () => {
   const knex = knexLib({ client: "pg" });
   const variables = { owner: "string", visitor: { signedIn: "bool", email: "string" }, me: { id: "string", name: "string" }, params: { id: "string" } };
