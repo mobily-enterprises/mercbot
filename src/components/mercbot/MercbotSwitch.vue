@@ -1,10 +1,17 @@
 <script setup>
-// An on/off switch for settings: blue when on, light grey when off.
-defineProps({
+// An on/off switch for settings: blue when on, light grey when off. Disabled, for good or while its change saves, it
+// reads as disabled (aria-disabled), looks it and ignores clicks, Space and Enter, but keeps the keyboard's focus: a
+// disabled button would drop it to the page as soon as the browser next draws, and Tab would start over from there.
+const props = defineProps({
   label: { type: String, required: true },
   disabled: { type: Boolean, default: false }
 });
 const model = defineModel({ type: Boolean, default: false });
+
+/** A click, or Space or Enter, which a button turns into one: it turns the switch over unless it's disabled. */
+function toggle() {
+  if (!props.disabled) model.value = !model.value;
+}
 </script>
 
 <template>
@@ -15,8 +22,8 @@ const model = defineModel({ type: Boolean, default: false });
     :class="{ 'mb-toggle--on': model }"
     :aria-checked="model"
     :aria-label="label"
-    :disabled="disabled"
-    @click="model = !model"
+    :aria-disabled="disabled ? 'true' : undefined"
+    @click="toggle"
   >
     <span class="mb-toggle__knob" />
   </button>
@@ -45,7 +52,7 @@ const model = defineModel({ type: Boolean, default: false });
   outline-offset: 2px;
 }
 
-.mb-toggle:disabled {
+.mb-toggle[aria-disabled="true"] {
   opacity: 0.5;
   cursor: default;
 }

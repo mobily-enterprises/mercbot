@@ -256,6 +256,10 @@ Settings section for `?settings=<section>` (a link in an email, or back from ano
 address and leaves the rest for the section to read (`useShellDialogs.js`). The sidebar shows no bot's price, with
 the pointer over it or not (D-73, the owner, 2026-11-20).
 Settings → Permissions holds the auto-review switch and the Always ask and Allow without asking rule lists.
+Settings' on/off switches are `MercbotSwitch.vue`. One disabled, for good or while its change saves (Notifications on
+this device, Auto-review), reads as disabled (`aria-disabled`), looks it and ignores
+clicks, Space and Enter, but keeps the keyboard's focus: the disabled attribute would drop it to the page at once, so
+Tab would start over from there (`tests/client/mercbotSwitch.vitest.js`, `installed-app.spec.ts` notifications).
 Settings → Main bot and Builder (`MercbotSettingsMainBot.vue`, D-119) shows the home's main bot and its Builder, each a
 picker from the home's active bots for those who may (the main bot: the home's owners and admins, `PATCH …/bots/:id
 { main: true }`; the Builder: whoever `GET …/builder` says `canManage`, `PUT …/builder`), else each name with "Only the
