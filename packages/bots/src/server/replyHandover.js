@@ -36,7 +36,7 @@ export function createReplyHandover({ records, systemContext, seats, chatHistory
   /** This server's reply resumers (startResumer), stopped first when it hands its replies over. */
   const resumers = new Set();
   // Set once this server is stopping: it takes up no more replies, and one that starts now is handed over at once.
-  let handingOver = false;
+  let stopping = false;
 
   async function resumeRun(run) {
     const place = await records.directory.computerOf(String(run.conversation_id), { context: systemContext("reply resumer") });
@@ -58,7 +58,7 @@ export function createReplyHandover({ records, systemContext, seats, chatHistory
   function startResumer(options) {
     const scans = startRunResumer({ runs: chatHistory.runs, resume: resumeRun, resumable, ...options });
     const unsubscribe = notices.subscribe(REPLIES_HANDED_OVER, "all", () => {
-      if (!handingOver) resumeStalled().catch((error) => console.error(`Resuming replies handed over: ${error?.message || error}`));
+      if (!stopping) resumeStalled().catch((error) => console.error(`Resuming replies handed over: ${error?.message || error}`));
     });
     const resumer = {
       /** @param {number} ms */
@@ -81,7 +81,7 @@ export function createReplyHandover({ records, systemContext, seats, chatHistory
    * @returns {Promise<number>}
    */
   async function handOverReplies() {
-    handingOver = true;
+    stopping = true;
     await Promise.all([...resumers].map((resumer) => resumer.drain(HAND_OVER_MS)));
     let handed = 0;
     // A reply that started meanwhile is handed over in the next round; one that didn't stop in time ends the rounds.
@@ -92,6 +92,11 @@ export function createReplyHandover({ records, systemContext, seats, chatHistory
     }
     await tellHandedOver(notices, REPLIES_HANDED_OVER, handed);
     return handed;
+  }
+
+  /** Whether this server is stopping (handOverReplies), so a reply that ends starts nothing more here. */
+  function handingOver() {
+    return stopping;
   }
 
   /**
@@ -112,7 +117,7 @@ export function createReplyHandover({ records, systemContext, seats, chatHistory
       heartbeatMs: Number(chatHistory.runs.limits.heartbeatMs)
     });
     Object.assign(handing, { keep: lease, own });
-    if (handing.stopped || handingOver) lease.handOver();
+    if (handing.stopped || stopping) lease.handOver();
     const refused = new AbortController();
     const replyRun = {
       signal: AbortSignal.any([lease.signal, refused.signal, ...(held?.signal ? [held.signal] : [])]),
@@ -152,7 +157,6 @@ export function createReplyHandover({ records, systemContext, seats, chatHistory
     resumeStalled,
     startResumer,
     handOverReplies,
-    /** Whether this server is stopping (handOverReplies), so a reply that ends starts nothing more here. */
-    handingOver: () => handingOver
+    handingOver
   });
 }

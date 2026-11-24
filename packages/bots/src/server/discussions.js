@@ -118,8 +118,10 @@ export function createDiscussions({ records, systemContext, meter, env, seats, c
   const refused = (status, message, code) => new BotsError(status, message, { code });
   const notFound = () => refused(404, "Discussion not found.", "bots_discussion_not_found");
   const live = (present, ids) => present.bots.filter((bot) => !bot.archived_at && (!ids || ids.has(String(bot.bot_id))));
-  // The rounds running here, each with how its server's stop hands it over (handOver).
-  /** @type {Map<Promise<void>, { handOver: () => void }>} */
+  /**
+   * The rounds running here, each with how its server's stop hands it over (handOver).
+   * @type {Map<Promise<void>, { handOver: () => void }>}
+   */
   const rounds = new Map();
   // Set once this server is stopping: its rounds are handed over, and it carries none on.
   let handingOver = false;

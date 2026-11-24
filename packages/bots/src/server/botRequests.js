@@ -403,7 +403,8 @@ export function createBotRequests({
       if (control.signal.aborted) {
         // Handed over as this server stops: due again now, with its turns, attempts and the asking bot's reply as they
         // were, carried on by another server from the steps it kept.
-        await work.changeRequest(request.id, { leaseUntil: null, runAfter: work.now(), turns: request.turns, reply: request.reply ?? null }, options);
+        const dueNow = { leaseUntil: null, runAfter: work.now(), turns: request.turns, reply: request.reply ?? null };
+        await work.changeRequest(request.id, dueNow, options);
         handed += 1;
         return;
       }
