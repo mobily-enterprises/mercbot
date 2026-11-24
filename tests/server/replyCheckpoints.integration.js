@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { connectTestDatabase } from "../support/testDatabase.mjs";
+import { RunTakenOver } from "../../packages/bots/src/server/runLease.js";
 import { startChatTurns } from "../support/botDoubles.mjs";
 import { testBot } from "./testHome.js";
 import { memberOptions } from "../support/botRecords.mjs";
@@ -175,4 +176,78 @@ test("a reply's run gives up its steps as the reply is posted, so a server that 
   assert.deepEqual(answers.map((message) => message.body.text), ["You have notes.txt."]);
   // The run left behind stays until the bot's next claim takes it over; this test's goes now.
   await knex("agent_runs").where({ conversation_id: seatId }).del();
+});
+
+/** Waits for `ready()`, a few milliseconds at a time, failing after `most` tries. */
+async function until(ready, what, most = 400) {
+  for (let tries = 0; tries < most; tries += 1) {
+    if (await ready()) return;
+    await new Promise((resolve) => setTimeout(resolve, 25));
+  }
+  assert.fail(`never: ${what}`);
+}
+
+test("a reply whose run another server took over, once its own server stalled past the staleness, stops at its next heartbeat and posts and frees nothing", async (context) => {
+  context.mock.method(console, "warn", () => {});
+  context.mock.method(console, "error", () => {});
+  const passes = [];
+  let mine = null;
+  let stoppedBy = null;
+  let firstSettled;
+  const first = new Promise((resolve) => (firstSettled = resolve));
+  let answerSecond;
+  const second = new Promise((resolve) => (answerSecond = resolve));
+  const reply = async (current, _history, _tools, _state, _prompt, { signal }) => {
+    if (String(current.id) !== String(mine)) return { text: "", transcript: [] };
+    passes.push(true);
+    if (passes.length === 1) {
+      // The stalled server's reply, in its model call: its answer comes 10 s on, unless its heartbeat stops it first.
+      try {
+        await new Promise((resolve, reject) => {
+          const late = setTimeout(resolve, 10_000);
+          signal?.addEventListener("abort", () => {
+            clearTimeout(late);
+            reject(signal.reason);
+          }, { once: true });
+        });
+      } catch (error) {
+        stoppedBy = error;
+        throw error;
+      } finally {
+        firstSettled();
+      }
+      return { text: "The stalled server's answer.", transcript: [] };
+    }
+    await second;
+    return { text: "The answer of the server that took it over.", transcript: [] };
+  };
+  // This server beats every 300 ms, so its heartbeat finds the run taken over within a beat.
+  const { knex, as, userId, bot, service, drain, seatId } = await setup(context, reply, { runLimits: { staleSeconds: 60, heartbeatMs: 300 } });
+  const other = await startChatTurns(context, { reply });
+  mine = bot.id;
+  const sent = await service.chat.sendMessage(bot.conversation_id, { text: "What files do I have?", clientId: `t-${Date.now()}` }, as(userId));
+  const replying = service.chat.reply(bot.conversation_id, { afterMessageId: sent.messages[0].id }, undefined, as(userId));
+  await until(() => passes.length === 1, "the first server's reply started");
+  const claimed = await knex("agent_runs").where({ conversation_id: seatId }).first();
+  const startOf = (run) => (run ? new Date(run.started_at).getTime() : null);
+  // This server stalls past the staleness: to the other its heartbeat looks old, and between this one's beats the other
+  // takes the run over and carries the reply on.
+  await until(async () => {
+    if (startOf(await knex("agent_runs").where({ conversation_id: seatId }).first()) === startOf(claimed)) {
+      await knex("agent_runs").where({ conversation_id: seatId }).update({ heartbeat_at: knex.raw("now() - interval '5 minutes'") });
+      await other.turns.resumeStalled();
+    }
+    return passes.length === 2;
+  }, "the other server took the run over");
+  await first;
+  const afterFirst = await knex("agent_runs").where({ conversation_id: seatId }).first();
+  answerSecond();
+  await replying;
+  await other.drain(10000);
+  await drain(10000);
+  const answers = await knex("messages").where({ conversation_id: bot.conversation_id, kind: "text", role: "bot" }).orderBy("id");
+  assert.deepEqual(answers.map((message) => message.body.text), ["The answer of the server that took it over."], "one answer: the stalled server posts nothing");
+  assert.ok(stoppedBy instanceof RunTakenOver, `its heartbeat stopped the stalled server's reply (${stoppedBy})`);
+  assert.ok(afterFirst && startOf(afterFirst) !== startOf(claimed), "the stalled server frees nothing: the run is still the other server's");
+  assert.equal(await knex("agent_runs").where({ conversation_id: seatId }).first(), undefined, "freed by the server that answered");
 });
