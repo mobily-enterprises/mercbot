@@ -64,7 +64,9 @@ render across compact, medium, and expanded layouts.
 - Chat details, or a member's card, cover the chat.
 - Settings and Connect apps fill the screen. Settings shows one section with **All settings**
   to the list; Connect apps shows one column of apps.
-- From 600 px up, the desktop layout applies (rail below 704 px).
+- From 600 px up, the desktop layout applies (rail below 704 px). Crossing 600 px keeps the chat list mounted
+  (`MercbotDrawer.vue` holds it in one element either way), so what it has open, such as New home and what was typed
+  in it, stays open.
 
 - The initial document shows Mercbot's splash before JavaScript is available: the orange cloud (D-44), the name,
   an indeterminate bar (still under reduced motion) and "Loading Mercbot…" as a polite status, on the app's own
