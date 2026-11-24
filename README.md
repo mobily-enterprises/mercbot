@@ -128,9 +128,10 @@ stand-in. A test-mode payment key lets payments be tried there. Vibe64's managed
 
 Every suite has coarse time bounds, about five times what the test machines measure when busy, so only something
 clearly broken trips them: a hang, a process that stays alive after its tests, minutes where seconds are normal. A test
-file still running at its bound is stopped, and a suite past its own bound fails (`tests/support/unitRun.mjs`,
-`tests/support/databaseRun.mjs`, and Playwright's `timeout` and `globalTimeout`); fix what got slow rather than raise a
-bound. Every run prints its ten slowest files against the bound.
+file still running at its bound is stopped, and a node suite whose files' times summed are past its own bound fails
+(`tests/support/unitRun.mjs`, `tests/support/databaseRun.mjs`): the work they did, which doesn't depend on how many
+files the machine's test budget runs at once, as the suite's wall time does. Playwright has its `timeout` and
+`globalTimeout`. Fix what got slow rather than raise a bound. Every run prints its ten slowest files against the bound.
 
 JSKIT's local auth confirms the email of every account registered by password. Database tests that register accounts
 on a server without the single-user gate expect them signed in at once, so they set

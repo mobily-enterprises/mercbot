@@ -1,10 +1,12 @@
 // The unit suite's run (npm test) and its coarse bounds (testRun.mjs). Measured on a busy test
-// machine at two files at a time: the slowest file (viteStartup.test.js, a cold Vite start) 3–10 s;
-// the suite 8–31 s. The server smoke test runs in the database suite: a server reads its database
-// as it starts.
+// machine at two files at a time: the slowest file (commandInternet.test.js, pip installs) up to
+// 39 s. Its files' times summed, measured on the test machine usone (six files at a time, 11-24):
+// 64-190 s for 120 files, and 142-254 s on the busier desktop at two to four at a time; the bound
+// is five times usone's 190 s. The server smoke test runs in the database suite: a server reads its
+// database as it starts.
 import { testRun } from "./testRun.mjs";
 
-const run = testRun({ suite: "unit", fileBoundSeconds: 40, suiteBoundSeconds: 150 });
+const run = testRun({ suite: "unit", fileBoundSeconds: 40, summedBoundSeconds: 950 });
 export const { globalSetup } = run;
 
 /**
