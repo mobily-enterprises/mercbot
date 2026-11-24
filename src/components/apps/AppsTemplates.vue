@@ -74,25 +74,22 @@ async function install(template, sample) {
       <div class="text-body-2 text-on-surface-variant mb-3">
         Every bot and app keeps its records in these, so there's one list of contacts, to-dos or places for the whole home. A bot adds one the first time it needs it.
       </div>
-      <v-table density="comfortable">
-        <tbody>
-          <tr v-for="table in sharedTables" :key="table.key" :data-shared-table="table.key">
-            <td class="text-body-2 font-weight-medium">
-              <router-link v-if="table.inHome" :to="paths.page(`/apps/data/${table.key}`)">{{ table.label }}</router-link>
-              <span v-else>{{ table.label }}</span>
-            </td>
-            <td class="text-body-2">
-              {{ table.description }}
-              <span v-if="table.extends" class="text-on-surface-variant"> One row per record of {{ table.extends }}.</span>
-              <span v-else-if="table.linksTo.length" class="text-on-surface-variant"> Links to {{ table.linksTo.join(", ") }}.</span>
-            </td>
-            <td class="text-right">
-              <v-chip v-if="table.inHome" size="small" variant="tonal" color="primary">In this home</v-chip>
-              <span v-else class="text-caption text-on-surface-variant">Not added yet</span>
-            </td>
-          </tr>
-        </tbody>
-      </v-table>
+      <!-- One row per table, its name and whether the home has it above what it's for: it fits a phone's width. -->
+      <ul class="apps-shared-tables">
+        <li v-for="table in sharedTables" :key="table.key" class="apps-shared-tables__row" :data-shared-table="table.key">
+          <div class="d-flex align-center flex-wrap ga-2">
+            <router-link v-if="table.inHome" :to="paths.page(`/apps/data/${table.key}`)" class="text-body-2 font-weight-medium">{{ table.label }}</router-link>
+            <span v-else class="text-body-2 font-weight-medium">{{ table.label }}</span>
+            <v-chip v-if="table.inHome" size="x-small" variant="tonal" color="primary">In this home</v-chip>
+            <span v-else class="text-caption text-on-surface-variant">Not added yet</span>
+          </div>
+          <div class="text-body-2">
+            {{ table.description }}
+            <span v-if="table.extends" class="text-on-surface-variant"> One row per record of {{ table.extends }}.</span>
+            <span v-else-if="table.linksTo.length" class="text-on-surface-variant"> Links to {{ table.linksTo.join(", ") }}.</span>
+          </div>
+        </li>
+      </ul>
     </section>
   </div>
 </template>
@@ -102,5 +99,14 @@ async function install(template, sample) {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: 16px;
+}
+.apps-shared-tables {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.apps-shared-tables__row {
+  padding: 12px 0;
+  border-bottom: 1px solid rgb(var(--v-theme-outline-variant));
 }
 </style>
