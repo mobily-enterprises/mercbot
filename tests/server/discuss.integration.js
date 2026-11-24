@@ -341,19 +341,25 @@ test("a round whose server stopped reads as interrupted once its lease lapses, a
 /** How long the stopped turn would talk: Stop must end it long before. */
 const TALKS_FOR_MS = 60_000;
 
-// Renewed every 100 ms, the lease holds 1 s, so the round outlasts a stall of this process or its database on a busy
-// host: with a 300 ms lease, a heartbeat that came late on a host running 20 processes for its 8 CPUs let it lapse,
-// which ends a round for good.
+// The round renews its card's lease at each heartbeat (every 100 ms), and the test counts those renewals by the lease's
+// end moving on, rather than reading the card some time later: a lease short enough to lapse within the test lapses
+// under a stall of this process or its database on a busy host, which ends a round for good (a 300 ms lease, then a
+// 1 s one read 2 s on, both read 'interrupted' in whole runs on loaded hosts). So the lease is as long as the turn would
+// talk, which no stall lapses, and a round that renews nothing fails when Ada has talked out.
 test("Stop during a turn ends it at the round's next heartbeat, which renews the card's lease while the round runs", async (context) => {
   const { knex, kim, lee, ada, bo, turns, steer, as, chatOf, chat, propose, cardOf, drain, said, shown } = await setup(context, {
-    discussionLimits: { heartbeatMs: 100, leaseMs: 1000 }
+    discussionLimits: { heartbeatMs: 100, leaseMs: TALKS_FOR_MS }
   });
   const kitchen = await chatOf([ada, bo], [kim, lee]);
   const card = await propose(kitchen, kim, "Tiles or wood?");
   // Ada's turn talks until it's stopped, or for a minute at most: far past any heartbeat, however busy the machine, and
   // an end that still comes (the test fails, never hangs) if Stop doesn't reach the turn.
+  let talkedOut = false;
   steer.script = (bot, _prompt, options) => new Promise((resolve, reject) => {
-    const late = setTimeout(() => resolve(`${bot.name}: at last.`), TALKS_FOR_MS);
+    const late = setTimeout(() => {
+      talkedOut = true;
+      resolve(`${bot.name}: at last.`);
+    }, TALKS_FOR_MS);
     options.signal?.addEventListener("abort", () => {
       clearTimeout(late);
       reject(options.signal.reason);
@@ -361,8 +367,17 @@ test("Stop during a turn ends it at the round's next heartbeat, which renews the
   });
   await chat.startDiscussion(kitchen, card.id, { rounds: 1 }, as(kim));
   while (!turns.length) await new Promise((resolve) => setImmediate(resolve));
-  await new Promise((resolve) => setTimeout(resolve, 2000));
-  assert.equal((await shown(kitchen, card.id, lee)).status, "running", "twice its lease later, renewed at each heartbeat");
+  // Three heartbeats while Ada talks: each moves the lease's end on.
+  const ends = [(await cardOf(card.id)).leaseUntil];
+  while (ends.length < 4 && !talkedOut) {
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    const end = (await cardOf(card.id)).leaseUntil;
+    if (end !== ends.at(-1)) ends.push(end);
+  }
+  assert.equal(talkedOut, false, `Ada talked out before three renewals of the lease (its ends: ${ends.join(", ")})`);
+  const movedOn = ends.every((end, index) => index === 0 || Date.parse(end) > Date.parse(ends[index - 1]));
+  assert.ok(movedOn, `each renewal moves it on: ${ends.join(", ")}`);
+  assert.equal((await shown(kitchen, card.id, lee)).status, "running", "renewed at each heartbeat, it runs");
 
   const stoppedAt = Date.now();
   await chat.stopDiscussion(kitchen, card.id, as(kim));
