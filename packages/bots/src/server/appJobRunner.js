@@ -1,5 +1,4 @@
-import { settledWithin } from "./backgroundWork.js";
-import { RUN_LEASE, RunTakenOver, handOverRuns, keepLease } from "./runLease.js";
+import { RUN_LEASE, RunTakenOver, handOverRuns, keepLease, tellHandedOver } from "./runLease.js";
 
 /**
  * Runs tasks that Apps queues for bots (D-35): watch runs and button hand-offs, from app_jobs.
@@ -71,16 +70,15 @@ export function startAppJobRunner({ jobs, systemContext, notices, run, everyMs =
   tick();
 
   /**
-   * Shutting down: claim nothing more, and give tasks in progress up to `ms` to finish. Tasks still
-   * going after that stop and are handed over (handOverRuns).
-   * @param {number} ms
+   * Shutting down: claim nothing more, and hand the tasks in progress over at once (handOverRuns), waiting for none to
+   * finish, then tell the other servers (Apps' own "apps-jobs" notice, which their runners tick on).
+   * @param {number} _ms the drain's time, which a handover never waits out
    */
-  async function drain(ms) {
+  async function drain(_ms) {
     stopped = true;
     clearInterval(timer);
     unsubscribe();
-    await settledWithin(Promise.allSettled([...running.keys()]), ms);
-    await handOverRuns(running);
+    await tellHandedOver(notices, "apps-jobs", await handOverRuns(running));
   }
 
   return Object.freeze({ drain });

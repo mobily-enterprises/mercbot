@@ -226,6 +226,7 @@ export function createBotsService({
     goals: turns.goals,
     startResumer: turns.startResumer,
     resumeStalled: turns.resumeStalled,
+    handOverReplies: turns.handOverReplies,
     connectFollowUps: turns.connectFollowUps,
     runRoutine: turns.runRoutine,
     runAppTask: turns.runAppTask,

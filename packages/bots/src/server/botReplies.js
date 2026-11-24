@@ -7,11 +7,14 @@ import { startResumer as startRunResumer } from "@jskit-ai/agent-runtime/server"
 import { refusalOf } from "@local/account/meter";
 import { settledWithin } from "./backgroundWork.js";
 import { isModelFailure, modelFailure } from "./modelFailures.js";
-import { RUN_LEASE, RunTakenOver, keepLease } from "./runLease.js";
+import { RUN_LEASE, RunTakenOver, handOverRuns, keepLease, tellHandedOver } from "./runLease.js";
 import { escape, mentionMarkers, mentionsIn, peopleNamed, withMentions } from "./mentions.js";
 import { askedByBotPrompt, briefAnswerer, mentionedNext, pastTalkLimit } from "./botTalk.js";
 import { UNCALLED } from "./joiningIn.js";
 import { CHECKS, CLAIM_CHECKS, CUT_CHECK, claimsFiles, FILES_CHECK, ONLY_WHAT_WAS_ASKED, turnAbout, withoutRepeat } from "./replyChecks.js";
+
+/** What a stopping server says once it has handed its person's replies over, and every server's resumer listens to. */
+export const REPLIES_HANDED_OVER = "replies";
 
 // Cards a person answers: only the one the bot worked for may (R4), and right after one is answered its bot speaks.
 export const CARD_KINDS = new Set(["choice", "handover", "draft", "secure_form", "connect"]);
@@ -70,6 +73,8 @@ const pageShaped = (rows) => rows.map(toMessage);
  * @param {() => { afterTurn: (chatBotId: string) => Promise<unknown> }} dependencies.followUps the connect follow-ups, once made
  * @param {ReturnType<typeof import("./joiningIn.js").createJoiningIn>} dependencies.joiningIn whether a bot the message
  *   doesn't call replies to it (D-115, D-129)
+ * @param {import("@local/notices/server/types").Notices} dependencies.notices how a stopping server's handed-over
+ *   replies are told to the other servers, and heard
  */
 export function createBotReplies({
   records,
@@ -85,9 +90,17 @@ export function createBotReplies({
   reply,
   checkClaims,
   followUps,
-  joiningIn
+  joiningIn,
+  notices
 }) {
   const { say, tell, working } = seats;
+  // The person's replies running here (runReply), each with how its server's stop hands it over (handOverReplies).
+  /** @type {Map<Promise<unknown>, import("./types.js").RunningRun>} */
+  const replying = new Map();
+  // This server's reply resumers (startResumer), stopped first when it hands its replies over.
+  const resumers = new Set();
+  // Set once this server is stopping: it takes up no more replies, and one that starts now is handed over at once.
+  let handingOver = false;
 
   /**
    * A paused home (D-73, R3): one line in the chat, from Mercbot, and nothing runs. Background work no one is waiting on
@@ -536,8 +549,68 @@ export function createBotReplies({
     await Promise.all((await chatHistory.runs.takeOverStalled({ resumable })).map(resumeRun));
   }
 
+  /**
+   * Carries on the replies stopped servers left: at each scan (agent-runtime's resumer), and at once when a stopping
+   * server says it handed its replies over (handOverReplies).
+   * @param {{ everyMs?: number }} [options]
+   */
   function startResumer(options) {
-    return startRunResumer({ runs: chatHistory.runs, resume: resumeRun, resumable, ...options });
+    const scans = startRunResumer({ runs: chatHistory.runs, resume: resumeRun, resumable, ...options });
+    const unsubscribe = notices.subscribe(REPLIES_HANDED_OVER, "all", () => {
+      if (!handingOver) resumeStalled().catch((error) => console.error(`Resuming replies handed over: ${error?.message || error}`));
+    });
+    const resumer = {
+      /** @param {number} ms */
+      async drain(ms) {
+        unsubscribe();
+        resumers.delete(resumer);
+        await scans.drain(ms);
+      }
+    };
+    resumers.add(resumer);
+    return resumer;
+  }
+
+  /**
+   * This server is stopping (D-19): it takes up no more replies, and each person's reply still running stops at once,
+   * mid model call too, with its steps kept, and its run is handed over (stale now, hold's handOver), then every server
+   * is told, so another carries it on straight away from those steps and posts it. One that doesn't stop in time (in a
+   * tool's call that doesn't end) keeps its run, which another server takes over once it's stale. Answers how many
+   * were handed over.
+   * @returns {Promise<number>}
+   */
+  async function handOverReplies() {
+    handingOver = true;
+    await Promise.all([...resumers].map((resumer) => resumer.drain(5000)));
+    let handed = 0;
+    // A reply that started meanwhile is handed over in the next round; one that didn't stop in time ends the rounds.
+    while (replying.size) {
+      const left = replying.size;
+      handed += await handOverRuns(replying);
+      if (replying.size >= left) break;
+    }
+    await tellHandedOver(notices, REPLIES_HANDED_OVER, handed);
+    return handed;
+  }
+
+  /**
+   * One person's reply (replyOnRun), kept among those this server runs while it runs, so a stop hands it over. A connect
+   * follow-up's (`held`) is handed over by its own runner instead (connectFollowUps.js), with the chat's run it holds.
+   * @param {object} seat
+   * @param {object} input
+   * @param {object} call
+   * @param {import("./types.js").RunCheckpoint | null} [held]
+   * @param {object | null} [present]
+   */
+  function runReply(seat, input, call, held = null, present = null) {
+    if (held) return replyOnRun(seat, input, call, held, present);
+    const handing = {
+      lease: { handOver: () => ((handing.stopped = true), handing.keep?.handOver()) },
+      release: () => handing.own?.handOver() ?? Promise.resolve(false)
+    };
+    const run = replyOnRun(seat, input, call, held, present, handing).finally(() => replying.delete(run));
+    replying.set(run, handing);
+    return run;
   }
 
   /**
@@ -546,8 +619,10 @@ export function createBotReplies({
    * carry on. Answers what it posted and whether the home was paused.
    * @param {import("./types.js").RunCheckpoint | null} [held] a connect follow-up's run (connectFollowUps.js), which
    *   ends with the reply's result, so only the server holding it posts it
+   * @param {object | null} [present]
+   * @param {{ stopped?: boolean, keep?: object, own?: object }} [handing] how its server's stop reaches it (runReply)
    */
-  async function runReply(seat, input, call, held = null, present = null) {
+  async function replyOnRun(seat, input, call, held = null, present = null, handing = {}) {
     // The reply's run is kept as a routine's lease is (keepLease, D-59): once this server can't be sure it still holds
     // it (another server took it over after this one stalled past the staleness, or no heartbeat went through for most
     // of it), the reply stops at its next step, and what it would keep, post or free is refused, so it posts and frees
@@ -558,6 +633,8 @@ export function createBotReplies({
       seconds: Number(chatHistory.runs.limits.staleSeconds),
       heartbeatMs: Number(chatHistory.runs.limits.heartbeatMs)
     });
+    Object.assign(handing, { keep: lease, own });
+    if (handing.stopped || handingOver) lease.handOver();
     const refused = new AbortController();
     const replyRun = {
       signal: AbortSignal.any([lease.signal, refused.signal, ...(held?.signal ? [held.signal] : [])]),
@@ -655,7 +732,8 @@ export function createBotReplies({
           .release()
           .catch((error) => console.warn("Releasing a bot's run in a chat failed; its lease runs out instead.", error));
       }
-      if (!paused) {
+      // A stopping server starts nothing more here: what's left is the server's that carries the reply on.
+      if (!paused && !handingOver) {
         // A message for this bot that arrived while this reply ran gets its own reply now, whether or not a page is still
         // waiting for it.
         background.add(answerWaiting(seat, input, answered, call));
@@ -697,7 +775,8 @@ export function createBotReplies({
     runReply,
     takeUpWaiting,
     resumeStalled,
-    startResumer
+    startResumer,
+    handOverReplies
   });
 }
 

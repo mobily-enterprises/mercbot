@@ -195,6 +195,7 @@ export function createChatTurns({
     checkClaims,
     // Late-bound, a cycle: a follow-up replies through the replies, and a reply's end starts a waiting follow-up.
     followUps: () => connectFollowUps,
+    notices,
     // Each bot's decision whether to reply to a message that doesn't call it, in a chat whose bots join in (D-115, D-129).
     joiningIn: createJoiningIn({ records, meter, model })
   });
@@ -219,7 +220,8 @@ export function createChatTurns({
     meter,
     background,
     runReply: replies.runReply,
-    chats
+    chats,
+    notices
   });
   const runs = createBackgroundRuns({ records, systemContext, meter, seats, jobs: apps?.jobs ?? null, respond: replies.respond });
   const chat = createBotChat({ records, model, integrations, goals, replies, seats, chats, activity, onboarding, roomsMemory });
@@ -260,6 +262,7 @@ export function createChatTurns({
     goals,
     startResumer: replies.startResumer,
     resumeStalled: replies.resumeStalled,
+    handOverReplies: replies.handOverReplies,
     connectFollowUps,
     runRoutine: runs.runRoutine,
     runAppTask: runs.runAppTask,
