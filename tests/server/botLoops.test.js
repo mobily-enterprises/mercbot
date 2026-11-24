@@ -41,6 +41,7 @@ function startLoops() {
       requests: { start: idle },
       goals: { start: idle },
       startResumer: idle,
+      discussions: { startCarryingOn: idle },
       connectFollowUps: { startSweeping: idle },
       knowledge: { start: idle },
       roomsMemory: { start: idle },
