@@ -178,9 +178,28 @@ test.describe("notifications", () => {
     const api = await homeApi(page);
     const on = settings.getByRole("switch", { name: "Notifications on this device" });
     await expect(on).toHaveAttribute("aria-checked", "false");
+    // The server keeps this device's save until the switch is checked while it waits, as on a busy server.
+    let release = () => {};
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let saves = 0;
+    await page.route((url) => url.pathname.endsWith("/push/devices"), async (route) => {
+      saves += 1;
+      await held;
+      await route.continue();
+    });
     await on.click();
+    // While it saves, the switch reads and looks busy, keeps the keyboard's focus, and ignores Space and Enter.
+    await expect(on).toBeDisabled();
+    await expect(on).toHaveCSS("opacity", "0.5");
+    await expect(on).toBeFocused();
+    await page.keyboard.press("Space");
+    await page.keyboard.press("Enter");
+    release();
     await expect(on).toHaveAttribute("aria-checked", "true");
     await expect(settings.getByText("· This device")).toBeVisible();
+    expect(saves, "Space and Enter while it saved changed nothing").toBe(1);
     // From the keyboard, a switch shows a ring of its own, which reads in light and dark alike.
     await page.keyboard.press("Tab");
     await page.keyboard.press("Shift+Tab");
