@@ -9,6 +9,7 @@ follow-ups after a sign-in, summaries of long chats, and the news every open pag
 - Main: `packages/bots/src/server/chatTurns.js`
 - `packages/bots/src/server/botChat.js`
 - `packages/bots/src/server/botReplies.js`
+- `packages/bots/src/server/replyHandover.js`
 - `packages/bots/src/server/botTalk.js`
 - `packages/bots/src/server/chatSeats.js`
 - `packages/bots/src/server/botHistory.js`
@@ -249,8 +250,9 @@ task:
 - **Handed over:** a server that stops (D-19) takes up no more replies and stops each person's reply still running at
   its next step, mid model call too, with its steps kept; it marks the run stale at once (`agentTables.js` `hold`'s
   `handOver`, only while the reply holds it) and publishes `replies`, on which every server's resumer takes it over and
-  carries it on straight away, instead of after the staleness and its next scan. A connect follow-up's reply is handed
-  over with its follow-up (below).
+  carries it on straight away, instead of after the staleness and its next scan (`replyHandover.js`, which also keeps
+  the reply's hold on its run). A connect follow-up's reply is handed over with its follow-up (below). A runner told
+  while it scans looks again before the scan ends, so no notice is lost to a scan in progress.
 - **Messages mid-reply:** what the person writes while a reply works reaches the bot with its next tool result, when
   the message is for that bot (R3), and that reply then counts as answering it.
 - **To-do list and job notes:** `update_todos` keeps one `todos` card per job, updated in place
