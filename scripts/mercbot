@@ -172,7 +172,7 @@ mercbot_pg() {
 # One archive (mode 600) of the database, the data folder and the settings, which hold the vault key and the copy's
 # key: anyone with it has everything the bots were given.
 mercbot_backup() {
-  local archive="${1:-}" work
+  local archive="${1:-}" work partial
   if [ -z "$archive" ]; then
     mkdir -p -m 700 "$MERCBOT_HOME/backups"
     archive="$MERCBOT_HOME/backups/mercbot-$(mercbot_version)-$(date -u +%Y%m%d-%H%M%S).tar.gz"
@@ -187,14 +187,16 @@ This is a backup of a copy of Mercbot. Its settings (mercbot.env) hold the vault
 password, key and account the bots were given, and its data folder holds the key that opens Mercbot.
 Keep it where only you can read it. Bring it back with: mercbot restore <this file>
 TEXT
-  # The data folder goes in as data/, wherever it is.
-  if ! (umask 077 && tar -czf "$archive.partial" --anchored --exclude=./open.html --transform='s,^\./,data/,S;s,^\.$,data,S' \
-    -C "$work" version mercbot.env KEEP-THIS-SAFE.txt database.dump -C "$MERCBOT_DATA_DIR" .); then
-    rm -rf "$work" "$archive.partial"
+  # The archive is made 600 (mktemp) before anything goes in, since a folder whose ACL lets its group in (a Vibe64
+  # session's) ignores the umask. The data folder goes in as data/, wherever it is.
+  partial="$(mktemp "$archive.XXXXXX")" || { rm -rf "$work"; mercbot_fail "Mercbot couldn't write the backup $archive."; }
+  if ! tar -czf - --anchored --exclude=./open.html --transform='s,^\./,data/,S;s,^\.$,data,S' \
+    -C "$work" version mercbot.env KEEP-THIS-SAFE.txt database.dump -C "$MERCBOT_DATA_DIR" . >"$partial"; then
+    rm -rf "$work" "$partial"
     mercbot_fail "Mercbot couldn't write the backup $archive."
   fi
   rm -rf "$work"
-  mv -f "$archive.partial" "$archive"
+  mv -f "$partial" "$archive"
   echo "$archive"
 }
 
@@ -219,7 +221,7 @@ mercbot_switch() { # version
 # the release it came from when that release is still here (so the backup `mercbot upgrade` made goes back to the
 # release before), else with this one, which brings the database up to date. What was there is kept beside.
 mercbot_restore() { # archive
-  local archive="${1:-}" work version stamp was_running=
+  local archive="${1:-}" work version stamp settings was_running=
   [ -f "$archive" ] || mercbot_fail "Name the backup to bring back: mercbot restore FILE"
   work="$(mktemp -d "$MERCBOT_HOME/restore.XXXXXX")"
   tar -xzf "$archive" -C "$work" || { rm -rf "$work"; mercbot_fail "$archive can't be read as a backup."; }
@@ -242,8 +244,10 @@ mercbot_restore() { # archive
   mv "$MERCBOT_DATA_DIR" "$MERCBOT_DATA_DIR.before-restore-$stamp"
   mv "$work/data" "$MERCBOT_DATA_DIR"
   mv "$MERCBOT_HOME/mercbot.env" "$MERCBOT_HOME/mercbot.env.before-restore-$stamp"
-  (umask 077 && { grep -v '^DB_' "$work/mercbot.env"; grep '^DB_' "$MERCBOT_HOME/mercbot.env.before-restore-$stamp"; } \
-    >"$MERCBOT_HOME/mercbot.env")
+  # Made 600 before the vault key goes in, as the backup is.
+  settings="$(mktemp "$MERCBOT_HOME/mercbot.env.XXXXXX")"
+  { grep -v '^DB_' "$work/mercbot.env"; grep '^DB_' "$MERCBOT_HOME/mercbot.env.before-restore-$stamp"; } >"$settings"
+  mv -f "$settings" "$MERCBOT_HOME/mercbot.env"
   rm -rf "$work"
   mercbot_settings
   [ ! -d "$MERCBOT_HOME/releases/$version" ] || mercbot_switch "$version"
