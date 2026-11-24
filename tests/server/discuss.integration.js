@@ -334,13 +334,14 @@ test("a round whose server stopped reads as interrupted once its lease lapses, a
   assert.equal(await knex("agent_runs").whereIn("conversation_id", seats.map((seat) => seat.id)).first(), undefined, "and let them go");
 });
 
-// Renewed every 100 ms, the lease holds 1 s, so the round outlasts a stall of this process or its database on a busy
-// host: with a 300 ms lease, a heartbeat that came late on a host running 20 processes for its 8 CPUs let it lapse,
-// which ends a round for good. The test waits for what it checks (two renewals of the lease, the stopped turn's end),
-// never for a set time: a set time is too short on a busy host, and on any host it checks nothing about the events.
+// Renewed every 100 ms, the lease holds 30 s, so no stall of this process or its database on a busy host lapses it,
+// which would end the round for good: a 300 ms lease lapsed on a host running 20 processes for its 8 CPUs, and a 1 s one
+// beside two other whole runs whose database copies took 28 s (prt1, 24 Nov). The test checks the renewals themselves
+// (each moves the lease on) and the stopped turn's end, never a set time: a set time is too short on a busy host, and on
+// any host it checks nothing about the events.
 test("Stop during a turn ends it at the round's next heartbeat, which renews the card's lease while the round runs", async (context) => {
   const { knex, kim, lee, ada, bo, turns, steer, as, chatOf, chat, propose, cardOf, drain, said, shown } = await setup(context, {
-    discussionLimits: { heartbeatMs: 100, leaseMs: 1000 }
+    discussionLimits: { heartbeatMs: 100, leaseMs: 30_000 }
   });
   const kitchen = await chatOf([ada, bo], [kim, lee]);
   const card = await propose(kitchen, kim, "Tiles or wood?");
