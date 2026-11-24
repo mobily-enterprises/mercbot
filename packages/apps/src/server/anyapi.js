@@ -46,10 +46,18 @@ const keyOf = (workspaceId, copyId = null) => (copyId ? `${workspaceId}${PRACTIC
 // The tables and fields a practice instance declared: one changes, and it is built again (schema follows).
 const shapeOf = (tables) => tables.map((table) => `${table.id}:${table.fields.map((field) => field.id).join(",")}`).join(";");
 
+/**
+ * A stored field as AnyAPI declares it, whether its table is made or the field added to it. A link takes one of the
+ * indexed slots, so a filter on it (related records, one-to-one checks, a screen's `contact == params.id`) reads only
+ * the rows it finds (D-130). AnyAPI chooses a field's slot once, when the field is made, and keeps it: a link made
+ * before links were indexed keeps its plain slot for good, and is filtered by reading its table's rows.
+ */
+export const fieldStorage = (field) => ({ type: STORAGE_TYPES[field.type], nullable: true, ...(field.type === "link" ? { indexed: true } : {}) });
+
 // A calculated field (D-78) has no slot: it is worked out whenever a record is read.
 function resourceSchema(fields) {
   const schema = { [OBSOLETE]: { type: "dateTime", nullable: true } };
-  for (const field of fields) if (!isCalculated(field)) schema[field.id] = { type: STORAGE_TYPES[field.type], nullable: true };
+  for (const field of fields) if (!isCalculated(field)) schema[field.id] = fieldStorage(field);
   return schema;
 }
 

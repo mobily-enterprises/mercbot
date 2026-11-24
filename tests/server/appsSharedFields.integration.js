@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { appsHome, appsParts } from "../support/appsHome.mjs";
 import { queriesDuring } from "../support/queryCount.mjs";
+import { AnyapiRegistry } from "json-rest-api";
+import { connectTestDatabase } from "../support/testDatabase.mjs";
 import { celSchema } from "../../packages/apps/src/shared/formulas.js";
 import { compileWhere, planToIds } from "../../packages/apps/src/shared/where.js";
 
@@ -202,4 +204,53 @@ test("an app and the Data tab's tables come with who is using them and the home'
   assert.ok(opened.body.people.every((person) => typeof person.name === "string" && person.name));
   const tables = await call("GET", `/api/w/${home.workspace.slug}/app-data/tables?brief=true`);
   assert.deepEqual(tables.body.people.map((person) => person.id).sort(), [userId, String(other.id), String(leaver.id)].sort());
+});
+
+// Links are indexed from the moment they're made (D-130): a link takes one of the shared table's indexed slots, which
+// has its own database index, so a filter on it reads only the rows it finds. AnyAPI picks a field's slot once and keeps
+// it, so a table holds five links at most, and a sixth is refused, saying so, with the table as it was.
+test("a link is made in an indexed slot, five to a table, and a sixth is refused, saying so", async (context) => {
+  const { knex, registry, person, options, workspaceId, pipeline, idOf } = await setup(context);
+  const slotOf = async (table, key) => (await knex("any_field_configs as f")
+    .join("any_resource_configs as r", "r.id", "f.resource_config_id")
+    .where({ "r.tenant_id": `ws:${workspaceId}`, "r.resource": table.id, "f.field_name": idOf(table, key) })
+    .first("f.slot_column")).slot_column;
+  const slot = await slotOf(pipeline, "contact");
+  assert.match(slot, /^indexed_string_\d+$/u, "the one-to-one link");
+  const indexes = (await knex.raw("select indexdef from pg_indexes where tablename = 'any_records'")).rows.map((row) => row.indexdef);
+  assert.ok(indexes.some((index) => index.includes(`(tenant_id, resource, ${slot})`)), "its slot has its own index");
+  assert.match(await slotOf(pipeline, "stage"), /^string_\d+$/u, "other text stays in plain slots");
+
+  const links = Array.from({ length: 5 }, (_, at) => ({ key: `link_${at}`, type: "link", target: "contacts" }));
+  const wide = await registry.createTable(person, { key: "wide", fields: [{ key: "title", type: "text" }, ...links] }, options);
+  for (const link of links) assert.match(await slotOf(wide, link.key), /^indexed_string_\d+$/u, link.key);
+  const full = { statusCode: 409, code: "apps_table_slots_full", message: /no room for another link: a table holds 5 links at most/u };
+  await assert.rejects(registry.addField(person, "wide", { key: "link_5", type: "link", target: "contacts" }, options), full);
+  await assert.rejects(registry.createTable(person, { key: "wider", fields: [...links, { key: "link_5", type: "link", target: "contacts" }] }, options), full);
+  const tables = await registry.loadTables(options);
+  assert.equal(tables.find((table) => table.key === "wide").fields.length, 6, "nothing added");
+  assert.ok(!tables.some((table) => table.key === "wider"));
+  await registry.addField(person, "wide", { key: "notes", type: "text" }, options);
+});
+
+// AnyAPI keeps a stored field's slot when its indexed declaration changes: a link made before links were indexed keeps
+// its plain slot and its values, and declaring it indexed never asks for a migration.
+test("a link stored in a plain slot keeps it, and its values, once links are declared indexed", async (context) => {
+  // A connection of its own: AnyAPI's registry runs its own transactions.
+  const knex = await connectTestDatabase();
+  context.after(() => knex.destroy());
+  const anyapi = new AnyapiRegistry({ knex });
+  const tenant = `ws:keep-${Date.now()}`;
+  const cleanUp = async () => {
+    await knex("any_records").where({ tenant_id: tenant }).del();
+    await knex("any_resource_configs").where({ tenant_id: tenant }).del();
+  };
+  const before = await anyapi.registerResource({ tenant, resource: "t_old", schema: { f_link: { type: "string", nullable: true } } });
+  const slot = before.fields.f_link.slot;
+  assert.match(slot, /^string_\d+$/u);
+  await knex("any_records").insert({ tenant_id: tenant, resource: "t_old", logical_id: "1", [slot]: "42" });
+  const after = await anyapi.registerResource({ tenant, resource: "t_old", schema: { f_link: { type: "string", nullable: true, indexed: true } } });
+  assert.equal(after.fields.f_link.slot, slot, "the same slot");
+  assert.equal((await knex("any_records").where({ tenant_id: tenant }).first(slot))[slot], "42");
+  await cleanUp();
 });

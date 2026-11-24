@@ -3,9 +3,9 @@ import { AppError } from "@jskit-ai/kernel/server/runtime/errors";
 import { CALCULATED_TYPES, checkCalculated, isCalculated } from "../shared/calculated.js";
 import { tableFormulaToIds } from "../shared/definitions.js";
 import { isFileField } from "../shared/formulas.js";
-import { STORAGE_TYPES } from "./anyapi.js";
+import { STORAGE_TYPES, fieldStorage } from "./anyapi.js";
 import { homeIdOf } from "./callOptions.js";
-import { SLOTS } from "./schema.js";
+import { INDEXED_SLOTS, SLOTS } from "./schema.js";
 import { loadTables, toField } from "./tables.js";
 
 // Tables and fields of a home (D-35). Ids are permanent; keys (what the Builder writes) and labels
@@ -33,7 +33,7 @@ export class RegistryError extends AppError {
 // Each table's places for values in AnyAPI's shared record table, by the kind of value they hold (schema.js): a field
 // takes one for good, removed fields' included. The field types each kind of place holds, as a refusal names them.
 const SLOT_KINDS = {
-  string: "text, email, phone, choice, link, person, web address or long text",
+  string: "text, email, phone, choice, person, web address or long text",
   number: "number or money",
   boolean: "yes/no",
   date: "date or date and time",
@@ -43,7 +43,15 @@ const SLOT_KINDS = {
 /** AnyAPI's refusal of a field past its table's places for that kind of value, as the person's refusal; else the error. */
 function slotsFull(error, tableKey) {
   for (let cause = error; cause; cause = cause.cause) {
-    const pool = cause.slotsExhausted && /No available (\w+) slots/u.exec(String(cause.message))?.[1];
+    const found = cause.slotsExhausted && /No available (indexed )?(\w+) slots/u.exec(String(cause.message));
+    // Links take the indexed text places (D-130).
+    if (found?.[1] && found[2] === "string") {
+      return new RegistryError(409, `Table "${tableKey}" has no room for another link: a table holds ${INDEXED_SLOTS.string} links at most, removed ones included.`, {
+        code: "apps_table_slots_full",
+        params: { table: tableKey, kinds: "link", max: INDEXED_SLOTS.string }
+      });
+    }
+    const pool = found && !found[1] ? found[2] : null;
     if (pool && SLOT_KINDS[pool]) {
       return new RegistryError(409, `Table "${tableKey}" has no room for another ${SLOT_KINDS[pool]} field: a table holds ${SLOTS[pool]} of them at most, removed ones included.`, {
         code: "apps_table_slots_full",
@@ -348,7 +356,7 @@ export function createRegistry({ resources, anyapi, notices, trustMs = TRUST_MS 
       await audit(actor, table.id, { addedField: { id: record.id, key, type, ...formula } }, txOptions);
       // A calculated field has no slot: it is worked out whenever a record is read.
       if (!isCalculated(record)) {
-        await api.resources[table.id].addKnexFields({ fields: { [record.id]: { type: STORAGE_TYPES[type], nullable: true } } });
+        await api.resources[table.id].addKnexFields({ fields: { [record.id]: fieldStorage(record) } });
       }
       return toField(record);
     }).catch((error) => {

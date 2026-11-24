@@ -56,7 +56,10 @@ home, with every change audited and nothing ever deleted (D-35).
   so a record keeps a member who has left until someone sets another, and labelled by name,
   "Former member" once gone), tags (a list of words, optionally from `choices`),
   url (http or https), longtext (up to 20,000 characters), datetime (an ISO moment) and file and
-  image (below). A link may be `unique`: one live record at most per target, checked in the
+  image (below). A link takes an indexed text slot as it's made (`fieldStorage` in `anyapi.js`, for a new table and an
+  added field alike), so filtering by it is indexed. Five to a table, removed ones included; a sixth is refused
+  (`apps_table_slots_full`). AnyAPI keeps a stored field's slot, so a link made before links were indexed stays in a
+  plain slot. A link may be `unique`: one live record at most per target, checked in the
   write's transaction under an advisory lock (`recordChecks.js`, 409 `apps_link_unique_taken`), and
   for an import's rows once among them and against the table, in one read per such field
   (`uniqueTakenIn`), which makes its table a one-to-one extension. In filters, `"x" in tags` is one `jsonb_exists`

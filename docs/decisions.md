@@ -4303,6 +4303,14 @@ small and complete; more catalog families and mini apps come in phase 2, and per
   AnyAPI json slots, removed fields' included; a field past them is refused (409 `apps_table_slots_full`), as one past
   any kind's slots is. A member's screens read `me` (id and name), as a
   visitor's read `visitor`.
+- **Links are indexed from the moment they're made**: a link field takes one of AnyAPI's indexed text slots, which has
+  its own database index, so a filter on a link (related records, the one-to-one check, a screen's `contact ==
+  params.id`) reads only the rows it finds. AnyAPI picks a field's slot once, when the field is made, and keeps it
+  (`indexed` changes nothing for a stored field), so there's no adding an index later:
+  - a link made before this keeps its plain slot for good and is filtered by reading its table's rows (a limitation
+    of AnyAPI, accepted by the owner);
+  - a table holds at most five links (the shared table's five indexed text slots), removed ones included, and a sixth
+    is refused (`apps_table_slots_full`, "no room for another link").
 - **One-to-one links**: a link field may be `unique`, at most one live record per target, which makes its table a
   one-to-one extension of the one it links to. Every home's records share one table, so no database index can hold it:
   the data gate checks it in the write's own transaction under an advisory lock (409 `apps_link_unique_taken`), and an
