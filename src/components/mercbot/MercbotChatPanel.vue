@@ -249,13 +249,18 @@ function focusComposer() {
 const { question: widerQuestion, asking: widerAsking, confirm: confirmWider, transfer } = useFileTransfer({ report: (error) => emit("failure", error) });
 const { places: filePlaces, problem: placesProblem, load: loadPlaces } = useFilePlaces({ chat: () => props.chat, chatBotId: () => null });
 const addingFromFiles = ref(false);
-const { addFiles, addCopies } = useComposerFiles({
+const { addFiles, addFileList, addCopies } = useComposerFiles({
   attachments,
   chat: () => props.chat,
   focusComposer,
   onFailure: (error) => emit("failure", error),
   transfer
 });
+// What another app shared into Mercbot (D-133): its words into the message box, its files attached.
+async function addShared({ text = "", files = [] }) {
+  if (text) draft.value = draft.value.trim() ? `${draft.value.trimEnd()}\n${text}` : text;
+  await addFileList(files);
+}
 async function startAddFromFiles() {
   filePlaces.value = null;
   addingFromFiles.value = true;
@@ -300,7 +305,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => clearTimeout(toastTimer));
 
-defineExpose({ focusComposer, addSelection, startReply, toggleDictation, dictationPress, dictationRelease, showToast, showMessage });
+defineExpose({ focusComposer, addSelection, startReply, toggleDictation, dictationPress, dictationRelease, showToast, showMessage, addShared });
 </script>
 
 <template>

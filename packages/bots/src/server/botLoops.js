@@ -1,4 +1,5 @@
 import { startAppJobRunner } from "./appJobRunner.js";
+import { createPushSweep } from "./pushSweep.js";
 import { startRoutineRunner } from "./routineRunner.js";
 
 /** What a bot is told when its background command ends (D-47). */
@@ -62,8 +63,10 @@ export function codingFollowUp(apps, systemContext) {
  * @param {import("@local/apps/server/types").Apps} dependencies.apps
  * @param {import("@local/computer/server/types").Computer} [dependencies.computer]
  * @param {import("./types.js").Bots} dependencies.bots
+ * @param {import("@local/account/server/types").Push} dependencies.push sends people's notifications
+ * @param {{ findById: Function }} dependencies.workspaces the homes, for the links notifications open
  */
-export function createBotLoops({ records, systemContext, notices, files, apps, computer, bots }) {
+export function createBotLoops({ records, systemContext, notices, files, apps, computer, bots, push, workspaces }) {
   /** @type {{ drain: (ms: number) => Promise<void> }[]} */
   let loops = [];
   let shellEnded = () => {};
@@ -88,7 +91,9 @@ export function createBotLoops({ records, systemContext, notices, files, apps, c
       // What the bots know (D-107): each piece added is read and split once across servers.
       bots.knowledge.start(),
       // The bots' rooms memory (D-113): each due refresh of a bot's digest made once across servers.
-      bots.roomsMemory.start()
+      bots.roomsMemory.start(),
+      // Notifications on people's devices (D-133): each due one sent once across servers, if still unread.
+      createPushSweep({ records, workspaces, push, systemContext }).start()
     ];
     // A command that went on in the background (D-47) wakes its bot in the same chat when it ends, for the person
     // whose turn ran it; runs whose server stopped are found by any server.

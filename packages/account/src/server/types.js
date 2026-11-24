@@ -4,6 +4,9 @@
 
 /** @typedef {ReturnType<typeof import("./accountService.js").createAccountService>} Account */
 
+/** People's notifications on their devices (D-133): their settings and devices, and sending. */
+/** @typedef {ReturnType<typeof import("./push.js").createPush>} Push */
+
 /**
  * Who reads a home's spending (spending.js readerOf): owners and admins (`manages`) see the whole home, a member their
  * own use; `from` and `to` are a report's days, "YYYY-MM-DD".

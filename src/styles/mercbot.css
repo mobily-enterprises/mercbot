@@ -272,3 +272,33 @@
   font-size: 13px;
   color: rgb(var(--v-theme-on-surface-variant));
 }
+
+/* Mercbot as an installed app (D-133). It draws under a phone's notch and home bar (viewport-fit=cover): the shell
+   keeps clear of them, and the insets are 0 everywhere else. Installed, the page doesn't bounce or pull to refresh
+   like a web page, and a double tap doesn't zoom. On an iPhone or iPad a field under 16px makes Safari zoom in as it
+   takes focus, so fields there are at least 16px. */
+.mb-shell {
+  box-sizing: border-box;
+  padding: env(safe-area-inset-top, 0) env(safe-area-inset-right, 0) env(safe-area-inset-bottom, 0) env(safe-area-inset-left, 0);
+}
+
+@media (display-mode: standalone) {
+  html,
+  body {
+    overscroll-behavior: none;
+  }
+}
+
+body {
+  touch-action: manipulation;
+}
+
+@supports (-webkit-touch-callout: none) {
+  @media (pointer: coarse) {
+    input,
+    textarea,
+    select {
+      font-size: max(16px, 1em);
+    }
+  }
+}

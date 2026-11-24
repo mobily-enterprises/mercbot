@@ -3,6 +3,7 @@ import { defineFeature } from "@jskit-ai/kernel/server/features";
 import { createAccountService } from "./accountService.js";
 import { createMediaGuard } from "./mediaCheck.js";
 import { createMeter, logAiFailure } from "./meter.js";
+import { PUSH_SEARCH, createPush } from "./push.js";
 import { registerRoutes } from "./registerRoutes.js";
 import { createReports } from "./reports.js";
 import { createRetention } from "./retention.js";
@@ -11,6 +12,8 @@ import { createSpending } from "./spending.js";
 import { USAGE_FILTERS, createTaskRuns, createUsageRecorder } from "./usage.js";
 import {
   computerDayResource,
+  pushDeviceResource,
+  pushSettingResource,
   usageDailyResource,
   usageEventResource,
   usageJobResource,
@@ -27,7 +30,9 @@ export const ACCOUNT_OWNS = Object.freeze([
   { resource: usageMonthlyResource, searchSchema: USAGE_FILTERS.usageMonthly },
   { resource: usageTaskDailyResource, searchSchema: USAGE_FILTERS.usageTasksDaily },
   { resource: computerDayResource, searchSchema: USAGE_FILTERS.computerDays },
-  { resource: usageJobResource, searchSchema: USAGE_FILTERS.usageJobs }
+  { resource: usageJobResource, searchSchema: USAGE_FILTERS.usageJobs },
+  { resource: pushDeviceResource, searchSchema: PUSH_SEARCH },
+  { resource: pushSettingResource, searchSchema: PUSH_SEARCH }
 ]);
 
 /** How often every server keeps the usage tables: makes their partitions ahead, and archives and drops old ones. */
@@ -62,6 +67,8 @@ const AccountFeature = defineFeature({
   provides: {
     account: "mercbot.account",
     meter: "mercbot.meter",
+    // People's notifications on their devices (D-133), which the bots' sweep sends.
+    push: "mercbot.push",
     // Provided so the shutdown hook can stop the sweeps, and the files feature can keep the usage archive in the files
     // bucket (D-91).
     sweeps: "mercbot.account.sweeps"
@@ -99,7 +106,9 @@ const AccountFeature = defineFeature({
     const meter = createMeter({ recorder, recordError: aiFailures ? aiFailures.record : logAiFailure });
     // A recurring task's runs are counted here, whoever records what they use (D-132).
     const taskRuns = createTaskRuns({ resources, systemContext });
-    registerRoutes(http, { account, spending, uploads, track: meter.track, media: createMediaGuard(mediaCheck) });
+    // Notifications on people's devices (D-133): their settings and devices here, sent by the bots' sweep.
+    const push = createPush({ resources, systemContext, env });
+    registerRoutes(http, { account, spending, uploads, track: meter.track, media: createMediaGuard(mediaCheck), push });
     // Every serving web server keeps the usage tables (D-15), every hour and once at start so their partitions are
     // there; a failure is logged and tried again next time. A computers server leaves them to the web servers (D-131).
     const timers = [];
@@ -113,6 +122,7 @@ const AccountFeature = defineFeature({
     });
     return {
       account,
+      push,
       meter: Object.freeze({
         track: meter.track,
         currentMeter: meter.currentMeter,

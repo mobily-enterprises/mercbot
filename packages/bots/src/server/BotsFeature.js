@@ -27,6 +27,7 @@ const BotsFeature = defineFeature({
     apps: "mercbot.apps",
     meter: "mercbot.meter",
     account: "mercbot.account",
+    push: "mercbot.push",
     env: "runtime.env"
   },
   // The templates links open, beside Mercbot's own, and skills beside Mercbot's: a copy built on Mercbot may keep them
@@ -50,6 +51,7 @@ const BotsFeature = defineFeature({
    * @param {import("@jskit-ai/users-core/server/types").UserProfilesRepository} capabilities.profiles
    * @param {import("@jskit-ai/workspaces-core/server/types").WorkspacesRepository} capabilities.workspaces
    * @param {import("@local/account/server/types").Account} capabilities.account
+   * @param {import("@local/account/server/types").Push} capabilities.push
    * @param {import("@jskit-ai/kernel/server/types").RuntimeHttp} capabilities.http
    * @param {import("@jskit-ai/kernel/server/types").RuntimeFastify} capabilities.fastify
    * @param {import("@jskit-ai/kernel/server/types").RuntimeEvents} capabilities.events
@@ -69,6 +71,7 @@ const BotsFeature = defineFeature({
     profiles,
     workspaces,
     account,
+    push,
     http,
     fastify,
     events,
@@ -104,7 +107,7 @@ const BotsFeature = defineFeature({
       apps,
       templateLinks: templateLinks ?? NO_TEMPLATE_LINKS
     });
-    const botLoops = createBotLoops({ records, systemContext, notices, files, apps, computer, bots });
+    const botLoops = createBotLoops({ records, systemContext, notices, files, apps, computer, bots, push, workspaces });
     // Only a web server claims the bots' work (D-131): a computers server, which has none of their AI, would answer it
     // "this copy's AI isn't set up".
     fastify.addHook("onListen", () => {

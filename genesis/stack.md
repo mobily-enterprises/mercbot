@@ -80,7 +80,7 @@
 
 - Runtimes: `nodejs`
 - Recreate on restore: `node_modules` `.tools`
-- Generated secrets: `AUTH_LOCAL_SESSION_SECRET` `MERCBOT_VAULT_KEY` `MERCBOT_FILES_PASSPHRASE`
+- Generated secrets: `AUTH_LOCAL_SESSION_SECRET` `MERCBOT_VAULT_KEY` `MERCBOT_FILES_PASSPHRASE` `MERCBOT_PUSH_SECRET`
 - Setup code: `AUTH_LOCAL_SETUP_CODE`
 - Sandbox allows: `gvisor`
 - Ready when: `GET` `/api/health` returns `200`

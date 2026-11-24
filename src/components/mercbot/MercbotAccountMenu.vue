@@ -3,6 +3,7 @@ import { computed, ref } from "vue";
 import { accountApi, nanoMoney } from "./accountApi.js";
 import extensions from "./extensions.js";
 import { monthLabel } from "./spendingView.js";
+import { useAppInstall } from "./appInstall.js";
 import { usePaths } from "@jskit-ai/shell-web/client/navigation/usePaths";
 
 // Account button plus its menu (D-16). The first row shows this month's spending (D-73), with
@@ -72,6 +73,13 @@ function leave(path) {
 function support(event) {
   menuOpen.value = false;
   emit(event);
+}
+
+// Install app (D-133): the browser's own sheet where it has one, else the iPhone guide; gone once installed.
+const { canInstall, install } = useAppInstall();
+function installApp() {
+  menuOpen.value = false;
+  install().catch(() => {});
 }
 
 function choose(item) {
@@ -163,6 +171,10 @@ function choose(item) {
           </v-list-item>
         </v-list>
       </v-menu>
+      <v-list-item v-if="canInstall" min-height="32" class="mb-account-menu__item px-3" @click="installApp">
+        <template #prepend><v-icon icon="$mobile" size="14" /></template>
+        <span class="mb-account-menu__text">Install app</span>
+      </v-list-item>
       <v-list-item min-height="32" class="mb-account-menu__item px-3" @click="support('settings')">
         <template #prepend><v-icon icon="$settings" size="14" /></template>
         <span class="mb-account-menu__text">Settings</span>

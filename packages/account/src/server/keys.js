@@ -44,6 +44,12 @@ const OTHER_ENTRIES = [
     computers: "Bots' browser sign-ins on this server's computers don't outlive their machine."
   },
   {
+    name: "Notifications key",
+    purpose: "Signs the notifications Mercbot sends to people's phones and browsers (D-133): any long random value.",
+    settings: [{ name: "MERCBOT_PUSH_SECRET" }],
+    missing: "Nobody can turn notifications on: Settings says they aren't set up on this copy."
+  },
+  {
     name: "Google app",
     purpose: "Lets people connect Gmail, Google Calendar, Google Contacts and Google Drive.",
     settings: [{ name: "GOOGLE_CLIENT_ID" }, { name: "GOOGLE_CLIENT_SECRET" }],

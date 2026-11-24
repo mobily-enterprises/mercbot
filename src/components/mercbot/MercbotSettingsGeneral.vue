@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import MercbotConfirmDialog from "./MercbotConfirmDialog.vue";
 import MercbotHomeName from "./MercbotHomeName.vue";
+import MercbotSettingsNotifications from "./MercbotSettingsNotifications.vue";
 import MercbotSettingsSelect from "./MercbotSettingsSelect.vue";
 import MercbotSwitch from "./MercbotSwitch.vue";
 import { accountApi } from "./accountApi.js";
@@ -12,7 +13,7 @@ import { pageMediaDevices, supportedTimeZones } from "@/browser.js";
 import { usePaths } from "@jskit-ai/shell-web/client/navigation/usePaths";
 import extensions from "./extensions.js";
 
-// Settings → General: the account, appearance, the microphone, the
+// Settings → General: the account, appearance, the microphone, notifications (D-133), the
 // bots' time zone with asking-first rules, and the home: its name, which its owners and admins change (D-103). Everything
 // applies as soon as it's changed; a name, when it's saved.
 const paths = usePaths();
@@ -167,6 +168,8 @@ onMounted(async () => {
         <MercbotSettingsSelect v-model="shellPreferences.microphoneId" label="Microphone" :options="microphones" :width="240" />
       </div>
     </div>
+
+    <MercbotSettingsNotifications @notify="emit('notify', $event)" />
 
     <template v-if="home">
       <p class="mb-set-group">Home</p>

@@ -20,6 +20,7 @@ import MercbotInviteDialog from "./MercbotInviteDialog.vue";
 import MercbotSearchPalette from "./MercbotSearchPalette.vue";
 import MercbotShortcutsDialog from "./MercbotShortcutsDialog.vue";
 import MercbotAboutDialog from "./MercbotAboutDialog.vue";
+import MercbotAppDevice from "./MercbotAppDevice.vue";
 import MercbotSettingsDialog from "./MercbotSettingsDialog.vue";
 import { EVERYONE_SECTIONS } from "./settingsSections.js";
 import MercbotSidebar from "./MercbotSidebar.vue";
@@ -680,6 +681,7 @@ watch(() => currentHomeEntry.value?.slug, () => loadBuilderBot(), { immediate: t
       @edit-routine="settingsOpen = false; editRoutine($event)"
     />
     <MercbotAboutDialog v-model="aboutOpen" @failure="reportFailure('Couldn\'t copy to the clipboard.', $event)" />
+    <MercbotAppDevice :new-chat="ACTIONS.newChat" :chats="chats" :me="me" :select-chat="selectChat" :open-chat-id="currentChatId" :attach="(shared) => chatPanel?.addShared(shared)" :messages="currentMessages" @failure="reportFailure('That didn\'t work. Try again.', $event)" />
     <MercbotSearchPalette
       v-model="paletteOpen"
       :chats="chats.filter((chat) => !chat.visiting)"

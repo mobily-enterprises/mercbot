@@ -14,6 +14,7 @@ import { createMakerRepository } from "./makerRepository.js";
 import { createMessageRepository } from "./messageRepository.js";
 import { createNewBotRepository } from "./newBotRepository.js";
 import { createPolicyRepository } from "./policyRepository.js";
+import { PUSH_QUEUE_SEARCH, createPushQueueRepository } from "./pushQueueRepository.js";
 import { ROOMS_MEMORY_QUEUE_SEARCH, ROOMS_MEMORY_SEARCH, createRoomsMemoryRepository } from "./roomsMemoryRepository.js";
 import {
   botVisibility,
@@ -41,6 +42,7 @@ import {
   connectFollowUpResource,
   conversationResource,
   messageResource,
+  pushQueueResource,
   roomsMemoryQueueResource,
   roomsMemoryResource
 } from "./tableResources.js";
@@ -69,6 +71,7 @@ const ROW_POLICIES = new Map([
 // (followUpRepository.js), what the bots know (knowledgeRepository.js), remember (roomsMemoryRepository.js) and all
 // know (commonKnowledgeRepository.js).
 const SEARCH = new Map([
+  [pushQueueResource, PUSH_QUEUE_SEARCH],
   [botResource, BOT_SEARCH],
   [conversationResource, CHAT_SEARCH],
   [chatPersonResource, CHAT_PERSON_SEARCH],
@@ -125,6 +128,7 @@ const BotRecordsFeature = defineFeature({
   setup({ resources, systemContext, profiles, memberships, workspaces }) {
     const work = createWorkRepository(resources);
     const homeTemplates = createHomeTemplateRepository({ resources });
+    const pushQueue = createPushQueueRepository({ resources, systemContext });
     const records = Object.freeze({
       // Bots, chats and bots in chats, for the other features: read-only.
       directory: createBotDirectory(resources),
@@ -132,8 +136,9 @@ const BotRecordsFeature = defineFeature({
       bots: createBotRepository({ resources, workspaces, homeTemplates }),
       // Chats, their people and bots, each person's place in them, sections, and the home's joins and leaves.
       chats: createChatRepository({ resources, systemContext, profiles, memberships }),
-      // Everything said in a chat.
-      messages: createMessageRepository({ resources, systemContext }),
+      // Everything said in a chat, and the notifications it queues for the chat's people (D-133).
+      messages: createMessageRepository({ resources, systemContext, pushQueue }),
+      pushQueue,
       // Bots archived (D-108), and the chats archiving one reaches.
       archives: createArchiveRepository({ resources, systemContext }),
       // The bots a person made and the chats they're in, with their homes, in every home a system context reaches.

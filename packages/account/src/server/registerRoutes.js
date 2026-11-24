@@ -35,7 +35,7 @@ function answering(work) {
  * @param {ReturnType<typeof import("./meter.js").createMeter>["track"]} capabilities.track the meter's, for the AI work a route does for the person
  * @param {ReturnType<typeof import("./mediaCheck.js").createMediaGuard>} capabilities.media how a copy checks pictures (D-90)
  */
-export function registerRoutes(http, { account, spending, uploads, track, media }) {
+export function registerRoutes(http, { account, spending, uploads, track, media, push }) {
   const homeId = (request) => String(request.workspace.id);
 
   async function usage(request) {
@@ -101,4 +101,10 @@ export function registerRoutes(http, { account, spending, uploads, track, media 
   http.router.register("POST", "/api/w/:workspaceSlug/vault/import", IN_HOME, answering(importVaultItems));
   http.router.register("POST", "/api/w/:workspaceSlug/vault/read-photo", IN_HOME, answering(readVaultPhoto));
   http.router.register("DELETE", "/api/w/:workspaceSlug/vault/:itemId", IN_HOME, answering(deleteVaultItem));
+  // Notifications (D-133) are the signed-in person's own, on their own devices, whichever home they're in.
+  const me = (request) => String(request.user.id);
+  http.router.register("GET", "/api/w/:workspaceSlug/push", IN_HOME, answering((request) => push.mine(me(request))));
+  http.router.register("PUT", "/api/w/:workspaceSlug/push/settings", IN_HOME, answering((request) => push.saveSettings(me(request), request.body || {})));
+  http.router.register("POST", "/api/w/:workspaceSlug/push/devices", IN_HOME, answering((request) => push.addDevice(me(request), request.body || {})));
+  http.router.register("DELETE", "/api/w/:workspaceSlug/push/devices/:deviceId", IN_HOME, answering((request) => push.removeDevice(me(request), request.params.deviceId)));
 }

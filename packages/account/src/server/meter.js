@@ -88,6 +88,16 @@ export function currentWork() {
 }
 
 /**
+ * The person the work in progress is for (track()'s `userId`), or null: whose turn or run it is, so its news reaches
+ * them (D-133).
+ * @returns {string | null}
+ */
+export function currentPerson() {
+  const userId = context.getStore()?.userId;
+  return userId == null ? null : String(userId);
+}
+
+/**
  * The meter the account feature provides (`mercbot.meter`): work tracked for a person, bot and home, and recorded for
  * them through `recorder` (usage.js, or the copy's own). The AI providers' failures inside tracked work go to
  * `recordError`.

@@ -6,6 +6,7 @@
   "type": "module",
   "exports": {
     "./meter": "./src/server/meter.js",
+    "./push": "./src/server/push.js",
     "./cost": "./src/server/cost.js",
     "./usage": "./src/server/usage.js",
     "./jobs": "./src/server/jobs.js",
@@ -28,7 +29,8 @@
   "dependencies": {
     "@jskit-ai/kernel": "0.2.32",
     "@jskit-ai/resource-core": "0.1.223",
-    "@jskit-ai/resource-runtime": "0.2.46"
+    "@jskit-ai/resource-runtime": "0.2.46",
+    "web-push": "4.0.0"
   },
   "jskit": {
     "kind": "runtime",
@@ -36,6 +38,7 @@
       "provides": [
         "mercbot.account",
         "mercbot.meter",
+        "mercbot.push",
         "mercbot.account.sweeps"
       ],
       "requires": [

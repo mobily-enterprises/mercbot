@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="color-scheme" content="light dark" />
+    <title>Mercbot is offline</title>
+    <!-- What the installed app shows when there's no connection (D-133, sw.js): drawn like index.html's splash, in its
+         colours, with nothing it would have to load. -->
+    <style>
+      :root { --background: #f9f9ff; --on-surface: #191c20; --on-surface-variant: #44474e; --primary: #a23f00; }
+      @media (prefers-color-scheme: dark) {
+        :root { --background: #111318; --on-surface: #e2e2e9; --on-surface-variant: #c4c6d0; --primary: #ffb596; }
+      }
+      html, body { height: 100%; margin: 0; }
+      body {
+        display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
+        box-sizing: border-box; padding: max(24px, env(safe-area-inset-top)) 24px max(24px, env(safe-area-inset-bottom));
+        background: var(--background); color: var(--on-surface-variant); text-align: center;
+        font: 14px/20px system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, Cantarell, "DejaVu Sans", sans-serif;
+      }
+      img { width: 72px; height: 72px; }
+      h1 { margin: 4px 0 0; font-size: 22px; line-height: 28px; font-weight: 400; color: var(--on-surface); }
+      p { max-width: 320px; margin: 0; }
+      button {
+        margin-top: 8px; min-height: 40px; padding: 0 24px; border: 0; border-radius: 20px; cursor: pointer;
+        background: transparent; color: var(--primary); font: inherit; font-weight: 500;
+      }
+      button:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+    </style>
+  </head>
+  <body>
+    <img src="/app-icons/icon-192.png" alt="" />
+    <h1>You're offline</h1>
+    <p>Mercbot will reconnect by itself as soon as you're back online. Your bots keep working meanwhile.</p>
+    <button type="button" id="again">Try again</button>
+    <script src="/offline.js"></script>
+  </body>
+</html>

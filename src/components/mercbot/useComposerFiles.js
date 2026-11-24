@@ -28,8 +28,9 @@ async function uploadTo(chat, file) {
  * }} options `chat` is the open chat (the composer shows only in one)
  */
 export function useComposerFiles({ attachments, chat, focusComposer, onFailure, transfer }) {
-  async function addFiles(event) {
-    for (const file of event.target.files || []) {
+  /** Attaches these files (File objects): chosen here, or shared in from another app (D-133). */
+  async function addFileList(files) {
+    for (const file of files) {
       const entry = { id: `${file.name}-${file.size}-${Date.now()}`, name: file.name, size: file.size, type: file.type };
       if ((TEXT_TYPES.test(file.type) || /\.(md|txt|csv|json|ya?ml)$/iu.test(file.name)) && file.size <= 200000) {
         entry.text = await file.text();
@@ -42,8 +43,13 @@ export function useComposerFiles({ attachments, chat, focusComposer, onFailure, 
       }
       attachments.value = [...attachments.value, entry];
     }
-    event.target.value = "";
     focusComposer();
+  }
+
+  async function addFiles(event) {
+    const chosen = [...(event.target.files || [])];
+    event.target.value = "";
+    await addFileList(chosen);
   }
 
   /**
@@ -59,5 +65,5 @@ export function useComposerFiles({ attachments, chat, focusComposer, onFailure, 
     focusComposer();
   }
 
-  return { addFiles, addCopies };
+  return { addFiles, addFileList, addCopies };
 }

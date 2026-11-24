@@ -29,7 +29,12 @@ const STATIC_GLOBAL_UI_PATHS = Object.freeze([
   "/favicon.svg",
   "/favicon.ico",
   "/robots.txt",
-  "/manifest.webmanifest"
+  "/manifest.webmanifest",
+  "/sw.js",
+  "/offline.html",
+  "/offline.js",
+  "/app-icons",
+  "/app-screens"
 ]);
 
 function isApiPath(pathname) {

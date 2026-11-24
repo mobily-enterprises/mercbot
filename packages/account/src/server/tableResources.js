@@ -151,6 +151,48 @@ export const usageJobResource = defineTableResource({
   schema: usageJobSchema
 });
 
+/** push_devices
+ * A browser or installed app a person allowed notifications on (D-133), by its push service address, with the keys its
+ * notifications are sealed with and how many sends failed in a row. Read and written only through the account
+ * feature's push, always for the signed-in person or the server's own sends.
+ */
+export const pushDeviceResource = defineTableResource({
+  name: "pushDevices",
+  tableName: "push_devices",
+  ownership: "system",
+  schema: {
+    auth: { type: "string", maxLength: 100, noTrim: true, required: true },
+    createdAt: { type: "dateTime" },
+    endpoint: { type: "string", maxLength: 2000, noTrim: true, required: true, search: true },
+    failures: { type: "integer" },
+    label: { type: "string", maxLength: 120, noTrim: true },
+    lastSentAt: { type: "dateTime", nullable: true },
+    p256dh: { type: "string", maxLength: 200, noTrim: true, required: true },
+    userId: { type: "integer", search: true }
+  }
+});
+
+/** push_settings
+ * What notifies a person (D-133): each kind of news on or off, whether the message's text shows, and quiet hours in
+ * their time zone. No row is everything on, text shown, no quiet hours.
+ */
+export const pushSettingResource = defineTableResource({
+  name: "pushSettings",
+  tableName: "push_settings",
+  ownership: "system",
+  schema: {
+    messages: { type: "boolean" },
+    quietFrom: { type: "string", maxLength: 5, noTrim: true, nullable: true },
+    quietTo: { type: "string", maxLength: 5, noTrim: true, nullable: true },
+    results: { type: "boolean" },
+    showText: { type: "boolean" },
+    timeZone: { type: "string", maxLength: 64, noTrim: true, nullable: true },
+    updatedAt: { type: "dateTime" },
+    userId: { type: "integer", search: true },
+    waiting: { type: "boolean" }
+  }
+});
+
 /** Every table resource this feature owns, in table order. */
 export const TABLE_RESOURCES = Object.freeze([
   vaultItemResource,
@@ -159,5 +201,7 @@ export const TABLE_RESOURCES = Object.freeze([
   usageMonthlyResource,
   usageTaskDailyResource,
   computerDayResource,
-  usageJobResource
+  usageJobResource,
+  pushDeviceResource,
+  pushSettingResource
 ]);

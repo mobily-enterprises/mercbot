@@ -55,6 +55,11 @@ const ranged = (path, range) => `${homePath(path)}?${new URLSearchParams({ from:
 
 export const accountApi = {
   usage: () => client.request(homePath("/usage")),
+  // Notifications on the person's devices (D-133): their settings and devices, and this device allowed or forgotten.
+  push: () => client.request(homePath("/push")),
+  savePushSettings: (changes) => client.request(homePath("/push/settings"), { method: "PUT", body: changes }),
+  addPushDevice: (subscription) => client.request(homePath("/push/devices"), { method: "POST", body: subscription }),
+  removePushDevice: (deviceId) => client.request(homePath(`/push/devices/${encodeURIComponent(deviceId)}`), { method: "DELETE" }),
   spending: (range) => client.request(ranged("/spending", range)),
   /** The address of a report's CSV, which the browser downloads itself. */
   spendingExportUrl: (range) => ranged("/spending/export", range),

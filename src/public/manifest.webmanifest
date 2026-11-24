@@ -1,0 +1,39 @@
+{
+  "id": "/",
+  "name": "Mercbot",
+  "short_name": "Mercbot",
+  "description": "Your own AI agents that do real work for you, in chats with you and your people.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["standalone"],
+  "launch_handler": { "client_mode": "focus-existing" },
+  "background_color": "#f9f9ff",
+  "theme_color": "#f9f9ff",
+  "categories": ["productivity", "business"],
+  "icons": [
+    { "src": "/app-icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/app-icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/app-icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "screenshots": [
+    { "src": "/app-screens/phone.png", "sizes": "390x844", "type": "image/png", "form_factor": "narrow", "label": "A bot keeping track of the cats, on a phone" },
+    { "src": "/app-screens/desktop.png", "sizes": "1280x800", "type": "image/png", "form_factor": "wide", "label": "Your rooms, people and bots beside the chat" }
+  ],
+  "shortcuts": [
+    { "name": "New chat", "url": "/?go=new-chat", "icons": [{ "src": "/app-icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Recurring tasks", "url": "/?settings=recurring-tasks", "icons": [{ "src": "/app-icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Files", "url": "/?settings=files", "icons": [{ "src": "/app-icons/icon-192.png", "sizes": "192x192" }] }
+  ],
+  "share_target": {
+    "action": "/share",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url",
+      "files": [{ "name": "files", "accept": ["*/*"] }]
+    }
+  }
+}

@@ -58,6 +58,8 @@ function ownPageThroughVite(target) {
 const builtAt = new Date(process.env.SOURCE_DATE_EPOCH ? Number(process.env.SOURCE_DATE_EPOCH) * 1000 : Date.now());
 
 export default defineConfig({
+  // Files served as they are at the site's root (D-133): the app's manifest, icons, service worker and offline page.
+  publicDir: "src/public",
   // The development launcher (bin/develop.js: Preview and the test target) serves the app as a
   // bundle instead of ~700 separate modules (Vite 8.1+), so a page through the Preview proxy loads
   // in a few requests rather than hundreds of round trips. Plain `vite` keeps the usual mode.

@@ -1,6 +1,6 @@
 # Settings and notifications
 
-Settings is where you choose how Mercbot looks and behaves for you, manage your home's files, reset the bots' computers in your chats, and keep the home's vault. This page goes through Settings section by section, then your account details and each bot's own options. It ends with how Mercbot shows that a bot needs you, what it does about notifications, and how errors appear.
+Settings is where you choose how Mercbot looks and behaves for you, manage your home's files, reset the bots' computers in your chats, and keep the home's vault. This page goes through Settings section by section, then your account details and each bot's own options. It ends with how Mercbot shows that a bot needs you, its notifications, and how errors appear.
 
 ## Open and close Settings
 
@@ -28,6 +28,21 @@ Your name and email address, with a button to copy the email. **Account details*
 ### System
 
 **Microphone:** the microphone used for dictation and voice conversations.
+
+### Notifications
+
+Notifications on this device when a bot has news, while Mercbot is closed (see [Install Mercbot as an app](/help/install)). Each change applies at once.
+
+- **Notifications on this device:** allows them here; the browser asks first. Each phone, tablet or browser is turned on separately. On an iPhone or iPad, notifications work once Mercbot is on your Home Screen, and **Show me how** shows the steps. If the browser blocks them, it says so: allow them for Mercbot in the browser's site settings, then come back.
+- **Send a test notification:** shows one here now, once this device is on.
+- **Routine and watch results:** when a routine or a watch your bot runs for you has something.
+- **A bot is waiting for you:** a question, an approval, a draft to check or an account to connect.
+- **Messages and mentions:** messages in your chats with a bot and your direct chats with a person, and in rooms when someone mentions you.
+- **Show message text:** off, a notification says only who it's from and which chat, not what it says.
+- **Quiet hours:** no notifications between two times, in your bots' time zone. Nothing is lost: it's all in the chat.
+- **Your devices:** each device that gets them, with **Remove**.
+
+A notification waits about 15 seconds and goes only if you haven't read the chat in Mercbot by then. A chat's notifications show as one, and opening it goes straight to the chat. A muted chat never notifies. Your settings are the same on every device; which devices get them is up to each one.
 
 ### Home
 
@@ -207,7 +222,7 @@ Mercbot shows news inside the app:
 
 Right-click a chat and choose **Mark as unread** to keep it in view for later.
 
-Mercbot doesn't send phone or browser notifications, or emails, when a bot replies or a routine runs. Results wait in the chat, marked unread.
+Mercbot can also tell you on your phone or computer, with notifications you turn on in [General → Notifications](#notifications): a routine's or a watch's result, a bot waiting for you, and messages and mentions. It doesn't send emails when a bot replies or a routine runs. Everything waits in the chat, marked unread, whether or not a notification went.
 
 ## How errors appear
 

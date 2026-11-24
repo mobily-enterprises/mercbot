@@ -1,7 +1,7 @@
 // The filters the bots' repositories read by beyond each table's own search fields (records/tableResources.js): id
 // lists, id bounds and the few values kept inside a message body. Server-only: they go in BotRecordsFeature's owns.
 
-const idList = (actualField) => Object.freeze({ type: "array", actualField, filterOperator: "in", items: { type: "id" } });
+export const idList = (actualField) => Object.freeze({ type: "array", actualField, filterOperator: "in", items: { type: "id" } });
 const idBound = (filterOperator) => Object.freeze({ type: "id", actualField: "id", filterOperator });
 
 /** A value kept as text in the message body (a JSON object): `compare` writes the comparison, its key literal in the SQL. */

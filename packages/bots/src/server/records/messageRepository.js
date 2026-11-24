@@ -24,7 +24,7 @@ const SEARCHED_MADE = Object.freeze(MADE_KINDS.filter((kind) => kind !== "view")
  * @param {Record<string, ResourceHandle>} dependencies.resources the records feature's handles
  * @param {(reason: string) => import("@jskit-ai/resource-runtime/server/types").SystemContext} dependencies.systemContext
  */
-export function createMessageRepository({ resources, systemContext }) {
+export function createMessageRepository({ resources, systemContext, pushQueue }) {
   const { conversations, messages, chatPeople, chatBots, botRoutines: routines } = resources;
   const { homeOf, personOf, asRow } = createCallerReaders();
   const rowsOf = (records, options) => records.map((record) => asRow(record, options));
@@ -51,7 +51,8 @@ export function createMessageRepository({ resources, systemContext }) {
     }));
     const created = await messages.createMany(rows, { ...passedOn(options), returning: "records" });
     const home = { ...passedOn(options), context: systemContext("a chat's new messages are its activity, unread for its other people").forWorkspace(homeOf(options)) };
-    await conversations.patch(String(chatId), { lastActivityAt: new Date().toISOString() }, { ...home, returning: "none" });
+    // One UPDATE that answers the chat: whether it's two people's direct chat, for its notifications (D-133).
+    const chat = await conversations.patch(String(chatId), { lastActivityAt: new Date().toISOString() }, { ...home, missing: "skip", returning: "record" });
     const authors = rows.filter((row) => row.role !== "system");
     if (authors.length) {
       const onlyBy = new Set(authors.map((row) => row.authorUserId));
@@ -62,7 +63,10 @@ export function createMessageRepository({ resources, systemContext }) {
         { ...home, returning: "none" }
       );
     }
-    return rowsOf(created, options).sort((a, b) => Number(a.id) - Number(b.id)).map(toMessage);
+    const added = rowsOf(created, options).sort((a, b) => Number(a.id) - Number(b.id)).map(toMessage);
+    // The chat's people it concerns are notified a little later, if they haven't read it by then (D-133).
+    await pushQueue.notePosted(String(chatId), homeOf(options), added, home, { direct: chat?.directPersonId != null });
+    return added;
   }
 
   /**

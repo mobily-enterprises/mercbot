@@ -4444,3 +4444,54 @@ the app.
 
 Proved by `tests/server/recurringTasks.integration.js`, `tests/server/usage.integration.js`,
 `tests/server/appsWatches.integration.js` and `tests/client/recurringTasks.vitest.js`.
+
+## D-133 — Mercbot as an app people install from the website, with notifications (2026-11-24)
+
+Mercbot is an installable web app on every phone, tablet and computer, from its own address: no app store, nothing
+separate to build or publish. Installed, it opens from its icon in its own window, shows notifications when a bot has
+news, and takes what other apps share into it.
+
+- **Installable:** `src/public/manifest.webmanifest` (name, icons with Android's adaptive shape and the iPhone's
+  home-screen icon in `src/public/app-icons`, light and dark theme colours, a standalone window that focuses the one
+  already open, shortcuts to **New chat**, **Recurring tasks** and **Files**, and the share target), and the iPhone's
+  tags in `index.html`. The status bar follows the chosen theme (`src/main.js`). The shell keeps clear of notches and
+  home bars (`viewport-fit=cover`, safe-area insets), doesn't bounce when installed, and fields on an iPhone are at least
+  16px so Safari doesn't zoom in.
+- **The service worker** (`src/public/sw.js`, `/sw.js`, scope `/`) keeps only the offline page and the built files
+  Vite names by their content: never a page, the API, an event stream or an upload. A page that can't load offline
+  shows `offline.html` ("You're offline", **Try again**, and on its own once back online); the API, public apps (`/a`),
+  pages (`/p`) and the Console never fall back. A new release takes over as it loads.
+- **Installing** (`src/components/mercbot/appInstall.js`): the browser's install offer is kept from the moment it comes.
+  **Install app** in the account menu shows the browser's own sheet, or on an iPhone or iPad the Share → Add to Home
+  Screen guide; a phone is offered it once, at the top, a few seconds in (`MercbotAppDevice.vue`). Nothing once installed.
+- **Notifications** (web push, VAPID): a device a person allows (`push_devices`, its push address unique: one device,
+  one person, whoever allowed it last; at most 20 a person, the oldest going) receives a chat's news while Mercbot is
+  closed. The server's keys come from `MERCBOT_PUSH_SECRET` by HKDF, the same on every server; without it push is off
+  and Settings says so. Only `APP_ENV=production` sends; development, test and staging log each one. A device the push
+  service says is gone (404, 410), or that fails 5 times in a row, is forgotten.
+- **Who hears of what:** a chat's new messages queue a notification (`push_queue`, one insert as they're written) for
+  each person they concern: in a chat of one person, or two people's direct chat, the other person; in a room, the
+  people a message mentions and the person a bot's work is for. Never the author, nor anyone who muted the chat. Its
+  kind is `results` (a bot's post from a routine's or a watch's background work), `waiting` (a question, a draft or
+  email to approve, an account to connect or an approval) or `messages`.
+- **Sending** (`packages/bots/src/server/pushSweep.js`): every 5 seconds a web server takes the due ones, once across
+  servers. A notification waits 15 seconds and goes only if the chat is still unread for the person then (read past
+  the message, or read to its end, and it doesn't); a person's others for that chat are folded into it, about the
+  newest message, as the most pressing kind. One tag a chat, so a newer one replaces the one before on the device; the
+  app's icon shows the unread chats where the device shows a count. Opening it goes to the chat, in a window already
+  open when there is one.
+- **Settings → General → Notifications** (`push_settings`, one row a person who changed theirs): this device on or
+  off, a switch per kind, whether the message's text shows (off: who and where only), quiet hours in the bots' time
+  zone, the devices (each removable) and **Send a test notification**. The browser asks permission only when the
+  person turns them on there, or answers the offer made once just after their first routine is set up; never on a
+  first visit. On an iPhone or iPad they work once Mercbot is on the Home Screen, which Settings says.
+- **Sharing in:** on Android and computers the installed app is a share target. The service worker keeps what was
+  shared (its words, link and files) for an hour, the app asks **Send to a chat**, and it arrives in that chat's
+  message box, attached as files chosen there are.
+- **Routes:** `GET /api/w/:slug/push` (the person's settings, devices and the server's public key), `PUT
+  /api/w/:slug/push/settings`, `POST /api/w/:slug/push/devices` and `DELETE /api/w/:slug/push/devices/:id`, each only
+  ever the signed-in person's own.
+
+The account owns devices, settings and sending (`packages/account/src/server/push.js`, provided as `mercbot.push`);
+the bots own the queue and the sweep, as only they know a chat's people and what's unread. Proved by
+`tests/server/pushRules.test.js` and `tests/server/push.integration.js`.

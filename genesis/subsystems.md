@@ -103,6 +103,7 @@ subsystems read chats, seats and bots.
 - Table `database` `default` `bot_knowledge_parts`
 - Table `database` `default` `rooms_memories`
 - Table `database` `default` `rooms_memory_queue`
+- Table `database` `default` `push_queue`
 - Table `database` `default` `common_knowledge`
 - Table `database` `default` `bot_github_repos`
 - Table `database` `default` `home_templates`
@@ -311,7 +312,7 @@ what each recurring task (a routine's or a watch's runs) used and cost per day, 
 D-132), the meter around that work and the recorder that counts it, which a copy built on Mercbot may replace
 (`mercbot.usage-recorder`), the spending reports (D-76), the archive of old usage, Mercbot's three kinds of AI and
 their providers (D-16, D-72), who runs this copy (whom `mercbot.copy-runners` names: Mercbot's one person, or a copy built on Mercbot's
-own), the server's role (web or computers, D-131), the Vault (D-17), the check a copy built on Mercbot may make of every picture and video (`mercbot.media-check`, its
+own), the server's role (web or computers, D-131), the Vault (D-17), people's notifications on their devices and Mercbot as an installed app (D-133), the check a copy built on Mercbot may make of every picture and video (`mercbot.media-check`, its
 guard and the sniffer of what a file is, D-90; the Vault's photos are checked here), the account menu, About and help
 pages that show them,
 and Settings' sections, the account menu, Settings → General and help, to which a copy built on Mercbot may add
@@ -324,6 +325,7 @@ its own or, for a Settings section, put one in the place of Mercbot's (extension
 ### Program
 
 - `genesis/program/account/account-menu.md`
+- `genesis/program/account/notifications.md`
 
 ### Data owned
 
@@ -334,6 +336,8 @@ its own or, for a Settings section, put one in the place of Mercbot's (extension
 - Table `database` `default` `computer_days`
 - Table `database` `default` `usage_jobs`
 - Table `database` `default` `vault_items`
+- Table `database` `default` `push_devices`
+- Table `database` `default` `push_settings`
 
 ### Data used
 

@@ -181,6 +181,9 @@ doesn't accept, a public address that isn't https) still stops the start, saying
 - `MERCBOT_VAULT_KEY`: 32 random bytes, base64. It seals vault secrets, bots' saved browsers and where a home publishes
   its pages (D-84) with that website's keys. Keep it safe; anything sealed with a lost key can't be recovered.
   `mercbot backup` keeps it with the settings.
+- `MERCBOT_PUSH_SECRET`: any long random value, kept like the session secret. Mercbot derives the keys that sign its
+  notifications to people's devices (web push, D-133) from it, so every server agrees and a restart keeps them; a new
+  value means each device turns notifications on again. Unset, notifications are off. Only `APP_ENV=production` sends.
 - `AUTH_LOCAL_SESSION_SECRET` as JSKIT requires.
 - `MERCBOT_WEBSITE_FOLDERS=off` on a copy run on more than one server: homes' websites (D-84) are then only in
   S3-compatible storage, since a page written to a folder would be on one server alone. Unset, whoever runs the copy may

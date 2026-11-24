@@ -50,6 +50,8 @@ Object.assign(process.env, {
   DB_NAME: testDatabase,
   // Connections never reach the real hub.
   MERCBOT_HUB_URL: "",
+  // Notifications are on (D-133), with this run's own keys; a test copy only logs them.
+  MERCBOT_PUSH_SECRET: "test-preview-push-secret",
   // Links and providers' return address point at this target; with PORT 0, once its port is known.
   APP_PUBLIC_URL: port === "0" ? "" : publicUrl(port),
   MERCBOT_DATA_DIR: dataDir,

@@ -22,6 +22,7 @@ import {
   createShellRouter
 } from "@jskit-ai/kernel/client";
 import { config } from "../config/public.js";
+import { startAppInstall } from "./components/mercbot/appInstall.js";
 
 const surfaceRuntime = createSurfaceRuntime({
   allMode: config.surfaceModeAll,
@@ -58,6 +59,9 @@ function applyThemePreference() {
   }
   const dark = preference === "dark" || (preference !== "light" && systemDark.matches);
   vuetify.theme.change(dark ? "dark" : "light");
+  // The phone's status bar and an installed app's title bar take the chosen theme's colour too (D-133).
+  const colour = vuetify.theme.themes.value[dark ? "dark" : "light"]?.colors?.background;
+  for (const meta of document.querySelectorAll('meta[name="theme-color"]')) if (colour) meta.setAttribute("content", colour);
 }
 applyThemePreference();
 // readable-check: allow released-listeners - shared resource: the page follows the system theme for its whole life
@@ -73,6 +77,10 @@ document.addEventListener("focusin", (event) => {
   if (!(field instanceof HTMLInputElement || field instanceof HTMLTextAreaElement)) return;
   if (!field.hasAttribute("autocomplete")) field.setAttribute("autocomplete", "off");
 }, true);
+
+// Installable, with notifications and an offline page (D-133): the service worker, and the browser's install offer,
+// which may come before the shell is up.
+startAppInstall();
 
 const pinia = createPinia();
 const queryClient = new QueryClient({

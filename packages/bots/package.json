@@ -46,6 +46,7 @@
         "mercbot.apps",
         "mercbot.meter",
         "mercbot.account",
+        "mercbot.push",
         "runtime.env",
         "runtime.resources",
         "users.profiles",

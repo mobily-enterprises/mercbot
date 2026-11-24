@@ -10,7 +10,8 @@
       "name": "Getting started",
       "pages": [
         { "slug": "quick-start", "title": "Quick start: your first finished job", "words": 900 },
-        { "slug": "example-jobs", "title": "Example jobs for a bot", "words": 800 }
+        { "slug": "example-jobs", "title": "Example jobs for a bot", "words": 800 },
+        { "slug": "install", "title": "Install Mercbot as an app", "words": 900 }
       ]
     },
     {

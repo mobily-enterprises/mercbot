@@ -413,6 +413,25 @@ export const roomsMemoryResource = defineTableResource({
  * a bot's rooms memory refresh waiting (D-113), claimed by one server at a time under a lease (claimedBy, claimedUntil) that
  * its server renews while it writes; asks counts its requests; rebuild asks for one made from the chats
  */
+/** push_queue
+ * A notification waiting to be sent (D-133): one per person and chat, sent once `sendAfter` has come if the message is
+ * still unread then, by whichever server claims it first.
+ */
+export const pushQueueResource = defineTableResource({
+  name: "pushQueue",
+  tableName: "push_queue",
+  ownership: "workspace",
+  schema: {
+    chatId: { type: "id", required: true, search: true },
+    claimedAt: { type: "dateTime", nullable: true },
+    kind: { type: "string", maxLength: 12, noTrim: true, required: true },
+    messageId: { type: "id", required: true },
+    sendAfter: { type: "dateTime" },
+    userId: { type: "id", required: true, search: true },
+    workspaceId: { type: "id", hidden: true, search: true }
+  }
+});
+
 export const roomsMemoryQueueResource = defineTableResource({
   name: "roomsMemoryQueue",
   tableName: "rooms_memory_queue",
@@ -450,5 +469,6 @@ export const TABLE_RESOURCES = Object.freeze([
   commonKnowledgeResource,
   botGithubRepoResource,
   roomsMemoryResource,
-  roomsMemoryQueueResource
+  roomsMemoryQueueResource,
+  pushQueueResource
 ]);
