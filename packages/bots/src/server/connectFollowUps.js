@@ -234,12 +234,22 @@ export function createConnectFollowUps({
    */
   function startSweeping({ everyMs = SWEEP_MS } = {}) {
     let sweeping = null;
+    // A sweep asked for while one runs (another server's notice): it sweeps again once that one ends.
+    let again = false;
     const tick = () => {
-      if (stopped || sweeping) return;
+      if (stopped) return;
+      if (sweeping) {
+        again = true;
+        return;
+      }
       sweeping = sweep()
         .catch((error) => console.warn(`Sweeping the connect follow-ups failed; the next sweep tries again: ${error?.message || error}`))
         .finally(() => {
           sweeping = null;
+          if (again) {
+            again = false;
+            tick();
+          }
         });
     };
     const timer = setInterval(tick, everyMs);

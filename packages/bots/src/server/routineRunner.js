@@ -42,6 +42,8 @@ export function startRoutineRunner({ work, systemContext, notices, run, everyMs 
   const running = new Map();
   let stopped = false;
   let ticking = false;
+  // A tick asked for while one runs (another server's notice): the running one looks again before it ends.
+  let again = false;
 
   const options = () => ({ context: systemContext("routine runner") });
 
@@ -56,28 +58,39 @@ export function startRoutineRunner({ work, systemContext, notices, run, everyMs 
   }
 
   async function tick() {
-    if (ticking) return;
+    if (ticking) {
+      again = true;
+      return;
+    }
     ticking = true;
     try {
-      while (!stopped && active < concurrency) {
-        const routine = await claim();
-        if (!routine) break;
-        active += 1;
-        const held = keepLease(() => work.renewRoutineRun(routine, lease.seconds, options()), `Routine ${routine.id} ("${routine.name}")`, lease);
-        const job = Promise.resolve()
-          .then(() => run(routine, held.signal))
-          .catch(() => {})
-          .finally(() => {
-            held.stop();
-            active -= 1;
-            running.delete(job);
-          });
-        running.set(job, { lease: held, release: () => work.changeRoutineRun(routine, { runLeaseUntil: work.now() }, options()) });
+      for (again = true; again && !stopped;) {
+        again = false;
+        await claimWhileFree();
       }
     } catch {
       // The database is unreachable; the next tick tries again.
     } finally {
       ticking = false;
+    }
+  }
+
+  /** Claims and starts routines while this server has room for them and any is due. */
+  async function claimWhileFree() {
+    while (!stopped && active < concurrency) {
+      const routine = await claim();
+      if (!routine) break;
+      active += 1;
+      const held = keepLease(() => work.renewRoutineRun(routine, lease.seconds, options()), `Routine ${routine.id} ("${routine.name}")`, lease);
+      const job = Promise.resolve()
+        .then(() => run(routine, held.signal))
+        .catch(() => {})
+        .finally(() => {
+          held.stop();
+          active -= 1;
+          running.delete(job);
+        });
+      running.set(job, { lease: held, release: () => work.changeRoutineRun(routine, { runLeaseUntil: work.now() }, options()) });
     }
   }
 
@@ -90,9 +103,9 @@ export function startRoutineRunner({ work, systemContext, notices, run, everyMs 
   /**
    * Shutting down: claim nothing more, and hand the runs in progress over at once (handOverRuns), waiting for none to
    * finish: the server that takes one over, told so, posts its result instead of this one.
-   * @param {number} _ms the drain's time, which a handover never waits out
+   * The drain's time is never waited out.
    */
-  async function drain(_ms) {
+  async function drain() {
     stopped = true;
     clearInterval(timer);
     unsubscribe();
