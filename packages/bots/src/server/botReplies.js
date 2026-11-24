@@ -241,21 +241,19 @@ export function createBotReplies({
       : briefOnly
         ? briefOnly.steps || []
         : saved?.steps?.length && saved.input?.answers === asked && (saved.input?.prompt || "") === prompt ? saved.steps : [];
+    // What carries a person's reply on if its server stops (D-48), kept on its run from before its first step: a reply
+    // whose server stopped before any step finished is started over by another server, not lost.
+    const runInput = { prompt, human, goalTurn, timeZone, language, answers: asked, followUp };
+    if (checkpointed) {
+      await chatHistory.runs.save(seat.chat_bot_id, resumed, runInput)
+        .catch((error) => console.warn("Keeping a reply's start on its run failed; it's kept with its first step instead.", error));
+    }
     const onSteps = checkpoint
       ? (steps) => checkpoint.save([...resumed, ...steps])
       : briefOnly?.save
         ? (steps) => briefOnly.save([...resumed, ...steps])
         : checkpointed
-          ? (steps) =>
-              chatHistory.runs.save(seat.chat_bot_id, [...resumed, ...steps], {
-                prompt,
-                human,
-                goalTurn,
-                timeZone,
-                language,
-                answers: asked,
-                followUp
-              })
+          ? (steps) => chatHistory.runs.save(seat.chat_bot_id, [...resumed, ...steps], runInput)
           : keepNoSteps;
     /**
      * Background work (a routine, a watch run, a task) that fails before doing anything ends with
@@ -407,8 +405,10 @@ export function createBotReplies({
     const forAsker = (message) => (CARD_KINDS.has(message.kind) ? { ...message, body: { ...message.body, for: asker } } : message);
     const appended = await records.chats.withTransaction(call, async (txOptions) => {
       await keepFeeds(txOptions);
-      // A routine's or a task's run ends with its result, so only the server holding it posts it.
+      // A routine's or a task's run ends with its result, so only the server holding it posts it; a person's reply's run
+      // gives up what would carry it on, as its reply is posted.
       const ending = checkpoint ? await checkpoint.settle(txOptions, { failed }) : [];
+      if (checkpointed) await chatHistory.runs.settle(seat.chat_bot_id, txOptions);
       const messages = await say(seat, [
         ...run.before,
         ...(replyText ? [{ kind: "text", role: "bot", body }] : []),
@@ -604,12 +604,12 @@ export function createBotReplies({
               answers: Number(input.asked) || 0
             }
           };
-          appended = held
-            ? await records.chats.withTransaction(call, async (txOptions) => {
-              mine = Boolean(await held.end({ failed: true }, txOptions));
-              return mine ? say(seat, [sorry], txOptions) : [];
-            })
-            : await say(seat, [sorry], call);
+          appended = await records.chats.withTransaction(call, async (txOptions) => {
+            if (held) mine = Boolean(await held.end({ failed: true }, txOptions));
+            // Its run gives up its steps as the sorry is posted, as a reply's does.
+            else await chatHistory.runs.settle(seat.chat_bot_id, txOptions);
+            return mine ? say(seat, [sorry], txOptions) : [];
+          });
         }
       }
       if (!mine) return { messages: [], paused };

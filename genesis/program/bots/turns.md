@@ -231,9 +231,12 @@ task:
   steps or time opens a goal for the request and carries on in rounds by itself. Only the person's own turn opens one.
 - **Stopping short:** a reply under 600 characters that ends by announcing its next step, with no result, carries on
   once from its own steps; with a goal active, the goal's next round does instead.
-- **Saved steps:** a reply or a goal round writes its steps to `agent_runs.steps` as each finishes; one whose server
-  stopped is resumed from them by a page retry or by the resumer every server runs, unless the person has written
-  since. A routine's, an app task's or a request's run keeps its steps on its own row instead.
+- **Saved steps:** a reply or a goal round writes its steps to `agent_runs.steps` as each finishes, and what started
+  it (`agent_runs.input`) from before its first step; one whose server stopped is resumed from them by a page retry or
+  by the resumer every server runs, unless the person has written since, and one stopped before any step finished
+  starts over. The transaction that posts a reply clears its steps and input, so a reply posted by a server that
+  stopped before freeing its run is never posted again. A routine's, an app task's or a request's run keeps its steps
+  on its own row instead.
 - **Messages mid-reply:** what the person writes while a reply works reaches the bot with its next tool result, when
   the message is for that bot (R3), and that reply then counts as answering it.
 - **To-do list and job notes:** `update_todos` keeps one `todos` card per job, updated in place
