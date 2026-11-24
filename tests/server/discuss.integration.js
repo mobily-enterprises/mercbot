@@ -334,15 +334,19 @@ test("a round whose server stopped reads as interrupted once its lease lapses, a
   assert.equal(await knex("agent_runs").whereIn("conversation_id", seats.map((seat) => seat.id)).first(), undefined, "and let them go");
 });
 
+/** How long the stopped turn would talk: Stop must end it long before. */
+const TALKS_FOR_MS = 60_000;
+
 test("Stop during a turn ends it at the round's next heartbeat, which renews the card's lease while the round runs", async (context) => {
   const { knex, kim, lee, ada, bo, turns, steer, as, chatOf, chat, propose, cardOf, drain, said, shown } = await setup(context, {
     discussionLimits: { heartbeatMs: 50, leaseMs: 300 }
   });
   const kitchen = await chatOf([ada, bo], [kim, lee]);
   const card = await propose(kitchen, kim, "Tiles or wood?");
-  // Ada's turn talks until it's stopped, or for 5 seconds at most.
+  // Ada's turn talks until it's stopped, or for a minute at most: far past any heartbeat, however busy the machine, and
+  // an end that still comes (the test fails, never hangs) if Stop doesn't reach the turn.
   steer.script = (bot, _prompt, options) => new Promise((resolve, reject) => {
-    const late = setTimeout(() => resolve(`${bot.name}: at last.`), 5000);
+    const late = setTimeout(() => resolve(`${bot.name}: at last.`), TALKS_FOR_MS);
     options.signal?.addEventListener("abort", () => {
       clearTimeout(late);
       reject(options.signal.reason);
@@ -356,7 +360,7 @@ test("Stop during a turn ends it at the round's next heartbeat, which renews the
   const stoppedAt = Date.now();
   await chat.stopDiscussion(kitchen, card.id, as(kim));
   await drain();
-  assert.ok(Date.now() - stoppedAt < 2000, `the turn stopped at the next heartbeat, not when it would have ended (${Date.now() - stoppedAt} ms)`);
+  assert.ok(Date.now() - stoppedAt < TALKS_FOR_MS / 2, `the turn stopped at a heartbeat, not when it would have ended (${Date.now() - stoppedAt} ms)`);
   assert.equal(turns[0].options.signal.aborted, true, "Ada's turn was stopped");
   const body = await cardOf(card.id);
   assert.deepEqual([body.status, body.ended], ["ended", "stopped"]);

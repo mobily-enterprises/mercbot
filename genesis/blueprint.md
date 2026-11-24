@@ -63,6 +63,20 @@ and bot, with what each AI call cost at its provider (a computer's days and
 commands cost nothing), and every bot shows what it cost this month. Spending is
 only reported: nothing is ever paused or refused because of it.
 
+## Mercbot as an app
+
+Mercbot installs from its own address on a phone, a tablet or a computer, with no
+app store: it then opens from its own icon in a window of its own, with quick
+actions for a new chat, recurring tasks and files, and says so when there's no
+connection. On a phone it is offered once; on an iPhone or iPad it shows how to
+add it to the Home Screen. It can tell the person on each device they allow, while
+Mercbot is closed, when a routine or watch has results, when a bot is waiting for
+them, and about their direct messages and mentions: only if they haven't read the
+chat a few seconds later, never about a muted chat, as kinds, quiet hours and
+showing a message's text are set in Settings. Asking for that permission waits for
+Settings or the person's first routine. Installed on Android or a computer, other
+apps can share photos, files and links into a chat of the person's choosing.
+
 ## Bots and chat
 
 An open home is the Mercbot shell: a dense, resizable sidebar (or compact rail)

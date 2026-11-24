@@ -12,9 +12,9 @@ import { AccountError } from "./accountError.js";
 // each notification instead (APP_ENV).
 
 /** The kinds of news a notification is for: a routine's or watch's result, a bot waiting for the person, a message. */
-export const PUSH_KINDS = Object.freeze(["results", "waiting", "messages"]);
+const PUSH_KINDS = Object.freeze(["results", "waiting", "messages"]);
 /** Everything on, the text shown, no quiet hours: a person's settings until they change them. */
-export const PUSH_DEFAULTS = Object.freeze({
+const PUSH_DEFAULTS = Object.freeze({
   results: true,
   waiting: true,
   messages: true,
@@ -29,11 +29,40 @@ const DEVICES_PER_PERSON = 20;
 const TIME = /^([01]\d|2[0-3]):[0-5]\d$/u;
 // A notification waits at most this long at the push service for a device that's off.
 const TTL_SECONDS = 6 * 60 * 60;
+// How many devices' push services one sweep calls at once.
+const SENDING_AT_ONCE = 10;
 
 /** The search entries devices and settings add: several people's at once. */
 export const PUSH_SEARCH = Object.freeze({
   userIds: Object.freeze({ type: "array", actualField: "userId", filterOperator: "in", items: { type: "integer" } })
 });
+
+/**
+ * The push services browsers subscribe with: Chrome's and Edge's on Android (FCM), Firefox's, Safari's and Edge's on
+ * Windows (WNS). The server POSTs to a device's address when it sends, so an address anywhere else (inside its own
+ * network, a metadata service, anyone's server) is refused: it would be a request a person aims (SSRF).
+ */
+const PUSH_SERVICES = Object.freeze(["fcm.googleapis.com", "android.googleapis.com", "push.services.mozilla.com", "push.apple.com", "notify.windows.com"]);
+
+// The longest push address kept (push_devices.endpoint).
+const ENDPOINT_MAX = 2000;
+
+/** Whether `endpoint` is a known push service's address: https, its default port, no credentials. */
+function isPushServiceAddress(endpoint) {
+  let address;
+  try {
+    address = new URL(String(endpoint));
+  } catch {
+    return false;
+  }
+  if (address.protocol !== "https:" || address.port || address.username || address.password || String(endpoint).length > ENDPOINT_MAX) return false;
+  return PUSH_SERVICES.some((host) => address.hostname === host || address.hostname.endsWith(`.${host}`));
+}
+
+const isObject = (value) => Boolean(value) && typeof value === "object" && !Array.isArray(value);
+// A label is one line: control characters (a new line in a log, a bell) become spaces.
+// eslint-disable-next-line no-control-regex
+const oneLine = (text) => String(text).replace(/[\u0000-\u001f\u007f]+/gu, " ").trim().slice(0, 120);
 
 const base64url = (buffer) => Buffer.from(buffer).toString("base64url");
 
@@ -117,6 +146,7 @@ export function createPush({ resources, systemContext, env, sendNotification = w
 
   /** Changes a person's settings: each kind on or off, the text shown or not, and quiet hours in their time zone. */
   async function saveSettings(userId, input = {}) {
+    if (!isObject(input)) throw refusal("Send the settings to change.", "account_push_setting");
     const changes = {};
     for (const key of [...PUSH_KINDS, "showText"]) {
       if (key in input) {
@@ -153,22 +183,24 @@ export function createPush({ resources, systemContext, env, sendNotification = w
    * @param {string} userId
    * @param {{ endpoint?: string, keys?: { p256dh?: string, auth?: string }, label?: string }} subscription
    */
-  async function addDevice(userId, { endpoint, keys: sealing = {}, label = "" } = {}) {
+  async function addDevice(userId, subscription = {}) {
     if (!keys) throw new AccountError(409, "Notifications aren't set up on this server.", { code: "account_push_off" });
-    let address;
-    try {
-      address = new URL(String(endpoint));
-    } catch {
-      throw refusal("That isn't a push address.", "account_push_endpoint");
-    }
-    if (address.protocol !== "https:" || String(endpoint).length > 2000) throw refusal("That isn't a push address.", "account_push_endpoint");
-    if (!/^[\w-]{20,200}$/u.test(String(sealing.p256dh || "")) || !/^[\w-]{8,100}$/u.test(String(sealing.auth || ""))) {
+    if (!isObject(subscription)) throw refusal("That isn't a push address.", "account_push_endpoint");
+    const { endpoint, keys: sealing = {}, label = "" } = subscription;
+    if (!isPushServiceAddress(endpoint)) throw refusal("That isn't a push address.", "account_push_endpoint");
+    if (!isObject(sealing) || !/^[\w-]{20,200}$/u.test(String(sealing.p256dh || "")) || !/^[\w-]{8,100}$/u.test(String(sealing.auth || ""))) {
       throw refusal("That device's keys aren't valid.", "account_push_keys");
     }
     const options = system("keep a device a person allowed notifications on");
     const owner = { userId: Number(userId) };
+    // A device another person allowed moves only with its own keys: the same browser, signed in as someone else now.
+    // Its address alone, which says nothing of who holds it, never takes it.
+    const [held] = await pushDevices.queryAll({ filters: { endpoint: String(endpoint) }, fields: ["userId", "p256dh", "auth"] }, options);
+    if (held && String(held.userId) !== String(userId) && (held.p256dh !== sealing.p256dh || held.auth !== sealing.auth)) {
+      throw new AccountError(409, "That device gets someone else's notifications.", { code: "account_push_device_taken" });
+    }
     const row = { ...owner, endpoint: String(endpoint), p256dh: sealing.p256dh, auth: sealing.auth, failures: 0 };
-    row.label = String(label).slice(0, 120);
+    row.label = oneLine(label);
     await pushDevices.createMany([row], { ...options, onConflict: { keys: ["endpoint"], action: "merge" }, returning: "none" });
     // A person keeps their newest devices: past the limit, the oldest go.
     const [{ devices = 0 } = {}] = await pushDevices.aggregate({ filters: owner, measures: { devices: { count: "*" } } }, options);
@@ -187,6 +219,17 @@ export function createPush({ resources, systemContext, env, sendNotification = w
     const removed = await pushDevices.deleteWhere({ id: [String(deviceId)], userId: Number(userId) }, { ...options, returning: "count" });
     if (!removed) throw new AccountError(404, "There's no such device.", { code: "account_push_device_missing" });
     return mine(userId);
+  }
+
+  /**
+   * Forgets the person's device at a push address, as a browser signing out asks while its session lasts: one statement,
+   * the person's own device or nothing, so the server sends that browser nothing more even if it can't unsubscribe.
+   */
+  async function forgetDevice(userId, endpoint) {
+    if (typeof endpoint !== "string" || !endpoint || endpoint.length > ENDPOINT_MAX) throw refusal("That isn't a push address.", "account_push_endpoint");
+    const options = system("forget the device a person signs out of, for them");
+    const removed = await pushDevices.deleteWhere({ endpoint, userId: Number(userId) }, { ...options, returning: "count" });
+    return { forgotten: removed > 0 };
   }
 
   /** People's settings, by user id, in one read: the sweep's. */
@@ -208,29 +251,51 @@ export function createPush({ resources, systemContext, env, sendNotification = w
     const options = system("send people's notifications to their devices");
     const devices = await pushDevices.queryAll({ filters: { userIds: [...new Set(notes.map((note) => Number(note.userId)))] } }, options);
     const environment = appEnvironment(env);
-    let sent = 0;
-    for (const note of notes) {
-      for (const device of devices.filter((entry) => String(entry.userId) === String(note.userId))) {
-        if (environment !== "production") {
-          logSideEffect(console, environment, { kind: "push", summary: `a notification ("${note.payload.title}") to ${device.label || "a device"}` });
-          continue;
-        }
-        try {
-          await sendNotification(
-            { endpoint: device.endpoint, keys: { p256dh: device.p256dh, auth: device.auth } },
-            JSON.stringify(note.payload),
-            { TTL: TTL_SECONDS, urgency: "normal", topic: note.payload.tag.replace(/[^\w-]/gu, "").slice(0, 32), vapidDetails: { subject, ...keys } }
-          );
-          sent += 1;
-          await pushDevices.patch(String(device.id), { lastSentAt: new Date().toISOString(), failures: 0 }, { ...options, returning: "none" });
-        } catch (error) {
-          const gone = error?.statusCode === 404 || error?.statusCode === 410 || Number(device.failures) + 1 >= FAILURES_KEPT;
-          if (gone) await pushDevices.deleteWhere({ id: [String(device.id)] }, { ...options, returning: "count" });
-          else await pushDevices.patch(String(device.id), { failures: Number(device.failures) + 1 }, { ...options, returning: "none" });
-        }
+    const byPerson = Map.groupBy(devices, (device) => String(device.userId));
+    const deliveries = notes.flatMap((note) => (byPerson.get(String(note.userId)) || []).map((device) => ({ note, device })));
+    if (environment !== "production") {
+      for (const { note, device } of deliveries) {
+        logSideEffect(console, environment, { kind: "push", summary: `a notification ("${note.payload.title}") to ${device.label || "a device"}` });
       }
+      return 0;
     }
-    return sent;
+    // What each device's push service answered, written for the whole batch at once. A device reached by several
+    // notes keeps its weightiest answer: gone, then sent, then one more failure.
+    const outcomes = new Map();
+    const WEIGHT = { failed: 0, sent: 1, gone: 2 };
+    const answer = (device, outcome) => {
+      const id = String(device.id);
+      if (WEIGHT[outcome] >= WEIGHT[outcomes.get(id) ?? "failed"]) outcomes.set(id, outcome);
+    };
+    const deliver = async ({ note, device }) => {
+      // An address outside the push services (one kept before addresses were checked) is never called: it's forgotten.
+      if (!isPushServiceAddress(device.endpoint)) return answer(device, "gone");
+      try {
+        await sendNotification(
+          { endpoint: device.endpoint, keys: { p256dh: device.p256dh, auth: device.auth } },
+          JSON.stringify(note.payload),
+          { TTL: TTL_SECONDS, urgency: "normal", topic: note.payload.tag.replace(/[^\w-]/gu, "").slice(0, 32), vapidDetails: { subject, ...keys } }
+        );
+        answer(device, "sent");
+      } catch (error) {
+        const gone = error?.statusCode === 404 || error?.statusCode === 410 || Number(device.failures) + 1 >= FAILURES_KEPT;
+        answer(device, gone ? "gone" : "failed");
+      }
+      return undefined;
+    };
+    for (let start = 0; start < deliveries.length; start += SENDING_AT_ONCE) {
+      await Promise.all(deliveries.slice(start, start + SENDING_AT_ONCE).map(deliver));
+    }
+    const byOutcome = Map.groupBy(outcomes.keys(), (id) => outcomes.get(id));
+    const sent = byOutcome.get("sent") || [];
+    if (byOutcome.has("gone")) await pushDevices.deleteWhere({ id: byOutcome.get("gone") }, { ...options, returning: "count" });
+    if (sent.length) await pushDevices.patchWhere({ id: sent }, { lastSentAt: new Date().toISOString(), failures: 0 }, { ...options, returning: "count" });
+    // One more failure: one statement for each count reached (at most FAILURES_KEPT - 1 of them), however many devices.
+    const failuresOf = new Map(devices.map((device) => [String(device.id), Number(device.failures) + 1]));
+    for (const [count, ids] of Map.groupBy(byOutcome.get("failed") || [], (id) => failuresOf.get(id))) {
+      await pushDevices.patchWhere({ id: ids }, { failures: count }, { ...options, returning: "count" });
+    }
+    return sent.length;
   }
 
   return Object.freeze({
@@ -239,6 +304,7 @@ export function createPush({ resources, systemContext, env, sendNotification = w
     saveSettings,
     addDevice,
     removeDevice,
+    forgetDevice,
     settingsOf,
     send
   });

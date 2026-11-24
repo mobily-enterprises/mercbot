@@ -200,7 +200,22 @@ test("two commands of a home share its day: past it, their connections end and n
 });
 
 test("two commands at once each see what the other used, as they write", async (context) => {
-  const { home, bot, second, usage, dayRow } = await setup(context);
+  const { knex, home, bot, second, usage, dayRow } = await setup(context);
+  // How long the day's writes take on this machine, as D-127's bound depends on it: a busy one writes slower, so more
+  // arrives while a write is under way.
+  const started = new Map();
+  let slowestWriteMs = 0;
+  const DAY_WRITE = /^(?!\s*select\b)[^]*\binternet_days\b/iu;
+  const onQuery = (query) => {
+    if (DAY_WRITE.test(String(query.sql))) started.set(query.__knexQueryUid, performance.now());
+  };
+  const onDone = (_response, query) => {
+    const at = started.get(query.__knexQueryUid);
+    if (at !== undefined) slowestWriteMs = Math.max(slowestWriteMs, performance.now() - at);
+  };
+  const onError = (_error, query) => onDone(null, query);
+  knex.on("query", onQuery).on("query-response", onDone).on("query-error", onError);
+  context.after(() => knex.removeListener("query", onQuery).removeListener("query-response", onDone).removeListener("query-error", onError));
   // 16 KB every 2 ms, about 8 MB a second each: a gateway sees the other's use as of its own last write, so what a
   // home passes its day by is what its gateways haven't written yet, which grows with how fast data arrives while a
   // write is under way.
@@ -215,8 +230,13 @@ test("two commands at once each see what the other used, as they write", async (
   await Promise.all([one.close(), two.close()]);
   const day = await dayRow(home);
   const used = Number(day.bytes_in) + Number(day.bytes_out);
-  // Each gateway may be a write behind (64 KB waiting, 64 KB being written) and a piece past it when it sees.
-  assert.ok(used > 3 * MB && used <= 3 * MB + 6 * 64 * KB, `past the day by at most what each gateway waits to write (${used} bytes)`);
+  // Each gateway may be a write behind (64 KB waiting, 64 KB being written) and a piece past it when it sees, plus what
+  // arrives while its write is under way (D-127): 16 KB every 2 ms for each of the two, during the slowest write.
+  const duringWrites = 2 * 8 * KB * Math.ceil(slowestWriteMs);
+  assert.ok(
+    used > 3 * MB && used <= 3 * MB + 6 * 64 * KB + duringWrites,
+    `past the day by at most what each gateway waits to write (${used} bytes; slowest write ${Math.round(slowestWriteMs)} ms)`
+  );
 });
 
 test("a gateway writes its home's day once however many connections it opens: one statement, not one a connection", async (context) => {

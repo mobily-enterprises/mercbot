@@ -1,5 +1,5 @@
 import { currentPerson, currentWork } from "@local/account/meter";
-import { idList } from "./searchSchemas.js";
+import { idPairs } from "./searchSchemas.js";
 
 // Notifications waiting to be sent (D-133). A chat's new messages queue one for each of its people they may concern,
 // sent a little later only if the message is still unread then, so nobody is told about a chat they're reading.
@@ -7,15 +7,19 @@ import { idList } from "./searchSchemas.js";
 // takes all of theirs for that chat and sends one, about the newest message, with the most pressing kind.
 
 /** A notification waits this long, then goes if its message is still unread. */
-export const PUSH_DELAY_MS = 15 * 1000;
+const PUSH_DELAY_MS = 15 * 1000;
 /** The kinds of message that wait for the person: a question, a draft or email to approve, an account to connect. */
 const WAITING_KINDS = new Set(["choice", "draft", "email", "connect", "approval"]);
 
+/** What the sweep reads of a waiting notification. */
+const FIELDS = Object.freeze(["userId", "chatId", "kind", "messageId", "sendAfter"]);
+/**
+ * The most of the due people's own notifications for their chats one sweep folds in (a claim's own limit): any past it
+ * wait for the next sweep, which sends them as one more notification.
+ */
+const FOLDED_AT_MOST = 1000;
 /** How pressing each kind is: the one a person's folded notifications for a chat go as. */
 const PRESSING = Object.freeze({ waiting: 3, results: 2, messages: 1 });
-/** The most of a person's notifications for one chat the sweep folds into one at a time. */
-const FOLDED_AT_MOST = 1000;
-
 /** The search entries the queue adds: the notifications whose time has come, by the database's clock, and by people and chats. */
 export const PUSH_QUEUE_SEARCH = Object.freeze({
   due: {
@@ -24,8 +28,8 @@ export const PUSH_QUEUE_SEARCH = Object.freeze({
       if (due) query.whereRaw("?? <= now()", [column("sendAfter")]);
     }
   },
-  userIds: idList("userId"),
-  chatIds: idList("chatId")
+  // Exact people's notifications for exact chats, each "<user id>:<chat id>".
+  pairs: idPairs("userId", "chatId")
 });
 
 /**
@@ -90,28 +94,29 @@ export function createPushQueueRepository({ resources, systemContext, now = () =
    * Takes the notifications whose time has come, at most `limit` people's chats, each once across servers: with each,
    * the rest of that person's for that chat, due or not, folded into one about the newest message, as its most
    * pressing kind. Claimed and removed in one short transaction, so sending them (outside it) never holds a lock.
+   * Answers them and how many due rows it claimed: as many as `limit` means more may be due.
    * @param {number} limit
+   * @returns {Promise<{ due: Array<Record<string, any>>, claimed: number }>}
    */
   async function takeDue(limit) {
     const options = { context: systemContext("send people the notifications whose time has come, in every home") };
     return pushQueue.withTransaction(options, async (txOptions) => {
-      const due = await pushQueue.claim({ filters: { due: true }, sort: ["sendAfter"], take: limit }, txOptions);
-      if (!due.length) return [];
-      const ids = (field) => [...new Set(due.map((row) => String(row[field])))];
-      const along = await pushQueue.claim({ filters: { userIds: ids("userId"), chatIds: ids("chatId") }, sort: ["id"], take: FOLDED_AT_MOST }, txOptions);
+      // Each answers its hidden home too: the link its notification opens names it.
+      const due = await pushQueue.claim({ filters: { due: true }, sort: ["sendAfter"], take: limit }, { ...txOptions, fields: [...FIELDS, "workspaceId"] });
+      if (!due.length) return { due: [], claimed: 0 };
       const pairOf = (row) => `${row.userId}:${row.chatId}`;
       const folded = new Map(due.map((row) => [pairOf(row), { ...row }]));
+      // Every one of those people's notifications for those chats, due or not: theirs alone, however many others wait.
+      const along = await pushQueue.claim({ filters: { pairs: [...folded.keys()] }, sort: ["id"], take: FOLDED_AT_MOST }, { ...txOptions, fields: FIELDS });
       const taken = new Set(due.map((row) => String(row.id)));
-      // Another person's, or another chat's, read alongside: theirs stays for its own time.
       for (const row of along) {
         const note = folded.get(pairOf(row));
-        if (!note) continue;
         taken.add(String(row.id));
         if (Number(row.messageId) > Number(note.messageId)) note.messageId = row.messageId;
         if (PRESSING[row.kind] > PRESSING[note.kind]) note.kind = row.kind;
       }
       await pushQueue.deleteWhere({ id: [...taken] }, { ...txOptions, returning: "count" });
-      return [...folded.values()];
+      return { due: [...folded.values()], claimed: due.length };
     });
   }
 
@@ -126,15 +131,19 @@ export function createPushQueueRepository({ resources, systemContext, now = () =
     const options = { context: systemContext("read what people's due notifications are about, in every home") };
     const ids = (field) => [...new Set(due.map((row) => String(row[field])))];
     const [places, chats, said, counts] = await Promise.all([
-      chatPeople.queryAll({ filters: { conversationIds: ids("chatId"), userIds: ids("userId") }, fields: ["conversationId", "userId", "readUpTo", "unread", "muted"] }, options),
+      chatPeople.queryAll({ filters: { places: due.map((row) => `${row.chatId}:${row.userId}`) }, fields: ["conversationId", "userId", "readUpTo", "unread", "muted"] }, options),
       conversations.queryAll({ filters: { id: ids("chatId") }, fields: ["title", "directBotId", "directUserId", "directPersonId"] }, options),
       messages.queryAll({ filters: { id: ids("messageId") }, fields: ["kind", "role", "body", "authorBotId", "authorUserId"] }, options),
-      chatPeople.aggregate({ groupBy: ["userId"], measures: { unread: { count: "*" } }, filters: { userIds: ids("userId"), unread: true } }, options)
+      chatPeople.aggregate(
+        { groupBy: ["userId", "workspaceId"], measures: { unread: { count: "*" } }, filters: { userIds: ids("userId"), unread: true } },
+        options
+      )
     ]);
     const placeOf = new Map(places.map((place) => [`${place.conversationId}:${place.userId}`, place]));
     const chatOf = new Map(chats.map((chat) => [String(chat.id), chat]));
     const messageOf = new Map(said.map((message) => [String(message.id), message]));
-    const unreadOf = new Map(counts.map((row) => [String(row.userId), Number(row.unread) || 0]));
+    // A person's unread chats in the notification's home, as the open app counts them for the icon.
+    const unreadOf = new Map(counts.map((row) => [`${row.userId}:${row.workspaceId}`, Number(row.unread) || 0]));
     return due.flatMap((row) => {
       const place = placeOf.get(`${row.chatId}:${row.userId}`);
       const chat = chatOf.get(String(row.chatId));
@@ -142,7 +151,7 @@ export function createPushQueueRepository({ resources, systemContext, now = () =
       if (!place || !chat || !message || place.muted) return [];
       // Read since: the chat no longer unread for them (read to its end), or read past the message.
       if (!place.unread || Number(place.readUpTo || 0) >= Number(row.messageId)) return [];
-      return [{ ...row, chat, message, unread: unreadOf.get(String(row.userId)) || 0 }];
+      return [{ ...row, chat, message, unread: unreadOf.get(`${row.userId}:${row.workspaceId}`) || 0 }];
     });
   }
 

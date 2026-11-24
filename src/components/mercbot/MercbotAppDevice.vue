@@ -3,8 +3,9 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue"
 import { useRoute, useRouter } from "vue-router";
 import iconUrl from "../../../favicon.svg";
 import { accountApi } from "./accountApi.js";
-import { useAppInstall } from "./appInstall.js";
+import { notificationsOutcome, useAppInstall } from "./appInstall.js";
 import { chatTitle } from "./chatView.js";
+import { readShare, waitForChat } from "./sharedIn.js";
 
 // Mercbot as an app on this device (D-133): the one-time banner on phones offering to install it, the iPhone and iPad
 // guide (Share → Add to Home Screen), the installed app's shortcuts (?go=new-chat), what another app shares into
@@ -27,7 +28,6 @@ const route = useRoute();
 const router = useRouter();
 const app = useAppInstall();
 
-const SHARED_CACHE = "mercbot-shared";
 const OFFERED_KEY = "mercbot.notificationsOffered";
 const FRESH_MS = 2 * 60 * 1000;
 const BANNER_AFTER_MS = 8000;
@@ -68,29 +68,23 @@ watch(() => route.query.go, (go) => {
   const key = typeof route.query.key === "string" ? route.query.key : "";
   dropGo();
   if (go === "new-chat") props.newChat();
-  if (go === "share" && /^[a-z0-9]{4,40}$/u.test(key)) takeShared(key).catch((error) => emit("failure", error));
+  if (go === "share" && /^[a-z0-9]{4,40}$/u.test(key)) {
+    takeShared(key).catch(() => emit("failure", said("What you shared couldn't be read. Share it again from the other app.")));
+  }
 }, { immediate: true });
 
-/** What the service worker kept for `key`: its words and files, read once and then removed. */
+/** A failure in the person's words, for the shell's message. */
+const said = (words) => Object.assign(new Error(words), { said: words });
+
+/** What another app shared under `key`: the chat picker opens with it, or the person hears it's gone. */
 async function takeShared(key) {
-  if (!("caches" in window)) return;
-  const cache = await caches.open(SHARED_CACHE);
-  const meta = await (await cache.match(`/shared/${key}/meta`))?.json();
-  if (!meta) return;
-  const files = [];
-  for (const [index, file] of (meta.files || []).entries()) {
-    const kept = await cache.match(`/shared/${key}/${index}`);
-    if (kept) files.push(new File([await kept.blob()], file.name || `Shared ${index + 1}`, { type: file.type || "" }));
+  const share = await readShare(key);
+  if (share.gone) {
+    emit("failure", said("What you shared is no longer here. Share it again from the other app."));
+    return;
   }
-  for (const request of await cache.keys()) {
-    if (request.url.includes(`/shared/${key}/`)) await cache.delete(request);
-  }
-  const words = [meta.title, meta.text, meta.url].map((part) => String(part || "").trim()).filter(Boolean);
-  // A link often comes in its text as well: it's said once.
-  const text = [...new Set(words)].filter((part, _index, all) => !all.some((other) => other !== part && other.includes(part))).join("\n");
-  if (!text && !files.length) return;
   sharedFilter.value = "";
-  shared.value = { text, files };
+  shared.value = share;
 }
 const sharedSummary = computed(() => {
   if (!shared.value) return "";
@@ -110,9 +104,11 @@ async function sendTo(chatId) {
   const payload = shared.value;
   shared.value = null;
   props.selectChat(chatId);
-  // The chat opens, then its message box takes what was shared.
-  for (let tries = 0; tries < 40 && props.openChatId() !== chatId; tries += 1) {
-    await new Promise((resolve) => window.setTimeout(resolve, 50));
+  // The chat opens, then its message box takes what was shared; never another chat's.
+  if (!(await waitForChat(props.openChatId, chatId))) {
+    shared.value = payload;
+    emit("failure", said("That chat didn't open. Choose it again."));
+    return;
   }
   await nextTick();
   props.attach(payload);
@@ -158,7 +154,8 @@ async function turnOnNotifications() {
   offerBusy.value = true;
   rememberOffer();
   try {
-    await app.allowNotifications(offerKey);
+    const words = notificationsOutcome(await app.allowNotifications(offerKey));
+    if (words) emit("failure", said(words));
   } catch (error) {
     emit("failure", error);
   } finally {

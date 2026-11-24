@@ -162,6 +162,16 @@ test("opening a notification goes to its chat in the window already open, even o
   assert.deepEqual(closed.opened, [`${ORIGIN}/w/home?chat=3`]);
 });
 
+test("a notification opens only Mercbot's own pages: an address on another site opens Mercbot's start instead", async () => {
+  const navigated = [];
+  const window = { url: `${ORIGIN}/w/home`, focus: async () => {}, navigate: async (url) => navigated.push(url) };
+  const worker = startWorker({ windows: [window] });
+  for (const url of ["https://evil.example/sign-in", "//evil.example/x", "javascript:alert(1)"]) {
+    await worker.fire("notificationclick", { notification: { data: { url }, close: () => {} } });
+  }
+  assert.deepEqual(navigated, [`${ORIGIN}/`, `${ORIGIN}/`, `${ORIGIN}/`]);
+});
+
 test("what another app shares is kept for the app to read, which opens to choose the chat", async () => {
   const worker = startWorker();
   const form = new FormData();

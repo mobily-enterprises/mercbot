@@ -3,7 +3,7 @@ import { computed, onMounted, ref } from "vue";
 import MercbotSettingsSelect from "./MercbotSettingsSelect.vue";
 import MercbotSwitch from "./MercbotSwitch.vue";
 import { accountApi, saidByServer } from "./accountApi.js";
-import { useAppInstall } from "./appInstall.js";
+import { notificationsOutcome, useAppInstall } from "./appInstall.js";
 import { currentTimeZone } from "./shellPreferences.js";
 
 // Settings → General → Notifications (D-133): this device allowed or not, which news notifies the person (a routine's
@@ -19,7 +19,7 @@ const thisEndpoint = ref("");
 const busy = ref(false);
 // What went wrong last, in the person's words, under the card.
 const problem = ref("");
-const permission = ref("Notification" in window ? Notification.permission : "unsupported");
+const permission = ref(globalThis.Notification ? globalThis.Notification.permission : "unsupported");
 
 async function load() {
   loadFailed.value = false;
@@ -55,7 +55,7 @@ async function allow() {
     const outcome = await app.allowNotifications(push.value.publicKey);
     permission.value = Notification.permission;
     if (outcome === "allowed") emit("notify", "Notifications are on for this device");
-    if (outcome === "unavailable") problem.value = "This browser's notification service didn't answer. Try again in a moment, or in another browser.";
+    problem.value = notificationsOutcome(outcome);
     await load();
   } catch (error) {
     problem.value = saidByServer(error, "Notifications couldn't be turned on. Try again.");
@@ -143,8 +143,8 @@ const added = (device) => new Date(device.createdAt).toLocaleDateString(undefine
       <span class="mb-set-row__text"><span class="mb-set-row__description">Notification settings didn't load.</span></span>
       <button type="button" class="mb-set-pill" @click="load">Try again</button>
     </div>
-    <div v-else-if="!push" class="mb-set-row">
-      <span class="mb-set-row__text"><span class="mb-set-row__description">Loading…</span></span>
+    <div v-else-if="!push" aria-busy="true" aria-label="Loading notification settings">
+      <v-skeleton-loader v-for="row in 4" :key="row" type="list-item-two-line" class="mb-set-row" />
     </div>
     <template v-else>
       <div class="mb-set-row">

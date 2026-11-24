@@ -18,8 +18,8 @@ async function standInPush(page: Page, permission: "default" | "granted" = "defa
     };
     let subscription: Record<string, unknown> | null = null;
     const make = () => ({
-      endpoint: "https://push.example.test/send/e2e-device",
-      toJSON: () => ({ endpoint: "https://push.example.test/send/e2e-device", keys: { p256dh: `B${"x".repeat(86)}`, auth: "abcdefghijklmnop" } }),
+      endpoint: "https://fcm.googleapis.com/fcm/send/e2e-device",
+      toJSON: () => ({ endpoint: "https://fcm.googleapis.com/fcm/send/e2e-device", keys: { p256dh: `B${"x".repeat(86)}`, auth: "abcdefghijklmnop" } }),
       unsubscribe: async () => {
         subscription = null;
         return true;
@@ -152,7 +152,13 @@ test.describe("notifications", () => {
     await on.click();
     await expect(on).toHaveAttribute("aria-checked", "true");
     await expect(settings.getByText("· This device")).toBeVisible();
-    expect((await api.get("/push")).devices.map((device: { endpoint: string }) => device.endpoint)).toEqual(["https://push.example.test/send/e2e-device"]);
+    // From the keyboard, a switch shows a ring of its own, which reads in light and dark alike.
+    await page.keyboard.press("Tab");
+    await page.keyboard.press("Shift+Tab");
+    await expect(on).toBeFocused();
+    await expect(on).toHaveCSS("outline-style", "solid");
+    await expect(on).toHaveCSS("outline-width", "2px");
+    expect((await api.get("/push")).devices.map((device: { endpoint: string }) => device.endpoint)).toEqual(["https://fcm.googleapis.com/fcm/send/e2e-device"]);
 
     await settings.getByRole("button", { name: "Send a test notification" }).click();
     await expect.poll(() => page.evaluate(() => (window as unknown as { shown: Array<{ title: string, body: string }> }).shown.map((note) => [note.title, note.body])))

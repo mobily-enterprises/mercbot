@@ -10,6 +10,7 @@ import { PHOTO_LIMIT } from "./vaultPhoto.js";
 // person belongs to that home and fills request.workspace before the handler runs.
 
 const IN_HOME = Object.freeze({ auth: "required", contextPolicy: "required", visibility: checkRouteVisibility("workspace_user") });
+const SIGNED_IN = Object.freeze({ auth: "required", visibility: checkRouteVisibility("user") });
 
 /**
  * A route handler that sends what `work` answers for the request.
@@ -107,4 +108,6 @@ export function registerRoutes(http, { account, spending, uploads, track, media,
   http.router.register("PUT", "/api/w/:workspaceSlug/push/settings", IN_HOME, answering((request) => push.saveSettings(me(request), request.body || {})));
   http.router.register("POST", "/api/w/:workspaceSlug/push/devices", IN_HOME, answering((request) => push.addDevice(me(request), request.body || {})));
   http.router.register("DELETE", "/api/w/:workspaceSlug/push/devices/:deviceId", IN_HOME, answering((request) => push.removeDevice(me(request), request.params.deviceId)));
+  // A browser signing out forgets its own device by its push address, from any page, in a home or not.
+  http.router.register("POST", "/api/push/devices/forget", SIGNED_IN, answering((request) => push.forgetDevice(me(request), request.body?.endpoint)));
 }

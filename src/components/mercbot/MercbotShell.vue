@@ -681,7 +681,7 @@ watch(() => currentHomeEntry.value?.slug, () => loadBuilderBot(), { immediate: t
       @edit-routine="settingsOpen = false; editRoutine($event)"
     />
     <MercbotAboutDialog v-model="aboutOpen" @failure="reportFailure('Couldn\'t copy to the clipboard.', $event)" />
-    <MercbotAppDevice :new-chat="ACTIONS.newChat" :chats="chats" :me="me" :select-chat="selectChat" :open-chat-id="currentChatId" :attach="(shared) => chatPanel?.addShared(shared)" :messages="currentMessages" @failure="reportFailure('That didn\'t work. Try again.', $event)" />
+    <MercbotAppDevice :new-chat="ACTIONS.newChat" :chats="chats" :me="me" :select-chat="selectChat" :open-chat-id="currentChatId" :attach="(shared) => chatPanel?.addShared(shared)" :messages="currentMessages" @failure="reportFailure($event?.said || 'That didn\'t work. Try again.', $event)" />
     <MercbotSearchPalette
       v-model="paletteOpen"
       :chats="chats.filter((chat) => !chat.visiting)"

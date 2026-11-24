@@ -1,7 +1,20 @@
 // The filters the bots' repositories read by beyond each table's own search fields (records/tableResources.js): id
 // lists, id bounds and the few values kept inside a message body. Server-only: they go in BotRecordsFeature's owns.
 
-export const idList = (actualField) => Object.freeze({ type: "array", actualField, filterOperator: "in", items: { type: "id" } });
+const idList = (actualField) => Object.freeze({ type: "array", actualField, filterOperator: "in", items: { type: "id" } });
+/**
+ * Exact pairs of two id fields, each `"<first>:<second>"` (D-133's notifications: a person's place in a chat, or their
+ * notifications for it), so a read of several people in several chats gets those pairs and not every combination.
+ */
+export const idPairs = (first, second) => Object.freeze({
+  type: "array",
+  items: { type: "string", maxLength: 50 },
+  applyFilter(query, pairs, { column }) {
+    const valid = pairs.map((pair) => String(pair).split(":")).filter((ids) => ids.length === 2 && ids.every((id) => /^\d+$/u.test(id)));
+    if (!valid.length) query.whereRaw("false");
+    else query.whereIn([column(first), column(second)], valid);
+  }
+});
 const idBound = (filterOperator) => Object.freeze({ type: "id", actualField: "id", filterOperator });
 
 /** A value kept as text in the message body (a JSON object): `compare` writes the comparison, its key literal in the SQL. */
@@ -45,6 +58,8 @@ export const CHAT_SEARCH = Object.freeze({
 export const CHAT_PERSON_SEARCH = Object.freeze({
   conversationIds: idList("conversationId"),
   userIds: idList("userId"),
+  // Exact places, each "<chat id>:<user id>".
+  places: idPairs("conversationId", "userId"),
   // Everyone in the chat but this person: who a new message marks unread.
   notUserId: Object.freeze({
     type: "id",

@@ -40,6 +40,11 @@ const model = defineModel({ type: Boolean, default: false });
   background: rgb(var(--v-theme-link));
 }
 
+.mb-toggle:focus-visible {
+  outline: 2px solid rgb(var(--v-theme-secondary));
+  outline-offset: 2px;
+}
+
 .mb-toggle:disabled {
   opacity: 0.5;
   cursor: default;

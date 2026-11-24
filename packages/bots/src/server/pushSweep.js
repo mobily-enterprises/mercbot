@@ -7,8 +7,9 @@ import { inQuietHours } from "@local/account/push";
 
 const EVERY_MS = 5000;
 const BATCH = 100;
+// A sweep takes at most this many batches; what's left waits 5 seconds for the next.
+const BATCHES_A_SWEEP = 20;
 const TEXT_CHARS = 160;
-const SLUGS_FOR_MS = 10 * 60 * 1000;
 /** What a notification says when its text isn't shown, by its kind. */
 const WITHOUT_TEXT = Object.freeze({ results: "A routine finished", waiting: "Waiting for you", messages: "New message" });
 
@@ -23,49 +24,57 @@ export function noteText(message) {
 /**
  * @param {object} dependencies
  * @param {import("./types.js").BotRecords} dependencies.records
- * @param {{ findById: (id: string, options?: object) => Promise<{ slug: string } | null> }} dependencies.workspaces
+ * @param {{ listByIds: (ids: string[], options?: object) => Promise<Array<{ id: string, slug: string }>> }} dependencies.workspaces
  * @param {{ settingsOf: Function, send: Function, enabled: boolean }} dependencies.push the account's
  * @param {(reason: string) => object} dependencies.systemContext the bots' system context
  * @param {() => Date} [dependencies.now]
  */
 export function createPushSweep({ records, workspaces, push, systemContext, now = () => new Date() }) {
-  const slugs = new Map();
-
-  /** A home's address part, kept a while: the link a notification opens. */
-  async function slugOf(homeId) {
-    const kept = slugs.get(homeId);
-    if (kept && now().getTime() - kept.at < SLUGS_FOR_MS) return kept.slug;
-    const home = await workspaces.findById(String(homeId), { context: systemContext("read a home's address for its notifications") });
-    if (home?.slug) slugs.set(homeId, { slug: home.slug, at: now().getTime() });
-    return home?.slug || null;
+  /**
+   * One sweep: every notification due, a batch at a time, until a batch comes back short (at most BATCHES_A_SWEEP
+   * batches, the rest at the next sweep), so the queue never falls behind how fast it fills. Answers how many it sent.
+   */
+  async function sweepOnce() {
+    let sent = 0;
+    for (let batch = 0; batch < BATCHES_A_SWEEP; batch += 1) {
+      const { due, claimed } = await records.pushQueue.takeDue(BATCH);
+      sent += await sendBatch(due);
+      if (claimed < BATCH) break;
+    }
+    return sent;
   }
 
-  /** One sweep: answers how many notifications it sent. */
-  async function sweepOnce() {
-    const due = await records.pushQueue.takeDue(BATCH);
+  /** One batch of due notifications, sent as their people allow: answers how many went. */
+  async function sendBatch(due) {
     if (!due.length || !push.enabled) return 0;
     const pending = await records.pushQueue.stillUnread(due);
     if (!pending.length) return 0;
     const options = { context: systemContext("read the names of the bots and people notifications name, in every home") };
     const idsOf = (pick) => [...new Set(pending.flatMap(pick).filter((id) => id != null).map(String))];
     const botIds = idsOf((note) => [note.chat.directBotId, note.message.authorBotId]);
-    const personIds = idsOf((note) => [note.chat.directPersonId, note.message.authorUserId]);
-    const [bots, names, settings] = await Promise.all([
+    const personIds = idsOf((note) => [note.chat.directUserId, note.chat.directPersonId, note.message.authorUserId]);
+    const [bots, names, settings, homes] = await Promise.all([
       records.bots.byIds(botIds, options),
       records.chats.names(personIds, options),
-      push.settingsOf(pending.map((note) => note.userId))
+      push.settingsOf(pending.map((note) => note.userId)),
+      // The links notifications open name their home: every home of the batch, in one read.
+      workspaces.listByIds(idsOf((note) => [note.workspaceId]), { context: systemContext("read homes' addresses for their notifications") })
     ]);
     const botName = new Map(bots.map((bot) => [String(bot.id), bot.name]));
+    const slugOf = new Map(homes.map((home) => [String(home.id), home.slug]));
+    // Two people's direct chat is named after the other one: the pair is kept lower id first (directUserId).
+    const otherPerson = ({ chat, userId }) => (String(chat.directPersonId) === String(userId) ? chat.directUserId : chat.directPersonId);
     const at = now();
     const notes = [];
     for (const note of pending) {
       const mine = settings.get(String(note.userId));
       if (!mine?.[note.kind] || inQuietHours(mine, at)) continue;
-      const slug = await slugOf(String(note.workspaceId));
+      const slug = slugOf.get(String(note.workspaceId));
       if (!slug) continue;
       const { authorBotId, authorUserId } = note.message;
       const who = authorBotId != null ? botName.get(String(authorBotId)) : names.get(String(authorUserId));
-      const place = note.chat.title || botName.get(String(note.chat.directBotId)) || names.get(String(note.chat.directPersonId)) || "Mercbot";
+      const direct = note.chat.directPersonId != null ? names.get(String(otherPerson(note))) : null;
+      const place = note.chat.title || botName.get(String(note.chat.directBotId)) || direct || "Mercbot";
       const title = note.chat.title && who ? `${who} in ${place}` : place;
       const text = mine.showText ? noteText(note.message) : "";
       notes.push({

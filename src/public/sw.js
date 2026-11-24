@@ -5,6 +5,7 @@
 
 const OFFLINE_CACHE = "mercbot-offline-v1";
 const ASSETS_CACHE = "mercbot-assets";
+// The page reads shares from the same cache (src/components/mercbot/sharedIn.js): the two names stay alike.
 const SHARED_CACHE = "mercbot-shared";
 const OFFLINE_PAGE = "/offline.html";
 // The offline page and what it shows, kept when the worker installs.
@@ -116,7 +117,9 @@ self.addEventListener("push", (event) => {
 // readable-check: allow released-listeners - shared resource: the service worker's notificationclick events, for its whole life
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const url = new URL(event.notification.data?.url || "/", self.location.origin).href;
+  // Only Mercbot's own pages: an address on another site, or any other scheme, opens Mercbot's start instead.
+  const asked = new URL(event.notification.data?.url || "/", self.location.origin);
+  const url = asked.origin === self.location.origin ? asked.href : new URL("/", self.location.origin).href;
   event.waitUntil((async () => {
     const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
     const open = windows.find((client) => new URL(client.url).origin === self.location.origin);

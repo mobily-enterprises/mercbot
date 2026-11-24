@@ -60,6 +60,8 @@ export const accountApi = {
   savePushSettings: (changes) => client.request(homePath("/push/settings"), { method: "PUT", body: changes }),
   addPushDevice: (subscription) => client.request(homePath("/push/devices"), { method: "POST", body: subscription }),
   removePushDevice: (deviceId) => client.request(homePath(`/push/devices/${encodeURIComponent(deviceId)}`), { method: "DELETE" }),
+  // A browser's own device, by its push address, from any page (signing out): { forgotten }.
+  forgetPushDevice: (endpoint) => client.request("/api/push/devices/forget", { method: "POST", body: { endpoint } }),
   spending: (range) => client.request(ranged("/spending", range)),
   /** The address of a report's CSV, which the browser downloads itself. */
   spendingExportUrl: (range) => ranged("/spending/export", range),

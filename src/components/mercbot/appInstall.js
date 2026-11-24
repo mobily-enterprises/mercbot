@@ -71,6 +71,18 @@ function keyBytes(publicKey) {
   return Uint8Array.from(raw, (char) => char.charCodeAt(0));
 }
 
+/** Whether a subscription's key (an ArrayBuffer, or none) is `key`. */
+function sameKey(kept, key) {
+  if (!kept) return false;
+  const held = new Uint8Array(kept);
+  return held.length === key.length && held.every((byte, index) => byte === key[index]);
+}
+
+/** What turning notifications on tells the person: why it didn't happen, or nothing (allowed, or they said no). */
+export function notificationsOutcome(outcome) {
+  return outcome === "unavailable" ? "This browser's notification service didn't answer. Try again in a moment, or in another browser." : "";
+}
+
 /** The app's install offer and this device's notifications, for the account menu, the banner and Settings. */
 export function useAppInstall() {
   // Installable here: not installed yet, and the browser offers it (Chrome, Edge) or the person adds it (iPhone, iPad).
@@ -118,8 +130,13 @@ export function useAppInstall() {
     const permission = Notification.permission === "granted" ? "granted" : await Notification.requestPermission();
     if (permission !== "granted") return "refused";
     // The browser's push service may not answer (a browser without one never does): past a while, it's unavailable.
-    const subscribing = registration.pushManager.getSubscription().then((kept) => kept
-      || registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(publicKey) }));
+    // A subscription made with another server key (the server's secret changed) can never be sent to: it's replaced.
+    const key = keyBytes(publicKey);
+    const subscribing = registration.pushManager.getSubscription().then(async (kept) => {
+      if (kept && sameKey(kept.options?.applicationServerKey, key)) return kept;
+      if (kept) await kept.unsubscribe();
+      return registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key });
+    });
     const subscription = await Promise.race([subscribing, new Promise((resolve) => setTimeout(() => resolve(null), SUBSCRIBE_MS))]);
     if (!subscription) return "unavailable";
     await accountApi.addPushDevice(asDevice(subscription));

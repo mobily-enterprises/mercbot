@@ -4468,7 +4468,11 @@ news, and takes what other apps share into it.
   one person, whoever allowed it last; at most 20 a person, the oldest going) receives a chat's news while Mercbot is
   closed. The server's keys come from `MERCBOT_PUSH_SECRET` by HKDF, the same on every server; without it push is off
   and Settings says so. Only `APP_ENV=production` sends; development, test and staging log each one. A device the push
-  service says is gone (404, 410), or that fails 5 times in a row, is forgotten.
+  service says is gone (404, 410), or that fails 5 times in a row, is forgotten, and so is one a signed-in browser asks
+  the server to forget by its push address (as it signs out). Its address must be a known push
+  service's (FCM, Firefox's, Safari's, WNS), as the server POSTs there: nothing inside its own network or anyone's
+  server. A device another person allowed moves to someone else only with its own keys (the same browser), never by its
+  address alone.
 - **Who hears of what:** a chat's new messages queue a notification (`push_queue`, one insert as they're written) for
   each person they concern: in a chat of one person, or two people's direct chat, the other person; in a room, the
   people a message mentions and the person a bot's work is for. Never the author, nor anyone who muted the chat. Its
