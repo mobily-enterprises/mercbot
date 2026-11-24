@@ -53,7 +53,10 @@ const OTHER_ENTRIES = [
     name: "Google app",
     purpose: "Lets people connect Gmail, Google Calendar, Google Contacts and Google Drive.",
     settings: [{ name: "GOOGLE_CLIENT_ID" }, { name: "GOOGLE_CLIENT_SECRET" }],
-    missing: "Google's apps can't be connected."
+    missing: "Google's apps can't be connected.",
+    // A home's files kept in Google Drive are mounted on the server that runs its computer, which renews the Drive's
+    // key itself (D-80, its drive-token route).
+    computers: "A home's files kept in Google Drive can't be opened on this server's computers once the Drive's key runs out."
   },
   {
     name: "Microsoft app",
