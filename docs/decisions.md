@@ -4460,7 +4460,10 @@ news, and takes what other apps share into it.
 - **The service worker** (`src/public/sw.js`, `/sw.js`, scope `/`) keeps only the offline page and the built files
   Vite names by their content: never a page, the API, an event stream or an upload. A page that can't load offline
   shows `offline.html` ("You're offline", **Try again**, and on its own once back online); the API, public apps (`/a`),
-  pages (`/p`) and the Console never fall back. A new release takes over as it loads.
+  pages (`/p`) and the Console never fall back. Back online, the page's first loads can still fail (the page's network
+  and the worker's come back a moment apart), so the offline page keeps trying the page it stands in for, one loop at a
+  time, 1 s doubling to 30 s apart, and reloads once it answers; **Try again** tries at once in that loop. Its script
+  and icon come from the worker's copy offline. A new release takes over as it loads.
 - **Installing** (`src/components/mercbot/appInstall.js`): the browser's install offer is kept from the moment it comes.
   **Install app** in the account menu shows the browser's own sheet, or on an iPhone or iPad the Share → Add to Home
   Screen guide; a phone is offered it once, at the top, a few seconds in (`MercbotAppDevice.vue`). Nothing once installed.
