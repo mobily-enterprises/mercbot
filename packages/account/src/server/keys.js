@@ -5,10 +5,10 @@ import { serverRoleOf } from "./serverRole.js";
  * One key or account a copy of Mercbot can be given: what it's for, the settings that give it (an optional one doesn't
  * decide whether it's on), what's off without it, and, where its settings alone don't say, whether it's on (`ready`).
  * Mercbot starts without any of them: each turns its feature on when it's there, and the server says at start what's
- * off (missingKeyLines). `computers` is what's off without it on a computers server (D-131), for the keys that role
- * uses; a key without it is a web server's only.
+ * off (missingKeyLines). Every key decides whether a computers server uses it (D-131): `computers` is what's off
+ * without it there, or null for a key only web servers use.
  * @typedef {{ name: string, purpose: string, settings: ReadonlyArray<{ name: string, optional?: boolean }>, missing: string,
- *   computers?: string, ready?: (env: import("@jskit-ai/kernel/server/types").RuntimeEnv) => boolean }} KeyEntry
+ *   computers: string | null, ready?: (env: import("@jskit-ai/kernel/server/types").RuntimeEnv) => boolean }} KeyEntry
  */
 
 // What bots can't do without the premium or the economy AI (providers/index.js, botsAiOff).
@@ -22,8 +22,9 @@ const AI_ENTRIES = Object.values(AI_KINDS).map((kind) => ({
   missing: kind.id === "images"
     ? "Bots can't make or edit pictures, and say pictures aren't set up on this copy. The Vault can't read contact details from photos."
     : BOTS_OFF,
-  // A computers server runs its computers' browser steps (stagehandModel.js), on the kind WORK.browser names.
-  ...(kind.id === WORK.browser.kind ? { computers: "The bots' browser steps on this server's computers can't run." } : {}),
+  // A computers server runs its computers' browser steps (stagehandModel.js), on the kind WORK.browser names, and no
+  // other kind.
+  computers: kind.id === WORK.browser.kind ? "The bots' browser steps on this server's computers can't run." : null,
   // On the stand-in model (D-83) a kind needs no key.
   ready: (env) => aiReady(env, kind.id)
 }));
@@ -34,7 +35,8 @@ const OTHER_ENTRIES = [
     name: "Public address",
     purpose: "Every link Mercbot sends or shows: connected apps' return address and websites.",
     settings: [{ name: "APP_PUBLIC_URL" }],
-    missing: "Links point at http://localhost, so they only work on this computer."
+    missing: "Links point at http://localhost, so they only work on this computer.",
+    computers: null
   },
   {
     name: "Vault key",
@@ -47,7 +49,8 @@ const OTHER_ENTRIES = [
     name: "Notifications key",
     purpose: "Signs the notifications Mercbot sends to people's phones and browsers (D-133): any long random value.",
     settings: [{ name: "MERCBOT_PUSH_SECRET" }],
-    missing: "Nobody can turn notifications on: Settings says they aren't set up on this copy."
+    missing: "Nobody can turn notifications on: Settings says they aren't set up on this copy.",
+    computers: null
   },
   {
     name: "Google app",
@@ -62,19 +65,22 @@ const OTHER_ENTRIES = [
     name: "Microsoft app",
     purpose: "Lets people connect Outlook mail, calendar and contacts, and OneDrive.",
     settings: [{ name: "MICROSOFT_CLIENT_ID" }, { name: "MICROSOFT_CLIENT_SECRET" }],
-    missing: "Microsoft's apps can't be connected."
+    missing: "Microsoft's apps can't be connected.",
+    computers: null
   },
   {
     name: "GitHub app",
     purpose: "Lets people connect GitHub.",
     settings: [{ name: "GITHUB_CLIENT_ID" }, { name: "GITHUB_CLIENT_SECRET" }],
-    missing: "GitHub can't be connected."
+    missing: "GitHub can't be connected.",
+    computers: null
   },
   {
     name: "GitHub App",
     purpose: "Lets bots' commands push to the GitHub repositories each person allows, through the copy's GitHub App (whose client is the GitHub app's).",
     settings: [{ name: "GITHUB_APP_ID" }, { name: "GITHUB_APP_SLUG" }, { name: "GITHUB_APP_PRIVATE_KEY" }],
-    missing: "Bots' commands can't sign in to GitHub, so they can't push; GitHub connects for reading only."
+    missing: "Bots' commands can't sign in to GitHub, so they can't push; GitHub connects for reading only.",
+    computers: null
   },
   {
     name: "Bots' file storage",
@@ -96,7 +102,8 @@ const OTHER_ENTRIES = [
     name: "Another Mercbot to link to",
     purpose: "Lets a copy without its own apps link to another Mercbot and use its connections.",
     settings: [{ name: "MERCBOT_HUB_URL" }],
-    missing: "Linking to another Mercbot is off."
+    missing: "Linking to another Mercbot is off.",
+    computers: null
   }
 ];
 
