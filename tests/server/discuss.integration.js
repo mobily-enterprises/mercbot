@@ -374,6 +374,11 @@ test("Stop during a turn ends it at the round's next heartbeat, which renews the
     const end = (await cardOf(card.id)).leaseUntil;
     if (end !== ends.at(-1)) ends.push(end);
   }
+  if (talkedOut) {
+    // The round goes on to Bo, whose turn would talk another minute: stopped first, the test fails here, by its name.
+    await chat.stopDiscussion(kitchen, card.id, as(kim));
+    await drain();
+  }
   assert.equal(talkedOut, false, `Ada talked out before three renewals of the lease (its ends: ${ends.join(", ")})`);
   const movedOn = ends.every((end, index) => index === 0 || Date.parse(end) > Date.parse(ends[index - 1]));
   assert.ok(movedOn, `each renewal moves it on: ${ends.join(", ")}`);
