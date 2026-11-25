@@ -73,15 +73,17 @@ test("a sandbox given a folder at a mount point its toolbox lacks starts: the se
 const NO_UNWRITABLE = process.getuid?.() === 0
   ? "root may write in any folder, so no toolbox here is one this process can't write"
   : false;
-test("where the server can't make the point (a toolbox it may not write in), the sandbox is refused naming the fix, and runsc never runs", {
+test("where the server can't make the point (a toolbox it may not write in), runsc still runs, as gVisor makes it where its user may write", {
   skip: NO_UNWRITABLE
 }, async (context) => {
+  // A host whose runsc runs as a user that may write in a shared toolbox root made by root (a test host's
+  // /opt/mercbot-tools/toolbox) starts such a sandbox as it always did: the server leaves the point to gVisor. Here
+  // runsc's user can't write there either, so gVisor's own refusal is what comes back.
   const place = await world(context);
   await chmod(place.toolbox, 0o555);
-  await assert.rejects(runWithDb(place), (error) => {
-    assert.match(error.message, /lacks \/files\/db/u);
-    assert.ok(error.message.includes(`node scripts/toolbox-mount-points.mjs ${place.toolbox}`), error.message);
-    return true;
-  });
-  assert.equal(await stat(place.runs).then(() => true, () => false), false, "runsc never ran");
+  const { exitCode, output } = await runWithDb(place);
+  assert.equal(await stat(place.runs).then(() => true, () => false), true, "runsc ran");
+  assert.notEqual(exitCode, 0);
+  assert.match(output, /cannot create sandbox/u);
+  assert.equal(await stat(path.join(place.toolbox, "files", "db")).then(() => true, () => false), false, "the point is still missing");
 });
