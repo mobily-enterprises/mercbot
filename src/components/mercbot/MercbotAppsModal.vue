@@ -93,12 +93,13 @@ const showPlugins = (list) => {
 
 async function load() {
   // The screen stays usable with the list it last had while this read is on its way, so an answer that came
-  // meanwhile (Connect's, a sign-in's, a switch's) is newer than this read and stays.
-  const shown = plugins.value;
+  // meanwhile (Connect's, a sign-in's, a switch's) or a skill saved or deleted meanwhile is newer than this read and
+  // stays.
+  const shown = { plugins: plugins.value, skills: skills.value };
   try {
     const result = await pluginsApi.list();
-    if (plugins.value === shown) plugins.value = result.plugins;
-    skills.value = result.skills;
+    if (plugins.value === shown.plugins) plugins.value = result.plugins;
+    if (skills.value === shown.skills) skills.value = result.skills;
     pasteSignIn.value = Boolean(result.pasteSignIn);
     managesHome.value = Boolean(result.managesHome);
   } catch (error) {

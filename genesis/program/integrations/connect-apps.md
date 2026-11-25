@@ -186,6 +186,9 @@ for everyone's bots in every chat: 403 otherwise).
   ("1 connector, 2 skills"), and six apps before "Show all N plugins"; a row opens the app, and starts no sign-in.
 - Private skills follow it, with "Open a skill to change its name, description or instructions." once there is one. Skills
   (the shell's, `openSkills`) opens the modal on this page (`startPage: "manage"`) scrolled to them.
+- Opened again, the modal reads the list while it shows the one it had, so it's usable at once (`load`). What changed
+  meanwhile is newer than that read and stays when it lands: the apps an answer gave (Request's, Connect's, a
+  sign-in's, a switch's), and the private skills once one is saved or deleted (`tests/e2e/connector.spec.ts`).
 
 **Sign-in pages** (`signInPage.js`, D-110): a title and a sentence, then one main button and a small **Back to
 Mercbot** (the way back of a same-tab sign-in, else `/`).
