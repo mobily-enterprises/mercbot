@@ -6,9 +6,10 @@
  * @param {Record<string, import("@jskit-ai/resource-runtime/server/types").ResourceHandle>} resources the apps
  *   feature's handles
  */
-export function createAppsRepository({ apps: appRows, appWatches, appScripts, appScriptRuns, auditEvents }) {
+export function createAppsRepository({ apps: appRows, appWatches, appScripts, appScriptRuns, auditEvents, appJobs }) {
   const audit = (field) => auditEvents.column(field, "e");
   const app = (field) => appRows.column(field, "a");
+  const job = (field) => appJobs.column(field, "j");
 
   // Knex: report - the enabled watches with audit entries on their table between their cursor and the horizon, in id
   // order (the watch loop's candidates, claimed next with SKIP LOCKED)
@@ -140,7 +141,16 @@ export function createAppsRepository({ apps: appRows, appWatches, appScripts, ap
     return new Map(rows.map((row) => [String(row.workspaceId), Number(row.apps)]));
   }
 
+  // Knex: totals - how many of a watch's tasks are queued and not yet run, which its limit counts with its runs in the
+  // hour (D-134; ix_app_jobs_waiting_watch)
+  async function waitingTasks(watchId, options) {
+    const { query } = await appJobs.scopedQuery({ alias: "j" }, options);
+    const [row] = await query.where(job("watchId"), String(watchId)).where(job("status"), "queued").count({ waiting: "*" });
+    return Number(row.waiting);
+  }
+
   return Object.freeze({
+    waitingTasks,
     watchesWithNews,
     watchingScriptsWithNews,
     changesBetween,

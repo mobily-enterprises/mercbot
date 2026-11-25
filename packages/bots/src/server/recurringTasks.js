@@ -125,7 +125,7 @@ export function createRecurringTasks({ records, routines, apps, meter, systemCon
         nextRunAt: null,
         lastRunAt: watch.lastRunAt,
         state: watch.enabled ? "running" : watch.pausedByLimit ? "failing" : "paused",
-        why: watch.pausedByLimit ? "Paused after running more than 30 times in an hour" : null,
+        why: watch.pausedByLimit ? "Paused after firing more than 30 times in an hour" : null,
         madeByYou: watch.canResume,
         cost: costOf(costs, "watch", watch.id, reader.manages || watch.canResume),
         can: { pause: watch.enabled, resume: !watch.enabled && watch.canResume, edit: false, delete: true }

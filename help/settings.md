@@ -126,7 +126,7 @@ Everything your home does by itself, in one list: each routine and watch in the 
 
 - its name and kind (**Routine**, **Watch** or **App job**), and the chat or app it runs in, which opens it when you select it;
 - when it runs, in words, with its next and last run;
-- whether it's on, **Paused**, or needs attention, with why (for example "Paused after 5 failed runs in a row");
+- whether it's on, **Paused**, or needs attention, with why (for example "Paused after 5 failed runs in a row", or for a watch "Paused after firing more than 30 times in an hour");
 - what its runs cost in the last 30 days, and how many times it ran.
 
 Use the switch to pause or resume a task, and **⋯** for **Open chat** (or **Open app**), **Edit** and **Delete**. The same rules apply as everywhere else: anyone who can open a chat can pause its routines and watches, only the person who set one up can resume or edit it, because it runs as them, and only owners and admins switch an app's jobs.

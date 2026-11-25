@@ -4423,7 +4423,8 @@ the app.
   `packages/bots/src/server/recurringTasks.js`): every routine and watch in the chats the person can open (their row
   policies) and every app's job (scripts of kind `job`), grouped by bot, apps' jobs last; each with where it runs (a
   link to its chat or app), when in words, its next and last run, its state (running, paused, or needing attention:
-  a routine paused by 5 failed runs in a row, a watch by more than 30 runs in an hour, a job whose last run failed)
+  a routine paused by 5 failed runs in a row, a watch by firing more than 30 times in an hour (D-134), a job whose last
+  run failed)
   with why, and its cost over the last 30 days. Filter chips, By bot or By cost, a top line of counts and cost, loading,
   error and empty states, and a phone layout. A bot's card links to it filtered to that bot.
 - **No new rules.** Pausing, resuming, editing and deleting use each kind's own routes, and the list only says which the
@@ -4447,8 +4448,8 @@ the app.
 - **A watch's last run** is kept on the watch (`app_watches.last_run_at`), so the list reads it without reading the
   jobs table; a routine's on the routine (`bot_routines.last_run_at`). Each is set when a run's bot works (watches'
   `ran` and the routine's `lastRunAt`, from backgroundRuns.js), with a watch's runs in the hour (`runs_in_hour` from
-  `runs_hour_start`), which its 30-an-hour limit reads when it next fires; the firing that pauses it is its one over the
-  limit. Until 2026-11-25 they were set when a watch's run was queued and a routine's claimed.
+  `runs_hour_start`), which its 30-an-hour limit reads when it next fires, with the tasks it still has waiting (D-134).
+  Until 2026-11-25 they were set when a watch's run was queued and a routine's claimed.
 - Its reads are the same number however many tasks a home has (a list per kind, the chats, bots and costs once each),
   but for the costs, read a page of 100 tasks' totals at a time; it reads only the columns it shows and apps' jobs
   alone.
@@ -4517,3 +4518,31 @@ the bots own the queue and the sweep, as only they know a chat's people and what
 in a browser by `tests/e2e/installed-app.spec.ts`. Once the worker has a page it answers the built files itself, which
 a browser test's `page.route` never sees, so a spec that holds back or empties the page's scripts runs without one
 (Playwright's `serviceWorkers: "block"`, `tests/e2e/startup.spec.ts`).
+
+## D-134 — A paused watch runs nothing, and its limit counts the tasks it has waiting (2026-11-25)
+
+From 2026-11-25 a watch's run counts once its bot works (D-132). That left its limit of 30 runs an hour counting only
+runs that had happened, and a paused watch's queued tasks still ran. The app job runner is shared by every home, two
+runs at a time on each server. So a watch fired every few seconds (a public form's spam) queued far more than 30 tasks
+before 30 had run, and all of them ran: several times the AI it was allowed, with other homes' tasks waiting behind
+them.
+
+- **The limit counts what may still run.** At each firing, a watch's limit counts its runs in the hour and its tasks
+  still waiting (`app_jobs` queued for it, through the partial index `ix_app_jobs_waiting_watch`, so the count reads
+  that watch's waiting tasks alone, never the jobs' history). At 30 the firing pauses the watch and records what the
+  limit counted (over 30: paused by its limit), so a backlog never runs more than 30 an hour. A task that only said its
+  home is paused no longer waits, and never counts as a run.
+- **A paused watch runs nothing.** A watch's task that finds its watch paused since it was queued, by its limit or a
+  person, or removed, ends with one line in the chat saying why, posted once until someone writes, as a paused home's
+  line is (D-73), and never runs the bot or counts as a run (`watches.whyNotRun`, `backgroundRuns.js`). The tasks still
+  waiting when the limit pauses a watch go the same way, so a backlogged watch can end its hour with fewer than 30
+  runs; changes made while a watch is paused are never handled, as before, since resuming it starts from then on.
+- **The limit's notice is that line,** in place of an AI task telling the person: "The watch "…" fired more than 30
+  times in an hour, so Mercbot paused it. Changes made while it's paused aren't handled, even once it's resumed." It
+  costs nothing. The person resumes the watch as before, with its switch or by asking the bot (`watch_resume`). The
+  home's recurring tasks say "Paused after firing more than 30 times in an hour".
+
+Proved by `tests/server/watchBacklog.integration.js`: a watch fired every 5 seconds for 10 minutes while the runner
+gets through one run every 15 seconds runs at most 30 times in the hour, its other tasks end with its line, and
+another home's tasks queued once it has paused wait one runner turn at most. Also by
+`tests/server/appsWatches.integration.js` and `tests/server/recurringRunsCounted.test.js`.

@@ -80,6 +80,9 @@ export function createWatches({ resources, repository, systemContext, registry, 
     }
   }
 
+  // Paused by Mercbot for firing more than PER_HOUR times in an hour (D-134), rather than by a person.
+  const pausedByLimit = (row) => !row.enabled && Number(row.runsInHour) > PER_HOUR;
+
   const show = (table, row) => ({
     id: String(row.id),
     name: row.name,
@@ -89,8 +92,7 @@ export function createWatches({ resources, repository, systemContext, registry, 
     instructions: row.instructions,
     enabled: row.enabled,
     lastRunAt: row.lastRunAt ?? null,
-    // Paused by Mercbot for running more than PER_HOUR times in an hour, rather than by a person.
-    pausedByLimit: !row.enabled && Number(row.runsInHour) > PER_HOUR
+    pausedByLimit: pausedByLimit(row)
   });
 
   /**
@@ -334,40 +336,28 @@ export function createWatches({ resources, repository, systemContext, registry, 
         await appWatches.patch(watch.id, advance, { ...home, returning: "none" });
         return true;
       }
-      // At most 30 runs an hour (counted by ran, once its bot works); past that the watch pauses and its bot says so.
-      // The firing that pauses it is its one over the limit, which marks it as paused by the limit.
+      // At most 30 runs an hour (D-134): its runs in the hour (ran, once its bot works) and the tasks it still has
+      // waiting, which may yet run, so a backlog never runs more. The firing over that pauses it, and records what the
+      // limit counted, so the watch shows as paused by its limit; its task, queued as any other, finds it paused and
+      // its chat gets the one line saying so (whyNotRun), as do the tasks still waiting.
       const sameHour = watch.runsHourStart && Date.now() - new Date(watch.runsHourStart).getTime() < HOUR_MS;
-      const paused = Boolean(sameHour) && Number(watch.runsInHour) >= PER_HOUR;
+      const counted = (sameHour ? Number(watch.runsInHour) : 0) + (await repository.waitingTasks(watch.id, home));
+      const paused = counted >= PER_HOUR;
       await appWatches.patch(
         watch.id,
-        { ...advance, ...(paused ? { enabled: false, runsInHour: Number(watch.runsInHour) + 1 } : {}) },
+        { ...advance, ...(paused ? { enabled: false, runsInHour: counted + 1 } : {}) },
         { ...home, returning: "none" }
       );
       // Its run is its bot's in its chat, as the person who made it (R4).
       const [seat] = await records.directory.seats([String(watch.chatBotId)], home);
-      const task = {
-        kind: "watch",
-        botId: seat?.botId ?? null,
-        chatBotId: String(watch.chatBotId),
-        watchId: String(watch.id),
-        userId: watch.createdBy == null ? null : String(watch.createdBy)
-      };
-      if (paused) {
-        await apps.queueTask(
-          {
-            ...task,
-            title: `Watch paused: ${watch.name}`,
-            prompt: `Your watch "${watch.name}" on ${table.label} fired more than ${PER_HOUR} times in an hour, so Mercbot paused it. ` +
-              "Tell the person briefly, and ask whether to resume it (watch_resume) or change it."
-          },
-          home
-        );
-        return true;
-      }
       const more = count - shown.length;
       await apps.queueTask(
         {
-          ...task,
+          kind: "watch",
+          botId: seat?.botId ?? null,
+          chatBotId: String(watch.chatBotId),
+          watchId: String(watch.id),
+          userId: watch.createdBy == null ? null : String(watch.createdBy),
           title: `Watch: ${watch.name}`,
           prompt: [
             `Watch run, from Mercbot; the person didn't write this. Your watch "${watch.name}" on the table ${table.label} ` +
@@ -382,6 +372,23 @@ export function createWatches({ resources, repository, systemContext, registry, 
       );
       return true;
     });
+  }
+
+  /**
+   * Why a task queued for a watch doesn't run, as the one line its chat gets (D-134), or null when it may: the watch was
+   * paused since, by its limit or a person, or removed (the task keeps its name in its title). Changes made while a
+   * watch is paused are never handled: resuming it starts from then on.
+   * @param {{ watchId: string | null, title: string }} job
+   * @param {object} options the runner's, in the watch's home
+   */
+  async function whyNotRun({ watchId, title }, options) {
+    const { records: [row] } = watchId == null
+      ? { records: [] }
+      : await appWatches.query({ filters: { id: String(watchId) }, page: { size: 1 } }, passedOn(options));
+    if (!row) return `The watch "${String(title).replace(/^Watch: /u, "")}" was removed, so it didn't run.`;
+    if (row.enabled) return null;
+    const why = pausedByLimit(row) ? `fired more than ${PER_HOUR} times in an hour, so Mercbot paused it` : "is paused";
+    return `The watch "${row.name}" ${why}. Changes made while it's paused aren't handled, even once it's resumed.`;
   }
 
   /**
@@ -454,6 +461,7 @@ export function createWatches({ resources, repository, systemContext, registry, 
     pauseIn,
     remove,
     ran,
+    whyNotRun,
     evaluateOnce,
     matchChanges,
     start

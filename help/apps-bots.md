@@ -55,7 +55,7 @@ Some details:
 - A watch only sees changes made after it was set up, never older ones.
 - Several changes close together arrive as one run. The bot sees up to 20 records in detail and how many more there were.
 - Changes the watch's own run makes don't set it off again, so a bot can update the record it was told about.
-- If a watch fires more than 30 times in an hour, Mercbot pauses it, and the bot tells you and asks whether to resume it or change it.
+- If a watch fires more than 30 times in an hour, counting the times still waiting their turn, Mercbot pauses it, with one line in the chat saying so. Nothing it was still waiting to do runs, and changes made while it's paused are never handled, even once it's resumed. Resume it with its switch, or ask the bot to, or ask the bot to change it.
 - If a watch's condition stops making sense, for example because a field it checks was removed, it does nothing rather than guessing.
 - If the person who set it up leaves the home, or the bot is archived, the watch pauses, with a line in the chat.
 

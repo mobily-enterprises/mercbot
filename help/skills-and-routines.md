@@ -132,7 +132,8 @@ Watches are listed on the bot's card: open its **Details** tab, and the **Watche
 
 - A new or resumed watch only sees changes from that moment on.
 - Changes the watch's own run makes never set it off again.
-- A watch that runs more than 30 times in an hour pauses itself, and its bot tells you.
+- A watch that fires more than 30 times in an hour pauses itself. Its runs count, and so do the times it fired that are still waiting their turn (when Mercbot is busy, a run can wait a little). The chat gets one line from Mercbot: "The watch "New orders" fired more than 30 times in an hour, so Mercbot paused it. Changes made while it's paused aren't handled, even once it's resumed." Resume it with its switch, on the bot's card or in **Settings** > **Recurring tasks**, or ask the bot to.
+- A paused watch runs nothing, not even a run it was still waiting to start: the chat gets one line saying it's paused instead of the bot's reply. Changes made while it's paused are never handled, even once it's resumed.
 - A watch belongs to its chat and runs as the person who set it up. If they leave the home, or the bot is archived, it pauses, with a line in the chat.
 - What's in the records reaches the bot as information, never as instructions. Anything typed by visitors to a public app is marked as untrusted.
 
@@ -152,7 +153,7 @@ For buttons in an app that hand a bot a task, see [Logic: formulas, scripts and 
 | How often a routine runs | At most once every 10 minutes |
 | A one-off routine | Removed after it runs |
 | A routine that keeps failing | Pauses itself after 5 failed runs in a row |
-| A watch | Pauses itself after more than 30 runs in an hour |
+| A watch | Pauses itself after firing more than 30 times in an hour, counting its runs and the ones still waiting |
 | One watch run | Shows up to 20 records; the rest are counted |
 | A teaching recording | 10 minutes |
 
@@ -162,14 +163,14 @@ Routine runs, watch runs and skills are ordinary bot work, counted like any repl
 
 Check these in order:
 
-1. **Is it paused?** Under **Routines**, a paused routine shows **Paused**; on the bot's card, a paused watch's switch is off. A routine pauses itself after 5 failed runs in a row, and a watch after too many runs; its bot will have said so. Routines and watches also pause when the bot is archived, or when the person who set them up leaves the home. A routine pauses, too, when the person who set it up can no longer open its chat.
+1. **Is it paused?** Under **Routines**, a paused routine shows **Paused**; on the bot's card, a paused watch's switch is off. A routine pauses itself after 5 failed runs in a row, and its bot will have said so; a watch pauses itself after firing more than 30 times in an hour, with one line from Mercbot in its chat. Routines and watches also pause when the bot is archived, or when the person who set them up leaves the home. A routine pauses, too, when the person who set it up can no longer open its chat.
 2. **Was it a one-off?** One-off routines remove themselves after running. Look for **Routine finished and removed** in the chat.
 3. **Was there nothing new?** If the instructions say "only tell me if something changed", a run with no changes posts nothing.
 4. **Check the time zone.** The bot confirmed the zone when it set up the routine. If it's wrong, check **Settings** > **General** > **Timezone** and ask the bot to change the routine.
 5. **Did it fail?** A run that couldn't finish posts a short message saying so, and tries again at the next scheduled time. After 5 failures in a row the routine pauses until the person who set it up resumes it.
 6. **Is it waiting for you?** A run that needs a sign-in, a payment or your approval stops and tells you, or leaves a card in the chat.
 7. **Was Mercbot unavailable?** Runs missed while Mercbot was down are caught up with a single run once it's back.
-8. **For a watch:** it only sees changes made after it was set up or resumed, and the record must match its condition.
+8. **For a watch:** it only sees changes made after it was set up or resumed, and the record must match its condition. Changes made while it was paused are never handled.
 
 ## Automations you can trust
 
