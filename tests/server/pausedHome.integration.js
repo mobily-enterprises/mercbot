@@ -33,11 +33,12 @@ test("a paused home's bot says why instead of replying, once for routines, and r
   const parts = await startBotParts(knex, cleanup);
   const as = memberOptions({ userId, homeId: bot.workspace_id });
   const asked = [];
+  const counted = [];
   let paused = PAUSED;
   const bots = createBotsService(serviceDoubles({
     knex,
     ...parts,
-    meter: { pausedMessage: async (homeId) => (asked.push(String(homeId)), paused) },
+    meter: { pausedMessage: async (homeId) => (asked.push(String(homeId)), paused), countTaskRun: async (run) => (counted.push(run), true) },
     reply: async () => ({ text: "Here you are.", transcript: [{ role: "assistant", content: "Here you are." }] })
   }));
   const say = async (text) => {
@@ -65,8 +66,10 @@ test("a paused home's bot says why instead of replying, once for routines, and r
   assert.deepEqual(await answers(), [pausedLine, pausedLine, pausedLine],
     "the routines say why once between them, and each message a person sends is answered with why");
   assert.ok(asked.every((homeId) => homeId === String(bot.workspace_id)), "it asks about the bot's own home");
-  const runs = await knex("bot_routines").where({ chat_bot_id: bot.chat_bot_id }).select("run_id", "failures");
-  assert.deepEqual(runs, [{ run_id: null, failures: 0 }, { run_id: null, failures: 0 }], "each run ends there, unfailed, so no server carries it on");
+  const runs = await knex("bot_routines").where({ chat_bot_id: bot.chat_bot_id }).select("run_id", "failures", "last_run_at");
+  assert.deepEqual(runs, [{ run_id: null, failures: 0, last_run_at: null }, { run_id: null, failures: 0, last_run_at: null }],
+    "each run ends there, unfailed, so no server carries it on");
+  assert.deepEqual(counted, [], "a run that only says why isn't a run (D-132): not counted, and not the routine's last run");
 
   paused = null;
   await say("Resumed");
@@ -91,10 +94,11 @@ test("work refused part-way says what a paused home says: a routine, a person's 
   // In the chat of both bots, the bot that answers is refused after it has asked to set up a routine: its turn ends
   // there, so the card it asked for isn't left, and nothing it asked for waits to run.
   let together = false;
+  const counted = [];
   const bots = createBotsService(serviceDoubles({
     knex,
     ...parts,
-    meter: { pausedMessage: async () => null },
+    meter: { pausedMessage: async () => null, countTaskRun: async (run) => (counted.push(run), true) },
     approvals: { decide: async () => "ask" },
     reply: async (_bot, _history, tools) => {
       if (together) {
@@ -121,6 +125,7 @@ test("work refused part-way says what a paused home says: a routine, a person's 
   assert.deepEqual(lines.map((row) => [row.kind, row.body.text, row.body.paused]), [["event", NOTICE, true], ["event", NOTICE, true]]);
   const [run] = await knex("bot_routines").where({ id: routine.id }).select("run_id", "failures");
   assert.deepEqual(run, { run_id: null, failures: 0 }, "the routine's run ends unfailed");
+  assert.deepEqual(counted, [], "and isn't counted: its work was refused before it started");
 
   const { id: both } = await seedChat(knex, { homeId: bot.workspace_id, title: "Plans", people: [userId], bots: [bot.id, other.id] });
   cleanup.after(() => knex("conversations").where({ id: both }).del());

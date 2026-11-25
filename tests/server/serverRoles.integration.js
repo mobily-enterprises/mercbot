@@ -76,13 +76,13 @@ async function queuedWork(context) {
   return { routine: String(routine.id), job: String(job.id) };
 }
 
-/** Whether each was claimed: a routine's last run is set as it is claimed, and a job leaves "queued". */
+/** Whether each was claimed: a routine's next run moves on from ten days ago as it is claimed, and a job leaves "queued". */
 async function claimed({ routine, job }) {
   const [routineRow, jobRow] = await Promise.all([
-    knex("bot_routines").where({ id: routine }).first("last_run_at"),
+    knex("bot_routines").where({ id: routine }).first(knex.raw("coalesce(next_run_at > now() - interval '1 day', true) as moved")),
     knex("app_jobs").where({ id: job }).first("status")
   ]);
-  return { routine: routineRow.last_run_at !== null, job: jobRow.status !== "queued" };
+  return { routine: routineRow.moved, job: jobRow.status !== "queued" };
 }
 
 test("a computers server claims no due routine or queued Apps job", async (context) => {

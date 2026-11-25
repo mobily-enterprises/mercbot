@@ -113,6 +113,30 @@ test("a call that can't be opened doesn't go out: the database is down, or the r
   assert.equal(refusalOf(new Error("A step failed.")), null);
 });
 
+test("work hears once that it has started working, when its first AI call goes out, and a refused call hasn't (D-132)", async () => {
+  globalThis.fetch = async () => json({ usage: { prompt_tokens: 1, completion_tokens: 1 } });
+  const refused = refuseWork("This home's work is paused.", { code: "work_paused" });
+  let started = 0;
+  const onWork = () => {
+    started += 1;
+  };
+  await assert.rejects(createMeter({ recorder: keptCalls({ refuse: refused }) }).track({ userId: "1", onWork }, () => send()));
+  await createMeter({ recorder: keptCalls() }).track({ userId: "1" }, () => send());
+  assert.equal(started, 0, "work whose call is refused, and other work, hasn't started");
+  const recorder = keptCalls();
+  const meter = createMeter({ recorder });
+  const who = await meter.track({ userId: "1", onWork }, async () => {
+    await send();
+    // Calls inside work that counts its own calls, or inside more work tracked within it, are its calls too.
+    await meter.counting([], () => send());
+    await meter.track({ botId: "2" }, () => send());
+    return meter.currentMeter();
+  });
+  assert.equal(started, 1, "it hears once, at its first call");
+  assert.equal(recorder.calls.length, 3);
+  assert.deepEqual(who, { userId: "1" }, "it isn't part of who the work is for");
+});
+
 test("a call is opened with the most it may cost, from the reply length and pictures it asks for", async () => {
   const recorder = keptCalls();
   globalThis.fetch = async () => json({ usage: { prompt_tokens: 1, completion_tokens: 1 } });

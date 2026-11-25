@@ -141,11 +141,29 @@ test("watches see each change once and queue one task per claim", async (context
   await one.watches.setEnabled({ chatBotId, name: "New deals" }, true, options);
   await drainBoth();
   assert.equal((await jobs()).length, 3, "changes while paused don't fire it");
-  // Its last run, as the home's recurring tasks show it (D-132); paused by a person, not by its limit.
-  const shown = (await one.watches.list({}, options)).find((watch) => watch.name === "New deals");
-  assert.ok(shown.lastRunAt, "a watch that ran says when");
-  assert.equal(shown.pausedByLimit, false);
-  await knex("app_watches").where({ workspace_id: workspaceId, name: "New deals" }).update({ runs_in_hour: 30, runs_hour_start: new Date() });
+  // Its runs are those its bot worked on (D-132): the bots' runner says so (ran) once a run's first AI call goes out. A
+  // task queued that only said its home is paused isn't one: no last run, as the home's recurring tasks show it, and
+  // not one of its runs in the hour.
+  const newDeals = async () => (await one.watches.list({}, options)).find((watch) => watch.name === "New deals");
+  const shown = await newDeals();
+  assert.equal(shown.lastRunAt, null, "its tasks were queued, and none has run");
+  assert.equal(shown.pausedByLimit, false, "paused by a person, not by its limit");
+  const counts = () => knex("app_watches").where({ id: shown.id }).first("enabled", "runs_in_hour", "last_run_at");
+  await knex("app_watches").where({ id: shown.id }).update({ runs_in_hour: 29, runs_hour_start: new Date() });
+  for (const title of ["Not run", "Not run either"]) {
+    await one.gate.create(ctx, "deals", { title });
+    await drainBoth();
+  }
+  assert.deepEqual(await jobs().then((queued) => queued.slice(-2).map((job) => job.title)), ["Watch: New deals", "Watch: New deals"]);
+  assert.equal((await counts()).enabled, true, "firings no bot worked on don't count toward its limit");
+  await one.watches.ran(shown.id, options);
+  const ran = await counts();
+  assert.deepEqual([ran.enabled, ran.runs_in_hour], [true, 30], "one run more in the hour");
+  assert.ok((await newDeals()).lastRunAt, "a watch that ran says when");
+  await knex("app_watches").where({ id: shown.id }).update({ runs_hour_start: knex.raw("now() - interval '61 minutes'") });
+  await one.watches.ran(shown.id, options);
+  assert.equal((await counts()).runs_in_hour, 1, "a run more than an hour after the hour's first starts a new hour");
+  await knex("app_watches").where({ id: shown.id }).update({ runs_in_hour: 30, runs_hour_start: new Date() });
   await one.gate.create(ctx, "deals", { title: "One too many" });
   await drainBoth();
   all = await jobs();
