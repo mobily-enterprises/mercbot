@@ -224,7 +224,9 @@ export function createChatTurns({
     chats,
     notices
   });
-  const runs = createBackgroundRuns({ records, systemContext, meter, seats, jobs: apps?.jobs ?? null, respond: replies.respond });
+  const runs = createBackgroundRuns({
+    records, systemContext, meter, seats, jobs: apps?.jobs ?? null, watches: apps?.watches ?? null, respond: replies.respond
+  });
   const chat = createBotChat({ records, model, integrations, goals, replies, seats, chats, activity, onboarding, roomsMemory });
 
   /** A chat's newest summary, "" for none (templateDrafts.js). */

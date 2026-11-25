@@ -15,9 +15,11 @@ import { RUN_LEASE, RunTakenOver, jobCheckpoint, routineCheckpoint } from "./run
  * @param {import("@local/account/server/types").Meter} dependencies.meter
  * @param {import("./chatSeats.js").ChatSeats} dependencies.seats
  * @param {import("@local/apps/server/types").AppJobs | null} dependencies.jobs apps.jobs, where an Apps task's run is held
+ * @param {{ ran: (watchId: string, options: object) => Promise<void> } | null} dependencies.watches apps.watches, which
+ *   keep a watch's runs in the hour and its last run
  * @param {(seat: object, options: object) => Promise<object[]>} dependencies.respond botReplies' respond
  */
-export function createBackgroundRuns({ records, systemContext, meter, seats, jobs, respond }) {
+export function createBackgroundRuns({ records, systemContext, meter, seats, jobs, watches, respond }) {
   /**
    * One scheduled run of a routine, already claimed by this server (D-15). Open pages hear that
    * the bot is working and when it has posted; a failed run says so and waits for the next time,
@@ -42,18 +44,32 @@ export function createBackgroundRuns({ records, systemContext, meter, seats, job
     }
     const { seat, call } = found;
     const task = { kind: "routine", id: String(routine.id) };
-    // Counted once, by the server that started it; one that carries it on after another stopped doesn't count it again.
-    if (!(routine.runAttempts > 1)) countRun(task, seat);
+    const ran = () => records.work.changeRoutine(routine.id, { lastRunAt: new Date().toISOString() }, call);
     await meter.track(
-      { userId: seat.user_id, botId: seat.id, workspaceId: seat.workspace_id, task, work: "background" },
+      { userId: seat.user_id, botId: seat.id, workspaceId: seat.workspace_id, task, work: "background", ...runOf(task, seat, routine.runAttempts, ran) },
       () => runRoutineFor(seat, routine, call, signal)
     );
   }
 
-  /** A run of a recurring task, in its day's figures (D-132); a run whose count fails runs all the same. */
-  function countRun(task, seat) {
-    meter.countTaskRun({ ...task, workspaceId: seat.workspace_id, userId: seat.user_id })
-      .catch((error) => console.warn(`Counting a run of ${task.kind} ${task.id} failed; it runs all the same.`, error));
+  /**
+   * What a recurring task's run hears once its bot works (D-132): when the run's first AI call goes out (meter.track's
+   * onWork). A run in a paused home, or whose work is refused, only says why (D-73) and isn't a run. Then it's counted
+   * in its day's figures and `ran` keeps it as the task's last run: once, by the server that started it; one that
+   * carries it on after another stopped doesn't again. A run whose count fails runs all the same.
+   * @param {{ kind: "routine" | "watch", id: string }} task
+   * @param {object} seat
+   * @param {number | undefined} attempts the run's attempts: more than one when it's carried on
+   * @param {() => Promise<unknown>} ran
+   */
+  function runOf(task, seat, attempts, ran) {
+    if (attempts > 1) return {};
+    const failed = (what) => (error) => console.warn(`${what} a run of ${task.kind} ${task.id} failed; it runs all the same.`, error);
+    return {
+      onWork: () => {
+        meter.countTaskRun({ ...task, workspaceId: seat.workspace_id, userId: seat.user_id }).catch(failed("Counting"));
+        ran().catch(failed("Keeping the time of"));
+      }
+    };
   }
 
   /**
@@ -183,17 +199,23 @@ export function createBackgroundRuns({ records, systemContext, meter, seats, job
     const found = await taskSeat(job);
     if (!found) throw new BotsError(404, "The bot or chat for this task no longer exists.", { code: "bots_task_target_gone" });
     const { seat, call } = found;
-    const held = jobs ? jobCheckpoint(jobs, job, { context: systemContext("app job runner").forWorkspace(String(job.workspaceId)) }, signal) : null;
+    const asRunner = { context: systemContext("app job runner").forWorkspace(String(job.workspaceId)) };
+    const held = jobs ? jobCheckpoint(jobs, job, asRunner, signal) : null;
     const appsVia =
       job.kind === "watch"
         ? { kind: "watch", watchId: String(job.watchId), botId: seat.id }
         : { kind: "task", botId: seat.id };
     // A button's hand-off has someone waiting on it; a watch run or a finished command doesn't (D-59).
     const work = job.kind === "watch" || job.kind === "shell" ? "background" : "chat";
-    // A watch's run is a recurring task's (D-132), counted once as a routine's is.
+    // A watch's run is a recurring task's (D-132), counted as a routine's is, and one of the watch's runs in the hour.
     const task = job.kind === "watch" ? { kind: "watch", id: String(job.watchId) } : null;
-    if (task && !(job.attempts > 1)) countRun(task, seat);
-    const who = { userId: seat.user_id, botId: seat.id, workspaceId: seat.workspace_id, ...(task ? { task } : {}), work };
+    const who = {
+      userId: seat.user_id,
+      botId: seat.id,
+      workspaceId: seat.workspace_id,
+      work,
+      ...(task ? { task, ...runOf(task, seat, job.attempts, async () => watches?.ran(task.id, asRunner)) } : {})
+    };
     await meter.track(who, async () => {
       await seats.working(seat, true, null, call);
       try {

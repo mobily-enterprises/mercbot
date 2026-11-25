@@ -10,6 +10,7 @@ const ON = { create: ["create"], update: ["update"], any: ["create", "update"] }
 const PAGE = 1000;
 const SHOWN = 20;
 const PER_HOUR = 30;
+const HOUR_MS = 3_600_000;
 // How often a serving server checks the watches for news.
 const WATCH_EVERY_MS = 5000;
 // What a claim reads of a watch, with the home it is in.
@@ -333,16 +334,13 @@ export function createWatches({ resources, repository, systemContext, registry, 
         await appWatches.patch(watch.id, advance, { ...home, returning: "none" });
         return true;
       }
-      // At most 30 runs an hour; past that the watch pauses and its bot says so.
-      const sameHour = watch.runsHourStart && Date.now() - new Date(watch.runsHourStart).getTime() < 3600000;
-      const hourStart = sameHour ? watch.runsHourStart : new Date().toISOString();
-      const runs = hourStart === watch.runsHourStart ? watch.runsInHour + 1 : 1;
-      const paused = runs > PER_HOUR;
-      // A run that goes ahead is its last run, as the home's recurring tasks show it (D-132).
-      const ran = paused ? { enabled: false } : { lastRunAt: new Date().toISOString() };
+      // At most 30 runs an hour (counted by ran, once its bot works); past that the watch pauses and its bot says so.
+      // The firing that pauses it is its one over the limit, which marks it as paused by the limit.
+      const sameHour = watch.runsHourStart && Date.now() - new Date(watch.runsHourStart).getTime() < HOUR_MS;
+      const paused = Boolean(sameHour) && Number(watch.runsInHour) >= PER_HOUR;
       await appWatches.patch(
         watch.id,
-        { ...advance, runsHourStart: hourStart, runsInHour: runs, ...ran },
+        { ...advance, ...(paused ? { enabled: false, runsInHour: Number(watch.runsInHour) + 1 } : {}) },
         { ...home, returning: "none" }
       );
       // Its run is its bot's in its chat, as the person who made it (R4).
@@ -384,6 +382,26 @@ export function createWatches({ resources, repository, systemContext, registry, 
       );
       return true;
     });
+  }
+
+  /**
+   * A run of a watch its bot worked on (D-132), as the bots' runner says once the run's first AI call goes out: one more
+   * of its runs in the hour, which starts a new hour when its first run was an hour ago or more, and its last run, as the
+   * home's recurring tasks show it. A task queued that only said its home is paused isn't one.
+   * @param {string} watchId
+   * @param {object} options the runner's, in the watch's home
+   */
+  async function ran(watchId, options) {
+    const [start, runs] = [appWatches.column("runsHourStart"), appWatches.column("runsInHour")];
+    await appWatches.patchWhere(
+      { id: String(watchId) },
+      {
+        runsInHour: appWatches.raw("case when ?? > now() - interval '1 hour' then ?? + 1 else 1 end", [start, runs]),
+        runsHourStart: appWatches.raw("case when ?? > now() - interval '1 hour' then ?? else now() end", [start, start]),
+        lastRunAt: appWatches.raw("now()")
+      },
+      { ...passedOn(options), returning: "none" }
+    );
   }
 
   /**
@@ -435,6 +453,7 @@ export function createWatches({ resources, repository, systemContext, registry, 
     setEnabled,
     pauseIn,
     remove,
+    ran,
     evaluateOnce,
     matchChanges,
     start

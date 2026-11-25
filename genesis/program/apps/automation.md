@@ -29,7 +29,9 @@ become queued tasks that exactly one server runs, in the right chat (D-35, D-15)
   are read together (`gate.getMany`), so the claim's lock is short at any size. Matches become one
   task per claim (20 records shown, the rest counted). Changes made by the watch's own run never
   fire it; over 30 runs in an hour it pauses itself and its bot says so. New and resumed watches
-  only see changes from then on. A run that goes ahead is kept as the watch's `last_run_at`, and the list shows a watch
+  only see changes from then on. A run is one its bot worked on (`watches.ran`, from `backgroundRuns.js` once the run's
+  first AI call goes out): it adds one to the watch's runs in the hour (a new hour when the hour's first run was an hour
+  ago) and is kept as its `last_run_at`; a task that only said its home is paused is neither. The list shows a watch
   paused by its limit (`pausedByLimit`), for the home's recurring tasks (D-132, `genesis/program/bots/routines.md`),
   which also lists every app's job.
 - A button's `askBot` step queues a task for that bot after all its other steps succeed; a draft

@@ -4436,17 +4436,26 @@ the app.
   routine's and a watch's run pass and work started inside carries on; the recorder adds each AI call's and command's
   cost to `usage_tasks_daily` (home, UTC day, task, the person it runs as), and the account counts each run once,
   by the server that started it (`countTaskRun`), whoever records the work. A computer's day is the computer's, never a
-  task's. A copy built on Mercbot that records work its own way adds its own columns and answers `spending.tasks`.
+  task's. *Since 2026-11-25 a run counts once its bot works:* when the run's first AI call goes out, the recorder having
+  let it (`track()`'s `onWork`, backgroundRuns.js). A run in a home its copy has paused (D-73), or whose work is refused
+  at its first call, only says why and isn't a run: it isn't in its day's runs, isn't the task's last run and isn't one
+  of a watch's runs in the hour, so the list's runs, last run and limit agree. Until then a run was counted as it
+  started, before Mercbot asked whether the copy was paused, so a copy whose AI wasn't set up showed runs that only
+  said so. A copy built on Mercbot that records work its own way adds its own columns and answers `spending.tasks`.
   Rows are kept 13 months and deleted by the usage upkeep by their day's index, a few thousand at a time. Costs count
   from this release: older runs show none. Apps' jobs run in the script pool without AI and cost nothing.
-- **A watch's last run** is kept on the watch (`app_watches.last_run_at`, set when a run is queued), so the list reads
-  it without reading the jobs table.
+- **A watch's last run** is kept on the watch (`app_watches.last_run_at`), so the list reads it without reading the
+  jobs table; a routine's on the routine (`bot_routines.last_run_at`). Each is set when a run's bot works (watches'
+  `ran` and the routine's `lastRunAt`, from backgroundRuns.js), with a watch's runs in the hour (`runs_in_hour` from
+  `runs_hour_start`), which its 30-an-hour limit reads when it next fires; the firing that pauses it is its one over the
+  limit. Until 2026-11-25 they were set when a watch's run was queued and a routine's claimed.
 - Its reads are the same number however many tasks a home has (a list per kind, the chats, bots and costs once each),
   but for the costs, read a page of 100 tasks' totals at a time; it reads only the columns it shows and apps' jobs
   alone.
 
 Proved by `tests/server/recurringTasks.integration.js`, `tests/server/usage.integration.js`,
-`tests/server/appsWatches.integration.js` and `tests/client/recurringTasks.vitest.js`.
+`tests/server/appsWatches.integration.js`, `tests/server/recurringRunsCounted.test.js`,
+`tests/server/pausedHome.integration.js` and `tests/client/recurringTasks.vitest.js`.
 
 ## D-133 — Mercbot as an app people install from the website, with notifications (2026-11-24)
 
