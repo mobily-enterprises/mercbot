@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
-import { chmod, mkdir, mkdtemp, rm, stat, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, readdir, rm, stat, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { folderMount, runSandboxed, sandboxPlace, sandboxSpec } from "../../packages/files/src/server/gvisor.js";
+import { startDesktopSandbox } from "../../packages/computer/src/server/desktopSandbox.js";
+import { ensureMountPoints, folderMount, runSandboxed, sandboxPlace, sandboxSpec } from "../../packages/files/src/server/gvisor.js";
+import { createShell } from "../../packages/files/src/server/shell.js";
 
 // A sandbox given a folder at one of the sandboxes' mount points (gvisor.js TOOLBOX_MOUNT_POINTS) its toolbox lacks.
 // gVisor makes a missing point in the toolbox itself, which works only where the user running runsc may write there:
@@ -84,4 +86,48 @@ test("where the server can't make the point (a toolbox it may not write in), the
     return true;
   });
   assert.equal(await stat(place.runs).then(() => true, () => false), false, "runsc never ran");
+});
+
+test("a toolbox that isn't there is left as it is: no folder is made where it would be", async (context) => {
+  // A host without the toolbox: making the point would leave a toolbox's skeleton behind, under the tools folder.
+  const place = await world(context);
+  const missing = path.join(path.dirname(place.toolbox), "no-toolbox");
+  await ensureMountPoints({ root: { path: missing }, mounts: [folderMount(place.folder, "/files/db", { readonly: true })] });
+  assert.equal(await stat(missing).then(() => true, () => false), false, "nothing was made");
+});
+
+test("a computer's session refused for a mount point leaves no gateway open", { skip: NO_UNWRITABLE }, async (context) => {
+  const place = await world(context);
+  await chmod(place.toolbox, 0o555);
+  const runs = path.join(path.dirname(place.toolbox), "runs-of-k1");
+  await mkdir(runs);
+  let opened = 0;
+  let closed = 0;
+  const gateway = async () => {
+    opened += 1;
+    return { close: async () => { closed += 1; } };
+  };
+  const shell = createShell({
+    store: { prepare: async () => ({ shared: place.folder, db: place.folder }), runsFolder: async () => runs },
+    runs: {},
+    env: place.env,
+    meter: {},
+    gateway,
+    internet: { limits: {}, forGateway: () => ({ close: async () => {} }) }
+  });
+  await assert.rejects(shell.attach({ key: "k1", place: { homeId: "1", botId: "2" } }), /lacks .*\/files\/db/u);
+  assert.equal(closed, opened, `every gateway the session opened is closed (${opened} opened)`);
+});
+
+test("a computer's desktop refused for a mount point leaves nothing of its sandbox behind", { skip: NO_UNWRITABLE }, async (context) => {
+  const place = await world(context);
+  await chmod(place.toolbox, 0o555);
+  const profile = path.join(path.dirname(place.toolbox), "profile");
+  await mkdir(profile);
+  const ours = async () => (await readdir(os.tmpdir())).filter((name) => name.startsWith(`mbd-${process.pid}-`));
+  const before = await ours();
+  await assert.rejects(startDesktopSandbox({
+    runtimeEnv: place.env, computerId: "c1", display: 99, profile, folders: { shared: place.folder, db: place.folder }
+  }), /lacks .*\/files\/db/u);
+  assert.deepEqual(await ours(), before, "its folder, with the gateway's socket, is gone");
 });
