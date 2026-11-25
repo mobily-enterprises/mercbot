@@ -22,8 +22,9 @@ export const pluginsApi = {
   // An action's switch on an app's page.
   setAction: (pluginId, actionId, enabled) => requestInHome(client, `/plugins/${pluginId}/actions/${actionId}`, { method: "PUT", body: { enabled } }),
   removeAccount: (accountId) => requestInHome(client, `/plugin-accounts/${accountId}`, { method: "DELETE" }),
-  updateSkill: (skillId, changes) => client.request(`/api/skills/${skillId}`, { method: "PATCH", body: changes }),
-  deleteSkill: (skillId) => client.request(`/api/skills/${skillId}`, { method: "DELETE" }),
+  // A private skill is the person's in the current home (D-112).
+  updateSkill: (skillId, changes) => requestInHome(client, `/skills/${skillId}`, { method: "PATCH", body: changes }),
+  deleteSkill: (skillId) => requestInHome(client, `/skills/${skillId}`, { method: "DELETE" }),
   connect: (accountId) => requestInHome(client, `/plugin-accounts/${accountId}/connect`, { method: "POST", body: {} }),
   finishSignIn: (address) => requestInHome(client, "/connections/finish", { method: "POST", body: { address } }),
   // A sign-in this copy lends a copy linked to the person's account, begun here signed in (D-97): `{ url, app }`.

@@ -98,7 +98,8 @@ with the home's API credentials, such as Sedna, is used in any chat as the perso
   first or only one included. It withdraws the sign-in first (`connections.withdraw`: the app's own revocation where it
   offers one, and the hub of a borrowed one), then deletes; a Sedna account's people matches go with it. The app stays on
   the home's list.
-- `PATCH /api/skills/:skillId` and `DELETE /api/skills/:skillId` (skills stay personal).
+- `PATCH …/skills/:skillId` and `DELETE …/skills/:skillId`: a private skill is its person's in
+  the home it's open in (D-112), so another home's skill of theirs answers 404 there (`tests/server/skillRoutes.integration.js`).
 - `PUT …/plugin-accounts/:accountId/pace {pace}`: the account's Request pace, `gentle`, `normal` or `fast` (400
   otherwise), answering the list.
 - Changing an account (rename, sign in, remove, its pace) is for the person who added it and the home's owners and

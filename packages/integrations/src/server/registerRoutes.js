@@ -265,8 +265,9 @@ export function registerRoutes(http, { integrations, catalogue, env }) {
   // An action's switch on an app's page.
   router.register("PUT", "/api/w/:workspaceSlug/plugins/:pluginId/actions/:actionId", IN_HOME, handle(switchAction));
   router.register("DELETE", "/api/w/:workspaceSlug/plugin-accounts/:accountId", IN_HOME, handle(removeAccount));
-  router.register("PATCH", "/api/skills/:skillId", SIGNED_IN, handle(updateSkill));
-  router.register("DELETE", "/api/skills/:skillId", SIGNED_IN, handle(deleteSkill));
+  // A person's private skill is theirs in a home (D-112): saved and deleted in the home it's open in.
+  router.register("PATCH", "/api/w/:workspaceSlug/skills/:skillId", IN_HOME, handle(updateSkill));
+  router.register("DELETE", "/api/w/:workspaceSlug/skills/:skillId", IN_HOME, handle(deleteSkill));
   router.register("GET", "/api/plugins/:pluginId/source", PUBLIC, pluginSource);
   router.register("GET", "/api/plugins/:pluginId/logo.svg", PUBLIC, pluginLogo);
   router.register("GET", "/api/plugins/:pluginId/logo.png", PUBLIC, pluginLogoImage);
