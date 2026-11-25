@@ -15,10 +15,14 @@ const seat = { id: "7", chat_id: "9", user_id: "3", workspace_id: "5" };
 const routine = { id: "11", chatBotId: "8", workspaceId: "5", madeBy: "3", name: "Check", schedule: "Every hour", instructions: "Check", timezone: "UTC" };
 const watchJob = { id: "21", kind: "watch", watchId: "31", botId: "7", chatBotId: "8", workspaceId: "5", userId: "3", title: "Watch: New deals", prompt: "Watch run" };
 
-/** The background runs with a meter whose recorder refuses calls while `refusing`, and what they wrote of each run. */
-function backgroundRuns(respond, { refusing = false } = {}) {
+/**
+ * The background runs with a meter whose recorder refuses calls while `refusing`, and what they wrote of each run;
+ * `whyNotRun` is the watches' answer for a watch's task (none: it may run), `said` the lines its chat was given.
+ */
+function backgroundRuns(respond, { refusing = false, whyNotRun = async () => null } = {}) {
   globalThis.fetch = async () => new Response(JSON.stringify({ usage: { prompt_tokens: 1, completion_tokens: 1 } }), { headers: { "content-type": "application/json" } });
   const written = { counted: [], lastRuns: [], watchRuns: [] };
+  const said = [];
   const recorder = {
     open: async () => {
       if (refusing) throw refuseWork("This home's work is paused.", { code: "work_paused" });
@@ -31,12 +35,12 @@ function backgroundRuns(respond, { refusing = false } = {}) {
     records: { work: { changeRoutine: async (id, changes) => (written.lastRuns.push([id, typeof changes.lastRunAt]), {}) } },
     systemContext: () => ({ forWorkspace: () => ({}) }),
     meter,
-    seats: { backgroundSeat: async () => ({ seat, call: {} }), working: async () => {}, tell: async () => {}, say: async () => [] },
+    seats: { backgroundSeat: async () => ({ seat, call: {} }), working: async () => {}, tell: async () => {}, say: async (_seat, lines) => (said.push(...lines), []) },
     jobs: null,
-    watches: { ran: async (watchId) => written.watchRuns.push(watchId) },
+    watches: { ran: async (watchId) => written.watchRuns.push(watchId), whyNotRun },
     respond
   });
-  return { runs, written };
+  return { runs, written, said };
 }
 
 const aiCall = () => createMeteredFetch({}, "deepinfra")("https://provider", { method: "POST", body: "{}" });
@@ -78,4 +82,21 @@ test("a watch's run counts as a routine's does, and is one of its runs in the ho
   await runs.runAppTask({ ...watchJob, kind: "handoff", watchId: null, title: "Task from Deals", attempts: 1 });
   assert.equal(written.counted.length, 1);
   assert.deepEqual(written.watchRuns, ["31"]);
+});
+
+test("a watch's task finding it paused or removed runs nothing: its one line says why, and it isn't a run (D-134)", async () => {
+  const heard = [];
+  const paused = "The watch \"New deals\" is paused. Changes made while it's paused aren't handled, even once it's resumed.";
+  // A stopped task's turn only posts its line (botReplies' pausedTurn); any other is the bot's work.
+  const { runs, written, said } = backgroundRuns(async (_seat, options) => (heard.push(options), options.stopped ? [] : workingTurn()), {
+    whyNotRun: async (job) => (job.watchId === "31" ? paused : null)
+  });
+  await runs.runAppTask({ ...watchJob, attempts: 1 });
+  assert.deepEqual(heard.map((options) => [options.stopped, options.prompt]), [[paused, undefined]], "its line, and nothing for the bot");
+  assert.deepEqual(said, [], "not even the task's own line");
+  assert.deepEqual(written, { counted: [], lastRuns: [], watchRuns: [] }, "and no run");
+  await runs.runAppTask({ ...watchJob, watchId: "32", attempts: 1 });
+  assert.deepEqual(heard.slice(1).map((options) => [options.stopped, options.prompt]), [[undefined, "Watch run"]], "a watch that may run does");
+  assert.equal(said.length, 1, "with its line");
+  assert.deepEqual(written.watchRuns, ["32"]);
 });
