@@ -2,6 +2,15 @@
 
 What's new in Mercbot, newest first. To see which version you're using, open the account menu, choose **Help and support**, then **About Mercbot**. You can also ask any bot "What's new in Mercbot?"
 
+## 25 November 2026
+
+- **Watches that fire too often:** a watch that fires more than 30 times in an hour pauses itself. Its runs count, and so do the times it fired that are still waiting their turn. Its chat gets one line from Mercbot instead of a message from the bot: "The watch "New orders" fired more than 30 times in an hour, so Mercbot paused it. Changes made while it's paused aren't handled, even once it's resumed." A paused watch runs nothing, not even a run it was still waiting to start. Resume it with its switch, on the bot's card or in **Settings** > **Recurring tasks**, or ask the bot to.
+- **Runs that only say the home is paused don't count:** **Recurring tasks** counts a routine's or a watch's run once its bot starts working. A run that only said your home's work is paused isn't counted, and isn't shown as its last run.
+- **Private skills:** saving or deleting one of your private skills in **Connect apps** works again.
+- **Connect apps keeps your change:** a private skill you delete or change while Connect apps is still loading its list stays deleted or changed.
+
+See [Skills, routines and watches](/help/skills-and-routines).
+
 ## 24 November 2026
 
 - **Recurring tasks:** **Settings** > **Recurring tasks** lists everything your home does by itself: every routine and watch in the chats you can open, and every app's job, grouped by bot. Each shows when it runs in words, its next and last run, whether it's paused or needs attention, and what it cost in the last 30 days. Pause, resume, edit or delete it from there, by the same rules as anywhere else. Owners and admins see every task's cost; members see their own. Each bot's card links to its own.
