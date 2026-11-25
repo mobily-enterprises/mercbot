@@ -1,8 +1,10 @@
 import type { Page, TestInfo } from "@playwright/test";
 import { expect, test, textContrast } from "./harness";
 
-// Any refused API call from the page, one with no answer, or JSKIT's error dialog, fails the test (harness.ts).
-test.use({ apiGuard: true });
+// Any refused API call from the page, one with no answer, or JSKIT's error dialog, fails the test (harness.ts). The
+// page's scripts are this spec's to hold back or empty (page.route), so it has no service worker to answer them in
+// its place (D-133): Playwright stops the page registering one. installed-app.spec.ts proves the worker.
+test.use({ apiGuard: true, serviceWorkers: "block" });
 
 /** The fixture home, as a signed-in person opens Mercbot. */
 const HOME = "/w/you";
