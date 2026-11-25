@@ -59,7 +59,7 @@ one that isn't a string of at most 2,000 characters): one locked delete by the u
 
 A notification's payload is `{ title, body, url, tag, unread }`: the chat's or the author's name in it, the message's
 words (or, with `showText` off, only its kind), the chat's address, `chat-<id>`, and the person's unread chats in that
-home for the app's icon.
+home for the app's icon, a muted one left out, as the open app counts them.
 
 ## Behavior
 
@@ -104,5 +104,5 @@ fixed number per batch.
 `tests/server/pushRoutes.integration.js` (the routes' refusals: signed out, outside the home, another person's device,
 a forged request, a malformed body, an address inside the network), `tests/server/push.integration.js` (settings and devices kept to their person, production-only sending and forgetting
 gone devices, the 15-second rule, folding past 1,000 other waiting notifications, read and muted chats, settings,
-direct chats named after the other person, homes read once, 250 due in one sweep, the icon's count per home, each table's constraints, and fixed query counts at 5 and 41 people and at 3 and 30
+direct chats named after the other person, homes read once, 250 due in one sweep, the icon's count per home with muted chats left out, each table's constraints, and fixed query counts at 5 and 41 people and at 3 and 30
 devices), and `tests/server/serviceWorker.test.js` (the worker itself).

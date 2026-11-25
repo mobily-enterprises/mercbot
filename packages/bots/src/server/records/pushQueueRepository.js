@@ -134,15 +134,16 @@ export function createPushQueueRepository({ resources, systemContext, now = () =
       chatPeople.queryAll({ filters: { places: due.map((row) => `${row.chatId}:${row.userId}`) }, fields: ["conversationId", "userId", "readUpTo", "unread", "muted"] }, options),
       conversations.queryAll({ filters: { id: ids("chatId") }, fields: ["title", "directBotId", "directUserId", "directPersonId"] }, options),
       messages.queryAll({ filters: { id: ids("messageId") }, fields: ["kind", "role", "body", "authorBotId", "authorUserId"] }, options),
-      chatPeople.aggregate(
-        { groupBy: ["userId", "workspaceId"], measures: { unread: { count: "*" } }, filters: { userIds: ids("userId"), unread: true } },
-        options
-      )
+      chatPeople.aggregate({
+        groupBy: ["userId", "workspaceId"],
+        measures: { unread: { count: "*" } },
+        filters: { userIds: ids("userId"), unread: true, muted: false }
+      }, options)
     ]);
     const placeOf = new Map(places.map((place) => [`${place.conversationId}:${place.userId}`, place]));
     const chatOf = new Map(chats.map((chat) => [String(chat.id), chat]));
     const messageOf = new Map(said.map((message) => [String(message.id), message]));
-    // A person's unread chats in the notification's home, as the open app counts them for the icon.
+    // A person's unread chats in the notification's home, a muted one left out, as the open app counts them for the icon.
     const unreadOf = new Map(counts.map((row) => [`${row.userId}:${row.workspaceId}`, Number(row.unread) || 0]));
     return due.flatMap((row) => {
       const place = placeOf.get(`${row.chatId}:${row.userId}`);
