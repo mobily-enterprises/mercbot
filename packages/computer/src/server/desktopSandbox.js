@@ -130,7 +130,12 @@ export async function startDesktopSandbox({ runtimeEnv, computerId, display, pro
     ],
     linux: { namespaces: [{ type: "pid" }, { type: "network" }, { type: "ipc" }, { type: "uts" }, { type: "mount" }] }
   };
-  await ensureMountPoints(spec);
+  // Refused, the desktop leaves nothing behind: its gateway closes and its folder goes.
+  await ensureMountPoints(spec).catch(async (error) => {
+    await gateway.close().catch(() => {});
+    await rm(dir, { recursive: true, force: true }).catch(() => {});
+    throw error;
+  });
   await writeFile(path.join(dir, "config.json"), JSON.stringify(spec));
   const [runscCommand, runscArgs] = runsc(runtimeEnv, ["--root", state]);
   const inSandbox = [runscCommand, ...runscArgs];

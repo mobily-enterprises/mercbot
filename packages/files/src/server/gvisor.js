@@ -47,6 +47,8 @@ export const TOOLBOX_MOUNT_POINTS = Object.freeze([
  */
 export async function ensureMountPoints(spec) {
   const root = spec.root.path;
+  // A toolbox that isn't there is left so (the sandbox fails as gVisor says): nothing is made in its place.
+  if (!(await fs.stat(root).then((found) => found.isDirectory(), () => false))) return;
   const missing = [];
   for (const { destination, type } of spec.mounts) {
     if (type !== "bind" || !TOOLBOX_MOUNT_POINTS.includes(destination)) continue;
