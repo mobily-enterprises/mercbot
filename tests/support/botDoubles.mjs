@@ -130,8 +130,8 @@ const neutral = {
     catalog: { ensureTable: async () => ({ table: null, made: [] }), ensureOwnTable: async () => ({ table: null, made: [] }) },
     registry: {},
     gate: {},
-    // No watches, so none pauses (an archived bot's, or those of a person who left the home).
-    watches: { pauseIn: async () => [] },
+    // No watches, so none pauses (an archived bot's, or those of a person who left the home), and a watch's task runs.
+    watches: { pauseIn: async () => [], whyNotRun: async () => null },
     scripts: {}
   })
 };

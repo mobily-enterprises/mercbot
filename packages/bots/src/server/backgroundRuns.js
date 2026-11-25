@@ -15,8 +15,9 @@ import { RUN_LEASE, RunTakenOver, jobCheckpoint, routineCheckpoint } from "./run
  * @param {import("@local/account/server/types").Meter} dependencies.meter
  * @param {import("./chatSeats.js").ChatSeats} dependencies.seats
  * @param {import("@local/apps/server/types").AppJobs | null} dependencies.jobs apps.jobs, where an Apps task's run is held
- * @param {{ ran: (watchId: string, options: object) => Promise<void> } | null} dependencies.watches apps.watches, which
- *   keep a watch's runs in the hour and its last run
+ * @param {{ ran: (watchId: string, options: object) => Promise<void>, whyNotRun: (job: object, options: object) => Promise<string | null> } | null} dependencies.watches
+ *   apps.watches, which keep a watch's runs in the hour and its last run, and say why a task of a watch paused or removed
+ *   since it was queued doesn't run
  * @param {(seat: object, options: object) => Promise<object[]>} dependencies.respond botReplies' respond
  */
 export function createBackgroundRuns({ records, systemContext, meter, seats, jobs, watches, respond }) {
@@ -201,6 +202,13 @@ export function createBackgroundRuns({ records, systemContext, meter, seats, job
     const { seat, call } = found;
     const asRunner = { context: systemContext("app job runner").forWorkspace(String(job.workspaceId)) };
     const held = jobs ? jobCheckpoint(jobs, job, asRunner, signal) : null;
+    // A watch paused, by a person or its limit, or removed since this task was queued runs nothing (D-134): its chat
+    // gets the one line saying why, as a paused home's does (D-73), and it's no run (D-132).
+    const stopped = job.kind === "watch" ? await watches?.whyNotRun(job, asRunner) : null;
+    if (stopped) {
+      await respond(seat, { stopped, checkpoint: held, call });
+      return;
+    }
     const appsVia =
       job.kind === "watch"
         ? { kind: "watch", watchId: String(job.watchId), botId: seat.id }

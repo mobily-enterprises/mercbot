@@ -28,8 +28,10 @@ become queued tasks that exactly one server runs, in the right chat (D-35, D-15)
   change is seen exactly once even when transactions commit out of order. The changed records
   are read together (`gate.getMany`), so the claim's lock is short at any size. Matches become one
   task per claim (20 records shown, the rest counted). Changes made by the watch's own run never
-  fire it; over 30 runs in an hour it pauses itself and its bot says so. New and resumed watches
-  only see changes from then on. A run is one its bot worked on (`watches.ran`, from `backgroundRuns.js` once the run's
+  fire it. It runs at most 30 times an hour (D-134): at each firing its limit counts its runs in the hour and its
+  tasks still waiting (`repository.waitingTasks`, the `ix_app_jobs_waiting_watch` index), so a backlog in the shared
+  runner never runs more; the firing over that pauses it and records what the limit counted (`runs_in_hour`, over 30:
+  paused by its limit), and its task is queued as any other. New and resumed watches only see changes from then on. A run is one its bot worked on (`watches.ran`, from `backgroundRuns.js` once the run's
   first AI call goes out): it adds one to the watch's runs in the hour (a new hour when the hour's first run was an hour
   ago) and is kept as its `last_run_at`; a task that only said its home is paused is neither. The list shows a watch
   paused by its limit (`pausedByLimit`), for the home's recurring tasks (D-132, `genesis/program/bots/routines.md`),
@@ -38,7 +40,10 @@ become queued tasks that exactly one server runs, in the right chat (D-35, D-15)
   preview only reports it (`wouldSend`).
 - Tasks (`app_jobs`) are claimed with SKIP LOCKED and run once: a watch's in its seat, as the watch's maker, a
   hand-off in the presser's direct chat with the bot (made on first use), as the presser (`backgroundRuns.js`
-  `taskSeat`); an archived bot takes none, and the button that asked says so (D-108).
+  `taskSeat`); an archived bot takes none, and the button that asked says so (D-108). A watch's task that finds its
+  watch paused since it was queued, by its limit or a person, or removed, runs nothing (D-134): `watches.whyNotRun`
+  gives the one line saying why, which the chat gets as a paused home's (botReplies' `respond` with `stopped`, posted
+  once until someone writes), without the task's own line, and it's no run (D-132).
   `watches.pauseIn` pauses running watches and answers each `{ chatBotId, name }`: a bot's in the chats given
   (`chatBotIds`: the bot archived, D-108, or a Public chat archived, through the bots' `pauseWork`) or a person's in a home they left (`createdBy`, `homeId`), each chat saying
   so (`genesis/program/bots/routines.md`).

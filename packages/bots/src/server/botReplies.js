@@ -110,9 +110,9 @@ export function createBotReplies({
   }
 
   /**
-   * In a paused home the bot says why instead of replying: when it's paused before the turn starts, and when the turn's
-   * work is refused part-way (meter.js refuseWork), the same way. A routine's or a task's run ends there unfailed, and a
-   * goal's rounds stop, as after any error; the person asks to carry on once it's resumed.
+   * In a paused home the bot says why instead of replying: when it's paused before the turn starts, when the turn's work
+   * is refused part-way (meter.js refuseWork), and for a task that can't run now (respond's `stopped`, D-134). A run ends
+   * there unfailed, and a goal's rounds stop, as after any error; the person asks to carry on once it's resumed.
    */
   async function pausedTurn(seat, text, { human = false, goalTurn = false, checkpoint = null, call }) {
     if (checkpoint) await records.chats.withTransaction(call, (txOptions) => checkpoint.settle(txOptions, { failed: false }));
@@ -122,7 +122,7 @@ export function createBotReplies({
   }
 
   async function respond(seat, options) {
-    const paused = await meter.pausedMessage(seat.workspace_id);
+    const paused = options.stopped || (await meter.pausedMessage(seat.workspace_id));
     if (paused) return pausedTurn(seat, paused, options);
     try {
       return await replyTurn(seat, options);

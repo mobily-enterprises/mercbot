@@ -87,7 +87,7 @@ person can open, and every app's job (`kind: "job"`), each `{ kind, id, name, de
 lastRunAt, state, why, madeByYou, cost, can }`: `where` is its chat (`chatId`, `chatTitle`) or app (`appSlug`,
 `appName`); `schedule` is in words (a routine's own; "When Deals records are added" for a watch; "Every day at 02:00
 (Europe/Rome)" or "When Weigh-ins records change" for a job, named from its key, its summary as `detail`); `state` is
-`running`, `paused` or `failing` (a routine paused by 5 failed runs in a row, a watch by more than 30 runs in an hour,
+`running`, `paused` or `failing` (a routine paused by 5 failed runs in a row, a watch by firing more than 30 times in an hour (D-134),
 a job whose last run failed), with `why` in words. `cost` is the last 30 days' `{ nano, runs }` from the account's task
 totals (`meter.taskCosts`, below), `{ nano: 0, runs: 0 }` when nothing is counted and null when the person can't see it:
 owners and admins see every task's (`costScope: "home"`), a member only those that run as them (`"own"`). Apps' jobs
