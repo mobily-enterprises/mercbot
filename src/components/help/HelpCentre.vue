@@ -46,9 +46,12 @@ const outline = computed(() => [...raw.value.matchAll(/^(##|###) (.+)$/gmu)].map
 // The tab's title goes back to what it was when leaving the help centre without a reload.
 const titleBefore = document.title;
 onBeforeUnmount(() => { document.title = titleBefore; });
-watch(slug, async () => {
+watch(slug, async (opened) => {
   plain.value = false;
-  raw.value = page.value ? await source(page.value.slug)() : "";
+  const text = page.value ? await source(page.value.slug)() : "";
+  // A page left before its text came is no longer shown: the one opened since has its own.
+  if (opened !== slug.value) return;
+  raw.value = text;
   document.title = page.value ? `${page.value.title} · Mercbot help` : "Mercbot help";
   await nextTick();
   if (route.hash) document.getElementById(route.hash.slice(1))?.scrollIntoView();
