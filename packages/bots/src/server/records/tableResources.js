@@ -74,7 +74,7 @@ export const chatPersonResource = defineTableResource({
     hidden: { type: "boolean", search: true },
     joinedAt: { type: "dateTime" },
     mentionedAt: { type: "dateTime", nullable: true },
-    muted: { type: "boolean" },
+    muted: { type: "boolean", search: true },
     pinPosition: { type: "integer", nullable: true },
     readUpTo: { type: "integer", nullable: true },
     sectionId: { type: "id", nullable: true, search: true },
