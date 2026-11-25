@@ -102,7 +102,10 @@ time; it reads only the columns it shows (never a running routine's saved steps)
 **What a task costs** (D-132; `packages/account`): a routine's run and a watch's run are tracked with their task
 (`meter.track({ …, task: { kind, id } })`), which work started inside carries on. Each AI call and command's
 computation made for a task adds its calls and cost to `usage_tasks_daily` (home, UTC day, task, the person it runs as),
-and each run adds one, once, by the server that started it (`meter.countTaskRun`, never again for a run taken over); a
+and each run adds one once its bot works: when the run's first AI call goes out (`meter.track`'s `onWork`,
+`backgroundRuns.js`), once, by the server that started it (`meter.countTaskRun`, never again for a run taken over). The
+same moment sets the task's last run (a routine's `last_run_at`; a watch's with its runs in the hour, `watches.ran`). A
+run in a paused home, or whose work is refused at its first call, only says why (D-73) and is none of these; a
 computer's day is never a task's. A copy that records work its own way (`mercbot.usage-recorder`) adds its own columns
 there and answers `spending.tasks`. Rows are kept 13 months, then deleted by the usage upkeep. Costs count from this
 release; earlier runs show none.

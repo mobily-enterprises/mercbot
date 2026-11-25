@@ -60,6 +60,18 @@ export function refusalOf(error) {
   return null;
 }
 
+const NOTHING = () => {};
+
+/** `listener`, called the first time only. */
+function once(listener) {
+  let heard = false;
+  return () => {
+    if (heard) return;
+    heard = true;
+    listener();
+  };
+}
+
 // The process's one carrier of who the work in progress is for, and where it's recorded: each meter's track() puts
 // its own `recorder` there with the person, bot and home, and `recordError`, where the AI providers' failures go
 // (AccountFeature: `mercbot.provider-failures` when a feature provides it, else the server log). Work run with
@@ -74,7 +86,7 @@ const context = new AsyncLocalStorage();
 function currentWho() {
   const store = context.getStore();
   if (!store) return null;
-  const { recorder: _recorder, recordError: _recordError, calls: _calls, ...who } = store;
+  const { recorder: _recorder, recordError: _recordError, calls: _calls, onWork: _onWork, ...who } = store;
   return who;
 }
 
@@ -108,14 +120,19 @@ export function currentPerson() {
 export function createMeter({ recorder, recordError }) {
   /**
    * Runs work for a person, bot and home; what it uses is recorded for them, and for the recurring task it runs for
-   * (`task`, a routine's or a watch's run, D-132), which work it starts inside carries on counting for.
+   * (`task`, a routine's or a watch's run, D-132), which work it starts inside carries on counting for. `onWork` hears,
+   * once, that the work has started: when its first AI call goes out, the recorder having let it (a recurring task's
+   * run counts from there, D-132). Work in a paused home, or whose first call is refused, never starts.
    * @template T
-   * @param {{ userId?: string, botId?: string, workspaceId?: string, task?: { kind: "routine" | "watch", id: string }, work?: "chat" | "build" | "background" }} who
+   * @param {{ userId?: string, botId?: string, workspaceId?: string, task?: { kind: "routine" | "watch", id: string }, work?: "chat" | "build" | "background", onWork?: () => void }} who
    * @param {() => T} work
    * @returns {T}
    */
-  function track(who, work) {
-    return context.run({ ...context.getStore(), ...who, recorder, ...(recordError ? { recordError } : {}) }, work);
+  function track({ onWork, ...who }, work) {
+    const outer = context.getStore();
+    // Work tracked inside other work hears its start too: it's that work's.
+    const heard = onWork ? once(onWork) : outer?.onWork || NOTHING;
+    return context.run({ ...outer, ...who, onWork: heard, recorder, ...(recordError ? { recordError } : {}) }, work);
   }
 
   /** Who the work in progress is for, to carry to another server (null outside tracked work). */
@@ -419,6 +436,7 @@ async function meteredFetch(traceDir, provider, recorded, input, init) {
     mostOutput: Number(MOST_OUTPUT.exec(body)?.[1]) || undefined,
     pictures: ASKS_FOR_PICTURES.test(body) ? Number(PICTURES.exec(body)?.[1]) || 1 : 0
   });
+  store.onWork();
   // Work that counts its own calls (counting) hears how this one ended, as the recorder does.
   let heard = () => {};
   if (calls) {

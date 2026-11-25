@@ -217,7 +217,8 @@ export function createWorkRepository({ botRequests, botRoutines, messages: botMe
    * The next due routine no other server holds, its next run time moved on before it runs,
    * so exactly one server runs it. `nextRunOf(routine)` counts the next time from now, so runs missed
    * while every server was down collapse into one. The run gets its id and a lease of `leaseSeconds`
-   * (D-15), which its server renews while it runs. The routine answers its hidden workspaceId.
+   * (D-15), which its server renews while it runs. Its last run is set once its bot works (D-132,
+   * backgroundRuns.js), not here. The routine answers its hidden workspaceId.
    * @param {(routine: object) => string | Date | null} nextRunOf
    * @param {number} leaseSeconds
    * @param {CallOptions} options the routine runner's system context
@@ -233,7 +234,7 @@ export function createWorkRepository({ botRequests, botRoutines, messages: botMe
       const run = { runId: randomUUID(), runAttempts: 1, runSteps: null };
       await botRoutines.patchWhere(
         { id: due.id },
-        { nextRunAt, lastRunAt: botRoutines.raw("now()"), ...run, runLeaseUntil: secondsFromNow(leaseSeconds) },
+        { nextRunAt, ...run, runLeaseUntil: secondsFromNow(leaseSeconds) },
         { ...txOptions, returning: "none" }
       );
       return { ...due, nextRunAt, ...run };
