@@ -31,6 +31,35 @@ test("a help page reads on a phone: the page first, nothing wider than the scree
   await expect(title).toBeInViewport();
 });
 
+// Each page's text is its own chunk, loaded after its title. One left before its text came keeps no hold on the
+// page: here Running your own copy's text is held back until Security overview, opened next, shows its own, then let
+// through; it arrives last, and Security overview's text and title stay.
+test("a help page opened while the last one's text is still on its way keeps its own text", async ({ page }) => {
+  let release = () => {};
+  const held = new Promise<void>((resolve) => { release = resolve; });
+  // Its chunk (assets/own-copy-<hash>.js, or help/own-copy.md?raw unbundled), not the page's own address.
+  await page.route(/\/own-copy[^/]*$/u, async (route) => {
+    if (route.request().resourceType() !== "document") await held;
+    await route.continue();
+  });
+  await page.goto("/help/own-copy");
+  const title = page.locator(".mb-help__title");
+  const article = page.locator(".mb-help__article");
+  await expect(title).toHaveText("Running your own copy of Mercbot");
+  await page.locator(".mb-help__nav a", { hasText: "Security overview" }).click();
+  await expect(title).toHaveText("Security overview");
+  await expect(article).toContainText("This page is for people reviewing Mercbot for security or compliance.");
+  const late = page.waitForResponse((response) => /\/own-copy[^/]*$/u.test(new URL(response.url()).pathname + new URL(response.url()).search)
+    && response.request().resourceType() !== "document");
+  release();
+  await (await late).finished();
+  // Two frames after it arrived: whatever it was going to change, it has.
+  await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+  expect(await article.textContent()).toContain("This page is for people reviewing Mercbot for security or compliance.");
+  expect(await article.textContent()).not.toContain("Mercbot runs on your own Linux computer");
+  expect(await page.title()).toBe("Security overview · Mercbot help");
+});
+
 // The help centre has Mercbot's own pages; a copy built on Mercbot adds its own (help/extensions.json).
 test("the help centre has Mercbot's own pages, and no Legal ones", async ({ page }) => {
   await page.goto("/help");
