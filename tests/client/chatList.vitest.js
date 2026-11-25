@@ -7,9 +7,10 @@ import { theme } from "../../src/theme/index.js";
 import { buildSidebarModel, toChatRow } from "../../src/components/mercbot/chatDirectory.js";
 import { shellPreferences } from "../../src/components/mercbot/shellPreferences.js";
 
-// The sidebar as it renders (D-112, plan 4.1): the everyone chat first among the pinned tiles and never dragged, then
-// the other pinned chats; then Rooms (each section's rows, then the public rooms the person isn't in, faded), People and
-// Bots, each with its + and folding by its title; every row one line, its latest message in its description; archived
+// The sidebar as it renders (D-112, plan 4.1, D-135): the person's pinned chats as tiles, dragged to reorder; then Rooms
+// (the everyone chat its first row, with a pin mark and never dragged, then each section's rows, then the public rooms
+// the person isn't in, faded), People and Bots, each with its + and folding by its title; every row one line, its latest
+// message in its description; archived
 // bots under Archived bots, archived rooms under Archived chats, read-only, and hidden ones under Hidden chats, each
 // listed once opened; and the top row of Search, Files and Apps with no Team and no "New chat or bots". The sidebar's
 // own entries (home switcher, Files, Apps, the account) are stand-ins; what the menus offer is shellParts' to test.
@@ -87,13 +88,13 @@ function list(chats, { sections = [], hiddenExpanded = false, archivedExpanded =
 }
 
 describe("the chat list", () => {
-  it("shows the everyone chat as the first tile, which can't be dragged, then the other pinned chats, then Rooms, People and Bots", async () => {
+  it("shows the pinned chats as tiles, then Rooms with the everyone chat its first row, which can't be dragged, then People and Bots", async () => {
     const html = await list([DIRECT, BATHROOM, PARTY, KITCHEN, EVERYONE], { sections: SECTIONS });
     expect(outline(html)).toEqual([
-      "tile Rossi family",
       "tile Kitchen reno",
       "tile Saturday party, private",
       "section Rooms",
+      "row Rossi family",
       "heading Renovations",
       "row Bathroom",
       "heading Unassigned",
@@ -102,9 +103,17 @@ describe("the chat list", () => {
       "section Bots",
       "row Chef"
     ]);
-    const draggable = Object.fromEntries(buttons(html).filter((entry) => entry.classes.includes("mb-tile"))
+    const draggable = Object.fromEntries(buttons(html).filter((entry) => entry.classes.includes("mb-tile") || entry.label === "Rossi family")
       .map((entry) => [entry.label, /draggable="([^"]*)"/u.exec(entry.attributes)?.[1]]));
     expect(draggable).toEqual({ "Rossi family": "false", "Kitchen reno": "true", "Saturday party, private": "true" });
+  });
+
+  it("has no Pinned chats while the everyone chat is the only pinned chat, which is Rooms' first row with a pin mark", async () => {
+    const html = await list([GARDEN, EVERYONE]);
+    expect(html).not.toContain("aria-label=\"Pinned chats\"");
+    expect(outline(html).slice(0, 3)).toEqual(["section Rooms", "row Rossi family", "row Garden"]);
+    const marked = buttons(html).filter((entry) => entry.classes.includes("mb-row") && entry.inside.includes("mb-row__pin")).map((entry) => entry.label);
+    expect(marked, "the pin mark is the everyone chat's alone").toEqual(["Rossi family"]);
   });
 
   it("draws each row on one line, its latest message with who wrote it in its description, but in a direct chat", async () => {

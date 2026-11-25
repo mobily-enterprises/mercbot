@@ -6,7 +6,8 @@ import { connectTestDb, expect, expectRefusal, homeApi, openShell, seedChat, see
 // Rossi, and two bots, Chef and Shopper. A person's own copy has one person who signs in (D-81), so Ben is a member of the
 // home who never opens a page here: what he may open is checked from the owner's side, as the person a chat of his
 // isn't shared with, and through the server (the server's tests read it as him, chatMembers.integration.js and
-// chatVisibility.integration.js). The home's everyone chat is the first tile for everyone in it, and no one leaves it; a
+// chatVisibility.integration.js). The home's everyone chat is the first row under Rooms for everyone in it, with a pin
+// mark, and no one leaves it; a
 // public room of Ben's is listed faded in the owner's Rooms and opening it joins them, and a
 // private one is a 404 and never listed; New room is Public unless Private is picked, needs a name, and a private room
 // opens Invite at once; its header, composer and details say who can read it; Invite puts people and bots in a public
@@ -109,7 +110,7 @@ async function invite(page: Page, dialog: ReturnType<Page["getByRole"]>, field: 
   await expect(dialog).toBeHidden();
 }
 
-test("the home's everyone chat is the first tile for everyone in it, and no one leaves it", async ({ page }, testInfo) => {
+test("the home's everyone chat is the first row under Rooms for everyone in it, and no one leaves it", async ({ page }, testInfo) => {
   const knex = connectTestDb();
   let home: Home | null = null;
   try {
@@ -118,20 +119,22 @@ test("the home's everyone chat is the first tile for everyone in it, and no one 
     await seedChat(knex, { homeId: home.homeId, title: `Garden ${home.stamp}`, people: [home.owner], bots: [home.chef] });
     await openShell(page, "", home.path);
 
-    // First among the pinned chats, and what opens with no chat named.
-    const tiles = shell.sidebar(page).getByRole("region", { name: "Pinned chats" }).locator("button.mb-tile");
-    await expect(tiles.first()).toHaveAccessibleName(home.name);
-    await expect(tiles.first()).toHaveAttribute("aria-current", "page");
+    // Rooms' first row, with a pin mark, no Pinned chats while it's the only one, and what opens with no chat named.
+    const first = shell.section(page, "Rooms").locator("button.mb-row").first();
+    await expect(first).toHaveAccessibleName(home.name);
+    await expect(first.locator(".mb-row__pin")).toBeVisible();
+    await expect(shell.sidebar(page).getByRole("region", { name: "Pinned chats" })).toHaveCount(0);
+    await expect(first).toHaveAttribute("aria-current", "page");
     await expect(chip(page, home.name)).toBeVisible();
     await expect(shell.chatRow(page, `Garden ${home.stamp}`)).toBeVisible();
     await shots(page, testInfo, "everyone-list", async () => {
       await shell.chat(page).getByRole("button", { name: "Your chats" }).click();
-      await expect(tiles.first()).toBeVisible();
+      await expect(first).toBeVisible();
     });
     await openShell(page, "", home.path);
 
     // Its menu has no Leave, Unpin, Archive or Delete.
-    await tiles.first().click({ button: "right" });
+    await first.click({ button: "right" });
     await expect(shell.menuItems(page).first()).toBeVisible();
     for (const absent of ["Leave chat", "Unpin", "Archive", "Delete"]) await expect(shell.menuItems(page).filter({ hasText: new RegExp(`^${absent}$`, "u") })).toHaveCount(0);
     await page.keyboard.press("Escape");

@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { buildRailModel, buildSidebarModel, railOrder, shownEntries, tileLayout, toChatRow } from "../../src/components/mercbot/chatDirectory.js";
 
-// The sidebar's arrangement (D-112, plan 4.1): pinned tiles with the home's everyone chat first, then Rooms (rows by
-// section, then the public rooms the person isn't in, faded), People and Bots (each from the person's direct chat with
-// them), hidden and archived rooms apart, folding, "N more", the visual order, the rail, and the tiles' layout. Each
-// chat is a ChatView as the server answers it, read into a row by toChatRow.
+// The sidebar's arrangement (D-112, plan 4.1, D-135): the person's pinned chats, then Rooms (the home's everyone chat
+// its first row, then rows by section, then the public rooms the person isn't in, faded), People and Bots (each from the
+// person's direct chat with them), hidden and archived rooms apart, folding, "N more", the visual order, the rail, and
+// the pinned chats' layout. Each chat is a ChatView as the server answers it, read into a row by toChatRow.
 
 /** A chat the person is in, as the server answers it; `place` is their own place in it, null for one they only visit. */
 function view(id, { place = {}, ...extra } = {}) {
@@ -59,13 +59,32 @@ describe("sidebar model", () => {
     expect(model.visualOrder).toEqual(["2", "1", "4", "3"]);
   });
 
-  it("makes the everyone chat the first tile, before every pinned chat", () => {
-    const model = buildSidebarModel({ publicRooms: [], people: [], bots: [], 
-      chats: [chat("1", { place: { pinPosition: 0 } }), chat("2", { place: { pinPosition: 1 } }), chat("3"), chat("4", { everyone: true })],
-      sections: []
+  it("makes the everyone chat the first row of Rooms, never a pinned tile, before every section", () => {
+    const sections = [{ id: "s1", name: "Work", position: 0, collapsed: false }];
+    const model = buildSidebarModel({ publicRooms: [], people: [], bots: [],
+      chats: [chat("1", { place: { pinPosition: 0 } }), chat("2", { place: { pinPosition: 1 } }), chat("3", { place: { sectionId: "s1" } }), chat("4", { everyone: true })],
+      sections
     });
-    expect(ids(model.tiles)).toEqual(["4", "1", "2"]);
-    expect(model.visualOrder).toEqual(["4", "1", "2", "3"]);
+    expect(ids(model.tiles)).toEqual(["1", "2"]);
+    expect(ids(model.rooms.everyone)).toEqual(["4"]);
+    expect(model.groups.map((group) => ids(group.chats)), "in no section").toEqual([["3"], []]);
+    expect(model.visualOrder).toEqual(["1", "2", "4", "3"]);
+  });
+
+  it("leaves no pinned tiles when the everyone chat is the only pinned chat", () => {
+    const model = buildSidebarModel({ publicRooms: [], people: [], bots: [], chats: [chat("1"), chat("2", { everyone: true })], sections: [] });
+    expect([ids(model.tiles), ids(model.rooms.everyone), ids(model.groups[0].chats)]).toEqual([[], ["2"], ["1"]]);
+    expect(model.visualOrder).toEqual(["2", "1"]);
+  });
+
+  it("keeps the everyone chat in a folded Rooms only while it needs the person, and a hidden one under Hidden chats", () => {
+    const everyone = (place) => chat("2", { everyone: true, place });
+    const folded = (place, openId = "") => buildSidebarModel({ publicRooms: [], people: [], bots: [], chats: [chat("1"), everyone(place)], sections: [], folded: { rooms: true }, openId });
+    expect([ids(folded({}).rooms.everyone), folded({}).rooms.hiddenCount], "counted with the rooms folded away").toEqual([[], 2]);
+    expect(ids(folded({ unread: true }).rooms.everyone)).toEqual(["2"]);
+    expect(ids(folded({}, "2").rooms.everyone)).toEqual(["2"]);
+    const hidden = buildSidebarModel({ publicRooms: [], people: [], bots: [], chats: [chat("1"), everyone({ hidden: true })], sections: [] });
+    expect([ids(hidden.tiles), ids(hidden.rooms.everyone), ids(hidden.hidden)]).toEqual([[], [], ["2"]]);
   });
 
   it("groups by section, then Unassigned, and skips collapsed groups in the visual order", () => {
@@ -117,12 +136,12 @@ describe("sidebar model", () => {
       ],
       sections: [{ id: "s1", name: "Work", position: 0, collapsed: true }, { id: "s2", name: "Empty", position: 1, collapsed: false }]
     });
-    expect(buildRailModel(model).map(ids), "pinned, then every room, a collapsed section's too").toEqual([["6", "1"], ["2", "3"]]);
-    expect(railOrder(model)).toEqual(["6", "1", "2", "3"]);
+    expect(buildRailModel(model).map(ids), "pinned, then every room, the everyone chat first and a collapsed section's too").toEqual([["1"], ["6", "2", "3"]]);
+    expect(railOrder(model)).toEqual(["1", "6", "2", "3"]);
   });
 
-  it("lays out one or two tiles centred and more as a grid", () => {
-    expect([tileLayout(1), tileLayout(2), tileLayout(3), tileLayout(7)]).toEqual(["single", "pair", "grid", "grid"]);
+  it("lays out one pinned chat across the block and more in two columns", () => {
+    expect([tileLayout(1), tileLayout(2), tileLayout(3), tileLayout(7)]).toEqual(["single", "columns", "columns", "columns"]);
   });
 });
 
@@ -255,7 +274,7 @@ describe("Rooms, People and Bots", () => {
   });
 
   it("says Rooms is empty only with no room of the person's and none to join", () => {
-    expect(model({ chats: [chat("1", { everyone: true })] }).rooms.empty, "the everyone chat is a tile").toBe(true);
+    expect(model({ chats: [chat("1", { everyone: true })] }).rooms.empty, "the everyone chat isn't a room of the person's").toBe(true);
     expect(model({ chats: [], publicRooms: [visiting("9")] }).rooms.empty).toBe(false);
     expect(model({ chats: [chat("2")] }).rooms.empty).toBe(false);
   });

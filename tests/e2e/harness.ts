@@ -327,11 +327,11 @@ export async function openShell(page: Page, query = "", home = HOME) {
 
 /** The shell's parts as a person finds them (D-112): the sidebar, a chat's row, the open chat and Details. */
 export const shell = {
-  /** The sidebar: Search, Files and Apps, pinned tiles, then Rooms, People and Bots. */
+  /** The sidebar: Search, Files and Apps, the person's pinned chats, then Rooms (the everyone chat first), People and Bots. */
   sidebar: (page: Page) => page.getByRole("navigation", { name: "Chats" }),
   /** One of the sidebar's sections, each folding by its title and with its +. */
   section: (page: Page, name: "Rooms" | "People" | "Bots") => shell.sidebar(page).getByRole("region", { name, exact: true }),
-  /** A chat's row or pinned tile in the sidebar, by the name it shows ("<title>, private" for a private chat). */
+  /** A chat's row or pinned chip in the sidebar, by the name it shows ("<title>, private" for a private chat). */
   chatRow: (page: Page, name: string) => shell.sidebar(page).getByRole("button", { name, exact: true }),
   /** The chat panel: the open chat, or where to start. */
   chat: (page: Page) => page.locator("main.mb-chat"),
