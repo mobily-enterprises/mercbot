@@ -248,10 +248,7 @@ export async function gvisorProcess({ runtimeEnv, dirs, args, cwd, env, mounts, 
   await sweepSandboxes(runtimeEnv);
   const { id, dir: runDir, state } = sandboxPlace("app");
   const spec = bundle({ runtimeEnv, dirs, args, cwd, env, mounts, readOnly, limits: LIMITS, rootReadOnly: true });
-  await ensureMountPoints(spec).catch(async (error) => {
-    await fs.rm(runDir, { recursive: true, force: true }).catch(() => {});
-    throw error;
-  });
+  await ensureMountPoints(spec, () => fs.rm(runDir, { recursive: true, force: true }));
   await fs.mkdir(state, { recursive: true });
   await fs.writeFile(path.join(runDir, "config.json"), JSON.stringify(spec));
   const [command, runArgs] = runsc(runtimeEnv, [
@@ -647,11 +644,7 @@ export function createShell({
     });
     const spec = bundle({ runtimeEnv: env, dirs, script: SESSION, limits, term: "xterm-256color", label, gateway: gatewayDir });
     // Refused, the session leaves nothing open: its gateway closes and its folder goes.
-    await ensureMountPoints(spec).catch(async (error) => {
-      await sessionGateway.close().catch(() => {});
-      await fs.rm(runDir, { recursive: true, force: true }).catch(() => {});
-      throw error;
-    });
+    await ensureMountPoints(spec, () => Promise.allSettled([sessionGateway.close(), fs.rm(runDir, { recursive: true, force: true })]));
     await fs.mkdir(state, { recursive: true });
     await fs.writeFile(path.join(runDir, "config.json"), JSON.stringify(spec));
     await new Promise((resolve) => {
