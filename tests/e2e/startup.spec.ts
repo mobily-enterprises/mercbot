@@ -34,9 +34,14 @@ async function holdScripts(page: Page) {
  */
 async function withoutApp(page: Page) {
   let empty = true;
+  // The scripts a service worker answered while they were to be empty: page.route never sees those.
+  let fromWorker = 0;
   await page.route("**/*", (route) => (empty && route.request().resourceType() === "script"
     ? route.fulfill({ status: 200, contentType: "text/javascript", body: "" })
     : route.continue()));
+  page.on("response", (response) => {
+    if (empty && response.request().resourceType() === "script" && response.fromServiceWorker()) fromWorker += 1;
+  });
   return {
     async open() {
       empty = false;
@@ -44,8 +49,15 @@ async function withoutApp(page: Page) {
       return appBackground(page);
     },
     async splashAgain() {
+      // Mercbot's service worker (D-133) has the page within a moment of the app opening, and from then on answers the
+      // built scripts itself: the next load comes once a worker the page may register has it, and none of its scripts
+      // may be the worker's, or the app opens in place of the splash as soon as it can.
+      await page.evaluate(async () => {
+        if (await navigator.serviceWorker.register("/sw.js")) await navigator.serviceWorker.ready;
+      });
       empty = true;
       await page.reload();
+      expect(fromWorker, "the splash's scripts a service worker answered, which this test can't empty").toBe(0);
     }
   };
 }
