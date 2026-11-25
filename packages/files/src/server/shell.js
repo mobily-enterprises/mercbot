@@ -747,4 +747,4 @@ export function createShell({
 }
 
 /** Pure helpers and data the tests reach directly (rule 64). */
-export const __testables = Object.freeze({ LIMITS });
+export const __testables = Object.freeze({ LIMITS, IN_SESSION });
