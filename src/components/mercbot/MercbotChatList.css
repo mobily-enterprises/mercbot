@@ -270,6 +270,12 @@
   outline: none;
 }
 
+/* A chip's name being renamed: the field takes the rest of its line. */
+.mb-inline-name--tile {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
 .mb-inline-name--header {
   height: 24px;
   font-size: 12px;

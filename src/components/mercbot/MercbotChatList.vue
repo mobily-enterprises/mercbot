@@ -201,7 +201,7 @@ const SECTIONS = computed(() => [
         :close-delay="0"
         location="end"
         :offset="4"
-        :disabled="Boolean(draggingChatId) || menu.open"
+        :disabled="Boolean(draggingChatId) || menu.open || renamingChatId === chat.id"
         content-class="mb-popover mb-tile-preview"
         transition="mb-preview"
         @update:model-value="previewChatId = $event ? chat.id : ''"
@@ -218,7 +218,7 @@ const SECTIONS = computed(() => [
             }"
             :aria-current="chat.id === currentChatId ? 'page' : undefined"
             :aria-label="rowLabel(chat)"
-            draggable="true"
+            :draggable="renamingChatId !== chat.id"
             @click="emit('select', chat.id)"
             @contextmenu.prevent="chatMenu($event, chat, 'tile')"
             @mouseenter="hoveredChatId = chat.id"
@@ -233,7 +233,18 @@ const SECTIONS = computed(() => [
               <span v-else-if="chat.mentioned" class="mb-badge mb-badge--mention" aria-label="Mentioned you">@</span>
               <span v-else-if="chat.unread" class="mb-badge mb-badge--unread" aria-label="Unread" />
             </span>
-            <span class="mb-tile__name">
+            <!-- Rename chat, from its menu: the name becomes a field in place, as on a row. -->
+            <input
+              v-if="renamingChatId === chat.id"
+              v-model="renameValue"
+              class="mb-inline-name mb-inline-name--tile"
+              aria-label="Chat name"
+              placeholder="Its members' names"
+              @click.stop
+              @keydown="onRenameKeydown"
+              @blur="commitRename"
+            >
+            <span v-else class="mb-tile__name">
               <v-icon v-if="!isDirect(chat) && !chat.directPerson" :icon="kindIcon(chat)" size="11" class="mb-kind" :aria-label="kindLabel(chat)" />
               {{ titleOf(chat) }}
             </span>

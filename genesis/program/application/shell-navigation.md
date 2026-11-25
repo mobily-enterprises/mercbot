@@ -146,7 +146,8 @@ render across compact, medium, and expanded layouts.
   previous/next (Alt+Up/Down) and Switch chats follow the visual order of what's shown (pins, the everyone chat, rooms, faded rooms,
   people, bots, then hidden and archived when open); the rail shows the same faces in groups with dividers. A room's
   menu (`chatMenus.js`, on right-click) has Pin, Move to (the sections, Unassigned, Create section) or Move to new
-  section, Mark as read or unread, Rename chat (its maker and the home's owners and admins), Copy chat ID, Hide from
+  section, Mark as read or unread, Rename chat (its maker and the home's owners and admins; the name becomes a field in
+  place, on a row or a pin: Enter keeps it, Escape doesn't), Copy chat ID, Hide from
   sidebar, Leave chat (not the everyone chat), Archive (a Public room only) and Delete (its maker and the home's owners
   and admins; not the everyone chat; `chatMenus.js` `chatRights`); a person's or a bot's row, once its chat is made, has
   Pin, Mark as read or unread, Copy chat ID, Leave (a chat between two people only) and Delete. Each change is on the
