@@ -199,7 +199,10 @@ so they're safe to share.
 Every fix requested on 2026-10-27 has shipped: 2.1.0 (servers kept in sync with `schema_version`,
 `reloadSchema`, `loadResource`, `onSchemaChanged`; slot counts; cheap per-tenant instances; the
 `email` type) and 2.2.0 (`aggregate()` under row policies, `retireKnexFields()`, `migrateField()`).
-Apps uses 2.2.0.
+Apps takes json-rest-api from JSKIT, as `@jskit-ai/resource-runtime/server/anyapi`: the copy JSKIT's resource
+runtime runs, at the version JSKIT's catalog pins, which `npm run jskit:update` moves. No Mercbot package declares
+json-rest-api itself: json-rest-api knows the transactions `api.transaction` opened by identity, so AnyAPI's writes in
+an audit_events handle's transaction work only on JSKIT's copy (`tests/server/jsonRestApiFromJskit.test.js`).
 
 ## As built (first release, 2026-10-28)
 

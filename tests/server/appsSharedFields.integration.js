@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { appsHome, appsParts } from "../support/appsHome.mjs";
 import { queriesDuring } from "../support/queryCount.mjs";
-import { AnyapiRegistry } from "json-rest-api";
+import { AnyapiRegistry } from "@jskit-ai/resource-runtime/server/anyapi";
 import { connectTestDatabase } from "../support/testDatabase.mjs";
 import { celSchema } from "../../packages/apps/src/shared/formulas.js";
 import { compileWhere, planToIds } from "../../packages/apps/src/shared/where.js";

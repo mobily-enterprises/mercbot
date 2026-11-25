@@ -1,4 +1,4 @@
-import { ensureAnyApiSchema } from "json-rest-api";
+import { ensureAnyApiSchema } from "@jskit-ai/resource-runtime/server/anyapi";
 
 // Slot counts for AnyAPI's shared record table (json-rest-api 3.1). Raising one adds columns;
 // lowering never drops any.

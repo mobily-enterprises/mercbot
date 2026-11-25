@@ -1,6 +1,6 @@
 // readable-check: allow no-direct-knex - infrastructure: AnyAPI keeps each home's runtime tables (the ones people define while the app runs, which no table resource describes) on the app's Knex
 // readable-check: allow no-transaction-reader - infrastructure: a draft's practice copy (D-71) is written and cleared in the transaction that holds its app_practices row, which AnyAPI takes as its own Knex transaction
-import { AnyapiRegistry, JsonRestApi, RestApiAnyapiKnexPlugin, RestApiPlugin, RowPolicyPlugin } from "json-rest-api";
+import { AnyapiRegistry, JsonRestApi, RestApiAnyapiKnexPlugin, RestApiPlugin, RowPolicyPlugin } from "@jskit-ai/resource-runtime/server/anyapi";
 import { PAGE_MAX, isCalculated } from "../shared/index.js";
 import { applyPlan } from "./sqlPlan.js";
 

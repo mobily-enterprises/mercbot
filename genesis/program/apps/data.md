@@ -48,7 +48,8 @@ home, with every change audited and nothing ever deleted (D-35).
 
 ## Public contract
 
-- Records live in json-rest-api's AnyAPI storage, one tenant per home (`ws:<id>`); tables and
+- Records live in json-rest-api's AnyAPI storage (taken from JSKIT's `@jskit-ai/resource-runtime/server/anyapi`, the
+  copy JSKIT runs; no Mercbot package declares json-rest-api), one tenant per home (`ws:<id>`); tables and
   fields have permanent ids (`t_…`, `f_…`) that are AnyAPI's resource and field names, while keys
   and labels live in `app_tables`/`app_fields`. Renaming changes only the registry. Field types:
   text, email, phone, choice, link, number, money (whole cents), date (YYYY-MM-DD), yesno, and
