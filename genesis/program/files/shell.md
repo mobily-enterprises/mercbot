@@ -205,7 +205,8 @@ does, within limits per command, per bot and per home (D-47, D-112, D-126, D-127
   has, so the session's runs and the Terminal find `main` from the start, however slowly the sandbox started. A
   session whose tmux didn't start ends, and attach fails (the computer goes on without it).
   While it exists, that seat's runs (except those with `readOnly`) execute in it with
-  `runsc exec` (`IN_SESSION`): each is shown in the log with its heading and `(exit N)`, keeps
+  `runsc exec` (`IN_SESSION`): each is shown in the log with its heading, its output and then `(exit N)`, written
+  once the log's copy of its output is (`tests/server/sessionLog.test.js`), keeps
   its own time limit, and shares the session's `/tmp`. The session's gateway counts each run's internet from its start
   (`gateway.begin()`) and again from its end, and the run's output ends with that run's notes (D-127); the person's
   shell counts toward the bot's minute and the home's day. The log starts again once past 1 MB and

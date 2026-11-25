@@ -283,9 +283,9 @@ tmux split-window -v -t main -l 55% -c "$PWD" "while true; do bash -l; done"
 tmux select-pane -t main.1 -T "Your shell"`;
 
 // The command itself, cut off at its time limit with everything it started; at most 1 MB of its
-// output goes in the log.
+// output goes in the log, and the pipeline waits for that copy, so what follows in the log comes after it.
 const LOGGED_RUN = '{ setsid bash -c "$s" < /dev/null 2>&1 & p=$!; ( exec > /dev/null 2>&1; sleep "$t"; kill -KILL -- -"$p" ) & k=$!;' +
-  ' wait "$p"; c=$?; kill "$k" 2>/dev/null; exit "$c"; } | tee -p >(head -c 1048576 >> /tmp/bot.log)';
+  ' wait "$p"; c=$?; kill "$k" 2>/dev/null; exit "$c"; } | { tee -p >(head -c 1048576 >> /tmp/bot.log); wait $!; }';
 
 // A bot's command inside a session: shown in the session's log as it runs, cut off at its time
 // limit with everything it started, and its exit code returned. The log stays small: it starts
@@ -294,7 +294,7 @@ const IN_SESSION = `w="$1"; t="$2"; s="$3"
 [ "$(stat -c %s /tmp/bot.log 2>/dev/null || echo 0)" -lt 1048576 ] || : > /tmp/bot.log
 printf '\\n\\033[1;36m$ %s\\033[0m\\n' "$w" >> /tmp/bot.log
 ${LOGGED_RUN}
-c="\${PIPESTATUS[0]}"; wait $! 2>/dev/null
+c="\${PIPESTATUS[0]}"
 printf '\\033[2m(exit %s)\\033[0m\\n' "$c" >> /tmp/bot.log
 exit "$c"`;
 

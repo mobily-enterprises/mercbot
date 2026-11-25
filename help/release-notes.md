@@ -8,8 +8,9 @@ What's new in Mercbot, newest first. To see which version you're using, open the
 - **Runs that only say the home is paused don't count:** **Recurring tasks** counts a routine's or a watch's run once its bot starts working. A run that only said your home's work is paused isn't counted, and isn't shown as its last run.
 - **Private skills:** saving or deleting one of your private skills in **Connect apps** works again.
 - **Connect apps keeps your change:** a private skill you delete or change while Connect apps is still loading its list stays deleted or changed.
+- **The Terminal on a bot's computer:** a command's exit code, such as "(exit 0)", always shows after the command's output, never above it.
 
-See [Skills, routines and watches](/help/skills-and-routines).
+See [Skills, routines and watches](/help/skills-and-routines) and [The bots' computer and connected apps](/help/computer-and-apps).
 
 ## 24 November 2026
 
