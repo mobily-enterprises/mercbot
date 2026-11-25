@@ -126,7 +126,7 @@ test("routines: claimed earliest next run first; not due, paused and unscheduled
     .map((row) => [String(row.id), row]));
   for (const id of [late, early, middle]) {
     assert.ok(rows.get(id).next_run_at > new Date(), "a claimed routine's next run moves on before it runs");
-    assert.ok(rows.get(id).last_run_at, "and its last run is now");
+    assert.equal(rows.get(id).last_run_at, null, "and its last run waits for its bot to work (D-132)");
   }
   assert.equal(rows.get(broken).next_run_at, null, "a schedule that can't be read gets no next run");
   assert.deepEqual(mine(await sweepRoutines(knex)), [], "a second sweep finds nothing due");

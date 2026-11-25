@@ -5,6 +5,7 @@ import { claimedWork, memberOptions } from "../support/botRecords.mjs";
 import { seedChat } from "../support/chatFixtures.mjs";
 import { botsOf, homeOfPeople, startChatTurns } from "../support/botDoubles.mjs";
 import { queriesDuring, statementsDuring } from "../support/queryCount.mjs";
+import { createMeteredFetch } from "../../packages/account/src/server/meter.js";
 import { createChatRoutines } from "../../packages/bots/src/server/chatRoutines.js";
 import { createRecurringTasks, jobName, jobSchedule, watchSchedule } from "../../packages/bots/src/server/recurringTasks.js";
 
@@ -21,8 +22,8 @@ const daysAgo = (days) => new Date(Date.now() - days * 24 * 60 * 60 * 1000).toIS
  * Olive (the owner) and Max (a member), with the bot Scout in three chats: a room they're both in, Olive's private room
  * and Max's private room, each with a routine of its own person. Apps' watches and jobs are `apps`'s.
  */
-async function setup(context, { watches = [], scripts = [] } = {}) {
-  const kit = await startChatTurns(context, { reply: async () => ({ text: "Done.", transcript: [] }) });
+async function setup(context, { watches = [], scripts = [], reply = async () => ({ text: "Done.", transcript: [] }) } = {}) {
+  const kit = await startChatTurns(context, { reply });
   const { knex } = kit;
   const { homeId, people: [olive, max] } = await homeOfPeople(kit, ["Olive", "Max"]);
   kit.cleanup.after(() => knex("usage_tasks_daily").where({ workspace_id: homeId }).del());
@@ -165,7 +166,19 @@ test("schedules in words", () => {
 });
 
 test("a routine's run is counted once, by the server that started it, with the AI it used", async (context) => {
-  const { kit, knex, homeId, olive, shared, routine } = await setup(context);
+  // Its reply makes one AI call, as a bot's does: a run counts once its first call goes out (D-132). The call goes to a
+  // stand-in here, never to a provider.
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async () => Response.json({ usage: { prompt_tokens: 10, completion_tokens: 2 } });
+  context.after(() => {
+    globalThis.fetch = realFetch;
+  });
+  const reply = async () => {
+    await createMeteredFetch({}, "deepinfra")("https://stand-in.invalid/v1/chat/completions", { method: "POST", body: "{}" });
+    return { text: "Done.", transcript: [] };
+  };
+  const { kit, knex, homeId, olive, shared, routine } = await setup(context, { reply });
+  kit.cleanup.after(() => Promise.all(["usage_events", "usage_daily", "usage_monthly"].map((table) => knex(table).where({ workspace_id: homeId }).del())));
   const id = await routine(shared, olive, "Weather");
   const run = async (attempts) => {
     const [row] = await knex("bot_routines").where({ id }).update({ run_id: randomUUID(), run_attempts: attempts, run_lease_until: knex.raw("now() + interval '90 seconds'") }).returning("*");
@@ -181,6 +194,8 @@ test("a routine's run is counted once, by the server that started it, with the A
   assert.equal(await runs(), 1, "a run carried on after its server stopped isn't counted again");
   const row = await knex("usage_tasks_daily").where({ workspace_id: homeId, task_kind: "routine", task_id: id }).first();
   assert.equal(String(row.user_id), olive, "for the person it runs as");
+  assert.equal(Number(row.calls), 2, "with the AI call each run made");
+  assert.ok((await knex("bot_routines").where({ id }).first("last_run_at")).last_run_at, "and it's the routine's last run");
 });
 
 test("the list costs the same queries for 5 routines or 200, but a page of costs per 100, and never reads a routine's saved run", async (context) => {

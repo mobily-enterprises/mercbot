@@ -191,13 +191,13 @@ test("claimRoutine() takes a due routine once and moves its next run; nameIs mat
   assert.equal(await work.claimRoutine(() => null, 90, system), null, "its next run moved on, so nothing else is due");
   const stored = await knex("bot_routines").where({ id: due.id }).first(
     knex.raw("next_run_at as next"),
-    knex.raw("last_run_at > now() - interval '1 minute' as ran"),
+    "last_run_at",
     knex.raw("run_lease_until between now() + interval '80 seconds' and now() + interval '100 seconds' as leased"),
     "run_id",
     "run_attempts"
   );
   assert.equal(new Date(stored.next).getTime(), nextRun.getTime());
-  assert.equal(stored.ran, true, "last_run_at is the database's now()");
+  assert.equal(stored.last_run_at, null, "a claim isn't a run: its last run is set once its bot works (D-132)");
   assert.deepEqual([stored.run_id, stored.run_attempts, stored.leased], [claimed.runId, 1, true], "the run holds a lease of 90 s on the database's clock");
 
   // The run's server renews and ends it by its run id; a run id that isn't the routine's changes nothing.
