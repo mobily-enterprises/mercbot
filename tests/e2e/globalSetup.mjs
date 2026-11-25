@@ -7,7 +7,8 @@
 // and signs a browser state in there as the first saved Preview identity, opening it with the key in
 // its data folder, as a person's own copy opens. Their logs, data and
 // signed-in states live in a temporary folder outside the source tree. harness.ts hands each worker
-// its own. The returned teardown stops them, drops their databases and removes the folder.
+// its own. The returned teardown stops them, drops their databases and removes the folder. One that stops before
+// then says so in the suite's output, and its log is kept in the test results (tests/support/testPreviewWatch.mjs).
 import { spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { createWriteStream } from "node:fs";
@@ -17,6 +18,7 @@ import path from "node:path";
 import { loadEnvFile } from "../../server/lib/envFile.js";
 import { copyTestTemplate, dropTestCopies, prepareTestTemplate, testCopyName } from "../support/testDatabase.mjs";
 import { signInAsPreviewOwner } from "../support/previewSignIn.mjs";
+import { watchTestPreview } from "../support/testPreviewWatch.mjs";
 
 // Coarse: a Test Preview answers 10–20 s after it starts on a busy machine (migrations, fixtures, boot).
 const START_BOUND_MS = 60_000;
@@ -50,8 +52,11 @@ const BAD_PORTS = new Set([
 /** The end of a log, for an error that outlives the temporary folder. */
 const logTail = (text) => text.trimEnd().split("\n").slice(-15).join("\n");
 
+/** The servers the teardown has begun to stop: a Test Preview among them that stops is expected to. */
+const stopped = new WeakSet();
+
 /**
- * Starts a Test Preview on `port` (0: the system picks one) and resolves with its origin once it
+ * Starts a Test Preview on `port` (0: the system picks one) and resolves with its process and its origin once it
  * answers there, as it says over IPC; rejects when it stops first or takes too long. `servers`
  * collects the process, so the teardown stops it whatever happens.
  */
@@ -68,7 +73,7 @@ async function startPreview(port, env, log, servers) {
       const timer = setTimeout(() => reject(new Error(`didn't answer within ${START_BOUND_MS / 1000} s`)), START_BOUND_MS);
       server.once("message", ({ origin }) => {
         clearTimeout(timer);
-        resolve(origin);
+        resolve({ server, origin });
       });
       server.once("exit", (code) => {
         clearTimeout(timer);
@@ -106,6 +111,7 @@ async function makeFixtures(env, log, servers) {
 }
 
 function stop(server) {
+  stopped.add(server);
   if (server.exitCode !== null || server.signalCode !== null) return Promise.resolve();
   return new Promise((resolve) => {
     const killer = setTimeout(() => server.kill("SIGKILL"), 10_000);
@@ -149,8 +155,12 @@ export default async function globalSetup(config) {
   const phases = [];
   const started = performance.now();
   const servers = [];
+  // Each started Test Preview's watch (watchTestPreview): what one that stopped during the run has to say is said, and
+  // its log kept, before the folder goes.
+  const watches = [];
   const teardown = async () => {
     await Promise.all(servers.map(stop));
+    await Promise.all(watches);
     await dropTestCopies(process.pid);
     await rm(runDir, { recursive: true, force: true });
   };
@@ -179,10 +189,12 @@ export default async function globalSetup(config) {
       const start = () => startPreview(basePort && basePort + index, env, log, servers);
       // Another process can take a picked port in the moment before the app listens on it (rare):
       // then it starts once more, on a new one.
-      const origin = await start().catch((error) => {
+      const { server, origin } = await start().catch((error) => {
         if (basePort || !error.portTaken) throw error;
         return start();
       });
+      const kept = path.join(config.projects[0]?.outputDir || "test-results", `test-preview-${index}.log`);
+      watches.push(watchTestPreview(server, { name: `Test Preview ${index} at ${origin}`, log, kept, stopping: () => stopped.has(server) }));
       const storageState = path.join(runDir, `signed-in-${index}.json`);
       // A Test Preview that started but can't be signed in to says why in its log, which the teardown deletes.
       await signInAsPreviewOwner(origin, storageState, { ...process.env, MERCBOT_DATA_DIR: env.MERCBOT_TEST_DATA_DIR }).catch(async (error) => {

@@ -116,7 +116,9 @@ the development `.env` never migrates or writes the development database.
 `npm run test:e2e` starts a Test Preview per worker (`tests/e2e/globalSetup.mjs`), each on its own copy of a
 database with the fixtures made (once a run, while the app builds), a port the system picks (or `PLAYWRIGHT_PORT`
 and the next ones, when set) and its own data folder in a temporary folder outside the source tree, opened with the
-key in that folder as its one person, as `mercbot open` opens a copy (`tools/preview-identity`). A Test Preview clears every
+key in that folder as its one person, as `mercbot open` opens a copy (`tools/preview-identity`). One that stops during the
+run, crashed or killed, says so in the suite's output, with its pid, its exit code or signal and its log's end, and its
+log is kept in `test-results/test-preview-<worker>.log` (`tests/support/testPreviewWatch.mjs`). A Test Preview clears every
 credential-shaped variable (`*_API_KEY`, `*_CLIENT_ID`, `*_CLIENT_SECRET`, `*_TOKEN` and the like), mail and the hub
 address, so no real model, mail or sign-in key reaches it; only a payment provider's test-mode key (`sk_test_…`,
 `rk_test_…`) stays, since it can't move money (D-116). Every kind of AI is Mercbot's stand-in model
