@@ -93,6 +93,52 @@ test("a read of Connect apps that lands late never undoes what was done meanwhil
   }
 });
 
+// The same for a private skill: one deleted while that read is on its way stays deleted when the read lands, though the
+// read was taken before the delete and still lists it. Calendly, marked added in the held read, shows when it has landed.
+test("a private skill deleted while a read of Connect apps is on its way stays deleted when the read lands", async ({ page }) => {
+  const knex = knexLib({ client: "pg", connection: { host: process.env.DB_HOST, port: Number(process.env.DB_PORT) || 5432, user: process.env.DB_USER, password: process.env.DB_PASSWORD, database: testDatabaseName() } });
+  const home = await knex("workspaces").where({ slug: HOME.split("/").pop() }).first();
+  const [made] = await knex("user_skills")
+    .insert({ workspace_id: home.id, user_id: home.owner_user_id, name: "Gone meanwhile", description: "deleted while a read was on its way", instructions: "Gone." })
+    .returning("id");
+  try {
+    await openHome(page);
+    const modal = page.locator(".mb-apps-modal");
+    const gone = modal.getByRole("button", { name: /Gone meanwhile/u });
+    // Skills opens Your apps and skills at Private skills.
+    await page.keyboard.press("Control+Alt+w");
+    await expect(gone).toBeVisible();
+    await modal.getByRole("button", { name: "Close", exact: true }).click();
+    await expect(modal).toBeHidden();
+
+    let release = () => {};
+    const held = new Promise<void>((resolve) => { release = resolve; });
+    await page.route(`**/api${HOME}/plugins`, async (route) => {
+      if (route.request().method() !== "GET") return route.fallback();
+      const response = await route.fetch();
+      const json = await response.json();
+      json.plugins = json.plugins.map((plugin: { id: string }) => (plugin.id === "calendly" ? { ...plugin, installed: true } : plugin));
+      await held;
+      await route.fulfill({ response, json });
+    });
+    await page.keyboard.press("Control+Alt+w");
+    await gone.click();
+    const remove = modal.getByRole("button", { name: "Delete skill", exact: true });
+    await remove.click();
+    await modal.getByRole("button", { name: "Delete for good?", exact: true }).click();
+    await expect(modal.getByRole("heading", { name: "Your apps and skills", level: 2 })).toBeVisible();
+    await expect(gone).toHaveCount(0);
+
+    release();
+    await expect(modal.locator(".mb-app-row").filter({ hasText: "Calendly" })).toBeVisible();
+    await expect(gone).toHaveCount(0);
+  } finally {
+    await page.unrouteAll({ behavior: "ignoreErrors" });
+    await knex("user_skills").where({ id: made.id }).del();
+    await knex.destroy();
+  }
+});
+
 // The person who linked this copy has left (their account is gone), so the home's owner may unlink it, after saying so
 // in the row itself; the home's Activity trail records who did. The hub's address answers nothing, as unlinking allows.
 test("a home's owner unlinks this copy from Settings, and Activity says who did", async ({ page }) => {
