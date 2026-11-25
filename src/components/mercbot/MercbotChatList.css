@@ -2,50 +2,35 @@
   padding: 0 13px 0 12px;
 }
 
+/* The person's pinned chats (D-135): a block of their own above Rooms, each a chip of one line as tall as a row, one
+   across the list or two to a line. */
 .mb-tiles {
   display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 2px 4px;
   margin-bottom: 8px;
-  border-radius: 12px;
+  border-radius: 8px;
 }
 
 .mb-tiles--single {
-  grid-template-columns: 95px;
-  justify-content: center;
-}
-
-.mb-tiles--pair {
-  grid-template-columns: 91px 91px;
-  justify-content: center;
-}
-
-.mb-tiles--grid {
-  grid-template-columns: repeat(3, 1fr);
-  row-gap: 12px;
-  justify-items: center;
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .mb-tile {
   position: relative;
   display: flex;
-  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 4px;
-  width: 100%;
-  max-width: 95px;
-  min-height: 92px;
-  padding-block: 8px;
-  padding: 0 4px;
+  gap: 8px;
+  min-width: 0;
+  height: 32px;
+  padding: 0 8px;
   border: 0;
-  border-radius: 10px;
+  border-radius: 8px;
   background: transparent;
   color: rgb(var(--v-theme-on-surface));
   font: inherit;
+  text-align: left;
   cursor: pointer;
-}
-
-.mb-tiles--grid .mb-tile {
-  width: 80px;
 }
 
 .mb-tile:hover,
@@ -67,10 +52,11 @@
 }
 
 .mb-tile__name {
+  flex: 1 1 auto;
+  min-width: 0;
   overflow: hidden;
-  max-width: 100%;
-  font-size: 13px;
-  line-height: 16px;
+  font-size: 14px;
+  line-height: 18px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -161,18 +147,18 @@
   background: rgb(var(--v-theme-warning));
 }
 
-/* Someone mentioned the person here, unread since (D-114): an "@" on the tile. */
+/* Someone mentioned the person here, unread since (D-114): an "@" on the tile's face. */
 .mb-badge--mention {
   flex: none;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
   background: rgb(var(--v-theme-link));
   color: rgb(var(--v-theme-surface));
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
   line-height: 1;
 }
@@ -302,9 +288,7 @@
 }
 
 .mb-hint--tile {
-  position: absolute;
-  top: 4px;
-  right: 4px;
+  margin-left: auto;
 }
 
 .mb-switching {

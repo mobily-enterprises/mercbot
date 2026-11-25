@@ -3,7 +3,8 @@
 // dots while someone else types there (`typing`, its line), a draft's pencil, then the position hint while Ctrl+Alt is
 // held, else waiting for the person, "@" or the unread dot. Its accessible name is `label`; its full name and latest
 // message are its description (`tip`), shown on hover. A bot's row shows its template's name (`detail`) after its own,
-// muted and smaller, and cut short first when there's no room.
+// muted and smaller, and cut short first when there's no room. The home's everyone chat, pinned for everyone, has a pin
+// mark after its name (`pinned`, D-135).
 import MercbotTypingDots from "./MercbotTypingDots.vue";
 
 defineProps({
@@ -14,6 +15,7 @@ defineProps({
   // A room's globe or lock ($language or $lock), with its word.
   kindIcon: { type: String, default: "" },
   kindLabel: { type: String, default: "" },
+  pinned: { type: Boolean, default: false },
   selected: { type: Boolean, default: false },
   switching: { type: Boolean, default: false },
   dragging: { type: Boolean, default: false },
@@ -44,6 +46,7 @@ defineOptions({ inheritAttrs: false });
       <span class="mb-row__name">{{ name }}</span>
     </slot>
     <span v-if="detail" class="mb-row__detail text-body-small" aria-hidden="true">{{ detail }}</span>
+    <v-icon v-if="pinned" icon="$keepFilled" size="12" class="mb-row__pin" aria-label="Pinned" />
     <v-icon v-if="kindIcon" :icon="kindIcon" size="12" class="mb-kind" :aria-label="kindLabel" />
     <span class="mb-row__marks">
       <span v-if="typing" class="mb-row__typing" role="img" :aria-label="typing"><MercbotTypingDots /></span>
@@ -117,7 +120,8 @@ defineOptions({ inheritAttrs: false });
   white-space: nowrap;
 }
 
-.mb-kind {
+.mb-kind,
+.mb-row__pin {
   flex: none;
   color: rgb(var(--v-theme-on-surface-variant));
 }

@@ -4546,3 +4546,25 @@ Proved by `tests/server/watchBacklog.integration.js`: a watch fired every 5 seco
 gets through one run every 15 seconds runs at most 30 times in the hour, its other tasks end with its line, and
 another home's tasks queued once it has paused wait one runner turn at most. Also by
 `tests/server/appsWatches.integration.js` and `tests/server/recurringRunsCounted.test.js`.
+
+## D-135 — Pinned chats are one line, and the everyone chat is Rooms' first row (2026-11-25)
+
+*Amends D-112's pinned tiles and D-117's "under the pinned tiles"; O9's everyone chat stays pinned for everyone.*
+
+The owner, on mercbot.ai, of the pinned tile at the top of the chat list (about 95 by 110 px with a 58 px group face):
+being pinned is fine, its size isn't. And of the everyone chat: "It's not even in 'rooms'".
+
+- **A pinned chat is a chip of one line,** as tall as a row (32 px): its 24 px face with its unread, "@" or waiting
+  mark, its globe or lock and its name, cut short with an ellipsis. One pin spans the list; two or more sit two to a
+  line. The pins stay a block of their own above Rooms ("Pinned chats"), hovering or selected in the tiles'
+  `secondary-container`, with their hover card, menu, drag to reorder (the new order shown as it goes) and drop zone.
+- **The everyone chat is no pin chip.** It is the first row under Rooms, above any section, as tall as any row, with a
+  small pin mark after its name. Its rules stay (O9): nobody leaves it, unpins, archives or deletes it, it can't be
+  dragged or moved to a section, and its menu is a pinned chat's. While it is the only pinned chat there is no Pinned
+  chats block. A folded Rooms shows it only while it needs the person, like any room.
+- **The visual order follows what's drawn:** the person's pins, then the everyone chat, then the other rooms. So with no
+  chat named the first pin opens, as the first chat in the list always has; without pins, the everyone chat.
+
+Proved by `tests/e2e/pinned-chats.spec.ts` (one pin's block no taller than a Rooms row in the same render, four in two
+columns, the everyone chat Rooms' first row with no block while it's the only pin, and each of a chip's behaviours),
+`tests/client/chatDirectory.vitest.js` and `tests/client/chatList.vitest.js`.

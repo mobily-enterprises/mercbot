@@ -194,8 +194,8 @@ without a reload):
 
 **The everyone chat** (O9). When a home's owner or admin answers the welcome chat's "Will anyone else use this home?"
 with "Me and other people", the home gets one Public chat with every active member in it and the main bot, titled with
-the home's name. It is first in everyone's list and counts as pinned for each of them, with no position; `pinned`
-doesn't move it. Nobody leaves it or is taken out of it, and it isn't archived (409 `bots_chat_everyone`), but by leaving the
+the home's name. It is the first row of everyone's Rooms, in no section, with a pin mark (D-135), and counts as pinned
+for each of them, with no position; `pinned` doesn't move it, and it is never among a person's pinned chats. Nobody leaves it or is taken out of it, and it isn't archived (409 `bots_chat_everyone`), but by leaving the
 home; its bots can be taken out. The page offers no Leave, Unpin, Archive, Unarchive or Delete for it (`chatMenus.js`
 `chatRights`); the server refuses taking a person out and archiving, but not deleting it.
 

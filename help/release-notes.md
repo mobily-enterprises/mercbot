@@ -10,8 +10,9 @@ What's new in Mercbot, newest first. To see which version you're using, open the
 - **Connect apps keeps your change:** a private skill you delete or change while Connect apps is still loading its list stays deleted or changed.
 - **The Terminal on a bot's computer:** a command's exit code, such as "(exit 0)", always shows after the command's output, never above it.
 - **The help centre:** a help page you open while the last one is still loading shows its own text, never the last one's.
+- **Smaller pinned chats:** each chat you pin is one line in the sidebar, as tall as a room's row, two to a line once you have two or more. Your home's everyone chat is the first row under **Rooms**, with a pin beside its name.
 
-See [Skills, routines and watches](/help/skills-and-routines) and [The bots' computer and connected apps](/help/computer-and-apps).
+See [Skills, routines and watches](/help/skills-and-routines), [The bots' computer and connected apps](/help/computer-and-apps) and [Organise your sidebar](/help/chats#organise-your-sidebar).
 
 ## 24 November 2026
 

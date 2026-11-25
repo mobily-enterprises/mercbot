@@ -109,10 +109,15 @@ render across compact, medium, and expanded layouts.
   tracks live system changes.
 - The sidebar (`MercbotSidebar.vue`) is dense (D-117). Its top row is the home switcher, then icon buttons Search,
   Files and Apps (with the person's pinned apps), each labelled with a tooltip (`MercbotFilesEntry.vue` and
-  `MercbotAppsEntry.vue` `icon`). Below it (`MercbotChatList.vue`, `chatDirectory.js` `buildSidebarModel`): pinned tiles
-  ("Pinned chats", any chat, the home's everyone chat first), then three sections, each with a small header whose title
+  `MercbotAppsEntry.vue` `icon`). Below it (`MercbotChatList.vue`, `chatDirectory.js` `buildSidebarModel`): the chats the
+  person pinned ("Pinned chats", any chat but the everyone chat, D-135), each a chip of one line as tall as a row (its
+  24 px face with its unread, "@" or waiting mark, its globe or lock and name, cut short), one across the list or two to
+  a line (`tileLayout`), hovering or selected in `secondary-container`, its latest message in a card on hover; then three
+  sections, each with a small header whose title
   folds and unfolds it (`foldSection`, saved on the device for each home, `shellPreferences.folded`) and a + icon button:
-  - **Rooms** (+ "New room"; "+ New room" at its foot while there are none): every room (a chat that is neither a
+  - **Rooms** (+ "New room"; "+ New room" at its foot while there are none but the everyone chat): the home's everyone
+    chat first, in no section, with a pin mark (`MercbotSidebarRow` `pinned`), a pinned chat's menu and no drag; then
+    every room (a chat that is neither a
     person's chat with a bot nor a chat between two people) the person is in, in their sections, "Unassigned", rows by
     latest activity; then the home's Public rooms they aren't in (`chatsApi.publicRooms`, every page read), faded, with
     "You're not in it yet: writing there joins you." in their tooltip: shown when there are three or fewer, else under
@@ -138,7 +143,7 @@ render across compact, medium, and expanded layouts.
   long before the name so the bot's name is cut last; its tooltip and accessible description add "Template <tag>:
   <description>", while its accessible name stays the bot's name. A bot with no template shows its name alone. "Hidden chats" and "Archived chats"
   (newest archived first, "Archived · read-only") follow, for rooms. Position hints, Go to chat (Ctrl+Alt+1…9),
-  previous/next (Alt+Up/Down) and Switch chats follow the visual order of what's shown (tiles, rooms, faded rooms,
+  previous/next (Alt+Up/Down) and Switch chats follow the visual order of what's shown (pins, the everyone chat, rooms, faded rooms,
   people, bots, then hidden and archived when open); the rail shows the same faces in groups with dividers. A room's
   menu (`chatMenus.js`, on right-click) has Pin, Move to (the sections, Unassigned, Create section) or Move to new
   section, Mark as read or unread, Rename chat (its maker and the home's owners and admins), Copy chat ID, Hide from
@@ -150,8 +155,8 @@ render across compact, medium, and expanded layouts.
   stays in Rooms, faded, and writing there again brings you back."; the last person of a private chat: "You're the
   last one here, so this room and everything in it will be deleted.") and Delete ("This chat goes for everyone in it,
   with its whole history, its files and its bots' computers. Its bots stay in the home. This can't be undone.") ask
-  first. Hidden rows offer Show in sidebar, archived ones Unarchive. Rooms and tiles drag to reorder pins and move
-  between sections (`useChatDrag.js`). Drafts are kept per chat on the device.
+  first. Hidden rows offer Show in sidebar, archived ones Unarchive. Pins drag to reorder, the new order shown as they
+  go and their block marked as where they drop, and rooms drag between sections (`useChatDrag.js`). Drafts are kept per chat on the device.
 - The address names what's shown (`useShellAddress.js`): `?chat=<id>` the open chat, which choosing a chat always sets
   (choosing the one already shown names it in place, adding no history entry), and `&member=bot:<id>` or
   `person:<id>` a member's card beside it. Links from elsewhere name a bot: `?bot=<id>` opens the person's direct chat

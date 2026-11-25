@@ -12,9 +12,11 @@ import { initialsOf } from "./messageAuthors.js";
 import { useChatDrag } from "./useChatDrag.js";
 import { typingLine, typingNames } from "./useChatTyping.js";
 
-// The expanded sidebar's list (D-112, plan 4.1): pinned tiles, then Rooms, People and Bots, each folding by its title
-// and with its + (New room; a copy's Invite people, extensions.js peopleActions; Add bots), then hidden and archived
-// rooms. Rows are one line (MercbotSidebarRow): a room shows its members' faces, its name, and a globe or a lock; a
+// The expanded sidebar's list (D-112, plan 4.1): the chats the person pinned, as tiles, then Rooms (the home's everyone
+// chat its first row, D-135), People and Bots, each folding by its title and with its + (New room; a copy's Invite
+// people, extensions.js peopleActions; Add bots), then hidden and archived rooms. A tile is a chip of one line, a row's
+// height, one across the list or two to a line (D-135). Rows are one line (MercbotSidebarRow): a room shows its members'
+// faces, its name, and a globe or a lock; a
 // person their initials and name; a bot its live face, name and template's name. Rooms the person isn't in are faded,
 // under "N more public rooms" when there are more than three; past seven, people and bots neither added nor talked with
 // lately go under "N more". Menus, drag and drop for rooms and tiles. Every change is emitted as a command for the
@@ -216,7 +218,7 @@ const SECTIONS = computed(() => [
             }"
             :aria-current="chat.id === currentChatId ? 'page' : undefined"
             :aria-label="rowLabel(chat)"
-            :draggable="!chat.everyone"
+            draggable="true"
             @click="emit('select', chat.id)"
             @contextmenu.prevent="chatMenu($event, chat, 'tile')"
             @mouseenter="hoveredChatId = chat.id"
@@ -226,7 +228,7 @@ const SECTIONS = computed(() => [
             @dragend="endDrag"
           >
             <span class="mb-tile__avatar">
-              <MercbotChatAvatar :chat="chat" :me="me" :size="58" :state="moodOf(chat)" />
+              <MercbotChatAvatar :chat="chat" :me="me" :size="24" :state="moodOf(chat)" />
               <span v-if="waitingTaskOf(chat)" class="mb-badge mb-badge--unread mb-badge--waiting" aria-label="Waiting for you" />
               <span v-else-if="chat.mentioned" class="mb-badge mb-badge--mention" aria-label="Mentioned you">@</span>
               <span v-else-if="chat.unread" class="mb-badge mb-badge--unread" aria-label="Unread" />
@@ -257,6 +259,46 @@ const SECTIONS = computed(() => [
         </button>
         <v-btn icon="$add" variant="text" size="small" density="comfortable" aria-label="New room" @click="emit('new-room')" />
       </div>
+
+      <!-- The home's everyone chat, pinned for everyone in it (D-135): always the first row, with a pin mark, a pinned
+           chat's menu (no Pin, no Move to) and no drag. -->
+      <ul v-if="model.rooms.everyone.length" class="mb-rows">
+        <li v-for="chat in model.rooms.everyone" :key="chat.id">
+          <MercbotSidebarRow
+            :label="rowLabel(chat)"
+            :name="titleOf(chat)"
+            :tip="rowTip(chat)"
+            :kind-icon="kindIcon(chat)"
+            :kind-label="kindLabel(chat)"
+            pinned
+            :selected="chat.id === currentChatId"
+            :switching="chat.id === switchHighlightId"
+            :hint="hints[chat.id]"
+            :draft="hasDraft(chat)"
+            :typing="typingOf(chat)"
+            :waiting="waitingTaskOf(chat)"
+            :mentioned="chat.mentioned"
+            :unread="chat.unread"
+            draggable="false"
+            @click="emit('select', chat.id)"
+            @contextmenu.prevent="chatMenu($event, chat, 'tile')"
+            @mouseenter="hoveredChatId = chat.id"
+            @mouseleave="hoveredChatId = ''"
+          >
+            <MercbotChatAvatar :chat="chat" :me="me" :size="24" :state="moodOf(chat)" />
+            <template v-if="renamingChatId === chat.id" #name>
+              <input
+                v-model="renameValue"
+                class="mb-inline-name"
+                aria-label="Chat name"
+                @click.stop
+                @keydown="onRenameKeydown"
+                @blur="commitRename"
+              >
+            </template>
+          </MercbotSidebarRow>
+        </li>
+      </ul>
 
       <div
         v-for="(group, groupIndex) in model.groups"

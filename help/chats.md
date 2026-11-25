@@ -4,9 +4,9 @@ Everything you do in Mercbot happens in chats. A home's people and its bots are 
 
 ## The sidebar
 
-At the top of the sidebar are your home, then **Search**, **Files** and **Apps** as small buttons. Below them are your pinned chats, then the three sections:
+At the top of the sidebar are your home, then **Search**, **Files** and **Apps** as small buttons. Below them are the chats you pinned, then the three sections:
 
-- **Rooms**: the rooms you're in, then the home's Public rooms you aren't in, faded. **+** beside **Rooms** makes a new room.
+- **Rooms**: your home's everyone chat first, then the rooms you're in, then the home's Public rooms you aren't in, faded. **+** beside **Rooms** makes a new room.
 - **People**: everyone else in the home. Select someone to open your private chat with just them.
 - **Bots**: the home's bots, the main bot first. Select one to open your chat with it. **+** beside **Bots** opens **Add bots**. Bots that have left the home are under **Archived bots** at the end.
 
@@ -129,13 +129,13 @@ In your chat with a bot, select **Continue with others…** at the top of the ch
 
 When a home's owner or admin answers **Me and other people** to Mercbot's "Will anyone else use this home?", the home gets a chat for everyone, named after the home, with everyone in the home and the main bot in it.
 
-- It's always first in each person's chat list, and it can't be unpinned, archived or deleted. You can hide it from your sidebar.
+- It's always the first row under **Rooms**, with a pin beside its name: it's pinned for everyone, and it can't be unpinned, moved, archived or deleted. You can hide it from your sidebar.
 - Everyone in the home is in it, people who join later too. You leave it only by leaving the home, and nobody can take a person out of it. Chat details says: "Everyone in *your home* is in this chat, for as long as they're in the home."
 - The person who started it, and the home's owners and admins, can take a bot out of it, as in any chat.
 
 ## Organise your sidebar
 
-Pinned chats are at the top. **Rooms** lists your rooms in your own sections if you have any, then **Unassigned**, sorted by latest activity, and **Hidden chats** and **Archived chats** come last. An unsent draft stays with each chat on your device.
+The chats you pin are at the top, each on one line, two to a line once you have two or more; point at one to see its latest message. **Rooms** lists the everyone chat first, then your rooms in your own sections if you have any, then **Unassigned**, sorted by latest activity, and **Hidden chats** and **Archived chats** come last. An unsent draft stays with each chat on your device.
 
 Right-click a room for **Pin** or **Unpin**, **Move to** one of your sections (or **Move to new section**), **Mark as read** or **Mark as unread**, **Hide from sidebar** (**Show in sidebar** brings it back), and **Copy chat ID**, plus **Rename chat**, **Leave chat**, **Archive** (on a Public room) and **Delete** where you may. Drag a room to another section, or a pinned chat to reorder your pins. Right-click a person or a bot you've chatted with for **Pin**, **Mark as read** or **Mark as unread** and **Copy chat ID**. Pins, sections, folded sections, hidden chats and unread marks are yours alone: other people organise their own sidebars.
 

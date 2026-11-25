@@ -1,5 +1,5 @@
-// The sidebar's arrangement (D-112, plan 4.1): pinned tiles, then Rooms, People and Bots. Pure, so the layout rules are
-// testable.
+// The sidebar's arrangement (D-112, plan 4.1, D-135): the person's pinned chats, then Rooms (the home's everyone chat
+// first), People and Bots. Pure, so the layout rules are testable.
 const byActivity = (a, b) => (b.lastActivityAt || "").localeCompare(a.lastActivityAt || "") || Number(b.id) - Number(a.id);
 const byName = (a, b) => String(a.name || "").localeCompare(String(b.name || ""));
 
@@ -84,8 +84,9 @@ const entryOf = (kind, member, chat) => ({
 });
 
 /**
- * The sidebar's layout. Pinned tiles (any chat, the everyone chat first). Rooms: the rooms the person is in, grouped
- * by their sections, then the public rooms they aren't in, faded. People: the home's other people. Bots: its active
+ * The sidebar's layout. Pinned tiles: the chats the person pinned, in their order. Rooms: the home's everyone chat
+ * first (D-135: pinned for everyone, so in no section and never among the tiles), then the rooms the person is in,
+ * grouped by their sections, then the public rooms they aren't in, faded. People: the home's other people. Bots: its active
  * bots, the main one first, with the archived ones apart. Then hidden rooms, archived rooms and the visual order, which
  * follows only what's shown. An archived room is in Archived chats alone, newest archived first, whatever its pin,
  * section or hidden state, which come back when it's unarchived.
@@ -111,12 +112,14 @@ export function buildSidebarModel({
 }) {
   const all = listed.filter((chat) => !chat.visiting);
   const live = all.filter((chat) => !chat.archivedAt);
-  const tiles = live.filter((chat) => chat.pinned && !chat.hidden)
-    .sort((a, b) => Number(Boolean(b.everyone)) - Number(Boolean(a.everyone)) || a.pinPosition - b.pinPosition);
+  const tiles = live.filter((chat) => chat.pinned && !chat.hidden && !chat.everyone).sort((a, b) => a.pinPosition - b.pinPosition);
 
-  // Rooms: the person's own, by section, then the faded ones.
+  // Rooms: the everyone chat, then the person's own, by section, then the faded ones. Folded, each shows only while it
+  // needs the person.
   const rooms = live.filter(isRoom);
   const needs = (chat) => chat.unread || chat.mentioned || chat.id === openId;
+  const everyoneChat = rooms.find((chat) => chat.everyone && !chat.hidden);
+  const everyone = everyoneChat && (!folded.rooms || needs(everyoneChat)) ? [everyoneChat] : [];
   const unpinned = rooms.filter((chat) => !chat.hidden && !chat.pinned).sort(byActivity);
   const roomsShown = folded.rooms ? unpinned.filter(needs) : unpinned;
   const sectionIds = new Set(sections.map((section) => section.id));
@@ -137,7 +140,8 @@ export function buildSidebarModel({
   const fadedOpen = unjoined.length <= FADED_SHOWN || Boolean(more.rooms);
   const faded = folded.rooms ? unjoined.filter((chat) => chat.id === openId) : fadedOpen ? unjoined : [];
   const roomCount = unpinned.length + unjoined.length;
-  const roomsHidden = roomCount - groups.reduce((count, group) => count + group.chats.length, 0) - faded.length;
+  const listedCount = everyone.length + groups.reduce((count, group) => count + group.chats.length, 0) + faded.length;
+  const roomsHidden = roomCount + (everyoneChat ? 1 : 0) - listedCount;
 
   // People and Bots, each with the person's direct chat with them from the list already loaded.
   const withPerson = new Map(all.filter((chat) => chat.directPerson).map((chat) => [String(chat.directPerson.userId), chat]));
@@ -155,7 +159,7 @@ export function buildSidebarModel({
   const model = {
     tiles,
     groups,
-    rooms: { faded, fadedMore: folded.rooms || fadedOpen ? 0 : unjoined.length, fadedCount: unjoined.length, hiddenCount: roomsHidden, empty: !roomCount },
+    rooms: { everyone, faded, fadedMore: folded.rooms || fadedOpen ? 0 : unjoined.length, fadedCount: unjoined.length, hiddenCount: roomsHidden, empty: !roomCount },
     people: splitEntries(personEntries, split("people")),
     bots: {
       ...splitEntries(botEntries, split("bots")),
@@ -167,6 +171,7 @@ export function buildSidebarModel({
   };
   const order = [
     ...tiles,
+    ...everyone,
     ...groups.flatMap((group) => (group.section?.collapsed ? [] : group.chats)),
     ...faded,
     ...shownEntries(model.people),
@@ -182,12 +187,12 @@ export function shownEntries(section) {
   return [...section.shown, ...(section.moreOpen ? section.more : [])];
 }
 
-// The compact rail: pinned chats, then the rooms (a collapsed section's too: the rail has no headers), people and bots
-// as shown, with a divider between non-empty groups.
+// The compact rail: pinned chats, then the rooms (the everyone chat first, and a collapsed section's too: the rail has
+// no headers), people and bots as shown, with a divider between non-empty groups.
 export function buildRailModel(model) {
   return [
     model.tiles,
-    [...model.groups.flatMap((group) => group.chats), ...model.rooms.faded],
+    [...model.rooms.everyone, ...model.groups.flatMap((group) => group.chats), ...model.rooms.faded],
     shownEntries(model.people),
     shownEntries(model.bots)
   ].filter((items) => items.length);
@@ -197,9 +202,7 @@ export function railOrder(model) {
   return [...new Set(buildRailModel(model).flat().map((item) => item.id))];
 }
 
-// Tile grid geometry: one or two tiles centred, otherwise three columns.
+// The pinned chips' layout (D-135): one across the block, two or more in two columns.
 export function tileLayout(count) {
-  if (count === 1) return "single";
-  if (count === 2) return "pair";
-  return "grid";
+  return count === 1 ? "single" : "columns";
 }

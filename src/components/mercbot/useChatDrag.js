@@ -14,8 +14,8 @@ function dragGhost(title) {
 }
 
 /**
- * Drag and drop in the chat list: rows move between groups, tiles reorder with a live preview. The everyone chat stays
- * the first tile (O9), so it neither moves nor counts in the pins' order. A drop emits the command for the shell.
+ * Drag and drop in the chat list: rows move between groups, the pinned chats' tiles reorder with a live preview. The
+ * everyone chat is no tile (D-135): it's Rooms' first row, never dragged. A drop emits the command for the shell.
  * @param {{
  *   model: () => import("../../types.js").SidebarModel,
  *   command: (name: string, args?: Record<string, any>) => void,
@@ -26,10 +26,9 @@ export function useChatDrag({ model, command, titleOf }) {
   const draggingChatId = ref("");
   const dropGroupKey = ref("");
   const tileOrder = ref(null);
-  const fixed = () => model().tiles.filter((chat) => chat.everyone);
   const tiles = computed(() => {
     if (!tileOrder.value) return model().tiles;
-    return [...fixed(), ...tileOrder.value.map((id) => model().tiles.find((chat) => chat.id === id)).filter(Boolean)];
+    return tileOrder.value.map((id) => model().tiles.find((chat) => chat.id === id)).filter(Boolean);
   });
   const layout = computed(() => tileLayout(tiles.value.length));
 
@@ -41,15 +40,14 @@ export function useChatDrag({ model, command, titleOf }) {
   }
 
   function startTileDrag(event, chat) {
-    if (chat.everyone) return;
     draggingChatId.value = chat.id;
-    tileOrder.value = model().tiles.filter((tile) => !tile.everyone).map((tile) => tile.id);
+    tileOrder.value = model().tiles.map((tile) => tile.id);
     event.dataTransfer.effectAllowed = "move";
     event.dataTransfer.setData("text/plain", chat.id);
   }
 
   function overTile(target) {
-    if (!tileOrder.value || target.everyone || target.id === draggingChatId.value) return;
+    if (!tileOrder.value || target.id === draggingChatId.value) return;
     const order = tileOrder.value.filter((id) => id !== draggingChatId.value);
     const after = tileOrder.value.indexOf(target.id) > tileOrder.value.indexOf(draggingChatId.value) ? 1 : 0;
     order.splice(order.indexOf(target.id) + after, 0, draggingChatId.value);

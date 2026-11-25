@@ -81,7 +81,7 @@ A bot in a chat uses only what everyone who can open that chat can also open: in
 
 ### The chat for everyone
 
-Mercbot's welcome chat asks a home's owners and admins "Will anyone else use this home?" **Just me** makes nothing. **Me and other people** makes a chat for everyone in the home, named after the home, with the main bot in it. Everyone who joins the home is in it, and it's always first in each person's chat list. You leave it only by leaving the home, and nobody can take a person out of it; the person who started it and the home's owners and admins can take a bot out. See [The everyone chat](/help/chats#the-everyone-chat).
+Mercbot's welcome chat asks a home's owners and admins "Will anyone else use this home?" **Just me** makes nothing. **Me and other people** makes a chat for everyone in the home, named after the home, with the main bot in it. Everyone who joins the home is in it, and it's always the first row under each person's **Rooms**. You leave it only by leaving the home, and nobody can take a person out of it; the person who started it and the home's owners and admins can take a bot out. See [The everyone chat](/help/chats#the-everyone-chat).
 
 ## The home's connected accounts
 
