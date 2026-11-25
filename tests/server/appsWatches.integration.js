@@ -150,12 +150,6 @@ test("watches see each change once and queue one task per claim", async (context
   assert.equal(shown.pausedByLimit, false, "paused by a person, not by its limit");
   const counts = () => knex("app_watches").where({ id: shown.id }).first("enabled", "runs_in_hour", "last_run_at");
   await knex("app_watches").where({ id: shown.id }).update({ runs_in_hour: 29, runs_hour_start: new Date() });
-  for (const title of ["Not run", "Not run either"]) {
-    await one.gate.create(ctx, "deals", { title });
-    await drainBoth();
-  }
-  assert.deepEqual(await jobs().then((queued) => queued.slice(-2).map((job) => job.title)), ["Watch: New deals", "Watch: New deals"]);
-  assert.equal((await counts()).enabled, true, "firings no bot worked on don't count toward its limit");
   await one.watches.ran(shown.id, options);
   const ran = await counts();
   assert.deepEqual([ran.enabled, ran.runs_in_hour], [true, 30], "one run more in the hour");
@@ -163,13 +157,45 @@ test("watches see each change once and queue one task per claim", async (context
   await knex("app_watches").where({ id: shown.id }).update({ runs_hour_start: knex.raw("now() - interval '61 minutes'") });
   await one.watches.ran(shown.id, options);
   assert.equal((await counts()).runs_in_hour, 1, "a run more than an hour after the hour's first starts a new hour");
-  await knex("app_watches").where({ id: shown.id }).update({ runs_in_hour: 30, runs_hour_start: new Date() });
+
+  // Its limit, 30 an hour, counts its runs in the hour and the tasks it still has waiting, which may yet run (D-134):
+  // a backlog never runs more. A task that ended without its bot (its home or the watch paused) no longer waits.
+  const waiting = () => knex("app_jobs").where({ watch_id: shown.id, status: "queued" }).pluck("id");
+  assert.equal((await waiting()).length, 2, "the two tasks it has queued so far");
+  await knex("app_watches").where({ id: shown.id }).update({ runs_in_hour: 27, runs_hour_start: new Date() });
+  await one.gate.create(ctx, "deals", { title: "Within its limit" });
+  await drainBoth();
+  assert.deepEqual([(await counts()).enabled, (await waiting()).length], [true, 3], "27 runs and 2 waiting: it fires again");
+  await knex("app_jobs").where({ id: (await waiting())[0] }).update({ status: "done" });
+  await one.gate.create(ctx, "deals", { title: "Still within" });
+  await drainBoth();
+  assert.deepEqual([(await counts()).enabled, (await waiting()).length], [true, 3], "one ended without its bot: 27 and 2 again");
   await one.gate.create(ctx, "deals", { title: "One too many" });
   await drainBoth();
   all = await jobs();
-  assert.equal(all.at(-1).title, "Watch paused: New deals");
-  assert.equal((await knex("app_watches").where({ workspace_id: workspaceId, name: "New deals" }).first()).enabled, false);
-  assert.equal((await one.watches.list({}, options)).find((watch) => watch.name === "New deals").pausedByLimit, true, "paused by its limit");
+  assert.equal(all.at(-1).title, "Watch: New deals", "its firing over the limit queues its task, which finds it paused");
+  assert.deepEqual([(await counts()).enabled, (await counts()).runs_in_hour], [false, 31], "27 runs and 3 waiting, and this one");
+  assert.equal((await newDeals()).pausedByLimit, true, "paused by its limit");
+
+  // A task that finds its watch paused, by its limit or a person, or removed, ends with the one line saying why, never
+  // the bot (backgroundRuns.js); changes made while a watch is paused are never handled. In the runner's context.
+  const stillQueued = { watchId: shown.id, title: "Watch: New deals" };
+  assert.equal(
+    await one.watches.whyNotRun(stillQueued, home.job),
+    "The watch \"New deals\" fired more than 30 times in an hour, so Mercbot paused it. Changes made while it's paused aren't handled, even once it's resumed."
+  );
+  await one.watches.setEnabled({ chatBotId, name: "New deals" }, true, options);
+  assert.equal(await one.watches.whyNotRun(stillQueued, home.job), null, "resumed, it runs");
+  await one.watches.setEnabled({ chatBotId, name: "New deals" }, false, options);
+  assert.equal(
+    await one.watches.whyNotRun(stillQueued, home.job),
+    "The watch \"New deals\" is paused. Changes made while it's paused aren't handled, even once it's resumed."
+  );
+  assert.equal(
+    await one.watches.whyNotRun({ watchId: null, title: "Watch: Old deals" }, home.job),
+    "The watch \"Old deals\" was removed, so it didn't run.",
+    "a removed watch's tasks keep its name in their title"
+  );
 
   // More changes than one page (1,000): every one is read before the cursor moves past them.
   await one.watches.create(where, { name: "Every deal", table: "deals", on: "create", instructions: "Count the new deals." }, options);

@@ -44,7 +44,7 @@ const task = (fields) => ({
 const TASKS = [
   task({}),
   task({ id: "2", name: "Digest", bot: ada, cost: { nano: 200e6, runs: 4 } }),
-  task({ kind: "watch", id: "3", name: "New deals", schedule: "When Deals records are added", state: "failing", why: "Paused after running more than 30 times in an hour", cost: null, can: { pause: false, resume: false, edit: false, delete: true } }),
+  task({ kind: "watch", id: "3", name: "New deals", schedule: "When Deals records are added", state: "failing", why: "Paused after firing more than 30 times in an hour", cost: null, can: { pause: false, resume: false, edit: false, delete: true } }),
   task({ kind: "job", id: "s1", name: "Close stale deals", bot: null, where: { appSlug: "crm", appName: "CRM" }, schedule: "Every day at 02:00 (UTC)", cost: null, state: "paused", can: { pause: false, resume: true, edit: false, delete: false } })
 ];
 
@@ -97,7 +97,7 @@ describe("Settings → Recurring tasks", () => {
     const html = await rendered();
     expect(html).toContain("2 running · 1 paused · 1 needs attention");
     expect(html).toContain(`${nanoMoney(290e6)} in the last 30 days`);
-    for (const text of ["Weather", "Digest", "New deals", "Close stale deals", "Every day at 7:00", "When Deals records are added", "Paused after running more than 30 times in an hour", "Runs without AI", "Apps' jobs", "CRM", "Team"]) {
+    for (const text of ["Weather", "Digest", "New deals", "Close stale deals", "Every day at 7:00", "When Deals records are added", "Paused after firing more than 30 times in an hour", "Runs without AI", "Apps' jobs", "CRM", "Team"]) {
       expect(html).toContain(text);
     }
     expect(html).toContain("2 more tasks in chats you can't open");

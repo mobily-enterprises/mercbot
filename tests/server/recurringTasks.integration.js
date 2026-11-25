@@ -144,7 +144,7 @@ test("watches and apps' jobs are listed with their schedules in words; a job run
     ["watch", "When Deals records are added", "running", "Team", { nano: 2e6, runs: 1 }, { pause: true, resume: false, edit: false, delete: true }]
   );
   const runaway = tasks.find((task) => task.id === "42");
-  assert.deepEqual([runaway.state, runaway.why, runaway.can.resume], ["failing", "Paused after running more than 30 times in an hour", false]);
+  assert.deepEqual([runaway.state, runaway.why, runaway.can.resume], ["failing", "Paused after firing more than 30 times in an hour", false]);
   const job = tasks.find((task) => task.kind === "job");
   assert.deepEqual(
     [job.name, job.detail, job.schedule, job.where, job.state, job.why, job.cost, job.can],
