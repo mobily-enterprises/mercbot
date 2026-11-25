@@ -51,7 +51,7 @@ What these waited for has happened, so nothing stops them now.
   - [ ] An upload that started just before a move and is still writing after the move's last check (15 s of settling,
     then the copy and three checks) can be missed by the copy; nothing tracks a request's writes in the database
     (D-80, D-15).
-  - [ ] A person who disconnects their Google Drive in Connect apps while a home keeps its files there still can:
+  - [ ] A person can still disconnect their Google Drive in Connect apps while a home keeps its files there:
     the home then says the account was removed, and the person switches storage without the files, which stay in
     that Drive (D-80).
   - [ ] During a move the Files page says the files are read-only, but its new-folder and upload buttons stay
