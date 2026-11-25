@@ -41,22 +41,18 @@ export const TOOLBOX_MOUNT_POINTS = Object.freeze([
  * Makes each of the sandboxes' mount points (TOOLBOX_MOUNT_POINTS) `spec` gives a folder at that its toolbox lacks,
  * just before the sandbox starts, so none waits for gVisor to make it: a toolbox this server may write in gets it from
  * the server, its own one too while MERCBOT_SANDBOX_USER, who can't write there, runs runsc. One it may not make (a
- * toolbox made by root for a host's servers to share) refuses the sandbox, naming the command the toolbox's owner
- * runs, in place of gVisor's "cannot create sandbox".
+ * toolbox made by root for a host's servers to share) is left to gVisor, which makes it where its own user may write;
+ * where that user can't either, gVisor's "cannot create sandbox" comes back, and the toolbox's owner runs
+ * node scripts/toolbox-mount-points.mjs once.
  * @param {{ root: { path: string }, mounts: { destination: string, type: string }[] }} spec
  */
 export async function ensureMountPoints(spec) {
   const root = spec.root.path;
-  const missing = [];
   for (const { destination, type } of spec.mounts) {
     if (type !== "bind" || !TOOLBOX_MOUNT_POINTS.includes(destination)) continue;
     const point = path.join(root, destination);
     if (await fs.stat(point).then((found) => found.isDirectory(), () => false)) continue;
-    await fs.mkdir(point, { recursive: true }).catch(() => missing.push(destination));
-  }
-  if (missing.length) {
-    throw new Error(`The sandboxes' toolbox at ${root} lacks ${missing.join(", ")}, where this sandbox is given a folder, and this `
-      + `server can't make it there: the toolbox's owner runs node scripts/toolbox-mount-points.mjs ${root}`);
+    await fs.mkdir(point, { recursive: true }).catch(() => {});
   }
 }
 
