@@ -191,6 +191,48 @@ test("a chip takes the keyboard's focus with a ring, and Enter opens its chat", 
   });
 });
 
+test("Rename chat on a chip names it in place, a row's height: Enter keeps the new name, Escape the old one", async ({ page }) => {
+  await withPins(page, ["Kitchen", "Party"], async (home, rooms) => {
+    await openShell(page, `?chat=${rooms.Garden.id}`, home.path);
+    const row = await box(roomRow(page, "Bathroom"));
+    const rename = async (title: string) => {
+      await chipNamed(page, title).click({ button: "right" });
+      await shell.menuItems(page).filter({ hasText: /^Rename chat$/u }).click();
+      const field = pinnedBlock(page).getByRole("textbox", { name: "Chat name" });
+      await expect(field).toBeFocused();
+      await expect(field).toHaveValue(title);
+      expect(await field.evaluate((input: HTMLInputElement) => [input.selectionStart, input.selectionEnd]), "its name selected").toEqual([0, title.length]);
+      const chip = await box(field.locator("xpath=ancestor::button[1]"));
+      expect(chip.height, "the chip stays a row's height").toBeLessThanOrEqual(row.height);
+      const input = await box(field);
+      expect(input.x + input.width, "the field within its chip").toBeLessThanOrEqual(chip.x + chip.width);
+      return field;
+    };
+
+    // Enter keeps the new name, on the chip and for the chat.
+    const kitchen = await rename("Kitchen");
+    const saved = page.waitForResponse((response) => response.request().method() === "PATCH" && new URL(response.url()).pathname === `/api${home.path}/chats/${rooms.Kitchen.id}`);
+    await kitchen.fill("Kitchen and dining");
+    await kitchen.press("Enter");
+    const answer = await saved;
+    expect([answer.ok(), answer.request().postDataJSON()]).toEqual([true, { title: "Kitchen and dining" }]);
+    await expect(kitchen).toHaveCount(0);
+    await expect(chipNames(page)).toHaveText(["Kitchen and dining", "Party"]);
+
+    // Escape leaves it as it was, asking nothing of the server.
+    const asked: string[] = [];
+    page.on("request", (request) => {
+      if (request.method() === "PATCH") asked.push(new URL(request.url()).pathname);
+    });
+    const party = await rename("Party");
+    await party.fill("Nothing");
+    await party.press("Escape");
+    await expect(party).toHaveCount(0);
+    await expect(chipNames(page)).toHaveText(["Kitchen and dining", "Party"]);
+    expect(asked).toEqual([]);
+  });
+});
+
 test("on a phone the pinned chats are in the drawer, within its width, and a chip opens its chat and closes the drawer", async ({ page }) => {
   await withPins(page, ["Kitchen", "Party"], async (home, rooms) => {
     await page.setViewportSize({ width: 390, height: 844 });
