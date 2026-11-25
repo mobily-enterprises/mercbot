@@ -13,7 +13,7 @@
   "dependencies": {
     "@jskit-ai/auth-provider-local-core": "0.2.44",
     "@jskit-ai/kernel": "0.2.33",
-    "@jskit-ai/resource-runtime": "0.2.47",
+    "@jskit-ai/resource-runtime": "0.2.48",
     "@local/account": "0.1.0"
   },
   "jskit": {
