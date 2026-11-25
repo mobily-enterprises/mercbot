@@ -43,11 +43,12 @@ export const TOOLBOX_MOUNT_POINTS = Object.freeze([
  * the server, its own one too while MERCBOT_SANDBOX_USER, who can't write there, runs runsc. One it may not make (a
  * toolbox made by root for a host's servers to share) is left to gVisor, which makes it where its own user may write;
  * where that user can't either, gVisor's "cannot create sandbox" comes back, and the toolbox's owner runs
- * node scripts/toolbox-mount-points.mjs once.
+ * node scripts/toolbox-mount-points.mjs once. A toolbox that isn't there is left so: nothing is made in its place.
  * @param {{ root: { path: string }, mounts: { destination: string, type: string }[] }} spec
  */
 export async function ensureMountPoints(spec) {
   const root = spec.root.path;
+  if (!(await fs.stat(root).then((found) => found.isDirectory(), () => false))) return;
   for (const { destination, type } of spec.mounts) {
     if (type !== "bind" || !TOOLBOX_MOUNT_POINTS.includes(destination)) continue;
     const point = path.join(root, destination);
