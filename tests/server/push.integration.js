@@ -490,6 +490,27 @@ test("a notification's unread count is the person's unread chats in its own home
   assert.equal(sent[0].payload.unread, 1, "this home's one unread chat");
 });
 
+test("a notification's unread count leaves a muted chat out, as the open app does", async (context) => {
+  const { homeId, slug, anna, ben, botId } = await home(context);
+  const { sweep, sent } = await startSweep(context, slug);
+  const plans = await seedChat(knex, { homeId, kind: "private", title: "Plans", people: [anna, ben], bots: [botId] });
+  const quiet = await seedChat(knex, { homeId, kind: "private", title: "Quiet", people: [anna, ben], bots: [botId] });
+  const [message] = await seedMessages(knex, { homeId, chatId: plans.id, rows: [{ userId: anna, body: { text: "Hi" } }] });
+  // Ben has news in both chats, and muted the quiet one: the open app's icon counts only Plans.
+  await knex("chat_people").where({ workspace_id: homeId, user_id: ben }).update({ unread: true });
+  await knex("chat_people").where({ conversation_id: quiet.id, user_id: ben }).update({ muted: true });
+  await knex("push_queue").insert({
+    workspace_id: homeId,
+    user_id: ben,
+    chat_id: plans.id,
+    kind: "messages",
+    message_id: message,
+    send_after: knex.raw("now() - interval '1 second'")
+  });
+  assert.equal(await sweep.sweepOnce(), 1);
+  assert.equal(sent[0].payload.unread, 1, "Plans, not the muted chat");
+});
+
 test("the database refuses what the notification tables must never hold", async (context) => {
   const { homeId, anna, botId } = await home(context);
   const chat = await seedChat(knex, { homeId, kind: "private", title: "Plans", people: [anna], bots: [botId] });
