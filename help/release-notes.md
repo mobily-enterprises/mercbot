@@ -9,6 +9,7 @@ What's new in Mercbot, newest first. To see which version you're using, open the
 - **Private skills:** saving or deleting one of your private skills in **Connect apps** works again.
 - **Connect apps keeps your change:** a private skill you delete or change while Connect apps is still loading its list stays deleted or changed.
 - **The Terminal on a bot's computer:** a command's exit code, such as "(exit 0)", always shows after the command's output, never above it.
+- **The help centre:** a help page you open while the last one is still loading shows its own text, never the last one's.
 
 See [Skills, routines and watches](/help/skills-and-routines) and [The bots' computer and connected apps](/help/computer-and-apps).
 
