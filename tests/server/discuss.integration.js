@@ -353,9 +353,10 @@ test("Stop during a turn ends it at the round's next heartbeat, which renews the
   const kitchen = await chatOf([ada, bo], [kim, lee]);
   const card = await propose(kitchen, kim, "Tiles or wood?");
   // Ada's turn talks until it's stopped, or for a minute at most: far past any heartbeat, however busy the machine, and
-  // an end that still comes (the test fails, never hangs) if Stop doesn't reach the turn.
+  // an end that still comes (the test fails, never hangs) if Stop doesn't reach the turn. Once a turn has talked out,
+  // the round's next turn answers at once, so the test fails at about a minute, by its name, not at its file's bound.
   let talkedOut = false;
-  steer.script = (bot, _prompt, options) => new Promise((resolve, reject) => {
+  steer.script = (bot, _prompt, options) => talkedOut ? Promise.resolve(`${bot.name}: briefly.`) : new Promise((resolve, reject) => {
     const late = setTimeout(() => {
       talkedOut = true;
       resolve(`${bot.name}: at last.`);
@@ -373,11 +374,6 @@ test("Stop during a turn ends it at the round's next heartbeat, which renews the
     await new Promise((resolve) => setTimeout(resolve, 20));
     const end = (await cardOf(card.id)).leaseUntil;
     if (end !== ends.at(-1)) ends.push(end);
-  }
-  if (talkedOut) {
-    // The round goes on to Bo, whose turn would talk another minute: stopped first, the test fails here, by its name.
-    await chat.stopDiscussion(kitchen, card.id, as(kim));
-    await drain();
   }
   assert.equal(talkedOut, false, `Ada talked out before three renewals of the lease (its ends: ${ends.join(", ")})`);
   const movedOn = ends.every((end, index) => index === 0 || Date.parse(end) > Date.parse(ends[index - 1]));
