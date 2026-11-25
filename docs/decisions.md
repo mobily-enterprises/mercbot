@@ -4504,4 +4504,7 @@ news, and takes what other apps share into it.
 
 The account owns devices, settings and sending (`packages/account/src/server/push.js`, provided as `mercbot.push`);
 the bots own the queue and the sweep, as only they know a chat's people and what's unread. Proved by
-`tests/server/pushRules.test.js` and `tests/server/push.integration.js`.
+`tests/server/pushRules.test.js` and `tests/server/push.integration.js`; the worker, the offline page and notifications
+in a browser by `tests/e2e/installed-app.spec.ts`. Once the worker has a page it answers the built files itself, which
+a browser test's `page.route` never sees, so a spec that holds back or empties the page's scripts runs without one
+(Playwright's `serviceWorkers: "block"`, `tests/e2e/startup.spec.ts`).
