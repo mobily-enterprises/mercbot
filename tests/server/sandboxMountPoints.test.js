@@ -3,7 +3,7 @@ import { chmod, mkdir, mkdtemp, rm, stat, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { folderMount, runSandboxed, sandboxPlace, sandboxSpec } from "../../packages/files/src/server/gvisor.js";
+import { ensureMountPoints, folderMount, runSandboxed, sandboxPlace, sandboxSpec } from "../../packages/files/src/server/gvisor.js";
 
 // A sandbox given a folder at one of the sandboxes' mount points (gvisor.js TOOLBOX_MOUNT_POINTS) its toolbox lacks.
 // gVisor makes a missing point in the toolbox itself, which works only where the user running runsc may write there:
@@ -86,4 +86,13 @@ test("where the server can't make the point (a toolbox it may not write in), run
   assert.notEqual(exitCode, 0);
   assert.match(output, /cannot create sandbox/u);
   assert.equal(await stat(path.join(place.toolbox, "files", "db")).then(() => true, () => false), false, "the point is still missing");
+});
+
+test("a toolbox that isn't there is left as it is: no folder is made where it would be", async (context) => {
+  // A host without the toolbox (a computer's or a command's sandbox that can't start there): making the point would
+  // leave a toolbox's skeleton behind, under the tools folder, for nothing.
+  const place = await world(context);
+  const missing = path.join(path.dirname(place.toolbox), "no-toolbox");
+  await ensureMountPoints({ root: { path: missing }, mounts: [folderMount(place.folder, "/files/db", { readonly: true })] });
+  assert.equal(await stat(missing).then(() => true, () => false), false, "nothing was made");
 });
