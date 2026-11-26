@@ -103,7 +103,10 @@ npm run test:e2e
 
 Test files run in parallel, as many at a time as the machine's test budget allows: `V64_TEST_CONCURRENCY` when the
 test runner sets it, otherwise half of the CPUs. The node test suites run through JSKIT's `jskit test`, and the
-Playwright and Vitest configs take their workers from `testConcurrency()` of `@jskit-ai/jskit-catalog/test-budget`.
+Vitest config takes its workers from `testConcurrency()` of `@jskit-ai/jskit-catalog/test-budget`. A browser worker is
+a browser and a Test Preview, far more than a CPU thread, so the Playwright config takes the command line's
+`--workers`, else `PLAYWRIGHT_WORKERS` when the test runner names its browser workers, else that same budget; the
+browser run's time bound follows the workers it gets.
 
 The database and browser tests never write to `TEST_DB_NAME` itself. A run prepares a template beside it
 (`<TEST_DB_NAME>_tpl`): migrated and seeded with three test users once, and rebuilt only when a migration or the seed
