@@ -8,7 +8,8 @@ import { connectTestDb, expect, focusRing, homeApi, homeWithBen, openShell, seed
 // previews its latest message on hover, has a pinned chat's menu, drags to reorder the pins (the new order shown as it
 // goes, the block marked as where it drops), takes the keyboard's focus with a ring, and works in the phone's drawer.
 // The home's everyone chat is no chip: it's the first row under Rooms, with a pin mark, never dragged, and while it's
-// the only pinned chat there is no Pinned chats block. Screenshots of 1, 2 and 4 pins, light and dark, desktop and
+// the only pinned chat there is no Pinned chats block. A room's Move to, in its menu, shows the person's sections beside
+// the menu, which stays open, and a section picked there closes both and files the room in it. Screenshots of 1, 2 and 4 pins, light and dark, desktop and
 // phone (390 by 844), are the output. Each test deletes the home and the person it makes.
 // Run with: vibe64-helper playwright --target test-app test tests/e2e/pinned-chats.spec.ts
 // Any refused API call from the page, one with no answer, or JSKIT's error dialog, fails the test (harness.ts).
@@ -168,6 +169,39 @@ test("a chip has a pinned chat's menu, and dragging it reorders the pins, showin
 
     await openShell(page, "", home.path);
     await expect(chipNames(page), "kept").toHaveText(["Party", "Kitchen"]);
+  });
+});
+
+test("a room's Move to shows the sections beside its menu, which stays open, and a section picked closes both and files the room", async ({ page }) => {
+  await withPins(page, [], async (home, rooms) => {
+    const api = await homeApi(page, home.path);
+    const { sections } = await api.post("/chat-sections", { name: "Renovation" });
+    const renovation = sections.find((section: { name: string }) => section.name === "Renovation");
+    await openShell(page, `?chat=${rooms.Bathroom.id}`, home.path);
+    await roomRow(page, "Garden").click({ button: "right" });
+    const item = (name: string) => shell.menuItems(page).filter({ hasText: new RegExp(`^${name}$`, "u") });
+
+    // A click on Move to, as on any row that only leads on, leaves the menu open, with the sections beside it.
+    await item("Move to").click();
+    await expect(item("Renovation")).toBeVisible();
+    await expect(item("Unassigned")).toBeVisible();
+    await expect(item("Move to"), "the room's menu is still open").toBeVisible();
+    await expect(item("Pin")).toBeVisible();
+
+    const moved = page.waitForResponse((response) => response.request().method() === "PATCH" && new URL(response.url()).pathname === `/api${home.path}/chats/${rooms.Garden.id}/place`);
+    await item("Renovation").click();
+    await expect(shell.menuItems(page), "both menus closed").toHaveCount(0);
+    const answer = await moved;
+    expect(answer.ok()).toBe(true);
+    expect(answer.request().postDataJSON()).toEqual({ sectionId: renovation.id });
+    await expect(shell.sidebar(page).locator(".mb-header__label").filter({ hasText: "Renovation" })).toBeVisible();
+
+    await roomRow(page, "Garden").click({ button: "right" });
+    await item("Move to").hover();
+    const row = (name: string) => page.locator(".v-overlay--active .mb-menu .v-list-item").filter({ has: page.locator(".mb-menu__text", { hasText: new RegExp(`^${name}$`, "u") }) });
+    await expect(row("Renovation").locator(".v-icon"), "the room's section is checked").toHaveCSS("opacity", "1");
+    await expect(row("Unassigned").locator(".v-icon")).toHaveCSS("opacity", "0");
+    await page.keyboard.press("Escape");
   });
 });
 
