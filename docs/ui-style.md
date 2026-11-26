@@ -21,7 +21,7 @@ in a UI pass.
   `inverse-surface` (`#2E3036` light, `#E2E2E9` dark).
 - **Outside the shell** (the sign-in pages, and any page without a home's shell) there is no open bot: `primary` is the
   seed's generated primary, `#405F90`.
-- **Link blue stays put.** The `link` role is for links, a switch that is on and a black bot's chosen options
+- **Link blue stays put.** The `link` role is for links (a plain link takes it from `a` in `src/styles/mercbot.css`), a switch that is on and a black bot's chosen options
   (`accent.js` `choiceColor`), whatever the accent. It is generated from `#0B6DD3` and draws `#005DB7` in light and
   `#A9C7FF` in dark.
 - **Content colours are content.** Bots', homes', apps', charts' and avatar art's colours come only from
@@ -43,14 +43,16 @@ in a UI pass.
 - **One font:** the system UI stack, `system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, Cantarell, "DejaVu Sans",
   sans-serif`, for body text and headings alike: `src/styles/mercbot.css` sets `--v-font-body`, and sets
   `--v-font-heading` to the same stack in place of JSKIT's Roboto Flex.
-- **Sizes in px, set directly in CSS, on this scale only.** No Material type classes (`text-body-small`,
-  `text-title-large`, `text-h*`, ...):
+- **Sizes in px, on this scale only**, set in a component's own CSS or with the scale's classes in
+  `src/styles/mercbot.css` (`.mb-text-11`, `-12`, `-13`, `-14`, `-15`, `-18`, `-22`, and `.mb-text-strong` for 600).
+  No Material type classes (`text-body-small`, `text-title-large`, `text-h*`, ...):
   - 11px: the smallest labels (badges, counts) [14].
   - 12px: secondary text, captions, tooltips, hints, section titles [122]; 16 to 18px line height.
   - 13px: ordinary UI text, buttons, rows [213]; with 18px line height.
   - 14px: message and reply text, 22px line height (`.mb-rich`, `src/styles/mercbot.css`) [96].
   - 15px: a chat's name in its header chip (`.mb-chip__name`, `MercbotChatPanel.css`) and list names [26].
-  - 16 to 22px: dialog and page titles [23 in all].
+  - 16 to 22px: page and section titles [23 in all]: 18px for a section's title, 22px for a page's. A dialog's
+    title is the frame's own (section 6).
 - **Weights:** 400 regular and 600 for emphasis. 700 only for headings inside a bot's reply (`.mb-rich h1..h4`,
   14px/700, the same size as its text). No 500.
 - **Overflow:** names and one-line labels truncate with an ellipsis (`overflow: hidden; text-overflow: ellipsis;
@@ -91,7 +93,8 @@ in a UI pass.
 - **Header chip** (`MercbotChatPanel.vue` / `.css` `.mb-chip`): the open chat's avatar, name (15px) and a one-line
   subtitle (Public or Private and who's in it) in a 40px pill on `surface`, 1px `outline-variant` border,
   `--mb-shadow-soft`, centred above the chat. Next to it, 40px circular surface icon buttons (Invite, details).
-- **Pill button**: every filled button. One shared component, 30px high, 0 14px padding, 15px corners, 13px/400 text,
+- **Pill button**: every filled button. One shared component, `MercbotPill.vue` (`tone`: `neutral`, `dark`, `danger`;
+  its look is `.mb-set-pill` in `src/styles/mercbot.css`), 30px high, 0 14px padding, 15px corners, 13px/400 text,
   in three tones: `neutral` (`surface-container-high`), `dark` for the main action of a form or dialog
   (`inverse-surface` / `inverse-on-surface`) and `danger` for a destructive one (`error` / `on-error`). Disabled as in
   section 1. Its copies (`.mb-set-pill` in `src/styles/mercbot.css`, `.mb-ctemp__button`, `.mb-tdraft__button`,
@@ -114,8 +117,8 @@ in a UI pass.
   `--mb-shadow-popover`, 12px/16px text, 50ms transition.
 - **Hover card** (`.mb-hover-card`): up to 260px, 10px 12px padding, 12px corners, `surface-container`, popover shadow,
   12px text with a 13px/600 title.
-- **Dialog:** the shared frame of `MercbotChangeTemplateDialog.css` (`.mb-ctemp`): a head with the title (16 to 22px)
-  and close, a body, and a foot with the actions, the main one a `dark` pill; 16px corners. On a phone it fills the
+- **Dialog:** the shared frame of `MercbotChangeTemplateDialog.css` (`.mb-ctemp`): a 55px head with the title (15px/600,
+  18px on a phone) and close (first on a phone, last otherwise), a body, and a foot with the actions, the main one a `dark` pill; 16px corners. On a phone it fills the
   screen (`:fullscreen="phone"`); otherwise centred, at most 420 to 760px wide, and 900px for Settings. Dialogs built
   another way (a `v-card`, or a layout of their own) move onto this frame when they are next touched.
 - **Lists, chips, fields, tabs, menus:** Vuetify's `v-list-item`, `v-chip` (8px corners), `v-text-field` /
@@ -180,6 +183,17 @@ in a UI pass.
 - The app keeps clear of a notch and home bar with `env(safe-area-inset-*)` (`src/styles/mercbot.css` `.mb-shell`);
   on a touch screen at least 16px text in fields, so iPhone Safari doesn't zoom; no double-tap zoom
   (`touch-action: manipulation`); text never touches the screen's edge.
+
+## Front page
+
+The site's own pages for people who haven't signed in yet (a front page, an about page, a phone page and the welcome
+before signing in) are a page design of their own, and may differ from the app in two ways only:
+
+- **Display sizes:** headlines and a wordmark from 24 to 70px, beside the scale of section 2 for everything else.
+- **Two page breakpoints:** `@media (max-width: 899px)` for a narrow window and the phone's `(max-width: 599px)`.
+
+Everything else holds as in the app: roles only, 400 and 600 weights, the two shadows, the radii of section 4, the
+pill for filled buttons and the `secondary` focus ring.
 
 ## UI pass method
 

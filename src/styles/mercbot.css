@@ -1,5 +1,7 @@
 :root {
   --v-font-body: system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, Cantarell, "DejaVu Sans", sans-serif;
+  /* Headings too (docs/ui-style.md, section 2), in place of JSKIT's Roboto Flex. */
+  --v-font-heading: system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, Cantarell, "DejaVu Sans", sans-serif;
   --mb-shadow-soft: 0 2px 8px rgba(var(--v-theme-shadow), 0.08);
   --mb-shadow-popover: 0 4px 12px rgba(var(--v-theme-shadow), 0.12);
 }
@@ -251,8 +253,16 @@
   cursor: pointer;
 }
 
-.mb-set-pill:disabled {
-  opacity: 0.5;
+.mb-set-pill:focus-visible {
+  outline: 2px solid rgb(var(--v-theme-secondary));
+  outline-offset: 2px;
+}
+
+/* Disabled, in every tone (docs/ui-style.md, section 1): on-surface at 12% fill and 38% text. */
+.mb-set-pill:disabled,
+.mb-set-pill[aria-disabled="true"] {
+  background: rgba(var(--v-theme-on-surface), 0.12);
+  color: rgba(var(--v-theme-on-surface), 0.38);
   cursor: default;
 }
 
@@ -264,6 +274,32 @@
 .mb-set-pill--dark {
   background: rgb(var(--v-theme-inverse-surface));
   color: rgb(var(--v-theme-inverse-on-surface));
+}
+
+/* The type scale's sizes as classes (docs/ui-style.md, section 2), for text a component doesn't size in its own CSS. */
+.mb-text-11 { font-size: 11px; line-height: 16px; }
+.mb-text-12 { font-size: 12px; line-height: 16px; }
+.mb-text-13 { font-size: 13px; line-height: 18px; }
+.mb-text-14 { font-size: 14px; line-height: 22px; }
+.mb-text-15 { font-size: 15px; line-height: 20px; }
+.mb-text-18 { font-size: 18px; line-height: 24px; }
+.mb-text-22 { font-size: 22px; line-height: 28px; }
+.mb-text-strong { font-weight: 600; }
+
+/* Links are the link role (docs/ui-style.md, section 1), never the browser's own blue or purple; a component that styles
+   its links (rich text, a pill) says so with a class, which wins. */
+a {
+  color: rgb(var(--v-theme-link));
+}
+
+/* A table's headings are emphasis, at 600 (section 2), where Vuetify's are 500. */
+.v-table > .v-table__wrapper > table > thead > tr > th {
+  font-weight: 600;
+}
+
+/* Buttons' labels are regular weight, as the pills' are: there is no 500 (docs/ui-style.md, section 2). */
+.v-btn {
+  font-weight: 400;
 }
 
 .mb-set-caption {
