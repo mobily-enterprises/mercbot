@@ -23,8 +23,9 @@ import { createWatches } from "./watches.js";
  * @param {import("./types.js").Anyapi} dependencies.anyapi the homes' runtime tables
  * @param {import("@local/notices/server/types").Notices} dependencies.notices
  * @param {import("@jskit-ai/kernel/server/types").RuntimeEnv} dependencies.env
+ * @param {{ lock: Function }} dependencies.homes JSKIT's workspaces repository: the apps hold a home's row (createApps)
  */
-export function createAppsRuntime({ resources, systemContext, records, anyapi, notices, env }) {
+export function createAppsRuntime({ resources, systemContext, records, anyapi, notices, env, homes }) {
   const repository = createAppsRepository(resources);
   const registry = createRegistry({ resources, anyapi, notices });
   const practices = createPractices({ resources, anyapi, systemContext });
@@ -61,7 +62,7 @@ export function createAppsRuntime({ resources, systemContext, records, anyapi, n
     people,
     recordFiles: () => recordFiles
   });
-  const apps = createApps({ resources, records, registry, anyapi, practices, notices });
+  const apps = createApps({ resources, records, registry, anyapi, practices, notices, homes });
   scripts = createScripts({ resources, repository, systemContext, registry, gate, apps, env });
   const runtime = createRuntime({ apps, gate, scripts, practices });
   const trial = createTrial({ apps, runtime, scripts });

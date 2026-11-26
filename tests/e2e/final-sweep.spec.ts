@@ -1,5 +1,5 @@
 import { type Knex } from "knex";
-import { HOME, MADE_UP, connectTestDb, directChat, expect, homeApi, openShell, seedMessage, shell, test, type Page } from "./harness";
+import { HOME, MADE_UP, connectTestDb, directChat, expect, homeApi, openShell, seedMessage, shell, skipPause, test, type Page } from "./harness";
 
 // The final sweep's finishing touches, on the Test Preview target: the "new messages" pill while scrolled up,
 // the right-click menus on messages and pictures, how the person's own messages lay out on a phone and on a
@@ -87,6 +87,7 @@ async function openChat(page: Page, name: string) {
 }
 
 test("a reply that arrives while scrolled up shows in a new messages pill, which goes down to it or is dismissed", async ({ page }) => {
+  await page.clock.install();
   await withBot(page, "Pill", async (made) => {
     await seed(made, Array.from({ length: 60 }, (_, index): [string, string, object] => ["text", index % 2 ? "bot" : "user", { text: `Line ${index + 1}` }]));
     await openChat(page, made.name);
@@ -105,9 +106,12 @@ test("a reply that arrives while scrolled up shows in a new messages pill, which
       expect(replied.ok(), await replied.text()).toBe(true);
     };
 
-    // Up to the top, once the chat's own glide down has ended: a scroll during it (900 ms, useChatScroll) counts as the chat's.
+    // Up to the top, once the chat's own glide down has ended: a scroll during it (900 ms on the page's clock, useChatScroll)
+    // counts as the chat's. Once the glide is at the bottom, the clock skips what is left of its 900 ms.
     const scrollUp = async () => {
-      await page.waitForTimeout(1000);
+      await expect.poll(() => scroller.evaluate((element) => element.scrollHeight - element.scrollTop - element.clientHeight), { intervals: [50] })
+        .toBeLessThan(2);
+      await page.clock.fastForward(1000);
       await scroller.evaluate((element) => element.scrollTo({ top: 0 }));
     };
 
@@ -132,6 +136,9 @@ test("a reply that arrives while scrolled up shows in a new messages pill, which
 });
 
 test("right-clicking a message offers Reply, Copy and Copy request ID, a bot's adds reactions, and a picture copies or saves", async ({ page }) => {
+  // The page's clock, running as usual until it is held below. Each copy says so in a snackbar, one after another, 5 s
+  // each: the clock skips those still ahead of the last.
+  await page.clock.install();
   await withBot(page, "Menus", async (made) => {
     const path = await upload(page, made, "cake.png", "image/png", await pictureBytes(page));
     const [question, answer, pictures] = await seed(made, [
@@ -173,12 +180,20 @@ test("right-clicking a message offers Reply, Copy and Copy request ID, a bot's a
     await picture.click({ button: "right" });
     await expect(menuItems(page)).toHaveText(["Copy image", "Save image"]);
     await expect(reactions).toHaveCount(0);
+    // Right-clicked again at once, before any timer the click on Save image left can run, the menu opens and stays open
+    // once they have run: a menu item that closed the menu later, on a timer (Vuetify's own close on a click in a menu,
+    // 40 ms on), closed the menu opened meanwhile (26 Nov). The clock holds the page's timers until both clicks are made,
+    // from a moment just ahead of the page's, as it runs on meanwhile.
+    await menuItems(page).filter({ hasText: "Save image" }).click({ trial: true });
+    await page.clock.pauseAt(await page.evaluate(() => Date.now() + 1000));
     const download = page.waitForEvent("download");
     await menuItems(page).filter({ hasText: "Save image" }).click();
     expect((await download).suggestedFilename(), "saved under its file's own name").toBe("cake.png");
     await picture.click({ button: "right" });
+    await page.clock.runFor(200);
+    await page.clock.resume();
     await menuItems(page).filter({ hasText: "Copy image" }).click();
-    await expect(page.getByText("Image copied")).toBeVisible();
+    await skipPause(page, 5000, () => expect(page.getByText("Image copied")).toBeVisible({ timeout: 3_000 }));
     expect(await page.evaluate(async () => (await navigator.clipboard.read())[0].types)).toContain("image/png");
   });
 });

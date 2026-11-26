@@ -133,7 +133,10 @@ clearly broken trips them: a hang, a process that stays alive after its tests, m
 file still running at its bound is stopped, and a node suite whose files' times summed are past its own bound fails
 (`tests/support/unitRun.mjs`, `tests/support/databaseRun.mjs`): the work they did, which doesn't depend on how many
 files the machine's test budget runs at once, as the suite's wall time does. Playwright has its `timeout` and
-`globalTimeout`. Fix what got slow rather than raise a bound. Every run prints its ten slowest files against the bound.
+`globalTimeout`, which follows the workers the run gets, the command line's `--workers` or the config's own: each takes
+its share of a bound on the tests' summed time (`playwright.config.mjs`). A browser test skips the page's own timed
+pauses on the page's clock (`skipPause` in `tests/e2e/harness.ts`) instead of waiting them out. Fix what got slow
+rather than raise a bound. Every run prints its ten slowest files against the bound.
 
 JSKIT's local auth confirms the email of every account registered by password. Database tests that register accounts
 on a server without the single-user gate expect them signed in at once, so they set

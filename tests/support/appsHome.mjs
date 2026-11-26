@@ -94,7 +94,7 @@ export function appsParts(home, { trustMs, beforeSave = async (_ctx, _table, _ac
   const chats = records.chats ?? membersOn(home.knex);
   const people = { activeIds: (options) => chats.everyoneIn(options), names: (ids, options) => chats.names(ids, options) };
   const gate = createDataGate({ resources, repository, anyapi, registry, practices, beforeSave, people, recordFiles: () => recordFiles, ...(beforeSaveEach ? { beforeSaveEach } : {}), ...(calculatedTotalsMax ? { calculatedTotalsMax } : {}) });
-  const apps = createApps({ resources, records, registry, anyapi, practices, notices });
+  const apps = createApps({ resources, records, registry, anyapi, practices, notices, homes: home.workspaces });
   return Object.freeze({ resources, repository, anyapi, registry, practices, gate, apps, notices, systemContext });
 }
 

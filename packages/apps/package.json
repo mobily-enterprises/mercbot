@@ -48,7 +48,8 @@
         "runtime.env",
         "runtime.resources",
         "runtime.uploads",
-        "mercbot.bots.records"
+        "mercbot.bots.records",
+        "workspaces"
       ]
     },
     "runtime": {

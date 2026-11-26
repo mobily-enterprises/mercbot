@@ -1,4 +1,4 @@
-import { HOME, connectTestDb, expect, homeApi, openShell, shell, test, type Page } from "./harness";
+import { HOME, connectTestDb, expect, homeApi, openShell, shell, skipPause, test, type Page } from "./harness";
 
 // Add bots (D-109, which was New bot) as a person first meets it (D-112): from the + of the sidebar's Bots, it
 // opens on two ways to choose, and One bot's templates are calm: an area menu, no featured cards, no byline, and no
@@ -108,6 +108,7 @@ test("a new bot's direct chat opens once the bot exists, and it greets the perso
     const { pathname } = new URL(request.url());
     if (/\/creating-|\/(bots|chats)\/(undefined|null)(\/|$)/u.test(pathname)) earlyCalls.push(`${request.method()} ${pathname}`);
   });
+  await page.clock.install();
   await openShell(page);
   const name = `Pip ${Date.now().toString(36)}`;
   const { bot, chat } = await createBot(page, name);
@@ -115,8 +116,8 @@ test("a new bot's direct chat opens once the bot exists, and it greets the perso
     await expect(page, "its chat is named in the address").toHaveURL(chatNamed(String(chat.id)));
     await expect(shell.chatRow(page, name)).toHaveAttribute("aria-current", "page");
     await expect(shell.chat(page).getByRole("button", { name: `${name} details` })).toBeVisible();
-    // Its greeting, onboarding's first step, comes into its chat.
-    await expect(shell.chat(page).getByText(`I'm ${name}.`)).toBeVisible();
+    // Its greeting, onboarding's first step, comes into its chat after its pause (intro-greet, 2.5 s).
+    await skipPause(page, 2500, () => expect(shell.chat(page).getByText(`I'm ${name}.`)).toBeVisible({ timeout: 1_000 }));
     expect(earlyCalls).toEqual([]);
   } finally {
     await deleteBot(page, bot.id);
@@ -128,6 +129,7 @@ test("a new bot's direct chat opens once the bot exists, and it greets the perso
 test("on a phone, a new bot's multi-select question takes picks, and Done answers with them", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   const cleanup = await serveMultiSelect(page);
+  await page.clock.install();
   await openShell(page);
   await page.getByRole("button", { name: "Your chats" }).click();
   const { bot, chat } = await createBot(page, `Picky ${Date.now().toString(36)}`);
@@ -135,7 +137,8 @@ test("on a phone, a new bot's multi-select question takes picks, and Done answer
     const card = shell.chat(page).locator(".mb-choice").filter({ hasText: "Pick as many as you like" });
     const options = card.locator(".mb-choice__option:not(.mb-choice__option--open)");
     const done = card.getByRole("button", { name: "Done" });
-    await expect(options).toHaveCount(3);
+    // The question comes after the greeting, each after its pause (intro-greet, 2.5 s, then intro-ask, 1.5 s).
+    await skipPause(page, 2500, () => expect(options).toHaveCount(3, { timeout: 1_000 }));
     await expect(done).toBeDisabled();
     await options.nth(0).click();
     await options.nth(2).click();
