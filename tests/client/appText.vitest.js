@@ -7,8 +7,9 @@ import { theme } from "../../src/theme/index.js";
 import { APP_SCREEN_KEY } from "../../src/components/apps/screenKeys.js";
 import AppNode from "../../src/components/apps/AppNode.vue";
 
-// An app's text in the theme's Material 3 type scale: a headline, a title and body text each take a type role the
-// theme sizes (the old text-h5 and text-h6 have no size in it, so they read as body text).
+// An app's text on Mercbot's type scale (docs/ui-style.md, section 2), not Material 3's type roles: a headline is a
+// page's title (22px), a title a section's (18px) and body text reading text (14px), each with its size's name for the
+// app's own CSS.
 const runtime = { data: {}, loading: new Set(), evaluate: (value) => String(value).replace(/^=/u, ""), queryTable: () => null };
 
 async function render(node) {
@@ -19,9 +20,9 @@ async function render(node) {
 }
 
 describe("an app's text sizes", () => {
-  it("are the theme's headline, title and body roles", async () => {
-    expect(await render({ type: "text", value: "Ana Ruiz", size: "headline" })).toContain('class="text-headline-small"');
-    expect(await render({ type: "text", value: "To-dos", size: "title" })).toContain('class="text-title-large"');
-    expect(await render({ type: "text", value: "Notes" })).toContain('class="text-body-large"');
+  it("are the scale's page title, section title and reading text, each named for the app's CSS", async () => {
+    expect(await render({ type: "text", value: "Ana Ruiz", size: "headline" })).toContain('class="app-text--headline mb-text-22"');
+    expect(await render({ type: "text", value: "To-dos", size: "title" })).toContain('class="app-text--title mb-text-18"');
+    expect(await render({ type: "text", value: "Notes" })).toContain('class="app-text--body mb-text-14"');
   });
 });

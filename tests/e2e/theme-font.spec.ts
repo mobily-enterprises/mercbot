@@ -10,8 +10,8 @@ import { expect, openShell, test, type Page } from "./harness";
 test.use({ apiGuard: true });
 
 const SYSTEM_FONT = 'system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, Cantarell, "DejaVu Sans", sans-serif';
-// Brand classes (Vuetify's heading font) and plain ones (its body font), as Mercbot's screens use them (AppNode.vue,
-// MercbotShortcutsDialog.vue, MercbotRoomProposal.vue, MercbotSidebarRow.vue).
+// Brand classes (Vuetify's heading font) and plain ones (its body font). Mercbot's own screens size text on its own scale
+// (docs/ui-style.md, section 2), but JSKIT's screens and Vuetify's components still read the two variables.
 const TYPE_CLASSES = ["text-headline-small", "text-title-large", "text-title-medium", "text-body-large", "text-body-medium", "text-body-small", "text-label-medium"];
 const VARIABLES = ["--v-font-heading", "--v-font-body"];
 const everywhere = (font: string) => Object.fromEntries([...TYPE_CLASSES, ...VARIABLES].map((name) => [name, font]));
@@ -41,10 +41,9 @@ test("Material 3's type classes compute Mercbot's system font inside the app and
       expect.soft(await page.locator(".mb-shell").evaluate((node) => getComputedStyle(node).fontFamily), `the shell's text, ${scheme}`).toBe(SYSTEM_FONT);
       expect.soft(await fontsIn(page, ".v-application"), `inside the app, ${scheme}`).toEqual(everywhere(SYSTEM_FONT));
 
-      // The shortcuts sheet (Ctrl+/), a dialog in the page's body with the theme's class of its own; its title is
-      // text-title-large.
+      // The shortcuts sheet (Ctrl+/), a dialog in the page's body with the theme's class of its own, in the shared frame.
       await page.keyboard.press("Control+/");
-      const title = page.locator(".v-overlay--active .v-card-title", { hasText: /^Keyboard shortcuts$/u });
+      const title = page.getByRole("dialog", { name: "Keyboard shortcuts" }).getByRole("heading", { name: "Keyboard shortcuts" });
       await expect(title).toBeVisible();
       expect.soft(await title.evaluate((node) => getComputedStyle(node).fontFamily), `the shortcuts sheet's title, ${scheme}`).toBe(SYSTEM_FONT);
       expect.soft(await fontsIn(page, ".v-overlay--active .v-overlay__content"), `in a dialog, ${scheme}`).toEqual(everywhere(SYSTEM_FONT));

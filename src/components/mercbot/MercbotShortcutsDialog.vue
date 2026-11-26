@@ -1,16 +1,29 @@
 <script setup>
+import { computed } from "vue";
+import { useDisplay } from "vuetify";
 import { SHORTCUT_GROUPS } from "./shortcuts.js";
 
-// Shortcuts sheet (Ctrl+/): two columns grouped by area, with the keys that really work here.
+// Shortcuts sheet (Ctrl+/): two columns grouped by area, with the keys that really work here, in the shared dialog
+// frame (docs/ui-style.md, section 6), which fills the screen on a phone.
 const open = defineModel({ type: Boolean, default: false });
 const columns = [SHORTCUT_GROUPS.slice(0, 2), SHORTCUT_GROUPS.slice(2)];
+const display = useDisplay();
+const phone = computed(() => display.width.value < 600);
 </script>
 
 <template>
-  <v-dialog v-model="open" max-width="760">
-    <v-card rounded="xl" class="pa-4">
-      <v-card-title class="text-title-large">Keyboard shortcuts</v-card-title>
-      <v-card-text>
+  <v-dialog v-model="open" width="auto" :fullscreen="phone">
+    <div class="mb-ctemp mb-shortcuts-sheet" :class="{ 'mb-ctemp--phone': phone }" role="dialog" aria-labelledby="mb-shortcuts-title">
+      <div class="mb-ctemp__head">
+        <button v-if="phone" type="button" class="mb-ctemp__close" aria-label="Close" @click="open = false">
+          <v-icon icon="$close" size="18" />
+        </button>
+        <h2 id="mb-shortcuts-title" class="mb-ctemp__title">Keyboard shortcuts</h2>
+        <button v-if="!phone" type="button" class="mb-ctemp__close" aria-label="Close" @click="open = false">
+          <v-icon icon="$close" size="14" />
+        </button>
+      </div>
+      <div class="mb-ctemp__body mb-ctemp__scroll">
         <div class="mb-shortcuts">
           <div v-for="(column, columnIndex) in columns" :key="columnIndex" class="mb-shortcuts__column">
             <section v-for="group in column" :key="group.title" class="mb-shortcuts__group">
@@ -30,12 +43,18 @@ const columns = [SHORTCUT_GROUPS.slice(0, 2), SHORTCUT_GROUPS.slice(2)];
             </section>
           </div>
         </div>
-      </v-card-text>
-    </v-card>
+      </div>
+    </div>
   </v-dialog>
 </template>
 
+<style scoped src="./MercbotChangeTemplateDialog.css"></style>
 <style scoped>
+/* As tall as its shortcuts, not the size of a gallery; on a phone the frame fills the screen and the sheet scrolls. */
+.mb-shortcuts-sheet:not(.mb-ctemp--phone) {
+  height: auto;
+}
+
 .mb-shortcuts {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));

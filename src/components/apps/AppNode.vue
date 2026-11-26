@@ -28,8 +28,10 @@ const classes = computed(() => [`app-node--${props.node.type}`, ...String(props.
 /** @type {import("../../types.js").AppForm} */
 const form = inject(APP_FORM_KEY, NO_APP_FORM);
 const tones = { success: "success", warning: "warning", danger: "error", primary: "primary", neutral: undefined };
-// The theme's Material 3 type roles: text-h5 and text-h6 have no size in it.
-const sizes = { headline: "text-headline-small", title: "text-title-large", body: "text-body-large" };
+// A text part's size on Mercbot's type scale (docs/ui-style.md, section 2): a page's title, a section's, and reading
+// text. Its `app-text--<size>` class is the size's name for the app's own CSS, whatever the scale's class.
+const sizes = { headline: "mb-text-22", title: "mb-text-18", body: "mb-text-14" };
+const textClasses = (size = "body") => [`app-text--${size}`, sizes[size]];
 
 const value = (setting, scope = props.scope) => runtime.evaluate(setting, scope);
 const visible = computed(() => props.node.showIf === undefined || value(props.node.showIf) === true);
@@ -100,7 +102,7 @@ const tabKey = computed(() => props.path);
 
     <template v-else-if="node.type === 'text'">
       <v-skeleton-loader v-if="fieldSource && isLoading(fieldSource.name)" type="heading" width="240" />
-      <span v-else :class="sizes[node.size || 'body']">{{ shown(node.value, scope, fieldSource?.record, fieldSource?.table) }}</span>
+      <span v-else :class="textClasses(node.size)">{{ shown(node.value, scope, fieldSource?.record, fieldSource?.table) }}</span>
     </template>
 
     <v-chip v-else-if="node.type === 'chip'" size="small" :color="tones[value(node.tone)]" variant="tonal">{{ value(node.value) }}</v-chip>

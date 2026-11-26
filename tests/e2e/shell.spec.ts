@@ -282,7 +282,7 @@ test("the search palette lists chats then commands, and runs what is chosen", as
   await expect(options.first()).toContainText("Keyboard shortcuts");
   await page.keyboard.press("Enter");
   await expect(palette).toBeHidden();
-  await expect(page.locator(".v-overlay--active .v-card-title", { hasText: /^Keyboard shortcuts$/ })).toBeVisible();
+  await expect(page.getByRole("dialog", { name: "Keyboard shortcuts" })).toBeVisible();
   await page.keyboard.press("Escape");
 
   // A chat by its name comes first, then the bot of that name, which carries its template's tag (D-98).

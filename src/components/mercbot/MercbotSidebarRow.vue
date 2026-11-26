@@ -45,7 +45,7 @@ defineOptions({ inheritAttrs: false });
     <slot name="name">
       <span class="mb-row__name">{{ name }}</span>
     </slot>
-    <span v-if="detail" class="mb-row__detail text-body-small" aria-hidden="true">{{ detail }}</span>
+    <span v-if="detail" class="mb-row__detail mb-text-12" aria-hidden="true">{{ detail }}</span>
     <v-icon v-if="pinned" icon="$keepFilled" size="12" class="mb-row__pin" aria-label="Pinned" />
     <v-icon v-if="kindIcon" :icon="kindIcon" size="12" class="mb-kind" :aria-label="kindLabel" />
     <span class="mb-row__marks">

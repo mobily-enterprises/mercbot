@@ -66,7 +66,7 @@ const access = (repository) => `${repository.private ? "Private" : "Public"} · 
   <div class="mb-github-pick">
     <p class="mb-github-pick__repo">
       <span class="mb-github-pick__name">{{ shown.fullName }}</span>
-      <span class="mb-github-pick__access text-label-medium">{{ access(shown) }}</span>
+      <span class="mb-github-pick__access mb-text-12">{{ access(shown) }}</span>
     </p>
     <template v-if="open">
       <button v-if="!searching" type="button" class="mb-github-pick__link" @click="startSearch">Choose another repository</button>
@@ -85,7 +85,7 @@ const access = (repository) => `${repository.private ? "Private" : "Public"} · 
           <li v-for="repository in found" :key="repository.id">
             <button type="button" class="mb-github-pick__choice" @click="choose(repository)">
               <span class="mb-github-pick__name">{{ repository.fullName }}</span>
-              <span class="mb-github-pick__access text-label-medium">{{ access(repository) }}</span>
+              <span class="mb-github-pick__access mb-text-12">{{ access(repository) }}</span>
             </button>
           </li>
         </ul>
@@ -130,7 +130,7 @@ const access = (repository) => `${repository.private ? "Private" : "Public"} · 
   color: rgb(var(--v-theme-primary));
   font: inherit;
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 400;
   cursor: pointer;
 }
 .mb-github-pick__link:disabled {

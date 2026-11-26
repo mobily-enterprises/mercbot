@@ -135,7 +135,7 @@ describe("the chat list", () => {
     const rows = buttons(html).filter((entry) => entry.classes.includes("mb-row") && ["Chef", "Otto"].includes(entry.label));
     expect(rows.map((entry) => entry.label), "the accessible name stays the bot's name").toEqual(["Chef", "Otto"]);
     expect(rows.map((entry) => entry.text)).toEqual(["Chef meals", "Otto"]);
-    expect(rows[0].inside.replace(/<!--[\s\S]*?-->/gu, ""), "the name, then the template's").toMatch(/<span class="mb-row__name">Chef<\/span><span class="mb-row__detail text-body-small" aria-hidden="true">meals<\/span>/u);
+    expect(rows[0].inside.replace(/<!--[\s\S]*?-->/gu, ""), "the name, then the template's").toMatch(/<span class="mb-row__name">Chef<\/span><span class="mb-row__detail mb-text-12" aria-hidden="true">meals<\/span>/u);
     expect(rows[1].inside, "no template, the name alone").not.toContain("mb-row__detail");
     expect(tips(html).filter(([label]) => ["Chef", "Otto"].includes(label))).toEqual([
       ["Chef", "Chef\nhere's the plan\nTemplate meals: Plans the week's meals and the shopping."],

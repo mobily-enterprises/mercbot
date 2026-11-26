@@ -28,7 +28,8 @@ Mercbot's own look), and each app's own CSS on top, with complete freedom (owner
   that area, which gets `contain: paint`; animation and font names prefixed with the app's id).
   The app's area is its navigation and screens (not Mercbot's bar) and, on a public page, the
   whole page; it carries `data-screen`. Parts are `.app-node--<type>`, plus `.x-<name>` for each
-  name in a part's `class`; dialogs open inside the area.
+  name in a part's `class`, and a text part's size is `.app-text--<size>` (headline, title, body: 22, 18 and 14px on
+  Mercbot's type scale, `src/components/apps/AppNode.vue`); dialogs open inside the area.
 
 ## Proved by
 

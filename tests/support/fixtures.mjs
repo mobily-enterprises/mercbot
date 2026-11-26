@@ -169,7 +169,7 @@ try {
   check(await apps.saveDraft(person, leads.slug, {
     home: "list",
     // Its own look (the app's CSS): a dark page, a pink banner, see-through tables.
-    style: ":root { background: rgb(10, 10, 40); color: rgb(240, 240, 255); } .x-banner .text-title-large { color: rgb(255, 51, 102); letter-spacing: 4px; text-transform: uppercase; } .app-node--table .v-table { background: transparent; color: inherit; }",
+    style: ":root { background: rgb(10, 10, 40); color: rgb(240, 240, 255); } .x-banner .app-text--title { color: rgb(255, 51, 102); letter-spacing: 4px; text-transform: uppercase; } .app-node--table .v-table { background: transparent; color: inherit; }",
     screens: {
       list: {
         data: { all: { from: "leads", sort: "name" }, best: { script: "top" } },

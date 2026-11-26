@@ -27,22 +27,22 @@ const people = computed(() => (props.room.people || []).map((person) => ({ id: S
   <div class="mb-room-card">
     <div class="mb-room-card__head">
       <span class="mb-room-card__title">{{ room.title }}</span>
-      <span class="mb-room-card__kind text-label-medium">
+      <span class="mb-room-card__kind mb-text-12">
         <v-icon :icon="isPublic ? '$group' : '$lock'" size="14" />
         {{ isPublic ? "Public" : "Private" }}
       </span>
     </div>
     <ul class="mb-room-card__members" aria-label="In the room">
-      <li v-for="person in people" :key="`person-${person.id}`" class="mb-room-card__member text-label-medium">
+      <li v-for="person in people" :key="`person-${person.id}`" class="mb-room-card__member mb-text-12">
         <span class="mb-room-card__initials" aria-hidden="true">{{ person.initials }}</span>
         {{ person.name }}
       </li>
-      <li v-for="bot in botFaces" :key="`bot-${bot.id}`" class="mb-room-card__member text-label-medium">
+      <li v-for="bot in botFaces" :key="`bot-${bot.id}`" class="mb-room-card__member mb-text-12">
         <MercbotAvatar :bot="bot.face" :size="20" still />
         {{ bot.name }}
       </li>
     </ul>
-    <p class="mb-room-card__brief text-body-medium" tabindex="0" role="region" aria-label="The room's brief">{{ room.brief }}</p>
+    <p class="mb-room-card__brief mb-text-14" tabindex="0" role="region" aria-label="The room's brief">{{ room.brief }}</p>
     <v-btn v-if="done?.chatId" class="mb-room-card__open" color="primary" variant="flat" prepend-icon="$openInNew" @click="emit('open-chat', String(done.chatId))">
       Open the room
     </v-btn>
