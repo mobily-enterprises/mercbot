@@ -6,6 +6,8 @@ import { onBeforeUnmount, ref, watch } from "vue";
 // message adds a row of reactions above them, the chosen one marked; picking one emits `react`.
 // It takes the keyboard as it opens, so the arrows reach its rows (the Library's "…" opens it too),
 // and as it closes it gives focus back to what had it, unless that moved elsewhere meanwhile.
+// Picking a row or a reaction closes it here, at once. Vuetify's own close on a click in a menu is off: it closes the
+// menu again 40 ms later, on a timer, which closed a menu opened again meanwhile by another right-click (26 Nov).
 const open = defineModel({ type: Boolean, default: false });
 defineProps({
   target: { type: Array, default: () => [0, 0] },
@@ -70,7 +72,7 @@ function react(emoji) {
 </script>
 
 <template>
-  <v-menu v-model="open" :target="target" context-menu location="bottom start" content-class="mb-popover">
+  <v-menu v-model="open" :target="target" context-menu location="bottom start" :close-on-content-click="false" content-class="mb-popover">
     <v-list ref="list" density="compact" class="mb-menu py-1" width="228">
       <template v-if="reactions.length">
         <div class="mb-menu__reactions" role="group" aria-label="Reactions">
@@ -91,7 +93,7 @@ function react(emoji) {
       </template>
       <template v-for="(item, index) in items" :key="index">
         <v-divider v-if="item.divider" class="my-1" />
-        <v-menu v-else-if="item.submenu" open-on-hover location="end" :offset="4" content-class="mb-popover">
+        <v-menu v-else-if="item.submenu" open-on-hover location="end" :offset="4" :close-on-content-click="false" content-class="mb-popover">
           <template #activator="{ props: submenuProps }">
             <v-list-item v-bind="submenuProps" min-height="32" class="px-3">
               <template #prepend><v-icon :icon="item.icon" size="14" /></template>
