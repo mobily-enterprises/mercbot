@@ -1,4 +1,4 @@
-import { HOME, connectTestDb, directChat, expect, homeApi, openShell, seedMessage, shell, test, type Page } from "./harness";
+import { HOME, connectTestDb, directChat, expect, homeApi, openShell, seedMessage, shell, skipPause, test, type Page } from "./harness";
 
 // Mercbot as an app people install from the website (D-133): the manifest and the service worker, the offline page,
 // Install app and the iPhone guide, Settings → General → Notifications on a device whose push service is a stand-in,
@@ -149,9 +149,12 @@ test.describe("on an iPhone", () => {
 
   test("the banner on a phone comes once, a few seconds in, and Not now puts it away for good", async ({ page }) => {
     await page.addInitScript(() => localStorage.removeItem("mercbot.installBanner"));
+    await page.clock.install();
     await openShell(page);
     const banner = page.locator(".mb-app-banner").filter({ hasText: "Install Mercbot" });
-    await expect(banner).toBeVisible({ timeout: 15_000 });
+    // Not at once: 8 s in (MercbotAppDevice.vue), which the page's clock skips.
+    await expect(banner).toBeHidden();
+    await skipPause(page, 8000, () => expect(banner).toBeVisible({ timeout: 1_000 }));
     await banner.getByRole("button", { name: "Not now" }).click();
     await expect(banner).toBeHidden();
     expect(await page.evaluate(() => localStorage.getItem("mercbot.installBanner"))).toBe("answered");

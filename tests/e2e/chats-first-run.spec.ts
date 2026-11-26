@@ -1,6 +1,6 @@
 import type { Knex } from "knex";
 import type { Locator, TestInfo } from "@playwright/test";
-import { connectTestDb, expect, homeApi, openShell, shell, sidebarEntry, test, type Page } from "./harness";
+import { connectTestDb, expect, homeApi, openShell, shell, sidebarEntry, skipPause, test, type Page } from "./harness";
 
 // A person's first visit to a new home (plan 4.1, D4, D-109, D-112), on the Test Preview target, in a home of the test's
 // own. Their welcome chat is made at once: their direct chat with the home's main bot, Mercbot, made with it, Private,
@@ -13,6 +13,8 @@ import { connectTestDb, expect, homeApi, openShell, shell, sidebarEntry, test, t
 // output.
 // Not covered here: the intro slides of a person's very first home, as the Test Preview's one person has a home already
 // (D-81: a copy of one's own has one person, so no new person signs in); this home skips them, as a second home does.
+// The welcome chat's steps come at the pace a person reads them (chatsApi.js's ONBOARDING_TIMING, about 20 seconds in
+// all); the test skips each pause on the page's clock (skipPause) instead of waiting it out.
 // Run with: vibe64-helper playwright --target test-app test tests/e2e/chats-first-run.spec.ts
 // Any refused API call from the page, one with no answer, or JSKIT's error dialog, fails the test (harness.ts).
 test.use({ apiGuard: true });
@@ -70,13 +72,12 @@ async function noApps(dialog: Locator) {
 }
 
 test("a new home's welcome chat names its main bot, picks a ready-made set, and a bot's row in Bots opens its direct chat", async ({ page }, testInfo) => {
-  // The welcome chat's steps come at the pace a person reads them (ONBOARDING_TIMING, about 20 seconds in all).
-  test.setTimeout(150_000);
   const knex = connectTestDb();
   let home: Awaited<ReturnType<typeof newHome>> | null = null;
   try {
     home = await newHome(page, knex);
     const api = await homeApi(page, home.path);
+    await page.clock.install();
 
     // The first visit makes the welcome chat: the person's direct chat with Mercbot, made with it, and the only chat.
     const welcomed = answered(page, "POST", new RegExp(`^/api${home.path}/chats/welcome$`, "u"));
@@ -92,9 +93,9 @@ test("a new home's welcome chat names its main bot, picks a ready-made set, and 
     await expect(shell.chatRow(page, "Mercbot")).toBeVisible();
     await expect(shell.chat(page)).toHaveAttribute("aria-label", "Mercbot");
 
-    // Mercbot greets the person and asks to be named: two names to pick from, or Mercbot.
-    await expect(shell.chat(page).getByText(/^Good to have you here, .+\. From now on I'll be looking after things for you, at work and at home\.$/u))
-      .toBeVisible({ timeout: 20_000 });
+    // After its pause (start, 6 s), Mercbot greets the person and asks to be named: two names to pick from, or Mercbot.
+    const greeting = shell.chat(page).getByText(/^Good to have you here, .+\. From now on I'll be looking after things for you, at work and at home\.$/u);
+    await skipPause(page, 6000, () => expect(greeting).toBeVisible({ timeout: 1_000 }));
     const naming = card(page, "First things first: pick a name for me. You're free to rename me any time.");
     await expect(naming.options).toHaveCount(3);
     await expect(naming.options.last()).toHaveText(/Mercbot$/u);
@@ -103,9 +104,11 @@ test("a new home's welcome chat names its main bot, picks a ready-made set, and 
     await shots(page, testInfo, "first-run-welcome", () => expect(naming.options.last()).toBeVisible());
     await naming.options.first().click();
 
-    // It takes the name, is renamed everywhere, and asks what the home is for.
-    await expect(shell.chat(page).getByText(new RegExp(`^${name} it is\\. Nice to meet you properly, .+!$`, "u"))).toBeVisible({ timeout: 20_000 });
-    await expect(shell.chat(page).getByText(`Renamed to ${name}`, { exact: true })).toBeVisible({ timeout: 20_000 });
+    // It takes the name (confirm, 3 s), is renamed everywhere (rename, 5 s), and asks what the home is for.
+    const taken = shell.chat(page).getByText(new RegExp(`^${name} it is\\. Nice to meet you properly, .+!$`, "u"));
+    await skipPause(page, 3000, () => expect(taken).toBeVisible({ timeout: 1_000 }));
+    const renamed = shell.chat(page).getByText(`Renamed to ${name}`, { exact: true });
+    await skipPause(page, 5000, () => expect(renamed).toBeVisible({ timeout: 1_000 }));
     await expect(shell.chatRow(page, name)).toBeVisible();
     expect((await knex("bots").where({ id: mainId }).first()).name).toBe(name);
     const homeFor = card(page, "What's this home for? I can suggest a few bots to help with it.");
@@ -140,7 +143,8 @@ test("a new home's welcome chat names its main bot, picks a ready-made set, and 
     const people = card(page, "Will anyone else use this home?");
     await expect(people.options).toHaveText([/Just me$/u, /Me and other people$/u], { timeout: 20_000 });
     await people.options.filter({ hasText: "Just me" }).click();
-    await expect(shell.chat(page).getByText("A bit about how I work:")).toBeVisible({ timeout: 20_000 });
+    // About comes after its pause (2 s).
+    await skipPause(page, 2000, () => expect(shell.chat(page).getByText("A bit about how I work:")).toBeVisible({ timeout: 1_000 }));
     expect(await knex("conversations").where({ workspace_id: home.homeId, everyone: true }).first()).toBeUndefined();
 
     // Bots: the main bot, then the three by name, with no chat with them yet and none under "N more", as a section of
