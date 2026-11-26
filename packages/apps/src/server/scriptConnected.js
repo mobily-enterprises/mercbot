@@ -14,7 +14,20 @@ const MAX_BYTES = 1024 * 1024;
 const CONFIRM_MINUTES = 15;
 
 /** A refusal the script sees, in words for the app's people. */
-const refused = (message) => new Error(message);
+export const refused = (message) => new Error(message);
+
+/**
+ * The call options of the person a run uses connected apps, bots or pictures (`what`) as: the member who pressed or
+ * opened, or the job's person; refused for a public app's visitor and for a job whose person left the home.
+ */
+export function personCallFor(systemContext, ctx, script, what) {
+  if (ctx.visitor) throw refused(`${what} are for the home's people: a public app's visitors can't use them`);
+  if (script.kind !== "job") return ctx.options;
+  if (!script.runsAsUserId) {
+    throw refused(`this job has no person to use ${what} as (they left the home): switch it off and on again to run it as you`);
+  }
+  return { context: systemContext("a job uses connected apps, bots and pictures as its person").forWorkspace(script.workspaceId, { actorId: script.runsAsUserId }) };
+}
 
 /**
  * @param {object} dependencies
@@ -50,15 +63,7 @@ export function createScriptConnected({ resources, systemContext, connected }) {
       .get(ctx.via.appId, { fields: ["connectedAccess"] }, passedOn(ctx.options))
       .then((app) => (app.connectedAccess || []).filter((id) => id !== "ai")));
 
-    /** The call options of the person the run is for. */
-    function personCall() {
-      if (ctx.visitor) throw refused("connected apps are for the home's people: a public app's visitors can't use them");
-      if (script.kind !== "job") return ctx.options;
-      if (!script.runsAsUserId) {
-        throw refused("this job has no person to use connected apps as (they left the home): switch it off and on again to run it as you");
-      }
-      return { context: systemContext("a job's connected apps").forWorkspace(script.workspaceId, { actorId: script.runsAsUserId }) };
-    }
+    const personCall = () => personCallFor(systemContext, ctx, script, "connected apps");
 
     return async (name, args) => {
       if ((calls += 1) > limits.connected) throw refused(`at most ${limits.connected} connected-app calls per run`);

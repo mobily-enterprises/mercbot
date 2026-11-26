@@ -1,3 +1,4 @@
+import { createAppAiWork } from "./appAiWork.js";
 import { describeActivity, writeSkillFromDemo } from "./botWriting.js";
 import { createBackgroundWork } from "./backgroundWork.js";
 import { createChatMembers } from "./chatMembers.js";
@@ -124,6 +125,8 @@ export function createBotsService({
   const onboarding = createOnboarding({ records, chats, model, meter, notices, workspaces });
   // What each bot knows (D-107): its Details section, and what its turns keep in mind and search.
   const knowledge = createBotKnowledge({ records, files, meter, env, systemContext });
+  // AI work apps' scripts queue (D-136): batches for a bot and pictures, done as their person, through the meter.
+  const appAiWork = createAppAiWork({ model, meter, records, apps, files, env, systemContext });
   const turns = createChatTurns({
     records,
     systemContext,
@@ -235,6 +238,7 @@ export function createBotsService({
     connectFollowUps: turns.connectFollowUps,
     runRoutine: turns.runRoutine,
     runAppTask: turns.runAppTask,
+    runAppAiWork: appAiWork.run,
     drain: background.drain,
     knowledge: Object.freeze({
       list: knowledge.list,

@@ -20,8 +20,12 @@ const JOB_FIELDS = Object.freeze([
   "runId",
   "attempts",
   "leaseUntil",
-  "steps"
+  "steps",
+  "appId"
 ]);
+
+// The app jobs apps' scripts queue for bots and pictures (D-136): the bots' runner does them as AI work, not as a chat.
+export const AI_KINDS = new Set(["ai_batch", "ai_picture"]);
 
 /**
  * App jobs (D-15): tasks apps queue for bots (queueTask), which the bots' app job runner claims on
@@ -116,7 +120,26 @@ export function createAppJobs({ appJobs }) {
    * @param {object} options
    */
   const finish = (job, status, options) =>
-    changeRun(job, { status, finishedAt: new Date().toISOString(), leaseUntil: null, steps: null }, options).catch(() => false);
+    changeRun(job, {
+      status,
+      finishedAt: new Date().toISOString(),
+      leaseUntil: null,
+      // AI work keeps its items (their texts already dropped), for the app's Logic tab to show how far it got (D-136).
+      ...(AI_KINDS.has(job.kind) ? {} : { steps: null })
+    }, options).catch(() => false);
+
+  /**
+   * AI work that can't go on (D-136): failed now, with why in words for the app's people, if its run is still this
+   * server's; the runner's own finish then changes nothing.
+   * @param {{ id: string, runId: string }} job
+   * @param {string} error
+   * @param {object} options
+   */
+  const fail = (job, error, options) =>
+    changeRun(job, { status: "failed", error: String(error).slice(0, 1000), finishedAt: new Date().toISOString(), leaseUntil: null }, options);
+
+  /** Whether a claimed job is AI work, which the bots' runner does as such, not in a chat. */
+  const isAiWork = (job) => AI_KINDS.has(job.kind);
 
   return Object.freeze({
     withTransaction,
@@ -125,6 +148,8 @@ export function createAppJobs({ appJobs }) {
     renew,
     release,
     saveSteps,
-    finish
+    finish,
+    fail,
+    isAiWork
   });
 }

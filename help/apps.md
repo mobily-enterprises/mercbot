@@ -63,7 +63,7 @@ Mercbot uses the word "apps" for two different things:
 - **Apps** (this section) are the apps your Builder makes, on data that lives in Mercbot.
 - **Connect apps** is where you connect outside services, such as your email, calendar or file storage, so your bots can use them for you. See [The bots' computer and connected apps](/help/computer-and-apps).
 
-Built apps don't connect to those services by themselves. A script can call an outside web service, but only at addresses your home's owners and admins have listed (see [Logic: formulas, scripts and automations](/help/apps-logic)).
+A built app can use your home's connected apps too, once an owner or admin allows it in the app's **Logic** tab: its scripts read your mail, calendars and files, and its buttons can change them, with your approval rules applying as they do for bots. It can also hand records to a bot and make pictures. Such an app stays inside the home and is never public. A script can also call an outside web service, but only at addresses your home's owners and admins have listed. See [Logic: formulas, scripts and automations](/help/apps-logic).
 
 ## When an app is the right tool
 

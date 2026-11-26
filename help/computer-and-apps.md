@@ -127,7 +127,7 @@ A single chat's computers have their own **Reset**, under **Computers** in **Cha
 
 ## Connect apps
 
-**Connect apps** is where you choose which outside apps your home's bots can use. Apps and accounts you add belong to the home you're in: everyone in it, and their bots, can use them. Open it from the sidebar, or type "Connect Apps" in the search palette (**Ctrl+K**). On a phone it fills the screen. **Skills**, the book beside it in the sidebar, opens it straight on your private skills.
+**Connect apps** is where you choose which outside apps your home's bots can use. Apps and accounts you add belong to the home you're in: everyone in it, and their bots, can use them. Apps the Builder makes can use them too, once a home's owner or admin allows it for that app (see [Logic: formulas, scripts and automations](/help/apps-logic)). Open it from the sidebar, or type "Connect Apps" in the search palette (**Ctrl+K**). On a phone it fills the screen. **Skills**, the book beside it in the sidebar, opens it straight on your private skills.
 
 The catalogue shows:
 

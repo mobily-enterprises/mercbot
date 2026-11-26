@@ -251,12 +251,16 @@ export const appJobResource = defineTableResource({
   tableName: "app_jobs",
   ownership: "workspace",
   schema: {
+    // The app whose script queued AI work (D-136); null for watches, hand-offs and commands.
+    appId: { type: "string", maxLength: 24, noTrim: true, nullable: true, search: true },
     attempts: { type: "integer" },
     botId: { type: "id", required: true, search: true },
     // The bot in a chat it runs for (D-112); null for an app's own job, which no chat asked for.
     chatBotId: { type: "id", nullable: true, search: true },
     claimedAt: { type: "dateTime", nullable: true },
     createdAt: { type: "dateTime" },
+    // Why AI work failed, for the app's people.
+    error: { type: "string", noTrim: true, nullable: true },
     finishedAt: { type: "dateTime", nullable: true },
     kind: { type: "string", maxLength: 16, noTrim: true, required: true, search: true },
     leaseUntil: { type: "dateTime", nullable: true },

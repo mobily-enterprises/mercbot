@@ -4055,7 +4055,7 @@ Decided:
 ## D-126 — Bots' commands reach the internet through Mercbot's gateway (2026-11-23)
 
 Supersedes D-47's "No internet and no installs, by design (2026-10-30)" and amends D-49 (its command line "with no
-internet"). In the voces room "WODC Material" on mercbot.ai a bot asked to change a website on GitHub told the person its
+internet"). In a room a bot asked to change a website on GitHub told the person its
 "own command line has no internet, so I can't clone the repo or push to GitHub from it", and sent them to the coding
 tool instead. The owner, 23 November: "The fact that the bots have no internet is an absurdity, we need to undo it… This
 is a change we need to make."
@@ -4555,7 +4555,7 @@ another home's tasks queued once it has paused wait one runner turn at most. Als
 
 *Amends D-112's pinned tiles and D-117's "under the pinned tiles"; O9's everyone chat stays pinned for everyone.*
 
-The owner, on mercbot.ai, of the pinned tile at the top of the chat list (about 95 by 110 px with a 58 px group face):
+The owner, of the pinned tile at the top of the chat list (about 95 by 110 px with a 58 px group face):
 being pinned is fine, its size isn't. And of the everyone chat: "It's not even in 'rooms'".
 
 - **A pinned chat is a chip of one line,** as tall as a row (32 px): its 24 px face with its unread, "@" or waiting
@@ -4572,3 +4572,38 @@ being pinned is fine, its size isn't. And of the everyone chat: "It's not even i
 Proved by `tests/e2e/pinned-chats.spec.ts` (one pin's block no taller than a Rooms row in the same render, four in two
 columns, the everyone chat Rooms' first row with no block while it's the only pin, and each of a chip's behaviours),
 `tests/client/chatDirectory.vitest.js` and `tests/client/chatList.vitest.js`.
+
+## D-136 — Apps use connected apps, bots and pictures directly, as the person, internal only (2026-11-26)
+
+The owner: "if I have Gmail connected, and want a mini app that scans the emails and shows the urgent ones… why waste
+AI on something mechanical?", then: every connected app ("the lot"), Sedna's rule of who may send kept by the connector
+that knows who is using the app, apps that can hand items to a bot (the home's default one) in one session of several
+turns and make pictures, and the "Canary" app (reads mail, has the bot judge each, shows the urgent ones, draws one) as
+the proof. Then, on who could change an app to misuse it: "accounts are NEVER private": a connected Gmail or calendar is
+the group's, and Sedna is the connector that limits who you send as; and apps that use any of this are internal only.
+
+- **One set of tools.** Scripts use the bots' own connector tools (`packages/bots/src/server/appConnected.js`), built for
+  one person with no chat, so every rule they keep holds: whose accounts, Sedna's confirmed person, hidden sign-in codes,
+  switched-off actions, each account's pace, a test copy logging what it would change. A call names one app and sees
+  only that app's accounts (Gmail never reaches an Outlook mailbox). Actions that live in a chat or a bot's files aren't
+  for apps. Apps reach the tools through a late requirement (`mercbot.app-connected`), since the bots require apps.
+- **Who, and what.** `connected.actions()` and `connected.run(app, action, input)` for a button, a screen's data and a
+  job: the member using the app, or the job's person (who saved it or last turned it on; none once they leave the home,
+  until someone turns it on again). Only a button changes anything; a screen and a job only read.
+- **The same approval rules as a bot's.** A button's press is the person asking; their rules decide. A change they'd
+  ask about waits (`app_connected_confirms`) and the screen asks them to confirm its exact question; it is made once, as
+  them, within 15 minutes.
+- **Owners and admins choose, per app** (`apps.connected_access`, the app's Logic tab), "ai" among them for bots and
+  pictures. An app that has any is never public, and a public app gets none (`ck_apps_connected_internal`); a visitor's
+  run is refused anyway.
+- **Bots and pictures** (`ai.bots()`, `ai.work(...)`, `ai.picture(...)`, buttons and jobs only, since a screen would
+  spend on every view): queued app jobs (`ai_batch`, `ai_picture`) that the bots' runner does as the person through the
+  meter. A batch is one session in the bot's own voice, the task once and each item a turn, item text information only;
+  each answer goes into its record's field as it comes, and a server that takes it over goes on from the first item
+  without one. Pictures are checked as a bot's are and saved into a record's files field.
+- **Limits:** 5 connected-app calls and 1 MB an answer a run; 1 batch (100 items of 8,000 characters, a task of 2,000)
+  and 5 pictures a run; 3 batches of an app at once. Each change in a connected app is in the app's activity trail.
+
+Proved by `tests/server/appConnected.test.js`, `appAiWork.test.js`, `appsConnected.integration.js`,
+`appsAi.integration.js` and `appsCanary.integration.js` (the Canary app end to end, with stand-ins for Gmail, the model
+and the picture service).

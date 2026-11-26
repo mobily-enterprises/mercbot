@@ -18,6 +18,15 @@ const open = ref(null);
 const view = ref("code");
 const connected = ref(null);
 const saving = ref(false);
+// The bots' and pictures' work its scripts queued (D-136), newest first.
+const aiWork = ref([]);
+const AI_STATE = { queued: "Waiting", running: "Working", done: "Done", failed: "Failed" };
+function aiProgress(job) {
+  const state = AI_STATE[job.status] || job.status;
+  if (job.kind === "ai_picture") return job.status === "failed" ? `${state}: ${job.error}` : state;
+  const count = `${job.done} of ${job.total}`;
+  return job.status === "failed" ? `${state} at ${count}: ${job.error}` : `${state} · ${count}`;
+}
 // The connected apps to choose from, and AI: bots and pictures.
 const connectedRows = computed(() => [
   ...(connected.value?.choices || []).map((choice) => ({
@@ -48,6 +57,7 @@ async function load() {
     rounds.value = result.rounds;
     canManage.value = result.canManage;
     connected.value = result.connected;
+    aiWork.value = result.aiWork || [];
   } catch (error) {
     problem.value = errorText(error, "The scripts couldn't load.");
   }
@@ -128,6 +138,17 @@ onMounted(load);
         </v-expansion-panel-text>
       </v-expansion-panel>
     </v-expansion-panels>
+    <section v-if="aiWork.length" class="app-logic__connected">
+      <h3 class="mb-set-group app-logic__group">Work for bots and pictures</h3>
+      <div class="mb-set-card">
+        <div v-for="job in aiWork" :key="job.id" class="mb-set-row">
+          <span class="mb-set-row__text">
+            <span class="mb-set-row__label">{{ job.title }}</span>
+            <span class="mb-set-row__description">{{ aiProgress(job) }} · {{ whenText(job.createdAt) }}</span>
+          </span>
+        </div>
+      </div>
+    </section>
     <section v-if="connected" class="app-logic__connected">
       <h3 class="mb-set-group app-logic__group">Connected apps its scripts may use</h3>
       <div class="mb-set-card">

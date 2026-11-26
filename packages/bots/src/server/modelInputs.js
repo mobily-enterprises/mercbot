@@ -68,6 +68,13 @@ export const MODEL_INPUTS = Object.freeze([
     reach: "none"
   },
   {
+    file: "packages/bots/src/server/appAiWork.js",
+    calls: { generateOnce: 1 },
+    path: "An app's batch for a bot (D-136): each item's answer, in one session of the batch",
+    reads: "the bot's name, template and additions, the app's task, and the texts of the batch's items the script handed it (the last few with their answers)",
+    reach: "none"
+  },
+  {
     file: "packages/bots/src/server/botWriting.js",
     calls: { generateOnce: 3 },
     path: "A new bot's greeting and first question, a step's activity line, answerAsBot (a copy's template descriptions)",

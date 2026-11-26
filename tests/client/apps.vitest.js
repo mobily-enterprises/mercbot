@@ -46,6 +46,16 @@ describe("a preview's notices", () => {
     })).toBe("Practice data: nothing was sent. Once published, this would ask Otto and call https://hooks.example.test/won.");
   });
 
+  it("names connected apps, a bot's batch and a picture a draft's scripts only pretended (D-136)", () => {
+    const simulated = [
+      { connected: { app: "gmail", action: "mail_drafts.create" }, script: "draft" },
+      { ai: { bot: "Otto", items: 3 }, script: "judge" },
+      { ai: { picture: "a canary" }, script: "draw" }
+    ];
+    expect(previewNotice({ effects: [], practice: { changes: [], wouldSend: [], simulated } }))
+      .toBe("Practice data: nothing was sent. Once published, this would use gmail (mail_drafts.create) and ask Otto about 3 items and make a picture.");
+  });
+
   it("says an app without a draft saved nothing", () => {
     expect(previewNotice({ effects: [], dryRun: true, wouldWrite: [{}, {}], wouldSend: [{ bot: "Otto" }] })).toBe("Preview: nothing was saved or sent (would save 2 changes, would ask Otto).");
     expect(previewNotice({ effects: [] })).toBe("");

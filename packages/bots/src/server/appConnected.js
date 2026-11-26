@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { buildAccountTools } from "./accountTools.js";
 import { ACTIONS } from "./botActions.js";
 import { turnPerson } from "./connectedApps.js";
@@ -46,6 +47,25 @@ const actionIds = (entry) => (entry.actions || []).map((action) => action.id);
 
 /** The tool an action id (`tool` or `tool.action`) belongs to. */
 const toolOf = (actionId) => String(actionId).split(".")[0];
+
+// A tool's inputs a script never gives: the chat's status line and approval words, and the action, named in its id.
+const NOT_SCRIPT_INPUTS = new Set(["statusLine", "acknowledgement", "personAsked", "action"]);
+
+/** A tool's inputs in one line for the Builder, "query?: string, to: string[]" (? when optional). */
+function inputLine(tool) {
+  const schema = tool.inputSchema ? z.toJSONSchema(tool.inputSchema) : {};
+  const required = new Set(schema.required || []);
+  const typeOf = (property) =>
+    property.enum
+      ? property.enum.map((value) => JSON.stringify(value)).join(" | ")
+      : property.type === "array"
+        ? `${property.items?.type || "any"}[]`
+        : property.type || "any";
+  return Object.entries(schema.properties || {})
+    .filter(([name]) => !NOT_SCRIPT_INPUTS.has(name))
+    .map(([name, property]) => `${name}${required.has(name) ? "" : "?"}: ${typeOf(property)}`)
+    .join(", ");
+}
 
 /** Whether apps may use an action of an app: OneDrive's documents are Word files a bot's office makes. */
 const forApps = (appId, actionId) =>
@@ -106,8 +126,8 @@ export function createAppConnected({ integrations, profiles, env, records, apps,
     place: null
   });
 
-  async function toolsFor(call, appId, mode, outcome) {
-    const switches = await integrations.toolSwitches(call);
+  async function toolsFor(call, appId, mode, outcome, known = null) {
+    const switches = known || (await integrations.toolSwitches(call));
     const oneApp = oneAppOf(appId);
     const appFor = (toolId) => ({ integrations: oneApp, call, skip: switches.skip[toolId] || [] });
     // The tools' own record of what they tried (reads among them, as a bot's reply checks it), and the changes asked for.
@@ -228,6 +248,27 @@ export function createAppConnected({ integrations, profiles, env, records, apps,
   }
 
   /**
+   * What the Builder writes scripts with (scriptWriter.js): the allowed apps connected for the call's person, each
+   * action apps may use with its inputs, one line each. Switches are read once for every app.
+   */
+  async function guide(call, allowed) {
+    const switches = await integrations.toolSwitches(call);
+    const lines = [];
+    for (const appId of allowed.filter((id) => id !== "ai" && switches.connected.includes(id) && usable(id))) {
+      const entry = integrations.app(appId);
+      const { tools } = await toolsFor(call, appId, "read", { made: [], waiting: [] }, switches);
+      lines.push(`- ${appId} (${entry.name}):`);
+      for (const action of entry.actions || []) {
+        if (!forApps(appId, action.id) || (switches.skip[action.id] || []).includes(appId)) continue;
+        const tool = tools.find((candidate) => candidate.id === toolOf(action.id));
+        if (tool) lines.push(`  - ${action.id} (${action.name}): { ${inputLine(tool)} }`);
+      }
+      if (entry.mcp) lines.push(`  - its own actions: connected.actions() lists them; connected.run("${appId}", name, input)`);
+    }
+    return lines.join("\n");
+  }
+
+  /**
    * A change that waited (run's `outcome.waiting`), once the person confirmed it: made as them, in that app's account.
    * The waiting change is the server's own, kept for them; it must still be one of that app's.
    * @returns {Promise<string>} what was done, in words for them
@@ -245,6 +286,7 @@ export function createAppConnected({ integrations, profiles, env, records, apps,
     usable,
     choices,
     actions,
+    guide,
     run,
     runConfirmed
   });

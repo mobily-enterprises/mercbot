@@ -122,6 +122,13 @@ const appScriptSearch = Object.freeze({
 
 const appJobSearch = Object.freeze({
   due: hasCome("runAfter"),
+  // An app's batches for a bot still to do (queued or running): its limit on work at once (D-136).
+  batchActive: {
+    type: "boolean",
+    applyFilter(query, _active, { column }) {
+      query.where(column("kind"), "ai_batch").whereIn(column("status"), ["queued", "running"]);
+    }
+  },
   // A running job whose server stopped renewing its lease (the bots' app job runner takes it over).
   stalled: {
     type: "boolean",

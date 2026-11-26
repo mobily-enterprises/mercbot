@@ -182,3 +182,13 @@ test("a pressed button's change goes through the person's approval rules: one th
     "a connector's change belongs to the app it was asked for"
   );
 });
+
+test("the Builder's guide: each allowed, connected app's actions apps may use, with their inputs", async () => {
+  const guide = await connectedApps(fakeIntegrations({ connected: ["gmail", "google-drive"] })).guide(call, ["gmail", "outlook", "ai"]);
+  const lines = guide.split("\n");
+  assert.equal(lines[0], "- gmail (Gmail):");
+  assert.ok(lines.some((line) => /^ {2}- search_email \(.+\): \{ query: string.*\}$/u.test(line)), guide);
+  assert.ok(lines.some((line) => line.startsWith("  - mail_drafts.create (") && line.includes("to?: string[]")), guide);
+  assert.ok(!/show_draft|send_draft|statusLine|personAsked|acknowledgement/u.test(guide), "nothing a script can't give or use");
+  assert.ok(!guide.includes("outlook") && !guide.includes("google-drive"), "only allowed apps that are connected");
+});

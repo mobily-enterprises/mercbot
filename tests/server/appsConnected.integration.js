@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { resolveAuditActorId } from "@jskit-ai/kernel/server/actions/actionContributorHelpers";
-import { appsHome, appsParts } from "../support/appsHome.mjs";
+import { appsHome, appsParts, botsOf } from "../support/appsHome.mjs";
 import { cleanupStack } from "../support/cleanupStack.mjs";
+import { connectTestDatabase } from "../support/testDatabase.mjs";
 import { queriesDuring } from "../support/queryCount.mjs";
 import { createScripts } from "../../packages/apps/src/server/scripts.js";
 import { createWatches } from "../../packages/apps/src/server/watches.js";
@@ -44,9 +45,17 @@ function fakeConnected() {
 }
 
 test("connected apps for scripts: who, which, only buttons change, never public, limits, previews, activity, leaving", async (context) => {
+  const testKnex = await connectTestDatabase();
   const cleanup = cleanupStack(context);
+  cleanup.after(() => testKnex.destroy());
   const connected = fakeConnected();
-  const home = await appsHome(cleanup, { slug: "apps-connected", extras: { inputs: { "mercbot.app-connected": connected } } });
+  // The Logic tab's list reads app_jobs, whose row rule is the bots' records' (botsOf's stand-in).
+  const home = await appsHome(cleanup, {
+    slug: "apps-connected",
+    knex: testKnex,
+    records: botsOf(testKnex),
+    extras: { inputs: { "mercbot.app-connected": connected } }
+  });
   const { knex, userId, workspaceId, options, workspace } = home;
   let scripts = null;
   const { resources, repository, registry, gate, apps, systemContext } = appsParts(home, {
@@ -165,8 +174,15 @@ test("connected apps for scripts: who, which, only buttons change, never public,
   // ---- The access check reads the app once a run, however many calls it makes ----
   await save({ key: "once", kind: "source", summary: "once", code: `async function main() { await connected.actions(); return 1 }`, tests: [{ name: "t", input: {}, connected: { actions: [] }, expect: 1 }] });
   await save({ key: "five", kind: "source", summary: "five", code: `async function main() { for (let i = 0; i < 5; i += 1) await connected.actions(); return 1 }`, tests: [{ name: "t", input: {}, connected: { actions: [] }, expect: 1 }] });
-  const appReads = async (key) => (await queriesDuring(knex, () => show(key), { matching: /from "apps"/u })).length;
+  const appReads = (key) => queriesDuring(knex, () => show(key), { matching: /from "apps"/u });
+  assert.equal(await appReads("once"), 1, "the app's allowed list, read once");
   assert.equal(await appReads("five"), await appReads("once"));
+  const allQueries = (key) => queriesDuring(knex, () => show(key));
+  const withOne = await allQueries("once");
+  const fifty = ["gmail", ...Array.from({ length: 49 }, (_, index) => `app${index}`)];
+  await knex("apps").where({ id: appId }).update({ connected_access: JSON.stringify(fifty) });
+  assert.equal(await allQueries("once"), withOne, "a run reads the same whether 1 or 50 apps are allowed");
+  await knex("apps").where({ id: appId }).update({ connected_access: JSON.stringify(["gmail"]) });
 
   // ---- A job reads as the person who saved it or switched it on; once they leave, it uses none until switched on again ----
   assert.deepEqual((await save({

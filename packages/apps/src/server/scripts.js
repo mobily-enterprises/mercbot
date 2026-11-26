@@ -6,6 +6,7 @@ import { isCalculated } from "../shared/calculated.js";
 import { ScriptError, runFunction } from "../shared/sandbox.js";
 import { newId } from "./registry.js";
 import { LIMITS, PAGE, createScriptChecks, hostFor, whereFor } from "./scriptChecks.js";
+import { createScriptAi } from "./scriptAi.js";
 import { createScriptConnected } from "./scriptConnected.js";
 import { createScriptPool } from "./scriptPool.js";
 import { GateError } from "./validate.js";
@@ -117,11 +118,13 @@ export function createScripts({
   apps,
   env,
   connected,
+  homeBots,
   pool = createScriptPool(),
   web = createWebAccess({ resources, env })
 }) {
   const { apps: appRows, appScripts, appScriptRuns, appScriptRounds, auditEvents } = resources;
   const connectedApps = createScriptConnected({ resources, systemContext, connected });
+  const aiWork = createScriptAi({ resources, systemContext, registry, homeBots });
   // The person a job saved or switched on runs as for connected apps (D-136): the call's, never anything sent.
   const personOf = (options) => resolveAuditActorId(options?.context) ?? null;
   let quickjs = null;
@@ -262,6 +265,16 @@ export function createScripts({
   }
 
   /**
+   * What the Builder may have an app's scripts call in connected apps (D-136): the apps its owners and admins allowed
+   * ("ai" among them for bots and pictures), and those connected for the call's person with each action's inputs.
+   */
+  async function connectedGuide(appSlug, options) {
+    const app = await apps.find(appSlug, options);
+    const allowed = app.connectedAccess || [];
+    return { allowed, guide: allowed.some((id) => id !== "ai") ? await connected().guide(options, allowed) : "" };
+  }
+
+  /**
    * Someone left the home (the bots' homeChanged): the jobs that ran as them have no person for connected apps any more,
    * until someone in the home switches each off and on again (D-136). One write, by the index on runs_as_user_id.
    */
@@ -299,7 +312,9 @@ export function createScripts({
         failed: round.failed,
         failures: round.failures,
         at: round.createdAt
-      }))
+      })),
+      // The bots' and pictures' work its scripts queued (D-136).
+      aiWork: await aiWork.listFor(app.id, options)
     };
   }
 
@@ -349,9 +364,11 @@ export function createScripts({
     let data = 0;
     let webCalls = 0;
     const connectedCall = connectedApps.forRun(ctx, limits, row);
+    const aiCall = aiWork.forRun(ctx, row);
     const tableFor = async (key) => (await gate.tableFor(String(key), ctx.options)).table;
     return async (group, name, args) => {
       if (group === "connected") return connectedCall(name, args);
+      if (group === "ai") return aiCall(name, args);
       if (group === "web") {
         if ((webCalls += 1) > limits.web) throw new Error(`at most ${limits.web} web calls per run`);
         const answer = await web.fetch(args[0], args[1] || {}, ctx.options, { simulate: Boolean(ctx.practice) });
@@ -673,6 +690,7 @@ export function createScripts({
     prune,
     forgetPerson,
     confirmConnected: connectedApps.confirm,
+    connectedGuide,
     web,
     close
   });

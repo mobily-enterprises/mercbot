@@ -28,6 +28,17 @@ Records are by field name: links are the linked record's id, ` +
   `money is whole cents, dates are "YYYY-MM-DD", empty is null.
 - await web.fetch(url, { method, headers, body }) → { status, ok, ` +
   `headers, text, json }: only https addresses on the home's allowed list; the server adds any secret headers.
+- await connected.actions() → [{ app, action, name }] and await connected.run(app, action, input, account?) → the ` +
+  `app's answer: the connected apps (Gmail, Outlook, calendars, drives, GitHub, Sedna, …) this app's owners allowed, as the ` +
+  `person the run is for (buttons, screens' data and jobs only; at most 5 calls a run). Only a button changes anything ` +
+  `(drafts, sending, events, files); a screen's data and a job only read. A change the person's approval rules ask about ` +
+  `isn't made yet: the answer is { status: "waiting_for_approval" } and the person is asked to confirm it.
+- await ai.bots() → [{ name, isMain }]; await ai.work({ bot: "default" | "a bot's name", task, items: [{ record: { table, id }, ` +
+  `text }], into: "a text field" }) → { batch, queued, bot }: the bot ("default" is the home's main one) answers every item ` +
+  `later, in one session, writing each answer into that field of its record; await ai.picture({ prompt, into: { table, id, ` +
+  `field } }) → { picture }: a picture made later into that record's file or picture field. Buttons and jobs only, when ` +
+  `the app's owners allowed bots and pictures; per run 1 ai.work (100 items of 8,000 characters, a task of 2,000; 3 batches ` +
+  `of an app at once) and 5 ai.picture. A screen shows the answers once they're in its records.
 - console.log(…) ` +
   `lines are kept with the run.
 What main returns, by kind:
@@ -44,8 +55,26 @@ What main returns, by kind:
 Tests: [{ name, input, expect }] or [{ name, input, expectError: "part of the message" }]; for a ` +
   `function, input is the list of arguments.
 A test may give records: { table: [records] } (in-memory, ids "1", "2", … unless ` +
-  `given) and web: { "https://…exact url": answer JSON }.
+  `given), web: { "https://…exact url": answer JSON }, connected: { "app.action": answer JSON, "actions": [...] } and ai: ` +
+  `{ "bots" | "work" | "picture": answer JSON }.
 \`expect\` must equal main's result exactly (as JSON).`;
+
+/**
+ * The connected apps a button's, screen's or job's script may call, and whether a button's or job's may use bots and
+ * pictures (D-136), as the prompt names them; "" for the other kinds.
+ */
+async function connectedNoteFor(scripts, app, kind, call) {
+  if (!["action", "source", "job"].includes(kind)) return "";
+  const { allowed, guide } = await scripts.connectedGuide(app, call);
+  const apps = guide
+    ? `Connected apps this app may use, by connected.run(app, action, input):\n${guide}`
+    : "This app may use no connected apps (its owners and admins allow them in its Logic tab), so don't use connected.";
+  if (kind === "source") return apps;
+  const ai = allowed.includes("ai")
+    ? "This app may use bots and pictures (ai.*)."
+    : "This app may not use bots and pictures (its owners and admins allow them in its Logic tab), so don't use ai.";
+  return `${apps}\n${ai}`;
+}
 
 /**
  * One round: the model's { summary, code, tests } as JSON.
@@ -104,6 +133,8 @@ export async function writeScript({
   // The key, kind and settings come from the Builder: the model can't fix those, so check them first.
   const { errors } = scripts.checkScript({ key, kind, settings, summary: "-", code: "function main() {}", tests: [{}] }, tables);
   if (errors.length) return { status: "not saved", rounds: 0, failures: errors };
+  // The connected apps this kind of script may call, with each action's inputs, or why it may call none.
+  const connectedNote = await connectedNoteFor(scripts, app, kind, call);
   let failures = null;
   let last = null;
   let rounds = 0;
@@ -118,6 +149,7 @@ export async function writeScript({
       `The job: ${job}`,
       examples ? `Examples from the Builder:\n${examples}` : "",
       `Tables of this home (names and types only):\n${describeTables(tables)}`,
+      connectedNote,
       last
         ? `Your previous attempt:\n${JSON.stringify(last)}\nIt failed:\n${JSON.stringify(failures)}\nFix the code and reply with ` +
           `the whole script again. Change a test only when its expected result contradicts the job; never weaken a test (fewer ` +

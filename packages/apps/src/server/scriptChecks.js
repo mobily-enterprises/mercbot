@@ -44,13 +44,21 @@ export function whereFor(table, where, params) {
   }
 }
 
-/** The host functions each kind of script may call: connected apps (D-136) for buttons, screens' data and jobs. */
+/**
+ * The host functions each kind of script may call: connected apps (D-136) for buttons, screens' data and jobs, and bots
+ * and pictures for buttons and jobs only (a screen's would spend on every view).
+ */
 export const hostFor = (kind) =>
   kind === "rule"
     ? { records: READS }
     : kind === "function"
       ? {}
-      : { records: { ...READS, ...WRITES }, web: { fetch: true }, connected: { actions: true, run: true } };
+      : {
+          records: { ...READS, ...WRITES },
+          web: { fetch: true },
+          connected: { actions: true, run: true },
+          ...(kind === "source" ? {} : { ai: { bots: true, work: true, picture: true } })
+        };
 
 /**
  * Checking a script's shape and running its tests against fake records in the script pool.
@@ -221,8 +229,8 @@ export function createScriptChecks({ pool, ready }) {
   }
 
   /**
-   * Runs every test; each gets its own fake records. `web` answers web.fetch by URL, and `connected` answers
-   * connected.run by "app.action" (connected.actions by "actions").
+   * Runs every test; each gets its own fake records. `web` answers web.fetch by URL, `connected` answers
+   * connected.run by "app.action" (connected.actions by "actions"), and `ai` answers ai.bots, ai.work and ai.picture.
    */
   async function runTests(input, tables) {
     const results = [];
@@ -253,6 +261,10 @@ export function createScriptChecks({ pool, ready }) {
                   json: typeof answer === "string" ? null : answer,
                   ...(answer.status ? answer : {})
                 };
+              }
+              if (group === "ai") {
+                if (!Object.hasOwn(test.ai || {}, operation)) throw new Error(`no ai answer for ai.${operation} in this test`);
+                return test.ai[operation];
               }
               if (group === "connected") {
                 const key = operation === "actions" ? "actions" : `${args[0]}.${args[1]}`;

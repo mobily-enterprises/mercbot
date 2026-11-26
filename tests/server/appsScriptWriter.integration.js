@@ -32,8 +32,18 @@ test("the coding loop fixes failures, gives up after five rounds, and respects i
   assert.equal(fixed.rounds, 2);
   assert.match(prompts[1], /It failed:.*"name":"B".*"got":"C"/su, "the failures went back to the model");
   assert.match(prompts[0], /leads: name \(text\), score \(number\)/u, "the model sees table names and types, never records");
+  assert.doesNotMatch(prompts[0], /connected apps/iu, "a formula function never calls connected apps");
   const rounds = await knex("app_script_rounds").where({ workspace_id: workspaceId, script_key: "grade" }).orderBy("id");
   assert.deepEqual(rounds.map((round) => [round.round, round.passed, round.failed]), [[1, 2, 1], [2, 3, 0]]);
+
+  // A button's script is told which connected apps it may call (D-136): here none, since no owner allowed any.
+  const buttonPrompts = [];
+  await writeScript({ ...base, key: "notify_lead", kind: "action", settings: {}, model: async (prompt) => {
+    buttonPrompts.push(prompt);
+    return { summary: "Says hi", code: "async function main() { return { notify: 'Hi' } }", tests: [{ name: "hi", input: {}, expect: { notify: "Hi" } }] };
+  } });
+  assert.match(buttonPrompts[0], /This app may use no connected apps \(its owners and admins allow them in its Logic tab\)/u);
+  assert.match(buttonPrompts[0], /This app may not use bots and pictures/u);
 
   // A model that never gets it right: five rounds, nothing saved, the last failures returned.
   let calls = 0;

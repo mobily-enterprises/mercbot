@@ -14,7 +14,13 @@ import { homeIdOf } from "../../packages/apps/src/server/callOptions.js";
 // features on mercbot.apps beside it (`extras`).
 
 const NO_BOTS = Object.freeze({
-  directory: Object.freeze({ listHomeBots: async () => [], homeBotFaces: async () => [], findBot: async () => null })
+  directory: Object.freeze({ listHomeBots: async () => [], homeBotFaces: async () => [], findBot: async () => null }),
+  // The chat rules app jobs and watches narrow by (records/rowPolicies.js), as botsOf gives them: only an anonymous
+  // caller is refused.
+  rules: Object.freeze({
+    chatBotRule: ({ caller }) => caller.kind !== "anonymous",
+    personalRule: ({ caller }) => caller.kind !== "anonymous"
+  })
 });
 
 // Connected apps for scripts (D-136, the bots' mercbot.app-connected): none in a home without bots. A test that needs
@@ -23,6 +29,10 @@ const NO_CONNECTED_APPS = Object.freeze({
   usable: () => false,
   choices: async () => [],
   actions: async () => [],
+  guide: async () => "",
+  runConfirmed: async () => {
+    throw new Error("These apps tests have no connected apps.");
+  },
   run: async () => {
     throw new Error("These apps tests have no connected apps.");
   }

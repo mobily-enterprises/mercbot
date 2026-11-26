@@ -61,7 +61,11 @@ export function previewNotice(result) {
   const unsent = [
     ...(result.practice?.wouldSend || []).map((entry) => `ask ${entry.bot}`),
     ...(result.practice?.simulated || []).map((entry) =>
-      entry.connected ? `use ${entry.connected.app} (${entry.connected.action})` : `call ${entry.web?.url}`)
+      entry.connected
+        ? `use ${entry.connected.app} (${entry.connected.action})`
+        : entry.ai
+          ? entry.ai.bot ? `ask ${entry.ai.bot} about ${entry.ai.items} item${entry.ai.items === 1 ? "" : "s"}` : "make a picture"
+          : `call ${entry.web?.url}`)
   ];
   return unsent.length ? `Practice data: nothing was sent. Once published, this would ${unsent.join(" and ")}.` : "";
 }

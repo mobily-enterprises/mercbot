@@ -94,10 +94,12 @@ Scripts run sealed off from the rest of Mercbot. In plain words:
 
 - The home's tables, and only through the same checks as everyone else. Its changes are recorded in the activity trail under the script's name, and rules on saving apply to them.
 - Outside web services, only at addresses the home's owners and admins have listed (below).
+- Connected apps, bots and pictures, only those the home's owners and admins allowed for the app (below).
 
 **What a script can't reach**
 
-- your account, your chats, your files, your vault or your connected accounts
+- your account, your chats, your files or your vault
+- connected accounts, unless the home's owners and admins allowed the app to use them (above)
 - the bots' computers and browsers
 - any other website or service, and any private network address
 - anything left over from an earlier run: every run starts fresh
@@ -111,6 +113,7 @@ Scripts run sealed off from the rest of Mercbot. In plain words:
 | Longest run, including waiting | 30 seconds | 10 seconds |
 | Record calls | 50 reads and writes | 20 reads (rules only read) |
 | Web calls | 5 | None |
+| Connected-app calls | 5 | None |
 
 Formula functions are smaller still: a tenth of a second and 8 MB, with no record or web calls. If a script goes over a limit, the run stops and is marked **Failed** with the reason, such as using too much memory. A job's own changes never set the same job off again, so a job can't trigger itself in a loop.
 
@@ -121,6 +124,34 @@ The **Scripts** tab also has **Web addresses scripts may call**. Until something
 A home's owners and admins can **Add an address**, such as `https://api.example.com`, then **Save**. Only secure (https) addresses are allowed. For services that need a key, use **Add a secret header** and enter its name and value. Mercbot adds the secret when a script calls that address. Scripts never see it, and it isn't shown again: the field says **Secret kept (type to replace)**.
 
 Each call has 10 seconds and up to 1 MB of answer, and doesn't follow redirects to other addresses.
+
+## Connected apps
+
+Scripts can use the home's connected apps directly, with no bot in between: read mail in Gmail or Outlook, look at calendars, contacts, Google Drive, OneDrive, GitHub and Sedna, and use connectors such as Notion, Calendly and Todoist. They use the same connections, and the same rules, as the bots.
+
+The app's **Logic** tab has **Connected apps its scripts may use**: a switch for each app connected in the home, and one for **AI: bots and pictures** (below). Until a home's owner or admin turns one on, the app's scripts can't use it. Members see the switches but can't change them.
+
+- **Who it runs as.** A button or a screen uses the connected apps as the person using the app; a job, as the person who saved it or last turned it on. Connected accounts are the home's, so this mostly decides who the activity trail names. Sedna is the exception: it only ever sends as that person's own Sedna user. If that person leaves the home, the job stops using connected apps until someone turns it off and on again.
+- **Only a button changes anything.** A button's script can save drafts, send, add events and change files. A screen's data and a job only read: anything else they try is refused, with a reason.
+- **Your approval rules still apply.** A change your rules would ask about (sending an email, deleting something) isn't made straight away. The app asks you to confirm, saying exactly what will happen, such as *Shall I send the draft "Weekly update" to sam@example.com from Gmail?* **Confirm** makes it, as you; **Cancel** leaves it. A confirmation waits 15 minutes.
+- **Never public.** An app that uses connected apps or AI stays inside the home: it can't be made public, and a public app can't be given either. Visitors never reach them.
+- **Limits.** Up to 5 connected-app calls a run, and up to 1 MB in each answer.
+- **Recorded.** Each change a script makes in a connected app is in the app's activity trail, with the app, the action and the person.
+
+In a draft's preview, a button reads for real but only pretends to change anything, and the preview says what it would have done.
+
+### Bots and pictures
+
+With **AI: bots and pictures** on, a button's or a job's script can hand records to a bot and make pictures:
+
+- **Hand items to a bot.** The script sends a task and a list of records with some text each; the bot works through them in one go (the home's main bot, unless the script names another) and writes each answer into a text field of its record as it finishes. Answers appear a moment later, not while the button runs. The bot answers from the text it was given only: it uses no tools, and anything an item's text says is treated as information, never as an instruction.
+- **Make a picture.** The script describes a picture, which is made with the home's picture model and saved into a record's file or picture field. Pictures are checked as a bot's pictures are.
+
+This is the same as a bot's work for that person: it goes through the home's usage and spending like any other. A screen's script can't use bots or pictures, since it would run every time someone opens the screen. Each run may hand over one list of up to 100 items, and ask for up to 5 pictures; an app has at most 3 lists waiting or in progress at once. The Logic tab lists the app's recent work: waiting, working with how many are done, done, or failed with the reason.
+
+### Example: an "Urgent mail" app
+
+Ask the Builder for an app that "checks my Gmail every 15 minutes, has the main bot judge whether each new email is urgent, shows the urgent ones, and draws a picture for one when I press a button". An owner or admin turns on **Gmail** and **AI: bots and pictures** in its Logic tab. Its job reads new mail, keeps each email once, and hands the new ones to the bot; its screen lists those the bot called urgent; its **Draw it** button asks for a picture.
 
 ## Watches and routines
 

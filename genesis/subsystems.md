@@ -86,6 +86,7 @@ subsystems read chats, seats and bots.
 - `genesis/program/bots/templates.md`
 - `genesis/program/bots/agent-loop.md`
 - `genesis/program/bots/knowledge.md`
+- `genesis/program/bots/app-connected.md`
 
 ### Data owned
 
@@ -427,6 +428,7 @@ subsystem write them to the home's Database files.
 - `genesis/program/apps/scripts.md`
 - `genesis/program/apps/views.md`
 - `genesis/program/apps/practice.md`
+- `genesis/program/apps/connected.md`
 
 ### Data owned
 
@@ -445,6 +447,7 @@ subsystem write them to the home's Database files.
 - Table `database` `default` `app_script_rounds`
 - Table `database` `default` `app_web_access`
 - Table `database` `default` `app_practices`
+- Table `database` `default` `app_connected_confirms`
 - Table `database` `default` `any_records`
 - Table `database` `default` `any_links`
 - Table `database` `default` `any_resource_configs`

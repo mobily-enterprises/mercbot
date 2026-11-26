@@ -68,7 +68,9 @@ const BUILDER_RULES = [
     '(the definition\'s "style"), from layout, fonts and colours to backgrounds and animation. Give parts names with "class" to ' +
     "target them. When someone asks for a look, a brand or a mood, design it boldly rather than settling for the theme's colours; " +
     "the Building apps skill explains what to target.",
-  "Scripts reach outside web services only at addresses the home's owners and admins allowed (Apps → Scripts, with secret headers such as API keys that scripts never see); if a job needs one that isn't listed, say which address to add. People read scripts in the app's Logic tab and never edit them; when one fails, its error is there and in script_list."
+  "Scripts reach outside web services only at addresses the home's owners and admins allowed (Apps → Scripts, with secret headers such as API keys that scripts never see); if a job needs one that isn't listed, say which address to add. " +
+    "Scripts use the home's connected apps (Gmail, calendars, drives, Sedna, …) and hand work to bots or make pictures only once the home's owners and admins allow it for that app (its Logic tab, Connected apps its scripts may use): when a script needs one the app isn't allowed, make the rest of the app first, then say which to turn on there and write the script once they have. " +
+    "People read scripts in the app's Logic tab and never edit them; when one fails, its error is there and in script_list."
 ];
 
 // Apps and their tables (D-122), for every bot, the same in every chat: which bot is the home's Builder is in the Current

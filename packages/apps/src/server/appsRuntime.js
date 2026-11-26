@@ -66,7 +66,9 @@ export function createAppsRuntime({ resources, systemContext, records, anyapi, n
     recordFiles: () => recordFiles
   });
   const apps = createApps({ resources, records, registry, anyapi, practices, notices, homes });
-  scripts = createScripts({ resources, repository, systemContext, registry, gate, apps, env, connected });
+  // The home's bots, which is its main one: who a script's ai.work goes to (D-136).
+  const homeBots = (options) => records.directory.homeBotFaces(options);
+  scripts = createScripts({ resources, repository, systemContext, registry, gate, apps, env, connected, homeBots });
   const connectedAccess = createAppConnectedAccess({ resources, apps, connected });
   const runtime = createRuntime({ apps, gate, scripts, practices });
   const trial = createTrial({ apps, runtime, scripts });

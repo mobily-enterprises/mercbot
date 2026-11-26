@@ -75,7 +75,13 @@ export function createBotLoops({ records, systemContext, notices, files, apps, c
     loops = [
       // Due routines and the tasks Apps queues for bots, each claimed once across servers.
       startRoutineRunner({ work: records.work, systemContext, notices, run: bots.runRoutine }),
-      startAppJobRunner({ jobs: apps.jobs, systemContext, notices, run: bots.runAppTask }),
+      // Apps' tasks for bots, and the AI work their scripts queue (D-136).
+      startAppJobRunner({
+        jobs: apps.jobs,
+        systemContext,
+        notices,
+        run: (job, signal) => (apps.jobs.isAiWork(job) ? bots.runAppAiWork(job, signal) : bots.runAppTask(job, signal))
+      }),
       // Long chats are summarised in the background (@jskit-ai/agent-runtime summaries), once across servers.
       bots.compaction.start(),
       // Bots asking bots (D-46): each next step claimed once across servers.
