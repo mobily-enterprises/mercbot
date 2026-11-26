@@ -312,11 +312,10 @@ export async function directChat(page: Page, botId: string, home = HOME): Promis
 
 /**
  * Skips one of the page's own timed pauses instead of waiting it out in real time: an onboarding step's (chatsApi.js's
- * ONBOARDING_TIMING, 1.5 to 6 s each) or the phone's install banner, a few seconds in. The page's clock, installed with
+ * ONBOARDING_TIMING, 1.5 to 6 s each), the phone's install banner, a few seconds in, or a snackbar's 5 s. The page's clock, installed with
  * page.clock.install() before the page opened and otherwise running as usual, jumps `ms` ahead, which fires every timer
  * due by then, until `done` passes. A jump made before the page set its timer (its step was still being read) is made
- * again. Not for a page whose menus open and close as the test goes: on the installed clock a picture's right-click menu
- * failed to open again just after its Save image, 4 runs in 12 at three workers (final-sweep.spec.ts, 26 Nov).
+ * again.
  */
 export async function skipPause(page: Page, ms: number, done: () => Promise<unknown>) {
   await expect(async () => {
