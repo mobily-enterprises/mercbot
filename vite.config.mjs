@@ -113,8 +113,9 @@ export default defineConfig({
     setupFiles: ["tests/client/viewerDefaults.js"],
     // As many test files at once as the machine's test budget allows.
     maxWorkers: testConcurrency(),
-    // Vuetify's components import their CSS, so a test that renders a component takes Vuetify through Vite.
-    server: { deps: { inline: ["vuetify"] } }
+    // Vuetify's components import their CSS, and JSKIT shell-web's UI kit (`@jskit-ai/shell-web/client/ui`) its own
+    // components, so a test that renders one or provides the kit takes them through Vite.
+    server: { deps: { inline: ["vuetify", "@jskit-ai/shell-web"] } }
   },
   // Pre-bundled at startup, including what screens load lazily (charts, spreadsheets, the formula
   // functions' sandbox), so a first visit never stops to bundle a dependency and reload the page.
