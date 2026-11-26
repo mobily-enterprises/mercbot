@@ -55,7 +55,7 @@ function seatedComputer(computer, seated, join) {
   return { computer: viaSeat, computerId: "joining", chatBotId: () => joined };
 }
 
-function inTime(work, what) {
+export function inTime(work, what) {
   let timer;
   return Promise.race([
     Promise.resolve(work).finally(() => clearTimeout(timer)),
