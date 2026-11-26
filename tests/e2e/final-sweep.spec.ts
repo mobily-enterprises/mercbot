@@ -132,6 +132,8 @@ test("a reply that arrives while scrolled up shows in a new messages pill, which
 });
 
 test("right-clicking a message offers Reply, Copy and Copy request ID, a bot's adds reactions, and a picture copies or saves", async ({ page }) => {
+  // The page's clock, running as usual until it is held below.
+  await page.clock.install();
   await withBot(page, "Menus", async (made) => {
     const path = await upload(page, made, "cake.png", "image/png", await pictureBytes(page));
     const [question, answer, pictures] = await seed(made, [
@@ -173,10 +175,18 @@ test("right-clicking a message offers Reply, Copy and Copy request ID, a bot's a
     await picture.click({ button: "right" });
     await expect(menuItems(page)).toHaveText(["Copy image", "Save image"]);
     await expect(reactions).toHaveCount(0);
+    // Right-clicked again at once, before any timer the click on Save image left can run, the menu opens and stays open
+    // once they have run: a menu item that closed the menu later, on a timer (Vuetify's own close on a click in a menu,
+    // 40 ms on), closed the menu opened meanwhile (26 Nov). The clock holds the page's timers until both clicks are made,
+    // from a moment just ahead of the page's, as it runs on meanwhile.
+    await menuItems(page).filter({ hasText: "Save image" }).click({ trial: true });
+    await page.clock.pauseAt(await page.evaluate(() => Date.now() + 1000));
     const download = page.waitForEvent("download");
     await menuItems(page).filter({ hasText: "Save image" }).click();
     expect((await download).suggestedFilename(), "saved under its file's own name").toBe("cake.png");
     await picture.click({ button: "right" });
+    await page.clock.runFor(200);
+    await page.clock.resume();
     await menuItems(page).filter({ hasText: "Copy image" }).click();
     await expect(page.getByText("Image copied")).toBeVisible();
     expect(await page.evaluate(async () => (await navigator.clipboard.read())[0].types)).toContain("image/png");
