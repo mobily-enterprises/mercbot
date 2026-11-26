@@ -151,7 +151,7 @@ This is the same as a bot's work for that person: it goes through the home's usa
 
 ### Example: an "Urgent mail" app
 
-Ask the Builder for an app that "checks my Gmail every 15 minutes, has the main bot judge whether each new email is urgent, shows the urgent ones, and draws a picture for one when I press a button". An owner or admin turns on **Gmail** and **AI: bots and pictures** in its Logic tab. Its job reads new mail, keeps each email once, and hands the new ones to the bot; its screen lists those the bot called urgent; its **Draw it** button asks for a picture.
+Ask the Builder for an app that "checks my Gmail every hour, has the main bot judge whether each new email is urgent, shows the urgent ones, and draws a picture for one when I press a button". An owner or admin turns on **Gmail** and **AI: bots and pictures** in its Logic tab. Its job reads new mail, keeps each email once, and hands the new ones to the bot; its screen lists those the bot called urgent; its **Draw it** button asks for a picture.
 
 ## Watches and routines
 

@@ -17,7 +17,7 @@ import { createAppConnected } from "../../packages/bots/src/server/appConnected.
 import { createFileStore } from "../../packages/files/src/server/fileStore.js";
 import gmail from "../../plugins/gmail/plugin.json" with { type: "json" };
 
-// The Canary app (D-136), end to end on the test database: a job every 15 minutes reads new mail through the shared
+// The Canary app (D-136), end to end on the test database: an hourly job reads new mail through the shared
 // layer as its person, keeps each new email once, and hands them to the home's main bot, which judges them in one
 // session into a field of each record; a screen shows only the urgent ones, and a button draws one. Stand-ins: Gmail's
 // and Gemini's APIs (globalThis.fetch), the model, the meter and the picture checks; everything else is the real thing.

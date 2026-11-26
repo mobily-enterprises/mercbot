@@ -193,7 +193,7 @@ export function createAppConnected({ integrations, profiles, env, records, apps,
         if (!forApps(pluginId, action.id) || (switches.skip[action.id] || []).includes(pluginId)) continue;
         listed.push({ app: pluginId, action: action.id, name: action.name });
       }
-      if (entry.mcp) listed.push({ app: pluginId, action: "*", name: `${entry.name}'s own actions (connected.run with their names)` });
+      if (entry.mcp) listed.push({ app: pluginId, action: "*", name: `${entry.name}: its own actions (connected.run with their names)` });
     }
     return listed;
   }

@@ -67,6 +67,7 @@ test("connected apps for scripts: who, which, only buttons change, never public,
   const watches = createWatches({ resources, repository, systemContext, registry, gate, apps });
   cleanup.after(() => scripts.close());
   const actor = { type: "person", id: userId, name: "Pat" };
+  await registry.createTable(actor, { key: "notes", fields: [{ key: "text", type: "text" }] }, options);
   await apps.createApp(actor, { name: "Canary" }, options);
   const appId = (await apps.find("canary", options)).id;
   const save = (input) => scripts.save(actor, "canary", input, options);
@@ -152,6 +153,20 @@ test("connected apps for scripts: who, which, only buttons change, never public,
   // ---- Only the apps its owners allowed, at most 5 calls a run ----
   await assert.rejects(show("sedna_read"), /this app may not use sedna/u);
   await assert.rejects(show("chatty"), /at most 5 connected-app calls per run/u);
+
+  // ---- Rules on saving and formula functions have no connected apps at all ----
+  const rule = await scripts.save(actor, "canary", {
+    key: "peek_rule", kind: "rule", summary: "peek", settings: { table: "notes", on: ["create"] },
+    code: `async function main() { await connected.actions(); return {} }`,
+    tests: [{ name: "t", input: { action: "create", record: {} }, expect: {} }]
+  }, options);
+  assert.match(JSON.stringify(rule.results), /'connected' is not defined/u, "a rule runs on every save, by anyone");
+  const formula = await scripts.save(actor, "canary", {
+    key: "peek_fn", kind: "function", summary: "peek", settings: { params: [] },
+    code: "function main() { return typeof connected }",
+    tests: [{ name: "t", input: [], expect: "undefined" }]
+  }, options);
+  assert.deepEqual(formula.errors, [], "a formula function sees no connected at all");
 
   // ---- A public app's visitors never reach connected apps, and an app that uses them is never public ----
   await assert.rejects(show("urgent", { visitor: { signedIn: false, email: "" }, access: {} }), /a public app's visitors can't use them/u);

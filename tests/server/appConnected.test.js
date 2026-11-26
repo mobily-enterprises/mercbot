@@ -192,3 +192,82 @@ test("the Builder's guide: each allowed, connected app's actions apps may use, w
   assert.ok(!/show_draft|send_draft|statusLine|personAsked|acknowledgement/u.test(guide), "nothing a script can't give or use");
   assert.ok(!guide.includes("outlook") && !guide.includes("google-drive"), "only allowed apps that are connected");
 });
+
+test("a person's switched-off action is refused and not listed; codes in a mailbox someone else connected stay hidden", async (context) => {
+  const calls = [];
+  const original = globalThis.fetch;
+  globalThis.fetch = async (url) => {
+    calls.push(String(url));
+    const body = String(url).includes("/messages/m1")
+      ? { id: "m1", snippet: "Your verification code is 482913", payload: { headers: [{ name: "Subject", value: "Your sign-in code" }] } }
+      : { messages: [{ id: "m1" }] };
+    return new Response(JSON.stringify(body), { status: 200 });
+  };
+  context.after(() => {
+    globalThis.fetch = original;
+  });
+  const switchedOff = fakeIntegrations({ connected: ["gmail"] });
+  switchedOff.toolSwitches = async () => ({ skip: { search_email: ["gmail"] }, removed: [], turnedOff: [], connected: ["gmail"] });
+  await assert.rejects(connectedApps(switchedOff).run(call, { app: "gmail", action: "search_email", input: { query: "x" } }, "read"), {
+    code: "apps_connected_refused",
+    message: /switched this action off/u
+  });
+  assert.ok(!(await connectedApps(switchedOff).actions(call, ["gmail"])).some((entry) => entry.action === "search_email"));
+  assert.deepEqual(calls, [], "Gmail was never asked");
+
+  const someoneElses = fakeIntegrations({ connected: ["gmail"] });
+  someoneElses.reachableAccounts = async () => [{ id: "1", pluginId: "gmail", name: "", label: "sam@example.com", status: "connected", userId: "8" }];
+  const answer = await connectedApps(someoneElses).run(call, { app: "gmail", action: "search_email", input: { query: "code" } }, "read");
+  assert.doesNotMatch(JSON.stringify(answer), /482913/u, "only the person who connected a mailbox sees its sign-in codes");
+});
+
+test("a test copy logs a send instead of sending it, as a bot's would", async (context) => {
+  const calls = [];
+  const original = globalThis.fetch;
+  globalThis.fetch = async (url, options = {}) => {
+    calls.push(`${options.method || "GET"} ${url}`);
+    const draft = { id: "d1", message: { payload: { mimeType: "text/plain", headers: [{ name: "To", value: "sam@example.com" }, { name: "Subject", value: "Hi" }], body: { data: "" } } } };
+    return new Response(JSON.stringify(draft), { status: 200 });
+  };
+  const info = context.mock.method(console, "info", () => {});
+  context.after(() => {
+    globalThis.fetch = original;
+  });
+  const answer = await connectedApps().run(call, { app: "gmail", action: "mail_drafts.send", input: { id: "d1" } }, "button");
+  assert.equal(answer.status, "done");
+  assert.deepEqual(calls.filter((line) => /\/send/u.test(line)), [], "nothing sent from a test copy");
+  assert.ok(info.mock.calls.some((entry) => entry.arguments[0]?.appEnv === "test"), "the send is logged instead");
+});
+
+test("a connector that brings its own actions: a read through the layer, a change refused outside a button", async () => {
+  const tasks = { id: "tasks", name: "Tasks", mcp: { url: "https://tasks.example/mcp" } };
+  const used = [];
+  const integrations = {
+    app: (id) => (id === "tasks" ? tasks : null),
+    appName: (id) => (id === "tasks" ? "Tasks" : id),
+    appNamed: (wanted) => (String(wanted).toLowerCase() === "tasks" ? tasks : null),
+    toolSwitches: async () => ({ skip: {}, removed: [], turnedOff: [], connected: ["tasks"] }),
+    reachableAccounts: async () => [{ id: "4", pluginId: "tasks", name: "", label: "pat@example.com", status: "connected", userId: "7" }],
+    connections: { accessToken: async () => accessOf("k") },
+    connectors: {
+      apps: () => [tasks],
+      actions: async () => ({
+        tools: [
+          { name: "list-tasks", title: "List tasks", description: "Lists the tasks.", inputSchema: { properties: {} }, annotations: { readOnlyHint: true } },
+          { name: "add-task", title: "Add a task", description: "Adds a task.", inputSchema: { properties: { content: {} } }, annotations: { destructiveHint: false } }
+        ],
+        off: []
+      }),
+      use: async (accountId, name, input) => {
+        used.push([accountId, name, input]);
+        return { text: "Buy milk", isError: false };
+      }
+    }
+  };
+  const apps = connectedApps(integrations);
+  assert.deepEqual(await apps.actions(call, ["tasks"]), [{ app: "tasks", action: "*", name: "Tasks: its own actions (connected.run with their names)" }]);
+  const answer = await apps.run(call, { app: "tasks", action: "list-tasks" }, "read");
+  assert.match(JSON.stringify(answer), /Buy milk/u);
+  await assert.rejects(apps.run(call, { app: "tasks", action: "add-task", input: { content: "x" } }, "read"), { code: "apps_connected_write_refused" });
+  assert.deepEqual(used.map(([, name]) => name), ["list-tasks"], "the change never reached the connector");
+});
