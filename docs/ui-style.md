@@ -41,8 +41,11 @@ in a UI pass.
 ## 2. Type
 
 - **One font:** the system UI stack, `system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, Cantarell, "DejaVu Sans",
-  sans-serif`, for body text and headings alike: `src/styles/mercbot.css` sets `--v-font-body`, and sets
-  `--v-font-heading` to the same stack in place of JSKIT's Roboto Flex.
+  sans-serif`, for body text and headings alike: the theme (`src/theme/index.js`) gives it to JSKIT's material-web as
+  both of Material 3's typefaces (`typography.brand` and `typography.plain`), in place of JSKIT's Roboto Flex, so each
+  light and dark scheme declares it as `--v-font-heading` and `--v-font-body` wherever its class is: `<v-app>`, each
+  dialog and menu, and an app's own theme (`tests/e2e/theme-font.spec.ts`). A font set on `:root` alone reaches only
+  the page's plain text: the scheme's class declares the two variables again on `<v-app>` and on each overlay.
 - **Sizes in px, on this scale only**, set in a component's own CSS or with the scale's classes in
   `src/styles/mercbot.css` (`.mb-text-11`, `-12`, `-13`, `-14`, `-15`, `-18`, `-22`, and `.mb-text-strong` for 600).
   No Material type classes (`text-body-small`, `text-title-large`, `text-h*`, ...):

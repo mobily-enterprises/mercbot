@@ -1,7 +1,4 @@
 :root {
-  --v-font-body: system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, Cantarell, "DejaVu Sans", sans-serif;
-  /* Headings too (docs/ui-style.md, section 2), in place of JSKIT's Roboto Flex. */
-  --v-font-heading: system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, Cantarell, "DejaVu Sans", sans-serif;
   --mb-shadow-soft: 0 2px 8px rgba(var(--v-theme-shadow), 0.08);
   --mb-shadow-popover: 0 4px 12px rgba(var(--v-theme-shadow), 0.12);
 }

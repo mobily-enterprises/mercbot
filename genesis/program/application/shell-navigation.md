@@ -52,6 +52,7 @@ render across compact, medium, and expanded layouts.
 - `src/placementTopology.js`
 - `config/public.js`
 - `src/main.js`
+- `src/theme/index.js`
 - `src/browser.js`
 - `src/types.js`
 - `packages/main/src/client/providers/MainClientProvider.js`
@@ -107,6 +108,9 @@ render across compact, medium, and expanded layouts.
   (`nav/history`); skipping Apps too waits for JSKIT's `leave()` (D-106, Later).
 - The Follow System / Light / Dark theme preference applies at startup and
   tracks live system changes.
+- One font, the system UI stack, in light and dark (`src/theme/index.js` `typography`, `docs/ui-style.md` section 2):
+  the page's text and every Material 3 type class read it, inside the app and in its dialogs and menus, never JSKIT's
+  Roboto Flex.
 - The sidebar (`MercbotSidebar.vue`) is dense (D-117). Its top row is the home switcher, then icon buttons Search,
   Files and Apps (with the person's pinned apps), each labelled with a tooltip (`MercbotFilesEntry.vue` and
   `MercbotAppsEntry.vue` `icon`). Below it (`MercbotChatList.vue`, `chatDirectory.js` `buildSidebarModel`): the chats the
@@ -268,3 +272,4 @@ folder is a "Home files →" link to the Files page, and Move to… still offers
 - `tests/client/shellParts.vitest.js`
 - `tests/client/shellChat.vitest.js`
 - `tests/e2e/shell.spec.ts`
+- `tests/e2e/theme-font.spec.ts`
