@@ -4363,7 +4363,11 @@ small and complete; more catalog families and mini apps come in phase 2, and per
 - **Contacts and To-dos in every home**: two app templates on the shared tables (`uses`), installed, empty and
   published, the first time a home is opened (its list of apps, which the sidebar reads), once per home
   (`app_settings.starter_apps_at`, claimed under a row lock), retried at the next open after a failure. A home that
-  already has an app of that name keeps its own.
+  already has an app of that name keeps its own. Making, drafting and publishing an app each hold the home's own row
+  first, shared (`createApps`' `holdHome`), in the order a delete of the home takes its rows: publishing took the app
+  first and the home last (its audit row names the home), and a home deleted while its starter apps were being added
+  deadlocked with it (26 Nov, in the browser tests' own deletes of their homes). Now the delete
+  waits for that transaction, or the transaction finds the home gone.
 - **Apps keep up with their templates**: an app made from a template remembers which, and the template's version (a
   short hash of its screens and tables; migration `20261126120000_apps_template.cjs`, add-only). The Builder's
   `template_check` lists the home's apps made from templates as up to date, "an update is ready" or "can't tell" (an

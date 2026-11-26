@@ -27,7 +27,9 @@ const AppsFeature = defineFeature({
     fastify: "runtime.fastify",
     notices: "mercbot.notices",
     env: "runtime.env",
-    uploads: "runtime.uploads"
+    uploads: "runtime.uploads",
+    // A home's row, held while its apps are changed, in the order its delete takes it (createApps' holdHome).
+    workspaces: "workspaces"
   },
   provides: {
     apps: "mercbot.apps"
@@ -40,15 +42,16 @@ const AppsFeature = defineFeature({
    * @param {import("@local/notices/server/types").Notices} capabilities.notices
    * @param {import("@jskit-ai/kernel/server/types").RuntimeEnv} capabilities.env
    * @param {import("@jskit-ai/uploads-runtime/server/types").RuntimeUploads} capabilities.uploads a record's file or picture, uploaded
+   * @param {import("@jskit-ai/workspaces-core/server/types").WorkspacesRepository} capabilities.workspaces
    */
-  async setup({ resources, systemContext, records, http, database, fastify, notices, env, uploads }) {
+  async setup({ resources, systemContext, records, http, database, fastify, notices, env, uploads, workspaces }) {
     // Each home's AnyAPI declares its runtime tables from the home's registry, whoever asks first.
     const anyapi = createAnyapi({
       knex: database.knex,
       notices,
       loadTables: (workspaceId) => loadTables(resources, { context: systemContext("build a home's runtime tables").forWorkspace(workspaceId) })
     });
-    const apps = createAppsRuntime({ resources, systemContext, records, anyapi, notices, env });
+    const apps = createAppsRuntime({ resources, systemContext, records, anyapi, notices, env, homes: workspaces });
     const reports = createAppsRepository(resources);
     // Only a web server that is serving checks watches (D-15, D-131); on shutdown it finishes the
     // claim in hand (D-19).

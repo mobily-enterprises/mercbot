@@ -83,9 +83,20 @@ export async function liveAndDraftVersions({ apps, appVersions }, filters, optio
  * @param {import("./types.js").Registry} dependencies.registry
  * @param {import("./types.js").Anyapi} dependencies.anyapi
  * @param {import("./types.js").Practices} dependencies.practices drafts' practice copies (D-71), cleared on publishing
+ * @param {{ lock: (homeId: string, options: object) => Promise<{ id: string } | null> }} dependencies.homes JSKIT's
+ *   workspaces repository, whose row lock holds a home's row
  */
-export function createApps({ resources, records, registry, anyapi, practices, notices }) {
+export function createApps({ resources, records, registry, anyapi, practices, notices, homes }) {
   const { apps: appRows, appVersions, appScripts, appPins, appSettings, appThemes, appFields, appTables, auditEvents, appJobs } = resources;
+
+  /**
+   * The home's own row, held shared until the transaction ends, first in a transaction that locks or changes its apps,
+   * so it takes the rows in the order the home's delete does: the home, then what cascades from it. One that took an
+   * app first and its home last (publishing's audit row names the home) deadlocked with a delete of the home while its
+   * starter apps were being added (D-130). Now the delete waits for the transaction, or the transaction finds the home
+   * gone. Shared, so the home's other apps work goes on beside it.
+   */
+  const holdHome = (txOptions) => homes.lock(homeIdOf(txOptions), { ...passedOn(txOptions), lockMode: "share" });
 
   /** What only an app does (a draft, publishing, public screens, scripts, a Builder chat): a view refuses it. */
   function notAView(app, what) {
@@ -156,6 +167,7 @@ export function createApps({ resources, records, registry, anyapi, practices, no
       ? { kind: "view", madeByUserId: input.madeByUserId ?? null, madeByBotId: input.madeByBotId ?? null }
       : {};
     return retryLostInsertRace(options, () => appRows.withTransaction(options, async (txOptions) => {
+      await holdHome(txOptions);
       const taken = new Set((await appRows.lockWhere({ slugFamily: base }, { ...txOptions, fields: ["slug"] })).map((app) => app.slug));
       let slug = base;
       for (let n = 2; taken.has(slug); n += 1) slug = `${base}-${n}`;
@@ -260,6 +272,7 @@ export function createApps({ resources, records, registry, anyapi, practices, no
     const { definition: named } = mapBots(toIds(expanded, tables).definition, (name) => ids.get(name) ?? null);
     const stored = mapViews(named, (key) => viewIds.get(key) ?? null);
     return appVersions.withTransaction(options, async (txOptions) => {
+      await holdHome(txOptions);
       const current = await find(slugOrId, txOptions);
       const fields = { definition: stored, summary: String(summary).slice(0, 2000), createdBy: actor, kind: "builder" };
       let draftId = current.draftVersionId;
@@ -305,6 +318,7 @@ export function createApps({ resources, records, registry, anyapi, practices, no
    */
   async function publish(actor, slugOrId, { canManage = false } = {}, options) {
     return appRows.withTransaction(options, async (txOptions) => {
+      await holdHome(txOptions);
       const app = await appRows.lock((await find(slugOrId, txOptions)).id, txOptions);
       notAView(app, "be published");
       if (!app.draftVersionId) throw new RegistryError(409, "There is no draft to publish.", { code: "apps_draft_missing" });
