@@ -323,6 +323,7 @@ test("leaving the home pauses the routines and watches the person made there, wi
   const routine = (workspaceId, chatBotId) => ({ workspace_id: workspaceId, chat_bot_id: chatBotId, made_by: ben, name: "Ben's routine", schedule: "every day", instructions: "x", enabled: true });
   await knex("bot_routines").insert([routine(homeId, seat.id), routine(elsewhere.homeId, otherSeat.id)]);
   const asked = [];
+  const forgotten = [];
   let fails = 1;
   const bots = startBotsService(context, {
     records,
@@ -335,7 +336,9 @@ test("leaving the home pauses the routines and watches the person made there, wi
           if (fails-- > 0) throw new Error("the watches are down");
           return [{ chatBotId: String(seat.id), name: "Prices" }];
         }
-      }
+      },
+      // Apps' jobs that ran as him use no connected apps any more (D-136), with the rest or not at all.
+      scripts: { forgetPerson: async (userId) => forgotten.push(String(userId)) }
     }
   });
   const enabled = async (chatBotId) => (await knex("bot_routines").where({ chat_bot_id: chatBotId }).first("enabled")).enabled;
@@ -346,9 +349,11 @@ test("leaving the home pauses the routines and watches the person made there, wi
   assert.deepEqual(await peopleIn(records, family.id, asAnna), [anna, ben].sort((a, b) => a - b), "still seated, to leave next time");
   assert.equal(await enabled(seat.id), true, "nothing paused without its line");
   assert.deepEqual(await lines(), []);
+  assert.deepEqual(forgotten, [], "his jobs keep him until the rest is done");
 
   assert.deepEqual(await bots.homeChanged(homeId), { joined: [], departed: [ben] });
   assert.deepEqual(asked, [{ createdBy: ben, homeId }, { createdBy: ben, homeId }]);
+  assert.deepEqual(forgotten, [String(ben)]);
   assert.equal(await enabled(seat.id), false);
   assert.equal(await enabled(otherSeat.id), true, "what he made in another home runs on");
   assert.deepEqual(await peopleIn(records, family.id, asAnna), [anna]);

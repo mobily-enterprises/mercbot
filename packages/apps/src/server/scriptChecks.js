@@ -12,8 +12,8 @@ const KEY = /^[a-z][a-z0-9_]{0,63}$/u;
 const MAX_CODE = 20000;
 const MAX_TESTS = 20;
 export const LIMITS = {
-  run: { cpuMs: 1000, wallMs: 30000, memory: 32 * 1024 * 1024, data: 50, web: 5 },
-  rule: { cpuMs: 500, wallMs: 10000, memory: 16 * 1024 * 1024, data: 20, web: 0 },
+  run: { cpuMs: 1000, wallMs: 30000, memory: 32 * 1024 * 1024, data: 50, web: 5, connected: 5 },
+  rule: { cpuMs: 500, wallMs: 10000, memory: 16 * 1024 * 1024, data: 20, web: 0, connected: 0 },
   test: { cpuMs: 1000, wallMs: 10000, memory: 32 * 1024 * 1024 }
 };
 export const PAGE = 100;
@@ -44,9 +44,13 @@ export function whereFor(table, where, params) {
   }
 }
 
-/** The host functions each kind of script may call. */
+/** The host functions each kind of script may call: connected apps (D-136) for buttons, screens' data and jobs. */
 export const hostFor = (kind) =>
-  kind === "rule" ? { records: READS } : kind === "function" ? {} : { records: { ...READS, ...WRITES }, web: { fetch: true } };
+  kind === "rule"
+    ? { records: READS }
+    : kind === "function"
+      ? {}
+      : { records: { ...READS, ...WRITES }, web: { fetch: true }, connected: { actions: true, run: true } };
 
 /**
  * Checking a script's shape and running its tests against fake records in the script pool.
@@ -216,7 +220,10 @@ export function createScriptChecks({ pool, ready }) {
     };
   }
 
-  /** Runs every test; each gets its own fake records. `web` answers web.fetch by URL. */
+  /**
+   * Runs every test; each gets its own fake records. `web` answers web.fetch by URL, and `connected` answers
+   * connected.run by "app.action" (connected.actions by "actions").
+   */
   async function runTests(input, tables) {
     const results = [];
     for (const [index, test] of (input.tests || []).entries()) {
@@ -246,6 +253,11 @@ export function createScriptChecks({ pool, ready }) {
                   json: typeof answer === "string" ? null : answer,
                   ...(answer.status ? answer : {})
                 };
+              }
+              if (group === "connected") {
+                const key = operation === "actions" ? "actions" : `${args[0]}.${args[1]}`;
+                if (!Object.hasOwn(test.connected || {}, key)) throw new Error(`no connected answer for ${key} in this test`);
+                return test.connected[key];
               }
               return fake[operation](...args);
             }

@@ -1,11 +1,13 @@
 <script setup>
 import { computed, onMounted, ref } from "vue";
+import MercbotSwitch from "@/components/mercbot/MercbotSwitch.vue";
 import { appsApi, errorText } from "@/components/apps/appsApi.js";
 import { whenText } from "@/components/apps/appRuntime.js";
 
 // The Logic tab of an app's details (D-35, scripts): what each script does in plain words, when it
 // runs, its code and tests (read-only: only the Builder changes scripts), recent runs and errors,
-// the coding loop's rounds, and "Ask Builder to fix".
+// the coding loop's rounds, and "Ask Builder to fix"; and which connected apps its scripts may use (D-136), which the
+// home's owners and admins choose.
 const props = defineProps({ slug: { type: String, required: true } });
 const emit = defineEmits(["ask"]);
 const scripts = ref(null);
@@ -14,6 +16,17 @@ const rounds = ref([]);
 const problem = ref("");
 const open = ref(null);
 const view = ref("code");
+const connected = ref(null);
+const saving = ref(false);
+// The connected apps to choose from, and AI: bots and pictures.
+const connectedRows = computed(() => [
+  ...(connected.value?.choices || []).map((choice) => ({
+    id: choice.id,
+    label: choice.name,
+    description: "Read from buttons, screens and jobs; changed only by a button someone presses."
+  })),
+  { id: "ai", label: "AI: bots and pictures", description: "Hand items to the home's bot and make pictures, from buttons and jobs." }
+]);
 
 const KIND = { action: "Button", source: "Screen data", rule: "Rule on saving", function: "Formula function", job: "Job" };
 function when(script) {
@@ -34,8 +47,20 @@ async function load() {
     scripts.value = result.scripts;
     rounds.value = result.rounds;
     canManage.value = result.canManage;
+    connected.value = result.connected;
   } catch (error) {
     problem.value = errorText(error, "The scripts couldn't load.");
+  }
+}
+async function allow(id, on) {
+  const wanted = on ? [...connected.value.allowed, id] : connected.value.allowed.filter((entry) => entry !== id);
+  saving.value = true;
+  try {
+    connected.value.allowed = (await appsApi.allowConnected(props.slug, wanted)).allowed;
+  } catch (error) {
+    problem.value = errorText(error, "That didn't work.");
+  } finally {
+    saving.value = false;
   }
 }
 // A misbehaving script can be switched off at once (a broken rule otherwise blocks every save).
@@ -103,6 +128,34 @@ onMounted(load);
         </v-expansion-panel-text>
       </v-expansion-panel>
     </v-expansion-panels>
+    <section v-if="connected" class="app-logic__connected">
+      <h3 class="mb-set-group app-logic__group">Connected apps its scripts may use</h3>
+      <div class="mb-set-card">
+        <div v-for="row in connectedRows" :key="row.id" class="mb-set-row">
+          <span class="mb-set-row__text">
+            <span class="mb-set-row__label">{{ row.label }}</span>
+            <span class="mb-set-row__description">{{ row.description }}</span>
+          </span>
+          <MercbotSwitch
+            :model-value="connected.allowed.includes(row.id)"
+            :label="row.label"
+            :disabled="!canManage || connected.isPublic || saving"
+            @update:model-value="(on) => allow(row.id, on)"
+          />
+        </div>
+      </div>
+      <p class="text-caption text-medium-emphasis app-logic__note">
+        {{
+          connected.isPublic
+            ? "This app is public, so its scripts can't use connected apps or AI. Make it internal first."
+            : !connected.choices.length
+              ? "No connected apps in this home yet: connect them in Connect apps."
+              : !canManage
+                ? "Only the home's owners and admins can change these."
+                : "Scripts use them as the person using the app, or the person who turned a job on."
+        }}
+      </p>
+    </section>
   </div>
 </template>
 
@@ -119,5 +172,15 @@ onMounted(load);
 }
 .app-logic__code--small {
   max-height: 200px;
+}
+.app-logic__connected {
+  margin-top: 24px;
+}
+.app-logic__group {
+  font-weight: 400;
+}
+.app-logic__note {
+  max-width: 636px;
+  margin-top: -18px;
 }
 </style>

@@ -16,3 +16,15 @@
 /** @typedef {ReturnType<typeof import("./webAccess.js").createWebAccess>} WebAccess */
 
 export {};
+
+/**
+ * Connected apps for scripts (D-136): the bots' `mercbot.app-connected`, described here since apps can't import bots.
+ * `run` acts as the person of `call`; `mode` "button" may change things, "read" only reads. Refusals throw with a `code`.
+ * @typedef {{
+ *   usable: (pluginId: string) => boolean,
+ *   choices: (call: object) => Promise<Array<{ id: string, name: string }>>,
+ *   actions: (call: object, allowed: string[]) => Promise<Array<{ app: string, action: string, name: string }>>,
+ *   run: (call: object, request: { app: string, action: string, input?: object, account?: string }, mode: "button" | "read") =>
+ *     Promise<unknown>
+ * }} AppConnected
+ */

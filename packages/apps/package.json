@@ -21,9 +21,9 @@
   "dependencies": {
     "@jitl/quickjs-singlefile-browser-release-sync": "0.32.0",
     "@jitl/quickjs-wasmfile-release-sync": "0.32.0",
-    "@jskit-ai/database-runtime": "0.1.284",
-    "@jskit-ai/kernel": "0.2.33",
-    "@jskit-ai/resource-core": "0.1.224",
+    "@jskit-ai/database-runtime": "0.1.285",
+    "@jskit-ai/kernel": "0.2.34",
+    "@jskit-ai/resource-core": "0.1.225",
     "@local/account": "0.1.0",
     "@local/homes": "0.1.0",
     "@local/notices": "0.1.0",
@@ -49,6 +49,7 @@
         "runtime.resources",
         "runtime.uploads",
         "mercbot.bots.records",
+        "mercbot.app-connected",
         "workspaces"
       ]
     },

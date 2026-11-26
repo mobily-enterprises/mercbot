@@ -1,10 +1,12 @@
 import variant from "@jitl/quickjs-wasmfile-release-sync";
+import { resolveAuditActorId } from "@jskit-ai/kernel/server/actions/actionContributorHelpers";
 import { passedOn } from "@jskit-ai/resource-runtime/server";
 import { newQuickJSWASMModuleFromVariant } from "quickjs-emscripten-core";
 import { isCalculated } from "../shared/calculated.js";
 import { ScriptError, runFunction } from "../shared/sandbox.js";
 import { newId } from "./registry.js";
 import { LIMITS, PAGE, createScriptChecks, hostFor, whereFor } from "./scriptChecks.js";
+import { createScriptConnected } from "./scriptConnected.js";
 import { createScriptPool } from "./scriptPool.js";
 import { GateError } from "./validate.js";
 import { createWebAccess } from "./webAccess.js";
@@ -16,7 +18,21 @@ import { createWebAccess } from "./webAccess.js";
 // they read or write goes through the data gate, audited as the script.
 const RUNS_KEPT = 200;
 // What a claimed job's run reads of its script, with the home it runs in.
-const SCRIPT_FIELDS = ["id", "workspaceId", "appId", "key", "kind", "summary", "code", "settings", "enabled", "version", "nextRunAt", "cursor"];
+const SCRIPT_FIELDS = [
+  "id",
+  "workspaceId",
+  "appId",
+  "key",
+  "kind",
+  "summary",
+  "code",
+  "settings",
+  "enabled",
+  "version",
+  "nextRunAt",
+  "cursor",
+  "runsAsUserId"
+];
 // Run rows written per statement: 7 values each, well under PostgreSQL's 65,535 parameters.
 const RUNS_PER_INSERT = 1000;
 
@@ -100,10 +116,14 @@ export function createScripts({
   gate,
   apps,
   env,
+  connected,
   pool = createScriptPool(),
   web = createWebAccess({ resources, env })
 }) {
   const { apps: appRows, appScripts, appScriptRuns, appScriptRounds, auditEvents } = resources;
+  const connectedApps = createScriptConnected({ resources, systemContext, connected });
+  // The person a job saved or switched on runs as for connected apps (D-136): the call's, never anything sent.
+  const personOf = (options) => resolveAuditActorId(options?.context) ?? null;
   let quickjs = null;
   const ready = async () => (quickjs ||= await newQuickJSWASMModuleFromVariant(variant));
 
@@ -195,6 +215,7 @@ export function createScripts({
         settings,
         enabled: true,
         createdBy: actor,
+        runsAsUserId: input.kind === "job" ? personOf(options) : null,
         nextRunAt: input.kind === "job" && settings.every ? nextSlot(settings).toISOString() : null,
         // A watching job starts at the change horizon, read in this transaction.
         cursor: input.kind === "job" && settings.watch ? await appScripts.changeHorizon(txOptions) : null
@@ -230,6 +251,7 @@ export function createScripts({
     await appScripts.withTransaction(options, async (txOptions) => {
       await appScripts.patch(row.id, {
         enabled,
+        ...(row.kind === "job" && enabled ? { runsAsUserId: personOf(options) } : {}),
         ...(row.kind === "job" && row.settings.every && enabled ? { nextRunAt: nextSlot(row.settings).toISOString() } : {}),
         // A watching job switched on starts again at the snapshot horizon.
         ...(row.kind === "job" && row.settings.watch && enabled ? { cursor: await appScripts.changeHorizon(txOptions) } : {})
@@ -237,6 +259,14 @@ export function createScripts({
       await audit({ actor, via: { kind: "app", appId: app.id }, action: "script", changes: { script: { key, enabled } } }, txOptions);
     });
     return { key, enabled };
+  }
+
+  /**
+   * Someone left the home (the bots' homeChanged): the jobs that ran as them have no person for connected apps any more,
+   * until someone in the home switches each off and on again (D-136). One write, by the index on runs_as_user_id.
+   */
+  async function forgetPerson(userId, options) {
+    await appScripts.patchWhere({ runsAsUserId: String(userId) }, { runsAsUserId: null }, { ...passedOn(options), returning: "count" });
   }
 
   /** The app's scripts with their recent runs and coding-loop rounds (the Logic tab). */
@@ -315,11 +345,13 @@ export function createScripts({
    * on a draft's practice copy (`ctx.practice`, D-71) reads web addresses but only pretends to send
    * anything that could change something there, as a test copy does (D-69), and notes it for the call.
    */
-  function realHost(ctx, limits) {
+  function realHost(ctx, limits, row) {
     let data = 0;
     let webCalls = 0;
+    const connectedCall = connectedApps.forRun(ctx, limits, row);
     const tableFor = async (key) => (await gate.tableFor(String(key), ctx.options)).table;
     return async (group, name, args) => {
+      if (group === "connected") return connectedCall(name, args);
       if (group === "web") {
         if ((webCalls += 1) > limits.web) throw new Error(`at most ${limits.web} web calls per run`);
         const answer = await web.fetch(args[0], args[1] || {}, ctx.options, { simulate: Boolean(ctx.practice) });
@@ -377,9 +409,11 @@ export function createScripts({
    * are the call's that started it (a member's, a visitor's or a job's home); the run's reads and
    * writes, and its row, are its own, outside any transaction the caller holds.
    */
-  async function execute(row, input, via, reach, runs, options) {
+  async function execute(row, input, via, reach, runs, options, out = null) {
     const limits = row.kind === "rule" ? LIMITS.rule : LIMITS.run;
     const ctx = {
+      // A button's changes in connected apps waiting for its person to confirm (scriptConnected.js), for runNamed's caller.
+      ...(out ? { confirms: out.confirms } : {}),
       options: { context: options.context },
       actor: { type: "script", id: row.id, name: row.summary.slice(0, 80) },
       via: { kind: "script", appId: row.appId, scriptId: row.id, script: row.key, trigger: via },
@@ -396,7 +430,7 @@ export function createScripts({
         memory: limits.memory,
         wallMs: limits.wallMs,
         host: hostFor(row.kind),
-        call: realHost(ctx, limits)
+        call: realHost(ctx, limits, row)
       });
       outcome = { ok: true, value: result.value, calls: result.calls, logs: result.logs };
     } catch (error) {
@@ -432,7 +466,7 @@ export function createScripts({
    * a visitor's page, holds the run to their access, and for a draft's preview keeps it in the
    * practice copy, as execute() says.
    */
-  async function runNamed(kind, appId, key, input, via, reach, options) {
+  async function runNamed(kind, appId, key, input, via, reach, options, out = null) {
     const { records: [row] } = await appScripts.query({ filters: { appId, key: String(key) }, page: { size: 1 } }, passedOn(options));
     if (!row || row.kind !== kind) {
       throw new GateError(409, `This app has no ${kind} script "${key}".`, { code: "apps_script_kind_missing", params: { kind, key } });
@@ -443,7 +477,7 @@ export function createScripts({
         params: { script: row.summary }
       });
     }
-    const outcome = await execute(row, input, via, reach, null, options);
+    const outcome = await execute(row, input, via, reach, null, options, out);
     if (!outcome.ok) {
       throw new GateError(422, `Something went wrong in “${row.summary}”: ${outcome.error}`, {
         code: "apps_script_failed",
@@ -608,6 +642,7 @@ export function createScripts({
   /** Keeps each script's newest RUNS_KEPT runs, in every home. */
   async function prune() {
     const options = { context: systemContext("prune old script runs") };
+    await connectedApps.prune(options);
     const ids = await repository.runsPastNewest(RUNS_KEPT, options);
     for (let start = 0; start < ids.length; start += RUNS_PER_INSERT) {
       await appScriptRuns.deleteWhere({ id: ids.slice(start, start + RUNS_PER_INSERT) }, options);
@@ -636,6 +671,8 @@ export function createScripts({
     functionCode,
     runDue,
     prune,
+    forgetPerson,
+    confirmConnected: connectedApps.confirm,
     web,
     close
   });

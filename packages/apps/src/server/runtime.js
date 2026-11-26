@@ -413,12 +413,15 @@ export function createRuntime({ apps, gate, scripts, practices }) {
         const input = scriptInput(step.runScript.input, evaluate);
         scriptsRun.push({ script: step.runScript.script, input });
         if (dryRun) continue;
+        const out = { confirms: [] };
         const result = await scripts.runNamed("action", loaded.app.id, step.runScript.script, input, {
           kind: "button",
           screen: screenKey,
           by: ctx.actor?.name || null
-        }, reachOf(actx), ctx.options);
+        }, reachOf(actx), ctx.options, out);
         effects.push(...scriptEffects(result, loaded.definition.screens));
+        // Changes in connected apps the person's approval rules ask about (D-136): the screen asks them to confirm each.
+        effects.push(...out.confirms.map((confirm) => ({ confirmConnected: confirm })));
       } else if (kind === "askBot") {
         const bot = await apps.botOf(step.askBot.bot, ctx.options);
         if (!bot) throw new GateError(409, "That bot no longer exists.", { code: "apps_bot_gone" });

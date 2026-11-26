@@ -10,6 +10,9 @@ export const appResource = defineTableResource({
   schema: {
     id: { type: "string", primary: true, maxLength: 24, noTrim: true, required: true },
     color: { type: "string", maxLength: 16, noTrim: true },
+    // The connected apps (plugin ids, and "ai" for bots and pictures) its scripts may use, as owners and admins chose
+    // (D-136); an app that has any is never public (ck_apps_connected_internal).
+    connectedAccess: { type: "array" },
     createdAt: { type: "dateTime" },
     draftVersionId: { type: "id", nullable: true, search: true },
     icon: { type: "string", maxLength: 40, noTrim: true },
@@ -65,6 +68,8 @@ export const appScriptResource = defineTableResource({
     key: { type: "string", maxLength: 64, noTrim: true, required: true, search: true },
     kind: { type: "string", maxLength: 16, noTrim: true, search: true },
     nextRunAt: { type: "dateTime", nullable: true },
+    // A job's person for connected apps (D-136): who saved it or switched it on; null once they left the home.
+    runsAsUserId: { type: "id", nullable: true, search: true },
     settings: { type: "object", additionalProperties: true },
     summary: { type: "string", noTrim: true, required: true },
     tests: { type: "array" },
@@ -281,6 +286,27 @@ export const appWebAccessResource = defineTableResource({
   }
 });
 
+/** app_connected_confirms
+ * a pressed button's change in a connected app waiting for its person to confirm it (D-136, scriptConnected.js)
+ */
+export const appConnectedConfirmResource = defineTableResource({
+  name: "appConnectedConfirms",
+  tableName: "app_connected_confirms",
+  ownership: "workspace",
+  schema: {
+    actionId: { type: "string", maxLength: 64, noTrim: true, required: true },
+    appId: { type: "string", maxLength: 24, noTrim: true, required: true, search: true },
+    args: { type: "object", additionalProperties: true },
+    createdAt: { type: "dateTime" },
+    pluginId: { type: "string", maxLength: 64, noTrim: true, required: true },
+    question: { type: "string", noTrim: true, required: true },
+    scriptKey: { type: "string", maxLength: 64, noTrim: true, required: true },
+    usedAt: { type: "dateTime", nullable: true },
+    userId: { type: "id", required: true, search: true },
+    workspaceId: { type: "id", hidden: true, search: true }
+  }
+});
+
 /** app_practices
  * a draft's practice copy (D-71): its records are AnyAPI's, under the copy's own tenant
  */
@@ -315,5 +341,6 @@ export const TABLE_RESOURCES = Object.freeze([
   auditEventResource,
   appJobResource,
   appWebAccessResource,
-  appPracticeResource
+  appPracticeResource,
+  appConnectedConfirmResource
 ]);

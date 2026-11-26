@@ -53,8 +53,15 @@ function fakeApi(context) {
 
 const call = { context: { actor: { id: "7" } } };
 const profiles = { findById: async () => ({ email: "pat@acme.example" }) };
-const connectedApps = (integrations = fakeIntegrations()) =>
-  createAppConnected({ integrations, profiles, env: { APP_ENV: "test" }, records: { work: null, bots: null, turns: null }, apps: null });
+// The person's approval rules: "allow" lets a pressed button's change through, "ask" keeps it for them to confirm.
+const rules = (decision, decided = []) => ({
+  decide: async (action, how, options) => {
+    decided.push({ action, how, options });
+    return decision;
+  }
+});
+const connectedApps = (integrations = fakeIntegrations(), approvals = rules("allow")) =>
+  createAppConnected({ integrations, profiles, env: { APP_ENV: "test" }, records: { work: null, bots: null, turns: null }, apps: null, approvals });
 
 test("a read reaches only the app the script names, though another app offers the same tool", async (context) => {
   const calls = fakeApi(context);
@@ -136,7 +143,8 @@ test("Sedna sends only as the Sedna user of the person who pressed, whatever the
   });
   const send = { app: "sedna", action: "sedna_mail.send", input: { to: "kim@brokers.example", subject: "Hello", text: "Hi", fromUser: "203" } };
   const live = (who) => createAppConnected({
-    integrations: integrations(who), profiles, env: { APP_ENV: "production" }, records: { work: null, bots: null, turns: null }, apps: null
+    integrations: integrations(who), profiles, env: { APP_ENV: "production" }, records: { work: null, bots: null, turns: null }, apps: null,
+    approvals: rules("allow")
   });
 
   await assert.rejects(live({ person: pat, via: "email" }).run(call, send, "read"), { code: "apps_connected_write_refused" });
@@ -147,4 +155,30 @@ test("Sedna sends only as the Sedna user of the person who pressed, whatever the
 
   await assert.rejects(live({ person: null, asked: null }).run(call, send, "button"), /isn't matched to a Sedna user/u);
   assert.equal(fake.sent.length, 1, "someone who is no one in Sedna sends nothing");
+});
+
+test("a pressed button's change goes through the person's approval rules: one they ask about waits, made once confirmed", async (context) => {
+  const calls = fakeApi(context);
+  const decided = [];
+  const draft = { app: "gmail", action: "mail_drafts.create", input: { to: ["sam@example.com"], subject: "Hi", text: "Hello" } };
+  const outcome = { made: [], waiting: [] };
+  const answer = await connectedApps(fakeIntegrations(), rules("ask", decided)).run(call, draft, "button", outcome);
+  assert.equal(answer.status, "waiting_for_approval");
+  assert.deepEqual(calls.filter((line) => line.startsWith("POST")), [], "nothing changed before they confirm");
+  assert.deepEqual(outcome.made, []);
+  assert.equal(outcome.waiting.length, 1);
+  assert.equal(outcome.waiting[0].actionId, "mail_drafts.create");
+  assert.match(outcome.waiting[0].question, /save this draft "Hi" to sam@example\.com/u);
+  assert.equal(decided[0].options, call, "the rules are the pressing person's");
+  assert.match(decided[0].action, /"Hi" to sam@example\.com/u);
+
+  const done = await connectedApps().runConfirmed(call, "gmail", outcome.waiting[0]);
+  assert.match(done, /draft/iu);
+  assert.equal(calls.filter((line) => line.startsWith("POST")).length, 1);
+  await assert.rejects(connectedApps().runConfirmed(call, "outlook", { actionId: "github_comment", args: {} }), { code: "apps_connected_no_action" });
+  await assert.rejects(
+    connectedApps().runConfirmed(call, "gmail", { actionId: "connected_app_change", args: { pluginId: "todoist" } }),
+    { code: "apps_connected_no_action" },
+    "a connector's change belongs to the app it was asked for"
+  );
 });

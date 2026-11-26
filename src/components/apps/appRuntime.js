@@ -60,7 +60,8 @@ export function previewNotice(result) {
   }
   const unsent = [
     ...(result.practice?.wouldSend || []).map((entry) => `ask ${entry.bot}`),
-    ...(result.practice?.simulated || []).map((entry) => `call ${entry.web?.url}`)
+    ...(result.practice?.simulated || []).map((entry) =>
+      entry.connected ? `use ${entry.connected.app} (${entry.connected.action})` : `call ${entry.web?.url}`)
   ];
   return unsent.length ? `Practice data: nothing was sent. Once published, this would ${unsent.join(" and ")}.` : "";
 }

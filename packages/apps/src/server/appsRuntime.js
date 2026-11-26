@@ -1,3 +1,4 @@
+import { createAppConnectedAccess } from "./appConnectedAccess.js";
 import { createApps } from "./apps.js";
 import { createAppsRepository } from "./appsRepository.js";
 import { createDataGate } from "./dataGate.js";
@@ -24,8 +25,10 @@ import { createWatches } from "./watches.js";
  * @param {import("@local/notices/server/types").Notices} dependencies.notices
  * @param {import("@jskit-ai/kernel/server/types").RuntimeEnv} dependencies.env
  * @param {{ lock: Function }} dependencies.homes JSKIT's workspaces repository: the apps hold a home's row (createApps)
+ * @param {() => import("./types.js").AppConnected} dependencies.connected connected apps for scripts (D-136), the bots'
+ *   late capability, read at call time only
  */
-export function createAppsRuntime({ resources, systemContext, records, anyapi, notices, env, homes }) {
+export function createAppsRuntime({ resources, systemContext, records, anyapi, notices, env, homes, connected }) {
   const repository = createAppsRepository(resources);
   const registry = createRegistry({ resources, anyapi, notices });
   const practices = createPractices({ resources, anyapi, systemContext });
@@ -63,7 +66,8 @@ export function createAppsRuntime({ resources, systemContext, records, anyapi, n
     recordFiles: () => recordFiles
   });
   const apps = createApps({ resources, records, registry, anyapi, practices, notices, homes });
-  scripts = createScripts({ resources, repository, systemContext, registry, gate, apps, env });
+  scripts = createScripts({ resources, repository, systemContext, registry, gate, apps, env, connected });
+  const connectedAccess = createAppConnectedAccess({ resources, apps, connected });
   const runtime = createRuntime({ apps, gate, scripts, practices });
   const trial = createTrial({ apps, runtime, scripts });
   const views = createViews({ resources, records, systemContext, registry, apps, runtime });
@@ -85,6 +89,7 @@ export function createAppsRuntime({ resources, systemContext, records, anyapi, n
     trial,
     watches,
     scripts,
+    connectedAccess,
     installTemplate: installTemplateFor,
     templateSummaries,
     templateStatus: templateStatusFor,

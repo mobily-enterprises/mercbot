@@ -8,8 +8,10 @@ import { inTime } from "./botTools.js";
 // they keep holds here too: the accounts the call's person reaches (D-111), Sedna only as their confirmed Sedna user
 // (D-94), sign-in codes hidden from mailboxes not their own, the actions they switched off in Connect apps, each
 // account's pace (D-96) and a test copy logging what it would change (D-69). Nothing reaches a chat: no status lines,
-// no cards. A change runs only when the person pressed the app's button (`mode: "button"`, the press is their
-// approval); a job or a screen only reads (`mode: "read"`). The answers are the tools' own: data, with text from outside
+// no cards. A change is tried only when the person pressed the app's button (`mode: "button"`, the press is their asking
+// for it), and then goes through their approval rules as a bot's does (approvals.decide): one the rules would ask about
+// isn't made, but waits (`outcome.waiting`) for the person to confirm the question it asks, and runConfirmed makes it
+// then. A job or a screen only reads (`mode: "read"`). The answers are the tools' own: data, with text from outside
 // marked as information only.
 
 /** What a script's connected-app call refused, in words for the app's people, with a code for the script. */
@@ -56,52 +58,76 @@ const forApps = (appId, actionId) =>
  * @param {import("@jskit-ai/kernel/server/types").RuntimeEnv} dependencies.env
  * @param {import("./types.js").BotRecords} dependencies.records
  * @param {import("@local/apps/server/types").Apps} dependencies.apps
+ * @param {{ decide: (action: string, how: { reversible?: boolean }, options: object) => Promise<"ask" | "allow"> }}
+ *   dependencies.approvals the person's approval rules (approvals.js), as a bot's changes go through them
  */
-export function createAppConnected({ integrations, profiles, env, records, apps }) {
-  /** The catalogue entry of an app a script names, by id; refused when it isn't one of the connected apps. */
-  function appEntry(appId) {
+export function createAppConnected({ integrations, profiles, env, records, apps, approvals }) {
+  /** Whether an app of the catalogue is one apps' scripts can use: it has actions for apps, or brings its own. */
+  function usable(appId) {
     const entry = integrations.app(String(appId || ""));
-    if (!entry || !(entry.mcp || actionIds(entry).length)) {
-      throw new AppConnectedError(`"${appId}" isn't one of the apps in Connect apps.`, "apps_connected_unknown");
-    }
-    return entry;
+    return Boolean(entry && (entry.mcp || actionIds(entry).some((id) => forApps(entry.id, id))));
+  }
+
+  /** The catalogue entry of an app a script names, by id; refused when it isn't one apps can use. */
+  function appEntry(appId) {
+    if (!usable(appId)) throw new AppConnectedError(`"${appId}" isn't one of the apps in Connect apps.`, "apps_connected_unknown");
+    return integrations.app(String(appId));
+  }
+
+  /** The home's connected apps an app's scripts could be allowed, `{ id, name }`, for its owners and admins to choose. */
+  async function choices(call) {
+    const { connected } = await integrations.toolSwitches(call);
+    return connected.filter(usable).map((id) => ({ id, name: integrations.appName(id) }));
   }
 
   /**
    * The tools of one person's call, kept to one app: they see that app's accounts only, so a call for Gmail never reads
    * or changes an Outlook mailbox, though both are mail. `mode` decides what a change does.
    */
-  async function toolsFor(call, appId, mode) {
+  /** Integrations as the tools see them, kept to one app's accounts. */
+  const oneAppOf = (appId) => Object.freeze({
+    ...integrations,
+    reachableAccounts(options, filters = {}) {
+      const pluginIds = (filters.pluginIds || [appId]).filter((pluginId) => pluginId === appId);
+      return pluginIds.length ? integrations.reachableAccounts(options, { ...filters, pluginIds }) : Promise.resolve([]);
+    }
+  });
+
+  /** A change's context, as an approval card's gives it: the person's call, one app's accounts, no chat or files. */
+  const changeContext = (call, appId) => ({
+    call,
+    env,
+    integrations: oneAppOf(appId),
+    apps,
+    work: records.work,
+    bots: records.bots,
+    userId: turnPerson(call),
+    files: null,
+    place: null
+  });
+
+  async function toolsFor(call, appId, mode, outcome) {
     const switches = await integrations.toolSwitches(call);
-    const oneApp = Object.freeze({
-      ...integrations,
-      reachableAccounts(options, filters = {}) {
-        const pluginIds = (filters.pluginIds || [appId]).filter((pluginId) => pluginId === appId);
-        return pluginIds.length ? integrations.reachableAccounts(options, { ...filters, pluginIds }) : Promise.resolve([]);
-      }
-    });
+    const oneApp = oneAppOf(appId);
     const appFor = (toolId) => ({ integrations: oneApp, call, skip: switches.skip[toolId] || [] });
     // The tools' own record of what they tried (reads among them, as a bot's reply checks it), and the changes asked for.
     const attempted = [];
-    const changes = [];
-    // A change the tools asked for: run when the person pressed the button, else refused (run names the refusal, since
-    // the tools turn what they throw into an answer).
+    const asked = [];
+    // A change the tools asked for: refused unless the person pressed the button (run names the refusal, since the tools
+    // turn what they throw into an answer); then made, or kept waiting when their approval rules would ask first.
     async function attempt(actionId, input) {
       attempted.push(actionId);
-      changes.push(actionId);
+      asked.push(actionId);
       if (mode !== "button") throw new AppConnectedError("Refused: this call only reads.", "apps_connected_write_refused");
-      const actionContext = {
-        call,
-        env,
-        integrations: oneApp,
-        apps,
-        work: records.work,
-        bots: records.bots,
-        userId: turnPerson(call),
-        files: null,
-        place: null
-      };
-      const { result } = await ACTIONS[actionId].run(actionContext, { ...input, personAsked: true });
+      const action = ACTIONS[actionId];
+      const args = { ...input, personAsked: true };
+      const decision = action.alwaysAsks ? "ask" : await approvals.decide(action.describe(args), { reversible: action.reversible(args) }, call);
+      if (decision === "ask") {
+        outcome.waiting.push({ actionId, args, question: action.question(args) });
+        return { status: "waiting_for_approval", note: "Nothing has been done yet: the person is asked to confirm it." };
+      }
+      const { result } = await action.run(changeContext(call, appId), args);
+      outcome.made.push(actionId);
       return { status: "done", ...(result ? { result } : {}) };
     }
     const quiet = async () => {};
@@ -130,7 +156,7 @@ export function createAppConnected({ integrations, profiles, env, records, apps 
       }),
       ...buildConnectorTools({ integrations: oneApp, call, attempt, postLead: quiet })
     };
-    return { tools: Object.values(tools), changes, connected: switches.connected };
+    return { tools: Object.values(tools), asked, connected: switches.connected };
   }
 
   /**
@@ -158,10 +184,12 @@ export function createAppConnected({ integrations, profiles, env, records, apps 
    * @param {object} call the person's call options (a member's, or the job's person's)
    * @param {{ app: string, action: string, input?: object, account?: string }} request
    * @param {"button" | "read"} mode
+   * @param {{ made: string[], waiting: Array<{ actionId: string, args: object, question: string }> }} [outcome] gets the
+   *   bots' action id of each change made, for the app's activity, and each change waiting for the person to confirm
    */
-  async function run(call, { app, action, input = {}, account = "" }, mode) {
+  async function run(call, { app, action, input = {}, account = "" }, mode, outcome = { made: [], waiting: [] }) {
     const entry = appEntry(app);
-    const { tools, changes, connected } = await toolsFor(call, entry.id, mode);
+    const { tools, asked, connected } = await toolsFor(call, entry.id, mode, outcome);
     if (!connected.includes(entry.id)) {
       throw new AppConnectedError(`${entry.name} isn't connected for this person.`, "apps_connected_not_connected");
     }
@@ -187,7 +215,7 @@ export function createAppConnected({ integrations, profiles, env, records, apps 
       );
     }
     const answer = await tool.execute(args, {});
-    if (changes.length && mode !== "button") {
+    if (asked.length && mode !== "button") {
       throw new AppConnectedError(
         "Only a button someone presses can change anything in a connected app; a job or a screen only reads.",
         "apps_connected_write_refused"
@@ -199,8 +227,25 @@ export function createAppConnected({ integrations, profiles, env, records, apps 
     return answer;
   }
 
+  /**
+   * A change that waited (run's `outcome.waiting`), once the person confirmed it: made as them, in that app's account.
+   * The waiting change is the server's own, kept for them; it must still be one of that app's.
+   * @returns {Promise<string>} what was done, in words for them
+   */
+  async function runConfirmed(call, appId, { actionId, args }) {
+    const entry = appEntry(appId);
+    const action = Object.hasOwn(ACTIONS, actionId) ? ACTIONS[actionId] : null;
+    const ofApp = actionId === "connected_app_change" ? args?.pluginId === entry.id : actionIds(entry).includes(actionId);
+    if (!action || !ofApp) throw new AppConnectedError(`${entry.name} has no action "${actionId}" that apps can use.`, "apps_connected_no_action");
+    const done = await action.run(changeContext(call, entry.id), args);
+    return String(done?.body?.text || "Done.");
+  }
+
   return Object.freeze({
+    usable,
+    choices,
     actions,
-    run
+    run,
+    runConfirmed
   });
 }

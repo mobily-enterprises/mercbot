@@ -1,4 +1,5 @@
 import {
+  appConnectedConfirmResource,
   appFieldResource,
   appJobResource,
   appPracticeResource,
@@ -196,6 +197,15 @@ const PLATFORM_OWNS = Object.freeze([
   { resource: auditEventResource, searchSchema: auditSearch },
   { resource: appJobResource, searchSchema: appJobSearch, rowPolicy: ({ requires, ...args }) => requires.records.rules.chatBotRule(args, "chatBotId", { nullable: true }) },
   { resource: appPracticeResource, searchSchema: appPracticeSearch },
+  // A change waiting for its person (scriptConnected.js): taken once while fresh, cleared once stale.
+  {
+    resource: appConnectedConfirmResource,
+    searchSchema: {
+      used: isSet("usedAt"),
+      createdFrom: { type: "dateTime", actualField: "createdAt", filterOperator: ">=" },
+      createdBefore: { type: "dateTime", actualField: "createdAt", filterOperator: "<" }
+    }
+  },
   // The web addresses a home lets its scripts reach, looked up by origin (webAccess.js).
   { resource: appWebAccessResource, searchSchema: { origin: { type: "string", actualField: "origin", filterOperator: "=" } } }
 ]);

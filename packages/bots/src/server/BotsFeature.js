@@ -4,6 +4,7 @@ import { createApprovals, matchRules } from "./approvals.js";
 import { createBotLoops } from "./botLoops.js";
 import { createBotsService } from "./botsService.js";
 import { NO_TEMPLATE_LINKS } from "./botTemplates.js";
+import { createAppConnected } from "./appConnected.js";
 import { botsMeter, createChatModel } from "./model.js";
 import { registerRoutes } from "./registerRoutes.js";
 import { useAddedSkills } from "./skills.js";
@@ -42,7 +43,9 @@ const BotsFeature = defineFeature({
   provides: {
     bots: "mercbot.bots",
     // Provided so the shutdown hook can drain the loops.
-    botLoops: "mercbot.bot-loops"
+    botLoops: "mercbot.bot-loops",
+    // Connected apps for apps' scripts (D-136): the bots' own tools for one person, which apps read late.
+    appConnected: "mercbot.app-connected"
   },
   /**
    * @param {object} capabilities
@@ -129,7 +132,8 @@ const BotsFeature = defineFeature({
           console.warn("Seating a home's people in its chats failed; it catches up at the home's next change of people.", error))
     });
     registerRoutes(http, { bots, approvals, notices, meter: botMeter, records, streams });
-    return { bots, botLoops };
+    const appConnected = createAppConnected({ integrations, profiles, env, records, apps, approvals });
+    return { bots, botLoops, appConnected };
   },
   async shutdown(_dependencies, { outputs }) {
     await outputs.botLoops.drain(20000);

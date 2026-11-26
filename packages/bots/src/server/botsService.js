@@ -184,7 +184,7 @@ export function createBotsService({
   /**
    * A change of the home's people (BotsFeature, as members join and leave): who joined is seated in its everyone chat
    * and who left is out of its chats (chatMembers.js homeChanged, R2), and the routines and watches they made there
-   * pause, with a line in each chat, since they ran as them (R4).
+   * pause, with a line in each chat, since they ran as them (R4), and apps' jobs no longer run as them (D-136).
    * @param {string} homeId
    */
   async function homeChanged(homeId) {
@@ -194,10 +194,14 @@ export function createBotsService({
   // All of it or none, so a failure leaves it to the next change, with its line.
   async function pauseWhatTheyMade(userId, homeId, home) {
     const name = (await profiles.findById(userId, home))?.displayName || "Someone";
-    await records.chats.withTransaction(home, (txOptions) => turns.pauseMadeBy({ userId, homeId }, {
-      text: "Paused: its maker left",
-      detail: (paused) => `${name} left the home, so the ${paused} they made paused.`
-    }, txOptions));
+    await records.chats.withTransaction(home, async (txOptions) => {
+      await turns.pauseMadeBy({ userId, homeId }, {
+        text: "Paused: its maker left",
+        detail: (paused) => `${name} left the home, so the ${paused} they made paused.`
+      }, txOptions);
+      // Apps' jobs that ran as them use no connected apps until someone switches each off and on again (D-136).
+      await apps.scripts.forgetPerson(userId, txOptions);
+    });
   }
 
   return Object.freeze({

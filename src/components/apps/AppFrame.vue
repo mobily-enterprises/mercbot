@@ -7,6 +7,7 @@ import { usePaths } from "@jskit-ai/shell-web/client/navigation/usePaths";
 import AppDetailsPanel from "@/components/apps/AppDetailsPanel.vue";
 import AppNode from "@/components/apps/AppNode.vue";
 import AppTheme from "@/components/apps/AppTheme.vue";
+import MercbotConfirmDialog from "@/components/mercbot/MercbotConfirmDialog.vue";
 import { appsApi, errorText } from "@/components/apps/appsApi.js";
 import { ICON_PATHS, createScreenRuntime, previewNotice, screenLocation as addressOf, screenParams } from "@/components/apps/appRuntime.js";
 import { withNamedFormulas } from "@local/apps/shared";
@@ -71,9 +72,28 @@ function screenLocation(key, params = {}) {
 // A note handed over by the page that opened this app (say, after installing a template).
 if (window.history.state?.notice?.text) notify(window.history.state.notice.text, window.history.state.notice.color);
 
+// Changes in connected apps a button asked for that the person's approval rules ask about (D-136): confirmed one at a
+// time, then made as them.
+const confirming = ref([]);
+const askingConfirm = computed({
+  get: () => confirming.value.length > 0,
+  set: (open) => {
+    if (!open) confirming.value = confirming.value.slice(1);
+  }
+});
+async function confirmConnected() {
+  const { id } = confirming.value[0];
+  try {
+    notify((await appsApi.confirmConnected(slug.value, id)).done);
+  } catch (error) {
+    onError(error);
+  }
+}
+
 function onEffects(result) {
   for (const effect of result.effects || []) {
-    if (effect.go) router.replace(screenLocation(effect.go.screen, effect.go.params));
+    if (effect.confirmConnected) confirming.value = [...confirming.value, effect.confirmConnected];
+    else if (effect.go) router.replace(screenLocation(effect.go.screen, effect.go.params));
     else if (effect.notify) notify(effect.notify);
     else if (effect.openDialog) runtime.value.dialogs[`dialog:${effect.openDialog}`] = true;
     else if (effect.closeDialog) runtime.value.dialogs[`dialog:${effect.closeDialog}`] = false;
@@ -335,6 +355,14 @@ async function publish() {
       <AppDetailsPanel :loaded="loaded" :home="home" @restored="(result) => { notify(`Restored as version ${result.number}.`); loadApp().then(openScreen); }" @narrowed="(result) => { notify(`Saved as version ${result.number}.`); loadApp().then(openScreen); }" @failed="(message) => notify(message, 'error')" @themed="() => { notify('Saved.'); loadApp().then(openScreen); }" @ask="(about) => askBuilder(null, about)" />
     </v-navigation-drawer>
 
+    <MercbotConfirmDialog
+      v-model="askingConfirm"
+      :title="confirming[0]?.question || ''"
+      text="It's done as you, in this app's connected account."
+      confirm-label="Confirm"
+      :danger="false"
+      @confirm="confirmConnected"
+    />
     <v-snackbar v-model="snackbar.open" :color="snackbar.color" timeout="3000">{{ snackbar.text }}</v-snackbar>
   </div>
 </template>

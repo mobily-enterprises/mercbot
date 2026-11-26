@@ -15,7 +15,7 @@ import { loadTables } from "./tables.js";
 const AppsFeature = defineFeature({
   id: "mercbot.apps",
   domain: "apps",
-  // The 15 apps tables, with the filters platformTables.js declares; the runtime tables are AnyAPI's.
+  // The 16 apps tables, with the filters platformTables.js declares; the runtime tables are AnyAPI's.
   owns: withPlatformSearch(TABLE_RESOURCES),
   // The watch loop, due scripts, the pruning of scripts' old runs and the sweep of unused practice
   // copies of drafts run over every home.
@@ -31,6 +31,10 @@ const AppsFeature = defineFeature({
     // A home's row, held while its apps are changed, in the order its delete takes it (createApps' holdHome).
     workspaces: "workspaces"
   },
+  // Connected apps for scripts (D-136): the bots' tools for one person, from a feature that itself requires apps.
+  late: {
+    connectedApps: "mercbot.app-connected"
+  },
   provides: {
     apps: "mercbot.apps"
   },
@@ -43,15 +47,18 @@ const AppsFeature = defineFeature({
    * @param {import("@jskit-ai/kernel/server/types").RuntimeEnv} capabilities.env
    * @param {import("@jskit-ai/uploads-runtime/server/types").RuntimeUploads} capabilities.uploads a record's file or picture, uploaded
    * @param {import("@jskit-ai/workspaces-core/server/types").WorkspacesRepository} capabilities.workspaces
+   * @param {import("./types.js").AppConnected} capabilities.connectedApps late: read at call time, never here
    */
-  async setup({ resources, systemContext, records, http, database, fastify, notices, env, uploads, workspaces }) {
+  async setup(capabilities) {
+    const { resources, systemContext, records, http, database, fastify, notices, env, uploads, workspaces } = capabilities;
     // Each home's AnyAPI declares its runtime tables from the home's registry, whoever asks first.
     const anyapi = createAnyapi({
       knex: database.knex,
       notices,
       loadTables: (workspaceId) => loadTables(resources, { context: systemContext("build a home's runtime tables").forWorkspace(workspaceId) })
     });
-    const apps = createAppsRuntime({ resources, systemContext, records, anyapi, notices, env, homes: workspaces });
+    const connected = () => capabilities.connectedApps;
+    const apps = createAppsRuntime({ resources, systemContext, records, anyapi, notices, env, homes: workspaces, connected });
     const reports = createAppsRepository(resources);
     // Only a web server that is serving checks watches (D-15, D-131); on shutdown it finishes the
     // claim in hand (D-19).

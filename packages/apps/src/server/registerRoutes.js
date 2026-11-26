@@ -436,8 +436,24 @@ export function registerRoutes(http, { appsRuntime, notices, streams, uploads })
     "GET",
     `${base}/:slug/scripts`,
     home,
-    appRoute(async (request, ctx) => ({ ...(await scripts.list(request.params.slug, {}, ctx.options)), canManage: ctx.canManage }))
+    appRoute(async (request, ctx) => ({
+      ...(await scripts.list(request.params.slug, {}, ctx.options)),
+      connected: await appsRuntime.connectedAccess.forApp(request.params.slug, ctx.options),
+      canManage: ctx.canManage
+    }))
   );
+  // A button's change in a connected app, confirmed by the person it waited for (D-136): theirs alone, once.
+  router.register("POST", `${base}/:slug/connected-confirm/:id`, home, handle(async (request, ctx) => {
+    const app = await apps.find(request.params.slug, ctx.options);
+    return scripts.confirmConnected(app.id, request.params.id, ctx.options);
+  }));
+  // The connected apps an app's scripts may use (D-136): owners and admins choose, checked before anything else.
+  router.register("PUT", `${base}/:slug/connected-access`, home, appRoute(async (request, ctx) => {
+    if (!ctx.canManage) {
+      throw forbidden("Only the home's owners and admins can choose which connected apps scripts may use.", "apps_connected_manage_forbidden");
+    }
+    return { allowed: await appsRuntime.connectedAccess.allowConnected(ctx.actor, request.params.slug, body(request).apps, ctx.options) };
+  }));
   router.register("PUT", `${base}/:slug/scripts/:key/enabled`, home, appRoute((request, ctx) => {
     if (!ctx.canManage) throw forbidden("Only the home's owners and admins can switch scripts off or on.", "apps_script_switch_forbidden");
     return scripts.setEnabled(ctx.actor, request.params.slug, request.params.key, body(request).enabled === true, ctx.options);

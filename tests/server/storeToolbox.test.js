@@ -28,7 +28,9 @@ function program(file, body = `echo ${path.basename(file)}`) {
  * the store; and a host folder whose python3 and xterm are the host's own. `extra` adds programs to the store's tools.
  */
 function place(context, { browser = true, extra = [], loader = false } = {}) {
-  const dir = realpathSync(mkdtempSync(path.join(os.tmpdir(), "mb-store-toolbox-")));
+  // A short name: a computer's sandbox makes its gateway socket below it (mbd-<pid>-<random>/io/gateway.sock), and a
+  // socket's whole path must fit in 107 characters, however deep the machine's temporary folder already is.
+  const dir = realpathSync(mkdtempSync(path.join(os.tmpdir(), "mb-st-")));
   context.after(() => rmSync(dir, { recursive: true, force: true }));
   const store = path.join(dir, "nix");
   const packages = path.join(store, "store");

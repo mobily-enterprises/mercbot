@@ -17,6 +17,17 @@ const NO_BOTS = Object.freeze({
   directory: Object.freeze({ listHomeBots: async () => [], homeBotFaces: async () => [], findBot: async () => null })
 });
 
+// Connected apps for scripts (D-136, the bots' mercbot.app-connected): none in a home without bots. A test that needs
+// them gives its own as the input "mercbot.app-connected".
+const NO_CONNECTED_APPS = Object.freeze({
+  usable: () => false,
+  choices: async () => [],
+  actions: async () => [],
+  run: async () => {
+    throw new Error("These apps tests have no connected apps.");
+  }
+});
+
 /**
  * The home's members as the chats records give them (`everyoneIn`, `names`), read from the test's database: what
  * person fields check and show. The chats records' own tests cover theirs.
@@ -40,7 +51,9 @@ export function keepingHandles(feature, kept) {
       const resourceRuntime = new Proxy({}, {
         get: (_target, name) => (name === "own" ? async (featureId, owns, options) => (kept.handles = await runtime.own(featureId, owns, options)) : runtime[name])
       });
-      return feature.setup({ ...dependencies, resourceRuntime }, context);
+      // Copied by property descriptors, so a late requirement stays the runtime's getter, read at call time.
+      const copied = Object.defineProperties({}, { ...Object.getOwnPropertyDescriptors(dependencies), resourceRuntime: { value: resourceRuntime, enumerable: true } });
+      return feature.setup(copied, context);
     }
   });
 }
@@ -102,6 +115,7 @@ export async function startApps({ knex, env = {}, records = NO_BOTS, extras = {}
       "runtime.uploads": { readSingleMultipartFile: async () => { throw new Error("These apps tests upload no files."); } },
       // Person fields read the home's members through the chats records; a stand-in without them gets the database's.
       "mercbot.bots.records": records.chats ? records : { ...records, chats: membersOn(knex) },
+      "mercbot.app-connected": NO_CONNECTED_APPS,
       ...extras.inputs
     }
   });

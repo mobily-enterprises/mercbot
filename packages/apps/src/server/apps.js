@@ -10,6 +10,7 @@ import { removeFieldFromApp } from "../shared/removal.js";
 import { listedStored } from "../shared/visitorAccess.js";
 import { createAppVisitorAccess } from "./appVisitorAccess.js";
 import { homeIdOf } from "./callOptions.js";
+import { internalOnly } from "./appConnectedAccess.js";
 import { RegistryError, newId } from "./registry.js";
 
 const COLOR = /^#[0-9a-f]{6}$/iu;
@@ -40,6 +41,7 @@ const toApp = (record) => ({
   liveVersionId: record.liveVersionId ? String(record.liveVersionId) : null,
   draftVersionId: record.draftVersionId ? String(record.draftVersionId) : null,
   publicAt: record.publicAt ?? null,
+  connectedAccess: record.connectedAccess ?? [],
   madeByBotId: record.madeByBotId ? String(record.madeByBotId) : null,
   madeByUserId: record.madeByUserId ? String(record.madeByUserId) : null,
   themeOverride: record.theme ?? null,
@@ -573,6 +575,7 @@ export function createApps({ resources, records, registry, anyapi, practices, no
     return appRows.withTransaction(options, async (txOptions) => {
       const app = await find(slugOrId, txOptions);
       notAView(app, "be public");
+      if (on && app.connectedAccess?.length) throw internalOnly(app);
       if (on) {
         const live = app.liveVersionId ? await appVersions.get(String(app.liveVersionId), {}, { ...txOptions, missing: "skip" }) : null;
         if (!live?.definition?.public?.home) {
