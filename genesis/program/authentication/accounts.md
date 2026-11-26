@@ -32,4 +32,7 @@ Private surfaces send a visitor who isn't signed in to `/auth/login`, keeping
 the intended return destination. Mercbot doesn't serve that page itself: such a
 copy adds its sign-in, registration, password and sign-out pages, and the
 account menu's and Settings → General's entries for them
-(`src/components/mercbot/extensions.js`).
+(`src/components/mercbot/extensions.js`). JSKIT's own sign-in, password, email
+change and two-step screens that such a copy shows are drawn in Mercbot's
+buttons, dialog frame and type scale through JSKIT shell-web's UI kit
+(`src/shellUi.js`, `genesis/program/application/shell-navigation.md`).

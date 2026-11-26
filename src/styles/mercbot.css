@@ -273,6 +273,12 @@
   color: rgb(var(--v-theme-inverse-on-surface));
 }
 
+/* A pill as wide as its container: JSKIT's Button role with `block` (MercbotUiButton.vue), such as a sign-in form's. */
+.mb-set-pill--block {
+  width: 100%;
+  justify-content: center;
+}
+
 /* The type scale's sizes as classes (docs/ui-style.md, section 2), for text a component doesn't size in its own CSS. */
 .mb-text-11 { font-size: 11px; line-height: 16px; }
 .mb-text-12 { font-size: 12px; line-height: 16px; }

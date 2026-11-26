@@ -53,6 +53,9 @@ render across compact, medium, and expanded layouts.
 - `config/public.js`
 - `src/main.js`
 - `src/theme/index.js`
+- `src/shellUi.js`
+- `src/components/mercbot/MercbotUiButton.vue`
+- `src/components/mercbot/MercbotDialogFrame.vue`
 - `src/browser.js`
 - `src/types.js`
 - `packages/main/src/client/providers/MainClientProvider.js`
@@ -111,6 +114,14 @@ render across compact, medium, and expanded layouts.
 - One font, the system UI stack, in light and dark (`src/theme/index.js` `typography`, `docs/ui-style.md` section 2):
   the page's text and every Material 3 type class read it, inside the app and in its dialogs and menus, never JSKIT's
   Roboto Flex.
+- JSKIT's own screens (sign-in and registration, password reset, email change, sign-out, two-step sign-in and its
+  setup, and the "Confirm it's you" dialog) are drawn in Mercbot's parts, through JSKIT shell-web's UI kit
+  (`provideShellUi` in `src/main.js`, with `src/shellUi.js`; `docs/ui-style.md` section 6): their buttons are Mercbot's
+  pills (a main action the dark pill, a destructive one the danger pill) or its text button, their dialog is Mercbot's
+  dialog frame, named by its title and closed by Escape, a click outside or its close, and their text roles are sizes
+  on Mercbot's type scale. Their fields, switch, checkbox, card and alerts stay Vuetify's, drawn by the theme. Public
+  Mercbot shows none of these screens itself (its sign-in pages answer 404); a copy built on Mercbot that adds them
+  gets Mercbot's look without a kit of its own.
 - The sidebar (`MercbotSidebar.vue`) is dense (D-117). Its top row is the home switcher, then icon buttons Search,
   Files and Apps (with the person's pinned apps), each labelled with a tooltip (`MercbotFilesEntry.vue` and
   `MercbotAppsEntry.vue` `icon`). Below it (`MercbotChatList.vue`, `chatDirectory.js` `buildSidebarModel`): the chats the
@@ -273,3 +284,4 @@ folder is a "Home files →" link to the Files page, and Move to… still offers
 - `tests/client/shellChat.vitest.js`
 - `tests/e2e/shell.spec.ts`
 - `tests/e2e/theme-font.spec.ts`
+- `tests/client/shellUi.vitest.js`

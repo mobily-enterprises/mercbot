@@ -124,6 +124,24 @@ in a UI pass.
   18px on a phone) and close (first on a phone, last otherwise), a body, and a foot with the actions, the main one a `dark` pill; 16px corners. On a phone it fills the
   screen (`:fullscreen="phone"`); otherwise centred, at most 420 to 760px wide, and 900px for Settings. Dialogs built
   another way (a `v-card`, or a layout of their own) move onto this frame when they are next touched.
+- **JSKIT's own screens** (sign-in and registration, password reset, email change, sign-out, two-step sign-in and its
+  setup, and the "Confirm it's you" dialog, which a copy built on Mercbot shows) take Mercbot's parts through JSKIT
+  shell-web's UI kit: `src/shellUi.js`, which `src/main.js` gives to `provideShellUi` before the app mounts
+  (`tests/client/shellUi.vitest.js`). Each role JSKIT names maps onto a part of this guide:
+  - **Button** (`MercbotUiButton.vue`): `emphasis="high"` is the `dark` pill, `medium` and `subtle` the `neutral`
+    pill, `low` a `v-btn variant="text"`; `tone="danger"` is the `danger` pill (a low one is a text button in
+    `error`), and `accent` and `neutral` add nothing. `size="large"` changes nothing (the pill has one height);
+    `block` makes the pill as wide as its form (`.mb-set-pill--block`); `pending` is `v-pending` with a small
+    spinner before the label; `icon` (`$google`, `$refresh`, `$contentCopy`, `$download`) is a leading icon from
+    Mercbot's aliases (16px in a pill); `href` makes it a link. Its class, `form`, `data-testid`, aria attributes and click reach the
+    button itself.
+  - **Dialog** (`MercbotDialogFrame.vue`): the dialog frame above, at its narrowest (420px) and as tall as its body,
+    full screen on a phone; the title heads and names it, its body and actions are made afresh at each opening (so
+    the code field's autofocus takes the focus), and Escape, a click outside and its close ask the view to close it.
+  - **Text roles**, on the type scale of section 2: `title` (a screen's heading) 22px/600, `heading` 18px/600,
+    `subheading` 15px/600, `strong` 13px/600, `lead` 14px, `body` 13px, `caption` 12px.
+  - **Still Vuetify's, drawn by the theme:** the text fields, the Sign in and Register switch, the checkbox, the card
+    that holds the screen and its alerts.
 - **Lists, chips, fields, tabs, menus:** Vuetify's `v-list-item`, `v-chip` (8px corners), `v-text-field` /
   `SelectField` (outlined, `comfortable` density where set, 8px corners), `v-tabs`, `v-menu` with the `mb-popover`
   content class.

@@ -7,9 +7,11 @@ import "vuetify/styles";
 import "@jskit-ai/material-web/client/material.css";
 import { createVuetify } from "vuetify";
 import { createMaterialVuetifyOptions } from "@jskit-ai/material-web/client";
+import { provideShellUi } from "@jskit-ai/shell-web/client/ui";
 import { theme } from "./theme/index.js";
 import "./styles/mercbot.css";
 import App from "./App.vue";
+import { shellUi } from "./shellUi.js";
 import NotFoundView from "./views/NotFound.vue";
 import { bootInstalledClientModules } from "virtual:jskit-client-bootstrap";
 import { createSurfaceRuntime } from "@jskit-ai/kernel/shared/surface/runtime";
@@ -94,6 +96,9 @@ const queryClient = new QueryClient({
   }
 });
 
+// JSKIT's own screens in Mercbot's look (src/shellUi.js), given before the app mounts.
+const shellUiKit = { install: (app) => provideShellUi(app, shellUi) };
+
 void bootstrapClientShellApp({
   createApp,
   rootComponent: App,
@@ -101,7 +106,8 @@ void bootstrapClientShellApp({
   appPlugins: [
     pinia,
     [VueQueryPlugin, { queryClient }],
-    vuetify
+    vuetify,
+    shellUiKit
   ],
   pinia,
   queryClient,

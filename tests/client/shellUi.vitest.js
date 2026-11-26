@@ -44,12 +44,13 @@ describe("Mercbot's UI kit for JSKIT's screens", () => {
     expect(await button({ emphasis: "low", tone: "danger" })).toMatch(/class="v-btn[^"]*text-error/u);
   });
 
-  it("is a submit for another form, a link, the container's width, disabled, with an icon, as a view asks", async () => {
+  it("is a submit for another form, a link, the container's width, disabled, running, with an icon, as a view asks", async () => {
     expect(await button({ emphasis: "high", type: "submit", form: "code-form" })).toContain('<button type="submit" class="mb-set-pill mb-set-pill--dark" form="code-form">');
     expect(await button({ href: "/auth/login" })).toContain('<a href="/auth/login" class="mb-set-pill">');
     expect(await button({ emphasis: "low", href: "/" })).toMatch(/^<a [^>]*href="\/"/u);
     expect(await button({ emphasis: "high", block: true })).toContain('class="mb-set-pill mb-set-pill--dark mb-set-pill--block"');
     expect(await button({ disabled: true })).toContain(" disabled");
+    expect(await button({ emphasis: "high", pending: true })).toMatch(/^<button type="button" class="mb-set-pill mb-set-pill--dark"><div class="v-progress-circular v-progress-circular--indeterminate[^>]*>.*<\/div>Sign in<\/button>$/u);
     expect(await button({ icon: "$refresh" })).toMatch(/^<button type="button" class="mb-set-pill"><i [^>]*class="[^"]*v-icon[^>]*><svg/u);
     expect(await button({ "data-testid": "auth-submit", "aria-label": "Sign in now" })).toContain('data-testid="auth-submit" aria-label="Sign in now"');
   });
