@@ -59,3 +59,49 @@ test("a home with an app of a starter's name keeps its own and gets only the oth
   await starter.ensure(options);
   assert.deepEqual((await capability.apps.list({}, options)).apps.map((app) => app.name).sort(), ["Contacts", "To-dos"]);
 });
+
+test("a home deleted while its starter apps are being added goes, and they stop: the two never deadlock", async (context) => {
+  const home = await appsHome(context, { slug: "apps-starter-gone" });
+  const { knex, apps: capability, handles, options, workspaceId } = home;
+  // Contacts is published with audit_events held by another transaction, so publishing stops part way, just before its
+  // audit row (which names the home): its app and draft taken. The home's delete starts then, and the hold ends once the
+  // delete waits. Publishing took the app first and the home last, the delete the home first and the app after it, so
+  // the two deadlocked and PostgreSQL broke the delete off.
+  let held = null;
+  const starter = createStarterApps({
+    appSettings: handles.appSettings,
+    installTemplate: async (ctx, key) => {
+      const made = await capability.installTemplate(ctx, key);
+      if (!held) {
+        held = await knex.transaction();
+        await held.raw("LOCK TABLE audit_events IN SHARE MODE");
+      }
+      return made;
+    },
+    apps: capability.apps
+  });
+  const waitingOn = async (statement) => {
+    for (const until = Date.now() + 10_000; Date.now() < until;) {
+      const { rows: [row] } = await knex.raw(
+        "SELECT count(*)::int AS n FROM pg_stat_activity WHERE datname = current_database() AND wait_event_type = 'Lock' AND query ILIKE ?",
+        [`${statement}%`]
+      );
+      if (row.n) return;
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    }
+    assert.fail(`nothing waited on a lock running ${statement}`);
+  };
+  const adding = starter.ensure(options);
+  try {
+    await waitingOn('insert into "audit_events"');
+    // Started now (a query runs once it's asked for its result), and settled either way, for the assertion below.
+    const deleting = knex("workspaces").where({ id: workspaceId }).del().then((count) => ({ count }), (error) => ({ error: error.message }));
+    await waitingOn('delete from "workspaces"');
+    await held.commit();
+    assert.deepEqual(await deleting, { count: 1 }, "the home is deleted");
+  } finally {
+    if (held && !held.isCompleted()) await held.rollback();
+  }
+  await adding;
+  assert.deepEqual(await knex("apps").where({ workspace_id: workspaceId }).pluck("name"), [], "none of its apps is left");
+});
