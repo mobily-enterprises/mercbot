@@ -151,7 +151,7 @@ async function save() {
 <template>
   <v-dialog :model-value="open" max-width="560" @update:model-value="emit('update:open', $event)">
     <v-card v-if="table" rounded="lg" class="pa-4">
-      <div class="text-h6 mb-4">{{ record ? `Edit ${table.label}` : `New in ${table.label}` }}</div>
+      <div class="mb-4">{{ record ? `Edit ${table.label}` : `New in ${table.label}` }}</div>
       <template v-for="field in fields" :key="field.id">
         <!-- readable-check: allow selection-field - data: a choice field's options are part of its table's definition, which the dialog was given -->
         <v-select v-if="field.type === 'choice'" v-model="draft[field.id]" :items="field.options?.choices || []" :label="labelOf(field)" :error-messages="problemOf(field)" variant="outlined" density="comfortable" clearable />
@@ -193,20 +193,20 @@ async function save() {
         class="mb-2"
       />
       <section v-if="record && (relatedLoading || relatedFailed || related.length)" class="mb-4" data-testid="record-related">
-        <div class="text-subtitle-2 mb-2">Related</div>
+        <div class="mb-2">Related</div>
         <v-skeleton-loader v-if="relatedLoading" type="list-item@2" />
-        <p v-else-if="relatedFailed" class="d-flex align-center flex-wrap ga-2 text-body-2 text-on-surface-variant mb-0" role="alert">
+        <p v-else-if="relatedFailed" class="d-flex align-center flex-wrap ga-2 text-on-surface-variant mb-0" role="alert">
           The records linked to this one didn't load.
           <v-btn size="small" variant="text" @click="loadRelated(record)">Try again</v-btn>
         </p>
         <div v-for="group in related" v-else :key="group.field.id" class="mb-2">
-          <router-link :to="paths.page(`/apps/data/${group.table.key}`)" class="text-body-2">
+          <router-link :to="paths.page(`/apps/data/${group.table.key}`)">
             {{ group.table.label }}{{ related.filter((other) => other.table.id === group.table.id).length > 1 ? ` (${group.field.label})` : "" }}
           </router-link>
-          <span class="text-body-2 text-on-surface-variant"> · {{ group.total }}</span>
+          <span class="text-on-surface-variant"> · {{ group.total }}</span>
           <div class="d-flex flex-wrap ga-1 mt-1">
             <v-chip v-for="item in group.records" :key="item.id" size="small" variant="tonal">{{ titleOf(group, item) }}</v-chip>
-            <span v-if="group.total > group.records.length" class="text-caption text-on-surface-variant align-self-center">and {{ group.total - group.records.length }} more</span>
+            <span v-if="group.total > group.records.length" class="text-on-surface-variant align-self-center">and {{ group.total - group.records.length }} more</span>
           </div>
         </div>
       </section>

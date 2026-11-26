@@ -57,7 +57,7 @@ onMounted(load);
   <div>
     <v-alert v-if="problem" type="error" variant="tonal" density="compact" class="mb-3">{{ problem }}</v-alert>
     <v-skeleton-loader v-else-if="!scripts" type="list-item-two-line, list-item-two-line" />
-    <div v-else-if="!scripts.length" class="text-body-2 text-medium-emphasis">
+    <div v-else-if="!scripts.length" class="text-medium-emphasis">
       No scripts yet. When an app needs logic that formulas can't express (a ranking, a rule checked on every save, a nightly job, a call to another service), ask the Builder: it writes a script with tests.
     </div>
     <v-expansion-panels v-else v-model="open" variant="accordion" class="app-logic">
@@ -65,11 +65,11 @@ onMounted(load);
         <v-expansion-panel-title>
           <div class="d-flex flex-column ga-1">
             <div class="d-flex align-center ga-2">
-              <span class="text-body-1">{{ script.summary }}</span>
+              <span>{{ script.summary }}</span>
               <v-chip v-if="!script.enabled" size="x-small" variant="tonal" class="flex-shrink-0">Off</v-chip>
               <v-chip v-else-if="lastError(script) && !script.runs[0]?.ok" size="x-small" color="error" variant="tonal" class="flex-shrink-0">Failing</v-chip>
             </div>
-            <span class="text-caption text-medium-emphasis">{{ KIND[script.kind] }} · {{ script.key }} · {{ when(script) }} · version {{ script.version }}</span>
+            <span class="text-medium-emphasis">{{ KIND[script.kind] }} · {{ script.key }} · {{ when(script) }} · version {{ script.version }}</span>
           </div>
         </v-expansion-panel-title>
         <v-expansion-panel-text>
@@ -85,7 +85,7 @@ onMounted(load);
             </v-list-item>
           </v-list>
           <template v-else>
-            <div v-if="!script.runs.length" class="text-body-2 text-medium-emphasis">It hasn't run yet.</div>
+            <div v-if="!script.runs.length" class="text-medium-emphasis">It hasn't run yet.</div>
             <v-list v-else density="compact" class="pa-0">
               <v-list-item v-for="(run, index) in script.runs" :key="index" :title="`${run.ok ? 'OK' : 'Failed'} · ${whenText(run.at)}`" :subtitle="[`${run.ms} ms`, `${run.calls} call${run.calls === 1 ? '' : 's'}`, run.via?.kind, run.error].filter(Boolean).join(' · ')">
                 <template #prepend><v-icon :color="run.ok ? 'success' : 'error'" size="small" :icon="run.ok ? '$success' : '$error'" /></template>
@@ -93,7 +93,7 @@ onMounted(load);
               </v-list-item>
             </v-list>
           </template>
-          <div v-if="roundsOf(script.key).length" class="text-caption text-medium-emphasis mt-3">
+          <div v-if="roundsOf(script.key).length" class="text-medium-emphasis mt-3">
             Written by the Builder's coding loop: {{ roundsOf(script.key).slice().reverse().map((round) => `round ${round.round}: ${round.passed} passed, ${round.failed} failed`).join(" · ") }}
           </div>
           <div class="d-flex justify-end ga-2 mt-3">

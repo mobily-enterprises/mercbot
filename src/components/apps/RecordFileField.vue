@@ -28,7 +28,7 @@ const label = computed(() => props.field.label + (props.field.options?.required 
     <div v-if="current && !chosen" class="d-flex align-center ga-3 mb-2">
       <v-img v-if="picture" :src="href" :alt="current.name" width="72" height="72" cover rounded="lg" class="flex-grow-0 bg-surface-container-low" />
       <v-icon v-else icon="$attachFile" color="on-surface-variant" />
-      <div class="flex-grow-1 text-body-2 text-truncate">
+      <div class="flex-grow-1 text-truncate">
         <a :href="href" target="_blank" rel="noopener">{{ current.name }}</a>
         <div class="text-on-surface-variant">{{ field.label }} · {{ formatSize(current.size) }}</div>
       </div>

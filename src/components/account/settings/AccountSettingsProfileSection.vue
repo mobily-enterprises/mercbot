@@ -12,7 +12,7 @@ const profile = props.runtime.profile;
 <template>
   <v-sheet rounded="lg" color="surface-container-low">
     <header class="pa-4 pb-0">
-      <h2 class="text-h6 mb-0">Profile</h2>
+      <h2 class="mb-0">Profile</h2>
     </header>
     <div class="pa-4">
       <v-form @submit.prevent="profile.submit" novalidate>
@@ -20,9 +20,9 @@ const profile = props.runtime.profile;
           <v-col cols="12" md="4" class="d-flex flex-column align-center justify-center">
             <v-avatar :size="profile.avatar.size" color="surface-variant" rounded="circle" class="mb-3">
               <v-img v-if="profile.avatar.effectiveUrl" :src="profile.avatar.effectiveUrl" cover />
-              <span v-else class="text-h6">{{ profile.initials.value }}</span>
+              <span v-else>{{ profile.initials.value }}</span>
             </v-avatar>
-            <div class="text-caption text-medium-emphasis">Preview size: {{ profile.avatar.size }} px</div>
+            <div class="text-medium-emphasis">Preview size: {{ profile.avatar.size }} px</div>
           </v-col>
 
           <v-col cols="12" md="8">
@@ -48,7 +48,7 @@ const profile = props.runtime.profile;
               </v-btn>
             </div>
 
-            <div v-if="profile.selectedAvatarFileName.value" class="text-caption text-medium-emphasis mb-2">
+            <div v-if="profile.selectedAvatarFileName.value" class="text-medium-emphasis mb-2">
               Selected file: {{ profile.selectedAvatarFileName.value }}
             </div>
           </v-col>

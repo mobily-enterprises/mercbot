@@ -10,8 +10,8 @@ const state = ref("asking");
 
 <template>
   <section class="mb-field-removal" :aria-label="`Remove ${props.message.body.field}`">
-    <div class="text-caption text-medium-emphasis mb-1">Remove a field · {{ props.message.body.table }}</div>
-    <div v-if="state === 'kept'" class="text-body-2">Kept {{ props.message.body.field }}.</div>
+    <div class="text-medium-emphasis mb-1">Remove a field · {{ props.message.body.table }}</div>
+    <div v-if="state === 'kept'">Kept {{ props.message.body.field }}.</div>
     <FieldRemoval v-else :field-id="props.message.body.fieldId" @cancel="state = 'kept'" @done="state = 'removed'" />
   </section>
 </template>

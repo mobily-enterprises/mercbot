@@ -120,18 +120,18 @@ async function restore() {
 
     <div class="pa-4">
       <template v-if="tab === 'overview'">
-        <div class="text-body-2 text-medium-emphasis">Live version</div>
-        <div class="text-body-1 mb-3">{{ loaded.version && !loaded.version.draft ? `Version ${loaded.version.number}${loaded.version.summary ? ` · ${loaded.version.summary}` : ""}` : "Not published yet" }}</div>
+        <div class="text-medium-emphasis">Live version</div>
+        <div class="mb-3">{{ loaded.version && !loaded.version.draft ? `Version ${loaded.version.number}${loaded.version.summary ? ` · ${loaded.version.summary}` : ""}` : "Not published yet" }}</div>
         <template v-if="app.draftVersionId">
-          <div class="text-body-2 text-medium-emphasis">Draft</div>
-          <div class="text-body-1 mb-3"><router-link :to="paths.page(`/apps/${app.slug}?version=draft`)" replace>Preview the draft</router-link></div>
+          <div class="text-medium-emphasis">Draft</div>
+          <div class="mb-3"><router-link :to="paths.page(`/apps/${app.slug}?version=draft`)" replace>Preview the draft</router-link></div>
         </template>
-        <div class="text-body-2 text-medium-emphasis">Screens</div>
-        <div class="text-body-1 mb-4">{{ screens.length }}</div>
+        <div class="text-medium-emphasis">Screens</div>
+        <div class="mb-4">{{ screens.length }}</div>
 
         <v-divider class="mb-3" />
-        <div class="text-body-2 text-medium-emphasis">Look</div>
-        <div class="text-body-2 mb-2">The home's look (Apps → Look), with this app's own colour and spacing if you set them.</div>
+        <div class="text-medium-emphasis">Look</div>
+        <div class="mb-2">The home's look (Apps → Look), with this app's own colour and spacing if you set them.</div>
         <div class="d-flex flex-wrap ga-2 mb-2">
           <v-text-field v-model="look.color" label="Colour (e.g. #1E5BD8; empty: the home's)" variant="outlined" density="compact" hide-details class="flex-grow-1" :disabled="savingLook" />
           <v-select v-model="look.density" :items="[{ value: '', title: 'The home’s spacing' }, { value: 'comfortable', title: 'Comfortable' }, { value: 'compact', title: 'Compact' }]" label="Spacing" variant="outlined" density="compact" hide-details :disabled="savingLook" />
@@ -155,7 +155,7 @@ async function restore() {
 
       <template v-else-if="tab === 'data'">
         <v-skeleton-loader v-if="!tables && !problem" type="list-item-two-line" />
-        <div v-else-if="!tables?.length" class="text-medium-emphasis text-body-2">This app doesn't use any tables.</div>
+        <div v-else-if="!tables?.length" class="text-medium-emphasis">This app doesn't use any tables.</div>
         <v-list v-else density="compact" class="pa-0">
           <v-list-item v-for="table in tables" :key="table.id" :title="table.label" :subtitle="`${table.count ?? '—'} records`" :to="paths.page(`/apps/data/${table.key}`)" />
         </v-list>
@@ -163,7 +163,7 @@ async function restore() {
 
       <template v-else-if="tab === 'logic'">
         <div v-if="formulas.length" class="mb-4" data-testid="app-named-formulas">
-          <div class="text-subtitle-2 mb-1">Formulas</div>
+          <div class="mb-1">Formulas</div>
           <v-list density="compact" class="pa-0">
             <v-list-item v-for="[name, entry] in formulas" :key="name" :title="`${name}(${(entry.params || []).join(', ')})`" :subtitle="entry.formula" />
           </v-list>
@@ -187,15 +187,15 @@ async function restore() {
 
     <v-dialog :model-value="Boolean(source)" max-width="760" @update:model-value="source = null">
       <v-card v-if="source" rounded="lg" class="pa-4">
-        <div class="text-subtitle-1 mb-2">{{ source.key }}</div>
-        <pre class="app-details__source text-caption">{{ toYaml(source.screen) }}</pre>
+        <div class="mb-2">{{ source.key }}</div>
+        <pre class="app-details__source">{{ toYaml(source.screen) }}</pre>
         <div class="d-flex justify-end"><v-btn variant="text" @click="source = null">Close</v-btn></div>
       </v-card>
     </v-dialog>
 
     <v-dialog :model-value="Boolean(confirm)" max-width="440" @update:model-value="confirm = null">
       <v-card v-if="confirm" rounded="lg" class="pa-4">
-        <div class="text-body-1 mb-4">Restore version {{ confirm.number }}? It becomes a new live version; nothing is lost.</div>
+        <div class="mb-4">Restore version {{ confirm.number }}? It becomes a new live version; nothing is lost.</div>
         <div class="d-flex justify-end ga-2">
           <v-btn variant="text" @click="confirm = null">Cancel</v-btn>
           <v-btn color="primary" variant="flat" :disabled="restoring" @click="restore">{{ restoring ? "Restoring…" : "Restore" }}</v-btn>

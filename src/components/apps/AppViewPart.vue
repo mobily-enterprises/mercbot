@@ -37,7 +37,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <v-card v-if="gone || (node.screen && !copy)" flat class="pa-4 text-body-2 text-medium-emphasis">This view isn't available here.</v-card>
+  <v-card v-if="gone || (node.screen && !copy)" flat class="pa-4 text-medium-emphasis">This view isn't available here.</v-card>
   <AppViewBody v-else-if="source" :key="JSON.stringify(params)" v-bind="source" :params="params" :path="`${path}/view/`" />
   <v-skeleton-loader v-else type="table-tbody" />
 </template>

@@ -184,7 +184,7 @@ const titleOf = (record) => (record ? String(record[table.value?.titleFieldId] ?
   <div class="apps-table">
     <header class="apps-table__bar">
       <ShellUpButton />
-      <span class="text-subtitle-1 font-weight-medium">{{ table?.label }}</span>
+      <span class="font-weight-medium">{{ table?.label }}</span>
       <v-spacer />
       <v-btn variant="text" :disabled="!table" @click="Object.assign(fieldsDialog, { open: true, removing: null })">Fields</v-btn>
       <v-btn variant="text" :disabled="!table" prepend-icon="$uploadArrow" @click="openImport">Import</v-btn>
@@ -206,13 +206,13 @@ const titleOf = (record) => (record ? String(record[table.value?.titleFieldId] ?
         <v-text-field v-model="search" label="Search" density="comfortable" variant="outlined" hide-details clearable class="apps-table__search" />
         <v-switch v-model="showObsolete" label="Show obsolete" color="primary" inset hide-details />
       </div>
-      <div v-if="links.length" class="d-flex flex-wrap align-center ga-4 mb-3 text-body-2" data-testid="apps-table-links">
+      <div v-if="links.length" class="d-flex flex-wrap align-center ga-4 mb-3" data-testid="apps-table-links">
         <span v-for="[label, list] in links" :key="label" class="d-inline-flex flex-wrap align-center ga-1">
           <span class="text-on-surface-variant">{{ label }}</span>
           <v-chip v-for="linked in list" :key="linked.id" :to="paths.page(`/apps/data/${linked.key}`)" size="small" variant="tonal">{{ linked.label }}</v-chip>
         </span>
       </div>
-      <p v-if="calculated.length" class="text-body-2 text-medium-emphasis mb-3" data-testid="apps-table-calculated-note">
+      <p v-if="calculated.length" class="text-medium-emphasis mb-3" data-testid="apps-table-calculated-note">
         Search and sorting leave out {{ calculatedNames }}: {{ calculated.length === 1 ? "it's" : "they're" }} calculated each time a record is shown, not stored.
       </p>
       <v-card flat>
@@ -265,14 +265,14 @@ const titleOf = (record) => (record ? String(record[table.value?.titleFieldId] ?
       <v-card rounded="lg" class="pa-4">
         <FieldRemoval v-if="fieldsDialog.removing" :key="fieldsDialog.removing" :field-id="fieldsDialog.removing" @cancel="fieldsDialog.removing = null" @done="() => { notify('Field removed.'); load(); }" />
         <template v-else>
-          <div class="text-subtitle-1 mb-2">Fields of {{ table?.label }}</div>
-          <div class="text-body-2 text-medium-emphasis mb-3">Ask the Builder to add or rename fields. Removing one keeps its data.</div>
+          <div class="mb-2">Fields of {{ table?.label }}</div>
+          <div class="text-medium-emphasis mb-3">Ask the Builder to add or rename fields. Removing one keeps its data.</div>
           <v-list density="compact" class="pa-0">
             <v-list-item v-for="field in fields" :key="field.id" :title="field.label" :subtitle="`${field.key} · ${field.type}${isCalculated(field) ? ` · calculated: ${field.options.formula}` : ''}`">
               <template #append><v-btn size="small" variant="text" color="error" @click="fieldsDialog.removing = field.id">Remove…</v-btn></template>
             </v-list-item>
           </v-list>
-          <div v-if="calculated.length" class="text-body-2 text-medium-emphasis mt-2" data-testid="apps-fields-calculated-note">
+          <div v-if="calculated.length" class="text-medium-emphasis mt-2" data-testid="apps-fields-calculated-note">
             Calculated fields aren't stored, so lists can't be filtered, sorted or grouped by them. If you need that, ask the Builder for a stored field instead.
           </div>
           <div class="d-flex justify-end"><v-btn variant="text" @click="fieldsDialog.open = false">Close</v-btn></div>
@@ -282,15 +282,15 @@ const titleOf = (record) => (record ? String(record[table.value?.titleFieldId] ?
 
     <v-dialog v-model="importing.open" max-width="560" :persistent="importing.busy">
       <v-card rounded="lg" class="pa-4">
-        <div class="text-subtitle-1 mb-2">Import into {{ table?.label }}</div>
-        <div class="text-body-2 text-medium-emphasis mb-4">
+        <div class="mb-2">Import into {{ table?.label }}</div>
+        <div class="text-medium-emphasis mb-4">
           A .csv or .xlsx file whose first row names the fields. Each row becomes a new record. If any row has a problem, nothing is added.
         </div>
         <v-file-input :model-value="importing.file" accept=".csv,.xlsx" label="File" density="comfortable" variant="outlined" prepend-icon="" prepend-inner-icon="$uploadArrow" hide-details :disabled="importing.busy" @update:model-value="readFile" />
         <template v-if="importing.match && !importing.problem">
-          <div class="text-body-2 mt-4">{{ importing.rows.length }} row{{ importing.rows.length === 1 ? "" : "s" }}. Filling: {{ usedColumns.join(", ") }}.</div>
-          <div v-if="importing.match.ignored.length" class="text-body-2 text-medium-emphasis mt-1">Not used (no field with that name): {{ importing.match.ignored.join(", ") }}.</div>
-          <div v-if="importing.match.calculated.length" class="text-body-2 text-medium-emphasis mt-1">Not used (calculated, worked out again): {{ importing.match.calculated.join(", ") }}.</div>
+          <div class="mt-4">{{ importing.rows.length }} row{{ importing.rows.length === 1 ? "" : "s" }}. Filling: {{ usedColumns.join(", ") }}.</div>
+          <div v-if="importing.match.ignored.length" class="text-medium-emphasis mt-1">Not used (no field with that name): {{ importing.match.ignored.join(", ") }}.</div>
+          <div v-if="importing.match.calculated.length" class="text-medium-emphasis mt-1">Not used (calculated, worked out again): {{ importing.match.calculated.join(", ") }}.</div>
           <v-alert v-if="importing.match.missing.length" type="warning" variant="tonal" density="compact" class="mt-3">
             Required, but no column: {{ importing.match.missing.map((field) => field.label).join(", ") }}.
           </v-alert>
@@ -298,7 +298,7 @@ const titleOf = (record) => (record ? String(record[table.value?.titleFieldId] ?
         <v-alert v-if="importing.problem" type="error" variant="tonal" density="compact" class="mt-3">{{ importing.problem }}</v-alert>
         <v-alert v-if="importing.errors.length" type="error" variant="tonal" density="compact" class="mt-3">
           <div class="mb-1">{{ importing.problem ? "" : "Nothing was imported. " }}Fix these rows and try again:</div>
-          <div v-for="error in importing.errors" :key="`${error.row}-${error.message}`" class="text-body-2">Row {{ error.row }}: {{ error.message }}</div>
+          <div v-for="error in importing.errors" :key="`${error.row}-${error.message}`">Row {{ error.row }}: {{ error.message }}</div>
         </v-alert>
         <div class="d-flex justify-end ga-2 mt-4">
           <v-btn variant="text" :disabled="importing.busy" @click="importing.open = false">Cancel</v-btn>
@@ -311,13 +311,13 @@ const titleOf = (record) => (record ? String(record[table.value?.titleFieldId] ?
 
     <v-navigation-drawer v-model="history.open" location="right" temporary width="420">
       <div class="pa-4">
-        <div class="text-subtitle-1 mb-3">History of {{ titleOf(history.record) }}</div>
+        <div class="mb-3">History of {{ titleOf(history.record) }}</div>
         <v-skeleton-loader v-if="history.loading" type="list-item-two-line@3" />
-        <div v-else-if="!history.events.length" class="text-medium-emphasis text-body-2">No changes recorded.</div>
+        <div v-else-if="!history.events.length" class="text-medium-emphasis">No changes recorded.</div>
         <v-card v-for="event in history.events" :key="event.id" flat class="pa-3 mb-2">
-          <div class="text-body-2"><strong>{{ actorName(event.actor) }}</strong> {{ what[event.action] || event.action }}</div>
-          <div class="text-caption text-medium-emphasis">{{ when(event.at) }}</div>
-          <div v-for="(pair, fieldId) in event.changes" :key="fieldId" class="text-body-2">
+          <div><strong>{{ actorName(event.actor) }}</strong> {{ what[event.action] || event.action }}</div>
+          <div class="text-medium-emphasis">{{ when(event.at) }}</div>
+          <div v-for="(pair, fieldId) in event.changes" :key="fieldId">
             {{ fieldById(fieldId)?.label || "A removed field" }}:
             <span v-if="event.action === 'update'" class="text-medium-emphasis">{{ showValue(fieldById(fieldId), pair[0]) }} → </span>{{ showValue(fieldById(fieldId), pair[1]) }}
           </div>

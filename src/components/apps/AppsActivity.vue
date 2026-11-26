@@ -122,14 +122,14 @@ const showChanges = (event) => ["create", "update"].includes(event.action);
     <template v-if="loading && !events.length">
       <v-skeleton-loader v-for="index in 4" :key="index" type="list-item-two-line" />
     </template>
-    <div v-else-if="!events.length" class="text-medium-emphasis text-body-2">No changes yet.</div>
+    <div v-else-if="!events.length" class="text-medium-emphasis">No changes yet.</div>
     <v-card v-for="event in events" :key="event.id" flat class="pa-3">
-      <div class="text-body-2">
+      <div>
         <strong>{{ who(event) }}</strong> {{ summary(event) }}
       </div>
-      <div class="text-caption text-medium-emphasis">{{ where(event) }}<template v-if="where(event)"> · </template>{{ when(event.at) }}</div>
+      <div class="text-medium-emphasis">{{ where(event) }}<template v-if="where(event)"> · </template>{{ when(event.at) }}</div>
       <div v-if="showChanges(event)" class="mt-1">
-        <div v-for="change in changes(event)" :key="change.label" class="text-body-2">
+        <div v-for="change in changes(event)" :key="change.label">
           {{ change.label }}: <span v-if="event.action === 'update'" class="text-medium-emphasis">{{ change.before }} → </span>{{ change.after }}
         </div>
       </div>

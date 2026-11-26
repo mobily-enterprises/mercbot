@@ -20,7 +20,7 @@ const preferences = props.runtime.preferences;
 <template>
   <v-sheet rounded="lg" color="surface-container-low">
     <header class="pa-4 pb-0">
-      <h2 class="text-h6 mb-0">Preferences</h2>
+      <h2 class="mb-0">Preferences</h2>
     </header>
     <div class="pa-4">
       <v-form @submit.prevent="preferences.submit" novalidate>

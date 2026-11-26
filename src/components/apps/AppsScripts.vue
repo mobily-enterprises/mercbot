@@ -56,7 +56,7 @@ onMounted(load);
           </thead>
           <tbody>
             <tr v-for="script in scripts" :key="script.id">
-              <td><div class="text-body-2">{{ script.summary }}</div><div class="text-caption text-medium-emphasis">{{ script.key }}</div></td>
+              <td><div>{{ script.summary }}</div><div class="text-medium-emphasis">{{ script.key }}</div></td>
               <td><router-link :to="paths.page(`/apps/${script.app.slug}`)">{{ script.app.name }}</router-link></td>
               <td>{{ KIND[script.kind] }}</td>
               <td>
@@ -68,10 +68,10 @@ onMounted(load);
           </tbody>
         </v-table>
       </v-card>
-      <div v-else class="text-body-2 text-medium-emphasis mb-6">No scripts yet. Ask the Builder for logic that formulas can't express: it writes scripts with tests, and you'll find them here and in each app's Logic tab.</div>
+      <div v-else class="text-medium-emphasis mb-6">No scripts yet. Ask the Builder for logic that formulas can't express: it writes scripts with tests, and you'll find them here and in each app's Logic tab.</div>
 
-      <div class="text-subtitle-1 mb-1">Web addresses scripts may call</div>
-      <div class="text-body-2 text-medium-emphasis mb-3">Only https addresses on this list, never private networks. A secret header, such as an API key, is added by Mercbot when a script calls; scripts never see it, and it isn't shown again here.</div>
+      <div class="mb-1">Web addresses scripts may call</div>
+      <div class="text-medium-emphasis mb-3">Only https addresses on this list, never private networks. A secret header, such as an API key, is added by Mercbot when a script calls; scripts never see it, and it isn't shown again here.</div>
       <v-card v-for="(entry, index) in entries" :key="index" flat class="pa-3 mb-3">
         <div class="d-flex ga-2 align-center">
           <v-text-field v-model="entry.origin" label="Address (e.g. https://api.example.com)" variant="outlined" density="compact" hide-details :disabled="!canManage" />
@@ -84,12 +84,12 @@ onMounted(load);
         </div>
         <v-btn v-if="canManage" variant="text" size="small" class="mt-2" @click="entry.headers.push({ name: '', value: '', kept: false })">Add a secret header</v-btn>
       </v-card>
-      <div v-if="!entries.length" class="text-body-2 text-medium-emphasis mb-3">None yet: scripts can't call outside services.</div>
+      <div v-if="!entries.length" class="text-medium-emphasis mb-3">None yet: scripts can't call outside services.</div>
       <div v-if="canManage" class="d-flex ga-2">
         <v-btn variant="text" @click="entries.push({ origin: '', headers: [] })">Add an address</v-btn>
         <v-btn color="primary" variant="flat" :disabled="saving" @click="save">{{ saving ? "Saving…" : "Save" }}</v-btn>
       </div>
-      <div v-else class="text-body-2 text-medium-emphasis">Only the home's owners and admins can change this list.</div>
+      <div v-else class="text-medium-emphasis">Only the home's owners and admins can change this list.</div>
     </template>
   </div>
 </template>

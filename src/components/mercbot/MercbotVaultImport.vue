@@ -82,8 +82,8 @@ async function run() {
 <template>
   <v-dialog v-model="open" max-width="640" scrim="scrim" :opacity="0.5" :persistent="busy">
     <v-card rounded="lg" class="mb-import pa-4" aria-label="Import from a CSV file">
-      <div class="text-subtitle-1 mb-2">Import from a CSV file</div>
-      <div class="text-body-2 text-medium-emphasis mb-4">
+      <div class="mb-2">Import from a CSV file</div>
+      <div class="text-medium-emphasis mb-4">
         A .csv file whose first row names the columns, such as one exported from a password manager, a browser or an address book.
         It's read here, in your browser: only what you import is sent, and passwords and card details are sealed like items you add by hand.
       </div>
@@ -102,16 +102,16 @@ async function run() {
 
       <template v-if="rows.length">
         <div class="mb-import__kinds mt-4">
-          <span class="text-body-2">The rows are</span>
+          <span>The rows are</span>
           <v-btn-toggle :model-value="kind" mandatory density="compact" :disabled="busy" aria-label="What the rows are" @update:model-value="chooseKind">
             <v-btn v-for="(title, value) in KIND_TITLES" :key="value" :value="value" size="small">{{ title }}</v-btn>
           </v-btn-toggle>
         </div>
 
-        <div class="text-body-2 mt-4 mb-2">Which column fills each detail:</div>
+        <div class="mt-4 mb-2">Which column fills each detail:</div>
         <div class="mb-import__columns">
           <label v-for="field in fields" :key="field" class="mb-import__column">
-            <span class="text-caption text-medium-emphasis">{{ FIELD_TITLES[field] }}</span>
+            <span class="text-medium-emphasis">{{ FIELD_TITLES[field] }}</span>
             <select v-model="columns[field]" :disabled="busy">
               <option :value="-1">Not used</option>
               <option v-for="(name, index) in header" :key="index" :value="index">{{ name }}</option>
@@ -119,7 +119,7 @@ async function run() {
           </label>
         </div>
 
-        <div class="text-body-2 mt-4">
+        <div class="mt-4">
           {{ plural(result.items.length, "item") }} will be added<template v-if="result.skipped.length">; {{ plural(result.skipped.length, "row") }} can't be</template>.
         </div>
         <v-table v-if="result.items.length && shownFields.length" density="compact" class="mb-import__preview mt-2">
@@ -136,10 +136,10 @@ async function run() {
             </tr>
           </tbody>
         </v-table>
-        <div v-if="result.items.length > 5" class="text-caption text-medium-emphasis mt-1">The first 5 of {{ plural(result.items.length, "item") }}. Hidden values are saved as they are in the file.</div>
+        <div v-if="result.items.length > 5" class="text-medium-emphasis mt-1">The first 5 of {{ plural(result.items.length, "item") }}. Hidden values are saved as they are in the file.</div>
         <v-alert v-if="result.skipped.length" type="warning" variant="tonal" density="compact" class="mt-3">
-          <div v-for="entry in result.skipped.slice(0, 5)" :key="entry.row" class="text-body-2">Row {{ entry.row }}: {{ entry.problem }}</div>
-          <div v-if="result.skipped.length > 5" class="text-body-2">And {{ plural(result.skipped.length - 5, "more row") }}.</div>
+          <div v-for="entry in result.skipped.slice(0, 5)" :key="entry.row">Row {{ entry.row }}: {{ entry.problem }}</div>
+          <div v-if="result.skipped.length > 5">And {{ plural(result.skipped.length - 5, "more row") }}.</div>
         </v-alert>
       </template>
 

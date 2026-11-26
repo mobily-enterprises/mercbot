@@ -26,7 +26,7 @@ useEscapeToClose(() => emit("close"));
     </v-theme-provider>
     <div class="mb-view-viewer__body" @click.self="emit('close')">
       <div class="mb-view-viewer__sheet">
-        <p v-if="missing" class="text-body-1 mb-0">This view was retired.</p>
+        <p v-if="missing" class="mb-0">This view was retired.</p>
         <ViewSurface v-else :slug="slug" :reloads="reloads" @loaded="loaded = $event" @missing="missing = true" />
       </div>
     </div>

@@ -80,7 +80,7 @@ async function retire() {
 
     <v-dialog :model-value="Boolean(versions)" max-width="480" @update:model-value="versions = null">
       <v-card v-if="versions" class="pa-4">
-        <div class="text-h6 mb-2">Versions of {{ app.name }}</div>
+        <div class="mb-2">Versions of {{ app.name }}</div>
         <v-list density="compact">
           <v-list-item v-for="version in versions" :key="version.id" :title="`Version ${version.number}${version.live ? ' (showing)' : ''}`" :subtitle="`${version.summary || ''} · ${actorName(version.by)} · ${when(version.publishedAt)}`">
             <template #append>
@@ -94,8 +94,8 @@ async function retire() {
 
     <v-dialog v-model="confirmRetire" max-width="420">
       <v-card class="pa-4">
-        <div class="text-h6 mb-2">Retire {{ app.name }}?</div>
-        <div class="text-body-2 mb-4">It leaves the Apps area, search and the pins, and apps can't use it. Nothing is deleted: it and its versions are kept.</div>
+        <div class="mb-2">Retire {{ app.name }}?</div>
+        <div class="mb-4">It leaves the Apps area, search and the pins, and apps can't use it. Nothing is deleted: it and its versions are kept.</div>
         <div class="d-flex justify-end ga-2">
           <v-btn variant="text" @click="confirmRetire = false">Keep it</v-btn>
           <v-btn color="primary" variant="flat" @click="retire">Retire</v-btn>

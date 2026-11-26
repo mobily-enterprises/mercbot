@@ -43,16 +43,16 @@ async function remove() {
   <div class="field-removal">
     <v-skeleton-loader v-if="!impact && !problem" type="paragraph" />
     <template v-else-if="impact">
-      <div class="text-body-1 mb-2">Remove <strong>{{ impact.field.label }}</strong> from {{ impact.table.label }}?</div>
+      <div class="mb-2">Remove <strong>{{ impact.field.label }}</strong> from {{ impact.table.label }}?</div>
       <template v-if="result">
-        <div class="text-body-2">Removed. {{ result.affected.length ? `Updated ${result.affected.length} app version${result.affected.length === 1 ? "" : "s"}.` : "No app used it." }} The data is kept.</div>
+        <div>Removed. {{ result.affected.length ? `Updated ${result.affected.length} app version${result.affected.length === 1 ? "" : "s"}.` : "No app used it." }} The data is kept.</div>
       </template>
       <template v-else-if="impact.field.obsolete">
-        <div class="text-body-2 text-medium-emphasis">This field has already been removed.</div>
+        <div class="text-medium-emphasis">This field has already been removed.</div>
       </template>
       <template v-else>
-        <div v-if="!impact.uses.length" class="text-body-2 mb-2">No app uses it.</div>
-        <ul v-else class="text-body-2 mb-2 field-removal__list">
+        <div v-if="!impact.uses.length" class="mb-2">No app uses it.</div>
+        <ul v-else class="mb-2 field-removal__list">
           <li v-for="use in impact.uses" :key="use.slug + use.version">{{ describe(use) }}</li>
         </ul>
         <v-alert v-if="impact.calculated?.length" type="warning" variant="tonal" density="compact" class="mb-2">
@@ -63,7 +63,7 @@ async function remove() {
             {{ use.app }} › {{ entry.screen }}: the list “{{ entry.query }}” filters on {{ impact.field.label }}. Without that condition, it will show more records.
           </v-alert>
         </template>
-        <div class="text-body-2 text-medium-emphasis mb-3">The data is kept, and every changed app gets a new version you can restore.</div>
+        <div class="text-medium-emphasis mb-3">The data is kept, and every changed app gets a new version you can restore.</div>
         <div class="d-flex justify-end ga-2">
           <v-btn variant="text" @click="emit('cancel')">Keep it</v-btn>
           <v-btn color="error" variant="flat" :disabled="removing" @click="remove">{{ removing ? "Removing…" : "Remove everywhere" }}</v-btn>

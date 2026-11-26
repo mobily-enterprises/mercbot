@@ -64,8 +64,8 @@ async function save() {
   <v-skeleton-loader v-if="loading" type="article, actions" />
   <div v-else class="apps-look">
     <div class="apps-look__form">
-      <div class="text-body-2 text-medium-emphasis mb-3">How this home's apps look, inside Mercbot and on public pages. {{ canManage ? "" : "Only the home's owners and admins can change it." }}</div>
-      <div class="text-body-2 mb-1">Colour</div>
+      <div class="text-medium-emphasis mb-3">How this home's apps look, inside Mercbot and on public pages. {{ canManage ? "" : "Only the home's owners and admins can change it." }}</div>
+      <div class="mb-1">Colour</div>
       <div class="d-flex flex-wrap align-center ga-2 mb-2">
         <v-btn v-for="swatch in APP_SWATCHES" :key="swatch" :color="swatch" icon size="small" :disabled="!canManage" :aria-label="`Use ${swatch}`" :variant="draft.color === swatch ? 'elevated' : 'flat'" @click="draft.color = swatch" />
         <v-text-field v-model="draft.color" label="Or a colour code" variant="outlined" density="compact" hide-details :disabled="!canManage" class="apps-look__code" />
@@ -82,19 +82,19 @@ async function save() {
         <v-file-input accept="image/png,image/jpeg,image/webp" label="Logo (PNG, JPEG or WebP, up to 200 KB)" variant="outlined" density="comfortable" hide-details prepend-icon="" :disabled="!canManage" @update:model-value="pickLogo" />
         <v-btn v-if="draft.logo" variant="text" size="small" :disabled="!canManage" @click="draft.logo = null">Remove logo</v-btn>
       </div>
-      <div v-for="problem in problems" :key="problem" class="text-body-2 text-error mb-1">{{ problem }}</div>
+      <div v-for="problem in problems" :key="problem" class="text-error mb-1">{{ problem }}</div>
       <div v-if="canManage" class="d-flex justify-end mt-2">
         <v-btn color="primary" variant="flat" :disabled="saving || !changed || problems.length > 0" @click="save">{{ saving ? "Saving…" : "Save" }}</v-btn>
       </div>
     </div>
 
     <div class="apps-look__preview">
-      <div class="text-body-2 text-medium-emphasis mb-2">Preview</div>
+      <div class="text-medium-emphasis mb-2">Preview</div>
       <AppTheme :theme="{ ...draft }">
         <v-sheet color="surface-container-low" rounded="lg" class="pa-4">
           <div class="d-flex align-center ga-3 mb-4">
             <v-img v-if="draft.logo" :src="draft.logo" alt="" width="32" height="32" max-width="32" contain />
-            <span class="text-h6">Your app</span>
+            <span>Your app</span>
           </div>
           <v-text-field label="Name" variant="outlined" class="mb-2" />
           <div class="d-flex ga-2 mb-4">

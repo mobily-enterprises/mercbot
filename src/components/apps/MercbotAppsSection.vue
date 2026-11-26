@@ -29,8 +29,8 @@ async function remove(watch) {
     <p class="mb-details__section">Watches</p>
     <div v-for="watch in watches" :key="watch.id" class="mb-watch" :data-watch="watch.name">
       <div class="mb-watch__text">
-        <div class="text-body-2">{{ watch.name }}</div>
-        <div class="text-caption text-medium-emphasis">{{ WHEN[watch.on] }} in {{ watch.table }}{{ watch.condition ? ` when ${watch.condition.slice(1)}` : "" }}</div>
+        <div>{{ watch.name }}</div>
+        <div class="text-medium-emphasis">{{ WHEN[watch.on] }} in {{ watch.table }}{{ watch.condition ? ` when ${watch.condition.slice(1)}` : "" }}</div>
       </div>
       <v-switch
         :model-value="watch.enabled"

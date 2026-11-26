@@ -167,35 +167,35 @@ const tabKey = computed(() => props.path);
     </v-card>
 
     <div v-else-if="node.type === 'field'" class="py-2">
-      <div class="text-caption text-medium-emphasis">{{ value(node.label) }}</div>
+      <div class="text-medium-emphasis">{{ value(node.label) }}</div>
       <v-skeleton-loader v-if="fieldSource && isLoading(fieldSource.name)" type="text" width="180" />
-      <div v-else class="text-body-1">{{ shown(node.value, scope, fieldSource?.record, fieldSource?.table) }}</div>
+      <div v-else>{{ shown(node.value, scope, fieldSource?.record, fieldSource?.table) }}</div>
     </div>
 
     <AppForm v-else-if="node.type === 'form'" :node="node" :path="path" :scope="scope" />
 
     <v-card v-else-if="node.type === 'totals'" flat class="pa-4">
-      <div class="text-subtitle-1 mb-3">{{ value(node.label) }}</div>
+      <div class="mb-3">{{ value(node.label) }}</div>
       <template v-if="isLoading(queryName)">
         <v-skeleton-loader v-for="index in 3" :key="index" type="text" />
       </template>
-      <div v-else-if="!rows.length" class="text-medium-emphasis text-body-2">Nothing to count yet.</div>
+      <div v-else-if="!rows.length" class="text-medium-emphasis">Nothing to count yet.</div>
       <div v-for="item in rows" v-else :key="String(item.key)" class="mb-3">
-        <div class="d-flex justify-space-between text-body-2">
+        <div class="d-flex justify-space-between">
           <span>{{ groupLabel(groupField, item) }} <span class="text-medium-emphasis">· {{ item.count }}</span></span>
           <strong>{{ totalText(item) }}</strong>
         </div>
         <v-progress-linear :model-value="(Math.abs(item.total ?? item.count) / maxTotal) * 100" color="primary" rounded height="6" />
       </div>
-      <div v-if="grandTotalText && !isLoading(queryName)" class="d-flex justify-space-between text-body-2 mt-2"><span>Total</span><strong>{{ grandTotalText }}</strong></div>
+      <div v-if="grandTotalText && !isLoading(queryName)" class="d-flex justify-space-between mt-2"><span>Total</span><strong>{{ grandTotalText }}</strong></div>
     </v-card>
 
     <v-card v-else-if="node.type === 'chart'" flat class="pa-4">
-      <div v-if="node.label" class="text-subtitle-1 mb-3">{{ value(node.label) }}</div>
+      <div v-if="node.label" class="mb-3">{{ value(node.label) }}</div>
       <v-skeleton-loader v-if="isLoading(queryName)" type="image" height="260" />
-      <div v-else-if="!rows.length" class="text-medium-emphasis text-body-2">No data yet.</div>
+      <div v-else-if="!rows.length" class="text-medium-emphasis">No data yet.</div>
       <AppChart v-else :kind="node.kind || 'bar'" :label="String(value(node.label) ?? '')" :rows="rows" :field="groupField" :measure-field="measureField" :measure="node.measure || 'count'" />
-      <div v-if="grandTotalText && !isLoading(queryName)" class="d-flex justify-space-between text-body-2 mt-2"><span>Total</span><strong>{{ grandTotalText }}</strong></div>
+      <div v-if="grandTotalText && !isLoading(queryName)" class="d-flex justify-space-between mt-2"><span>Total</span><strong>{{ grandTotalText }}</strong></div>
     </v-card>
 
     <AppViewPart v-else-if="node.type === 'view'" :node="node" :path="path" :scope="scope" />
@@ -215,7 +215,7 @@ const tabKey = computed(() => props.path);
 
     <v-dialog v-else-if="node.type === 'dialog'" v-model="runtime.dialogs[`dialog:${node.key}`]" max-width="560" :attach="appArea || undefined" :class="classes">
       <v-card rounded="lg" class="pa-4">
-        <div v-if="node.title" class="text-h6 mb-3">{{ value(node.title) }}</div>
+        <div v-if="node.title" class="mb-3">{{ value(node.title) }}</div>
         <div class="d-flex flex-column ga-4">
           <AppNode v-for="(child, index) in node.content" :key="index" :node="child" :path="`${path}/content/${index}`" :scope="scope" />
         </div>

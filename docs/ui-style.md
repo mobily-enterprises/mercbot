@@ -48,7 +48,8 @@ in a UI pass.
   the page's plain text: the scheme's class declares the two variables again on `<v-app>` and on each overlay.
 - **Sizes in px, on this scale only**, set in a component's own CSS or with the scale's classes in
   `src/styles/mercbot.css` (`.mb-text-11`, `-12`, `-13`, `-14`, `-15`, `-18`, `-22`, and `.mb-text-strong` for 600).
-  No Material type classes (`text-body-small`, `text-title-large`, `text-h*`, ...):
+  No Material type classes (`text-body-small`, `text-title-large`, ...), and none of Vuetify 2's (`text-h6`,
+  `text-subtitle-1`, `text-body-2`, `text-caption`, ...), which Vuetify 4 doesn't define, so they do nothing:
   - 11px: the smallest labels (badges, counts) [14].
   - 12px: secondary text, captions, tooltips, hints, section titles [122]; 16 to 18px line height.
   - 13px: ordinary UI text, buttons, rows [213]; with 18px line height.

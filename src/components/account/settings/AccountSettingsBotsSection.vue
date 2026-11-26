@@ -61,11 +61,11 @@ async function saveEdit() {
   <v-sheet rounded="lg" color="surface-container-low">
     <!-- Inside the Settings window the group label above already names it. -->
     <header v-if="!embedded" class="pa-4 pb-0">
-      <h2 class="text-h6 mb-0">Bots</h2>
+      <h2 class="mb-0">Bots</h2>
     </header>
     <div class="pa-4">
       <div v-if="!policy && !failed" class="mb-bots-skeleton" aria-hidden="true" />
-      <p v-else-if="!policy" class="text-body-2 text-error">Your bot settings couldn't load. Reload the page to try again.</p>
+      <p v-else-if="!policy" class="text-error">Your bot settings couldn't load. Reload the page to try again.</p>
       <template v-else>
         <div class="mb-bots-row">
           <div>
@@ -169,7 +169,7 @@ async function saveEdit() {
         </div>
 
         <p class="mb-bots-note">These rules are yours alone. Mercbot's own safety checks always apply on top.</p>
-        <p v-if="failed" class="text-body-2 text-error">That didn't save. Try again.</p>
+        <p v-if="failed" class="text-error">That didn't save. Try again.</p>
       </template>
     </div>
   </v-sheet>

@@ -135,8 +135,8 @@ async function chooseBuilder() {
           <v-skeleton-loader v-for="index in 4" :key="index" type="card" height="140" />
         </div>
         <v-card v-else-if="!state.apps.length" flat class="pa-6">
-          <div class="text-body-1 mb-2">No apps yet.</div>
-          <div class="text-body-2 text-medium-emphasis mb-4">Describe the app you want to {{ state.builder ? state.builder.name : "your Builder" }}, and it will make it for you.</div>
+          <div class="mb-2">No apps yet.</div>
+          <div class="text-medium-emphasis mb-4">Describe the app you want to {{ state.builder ? state.builder.name : "your Builder" }}, and it will make it for you.</div>
           <v-btn color="primary" variant="flat" prepend-icon="$add" @click="newApp">New app</v-btn>
         </v-card>
         <v-chip-group v-if="(state.apps.length && hasViews) || state.retired.length" v-model="showing" mandatory class="mb-2" aria-label="Show">
@@ -148,7 +148,7 @@ async function chooseBuilder() {
         <div v-if="showing === 'retired'" class="apps-home__grid">
           <v-card v-for="view in state.retired" :key="view.view" flat class="pa-4 apps-home__tile">
             <v-avatar :color="view.color" size="44" rounded="lg"><v-icon :icon="ICON_PATHS[view.icon] || ICON_PATHS.apps" color="white" /></v-avatar>
-            <div class="text-subtitle-1 font-weight-medium mt-3">{{ view.title }}</div>
+            <div class="font-weight-medium mt-3">{{ view.title }}</div>
             <div class="d-flex align-center flex-wrap ga-2 mt-1">
               <v-chip size="x-small" variant="tonal">Retired</v-chip>
               <v-spacer />
@@ -178,12 +178,12 @@ async function chooseBuilder() {
                 </v-list>
               </v-menu>
             </div>
-            <div class="text-subtitle-1 font-weight-medium mt-3">{{ app.name }}</div>
+            <div class="font-weight-medium mt-3">{{ app.name }}</div>
             <div class="d-flex align-center flex-wrap ga-2 mt-1">
               <v-chip size="x-small" variant="tonal">{{ app.kind === "view" ? "View" : app.visibility === "public" ? "Public" : "Internal" }}</v-chip>
               <v-chip v-if="app.draftVersionId" size="x-small" variant="tonal" color="primary">Draft</v-chip>
               <v-chip v-if="!app.liveVersionId && app.kind !== 'view'" size="x-small" variant="tonal" color="warning">Not published</v-chip>
-              <span class="text-caption text-medium-emphasis">{{ changed(app.updatedAt) }}</span>
+              <span class="text-medium-emphasis">{{ changed(app.updatedAt) }}</span>
             </div>
           </v-card>
         </div>
@@ -219,8 +219,8 @@ async function chooseBuilder() {
 
     <v-dialog v-model="picker.open" max-width="440">
       <v-card rounded="lg" class="pa-4">
-        <div class="text-h6 mb-2">Choose a Builder</div>
-        <div class="text-body-2 text-medium-emphasis mb-4">One of your bots builds the apps of this home. You can move the role to another bot later.</div>
+        <div class="mb-2">Choose a Builder</div>
+        <div class="text-medium-emphasis mb-4">One of your bots builds the apps of this home. You can move the role to another bot later.</div>
         <SelectField v-model="picker.botId" :items="picker.bots" :loading="picker.loading" item-title="name" item-value="id" label="Bot" variant="outlined" density="comfortable" />
         <div class="d-flex justify-end ga-2">
           <v-btn variant="text" @click="picker.open = false">Cancel</v-btn>

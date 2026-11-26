@@ -53,9 +53,9 @@ async function restore(version) {
 <template>
   <v-dialog v-model="open" max-width="480">
     <v-card class="pa-4">
-      <div class="text-h6 mb-2">Versions of {{ title }}</div>
+      <div class="mb-2">Versions of {{ title }}</div>
       <v-progress-linear v-if="!versions" indeterminate />
-      <p v-else-if="!versions.length && !problem" class="text-body-2">This page has no saved versions yet.</p>
+      <p v-else-if="!versions.length && !problem">This page has no saved versions yet.</p>
       <v-list v-else density="compact">
         <v-list-item
           v-for="version in versions"
@@ -68,7 +68,7 @@ async function restore(version) {
           </template>
         </v-list-item>
       </v-list>
-      <p v-if="problem" class="text-body-2 text-error mt-2" role="alert">{{ problem }}</p>
+      <p v-if="problem" class="text-error mt-2" role="alert">{{ problem }}</p>
       <div class="d-flex justify-end mt-2">
         <v-btn variant="text" size="small" @click="open = false">Close</v-btn>
       </div>
