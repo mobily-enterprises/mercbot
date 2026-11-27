@@ -1,7 +1,7 @@
 // Field values, checked by type before anything is written (D-35). Every write path — screens,
 // the Data tab, bots, imports — goes through here via the data gate.
 import { AppError } from "@jskit-ai/kernel/server/runtime/errors";
-import { isCalculated } from "../shared/calculated.js";
+import { isCalculated, isRollup } from "../shared/calculated.js";
 import { LONGTEXT_MAX, TEXT_MAX } from "../shared/formulas.js";
 
 /** A refusal of a value, a record or an app action, which the apps routes answer with its status, message and code. */
@@ -170,6 +170,12 @@ export function cleanRecord(table, input = {}, { creating = false } = {}) {
     if (isCalculated(field)) {
       throw new GateError(400, `${field.label} is calculated from the record's other fields, so it can't be set.`, {
         code: "apps_field_calculated",
+        params: { field: field.label }
+      });
+    }
+    if (isRollup(field)) {
+      throw new GateError(400, `${field.label} adds up the records linked to this one, so it can't be set: change those records.`, {
+        code: "apps_field_rollup",
         params: { field: field.label }
       });
     }

@@ -4,6 +4,7 @@ import { PAGE_MAX, isCalculated, isFileField, withCalculated } from "../shared/i
 import { OBSOLETE } from "./anyapi.js";
 import { homeIdOf } from "./callOptions.js";
 import { periodTotals } from "./periodTotals.js";
+import { followRollups, rollupTables } from "./rollups.js";
 import { exprFields } from "../shared/where.js";
 import { GateError, cleanRecord } from "./validate.js";
 
@@ -104,13 +105,14 @@ export function createDataGate({
   }
 
   /**
-   * The AnyAPI instance a ctx reads and writes `table` in: the home's, or its practice copy's, which
-   * first gets the table and the tables its links point to (their labels are read with it).
+   * The AnyAPI instance a ctx reads and writes `table` in: the home's, or its practice copy's, which first gets the
+   * table, those its links point to (their labels are read with it) and those whose roll-ups it changes (D-140).
    */
   async function apiFor(ctx, tables, table) {
     if (!ctx.practice) return anyapi.instanceFor(homeOf(ctx));
     const linked = table.fields.filter((field) => field.type === "link").map((field) => tables.find((entry) => entry.id === field.options?.target));
-    for (const each of [table, ...linked.filter(Boolean)]) await practices.ensure(ctx.practice, tables, each, ctx.options);
+    const readied = new Set([table, ...linked.filter(Boolean), ...rollupTables(tables, table)]);
+    for (const each of readied) await practices.ensure(ctx.practice, tables, each, ctx.options);
     return anyapi.practiceFor(homeOf(ctx), ctx.practice.id, tables);
   }
 
@@ -298,6 +300,10 @@ export function createDataGate({
     await dataChanged(txOptions, ctx, table);
   }
 
+  /** Roll-ups over records just written follow them in the write (rollups.js); open views of their tables re-read. */
+  const followed = (ctx, api, tables, table, rows, txOptions) =>
+    followRollups({ api, tables, txOptions, changed: (id) => (ctx.practice ? null : dataChanged(txOptions, ctx, { id })) }, table, rows);
+
   /** A new record's audit changes: each value given, from nothing. */
   const createdChanges = (values) =>
     Object.fromEntries(
@@ -335,6 +341,7 @@ export function createDataGate({
       await checkUnique(ctx, api, table, values, null, txOptions);
       const created = await api.resources[table.id].post({ data: values, transaction: txOptions.trx }, { includeObsolete: true });
       await recorded(ctx, table, created.id, "create", createdChanges(values), txOptions);
+      await followed(ctx, api, tables, table, [[null, created]], txOptions);
       return created;
     });
     return access ? project(access, toRecord(table, row)) : toRecord(table, row);
@@ -380,6 +387,7 @@ export function createDataGate({
       if (!Object.keys(changes).length) return before;
       const after = await api.resources[table.id].patch({ id: String(id), data: values, transaction }, { includeObsolete: true });
       await recorded(ctx, table, id, action, action === "update" ? changes : {}, txOptions);
+      await followed(ctx, api, tables, table, [[before, after]], txOptions);
       return after;
     });
     if (!given && replaced.length) await files.removeAll(ctx, replaced);
@@ -630,6 +638,7 @@ export function createDataGate({
       const audits = checked.map((values, index) => auditRow(ctx, table.id, created[index].id, "create", createdChanges(values)));
       await auditEvents.createMany(audits, { ...txOptions, returning: "none" }); // at most IMPORT_MAX rows
       await dataChanged(txOptions, ctx, table);
+      await followed(ctx, api, tables, table, checked.map((values) => [null, values]), txOptions);
     });
     return { imported: checked.length, errors };
   }

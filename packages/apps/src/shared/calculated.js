@@ -24,6 +24,38 @@ const DATE = /^\d{4}-\d{2}-\d{2}/u;
 /** Whether a field is calculated: it has a formula instead of stored values. */
 export const isCalculated = (field) => typeof field?.options?.formula === "string";
 
+/**
+ * Whether a field is a roll-up (D-140): a stored number or amount totalling the records of another table that link to
+ * its record ("an invoice's total of its lines"). The data gate keeps it up to date (rollups.js); nobody types it in.
+ */
+export const isRollup = (field) => Boolean(field?.options?.rollup);
+
+/** How a roll-up totals its linked records. */
+export const ROLLUP_MEASURES = ["sum", "count", "min", "max"];
+
+/** Whether a field's value is worked out rather than typed in: calculated or a roll-up. */
+export const isWorkedOut = (field) => isCalculated(field) || isRollup(field);
+
+/**
+ * A roll-up's settings by names, as the Builder writes them and people read them: the table it totals (`from`), that
+ * table's link to this record (`link`), the measure, the field measured and a filter over that table's fields; stored
+ * by ids, so renames never touch it.
+ * @param {object[]} tables the home's tables
+ * @param {object} field
+ */
+export function rollupByNames(tables, field) {
+  const { from, link, measure, field: measured, where } = field.options.rollup;
+  const child = tables.find((table) => table.id === from);
+  const keyOf = (id) => child?.fields.find((entry) => entry.id === id)?.key ?? id;
+  return {
+    from: child?.key ?? from,
+    link: keyOf(link),
+    measure,
+    ...(measured ? { field: keyOf(measured) } : {}),
+    ...(where ? { where: child ? tableFormulaToNames(where, child) : where } : {})
+  };
+}
+
 /** The fields of a table that a filter, sort or group can use, by key: live stored fields. */
 export const storedFieldIds = (table) =>
   new Map(table.fields.filter((field) => !field.obsolete && !isCalculated(field)).map((field) => [field.key, field.id]));
@@ -40,9 +72,15 @@ export const calculatedFormulas = (table) =>
 /** A calculated field's formula by current names. */
 export const formulaByNames = (table, field) => (isCalculated(field) ? tableFormulaToNames(field.options.formula, table) : null);
 
-/** A field as a browser or a bot gets it: a calculated field's formula by names, as it was written. */
-export const fieldByNames = (table, field) =>
-  isCalculated(field) ? { ...field, options: { ...field.options, formula: formulaByNames(table, field) } } : field;
+/**
+ * A field as a browser or a bot gets it: a calculated field's formula by names, as it was written, and a roll-up's
+ * settings by names (with the home's `tables`).
+ */
+export function fieldByNames(table, field, tables = [table]) {
+  if (isCalculated(field)) return { ...field, options: { ...field.options, formula: formulaByNames(table, field) } };
+  if (isRollup(field)) return { ...field, options: { ...field.options, rollup: rollupByNames(tables, field) } };
+  return field;
+}
 
 /** The ids of the fields a stored (by ids) formula uses. */
 const idsUsed = (formula) => fieldsIn(formula, { bareTable: "_" }).map(([, id]) => id);

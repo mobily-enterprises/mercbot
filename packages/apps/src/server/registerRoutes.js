@@ -56,7 +56,7 @@ const screenTables = (tables) =>
       label: table.label,
       fields: table.fields
         .filter((field) => !field.obsolete)
-        .map((field) => fieldByNames(table, field))
+        .map((field) => fieldByNames(table, field, tables))
         .map(({ key, label, type, options }) => ({ key, label, type, options }))
     }));
 
@@ -237,9 +237,9 @@ export function registerRoutes(http, { appsRuntime, notices, streams, uploads })
   // counts or apps, for pickers and filters.
   const data = "/api/w/:workspaceSlug/app-data";
   router.register("GET", `${data}/tables`, home, handle(async (request, ctx) => {
-    // Calculated fields' formulas as they were written, by names (D-78).
-    const tables = (await registry.loadTables(ctx.options))
-      .map((table) => ({ ...table, fields: table.fields.map((field) => fieldByNames(table, field)) }));
+    // Calculated fields' formulas as they were written, and roll-ups' settings, by names (D-78, D-140).
+    const homeTables = await registry.loadTables(ctx.options);
+    const tables = homeTables.map((table) => ({ ...table, fields: table.fields.map((field) => fieldByNames(table, field, homeTables)) }));
     // The home's people come with them, for person fields' pickers and names.
     if (request.query?.brief === "true") return { tables, people: await homePeople(ctx.options) };
     const app = request.query?.app ? String(request.query.app) : null;
@@ -256,7 +256,7 @@ export function registerRoutes(http, { appsRuntime, notices, streams, uploads })
   const records = `${data}/tables/:key/records`;
   const TEXTUAL = new Set(["text", "email", "phone", "choice", "longtext", "url"]);
   router.register("GET", records, home, handle(async (request, ctx) => {
-    const { table } = await gate.tableFor(request.params.key, ctx.options);
+    const { table, tables } = await gate.tableFor(request.params.key, ctx.options);
     const q = String(request.query?.search || "").trim().toLowerCase();
     // A calculated field (D-78) isn't stored, so the database can't look in it.
     const searchable = table.fields.filter((field) => !field.obsolete && TEXTUAL.has(field.type) && !isCalculated(field));
@@ -290,7 +290,7 @@ export function registerRoutes(http, { appsRuntime, notices, streams, uploads })
         key: table.key,
         label: table.label,
         titleFieldId: table.titleFieldId,
-        fields: table.fields.map((field) => fieldByNames(table, field))
+        fields: table.fields.map((field) => fieldByNames(table, field, tables))
       },
       ...result
     };

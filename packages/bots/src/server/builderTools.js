@@ -34,6 +34,20 @@ export const fieldInput = z.object({
       "Makes it a calculated field (text, number, money, date or yesno): a formula over this record's other fields by name, " +
         "e.g. \"=price * quantity\". Never stored or typed in; worked out whenever the record is read. " +
         CALCULATED_LIMITS
+    ),
+  rollup: z
+    .object({
+      from: z.string().min(1).max(64).describe("The table whose records it adds up"),
+      link: z.string().min(1).max(64).describe("That table's link field pointing to this table"),
+      measure: z.enum(["sum", "count", "min", "max"]),
+      field: z.string().max(64).optional().describe("For sum, min and max: the number or money field of that table to add up"),
+      where: z.string().max(2000).optional().describe("Only the records this formula over that table's fields keeps, e.g. \"=status != 'done'\"")
+    })
+    .optional()
+    .describe(
+      "Makes it a roll-up (number or money; field_add only, once the other table links here): the sum, count, smallest or largest of " +
+        "the linked records, e.g. an invoice's total of its lines' amounts, or an event's count of sign-ups. Stored and kept up to date " +
+        "by itself, so lists filter and sort by it; nobody types it in. A sum, min or max of money is money."
     )
 });
 

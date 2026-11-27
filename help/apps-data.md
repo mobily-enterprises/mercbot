@@ -87,6 +87,16 @@ A calculated number or amount worked out by adding, subtracting, multiplying or 
 
 A list can also compare two of a record's fields, such as items whose quantity is at or below their reorder level.
 
+### Roll-ups
+
+A roll-up adds up the records linked to a record, such as an invoice's total of its lines, the number of people signed up for an event, or a project's open tasks. Ask the Builder for one, for example "give invoices a total of their lines' amounts".
+
+- It can be a **sum**, a **count**, the **smallest** or the **largest** of a field of the linked records, maybe only those matching a condition, such as lines that aren't done. Records marked obsolete don't count.
+- It keeps itself up to date. Whenever a linked record is added, changed, moved to another record, marked obsolete or restored, from an app, the Data tab, an import or a bot, the total changes with it. A total of totals (a client's total of its invoices' totals) changes too.
+- Nobody types it in. Forms and the Data tab show it greyed out, and an import skips its column.
+- It's stored, so lists can filter, sort and group by it like any other field: invoices over $1,000, or events sorted by places taken.
+- With no linked records, a sum or count is 0, and a smallest or largest is empty.
+
 ## Edit records in the spreadsheet view
 
 An open table shows its records as rows, 25 to a page by default, with a column per field.

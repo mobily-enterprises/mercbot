@@ -1,6 +1,6 @@
 <script setup>
 import { computed, inject, provide, reactive, watch } from "vue";
-import { calculate, celSchema, isCalculated, isFileField } from "@local/apps/shared";
+import { calculate, celSchema, isFileField, isRollup, isWorkedOut } from "@local/apps/shared";
 import AppNode from "./AppNode.vue";
 import { formulaRecord, refersToRemovedField, showValue } from "./appRuntime.js";
 import { APP_FORM_KEY, APP_SCREEN_KEY } from "./screenKeys.js";
@@ -90,7 +90,7 @@ function reset(next = record.value) {
 }
 watch(record, (next) => reset(next), { immediate: true });
 
-const typedIn = (entry) => !isFileField(entry.def) && !isCalculated(entry.def);
+const typedIn = (entry) => !isFileField(entry.def) && !isWorkedOut(entry.def);
 
 /** A chosen file onto the record at once, or (`file` null) the record's taken away; the screen's lists read it again. */
 async function attach(entry, file) {
@@ -132,7 +132,7 @@ const shown = (entry) => entry.showIf === undefined || runtime.evaluate(entry.sh
 const required = (entry) => entry.def.options?.required || runtime.evaluate(entry.required, formScope()) === true;
 const labelOf = (entry) => entry.def.label + (required(entry) ? " *" : "");
 const problem = (entry) => {
-  if (isCalculated(entry.def)) return "";
+  if (isWorkedOut(entry.def)) return "";
   const value = draft[entry.field];
   const blank = value === "" || value === null || value === undefined || (Array.isArray(value) && !value.length);
   if (required(entry) && blank) return `${entry.def.label} is required`;
@@ -163,10 +163,10 @@ provide(APP_FORM_KEY, {
       <template v-for="entry in entries" :key="entry.field">
         <template v-if="shown(entry)">
           <v-text-field
-            v-if="isCalculated(entry.def)"
+            v-if="isWorkedOut(entry.def)"
             :model-value="showValue(entry.def, worked[entry.field])"
             :label="entry.def.label"
-            hint="Calculated"
+            :hint="isRollup(entry.def) ? 'Adds up the records linked to this one' : 'Calculated'"
             persistent-hint
             readonly
             variant="outlined"

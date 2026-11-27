@@ -10,8 +10,10 @@ import {
   dataOnly,
   fieldByNames,
   isCalculated,
+  isRollup,
   planToIds,
   refersToRemovedField,
+  rollupByNames,
   storedFieldIds
 } from "@local/apps/shared";
 import { buildBuilderTools } from "./builderTools.js";
@@ -175,7 +177,8 @@ export function buildAppTools({
             ...(field.options?.required ? { required: true } : {}),
             ...(field.options?.choices ? { choices: field.options.choices } : {}),
             ...(field.options?.target ? { linksTo: tables.find((entry) => entry.id === field.options.target)?.key } : {}),
-            ...(isCalculated(field) ? calculatedInfo(table, field) : {})
+            ...(isCalculated(field) ? calculatedInfo(table, field) : {}),
+            ...(isRollup(field) ? { rollup: rollupByNames(tables, field) } : {})
           }))
       })),
       sharedTablesToAdd: apps.catalog.entries()

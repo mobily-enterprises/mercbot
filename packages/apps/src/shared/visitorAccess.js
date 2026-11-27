@@ -1,4 +1,4 @@
-import { calculatedFrom, isCalculated } from "./calculated.js";
+import { calculatedFrom, isCalculated, isRollup, isWorkedOut } from "./calculated.js";
 import { fieldsIn, isObject } from "./definitions.js";
 import { VISITOR, celSchema, checkFormula, isFormula } from "./formulas.js";
 import { compileWhere } from "./where.js";
@@ -123,8 +123,8 @@ export function screenUses(definition, tables) {
         listOf(item.fields).forEach((entry, index) => {
           const at = `${path}.fields[${index}]`;
           const name = typeof entry === "string" ? entry : entry?.field;
-          // A calculated field (D-78) only shows: worked out from what the visitor types, or read with the record.
-          if (!isCalculated(formTable?.fields.find((field) => !field.obsolete && field.key === name))) note("write", form.table, name, at);
+          // A calculated field (D-78) or a roll-up (D-140) only shows: worked out from what the visitor types, or read with the record.
+          if (!isWorkedOut(formTable?.fields.find((field) => !field.obsolete && field.key === name))) note("write", form.table, name, at);
           if (!form.creating) note("read", form.table, name, at);
           for (const key of ["showIf", "required", "label"]) reads(entry?.[key], inner, `${at}.${key}`);
         });
@@ -349,6 +349,7 @@ function checkRule(definition, tables, table, rule, at, report) {
   }
   for (const name of listOf(rule.write)) {
     if (isCalculated(fieldNamed(name))) report(`${at}.write`, `${name} is a calculated field, worked out from the record's other fields: leave it out of write.`);
+    if (isRollup(fieldNamed(name))) report(`${at}.write`, `${name} is a roll-up, which adds up the records linked to this one: leave it out of write.`);
     if (name === rule.owner) report(`${at}.write`, `${name} is the owner, which the server fills in with the visitor's email: leave it out of write.`);
     const field = fieldNamed(name);
     const target = field?.type === "link" && tables.find((entry) => entry.id === field.options?.target && !entry.obsolete);

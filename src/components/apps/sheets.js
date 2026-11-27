@@ -1,4 +1,4 @@
-import { PAGE_MAX, isCalculated, isFileField } from "@local/apps/shared";
+import { PAGE_MAX, isFileField, isWorkedOut } from "@local/apps/shared";
 import { appsApi } from "./appsApi.js";
 
 // CSV and Excel files for the Data tab (D-35). Export writes a table's live records with field
@@ -62,16 +62,16 @@ export async function readSheetFile(file) {
   return parse(await file.text(), { bom: true, skip_empty_lines: true, relax_column_count: true });
 }
 
-// Which column fills which field. Headers match a field's label or key, ignoring case. A calculated
-// field's column (an exported sheet has them) is worked out again, never imported (D-78).
+// Which column fills which field. Headers match a field's label or key, ignoring case. A calculated field's or a
+// roll-up's column (an exported sheet has them) is worked out again, never imported (D-78, D-140).
 export function matchColumns(table, header) {
   const name = (value) => String(value ?? "").trim().toLowerCase();
   const named = (fields, cell) => fields.find((field) => name(field.label) === name(cell) || field.key === name(cell));
   const live = table.fields.filter((field) => !field.obsolete);
   // A file or picture goes onto a record by upload only (D-130): its column, a file's name, is ignored like any other.
-  const fields = live.filter((field) => !isCalculated(field) && !isFileField(field));
+  const fields = live.filter((field) => !isWorkedOut(field) && !isFileField(field));
   const columns = header.map((cell) => named(fields, cell) || null);
-  const calculated = header.filter((cell, index) => !columns[index] && name(cell) && named(live.filter(isCalculated), cell));
+  const calculated = header.filter((cell, index) => !columns[index] && name(cell) && named(live.filter(isWorkedOut), cell));
   const ignored = header.filter((cell, index) => !columns[index] && name(cell) && !calculated.includes(cell));
   const missing = fields.filter((field) => field.options?.required && !columns.includes(field));
   return { columns, ignored, calculated, missing };

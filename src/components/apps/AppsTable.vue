@@ -8,7 +8,7 @@ import { appsApi, errorText } from "./appsApi.js";
 import { fileUrl } from "@/components/mercbot/filesApi.js";
 import { usePaths } from "@jskit-ai/shell-web/client/navigation/usePaths";
 import { linksOf } from "./tableLinks.js";
-import { isCalculated } from "@local/apps/shared";
+import { isCalculated, isRollup } from "@local/apps/shared";
 import { actorName, showValue, whenText as when } from "./appRuntime.js";
 import { exportTable, importRows, matchColumns, readSheetFile } from "./sheets.js";
 import { useSnackbar } from "./useSnackbar.js";
@@ -47,6 +47,16 @@ const links = computed(() => {
 // Calculated fields (D-78) are worked out on every read, not stored: the database can't search, sort, filter or
 // group by them, which the table and its Fields say in a line, rather than leaving a column that doesn't sort.
 const calculated = computed(() => fields.value.filter(isCalculated));
+/** A field in the table's field list: its name and type, and what a calculated field or a roll-up works out. */
+function fieldWords(field) {
+  const rollup = field.options?.rollup;
+  const worked = isCalculated(field)
+    ? ` · calculated: ${field.options.formula}`
+    : isRollup(field)
+      ? ` · ${rollup.measure}${rollup.field ? ` of ${rollup.field}` : ""} of linked ${rollup.from}${rollup.where ? ` where ${rollup.where.slice(1)}` : ""}`
+      : "";
+  return `${field.key} · ${field.type}${worked}`;
+}
 const calculatedNames = computed(() => calculated.value.map((field) => field.label).join(", "));
 const headers = computed(() => [
   // A calculated field (D-78) isn't stored, so the database can't sort by it.
@@ -268,7 +278,7 @@ const titleOf = (record) => (record ? String(record[table.value?.titleFieldId] ?
           <div class="text-subtitle-1 mb-2">Fields of {{ table?.label }}</div>
           <div class="text-body-2 text-medium-emphasis mb-3">Ask the Builder to add or rename fields. Removing one keeps its data.</div>
           <v-list density="compact" class="pa-0">
-            <v-list-item v-for="field in fields" :key="field.id" :title="field.label" :subtitle="`${field.key} · ${field.type}${isCalculated(field) ? ` · calculated: ${field.options.formula}` : ''}`">
+            <v-list-item v-for="field in fields" :key="field.id" :title="field.label" :subtitle="fieldWords(field)">
               <template #append><v-btn size="small" variant="text" color="error" @click="fieldsDialog.removing = field.id">Remove…</v-btn></template>
             </v-list-item>
           </v-list>

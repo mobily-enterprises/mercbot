@@ -1,10 +1,11 @@
 import { randomBytes } from "node:crypto";
 import { AppError } from "@jskit-ai/kernel/server/runtime/errors";
-import { CALCULATED_TYPES, checkCalculated, isCalculated } from "../shared/calculated.js";
+import { CALCULATED_TYPES, ROLLUP_MEASURES, checkCalculated, isCalculated, isRollup } from "../shared/calculated.js";
 import { tableFormulaToIds } from "../shared/definitions.js";
 import { isFileField } from "../shared/formulas.js";
 import { STORAGE_TYPES, fieldStorage } from "./anyapi.js";
 import { homeIdOf } from "./callOptions.js";
+import { fillRollup, rollupWhere } from "./rollups.js";
 import { INDEXED_SLOTS, SLOTS } from "./schema.js";
 import { loadTables, toField } from "./tables.js";
 
@@ -168,6 +169,15 @@ export function createRegistry({ resources, anyapi, notices, trustMs = TRUST_MS 
       });
     }
     const options = {};
+    const rollup = input.rollup ?? input.options?.rollup;
+    if (rollup) {
+      // A roll-up (D-140): its settings, by names here, are checked against the table it adds up by checkRollup.
+      if (input.required) throw new RegistryError(400, "A roll-up can't be required: nobody fills it in.", { code: "apps_rollup_required" });
+      if (input.formula ?? input.options?.formula) {
+        throw new RegistryError(400, "A field is calculated or a roll-up, not both.", { code: "apps_rollup_formula" });
+      }
+      return { type, options: { rollup } };
+    }
     const formula = input.formula ?? input.options?.formula;
     if (formula !== undefined && formula !== null && formula !== "") {
       // A calculated field (D-78): its formula, by names here, is checked against the table's other
@@ -253,6 +263,51 @@ export function createRegistry({ resources, anyapi, notices, trustMs = TRUST_MS 
     }
   }
 
+  /**
+   * A roll-up's settings by names (D-140), checked against the tables as they are, by ids to store: `from` a live
+   * table, whose `link` field points to `table`, the measure, and for a sum, smallest or largest a stored number or
+   * money `field` of the same type as the roll-up; `where` a filter over `from`'s fields the database can run. Answers
+   * the settings and the table it adds up.
+   */
+  async function checkRollup(table, type, input, txOptions) {
+    const fail = (problem) => {
+      throw new RegistryError(400, `A roll-up ${problem}`, { code: "apps_rollup_invalid", params: { problem } });
+    };
+    if (!["number", "money"].includes(type)) fail("is a number or money field: it holds a count or a total.");
+    const measure = String(input?.measure || "");
+    if (!ROLLUP_MEASURES.includes(measure)) fail(`measure is one of ${ROLLUP_MEASURES.join(", ")}.`);
+    const found = input.from && (await liveTable(input.from, txOptions));
+    if (!found) fail(`adds up the records of an existing table ("from"), and there's no table "${input.from ?? ""}".`);
+    const child = await lockedTable(found.id, txOptions);
+    const live = (key) => child.fields.find((field) => !field.obsolete && field.key === String(key ?? ""));
+    const link = live(input.link);
+    if (link?.type !== "link" || link.options?.target !== table.id) {
+      fail(`follows a link field of ${child.key} that points to ${table.key} ("link"), and ${child.key} has no such field "${input.link ?? ""}".`);
+    }
+    const measured = measure === "count" ? null : live(input.field);
+    if (measure === "count" && type !== "number") fail("that counts is a number field.");
+    if (measure !== "count") {
+      if (!["number", "money"].includes(measured?.type) || isCalculated(measured)) {
+        fail(`${measure} needs a stored number or money field of ${child.key} ("field"), and "${input.field ?? ""}" isn't one.`);
+      }
+      if (measured.type !== type) fail(`of a ${measured.type} field is a ${measured.type} field too.`);
+      if (isRollup(measured) && measured.options.rollup.from === table.id) fail(`can't add up ${measured.key}: it adds up this table's records.`);
+    }
+    let where = null;
+    if (input.where) {
+      const converted = tableFormulaToIds(String(input.where), child);
+      if (converted.errors.length) fail(`filter: ${converted.errors[0]}`);
+      try {
+        rollupWhere(child, converted.formula);
+      } catch (error) {
+        fail(`filter runs in the database, on ${child.key}'s stored fields: ${error.message}.`);
+      }
+      where = converted.formula;
+    }
+    const rollup = { from: child.id, link: link.id, measure, ...(measured ? { field: measured.id } : {}), ...(where ? { where } : {}) };
+    return { rollup, child };
+  }
+
   function audit(actor, tableId, changes, txOptions) {
     return auditEvents.create({ actor, via: { kind: "schema" }, tableId, action: "schema", changes }, { ...txOptions, returning: "none" });
   }
@@ -284,6 +339,12 @@ export function createRegistry({ resources, anyapi, notices, trustMs = TRUST_MS 
         }
         seen.add(fieldKey);
         const { type, options: fieldOptions } = await validateField(fieldInput, txOptions);
+        if (fieldOptions.rollup) {
+          throw new RegistryError(400, `${fieldKey}: add a roll-up once the table it adds up links to this one, with a field of its own.`, {
+            code: "apps_rollup_new_table",
+            params: { field: fieldKey }
+          });
+        }
         fields.push({ id: newId("f"), tableId: id, key: fieldKey, label: cleanLabel(fieldInput.label, fieldKey), type, options: fieldOptions, position });
       }
       checkFormulas({ id, key }, fields, fields.filter(isCalculated));
@@ -340,6 +401,8 @@ export function createRegistry({ resources, anyapi, notices, trustMs = TRUST_MS 
         });
       }
       const { type, options: fieldOptions } = await validateField(input || {}, txOptions);
+      let child = null;
+      if (fieldOptions.rollup) ({ child, rollup: fieldOptions.rollup } = await checkRollup(table, type, fieldOptions.rollup, txOptions));
       const [{ last = null } = {}] = await appFields.aggregate({ measures: { last: { max: "position" } }, filters: { tableId: table.id } }, txOptions);
       const record = {
         id: newId("f"),
@@ -353,11 +416,14 @@ export function createRegistry({ resources, anyapi, notices, trustMs = TRUST_MS 
       if (isCalculated(record)) checkFormulas(table, [...(await lockedTable(table.id, txOptions)).fields, record], [record]);
       await appFields.create(record, { ...txOptions, returning: "none" });
       const formula = isCalculated(record) ? { formula: record.options.formula } : {};
+      if (isRollup(record)) formula.rollup = record.options.rollup;
       await audit(actor, table.id, { addedField: { id: record.id, key, type, ...formula } }, txOptions);
       // A calculated field has no slot: it is worked out whenever a record is read.
       if (!isCalculated(record)) {
         await api.resources[table.id].addKnexFields({ fields: { [record.id]: fieldStorage(record) } });
       }
+      // A roll-up starts worked out for every record there is.
+      if (child) await fillRollup(api, [child], { id: table.id }, record, txOptions);
       return toField(record);
     }).catch((error) => {
       anyapi.drop(homeId);

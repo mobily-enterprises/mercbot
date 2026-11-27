@@ -1,7 +1,7 @@
 <script setup>
 import { computed, reactive, ref, watch } from "vue";
 import SelectField from "@jskit-ai/http-web/client/components/SelectField";
-import { calculate, formulaRecord, isCalculated, isFileField, showValue } from "@local/apps/shared";
+import { calculate, formulaRecord, isCalculated, isFileField, isRollup, isWorkedOut, showValue } from "@local/apps/shared";
 import { appsApi, errorText } from "./appsApi.js";
 import { useLinkPickers } from "./linkPickers.js";
 import { SHARED_TYPES, TEXT_INPUT, inputOf, personChoices, storedOf } from "./fieldValues.js";
@@ -60,8 +60,13 @@ async function loadRelated(record) {
 const links = useLinkPickers();
 const saving = ref(false);
 const problem = ref("");
-const fields = computed(() => (props.table?.fields || []).filter((field) => !field.obsolete && !isCalculated(field)));
+const fields = computed(() => (props.table?.fields || []).filter((field) => !field.obsolete && !isWorkedOut(field)));
 const calculatedFields = computed(() => (props.table?.fields || []).filter((field) => !field.obsolete && isCalculated(field)));
+// Calculated fields and roll-ups (D-140), shown as they are worked out, never typed in.
+const workedOutFields = computed(() => (props.table?.fields || []).filter((field) => !field.obsolete && isWorkedOut(field)));
+const workedOut = (field) => (isRollup(field) ? (props.record?.[field.id] ?? null) : worked.value[field.key]);
+const workedHint = (field) =>
+  isRollup(field) ? `The ${field.options.rollup.measure} of the ${field.options.rollup.from} records linked to this one` : `Calculated: ${field.options.formula}`;
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/u;
 const labelOf = (field) => field.label + (field.options?.required ? " *" : "");
 
@@ -181,11 +186,11 @@ async function save() {
         />
       </template>
       <v-text-field
-        v-for="field in calculatedFields"
+        v-for="field in workedOutFields"
         :key="field.id"
-        :model-value="showValue(field, worked[field.key])"
+        :model-value="showValue(field, workedOut(field))"
         :label="field.label"
-        :hint="`Calculated: ${field.options.formula}`"
+        :hint="workedHint(field)"
         persistent-hint
         readonly
         variant="outlined"
