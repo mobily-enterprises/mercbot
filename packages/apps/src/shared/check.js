@@ -16,7 +16,7 @@ const CATALOG = {
   spacer: [],
   button: ["label", "icon", "emphasis", "disabled", "do"],
   input: ["bind", "label", "icon", "inputType"],
-  table: ["rows", "columns", "onRowClick", "rowActions"],
+  table: ["rows", "columns", "onRowClick", "rowActions", "search"],
   field: ["label", "value"],
   form: ["record", "table", "fields", "buttons"],
   totals: ["label", "rows"],
@@ -166,6 +166,15 @@ function checkPublicRules(definition, { tables, tableNamed, report }) {
 }
 
 /**
+ * A preset that is exactly one of the screen's own params ("=params.event"), the record a public page is about: its
+ * name, or null. The gate still holds the value to what visitors may reach (a link only to a row they can read).
+ */
+export function pageParamOf(value, screen) {
+  const name = /^=params\.([A-Za-z_][A-Za-z0-9_]*)$/u.exec(String(value))?.[1];
+  return name && Object.hasOwn(screen?.params || {}, name) ? name : null;
+}
+
+/**
  * A public screen never wakes a bot and never marks records obsolete; it can only go to other
  * public screens. A visitor adds through a create form and edits through an edit form, exactly the
  * fields shown. What it reaches is checked against visitor access above.
@@ -190,10 +199,10 @@ function checkPublicScreen(base, screen, { screens, report, tableNamed }) {
       // Fixed values the app sets (never the visitor), and every required field must be covered.
       const preset = step.create?.preset || {};
       for (const [name, value] of Object.entries(preset)) {
-        if ((isFormula(value) && !isFixedFormula(value)) || (value !== null && typeof value === "object")) {
+        if ((isFormula(value) && !isFixedFormula(value) && !pageParamOf(value, screen)) || (value !== null && typeof value === "object")) {
           report(
             `${at}.create.preset.${name}`,
-            'a preset is a fixed value, or "=today()" / "=now()"; it can\'t read the form or the visitor.'
+            'a preset is a fixed value, "=today()" / "=now()", or one of the screen\'s params ("=params.event"); it can\'t read the form or the visitor.'
           );
         }
       }
@@ -564,6 +573,11 @@ function checkScreen(base, screen, { screens, tableNamed, report, named, bots, s
       });
       checkSteps(`${path}.onRowClick`, node.onRowClick, rowVariables);
       checkNodes(`${path}.rowActions`, node.rowActions, rowVariables, depth + 1);
+      // A search box over the list's text fields: true, or its own label.
+      if (node.search !== undefined && node.search !== true && node.search !== false && typeof node.search !== "string") {
+        report(`${path}.search`, 'is true, or the search box\'s label such as "Find a contact".');
+      }
+      if (node.search && (fromScript || !table)) report(`${path}.search`, "only a list of a table's records can be searched.");
     }
     if (node.type === "totals" || node.type === "chart") {
       const name = DATA_REFERENCE.exec(String(node.rows || ""))?.[1];

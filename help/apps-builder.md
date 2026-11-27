@@ -127,8 +127,10 @@ You can look at everything without changing anything:
 | Screens per app | 40 |
 | Parts per screen | 400 |
 | Queries per screen | 12 |
-| Records per page in a list | 100 |
+| Records per page in a list (with pages after it) | 100 |
 | Pinned apps per person | 8 |
+
+A list of a table's records shows pages when it has more than a page's worth: **Previous page** and **Next page** buttons under it, with which records you're looking at, such as "101–200 of 250". Select a column's heading to sort by it, again to reverse the order, and a third time to go back to the screen's own order; columns worked out by a formula don't sort. A list can also have a search box, which looks in its text fields and keeps to the screen's own filter. Ask the Builder for one.
 
 The Builder checks every draft before saving it. If something is wrong, such as a screen pointing at a field that doesn't exist, the draft isn't saved and the Builder fixes the problem first.
 

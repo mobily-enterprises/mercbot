@@ -38,17 +38,24 @@ const SCRIPT_FIELDS = [
 const RUNS_PER_INSERT = 1000;
 
 /**
- * A record as scripts see it: id and fields by name; links as the linked record's id, money in
- * whole cents, empty values null.
+ * A record as scripts see it: id and fields by name; links and people as their id, tags as the list, a file or
+ * picture as { name, size, type } (never where it's stored), money in whole cents, empty values null.
  */
 function scriptRecord(table, record) {
   if (!record) return null;
   const out = { id: String(record.id) };
   for (const field of table.fields.filter((entry) => !entry.obsolete)) {
-    const value = record[field.id] ?? null;
-    out[field.key] = value && typeof value === "object" ? value.id : value;
+    out[field.key] = scriptValue(field, record[field.id] ?? null);
   }
   return out;
+}
+
+/** One field's value as scripts see it (scriptRecord). */
+function scriptValue(field, value) {
+  if (value === null || typeof value !== "object") return value;
+  if (Array.isArray(value)) return value;
+  if (field.type === "file" || field.type === "image") return { name: value.name ?? null, size: value.size ?? null, type: value.type ?? null };
+  return value.id ?? null;
 }
 
 

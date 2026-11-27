@@ -164,14 +164,24 @@ export function createScreenRuntime({
   const reading = new AbortController();
   const stop = () => reading.abort();
 
+  // A list's page, sort and search, as the person set them; `total` is how many records the list has in all.
+  const lists = reactive({});
+  const listOf = (name) => (lists[name] ||= { page: 1, sort: "", search: "", total: null });
+
   // `quiet` keeps what's shown until the new answer arrives, and through a failed try: a live update.
   async function load(name, { quiet = false } = {}) {
     if (reading.signal.aborted) return;
     if (!quiet) loading.add(name);
+    const list = listOf(name);
     try {
-      const result = await api.query(slug, { version, screen: screenKey, query: name, state: { ...state }, params }, { signal: reading.signal });
+      const result = await api.query(
+        slug,
+        { version, screen: screenKey, query: name, state: { ...state }, params, page: list.page, sort: list.sort, search: list.search },
+        { signal: reading.signal }
+      );
       attention[name] = Boolean(result.needsAttention);
       data[name] = "record" in result ? result.record : result.totals || result.records || [];
+      list.total = Number.isInteger(result.total) ? result.total : null;
       grandTotals[name] = result.grandTotal || null;
     } catch {
       if (!quiet && !reading.signal.aborted) {
@@ -189,6 +199,20 @@ export function createScreenRuntime({
     const changed = new Set(tableIds);
     const reads = (table) => table && (changed.has(table.id) || table.fields.some((field) => field.type === "link" && changed.has(field.options?.target)));
     return Promise.all(Object.keys(screen.data || {}).filter((name) => reads(queryTable(name))).map((name) => load(name, { quiet: true })));
+  }
+
+  /** Changes a list's page, sort or search (a new sort or search starts again at page 1) and reads it again. */
+  function browse(name, change) {
+    const list = listOf(name);
+    Object.assign(list, change, "page" in change ? {} : { page: 1 });
+    return load(name, { quiet: true });
+  }
+
+  /** The records a form's link field can be set to: the first 100, or those whose title has `search`. */
+  async function linkChoices(path, field, search = "") {
+    if (!api.linkChoices) return [];
+    const { items } = await api.linkChoices(slug, { version, screen: screenKey, path, field, search, state: { ...state }, params });
+    return items;
   }
 
   async function run(path, { row = null, formValues = null } = {}) {
@@ -225,6 +249,6 @@ export function createScreenRuntime({
   const attachesFiles = !visitor && version !== "draft";
   return {
     slug, state, data, grandTotals, attention, loading, busy, dialogs, tables, people, screen, screens, tableNamed, queryTable, referenced, evaluate,
-    rowScope, load, loadAll, reloadChanged, run, followState, stop, signal: reading.signal, version, attachesFiles
+    rowScope, load, loadAll, reloadChanged, run, linkChoices, lists, browse, followState, stop, signal: reading.signal, version, attachesFiles
   };
 }

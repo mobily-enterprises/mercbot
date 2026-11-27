@@ -158,6 +158,13 @@ export function registerRoutes(http, { appsRuntime, notices, streams, uploads })
     home,
     appRoute((request, ctx) => runtime.action(ctx, { ...body(request), slug: request.params.slug }))
   );
+  // The records a form's link field can be set to, through the gate (its first 100, or those whose title has `search`).
+  router.register(
+    "POST",
+    `${base}/:slug/link-choices`,
+    home,
+    appRoute((request, ctx) => runtime.linkChoices(ctx, { ...body(request), slug: request.params.slug }))
+  );
   // Reset: the draft preview's practice data starts again from the live records as they are now (D-71).
   router.register("POST", `${base}/:slug/practice/reset`, home, appRoute(async (request, ctx) => {
     const app = await apps.find(request.params.slug, ctx.options);

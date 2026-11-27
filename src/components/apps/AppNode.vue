@@ -1,6 +1,7 @@
 <script setup>
 import { computed, defineAsyncComponent, inject } from "vue";
 import AppForm from "./AppForm.vue";
+import { isCalculated } from "@local/apps/shared";
 import { FIELD_REFERENCE, ICON_PATHS, groupLabel, refersToRemovedField, showValue } from "./appRuntime.js";
 import { APP_FORM_KEY, APP_SCREEN_KEY, NO_APP_FORM, useAppArea } from "./screenKeys.js";
 
@@ -55,6 +56,31 @@ const fieldSource = computed(() => {
 
 const rows = computed(() => (Array.isArray(runtime.data[queryName.value]) ? runtime.data[queryName.value] : []));
 const columns = computed(() => (props.node.columns || []).filter((column) => !refersToRemovedField(column.value)));
+// A list's paging, sorting and search (a table of a list query): a column that shows one stored field sorts by it.
+const listQuery = computed(() => runtime.screen.data?.[queryName.value]);
+const browsing = computed(() => props.node.type === "table" && Boolean(listQuery.value?.from) && !listQuery.value?.groupBy);
+const list = computed(() => runtime.lists?.[queryName.value] || { page: 1, sort: "", search: "", total: null });
+const pageSize = computed(() => listQuery.value?.limit ?? 100);
+const pages = computed(() => (list.value.total ? Math.ceil(list.value.total / pageSize.value) : 1));
+function sortKeyOf(column) {
+  const key = FIELD_REFERENCE.exec(String(column.value || ""))?.[1];
+  const field = key && runtime.queryTable(queryName.value)?.fields.find((entry) => entry.key === key && !entry.obsolete);
+  return browsing.value && field && !isCalculated(field) ? key : null;
+}
+function sortBy(column) {
+  const key = sortKeyOf(column);
+  if (!key) return;
+  runtime.browse(queryName.value, { sort: list.value.sort === key ? `-${key}` : list.value.sort === `-${key}` ? "" : key });
+}
+const sortMark = (column) => {
+  const key = sortKeyOf(column);
+  return !key ? "" : list.value.sort === key ? "▲" : list.value.sort === `-${key}` ? "▼" : "";
+};
+let searching = null;
+function searchFor(text) {
+  clearTimeout(searching);
+  searching = setTimeout(() => runtime.browse(queryName.value, { search: String(text || "") }), 300);
+}
 const rowScope = (record) => runtime.rowScope(props.node.rows, record);
 const maxTotal = computed(() => Math.max(1, ...rows.value.map((item) => Math.abs(item.total ?? item.count ?? 0))));
 const totalsQuery = computed(() => runtime.screen.data?.[queryName.value]);
@@ -132,10 +158,25 @@ const tabKey = computed(() => props.path);
     />
 
     <v-card v-else-if="node.type === 'table'" flat>
+      <v-text-field
+        v-if="browsing && node.search"
+        :model-value="list.search"
+        :label="typeof node.search === 'string' ? node.search : 'Search'"
+        prepend-inner-icon="$search"
+        variant="outlined"
+        density="compact"
+        hide-details
+        clearable
+        class="mb-2 app-list-search"
+        @update:model-value="searchFor"
+      />
       <v-table hover>
         <thead>
           <tr>
-            <th v-for="column in columns" :key="column.label">{{ column.label }}</th>
+            <th v-for="column in columns" :key="column.label" :aria-sort="sortMark(column) === '▲' ? 'ascending' : sortMark(column) === '▼' ? 'descending' : undefined">
+              <button v-if="sortKeyOf(column)" type="button" class="app-sort" @click="sortBy(column)">{{ column.label }} <span aria-hidden="true">{{ sortMark(column) }}</span></button>
+              <template v-else>{{ column.label }}</template>
+            </th>
             <th v-if="node.rowActions?.length" class="text-right app-actions-column" />
           </tr>
         </thead>
@@ -157,11 +198,20 @@ const tabKey = computed(() => props.path);
           </tr>
           <tr v-if="!rows.length">
             <td :colspan="columns.length + 1" class="text-medium-emphasis">
-              {{ runtime.attention[queryName] ? "This list needs attention: it uses a field that has been removed. Ask the Builder to tidy it." : "Nothing here yet." }}
+              {{
+                runtime.attention[queryName]
+                  ? "This list needs attention: it uses a field that has been removed. Ask the Builder to tidy it."
+                  : list.search ? "Nothing matches that search." : "Nothing here yet."
+              }}
             </td>
           </tr>
         </tbody>
       </v-table>
+      <div v-if="browsing && pages > 1" class="d-flex align-center justify-end ga-2 mt-2 text-body-2">
+        <span class="text-medium-emphasis">{{ (list.page - 1) * pageSize + 1 }}–{{ Math.min(list.page * pageSize, list.total) }} of {{ list.total }}</span>
+        <v-btn icon="$chevronLeft" size="small" variant="text" aria-label="Previous page" :disabled="list.page <= 1" @click="runtime.browse(queryName, { page: list.page - 1 })" />
+        <v-btn icon="$chevronRight" size="small" variant="text" aria-label="Next page" :disabled="list.page >= pages" @click="runtime.browse(queryName, { page: list.page + 1 })" />
+      </div>
     </v-card>
 
     <div v-else-if="node.type === 'field'" class="py-2">
@@ -227,6 +277,21 @@ const tabKey = computed(() => props.path);
   display: contents;
 }
 .app-input {
+  max-width: 360px;
+}
+.app-sort {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+.app-sort:focus-visible {
+  outline: 2px solid rgb(var(--v-theme-secondary));
+  outline-offset: 2px;
+}
+.app-list-search {
   max-width: 360px;
 }
 .app-clickable {

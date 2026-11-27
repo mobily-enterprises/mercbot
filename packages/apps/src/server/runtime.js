@@ -1,4 +1,5 @@
 import { ME, VISITOR, celSchema, evaluateFormula, formulaValue, isFixedFormula, isFormula, jsonValue, plainValue } from "../shared/formulas.js";
+import { pageParamOf } from "../shared/check.js";
 import { calculate, dataOnly, isCalculated, storedFieldIds, withNamedFormulas } from "../shared/index.js";
 import { NeedsAttention, compileWhere, planToIds } from "../shared/where.js";
 import { GateError } from "./validate.js";
@@ -79,6 +80,21 @@ function scriptData(value) {
   return { record: value && typeof value === "object" ? value : { value } };
 }
 
+// The kinds of field a list's search box looks in.
+const SEARCHED = new Set(["text", "email", "phone", "choice", "longtext", "url"]);
+
+/** A list's search box: every stored text field holds the words, case-insensitively, as the Data tab's search; or null. */
+function listSearch(table, search) {
+  const q = String(search || "").trim().toLowerCase().slice(0, 100);
+  const fields = table.fields.filter((field) => !field.obsolete && SEARCHED.has(field.type) && !isCalculated(field));
+  if (!q || !fields.length) return null;
+  return {
+    plan: { kind: "or", items: fields.map((field) => ({ kind: "like", mode: "contains", field: { name: field.id, lower: true }, value: "search.q" })) },
+    variables: { search: { q: "string" } },
+    values: { search: { q } }
+  };
+}
+
 /**
  * Running an app's screens: their queries and their buttons' actions (see above).
  * @param {object} dependencies
@@ -126,7 +142,7 @@ export function createRuntime({ apps, gate, scripts, practices }) {
    * A screen's query, through the data gate, which holds a visitor (`ctx.visitor`, with `ctx.access`)
    * to the app's visitor access (D-66); a data script's reads and writes are held to it too.
    */
-  async function runQuery(ctx, loaded, page, name, pageNumber = 1) {
+  async function runQuery(ctx, loaded, page, name, pageNumber = 1, { sort: sortAsked = "", search = "" } = {}) {
     const query = loaded.screen.data?.[name];
     if (!query) throw new GateError(404, "That query isn't part of this screen.", { code: "apps_query_not_found" });
     if (query.script) {
@@ -193,9 +209,20 @@ export function createRuntime({ apps, gate, scripts, practices }) {
       if (error instanceof NeedsAttention) return { needsAttention: true, records: [] };
       throw error;
     }
-    const sortKey = query.sort?.replace(/^-/u, "");
-    const sort = sortKey && keyToId.get(sortKey) ? [{ field: keyToId.get(sortKey), desc: query.sort.startsWith("-") }] : [];
-    const result = await gate.read(ctx, table.id, { where, sort, page: { size: query.limit ?? PAGE_SIZE, number: pageNumber } });
+    // The person's own sort of a list (a column's stored field, "-" for descending) wins over the screen's.
+    const asked = String(sortAsked || "");
+    const sortBy = asked && keyToId.get(asked.replace(/^-/u, "")) ? asked : query.sort || "";
+    const sortKey = sortBy.replace(/^-/u, "");
+    const sort = sortKey && keyToId.get(sortKey) ? [{ field: keyToId.get(sortKey), desc: sortBy.startsWith("-") }] : [];
+    const searched = listSearch(table, search);
+    const filter = searched && where
+      ? {
+          plan: { kind: "and", items: [where.plan, searched.plan] },
+          variables: { ...where.variables, ...searched.variables },
+          values: { ...where.values, ...searched.values }
+        }
+      : searched || where;
+    const result = await gate.read(ctx, table.id, { where: filter, sort, page: { size: query.limit ?? PAGE_SIZE, number: pageNumber } });
     return { records: result.records.map((record) => screenRecord(table, record)), page: result.page, total: result.total };
   }
 
@@ -215,9 +242,11 @@ export function createRuntime({ apps, gate, scripts, practices }) {
     return { loaded, actx: { ...ctx, via, ...(practice ? { practice } : {}) } };
   }
 
-  async function query(ctx, { slug, version, screen: screenKey, query: name, state, params, page: pageNumber, loaded: given = null }) {
-    const { loaded, actx } = await screenFor(ctx, slug, version, screenKey, given);
-    return runQuery(actx, loaded, withVisitor(pageValues(loaded.screen, state, params), ctx.visitor, ctx.actor), name, pageNumber);
+  async function query(ctx, request) {
+    const { slug, version, screen: screenKey, query: name, state, params, page: pageNumber, sort, search, loaded = null } = request;
+    const { loaded: app, actx } = await screenFor(ctx, slug, version, screenKey, loaded);
+    const page = withVisitor(pageValues(app.screen, state, params), ctx.visitor, ctx.actor);
+    return runQuery(actx, app, page, name, Math.max(1, Math.trunc(Number(pageNumber)) || 1), { sort, search });
   }
 
   // A visitor's page reads `visitor`; a member's reads `me`, who they are in the home.
@@ -280,7 +309,7 @@ export function createRuntime({ apps, gate, scripts, practices }) {
             step.create.table === formNode.table &&
             step.create.values === "=form.values" &&
             Object.values(step.create.preset || {}).every(
-              (value) => (!isFormula(value) || isFixedFormula(value)) && (value === null || typeof value !== "object")
+              (value) => (!isFormula(value) || isFixedFormula(value) || pageParamOf(value, screen)) && (value === null || typeof value !== "object")
             )
           );
         }
@@ -461,7 +490,40 @@ export function createRuntime({ apps, gate, scripts, practices }) {
     };
   }
 
+  /**
+   * The records a form's link field can be set to (`path`: the form, as stepsAt's paths name it; `field`: the link's
+   * key), the first 100 or those whose title has `search`, read through the gate, so a visitor gets only rows their
+   * access lets them read (D-66) and a draft's preview its practice copy. Answers `{ items: [{ value, title }] }`.
+   */
+  async function linkChoices(ctx, { slug, version, screen: screenKey, path, field: fieldKey, search = "", loaded: given = null }) {
+    const { loaded, actx } = await screenFor(ctx, slug, version, screenKey, given);
+    let node = loaded.screen;
+    for (const part of String(path || "").split("/").filter(Boolean)) node = Array.isArray(node) ? node[Number(part)] : node?.[part];
+    const shown = (node?.type === "form" ? node.fields || [] : []).map((entry) => (typeof entry === "string" ? entry : entry?.field));
+    // A create form names its table; an edit form its record, one of the screen's data ({ record: table, id }).
+    const recordQuery = loaded.screen.data?.[String(node?.record || "").replace(/^=data\./u, "")];
+    const table = node?.type === "form" ? loaded.tableNamed(node.table || recordQuery?.record) : null;
+    const key = String(fieldKey);
+    const field = shown.includes(key) ? table?.fields.find((entry) => !entry.obsolete && entry.key === key) : null;
+    if (!field || field.type !== "link") {
+      throw new GateError(404, "That form has no link field of that name.", { code: "apps_link_field_not_found" });
+    }
+    const { table: target } = await gate.tableFor(field.options?.target, actx.options);
+    const text = String(search || "").trim().toLowerCase().slice(0, 100);
+    // Its title, case-insensitively, as the Data tab's search looks.
+    const where = text
+      ? {
+          plan: { kind: "like", mode: "contains", field: { name: target.titleFieldId, lower: true }, value: "state.q" },
+          variables: { state: { q: "string" }, params: {} },
+          values: { state: { q: text }, params: {} }
+        }
+      : null;
+    const { records } = await gate.read(actx, target.id, { where, sort: [], page: { size: 100, number: 1 } });
+    return { items: records.map((record) => ({ value: String(record.id), title: String(record[target.titleFieldId] ?? `#${record.id}`) })) };
+  }
+
   return Object.freeze({
+    linkChoices,
     query,
     action
   });

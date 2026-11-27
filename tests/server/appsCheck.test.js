@@ -385,3 +385,11 @@ test("a public create form fills every required field, by showing it or with a f
   assert.deepEqual(checkApp(form({ stage: "New", title: "=today()" }), required), [], "today() and now() work in a preset");
   assert.match(checkApp(form({ stage: "=form.title" }), required).map((error) => error.message).join("\n"), /it can't read the form or the visitor/u);
 });
+
+test("a list's search box: true or a label, and only on a list of a table's records", () => {
+  const searched = app();
+  searched.screens.list.content[1].search = "Find a person";
+  assert.deepEqual(checkApp(searched, tables), []);
+  searched.screens.list.content[1].search = 3;
+  assert.match(JSON.stringify(checkApp(searched, tables)), /search.*is true, or the search box's label/u);
+});

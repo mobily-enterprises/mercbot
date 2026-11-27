@@ -5,11 +5,13 @@ import AppNode from "./AppNode.vue";
 import { formulaRecord, refersToRemovedField, showValue } from "./appRuntime.js";
 import { APP_FORM_KEY, APP_SCREEN_KEY } from "./screenKeys.js";
 import { SHARED_TYPES, TEXT_INPUT, inputOf, personChoices, storedOf } from "./fieldValues.js";
+import SelectField from "@jskit-ai/http-web/client/components/SelectField";
 import RecordFileField from "./RecordFileField.vue";
 import { appsApi, errorText } from "./appsApi.js";
 
 // A form (D-35). Inputs come from the field types; the app only lists field names. Money is typed
-// in units and stored in cents; links are shown, and changed in the Data tab. A calculated field
+// in units and stored in cents; a link is picked from its table's records, searched on the server as the person types,
+// only those the app's people (or a public app's visitors) may read. A calculated field
 // (D-78) is shown worked out from what is typed, never typed in. The server checks everything again
 // and only writes the fields this form shows. A file or picture (D-130) goes onto the record as soon as it's chosen, on a
 // form showing a record of the live app; a form adding a record leaves it out until the record exists.
@@ -39,18 +41,43 @@ const entries = computed(() => (props.node.fields || [])
   .map((entry) => ({ ...entry, def: table.value?.fields.find((field) => field.key === entry.field) }))
   .filter((entry) => entry.def && !(isFileField(entry.def) && (creating.value || !runtime.attachesFiles))));
 
-// Values as typed: money in units, links as their label.
+// A link field's picker: the record it links to now, and the records it can be set to, read through the screen's
+// runtime (a page of 100, or those whose title has what was typed), so a visitor sees only what they may read.
+const links = reactive({ now: {}, choices: {}, loading: {} });
+const searching = {};
+async function findLinks(key, text = "") {
+  clearTimeout(searching[key]);
+  searching[key] = setTimeout(async () => {
+    links.loading[key] = true;
+    try {
+      const items = await runtime.linkChoices(props.path, key, text);
+      const now = links.now[key];
+      links.choices[key] = now && !items.some((item) => item.value === now.value) ? [now, ...items] : items;
+    } catch {
+      links.choices[key] = links.now[key] ? [links.now[key]] : [];
+    } finally {
+      links.loading[key] = false;
+    }
+  }, text ? 300 : 0);
+}
+const linkItems = (key) => links.choices[key] || (links.now[key] ? [links.now[key]] : []);
+
+// Values as typed: money in units, links as the linked record's id.
 const toInput = (field, value) => {
   if (SHARED_TYPES.has(field.type)) return inputOf(field, value);
   if (value === null || value === undefined) return field.type === "yesno" ? false : "";
   if (field.type === "money") return String(Number(value) / 100);
-  if (field.type === "link") return value.label;
+  if (field.type === "link") {
+    links.now[field.key] = { value: String(value.id), title: String(value.label ?? `#${value.id}`) };
+    return String(value.id);
+  }
   return value;
 };
 const toStored = (field, value) => {
   if (SHARED_TYPES.has(field.type)) return storedOf(field, value);
   if (field.type === "money") return value === "" || value === null ? null : Math.round(Number(value) * 100);
   if (field.type === "number") return value === "" || value === null ? null : Number(value);
+  if (field.type === "link") return value === "" || value === null || value === undefined ? null : String(value);
   return value === "" ? null : value;
 };
 
@@ -63,7 +90,7 @@ function reset(next = record.value) {
 }
 watch(record, (next) => reset(next), { immediate: true });
 
-const typedIn = (entry) => entry.def.type !== "link" && !isFileField(entry.def) && !isCalculated(entry.def);
+const typedIn = (entry) => !isFileField(entry.def) && !isCalculated(entry.def);
 
 /** A chosen file onto the record at once, or (`file` null) the record's taken away; the screen's lists read it again. */
 async function attach(entry, file) {
@@ -211,16 +238,20 @@ provide(APP_FORM_KEY, {
             @update:current="(value) => value === null && attach(entry, null)"
           />
           <v-switch v-else-if="entry.def.type === 'yesno'" v-model="draft[entry.field]" :label="entry.def.label" color="primary" inset hide-details class="mb-4" />
-          <v-text-field
+          <SelectField
             v-else-if="entry.def.type === 'link'"
-            :model-value="draft[entry.field] || '—'"
+            v-model="draft[entry.field]"
+            :items="linkItems(entry.field)"
+            :loading="Boolean(links.loading[entry.field])"
+            searchable
+            no-filter
+            :clearable="!entry.def.options?.required"
             :label="entry.def.label"
-            hint="Change links in the Data tab"
-            persistent-hint
-            readonly
             variant="outlined"
             density="comfortable"
             class="mb-2"
+            @focus="!links.choices[entry.field] && findLinks(entry.field)"
+            @update:search="(text) => findLinks(entry.field, text)"
           />
           <v-text-field
             v-else

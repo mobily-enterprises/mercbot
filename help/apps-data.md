@@ -56,6 +56,8 @@ A field can also be required, so a record can't be saved without it. To see a ta
 
 You don't add fields yourself. Ask the Builder, for example "add a city field to contacts". It adds the field, and none of your apps are affected until it puts the field on a screen.
 
+In an app's forms, a link field is a search list of the linked table's records too: type part of a title to find one. On a public form it lists only the records visitors may see, and a sign-up page about one event can link each sign-up to that event by itself.
+
 A table can have up to five links. Choose them with care: a link can't be swapped for a sixth by removing one, as a removed field keeps its place.
 
 A link can be **one to one**: each record of the other table has at most one record linked to it. That's how an extension holds more about each record of another table, such as a contact's sales details in **CRM contacts**.
