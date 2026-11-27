@@ -29,7 +29,7 @@
   "dependencies": {
     "@jskit-ai/kernel": "0.2.35",
     "@jskit-ai/resource-core": "0.1.226",
-    "@jskit-ai/resource-runtime": "0.2.52",
+    "@jskit-ai/resource-runtime": "0.2.54",
     "web-push": "4.0.0"
   },
   "jskit": {
