@@ -83,7 +83,9 @@ export function createTrial({ apps, runtime, scripts }) {
     const tables = loaded.tables.filter((table) => !table.obsolete);
     const tableNamed = (name) => tables.find((table) => table.key === name);
     const queryTable = (name) => tableNamed(screen.data?.[name]?.record || screen.data?.[name]?.from);
-    const functions = withNamedFormulas(loaded.definition.formulas, await scripts.functionsFor(loaded.app.id, ctx.options));
+    // A draft is tried with its own functions (D-139).
+    const drafted = await scripts.functionsFor(loaded.app.id, ctx.options, { draft: true });
+    const functions = withNamedFormulas(loaded.definition.formulas, drafted);
     const stateTypes = Object.fromEntries(Object.entries(screen.state || {}).map(([name, def]) => [name, STATE_TYPES.has(def.type) ? def.type : "string"]));
     const stateValues = Object.fromEntries(Object.entries(stateTypes).map(([name, type]) => [
       name,

@@ -63,6 +63,8 @@ test("scripts see tags, files, pictures, links and times as they are", async (co
     tests: [{ name: "t", input: { id: "1", check: true }, records: { notes: [{ title: "x" }] }, expect: "x" }]
   }, options);
   assert.deepEqual(saved.errors, []);
+  // A saved script is the draft's until it's published (D-139).
+  await apps.publish(actor, "notes", {}, options);
   const seen = await scripts.runNamed("source", (await apps.find("notes", options)).id, "peek", { id: note.id }, { kind: "screen" }, null, options);
   assert.deepEqual(seen.labels, ["urgent", "site"]);
   assert.deepEqual(seen.scan, { name: "scan.png", size: PNG.length, type: "image/png" });

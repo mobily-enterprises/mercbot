@@ -63,6 +63,8 @@ test("a button's script makes an invoice's PDF from it and its lines, into its f
     tests: [{ name: "makes", input: { id: "1", number: "INV-1" }, docs: { pdf: { file: { name: "Invoice INV-1.pdf", size: 9 } } }, expect: { file: { name: "Invoice INV-1.pdf", size: 9 } } }]
   }, home.options);
   assert.deepEqual(saved.errors, []);
+  // A saved script is the draft's until it's published (D-139).
+  await apps.publish(owner, "invoices", {}, home.options);
   const appId = (await apps.find("invoices", home.options)).id;
   const press = (input) => scripts.runNamed("action", appId, "make_pdf", input, { kind: "button" }, null, home.options);
 

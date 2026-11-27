@@ -402,7 +402,8 @@ export function buildBuilderTools({ apps, call, actor, ctx, failed, after, scrip
         description:
           `Builder: have a script written for an app, for logic formulas can't express. Describe the job precisely (inputs, what ` +
           `to read or change, what to return, edge cases); a small coding loop writes the code and its tests, runs them and fixes ` +
-          `failures, up to 5 rounds, and saves it only when every test passes. Kinds: action (a button: { runScript: { script, ` +
+          `failures, up to 5 rounds, and saves it only when every test passes, into the app's draft (the draft's preview runs it; ` +
+          `it goes live when the person publishes). Kinds: action (a button: { runScript: { script, ` +
           `input } }), source (a screen query: { script, input }), rule (on a table, before records are saved: settings { table, ` +
           `on? }), function (callable in the app's formulas: settings { params }), job (settings { every: hour|day|week, at: ` +
           `"HH:MM", day?: 0-6, timeZone } or { watch: { table, on: create|update|any, condition? } }). Then use it in the app with ` +
@@ -426,7 +427,7 @@ ${SCRIPT_GUIDE}`,
       Object.freeze({
         id: "script_save",
         description:
-          "Builder: save a script you wrote yourself (small changes to an existing one, after script_list). It's saved only when every test passes; otherwise the failures come back. Same kinds, settings and rules as script_write.",
+          "Builder: save a script you wrote yourself (small changes to an existing one, after script_list). It's saved only when every test passes; otherwise the failures come back. Same kinds, settings and rules as script_write. Like every script, it goes into the app's draft: try it there, and it goes live when the person publishes.",
         inputSchema: z.object({
           app: z.string().min(1).max(64),
           key: z.string().regex(/^[a-z][a-z0-9_]{0,63}$/u),

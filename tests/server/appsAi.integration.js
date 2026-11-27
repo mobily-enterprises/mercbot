@@ -50,6 +50,8 @@ test("ai for scripts: allowed apps, buttons and jobs, the main bot, limits, prev
     const tests = [{ name: "t", input: {}, ai: { bots: [], work: {}, picture: {} }, expect }];
     const saved = await scripts.save(actor, "canary", { key, kind, summary: key, code, tests, ...extra }, options);
     assert.deepEqual(saved.errors, [], key);
+    // A saved script is the draft's until it's published (D-139).
+    await apps.publish(actor, "canary", {}, options);
   };
   const press = (key, input = {}, reach = null) => scripts.runNamed("action", appId, key, input, { kind: "button" }, reach, options);
   const jobs = () => knex("app_jobs").where({ workspace_id: workspaceId }).orderBy("id");

@@ -38,9 +38,13 @@ What a restore brings back, and what it doesn't:
 |---|---|
 | The app's screens, navigation, formulas and buttons | Your records |
 | Its public screens and visitor access (on a public app, only an owner or admin can restore wider access) | Your tables and fields |
-| The Builder's styling for the app | Its scripts, which have their own versions and change only when the Builder saves them |
-| | A waiting draft |
+| The Builder's styling for the app | A waiting draft, and the scripts changed in it |
+| Its scripts, as they were when that version was published (versions published before scripts joined drafts leave scripts as they are) | |
 | | Settings such as its colour and spacing |
+
+### Scripts are part of the draft
+
+When the Builder writes or changes a script, it goes into the app's draft, just like a screen change. The draft's preview runs the new script, while the live app keeps running the published one until you press **Publish**. Taking a script away works the same way: the live app keeps it until the draft is published. In the **Logic** tab, a script changed in the draft shows **Draft**, and one taken away shows **Removed in draft**. Switching a script off or on still takes effect at once.
 
 If a field has been removed since the old version, the restored app can't use it. The parts that needed it are hidden, and the app's health warning says so (below).
 

@@ -70,7 +70,12 @@ test("connected apps for scripts: who, which, only buttons change, never public,
   await registry.createTable(actor, { key: "notes", fields: [{ key: "text", type: "text" }] }, options);
   await apps.createApp(actor, { name: "Canary" }, options);
   const appId = (await apps.find("canary", options)).id;
-  const save = (input) => scripts.save(actor, "canary", input, options);
+  // A saved script is the draft's until it's published (D-139).
+  const save = async (input) => {
+    const result = await scripts.save(actor, "canary", input, options);
+    if (!result.errors.length) await apps.publish(actor, "canary", {}, options);
+    return result;
+  };
   const press = (key, input = {}, reach = null) => scripts.runNamed("action", appId, key, input, { kind: "button" }, reach, options);
   const show = (key, reach = null) => scripts.runNamed("source", appId, key, {}, { kind: "screen" }, reach, options);
 

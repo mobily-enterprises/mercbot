@@ -12,6 +12,7 @@ import { createAppVisitorAccess } from "./appVisitorAccess.js";
 import { homeIdOf } from "./callOptions.js";
 import { internalOnly } from "./appConnectedAccess.js";
 import { RegistryError, newId } from "./registry.js";
+import { asDrafted, createScriptDrafts } from "./scriptDrafts.js";
 
 const COLOR = /^#[0-9a-f]{6}$/iu;
 // How many versions a page of an app's version list holds.
@@ -90,6 +91,7 @@ export async function liveAndDraftVersions({ apps, appVersions }, filters, optio
  */
 export function createApps({ resources, records, registry, anyapi, practices, notices, homes }) {
   const { apps: appRows, appVersions, appScripts, appPins, appSettings, appThemes, appFields, appTables, auditEvents, appJobs } = resources;
+  const scriptDrafts = createScriptDrafts({ appScripts, apps: appRows, appVersions });
 
   /**
    * The home's own row, held shared until the transaction ends, first in a transaction that locks or changes its apps,
@@ -259,7 +261,8 @@ export function createApps({ resources, records, registry, anyapi, practices, no
     notAView(app, "have a draft");
     const views = await viewsOf(options);
     const expanded = withCopies(definition, views);
-    const scripts = (await appScripts.queryAll({ filters: { appId: app.id } }, passedOn(options))).map((script) => ({
+    // The draft's scripts (D-139): what the draft's buttons and screens run.
+    const scripts = asDrafted(await appScripts.queryAll({ filters: { appId: app.id } }, passedOn(options))).map((script) => ({
       key: script.key,
       kind: script.kind,
       params: script.settings?.params || []
@@ -327,7 +330,9 @@ export function createApps({ resources, records, registry, anyapi, practices, no
       const draft = await appVersions.get(String(app.draftVersionId), {}, txOptions);
       await visitorAccessOf.checkWidening(app, draft.definition, canManage, txOptions);
       const number = await nextNumber(app.id, txOptions);
-      await appVersions.patch(String(draft.id), { number, publishedAt: new Date().toISOString(), createdBy: actor }, { ...txOptions, returning: "none" });
+      // The draft's scripts go live with it, and the version keeps them as they are now (D-139).
+      const scripts = await scriptDrafts.publish(app.id, txOptions);
+      await appVersions.patch(String(draft.id), { number, publishedAt: new Date().toISOString(), createdBy: actor, scripts }, { ...txOptions, returning: "none" });
       await appRows.patch(app.id, { liveVersionId: String(draft.id), draftVersionId: null }, { ...txOptions, returning: "none" });
       await practices.remove(draft.id, txOptions);
       await audit({
@@ -355,7 +360,11 @@ export function createApps({ resources, records, registry, anyapi, practices, no
       if (!old) throw new RegistryError(404, "No such published version.", { code: "apps_version_not_found" });
       const definition = listedStored(old.definition, await registry.loadTables(txOptions));
       await visitorAccessOf.checkWidening(app, definition, canManage, txOptions);
-      return addVersion(app, actor, definition, `Restored version ${old.number}`, "restore", txOptions);
+      const restored = await addVersion(app, actor, definition, `Restored version ${old.number}`, "restore", txOptions);
+      // Its scripts come back too, as they went live with it (D-139).
+      const scripts = await scriptDrafts.restore(app.id, old.scripts, txOptions);
+      await appVersions.patch(restored.versionId, { scripts }, { ...txOptions, returning: "none" });
+      return restored;
     });
   }
 
@@ -654,6 +663,8 @@ export function createApps({ resources, records, registry, anyapi, practices, no
     // readable-check: allow setter-seam - not a slot: saves whether an app is public
     setPublic,
     saveDraft,
+    // The app's draft scripts (D-139): saved and taken away there, in the caller's transaction.
+    scriptDrafts,
     markTemplate,
     publish,
     restore,

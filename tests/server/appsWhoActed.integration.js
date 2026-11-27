@@ -58,6 +58,8 @@ test("rules know who acted and their role; a button's script knows who pressed",
     tests: [{ name: "own", input: { action: "update", record: { claimant: "7", approved: true }, previous: { approved: false }, actor: { id: "7", role: "admin" } }, expect: { refuse: "You can't approve your own claim." } }]
   }, home.options);
   assert.deepEqual(saved.errors, []);
+  // A saved script is the draft's until it's published (D-139).
+  await apps.publish(owner, "claims", {}, home.options);
 
   const lees = await gate.create(asPerson(lee, "Lee", "admin"), "claims", { title: "Taxi", claimant: lee });
   const kims = await gate.create(asPerson(kim, "Kim", "member"), "claims", { title: "Lunch", claimant: kim });
@@ -76,6 +78,7 @@ test("rules know who acted and their role; a button's script knows who pressed",
     code: "async function main() { const me = await people.me(); return { notify: me.name + ' (' + me.role + ')' } }",
     tests: [{ name: "t", input: {}, me: { id: "1", name: "Ann", role: "member" }, expect: { notify: "Ann (member)" } }]
   }, home.options)).errors, []);
+  await apps.publish(owner, "claims", {}, home.options);
   const appId = (await apps.find("claims", home.options)).id;
   const pressed = await scripts.runNamed("action", appId, "whoami", {}, { kind: "button" }, null, home.memberOptions(kim, workspace, { role: "member", permissions: [] }));
   assert.match(pressed.notify, /\(member\)$/u);

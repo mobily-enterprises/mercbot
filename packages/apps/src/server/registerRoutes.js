@@ -123,7 +123,7 @@ export function registerRoutes(http, { appsRuntime, notices, streams, uploads })
       definition,
       tables: screenTables(tables),
       theme,
-      functions: await scripts.functionCode(app.id, ctx.options),
+      functions: await scripts.functionCode(app.id, ctx.options, { draft: request.query?.version === "draft" }),
       style: scopeStyle(app.id, definition?.style),
       copyUpdates: await views.copyUpdates(definition, ctx.options),
       // Who is using it (`me` in its formulas) and the home's people, for person fields.

@@ -176,6 +176,8 @@ test("the Canary app: new mail read as the job's person, judged by the main bot 
   const save = async (key, kind, code, extra) => {
     const saved = await scripts.save(actor, "canary", { key, kind, summary: key, code, ...extra }, options);
     assert.deepEqual(saved.errors, [], key);
+    // A saved script is the draft's until it's published (D-139).
+    await apps.publish(actor, "canary", {}, options);
   };
   await save("check_mail", "job", JOB, {
     settings: { every: "hour", at: "00:15", timeZone: "Europe/Rome" },

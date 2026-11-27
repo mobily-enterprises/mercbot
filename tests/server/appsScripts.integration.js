@@ -64,7 +64,12 @@ test("scripts: saving, buttons, data, rules, functions, jobs and the web", async
   await registry.createTable(actor, { key: "deals", fields: [{ key: "title", type: "text", required: true }, { key: "amount", type: "money" }, { key: "stage", type: "choice", choices: ["Open", "Won", "Lost"] }, { key: "ref", type: "text" }] }, options);
   await registry.createTable(actor, { key: "notes", fields: [{ key: "text", type: "text", required: true }] }, options);
   await apps.createApp(actor, { name: "Sales" }, options);
-  const save = (input) => scripts.save(actor, "sales", input, options);
+  // A saved script is the draft's until it's published (D-139): this test's go live at once.
+  const save = async (input) => {
+    const result = await scripts.save(actor, "sales", input, options);
+    if (!result.errors.length) await apps.publish(actor, "sales", {}, options);
+    return result;
+  };
 
   // ---- Saving: only with passing tests ----
   const bonus = {

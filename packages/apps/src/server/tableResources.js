@@ -44,6 +44,8 @@ export const appVersionResource = defineTableResource({
     createdAt: { type: "dateTime" },
     createdBy: { type: "object", additionalProperties: true },
     definition: { type: "object", required: true, additionalProperties: true },
+    // The app's scripts as this version went live (D-139), which restoring it brings back; null before scripts had drafts.
+    scripts: { type: "array", nullable: true },
     kind: { type: "string", maxLength: 16, noTrim: true, search: true },
     number: { type: "integer", nullable: true },
     publishedAt: { type: "dateTime", nullable: true },
@@ -64,6 +66,10 @@ export const appScriptResource = defineTableResource({
     code: { type: "string", noTrim: true, required: true, search: true },
     createdBy: { type: "object", required: true, additionalProperties: true },
     cursor: { type: "string", nullable: true },
+    // The app's draft's script (D-139), tried in its preview and live once it's published; `removed`: the draft takes the
+    // live one away.
+    draft: { type: "boolean" },
+    removed: { type: "boolean" },
     enabled: { type: "boolean" },
     key: { type: "string", maxLength: 64, noTrim: true, required: true, search: true },
     kind: { type: "string", maxLength: 16, noTrim: true, search: true },

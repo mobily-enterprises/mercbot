@@ -4,9 +4,9 @@ import { passedOn } from "@jskit-ai/resource-runtime/server";
 import { newQuickJSWASMModuleFromVariant } from "quickjs-emscripten-core";
 import { isCalculated } from "../shared/calculated.js";
 import { ScriptError, runFunction } from "../shared/sandbox.js";
-import { newId } from "./registry.js";
 import { LIMITS, PAGE, createScriptChecks, hostFor, whereFor } from "./scriptChecks.js";
 import { createScriptAi } from "./scriptAi.js";
+import { asDrafted } from "./scriptDrafts.js";
 import { createScriptDocs } from "./scriptDocs.js";
 import { createScriptConnected } from "./scriptConnected.js";
 import { createScriptPeople } from "./scriptPeople.js";
@@ -156,7 +156,9 @@ export function createScripts({
     version: row.version,
     nextRunAt: row.nextRunAt,
     updatedAt: row.updatedAt,
-    createdBy: row.createdBy
+    createdBy: row.createdBy,
+    // In the app's draft (D-139): changed or new there and not live yet, or taken away there.
+    ...(row.draft ? { draft: row.removed ? "removed" : "changed" } : {})
   });
 
   const { checkScript, runTests } = createScriptChecks({ pool, ready });
@@ -165,10 +167,7 @@ export function createScripts({
 
   /** An app's script by key, or the 404 a person sees. */
   async function scriptOf(app, key, options) {
-    const { records: [row] } = await appScripts.query(
-      { filters: { appId: app.id, key: String(key) }, page: { size: 1 } },
-      passedOn(options)
-    );
+    const [row] = asDrafted(await appScripts.queryAll({ filters: { appId: app.id, key: String(key) } }, passedOn(options)));
     if (!row) throw new GateError(404, `No script "${key}".`, { code: "apps_script_not_found", params: { key } });
     return row;
   }
@@ -181,7 +180,7 @@ export function createScripts({
     return { errors: [], results: await runTests(input, tables) };
   }
 
-  /** Saves a script only when it's well formed and every test passes. Audited; version + 1. */
+  /** Saves a script only when it's well formed and every test passes, to the app's draft (D-139). Audited; version + 1. */
   async function save(actor, appSlug, input, options) {
     const app = await apps.find(appSlug, options);
     apps.notAView(app, "have scripts");
@@ -201,8 +200,7 @@ export function createScripts({
       };
     }
     const row = await appScripts.withTransaction(options, async (txOptions) => {
-      const [existing] = await appScripts.lockWhere({ appId: app.id, key: input.key }, { ...txOptions, fields: ["id", "version"] });
-      const fields = {
+      const saved = await apps.scriptDrafts.save(actor, app.id, input.key, {
         kind: input.kind,
         summary: String(input.summary).trim().slice(0, 300),
         code: input.code,
@@ -210,31 +208,26 @@ export function createScripts({
         settings,
         enabled: true,
         createdBy: actor,
-        runsAsUserId: input.kind === "job" ? personOf(options) : null,
-        nextRunAt: input.kind === "job" && settings.every ? nextSlot(settings).toISOString() : null,
-        // A watching job starts at the change horizon, read in this transaction.
-        cursor: input.kind === "job" && settings.watch ? await appScripts.changeHorizon(txOptions) : null
-      };
-      const saved = existing
-        ? await appScripts.patch(existing.id, { ...fields, version: existing.version + 1 }, txOptions)
-        : await appScripts.create({ id: newId("s"), appId: app.id, key: input.key, ...fields }, txOptions);
+        runsAsUserId: input.kind === "job" ? personOf(options) : null
+      }, txOptions);
       await audit({
         actor,
         via: { kind: "app", appId: app.id },
         action: "script",
-        changes: { script: { key: saved.key, kind: saved.kind, version: saved.version, summary: saved.summary } }
+        changes: { script: { key: saved.key, kind: saved.kind, version: saved.version, summary: saved.summary, draft: true } }
       }, txOptions);
       return saved;
     });
     return { errors: [], results, script: show(row, tables) };
   }
 
+  /** A script taken away in the app's draft (D-139): a live one goes when it's published; a draft's own goes now. */
   async function remove(actor, appSlug, key, options) {
     const app = await apps.find(appSlug, options);
-    const row = await scriptOf(app, key, options);
+    await scriptOf(app, key, options);
     await appScripts.withTransaction(options, async (txOptions) => {
-      await appScripts.delete(row.id, txOptions);
-      await audit({ actor, via: { kind: "app", appId: app.id }, action: "script", changes: { script: { key, removed: true } } }, txOptions);
+      await apps.scriptDrafts.remove(actor, app.id, String(key), txOptions);
+      await audit({ actor, via: { kind: "app", appId: app.id }, action: "script", changes: { script: { key, removed: true, draft: true } } }, txOptions);
     });
     return { removed: key };
   }
@@ -242,14 +235,17 @@ export function createScripts({
   /** Owners and admins can switch a script off (a misbehaving rule stops blocking saves) and on. */
   async function setEnabled(actor, appSlug, key, enabled, options) {
     const app = await apps.find(appSlug, options);
-    const row = await scriptOf(app, key, options);
+    // Switching is the live script's (a job stops or starts now); a script only in the draft keeps it for publishing.
+    const filters = { appId: app.id, key: String(key), draft: false };
+    const [live] = await appScripts.queryAll({ filters, take: 1 }, passedOn(options));
+    const row = live ?? (await scriptOf(app, key, options));
     await appScripts.withTransaction(options, async (txOptions) => {
       await appScripts.patch(row.id, {
         enabled,
         ...(row.kind === "job" && enabled ? { runsAsUserId: personOf(options) } : {}),
-        ...(row.kind === "job" && row.settings.every && enabled ? { nextRunAt: nextSlot(row.settings).toISOString() } : {}),
+        ...(!row.draft && row.kind === "job" && row.settings.every && enabled ? { nextRunAt: nextSlot(row.settings).toISOString() } : {}),
         // A watching job switched on starts again at the snapshot horizon.
-        ...(row.kind === "job" && row.settings.watch && enabled ? { cursor: await appScripts.changeHorizon(txOptions) } : {})
+        ...(!row.draft && row.kind === "job" && row.settings.watch && enabled ? { cursor: await appScripts.changeHorizon(txOptions) } : {})
       }, { ...txOptions, returning: "none" });
       await audit({ actor, via: { kind: "app", appId: app.id }, action: "script", changes: { script: { key, enabled } } }, txOptions);
     });
@@ -278,13 +274,17 @@ export function createScripts({
   async function list(appSlug, { runs = 20 } = {}, options) {
     const app = await apps.find(appSlug, options);
     const tables = await registry.loadTables(options);
-    const rows = await appScripts.queryAll({ filters: { appId: app.id }, sort: ["key"] }, passedOn(options));
+    const all = await appScripts.queryAll({ filters: { appId: app.id }, sort: ["key"] }, passedOn(options));
+    // One a key: the draft's (changed, new or taken away) over the live one, whose runs it shows (D-139).
+    const rows = [...Map.groupBy(all, (row) => row.key).values()].map((pair) => pair.find((row) => row.draft) || pair[0]);
+    const liveId = new Map(all.filter((row) => !row.draft).map((row) => [row.key, row.id]));
     // Each script's latest runs in one query, however many scripts: one index range each (script_id, id).
-    const recent = await repository.latestRuns(rows.map((row) => row.id), Math.max(Math.trunc(Number(runs)) || 0, 0), passedOn(options));
+    const recent = await repository.latestRuns([...liveId.values()], Math.max(Math.trunc(Number(runs)) || 0, 0), passedOn(options));
     const runsOf = Map.groupBy(recent, (run) => run.scriptId);
     const scripts = rows.map((row) => ({
       ...show(row, tables),
-      runs: (runsOf.get(row.id) || []).map((run) => ({
+      live: liveId.has(row.key),
+      runs: (runsOf.get(liveId.get(row.key)) || []).map((run) => ({
         at: run.startedAt,
         ok: run.ok,
         ms: run.ms,
@@ -316,7 +316,7 @@ export function createScripts({
    * @param {{ kind?: string | null }} where
    */
   async function overview({ kind = null } = {}, options) {
-    const rows = await appScripts.queryAll({ ...(kind ? { filters: { kind } } : {}), sort: ["key"] }, passedOn(options));
+    const rows = await appScripts.queryAll({ filters: { draft: false, ...(kind ? { kind } : {}) }, sort: ["key"] }, passedOn(options));
     const appIds = [...new Set(rows.map((row) => row.appId))];
     const owners = appIds.length ? await appRows.queryAll({ filters: { id: appIds }, sort: ["name"] }, passedOn(options)) : [];
     const order = new Map(owners.map((app, index) => [app.id, index]));
@@ -482,7 +482,9 @@ export function createScripts({
    * practice copy, as execute() says.
    */
   async function runNamed(kind, appId, key, input, via, reach, options, out = null) {
-    const { records: [row] } = await appScripts.query({ filters: { appId, key: String(key) }, page: { size: 1 } }, passedOn(options));
+    // A draft's preview runs the draft's script (D-139); the live app, the live one.
+    const rows = await appScripts.queryAll({ filters: { appId, key: String(key) } }, passedOn(options));
+    const [row] = reach?.practice ? asDrafted(rows) : rows.filter((entry) => !entry.draft);
     if (!row || row.kind !== kind) {
       throw new GateError(409, `This app has no ${kind} script "${key}".`, { code: "apps_script_kind_missing", params: { kind, key } });
     }
@@ -526,9 +528,8 @@ export function createScripts({
   }
 
   /** Every enabled rule of the home for this table and action, in key order. */
-  async function rulesFor(ctx, table, action) {
-    return appScripts.queryAll({ filters: { kind: "rule", enabled: true, ruleTable: table.id, ruleOn: action }, sort: ["key"] }, passedOn(ctx.options));
-  }
+  // The live rules; in a draft's preview, its app's draft's rules in place of that app's live ones (D-139).
+  const rulesFor = (ctx, table, action) => apps.scriptDrafts.rules(ctx, { kind: "rule", enabled: true, ruleTable: table.id, ruleOn: action });
 
   async function applyRules(rules, ctx, table, action, values, previous, clean, runs = null) {
     let next = values;
@@ -564,10 +565,13 @@ export function createScripts({
    * The app's formula functions, ready for CEL: [{ name, arity, call }], and a key that changes
    * whenever one of them does (formula environments are cached by it).
    */
-  const functionRows = (appId, options) =>
-    appScripts.queryAll({ filters: { appId, kind: "function", enabled: true }, sort: ["key"] }, passedOn(options));
-  async function functionsFor(appId, options) {
-    const rows = await functionRows(appId, options);
+  const functionRows = async (appId, options, draft = false) => {
+    const rows = await appScripts.queryAll({ filters: { appId, kind: "function", enabled: true }, sort: ["key"] }, passedOn(options));
+    // The draft's screens call the draft's functions (D-139), the live app's the live ones.
+    return draft ? asDrafted(rows) : rows.filter((row) => !row.draft);
+  };
+  async function functionsFor(appId, options, { draft = false } = {}) {
+    const rows = await functionRows(appId, options, draft);
     if (!rows.length) return null;
     const engine = await ready();
     return {
@@ -581,8 +585,8 @@ export function createScripts({
   }
 
   /** For the browser: the same functions' code, run there by the same sandbox. */
-  async function functionCode(appId, options) {
-    return (await functionRows(appId, options)).map((row) => ({
+  async function functionCode(appId, options, { draft = false } = {}) {
+    return (await functionRows(appId, options, draft)).map((row) => ({
       name: row.key,
       params: row.settings.params || [],
       code: row.code,

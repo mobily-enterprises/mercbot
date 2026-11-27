@@ -32,7 +32,11 @@ test("a run's changes are all or nothing, it reads its own writes, and a job's b
   await registry.createTable(owner, { key: "notes", fields: [{ key: "text", type: "text" }, { key: "picture", type: "image" }] }, options);
   await apps.createApp(owner, { name: "Notes" }, options);
   const appId = (await apps.find("notes", options)).id;
-  const saved = async (...args) => assert.deepEqual((await scripts.save(owner, "notes", save(...args), options)).errors, []);
+  // A saved script is the draft's until it's published (D-139).
+  const saved = async (...args) => {
+    assert.deepEqual((await scripts.save(owner, "notes", save(...args), options)).errors, []);
+    await apps.publish(owner, "notes", {}, options);
+  };
   const press = (key) => scripts.runNamed("action", appId, key, {}, { kind: "button" }, null, options);
   const notes = async () => (await gate.read(ctx, "notes", { page: { size: 200 } })).records.length;
 

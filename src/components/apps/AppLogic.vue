@@ -102,6 +102,9 @@ onMounted(load);
           <div class="d-flex flex-column ga-1">
             <div class="d-flex align-center ga-2">
               <span class="text-body-1">{{ script.summary }}</span>
+              <!-- A script changed in the app's draft goes live when the draft is published (D-139). -->
+              <v-chip v-if="script.draft === 'removed'" size="x-small" variant="tonal" class="flex-shrink-0" title="Removed in the draft: it stops when the draft is published">Removed in draft</v-chip>
+              <v-chip v-else-if="script.draft" size="x-small" color="primary" variant="tonal" class="flex-shrink-0" :title="script.live ? 'Changed in the draft: the live app runs the published version until the draft is published' : 'New in the draft: it runs in the draft\'s preview, and goes live when the draft is published'">Draft</v-chip>
               <v-chip v-if="!script.enabled" size="x-small" variant="tonal" class="flex-shrink-0">Off</v-chip>
               <v-chip v-else-if="lastError(script) && !script.runs[0]?.ok" size="x-small" color="error" variant="tonal" class="flex-shrink-0">Failing</v-chip>
             </div>

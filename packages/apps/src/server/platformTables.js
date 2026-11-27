@@ -103,6 +103,8 @@ const appFieldSearch = Object.freeze({
 
 const appScriptSearch = Object.freeze({
   enabled,
+  // The app's draft's scripts (D-139), or its live ones.
+  draft: { type: "boolean", actualField: "draft", filterOperator: "=" },
   due: hasCome("nextRunAt"),
   // A rule's table (settings.table, by id).
   ruleTable: {

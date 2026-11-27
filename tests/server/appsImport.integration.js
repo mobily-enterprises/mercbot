@@ -240,6 +240,8 @@ test("an import records its rules' runs, one row per run, in one insert", async 
     tests: [{ name: "reads", input: { action: "create", record: { title: "A", contact: "1" }, previous: null }, records: { contacts: [{ id: "1", name: "Ana" }] }, expect: {} }]
   }, options);
   assert.deepEqual(saved.errors, []);
+  // A saved script is the draft's until it's published (D-139).
+  await apps.publish(person, "sales", {}, options);
   const runs = () => knex("app_script_runs").where({ script_id: saved.script.id }).orderBy("id");
 
   const sheet = (size, prefix) => Array.from({ length: size }, (_, index) => ({ [id("title")]: `${prefix} ${index}`, [id("contact")]: "Ana" }));

@@ -127,7 +127,7 @@ export function createRuntime({ apps, gate, scripts, practices }) {
     const tables = loaded.tables.filter((table) => !table.obsolete);
     const tableNamed = (name) => tables.find((table) => table.key === name);
     // The app's named formulas and script functions, callable from its formulas.
-    const functions = withNamedFormulas(loaded.definition?.formulas, await scripts.functionsFor(loaded.app.id, options));
+    const functions = withNamedFormulas(loaded.definition?.formulas, await scripts.functionsFor(loaded.app.id, options, { draft: version === "draft" }));
     return { ...loaded, screen, tableNamed, functions };
   }
 
