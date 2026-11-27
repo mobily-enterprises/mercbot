@@ -207,12 +207,12 @@ test("an import records its rules' runs, one row per run, in one insert", async 
 
   // The test's own scripts, with their own web access, as the gate's rules on saving (as the server wires them).
   let scripts = null;
-  const { resources, repository, registry, gate, apps, systemContext } = appsParts(home, {
+  const { resources, repository, registry, gate, apps, systemContext, roleOf } = appsParts(home, {
     beforeSave: (...args) => scripts.beforeSave(...args),
     beforeSaveEach: (...args) => scripts.beforeSaveEach(...args)
   });
   const web = createWebAccess({ resources, env: { MERCBOT_VAULT_KEY: randomBytes(32).toString("base64") } });
-  scripts = createScripts({ resources, repository, systemContext, notices, registry, gate, apps, env: process.env, web });
+  scripts = createScripts({ roleOf, resources, repository, systemContext, notices, registry, gate, apps, env: process.env, web });
   // Registered after appsHome's, so it runs before the home and its features go.
   context.after(async () => {
     await scripts.close();

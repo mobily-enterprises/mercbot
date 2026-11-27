@@ -39,14 +39,16 @@ const NO_CONNECTED_APPS = Object.freeze({
 });
 
 /**
- * The home's members as the chats records give them (`everyoneIn`, `names`), read from the test's database: what
+ * The home's members as the chats records give them (`everyoneIn`, `names`, `roleIn`), read from the test's database: what
  * person fields check and show. The chats records' own tests cover theirs.
  * @param {import("knex").Knex} knex
  */
 export const membersOn = (knex) => Object.freeze({
   everyoneIn: async (options) => (await knex("workspace_memberships").where({ workspace_id: homeIdOf(options), status: "active" }).pluck("user_id")).map(String),
   names: async (ids) => new Map((await knex("users").whereIn("id", ids).select("id", "display_name", "username"))
-    .map((user) => [String(user.id), user.display_name || user.username || "Someone"]))
+    .map((user) => [String(user.id), user.display_name || user.username || "Someone"])),
+  roleIn: async (userId, options) =>
+    (await knex("workspace_memberships").where({ workspace_id: homeIdOf(options), user_id: userId, status: "active" }).first("role_sid"))?.role_sid ?? null
 });
 
 /**

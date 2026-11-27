@@ -38,12 +38,12 @@ test("a draft preview works on practice data, and nothing reaches the live app",
 
   // The parts as the server wires them (appsRuntime.js), with web calls that may reach this test's service.
   let scripts = null;
-  const { resources, repository, registry, gate, apps, practices, systemContext } = appsParts(home, {
+  const { resources, repository, registry, gate, apps, practices, systemContext, roleOf } = appsParts(home, {
     beforeSave: (...args) => scripts.beforeSave(...args),
     beforeSaveEach: (...args) => scripts.beforeSaveEach(...args)
   });
   const web = createWebAccess({ resources, env: { MERCBOT_VAULT_KEY: randomBytes(32).toString("base64"), APP_ENV: "production" }, insecure: true });
-  scripts = createScripts({ resources, repository, systemContext, registry, gate, apps, env: process.env, web });
+  scripts = createScripts({ roleOf, resources, repository, systemContext, registry, gate, apps, env: process.env, web });
   const runtime = createRuntime({ apps, gate, scripts, practices });
   const trial = createTrial({ apps, runtime, scripts });
   cleanup.after(async () => {

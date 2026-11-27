@@ -185,6 +185,12 @@ export function createChatRepository({ resources, systemContext, profiles, membe
   /** Every active member of the home, by id. */
   const everyoneIn = (options) => memberships.activeMemberIds(homeOf(options), passedOn(options));
 
+  /** Someone's role in the home ("owner", "admin", "member" or another the home gives), or null when they aren't in it. */
+  async function roleIn(userId, options) {
+    if (!isId(userId)) return null;
+    return (await memberships.findActiveByWorkspaceIdAndUserId(homeOf(options), String(userId), passedOn(options)))?.roleSid ?? null;
+  }
+
   /**
    * The people in some chats, in the order they joined, by chat: one read for them all.
    * @returns {Promise<Map<string, Array<{ user_id: string, name: string, added_by: string | null, joined_at: string }>>>}
@@ -665,6 +671,7 @@ export function createChatRepository({ resources, systemContext, profiles, membe
     names,
     isHomeMember,
     everyoneIn,
+    roleIn,
     people,
     peopleOf,
     bots: botsIn,

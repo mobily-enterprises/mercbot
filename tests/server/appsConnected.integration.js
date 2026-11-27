@@ -58,12 +58,12 @@ test("connected apps for scripts: who, which, only buttons change, never public,
   });
   const { knex, userId, workspaceId, options, workspace } = home;
   let scripts = null;
-  const { resources, repository, registry, gate, apps, systemContext } = appsParts(home, {
+  const { resources, repository, registry, gate, apps, systemContext, roleOf } = appsParts(home, {
     trustMs: Infinity,
     beforeSave: (...args) => scripts.beforeSave(...args),
     beforeSaveEach: (...args) => scripts.beforeSaveEach(...args)
   });
-  scripts = createScripts({ resources, repository, systemContext, registry, gate, apps, env: process.env, connected: () => connected });
+  scripts = createScripts({ roleOf, resources, repository, systemContext, registry, gate, apps, env: process.env, connected: () => connected });
   const watches = createWatches({ resources, repository, systemContext, registry, gate, apps });
   cleanup.after(() => scripts.close());
   const actor = { type: "person", id: userId, name: "Pat" };

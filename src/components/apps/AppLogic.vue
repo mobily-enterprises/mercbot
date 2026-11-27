@@ -1,5 +1,6 @@
 <script setup>
 import { computed, onMounted, ref } from "vue";
+import { jobSchedule } from "@local/apps/shared";
 import MercbotSwitch from "@/components/mercbot/MercbotSwitch.vue";
 import { appsApi, errorText } from "@/components/apps/appsApi.js";
 import { whenText } from "@/components/apps/appRuntime.js";
@@ -43,7 +44,7 @@ function when(script) {
   if (script.kind === "rule") return `Before ${settings.tableLabel || settings.table} records are ${(settings.on || ["create", "update"]).map((action) => (action === "create" ? "added" : "changed")).join(" or ")}`;
   if (script.kind === "function") return `In formulas: ${script.key}(${(settings.params || []).join(", ")})`;
   if (script.kind === "job" && settings.watch) return `When ${settings.watch.tableLabel || settings.watch.table} records are ${{ create: "added", update: "changed", any: "added or changed" }[settings.watch.on] || "changed"}${settings.watch.condition ? `, if ${settings.watch.condition.slice(1)}` : ""}`;
-  if (script.kind === "job") return `Every ${settings.every}${settings.every === "hour" ? ` at :${String(settings.at || "00:00").slice(3)}` : ` at ${settings.at}`}${settings.every === "week" ? ` on ${["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][settings.day]}` : ""} (${settings.timeZone})`;
+  if (script.kind === "job") return jobSchedule(settings);
   return script.kind === "action" ? "When a button runs it" : "When a screen shows its data";
 }
 const lastError = (script) => script.runs.find((run) => !run.ok);

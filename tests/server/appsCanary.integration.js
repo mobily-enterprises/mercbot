@@ -122,9 +122,9 @@ test("the Canary app: new mail read as the job's person, judged by the main bot 
       real: async (homeId, virtualPath) => (await store.existingFile(store.homePlace(homeId), virtualPath)).real
     }
   });
-  const { resources, repository, registry, gate, apps, systemContext } = parts;
+  const { resources, repository, registry, gate, apps, systemContext, roleOf } = parts;
   const homeBots = async () => [{ id: ottoId, name: "Otto", main: true, archived: false }];
-  scripts = createScripts({ resources, repository, systemContext, registry, gate, apps, env: process.env, connected: () => layer, homeBots });
+  scripts = createScripts({ roleOf, resources, repository, systemContext, registry, gate, apps, env: process.env, connected: () => layer, homeBots });
   const watches = createWatches({ resources, repository, systemContext, registry, gate, apps });
   cleanup.after(() => scripts.close());
 

@@ -42,7 +42,7 @@ test("scripts: saving, buttons, data, rules, functions, jobs and the web", async
   // A cycle: the gate runs scripts' rules inside its writes, so it asks for them late.
   let scripts = null;
   // Only the work's own queries are counted here: no refresh of the cached tables after their 5 s (appsRegistry checks that).
-  const { resources, repository, registry, gate, apps, practices, systemContext } = appsParts(home, {
+  const { resources, repository, registry, gate, apps, practices, systemContext, roleOf } = appsParts(home, {
     trustMs: Infinity,
     beforeSave: (...args) => scripts.beforeSave(...args),
     beforeSaveEach: (...args) => scripts.beforeSaveEach(...args)
@@ -50,7 +50,7 @@ test("scripts: saving, buttons, data, rules, functions, jobs and the web", async
   // The live copy's web calls (APP_ENV=production, D-69, D-87); a test copy's are checked further down.
   const vaultKey = randomBytes(32).toString("base64");
   const web = createWebAccess({ resources, env: { MERCBOT_VAULT_KEY: vaultKey, APP_ENV: "production" }, insecure: true });
-  scripts = createScripts({ resources, repository, systemContext, notices: home.notices, registry, gate, apps, env: process.env, web });
+  scripts = createScripts({ roleOf, resources, repository, systemContext, notices: home.notices, registry, gate, apps, env: process.env, web });
   const runtime = createRuntime({ apps, gate, scripts, practices });
   const watches = createWatches({ resources, repository, systemContext, registry, gate, apps });
   // Before the home's own cleanup (newest first).

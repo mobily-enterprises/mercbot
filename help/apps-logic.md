@@ -42,7 +42,9 @@ You don't need to ask for a script. Describe what you want the app to do, and th
 | **Screen data** | Supplies a screen with data that a filter can't express, for tables, totals, charts or single values. | A top-ten list of leads, scored across several tables |
 | **Rule on saving** | Runs before records of a table are added or changed, whoever makes the change. It can refuse the save with a reason, or fill in fields. | "End date must be after start date" |
 | **Formula function** | A small calculation the app's formulas can use by name. | Adding VAT to an amount |
-| **Job** | Runs every hour, day or week at a set time, or when a table's records change, without waking a bot. | Each morning, mark overdue invoices |
+| **Job** | Runs every 15 minutes, every hour, every day (or only on chosen weekdays), every week or every month (on a day such as the 1st, or the last day) at a set time, or when a table's records change, without waking a bot. | Each morning, mark overdue invoices |
+
+A rule on saving knows who is making the change and their role in the home (owner, admin or member), or that it's a bot or a script. So an expense app can refuse anyone approving their own claim, and let only owners and admins approve. A button's or a job's script can ask the same about the person pressing the button or the job's person.
 
 A rule on saving applies to every change to its table: from any app's screens, the Data tab, imports, bots and other scripts. So one rule protects the table everywhere.
 

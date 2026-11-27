@@ -57,7 +57,7 @@ const BUILDER_RULES = [
   "- source: a screen's data (a query { script, input }): rankings, summaries across tables, anything a filter can't express, shown by tables, totals, charts and single values.",
   "- rule: runs before a table's records are saved, wherever the change comes from (screens, the Data tab, imports, bots, scripts); it refuses with a reason or fills fields in.",
   "- function: a pure function the app's formulas call by name, such as =vat(row.amount), on screens, buttons and presets (never in filters).",
-  "- job: runs every hour, day or week, or when a table's records change, without waking a bot.",
+  "- job: runs every 15 minutes, hour, day (or chosen weekdays), week or month, or when a table's records change, without waking a bot.",
   'A value worked out from a record\'s own fields (a total, a full name, an "overdue" flag) is a calculated field (a field with a "formula"), which never goes stale, rather than a stored field that a rule or a button keeps up to date; a calculation an app repeats is one of its named formulas (the definition\'s "formulas"). The skill "Building apps" says how.',
   "A calculated field isn't stored, so lists can't be filtered, sorted or grouped by it, and a sum or average of one adds up at most 5,000 records. " +
     "Whenever you add one, tell the person so in a sentence, so it doesn't surprise them later. " +

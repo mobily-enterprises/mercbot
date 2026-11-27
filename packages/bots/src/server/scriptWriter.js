@@ -33,6 +33,8 @@ Records are by field name: links are the linked record's id, ` +
   `person the run is for (buttons, screens' data and jobs only; at most 5 calls a run). Only a button changes anything ` +
   `(drafts, sending, events, files); a screen's data and a job only read. A change the person's approval rules ask about ` +
   `isn't made yet: the answer is { status: "waiting_for_approval" } and the person is asked to confirm it.
+- await people.me() → { id, name, role } (buttons, screens' data and jobs: the person pressing, opening or the job's ` +
+  `person; null for a public app's visitor). A test gives it as me: { id, name, role }.
 - await ai.bots() → [{ name, isMain }]; await ai.work({ bot: "default" | "a bot's name", task, items: [{ record: { table, id }, ` +
   `text }], into: "a text field" }) → { batch, queued, bot }: the bot ("default" is the home's main one) answers every item ` +
   `later, in one session, writing each answer into that field of its record; await ai.picture({ prompt, into: { table, id, ` +
@@ -46,7 +48,9 @@ What main returns, by kind:
   `openDialog?: "key" }
 - source (a screen's data): a list of objects (a table's rows), [{ label, value }] (totals and charts), or ` +
   `one object
-- rule (before a record is saved; input { action: "create" | "update", record, previous, actor }): {} to accept, { ` +
+- rule (before a record is saved; input { action: "create" | "update", record, previous, actor: { type, id, name, role } }, ` +
+  `role "owner" | "admin" | "member" for a person, else "bot", "script" or "visitor"; compare a person field with ` +
+  `actor.id, so an approver is never the claimant): {} to accept, { ` +
   `refuse: "reason for the person" }, or { set: { field: value } } to fill fields in
 - function: the value (number, text, yes/no, ` +
   `list or object)

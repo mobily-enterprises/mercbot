@@ -75,7 +75,9 @@ export function createAppsRuntime({ resources, systemContext, records, anyapi, n
   const apps = createApps({ resources, records, registry, anyapi, practices, notices, homes });
   // The home's bots, which is its main one: who a script's ai.work goes to (D-136).
   const homeBots = (options) => records.directory.homeBotFaces(options);
-  scripts = createScripts({ resources, repository, systemContext, registry, gate, apps, env, connected, homeBots });
+  // Someone's role in the home, for a script's `people.me()` and a rule's actor (D-140).
+  const roleOf = (userId, options) => records.chats.roleIn(userId, options);
+  scripts = createScripts({ resources, repository, systemContext, registry, gate, apps, env, connected, homeBots, roleOf });
   const connectedAccess = createAppConnectedAccess({ resources, apps, connected });
   const runtime = zoned(createRuntime({ apps, gate, scripts, practices }), ["query", "action", "linkChoices"]);
   const trial = createTrial({ apps, runtime, scripts });

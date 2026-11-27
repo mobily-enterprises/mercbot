@@ -17,7 +17,7 @@ export const LIMITS = {
   test: { cpuMs: 1000, wallMs: 10000, memory: 32 * 1024 * 1024 }
 };
 export const PAGE = 100;
-const EVERY = ["hour", "day", "week"];
+const EVERY = ["15min", "hour", "day", "week", "month"];
 export const ON = { create: ["create"], update: ["update"], any: ["create", "update"] };
 const READS = { list: true, get: true, totals: true };
 const WRITES = { create: true, update: true, markObsolete: true };
@@ -57,6 +57,7 @@ export const hostFor = (kind) =>
           records: { ...READS, ...WRITES },
           web: { fetch: true },
           connected: { actions: true, run: true },
+          people: { me: true },
           ...(kind === "source" ? {} : { ai: { bots: true, work: true, picture: true } })
         };
 
@@ -109,7 +110,16 @@ export function createScriptChecks({ pool, ready }) {
         clean = { watch: { table: table?.id, on, ...(settings.watch.condition ? { condition: settings.watch.condition } : {}) } };
       } else {
         if (!EVERY.includes(settings.every)) {
-          fail("settings.every", "a job runs every hour, day or week, or on a watch: { watch: { table, on, condition? } }.");
+          fail("settings.every", "a job runs every 15min, hour, day, week or month, or on a watch: { watch: { table, on, condition? } }.");
+        }
+        const weekdays = settings.days;
+        if (weekdays !== undefined && (settings.every !== "day" || !Array.isArray(weekdays) || !weekdays.length ||
+          !weekdays.every((entry) => Number.isInteger(entry) && entry >= 0 && entry <= 6))) {
+          fail("settings.days", "with every day, the weekdays it runs on: 0 (Sunday) to 6 (Saturday), e.g. [1, 2, 3, 4, 5].");
+        }
+        const dayOfMonth = settings.dayOfMonth ?? 1;
+        if (settings.every === "month" && dayOfMonth !== "last" && !(Number.isInteger(dayOfMonth) && dayOfMonth >= 1 && dayOfMonth <= 28)) {
+          fail("settings.dayOfMonth", 'the day of the month: 1 to 28, or "last".');
         }
         if (settings.at !== undefined && !/^([01]\d|2[0-3]):[0-5]\d$/u.test(settings.at)) fail("settings.at", "a time like 08:30.");
         if (settings.every === "week" && !(Number.isInteger(settings.day) && settings.day >= 0 && settings.day <= 6)) {
@@ -125,6 +135,8 @@ export function createScriptChecks({ pool, ready }) {
           every: settings.every,
           at: settings.at || "00:00",
           ...(settings.every === "week" ? { day: settings.day } : {}),
+          ...(settings.every === "day" && Array.isArray(weekdays) ? { days: [...new Set(weekdays)].sort() } : {}),
+          ...(settings.every === "month" ? { dayOfMonth } : {}),
           timeZone
         };
       }
@@ -262,6 +274,7 @@ export function createScriptChecks({ pool, ready }) {
                   ...(answer.status ? answer : {})
                 };
               }
+              if (group === "people") return test.me ?? null;
               if (group === "ai") {
                 if (!Object.hasOwn(test.ai || {}, operation)) throw new Error(`no ai answer for ai.${operation} in this test`);
                 return test.ai[operation];

@@ -3,6 +3,7 @@ export { ICONS, checkView, viewBody, viewDefinition } from "./check.js";
 export { NeedsAttention, compileWhere, planToIds } from "./where.js";
 export { CALCULATED_TYPES, calculate, calculatedUsing, checkCalculated, fieldByNames, formulaByNames, isCalculated, storedFieldIds, withCalculated } from "./calculated.js";
 export { withNamedFormulas } from "./namedFormulas.js";
+export { jobSchedule } from "./schedules.js";
 
 /**
  * The most records one read of a table returns (D-35): the data gate never asks for more, and its

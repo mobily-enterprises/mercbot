@@ -8,7 +8,9 @@ import { newId } from "./registry.js";
 import { LIMITS, PAGE, createScriptChecks, hostFor, whereFor } from "./scriptChecks.js";
 import { createScriptAi } from "./scriptAi.js";
 import { createScriptConnected } from "./scriptConnected.js";
+import { createScriptPeople } from "./scriptPeople.js";
 import { createScriptPool } from "./scriptPool.js";
+import { nextSlot } from "./scriptSchedule.js";
 import { GateError } from "./validate.js";
 import { createWebAccess } from "./webAccess.js";
 
@@ -59,46 +61,7 @@ function scriptValue(field, value) {
 }
 
 
-/**
- * Every hour (at `at`'s minutes), every day or every week (weekday `day`, 0 = Sunday) at `at` in
- * `timeZone`: the next slot after `from`.
- */
-function nextSlot({ every, at = "00:00", day = 1, timeZone = "UTC" }, from = new Date()) {
-  const [hour, minute] = String(at).split(":").map(Number);
-  if (every === "hour") {
-    const next = new Date(from);
-    next.setUTCSeconds(0, 0);
-    next.setUTCMinutes(minute);
-    if (next <= from) next.setUTCHours(next.getUTCHours() + 1);
-    return next;
-  }
-  const parts = (date) =>
-    Object.fromEntries(
-      new Intl.DateTimeFormat("en-US", {
-        timeZone,
-        hourCycle: "h23",
-        year: "numeric",
-        month: "numeric",
-        day: "numeric",
-        hour: "numeric",
-        minute: "numeric",
-        weekday: "short"
-      })
-        .formatToParts(date)
-        .map((part) => [part.type, part.value])
-    );
-  const local = parts(from);
-  for (let offsetDays = 0; offsetDays < 9; offsetDays += 1) {
-    const guess = Date.UTC(Number(local.year), Number(local.month) - 1, Number(local.day) + offsetDays, hour, minute);
-    // The zone's offset at that moment, so the slot is `at` on the local clock.
-    const seen = parts(new Date(guess));
-    const shift = Date.UTC(Number(seen.year), Number(seen.month) - 1, Number(seen.day), Number(seen.hour), Number(seen.minute)) - guess;
-    const slot = new Date(guess - shift);
-    const weekday = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(parts(slot).weekday);
-    if (slot > from && (every === "day" || weekday === Number(day))) return slot;
-  }
-  return new Date(from.getTime() + 86400000);
-}
+
 
 /**
  * A home's scripts: rules on saving, buttons' and screens' scripts, formula functions and
@@ -126,11 +89,13 @@ export function createScripts({
   env,
   connected,
   homeBots,
+  roleOf,
   pool = createScriptPool(),
   web = createWebAccess({ resources, env })
 }) {
   const { apps: appRows, appScripts, appScriptRuns, appScriptRounds, auditEvents } = resources;
   const connectedApps = createScriptConnected({ resources, systemContext, connected });
+  const { whoActed, personOfRun } = createScriptPeople({ roleOf });
   const aiWork = createScriptAi({ resources, systemContext, registry, homeBots });
   // The person a job saved or switched on runs as for connected apps (D-136): the call's, never anything sent.
   const personOf = (options) => resolveAuditActorId(options?.context) ?? null;
@@ -376,6 +341,7 @@ export function createScripts({
     return async (group, name, args) => {
       if (group === "connected") return connectedCall(name, args);
       if (group === "ai") return aiCall(name, args);
+      if (group === "people") return personOfRun(ctx, row);
       if (group === "web") {
         if ((webCalls += 1) > limits.web) throw new Error(`at most ${limits.web} web calls per run`);
         const answer = await web.fetch(args[0], args[1] || {}, ctx.options, { simulate: Boolean(ctx.practice) });
@@ -549,7 +515,7 @@ export function createScripts({
           action,
           record,
           previous: previous ? scriptRecord(table, previous) : null,
-          actor: { type: ctx.actor?.type || "person", name: ctx.actor?.name || "" }
+          actor: await whoActed({ type: "person", ...ctx.actor }, ctx.options)
         },
         { kind: "rule", table: table.key, by: ctx.via?.kind || null },
         ctx.practice ? { practice: ctx.practice } : null,

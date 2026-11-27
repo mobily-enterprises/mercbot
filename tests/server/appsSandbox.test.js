@@ -76,3 +76,30 @@ test("web addresses and timetables", () => {
   assert.equal(nextSlot({ every: "day", at: "12:00", timeZone: "Europe/Rome" }, from).toISOString(), "2026-10-29T11:00:00.000Z");
   assert.equal(nextSlot({ every: "week", day: 1, at: "09:00", timeZone: "UTC" }, from).toISOString(), "2026-11-02T09:00:00.000Z", "the next Monday");
 });
+
+test("more timetables: every 15 minutes, chosen weekdays, monthly on a day or the last day (D-140)", async () => {
+  const { jobSchedule } = await import("../../packages/apps/src/shared/schedules.js");
+  const { createScriptChecks } = await import("../../packages/apps/src/server/scriptChecks.js");
+  const at = (iso) => new Date(iso);
+  assert.equal(nextSlot({ every: "15min" }, at("2026-11-27T10:07:12Z")).toISOString(), "2026-11-27T10:15:00.000Z");
+  assert.equal(nextSlot({ every: "15min" }, at("2026-11-27T10:45:00Z")).toISOString(), "2026-11-27T11:00:00.000Z", "never the moment it is");
+  // Friday 27 November 2026, 10:00 UTC: weekdays at 08:00 next run Monday; Friday and Saturday's next is Saturday.
+  assert.equal(nextSlot({ every: "day", days: [1, 2, 3, 4, 5], at: "08:00" }, at("2026-11-27T10:00:00Z")).toISOString(), "2026-11-30T08:00:00.000Z");
+  assert.equal(nextSlot({ every: "day", days: [5, 6], at: "08:00" }, at("2026-11-27T10:00:00Z")).toISOString(), "2026-11-28T08:00:00.000Z");
+  assert.equal(nextSlot({ every: "month", dayOfMonth: 1, at: "09:00" }, at("2026-11-27T10:00:00Z")).toISOString(), "2026-12-01T09:00:00.000Z");
+  assert.equal(nextSlot({ every: "month", dayOfMonth: "last", at: "17:00" }, at("2026-01-31T18:00:00Z")).toISOString(), "2026-02-28T17:00:00.000Z", "February's last day");
+  assert.equal(nextSlot({ every: "month", dayOfMonth: "last", at: "17:00", timeZone: "Australia/Perth" }, at("2026-11-27T10:00:00Z")).toISOString(), "2026-11-30T09:00:00.000Z", "17:00 in Perth");
+
+  assert.equal(jobSchedule({ every: "15min" }), "Every 15 minutes");
+  assert.equal(jobSchedule({ every: "day", days: [1, 2, 3, 4, 5], at: "08:00" }), "Every weekday at 08:00 (UTC)");
+  assert.equal(jobSchedule({ every: "day", days: [0, 6], at: "10:00", timeZone: "Europe/Rome" }), "Every Sunday, Saturday at 10:00 (Europe/Rome)");
+  assert.equal(jobSchedule({ every: "month", dayOfMonth: "last", at: "17:00" }), "Every month on the last day at 17:00 (UTC)");
+
+  const { checkScript } = createScriptChecks({ pool: null, ready: null });
+  const job = (settings) => checkScript({ key: "tidy", kind: "job", summary: "Tidies", code: "async function main() {}", tests: [{}], settings }, []);
+  assert.deepEqual(job({ every: "day", days: [5, 1, 1], at: "08:00" }).settings.days, [1, 5]);
+  assert.equal(job({ every: "month", dayOfMonth: "last", at: "08:00" }).settings.dayOfMonth, "last");
+  assert.match(JSON.stringify(job({ every: "week", days: [1] }).errors), /with every day, the weekdays/u);
+  assert.match(JSON.stringify(job({ every: "month", dayOfMonth: 31 }).errors), /1 to 28, or \\"last\\"/u);
+  assert.match(JSON.stringify(job({ every: "minute" }).errors), /every 15min, hour, day, week or month/u);
+});

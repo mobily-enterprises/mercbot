@@ -30,12 +30,12 @@ test("ai for scripts: allowed apps, buttons and jobs, the main bot, limits, prev
     { id: ida, name: "Old", main: false, archived: true }
   ];
   let scripts = null;
-  const { resources, repository, registry, gate, apps, systemContext } = appsParts(home, {
+  const { resources, repository, registry, gate, apps, systemContext, roleOf } = appsParts(home, {
     trustMs: Infinity,
     beforeSave: (...args) => scripts.beforeSave(...args),
     beforeSaveEach: (...args) => scripts.beforeSaveEach(...args)
   });
-  scripts = createScripts({ resources, repository, systemContext, registry, gate, apps, env: process.env, homeBots: async () => bots });
+  scripts = createScripts({ roleOf, resources, repository, systemContext, registry, gate, apps, env: process.env, homeBots: async () => bots });
   const watches = createWatches({ resources, repository, systemContext, registry, gate, apps });
   cleanup.after(() => scripts.close());
   const actor = { type: "person", id: userId, name: "Pat" };

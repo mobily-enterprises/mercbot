@@ -23,7 +23,7 @@ test("scripts see tags, files, pictures, links and times as they are", async (co
   cleanup.after(() => rm(dir, { recursive: true, force: true }));
   const store = createFileStore({ root: "", fallback: dir, ownStorage: async () => null, settle: async () => {}, explain: async () => {} });
   let scripts = null;
-  const { resources, repository, registry, gate, apps, systemContext } = appsParts(home, {
+  const { resources, repository, registry, gate, apps, systemContext, roleOf } = appsParts(home, {
     trustMs: Infinity,
     beforeSave: (...args) => scripts.beforeSave(...args),
     beforeSaveEach: (...args) => scripts.beforeSaveEach(...args),
@@ -33,7 +33,7 @@ test("scripts see tags, files, pictures, links and times as they are", async (co
       real: async (homeId, virtualPath) => (await store.existingFile(store.homePlace(homeId), virtualPath)).real
     }
   });
-  scripts = createScripts({ resources, repository, systemContext, registry, gate, apps, env: process.env, homeBots: async () => [] });
+  scripts = createScripts({ roleOf, resources, repository, systemContext, registry, gate, apps, env: process.env, homeBots: async () => [] });
   cleanup.after(() => scripts.close());
   const actor = { type: "person", id: userId, name: "Pat" };
   const ctx = home.ctx(actor);

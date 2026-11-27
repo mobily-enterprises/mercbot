@@ -1,3 +1,4 @@
+import { jobSchedule } from "@local/apps/shared";
 import { createCallerReaders } from "./records/recordRows.js";
 import { FAILURES_BEFORE_PAUSE } from "./runLease.js";
 
@@ -7,22 +8,11 @@ import { FAILURES_BEFORE_PAUSE } from "./runLease.js";
 // and rules; this only says which of them the person may use (`can`). Owners and admins also see how many tasks run in
 // chats they can't open, and what those cost, without their names.
 
-const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
 /** What a watch, or a job watching a table, runs on, in words: its records "are added", "change", or both. */
 const changesOn = (on) => ({ create: "are added", update: "change" })[on] || "are added or change";
 
-/** When an app's job runs, in words: on its timetable, or when its table's records change. */
-export function jobSchedule(settings = {}) {
-  const watch = settings.watch;
-  if (watch) return `When ${watch.tableLabel || watch.table || "a table"} records ${changesOn(watch.on)}`;
-  const at = /^\d{2}:\d{2}$/u.test(String(settings.at || "")) ? settings.at : "00:00";
-  const zone = settings.timeZone && settings.timeZone !== "UTC" ? ` (${settings.timeZone})` : " (UTC)";
-  if (settings.every === "hour") return `Every hour at :${at.slice(3)}`;
-  if (settings.every === "day") return `Every day at ${at}${zone}`;
-  if (settings.every === "week") return `Every ${WEEKDAYS[Number(settings.day ?? 1)] || "Monday"} at ${at}${zone}`;
-  return "When the app runs it";
-}
+export { jobSchedule };
 
 /** An app's job's name as people read it, from its key: "sync_latest_weight" is "Sync latest weight". */
 export function jobName(key) {
