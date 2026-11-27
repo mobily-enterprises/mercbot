@@ -6,6 +6,8 @@ import { isFileField } from "../shared/formulas.js";
 import { STORAGE_TYPES, fieldStorage } from "./anyapi.js";
 import { homeIdOf } from "./callOptions.js";
 import { fillRollup, rollupWhere } from "./rollups.js";
+import { LIMITED_TYPES, PATTERN_TYPES, UNIQUE_TYPES, patternProblem } from "../shared/fieldChecks.js";
+import { cleanValueOf } from "./validate.js";
 import { INDEXED_SLOTS, SLOTS } from "./schema.js";
 import { loadTables, toField } from "./tables.js";
 
@@ -200,6 +202,7 @@ export function createRegistry({ resources, anyapi, notices, trustMs = TRUST_MS 
       });
     }
     if (input.required) options.required = true;
+    Object.assign(options, fieldChecks(type, input));
     // A tags field may name the tags it takes; without a list, any tag.
     if (type === "tags") {
       const allowed = [...new Set((input.choices || input.options?.choices || []).map((choice) => String(choice).trim()).filter(Boolean))];
@@ -228,6 +231,45 @@ export function createRegistry({ resources, anyapi, notices, trustMs = TRUST_MS 
       if (input.unique === true || input.options?.unique === true) options.unique = true;
     }
     return { type, options };
+  }
+
+  /**
+   * A field's own checks (D-140) as given (`input` or its `options`), cleaned: `min` and `max` for a number, an amount
+   * or a date, in the field's own values; `pattern` (and `patternMessage`) for a text or phone field, never one that
+   * could take long; `unique` for a text, email, phone, web address or number field. Refuses a check its type can't
+   * have, naming it.
+   */
+  function fieldChecks(type, input) {
+    const given = (key) => input[key] ?? input.options?.[key];
+    const fail = (problem) => {
+      throw new RegistryError(400, `A ${type} field ${problem}`, { code: "apps_field_check_invalid", params: { type, problem } });
+    };
+    const out = {};
+    for (const key of ["min", "max"]) {
+      const value = given(key);
+      if (value === undefined || value === null || value === "") continue;
+      if (!LIMITED_TYPES.has(type)) fail(`can't have a ${key}: only number, money and date fields do.`);
+      try {
+        out[key] = cleanValueOf({ type, label: key, options: {} }, value);
+      } catch (error) {
+        fail(`${error.message}`);
+      }
+    }
+    if (out.min !== undefined && out.max !== undefined && out.min > out.max) fail("has its min above its max.");
+    const pattern = given("pattern");
+    if (pattern) {
+      if (!PATTERN_TYPES.has(type)) fail("can't have a pattern: only text and phone fields do.");
+      const problem = patternProblem(pattern);
+      if (problem) fail(`pattern: ${problem}`);
+      out.pattern = String(pattern);
+      const message = String(given("patternMessage") ?? "").trim().slice(0, 120);
+      if (message) out.patternMessage = message;
+    }
+    if (given("unique") === true && type !== "link") {
+      if (!UNIQUE_TYPES.has(type)) fail("can't be unique: only text, email, phone, web address and number fields can.");
+      out.unique = true;
+    }
+    return out;
   }
 
   /**
@@ -486,12 +528,59 @@ export function createRegistry({ resources, anyapi, notices, trustMs = TRUST_MS 
     return field;
   }
 
+  /**
+   * A field's checks changed (D-140): `required`, `min`, `max`, `pattern` (with `patternMessage`) and `unique`, each as
+   * given (left out: as it is; null or false: none). Refused for a calculated field or a roll-up (nobody types them),
+   * and `unique` while two live records already share a value, naming it. The rest hold from each record's next save.
+   */
+  async function changeChecks(actor, fieldId, input, options) {
+    const api = await anyapi.instanceFor(homeIdOf(options));
+    const field = await appFields.withTransaction(options, async (txOptions) => {
+      const record = await appFields.get(String(fieldId), {}, { ...txOptions, missing: "skip" });
+      if (!record || record.obsoleteAt) throw new RegistryError(404, "No such field.", { code: "apps_field_not_found" });
+      if (isCalculated(record) || isRollup(record)) {
+        throw new RegistryError(409, `${record.key} is worked out, not typed in, so it has no checks.`, { code: "apps_field_checks_worked_out", params: { field: record.key } });
+      }
+      const keys = ["required", "min", "max", "pattern", "patternMessage", ...(record.type === "link" ? [] : ["unique"])];
+      const asked = { ...record.options };
+      for (const key of keys.filter((each) => input?.[each] !== undefined)) {
+        if (input[key] === null || input[key] === false) delete asked[key];
+        else asked[key] = input[key];
+      }
+      if (asked.required && isFileField(record)) {
+        throw new RegistryError(400, `A ${record.type === "image" ? "picture" : "file"} field can't be required: its file goes on once the record exists.`, { code: "apps_file_required" });
+      }
+      const kept = Object.fromEntries(Object.entries(record.options).filter(([key]) => !keys.includes(key)));
+      const next = { ...kept, ...(asked.required ? { required: true } : {}), ...fieldChecks(record.type, asked) };
+      if (next.unique && !record.options.unique) {
+        const filled = { plan: { kind: "compare", op: "<>", field: { name: record.id, lower: false }, value: "null" }, variables: {}, values: {} };
+        const { data: [top] = [] } = await api.resources[record.tableId].aggregate(
+          { groupBy: [record.id], measures: { count: { count: "*" } }, queryParams: { sort: ["-count"], page: { size: 1 } } },
+          { where: filled }
+        );
+        if (top && Number(top.count) > 1) {
+          throw new RegistryError(409, `${record.key} can't be unique yet: ${top.count} records have "${top[record.id]}". Change them first.`, {
+            code: "apps_field_unique_shared",
+            params: { field: record.key, value: String(top[record.id]), count: Number(top.count) }
+          });
+        }
+      }
+      if (JSON.stringify(next) === JSON.stringify(record.options)) return toField(record);
+      await appFields.patch(record.id, { options: next }, { ...txOptions, returning: "none" });
+      await audit(actor, record.tableId, { changedChecks: { id: record.id, key: record.key, from: record.options, to: next } }, txOptions);
+      return toField({ ...record, options: next });
+    });
+    await changed(options);
+    return field;
+  }
+
   return Object.freeze({
     loadTables: tablesOf,
     changed,
     createTable,
     addField,
     renameField,
-    changeFormula
+    changeFormula,
+    changeChecks
   });
 }

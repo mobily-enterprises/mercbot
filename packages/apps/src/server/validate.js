@@ -3,6 +3,7 @@
 import { AppError } from "@jskit-ai/kernel/server/runtime/errors";
 import { isCalculated, isRollup } from "../shared/calculated.js";
 import { LONGTEXT_MAX, TEXT_MAX } from "../shared/formulas.js";
+import { limitProblem } from "../shared/fieldChecks.js";
 
 /** A refusal of a value, a record or an app action, which the apps routes answer with its status, message and code. */
 export class GateError extends AppError {
@@ -144,6 +145,9 @@ function cleanValue(field, value) {
   }
 }
 
+/** A value as its field's type stores it (null for empty), or throws a GateError naming the field. */
+export const cleanValueOf = (field, value) => cleanValue(field, value);
+
 /**
  * Maps input keyed by field id or key to cleaned values keyed by field id. `creating` also
  * enforces required fields that weren't given.
@@ -180,6 +184,8 @@ export function cleanRecord(table, input = {}, { creating = false } = {}) {
       });
     }
     const cleaned = cleanValue(field, value);
+    const broken = limitProblem(field, cleaned);
+    if (broken) throw new GateError(400, `${field.label}: ${broken}`, { code: "apps_value_out_of_range", params: { field: field.label } });
     if (cleaned === null && field.options?.required) {
       throw new GateError(400, `${field.label} is required.`, { code: "apps_field_required", params: { field: field.label } });
     }

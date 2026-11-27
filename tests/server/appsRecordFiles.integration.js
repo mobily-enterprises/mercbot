@@ -169,3 +169,28 @@ test("a visitor gets a record's picture only by its record, from a record and fi
   await assert.rejects(gate.recordFile({ ...visitorCtx, access: undefined }, "graphics", shown.id, "picture"), (error) => error.statusCode === 403);
   assert.equal((await gate.recordFile(ctx, "graphics", hidden.id, "source")).name, "p.psd", "a member gets any record's file");
 });
+
+test("a visitor's file goes only on the record their submission made, into a field they write, and only as vouched", async (context) => {
+  const { home, gate, registry, ctx, sourceFile, idOf } = await setup(context);
+  const tables = await registry.loadTables(home.options);
+  const visitor = { signedIn: false, email: "" };
+  const definition = { public: { tables: { graphics: { can: ["create"], read: ["title"], write: ["title", "picture"] } } } };
+  const visitorCtx = { workspaceId: home.workspaceId, actor: { type: "visitor", id: null, name: "Entries" }, via: { kind: "public" }, visitor, access: compile(definition, tables, visitor), options: home.options };
+  const entry = await gate.create(visitorCtx, "graphics", { title: "My entry", picture: null });
+  await assert.rejects(gate.attachFile(visitorCtx, "graphics", entry.id, "picture", await sourceFile("e.png", PNG)), (error) => error.statusCode === 403, "not vouched for");
+  await assert.rejects(
+    gate.attachFile(visitorCtx, "graphics", entry.id, "source", await sourceFile("e.psd", "layers"), { made: true }),
+    { code: "apps_public_forbidden" },
+    "a field they don't write"
+  );
+  await assert.rejects(
+    gate.attachFile({ ...visitorCtx, access: compile({ public: { tables: { graphics: { can: ["list"], read: ["title"] } } } }, tables, visitor) }, "graphics", entry.id, "picture", await sourceFile("e.png", PNG), { made: true }),
+    (error) => error.statusCode === 403,
+    "visitors who can't add records"
+  );
+  await assert.rejects(gate.attachFile(visitorCtx, "graphics", entry.id, "picture", await sourceFile("e.txt", "text"), { made: true }), { code: "apps_image_not_picture" });
+  await gate.attachFile(visitorCtx, "graphics", entry.id, "picture", await sourceFile("e.png", PNG), { made: true });
+  const saved = await gate.get(ctx, "graphics", entry.id);
+  assert.equal(saved[idOf("picture")].name, "e.png", "on their record");
+  assert.equal((await gate.history(ctx, "graphics", entry.id))[0].actor.type, "visitor", "as the visitor");
+});

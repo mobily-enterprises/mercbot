@@ -1,6 +1,7 @@
 <script setup>
-import { computed, defineAsyncComponent, inject } from "vue";
+import { computed, defineAsyncComponent, inject, ref } from "vue";
 import AppForm from "./AppForm.vue";
+import MercbotConfirmDialog from "@/components/mercbot/MercbotConfirmDialog.vue";
 import { isCalculated } from "@local/apps/shared";
 import { FIELD_REFERENCE, ICON_PATHS, groupLabel, refersToRemovedField, showValue } from "./appRuntime.js";
 import { APP_FORM_KEY, APP_SCREEN_KEY, NO_APP_FORM, useAppArea } from "./screenKeys.js";
@@ -108,6 +109,9 @@ const inputValue = computed({
   }
 });
 
+// A button with `confirm` (D-140) asks "Are you sure?" in its own words first.
+const confirming = ref(false);
+const pressButton = () => (props.node.confirm ? (confirming.value = true) : press());
 function press(record = null) {
   const steps = `${props.path}/do`;
   if (form !== NO_APP_FORM) return form.submit(steps);
@@ -139,16 +143,25 @@ const tabKey = computed(() => props.path);
 
     <v-spacer v-else-if="node.type === 'spacer'" />
 
-    <v-btn
-      v-else-if="node.type === 'button'"
-      :color="node.emphasis === 'primary' ? 'primary' : undefined"
-      :variant="node.emphasis === 'primary' ? 'flat' : 'text'"
-      :prepend-icon="ICON_PATHS[node.icon]"
-      :disabled="value(node.disabled) === true || runtime.busy.value"
-      @click.stop="press()"
-    >
-      {{ value(node.label) }}
-    </v-btn>
+    <template v-else-if="node.type === 'button'">
+      <v-btn
+        :color="node.emphasis === 'primary' ? 'primary' : undefined"
+        :variant="node.emphasis === 'primary' ? 'flat' : 'text'"
+        :prepend-icon="ICON_PATHS[node.icon]"
+        :disabled="value(node.disabled) === true || runtime.busy.value"
+        @click.stop="pressButton()"
+      >
+        {{ value(node.label) }}
+      </v-btn>
+      <MercbotConfirmDialog
+        v-if="node.confirm"
+        v-model="confirming"
+        :title="String(value(node.confirm) ?? '')"
+        :confirm-label="String(value(node.label) ?? 'OK')"
+        :danger="false"
+        @confirm="press()"
+      />
+    </template>
 
     <v-text-field
       v-else-if="node.type === 'input'"

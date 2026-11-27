@@ -49,6 +49,7 @@ export const APP_ACTIONS = [
   "field_add",
   "field_rename",
   "field_formula",
+  "field_checks",
   "field_remove",
   "script_write",
   "script_save",

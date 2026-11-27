@@ -1,7 +1,7 @@
 <script setup>
 import { computed, reactive, ref, watch } from "vue";
 import SelectField from "@jskit-ai/http-web/client/components/SelectField";
-import { calculate, formulaRecord, isCalculated, isFileField, isRollup, isWorkedOut, showValue } from "@local/apps/shared";
+import { calculate, formulaRecord, isCalculated, isFileField, isRollup, isWorkedOut, limitProblem, showValue } from "@local/apps/shared";
 import { appsApi, errorText } from "./appsApi.js";
 import { useLinkPickers } from "./linkPickers.js";
 import { SHARED_TYPES, TEXT_INPUT, inputOf, personChoices, storedOf } from "./fieldValues.js";
@@ -103,7 +103,9 @@ const problemOf = (field) => {
   if (field.options?.required && (value === null || value === "" || (Array.isArray(value) && !value.length))) return `${field.label} is required`;
   if (field.type === "email" && value && !EMAIL.test(value)) return "Enter a valid email";
   if (["number", "money"].includes(field.type) && value !== null && value !== "" && !Number.isFinite(Number(value))) return "Enter a number";
-  return "";
+  // The field's own min, max and pattern (D-140), as the server checks them.
+  const limit = limitProblem(field, toStored(field, value));
+  return limit ? `${field.label} ${limit}` : "";
 };
 const valid = computed(() => fields.value.every((field) => !problemOf(field)));
 const worked = computed(() => {

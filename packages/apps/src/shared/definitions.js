@@ -208,6 +208,11 @@ function convertDefinition(definition, map) {
           if (step.create.preset) step.create.preset = mapValues(step.create.preset, target, scope, `${at}.create.preset`);
         }
         if (step.update) step.update.set = mapValues(step.update.set, queryTable(step.update.record, "record"), scope, `${at}.update.set`);
+        if (step.if && typeof step.if === "object") {
+          if (step.if.when !== undefined) step.if.when = formula(step.if.when, scope, `${at}.if.when`);
+          steps(step.if.then, scope, `${at}.if.then`);
+          steps(step.if.else, scope, `${at}.if.else`);
+        }
       });
     };
     const mapValues = (values, target, scope, path) => {

@@ -1,11 +1,13 @@
 // readable-check: allow no-transaction-reader - infrastructure: a one-to-one link is checked in the AnyAPI write's own transaction (the audit_events handle's), under a lock taken in it, as the data gate writes
 import { PAGE_MAX } from "../shared/index.js";
+import { CASELESS_TYPES, uniqueKey } from "../shared/fieldChecks.js";
 import { GateError } from "./validate.js";
 
 /**
  * The record checks that need more than the record: a person field holds someone in the home now (read once per
  * call, so an import's rows share it), reads back with their name and is imported by it; a one-to-one link (a link field marked unique)
- * leaves at most one live record linking to each target.
+ * leaves at most one live record linking to each target, and a unique field (D-140) at most one live record with each
+ * value (text without case).
  * @param {object} dependencies
  * @param {{ activeIds: (options: object) => Promise<Array<string | number>>, names: (ids: string[], options: object) =>
  *   Promise<Map<string, string>> }} dependencies.people the home's members
@@ -48,14 +50,22 @@ export function createRecordChecks({ people, homeOf }) {
     }
   }
 
-  // One-to-one links (link fields marked unique), each target's lock, and the refusal of a second live record for one.
-  const uniqueLinks = (table) => table.fields.filter((entry) => entry.type === "link" && entry.options?.unique && !entry.obsolete);
+  // One-to-one links and unique fields, each value's lock, and the refusal of a second live record with one.
+  const uniqueFields = (table) => table.fields.filter((entry) => entry.options?.unique && !entry.obsolete);
   // A field's lock (an import takes it alone, a single write shares it) and each target's under it.
   const lockKey = (ctx, table, field, target = "") => `apps-unique:${homeOf(ctx)}:${ctx.practice?.id ?? ""}:${table.id}:${field.id}:${target}`;
-  const taken = (field) => new GateError(409, `${field.label}: that record already has one, and it can have only one.`, {
-    code: "apps_link_unique_taken",
-    params: { field: field.label }
-  });
+  const taken = (field) =>
+    field.type === "link"
+      ? new GateError(409, `${field.label}: that record already has one, and it can have only one.`, {
+        code: "apps_link_unique_taken",
+        params: { field: field.label }
+      })
+      : new GateError(409, `${field.label}: another record already has that, and each record's must be different.`, {
+        code: "apps_value_unique_taken",
+        params: { field: field.label }
+      });
+  /** The where of a field's records holding `value` (text without case). */
+  const holding = (field, value) => ({ kind: "compare", op: "=", field: { name: field.id, lower: CASELESS_TYPES.has(field.type) }, value: JSON.stringify(value) });
 
   /**
    * A one-to-one link (a link field marked unique): at most one live record links to each target. Checked in the
@@ -64,11 +74,11 @@ export function createRecordChecks({ people, homeOf }) {
    * itself, when it exists.
    */
   async function checkUnique(ctx, api, table, row, selfId, txOptions) {
-    for (const field of uniqueLinks(table).filter((entry) => row[entry.id])) {
-      const target = String(row[field.id]);
+    for (const field of uniqueFields(table).filter((entry) => row[entry.id] !== null && row[entry.id] !== undefined && row[entry.id] !== "")) {
+      const target = uniqueKey(field, field.type === "link" ? String(row[field.id]) : row[field.id]);
       await txOptions.trx.raw("select pg_advisory_xact_lock_shared(hashtext(?))", [lockKey(ctx, table, field)]);
-      await txOptions.trx.raw("select pg_advisory_xact_lock(hashtext(?))", [lockKey(ctx, table, field, target)]);
-      const same = { kind: "compare", op: "=", field: { name: field.id, lower: false }, value: JSON.stringify(target) };
+      await txOptions.trx.raw("select pg_advisory_xact_lock(hashtext(?))", [lockKey(ctx, table, field, String(target))]);
+      const same = holding(field, target);
       const notSelf = { kind: "compare", op: "<>", field: { name: "id", lower: false }, value: JSON.stringify(String(selfId ?? "")) };
       const where = { plan: selfId ? { kind: "and", items: [same, notSelf] } : same, variables: {}, values: {} };
       const found = await api.resources[table.id].query({ queryParams: { page: { size: 1 } }, transaction: txOptions.trx }, { where });
@@ -84,11 +94,11 @@ export function createRecordChecks({ people, homeOf }) {
    */
   async function uniqueTakenIn(ctx, api, table, rows, txOptions = null) {
     const refused = [];
-    for (const field of uniqueLinks(table)) {
+    for (const field of uniqueFields(table)) {
       const firstRow = new Map();
       for (const [index, row] of rows.entries()) {
-        if (!row[field.id]) continue;
-        const target = String(row[field.id]);
+        if (row[field.id] === null || row[field.id] === undefined || row[field.id] === "") continue;
+        const target = String(uniqueKey(field, row[field.id]));
         if (firstRow.has(target)) refused.push({ index, error: taken(field) });
         else firstRow.set(target, index);
       }
@@ -97,10 +107,13 @@ export function createRecordChecks({ people, homeOf }) {
       if (txOptions && targets.length) await txOptions.trx.raw("select pg_advisory_xact_lock(hashtext(?))", [lockKey(ctx, table, field)]);
       for (let start = 0; start < targets.length; start += PAGE_MAX) {
         const batch = targets.slice(start, start + PAGE_MAX);
-        const where = { plan: { kind: "in", field: { name: field.id, lower: false }, value: "targets" }, variables: { targets: "list<string>" }, values: { targets: batch } };
+        const values = field.type === "number" ? batch.map(Number) : batch;
+        const where = { plan: { kind: "in", field: { name: field.id, lower: CASELESS_TYPES.has(field.type) }, value: "targets" }, variables: { targets: "dyn" }, values: { targets: values } };
         const params = { queryParams: { page: { size: batch.length } }, ...(txOptions ? { transaction: txOptions.trx } : {}) };
         const found = await api.resources[table.id].query(params, { where });
-        for (const record of found.data) refused.push({ index: firstRow.get(String(record[field.id])), error: taken(field) });
+        for (const record of found.data) {
+          refused.push({ index: firstRow.get(String(uniqueKey(field, record[field.id]))), error: taken(field) });
+        }
       }
     }
     return refused.sort((a, b) => a.index - b.index);

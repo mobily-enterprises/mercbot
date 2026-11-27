@@ -16,7 +16,7 @@ const CATALOG = {
   text: ["value", "size"],
   chip: ["value", "tone"],
   spacer: [],
-  button: ["label", "icon", "emphasis", "disabled", "do"],
+  button: ["label", "icon", "emphasis", "disabled", "do", "confirm"],
   input: ["bind", "label", "icon", "inputType"],
   table: ["rows", "columns", "onRowClick", "rowActions", "search"],
   field: ["label", "value"],
@@ -33,24 +33,15 @@ const CATALOG = {
 };
 // What a view (D-55) and an app's copy of one may hold: parts that only show things.
 const READ_ONLY = {
-  row: CATALOG.row,
-  grid: CATALOG.grid,
-  text: CATALOG.text,
-  chip: CATALOG.chip,
-  spacer: CATALOG.spacer,
-  input: CATALOG.input,
+  ...Object.fromEntries(["row", "grid", "text", "chip", "spacer", "input", "field", "totals", "chart", "tabs"].map((type) => [type, CATALOG[type]])),
   table: ["rows", "columns"],
-  field: CATALOG.field,
-  totals: CATALOG.totals,
-  chart: CATALOG.chart,
-  tabs: CATALOG.tabs,
   ...BOARD_READ_ONLY
 };
 const READ_ONLY_QUERY = new Set(["record", "from", "id", "where", "sort", "limit", "groupBy", "by", "sum", "avg", "grandTotal"]);
 // The periods a date field's totals can be grouped by (D-140), in the home's time zone.
 export const GROUP_PERIODS = ["day", "week", "month", "year"];
 const VIEW_SETTINGS = new Set(["params", "state", "data", "content", "style"]);
-const STEPS = ["go", "create", "update", "markObsolete", "notify", "openDialog", "closeDialog", "askBot", "runScript", "set"];
+const STEPS = ["go", "create", "update", "markObsolete", "notify", "openDialog", "closeDialog", "askBot", "runScript", "set", "if"];
 export const ICONS = ["search", "edit", "back", "save", "add", "open", "check", "close", "person", "mail", "phone", "calendar", "chart", "star"];
 const CHOICES = {
   size: ["headline", "title", "body"],
@@ -259,6 +250,9 @@ function checkPublicScreen(base, screen, { screens, report, tableNamed }) {
       if (step.update?.set !== "=form.values") {
         report(`${at}.update.set`, 'on a public screen, a form saves exactly what it shows: "=form.values".');
       }
+    } else if (kind === "if") {
+      steps(`${at}.if.then`, step.if?.then, form);
+      steps(`${at}.if.else`, step.if?.else, form);
     } else if (!["notify", "openDialog", "closeDialog", "set"].includes(kind)) {
       report(
         at,
@@ -527,6 +521,13 @@ function checkScreen(base, screen, { screens, tableNamed, report, named, bots, s
         const declared = screen.state?.[value?.state];
         if (!declared) report(`${at}.set.state`, `must name one of this screen's state values: ${Object.keys(screen.state || {}).join(", ") || "none"}.`);
         else formula(`${at}.set.value`, value?.value, variables, declared.type === "double" ? "double" : declared.type === "bool" ? "bool" : "string");
+      }
+      // A branch (D-140): `then` steps when `when` holds as the button is pressed, else the `else` steps.
+      if (kind === "if") {
+        formula(`${at}.if.when`, value?.when, variables, "bool");
+        checkSteps(`${at}.if.then`, value?.then ?? [], variables);
+        checkSteps(`${at}.if.else`, value?.else, variables);
+        for (const key of Object.keys(value || {})) if (!["when", "then", "else"].includes(key)) report(`${at}.if.${key}`, "if has only when, then and else.");
       }
       if (kind === "runScript") {
         script(`${at}.runScript.script`, value?.script, "action");

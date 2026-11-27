@@ -1,6 +1,6 @@
 <script setup>
 import { computed, inject, provide, reactive, watch } from "vue";
-import { calculate, celSchema, isFileField, isRollup, isWorkedOut } from "@local/apps/shared";
+import { calculate, celSchema, isFileField, isRollup, isWorkedOut, limitProblem } from "@local/apps/shared";
 import AppNode from "./AppNode.vue";
 import { formulaRecord, refersToRemovedField, showValue } from "./appRuntime.js";
 import { APP_FORM_KEY, APP_SCREEN_KEY } from "./screenKeys.js";
@@ -39,7 +39,9 @@ const entries = computed(() => (props.node.fields || [])
   .map((entry) => (typeof entry === "string" ? { field: entry } : entry))
   .filter((entry) => !refersToRemovedField(entry.field))
   .map((entry) => ({ ...entry, def: table.value?.fields.find((field) => field.key === entry.field) }))
-  .filter((entry) => entry.def && !(isFileField(entry.def) && (creating.value || !runtime.attachesFiles))));
+  .filter((entry) => entry.def && !(isFileField(entry.def) && !(creating.value ? runtime.filesOnNew : runtime.attachesFiles))));
+// A create form's chosen files and pictures, by field: they go onto the record once its button has made it.
+const pending = reactive({});
 
 // A link field's picker: the record it links to now, and the records it can be set to, read through the screen's
 // runtime (a page of 100, or those whose title has what was typed), so a visitor sees only what they may read.
@@ -85,6 +87,7 @@ const toStored = (field, value) => {
 const touched = reactive(new Set());
 function reset(next = record.value) {
   touched.clear();
+  for (const key of Object.keys(pending)) delete pending[key];
   for (const key of Object.keys(draft)) delete draft[key];
   for (const field of table.value?.fields || []) draft[field.key] = toInput(field, next?.[field.key]);
 }
@@ -138,7 +141,9 @@ const problem = (entry) => {
   if (required(entry) && blank) return `${entry.def.label} is required`;
   if (entry.def.type === "email" && value && !EMAIL.test(value)) return "Enter a valid email";
   if (["number", "money"].includes(entry.def.type) && value !== "" && value !== null && !Number.isFinite(Number(value))) return "Enter a number";
-  return "";
+  // The field's own min, max and pattern (D-140), as the server checks them.
+  const limit = limitProblem(entry.def, toStored(entry.def, value));
+  return limit ? `${entry.def.label} ${limit}` : "";
 };
 const valid = computed(() => entries.value.filter(shown).every((entry) => !problem(entry)));
 const shownProblem = (entry) => (creating.value && !touched.has(entry.field) ? "" : problem(entry));
@@ -148,7 +153,24 @@ const buttonScope = computed(() => formScope(valid.value, changed.value));
 // After a create form's button succeeds, it's empty again for the next one.
 provide(APP_FORM_KEY, {
   submit: async (steps) => {
-    if ((await runtime.run(steps, { formValues: storedValues() })) && creating.value) reset(null);
+    const result = await runtime.run(steps, { formValues: storedValues() });
+    if (!result || !creating.value) return;
+    // The record this form's button made, and the files chosen for it, each put on once it exists.
+    const made = (result.created || []).find((entry) => entry.table === table.value?.key && entry.files);
+    const chosen = Object.entries(pending).filter(([field, file]) => file && made?.files.includes(field));
+    reset(null);
+    for (const [field, file] of chosen) {
+      attaching.field = field;
+      try {
+        await runtime.attachNew(made, field, file);
+      } catch (error) {
+        attaching.failed = field;
+        attaching.problem = `Saved, but this file didn't upload: ${errorText(error, "please try again from the record.")}`;
+      } finally {
+        attaching.field = "";
+      }
+    }
+    if (chosen.length) await runtime.reloadChanged([table.value.id]);
   }
 });
 </script>
@@ -224,6 +246,15 @@ provide(APP_FORM_KEY, {
             variant="outlined"
             density="comfortable"
             clearable
+          />
+          <RecordFileField
+            v-else-if="isFileField(entry.def) && creating"
+            :field="entry.def"
+            :chosen="pending[entry.field] || null"
+            :error-messages="attaching.failed === entry.field ? attaching.problem : ''"
+            :busy="attaching.field === entry.field"
+            :disabled="Boolean(attaching.field)"
+            @update:chosen="(file) => { pending[entry.field] = file; attaching.failed = ''; }"
           />
           <RecordFileField
             v-else-if="isFileField(entry.def)"

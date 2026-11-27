@@ -242,7 +242,7 @@ export function createScreenRuntime({
       const result = await api.action(slug, { version, screen: screenKey, path, row, values: formValues || {}, state: { ...state }, params });
       if (!result.dryRun) await loadAll();
       onEffects(result);
-      return true;
+      return result;
     } catch (error) {
       onError(error);
       return false;
@@ -268,11 +268,15 @@ export function createScreenRuntime({
 
   // A member on the live app adds files and pictures to records (D-130); a visitor doesn't, nor a draft's practice data.
   const attachesFiles = !visitor && version !== "draft";
+  // Files and pictures chosen in a create form go onto the record once its button made it (D-140): a member's through
+  // the Data routes, a visitor's through the public app's, which takes them only for the record their submission made.
+  const filesOnNew = attachesFiles || Boolean(api.attachNew);
+  const attachNew = (made, field, file) => (api.attachNew ? api.attachNew(slug, { field, file }) : appsApi.attachFile(made.table, made.id, field, file));
   // Cards move where the screen's routes can move them, never in a view (it only shows).
   const moves = Boolean(api.move) && !readOnly;
   return {
     slug, state, data, grandTotals, attention, loading, busy, dialogs, tables, people, screen, screens, tableNamed, queryTable, referenced, evaluate,
     rowScope, load, loadAll, reloadChanged, run, move, moves, linkChoices, lists, browse, followState, stop, signal: reading.signal, version,
-    attachesFiles
+    attachesFiles, filesOnNew, attachNew
   };
 }

@@ -6,6 +6,7 @@ export { withNamedFormulas } from "./namedFormulas.js";
 export { jobSchedule } from "./schedules.js";
 export { expandLines } from "./lines.js";
 export { BOARD_FIELDS, isBoard, shiftDays } from "./boards.js";
+export { limitProblem } from "./fieldChecks.js";
 
 /**
  * The most records one read of a table returns (D-35): the data gate never asks for more, and its

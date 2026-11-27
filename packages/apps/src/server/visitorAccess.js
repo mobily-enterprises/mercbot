@@ -14,7 +14,9 @@ const NONE = { plan: { kind: "value", source: "false" }, variables: {}, values: 
 const DOING = { list: "list", get: "open records of", create: "add to", update: "change", delete: "remove records from" };
 
 /** Whether the gate holds this ctx to visitor access: a visitor's, or a script's run for one. */
-export const isFenced = (ctx) => Boolean(ctx?.visitor || ctx?.actor?.type === "visitor");
+// `vouched`, which only the data gate sets, is the one write it makes for a visitor past the fence: the file of the
+// record their submission just made (recordFiles.attach, D-140).
+export const isFenced = (ctx) => !ctx?.vouched && Boolean(ctx?.visitor || ctx?.actor?.type === "visitor");
 
 /** Which records of a table a visitor reaches, as a `where` for the row policy. */
 function rowsOf(rule, table, ownerId, visitor) {

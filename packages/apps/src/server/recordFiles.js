@@ -1,6 +1,6 @@
 import { open } from "node:fs/promises";
 import { isFileField } from "../shared/formulas.js";
-import { refuse } from "./visitorAccess.js";
+import { fence, refuse } from "./visitorAccess.js";
 import { GateError, STORED_FILE } from "./validate.js";
 
 /** The pictures an image field takes, by the start of their bytes. */
@@ -67,11 +67,12 @@ export function createRecordFiles({ impl, homeOf, tableFor, get, update }) {
 
   /**
    * A record's file or picture (`upload`: { source, name, type }, a file the caller may read), written to Database files
-   * and set in one change; a change that fails leaves no file. A member's or a bot's, never a visitor's, and only on
-   * real records: a draft's practice data takes no files.
+   * and set in one change; a change that fails leaves no file. A member's or a bot's, and only on real records: a
+   * draft's practice data takes no files. A visitor's only with `made` (D-140): the caller vouches the record is the one
+   * their submission just made, and the field must be one their access lets them write when adding.
    */
-  async function attach(ctx, tableIdOrKey, id, fieldName, upload) {
-    refuse(ctx);
+  async function attach(ctx, tableIdOrKey, id, fieldName, upload, { made = false } = {}) {
+    if (!made) refuse(ctx);
     if (ctx.practice) throw new GateError(409, "Files are added to real records, not to a draft's practice data.", { code: "apps_files_not_in_practice" });
     const { table } = await tableFor(tableIdOrKey, ctx.options, { forWrite: true });
     const field = fileFieldOf(table, fieldName);
@@ -81,9 +82,18 @@ export function createRecordFiles({ impl, homeOf, tableFor, get, update }) {
         params: { table: table.label, field: String(fieldName) }
       });
     }
-    const stored = await store(ctx, table, id, field, upload);
+    let writer = ctx;
+    const access = fence(ctx, table, "create");
+    if (access) {
+      if (!access.write.has(field.id)) {
+        throw new GateError(403, `Visitors can't add ${field.label} to ${table.label}.`, { code: "apps_public_forbidden", params: { table: table.label } });
+      }
+      // The record is theirs, just made: its file is set past the fence (a visitor doesn't change records), still as them.
+      writer = { ...ctx, vouched: true };
+    }
+    const stored = await store(writer, table, id, field, upload);
     try {
-      return await update(ctx, table.id, id, { [field.id]: stored });
+      return await update(writer, table.id, id, { [field.id]: stored });
     } catch (error) {
       await removeAll(ctx, [stored.path]);
       throw error;

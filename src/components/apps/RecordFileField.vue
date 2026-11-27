@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import { fileUrl, formatSize } from "@/components/mercbot/filesApi.js";
 
 // A record's file or picture field in a form (D-130): what it holds now (a picture as a thumbnail, a file as a link with
@@ -21,6 +21,14 @@ const emit = defineEmits(["update:current", "update:chosen"]);
 const picture = computed(() => props.field.type === "image");
 const href = computed(() => (props.current?.path ? fileUrl(null, props.current.path, { download: !picture.value, chat: null }) : ""));
 const label = computed(() => props.field.label + (props.field.options?.required ? " *" : ""));
+// A picture field on a phone or tablet also takes a photo with the camera (D-140).
+const touch = window.matchMedia("(pointer: coarse)").matches;
+const camera = ref(null);
+const photoTaken = (event) => {
+  const file = event.target.files?.[0] || null;
+  event.target.value = "";
+  if (file) emit("update:chosen", file);
+};
 </script>
 
 <template>
@@ -48,5 +56,9 @@ const label = computed(() => props.field.label + (props.field.options?.required 
       hide-details="auto"
       @update:model-value="(file) => emit('update:chosen', Array.isArray(file) ? file[0] || null : file || null)"
     />
+    <template v-if="picture && touch">
+      <input ref="camera" type="file" accept="image/*" capture="environment" class="d-none" @change="photoTaken">
+      <v-btn variant="text" size="small" prepend-icon="$photoCameraFilled" :disabled="busy || disabled" class="mt-1" @click="camera?.click()">Take a photo</v-btn>
+    </template>
   </div>
 </template>

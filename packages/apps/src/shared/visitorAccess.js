@@ -93,6 +93,11 @@ export function screenUses(definition, tables) {
         values(step.update.set, table, scope, `${at}.update.set`);
       }
       if (isObject(step.markObsolete)) note("can", queryTable(step.markObsolete.record, "record"), "delete", at);
+      if (isObject(step.if)) {
+        reads(step.if.when, scope, `${at}.if.when`);
+        steps(step.if.then, scope, `${at}.if.then`);
+        steps(step.if.else, scope, `${at}.if.else`);
+      }
     });
     const node = (item, scope, path) => {
       if (!isObject(item)) return;

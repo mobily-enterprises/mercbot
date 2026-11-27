@@ -5,6 +5,7 @@ import {
   evaluateFormula,
   formulaValue,
   isFixedFormula,
+  isFileField,
   isFormula,
   jsonValue,
   periodLabel,
@@ -341,6 +342,7 @@ export function createRuntime({ apps, gate, scripts, practices }) {
       const allowed = (step) => {
         const [kind] = Object.keys(step || {});
         if (["notify", "openDialog", "closeDialog", "set"].includes(kind)) return true;
+        if (kind === "if") return [...(step.if?.then || []), ...(step.if?.else || [])].every(allowed);
         if (kind === "go") return screens[step.go?.screen]?.public === true;
         if (kind === "create") {
           return (
@@ -424,6 +426,9 @@ export function createRuntime({ apps, gate, scripts, practices }) {
 
     const effects = [];
     const writes = [];
+    // The records the steps made, and for its form's own, the file and picture fields it shows, which the browser
+    // fills in once the record exists (D-140).
+    const created = [];
     const handoffs = [];
     const scriptsRun = [];
     // A visitor's writes are held to the app's visitor access by the gate, which also sets and keeps
@@ -436,7 +441,11 @@ export function createRuntime({ apps, gate, scripts, practices }) {
         // A preset is a value the app sets (fixed, or like "=today()"); it wins over anything sent.
         const input = { ...valuesOf(step.create.values), ...valuesOf(step.create.preset || {}) };
         writes.push({ create: table.key, values: input });
-        if (!dryRun) await gate.create(actx, table.id, input, { txOptions });
+        if (dryRun) return;
+        const made = await gate.create(actx, table.id, input, { txOptions });
+        const shown = formNode?.table === table.key ? (formNode.fields || []).map((entry) => (typeof entry === "string" ? entry : entry?.field)) : [];
+        const files = live(table).filter((field) => isFileField(field) && shown.includes(field.key)).map((field) => field.key);
+        created.push({ table: table.key, id: String(made.id), ...(files.length ? { files } : {}) });
       } else {
         const target = referenced(step[kind].record);
         if (!target?.id) throw new GateError(404, "This button's record is missing.", { code: "apps_button_record_missing" });
@@ -451,12 +460,17 @@ export function createRuntime({ apps, gate, scripts, practices }) {
       }
     };
 
+    // An `if` step (D-140) stands for its `then` or its `else` steps, as its `when` holds as the button is pressed: what
+    // the steps read (the form, the row, the screen's data and values) doesn't change while they run.
+    const chosen = (list) =>
+      (list || []).flatMap((step) => (step && Object.hasOwn(step, "if") ? chosen(evaluate(step.if.when) === true ? step.if.then : step.if.else) : [step]));
+    const running = chosen(steps);
     // Neighbouring data steps run in one transaction; UI steps come back as effects, in order.
-    for (let index = 0; index < steps.length; ) {
-      const [kind] = Object.keys(steps[index] || {});
+    for (let index = 0; index < running.length; ) {
+      const [kind] = Object.keys(running[index] || {});
       if (DATA_STEPS.has(kind)) {
         const group = [];
-        while (index < steps.length && DATA_STEPS.has(Object.keys(steps[index] || {})[0])) group.push(steps[index++]);
+        while (index < running.length && DATA_STEPS.has(Object.keys(running[index] || {})[0])) group.push(running[index++]);
         if (dryRun) {
           for (const step of group) await runData(step, null);
         } else {
@@ -471,7 +485,7 @@ export function createRuntime({ apps, gate, scripts, practices }) {
         }
         continue;
       }
-      const step = steps[index++];
+      const step = running[index++];
       if (kind === "go") {
         const goParams = Object.entries(step.go.params || {}).map(([key, value]) => [key, String(evaluate(value) ?? "")]);
         effects.push({ go: { screen: step.go.screen, params: Object.fromEntries(goParams) } });
@@ -535,6 +549,7 @@ export function createRuntime({ apps, gate, scripts, practices }) {
     const wouldSend = handoffs.map(({ bot, task }) => ({ bot: bot.name, task }));
     return {
       effects,
+      ...(created.length ? { created } : {}),
       ...(dryRun ? { dryRun: true, wouldWrite: writes, wouldSend, wouldRun: scriptsRun } : {}),
       ...(practice ? { practice: { changes: practice.changes, wouldSend, simulated: practice.simulated } } : {})
     };

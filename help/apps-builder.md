@@ -49,6 +49,12 @@ You don't need to know which parts an app is made of. Say what you want to see a
 
 Ask for line items wherever one record holds a list of others: an invoice or a quote and its lines, an order and its items, a trip and its stops. The record's screen then lists its own lines, with **Edit** (a small form in a dialog) and **Remove** on each, and a form below to add one, already linked to the record.
 
+### Forms that do more
+
+- **Files and pictures when adding a record.** Choose them in the form; they go on as soon as the record is saved. On a phone, a picture field also offers **Take a photo**. A public form can take up to 3 files of 10 MB each, if its app lets visitors add them.
+- **"Are you sure?"** A button can ask first, in its own words, before it does anything, such as marking a record obsolete.
+- **Buttons that branch.** A button can do one thing or another depending on what's in the form, such as asking for approval only for large orders.
+
 ### Boards, calendars and timelines
 
 An app's screen can show records as cards you move around:

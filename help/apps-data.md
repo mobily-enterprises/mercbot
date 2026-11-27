@@ -87,6 +87,16 @@ A calculated number or amount worked out by adding, subtracting, multiplying or 
 
 A list can also compare two of a record's fields, such as items whose quantity is at or below their reorder level.
 
+### Field checks
+
+A field can check what goes into it, however a record is saved (an app's form, the Data tab, an import, a bot or a public form):
+
+- **Smallest and largest**, for numbers, amounts and dates: an age of at least 18, a due date in this year.
+- **A pattern**, for text and phone numbers: a 4-digit postcode, an order number like AB-1234.
+- **Unique**, for text, emails, phone numbers, web addresses and numbers: no two records may share one. Capital letters don't make a difference.
+
+Forms warn as you type. Ask the Builder to add checks, for example "member emails must be unique". If two records already share a value, the Builder tells you which, so you can change one first. Records saved before a check was added keep their values until they're next changed.
+
 ### Roll-ups
 
 A roll-up adds up the records linked to a record, such as an invoice's total of its lines, the number of people signed up for an event, or a project's open tasks. Ask the Builder for one, for example "give invoices a total of their lines' amounts".

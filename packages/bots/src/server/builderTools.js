@@ -14,6 +14,14 @@ const CALCULATED_LIMITS =
   "never group by one, and a sum or average of one adds up at most 5,000 records: tell the person so when you add one. If they will want " +
   "to filter, sort or group by one that can't, offer a stored field that a rule fills in on save instead.";
 
+const fieldChecksInput = {
+  min: z.union([z.number(), z.string().max(10)]).nullable().optional().describe("Number, money (in cents) or date fields: the smallest value allowed (a date as YYYY-MM-DD)"),
+  max: z.union([z.number(), z.string().max(10)]).nullable().optional().describe("Number, money (in cents) or date fields: the largest value allowed"),
+  pattern: z.string().max(200).nullable().optional().describe("Text or phone fields: a regular expression the whole value must match, e.g. \"[0-9]{4}\" for a 4-digit postcode; never a repeat of a repeating group"),
+  patternMessage: z.string().max(120).nullable().optional().describe("What the pattern wants, in words, as people see it: \"a 4-digit postcode\""),
+  unique: z.boolean().nullable().optional().describe("Text, email, phone, web address or number fields: no two records may share a value (text ignores case); for link fields: at most one record links to each target (a one-to-one extension of that table)")
+};
+
 export const fieldInput = z.object({
   key: z.string().min(1).max(64).describe("Field name: lowercase letters, digits and _ , starting with a letter"),
   label: z.string().max(120).optional().describe("What people see; defaults from the name"),
@@ -25,7 +33,7 @@ export const fieldInput = z.object({
   required: z.boolean().optional(),
   choices: z.array(z.string().min(1).max(80)).max(50).optional().describe("For choice fields; for tags fields, the only tags allowed (optional)"),
   target: z.string().max(64).optional().describe("For link fields: the table it points to"),
-  unique: z.boolean().optional().describe("For link fields: at most one record links to each target (a one-to-one extension of that table)"),
+  ...fieldChecksInput,
   formula: z
     .string()
     .max(2000)
@@ -297,6 +305,17 @@ export function buildBuilderTools({ apps, call, actor, ctx, failed, after, scrip
       return failed(error);
     }
   }
+  async function fieldChecks({ table, field, ...checks }) {
+    try {
+      const { table: info } = await gate.tableFor(table, call);
+      const target = info.fields.find((entry) => !entry.obsolete && entry.key === field);
+      if (!target) return { error: `${info.key} has no field "${field}".` };
+      const changed = await registry.changeChecks(await actor(), target.id, checks, call);
+      return { status: "changed", field: changed.key, checks: changed.options, note: "Records already saved keep their values; each is checked when it's next saved." };
+    } catch (error) {
+      return failed(error);
+    }
+  }
   async function fieldRename({ table, field, key, label }) {
     try {
       const { table: info } = await gate.tableFor(table, call);
@@ -540,6 +559,22 @@ ${SCRIPT_GUIDE}`,
           formula: z.string().min(2).max(2000)
         }),
         execute: (input, options) => fieldFormula(input, options)
+      })
+    ),
+    fieldChecks: createTool(
+      Object.freeze({
+        id: "field_checks",
+        description:
+          "Builder: change an existing field's checks: required, min, max, pattern (with patternMessage) and unique. Give only what changes; " +
+          "null or false removes one. Every way records are saved keeps to them (forms, the Data tab, imports, bots, scripts). Unique is refused " +
+          "while two records share a value: tell the person which, so they can change them.",
+        inputSchema: z.object({
+          table: z.string().min(1).max(64),
+          field: z.string().min(1).max(64),
+          required: z.boolean().nullable().optional(),
+          ...fieldChecksInput
+        }),
+        execute: (input, options) => fieldChecks(input, options)
       })
     ),
     fieldRename: createTool(
