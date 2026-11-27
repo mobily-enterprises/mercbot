@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { EventEmitter } from "node:events";
 import { mkdtemp, rm } from "node:fs/promises";
 import http from "node:http";
+import net from "node:net";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -170,6 +171,30 @@ test("an unknown key, another path or any proxy header is refused", async (conte
   }
 });
 
+/** A WebSocket's opening request, raw: its answer, after which the page resets the socket, as one that gives up does. */
+function resetOnAnswer(port, url) {
+  return new Promise((resolve) => {
+    const page = net.connect({ port, host: "127.0.0.1", allowHalfOpen: true });
+    page.on("error", () => {});
+    page.once("data", (data) => {
+      page.resetAndDestroy();
+      resolve(String(data));
+    });
+    page.write(`GET ${url} HTTP/1.1\r\nhost: 127.0.0.1:${port}\r\nconnection: Upgrade\r\nupgrade: websocket\r\n\r\n`);
+  });
+}
+
+test("a refused socket its page resets ends alone, never the server", async (context) => {
+  const { server } = await setup(context);
+  const sockets = [];
+  server.on("connection", (socket) => sockets.push(socket));
+  const answer = await resetOnAnswer(server.address().port, `/api/computer-cdp/${"0".repeat(64)}/devtools/browser/abc`);
+  assert.match(answer, /^HTTP\/1\.1 403 /u);
+  // Node's test runner fails the test on the unhandled error a reset with no listener raises.
+  const ended = new Promise((resolve) => sockets[0].once("close", () => resolve("closed")));
+  assert.equal(await within(ended, 2000, "still open"), "closed");
+});
+
 test("a connection from another machine is refused", async (context) => {
   const { bridge, socketPath } = await setup(context);
   const url = new URL(await bridge.route(socketPath).browserUrl());
@@ -177,7 +202,7 @@ test("a connection from another machine is refused", async (context) => {
   const detach = bridge.attach(server);
   context.after(detach);
   const answers = [];
-  const socket = { remoteAddress: "203.0.113.5", localAddress: "10.0.0.2", end: (text) => answers.push(text) };
+  const socket = { remoteAddress: "203.0.113.5", localAddress: "10.0.0.2", on() {}, end: (text) => answers.push(text) };
   server.emit("upgrade", { url: url.pathname, headers: {}, method: "GET", httpVersion: "1.1", rawHeaders: [] }, socket, Buffer.alloc(0));
   assert.deepEqual(answers, ["HTTP/1.1 403 Forbidden\r\n\r\n"]);
 });

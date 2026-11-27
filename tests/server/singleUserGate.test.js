@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import { chmodSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import net from "node:net";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -150,4 +151,36 @@ test("the gate's server keeps idle connections open as long as Fastify's own ser
   } finally {
     await Promise.all(servers.map((server) => server.close()));
   }
+});
+
+// Node takes the HTTP server's own error listener off an upgrade's socket before the gate sees it.
+test("a refused websocket its page resets ends alone, never the server", async (context) => {
+  const server = singleUserServer(key)((request, response) => response.end());
+  server.on("upgrade", () => assert.fail("a refused websocket reaches nothing behind the gate"));
+  const sockets = [];
+  server.on("connection", (socket) => sockets.push(socket));
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  context.after(() => new Promise((resolve) => {
+    server.closeAllConnections();
+    server.close(resolve);
+  }));
+  const { port } = server.address();
+  const answer = await new Promise((resolve) => {
+    const page = net.connect({ port, host: "127.0.0.1", allowHalfOpen: true });
+    page.on("error", () => {});
+    page.once("data", (data) => {
+      page.resetAndDestroy();
+      resolve(String(data));
+    });
+    page.write(`GET /socket.io/?EIO=4&transport=websocket HTTP/1.1\r\nhost: 127.0.0.1:${port}\r\nconnection: Upgrade\r\nupgrade: websocket\r\n\r\n`);
+  });
+  // Refused as not from Mercbot's own page: it names none.
+  assert.match(answer, /^HTTP\/1\.1 403 /u);
+  // Node's test runner fails the test on the unhandled error a reset with no listener raises.
+  let timer;
+  const ended = await Promise.race([
+    new Promise((resolve) => sockets[0].once("close", () => resolve("closed"))),
+    new Promise((resolve) => (timer = setTimeout(resolve, 2000, "still open")))
+  ]).finally(() => clearTimeout(timer));
+  assert.equal(ended, "closed");
 });
