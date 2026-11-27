@@ -227,6 +227,12 @@ function convertDefinition(definition, map) {
         inner = { ...scope, form: target };
       } else if (item.type === "form") {
         inner = { ...scope, form: queryTable(item.record, "record") };
+      } else if (item.type === "lines") {
+        // Line items (lines.js): its table, the link back to the shown record, its columns' rows and its form's fields.
+        const [converted, target] = tableRef(item.table, `${path}.table`);
+        item.table = converted;
+        if (typeof item.link === "string") item.link = field(target, item.link, `${path}.link`);
+        inner = { ...scope, row: target, form: target };
       }
       for (const [key, value] of Object.entries(item)) {
         if (["content", "rowActions", "buttons", "tabs", "columns", "fields", "do", "onRowClick"].includes(key)) continue;

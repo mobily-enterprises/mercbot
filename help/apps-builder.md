@@ -45,6 +45,10 @@ If you want a spreadsheet, say so ("put it in a spreadsheet"): the bot makes one
 
 You don't need to know which parts an app is made of. Say what you want to see and do, and let the Builder decide. If something you want needs more than screens and formulas, such as a rule checked on every save or a nightly job, the Builder writes a script for it by itself.
 
+### Line items
+
+Ask for line items wherever one record holds a list of others: an invoice or a quote and its lines, an order and its items, a trip and its stops. The record's screen then lists its own lines, with **Edit** (a small form in a dialog) and **Remove** on each, and a form below to add one, already linked to the record.
+
 ## Preview, then publish
 
 Every change to an app goes through two stages: draft, then publish.

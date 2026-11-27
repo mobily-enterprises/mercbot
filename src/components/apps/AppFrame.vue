@@ -10,7 +10,7 @@ import AppTheme from "@/components/apps/AppTheme.vue";
 import MercbotConfirmDialog from "@/components/mercbot/MercbotConfirmDialog.vue";
 import { appsApi, errorText } from "@/components/apps/appsApi.js";
 import { ICON_PATHS, createScreenRuntime, previewNotice, screenLocation as addressOf, screenParams } from "@/components/apps/appRuntime.js";
-import { useTimeZoneSource, withNamedFormulas } from "@local/apps/shared";
+import { expandLines, useTimeZoneSource, withNamedFormulas } from "@local/apps/shared";
 import { browserFunctions } from "@/components/apps/scriptFunctions.js";
 import { askBuilder as openBuilderChat } from "@/components/apps/askInChat.js";
 import { useLiveData } from "@/components/apps/useLiveData.js";
@@ -59,7 +59,8 @@ const isView = computed(() => loaded.value?.app?.kind === "view");
 // The catch-all arrives as one string ("person/12") or a list, depending on the route.
 const pathParts = computed(() => [].concat(route.params.path || []).flatMap((part) => String(part).split("/")).filter(Boolean).map(decodeURIComponent));
 const screenKey = computed(() => (definition.value?.screens?.[pathParts.value[0]] ? pathParts.value[0] : definition.value?.home));
-const screen = computed(() => definition.value?.screens?.[screenKey.value]);
+// A screen as it runs: its line items as the parts they stand for (lines.js), as the server runs it.
+const screen = computed(() => expandLines(definition.value?.screens?.[screenKey.value]));
 const navItems = computed(() => definition.value?.navigation?.items || []);
 const navStyle = computed(() => (smAndDown.value ? "bottom" : definition.value?.navigation?.style || "rail"));
 
@@ -95,6 +96,7 @@ function onEffects(result) {
     if (effect.confirmConnected) confirming.value = [...confirming.value, effect.confirmConnected];
     else if (effect.go) router.replace(screenLocation(effect.go.screen, effect.go.params));
     else if (effect.notify) notify(effect.notify);
+    else if (effect.set) runtime.value.state[effect.set.state] = effect.set.value;
     else if (effect.openDialog) runtime.value.dialogs[`dialog:${effect.openDialog}`] = true;
     else if (effect.closeDialog) runtime.value.dialogs[`dialog:${effect.closeDialog}`] = false;
   }

@@ -4,6 +4,7 @@ export { NeedsAttention, calculatedOrder, compileWhere, planToIds } from "./wher
 export { CALCULATED_TYPES, calculate, calculatedFormulas, calculatedUsing, checkCalculated, fieldByNames, formulaByNames, isCalculated, storedFieldIds, withCalculated } from "./calculated.js";
 export { withNamedFormulas } from "./namedFormulas.js";
 export { jobSchedule } from "./schedules.js";
+export { expandLines } from "./lines.js";
 
 /**
  * The most records one read of a table returns (D-35): the data gate never asks for more, and its

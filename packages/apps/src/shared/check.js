@@ -3,6 +3,7 @@ import { calculatedFormulas, calculatedFrom, isCalculated, storedFieldIds } from
 import { closest, fieldsIn, toIds } from "./definitions.js";
 import { callProblem, checkNamedFormulas, filterCallProblem, functionsForCheck, knownCalls } from "./namedFormulas.js";
 import { checkVisitorAccess } from "./visitorAccess.js";
+import { expandLines } from "./lines.js";
 import { calculatedOrder, compileWhere } from "./where.js";
 
 // The save check (D-35): an app is saved only when every part, setting, table, field, screen and
@@ -23,7 +24,9 @@ const CATALOG = {
   chart: ["label", "kind", "rows", "measure"],
   tabs: ["tabs"],
   dialog: ["key", "title", "content"],
-  view: ["view", "copy", "screen", "params"]
+  view: ["view", "copy", "screen", "params"],
+  // Line items (lines.js): the shown record's child records, added, edited and removed in place.
+  lines: ["record", "table", "link", "columns", "fields", "label", "add"]
 };
 // What a view (D-55) and an app's copy of one may hold: parts that only show things.
 const READ_ONLY = {
@@ -43,7 +46,7 @@ const READ_ONLY_QUERY = new Set(["record", "from", "id", "where", "sort", "limit
 // The periods a date field's totals can be grouped by (D-140), in the home's time zone.
 export const GROUP_PERIODS = ["day", "week", "month", "year"];
 const VIEW_SETTINGS = new Set(["params", "state", "data", "content", "style"]);
-const STEPS = ["go", "create", "update", "markObsolete", "notify", "openDialog", "closeDialog", "askBot", "runScript"];
+const STEPS = ["go", "create", "update", "markObsolete", "notify", "openDialog", "closeDialog", "askBot", "runScript", "set"];
 export const ICONS = [
   "search",
   "edit",
@@ -138,8 +141,10 @@ export function checkApp(definition, tables, { bots = null, scripts = null, view
   const functions = functionsForCheck(definition.formulas, scripts);
   const known = knownCalls(definition.formulas, scripts);
   for (const [screenKey, screen] of Object.entries(screens)) {
-    checkScreen(`screens.${screenKey}`, screen, { screens, tableNamed, report, named, bots, scripts, views, readOnly, functions, known });
-    if (screen?.public === true) checkPublicScreen(`screens.${screenKey}`, screen, { screens, report, tableNamed });
+    // A screen is checked as it runs, its line items as the parts they stand for (lines.js), once they're whole.
+    const running = checkLines(`screens.${screenKey}`, screen, { tableNamed, report }) ? expandLines(screen) : screen;
+    checkScreen(`screens.${screenKey}`, running, { screens, tableNamed, report, named, bots, scripts, views, readOnly, functions, known });
+    if (screen?.public === true) checkPublicScreen(`screens.${screenKey}`, running, { screens, report, tableNamed });
   }
   return errors;
 }
@@ -174,6 +179,46 @@ function checkPublicRules(definition, { tables, tableNamed, report }) {
 export function pageParamOf(value, screen) {
   const name = /^=params\.([A-Za-z_][A-Za-z0-9_]*)$/u.exec(String(value))?.[1];
   return name && Object.hasOwn(screen?.params || {}, name) ? name : null;
+}
+
+/**
+ * A screen's line items (lines.js): each names one of the screen's single-record queries, whose id is a formula of the
+ * page; a table; and a link field of that table pointing at the record's table. Its fields are the table's own, never
+ * the link (the record sets it) or a calculated one. Never on a public screen.
+ */
+function checkLines(base, screen, { tableNamed, report }) {
+  let whole = true;
+  const refuse = (path, message) => {
+    whole = false;
+    report(path, message);
+  };
+  const walk = (path, list) => (Array.isArray(list) ? list : []).forEach((node, index) => {
+    const at = `${path}[${index}]`;
+    walk(`${at}.content`, node?.content);
+    (Array.isArray(node?.tabs) ? node.tabs : []).forEach((tab, tabIndex) => walk(`${at}.tabs[${tabIndex}].content`, tab?.content));
+    if (node?.type !== "lines") return;
+    if (screen.public === true) refuse(at, "line items are for the home's people: a public screen can't have them.");
+    const queryName = DATA_REFERENCE.exec(String(node.record || ""))?.[1];
+    const query = queryName ? screen.data?.[queryName] : null;
+    if (!query?.record || !isFormula(query.id)) {
+      return refuse(`${at}.record`, 'must be "=data.<query>" naming one of this screen\'s single-record queries, such as one with "id": "=params.id".');
+    }
+    const table = tableNamed(node.table);
+    if (!table) return refuse(`${at}.table`, "needs an existing table: the one its lines are records of.");
+    const link = table.fields.find((field) => !field.obsolete && field.key === node.link);
+    const parent = tableNamed(query.record);
+    if (!link || link.type !== "link" || link.options?.target !== parent?.id) {
+      return refuse(`${at}.link`, `must be a link field of ${table.key} pointing at ${query.record}, the shown record's table.`);
+    }
+    if (!Array.isArray(node.fields) || !node.fields.length) refuse(`${at}.fields`, "lists the fields people type for each line.");
+    (Array.isArray(node.fields) ? node.fields : []).forEach((entry, fieldIndex) => {
+      const key = typeof entry === "string" ? entry : entry?.field;
+      if (key === node.link) refuse(`${at}.fields[${fieldIndex}]`, `${key} links each line to the record: it's set by itself, so leave it out.`);
+    });
+    if (node.add !== undefined && typeof node.add !== "boolean") refuse(`${at}.add`, "is true or false (whether people add lines here).");
+  });
+  walk(`${base}.content`, screen?.content);
+  return whole;
 }
 
 /**
@@ -225,10 +270,10 @@ function checkPublicScreen(base, screen, { screens, report, tableNamed }) {
       if (step.update?.set !== "=form.values") {
         report(`${at}.update.set`, 'on a public screen, a form saves exactly what it shows: "=form.values".');
       }
-    } else if (!["notify", "openDialog", "closeDialog"].includes(kind)) {
+    } else if (!["notify", "openDialog", "closeDialog", "set"].includes(kind)) {
       report(
         at,
-        "on a public screen, steps can go, notify, open or close a dialog, or save a form; never ask a bot or mark records obsolete."
+        "on a public screen, steps can go, notify, open or close a dialog, set a screen value, or save a form; never ask a bot or mark records obsolete."
       );
     }
   });
@@ -398,7 +443,9 @@ function checkScreen(base, screen, { screens, tableNamed, report, named, bots, s
     }
   }
 
-  const records = (reference, kind, path) => {
+  const records = (reference, kind, path, variables = null) => {
+    // A row of a table, in its row actions and row click: that row's own record.
+    if (reference === "=row" && kind === "record" && variables?.row) return rowTables.get(variables.row) ?? null;
     const name = DATA_REFERENCE.exec(String(reference || ""))?.[1];
     const query = name && screenData[name];
     if (!anObject(query)) {
@@ -410,6 +457,8 @@ function checkScreen(base, screen, { screens, tableNamed, report, named, bots, s
     return tableNamed(query.record || query.from) || null;
   };
 
+  // Each table part's row schema and its table, for a step whose record is "=row".
+  const rowTables = new Map();
   const dialogs = new Set();
   const collectDialogs = (nodes) => (Array.isArray(nodes) ? nodes : []).forEach((node) => {
     if (node?.type === "dialog" && node.key) dialogs.add(node.key);
@@ -450,7 +499,7 @@ function checkScreen(base, screen, { screens, tableNamed, report, named, bots, s
         }
       }
       if (kind === "update") {
-        const target = records(value?.record, "record", `${at}.update.record`);
+        const target = records(value?.record, "record", `${at}.update.record`, variables);
         if (typeof value?.set === "string") {
           formula(`${at}.update.set`, value.set, variables, "map");
         } else {
@@ -468,7 +517,7 @@ function checkScreen(base, screen, { screens, tableNamed, report, named, bots, s
         }
         notSettable(tableNamed(value?.table), value?.preset, `${at}.create.preset`);
       }
-      if (kind === "markObsolete") records(value?.record, "record", `${at}.markObsolete.record`);
+      if (kind === "markObsolete") records(value?.record, "record", `${at}.markObsolete.record`, variables);
       if (kind === "notify") formula(`${at}.notify`, value, variables, "string");
       if (kind === "askBot") {
         if (typeof value?.bot !== "string" || !value.bot.trim()) {
@@ -483,6 +532,12 @@ function checkScreen(base, screen, { screens, tableNamed, report, named, bots, s
         }
       }
       if (kind === "openDialog" && !dialogs.has(value)) report(`${at}.openDialog`, `there is no dialog "${value}" on this screen.`);
+      // A screen value set from a formula (a row's id, a text), as an input would set it.
+      if (kind === "set") {
+        const declared = screen.state?.[value?.state];
+        if (!declared) report(`${at}.set.state`, `must name one of this screen's state values: ${Object.keys(screen.state || {}).join(", ") || "none"}.`);
+        else formula(`${at}.set.value`, value?.value, variables, declared.type === "double" ? "double" : declared.type === "bool" ? "bool" : "string");
+      }
       if (kind === "runScript") {
         script(`${at}.runScript.script`, value?.script, "action");
         if (value?.input !== undefined && (typeof value.input !== "object" || Array.isArray(value.input) || value.input === null)) {
@@ -580,6 +635,7 @@ function checkScreen(base, screen, { screens, tableNamed, report, named, bots, s
         report(`${path}.rows`, "rows from a script can't have onRowClick or rowActions; use buttons elsewhere on the screen.");
       }
       const rowVariables = table ? { ...variables, row: celSchema(table) } : fromScript ? { ...variables, row: "map" } : variables;
+      if (table) rowTables.set(rowVariables.row, table);
       if (node.columns !== undefined && !Array.isArray(node.columns)) report(`${path}.columns`, "must be a list of columns.");
       (Array.isArray(node.columns) ? node.columns : []).forEach((column, index) => {
         if (typeof column?.label !== "string") report(`${path}.columns[${index}].label`, "needs a label.");
@@ -610,7 +666,7 @@ function checkScreen(base, screen, { screens, tableNamed, report, named, bots, s
         report(path, "a form needs exactly one of record (to edit) or table (to add a new record).");
       }
       const table = node.table
-        ? tableNamed(node.table) || (named.has(`${path}.table`) ? null : report(`${path}.table`, "needs an existing table.")) || null
+        ? tableNamed(node.table) || (named.has(`${path}.table`) ? null : (report(`${path}.table`, "needs an existing table."), null))
         : node.record
           ? records(node.record, "record", `${path}.record`)
           : null;

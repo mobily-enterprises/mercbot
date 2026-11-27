@@ -11,6 +11,7 @@ import {
   plainValue
 } from "../shared/formulas.js";
 import { pageParamOf } from "../shared/check.js";
+import { expandLines } from "../shared/lines.js";
 import { calculate, calculatedFormulas, dataOnly, isCalculated, storedFieldIds, withNamedFormulas } from "../shared/index.js";
 import { NeedsAttention, calculatedOrder, compileWhere, planToIds } from "../shared/where.js";
 import { GateError } from "./validate.js";
@@ -118,7 +119,8 @@ export function createRuntime({ apps, gate, scripts, practices }) {
   /** A screen of the app; `given` is the app as apps.get answered it with `botNames: false`, when the caller has it. */
   async function load(slug, version, screenKey, options, given = null) {
     const loaded = given ?? (await apps.get(slug, { version: version === "draft" ? "draft" : "live", botNames: false }, options));
-    const screen = loaded.definition?.screens?.[screenKey];
+    // A screen runs as its line items stand for (lines.js), as the browser draws it.
+    const screen = expandLines(loaded.definition?.screens?.[screenKey]);
     if (!screen) throw new GateError(404, "That screen doesn't exist.", { code: "apps_screen_not_found" });
     const tables = loaded.tables.filter((table) => !table.obsolete);
     const tableNamed = (name) => tables.find((table) => table.key === name);
@@ -330,7 +332,7 @@ export function createRuntime({ apps, gate, scripts, practices }) {
       const screens = loaded.definition.screens;
       const allowed = (step) => {
         const [kind] = Object.keys(step || {});
-        if (["notify", "openDialog", "closeDialog"].includes(kind)) return true;
+        if (["notify", "openDialog", "closeDialog", "set"].includes(kind)) return true;
         if (kind === "go") return screens[step.go?.screen]?.public === true;
         if (kind === "create") {
           return (
@@ -369,12 +371,15 @@ export function createRuntime({ apps, gate, scripts, practices }) {
         variables.data[name] = "list";
       }
     }
-    const referenced = (reference) => recordTables[DATA_REFERENCE.exec(String(reference || ""))?.[1]];
+    // A step's record: one of the screen's single-record queries, or (in a row's actions) the row itself.
+    let rowTarget = null;
+    const referenced = (reference) => (reference === "=row" ? rowTarget : recordTables[DATA_REFERENCE.exec(String(reference || ""))?.[1]]);
     if (tableNode) {
       const table =
         referenced(tableNode.rows)?.table ?? loaded.tableNamed(screen.data?.[DATA_REFERENCE.exec(String(tableNode.rows))?.[1]]?.from);
       if (!table || !rowId) throw new GateError(400, "Which row?", { code: "apps_form_row_missing" });
       const record = await gate.get(actx, table.id, String(rowId));
+      rowTarget = { table, id: String(record.id) };
       variables.row = celSchema(table);
       scope.row = formulaRecord(table, record);
     }
@@ -466,6 +471,14 @@ export function createRuntime({ apps, gate, scripts, practices }) {
         effects.push({ notify: String(evaluate(step.notify) ?? "") });
       } else if (kind === "openDialog" || kind === "closeDialog") {
         effects.push({ [kind]: step[kind] });
+      } else if (kind === "set") {
+        // A screen value, set in the browser as an input sets it: only a declared one, as its type.
+        const declared = screen.state?.[step.set?.state];
+        if (declared) {
+          const raw = plainValue(evaluate(step.set.value));
+          const value = declared.type === "double" ? Number(raw) || 0 : declared.type === "bool" ? Boolean(raw) : String(raw ?? "");
+          effects.push({ set: { state: step.set.state, value } });
+        }
       } else if (kind === "runScript") {
         // A button's script runs in turn (in a draft preview, on its practice copy); what it returns becomes effects.
         const input = scriptInput(step.runScript.input, evaluate);
