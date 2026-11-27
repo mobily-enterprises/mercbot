@@ -11,6 +11,7 @@ import { createFileStore } from "../../packages/files/src/server/fileStore.js";
 import { PIECE_BYTES, SealError, newSealedKey, openSealedKey, openStream, sealStream, sealedSize } from "../../packages/files/src/server/filesCipher.js";
 import { bucketId, createFilesVolume } from "../../packages/files/src/server/filesVolume.js";
 import { S3Error, createS3Bucket, s3Settings } from "../../packages/files/src/server/s3Bucket.js";
+import { PULL_FRESH_MS } from "../../packages/files/src/server/syncedTree.js";
 import { startS3Bucket } from "../support/s3Bucket.mjs";
 
 // Bots' files in an S3 bucket (D-91), with no FUSE: each server works on a copy of what it uses in its files folder,
@@ -21,8 +22,13 @@ import { startS3Bucket } from "../support/s3Bucket.mjs";
 // needs none of a store's folders.
 const places = createFileStore({ root: "", fallback: os.tmpdir(), ownStorage: async () => null, settle: async () => {}, explain: async () => {} });
 const at = (homeId, chatId, botId) => places.placeFor({ homeId, chatId, chatKind: "public", botId });
-// Another server sees a change at its next pull, which comes once its last is a second old (syncedTree.js).
-const nextPull = () => new Promise((resolve) => setTimeout(resolve, 1100));
+// Another server sees a change at its next pull, which comes once its last is PULL_FRESH_MS old (syncedTree.js). The
+// servers here share a clock the tests move on by that much, in place of waiting it out.
+let clockMs = Date.now();
+const clock = () => clockMs;
+const nextPull = () => {
+  clockMs += PULL_FRESH_MS;
+};
 
 // The database's files_keys, as databaseFilesKeys keeps it: the first record offered for a bucket is kept, and every
 // offer answers it (tests/server/filesKeys.integration.js keeps them in PostgreSQL). One for every server here.
@@ -41,7 +47,7 @@ async function server(context, s3, { env = {}, folder = null } = {}) {
   const dir = folder ?? await mkdtemp(path.join(os.tmpdir(), "mercbot-bucket-"));
   const logs = [];
   const serverEnv = { ...s3.env, MERCBOT_FILES_DIR: dir, ...env };
-  const volume = createFilesVolume({ env: serverEnv, folder: dir, keys, log: (line) => logs.push(line) });
+  const volume = createFilesVolume({ env: serverEnv, folder: dir, keys, log: (line) => logs.push(line), now: clock });
   const store = createFileStore({ root: dir, fallback: dir, volume, ownStorage: async () => null, settle: async () => {}, explain: async () => {} });
   context.after(async () => {
     await volume.stop();
@@ -178,14 +184,14 @@ test("two servers on one bucket see each other's files once they're settled, and
   await two.store.makeFolder(two.store.homePlace(3), "/files/shared/Archive");
   await two.store.remove(at(3, 12, 7), "/files/chat/Drafts");
   await two.store.settle(3);
-  await nextPull();
+  nextPull();
   assert.deepEqual((await one.store.list(at(3, 13, 8))).shared.map((file) => file.path), ["/files/shared/Team/report.txt"]);
   assert.deepEqual((await one.store.list(at(3, 12, 7))).chat, []);
   assert.deepEqual((await one.store.listFolder(one.store.homePlace(3), "/files/shared")).entries.map((entry) => entry.path), ["/files/shared/Archive", "/files/shared/Team"]);
   assert.deepEqual((await one.store.listFolder(at(3, 12, 7), "/files/chat")).entries, []);
   await one.store.remove(one.store.homePlace(3), "/files/shared/Team/report.txt");
   await one.store.settle(3);
-  await nextPull();
+  nextPull();
   await assert.rejects(two.store.existingFile(at(3, 12, 7), "/files/shared/Team/report.txt"), /isn't there/);
   assert.ok(![...s3.objects.keys()].some((key) => key.endsWith("report.txt")));
 
@@ -197,7 +203,7 @@ test("two servers on one bucket see each other's files once they're settled, and
   await one.store.settle(3);
   await two.store.removeChatFolder(3, 12);
   assert.ok(![...s3.objects.keys()].some((key) => key.startsWith("homes/3/chats/12/")));
-  await nextPull();
+  nextPull();
   assert.deepEqual((await one.store.list(at(3, 12, 7))).chat, []);
   assert.deepEqual((await one.store.list(at(3, 13, 7))).chat.map((file) => file.path), ["/files/chat/minutes.txt"]);
 });
@@ -224,18 +230,18 @@ test("a change made here and not yet sent wins over the bucket's, and goes when 
   await writeFile(theirs, "changed on two");
   await writeFile(path.join(shared, "plan.txt"), "changed on one, sent first");
   await one.store.settle(3);
-  await nextPull();
+  nextPull();
   await two.store.list(at(3, 12, 7));
   assert.equal(await readFile(theirs, "utf8"), "changed on two", "kept until it's sent");
   await two.store.settle(3);
-  await nextPull();
+  nextPull();
   await one.store.list(at(3, 12, 7));
   assert.equal(await readFile(path.join(shared, "plan.txt"), "utf8"), "changed on two", "then everyone's");
 
   // Written and never settled: the server sends it as it stops (D-19).
   await writeFile(theirs, "written as the server stopped");
   await two.volume.stop();
-  await nextPull();
+  nextPull();
   await one.store.list(at(3, 12, 7));
   assert.equal(await readFile(path.join(shared, "plan.txt"), "utf8"), "written as the server stopped");
 });

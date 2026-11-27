@@ -90,8 +90,10 @@ export function bucketId({ endpoint, bucket, prefix = "" }) {
  * @param {{ keep: (bucket: string, record: string) => Promise<string> }} options.keys which files key a new bucket keeps
  *   (databaseFilesKeys)
  * @param {(line: string) => void} [options.log]
+ * @param {() => number} [options.now] the clock, in milliseconds, that spaces the files folder's pulls from the bucket
+ *   (syncedTree.js)
  */
-export function createFilesVolume({ env, folder, keys, log = (line) => console.warn(line) }) {
+export function createFilesVolume({ env, folder, keys, log = (line) => console.warn(line), now = Date.now }) {
   const settings = s3Settings(env);
   const passphrase = String(env.MERCBOT_FILES_PASSPHRASE ?? "");
   const root = path.resolve(folder);
@@ -138,7 +140,7 @@ export function createFilesVolume({ env, folder, keys, log = (line) => console.w
   async function start() {
     await claimFolder();
     const key = await filesKey();
-    tree = createSyncedTree({ root, remote: bucketRemote(bucket, key, path.join(root, ".mbsync")) });
+    tree = createSyncedTree({ root, remote: bucketRemote(bucket, key, path.join(root, ".mbsync")), now });
     // What reads the files folder itself (the usage archive) sees it's in use.
     await fs.writeFile(path.join(root, MARKER), "bucket\n");
     return true;
