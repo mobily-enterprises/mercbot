@@ -51,6 +51,6 @@ test("app lists: pages, the person's sort, search within the screen's filter, th
   const searched = await read({ search: "ACME" });
   assert.ok(searched.total > 0 && searched.records.every((record) => record.name.startsWith("Acme") && record.stage === "Open"), "within the screen's filter");
 
-  const count = async (extra) => (await queriesDuring(knex, () => read(extra))).length;
+  const count = (extra) => queriesDuring(knex, () => read(extra));
   assert.equal(await count({ page: 2 }), await count({ page: 1 }), "page 2 costs what page 1 does");
 });

@@ -52,18 +52,22 @@ test("an app sends only what its owners switched on, within its limits, from job
   assert.equal(await code(sending.choose(owner, await app(), { email: true }, options)), "apps_sending_mailbox_missing");
   assert.equal(await code(sending.choose(owner, await app(), { email: true, account: "77" }, options)), "apps_sending_mailbox_unknown");
   assert.equal(await code(sending.choose(owner, await app(), { notify: true, daily: 501 }, options)), "apps_sending_daily_invalid");
-  await sending.choose(owner, await app(), { notify: true, email: true, account: "9", daily: 2 }, options);
+  await sending.choose(owner, await app(), { notify: true, email: true, account: "9", daily: 3 }, options);
 
-  // ---- Within the daily limit, counted in the database; members only ----
+  // ---- Within the daily limit, counted in the database; members only; a send costs the same after a year of sends ----
   assert.deepEqual(await sending.email(ctx, await app(), mail), { sent: 1, logged: true });
-  const second = await queriesDuring(knex, async () => sending.email(ctx, await app(), { ...mail, to: ["a@example.com", "B@Example.com"] }));
-  assert.equal(await code(sending.email(ctx, await app(), mail)), "apps_send_limit", "the third of a limit of 2");
-  assert.deepEqual(sent.emails.map((each) => [each.account, each.to]), [["9", ["sam@example.com"]], ["9", ["a@example.com", "b@example.com"]]]);
+  const later = (to) => queriesDuring(knex, async () => sending.email(ctx, await app(), { ...mail, to }));
+  const second = await later(["a@example.com", "B@Example.com"]);
+  const events = await app();
+  const days = Array.from({ length: 365 }, (_, index) => new Date(Date.now() - (index + 1) * 86_400_000).toISOString().slice(0, 10));
+  await knex("app_send_counts").insert(days.flatMap((day) => ["email", "notice", "to:sam@example.com"].map((what) => ({ workspace_id: home.workspaceId, app_id: events.id, day, what, count: 9 }))));
+  assert.equal(await later("c@example.com"), second, "a send reads the same with 1,095 earlier counts");
+  assert.equal(await code(sending.email(ctx, await app(), mail)), "apps_send_limit", "the fourth of a limit of 3");
+  assert.deepEqual(sent.emails.map((each) => [each.account, each.to]), [["9", ["sam@example.com"]], ["9", ["a@example.com", "b@example.com"]], ["9", ["c@example.com"]]]);
   assert.equal(await code(sending.notify(ctx, await app(), { to: "99", text: "Hi" })), "apps_notify_invalid", "not in the home");
   await sending.notify(ctx, await app(), { to: "owners", text: "New booking" });
   assert.deepEqual(sent.notices.at(-1), { userIds: [String(home.userId)], text: "From Events: New booking" });
-  assert.deepEqual(await sending.today(await app(), options), { notices: 1, emails: 2 });
-  assert.ok(second < 25, `a send reads a handful of rows (${second} queries)`);
+  assert.deepEqual(await sending.today(await app(), options), { notices: 1, emails: 3 });
 
   // ---- A job sends with notify.member and notify.email ----
   await sending.choose(owner, await app(), { notify: true, email: false, daily: 50 }, options);

@@ -3,7 +3,7 @@
 // then its own.
 import os from "node:os";
 import process from "node:process";
-import { testConcurrency } from "@jskit-ai/jskit-catalog/test-budget";
+import { browserTestWorkers } from "@jskit-ai/jskit-catalog/browser-tests";
 
 /** A --workers value as Playwright reads it: a count, or a share of the CPUs ("50%"), at least one. */
 function workersValue(value) {
@@ -15,8 +15,8 @@ function workersValue(value) {
 
 /**
  * The run's workers: 1 under --debug or --pause, as Playwright runs them, else the command line's --workers
- * (--workers=N, --workers N, -j N or -jN), else the config's own: 1 for Vibe64's managed target, otherwise the
- * machine's test budget (testConcurrency()).
+ * (--workers=N, --workers N, -j N or -jN), else the config's own (JSKIT's browserTestWorkers()): 1 for Vibe64's
+ * managed target, otherwise half the machine's test budget, as each worker drives a browser and its own app server.
  * @param {{ argv?: ReadonlyArray<string>, managed?: boolean, env?: Record<string, string | undefined> }} [options]
  */
 export function runWorkers({ argv = process.argv, managed = false, env = process.env } = {}) {
@@ -26,5 +26,5 @@ export function runWorkers({ argv = process.argv, managed = false, env = process
     const match = /^(?:--workers(?:=(.*))?|-j(.+)?)$/u.exec(args[index]);
     if (match) return workersValue(match[1] ?? match[2] ?? args[index + 1]);
   }
-  return managed ? 1 : testConcurrency({ env });
+  return managed ? 1 : browserTestWorkers({ env, argv });
 }

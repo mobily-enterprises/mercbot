@@ -6,11 +6,13 @@ import { queriesDuring } from "../support/queryCount.mjs";
 import { createRuntime } from "../../packages/apps/src/server/runtime.js";
 import { createScripts } from "../../packages/apps/src/server/scripts.js";
 import { compile } from "../../packages/apps/src/server/visitorAccess.js";
+import { buildAppTools } from "../../packages/bots/src/server/appTools.js";
+import { createTableCatalog } from "../../packages/apps/src/server/tableCatalog.js";
 
 // Private tables (D-138), on the test database: owners and admins choose who may read and who may change a table's
 // records, and every way in keeps to it, for a member who isn't allowed, a named person and an admin: the data gate's
 // reads and writes (the Data tab, its search and export, bots), a screen's list, a script, a job as its person, links,
-// related records and roll-ups; a public app's visitors keep to its visitor access. The check costs the same however
+// related records and roll-ups, and a bot's table list and reads as the person it helps; a public app's visitors keep to its visitor access. The check costs the same however
 // many tables are private.
 assert.ok(process.env.TEST_DB_NAME?.trim(), "TEST_DB_NAME must identify a disposable test database.");
 assert.equal(process.env.DB_NAME, process.env.TEST_DB_NAME, "DB_NAME must match the dedicated TEST_DB_NAME.");
@@ -78,6 +80,17 @@ test("a private table's records reach only whom its owners chose, every way in, 
   const reviewPay = (await registry.loadTables(options)).find((table) => table.key === "reviews").fields.find((field) => field.key === "pay").id;
   assert.deepEqual((await gate.get(ctxOf.kim, "reviews", review.id))[reviewPay], { id: pay.id, label: null }, "a link into it shows its number only");
   assert.equal((await gate.get(ctxOf.ann, "reviews", review.id))[reviewPay].label, "Sam's pay");
+
+  // ---- A bot works as the person it helps: its table list leaves the table out, and its reads are refused ----
+  const botFor = (id, role) => buildAppTools({
+    apps: { registry, gate, catalog: createTableCatalog({ registry, gate }) }, directory: { findBot: async () => ({ name: "Otto" }) }, call: home.memberOptions(id, workspace, { role, permissions: [] }),
+    botId: "1", chatBotId: null, userId: id, isBuilder: false, after: [], attempted: [], via: null
+  });
+  const tablesOf = async (id, role) => (await botFor(id, role).dataTables.execute({}, {})).tables.map((table) => table.table);
+  assert.ok(!(await tablesOf(kim, "member")).includes("salaries"), "Kim's bot doesn't list it");
+  assert.ok((await tablesOf(ann, "member")).includes("salaries"), "Ann's bot does");
+  assert.match((await botFor(kim, "member").dataQuery.execute({ table: "salaries" }, {})).error ?? "", /Salaries is private/u);
+  assert.equal((await botFor(ann, "member").dataQuery.execute({ table: "salaries" }, {})).total, 1);
 
   // ---- A screen's list and a button's script, as the person using the app ----
   await apps.createApp(owner, { name: "Payroll" }, options);

@@ -5,7 +5,7 @@ import { runWorkers } from "../support/browserRun.mjs";
 // The browser suite's whole-run bound follows the workers the run gets (playwright.config.mjs, tests/support/browserRun.mjs):
 // the tests' summed time is the same work however many workers share it, so one worker gets the whole of its bound
 // and four a quarter each, after the global setup's. The workers are read as Playwright reads them: the command line's
-// --workers in each of its forms, else the config's own (the machine's test budget, or 1 on Vibe64's managed target).
+// --workers in each of its forms, else the config's own (half the machine's test budget, or 1 on Vibe64's managed target).
 
 const PLAYWRIGHT = ["node", "playwright", "test"];
 let loads = 0;
@@ -41,7 +41,7 @@ test("the run's workers are the command line's, in each of its forms, else the c
   assert.equal(workers(["-j", "4"]), 4);
   assert.equal(workers(["-j2", "tests/e2e/shell.spec.ts"]), 2);
   assert.ok(workers(["--workers=50%"]) >= 1, "a share of the CPUs, at least one");
-  assert.equal(workers([]), 6, "the machine's test budget");
+  assert.equal(workers([]), 3, "half the machine's test budget: each worker drives a browser and its own app server");
   assert.equal(workers([], { managed: true }), 1, "Vibe64's managed target, one at a time");
   assert.equal(workers(["--workers=3"], { managed: true }), 3, "the command line wins");
   assert.equal(workers(["--workers=4", "--debug"]), 1, "Playwright runs --debug on one worker");
@@ -55,7 +55,7 @@ test("the whole run's bound is the setup's, then each worker's share of the test
   const four = await configOf(["-j", "4"], { PLAYWRIGHT_BASE_URL: undefined });
   assert.equal(four.default.globalTimeout, bound(four, 4));
   assert.ok(four.default.globalTimeout < one.default.globalTimeout, "four workers share the work");
-  const budget = await configOf([], { PLAYWRIGHT_BASE_URL: undefined, V64_TEST_CONCURRENCY: "3" });
+  const budget = await configOf([], { PLAYWRIGHT_BASE_URL: undefined, V64_TEST_CONCURRENCY: "6" });
   assert.deepEqual([budget.default.workers, budget.default.globalTimeout], [3, bound(budget, 3)]);
   const managed = await configOf([], { PLAYWRIGHT_BASE_URL: "http://127.0.0.1:9", V64_TEST_CONCURRENCY: "3" });
   assert.deepEqual([managed.default.workers, managed.default.globalTimeout], [1, bound(managed, 1)]);

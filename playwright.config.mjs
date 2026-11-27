@@ -1,5 +1,5 @@
 import { defineConfig } from "@playwright/test";
-import { testConcurrency } from "@jskit-ai/jskit-catalog/test-budget";
+import { browserTestWorkers } from "@jskit-ai/jskit-catalog/browser-tests";
 import { runWorkers } from "./tests/support/browserRun.mjs";
 
 // Two ways to run the browser suite (tests/e2e), both on the Test Preview target's fixtures:
@@ -28,8 +28,9 @@ const workers = runWorkers({ managed: Boolean(managedBaseUrl) });
 
 export default defineConfig({
   testDir: "./tests/e2e",
-  // One worker for the managed target, as JSKIT's browserTestConfig() does; otherwise the machine's test budget.
-  ...(managedBaseUrl ? { workers: 1 } : { workers: testConcurrency() }),
+  // One worker for the managed target; otherwise half the machine's test budget: each worker drives a browser and its
+  // own app server, about two threads.
+  workers: browserTestWorkers(),
   timeout: 60_000,
   // In milliseconds, a number first, as jskit check reads a bound (test/playwright-global-timeout).
   globalTimeout: 1000 * (SETUP_BOUND_SECONDS + Math.ceil(SUMMED_BOUND_SECONDS / workers)),

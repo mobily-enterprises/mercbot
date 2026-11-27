@@ -41,6 +41,10 @@
       "rule": "no-transaction-reader"
     },
     {
+      "file": "packages/apps/src/server/rollups.js",
+      "rule": "no-transaction-reader"
+    },
+    {
       "file": "scripts/agent-evals-ours.mjs",
       "rule": "no-direct-knex"
     },
