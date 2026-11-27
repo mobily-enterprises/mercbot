@@ -44,6 +44,14 @@ test("the coding loop fixes failures, gives up after five rounds, and respects i
   } });
   assert.match(buttonPrompts[0], /This app may use no connected apps \(its owners and admins allow them in its Logic tab\)/u);
   assert.match(buttonPrompts[0], /This app may not use bots and pictures/u);
+  // A job's prompt says what the app may send by itself (D-137): here nothing yet, as no owner switched it on.
+  const jobPrompts = [];
+  await writeScript({ ...base, key: "remind", kind: "job", settings: { every: "day", at: "08:00" }, model: async (prompt) => {
+    jobPrompts.push(prompt);
+    return { summary: "Reminds", code: "async function main() { return 1 }", tests: [{ name: "one", input: {}, expect: 1 }] };
+  } });
+  assert.match(jobPrompts[0], /This app may not notify members yet and may not send email yet: a home owner or admin switches it on/u);
+  assert.doesNotMatch(buttonPrompts[0], /notify members/u, "a button's prompt doesn't");
 
   // A model that never gets it right: five rounds, nothing saved, the last failures returned.
   let calls = 0;

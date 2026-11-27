@@ -13,7 +13,7 @@ export const SCRIPT_GUIDE =
 Define \`async ` +
   `function main(input)\` (a function script: a plain, synchronous \`function main(arg1, arg2, …)\`, pure: no records, no ` +
   `web).
-Only JSON goes in and out. Limits per run: 1 s of running time, 32 MB, 50 record calls, 5 web calls; a job has 5 s, 200 record calls and 60 s in all. A run's record changes are all or nothing: if it throws or fails, none of its writes stay (nor ai work it queued), so a script can throw to undo what it did; web calls and connected apps' changes aren't undone.
+Only JSON goes in and out. Limits per run: 1 s of running time, 32 MB, 50 record calls, 5 web calls; a job has 5 s, 200 record calls and 60 s in all; a rule has half a second, 16 MB and 20 record reads, no writes, web calls or connected apps (it runs on every save, so keep it quick). A run's record changes are all or nothing: if it throws or fails, none of its writes stay (nor ai work it queued), so a script can throw to undo what it did; web calls and connected apps' changes aren't undone.
 Record functions ` +
   `(not in functions; rules only read):
 - await records.list(table, { where: "=formula over the table's fields, values in params", ` +
@@ -89,6 +89,14 @@ async function connectedNoteFor(scripts, app, kind, call) {
   return `${apps}\n${ai}`;
 }
 
+/** What a job may send by itself (D-137), as its app's owners and admins switched it on, for the prompt. */
+function sendingNoteFor(app) {
+  const sending = app?.sending || {};
+  const notify = sending.notify ? "may notify members (notify.member)" : "may not notify members yet";
+  const email = sending.email ? "may send email (notify.email)" : "may not send email yet";
+  return `This app ${notify} and ${email}${sending.notify && sending.email ? "" : ": a home owner or admin switches it on in the app's Logic tab, so write the job to use it anyway if the job needs it, and say so"}; at most ${Number(sending.daily) || 50} of each a day.`;
+}
+
 /**
  * One round: the model's { summary, code, tests } as JSON.
  * @param {import("./types.js").ChatModel} model
@@ -146,8 +154,9 @@ export async function writeScript({
   // The key, kind and settings come from the Builder: the model can't fix those, so check them first.
   const { errors } = scripts.checkScript({ key, kind, settings, summary: "-", code: "function main() {}", tests: [{}] }, tables);
   if (errors.length) return { status: "not saved", rounds: 0, failures: errors };
-  // The connected apps this kind of script may call, with each action's inputs, or why it may call none.
-  const connectedNote = await connectedNoteFor(scripts, app, kind, call);
+  // The connected apps this kind of script may call, with each action's inputs, or why it may call none; and for a job,
+  // what the app may send by itself (D-137).
+  const connectedNote = [await connectedNoteFor(scripts, app, kind, call), kind === "job" ? sendingNoteFor(appRow) : ""].filter(Boolean).join("\n");
   let failures = null;
   let last = null;
   let rounds = 0;

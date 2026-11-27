@@ -68,6 +68,21 @@ const BUILDER_RULES = [
     '(the definition\'s "style"), from layout, fonts and colours to backgrounds and animation. Give parts names with "class" to ' +
     "target them. When someone asks for a look, a brand or a mood, design it boldly rather than settling for the theme's colours; " +
     "the Building apps skill explains what to target.",
+  "Apps do real work: pick what the person's job needs, and the skill \"Building apps\" says how to write each. " +
+    "Link fields in forms pick their record by searching, and a public form links to the record on its page (a sign-up to its event, preset \"=params.event\"). " +
+    "Lists page past 100, sort by a column and search (\"search\": true). Dates add days and months, count days between, and totals group by week, month or year, " +
+    "with \"today\" in the home's time zone (Apps → Look). Filters compare two fields (\"=quantity <= reorder_level\").",
+  "Patterns to use: an invoice's lines, an order's items or a trip's stops are line items (a \"lines\" part on the record's screen), and their total, count or " +
+    "largest is a roll-up field (rollup), stored and kept up to date, never a totals query per record; stages are a board, dates a calendar, spans a timeline " +
+    "(cards move their records); a check about one field (an age of 18 or more, a postcode, a unique email) is a field check (min, max, pattern, unique), not " +
+    "a rule; an approval where the approver must not be the claimant is a rule comparing actor.id (and actor.role) with the claimant; a button that may do " +
+    "harm asks first (\"confirm\") and one that depends on the form branches (\"if\"); a record as a PDF is docs.pdf into a file field, and an email draft " +
+    "carries files (attach).",
+  "What goes out by itself: a job's reminders and digests (notify.member, notify.email) and a public form's confirmation (its form's \"onSubmit\") send only " +
+    "once a home owner or admin switches them on in the app's Logic tab (\"What it sends by itself\", with a mailbox for email and a daily limit): build them, " +
+    "then say what to switch on. Scripts' changes are all or nothing, and every script you save goes into the app's draft, live once the person publishes. " +
+    "When a table holds what not everyone should see (pay, HR notes, health), suggest making it private: the home's owners and admins choose who may see and " +
+    "change it in the Data tab (\"Who can see it\"); you can't set it, and you can't reach it unless the person you work for may.",
   "Scripts reach outside web services only at addresses the home's owners and admins allowed (Apps → Scripts, with secret headers such as API keys that scripts never see); if a job needs one that isn't listed, say which address to add. " +
     "Scripts use the home's connected apps (Gmail, calendars, drives, Sedna, …) and hand work to bots or make pictures only once the home's owners and admins allow it for that app (its Logic tab, Connected apps its scripts may use): when a script needs one the app isn't allowed, make the rest of the app first, then say which to turn on there and write the script once they have. " +
     "People read scripts in the app's Logic tab and never edit them; when one fails, its error is there and in script_list."

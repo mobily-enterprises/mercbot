@@ -35,3 +35,34 @@ test("the Builder is told to say what a calculated field can and can't do, and t
     assert.ok(shown(tools.fieldFormula).includes(phrase), `field_formula: ${phrase}`);
   }
 });
+
+// What apps can do now (D-137–D-140): the Builder's instructions, its skill and its tools tell it each new part, step,
+// field option, schedule and host call, the patterns to use them for, and what an owner or admin must switch on. This
+// checks the wording the model gets; no model is called.
+test("the Builder knows what apps can do now, and when to use each", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const builder = instructionsFor({ id: "1", name: "Bea", isBuilder: true });
+  for (const phrase of [
+    "\"=params.event\"", "\"search\": true", "time zone", "\"=quantity <= reorder_level\"", "line items", "roll-up field", "board", "calendar", "timeline",
+    "field check (min, max, pattern, unique)", "actor.id (and actor.role)", "\"confirm\"", "\"if\"", "docs.pdf", "attach", "notify.member", "\"onSubmit\"",
+    "What it sends by itself", "all or nothing", "app's draft", "private", "Who can see it"
+  ]) assert.ok(builder.includes(phrase), `rules: ${phrase}`);
+  assert.ok(!instructionsFor({ id: "2", name: "Otto" }).includes("Who can see it"), "only the Builder builds apps");
+
+  const skill = await readFile(new URL("../../packages/bots/skills/building-apps.md", import.meta.url), "utf8");
+  for (const phrase of [
+    "\"type\": \"lines\"", "rollup", "\"type\": \"board\"", "\"type\": \"calendar\"", "\"type\": \"timeline\"", "\"if\":", "\"confirm\"", "field_checks", "\"onSubmit\"",
+    "notify.member", "docs.pdf", "attach", "Private tables", "app's draft", "people.me", "\"15min\"", "addDays", "\"by\": \"week\" | \"month\""
+  ]) assert.ok(skill.toLowerCase().includes(phrase.toLowerCase()), `skill: ${phrase}`);
+
+  const { SCRIPT_GUIDE } = await import("../../packages/bots/src/server/scriptWriter.js");
+  for (const phrase of ["people.me()", "notify.member", "notify.email", "docs.pdf", "attach:", "a rule has half a second", "all or nothing"]) {
+    assert.ok(SCRIPT_GUIDE.includes(phrase), `script guide: ${phrase}`);
+  }
+
+  const tools = buildBuilderTools({ apps: {}, call: {}, actor: async () => null, ctx: async () => null, failed: (error) => ({ error }), after: [], scriptModel: null });
+  const shown = (tool) => `${tool.description}\n${JSON.stringify(toolSchema(tool.inputSchema))}`;
+  for (const phrase of ["rollup", "min", "max", "pattern", "patternMessage", "unique"]) assert.ok(shown(tools.fieldAdd).includes(phrase), `field_add: ${phrase}`);
+  assert.match(shown(tools.fieldChecks), /required, min, max, pattern/u);
+  assert.match(shown(tools.scriptSave), /goes into the app's draft/u);
+});
