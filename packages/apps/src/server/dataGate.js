@@ -643,7 +643,6 @@ export function createDataGate({
     return { imported: checked.length, errors };
   }
 
-
   return Object.freeze({
     read,
     get,
@@ -660,6 +659,7 @@ export function createDataGate({
     actors,
     importRecords,
     attachFile: files.attach,
+    makeDocument: files.document,
     recordFile: files.fileOf,
     related: relatedRecords.related,
     tableFor,

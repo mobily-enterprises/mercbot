@@ -271,3 +271,46 @@ test("a connector that brings its own actions: a read through the layer, a chang
   await assert.rejects(apps.run(call, { app: "tasks", action: "add-task", input: { content: "x" } }, "read"), { code: "apps_connected_write_refused" });
   assert.deepEqual(used.map(([, name]) => name), ["list-tasks"], "the change never reached the connector");
 });
+
+test("an app's mail draft carries its records' files, read through the gate as the person; only a draft takes them", async (context) => {
+  const { mkdtemp, writeFile, rm } = await import("node:fs/promises");
+  const { tmpdir } = await import("node:os");
+  const dir = await mkdtemp(`${tmpdir()}/mercbot-attach-`);
+  context.after(() => rm(dir, { recursive: true, force: true }));
+  await writeFile(`${dir}/invoice.pdf`, "%PDF-1.4 invoice 42");
+  const read = [];
+  const apps = {
+    gate: {
+      recordFile: async (ctx, table, id, field) => {
+        read.push({ person: ctx.actor.id, options: ctx.options, table, id, field });
+        return { real: `${dir}/invoice.pdf`, name: "INV-42.pdf", type: "application/pdf", size: 19 };
+      }
+    }
+  };
+  const sent = [];
+  const original = globalThis.fetch;
+  globalThis.fetch = async (url, options = {}) => {
+    sent.push({ line: `${options.method || "GET"} ${url}`, body: options.body ? JSON.parse(options.body) : null });
+    return new Response(JSON.stringify({ id: "d1" }), { status: 200 });
+  };
+  context.after(() => { globalThis.fetch = original; });
+  const connected = createAppConnected({ integrations: fakeIntegrations(), profiles, env: { APP_ENV: "test" }, records: { work: null, bots: null, turns: null }, apps, approvals: rules("allow") });
+  const attach = [{ table: "invoices", id: "42", field: "pdf" }];
+  const draft = (app) => ({ app, action: "mail_drafts.create", input: { to: ["sam@example.com"], subject: "Your invoice", text: "Attached.", attach } });
+
+  assert.equal((await connected.run(call, draft("gmail"), "button")).status, "done");
+  assert.deepEqual(read, [{ person: "7", options: call, table: "invoices", id: "42", field: "pdf" }], "as the person, by the record");
+  const raw = Buffer.from(sent.find((entry) => entry.line.endsWith("/drafts")).body.message.raw, "base64url").toString();
+  assert.match(raw, /multipart\/mixed/u);
+  assert.match(raw, /filename="INV-42\.pdf"/u);
+  assert.ok(raw.includes(Buffer.from("%PDF-1.4 invoice 42").toString("base64")), "the file itself");
+
+  sent.length = 0;
+  await connected.run(call, draft("outlook"), "button");
+  const attached = sent.find((entry) => entry.line.endsWith("/messages/d1/attachments"));
+  assert.deepEqual([attached.body.name, Buffer.from(attached.body.contentBytes, "base64").toString()], ["INV-42.pdf", "%PDF-1.4 invoice 42"]);
+
+  await assert.rejects(connected.run(call, { app: "gmail", action: "search_email", input: { query: "x", attach } }, "read"), { code: "apps_connected_attach_invalid" });
+  await assert.rejects(connected.run(call, { ...draft("gmail"), input: { ...draft("gmail").input, attach: [...attach, ...attach, ...attach, ...attach] } }, "button"), { code: "apps_connected_attach_invalid" });
+  await assert.rejects(connected.run(call, { ...draft("gmail"), input: { ...draft("gmail").input, attach: [{ table: "invoices" }] } }, "button"), { code: "apps_connected_attach_invalid" });
+});

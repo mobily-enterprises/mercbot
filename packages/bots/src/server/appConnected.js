@@ -4,6 +4,7 @@ import { ACTIONS } from "./botActions.js";
 import { turnPerson } from "./connectedApps.js";
 import { buildConnectorTools } from "./connectorTools.js";
 import { inTime } from "./botTools.js";
+import { ATTACH_MAX } from "./mailTools.js";
 
 // Connected apps for apps' scripts (D-136): the very tools a bot uses, built for one person with no chat, so every rule
 // they keep holds here too: the accounts the call's person reaches (D-111), Sedna only as their confirmed Sedna user
@@ -126,7 +127,11 @@ export function createAppConnected({ integrations, profiles, env, records, apps,
     place: null
   });
 
-  async function toolsFor(call, appId, mode, outcome, known = null) {
+  /**
+   * @param {Record<string, object>} [extra] what a change of an action id takes besides the tool's own input: an app's
+   *   mail draft's files of its records (`attach`, D-140), which a bot's tool doesn't offer
+   */
+  async function toolsFor(call, appId, mode, outcome, known = null, extra = {}) {
     const switches = known || (await integrations.toolSwitches(call));
     const oneApp = oneAppOf(appId);
     const appFor = (toolId) => ({ integrations: oneApp, call, skip: switches.skip[toolId] || [] });
@@ -140,7 +145,7 @@ export function createAppConnected({ integrations, profiles, env, records, apps,
       asked.push(actionId);
       if (mode !== "button") throw new AppConnectedError("Refused: this call only reads.", "apps_connected_write_refused");
       const action = ACTIONS[actionId];
-      const args = { ...input, personAsked: true };
+      const args = { ...input, ...(extra[actionId] || {}), personAsked: true };
       const decision = action.alwaysAsks ? "ask" : await approvals.decide(action.describe(args), { reversible: action.reversible(args) }, call);
       if (decision === "ask") {
         outcome.waiting.push({ actionId, args, question: action.question(args) });
@@ -209,7 +214,9 @@ export function createAppConnected({ integrations, profiles, env, records, apps,
    */
   async function run(call, { app, action, input = {}, account = "" }, mode, outcome = { made: [], waiting: [] }) {
     const entry = appEntry(app);
-    const { tools, asked, connected } = await toolsFor(call, entry.id, mode, outcome);
+    const { attach, ...rest } = input || {};
+    input = rest;
+    const { tools, asked, connected } = await toolsFor(call, entry.id, mode, outcome, null, attachOf(entry.id, String(action), attach));
     if (!connected.includes(entry.id)) {
       throw new AppConnectedError(`${entry.name} isn't connected for this person.`, "apps_connected_not_connected");
     }
@@ -248,6 +255,22 @@ export function createAppConnected({ integrations, profiles, env, records, apps,
   }
 
   /**
+   * An app's mail draft's files (D-140): `attach`, a list of up to ATTACH_MAX { table, id, field }, each a file of a
+   * record the person reads, for mail_drafts.create and update of Gmail or Outlook only.
+   */
+  function attachOf(appId, action, attach) {
+    if (attach === undefined || attach === null) return {};
+    if (!["gmail", "outlook"].includes(appId) || !["mail_drafts.create", "mail_drafts.update"].includes(action)) {
+      throw new AppConnectedError("attach goes with mail_drafts.create or mail_drafts.update of Gmail or Outlook.", "apps_connected_attach_invalid");
+    }
+    const ok = Array.isArray(attach) && attach.length <= ATTACH_MAX && attach.every((ref) => ref?.table && ref?.id && ref?.field);
+    if (!ok) {
+      throw new AppConnectedError(`attach is a list of up to ${ATTACH_MAX} { table, id, field }, each a record's file.`, "apps_connected_attach_invalid");
+    }
+    return { [action]: { attach: attach.map((ref) => ({ table: String(ref.table), id: String(ref.id), field: String(ref.field) })) } };
+  }
+
+  /**
    * What the Builder writes scripts with (scriptWriter.js): the allowed apps connected for the call's person, each
    * action apps may use with its inputs, one line each. Switches are read once for every app.
    */
@@ -261,7 +284,10 @@ export function createAppConnected({ integrations, profiles, env, records, apps,
       for (const action of entry.actions || []) {
         if (!forApps(appId, action.id) || (switches.skip[action.id] || []).includes(appId)) continue;
         const tool = tools.find((candidate) => candidate.id === toolOf(action.id));
-        if (tool) lines.push(`  - ${action.id} (${action.name}): { ${inputLine(tool)} }`);
+        // An app's mail draft may carry files of its records (D-140), which a bot's tool doesn't offer.
+        const attach = ["gmail", "outlook"].includes(appId) && ["mail_drafts.create", "mail_drafts.update"].includes(action.id)
+          ? `, attach?: { table, id, field }[] (up to ${ATTACH_MAX} record files, 3 MB each)` : "";
+        if (tool) lines.push(`  - ${action.id} (${action.name}): { ${inputLine(tool)}${attach} }`);
       }
       if (entry.mcp) lines.push(`  - its own actions: connected.actions() lists them; connected.run("${appId}", name, input)`);
     }

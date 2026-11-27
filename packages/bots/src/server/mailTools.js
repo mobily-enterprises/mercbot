@@ -1,3 +1,4 @@
+import { readFile } from "node:fs/promises";
 import { createTool } from "@jskit-ai/agent/server";
 import { z } from "zod";
 import { eventMessage } from "./eventMessage.js";
@@ -13,6 +14,21 @@ import { hiddenInEmail } from "./signInSecrets.js";
 // like every other write, and each leaves an event line saying what changed. Sending a draft and
 // forwarding go out only in a live copy; a test copy logs them (D-69).
 export const MAIL = { gmail: google, outlook: microsoft };
+
+// An app's draft carries files of its records (D-140): read through the data gate as the person, 3 at most, 3 MB each.
+export const ATTACH_MAX = 3;
+const ATTACH_BYTES = 3 * 1024 * 1024;
+async function recordAttachments({ apps, call, userId }, refs = []) {
+  const ctx = { options: call, actor: { type: "person", id: String(userId ?? ""), name: "" }, via: { kind: "script" } };
+  const files = [];
+  for (const ref of refs.slice(0, ATTACH_MAX)) {
+    const file = await apps.gate.recordFile(ctx, ref.table, ref.id, ref.field);
+    if (file.size > ATTACH_BYTES) throw new Error(`${file.name} is over 3 MB, too big to attach to an email draft.`);
+    files.push({ name: file.name, type: file.type, data: await readFile(file.real) });
+  }
+  return files;
+}
+const withFiles = (args) => (args.attach?.length ? ` with ${args.attach.length === 1 ? "a file" : `${args.attach.length} files`}` : "");
 
 const mailbox = ({ integrations, reach, call }, account) => connectedKey({ integrations, reach, call }, Object.keys(MAIL), "email", account);
 const emails = (count) => (count === 1 ? "an email" : `${count} emails`);
@@ -52,9 +68,9 @@ export const MAIL_ACTIONS = {
       `mail_drafts.${name}`,
       {
         reversible: spec.reversible,
-        describe: ({ subject, to }) =>
-          `${spec.ask} "${subject || "(no subject)"}"${to?.length ? ` to ${to.join(", ")}` : ""} in the person's mailbox`,
-        question: ({ subject, to }) => `Shall I ${spec.ask} "${subject || "(no subject)"}"${to?.length ? ` to ${to.join(", ")}` : ""}?`,
+        describe: (args) =>
+          `${spec.ask} "${args.subject || "(no subject)"}"${args.to?.length ? ` to ${args.to.join(", ")}` : ""}${withFiles(args)} in the person's mailbox`,
+        question: (args) => `Shall I ${spec.ask} "${args.subject || "(no subject)"}"${args.to?.length ? ` to ${args.to.join(", ")}` : ""}${withFiles(args)}?`,
         async run(context, args) {
           const entry = await mailbox(context, args.account);
           const app = MAIL[entry.pluginId];
@@ -68,11 +84,12 @@ export const MAIL_ACTIONS = {
             },
             () => app.sendDraft(entry.key, args.id)
           );
+          const attachments = ["create", "update"].includes(name) ? await recordAttachments(context, args.attach) : [];
           const done =
             name === "create"
-              ? await app.createDraft(entry.key, args)
+              ? await app.createDraft(entry.key, { ...args, attachments })
               : name === "update"
-                ? await app.updateDraft(entry.key, args.id, args)
+                ? await app.updateDraft(entry.key, args.id, { ...args, attachments })
                 : name === "delete"
                   ? await app.deleteDraft(entry.key, args.id)
                   : await send();

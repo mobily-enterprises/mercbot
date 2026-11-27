@@ -1,4 +1,6 @@
-import { open } from "node:fs/promises";
+import { mkdtemp, open, rm } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 import { isFileField } from "../shared/formulas.js";
 import { fence, refuse } from "./visitorAccess.js";
 import { GateError, STORED_FILE } from "./validate.js";
@@ -101,6 +103,27 @@ export function createRecordFiles({ impl, homeOf, tableFor, get, update }) {
   }
 
   /**
+   * A record's document (D-140): `html`, a whole web page, made into a PDF by the files feature's office apps and set as
+   * a file field's file (`name`, ending .pdf), as attach sets any file. Refused (503) where the office apps aren't.
+   */
+  async function document(ctx, tableIdOrKey, id, fieldName, html, name) {
+    const make = files().pdf;
+    if (!make) throw new GateError(503, "Documents can't be made on this server.", { code: "apps_documents_unavailable" });
+    const scratch = await mkdtemp(path.join(os.tmpdir(), "mercbot-record-document-"));
+    try {
+      const source = path.join(scratch, "document.pdf");
+      try {
+        await make(homeOf(ctx), html, source);
+      } catch (error) {
+        throw new GateError(503, error.message || "That document couldn't be made.", { code: "apps_documents_unavailable" });
+      }
+      return await attach(ctx, tableIdOrKey, id, fieldName, { source, name, type: "application/pdf" });
+    } finally {
+      await rm(scratch, { recursive: true, force: true });
+    }
+  }
+
+  /**
    * A record's file or picture to serve, by its record, never by a path: read through the gate, so a visitor gets one
    * only from a record and field the public app lets them read (D-66). Answers { real, name, type, size }.
    */
@@ -115,6 +138,7 @@ export function createRecordFiles({ impl, homeOf, tableFor, get, update }) {
   return Object.freeze({
     removeAll,
     attach,
+    document,
     fileOf
   });
 }

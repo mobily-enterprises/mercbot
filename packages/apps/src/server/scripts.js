@@ -7,6 +7,7 @@ import { ScriptError, runFunction } from "../shared/sandbox.js";
 import { newId } from "./registry.js";
 import { LIMITS, PAGE, createScriptChecks, hostFor, whereFor } from "./scriptChecks.js";
 import { createScriptAi } from "./scriptAi.js";
+import { createScriptDocs } from "./scriptDocs.js";
 import { createScriptConnected } from "./scriptConnected.js";
 import { createScriptPeople } from "./scriptPeople.js";
 import { createScriptPool } from "./scriptPool.js";
@@ -97,6 +98,7 @@ export function createScripts({
   const connectedApps = createScriptConnected({ resources, systemContext, connected });
   const { whoActed, personOfRun } = createScriptPeople({ roleOf });
   const aiWork = createScriptAi({ resources, systemContext, registry, homeBots });
+  const documents = createScriptDocs({ gate });
   // The person a job saved or switched on runs as for connected apps (D-136): the call's, never anything sent.
   const personOf = (options) => resolveAuditActorId(options?.context) ?? null;
   let quickjs = null;
@@ -337,10 +339,12 @@ export function createScripts({
     let webCalls = 0;
     const connectedCall = connectedApps.forRun(ctx, limits, row);
     const aiCall = aiWork.forRun(ctx, row);
+    const docsCall = documents.forRun(ctx);
     const tableFor = async (key) => (await gate.tableFor(String(key), ctx.options)).table;
     return async (group, name, args) => {
       if (group === "connected") return connectedCall(name, args);
       if (group === "ai") return aiCall(name, args);
+      if (group === "docs") return docsCall(name, args);
       if (group === "people") return personOfRun(ctx, row);
       if (group === "web") {
         if ((webCalls += 1) > limits.web) throw new Error(`at most ${limits.web} web calls per run`);

@@ -48,7 +48,8 @@ export function createAppsRuntime({ resources, systemContext, records, anyapi, n
   let recordFiles = null;
   /**
    * The files feature's part of record files: `{ write, remove, real }` (the file store's writeRecordFile, removeRecordFile
-   * and a file's real path), and `{ receive, limit }`, how an upload of one is read (recordUploads).
+   * and a file's real path), `{ receive, limit }`, how an upload of one is read (recordUploads), and `pdf(homeId, html,
+   * target)`, how a record's document is made (D-140).
    */
   function useRecordFiles(impl) {
     recordFiles = impl;
@@ -71,7 +72,7 @@ export function createAppsRuntime({ resources, systemContext, records, anyapi, n
     beforeSaveEach: (...args) => scripts.beforeSaveEach(...args),
     people,
     recordFiles: () => recordFiles
-  }), ["read", "get", "getMany", "create", "update", "markObsolete", "restore", "totals", "grandTotal", "count", "importRecords", "attachFile", "related"]);
+  }), ["read", "get", "getMany", "create", "update", "markObsolete", "restore", "totals", "grandTotal", "count", "importRecords", "attachFile", "makeDocument", "related"]);
   const apps = createApps({ resources, records, registry, anyapi, practices, notices, homes });
   // The home's bots, which is its main one: who a script's ai.work goes to (D-136).
   const homeBots = (options) => records.directory.homeBotFaces(options);

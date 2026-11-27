@@ -32,7 +32,8 @@ Records are by field name: links are the linked record's id, ` +
   `app's answer: the connected apps (Gmail, Outlook, calendars, drives, GitHub, Sedna, …) this app's owners allowed, as the ` +
   `person the run is for (buttons, screens' data and jobs only; at most 5 calls a run). Only a button changes anything ` +
   `(drafts, sending, events, files); a screen's data and a job only read. A change the person's approval rules ask about ` +
-  `isn't made yet: the answer is { status: "waiting_for_approval" } and the person is asked to confirm it.
+  `isn't made yet: the answer is { status: "waiting_for_approval" } and the person is asked to confirm it. Gmail's and ` +
+  `Outlook's mail_drafts.create and update also take attach: [{ table, id, field }] (up to 3 files of records, 3 MB each).
 - await people.me() → { id, name, role } (buttons, screens' data and jobs: the person pressing, opening or the job's ` +
   `person; null for a public app's visitor). A test gives it as me: { id, name, role }.
 - await ai.bots() → [{ name, isMain }]; await ai.work({ bot: "default" | "a bot's name", task, items: [{ record: { table, id }, ` +
@@ -41,6 +42,10 @@ Records are by field name: links are the linked record's id, ` +
   `field } }) → { picture }: a picture made later into that record's file or picture field. Buttons and jobs only, when ` +
   `the app's owners allowed bots and pictures; per run 1 ai.work (100 items of 8,000 characters, a task of 2,000; 3 batches ` +
   `of an app at once) and 5 ai.picture. A screen shows the answers once they're in its records.
+- await docs.pdf({ template, record: { table, id }, into: "a file field" | { table, id, field }, name }) → { file: { name, ` +
+  `size } }: the record as a PDF in a file field (buttons and jobs, 3 a run). The template is HTML (up to 20,000 ` +
+  `characters) with {{field}} for the record's values, shown as screens show them, and {{lines:table:link:field,field}} ` +
+  `for a table of its line items. A test gives it as docs: { pdf: answer }.
 - console.log(…) ` +
   `lines are kept with the run.
 What main returns, by kind:

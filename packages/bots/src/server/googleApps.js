@@ -223,19 +223,39 @@ export async function readEmail(key, id) {
   };
 }
 
-/** A plain-text email as Gmail takes it: headers and a base64 body, the whole base64url-encoded. */
-function rawEmail({ to = [], cc = [], subject, text, inReplyTo }) {
+/**
+ * A plain-text email as Gmail takes it: headers and a base64 body, the whole base64url-encoded; with `attachments`
+ * ({ name, type, data }, an app's draft carrying a record's files, D-140), the text and each file as parts of one mail.
+ */
+export function rawEmail({ to = [], cc = [], subject, text, inReplyTo, attachments = [] }) {
   const encode = (value) => (/[^\x20-\x7E]/u.test(value) ? `=?UTF-8?B?${Buffer.from(value).toString("base64")}?=` : value);
+  const lines = (data) => Buffer.from(data).toString("base64").replace(/.{76}/gu, "$&\r\n");
+  const body = ["Content-Type: text/plain; charset=UTF-8", "Content-Transfer-Encoding: base64", "", lines(text || "")];
+  const boundary = `mercbot-${Buffer.from(String(Date.now())).toString("hex")}`;
+  const parts = attachments.length
+    ? [
+        `Content-Type: multipart/mixed; boundary="${boundary}"`,
+        "",
+        `--${boundary}`,
+        ...body,
+        ...attachments.flatMap((file) => [
+          `--${boundary}`,
+          `Content-Type: ${file.type || "application/octet-stream"}; name="${encode(file.name)}"`,
+          `Content-Disposition: attachment; filename="${encode(file.name)}"`,
+          "Content-Transfer-Encoding: base64",
+          "",
+          lines(file.data)
+        ]),
+        `--${boundary}--`
+      ]
+    : body;
   const raw = [
     ...(to.length ? [`To: ${to.join(", ")}`] : []),
     ...(cc.length ? [`Cc: ${cc.join(", ")}`] : []),
     ...(inReplyTo?.messageId ? [`In-Reply-To: ${inReplyTo.messageId}`, `References: ${inReplyTo.messageId}`] : []),
     `Subject: ${encode(subject || "")}`,
     "MIME-Version: 1.0",
-    "Content-Type: text/plain; charset=UTF-8",
-    "Content-Transfer-Encoding: base64",
-    "",
-    Buffer.from(text || "").toString("base64")
+    ...parts
   ].join("\r\n");
   return Buffer.from(raw).toString("base64url");
 }
@@ -325,10 +345,10 @@ export async function readDraft(key, id) {
   return draftOf(await call(key, `${GMAIL}/drafts/${encodeURIComponent(id)}?format=full`));
 }
 
-export async function createDraft(key, { to = [], cc = [], subject, text }) {
+export async function createDraft(key, { to = [], cc = [], subject, text, attachments = [] }) {
   const draft = await call(key, `${GMAIL}/drafts`, {
     method: "POST",
-    body: JSON.stringify({ message: { raw: rawEmail({ to, cc, subject, text }) } })
+    body: JSON.stringify({ message: { raw: rawEmail({ to, cc, subject, text, attachments }) } })
   });
   return { id: draft.id };
 }
@@ -341,7 +361,9 @@ export async function updateDraft(key, id, change) {
     to: change.to || list(now.to),
     cc: change.cc || list(now.cc),
     subject: change.subject ?? now.subject,
-    text: change.text ?? now.text
+    text: change.text ?? now.text,
+    // A draft is written again whole: the files given now go with it (D-140).
+    attachments: change.attachments || []
   };
   await call(key, `${GMAIL}/drafts/${encodeURIComponent(id)}`, {
     method: "PUT",

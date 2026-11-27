@@ -59,7 +59,7 @@ export const hostFor = (kind) =>
           web: { fetch: true },
           connected: { actions: true, run: true },
           people: { me: true },
-          ...(kind === "source" ? {} : { ai: { bots: true, work: true, picture: true } })
+          ...(kind === "source" ? {} : { ai: { bots: true, work: true, picture: true }, docs: { pdf: true } })
         };
 
 /**
@@ -243,7 +243,8 @@ export function createScriptChecks({ pool, ready }) {
 
   /**
    * Runs every test; each gets its own fake records. `web` answers web.fetch by URL, `connected` answers
-   * connected.run by "app.action" (connected.actions by "actions"), and `ai` answers ai.bots, ai.work and ai.picture.
+   * connected.run by "app.action" (connected.actions by "actions"), `ai` answers ai.bots, ai.work and ai.picture, and
+   * `docs` answers docs.pdf.
    */
   async function runTests(input, tables) {
     const results = [];
@@ -279,6 +280,10 @@ export function createScriptChecks({ pool, ready }) {
               if (group === "ai") {
                 if (!Object.hasOwn(test.ai || {}, operation)) throw new Error(`no ai answer for ai.${operation} in this test`);
                 return test.ai[operation];
+              }
+              if (group === "docs") {
+                if (!Object.hasOwn(test.docs || {}, operation)) throw new Error(`no docs answer for docs.${operation} in this test`);
+                return test.docs[operation];
               }
               if (group === "connected") {
                 const key = operation === "actions" ? "actions" : `${args[0]}.${args[1]}`;

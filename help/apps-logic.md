@@ -141,8 +141,13 @@ The app's **Logic** tab has **Connected apps its scripts may use**: a switch for
 - **Never public.** An app that uses connected apps or AI stays inside the home: it can't be made public, and a public app can't be given either. Visitors never reach them.
 - **Limits.** Up to 5 connected-app calls a run, and up to 1 MB in each answer.
 - **Recorded.** Each change a script makes in a connected app is in the app's activity trail, with the app, the action and the person.
+- **Files on email drafts.** A button's email draft in Gmail or Outlook can carry up to 3 of the records' files, 3 MB each, such as an invoice's PDF. They're read as the person pressing the button, so only files they can see go.
 
 In a draft's preview, a button reads for real but only pretends to change anything, and the preview says what it would have done.
+
+### Documents
+
+A button's or a job's script can turn a record into a PDF and keep it in one of the record's file fields, such as an invoice with its lines, ready to download or attach to an email draft. The Builder writes the page: the record's values, shown as the app shows them, and a table of its line items. Up to 3 documents a run. In a draft's preview, nothing is made. Documents need the server's office apps; where they aren't installed, the button says so.
 
 ### Bots and pictures
 

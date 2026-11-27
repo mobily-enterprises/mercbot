@@ -343,7 +343,22 @@ export async function readDraft(key, id) {
   };
 }
 
-export async function createDraft(key, { to = [], cc = [], subject, text }) {
+/** Files onto a draft ({ name, type, data }, an app's draft carrying a record's files, D-140), each as Outlook takes one. */
+async function attachTo(key, id, attachments = []) {
+  for (const file of attachments) {
+    await call(key, `/messages/${encodeURIComponent(id)}/attachments`, {
+      method: "POST",
+      body: JSON.stringify({
+        "@odata.type": "#microsoft.graph.fileAttachment",
+        name: file.name,
+        contentType: file.type || "application/octet-stream",
+        contentBytes: Buffer.from(file.data).toString("base64")
+      })
+    });
+  }
+}
+
+export async function createDraft(key, { to = [], cc = [], subject, text, attachments = [] }) {
   const draft = await call(key, "/messages", {
     method: "POST",
     body: JSON.stringify({
@@ -353,6 +368,7 @@ export async function createDraft(key, { to = [], cc = [], subject, text }) {
       ccRecipients: recipients(cc)
     })
   });
+  await attachTo(key, draft.id, attachments);
   return { id: draft.id };
 }
 
@@ -365,6 +381,7 @@ export async function updateDraft(key, id, change) {
     ...(change.text !== undefined ? { body: { contentType: "Text", content: change.text } } : {})
   };
   const draft = await call(key, `/messages/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(patch) });
+  await attachTo(key, draft.id || id, change.attachments);
   return { id: draft.id || id, subject: draft.subject };
 }
 

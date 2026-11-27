@@ -264,6 +264,24 @@ export function createOfficeApps({ store, env }) {
   }
 
   /**
+   * A web page made into a PDF by the documents app, in the sandbox (no network, so it loads nothing from outside), at
+   * `target`, a file of this server's: an app's document of a record (D-140). Throws when the apps aren't here.
+   */
+  async function htmlToPdf(place, html, target) {
+    if (!await available()) throw new Error("Documents can't be made on this server: its office apps aren't installed.");
+    const dirs = await store.prepare(place, { reading: true });
+    const out = await sharedScratch(env, "mercbot-document-");
+    try {
+      await fs.writeFile(path.join(out, "document.html"), html);
+      const script = `${cli("word")} convert /out/document.html /out/document.pdf >/dev/null`;
+      await runSandboxed(env, dirs, ["/usr/bin/sh", "-c", script, "document"], { out, readOnly: READ_ONLY, timeout: 90000 });
+      await fs.copyFile(path.join(out, "document.pdf"), target);
+    } finally {
+      await fs.rm(out, { recursive: true, force: true });
+    }
+  }
+
+  /**
    * A voice memo: the text spoken by Piper, in the sandbox, into a WAV at
    * `virtualPath`, with its length and a 40-bar waveform for the chat's audio bubble.
    */
@@ -326,6 +344,7 @@ export function createOfficeApps({ store, env }) {
     pagesOf,
     textOf,
     chartImage,
+    htmlToPdf,
     voiceMemo
   });
 }

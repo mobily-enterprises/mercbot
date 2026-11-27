@@ -98,7 +98,9 @@ const FilesFeature = defineFeature({
       remove: files.store.removeRecordFile,
       real: async (homeId, virtualPath) => (await files.store.existingFile(files.store.homePlace(homeId), virtualPath)).real,
       receive: (stream, item, target) => writeUpload(stream, { target, media: files.media, item }),
-      limit: UPLOAD_LIMIT
+      limit: UPLOAD_LIMIT,
+      // A record's document (D-140): a web page the apps fill in, made into a PDF by the office apps.
+      pdf: (homeId, html, target) => files.apps.htmlToPdf(files.store.homePlace(homeId), html, target)
     });
     registerRoutes(http, { files, records, uploads });
     // A Google Drive mount's rclone asks this server for its keys, at its own address (D-80), and so does a move's,
