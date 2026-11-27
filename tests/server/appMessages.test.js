@@ -35,8 +35,33 @@ test("a notice is the main bot's message in each person's own chat with it, as t
     ["chat-3-7", "7", "bot", "3", "From Leave: Kim asked for Friday off"],
     ["chat-3-8", "8", "bot", "3", "From Leave: Kim asked for Friday off"]
   ]);
-  assert.deepEqual(await messages.mailboxes(call), [{ id: "9", app: "gmail", address: "office@acme.example" }]);
-  assert.deepEqual(await messages.managers(call), ["7"]);
+});
+
+test("a notice to owners reaches the home's owners and admins, one to everyone every member", async () => {
+  const { records, integrations } = parts();
+  const messages = createAppMessages({ records, integrations, env: { APP_ENV: "test" }, systemContext: system });
+  assert.deepEqual([await messages.managers(call), await messages.members(call)], [["7"], ["7", "8"]]);
+});
+
+test("an app may send from the home's connected Gmail and Outlook mailboxes, each by its address", async () => {
+  const { records } = parts();
+  const asked = [];
+  const integrations = {
+    reachableAccounts: async (_call, { pluginIds }) => {
+      asked.push(pluginIds);
+      return [
+        { id: 9, pluginId: "gmail", label: "office@acme.example", status: "connected" },
+        { id: 10, pluginId: "outlook", label: "old@acme.example", status: "broken" },
+        { id: 11, pluginId: "outlook", name: "sales@acme.example", status: "connected" }
+      ];
+    }
+  };
+  const messages = createAppMessages({ records, integrations, env: { APP_ENV: "test" }, systemContext: system });
+  assert.deepEqual(await messages.mailboxes(call), [
+    { id: "9", app: "gmail", address: "office@acme.example" },
+    { id: "11", app: "outlook", address: "sales@acme.example" }
+  ]);
+  assert.deepEqual(asked, [["gmail", "outlook"]], "only the mail apps' accounts are asked for");
 });
 
 test("an email goes from the chosen mailbox in a live copy, is logged in a test copy, and needs that mailbox connected", async (context) => {
