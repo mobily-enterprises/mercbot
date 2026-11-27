@@ -43,6 +43,6 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
+      - run: npm exec --no -- playwright install --with-deps chromium
       - run: npm run db:prepare
-      - run: npm run test:database
       - run: npm run verify

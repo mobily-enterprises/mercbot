@@ -70,7 +70,12 @@
 
 ## Verification
 
-- Verify `application`: `npm` `run` `verify`
+- Verify `jskit check`: `npm` `run` `jskit:check`
+- Verify `lint`: `npm` `run` `lint`
+- Verify `node tests`: `npm` `test`
+- Verify `database tests`: `npm` `run` `test:database`
+- Verify `client tests`: `npm` `run` `test:client`
+- Verify `browser tests on the production build`: `npm` `run` `test:e2e`
 
 ## Connected development
 

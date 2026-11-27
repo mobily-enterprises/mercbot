@@ -51,7 +51,7 @@ function migrationConfig(environment, packages) {
 export async function testDatabaseConfig() {
   const testDatabase = testDatabaseName(process.env);
   if (process.env.DB_NAME !== testDatabase) {
-    throw new Error(`DB_NAME (${process.env.DB_NAME || "unset"}) must be TEST_DB_NAME (${testDatabase}), a disposable test database: run the tests with npm run test:database.`);
+    throw new Error(`DB_NAME (${process.env.DB_NAME || "unset"}) must be TEST_DB_NAME (${testDatabase}), a disposable test database: run the file with npm run test:files -- <file>, or its suite with npm run test:database.`);
   }
   return migrationConfig(process.env, await packageMigrationDirectories());
 }
