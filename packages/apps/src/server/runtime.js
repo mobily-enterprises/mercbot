@@ -1,4 +1,15 @@
-import { ME, VISITOR, celSchema, evaluateFormula, formulaValue, isFixedFormula, isFormula, jsonValue, plainValue } from "../shared/formulas.js";
+import {
+  ME,
+  VISITOR,
+  celSchema,
+  evaluateFormula,
+  formulaValue,
+  isFixedFormula,
+  isFormula,
+  jsonValue,
+  periodLabel,
+  plainValue
+} from "../shared/formulas.js";
 import { pageParamOf } from "../shared/check.js";
 import { calculate, dataOnly, isCalculated, storedFieldIds, withNamedFormulas } from "../shared/index.js";
 import { NeedsAttention, compileWhere, planToIds } from "../shared/where.js";
@@ -182,9 +193,15 @@ export function createRuntime({ apps, gate, scripts, practices }) {
         const totals = await gate.totals(ctx, table.id, {
           where,
           groupBy,
+          by: query.by ?? null,
           measure: query.sum ? "sum" : query.avg ? "avg" : "count",
           field: measureField ? measured.get(measureField) : null
         });
+        // Grouped by a period, each group is named by it, in key order (the first day of each).
+        if (query.by) {
+          totals.sort((a, b) => String(a.key ?? "").localeCompare(String(b.key ?? "")));
+          for (const item of totals) item.label = periodLabel(query.by, item.key);
+        }
         // Grouped by a link, each group is named by the linked record's title (at most 100 groups, read together).
         const linkField = table.fields.find((field) => field.id === groupBy && field.type === "link");
         if (linkField) {

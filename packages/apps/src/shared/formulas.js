@@ -19,7 +19,7 @@ function formatDate(text, pattern) {
 function yearsSince(text) {
   const date = parseDate(text);
   if (!date) return 0n;
-  const now = new Date();
+  const now = parseDate(today());
   let years = now.getUTCFullYear() - date.getUTCFullYear();
   if (now.getUTCMonth() < date.getUTCMonth() || (now.getUTCMonth() === date.getUTCMonth() && now.getUTCDate() < date.getUTCDate())) {
     years -= 1;
@@ -29,13 +29,64 @@ function yearsSince(text) {
 
 function daysSince(text) {
   const date = parseDate(text);
-  return date ? BigInt(Math.floor((Date.now() - date.getTime()) / 86400000)) : 0n;
+  return date ? BigInt(Math.round((parseDate(today()).getTime() - date.getTime()) / 86400000)) : 0n;
+}
+
+const asDate = (date) => date.toISOString().slice(0, 10);
+
+/** A date some days later (or earlier, for a negative number); "" for no date. */
+function addDays(text, days) {
+  const date = parseDate(text);
+  if (!date) return "";
+  date.setUTCDate(date.getUTCDate() + Number(days));
+  return asDate(date);
+}
+
+/** A date some months later or earlier, kept within the month: 31 January plus one month is 28 or 29 February. */
+function addMonths(text, months) {
+  const date = parseDate(text);
+  if (!date) return "";
+  const day = date.getUTCDate();
+  date.setUTCDate(1);
+  date.setUTCMonth(date.getUTCMonth() + Number(months));
+  const last = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0)).getUTCDate();
+  date.setUTCDate(Math.min(day, last));
+  return asDate(date);
+}
+
+/** Whole days from the first date to the second (negative when the second comes first); 0 without both. */
+function daysBetween(from, to) {
+  const start = parseDate(from);
+  const end = parseDate(to);
+  return start && end ? BigInt(Math.round((end.getTime() - start.getTime()) / 86400000)) : 0n;
+}
+
+/** The Monday of a date's week, and the first of its month. */
+function startOfWeek(text) {
+  const date = parseDate(text);
+  if (!date) return "";
+  date.setUTCDate(date.getUTCDate() - ((date.getUTCDay() + 6) % 7));
+  return asDate(date);
+}
+function startOfMonth(text) {
+  const date = parseDate(text);
+  return date ? asDate(new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1))) : "";
 }
 
 /** Money is stored in whole cents; this shows 123456 as "1,234.56". */
 function formatMoney(cents) {
   const value = Number(cents) / 100;
   return Number.isFinite(value) ? value.toLocaleString("en", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "";
+}
+
+/** A period's group as people read it (D-140): a week "Week of 23 Nov 2026", a month "Nov 2026", a year "2026". */
+export function periodLabel(by, key) {
+  const date = parseDate(key);
+  if (!date) return key === null || key === undefined || key === "" ? "(none)" : String(key);
+  const day = `${date.getUTCDate()} ${MONTHS[date.getUTCMonth()]} ${date.getUTCFullYear()}`;
+  if (by === "year") return String(date.getUTCFullYear());
+  if (by === "month") return `${MONTHS[date.getUTCMonth()]} ${date.getUTCFullYear()}`;
+  return by === "week" ? `Week of ${day}` : day;
 }
 
 /** The longest text a field holds: what a person types, and what a calculated field works out (D-78). */
@@ -45,8 +96,30 @@ export const LONGTEXT_MAX = 20000;
 /** Whether a field holds a record's file or picture (D-130): `{ path, name, size, type }`, which only an upload sets. */
 export const isFileField = (field) => field?.type === "file" || field?.type === "image";
 
-/** Today's date (YYYY-MM-DD, like date fields) and the current moment (ISO 8601), in UTC. */
-const today = () => new Date().toISOString().slice(0, 10);
+// The home's time zone, which "today" is in: the server answers it for the home a call works in (homeZone.js), a page
+// for the home it shows (useTimeZone). UTC until one is set.
+let zoneOf = () => "UTC";
+/** Where formulas learn the home's time zone: a function answering its IANA name, such as "Australia/Perth". */
+export function useTimeZoneSource(source) {
+  zoneOf = source;
+}
+
+/** Whether a time zone is one the system knows ("Europe/Rome", "UTC"). */
+export function isTimeZone(zone) {
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: String(zone) });
+    return Boolean(zone);
+  } catch {
+    return false;
+  }
+}
+
+/** Today's date (YYYY-MM-DD, like date fields) in the home's time zone, and the current moment (ISO 8601). */
+const today = () => {
+  const zone = zoneOf() || "UTC";
+  return new Intl.DateTimeFormat("en-CA", { timeZone: isTimeZone(zone) ? zone : "UTC", year: "numeric", month: "2-digit", day: "2-digit" })
+    .format(new Date());
+};
 const now = () => new Date().toISOString();
 
 // Every formula runs in a copy of this environment: CEL plus our few functions. Its size is bounded and it always
@@ -57,6 +130,13 @@ const baseEnvironment = new Environment({ limits: { maxAstNodes: 500, maxDepth: 
   .registerFunction("formatDate(string, string): string", formatDate)
   .registerFunction("yearsSince(string): int", yearsSince)
   .registerFunction("daysSince(string): int", daysSince)
+  .registerFunction("addDays(string, int): string", addDays)
+  .registerFunction("addDays(string, double): string", (text, days) => addDays(text, Math.trunc(days)))
+  .registerFunction("addMonths(string, int): string", addMonths)
+  .registerFunction("addMonths(string, double): string", (text, months) => addMonths(text, Math.trunc(months)))
+  .registerFunction("daysBetween(string, string): int", daysBetween)
+  .registerFunction("startOfWeek(string): string", startOfWeek)
+  .registerFunction("startOfMonth(string): string", startOfMonth)
   .registerFunction("formatMoney(double): string", formatMoney);
 
 // Names a script function can't take: ours above and CEL's own.
@@ -66,6 +146,11 @@ export const BUILT_IN_FUNCTIONS = new Set([
   "formatDate",
   "yearsSince",
   "daysSince",
+  "addDays",
+  "addMonths",
+  "daysBetween",
+  "startOfWeek",
+  "startOfMonth",
   "formatMoney",
   "size",
   "has",

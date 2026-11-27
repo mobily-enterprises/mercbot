@@ -129,6 +129,8 @@ export function registerRoutes(http, { appsRuntime, notices, streams, uploads })
       // Who is using it (`me` in its formulas) and the home's people, for person fields.
       me: { id: ctx.actor.id, name: ctx.actor.name },
       people: await homePeople(ctx.options),
+      // The home's time zone, which "today" in its formulas is in (D-140).
+      timeZone: await appsRuntime.homeZone.zoneOf(ctx.options),
       ...(app.kind === "view" ? await views.details(app, ctx.options) : {})
     };
   }));
@@ -427,8 +429,17 @@ export function registerRoutes(http, { appsRuntime, notices, streams, uploads })
     "GET",
     "/api/w/:workspaceSlug/apps-theme",
     home,
-    handle(async (_request, ctx) => ({ theme: await apps.homeTheme(ctx.options), canManage: ctx.canManage }))
+    handle(async (_request, ctx) => ({
+      theme: await apps.homeTheme(ctx.options),
+      timeZone: await appsRuntime.homeZone.zoneOf(ctx.options),
+      canManage: ctx.canManage
+    }))
   );
+  // The home's time zone for its apps (D-140): owners and admins choose, checked before anything else.
+  router.register("PUT", "/api/w/:workspaceSlug/apps-time-zone", home, handle(async (request, ctx) => {
+    if (!ctx.canManage) throw forbidden("Only the home's owners and admins can choose the apps' time zone.", "apps_time_zone_forbidden");
+    return { timeZone: await appsRuntime.homeZone.chooseZone(ctx.actor, body(request).timeZone, ctx.options) };
+  }));
   router.register("PUT", "/api/w/:workspaceSlug/apps-theme", home, handle(async (request, ctx) => {
     if (!ctx.canManage) throw forbidden("Only the home's owners and admins can change how apps look.", "apps_style_manage_forbidden");
     return { theme: await apps.setHomeTheme(ctx.actor, body(request).theme, ctx.options) };

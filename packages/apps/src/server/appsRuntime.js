@@ -2,6 +2,7 @@ import { createAppConnectedAccess } from "./appConnectedAccess.js";
 import { createApps } from "./apps.js";
 import { createAppsRepository } from "./appsRepository.js";
 import { createDataGate } from "./dataGate.js";
+import { createHomeZone } from "./homeZone.js";
 import { createPractices } from "./practice.js";
 import { createRegistry } from "./registry.js";
 import { createRuntime } from "./runtime.js";
@@ -54,7 +55,13 @@ export function createAppsRuntime({ resources, systemContext, records, anyapi, n
   }
   /** How a record's upload is read: the files feature's size limit and picture check, or null before it plugs in. */
   const recordUploads = () => (recordFiles ? { receive: recordFiles.receive, limit: recordFiles.limit } : null);
-  const gate = createDataGate({
+  // "Today" in the home's own time zone for everything a call does with its data and screens (D-140).
+  const homeZone = createHomeZone({ resources });
+  const zoned = (target, names) => Object.freeze({
+    ...target,
+    ...Object.fromEntries(names.map((name) => [name, (ctx, ...rest) => homeZone.inHomeZone(ctx.options, () => target[name](ctx, ...rest))]))
+  });
+  const gate = zoned(createDataGate({
     resources,
     repository,
     anyapi,
@@ -64,13 +71,13 @@ export function createAppsRuntime({ resources, systemContext, records, anyapi, n
     beforeSaveEach: (...args) => scripts.beforeSaveEach(...args),
     people,
     recordFiles: () => recordFiles
-  });
+  }), ["read", "get", "getMany", "create", "update", "markObsolete", "restore", "totals", "grandTotal", "count", "importRecords", "attachFile", "related"]);
   const apps = createApps({ resources, records, registry, anyapi, practices, notices, homes });
   // The home's bots, which is its main one: who a script's ai.work goes to (D-136).
   const homeBots = (options) => records.directory.homeBotFaces(options);
   scripts = createScripts({ resources, repository, systemContext, registry, gate, apps, env, connected, homeBots });
   const connectedAccess = createAppConnectedAccess({ resources, apps, connected });
-  const runtime = createRuntime({ apps, gate, scripts, practices });
+  const runtime = zoned(createRuntime({ apps, gate, scripts, practices }), ["query", "action", "linkChoices"]);
   const trial = createTrial({ apps, runtime, scripts });
   const views = createViews({ resources, records, systemContext, registry, apps, runtime });
   const watches = createWatches({ resources, repository, systemContext, registry, gate, apps, records });
@@ -99,6 +106,7 @@ export function createAppsRuntime({ resources, systemContext, records, anyapi, n
     catalog,
     starterApps,
     homePeople,
+    homeZone,
     useRecordFiles,
     recordUploads
   });

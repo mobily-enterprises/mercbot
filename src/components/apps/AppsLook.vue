@@ -7,7 +7,7 @@ import AppTheme from "./AppTheme.vue";
 
 // How the home's apps look (D-35, stage 3): colour, light or dark, font, corners, density and a
 // logo. Owners and admins change it; everyone sees it. Each app can change its colour and density
-// in its own details.
+// in its own details. Beside it, the home's time zone (D-140), which "today" in its apps is in, saved as it's chosen.
 const emit = defineEmits(["notify"]);
 const LABELS = {
   mode: { light: "Light", dark: "Dark", system: "Follow the device" },
@@ -24,11 +24,23 @@ const saving = ref(false);
 const problems = computed(() => checkTheme({ ...draft }));
 const changed = computed(() => JSON.stringify(draft) !== saved.value);
 const items = (key) => THEME_CHOICES[key].map((value) => ({ value, title: LABELS[key][value] }));
+const ZONES = Intl.supportedValuesOf("timeZone").map((zone) => ({ value: zone, title: zone.replaceAll("_", " ") }));
+const timeZone = ref("UTC");
+async function chooseZone(zone) {
+  if (!zone || zone === timeZone.value) return;
+  try {
+    timeZone.value = (await appsApi.setTimeZone(zone)).timeZone;
+    emit("notify", `Saved. "Today" in this home's apps is now ${timeZone.value.replaceAll("_", " ")}'s.`);
+  } catch (error) {
+    emit("notify", errorText(error, "That couldn't be saved."), "error");
+  }
+}
 
 onMounted(async () => {
   try {
-    const { theme, canManage: manages } = await appsApi.theme();
+    const { theme, timeZone: zone, canManage: manages } = await appsApi.theme();
     Object.assign(draft, DEFAULT_THEME, theme || {});
+    timeZone.value = zone || "UTC";
     canManage.value = manages;
     saved.value = JSON.stringify(draft);
   } catch (error) {
@@ -78,6 +90,19 @@ async function save() {
       <v-select v-model="draft.corners" :items="items('corners')" label="Corners" variant="outlined" density="comfortable" :disabled="!canManage" class="mb-2" />
       <!-- readable-check: allow selection-field - data: THEME_CHOICES (@local/apps/shared) and LABELS above are fixed lists -->
       <v-select v-model="draft.density" :items="items('density')" label="Spacing" variant="outlined" density="comfortable" :disabled="!canManage" class="mb-2" />
+      <!-- readable-check: allow selection-field - data: the time zones the browser knows (Intl), a fixed list -->
+      <v-autocomplete
+        :model-value="timeZone"
+        :items="ZONES"
+        label="Time zone"
+        hint="Dates such as today and this week in the home's apps follow it"
+        persistent-hint
+        variant="outlined"
+        density="comfortable"
+        :disabled="!canManage"
+        class="mb-4"
+        @update:model-value="chooseZone"
+      />
       <div class="d-flex align-center ga-2 mb-2">
         <v-file-input accept="image/png,image/jpeg,image/webp" label="Logo (PNG, JPEG or WebP, up to 200 KB)" variant="outlined" density="comfortable" hide-details prepend-icon="" :disabled="!canManage" @update:model-value="pickLogo" />
         <v-btn v-if="draft.logo" variant="text" size="small" :disabled="!canManage" @click="draft.logo = null">Remove logo</v-btn>

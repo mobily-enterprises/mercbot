@@ -11,7 +11,9 @@ Formulas are short calculations inside an app. The Builder uses them for:
 - **filters**, so a list shows only matching records, such as open deals or items below their reorder level
 - **labels and messages**, such as "Saved Maria Rossi"
 
-Formulas are deliberately simple. They can compare, combine and format values, and use a few ready-made helpers: today's date, the current time, formatting a date or an amount, and counting the days or years since a date. Today's date and the current time follow UTC.
+Formulas are deliberately simple. They can compare, combine and format values, and use a few ready-made helpers: today's date, the current time, formatting a date or an amount, counting the days or years since a date, adding days or months to a date (31 January plus a month is the end of February), the days between two dates, and the Monday of a date's week or the first of its month. Today's date follows the home's time zone, which owners and admins choose under **Apps** → **Look**; until they do, it's UTC.
+
+Totals and charts can group a date field by **day**, **week**, **month** or **year**, such as sales by month, in time order and named like "Nov 2026".
 
 A formula can't change anything, so a formula can never break your data. You can read the formulas of any screen in the app's details: **Screens**, then **View source**. They start with an equals sign.
 

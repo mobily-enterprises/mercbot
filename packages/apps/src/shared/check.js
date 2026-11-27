@@ -39,7 +39,9 @@ const READ_ONLY = {
   chart: CATALOG.chart,
   tabs: CATALOG.tabs
 };
-const READ_ONLY_QUERY = new Set(["record", "from", "id", "where", "sort", "limit", "groupBy", "sum", "avg", "grandTotal"]);
+const READ_ONLY_QUERY = new Set(["record", "from", "id", "where", "sort", "limit", "groupBy", "by", "sum", "avg", "grandTotal"]);
+// The periods a date field's totals can be grouped by (D-140), in the home's time zone.
+export const GROUP_PERIODS = ["day", "week", "month", "year"];
 const VIEW_SETTINGS = new Set(["params", "state", "data", "content", "style"]);
 const STEPS = ["go", "create", "update", "markObsolete", "notify", "openDialog", "closeDialog", "askBot", "runScript"];
 export const ICONS = [
@@ -362,6 +364,11 @@ function checkScreen(base, screen, { screens, tableNamed, report, named, bots, s
     if (typeof query.groupBy === "string") {
       const refusal = calculatedRefusal(table, query.groupBy, "grouping");
       if (refusal) report(`${path}.groupBy`, refusal);
+    }
+    if (query.by !== undefined) {
+      const grouped = table.fields.find((entry) => !entry.obsolete && entry.key === query.groupBy);
+      if (!GROUP_PERIODS.includes(query.by)) report(`${path}.by`, `groups a date by ${GROUP_PERIODS.join(", ")}.`);
+      else if (!grouped || grouped.type !== "date") report(`${path}.by`, "needs groupBy to be a date field.");
     }
     if (query.limit !== undefined) {
       if (!query.from || query.groupBy) report(`${path}.limit`, "only a list has a limit.");

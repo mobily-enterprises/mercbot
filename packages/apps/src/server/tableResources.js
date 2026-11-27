@@ -188,6 +188,8 @@ export const appSettingResource = defineTableResource({
     builderBotId: { type: "id", nullable: true, search: true },
     // When the home got its starter apps, Contacts and To-dos (D-130): once, at its first open.
     starterAppsAt: { type: "dateTime", nullable: true },
+    // The home's time zone for its apps (D-140): "today", a job's day, weeks and months in totals; null is UTC.
+    timeZone: { type: "string", maxLength: 64, noTrim: true, nullable: true },
     createdAt: { type: "dateTime" },
     updatedAt: { type: "dateTime" },
     workspaceId: { type: "id", hidden: true, search: true }

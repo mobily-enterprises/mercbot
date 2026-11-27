@@ -82,6 +82,7 @@ export const appsApi = {
   installTemplate: (key, sample) => requestInHome(client, `/apps-templates/${encodeURIComponent(key)}/install`, { method: "POST", body: { sample } }),
   theme: () => requestInHome(client, "/apps-theme"),
   setTheme: (theme) => requestInHome(client, "/apps-theme", { method: "PUT", body: { theme } }),
+  setTimeZone: (timeZone) => requestInHome(client, "/apps-time-zone", { method: "PUT", body: { timeZone } }),
   setAppTheme: (slug, theme) => request(`${app(slug)}/theme`, { method: "PUT", body: { theme } }),
   scripts: (slug) => request(`${app(slug)}/scripts`),
   setScriptEnabled: (slug, key, enabled) => request(`${app(slug)}/scripts/${encodeURIComponent(key)}/enabled`, { method: "PUT", body: { enabled } }),

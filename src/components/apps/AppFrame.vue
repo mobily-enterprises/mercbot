@@ -10,7 +10,7 @@ import AppTheme from "@/components/apps/AppTheme.vue";
 import MercbotConfirmDialog from "@/components/mercbot/MercbotConfirmDialog.vue";
 import { appsApi, errorText } from "@/components/apps/appsApi.js";
 import { ICON_PATHS, createScreenRuntime, previewNotice, screenLocation as addressOf, screenParams } from "@/components/apps/appRuntime.js";
-import { withNamedFormulas } from "@local/apps/shared";
+import { useTimeZoneSource, withNamedFormulas } from "@local/apps/shared";
 import { browserFunctions } from "@/components/apps/scriptFunctions.js";
 import { askBuilder as openBuilderChat } from "@/components/apps/askInChat.js";
 import { useLiveData } from "@/components/apps/useLiveData.js";
@@ -110,6 +110,8 @@ async function loadApp() {
     const next = await appsApi.get(slug.value, version.value);
     // The app's named formulas (D-78) and script functions, callable from its formulas.
     functions.value = withNamedFormulas(next.definition?.formulas, await browserFunctions(next.functions).catch(() => null));
+    // "Today" in the app's formulas is in the home's time zone (D-140).
+    useTimeZoneSource(() => next.timeZone || "UTC");
     loaded.value = next;
     if (!loaded.value.definition) {
       problem.value = version.value === "draft" ? "This app has no draft." : "This app hasn't been published yet.";

@@ -94,6 +94,8 @@ const AppsFeature = defineFeature({
         trial: apps.trial,
         watches: apps.watches,
         scripts: apps.scripts,
+        // The home's time zone for its apps (D-140), which "today" is in: zoneOf(options).
+        homeZone: apps.homeZone,
         installTemplate: apps.installTemplate,
         templateSummaries: apps.templateSummaries,
         templateStatus: apps.templateStatus,

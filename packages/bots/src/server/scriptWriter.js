@@ -50,7 +50,7 @@ What main returns, by kind:
   `refuse: "reason for the person" }, or { set: { field: value } } to fill fields in
 - function: the value (number, text, yes/no, ` +
   `list or object)
-- job (a timetable: input { at, every }; a watch: input { changes: [{ action, by, changed, record }], more }): ` +
+- job (a timetable: input { at, every, timeZone }; a watch: input { changes: [{ action, by, changed, record }], more }): ` +
   `anything (kept in the run)
 Tests: [{ name, input, expect }] or [{ name, input, expectError: "part of the message" }]; for a ` +
   `function, input is the list of arguments.

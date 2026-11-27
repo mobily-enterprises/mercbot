@@ -613,7 +613,7 @@ export function createScripts({
       );
       if (!row) return null;
       await appScripts.patch(row.id, { nextRunAt: nextSlot(row.settings).toISOString() }, { ...txOptions, returning: "none" });
-      return { row, input: { at: new Date().toISOString(), every: row.settings.every } };
+      return { row, input: { at: new Date().toISOString(), every: row.settings.every, timeZone: row.settings.timeZone || "UTC" } };
     });
   }
 

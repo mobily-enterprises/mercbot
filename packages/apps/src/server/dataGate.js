@@ -3,7 +3,9 @@ import { publishIn } from "@local/notices/server/publishIn";
 import { PAGE_MAX, isCalculated, isFileField, withCalculated } from "../shared/index.js";
 import { OBSOLETE } from "./anyapi.js";
 import { homeIdOf } from "./callOptions.js";
+import { periodTotals } from "./periodTotals.js";
 import { GateError, cleanRecord } from "./validate.js";
+
 import { fromSheet } from "./sheetInput.js";
 import { createRecordChecks } from "./recordChecks.js";
 import { createAuditReads } from "./auditReads.js";
@@ -406,7 +408,7 @@ export function createDataGate({
    * lists: the home's tenant, the page's filter, and obsolete records hidden. A visitor needs `list`,
    * and groups, sums and filters by readable fields only, over their rows.
    */
-  async function totals(ctx, tableIdOrKey, { where = null, groupBy, measure = "count", field = null } = {}) {
+  async function totals(ctx, tableIdOrKey, { where = null, groupBy, by = null, measure = "count", field = null } = {}) {
     const { table, tables } = await tableFor(tableIdOrKey, ctx.options);
     where = fencedWhere(ctx, table, where, [groupBy, measure === "count" ? null : field]);
     const api = await apiFor(ctx, tables, table);
@@ -420,6 +422,7 @@ export function createDataGate({
     if (measure !== "count" && isCalculated(table.fields.find((entry) => entry.id === field))) {
       return (await calculatedMeasure(api, table, where, measure, field, groupBy)).slice(0, 100);
     }
+    if (by && grouping?.type === "date") return periodTotals(api, table, where, { groupBy, by, measure, field });
     const measures = { count: { count: "*" }, ...(measure === "sum" || measure === "avg" ? { total: { [measure]: field } } : {}) };
     const result = await api.resources[table.id].aggregate({
       groupBy: [groupBy],
