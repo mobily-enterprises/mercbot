@@ -9,29 +9,9 @@ Make the software refuse what it should refuse, and prove each refusal by
 trying to get past it. A security pass is explicit: never run it merely because
 implementation finished.
 
-Resolve the invocation before running the first Genesis operation. Do not use a
-Genesis operation or `genesis --version` as an availability probe.
-
-1. Read the repository-root `package.json`. Only when that
-   manifest's `name` is `genesis-compiler` is the repository Genesis's own
-   source. There, invoke every Genesis CLI operation with
-   `npm exec --no -- genesis <arguments>`, which runs the repository's own
-   Genesis without fetching another package. If it is not installed, report
-   that the repository's dependencies are not prepared; do not fall back to
-   another Genesis version.
-2. Otherwise, do not try `npm exec`. Run `command -v genesis` (or the current
-   shell's equivalent `PATH` lookup). When it resolves an executable, invoke
-   `genesis <arguments>` directly; inside Vibe64 that is the platform's Genesis.
-   A `genesis-compiler` that the project's `package.json` declares does not
-   serve the project: it belongs to the project's own scripts, so never run it
-   through `npm exec`, `npx` or `node_modules/.bin`.
-3. When neither source is available, stop and report that Genesis is
-   unavailable. Never install or update Genesis, or add it to the project's
-   dependencies, merely to satisfy a workflow instruction.
-
-Successful invocation resolution is routine. Do not narrate which Genesis was
-selected, and never describe direct `PATH` use as a fallback. Mention how the
-invocation was selected only when resolution fails or the user explicitly asks.
+Run Genesis operations as the "Run Genesis commands" section of
+`.agents/skills/genesis-project/SKILL.md` says, resolving the invocation once,
+before the first one.
 
 Follow the configured Collaboration approach for user-facing updates, including
 its technical depth and response length. Report concrete progress,
@@ -235,7 +215,8 @@ Reading finds candidates; trying shows which are real. For each risk:
    the software uses for that refusal.
 5. Lock it in with a test that sends that input and expects the refusal. Watch
    it fail once without the fix (undo the fix, run the test, restore it), so
-   the test is known to guard it.
+   the test is known to guard it; undo several findings' fixes for one run
+   rather than running once per finding.
 
 Also try the protections that already exist: send one input each declared
 protection should refuse and see it refused. A protection that is declared but
@@ -276,7 +257,9 @@ the map of ways in, each finding with the input that broke it and the refusal
 seen after the fix, the test guarding each fix and its failing run without the
 fix, the protections tried that already held, the areas that do not apply and
 why, the dependency audit, files changed, checks actually run, and what lies
-outside this scope, with what it needs and who must act.
+outside this scope, with what it needs and who must act. End the report with
+one line: how many test runs the pass made, their total time and its longest
+single run.
 
 When the prompt ends with a `PASS RECORD` step, take it once the pass has
 finished: the Genesis `passes done security-pass` operation records it in `genesis/passes.json`,
@@ -284,7 +267,13 @@ an uncommitted change that lands in the pass's own commit. Genesis adds that
 step only to the pass's own runs, whose requests it writes itself, so a security pass
 of a section, commits or your own changes is never recorded as the pass;
 neither is a pass that stopped early, was abandoned or still has failing
-checks.
+checks. Take it only after the whole-suite run, asked for once at the end,
+passed with the person's OK, or after the person explicitly accepted finishing
+without it, as `PASS REPORT` says; until the end, run focused checks only.
+Work as the engineering approach's "Your own test loop" says: fix in groups,
+run the narrow files that cover each group once, then lint and the tests
+covering the pass's changes in one run, and leave the full run to the pass's
+end.
 
 ## Deep run
 

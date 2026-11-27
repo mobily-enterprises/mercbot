@@ -1,0 +1,4 @@
+interface:
+  display_name: "Genesis test pass"
+  short_description: "Make the tests prove each behavior, own their data, run fast and fail loudly"
+  default_prompt: "Use $genesis-test-pass to test pass the whole app."

@@ -292,10 +292,13 @@ old form. A new mechanism replaces the one already doing the job.
 
 **Good:** a failing test is a defect with an owner, in the product or in the
 test. Red CI on the main branch stops the line. A final run is one whole run on
-the tree that is pushed.
+the tree that is pushed, run only with the person's explicit OK, asked at the
+end once the work is complete and its focused checks pass, never detached without a way to follow and stop it.
 
 **Check:** name each failure's cause; never rerun until green, skip or loosen
-to finish. Compare the tested commit with the pushed one. List every skip with
+to finish, and never call one pre-existing or environmental: a missing tool or
+an environment's refusal is a defect to fix, reported with what is missing.
+Compare the tested commit with the pushed one. List every skip with
 its reason and the run that covers it, against the last run's count. See each
 new test fail once. Diagnosis runs may stop early; a final run runs everything
 and reports what did not run. Report a speed win with its absolute number.
@@ -306,6 +309,9 @@ and reports what did not run. Report a speed win with its absolute number.
   the run reported success (shell).
 - A suite kept a set of "known" failures as a baseline until they hid a new
   regression.
+- An agent reran a half-hour suite on its own several times, detached it with
+  no way to follow or stop it, called 27 failures pre-existing and environmental, and
+  was about to record its pass done.
 
 **Outer limit:** a red test on main nobody owns, a suite that needs reruns to
 look green, or dozens of skips nobody can place.
@@ -326,9 +332,22 @@ reaches that screen, and a new browser test file is for a new flow. The app's
 own delays (retry backoff, debounce, polling) run on a fake clock, never in
 real time. A test's own time limit covers only its own work: what it needs
 is loaded when its file loads, not inside the timed test, so a slow first load
-on a busy machine cannot fail it.
+on a busy machine cannot fail it. Work is not repeated: a behavior checked at
+several widths, locales, themes, roles or providers runs once, with only the
+checks that vary repeated, and a parametrized test's variants share their
+unchanged setup. A test's fixed cost before its first check is paid once per
+file or worker, and fixtures are prepared once per run, never by a real install,
+clone or build per test. No file holds a large share of the run's wall time,
+and the files of every package share one pool.
 
-**Check:** after every run, read the suite time, each phase's time
+**Check:** to fix a slow or failing suite, first run it whole, keeping each
+file's and test's time and the full output, and read that run; fix from its
+evidence, never from guesses or partial runs, and prove each fix against its
+numbers. Rank the run's time by file and by parametrized test, and say where
+each top item's time goes. Measure each test's time before its first check, the
+time it repeats per variant, and any install, clone or build it runs. Read the
+whole-run script and CI for a suite, build or check that runs twice. After
+every run, read the suite time, each phase's time
 (preparation, import, sign-in, tests) and the slowest files. A wall time close
 to the sum of the files' times means they ran one at a time: find why. In a
 slow file, find where the time goes: repeated preparation, replayed
@@ -358,6 +377,15 @@ advance the clock instead, unless another test already proves that path.
 - A test loaded its modules inside its 20 s limit, and on a busy machine
   after a fresh install the loading alone used it up; loading them with the
   file moved about 9 s out of the test, which then took under a second.
+- A browser suite ran 108 behaviors in full at two or three widths; 25 of its
+  92 minutes repeated checks that did not depend on the width.
+- One parametrized test rebuilt its whole setup for each variant and took 46%
+  of all browser time.
+- Every browser test paid about 2 s of app load before its first check.
+- Test files of 14,000 lines ran their 245 tests in turn and set the whole
+  run's floor.
+- Unit tests ran a real package install.
+- A monorepo's test command ran its 53 packages one after another.
 
 **Outer limit:** a suite running for hours (a small app's for an hour),
 preparation in minutes, or a limit ten times the measured need. A new test
@@ -365,15 +393,54 @@ whose time is mostly its own setup, for a check that a cheaper level or an
 existing test could make, is not acceptable: every run, by every person and
 agent, pays for it for as long as it exists.
 
+## Tests: your own loop
+
+**Good:** the checks an agent runs while it works follow the suite's rules,
+since even fast tests take ages when rerun at every change. It makes all of a
+step's changes, then runs once, never after each small edit. While iterating it
+runs only the narrowest test that covers the change, and the browser or wider
+checks for it once, when the step is done. New tests are seen to fail in one
+batch: several behaviors broken, or the fix reverted once, in one run. One
+started server, prepared database and set of fixtures serve several runs.
+After each pass it runs lint and only the tests covering that pass's changes,
+in one run (after a Data pass, the database tests too), and the whole suite
+once, at the end, as the baseline's "Your own test loop" says.
+
+**Check:** count your own runs and what each costs. A check rerun after each
+small edit, or one that takes minutes, runs files one at a time, rebuilds its
+database each run or needs reruns for a flaky helper or the environment, is a
+defect: fix it first, timed before and after, or, when that lies outside the
+task, tell the person at once with its cause and numbers. Never skip, shorten
+or lighten a pass, plan step or requested check to save time.
+
+**Examples:**
+- A plan's automatic passes took 566 tool calls and about 95 minutes, almost
+  all test runs: browser tests one at a time at about a minute each, one
+  deliberate break per run to see each new test fail, and a 25 s test database
+  restore several times per break. The agent then proposed lightening the
+  remaining passes instead of fixing its loop.
+- A Master pass of eight passes meant to run the whole suite, a 75-minute
+  database suite and browser specs, after each one: hours of the same run.
+  Each pass needed lint and its own tests; the whole suite runs once, at the
+  end.
+- Agents reran checks that had already passed on the same tree, and ran a
+  preliminary check that the whole run then repeated.
+
+**Outer limit:** an agent's own check that takes minutes and runs again after
+every change, or a pass whose time is mostly reruns of the same check.
+
 ## Tests: each owns what it uses
 
 **Good:** each test creates and signs in as what it asserts, and each file owns
 its data, system-picked ports, directories and caches. A skip caused by the
 environment is a failure.
 
-**Check:** run a file twice, beside another, reversed and shuffled, and two
-suites at once; the result does not change. Run at a fake time near midnight,
-in another time zone and in a clean environment. Each seed names what needs it;
+**Check:** where a file's isolation is in doubt (it shares a name, port,
+directory or row with another, or fails only beside others), run it twice,
+beside another, reversed and shuffled; the result does not change. Two whole
+suites at once only when the doubt is between runs, and only on the person's OK
+like any whole run. Run at a fake time near midnight, in another time zone and
+in a clean environment. Each seed names what needs it;
 volume fixtures belong to the volume tests. A disposable test database server
 may relax durability; each run drops what it made.
 

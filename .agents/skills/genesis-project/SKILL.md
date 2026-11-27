@@ -25,7 +25,8 @@ one exact investigation.
 
 ## Run Genesis commands
 
-Resolve the invocation before running the first Genesis operation. Do not use a
+Every Genesis skill runs Genesis operations as this section says. Resolve the
+invocation before running the first Genesis operation. Do not use a
 Genesis operation or `genesis --version` as an availability probe.
 
 1. Read the repository-root `package.json`. Only when that
@@ -35,15 +36,25 @@ Genesis operation or `genesis --version` as an availability probe.
    Genesis without fetching another package. If it is not installed, report
    that the repository's dependencies are not prepared; do not fall back to
    another Genesis version.
-2. Otherwise, do not try `npm exec`. Run `command -v genesis` (or the current
-   shell's equivalent `PATH` lookup). When it resolves an executable, invoke
+2. Otherwise, do not try `npm exec`, except as step 4 says. Run
+   `command -v genesis` (or the current shell's equivalent `PATH` lookup). When it resolves an executable, invoke
    `genesis <arguments>` directly; inside Vibe64 that is the platform's Genesis.
    A `genesis-compiler` that the project's `package.json` declares does not
    serve the project: it belongs to the project's own scripts, so never run it
-   through `npm exec`, `npx` or `node_modules/.bin`.
+   through `npm exec`, `npx` or `node_modules/.bin`, except as step 4 says.
 3. When neither source is available, stop and report that Genesis is
    unavailable. Never install or update Genesis, or add it to the project's
    dependencies, merely to satisfy a workflow instruction.
+4. The committed Agent Skill copies must pass every Genesis that checks them.
+   When the project's own scripts run `genesis check` through the
+   `genesis-compiler` the project declares, refresh the copies with
+   `genesis skills sync` and then `npm exec --no -- genesis skills sync`, and
+   check them with `npm exec --no -- genesis check` as those scripts do.
+   Genesis never replaces copies a newer Genesis wrote, so the newer of the
+   two writes them and both accept them; commit the refreshed
+   `.agents/skills`. A `genesis-compiler` older than 1.10.31 replaces them
+   anyway: the project moves to a newer one first. Run no other operation
+   through the project's own `genesis-compiler`.
 
 Successful invocation resolution is routine. Do not narrate which Genesis was
 selected, and never describe direct `PATH` use as a fallback. Mention how the
@@ -163,14 +174,21 @@ with the Genesis `index` operation.
 
 ## Verify and report
 
-During implementation, select the checks relevant to the change. Run the
-Stack's declared final checks through Genesis `verify` when required by the
-project's verification policy or the user's request, after the selected
-technology's workspace substrate exists. Finishing an item or resuming a
-session does not itself require a broad verification run. Keep full output in
-local artifacts, preserve exit status, and read summaries and relevant failure
-excerpts before expanding logs. Do not weaken assertions or omit required
-coverage to save time or tokens.
+During implementation, select the checks relevant to the change and run focused
+checks as the engineering approach's "Your own test loop" says: make all of a
+step's changes, then run the narrowest test that covers them once, never after
+each small edit. Run the whole test suite, or the Stack's declared final checks
+through Genesis `verify`, only with the person's explicit OK, asked at the end,
+once the work is complete and its focused checks pass, saying what will run and
+roughly how long; follow the project's verification policy too, and run them
+only after the selected technology's workspace substrate exists. Finishing an
+item or resuming a session does not itself require a broad verification run.
+Run each check in this session or on a check runner the host offers, never detached without a way to follow and stop it. Keep full output
+in local artifacts, preserve exit status, and read summaries and relevant
+failure excerpts before expanding logs. Explain every failure; never call one
+pre-existing or environmental: a missing tool or an environment's refusal is a
+defect to fix, reported with what is missing. Do not weaken assertions or omit
+required coverage to save time or tokens.
 
 A change to user-visible behavior ships with the browser specs that cover it
 updated and run in the same change, before pushing. When an existing spec

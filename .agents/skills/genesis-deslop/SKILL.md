@@ -8,29 +8,9 @@ description: Deslop the agent's own task changes, explicitly selected commits or
 Review and simplify selected changes without changing product behavior. Deslop is
 explicit: never run it merely because implementation finished.
 
-Resolve the invocation before running the first Genesis operation. Do not use a
-Genesis operation or `genesis --version` as an availability probe.
-
-1. Read the repository-root `package.json`. Only when that
-   manifest's `name` is `genesis-compiler` is the repository Genesis's own
-   source. There, invoke every Genesis CLI operation with
-   `npm exec --no -- genesis <arguments>`, which runs the repository's own
-   Genesis without fetching another package. If it is not installed, report
-   that the repository's dependencies are not prepared; do not fall back to
-   another Genesis version.
-2. Otherwise, do not try `npm exec`. Run `command -v genesis` (or the current
-   shell's equivalent `PATH` lookup). When it resolves an executable, invoke
-   `genesis <arguments>` directly; inside Vibe64 that is the platform's Genesis.
-   A `genesis-compiler` that the project's `package.json` declares does not
-   serve the project: it belongs to the project's own scripts, so never run it
-   through `npm exec`, `npx` or `node_modules/.bin`.
-3. When neither source is available, stop and report that Genesis is
-   unavailable. Never install or update Genesis, or add it to the project's
-   dependencies, merely to satisfy a workflow instruction.
-
-Successful invocation resolution is routine. Do not narrate which Genesis was
-selected, and never describe direct `PATH` use as a fallback. Mention how the
-invocation was selected only when resolution fails or the user explicitly asks.
+Run Genesis operations as the "Run Genesis commands" section of
+`.agents/skills/genesis-project/SKILL.md` says, resolving the invocation once,
+before the first one.
 
 Follow the configured Collaboration approach for user-facing updates, including
 its technical depth and response length. Report concrete progress,
@@ -165,11 +145,13 @@ create a second architecture or perform unrelated rewrites.
 
 Leave the cleanup as ordinary uncommitted work for review and a later normal
 commit. Never amend or rewrite the selected commits. Run focused checks when
-useful. Final declared checks remain available through the Genesis `verify`
-operation. Summarize the resolved scope and any selected commit identities,
-what became simpler, the behaviors checked before and after, files changed,
-checks actually run, each defect fixed apart from the cleanups with its test,
-and what lies outside this scope.
+useful. Final declared checks, through the Genesis `verify` operation, run only
+with the person's OK, at the end. Summarize the resolved scope and any selected
+commit identities, what became simpler, the behaviors checked before and after,
+files changed, checks actually run, each defect fixed apart from the cleanups
+with its test, and what lies outside this scope. End the report with one line:
+how many test runs the cleanup made, their total time and its longest single
+run.
 
 When the prompt ends with a `PASS RECORD` step, take it once the pass has
 finished: the Genesis `passes done deslop` operation records it in `genesis/passes.json`,
@@ -177,7 +159,13 @@ an uncommitted change that lands in the pass's own commit. Genesis adds that
 step only to the pass's own runs, whose requests it writes itself, so a Deslop
 of your own changes, a section or commits is never recorded as the pass;
 neither is a pass that stopped early, was abandoned or still has failing
-checks.
+checks. Take it only after the whole-suite run, asked for once at the end,
+passed with the person's OK, or after the person explicitly accepted finishing
+without it, as `PASS REPORT` says; until the end, run focused checks only.
+Work as the engineering approach's "Your own test loop" says: fix in groups,
+run the narrow files that cover each group once, then lint and the tests
+covering the pass's changes in one run, and leave the full run to the pass's
+end.
 
 ## Deep run
 
