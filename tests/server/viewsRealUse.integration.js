@@ -3,7 +3,8 @@ import test from "node:test";
 import { inParallel } from "../support/inParallel.mjs";
 import { queriesDuring } from "../support/queryCount.mjs";
 import { addRecord, makeHome, viewsFixture } from "../support/viewsFixture.mjs";
-import { createNotices } from "../../packages/notices/src/server/notices.js";
+import { moduleClock } from "../support/moduleClock.mjs";
+import { RECONNECT_MS, createNotices } from "../../packages/notices/src/server/notices.js";
 import { checkView } from "../../packages/apps/src/shared/check.js";
 import { scopeStyle } from "../../packages/apps/src/server/appStyle.js";
 import { createBotLibrary } from "../../packages/bots/src/server/botLibrary.js";
@@ -407,8 +408,9 @@ test("the chat and the Library know a view", async (context) => {
 test("a change on one server reaches a page on another, and survives a dropped connection", async (context) => {
   const f = await viewsFixture(context);
   await makeDeals(f);
-  // It connects again 200 ms after losing its connection (2 s in use).
-  const other = createNotices({ knex: f.knex, reconnectMs: 200 });
+  // Its pause before connecting again passes on a clock the test moves.
+  const clock = moduleClock(context, "notices/src/server/notices.js");
+  const other = createNotices({ knex: f.knex });
   f.whenDone(() => other.close());
   const heard = [];
   other.subscribe("apps-data", f.workspaceId, (event) => heard.push(event));
@@ -432,5 +434,10 @@ test("a change on one server reaches a page on another, and survives a dropped c
   );
   assert.ok(ended.rows.length > 0 && ended.rows.every((row) => row.gone), "the listening connections are gone");
   heard.length = 0;
-  await until(heardWrite, "it listens again after losing its connection");
+  // Each try moves the clock past the pause before a dropped connection connects again.
+  const movedOn = async () => {
+    await clock.advance(RECONNECT_MS);
+    return heardWrite();
+  };
+  await until(movedOn, "it listens again after losing its connection");
 });

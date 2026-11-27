@@ -3,12 +3,13 @@ import { randomUUID } from "node:crypto";
 import pg from "pg";
 import { CHANNEL } from "./publishIn.js";
 
-const RECONNECT_MS = 2000;
+/** How long a dropped listening connection waits before it connects again. */
+export const RECONNECT_MS = 2000;
 // Every 30 seconds each server sends itself a private notice, and one not heard back within 10 seconds means its
 // listening connection went quiet without closing (a network path that dropped), which TCP keep-alive alone can take
 // minutes to notice: the connection is replaced, and anything it missed is caught up (onMissed).
-const HEARTBEAT_MS = 30_000;
-const HEARTBEAT_TIMEOUT_MS = 10_000;
+export const HEARTBEAT_MS = 30_000;
+export const HEARTBEAT_TIMEOUT_MS = 10_000;
 const HEARTBEAT_TOPIC = "notices-check";
 
 /**
@@ -18,18 +19,9 @@ const HEARTBEAT_TOPIC = "notices-check";
  * small event that only says what changed; pages then read the state itself.
  * @param {object} dependencies
  * @param {import("@jskit-ai/database-runtime/server/types").RuntimeKnex} dependencies.knex
- * @param {number} [dependencies.heartbeatMs] how often it checks it still hears itself (tests make it short)
- * @param {number} [dependencies.heartbeatTimeoutMs] how long a check may go unheard before the connection is replaced
- * @param {number} [dependencies.reconnectMs] how long a dropped connection waits before it connects again (tests make it short)
  * @param {(config: object) => import("pg").Client} [dependencies.newClient] the listening connection (tests keep theirs)
  */
-export function createNotices({
-  knex,
-  heartbeatMs = HEARTBEAT_MS,
-  heartbeatTimeoutMs = HEARTBEAT_TIMEOUT_MS,
-  reconnectMs = RECONNECT_MS,
-  newClient = (config) => new pg.Client(config)
-}) {
+export function createNotices({ knex, newClient = (config) => new pg.Client(config) }) {
   const listeners = new Map();
   const missedListeners = new Set();
   const self = randomUUID();
@@ -130,7 +122,7 @@ export function createNotices({
     heard();
     endNow(dropped);
     if (closed) return;
-    reconnecting = setTimeout(listen, reconnectMs);
+    reconnecting = setTimeout(listen, RECONNECT_MS);
     reconnecting.unref();
   }
 
@@ -180,10 +172,10 @@ export function createNotices({
     unheard = setTimeout(() => {
       console.warn("The notices connection stopped hearing its own check; it connects again.");
       drop(watched);
-    }, heartbeatTimeoutMs);
+    }, HEARTBEAT_TIMEOUT_MS);
     unheard.unref();
   }
-  const beating = setInterval(() => heartbeat().catch(() => {}), heartbeatMs);
+  const beating = setInterval(() => heartbeat().catch(() => {}), HEARTBEAT_MS);
   beating.unref();
 
   /** Hears that notices may have been missed (the connection was replaced): reads what it keeps again. */

@@ -67,9 +67,11 @@ answer. Numbers never change; a later decision that changes an earlier one says 
   the test process's whole environment, where `.env` or a session's Development Env may hold real keys. A stand-in
   only answers; the rule under test is Mercbot's, so assert what Mercbot did. The stand-ins and the seeded data are
   deterministic: check the exact value, text or count, never a bound or one word of it. A test's title is the one
-  behaviour it proves; a decision with several rules gets a test for each. A wait the product owns (a poll, a reconnect
-  pause, a lease, today's date) is an option the test sets short or a clock it moves (`createNotices({ reconnectMs })`,
-  `createFilesVolume({ now })`), never waited out in real time.
+  behaviour it proves; a decision with several rules gets a test for each. A wait the product owns (a poll, a
+  heartbeat, a reconnect pause, a lease, today's date) passes at its real length on a clock the test moves: a `now` the
+  code takes (`createFilesVolume({ now })`), `context.mock.timers`, or `tests/support/moduleClock.mjs` for the timers
+  one module sets itself (as notices' tests do). It is never waited out in real time, and never an option the product
+  takes only so a test can shorten it.
 - **Architecture:** the design is in [docs/architecture.md](docs/architecture.md)
   (D-6). Don't assume a design beyond it; ask when a change needs one.
 - **Migrations:** `migrations/` starts from one baseline that creates the whole

@@ -29,14 +29,16 @@ so it goes out only if that commits.
 The listening connection is kept alive at the TCP level. Because keep-alive
 alone can take minutes to notice a network path that dropped without closing,
 each server also sends itself a private heartbeat notice every 30 seconds
-(`heartbeatMs`); one not heard back within 10 seconds (`heartbeatTimeoutMs`)
+(`HEARTBEAT_MS`); one not heard back within 10 seconds (`HEARTBEAT_TIMEOUT_MS`)
 means the connection went quiet, and it is ended. A heartbeat that can't be
 sent says nothing about the connection and changes nothing.
 
 There is one listen loop at a time: whatever ends the connection (an unheard
 heartbeat, an error, its end, or all of them together) starts a single
-reconnect, two seconds later. `close()` stops every timer and ends the
-connection, and nothing connects again after it, even if an end arrives later.
+reconnect, two seconds later (`RECONNECT_MS`). `close()` stops every timer and
+ends the connection, and nothing connects again after it, even if an end arrives
+later. Its tests move these timers on a clock of their own
+(`tests/support/moduleClock.mjs`) instead of waiting them out.
 
 Notices published while no connection listened are lost, so after any
 reconnect (not the first connect) the capability tells whoever asked through

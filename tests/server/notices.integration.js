@@ -3,9 +3,10 @@ import { once } from "node:events";
 import net from "node:net";
 import test from "node:test";
 import pg from "pg";
+import { moduleClock } from "../support/moduleClock.mjs";
 import { queriesDuring } from "../support/queryCount.mjs";
 import { connectTestDatabase } from "../support/testDatabase.mjs";
-import { createNotices } from "../../packages/notices/src/server/notices.js";
+import { HEARTBEAT_MS, HEARTBEAT_TIMEOUT_MS, RECONNECT_MS, createNotices } from "../../packages/notices/src/server/notices.js";
 
 // News for open pages (D-15) travels as PostgreSQL notifications. News for many people at once (a
 // reply in a chat reaches everyone in it, the everyone chat the whole home: chatMembers.js and
@@ -72,16 +73,14 @@ async function until(ready, what) {
   }
 }
 
-// Short heartbeats, so a quiet connection is noticed in a fraction of a second, and a short wait before a dropped one
-// connects again (2 s in use).
-const HEARTBEAT = { heartbeatMs: 150, heartbeatTimeoutMs: 100, reconnectMs: 200 };
-const RECONNECT_MS = HEARTBEAT.reconnectMs;
-const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+// Notices' own pauses (a check every 30 s, 10 s for it to come back, 2 s before a dropped connection connects again)
+// pass on a clock the tests move (moduleClock), at their real length: the tests below wait only for the database.
+const NOTICES = "notices/src/server/notices.js";
 
 /** Notices whose listening connections are kept in `clients`, each made from `config` adjusted by `route`. */
-function noticesKeeping(knex, options, route = (config) => config) {
+function noticesKeeping(knex, route = (config) => config) {
   const clients = [];
-  const notices = createNotices({ knex, ...options, newClient: (config) => {
+  const notices = createNotices({ knex, newClient: (config) => {
     const client = new pg.Client(route(config));
     clients.push(client);
     return client;
@@ -91,6 +90,34 @@ function noticesKeeping(knex, options, route = (config) => config) {
   const heard = [];
   notices.subscribe("bots", "pat", (event) => heard.push(event.n));
   return { notices, clients, heard, missed: () => missed };
+}
+
+/**
+ * Moves notices' clock a heartbeat at a time, never while a check waits, until `client` (the listening connection)
+ * heard `count` of its checks back. Notices heard each first (their listener came first), so none waits after.
+ */
+async function checksHeard(clock, client, count) {
+  let heard = 0;
+  const hear = (message) => {
+    if (String(message.payload).includes('"topic":"notices-check"')) heard += 1;
+  };
+  client.on("notification", hear);
+  try {
+    await until(async () => {
+      if (heard < count && clock.timeouts() === 0) await clock.advance(HEARTBEAT_MS);
+      return heard >= count;
+    }, `${count} checks heard back`);
+  } finally {
+    client.off("notification", hear);
+  }
+}
+
+/** Moves notices' clock a heartbeat at a time until a check waits to be heard back. */
+async function checkWaiting(clock) {
+  await until(async () => {
+    if (clock.timeouts() === 0) await clock.advance(HEARTBEAT_MS);
+    return clock.timeouts() === 1;
+  }, "a check waiting to be heard back");
 }
 
 /** Publishes `n` from `sender` until `heard` holds it. */
@@ -103,8 +130,9 @@ const hears = async (sender, heard, n) => {
 
 test("a listening connection kept alive, replaced when it stops hearing itself or drops, and what it missed caught up", async (context) => {
   const knex = await connectTestDatabase();
+  const clock = moduleClock(context, NOTICES);
   const configs = [];
-  const { notices, clients, heard, missed } = noticesKeeping(knex, HEARTBEAT, (config) => {
+  const { notices, clients, heard, missed } = noticesKeeping(knex, (config) => {
     configs.push(config);
     return config;
   });
@@ -112,21 +140,27 @@ test("a listening connection kept alive, replaced when it stops hearing itself o
     await notices.close();
     await knex.destroy();
   });
-  context.mock.method(console, "warn", () => {});
+  const warn = context.mock.method(console, "warn", () => {});
   await hears(notices, heard, 1);
   assert.equal(configs[0].keepAlive, true, "kept alive at the TCP level");
 
-  // Healthy, it hears its own checks and stays as it is.
-  await pause(HEARTBEAT.heartbeatMs * 6);
-  assert.deepEqual([clients.length, missed()], [1, 0]);
+  // Healthy, it hears its own checks back and stays as it is.
+  await checksHeard(clock, clients[0], 3);
+  assert.deepEqual([clients.length, missed(), warn.mock.callCount()], [1, 0, 0], "three checks heard, nothing replaced");
 
-  // Quiet without closing (here: it stops listening): the next unheard check replaces it, and streams catch up.
+  // Quiet without closing (here: it stops listening): the next check goes unheard and replaces it, and streams catch up.
   await clients[0].query(`UNLISTEN *`);
+  await checkWaiting(clock);
+  await clock.advance(HEARTBEAT_TIMEOUT_MS);
+  assert.deepEqual([warn.mock.callCount(), clock.timeouts()], [1, 1], "unheard: the connection ended, its reconnect waiting");
+  await clock.advance(RECONNECT_MS);
   await until(() => clients.length === 2 && missed() === 1, "a quiet connection replaced");
   await hears(notices, heard, 2);
 
   // Dropped (its server ended it): it connects again, and streams catch up.
   await knex.raw("select pg_terminate_backend(?)", [clients[1].processID]);
+  await until(() => clock.timeouts() === 1, "the reconnect waiting");
+  await clock.advance(RECONNECT_MS);
   await until(() => clients.length === 3 && missed() === 2, "a dropped connection replaced");
   await hears(notices, heard, 3);
 });
@@ -166,8 +200,8 @@ async function pathTo({ host, port }) {
   };
 }
 
-// "Within a few heartbeats" is counted in heartbeats, in the order the test sees things happen, never in milliseconds a
-// busy host can stretch: each check notices.js sends itself (a pg_notify of its own topic through the server's pool,
+// "Within a few heartbeats" is counted in heartbeats moved on notices' clock, in the order the test sees things happen,
+// never in milliseconds a busy host can stretch: each check notices.js sends itself (a pg_notify of its own topic through the server's pool,
 // which the quiet path doesn't carry), the warning that one went unheard, each listening connection made, and each
 // catch-up.
 test("a listening connection whose network path goes quiet is replaced within a few heartbeats, and only then is anything caught up", async (context) => {
@@ -178,9 +212,11 @@ test("a listening connection whose network path goes quiet is replaced within a 
     if (String(query?.bindings?.[1] ?? "").includes('"topic":"notices-check"')) events.push("check");
   };
   knex.on("query", checks);
-  // One server publishes; another listens through the path.
+  // One server publishes; another listens through the path. The sender, made before the clock, keeps real time (its
+  // first check is 30 s away), so each check counted here is the listener's.
   const sender = createNotices({ knex });
-  const { notices, clients, heard, missed } = noticesKeeping(knex, HEARTBEAT, (config) => {
+  const clock = moduleClock(context, NOTICES);
+  const { notices, clients, heard, missed } = noticesKeeping(knex, (config) => {
     events.push("connect");
     return { ...config, host: "127.0.0.1", port: path.port };
   });
@@ -196,20 +232,22 @@ test("a listening connection whose network path goes quiet is replaced within a 
     events.push(String(message).startsWith("The notices connection stopped hearing its own check") ? "unheard" : `warn: ${message}`);
   });
   await hears(sender, heard, 1);
-  // Four checks: one waiting holds the next back, so at least three were heard.
-  await until(() => events.filter((event) => event === "check").length >= 4, "four checks while the path is up");
+  await checksHeard(clock, clients[0], 3);
   assert.deepEqual(events.filter((event) => event !== "check"), ["connect"], "heard checks replace nothing");
   assert.deepEqual([clients.length, missed()], [1, 0], "the first connect is no reconnect: nothing to catch up");
 
+  // No check waits as the path goes quiet; the next one goes unheard, its 10 s pass, and 2 s later another connects.
   path.freeze();
   events.push("quiet");
+  await checkWaiting(clock);
+  await clock.advance(HEARTBEAT_TIMEOUT_MS);
+  await clock.advance(RECONNECT_MS);
   await hears(sender, heard, 2);
   const after = events.slice(events.indexOf("quiet") + 1);
   const replaced = after.indexOf("connect");
-  // The next check goes unheard and replaces it: none goes out while one waits, nor while no connection listens, so at
-  // most one leaves after the path goes quiet (none when the one that goes unheard had left just before).
+  // None goes out while one waits, nor while no connection listens: one left after the path went quiet.
   const sent = after.slice(0, replaced).filter((event) => event === "check").length;
-  assert.ok(sent <= 1, `${sent} checks went out between the path going quiet and its replacement`);
+  assert.equal(sent, 1, `${sent} checks went out between the path going quiet and its replacement`);
   assert.deepEqual(after.filter((event) => event !== "check"), ["unheard", "connect", "catch up"],
     "an unheard check replaces it, and only the new connection's listening catches up");
   assert.deepEqual([clients.length, missed()], [2, 1], "replaced once, and its streams told to catch up");
@@ -217,7 +255,8 @@ test("a listening connection whose network path goes quiet is replaced within a 
 
 test("an unheard check, an error and an end of the same connection reconnect it once", async (context) => {
   const knex = await connectTestDatabase();
-  const { notices, clients, heard, missed } = noticesKeeping(knex, HEARTBEAT);
+  const clock = moduleClock(context, NOTICES);
+  const { notices, clients, heard, missed } = noticesKeeping(knex);
   context.after(async () => {
     await notices.close();
     await knex.destroy();
@@ -225,76 +264,50 @@ test("an unheard check, an error and an end of the same connection reconnect it 
   const warn = context.mock.method(console, "warn", () => {});
   await hears(notices, heard, 1);
 
-  // Its checks go unheard, and the unheard one ends it; then an error and an end arrive from it as well.
+  // Its check goes unheard, and the unheard one ends it; then an error and an end arrive from it as well.
   await clients[0].query(`UNLISTEN *`);
-  await until(() => warn.mock.callCount() === 1, "an unheard check");
+  await checkWaiting(clock);
+  await clock.advance(HEARTBEAT_TIMEOUT_MS);
+  assert.equal(warn.mock.callCount(), 1, "an unheard check");
   clients[0].emit("error", new Error("the connection failed"));
   clients[0].emit("end");
+  assert.equal(clock.timeouts(), 1, "one reconnect waits");
 
+  await clock.advance(RECONNECT_MS);
   await until(() => clients.length === 2 && missed() === 1, "the connection replaced");
-  await pause(RECONNECT_MS + 500);
-  assert.deepEqual([clients.length, missed()], [2, 1], "one connection after, and one catch-up");
+  // A second reconnect, had one been set, would connect now.
+  await clock.advance(RECONNECT_MS);
+  assert.deepEqual([clients.length, missed(), clock.timeouts()], [2, 1, 0], "one connection after, and one catch-up");
   await hears(notices, heard, 2);
 });
-
-/** The timers notices.js sets, while they wait: whichever has fired or been cleared leaves `waiting`. */
-function noticesTimers(context) {
-  const real = { setTimeout, setInterval, clearTimeout, clearInterval };
-  const ours = () => new Error().stack.includes("notices/src/server/notices.js");
-  const waiting = new Set();
-  const made = [];
-  const keep = (timer) => {
-    waiting.add(timer);
-    made.push(timer);
-    return timer;
-  };
-  context.mock.method(globalThis, "setTimeout", (work, ms, ...args) => {
-    if (!ours()) return real.setTimeout(work, ms, ...args);
-    const timer = real.setTimeout(() => {
-      waiting.delete(timer);
-      work(...args);
-    }, ms);
-    return keep(timer);
-  });
-  context.mock.method(globalThis, "setInterval", (work, ms, ...args) =>
-    (ours() ? keep(real.setInterval(work, ms, ...args)) : real.setInterval(work, ms, ...args)));
-  context.mock.method(globalThis, "clearTimeout", (timer) => {
-    waiting.delete(timer);
-    real.clearTimeout(timer);
-  });
-  context.mock.method(globalThis, "clearInterval", (timer) => {
-    waiting.delete(timer);
-    real.clearInterval(timer);
-  });
-  return { waiting, made };
-}
 
 test("closing leaves no timer and never connects again, even when its connection ends after", async (context) => {
   const knex = await connectTestDatabase();
   context.after(() => knex.destroy());
   context.mock.method(console, "warn", () => {});
-  const timers = noticesTimers(context);
+  const clock = moduleClock(context, NOTICES);
 
   // Closed while a check waits to be heard back.
-  const quiet = noticesKeeping(knex, { heartbeatMs: 100, heartbeatTimeoutMs: 60_000 });
+  const quiet = noticesKeeping(knex);
   await hears(quiet.notices, quiet.heard, 1);
   await quiet.clients[0].query(`UNLISTEN *`);
-  await until(() => timers.waiting.size === 2, "a check waiting to be heard back");
+  await checkWaiting(clock);
+  assert.equal(clock.pending.size, 2, "the heartbeat, and the check waiting to be heard back");
   await quiet.notices.close();
-  assert.equal(timers.waiting.size, 0, "no timer after closing with a check unheard");
+  assert.equal(clock.pending.size, 0, "no timer after closing with a check unheard");
   quiet.clients[0].emit("end");
-  assert.equal(timers.waiting.size, 0, "an end after closing starts no reconnect");
+  assert.equal(clock.pending.size, 0, "an end after closing starts no reconnect");
 
   // Closed while it waits to connect again.
-  const dropped = noticesKeeping(knex, HEARTBEAT);
+  const dropped = noticesKeeping(knex);
   await hears(dropped.notices, dropped.heard, 1);
   const ended = new Promise((resolve) => dropped.clients[0].once("end", resolve));
   await knex.raw("select pg_terminate_backend(?)", [dropped.clients[0].processID]);
   await ended;
-  assert.equal(timers.waiting.size, 2, "the heartbeat, and the reconnect waiting");
+  assert.equal(clock.pending.size, 2, "the heartbeat, and the reconnect waiting");
   await dropped.notices.close();
-  assert.equal(timers.waiting.size, 0, "no timer after closing with a reconnect waiting");
-  await pause(RECONNECT_MS + 200);
+  assert.equal(clock.pending.size, 0, "no timer after closing with a reconnect waiting");
+  await clock.advance(HEARTBEAT_MS + RECONNECT_MS);
   assert.deepEqual([quiet.clients.length, dropped.clients.length], [1, 1], "nothing connected again");
-  assert.ok(timers.made.length >= 4 && timers.made.every((timer) => !timer.hasRef()), "every timer lets the process end");
+  assert.ok(clock.made.length >= 4 && clock.made.every((timer) => !timer.hasRef()), "every timer lets the process end");
 });
