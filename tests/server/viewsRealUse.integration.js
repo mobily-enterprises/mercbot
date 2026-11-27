@@ -187,9 +187,14 @@ test("a view's own CSS stays in its own area", async (context) => {
   await makeDeals(f);
   const view = await save(f, { ...list(), style: "body { background: red; } .x-card { color: blue; } :root { color: pink; }" });
   const css = scopeStyle(view.id, (await f.views.get(view.key, f.options)).definition.style);
-  for (const rule of css.split("}").map((entry) => entry.trim()).filter(Boolean)) {
-    assert.ok(rule.startsWith(`[data-app-style="${view.id}"]`), `fenced: ${rule}`);
-  }
+  const area = `[data-app-style="${view.id}"]`;
+  // The area keeps what it paints inside itself (contain, isolation), then the view's rules: the page and its root are the
+  // area, and every other rule is inside it.
+  assert.equal(
+    css,
+    `${area} { contain: paint; isolation: isolate; }\n${area} { background: red; } ${area} .x-card { color: blue; } ${area} { color: pink; }`,
+    "the page and its root are the view's area, and every other rule is inside it"
+  );
 });
 
 test("columns and tables going away never break a view or widen it silently", async (context) => {

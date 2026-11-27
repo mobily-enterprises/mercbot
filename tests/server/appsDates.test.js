@@ -25,17 +25,17 @@ test("adding days and months, and the days between two dates", () => {
   assert.equal(run('=startOfMonth("2026-11-27")'), "2026-11-01");
 });
 
-test("today is in the home's time zone", (context) => {
+test("today is in the home's time zone, and in UTC when the home's zone doesn't exist", (context) => {
   context.after(() => useTimeZoneSource(() => "UTC"));
-  // Kiribati and American Samoa are 25 hours apart: whatever the moment, their dates differ by a day.
+  // Noon in UTC: already the next day in Kiribati, still the same day in American Samoa.
+  context.mock.timers.enable({ apis: ["Date"], now: Date.parse("2026-11-27T12:00:00Z") });
+  const todayIn = (zone) => {
+    useTimeZoneSource(() => zone);
+    return run("=today()");
+  };
+  assert.deepEqual(["Pacific/Kiritimati", "Pacific/Pago_Pago", "Not/AZone"].map(todayIn), ["2026-11-28", "2026-11-27", "2026-11-27"]);
   useTimeZoneSource(() => "Pacific/Kiritimati");
-  const ahead = run("=today()");
-  useTimeZoneSource(() => "Pacific/Pago_Pago");
-  const behind = run("=today()");
-  assert.equal(run(`=daysBetween("${behind}", "${ahead}")`) > 0n, true, `${behind} then ${ahead}`);
-  assert.equal(plain(run(`=daysSince("${behind}")`)), 0, "daysSince counts from the home's today");
-  useTimeZoneSource(() => "Not/AZone");
-  assert.match(run("=today()"), /^\d{4}-\d{2}-\d{2}$/u, "an unknown zone falls back to UTC");
+  assert.equal(plain(run('=daysSince("2026-11-20")')), 8, "daysSince counts from the home's today");
   assert.equal(isTimeZone("Europe/Rome"), true);
   assert.equal(isTimeZone("Mars/Base"), false);
 });

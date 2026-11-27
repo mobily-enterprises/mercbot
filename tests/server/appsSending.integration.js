@@ -123,6 +123,11 @@ test("an app sends only what its owners switched on, within its limits, from job
   ], "one address at most 3 times a day");
   assert.equal(sent.notices.at(-1).text, "From Events: New sign-up: Ana 4", "the owners are told each time");
   assert.equal((await gate.read(ctx, "signups", { page: { size: 10 } })).records.length, 4, "every sign-up is kept");
-  const activity = await knex("audit_events").where({ action: "sent" }).whereRaw("changes->'sent'->>'app' = ?", ["Events"]).count({ n: "*" });
-  assert.ok(Number(activity[0].n) >= 9, "each send is in the activity");
+  const activity = await knex("audit_events").where({ action: "sent" }).whereRaw("changes->'sent'->>'app' = ?", ["Events"]).orderBy("id").select("changes");
+  const email = (to, subject) => ({ app: "Events", kind: "email", to, subject, logged: true });
+  const notice = { app: "Events", kind: "notice", to: 1 };
+  const signUp = [email(1, "You're in"), notice];
+  assert.deepEqual(activity.map((row) => row.changes.sent), [
+    email(1, "Reminder"), email(2, "Reminder"), email(1, "Reminder"), notice, notice, ...signUp, ...signUp, ...signUp, notice
+  ], "each send is in the activity, with how many it went to, and no refused one");
 });

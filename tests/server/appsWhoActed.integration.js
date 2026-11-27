@@ -80,6 +80,9 @@ test("rules know who acted and their role; a button's script knows who pressed",
   }, home.options)).errors, []);
   await apps.publish(owner, "claims", {}, home.options);
   const appId = (await apps.find("claims", home.options)).id;
-  const pressed = await scripts.runNamed("action", appId, "whoami", {}, { kind: "button" }, null, home.memberOptions(kim, workspace, { role: "member", permissions: [] }));
-  assert.match(pressed.notify, /\(member\)$/u);
+  // Kim presses it, signed in: her name is her session's, her role the home's.
+  const kimPressing = home.memberOptions(kim, workspace, { role: "member", permissions: [] });
+  kimPressing.context.actor.displayName = "Kim";
+  const pressed = await scripts.runNamed("action", appId, "whoami", {}, { kind: "button" }, null, kimPressing);
+  assert.equal(pressed.notify, "Kim (member)");
 });

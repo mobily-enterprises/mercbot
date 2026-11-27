@@ -9,7 +9,12 @@ test("stand-in computers are the Test Preview's only: never in staging or produc
   assert.equal(standInDesktops({ MERCBOT_TEST_DESKTOPS: "real" }), null);
   assert.equal(standInDesktops({ MERCBOT_TEST_DESKTOPS: "stand-in", APP_ENV: "staging" }), null);
   assert.equal(standInDesktops({ MERCBOT_TEST_DESKTOPS: "stand-in", APP_ENV: "production" }), null);
-  assert.equal(typeof standInDesktops({ MERCBOT_TEST_DESKTOPS: "stand-in", APP_ENV: "development" }), "function");
+  const asleep = { state: "asleep", url: "", error: "" };
+  const quiet = { changed: async () => {}, store: async () => "" };
+  for (const APP_ENV of ["development", "test"]) {
+    const make = standInDesktops({ MERCBOT_TEST_DESKTOPS: "stand-in", APP_ENV });
+    assert.deepEqual(make?.(quiet).status("1"), asleep, `stand-in computers in ${APP_ENV}`);
+  }
 });
 
 test("a stand-in computer wakes, browses with a real screenshot, records and sleeps, saying each change", async () => {

@@ -142,5 +142,6 @@ test("ai for scripts: allowed apps, buttons and jobs, the main bot, limits, prev
   const few = await reads();
   await knex("app_jobs").insert(Array.from({ length: 40 }, () => ({ workspace_id: workspaceId, app_id: appId, kind: "ai_batch", bot_id: otto, user_id: userId, title: "x", prompt: "x", status: "done", steps: JSON.stringify([]) })));
   assert.equal(await reads(), few, "the same reads however much work the app has had");
-  assert.ok((await scripts.list("canary", {}, options)).aiWork.length <= 20);
+  const newest = (await knex("app_jobs").where({ app_id: appId }).orderBy("id", "desc").limit(20).pluck("id")).map(String);
+  assert.deepEqual((await scripts.list("canary", {}, options)).aiWork.map((entry) => entry.id), newest, "the app's newest 20, newest first");
 });

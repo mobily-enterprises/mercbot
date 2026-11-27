@@ -15,7 +15,8 @@ test("app lists: pages, the person's sort, search within the screen's filter, th
   const person = { type: "person", id: userId, name: "Pat" };
   const ctx = home.ctx(person);
   await registry.createTable(person, { key: "deals", fields: [{ key: "name", type: "text", required: true }, { key: "amount", type: "money" }, { key: "stage", type: "choice", choices: ["Open", "Won"] }] }, options);
-  const rows = Array.from({ length: 250 }, (_, index) => ({ name: `${index % 10 === 1 ? "Acme" : "Deal"} ${String(index).padStart(3, "0")}`, amount: index * 100, stage: index % 2 ? "Open" : "Won" }));
+  // Odd rows are open; the 1s and 2s of each ten are Acme's, so half of Acme's deals are open (001, 011 … 241).
+  const rows = Array.from({ length: 250 }, (_, index) => ({ name: `${[1, 2].includes(index % 10) ? "Acme" : "Deal"} ${String(index).padStart(3, "0")}`, amount: index * 100, stage: index % 2 ? "Open" : "Won" }));
   // An import takes rows by field id, in one transaction.
   const deals = (await registry.loadTables(options)).find((table) => table.key === "deals");
   const idOf = Object.fromEntries(deals.fields.map((field) => [field.key, field.id]));
@@ -49,7 +50,8 @@ test("app lists: pages, the person's sort, search within the screen's filter, th
   assert.equal((await read({ sort: "nope" })).records[0].name, first.records[0].name, "an unknown sort keeps the screen's");
 
   const searched = await read({ search: "ACME" });
-  assert.ok(searched.total > 0 && searched.records.every((record) => record.name.startsWith("Acme") && record.stage === "Open"), "within the screen's filter");
+  const openAcme = Array.from({ length: 25 }, (_, index) => `Acme ${String(index * 10 + 1).padStart(3, "0")}`);
+  assert.deepEqual([searched.total, searched.records.map((record) => record.name)], [25, openAcme], "Acme's open deals: within the screen's filter");
 
   const count = (extra) => queriesDuring(knex, () => read(extra));
   assert.equal(await count({ page: 2 }), await count({ page: 1 }), "page 2 costs what page 1 does");

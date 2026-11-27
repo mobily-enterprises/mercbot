@@ -46,14 +46,17 @@ let app;
 let standIn;
 let person;
 let dataDir;
-// The copy's own results, as a check left them: Fernhill failed, for itself and for how bots behave now.
+// The copy's own results, as a check left them: Fernhill failed, and the meal planner passed on a day of its own, for
+// themselves and for how bots behave now.
 const FAILED = ["It didn't ask: Ask whether the plants are indoors. The judge: The bot never asked it."];
+const PASSED_ON = "2026-01-02";
 
 before(async () => {
   dataDir = await mkdtemp(path.join(os.tmpdir(), "mercbot-template-check-"));
   const results = path.join(dataDir, "template-results.json");
   const fernhill = { date: "2026-11-12", commit: "test123", behaviour: run.behaviour, template: template("plant-care").fingerprint, passed: false, reasons: FAILED };
-  await writeFile(results, JSON.stringify({ results: { "plant-care": fernhill } }));
+  const meals = { ...fernhill, date: PASSED_ON, template: template("weekly-meal-planner").fingerprint, passed: true, reasons: [] };
+  await writeFile(results, JSON.stringify({ results: { "plant-care": fernhill, "weekly-meal-planner": meals } }));
   standIn = await startStandInModel({
     misbehave: { "plant-care": "skip-question", "habit-tracker": "routine-running", "kids-activities-planner": "send" }
   });
@@ -151,4 +154,8 @@ test("people see the badge only: the gallery and a template's page never carry a
     assert.equal(page.status, 200);
     assert.ok(!JSON.stringify(page.body).includes(FAILED[0]) && !JSON.stringify(page.body).includes("\"check\""), url);
   }
+  // The badge is this copy's own results: the meal planner's day, and Fernhill's failed check "Not tested yet".
+  const gallery = await other.request("GET", "/api/templates");
+  const badge = (slug) => gallery.body.templates.find((entry) => entry.slug === slug)?.tested;
+  assert.deepEqual([badge("weekly-meal-planner"), badge("plant-care")], [PASSED_ON, null]);
 });
