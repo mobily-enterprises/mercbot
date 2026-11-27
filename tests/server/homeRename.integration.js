@@ -4,6 +4,7 @@ import test from "node:test";
 import { createServer } from "../../server.js";
 import { createNotices } from "../../packages/notices/src/server/notices.js";
 import { connectTestDatabase } from "../support/testDatabase.mjs";
+import { testServerEnv } from "../support/testEnv.mjs";
 
 // Renaming a home (D-103), through the app's real routes on the disposable test database: JSKIT's own route for a
 // workspace's profile (PATCH /api/w/<home>, workspace.workspaces.update) renames it for its owners and admins, and every
@@ -18,7 +19,7 @@ for (const name of ["DB_HOST", "DB_PORT", "DB_NAME", "DB_USER", "TEST_DB_NAME"])
 assert.equal(process.env.DB_NAME, process.env.TEST_DB_NAME, "DB_NAME must match the dedicated TEST_DB_NAME.");
 
 const runtimeEnv = {
-  ...process.env,
+  ...testServerEnv(),
   AUTH_LOCAL_SESSION_SECRET: "home-rename-test-only-secret",
   // Registering signs in at once here; the app itself confirms new accounts' email (JSKIT local auth).
   AUTH_LOCAL_EMAIL_CONFIRMATION: "false",

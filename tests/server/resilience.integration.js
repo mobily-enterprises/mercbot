@@ -12,6 +12,7 @@ import { startBotsService, turnDoubles } from "../support/botDoubles.mjs";
 import { claimedWork, memberOptions, startBotParts, startBotRecordsWithAccount } from "../support/botRecords.mjs";
 import { cleanupStack } from "../support/cleanupStack.mjs";
 import { accessOf } from "../support/appKey.mjs";
+import { testServerEnv } from "../support/testEnv.mjs";
 
 // Disposable machines (D-19), against the disposable test database: a bot's browser state comes
 // back on another machine, and repeated sends and replies don't double up. Each test's bot is in its direct chat with
@@ -51,7 +52,7 @@ function seatOf(bot, userId) {
  * A live copy's environment (APP_ENV=production, D-69, D-87): what the bots send from connected accounts goes out for
  * real, to the stand-ins for the providers here. Without it, as in a test copy, the sends are only logged.
  */
-const live = () => ({ ...process.env, APP_ENV: "production" });
+const live = () => ({ ...testServerEnv(), APP_ENV: "production" });
 
 /** The accounts a call reaches, as the integrations service reads them (the person's own connected apps), on the test's Knex. */
 async function connectedAccounts(knex, context) {
@@ -565,7 +566,7 @@ test("a test copy's Send on an email draft is logged and marked sent, and nothin
   };
   try {
     const integrations = { reachableAccounts: await connectedAccounts(knex, cleanup), connections: { accessToken: async () => accessOf("key") } };
-    const bots = startBotsService(cleanup, { knex, ...parts, integrations, env: { ...process.env, APP_ENV: "test" }, approvals: { decide: async () => "allow" }, reply: async () => ({ text: "ok", transcript: [] }) });
+    const bots = startBotsService(cleanup, { knex, ...parts, integrations, env: { ...testServerEnv(), APP_ENV: "test" }, approvals: { decide: async () => "allow" }, reply: async () => ({ text: "ok", transcript: [] }) });
     const [card] = await knex("messages").insert({ workspace_id: bot.workspace_id, conversation_id: bot.conversation_id, author_bot_id: bot.id, kind: "draft", role: "bot", body: { to: "Ana <ana@example.com>", via: "Gmail", from: "pat@example.com", subject: "Lunch", text: "1pm?", status: "pending" } }).returning("*");
     const logged = context.mock.method(console, "info", () => {});
     const sent = await bots.chat.settleDraft(bot.conversation_id, card.id, { action: "send", text: "1pm Tuesday?" }, as(userId));

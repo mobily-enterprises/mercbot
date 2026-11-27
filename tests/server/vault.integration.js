@@ -5,6 +5,7 @@ import knex from "knex";
 import { createKnexMigrationConfigFromApp } from "@jskit-ai/database-runtime/server/knexMigrationConfig";
 import { createServer } from "../../server.js";
 import { PICTURE, browser } from "../support/browser.mjs";
+import { testServerEnv } from "../support/testEnv.mjs";
 
 // The Vault's routes on the real server (D-17), each the home's (D8), at its address: an import from a CSV file is
 // checked, sealed and saved whole or not at all, an item is deleted by whoever added it, and a photo goes to Gemini (a
@@ -13,7 +14,7 @@ import { PICTURE, browser } from "../support/browser.mjs";
 assert.equal(process.env.DB_NAME, process.env.TEST_DB_NAME, "DB_NAME must be this file's own test database copy: run it with npm run test:database.");
 
 const runtimeEnv = {
-  ...process.env,
+  ...testServerEnv(),
   AUTH_LOCAL_SESSION_SECRET: "vault-test-only-secret",
   AUTH_LOCAL_EMAIL_CONFIRMATION: "false",
   DB_CLIENT: "pg",

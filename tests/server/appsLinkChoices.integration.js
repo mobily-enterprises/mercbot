@@ -5,6 +5,7 @@ import { startApps } from "../support/appsFeatures.mjs";
 import { connectTestDatabase } from "../support/testDatabase.mjs";
 import { __testables as anyapiTestables } from "../../packages/apps/src/server/anyapi.js";
 import { compile } from "../../packages/apps/src/server/visitorAccess.js";
+import { testServerEnv } from "../support/testEnv.mjs";
 
 const { tenantOf } = anyapiTestables;
 
@@ -21,7 +22,7 @@ test("link pickers in forms: members, visitors, search, and a public preset from
   const slug = `apps-links-${Date.now()}`;
   const [home] = await knex("workspaces").insert({ slug, name: "Links test", owner_user_id: userId, is_personal: false }).returning("id");
   const workspaceId = String(home.id ?? home);
-  const started = await startApps({ knex, env: { ...process.env, MERCBOT_VAULT_KEY: randomBytes(32).toString("base64") } });
+  const started = await startApps({ knex, env: { ...testServerEnv(), MERCBOT_VAULT_KEY: randomBytes(32).toString("base64") } });
   const { registry, gate, apps, runtime } = started.apps;
   const member = started.memberOptions(userId, { id: workspaceId, slug });
   context.after(async () => {

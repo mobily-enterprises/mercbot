@@ -5,6 +5,7 @@ import { MockLanguageModelV4 } from "ai/test";
 import { createAppAiWork } from "../../packages/bots/src/server/appAiWork.js";
 import { RunTakenOver } from "../../packages/bots/src/server/runLease.js";
 import { PICTURE } from "../support/browser.mjs";
+import { testServerEnv } from "../support/testEnv.mjs";
 
 // AI work apps' scripts queue (D-136), done by the bots' runner: a batch is one session with its bot (the task once,
 // each item a turn), each answer written into its record as the job's person as it comes, picking up from the first
@@ -65,7 +66,7 @@ function parts({ answers = [], bot = { id: "5", name: "Otto", additions: "Be bri
         }
       }
     },
-    env: { ...process.env, ...env },
+    env: { ...testServerEnv(), ...env },
     systemContext: () => ({ forWorkspace: (home, { actorId }) => ({ home, onBehalfOf: { id: actorId } }) })
   });
   return { work, calls, seen };

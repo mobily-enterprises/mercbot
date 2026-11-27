@@ -9,6 +9,7 @@ import { createFileStore } from "../../packages/files/src/server/fileStore.js";
 import { createMediaChecks } from "../../packages/files/src/server/mediaChecks.js";
 import { turnDoubles } from "../support/botDoubles.mjs";
 import { PICTURE } from "../support/browser.mjs";
+import { testServerEnv } from "../support/testEnv.mjs";
 
 // A bot's pictures on a copy that checks them (D-90): what a picture is asked to show is checked before anything is
 // drawn, and each picture made before it's kept or shown; a turn's saved files are queued for their check afterwards.
@@ -59,7 +60,7 @@ async function turn(t) {
   const posted = [];
   const pagesDouble = { standalone: async () => ({ name: "plan.html", html: "<html><body>Plan</body></html>" }) };
   const run = buildTools(turnDoubles({
-    env: { ...process.env, ...IMAGES },
+    env: { ...testServerEnv(), ...IMAGES },
     approvals: { decide: async () => "allow" },
     computer: null,
     files: { store, media, pages: pagesDouble, apps: { session: () => ({ close() {} }) } },

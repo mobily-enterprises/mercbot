@@ -4,6 +4,7 @@ import test from "node:test";
 import { createServer } from "../../server.js";
 import { seedChat } from "../support/chatFixtures.mjs";
 import { connectTestDatabase } from "../support/testDatabase.mjs";
+import { testServerEnv } from "../support/testEnv.mjs";
 
 // The home's recurring tasks through the app's real route (GET /api/w/<home>/recurring-tasks, D-132) on the disposable
 // test database: nobody signed out or outside the home reads them; a member reads only the tasks of the chats they can
@@ -15,7 +16,7 @@ for (const name of ["DB_HOST", "DB_PORT", "DB_NAME", "DB_USER", "TEST_DB_NAME"])
 assert.equal(process.env.DB_NAME, process.env.TEST_DB_NAME, "DB_NAME must match the dedicated TEST_DB_NAME.");
 
 const runtimeEnv = {
-  ...process.env,
+  ...testServerEnv(),
   AUTH_LOCAL_SESSION_SECRET: "recurring-tasks-route-test-only-secret",
   AUTH_LOCAL_EMAIL_CONFIRMATION: "false",
   DB_CLIENT: "pg",

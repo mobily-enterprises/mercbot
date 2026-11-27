@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import test from "node:test";
 import { createServer } from "../../server.js";
 import { connectTestDatabase } from "../support/testDatabase.mjs";
+import { testServerEnv } from "../support/testEnv.mjs";
 
 // Someone removed from a home takes the accounts they connected there with them (D-111), through the app's real route
 // for removing a member (DELETE /api/w/<home>/members/<person>, JSKIT's workspace.member.remove) on the disposable test
@@ -14,7 +15,7 @@ for (const name of ["DB_HOST", "DB_PORT", "DB_NAME", "DB_USER", "TEST_DB_NAME"])
 assert.equal(process.env.DB_NAME, process.env.TEST_DB_NAME, "DB_NAME must match the dedicated TEST_DB_NAME.");
 
 const runtimeEnv = {
-  ...process.env,
+  ...testServerEnv(),
   AUTH_LOCAL_SESSION_SECRET: "departed-accounts-test-only-secret",
   // Registering signs in at once here; the app itself confirms new accounts' email (JSKIT local auth).
   AUTH_LOCAL_EMAIL_CONFIRMATION: "false",

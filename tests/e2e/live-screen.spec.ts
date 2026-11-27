@@ -8,6 +8,7 @@ import { chromium, expect, test, type Page } from "@playwright/test";
 import puppeteer from "puppeteer-core";
 import { createComputerManager } from "../../packages/computer/src/server/computerManager.js";
 import { attachVncBridge } from "../../packages/computer/src/server/vncBridge.js";
+import { testServerEnv } from "../support/testEnv.mjs";
 
 // A bot's live view (D-13) on a real screen. The computer manager wakes a computer as on a server, through its own
 // display, desktop and screen code: a real Xvfb, a real x11vnc on its Unix socket and a real Chromium drawing the bot's
@@ -124,7 +125,7 @@ test.beforeAll(async () => {
   await new Promise<void>((resolve) => server!.listen(0, "127.0.0.1", resolve));
   site = `http://127.0.0.1:${(server.address() as net.AddressInfo).port}`;
   manager = createComputerManager({
-    env: { ...process.env, MERCBOT_XVFB: XVFB, MERCBOT_X11VNC: X11VNC, MERCBOT_TOOLS_DIR: path.join(dir, "tools") },
+    env: { ...testServerEnv(), MERCBOT_XVFB: XVFB, MERCBOT_X11VNC: X11VNC, MERCBOT_TOOLS_DIR: path.join(dir, "tools") },
     dataDir: path.join(dir, "data"),
     changed: () => {},
     store: async () => "shot",

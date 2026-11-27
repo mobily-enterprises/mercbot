@@ -10,6 +10,7 @@ import { createServerWith } from "../../server.js";
 import { PICTURE, browser } from "../support/browser.mjs";
 import { seedChat } from "../support/chatFixtures.mjs";
 import { connectTestDatabase } from "../support/testDatabase.mjs";
+import { testServerEnv } from "../support/testEnv.mjs";
 
 // A copy built on Mercbot that checks every picture and video before it's kept or sent (`mercbot.media-check`, D-90),
 // on the real server: an upload, to a chat's files, a bot's or the home's, a photo the Vault reads and a new profile
@@ -46,7 +47,7 @@ test("uploads, Vault photos and profile pictures are checked before anything is 
   const MediaCheckProvider = defineProvider({ id: "test.media-check", provides: { mediaCheck: "mercbot.media-check" }, setup: () => ({ mediaCheck: copy }) });
   const app = await createServerWith({
     runtimeEnv: {
-      ...process.env,
+      ...testServerEnv(),
       AUTH_LOCAL_SESSION_SECRET: "media-routes-test-only-secret",
       AUTH_LOCAL_EMAIL_CONFIRMATION: "false",
       DB_CLIENT: "pg",

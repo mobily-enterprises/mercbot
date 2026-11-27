@@ -6,6 +6,7 @@ import { seedChat } from "../support/chatFixtures.mjs";
 import { startFakeSedna } from "../support/fakeSedna.mjs";
 import { accessOf } from "../support/appKey.mjs";
 import { botsOf, homeOfPeople, startChatTurns } from "../support/botDoubles.mjs";
+import { testServerEnv } from "../support/testEnv.mjs";
 
 // Sedna's writes through the chats' turns (D-94, D14), on the disposable test database and the stand-in Sedna
 // (fakeSedna.mjs): a Sedna draft card's Send goes out once as the person's own Sedna user, a test copy only logs it, in
@@ -14,8 +15,8 @@ import { botsOf, homeOfPeople, startChatTurns } from "../support/botDoubles.mjs"
 assert.ok(process.env.TEST_DB_NAME?.trim(), "TEST_DB_NAME must identify a disposable test database.");
 assert.equal(process.env.DB_NAME, process.env.TEST_DB_NAME, "DB_NAME must match the dedicated TEST_DB_NAME.");
 const PAT = { id: "201", name: "Pat Doe", email: "pat@acme.example", teams: [{ id: "11", name: "Chartering" }] };
-const LIVE = { ...process.env, APP_ENV: "production" };
-const TEST_COPY = { ...process.env, APP_ENV: "test" };
+const LIVE = { ...testServerEnv(), APP_ENV: "production" };
+const TEST_COPY = { ...testServerEnv(), APP_ENV: "test" };
 
 /**
  * Pat and Kim's home with Pat's bot, Pat's direct chat with it and a public chat of the three; the home's Sedna,

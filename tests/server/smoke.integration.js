@@ -1,12 +1,13 @@
 import assert from "node:assert/strict";
 import test, { after, before } from "node:test";
 import { createServer } from "../../server.js";
+import { testServerEnv } from "../support/testEnv.mjs";
 
 // The server reads its database as it starts (JSKIT's local auth checks whether the app has an
 // account yet), so this file runs in the database suite, on its own copy of the test template.
 assert.equal(process.env.DB_NAME, process.env.TEST_DB_NAME, "DB_NAME must be this file's own test database copy: run it with npm run test:database.");
 const runtimeEnv = Object.freeze({
-  ...process.env,
+  ...testServerEnv(),
   AUTH_LOCAL_SESSION_SECRET: "server-test-only-session-secret",
   DB_CLIENT: "pg",
   HOST: "127.0.0.1",

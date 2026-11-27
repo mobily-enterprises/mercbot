@@ -62,7 +62,9 @@ answer. Numbers never change; a later decision that changes an earlier one says 
   `npx playwright test <spec>`); the whole suite (`npm run verify`, the Stack's Verification) runs once, at the end.
   Each database test file and browser worker gets its own copy of a template migrated once
   (`tests/support/testDatabase.mjs`), so no test migrates. Tests never reach a real outside service: AI, mail, sign-in
-  providers, Google Drive and Sedna are the stand-ins in `tests/support/` and `tools/standInModel.mjs`. A stand-in
+  providers, Google Drive and Sedna are the stand-ins in `tests/support/` and `tools/standInModel.mjs`, and a server
+  or feature a test starts gets `testServerEnv()` (`tests/support/testEnv.mjs`) with the settings the test sets, never
+  the test process's whole environment, where `.env` or a session's Development Env may hold real keys. A stand-in
   only answers; the rule under test is Mercbot's, so assert what Mercbot did. The stand-ins and the seeded data are
   deterministic: check the exact value, text or count, never a bound or one word of it. A test's title is the one
   behaviour it proves; a decision with several rules gets a test for each. A wait the product owns (a poll, a reconnect

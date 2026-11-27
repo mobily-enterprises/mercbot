@@ -7,6 +7,7 @@ import path from "node:path";
 import test from "node:test";
 import { createServer } from "../../server.js";
 import { PICTURE, browser } from "../support/browser.mjs";
+import { testServerEnv } from "../support/testEnv.mjs";
 
 // Profile pictures on the real server (D-19): JSKIT's avatar routes save and read them on Mercbot's
 // shared files volume, a picture JSKIT kept in its own folder before moves over when it's next
@@ -23,7 +24,7 @@ test("profile pictures are saved and shown from the files volume, and old ones m
   await fs.writeFile(path.join(files, ".mercbot-files"), "");
   const app = await createServer({
     runtimeEnv: {
-      ...process.env,
+      ...testServerEnv(),
       AUTH_LOCAL_SESSION_SECRET: "profile-pictures-test-only-secret",
       AUTH_LOCAL_EMAIL_CONFIRMATION: "false",
       DB_CLIENT: "pg",

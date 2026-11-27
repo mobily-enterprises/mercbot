@@ -13,6 +13,7 @@ import { createFileStore } from "../../packages/files/src/server/fileStore.js";
 import { memberOptions, startChatRecords } from "../support/botRecords.mjs";
 import { seedChat } from "../support/chatFixtures.mjs";
 import { connectTestDatabase } from "../support/testDatabase.mjs";
+import { testServerEnv } from "../support/testEnv.mjs";
 
 // A chat's computers (D14, D16), through the computer routes as a person's request reaches them: each bot in a chat
 // has its own computer there, anyone who can open the chat takes it over and hands it back, each with a line in the
@@ -133,7 +134,7 @@ async function startComputers(context) {
     directory: records.directory,
     chats: records.chats,
     messages: records.messages,
-    env: { ...process.env, MERCBOT_SERVER_ID: `chat-computers-${randomBytes(4).toString("hex")}` },
+    env: { ...testServerEnv(), MERCBOT_SERVER_ID: `chat-computers-${randomBytes(4).toString("hex")}` },
     notices,
     files,
     meter: createMeter({ recorder: FREE_RECORDER }),

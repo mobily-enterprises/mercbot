@@ -5,6 +5,7 @@ import { startApps } from "../support/appsFeatures.mjs";
 import { connectTestDatabase } from "../support/testDatabase.mjs";
 import { __testables as anyapiTestables } from "../../packages/apps/src/server/anyapi.js";
 import { compile } from "../../packages/apps/src/server/visitorAccess.js";
+import { testServerEnv } from "../support/testEnv.mjs";
 
 const { tenantOf } = anyapiTestables;
 
@@ -24,7 +25,7 @@ test("a visitor's context reaches only what a public app lists, on every method 
   const slug = `apps-access-${Date.now()}`;
   const [home] = await knex("workspaces").insert({ slug, name: "Access test", owner_user_id: userId, is_personal: false }).returning("id");
   const workspaceId = home.id ?? home;
-  const started = await startApps({ knex, env: { ...process.env, MERCBOT_VAULT_KEY: randomBytes(32).toString("base64") } });
+  const started = await startApps({ knex, env: { ...testServerEnv(), MERCBOT_VAULT_KEY: randomBytes(32).toString("base64") } });
   const { registry, gate, apps, scripts } = started.apps;
   const member = started.memberOptions(userId, { id: workspaceId, slug });
   // A visitor's calls run in the home alone (a system context for that home).

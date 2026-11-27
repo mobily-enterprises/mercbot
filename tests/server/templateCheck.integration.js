@@ -11,6 +11,7 @@ import { behaviourFingerprint } from "../../packages/bots/src/server/templateRes
 import { GALLERY, setupNeeds } from "../../packages/bots/src/server/templates.js";
 import { setupQuestions, startStandInModel } from "../../tools/standInModel.mjs";
 import { aiPlayers, checkCopyEnv, checkTemplateEndToEnd, missingAiSettings, signUpPerson, watchSends } from "../support/templateCheck.mjs";
+import { testServerEnv } from "../support/testEnv.mjs";
 
 // The bot templates' end-to-end check (D-43, D-79), proved on the stand-in model: a person adds each bot through the
 // routes, plays its setup interview with the AI-played person, and the check records whether it asked its questions,
@@ -23,7 +24,7 @@ assert.equal(process.env.DB_NAME, process.env.TEST_DB_NAME, "DB_NAME must be thi
 // providers, with no key, and images isn't set up.
 const OTHER = `template-other-${randomUUID()}@example.test`;
 const settings = Object.freeze({
-  ...process.env,
+  ...testServerEnv(),
   AUTH_LOCAL_SESSION_SECRET: "template-check-test-only-session-secret",
   AI_PREMIUM_PROVIDER: "together",
   AI_PREMIUM_API_KEY: "",

@@ -4,6 +4,7 @@ import { EventEmitter } from "node:events";
 import { countRuntimeQueries } from "@jskit-ai/database-runtime/server/testDatabases";
 import { createServer } from "../../../server.js";
 import { queriesDuring } from "../../support/queryCount.mjs";
+import { testServerEnv } from "../../support/testEnv.mjs";
 
 // The characterization tests (this folder) pin what people see today, so that they pass unchanged across the
 // data-access port: the HTTP routes and the schema stay, the construction behind them changes. They boot the real
@@ -15,7 +16,7 @@ assert.ok(process.env.TEST_DB_NAME?.trim(), "TEST_DB_NAME must identify a dispos
 assert.equal(process.env.DB_NAME, process.env.TEST_DB_NAME, "DB_NAME must be this file's own test database copy: run it in the database suite.");
 
 const runtimeEnv = Object.freeze({
-  ...process.env,
+  ...testServerEnv(),
   AUTH_LOCAL_SESSION_SECRET: "characterization-test-only-session-secret",
   // Signing up signs in at once here; the app itself confirms new accounts' email (JSKIT local auth).
   AUTH_LOCAL_EMAIL_CONFIRMATION: "false",

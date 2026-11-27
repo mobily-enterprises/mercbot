@@ -16,6 +16,7 @@ import { createAppAiWork } from "../../packages/bots/src/server/appAiWork.js";
 import { createAppConnected } from "../../packages/bots/src/server/appConnected.js";
 import { createFileStore } from "../../packages/files/src/server/fileStore.js";
 import gmail from "../../plugins/gmail/plugin.json" with { type: "json" };
+import { testServerEnv } from "../support/testEnv.mjs";
 
 // The Canary app (D-136), end to end on the test database: an hourly job reads new mail through the shared
 // layer as its person, keeps each new email once, and hands them to the home's main bot, which judges them in one
@@ -146,7 +147,7 @@ test("the Canary app: new mail read as the job's person, judged by the main bot 
     records: { bots: { get: async (id) => ({ id, name: "Otto" }) } },
     apps: { gate, jobs },
     files: { media: { checkText: async () => ({ verdict: "allow" }), check: async () => ({ verdict: "allow" }) } },
-    env: { ...process.env, AI_IMAGES_PROVIDER: "gemini", AI_IMAGES_API_KEY: "test-key" },
+    env: { ...testServerEnv(), AI_IMAGES_PROVIDER: "gemini", AI_IMAGES_API_KEY: "test-key" },
     systemContext
   });
   const runQueued = async () => {

@@ -5,6 +5,7 @@ import knex from "knex";
 import { prepareDatabaseFromApp } from "@jskit-ai/database-runtime/server/databaseSetup";
 import { createKnexMigrationConfigFromApp } from "@jskit-ai/database-runtime/server/knexMigrationConfig";
 import { createServer } from "../../server.js";
+import { testServerEnv } from "../support/testEnv.mjs";
 
 for (const name of ["DB_HOST", "DB_PORT", "DB_NAME", "DB_USER", "TEST_DB_NAME"]) {
   assert.ok(process.env[name]?.trim(), `${name} must explicitly identify a disposable test database.`);
@@ -19,7 +20,7 @@ assert.equal(
   "DB_NAME must match the dedicated TEST_DB_NAME."
 );
 const runtimeEnv = {
-  ...process.env,
+  ...testServerEnv(),
   AUTH_LOCAL_SESSION_SECRET: "account-persistence-test-only-secret",
   // Registering signs in at once here; the app itself confirms new accounts' email (JSKIT local auth).
   AUTH_LOCAL_EMAIL_CONFIRMATION: "false",

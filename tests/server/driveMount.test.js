@@ -10,6 +10,7 @@ import { driveStandIn } from "../../packages/files/src/server/driveStorage.js";
 import { answerDriveToken, registerDriveTokenRoute } from "../../packages/files/src/server/driveTokenRoute.js";
 import { createRemoteMounts } from "../../packages/files/src/server/remoteMounts.js";
 import { startFakeDrive } from "../support/fakeDrive.mjs";
+import { testServerEnv } from "../support/testEnv.mjs";
 
 // A home's files kept in Google Drive (D-80), for real: rclone's Drive backend, driven through its remote control with
 // no mount (D-91), against the stand-in Drive (tests/support/fakeDrive.mjs, reached through its proxy and test
@@ -57,7 +58,7 @@ async function mountedDrive(context, driveKey, { keySeconds } = {}) {
     if (request.url.startsWith("/api/files/drive-token")) answers.push(reply.statusCode);
   });
   const mounts = createRemoteMounts({
-    env: { ...process.env, MERCBOT_TEST_GOOGLE_DRIVE_URL: drive.url, MERCBOT_TEST_GOOGLE_DRIVE_PROXY: drive.proxy, MERCBOT_TEST_GOOGLE_DRIVE_CA: drive.caFile },
+    env: { ...testServerEnv(), MERCBOT_TEST_GOOGLE_DRIVE_URL: drive.url, MERCBOT_TEST_GOOGLE_DRIVE_PROXY: drive.proxy, MERCBOT_TEST_GOOGLE_DRIVE_CA: drive.caFile },
     dataDir,
     driveKey: (...args) => driveKey(drive, ...args),
     keySeconds

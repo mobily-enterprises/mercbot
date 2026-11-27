@@ -8,13 +8,14 @@ import { LOCAL_AUTH_INFRASTRUCTURE_TABLES } from "@jskit-ai/auth-provider-local-
 import { expectEveryTableOwned } from "@jskit-ai/resource-runtime/test";
 import { createServerWith } from "../../server.js";
 import { connectTestDatabase } from "../support/testDatabase.mjs";
+import { testServerEnv } from "../support/testEnv.mjs";
 
 // json-rest-api's AnyAPI storage, where the apps package keeps the tables people define while an app runs, each
 // home's under its own tenant (packages/apps/src/server/anyapi.js); no table resource describes them.
 const ANYAPI_STORAGE_TABLES = Object.freeze(["any_resource_configs", "any_field_configs", "any_relationship_configs", "any_records", "any_links"]);
 
 const runtimeEnv = Object.freeze({
-  ...process.env,
+  ...testServerEnv(),
   AUTH_LOCAL_SESSION_SECRET: "server-test-only-session-secret",
   DB_CLIENT: "pg",
   HOST: "127.0.0.1",

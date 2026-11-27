@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import test from "node:test";
 import { createServer } from "../../server.js";
 import { connectTestDatabase } from "../support/testDatabase.mjs";
+import { testServerEnv } from "../support/testEnv.mjs";
 
 // People's notifications through the app's real routes (D-133) on the disposable test database: nobody signed out or
 // outside the home reaches them, a malformed request from someone signed out gets the refusal and no field errors,
@@ -14,7 +15,7 @@ for (const name of ["DB_HOST", "DB_PORT", "DB_NAME", "DB_USER", "TEST_DB_NAME"])
 assert.equal(process.env.DB_NAME, process.env.TEST_DB_NAME, "DB_NAME must match the dedicated TEST_DB_NAME.");
 
 const runtimeEnv = {
-  ...process.env,
+  ...testServerEnv(),
   AUTH_LOCAL_SESSION_SECRET: "push-routes-test-only-secret",
   AUTH_LOCAL_EMAIL_CONFIRMATION: "false",
   MERCBOT_PUSH_SECRET: "push-routes-test-only-push-secret",

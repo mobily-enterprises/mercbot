@@ -11,13 +11,14 @@ import { SEDNA_READS, SEDNA_WRITES } from "../../packages/bots/src/server/sednaT
 import { startFakeSedna } from "../support/fakeSedna.mjs";
 import { turnDoubles } from "../support/botDoubles.mjs";
 import { accessOf } from "../support/appKey.mjs";
+import { testServerEnv } from "../support/testEnv.mjs";
 
 // Sedna's writes (D-94), against the stand-in Sedna (fakeSedna.mjs) over HTTP: always as the person's own Sedna user from
 // one of their teams, only on messages in their teams, through approvals, in any chat they ask in (D-77 as amended by
 // D-112: the asker's own Sedna user), and real only in a live copy.
 const PAT = { id: "201", name: "Pat Doe", email: "pat@acme.example", teams: [{ id: "11", name: "Chartering" }] };
-const LIVE = { ...process.env, APP_ENV: "production" };
-const TEST_COPY = { ...process.env, APP_ENV: "test" };
+const LIVE = { ...testServerEnv(), APP_ENV: "production" };
+const TEST_COPY = { ...testServerEnv(), APP_ENV: "test" };
 
 async function setup(context) {
   const fake = await startFakeSedna();

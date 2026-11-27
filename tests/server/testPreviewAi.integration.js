@@ -7,6 +7,7 @@ import { createServer } from "../../server.js";
 import { AI_KINDS } from "../../packages/account/src/server/providers/index.js";
 import { checkCopyEnv, signUpPerson } from "../support/templateCheck.mjs";
 import { startPreviewAi } from "../../tools/previewAi.mjs";
+import { testServerEnv } from "../support/testEnv.mjs";
 
 // The Test Preview's AI, as start-test-app.mjs gives it to the app (tools/previewAi.mjs), never reaches a provider: every
 // model call goes to the stand-in model. A new bot's welcome is two of them, its greeting and its first question card
@@ -39,7 +40,7 @@ before(async () => {
   };
   dataDir = await mkdtemp(path.join(os.tmpdir(), "mercbot-preview-ai-"));
   ai = await startPreviewAi();
-  const env = { ...process.env, ...ai.env, AUTH_LOCAL_SESSION_SECRET: "test-preview-ai-test-only-session-secret", NODE_ENV: "test", APP_ENV: "test", HOST: "127.0.0.1", PORT: "3001" };
+  const env = { ...testServerEnv(), ...ai.env, AUTH_LOCAL_SESSION_SECRET: "test-preview-ai-test-only-session-secret", NODE_ENV: "test", APP_ENV: "test", HOST: "127.0.0.1", PORT: "3001" };
   app = await createServer({ runtimeEnv: await checkCopyEnv(env, { database: process.env.DB_NAME, dataDir }) });
   person = await signUpPerson(app);
 });

@@ -9,6 +9,7 @@ import { providerCostNano } from "../../packages/account/src/server/cost.js";
 import { startStandInModel } from "../../tools/standInModel.mjs";
 import { checkCopyEnv, signUpPerson } from "../support/templateCheck.mjs";
 import { connectTestDatabase } from "../support/testDatabase.mjs";
+import { testServerEnv } from "../support/testEnv.mjs";
 
 // A bot's reply, through the routes, on the stand-in model (MERCBOT_TEST_AI_URL, D-83): each of its AI calls is
 // recorded for the home, person and bot with what it cost at its provider (D-56, D-73), and however much the home has
@@ -16,7 +17,7 @@ import { connectTestDatabase } from "../support/testDatabase.mjs";
 assert.equal(process.env.DB_NAME, process.env.TEST_DB_NAME, "DB_NAME must be this file's own test database copy: run it in the database suite.");
 
 const settings = Object.freeze({
-  ...process.env,
+  ...testServerEnv(),
   AUTH_LOCAL_SESSION_SECRET: "reply-usage-test-only-session-secret",
   AI_PREMIUM_PROVIDER: "together",
   AI_PREMIUM_API_KEY: "",

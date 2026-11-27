@@ -17,6 +17,7 @@ import { createMediaGuard } from "../../packages/account/src/server/mediaCheck.j
 import { createFileStore } from "../../packages/files/src/server/fileStore.js";
 import { createMediaChecks } from "../../packages/files/src/server/mediaChecks.js";
 import { separateHome, testBot } from "./testHome.js";
+import { testServerEnv } from "../support/testEnv.mjs";
 
 // A copy that checks no pictures (Mercbot's own): nothing is queued.
 const NO_CHECKS = createMediaChecks({ guard: createMediaGuard(null), mediaChecks: null, systemContext: null, store: null });
@@ -528,7 +529,7 @@ test("refused, a coding run doesn't start: its computer can't open its day", asy
     media: NO_CHECKS
   };
   const computers = createComputers({
-    ...(await computerParts(knex, context)), env: { ...process.env, MERCBOT_SERVER_ID: "integration-refused" }, notices, files, meter: createMeter({ recorder }), placement: PLACE_HERE
+    ...(await computerParts(knex, context)), env: { ...testServerEnv(), MERCBOT_SERVER_ID: "integration-refused" }, notices, files, meter: createMeter({ recorder }), placement: PLACE_HERE
   });
   await computers.register({ address: "127.0.0.1", port: 9 });
   const userId = (await knex("users").first())?.id;
